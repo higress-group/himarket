@@ -48,7 +48,7 @@ interface LinkedService {
 interface Gateway {
   gatewayId: string
   gatewayName: string
-  gatewayType: 'APIG_API' | 'HIGRESS' | 'APIG_AI'
+  gatewayType: 'APIG_API' | 'HIGRESS' | 'APIG_AI' | 'ADP_AI_GATEWAY'
   createAt: string
   apigConfig?: {
     region: string
@@ -111,7 +111,7 @@ export function ApiProductLinkApi({ apiProduct, handleRefresh }: ApiProductLinkA
       const res = await gatewayApi.getGateways()
       const result = apiProduct.type === 'REST_API' ?
        res.data?.content?.filter?.((item: Gateway) => item.gatewayType === 'APIG_API') :
-       res.data?.content?.filter?.((item: Gateway) => item.gatewayType === 'HIGRESS' || item.gatewayType === 'APIG_AI')
+       res.data?.content?.filter?.((item: Gateway) => item.gatewayType === 'HIGRESS' || item.gatewayType === 'APIG_AI' || item.gatewayType === 'ADP_AI_GATEWAY')
       setGateways(result || [])
     } catch (error) {
       console.error('获取网关列表失败:', error)
@@ -189,6 +189,20 @@ export function ApiProductLinkApi({ apiProduct, handleRefresh }: ApiProductLinkA
         const mcpServers = (res.data?.content || []).map((api: any) => ({
           mcpServerName: api.mcpServerName,
           fromGatewayType: 'APIG_AI' as const,
+          mcpRouteId: api.mcpRouteId,
+          apiId: api.apiId,
+          type: 'MCP Server'
+        }))
+        setApiList(mcpServers)
+      } else if (gateway.gatewayType === 'ADP_AI_GATEWAY') {
+        // ADP_AI_GATEWAY类型：获取MCP Server列表
+        const res = await gatewayApi.getGatewayMcpServers(gatewayId, {
+          page: 1,
+          size: 500 // 获取所有MCP Server
+        })
+        const mcpServers = (res.data?.content || []).map((api: any) => ({
+          mcpServerName: api.mcpServerName,
+          fromGatewayType: 'ADP_AI_GATEWAY' as const,
           mcpRouteId: api.mcpRouteId,
           apiId: api.apiId,
           type: 'MCP Server'
