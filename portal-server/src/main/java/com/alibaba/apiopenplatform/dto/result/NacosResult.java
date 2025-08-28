@@ -22,6 +22,7 @@ package com.alibaba.apiopenplatform.dto.result;
 import com.alibaba.apiopenplatform.dto.converter.OutputConverter;
 import com.alibaba.apiopenplatform.entity.NacosInstance;
 import lombok.Data;
+import java.time.LocalDateTime;
 
 @Data
 public class NacosResult implements OutputConverter<NacosResult, NacosInstance> {
@@ -32,7 +33,6 @@ public class NacosResult implements OutputConverter<NacosResult, NacosInstance> 
 
     private String serverUrl;
 
-    private String namespace;
 
     private String username;
 
@@ -41,4 +41,6 @@ public class NacosResult implements OutputConverter<NacosResult, NacosInstance> 
     private String description;
 
     private String adminId;
+    
+    private LocalDateTime createAt;
 } 

@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
+import { Outlet, useLocation, Navigate } from 'react-router-dom';
 import Layout from './Layout';
 import { useLoading } from '@/contexts/LoadingContext';
 
@@ -7,16 +7,34 @@ const LayoutWrapper: React.FC = () => {
   const { loading, setLoading } = useLoading();
   const location = useLocation();
 
-  // 监听路由变化，设置 loading 状态
-  useEffect(() => {
-    setLoading(true);
-    // 模拟加载延迟
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 500);
+  // 权限验证
+  const isAuthenticated = () => {
+    return localStorage.getItem('token') !== null;
+  };
 
-    return () => clearTimeout(timer);
-  }, [location.pathname, setLoading]);
+  // 当前是否是登录页面
+  const isLoginPage = location.pathname === '/login';
+
+  // 路由切换时设置 loading 状态
+  useEffect(() => {
+    if (!isLoginPage) {
+      setLoading(true);
+      const timer = setTimeout(() => {
+        setLoading(false);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [location.pathname, setLoading, isLoginPage]);
+
+  // 未登录且不是登录页面 → 跳转到 /login
+  if (!isAuthenticated() && !isLoginPage) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // 如果是登录页面，直接渲染
+  if (isLoginPage) {
+    return <Outlet />;
+  }
 
   return (
     <Layout loading={loading}>

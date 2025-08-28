@@ -50,6 +50,8 @@ public class ProductResult implements OutputConverter<ProductResult, Product> {
 
     private LocalDateTime createAt;
 
+    private LocalDateTime updatedAt;
+
     private APIConfigResult apiConfig;
 
     private MCPConfigResult mcpConfig;

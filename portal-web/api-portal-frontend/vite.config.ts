@@ -7,7 +7,6 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 5173,
-    allowedHosts: true
   },
   optimizeDeps: {
     include: ['monaco-editor/esm/vs/editor/editor.api']

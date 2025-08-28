@@ -1,5 +1,5 @@
-import { Card, Button, Table, Tag, Space, Modal, Form, Input, Select, message } from 'antd'
-import { PlusOutlined, LinkOutlined, DeleteOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
+import { Card, Button, Modal, Form, Select, message } from 'antd'
+import { PlusOutlined, DeleteOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
 import { useState, useEffect } from 'react'
 import type { ApiProduct } from '@/types/api-product'
 import { apiProductApi, gatewayApi, nacosApi } from '@/lib/api'
@@ -63,7 +63,6 @@ interface NacosInstance {
   nacosId: string
   nacosName: string
   serverUrl: string
-  namespace: string
   username: string
   description: string
   adminId: string
@@ -79,6 +78,8 @@ export function ApiProductLinkApi({ apiProduct, handleRefresh }: ApiProductLinkA
   const [nacosLoading, setNacosLoading] = useState(false)
   const [selectedGateway, setSelectedGateway] = useState<Gateway | null>(null)
   const [selectedNacos, setSelectedNacos] = useState<NacosInstance | null>(null)
+  const [nacosNamespaces, setNacosNamespaces] = useState<any[]>([])
+  const [selectedNamespace, setSelectedNamespace] = useState<string | null>(null)
   const [apiList, setApiList] = useState<ApiItem[] | NacosMCPItem[]>([])
   const [apiLoading, setApiLoading] = useState(false)
   const [sourceType, setSourceType] = useState<'GATEWAY' | 'NACOS'>('GATEWAY')
@@ -136,8 +137,10 @@ export function ApiProductLinkApi({ apiProduct, handleRefresh }: ApiProductLinkA
 
   const handleSourceTypeChange = (value: 'GATEWAY' | 'NACOS') => {
     setSourceType(value)
-    setSelectedGateway(null)
-    setSelectedNacos(null)
+  setSelectedGateway(null)
+  setSelectedNacos(null)
+  setSelectedNamespace(null)
+  setNacosNamespaces([])
     setApiList([])
     form.setFieldsValue({
       gatewayId: undefined,
@@ -202,27 +205,43 @@ export function ApiProductLinkApi({ apiProduct, handleRefresh }: ApiProductLinkA
   const handleNacosChange = async (nacosId: string) => {
     const nacos = nacosInstances.find(n => n.nacosId === nacosId)
     setSelectedNacos(nacos || null)
-    
+    setSelectedNamespace(null)
+    setApiList([])
+    setNacosNamespaces([])
     if (!nacos) return
 
-    console.log('nacosId', nacosId);
-    
+    // 获取命名空间列表
+    try {
+      const nsRes = await nacosApi.getNamespaces(nacosId, { page: 1, size: 1000 })
+      const namespaces = (nsRes.data?.content || []).map((ns: any) => ({
+        namespaceId: ns.namespaceId,
+        namespaceName: ns.namespaceName || ns.namespaceId,
+        namespaceDesc: ns.namespaceDesc
+      }))
+      setNacosNamespaces(namespaces)
+    } catch (e) {
+      console.error('获取命名空间失败', e)
+    }
+  }
+
+  const handleNamespaceChange = async (namespaceId: string) => {
+    setSelectedNamespace(namespaceId)
     setApiLoading(true)
     try {
-      // 从 Nacos 获取 MCP Server 列表
-      const res = await nacosApi.getNacosMcpServers(nacosId, {
+      if (!selectedNacos) return
+      const res = await nacosApi.getNacosMcpServers(selectedNacos.nacosId, {
         page: 1,
-        size: 1000 // 获取所有MCP Server
+        size: 1000,
+        namespaceId
       })
       const mcpServers = (res.data?.content || []).map((api: any) => ({
         mcpServerName: api.mcpServerName,
         fromGatewayType: 'NACOS' as const,
-        type: 'MCP Server (Nacos)'
+        type: `MCP Server (${namespaceId})`
       }))
       setApiList(mcpServers)
-    } catch (error) {
-      console.error('获取Nacos MCP Server列表失败:', error)
-      // message.error('获取Nacos MCP Server列表失败')
+    } catch (e) {
+      console.error('获取Nacos MCP Server列表失败:', e)
     } finally {
       setApiLoading(false)
     }
@@ -259,8 +278,8 @@ export function ApiProductLinkApi({ apiProduct, handleRefresh }: ApiProductLinkA
       <div className="space-y-4">
         <div className="flex justify-between items-start">
           <div>
-            <h3 className="text-lg font-medium">{getServiceName(linkedService)}</h3>
-            <p className="text-sm text-gray-500">{getServiceType()}</p>
+            <h3 className="text-lg font-medium">名称：{getServiceName(linkedService)}</h3>
+            <p className="text-sm text-gray-500">类型：{getServiceType()}</p>
           </div>
           <Button 
             type="primary" 
@@ -274,14 +293,13 @@ export function ApiProductLinkApi({ apiProduct, handleRefresh }: ApiProductLinkA
         
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
+            <span className="font-medium">来源类型:</span>
+            <span className="ml-2">网关</span>
+          </div>
+          <div>
             <span className="font-medium">{linkedService.sourceType === 'GATEWAY' ? '网关ID:' : 'Nacos实例ID:'}</span>
             <span className="ml-2">{linkedService.gatewayId || linkedService.nacosId}</span>
           </div>
-          <div>
-            <span className="font-medium">来源类型:</span>
-            <span className="ml-2">{linkedService.sourceType}</span>
-          </div>
-          
         </div>
       </div>
     )
@@ -350,7 +368,7 @@ export function ApiProductLinkApi({ apiProduct, handleRefresh }: ApiProductLinkA
         higressRefConfig: selectedApi && 'mcpServerName' in selectedApi && 'fromGatewayType' in selectedApi && selectedApi.fromGatewayType === 'HIGRESS' ? selectedApi as HigressMCPItem : undefined,
         nacosRefConfig: sourceType === 'NACOS' && selectedApi && 'fromGatewayType' in selectedApi && selectedApi.fromGatewayType === 'NACOS' ? {
           ...selectedApi,
-          namespaceId: selectedNacos?.namespace || 'public'
+          namespaceId: selectedNamespace || 'public'
         } : undefined,
       }
       apiProductApi.createApiProductRef(apiProduct.productId, newService).then((res: any) => {
@@ -479,7 +497,7 @@ export function ApiProductLinkApi({ apiProduct, handleRefresh }: ApiProductLinkA
                     <div>
                       <div className="font-medium">{nacos.nacosName}</div>
                       <div className="text-sm text-gray-500">
-                        {nacos.serverUrl} - {nacos.namespace}
+                        {nacos.serverUrl}
                       </div>
                     </div>
                   </Select.Option>
@@ -487,8 +505,34 @@ export function ApiProductLinkApi({ apiProduct, handleRefresh }: ApiProductLinkA
               </Select>
             </Form.Item>
           )}
+
+          {sourceType === 'NACOS' && selectedNacos && (
+            <Form.Item
+              name="namespaceId"
+              label="命名空间"
+              rules={[{ required: true, message: '请选择命名空间' }]}
+            >
+              <Select
+                placeholder="请选择命名空间"
+                loading={apiLoading && nacosNamespaces.length === 0}
+                onChange={handleNamespaceChange}
+                showSearch
+                filterOption={(input, option) => (option?.children as unknown as string)?.toLowerCase().includes(input.toLowerCase())}
+                optionLabelProp="label"
+              >
+                {nacosNamespaces.map(ns => (
+                  <Select.Option key={ns.namespaceId} value={ns.namespaceId} label={ns.namespaceName}>
+                    <div>
+                      <div className="font-medium">{ns.namespaceName}</div>
+                      <div className="text-sm text-gray-500">{ns.namespaceId}</div>
+                    </div>
+                  </Select.Option>
+                ))}
+              </Select>
+            </Form.Item>
+          )}
           
-          {(selectedGateway || selectedNacos) && (
+          {(selectedGateway || (selectedNacos && selectedNamespace)) && (
             <Form.Item
               name="apiId"
               label={apiProduct.type === 'REST_API' ? '选择REST API' : '选择MCP Server'}

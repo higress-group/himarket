@@ -27,4 +27,8 @@ import lombok.Data;
  */
 @Data
 public class QueryNacosNamespaceParam extends CreateNacosParam {
+	/**
+	 * runtime namespace to query on remote Nacos (not stored on instance)
+	 */
+	private String namespace;
 }

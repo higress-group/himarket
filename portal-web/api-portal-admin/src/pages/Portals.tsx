@@ -178,6 +178,14 @@ const PortalCard = memo(
                     : "否"}
                 </span>
               </div>
+              <div className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
+                <span className="text-xs font-medium text-gray-600">
+                  域名配置
+                </span>
+                <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                  {portal.portalDomainConfig?.length || 0}个
+                </span>
+              </div>
             </div>
 
             <div className="space-y-3">
@@ -197,7 +205,6 @@ const PortalCard = memo(
                     : "否"}
                 </span>
               </div>
-
               <div className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
                 <span className="text-xs font-medium text-gray-600">
                   OIDC配置
@@ -206,15 +213,7 @@ const PortalCard = memo(
                   {portal.portalSettingConfig?.oidcConfigs?.length || 0}个
                 </span>
               </div>
-
-              <div className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
-                <span className="text-xs font-medium text-gray-600">
-                  域名配置
-                </span>
-                <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
-                  {portal.portalDomainConfig?.length || 0}个
-                </span>
-              </div>
+            
             </div>
           </div>
 
@@ -286,7 +285,7 @@ export default function Portals() {
 
   useEffect(() => {
     setError(null);
-    fetchPortals(0, 12);
+    fetchPortals(1, 12);
   }, [fetchPortals]);
 
   // 处理分页变化

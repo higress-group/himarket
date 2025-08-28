@@ -16,14 +16,20 @@ const ProductCard = memo(({ product, onNavigate, handleRefresh, onEdit }: {
   handleRefresh: () => void;
   onEdit: (product: ApiProduct) => void;
 }) => {
-  const getTypeIcon = (type: string) => {
-    return type === "REST_API" ? <ApiOutlined className="h-4 w-4" /> : <ClockCircleOutlined className="h-4 w-4" />
+  const getTypeIcon = (icon: string, type: string) => {
+    if (icon && icon.includes("value=")) {
+      const startIndex = icon.indexOf("value=") + 6;
+      const endIndex = icon.length - 1;
+      const base64Data = icon.substring(startIndex, endIndex).trim();
+      return <img src={base64Data} alt="icon" style={{ borderRadius: '8px', minHeight: '40px' }} />
+    } else {
+       return type === "REST_API" ? <ApiOutlined className="h-4 w-4" /> : <ClockCircleOutlined className="h-4 w-4" />
+     }
   }
 
   const getTypeBadgeVariant = (type: string) => {
     return type === "REST_API" ? "blue" : "purple"
   }
-
   const handleClick = useCallback(() => {
     onNavigate(product.productId)
   }, [product.productId, onNavigate]);
@@ -77,7 +83,7 @@ const ProductCard = memo(({ product, onNavigate, handleRefresh, onEdit }: {
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100">
-            {getTypeIcon(product.type)}
+            {getTypeIcon(product.icon || '', product.type)}
           </div>
           <div>
             <h3 className="text-lg font-semibold">{product.name}</h3>

@@ -20,10 +20,10 @@ interface ApiProduct {
   status: string;
   version: string;
   endpoints: number;
-  lastUpdated: string;
   category: string;
   creator: string;
   icon?: string;
+  updatedAt: string;
 }
 
 function APIsPage() {
@@ -35,6 +35,12 @@ function APIsPage() {
     fetchApiProducts();
   }, []);
 
+  const revertIcon = (icon: string) => {
+    const startIndex = icon.indexOf("value=") + 6;
+    const endIndex = icon.length - 1;
+    const URL = icon.substring(startIndex, endIndex).trim();
+    return URL;
+  }
   const fetchApiProducts = async () => {
     setLoading(true);
     try {
@@ -50,10 +56,10 @@ function APIsPage() {
               status: item.status === ProductStatus.ENABLE ? 'active' : 'inactive',
               version: 'v1.0.0',
               endpoints: 0,
-              lastUpdated: new Date().toISOString().slice(0, 10),
               category: item.category,
               creator: 'Unknown', // Product类型中没有creator属性，使用默认值
               icon: item.icon || undefined,
+              updatedAt: item.updatedAt?.slice(0, 10) || ''
             };
           });
         setApiProducts(mapped);
@@ -132,13 +138,14 @@ function APIsPage() {
                 {/* API Icon */}
                 <Avatar
                   size={48}
+                  src={product.icon ? revertIcon(product.icon) : undefined}
                   style={{ 
                     backgroundColor: getApiIconColor(product.name),
                     fontSize: '18px',
                     fontWeight: 'bold'
                   }}
                 >
-                  {product.icon || getApiIcon(product.name)}
+                  {revertIcon(product.icon || '') || getApiIcon(product.name)}
                 </Avatar>
 
                 {/* API Info */}
@@ -165,7 +172,7 @@ function APIsPage() {
                       {getCategoryText(product.category)}
                     </Tag> */}
                     <div className="text-xs text-gray-400">
-                      更新 {product.lastUpdated}
+                      更新 {product.updatedAt}
                     </div>
                   </div>
                 </div>

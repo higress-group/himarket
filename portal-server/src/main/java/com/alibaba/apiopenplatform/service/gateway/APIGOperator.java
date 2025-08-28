@@ -207,7 +207,7 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
             String mark = consumer.getConsumerId().substring(Math.max(0, consumer.getConsumerId().length() - 8));
             CreateConsumerRequest.Builder builder = CreateConsumerRequest.builder()
                     .name(StrUtil.format("{}-{}", consumer.getName(), mark))
-                    .description("Created by OpenAPI Platform")
+                    .description("Created by AI Portal")
                     .gatewayType(config.getGatewayType().getType())
                     .enable(true);
             if (apikeyIdentityConfig != null) {

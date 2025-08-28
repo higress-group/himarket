@@ -71,25 +71,6 @@
         </dependency>
 
         <dependency>
-            <groupId>io.higress.api</groupId>
-            <artifactId>higress-admin-sdk</artifactId>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.bouncycastle</groupId>
-                    <artifactId>bcprov-jdk16</artifactId>
-                </exclusion>
-                <exclusion>
-                    <artifactId>bcprov-jdk18on</artifactId>
-                    <groupId>org.bouncycastle</groupId>
-                </exclusion>
-                <exclusion>
-                    <artifactId>swagger-core</artifactId>
-                    <groupId>io.swagger.core.v3</groupId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-
-        <dependency>
             <groupId>com.aliyun</groupId>
             <artifactId>alibabacloud-apig20240327</artifactId>
             <exclusions>

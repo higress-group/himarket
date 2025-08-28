@@ -4,6 +4,7 @@ import { EyeOutlined, DeleteOutlined, ExclamationCircleOutlined } from '@ant-des
 import { Portal, ApiProduct } from '@/types'
 import { apiProductApi } from '@/lib/api'
 import { useNavigate } from 'react-router-dom'
+import { ProductTypeMap } from '@/lib/utils'
 
 interface PortalApiProductsProps {
   portal: Portal
@@ -50,7 +51,8 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
       setModalLoading(true)
       apiProductApi.getApiProducts({
         page: 1,
-        size: 500 // 获取所有可用的API
+        size: 500, // 获取所有可用的API
+        status: 'READY'
       }).then((res) => {
         // 过滤掉已发布在该门户里的api
         setApiProductsOptions(res.data.content.filter((api: ApiProduct) => 
@@ -89,12 +91,13 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
       title: '类型',
       dataIndex: 'type',
       key: 'type',
+      render: (text: string) => ProductTypeMap[text] || text
     },
-    {
-      title: '分类',
-      dataIndex: 'category',
-      key: 'category',
-    },
+    // {
+    //   title: '分类',
+    //   dataIndex: 'category',
+    //   key: 'category',
+    // },
     {
       title: '操作',
       key: 'action',

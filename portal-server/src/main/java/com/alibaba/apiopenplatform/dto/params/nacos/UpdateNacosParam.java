@@ -41,8 +41,7 @@ public class UpdateNacosParam implements InputConverter<NacosInstance> {
     @Size(max = 256, message = "服务器地址长度不能超过256个字符")
     private String serverUrl;
 
-    @Size(max = 64, message = "命名空间长度不能超过64个字符")
-    private String namespace;
+    // namespace removed from update param as it's no longer stored on instance
 
     @Size(max = 64, message = "用户名长度不能超过64个字符")
     private String username;

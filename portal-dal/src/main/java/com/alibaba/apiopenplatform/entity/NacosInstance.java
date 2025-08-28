@@ -52,8 +52,6 @@ public class NacosInstance extends BaseEntity {
     @Column(name = "server_url", length = 256, nullable = false)
     private String serverUrl;
 
-    @Column(name = "namespace", length = 64)
-    private String namespace;
 
     @Column(name = "username", length = 64)
     private String username;

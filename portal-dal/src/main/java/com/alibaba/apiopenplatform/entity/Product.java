@@ -19,8 +19,10 @@
 
 package com.alibaba.apiopenplatform.entity;
 
+import com.alibaba.apiopenplatform.converter.ProductIconConverter;
 import com.alibaba.apiopenplatform.support.enums.ProductStatus;
 import com.alibaba.apiopenplatform.support.enums.ProductType;
+import com.alibaba.apiopenplatform.support.product.ProductIcon;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -61,8 +63,9 @@ public class Product extends BaseEntity {
     @Column(name = "document", columnDefinition = "text")
     private String document;
 
-    @Column(name = "icon", length = 256)
-    private String icon;
+    @Column(name = "icon", columnDefinition = "text")
+    @Convert(converter = ProductIconConverter.class)
+    private ProductIcon icon;
 
     @Column(name = "category", length = 64)
     private String category;

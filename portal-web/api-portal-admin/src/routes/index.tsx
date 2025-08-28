@@ -1,13 +1,12 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom'
-import LayoutWrapper from '@/components/LayoutWrapper'
-import Portals from '@/pages/Portals'
-import ApiProducts from '@/pages/ApiProducts'
-import Consoles from '@/pages/GatewayConsoles'
-import GatewayConsoles from '@/pages/GatewayConsoles'
-import NacosConsoles from '@/pages/NacosConsoles'
-import PortalDetail from '@/pages/PortalDetail'
-import ApiProductDetail from '@/pages/ApiProductDetail'
-import Login from '@/pages/Login'
+import { createBrowserRouter, Navigate } from 'react-router-dom';
+import LayoutWrapper from '@/components/LayoutWrapper';
+import Portals from '@/pages/Portals';
+import ApiProducts from '@/pages/ApiProducts';
+import GatewayConsoles from '@/pages/GatewayConsoles';
+import NacosConsoles from '@/pages/NacosConsoles';
+import PortalDetail from '@/pages/PortalDetail';
+import ApiProductDetail from '@/pages/ApiProductDetail';
+import Login from '@/pages/Login';
 
 export const router = createBrowserRouter([
   {
@@ -50,6 +49,10 @@ export const router = createBrowserRouter([
         path: 'consoles/nacos',
         element: <NacosConsoles />,
       },
+      {
+        path: '*',
+        element: <Navigate to="/portals" replace />,
+      },
     ],
   },
-]) 
+]);

@@ -23,6 +23,7 @@ import com.alibaba.apiopenplatform.dto.converter.InputConverter;
 import com.alibaba.apiopenplatform.entity.Product;
 import com.alibaba.apiopenplatform.support.enums.ProductType;
 import com.alibaba.apiopenplatform.support.enums.SourceType;
+import com.alibaba.apiopenplatform.support.product.ProductIcon;
 import lombok.Data;
 
 import javax.validation.constraints.NotBlank;
@@ -44,7 +45,7 @@ public class CreateProductParam implements InputConverter<Product> {
 
     private String document;
 
-    private String icon;
+    private ProductIcon icon;
 
     private String category;
 }

@@ -228,11 +228,8 @@ export const nacosApi = {
       params: data
     })
   },
-  // 通过直连信息获取 Nacos 命名空间列表
-  fetchNamespacesByParam: (
-    body: { nacosName: string; serverUrl: string; username?: string; password?: string; accessKey?: string; secretKey?: string; namespace: string },
-    params?: { page?: number; size?: number }
-  ) => {
-    return api.post(`/nacos/namespaces`, body, { params })
+  // 获取指定 Nacos 实例的命名空间列表
+  getNamespaces: (nacosId: string, params?: { page?: number; size?: number }) => {
+    return api.get(`/nacos/${nacosId}/namespaces`, { params })
   }
 }

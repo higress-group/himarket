@@ -56,7 +56,6 @@
         <springdoc.version>1.7.0</springdoc.version>
         <apigsdk.version>4.0.10</apigsdk.version>
         <okhttp.version>4.12.0</okhttp.version>
-        <higress-sdk.version>0.0.1-SNAPSHOT</higress-sdk.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
     </properties>
@@ -116,12 +115,6 @@
                 <groupId>com.squareup.okhttp3</groupId>
                 <artifactId>okhttp</artifactId>
                 <version>${okhttp.version}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>io.higress.api</groupId>
-                <artifactId>higress-admin-sdk</artifactId>
-                <version>${higress-sdk.version}</version>
             </dependency>
 
             <dependency>

@@ -1,6 +1,5 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import type { LinkedService } from '@/types/api-product'
  
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -90,4 +89,10 @@ export const formatDate = (dateString: string | Date): string => {
   } catch {
     return String(dateString);
   }
+};
+
+// 类型映射
+export const ProductTypeMap: Record<string, string> = {
+  REST_API: 'REST API',
+  MCP_SERVER: 'MCP Server',
 };

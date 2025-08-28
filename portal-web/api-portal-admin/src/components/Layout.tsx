@@ -87,29 +87,12 @@ const Layout: React.FC<LayoutProps> = ({ loading = false }) => {
 
     return (
       <div key={item.name}>
-        {hasChildren ? (
-          // 父级菜单，只显示标题，不可点击
-          <div
-            className={`flex items-center mt-2 px-3 py-2 rounded-lg transition-colors duration-150 ${
-              level > 0 ? 'ml-4' : ''
-            } text-gray-700 font-medium text-sm`}
-            title={sidebarCollapsed ? item.name : ''}
-          >
-            <Icon className="mr-3 h-5 w-5 flex-shrink-0" />
-            {!sidebarCollapsed && (
-              <div className="flex flex-col flex-1">
-                <span className="text-base leading-none">{item.name}</span>
-              </div>
-            )}
-          </div>
-        ) : (
-          // 子菜单，可点击导航
           <Link
             to={item.href}
             className={`flex items-center mt-2 px-3 py-3 rounded-lg transition-colors duration-150 ${
               level > 0 ? 'ml-4' : ''
             } ${
-              isActive
+              isActive && !hasChildren
                 ? 'bg-gray-100 text-black font-semibold'
                 : 'text-gray-500 hover:text-black hover:bg-gray-50'
             }`}
@@ -122,8 +105,6 @@ const Layout: React.FC<LayoutProps> = ({ loading = false }) => {
               </div>
             )}
           </Link>
-        )}
-        
         {!sidebarCollapsed && hasChildren && (
           <div className="ml-2">
             {item.children!.map(child => renderMenuItem(child, level + 1))}

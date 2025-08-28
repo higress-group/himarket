@@ -19,12 +19,12 @@ interface ImportMseNacosModalProps {
     serverUrl?: string
   serverInternetEndpoint?: string
   serverIntranetEndpoint?: string
-    namespace?: string
     username?: string
     password?: string
     accessKey?: string
     secretKey?: string
     description?: string
+  nacosId?: string
   }) => void
 }
 
@@ -65,9 +65,9 @@ export default function ImportMseNacosModal({ visible, onCancel, onPrefill }: Im
       serverUrl: selected.serverInternetEndpoint || selected.serverIntranetEndpoint,
   serverInternetEndpoint: selected.serverInternetEndpoint,
   serverIntranetEndpoint: selected.serverIntranetEndpoint,
-      namespace: 'public',
   accessKey: auth.accessKey,
   secretKey: auth.secretKey,
+  nacosId: selected.instanceId,
     })
     handleCancel()
   }

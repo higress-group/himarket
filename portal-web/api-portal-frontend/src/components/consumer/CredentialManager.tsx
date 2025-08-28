@@ -406,11 +406,11 @@ export function CredentialManager({ consumerId }: CredentialManagerProps) {
                     编辑
                   </Button>
                 </div>
-                <div className="text-sm text-gray-600">
+                {/* <div className="text-sm text-gray-600">
                   {currentSource === 'Default' ? '' : `${currentSource}`}
-                </div>
+                </div> */}
                 <div className="text-sm text-gray-600">
-                  {currentSource === 'Default' ? 'Authorization: Bearer <token>' : `${currentKey}: <value>`}
+                  {currentSource === 'Default' ? 'Authorization: Bearer <token>' : `${currentSource}：${currentKey}`}
                 </div>
               </div>
               
@@ -644,13 +644,13 @@ export function CredentialManager({ consumerId }: CredentialManagerProps) {
               ) : null
             }
           </Form.Item>
-
+{/* 
           <div className="text-sm text-gray-500">
             <div>说明：</div>
             <div>• Header: 凭证放在HTTP请求头中</div>
             <div>• QueryString: 凭证放在URL查询参数中</div>
             <div>• Default: 使用标准的Authorization头</div>
-          </div>
+          </div> */}
         </Form>
       </Modal>
     </>

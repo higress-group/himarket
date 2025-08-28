@@ -7,6 +7,7 @@ export interface ApiProductConfig {
 }
 
 export interface ApiProductMcpConfig {
+  mcpServerName: string;
   tools: string;
   meta: {
     source: string;
@@ -36,4 +37,5 @@ export interface ApiProduct {
   apiConfig?: ApiProductConfig;
   mcpConfig?: ApiProductMcpConfig;
   document?: string;
+  icon?: string;
 } 

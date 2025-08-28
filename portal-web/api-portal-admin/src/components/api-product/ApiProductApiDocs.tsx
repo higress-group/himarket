@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { ApiProduct } from "@/types/api-product";
 import MonacoEditor from "react-monaco-editor";
 import * as yaml from "js-yaml";
+import { ProductTypeMap } from "@/lib/utils";
 
 // 来源类型映射
 const FromTypeMap: Record<string, string> = {
@@ -97,6 +98,7 @@ export function ApiProductApiDocs({ apiProduct }: ApiProductApiDocsProps) {
       const sseConfig = `{
   "mcpServers": {
     "${serverName}": {
+      "type": "sse",
       "url": "${endpoint}/sse"
     }
   }
@@ -237,7 +239,7 @@ export function ApiProductApiDocs({ apiProduct }: ApiProductApiDocsProps) {
         generateConnectionConfig(
           apiProduct.mcpConfig.mcpServerConfig?.domains,
           apiProduct.mcpConfig.mcpServerConfig?.path,
-          apiProduct.mcpConfig.meta.mcpServerName,
+          apiProduct.mcpConfig.mcpServerName,
           apiProduct.mcpConfig.mcpServerConfig?.rawConfig
         );
       } catch {
@@ -331,8 +333,8 @@ export function ApiProductApiDocs({ apiProduct }: ApiProductApiDocsProps) {
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold mb-2">API文档</h1>
-          <p className="text-gray-600">编辑和发布API文档</p>
+          <h1 className="text-2xl font-bold mb-2">API配置</h1>
+          <p className="text-gray-600">查看API定义和规范</p>
         </div>
       </div>
 
@@ -378,19 +380,11 @@ export function ApiProductApiDocs({ apiProduct }: ApiProductApiDocsProps) {
                       size="small"
                       className="mb-4"
                     >
-                      <Descriptions.Item label="Server Name">
+                      <Descriptions.Item label="名称">
                         {mcpParsed.server?.name ||
                           apiProduct.mcpConfig?.meta.mcpServerName ||
                           "—"}
                       </Descriptions.Item>
-                      {/* <Descriptions.Item label="允许工具">
-                        {mcpParsed.allowTools?.join(", ") || "—"}
-                      </Descriptions.Item> */}
-                      {/* <Descriptions.Item label="配置键数">
-                        {mcpParsed.server?.config
-                          ? Object.keys(mcpParsed.server.config).length
-                          : 0}
-                      </Descriptions.Item> */}
                       <Descriptions.Item label="来源">
                         {apiProduct.mcpConfig?.meta.source
                           ? SourceMap[apiProduct.mcpConfig.meta.source] || apiProduct.mcpConfig.meta.source
@@ -401,41 +395,10 @@ export function ApiProductApiDocs({ apiProduct }: ApiProductApiDocsProps) {
                           ? FromTypeMap[apiProduct.mcpConfig.meta.fromType] || apiProduct.mcpConfig.meta.fromType
                           : "—"}
                       </Descriptions.Item>
-                      <Descriptions.Item label="路径">
-                        {apiProduct.mcpConfig?.mcpServerConfig?.path || "—"}
-                      </Descriptions.Item>
-                      <Descriptions.Item label="运行模式">
-                        {apiProduct.mcpConfig?.mcpServerConfig?.rawConfig ? "Local Mode" : "SSE/HTTP Mode"}
-                      </Descriptions.Item>
-                      <Descriptions.Item label="域名">
-                        {apiProduct.mcpConfig?.mcpServerConfig?.domains &&
-                        Array.isArray(apiProduct.mcpConfig.mcpServerConfig.domains) &&
-                        apiProduct.mcpConfig.mcpServerConfig.domains.length > 0 ? (
-                          <div className="space-y-1">
-                            {apiProduct.mcpConfig.mcpServerConfig.domains.map((d: any, i: number) => (
-                              <div key={i} className="text-sm">
-                                {d.domain}
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          "—"
-                        )}
-                      </Descriptions.Item>
-                      <Descriptions.Item label="协议">
-                        {apiProduct.mcpConfig?.mcpServerConfig?.domains &&
-                        Array.isArray(apiProduct.mcpConfig.mcpServerConfig.domains) &&
-                        apiProduct.mcpConfig.mcpServerConfig.domains.length > 0 ? (
-                          <div className="space-y-1">
-                            {apiProduct.mcpConfig.mcpServerConfig.domains.map((d: any, i: number) => (
-                              <div key={i} className="text-sm">
-                                {d.protocol}
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          "—"
-                        )}
+                      <Descriptions.Item label="API类型">
+                        {apiProduct.mcpConfig?.meta.source
+                          ? ProductTypeMap[apiProduct.type] || apiProduct.type
+                          : "—"}
                       </Descriptions.Item>
                     </Descriptions>
                     <div className="mb-2">
@@ -521,14 +484,14 @@ export function ApiProductApiDocs({ apiProduct }: ApiProductApiDocsProps) {
               </div>
             ),
           },
-          {
+          ...(!isMcp ? [{
             key: "source",
-            label: "源码",
+            label: "OpenAPI 规范",
             children: (
               <div style={{ height: 460 }}>
                 <MonacoEditor
                   language="yaml"
-                  theme="vs-dark"
+                  theme="vs-light"
                   value={content}
                   options={{
                     readOnly: true,
@@ -546,7 +509,7 @@ export function ApiProductApiDocs({ apiProduct }: ApiProductApiDocsProps) {
                 />
               </div>
             ),
-          },
+          }] : []),
           ...(isMcp ? [{
             key: "mcpServerConfig",
             label: "MCP连接配置",
@@ -559,7 +522,7 @@ export function ApiProductApiDocs({ apiProduct }: ApiProductApiDocsProps) {
                       <h3 className="text-lg font-bold mb-2">Local Config</h3>
                       <MonacoEditor
                         language="json"
-                        theme="vs-dark"
+                        theme="vs-light"
                         value={localJson}
                         options={{
                           readOnly: true,
@@ -583,7 +546,7 @@ export function ApiProductApiDocs({ apiProduct }: ApiProductApiDocsProps) {
                         <h3 className="text-lg font-bold mb-2">HTTP Config</h3>
                         <MonacoEditor
                           language="json"
-                          theme="vs-dark"
+                          theme="vs-light"
                           value={httpJson}
                           options={{
                             readOnly: true,
@@ -604,7 +567,7 @@ export function ApiProductApiDocs({ apiProduct }: ApiProductApiDocsProps) {
                         <h3 className="text-lg font-bold mb-2">SSE Config</h3>
                         <MonacoEditor
                           language="json"
-                          theme="vs-dark"
+                          theme="vs-light"
                           value={sseJson}
                           options={{
                             readOnly: true,

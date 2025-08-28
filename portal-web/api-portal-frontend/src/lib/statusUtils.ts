@@ -40,6 +40,12 @@ export const SourceMap: Record<string, string> = {
   APIG_API: "API网关"
 };
 
+// 类型映射
+export const ProductTypeMap: Record<string, string> = {
+  REST_API: 'REST API',
+  MCP_SERVER: 'MCP Server',
+};
+
 // 获取状态信息
 export const getStatusInfo = (status: string) => {
   return ProductStatusMap[status] || { text: status, color: "default" };

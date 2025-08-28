@@ -13,7 +13,6 @@
     "serve-live": "npx live-server dist --port=3000 --entry-file=index.html"
   },
   "dependencies": {
-    "@ant-design/v5-patch-for-react-19": "^1.0.3",
     "@babel/runtime": "^8.0.0-alpha.17",
     "antd": "^5.15.7",
     "axios": "^1.7.9",
