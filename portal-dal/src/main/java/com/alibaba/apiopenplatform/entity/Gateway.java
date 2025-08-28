@@ -48,7 +48,7 @@ public class Gateway extends BaseEntity {
     private String gatewayName;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "name", length = 32, nullable = false)
+    @Column(name = "gateway_type", length = 32, nullable = false)
     private GatewayType gatewayType;
 
     @Column(name = "gateway_id", length = 64, nullable = false)

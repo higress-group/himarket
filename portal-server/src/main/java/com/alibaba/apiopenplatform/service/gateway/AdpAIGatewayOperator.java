@@ -43,7 +43,40 @@ public class AdpAIGatewayOperator extends GatewayOperator {
 
     @Override
     public PageResult<? extends GatewayMCPServerResult> fetchMcpServers(Gateway gateway, int page, int size) {
-        return null;
+        AdpAIGatewayConfig config = gateway.getAdpAIGatewayConfig();
+        if (config == null) {
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "ADP AI Gateway 配置缺失");
+        }
+
+        AdpAIGatewayClient client = new AdpAIGatewayClient(config);
+        try {
+            String url = client.getFullUrl("/mcpServer/listMcpServers");
+            String requestBody = String.format("{\"current\": %d, \"size\": %d}", page, size);
+            HttpEntity<String> requestEntity = client.createRequestEntity(requestBody);
+
+            ResponseEntity<AdpMcpServerListResult> response = client.getRestTemplate().exchange(
+                    url, HttpMethod.POST, requestEntity, AdpMcpServerListResult.class);
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                AdpMcpServerListResult result = response.getBody();
+                if (result.getCode() != null && result.getCode() == 200 && result.getData() != null) {
+                    List<GatewayMCPServerResult> items = new ArrayList<>();
+                    if (result.getData().getRecords() != null) {
+                        items.addAll(result.getData().getRecords());
+                    }
+                    int total = result.getData().getTotal() != null ? result.getData().getTotal() : 0;
+                    return PageResult.of(items, page, size, total);
+                }
+                String msg = result.getMessage() != null ? result.getMessage() : result.getMsg();
+                throw new BusinessException(ErrorCode.GATEWAY_ERROR, msg);
+            }
+            throw new BusinessException(ErrorCode.GATEWAY_ERROR, "调用 ADP /mcpServer/listMcpServers 失败");
+        } catch (Exception e) {
+            log.error("Error fetching ADP MCP servers", e);
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, e.getMessage());
+        } finally {
+            client.close();
+        }
     }
 
     @Override
