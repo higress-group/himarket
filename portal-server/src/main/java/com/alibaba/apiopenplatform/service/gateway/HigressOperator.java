@@ -126,7 +126,7 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
     }
 
     @Override
-    public PageResult<GatewayResult> fetchGateways(QueryAPIGParam param, int page, int size) {
+    public PageResult<GatewayResult> fetchGateways(Object param, int page, int size) {
         throw new UnsupportedOperationException("Higress gateway does not support fetching Gateways");
     }
 

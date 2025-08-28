@@ -23,6 +23,7 @@ import com.alibaba.apiopenplatform.dto.converter.OutputConverter;
 import com.alibaba.apiopenplatform.entity.Gateway;
 import com.alibaba.apiopenplatform.support.enums.GatewayType;
 import com.alibaba.apiopenplatform.support.gateway.APIGConfig;
+import com.alibaba.apiopenplatform.support.gateway.AdpAIGatewayConfig;
 import com.alibaba.apiopenplatform.support.gateway.HigressConfig;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -45,6 +46,8 @@ public class GatewayResult implements OutputConverter<GatewayResult, Gateway> {
 
     private APIGConfigResult apigConfig;
 
+    private AdpAIGatewayConfigResult adpAIGatewayConfig;
+
     private HigressConfigResult higressConfig;
 
     private LocalDateTime createAt;
@@ -52,8 +55,10 @@ public class GatewayResult implements OutputConverter<GatewayResult, Gateway> {
     @Override
     public GatewayResult convertFrom(Gateway source) {
         OutputConverter.super.convertFrom(source);
-        if (source.getGatewayType().isAPIG()) {
+        if (source.getGatewayType().isAPIG() && !source.getGatewayType().equals(GatewayType.ADP_AI_GATEWAY)) {
             setApigConfig(new APIGConfigResult().convertFrom(source.getApigConfig()));
+        } else if (source.getGatewayType().equals(GatewayType.ADP_AI_GATEWAY)) {
+            setAdpAIGatewayConfig(new AdpAIGatewayConfigResult().convertFrom(source.getAdpAIGatewayConfig()));
         } else {
             setHigressConfig(new HigressConfigResult().convertFrom(source.getHigressConfig()));
         }
@@ -63,6 +68,13 @@ public class GatewayResult implements OutputConverter<GatewayResult, Gateway> {
     @Data
     public static class APIGConfigResult implements OutputConverter<APIGConfigResult, APIGConfig> {
         private String region;
+    }
+
+    @Data
+    public static class AdpAIGatewayConfigResult implements OutputConverter<AdpAIGatewayConfigResult, AdpAIGatewayConfig> {
+        private String baseUrl;
+        private Integer port;
+        private String authSeed;
     }
 
     @Data

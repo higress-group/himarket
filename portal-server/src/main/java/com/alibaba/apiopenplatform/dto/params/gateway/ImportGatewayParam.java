@@ -24,6 +24,7 @@ import com.alibaba.apiopenplatform.dto.converter.InputConverter;
 import com.alibaba.apiopenplatform.entity.Gateway;
 import com.alibaba.apiopenplatform.support.enums.GatewayType;
 import com.alibaba.apiopenplatform.support.gateway.APIGConfig;
+import com.alibaba.apiopenplatform.support.gateway.AdpAIGatewayConfig;
 import com.alibaba.apiopenplatform.support.gateway.HigressConfig;
 import lombok.Data;
 
@@ -47,11 +48,14 @@ public class ImportGatewayParam implements InputConverter<Gateway> {
 
     private APIGConfig apigConfig;
 
+    private AdpAIGatewayConfig adpAIGatewayConfig;
+
     private HigressConfig higressConfig;
 
     @AssertTrue(message = "网关配置无效")
     private boolean isGatewayConfigValid() {
-        return gatewayType.isAPIG() && apigConfig != null && StrUtil.isNotBlank(gatewayId)
-                || gatewayType.isHigress() && higressConfig != null;
+        return (gatewayType.isAPIG() && !gatewayType.equals(GatewayType.ADP_AI_GATEWAY) && apigConfig != null && StrUtil.isNotBlank(gatewayId))
+                || (gatewayType.equals(GatewayType.ADP_AI_GATEWAY) && adpAIGatewayConfig != null && StrUtil.isNotBlank(gatewayId))
+                || (gatewayType.isHigress() && higressConfig != null);
     }
 }

@@ -5,7 +5,7 @@ import { Gateway, ApigConfig } from '@/types'
 
 interface ImportGatewayModalProps {
   visible: boolean
-  gatewayType: 'APIG_API' | 'APIG_AI'
+  gatewayType: 'APIG_API' | 'APIG_AI' | 'ADP_AI_GATEWAY'
   onCancel: () => void
   onSuccess: () => void
 }
@@ -53,6 +53,23 @@ export default function ImportGatewayModal({ visible, gatewayType, onCancel, onS
     }
   }
 
+  const fetchAdpGateways = async (values: any, page = 1, size = 50) => {
+    setGatewayLoading(true)
+    try {
+      const res = await gatewayApi.getAdpGateways({...values, page, size})
+      setGatewayList(res.data?.content || [])
+      setGatewayPagination({
+        current: page,
+        pageSize: size,
+        total: res.data?.totalElements || 0,
+      })
+    } catch (error) {
+      // message.error('获取网关列表失败')
+    } finally {
+      setGatewayLoading(false)
+    }
+  }
+
   // 处理网关选择
   const handleGatewaySelect = (gateway: Gateway) => {
     setSelectedGateway(gateway)
@@ -75,11 +92,16 @@ export default function ImportGatewayModal({ visible, gatewayType, onCancel, onS
       message.warning('请选择一个Gateway')
       return
     }
-    gatewayApi.importGateway({
+    const payload: any = {
       ...selectedGateway,
       gatewayType: gatewayType,
-      apigConfig: apigConfig,
-    }).then(() => {
+    }
+    if (gatewayType === 'ADP_AI_GATEWAY') {
+      payload.adpAIGatewayConfig = apigConfig
+    } else {
+      payload.apigConfig = apigConfig
+    }
+    gatewayApi.importGateway(payload).then(() => {
       message.success('导入成功！')
       handleCancel()
       onSuccess()
@@ -106,7 +128,7 @@ export default function ImportGatewayModal({ visible, gatewayType, onCancel, onS
       width={800}
     >
       <Form form={importForm} layout="vertical" preserve={false}>
-        {gatewayList.length === 0 && (
+        {gatewayList.length === 0 && ['APIG_API', 'APIG_AI'].includes(gatewayType) && (
           <div className="mb-4">
             <h3 className="text-lg font-medium mb-3">认证信息</h3>
             <Form.Item label="Region" name="region" rules={[{ required: true, message: '请输入region' }]}>
@@ -125,6 +147,34 @@ export default function ImportGatewayModal({ visible, gatewayType, onCancel, onS
                   setApigConfig(values)
                   sessionStorage.setItem('importFormConfig', JSON.stringify(values))
                   fetchGateways({...values, gatewayType: gatewayType})
+                })
+              }}
+              loading={gatewayLoading}
+            >
+              获取网关列表
+            </Button>
+          </div>
+        )}
+
+        {['ADP_AI_GATEWAY'].includes(gatewayType) && gatewayList.length === 0 && (
+          <div className="mb-4">
+            <h3 className="text-lg font-medium mb-3">认证信息</h3>
+            <Form.Item label="服务地址" name="baseUrl" rules={[{ required: true, message: '请输入服务地址' }]}>
+              <Input placeholder="如：apigateway.example.com 或者 http://10.236.6.144" />
+            </Form.Item>
+            <Form.Item label="端口" name="port" initialValue={80} rules={[{ required: true, message: '请输入端口号' }]}>
+              <Input type="text" placeholder="如：8080" />
+            </Form.Item>
+            <Form.Item label="Auth Seed" name="authSeed" rules={[{ required: true, message: '请输入Auth Seed' }]}>
+              <Input placeholder="通过configmap获取" />
+            </Form.Item>
+            <Button 
+              type="primary" 
+              onClick={() => {
+                importForm.validateFields().then((values) => {
+                  setApigConfig(values)
+                  sessionStorage.setItem('importFormConfig', JSON.stringify(values))
+                  fetchAdpGateways({...values, gatewayType: gatewayType})
                 })
               }}
               loading={gatewayLoading}

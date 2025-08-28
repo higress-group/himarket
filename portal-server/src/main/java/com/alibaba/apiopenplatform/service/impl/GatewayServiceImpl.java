@@ -27,10 +27,12 @@ import com.alibaba.apiopenplatform.core.security.ContextHolder;
 import com.alibaba.apiopenplatform.core.utils.IdGenerator;
 import com.alibaba.apiopenplatform.dto.params.gateway.ImportGatewayParam;
 import com.alibaba.apiopenplatform.dto.params.gateway.QueryAPIGParam;
+import com.alibaba.apiopenplatform.dto.params.gateway.QueryAdpAIGatewayParam;
 import com.alibaba.apiopenplatform.dto.result.*;
 import com.alibaba.apiopenplatform.entity.*;
 import com.alibaba.apiopenplatform.repository.GatewayRepository;
 import com.alibaba.apiopenplatform.repository.ProductRefRepository;
+import com.alibaba.apiopenplatform.service.AdpAIGatewayService;
 import com.alibaba.apiopenplatform.service.GatewayService;
 import com.alibaba.apiopenplatform.service.gateway.GatewayOperator;
 import com.alibaba.apiopenplatform.support.consumer.ConsumerAuthConfig;
@@ -53,7 +55,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @SuppressWarnings("unchecked")
 @Slf4j
-public class GatewayServiceImpl implements GatewayService, ApplicationContextAware {
+public class GatewayServiceImpl implements GatewayService, ApplicationContextAware, AdpAIGatewayService {
 
     private final GatewayRepository gatewayRepository;
     private final ProductRefRepository productRefRepository;
@@ -62,8 +64,14 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
 
     private final ContextHolder contextHolder;
 
+    @Override
     public PageResult<GatewayResult> fetchGateways(QueryAPIGParam param, int page, int size) {
         return gatewayOperators.get(param.getGatewayType()).fetchGateways(param, page, size);
+    }
+
+    @Override
+    public PageResult<GatewayResult> fetchGateways(QueryAdpAIGatewayParam param, int page, int size) {
+        return gatewayOperators.get(GatewayType.ADP_AI_GATEWAY).fetchGateways(param, page, size);
     }
 
     public void importGateway(ImportGatewayParam param) {

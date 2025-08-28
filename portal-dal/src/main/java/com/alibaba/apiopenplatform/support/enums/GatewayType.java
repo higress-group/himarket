@@ -37,6 +37,11 @@ public enum GatewayType {
     APIG_AI("AI"),
 
     /**
+     * ADP AI网关
+     */
+    ADP_AI_GATEWAY("ADP_AI_GATEWAY"),
+
+    /**
      * Higress
      */
     HIGRESS("Higress"),
@@ -50,10 +55,10 @@ public enum GatewayType {
     }
 
     public boolean isAPIG() {
-        return this == APIG_API || this == APIG_AI;
+        return this == APIG_API || this == APIG_AI || this == ADP_AI_GATEWAY;
     }
 
     public boolean isAIGateway() {
-        return this == APIG_AI;
+        return this == APIG_AI || this == ADP_AI_GATEWAY;
     }
 }

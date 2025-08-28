@@ -22,9 +22,11 @@ package com.alibaba.apiopenplatform.controller;
 import com.alibaba.apiopenplatform.core.annotation.AdminAuth;
 import com.alibaba.apiopenplatform.dto.params.gateway.ImportGatewayParam;
 import com.alibaba.apiopenplatform.dto.params.gateway.QueryAPIGParam;
+import com.alibaba.apiopenplatform.dto.params.gateway.QueryAdpAIGatewayParam;
 import com.alibaba.apiopenplatform.dto.result.GatewayMCPServerResult;
 import com.alibaba.apiopenplatform.dto.result.*;
 import com.alibaba.apiopenplatform.service.GatewayService;
+import com.alibaba.apiopenplatform.service.AdpAIGatewayService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +43,7 @@ import javax.validation.Valid;
 public class GatewayController {
 
     private final GatewayService gatewayService;
+    private final AdpAIGatewayService adpAIGatewayService;
 
     @Operation(summary = "获取APIG Gateway列表")
     @GetMapping("/apig")
@@ -48,6 +51,14 @@ public class GatewayController {
                                                    @RequestParam(defaultValue = "1") int page,
                                                    @RequestParam(defaultValue = "500") int size) {
         return gatewayService.fetchGateways(param, page, size);
+    }
+
+    @Operation(summary = "获取ADP AI Gateway列表")
+    @GetMapping("/adp")
+    public PageResult<GatewayResult> fetchAdpGateways(@Valid QueryAdpAIGatewayParam param,
+                                                      @RequestParam(defaultValue = "1") int page,
+                                                      @RequestParam(defaultValue = "500") int size) {
+        return adpAIGatewayService.fetchGateways(param, page, size);
     }
 
     @Operation(summary = "获取导入的Gateway列表")

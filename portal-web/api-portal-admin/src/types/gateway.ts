@@ -1,7 +1,7 @@
 export interface Gateway {
   gatewayId: string
   gatewayName: string
-  gatewayType: 'APIG_API' | 'HIGRESS' | 'APIG_AI'
+  gatewayType: 'APIG_API' | 'HIGRESS' | 'APIG_AI' | 'ADP_AI_GATEWAY'
   createAt: string
   apigConfig?: ApigConfig
   higressConfig?: HigressConfig
