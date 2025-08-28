@@ -20,7 +20,6 @@
 package com.alibaba.apiopenplatform.service;
 
 import com.alibaba.apiopenplatform.dto.params.nacos.CreateNacosParam;
-import com.alibaba.apiopenplatform.dto.params.nacos.QueryNacosNamespaceParam;
 import com.alibaba.apiopenplatform.dto.params.nacos.QueryNacosParam;
 import com.alibaba.apiopenplatform.dto.params.nacos.UpdateNacosParam;
 import com.alibaba.apiopenplatform.dto.result.MseNacosResult;
@@ -83,7 +82,10 @@ public interface NacosService {
      * @return 分页的MCP Server列表
      * @throws Exception 获取MCP Server列表时可能抛出的异常
      */
-    PageResult<NacosMCPServerResult> fetchMcpServers(String nacosId, Pageable pageable) throws Exception;
+    /**
+     * 获取MCP Server列表 (指定命名空间, 可为空表示全部)
+     */
+    PageResult<NacosMCPServerResult> fetchMcpServers(String nacosId, String namespaceId, Pageable pageable) throws Exception;
 
     /**
      * 获取MCP Server配置
@@ -111,5 +113,8 @@ public interface NacosService {
      * @return 命名空间分页
      * @throws Exception 连接或查询异常
      */
-    PageResult<NacosNamespaceResult> fetchNamespaces(QueryNacosNamespaceParam param, Pageable pageable) throws Exception;
+    /**
+     * 获取指定 Nacos 实例的命名空间列表
+     */
+    PageResult<NacosNamespaceResult> fetchNamespaces(String nacosId, Pageable pageable) throws Exception;
 }

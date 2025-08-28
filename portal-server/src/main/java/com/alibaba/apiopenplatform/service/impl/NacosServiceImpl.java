@@ -25,7 +25,6 @@ import com.alibaba.apiopenplatform.core.exception.ErrorCode;
 import com.alibaba.apiopenplatform.core.security.ContextHolder;
 import com.alibaba.apiopenplatform.core.utils.IdGenerator;
 import com.alibaba.apiopenplatform.dto.params.nacos.CreateNacosParam;
-import com.alibaba.apiopenplatform.dto.params.nacos.QueryNacosNamespaceParam;
 import com.alibaba.apiopenplatform.dto.params.nacos.QueryNacosParam;
 import com.alibaba.apiopenplatform.dto.params.nacos.UpdateNacosParam;
 import com.alibaba.apiopenplatform.dto.result.NacosMCPServerResult;
@@ -99,7 +98,20 @@ public class NacosServiceImpl implements NacosService {
                 });
 
         NacosInstance nacosInstance = param.convertTo();
-        nacosInstance.setNacosId(IdGenerator.genNacosId());
+
+        // If client provided nacosId use it after checking uniqueness, otherwise generate one
+        String providedId = param.getNacosId();
+        if (providedId != null && !providedId.trim().isEmpty()) {
+            // ensure not already exist
+            boolean exists = nacosInstanceRepository.findByNacosId(providedId).isPresent();
+            if (exists) {
+                throw new BusinessException(ErrorCode.RESOURCE_EXIST, Resources.NACOS_INSTANCE, providedId);
+            }
+            nacosInstance.setNacosId(providedId);
+        } else {
+            nacosInstance.setNacosId(IdGenerator.genNacosId());
+        }
+
         nacosInstance.setAdminId(contextHolder.getUser());
 
         nacosInstanceRepository.save(nacosInstance);
@@ -171,15 +183,14 @@ public class NacosServiceImpl implements NacosService {
     }
 
     @Override
-    public PageResult<NacosMCPServerResult> fetchMcpServers(String nacosId, Pageable pageable) throws Exception {
+    public PageResult<NacosMCPServerResult> fetchMcpServers(String nacosId, String namespaceId, Pageable pageable) throws Exception {
         NacosInstance nacosInstance = findNacosInstance(nacosId);
-
         McpMaintainerService service = buildDynamicMcpService(nacosInstance);
-        com.alibaba.nacos.api.model.Page<McpServerBasicInfo> page = service.listMcpServer(nacosInstance.getNamespace(), "", 1, Integer.MAX_VALUE);
+        String ns = namespaceId == null ? "" : namespaceId;
+        com.alibaba.nacos.api.model.Page<McpServerBasicInfo> page = service.listMcpServer(ns, "", 1, Integer.MAX_VALUE);
         if (page == null || page.getPageItems() == null) {
             return PageResult.empty(pageable.getPageNumber(), pageable.getPageSize());
         }
-
         return page.getPageItems().stream()
                 .map(basicInfo -> new NacosMCPServerResult().convertFrom(basicInfo))
                 .skip(pageable.getOffset())
@@ -191,21 +202,15 @@ public class NacosServiceImpl implements NacosService {
     }
 
     @Override
-    public PageResult<NacosNamespaceResult> fetchNamespaces(QueryNacosNamespaceParam param, Pageable pageable) throws Exception {
-        NacosInstance nacosInstance = new NacosInstance();
-        nacosInstance.setServerUrl(param.getServerUrl());
-        nacosInstance.setUsername(param.getUsername());
-        nacosInstance.setPassword(param.getPassword());
-        nacosInstance.setNamespace(param.getNamespace());
-        nacosInstance.setAccessKey(param.getAccessKey());
-        nacosInstance.setSecretKey(param.getSecretKey());
-
-        NamingMaintainerService namingService = buildDynamicNamingService(nacosInstance);
+    public PageResult<NacosNamespaceResult> fetchNamespaces(String nacosId, Pageable pageable) throws Exception {
+        NacosInstance nacosInstance = findNacosInstance(nacosId);
+        // 使用空 namespace 构建 (列出全部命名空间)
+        NamingMaintainerService namingService = buildDynamicNamingService(nacosInstance, "");
         List<?> namespaces;
         try {
             namespaces = namingService.getNamespaceList();
         } catch (NacosException e) {
-            log.error("Error fetching namespaces from Nacos by params", e);
+            log.error("Error fetching namespaces from Nacos by nacosId {}", nacosId, e);
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Failed to fetch namespaces: " + e.getErrMsg());
         }
 
@@ -213,8 +218,8 @@ public class NacosServiceImpl implements NacosService {
             return PageResult.empty(pageable.getPageNumber(), pageable.getPageSize());
         }
 
-        List<com.alibaba.apiopenplatform.dto.result.NacosNamespaceResult> list = namespaces.stream()
-                .map(o -> new com.alibaba.apiopenplatform.dto.result.NacosNamespaceResult().convertFrom(o))
+        List<NacosNamespaceResult> list = namespaces.stream()
+                .map(o -> new NacosNamespaceResult().convertFrom(o))
                 .skip(pageable.getOffset())
                 .limit(pageable.getPageSize())
                 .collect(Collectors.toList());
@@ -452,7 +457,8 @@ public class NacosServiceImpl implements NacosService {
             properties.setProperty(PropertyKeyConst.PASSWORD, nacosInstance.getPassword());
         }
         properties.setProperty(PropertyKeyConst.CONTEXT_PATH, DEFAULT_CONTEXT_PATH);
-        properties.setProperty(PropertyKeyConst.NAMESPACE, nacosInstance.getNamespace());
+    // instance no longer stores namespace; leave namespace empty to let requests use default/public
+    // if consumers need a specific namespace, they should call an overload that accepts it
         if (Objects.nonNull(nacosInstance.getAccessKey())) {
             properties.setProperty(PropertyKeyConst.ACCESS_KEY, nacosInstance.getAccessKey());
         }
@@ -469,7 +475,10 @@ public class NacosServiceImpl implements NacosService {
         }
     }
 
-    private NamingMaintainerService buildDynamicNamingService(NacosInstance nacosInstance) {
+    // removed unused no-namespace overload; use the runtime-namespace overload instead
+
+    // overload to build NamingMaintainerService with a runtime namespace value
+    private NamingMaintainerService buildDynamicNamingService(NacosInstance nacosInstance, String runtimeNamespace) {
         Properties properties = new Properties();
         properties.setProperty(PropertyKeyConst.SERVER_ADDR, nacosInstance.getServerUrl());
         if (Objects.nonNull(nacosInstance.getUsername())) {
@@ -480,7 +489,7 @@ public class NacosServiceImpl implements NacosService {
             properties.setProperty(PropertyKeyConst.PASSWORD, nacosInstance.getPassword());
         }
         properties.setProperty(PropertyKeyConst.CONTEXT_PATH, DEFAULT_CONTEXT_PATH);
-        properties.setProperty(PropertyKeyConst.NAMESPACE, nacosInstance.getNamespace());
+        properties.setProperty(PropertyKeyConst.NAMESPACE, runtimeNamespace == null ? "" : runtimeNamespace);
 
         if (Objects.nonNull(nacosInstance.getAccessKey())) {
             properties.setProperty(PropertyKeyConst.ACCESS_KEY, nacosInstance.getAccessKey());

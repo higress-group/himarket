@@ -21,7 +21,6 @@ package com.alibaba.apiopenplatform.controller;
 
 import com.alibaba.apiopenplatform.core.annotation.AdminAuth;
 import com.alibaba.apiopenplatform.dto.params.nacos.CreateNacosParam;
-import com.alibaba.apiopenplatform.dto.params.nacos.QueryNacosNamespaceParam;
 import com.alibaba.apiopenplatform.dto.params.nacos.QueryNacosParam;
 import com.alibaba.apiopenplatform.dto.params.nacos.UpdateNacosParam;
 import com.alibaba.apiopenplatform.dto.result.MseNacosResult;
@@ -84,19 +83,19 @@ public class NacosController {
         nacosService.deleteNacosInstance(nacosId);
     }
 
-    @Operation(summary = "获取Nacos中的MCP Server列表", description = "获取指定Nacos实例中的MCP Server列表")
+    @Operation(summary = "获取Nacos中的MCP Server列表", description = "获取指定Nacos实例中的MCP Server列表，可按命名空间过滤")
     @GetMapping("/{nacosId}/mcp-servers")
     public PageResult<NacosMCPServerResult> fetchMcpServers(@PathVariable String nacosId,
+                                                            @RequestParam(value = "namespaceId", required = false) String namespaceId,
                                                             Pageable pageable) throws Exception {
-        return nacosService.fetchMcpServers(nacosId, pageable);
+        return nacosService.fetchMcpServers(nacosId, namespaceId, pageable);
     }
 
-    @Operation(summary = "通过直连信息获取Nacos命名空间列表")
-    @PostMapping("/namespaces")
-    public PageResult<NacosNamespaceResult> fetchNamespacesByParam(
-            @RequestBody @Valid QueryNacosNamespaceParam param,
-            Pageable pageable) throws Exception {
-        return nacosService.fetchNamespaces(param, pageable);
+    @Operation(summary = "获取指定Nacos实例的命名空间列表")
+    @GetMapping("/{nacosId}/namespaces")
+    public PageResult<NacosNamespaceResult> fetchNamespaces(@PathVariable String nacosId,
+                                                            Pageable pageable) throws Exception {
+        return nacosService.fetchNamespaces(nacosId, pageable);
     }
 
 } 

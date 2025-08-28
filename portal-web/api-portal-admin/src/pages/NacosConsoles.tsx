@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Button, Table, Modal, Form, Input, message, Select, Spin } from 'antd'
+import { Button, Table, Modal, Form, Input, message, Select } from 'antd'
+import dayjs from 'dayjs'
 import { PlusOutlined } from '@ant-design/icons'
 import { nacosApi } from '@/lib/api'
 import NacosTypeSelector, { NacosImportType } from '@/components/console/NacosTypeSelector'
@@ -9,13 +10,13 @@ interface NacosInstance {
   nacosId: string
   nacosName: string
   serverUrl: string
-  namespace: string
   username: string
   password?: string
   accessKey?: string
   secretKey?: string
   description: string
   adminId: string
+  createAt?: string | number
 }
 
 // 开源创建表单数据由 antd 表单直接管理，无需额外类型声明
@@ -32,11 +33,11 @@ export default function NacosConsoles() {
   const [mseImportVisible, setMseImportVisible] = useState(false)
   // 由 MSE 导入时可能带入的两个地址
   const [importEndpoints, setImportEndpoints] = useState<{ internet?: string; intranet?: string }>({})
+  // 当从 MSE 导入时，保存 MSE 返回的 instanceId 以作为 nacosId 提交
+  const [importNacosId, setImportNacosId] = useState<string | null>(null)
   // 创建来源：OPEN_SOURCE 或 MSE（用于控制是否展示 AK/SK）
   const [creationMode, setCreationMode] = useState<'OPEN_SOURCE' | 'MSE' | null>(null)
-  // 命名空间下拉与加载状态
-  const [namespaceLoading, setNamespaceLoading] = useState(false)
-  const [namespaceOptions, setNamespaceOptions] = useState<{ label: string; value: string }[]>([])
+  // 命名空间字段已移除
   
   // 分页状态
   const [currentPage, setCurrentPage] = useState(1)
@@ -76,8 +77,7 @@ export default function NacosConsoles() {
     setEditingNacos(record)
     form.setFieldsValue({
       nacosName: record.nacosName,
-      serverUrl: record.serverUrl,
-      namespace: record.namespace,
+  serverUrl: record.serverUrl,
       username: record.username,
   // 密码/AK/SK 可能不返回，这里仅在存在时回填
   password: record.password,
@@ -116,6 +116,10 @@ export default function NacosConsoles() {
         message.success('更新成功')
       } else {
         // 创建模式
+        // 若是 MSE 导入来源并带有 importNacosId，则将其作为 nacosId 一并提交
+        if (creationMode === 'MSE' && importNacosId) {
+          payload.nacosId = importNacosId
+        }
         await nacosApi.createNacos(payload)
         message.success('创建成功')
       }
@@ -123,6 +127,7 @@ export default function NacosConsoles() {
       setModalVisible(false)
       form.resetFields()
       fetchNacosInstances()
+      setImportNacosId(null)
     } catch (error) {
       console.error('操作失败:', error)
       // message.error('操作失败')
@@ -134,44 +139,10 @@ export default function NacosConsoles() {
     setEditingNacos(null)
   setCreationMode(null)
   setImportEndpoints({})
-    setNamespaceOptions([])
     form.resetFields()
   }
 
-  // 根据当前表单直连信息拉取命名空间
-  const loadNamespaces = async () => {
-    try {
-      const values = form.getFieldsValue()
-      const serverUrl: string | undefined = values.serverUrl || importEndpoints.internet || importEndpoints.intranet
-      if (!serverUrl) {
-        message.warning('请先选择或填写服务器地址')
-        return
-      }
-      setNamespaceLoading(true)
-      const res = await nacosApi.fetchNamespacesByParam(
-        {
-          nacosName: values.nacosName || serverUrl,
-          serverUrl,
-          username: values.username,
-          password: values.password,
-          accessKey: values.accessKey,
-          secretKey: values.secretKey,
-          namespace: values.namespace || 'public'
-        },
-        { page: 0, size: 50 }
-      )
-      const content = res?.data?.content || []
-      const opts = content.map((ns: any) => ({
-        label: ns.namespaceName ? `${ns.namespaceName} (${ns.namespaceId})` : ns.namespaceId,
-        value: ns.namespaceId,
-      }))
-      setNamespaceOptions(opts)
-    } catch (e: any) {
-      // message.error(e?.response?.data?.message || '获取命名空间失败')
-    } finally {
-      setNamespaceLoading(false)
-    }
-  }
+  // 命名空间动态加载逻辑已移除
 
   const columns = [
     {
@@ -184,11 +155,7 @@ export default function NacosConsoles() {
       dataIndex: 'serverUrl',
       key: 'serverUrl',
     },
-    {
-      title: '命名空间',
-      dataIndex: 'namespace',
-      key: 'namespace',
-    },
+  // 命名空间列已移除
     {
       title: '用户名',
       dataIndex: 'username',
@@ -202,6 +169,15 @@ export default function NacosConsoles() {
       //   return <Tooltip title={description}>{description || '-'}</Tooltip>
       // },
       ellipsis: true,
+    },
+    {
+      title: '创建时间',
+      dataIndex: 'createAt',
+      key: 'createAt',
+      render: (val: any, record: NacosInstance) => {
+        const t = val ?? record.createAt ?? (record as any).createTime ?? (record as any).gmtCreate
+        return t ? dayjs(t).format('YYYY/MM/DD HH:mm:ss') : '-'
+      },
     },
     {
       title: '操作',
@@ -268,9 +244,7 @@ export default function NacosConsoles() {
         <Form
           form={form}
           layout="vertical"
-          initialValues={{
-            namespace: 'public'
-          }}
+          initialValues={{}}
         >
           <Form.Item
             name="nacosName"
@@ -280,7 +254,7 @@ export default function NacosConsoles() {
             <Input placeholder="请输入Nacos实例名称" />
           </Form.Item>
 
-          <Form.Item name="serverUrl" label="服务器地址" rules={[{ required: true, message: '请选择或输入服务器地址' }]}>
+      <Form.Item name="serverUrl" label="服务器地址" rules={[{ required: true, message: '请选择或输入服务器地址' }]}> 
             {importEndpoints.internet || importEndpoints.intranet ? (
               <Select
                 placeholder="请选择地址"
@@ -292,39 +266,15 @@ export default function NacosConsoles() {
                     ? [{ label: `内网地址：${importEndpoints.intranet}`, value: importEndpoints.intranet }]
                     : []),
                 ]}
-                onChange={() => {
-                  // 地址变更后清空已选命名空间
-                  setNamespaceOptions([])
-                  form.setFieldValue('namespace', undefined)
-                }}
+        onChange={() => { /* 地址变更无需处理命名空间 */ }}
               />
             ) : (
               <Input placeholder="例如: http://localhost:8848" onChange={() => {
-                setNamespaceOptions([])
-                form.setFieldValue('namespace', undefined)
+        // 已移除 namespace 重置
               }} />
             )}
           </Form.Item>
-
-          <Form.Item
-            name="namespace"
-            label="命名空间"
-            rules={[{ required: true, message: '请选择命名空间' }]}
-          >
-            <Select
-              placeholder="请选择命名空间"
-              showSearch
-              allowClear
-              notFoundContent={namespaceLoading ? <Spin size="small" /> : '暂无数据'}
-              options={namespaceOptions}
-              onDropdownVisibleChange={(open) => {
-                if (open) loadNamespaces()
-              }}
-              filterOption={(input, option) =>
-                (option?.label as string)?.toLowerCase().includes(input.toLowerCase())
-              }
-            />
-          </Form.Item>
+      {/* 命名空间字段已移除 */}
 
           {/* 用户名/密码改为非必填 */}
           <Form.Item name="username" label="用户名" rules={[]}>
@@ -391,10 +341,11 @@ export default function NacosConsoles() {
           form.setFieldsValue({
             nacosName: values.nacosName,
             serverUrl: values.serverUrl,
-            namespace: values.namespace || 'public',
             accessKey: values.accessKey,
             secretKey: values.secretKey,
           })
+              // 保存导入来源的 nacosId
+              setImportNacosId(values.nacosId || null)
         }}
       />
     </div>

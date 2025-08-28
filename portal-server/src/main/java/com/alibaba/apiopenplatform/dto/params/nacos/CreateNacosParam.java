@@ -25,7 +25,6 @@ import com.alibaba.apiopenplatform.entity.NacosInstance;
 import lombok.Data;
 
 import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.NotNull;
 
 /**
  * 创建Nacos实例参数
@@ -40,8 +39,12 @@ public class CreateNacosParam implements InputConverter<NacosInstance> {
     @NotBlank(message = "服务器地址不能为空")
     private String serverUrl;
 
-    @NotBlank(message = "命名空间不能为空")
-    private String namespace;
+    /**
+     * 可选：客户端指定的 nacosId，若为空则由服务端生成
+     */
+    private String nacosId;
+
+    // namespace removed from create param as it's no longer stored on instance
 
     private String username;
 
