@@ -177,6 +177,11 @@ HiMarket 门户是多租户设计，通过域名来识别不同的门户实例�
 
 携带消费者的凭证，配置门户中 MCP Server 的连接地址，即可发起对 MCP Server 的调用。
 
+### 阿里云开箱即用
+阿里云计算巢支持了该项目开箱即用版本，可以使用下面链接一键部署社区版：
+
+[![Deploy on AlibabaCloud ComputeNest](https://service-info-public.oss-cn-hangzhou.aliyuncs.com/computenest.svg)](https://computenest.console.aliyun.com/service/instance/create/cn-hangzhou?type=user&ServiceName=HiMarket%20AI%20%E5%BC%80%E6%94%BE%E5%B9%B3%E5%8F%B0)
+
 ## 社区
 
 ### 交流群
