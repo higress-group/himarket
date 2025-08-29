@@ -1,9 +1,10 @@
 import { Card, Table, Badge, Button, Space, Avatar, message, Modal } from 'antd'
-import { EditOutlined, DeleteOutlined, ExclamationCircleOutlined, EyeOutlined } from '@ant-design/icons'
+import { EditOutlined, DeleteOutlined, ExclamationCircleOutlined, EyeOutlined, UnorderedListOutlined } from '@ant-design/icons'
 import { useEffect, useState } from 'react'
 import { Portal, Developer } from '@/types'
 import { portalApi } from '@/lib/api'
 import { formatDateTime } from '@/lib/utils'
+import { SubscriptionListModal } from '@/components/subscription/SubscriptionListModal'
 
 interface PortalDevelopersProps {
   portal: Portal
@@ -42,6 +43,10 @@ export function PortalDevelopers({ portal }: PortalDevelopersProps) {
     showTotal: (total: number, range: [number, number]) => 
       `第 ${range[0]}-${range[1]} 条，共 ${total} 条`
   })
+
+  // 订阅列表相关状态
+  const [subscriptionModalVisible, setSubscriptionModalVisible] = useState(false)
+  const [currentConsumer, setCurrentConsumer] = useState<Consumer | null>(null)
 
   useEffect(() => {
     fetchDevelopers()
@@ -146,13 +151,25 @@ export function PortalDevelopers({ portal }: PortalDevelopersProps) {
     }
   }
 
+  // 查看订阅列表
+  const handleViewSubscriptions = (consumer: Consumer) => {
+    setCurrentConsumer(consumer)
+    setSubscriptionModalVisible(true)
+  }
+
+  // 关闭订阅列表模态框
+  const handleSubscriptionModalCancel = () => {
+    setSubscriptionModalVisible(false)
+    setCurrentConsumer(null)
+  }
+
 
   const columns = [
     {
       title: '开发者名称/ID',
       dataIndex: 'username',
       key: 'username',
-      fixed: 'left',
+      fixed: 'left' as const,
       width: 300,
       render: (username: string, record: Developer) => (
         <div className="ml-2">
@@ -180,7 +197,7 @@ export function PortalDevelopers({ portal }: PortalDevelopersProps) {
     {
       title: '操作',
       key: 'action',
-      fixed: 'right',
+      fixed: 'right' as const,
       width: 300,
       render: (_: any, record: Developer) => (
         <Space size="middle">
@@ -245,20 +262,20 @@ export function PortalDevelopers({ portal }: PortalDevelopersProps) {
       width: 150,
       render: (date: string) => formatDateTime(date)
     },
-    // {
-    //   title: '操作',
-    //   key: 'action',
-    //   width: 120,
-    //   render: (_: any, record: Consumer) => record.status !== 'APPROVED' && (
-    //     <Button 
-    //       onClick={() => handleConsumerStatusUpdate(record.consumerId)} 
-    //       type="link" 
-    //       icon={<EditOutlined />}
-    //     >
-    //       审批
-    //     </Button>
-    //   ),
-    // },
+    {
+      title: '操作',
+      key: 'action',
+      width: 120,
+      render: (_: any, record: Consumer) => (
+        <Button 
+          onClick={() => handleViewSubscriptions(record)} 
+          type="link" 
+          icon={<UnorderedListOutlined />}
+        >
+          订阅列表
+        </Button>
+      ),
+    },
   ]
 
   return (
@@ -311,6 +328,16 @@ export function PortalDevelopers({ portal }: PortalDevelopersProps) {
           scroll={{ y: 'calc(100vh - 400px)' }}
         />
       </Modal>
+
+      {/* 订阅列表弹窗 */}
+      {currentConsumer && (
+        <SubscriptionListModal
+          visible={subscriptionModalVisible}
+          consumerId={currentConsumer.consumerId}
+          consumerName={currentConsumer.name}
+          onCancel={handleSubscriptionModalCancel}
+        />
+      )}
 
     </div>
   )

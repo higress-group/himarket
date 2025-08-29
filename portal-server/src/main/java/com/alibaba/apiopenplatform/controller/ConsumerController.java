@@ -21,6 +21,7 @@ package com.alibaba.apiopenplatform.controller;
 
 import com.alibaba.apiopenplatform.core.annotation.AdminAuth;
 import com.alibaba.apiopenplatform.core.annotation.DeveloperAuth;
+import com.alibaba.apiopenplatform.core.annotation.AdminOrDeveloperAuth;
 import com.alibaba.apiopenplatform.dto.params.consumer.CreateCredentialParam;
 import com.alibaba.apiopenplatform.dto.params.consumer.QueryConsumerParam;
 import com.alibaba.apiopenplatform.dto.params.consumer.CreateConsumerParam;
@@ -116,7 +117,7 @@ public class ConsumerController {
 
     @Operation(summary = "获取Consumer的订阅列表")
     @GetMapping("/{consumerId}/subscriptions")
-    @DeveloperAuth
+    @AdminOrDeveloperAuth
     public PageResult<SubscriptionResult> listSubscriptions(@PathVariable String consumerId,
                                                             QuerySubscriptionParam param,
                                                             Pageable pageable) {

@@ -115,6 +115,18 @@ export const portalApi = {
   // 审批consumer
   approveConsumer: (consumerId: string) => {
     return api.patch(`/consumers/${consumerId}/status`)
+  },
+  // 获取Consumer的订阅列表
+  getConsumerSubscriptions: (consumerId: string, params?: { page?: number; size?: number; status?: string }) => {
+    return api.get(`/consumers/${consumerId}/subscriptions`, { params })
+  },
+  // 审批订阅申请
+  approveSubscription: (consumerId: string, productId: string) => {
+    return api.patch(`/consumers/${consumerId}/subscriptions/${productId}`)
+  },
+  // 删除订阅
+  deleteSubscription: (consumerId: string, productId: string) => {
+    return api.delete(`/consumers/${consumerId}/subscriptions/${productId}`)
   }
 }
 

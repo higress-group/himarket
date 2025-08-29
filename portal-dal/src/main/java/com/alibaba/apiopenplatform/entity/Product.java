@@ -73,4 +73,7 @@ public class Product extends BaseEntity {
     @Column(name = "status", length = 64)
     @Enumerated(EnumType.STRING)
     private ProductStatus status = ProductStatus.PENDING;
+
+    @Column(name = "auto_approve")
+    private Boolean autoApprove;
 }
