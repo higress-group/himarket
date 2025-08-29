@@ -61,4 +61,8 @@ public enum GatewayType {
     public boolean isAIGateway() {
         return this == APIG_AI || this == ADP_AI_GATEWAY;
     }
+
+    public boolean isAdpAIGateway() {
+        return this == ADP_AI_GATEWAY;
+    }
 }

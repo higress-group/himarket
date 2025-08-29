@@ -19,6 +19,7 @@
 
 package com.alibaba.apiopenplatform.dto.result;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -29,15 +30,28 @@ import java.util.List;
 public class AdpMCPServerResult extends GatewayMCPServerResult {
 
     private String gwInstanceId;
+    
+    @JsonProperty("name")
     private String name;
+    
     private String description;
     private List<String> domains;
     private List<Service> services;
+    private ConsumerAuthInfo consumerAuthInfo;
     private String rawConfigurations;
     private String type;
     private String dsn;
     private String dbType;
     private String upstreamPathPrefix;
+
+    /**
+     * 确保 mcpServerName 字段被正确设置
+     */
+    public void setName(String name) {
+        this.name = name;
+        // 同时设置父类的 mcpServerName 字段
+        this.setMcpServerName(name);
+    }
 
     @Data
     public static class Service {
@@ -45,6 +59,13 @@ public class AdpMCPServerResult extends GatewayMCPServerResult {
         private Integer port;
         private String version;
         private Integer weight;
+    }
+
+    @Data
+    public static class ConsumerAuthInfo {
+        private String type;
+        private Boolean enable;
+        private List<String> allowedConsumers;
     }
 }
 

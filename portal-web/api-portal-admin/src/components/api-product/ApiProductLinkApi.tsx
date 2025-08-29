@@ -28,9 +28,8 @@ interface NacosMCPItem {
 
 interface APIGAIMCPItem {
   mcpServerName: string
-  fromGatewayType: 'APIG_AI'
+  fromGatewayType: 'ADP_AI_GATEWAY'
   mcpRouteId: string
-  apiId: string
 }
 
 type ApiItem = RestAPIItem | HigressMCPItem | APIGAIMCPItem | NacosMCPItem;
@@ -43,6 +42,7 @@ interface LinkedService {
   apigRefConfig?: RestAPIItem | APIGAIMCPItem
   higressRefConfig?: HigressMCPItem
   nacosRefConfig?: NacosMCPItem
+  adpAIGatewayRefConfig?: APIGAIMCPItem
 }
 
 interface Gateway {
@@ -201,10 +201,9 @@ export function ApiProductLinkApi({ apiProduct, handleRefresh }: ApiProductLinkA
           size: 500 // 获取所有MCP Server
         })
         const mcpServers = (res.data?.content || []).map((api: any) => ({
-          mcpServerName: api.mcpServerName,
+          mcpServerName: api.mcpServerName || api.name,
           fromGatewayType: 'ADP_AI_GATEWAY' as const,
           mcpRouteId: api.mcpRouteId,
-          apiId: api.apiId,
           type: 'MCP Server'
         }))
         setApiList(mcpServers)
@@ -384,6 +383,7 @@ export function ApiProductLinkApi({ apiProduct, handleRefresh }: ApiProductLinkA
           ...selectedApi,
           namespaceId: selectedNamespace || 'public'
         } : undefined,
+        adpAIGatewayRefConfig: selectedApi && 'fromGatewayType' in selectedApi && selectedApi.fromGatewayType === 'ADP_AI_GATEWAY' ? selectedApi as APIGAIMCPItem : undefined,
       }
       apiProductApi.createApiProductRef(apiProduct.productId, newService).then((res: any) => {
         message.success('关联成功')
@@ -563,14 +563,14 @@ export function ApiProductLinkApi({ apiProduct, handleRefresh }: ApiProductLinkA
               >
                 {apiList.map((api: any) => (
                   <Select.Option 
-                    key={apiProduct.type === 'REST_API' ? api.apiId : (api.mcpRouteId || api.mcpServerName)} 
-                    value={apiProduct.type === 'REST_API' ? api.apiId : (api.mcpRouteId || api.mcpServerName)}
-                    label={api.apiName || api.mcpServerName}
+                    key={apiProduct.type === 'REST_API' ? api.apiId : (api.mcpRouteId || api.mcpServerName || api.name)} 
+                    value={apiProduct.type === 'REST_API' ? api.apiId : (api.mcpRouteId || api.mcpServerName || api.name)}
+                    label={api.apiName || api.mcpServerName || api.name}
                   >
                     <div>
-                      <div className="font-medium">{api.apiName || api.mcpServerName}</div>
+                      <div className="font-medium">{api.apiName || api.mcpServerName || api.name}</div>
                       <div className="text-sm text-gray-500">
-                        {api.type} - {apiProduct.type === 'REST_API' ? api.apiId : (api.mcpRouteId || api.mcpServerName)}
+                        {api.type} - {apiProduct.type === 'REST_API' ? api.apiId : (api.mcpRouteId || api.mcpServerName || api.name)}
                       </div>
                     </div>
                   </Select.Option>
