@@ -20,9 +20,11 @@
 package com.alibaba.apiopenplatform.entity;
 
 import com.alibaba.apiopenplatform.converter.APIGConfigConverter;
+import com.alibaba.apiopenplatform.converter.AdpAIGatewayConfigConverter;
 import com.alibaba.apiopenplatform.converter.HigressConfigConverter;
 import com.alibaba.apiopenplatform.support.enums.GatewayType;
 import com.alibaba.apiopenplatform.support.gateway.APIGConfig;
+import com.alibaba.apiopenplatform.support.gateway.AdpAIGatewayConfig;
 import com.alibaba.apiopenplatform.support.gateway.HigressConfig;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -58,6 +60,10 @@ public class Gateway extends BaseEntity {
     @Convert(converter = APIGConfigConverter.class)
     @Column(name = "apig_config", columnDefinition = "text")
     private APIGConfig apigConfig;
+
+    @Convert(converter = AdpAIGatewayConfigConverter.class)
+    @Column(name = "adp_ai_gateway_config", columnDefinition = "text")
+    private AdpAIGatewayConfig adpAIGatewayConfig;
 
     @Convert(converter = HigressConfigConverter.class)
     @Column(name = "higress_config", columnDefinition = "text")

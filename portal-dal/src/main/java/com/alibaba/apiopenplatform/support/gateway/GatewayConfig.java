@@ -31,5 +31,7 @@ public class GatewayConfig {
 
     private APIGConfig apigConfig;
 
+    private AdpAIGatewayConfig adpAIGatewayConfig;
+
     private HigressConfig higressConfig;
 }

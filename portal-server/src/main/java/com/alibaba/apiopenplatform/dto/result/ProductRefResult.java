@@ -38,6 +38,9 @@ public class ProductRefResult implements OutputConverter<ProductRefResult, Produ
 
     private APIGRefConfig apigRefConfig;
 
+    // 新增：ADP AI 网关引用配置（与 APIGRefConfig 结构一致）
+    private APIGRefConfig adpAIGatewayRefConfig;
+
     private HigressRefConfig higressRefConfig;
 
     private String nacosId;

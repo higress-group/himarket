@@ -60,6 +60,12 @@ export default function GatewayTypeSelector({ visible, onCancel, onSelect }: Gat
                 <div className="text-sm text-gray-500">Higress 云原生网关</div>
               </div>
             </Radio>
+            <Radio value="ADP_AI_GATEWAY" className="w-full p-3 border rounded-lg hover:bg-gray-50">
+              <div className="ml-2">
+                <div className="font-medium">AI 网关 - ADP</div>
+                <div className="text-sm text-gray-500">阿里云 ADP AI 网关服务</div>
+              </div>
+            </Radio>
           </Space>
         </Radio.Group>
       </div>

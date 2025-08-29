@@ -21,7 +21,6 @@ package com.alibaba.apiopenplatform.service.gateway;
 
 import com.alibaba.apiopenplatform.core.exception.BusinessException;
 import com.alibaba.apiopenplatform.core.exception.ErrorCode;
-import com.alibaba.apiopenplatform.dto.params.gateway.QueryAPIGParam;
 import com.alibaba.apiopenplatform.dto.result.GatewayMCPServerResult;
 import com.alibaba.apiopenplatform.dto.result.*;
 import com.alibaba.apiopenplatform.entity.*;
@@ -51,7 +50,7 @@ public abstract class GatewayOperator<T> {
 
     abstract public String fetchMcpConfig(Gateway gateway, Object conf);
 
-    abstract public PageResult<GatewayResult> fetchGateways(QueryAPIGParam param, int page, int size);
+    abstract public PageResult<GatewayResult> fetchGateways(Object param, int page, int size);
 
     abstract public String createConsumer(Consumer consumer, ConsumerCredential credential, GatewayConfig config);
 

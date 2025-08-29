@@ -28,9 +28,8 @@ interface NacosMCPItem {
 
 interface APIGAIMCPItem {
   mcpServerName: string
-  fromGatewayType: 'APIG_AI'
+  fromGatewayType: 'ADP_AI_GATEWAY'
   mcpRouteId: string
-  apiId: string
 }
 
 type ApiItem = RestAPIItem | HigressMCPItem | APIGAIMCPItem | NacosMCPItem;
@@ -43,12 +42,13 @@ interface LinkedService {
   apigRefConfig?: RestAPIItem | APIGAIMCPItem
   higressRefConfig?: HigressMCPItem
   nacosRefConfig?: NacosMCPItem
+  adpAIGatewayRefConfig?: APIGAIMCPItem
 }
 
 interface Gateway {
   gatewayId: string
   gatewayName: string
-  gatewayType: 'APIG_API' | 'HIGRESS' | 'APIG_AI'
+  gatewayType: 'APIG_API' | 'HIGRESS' | 'APIG_AI' | 'ADP_AI_GATEWAY'
   createAt: string
   apigConfig?: {
     region: string
@@ -111,7 +111,7 @@ export function ApiProductLinkApi({ apiProduct, handleRefresh }: ApiProductLinkA
       const res = await gatewayApi.getGateways()
       const result = apiProduct.type === 'REST_API' ?
        res.data?.content?.filter?.((item: Gateway) => item.gatewayType === 'APIG_API') :
-       res.data?.content?.filter?.((item: Gateway) => item.gatewayType === 'HIGRESS' || item.gatewayType === 'APIG_AI')
+       res.data?.content?.filter?.((item: Gateway) => item.gatewayType === 'HIGRESS' || item.gatewayType === 'APIG_AI' || item.gatewayType === 'ADP_AI_GATEWAY')
       setGateways(result || [])
     } catch (error) {
       console.error('获取网关列表失败:', error)
@@ -191,6 +191,19 @@ export function ApiProductLinkApi({ apiProduct, handleRefresh }: ApiProductLinkA
           fromGatewayType: 'APIG_AI' as const,
           mcpRouteId: api.mcpRouteId,
           apiId: api.apiId,
+          type: 'MCP Server'
+        }))
+        setApiList(mcpServers)
+      } else if (gateway.gatewayType === 'ADP_AI_GATEWAY') {
+        // ADP_AI_GATEWAY类型：获取MCP Server列表
+        const res = await gatewayApi.getGatewayMcpServers(gatewayId, {
+          page: 1,
+          size: 500 // 获取所有MCP Server
+        })
+        const mcpServers = (res.data?.content || []).map((api: any) => ({
+          mcpServerName: api.mcpServerName || api.name,
+          fromGatewayType: 'ADP_AI_GATEWAY' as const,
+          mcpRouteId: api.mcpRouteId,
           type: 'MCP Server'
         }))
         setApiList(mcpServers)
@@ -370,6 +383,7 @@ export function ApiProductLinkApi({ apiProduct, handleRefresh }: ApiProductLinkA
           ...selectedApi,
           namespaceId: selectedNamespace || 'public'
         } : undefined,
+        adpAIGatewayRefConfig: selectedApi && 'fromGatewayType' in selectedApi && selectedApi.fromGatewayType === 'ADP_AI_GATEWAY' ? selectedApi as APIGAIMCPItem : undefined,
       }
       apiProductApi.createApiProductRef(apiProduct.productId, newService).then((res: any) => {
         message.success('关联成功')
@@ -549,14 +563,14 @@ export function ApiProductLinkApi({ apiProduct, handleRefresh }: ApiProductLinkA
               >
                 {apiList.map((api: any) => (
                   <Select.Option 
-                    key={apiProduct.type === 'REST_API' ? api.apiId : (api.mcpRouteId || api.mcpServerName)} 
-                    value={apiProduct.type === 'REST_API' ? api.apiId : (api.mcpRouteId || api.mcpServerName)}
-                    label={api.apiName || api.mcpServerName}
+                    key={apiProduct.type === 'REST_API' ? api.apiId : (api.mcpRouteId || api.mcpServerName || api.name)} 
+                    value={apiProduct.type === 'REST_API' ? api.apiId : (api.mcpRouteId || api.mcpServerName || api.name)}
+                    label={api.apiName || api.mcpServerName || api.name}
                   >
                     <div>
-                      <div className="font-medium">{api.apiName || api.mcpServerName}</div>
+                      <div className="font-medium">{api.apiName || api.mcpServerName || api.name}</div>
                       <div className="text-sm text-gray-500">
-                        {api.type} - {apiProduct.type === 'REST_API' ? api.apiId : (api.mcpRouteId || api.mcpServerName)}
+                        {api.type} - {apiProduct.type === 'REST_API' ? api.apiId : (api.mcpRouteId || api.mcpServerName || api.name)}
                       </div>
                     </div>
                   </Select.Option>

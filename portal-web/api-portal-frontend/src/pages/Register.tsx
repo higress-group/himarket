@@ -34,7 +34,7 @@ const Register: React.FC = () => {
       <Card className="w-full max-w-md shadow-lg">
         {/* Logo */}
         <div className="text-center mb-6">
-          <div className="text-4xl mb-2">⬛</div>
+          <img src="/logo.png" alt="Logo" className="w-16 h-16 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-gray-900">注册 AI Portal - 前台</h2>
         </div>
         

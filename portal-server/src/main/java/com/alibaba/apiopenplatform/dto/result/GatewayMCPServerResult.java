@@ -26,7 +26,8 @@ import lombok.Data;
 @Schema(
         oneOf = {
                 APIGMCPServerResult.class,
-                HigressMCPServerResult.class
+                HigressMCPServerResult.class,
+                AdpMCPServerResult.class
         },
         discriminatorProperty = "type"
 )

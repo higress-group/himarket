@@ -263,7 +263,7 @@ public class ProductServiceImpl implements ProductService {
 
         if (sourceType.isGateway()) {
             GatewayResult gateway = gatewayService.getGateway(productRef.getGatewayId());
-            Object config = gateway.getGatewayType().isHigress() ? productRef.getHigressRefConfig() : productRef.getApigRefConfig();
+            Object config = gateway.getGatewayType().isHigress() ? productRef.getHigressRefConfig() : gateway.getGatewayType().isAdpAIGateway() ? productRef.getAdpAIGatewayRefConfig() : productRef.getApigRefConfig();
             if (product.getType() == ProductType.REST_API) {
                 String apiConfig = gatewayService.fetchAPIConfig(gateway.getGatewayId(), config);
                 productRef.setApiConfig(apiConfig);
