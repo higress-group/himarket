@@ -21,21 +21,36 @@ package com.alibaba.apiopenplatform.service.gateway;
 
 import cn.hutool.core.map.MapBuilder;
 import cn.hutool.json.JSONUtil;
+import com.alibaba.apiopenplatform.core.constant.Resources;
+import com.alibaba.apiopenplatform.core.exception.BusinessException;
+import com.alibaba.apiopenplatform.core.exception.ErrorCode;
 import com.alibaba.apiopenplatform.dto.params.gateway.QueryAPIGParam;
 import com.alibaba.apiopenplatform.dto.result.*;
 import com.alibaba.apiopenplatform.entity.Gateway;
 import com.alibaba.apiopenplatform.entity.Consumer;
 import com.alibaba.apiopenplatform.entity.ConsumerCredential;
+import com.alibaba.apiopenplatform.entity.Product;
+import com.alibaba.apiopenplatform.entity.ProductRef;
+import com.alibaba.apiopenplatform.repository.ProductRefRepository;
+import com.alibaba.apiopenplatform.service.gateway.client.APIGClient;
 import com.alibaba.apiopenplatform.service.gateway.client.HigressClient;
 import com.alibaba.apiopenplatform.support.consumer.ApiKeyConfig;
 import com.alibaba.apiopenplatform.support.consumer.ConsumerAuthConfig;
+import com.alibaba.apiopenplatform.support.consumer.HigressAuthConfig;
 import com.alibaba.apiopenplatform.support.enums.GatewayType;
 import com.alibaba.apiopenplatform.support.gateway.GatewayConfig;
 import com.alibaba.apiopenplatform.support.gateway.HigressConfig;
 import com.alibaba.apiopenplatform.support.product.HigressRefConfig;
+
+import java.util.ArrayList;
+import java.util.Optional;
+
 import lombok.Builder;
 import lombok.Data;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Service;
@@ -138,10 +153,10 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
         client.execute("/v1/consumers",
                 HttpMethod.POST,
                 null,
-                buildHigressConsumer(consumer.getName(), credential.getApiKeyConfig()),
+                buildHigressConsumer(consumer.getConsumerId(), credential.getApiKeyConfig()),
                 String.class);
 
-        return consumer.getName();
+        return consumer.getConsumerId();
     }
 
     @Override
@@ -170,12 +185,40 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
 
     @Override
     public ConsumerAuthConfig authorizeConsumer(Gateway gateway, String consumerId, Object refConfig) {
-        return null;
+        HigressRefConfig config = (HigressRefConfig) refConfig;
+        HigressClient client = getClient(gateway);
+
+        String mcpServerName = config.getMcpServerName();
+        client.execute("/v1/mcpServer/consumers/",
+                HttpMethod.PUT,
+                null,
+                buildAuthHigressConsumer(mcpServerName, consumerId),
+                Void.class);
+
+        HigressAuthConfig higressAuthConfig = HigressAuthConfig.builder()
+                .resourceType("MCP_SERVER")
+                .resourceName(mcpServerName)
+                .build();
+
+        return ConsumerAuthConfig.builder()
+                .higressAuthConfig(higressAuthConfig)
+                .build();
     }
 
     @Override
     public void revokeConsumerAuthorization(Gateway gateway, String consumerId, ConsumerAuthConfig authConfig) {
+        HigressClient client = getClient(gateway);
 
+        HigressAuthConfig higressAuthConfig = authConfig.getHigressAuthConfig();
+        if (higressAuthConfig == null) {
+            return;
+        }
+
+        client.execute("/v1/mcpServer/consumers/",
+                HttpMethod.DELETE,
+                null,
+                buildAuthHigressConsumer(higressAuthConfig.getResourceName(), consumerId),
+                Void.class);
     }
 
     @Override
@@ -191,8 +234,7 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
     @Data
     @Builder
     public static class HigressConsumerConfig {
-        private String consumerName;
-
+        private String name;
         private List<HigressCredentialConfig> credentials;
     }
 
@@ -205,17 +247,16 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
         private List<String> values;
     }
 
-    public HigressConsumerConfig buildHigressConsumer(String consumerName, ApiKeyConfig apiKeyConfig) {
-        String source = "Default".equalsIgnoreCase(apiKeyConfig.getSource())
-                ? "BEARER"
-                : apiKeyConfig.getSource();
+    public HigressConsumerConfig buildHigressConsumer(String consumerId, ApiKeyConfig apiKeyConfig) {
+
+        String source = mapSource(apiKeyConfig.getSource());
 
         List<String> apiKeys = apiKeyConfig.getCredentials().stream()
                 .map(ApiKeyConfig.ApiKeyCredential::getApiKey)
                 .collect(Collectors.toList());
 
         return HigressConsumerConfig.builder()
-                .consumerName(consumerName)
+                .name(consumerId)
                 .credentials(Collections.singletonList(
                         HigressCredentialConfig.builder()
                                 .type("key-auth")
@@ -245,4 +286,27 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
     public static class HigressResponse<T> {
         private T data;
     }
+
+    public HigressAuthConsumerConfig buildAuthHigressConsumer(String gatewayName, String consumerId) {
+        return HigressAuthConsumerConfig.builder()
+                .mcpServerName(gatewayName)
+                .consumers(Collections.singletonList(consumerId))
+                .build();
+    }
+
+    @Data
+    @Builder
+    public static class HigressAuthConsumerConfig {
+        private String mcpServerName;
+        private List<String> consumers;
+    }
+
+    private String mapSource(String source) {
+        if (StringUtils.isBlank(source)) return null;
+        if ("Default".equalsIgnoreCase(source)) return "BEARER";
+        if ("HEADER".equalsIgnoreCase(source)) return "HEADER";
+        if ("QueryString".equalsIgnoreCase(source)) return "QUERY";
+        return source;
+    }
+
 }

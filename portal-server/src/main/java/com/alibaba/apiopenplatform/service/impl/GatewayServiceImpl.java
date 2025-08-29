@@ -196,7 +196,7 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
     }
 
     @Override
-    public void deathAuthorizeConsumer(String gatewayId, String gwConsumerId, ConsumerAuthConfig config) {
+    public void revokeConsumerAuthorization(String gatewayId, String gwConsumerId, ConsumerAuthConfig config) {
         Gateway gateway = findGateway(gatewayId);
 
         getOperator(gateway).revokeConsumerAuthorization(gateway, gwConsumerId, config);

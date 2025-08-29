@@ -22,11 +22,17 @@ package com.alibaba.apiopenplatform.support.consumer;
 import lombok.Builder;
 import lombok.Data;
 
-import java.util.List;
-
 @Data
 @Builder
 public class ConsumerAuthConfig {
 
-    private List<String> apigAuthorizationRuleIds;
+    /**
+     * for APIG
+     */
+    private APIGAuthConfig apigAuthConfig;
+
+    /**
+     * for Higress
+     */
+    private HigressAuthConfig higressAuthConfig;
 }

@@ -25,6 +25,7 @@ import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.apiopenplatform.dto.params.gateway.QueryAPIGParam;
 import com.alibaba.apiopenplatform.dto.result.*;
+import com.alibaba.apiopenplatform.support.consumer.APIGAuthConfig;
 import com.alibaba.apiopenplatform.support.consumer.ApiKeyConfig;
 import com.alibaba.apiopenplatform.support.consumer.ConsumerAuthConfig;
 import com.alibaba.apiopenplatform.support.consumer.HmacConfig;
@@ -44,7 +45,6 @@ import com.aliyun.sdk.service.apig20240327.models.CreateConsumerAuthorizationRul
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Primary;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -336,8 +336,12 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
                 throw new BusinessException(ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
             }
 
+            APIGAuthConfig apigAuthConfig = APIGAuthConfig.builder()
+                    .authorizationRuleIds(response.getBody().getData().getConsumerAuthorizationRuleIds())
+                    .build();
+
             return ConsumerAuthConfig.builder()
-                    .apigAuthorizationRuleIds(response.getBody().getData().getConsumerAuthorizationRuleIds())
+                    .apigAuthConfig(apigAuthConfig)
                     .build();
         } catch (Exception e) {
             log.error("Error authorizing consumer {} to apiId {} in APIG gateway {}", consumerId, apiId, gateway.getGatewayId(), e);
@@ -347,11 +351,16 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
 
     @Override
     public void revokeConsumerAuthorization(Gateway gateway, String consumerId, ConsumerAuthConfig authConfig) {
+        APIGAuthConfig apigAuthConfig = authConfig.getApigAuthConfig();
+        if (apigAuthConfig == null) {
+            return;
+        }
+
         APIGClient client = getClient(gateway);
 
         try {
             BatchDeleteConsumerAuthorizationRuleRequest request = BatchDeleteConsumerAuthorizationRuleRequest.builder()
-                    .consumerAuthorizationRuleIds(StrUtil.join(",", authConfig.getApigAuthorizationRuleIds()))
+                    .consumerAuthorizationRuleIds(StrUtil.join(",", apigAuthConfig.getAuthorizationRuleIds()))
                     .build();
 
             BatchDeleteConsumerAuthorizationRuleResponse response = client.execute(c -> {

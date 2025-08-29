@@ -28,6 +28,7 @@ import com.alibaba.apiopenplatform.dto.result.GatewayMCPServerResult;
 import com.alibaba.apiopenplatform.dto.result.*;
 import com.alibaba.apiopenplatform.entity.Gateway;
 import com.alibaba.apiopenplatform.service.gateway.client.APIGClient;
+import com.alibaba.apiopenplatform.support.consumer.APIGAuthConfig;
 import com.alibaba.apiopenplatform.support.consumer.ConsumerAuthConfig;
 import com.alibaba.apiopenplatform.support.enums.APIGAPIType;
 import com.alibaba.apiopenplatform.support.enums.GatewayType;
@@ -210,8 +211,11 @@ public class AIGatewayOperator extends APIGOperator {
                 throw new BusinessException(ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
             }
 
+            APIGAuthConfig apigAuthConfig = APIGAuthConfig.builder()
+                    .authorizationRuleIds(response.getBody().getData().getConsumerAuthorizationRuleIds())
+                    .build();
             return ConsumerAuthConfig.builder()
-                    .apigAuthorizationRuleIds(response.getBody().getData().getConsumerAuthorizationRuleIds())
+                    .apigAuthConfig(apigAuthConfig)
                     .build();
         } catch (Exception e) {
             log.error("Error authorizing consumer {} to mcp server {} in AI gateway {}", consumerId, mcpRouteId, gateway.getGatewayId(), e);

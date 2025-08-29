@@ -282,7 +282,7 @@ public class ConsumerServiceImpl implements ConsumerService {
         // 取消网关上的Consumer授权
         consumerRefRepository.findConsumerRef(consumerId, gatewayConfig.getGatewayType(), gatewayConfig)
                 .ifPresent(consumerRef ->
-                        gatewayService.deathAuthorizeConsumer(productRef.getGatewayId(), consumerRef.getGwConsumerId(), subscription.getConsumerAuthConfig())
+                        gatewayService.revokeConsumerAuthorization(productRef.getGatewayId(), consumerRef.getGwConsumerId(), subscription.getConsumerAuthConfig())
                 );
 
         subscriptionRepository.deleteByConsumerIdAndProductId(consumerId, productId);

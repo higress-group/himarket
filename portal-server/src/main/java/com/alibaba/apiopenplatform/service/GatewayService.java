@@ -96,7 +96,7 @@ public interface GatewayService {
 
     ConsumerAuthConfig authorizeConsumer(String gatewayId, String gwConsumerId, ProductRefResult productRef);
 
-    void deathAuthorizeConsumer(String gatewayId, String gwConsumerId, ConsumerAuthConfig config);
+    void revokeConsumerAuthorization(String gatewayId, String gwConsumerId, ConsumerAuthConfig config);
 
     GatewayConfig getGatewayConfig(String gatewayId);
 }
