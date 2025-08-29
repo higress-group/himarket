@@ -54,8 +54,8 @@ public class GatewayController {
     }
 
     @Operation(summary = "获取ADP AI Gateway列表")
-    @GetMapping("/adp")
-    public PageResult<GatewayResult> fetchAdpGateways(@Valid QueryAdpAIGatewayParam param,
+    @PostMapping("/adp")
+    public PageResult<GatewayResult> fetchAdpGateways(@RequestBody @Valid QueryAdpAIGatewayParam param,
                                                       @RequestParam(defaultValue = "1") int page,
                                                       @RequestParam(defaultValue = "500") int size) {
         return adpAIGatewayService.fetchGateways(param, page, size);

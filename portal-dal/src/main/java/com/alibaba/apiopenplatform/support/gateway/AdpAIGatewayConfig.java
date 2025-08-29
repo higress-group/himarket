@@ -23,4 +23,15 @@ public class AdpAIGatewayConfig {
      * ADP网关的认证种子
      */
     private String authSeed;
+    
+    /**
+     * ADP网关的认证头列表
+     */
+    private java.util.List<AuthHeader> authHeaders;
+    
+    @Data
+    public static class AuthHeader {
+        private String key;
+        private String value;
+    }
 }

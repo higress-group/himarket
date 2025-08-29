@@ -180,9 +180,7 @@ export const gatewayApi = {
   },
   // 获取ADP网关
   getAdpGateways: (data: any) => {
-    return api.get(`/gateways/adp`, { params: {
-      ...data,
-    } })
+    return api.post(`/gateways/adp`, data)
   },
   // 删除网关
   deleteGateway: (gatewayId: string) => {

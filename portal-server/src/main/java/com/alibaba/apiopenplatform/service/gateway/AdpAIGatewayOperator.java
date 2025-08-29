@@ -136,7 +136,29 @@ public class AdpAIGatewayOperator extends GatewayOperator {
         AdpAIGatewayConfig config = new AdpAIGatewayConfig();
         config.setBaseUrl(param.getBaseUrl());
         config.setPort(param.getPort());
-        config.setAuthSeed(param.getAuthSeed());
+        
+        // 根据认证类型设置不同的认证信息
+        if ("Seed".equals(param.getAuthType())) {
+            if (param.getAuthSeed() == null || param.getAuthSeed().trim().isEmpty()) {
+                throw new BusinessException(ErrorCode.INVALID_PARAMETER, "Seed认证方式下authSeed不能为空");
+            }
+            config.setAuthSeed(param.getAuthSeed());
+        } else if ("Header".equals(param.getAuthType())) {
+            if (param.getAuthHeaders() == null || param.getAuthHeaders().isEmpty()) {
+                throw new BusinessException(ErrorCode.INVALID_PARAMETER, "Header认证方式下authHeaders不能为空");
+            }
+            // 将authHeaders转换为配置
+            List<AdpAIGatewayConfig.AuthHeader> configHeaders = new ArrayList<>();
+            for (QueryAdpAIGatewayParam.AuthHeader paramHeader : param.getAuthHeaders()) {
+                AdpAIGatewayConfig.AuthHeader configHeader = new AdpAIGatewayConfig.AuthHeader();
+                configHeader.setKey(paramHeader.getKey());
+                configHeader.setValue(paramHeader.getValue());
+                configHeaders.add(configHeader);
+            }
+            config.setAuthHeaders(configHeaders);
+        } else {
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "不支持的认证类型: " + param.getAuthType());
+        }
 
         AdpAIGatewayClient client = new AdpAIGatewayClient(config);
         try {

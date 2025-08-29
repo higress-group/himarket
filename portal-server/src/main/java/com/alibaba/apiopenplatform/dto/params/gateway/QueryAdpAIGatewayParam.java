@@ -19,6 +19,15 @@ public class QueryAdpAIGatewayParam implements InputConverter<AdpAIGatewayConfig
     @NotNull(message = "ADP网关端口不能为空")
     private Integer port;
 
-    @NotBlank(message = "ADP网关认证种子不能为空")
     private String authSeed;
+    
+    private String authType;
+    
+    private java.util.List<AuthHeader> authHeaders;
+    
+    @Data
+    public static class AuthHeader {
+        private String key;
+        private String value;
+    }
 }

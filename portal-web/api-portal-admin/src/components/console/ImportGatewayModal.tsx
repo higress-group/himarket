@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Button, Table, Modal, Form, Input, message, Select } from 'antd'
+import { PlusOutlined } from '@ant-design/icons'
 import { gatewayApi } from '@/lib/api'
 import { Gateway, ApigConfig } from '@/types'
 
@@ -198,17 +199,75 @@ export default function ImportGatewayModal({ visible, gatewayType, onCancel, onS
               </Form.Item>
             )}
             {authType === 'Header' && (
-              <Form.Item label="Header" name="authHeader" rules={[{ required: true, message: '请输入Authorization Header' }]}>
-                <Input placeholder="如：X-Auth-Token" />
+              <Form.Item label="Headers">
+                <Form.List name="authHeaders" initialValue={[{ key: '', value: '' }]}>
+                  {(fields, { add, remove }) => (
+                    <>
+                      {fields.map(({ key, name, ...restField }) => (
+                        <div key={key} style={{ display: 'flex', marginBottom: 8, alignItems: 'center' }}>
+                          <Form.Item
+                            {...restField}
+                            name={[name, 'key']}
+                            rules={[{ required: true, message: '请输入Header名称' }]}
+                            style={{ flex: 1, marginRight: 8, marginBottom: 0 }}
+                          >
+                            <Input placeholder="Header名称，如：X-Auth-Token" />
+                          </Form.Item>
+                          <Form.Item
+                            {...restField}
+                            name={[name, 'value']}
+                            rules={[{ required: true, message: '请输入Header值' }]}
+                            style={{ flex: 1, marginRight: 8, marginBottom: 0 }}
+                          >
+                            <Input placeholder="Header值" />
+                          </Form.Item>
+                          {fields.length > 1 && (
+                            <Button 
+                              type="text" 
+                              danger 
+                              onClick={() => remove(name)}
+                              style={{ marginBottom: 0 }}
+                            >
+                              删除
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                      <Form.Item style={{ marginBottom: 0 }}>
+                        <Button 
+                          type="dashed" 
+                          onClick={() => add({ key: '', value: '' })} 
+                          block 
+                          icon={<PlusOutlined />}
+                        >
+                          添加Header
+                        </Button>
+                      </Form.Item>
+                    </>
+                  )}
+                </Form.List>
               </Form.Item>
             )}
             <Button 
               type="primary" 
               onClick={() => {
                 importForm.validateFields().then((values) => {
-                  setApigConfig(values)
-                  sessionStorage.setItem('importFormConfig', JSON.stringify(values))
-                  fetchAdpGateways({...values, gatewayType: gatewayType})
+                  // 处理认证参数
+                  const processedValues = { ...values };
+                  
+                  // 根据认证方式设置相应的参数
+                  if (values.authType === 'Seed') {
+                    processedValues.authSeed = values.authSeed;
+                    delete processedValues.authHeaders;
+                  } else if (values.authType === 'Header') {
+                    processedValues.authHeaders = values.authHeaders;
+                    delete processedValues.authSeed;
+                  }
+                  
+                  setApigConfig(processedValues)
+                  sessionStorage.setItem('importFormConfig', JSON.stringify(processedValues))
+                  console.log('处理后的参数:', processedValues)
+                  fetchAdpGateways({...processedValues, gatewayType: gatewayType})
                 })
               }}
               loading={gatewayLoading}
