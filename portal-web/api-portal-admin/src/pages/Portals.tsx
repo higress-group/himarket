@@ -11,6 +11,7 @@ import {
   message,
   Tooltip,
   Pagination,
+  Skeleton,
 } from "antd";
 import { PlusOutlined, MoreOutlined, LinkOutlined } from "@ant-design/icons";
 import type { MenuProps } from "antd";
@@ -348,32 +349,58 @@ export default function Portals() {
           创建 Portal
         </Button>
       </div>
-      {loading && <div>加载中...</div>}
       {error && <div className="text-red-500">{error}</div>}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {portals.map((portal) => (
-          <PortalCard
-            key={portal.portalId}
-            portal={portal}
-            onNavigate={handlePortalClick}
-            fetchPortals={() => fetchPortals(pagination.current, pagination.pageSize)}
-          />
-        ))}
-      </div>
-
-      {pagination.total > 0 && (
-        <div className="flex justify-center mt-6">
-          <Pagination
-            current={pagination.current}
-            pageSize={pagination.pageSize}
-            total={pagination.total}
-            onChange={handlePaginationChange}
-            showSizeChanger
-            showQuickJumper
-            showTotal={(total, range) => `第 ${range[0]}-${range[1]} 条/共 ${total} 条`}
-            pageSizeOptions={['6', '12', '24', '48']}
-          />
+      
+      {loading ? (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: pagination.pageSize || 12 }).map((_, index) => (
+            <div key={index} className="h-full rounded-lg shadow-lg bg-white p-4">
+              <div className="flex items-start space-x-4">
+                <Skeleton.Avatar size={48} active />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-2">
+                    <Skeleton.Input active size="small" style={{ width: 120 }} />
+                    <Skeleton.Input active size="small" style={{ width: 60 }} />
+                  </div>
+                  <Skeleton.Input active size="small" style={{ width: '100%', marginBottom: 12 }} />
+                  <Skeleton.Input active size="small" style={{ width: '80%', marginBottom: 8 }} />
+                  <div className="flex items-center justify-between">
+                    <Skeleton.Input active size="small" style={{ width: 60 }} />
+                    <Skeleton.Input active size="small" style={{ width: 80 }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
+      ) : (
+        <>
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {portals.map((portal) => (
+              <PortalCard
+                key={portal.portalId}
+                portal={portal}
+                onNavigate={handlePortalClick}
+                fetchPortals={() => fetchPortals(pagination.current, pagination.pageSize)}
+              />
+            ))}
+          </div>
+
+          {pagination.total > 0 && (
+            <div className="flex justify-center mt-6">
+              <Pagination
+                current={pagination.current}
+                pageSize={pagination.pageSize}
+                total={pagination.total}
+                onChange={handlePaginationChange}
+                showSizeChanger
+                showQuickJumper
+                showTotal={(total, range) => `第 ${range[0]}-${range[1]} 条/共 ${total} 条`}
+                pageSizeOptions={['6', '12', '24', '48']}
+              />
+            </div>
+          )}
+        </>
       )}
 
       <Modal
