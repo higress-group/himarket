@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Button, Table, message, Modal } from 'antd'
+import { Button, Table, message, Modal, Tabs } from 'antd'
 import { PlusOutlined } from '@ant-design/icons'
 import { gatewayApi } from '@/lib/api'
 import ImportGatewayModal from '@/components/console/ImportGatewayModal'
@@ -204,76 +204,99 @@ export default function Consoles() {
         </Button>
       </div>
 
-      {/* API 网关列表 */}
-      <div className="bg-white rounded-lg">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-medium text-gray-900">API 网关</h3>
-          <p className="text-sm text-gray-500 mt-1">阿里云 API 网关服务</p>
-        </div>
-        <Table
-          columns={apigColumns}
-          dataSource={apigApiGateways}
-          rowKey="gatewayId"
-          loading={loading}
-          pagination={false}
-          locale={{
-            emptyText: '暂无 API 网关实例'
-          }}
-        />
-      </div>
-
-      {/* AI 网关列表 */}
-      <div className="bg-white rounded-lg">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-medium text-gray-900">AI 网关</h3>
-          <p className="text-sm text-gray-500 mt-1">阿里云 AI 网关服务</p>
-        </div>
-        <Table
-          columns={apigColumns}
-          dataSource={apigAiGateways}
-          rowKey="gatewayId"
-          loading={loading}
-          pagination={false}
-          locale={{
-            emptyText: '暂无 AI 网关实例'
-          }}
-        />
-      </div>
-
-      {/* ADP AI 网关列表 */}
-      <div className="bg-white rounded-lg">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-medium text-gray-900">ADP AI 网关</h3>
-          <p className="text-sm text-gray-500 mt-1">阿里云 ADP AI 网关服务</p>
-        </div>
-        <Table
-          columns={adpAiColumns}
-          dataSource={adpAiGateways}
-          rowKey="gatewayId"
-          loading={loading}
-          pagination={false}
-          locale={{
-            emptyText: '暂无 ADP AI 网关实例'
-          }}
-        />
-      </div>
-      {/* Higress 网关列表 */}
-      <div className="bg-white rounded-lg">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-medium text-gray-900">Higress 网关</h3>
-          <p className="text-sm text-gray-500 mt-1">Higress 云原生网关</p>
-        </div>
-        <Table
-          columns={higressColumns}
-          dataSource={higressGateways}
-          rowKey="gatewayId"
-          loading={loading}
-          pagination={false}
-          locale={{
-            emptyText: '暂无 Higress 网关实例'
-          }}
-        />
-      </div>
+      <Tabs
+        defaultActiveKey="APIG_API"
+        items={[
+          {
+            key: 'APIG_API',
+            label: 'API 网关',
+            children: (
+              <div className="bg-white rounded-lg">
+                <div className="px-6 py-4 border-b border-gray-200">
+                  <h3 className="text-lg font-medium text-gray-900">API 网关</h3>
+                  <p className="text-sm text-gray-500 mt-1">阿里云 API 网关服务</p>
+                </div>
+                <Table
+                  columns={apigColumns}
+                  dataSource={apigApiGateways}
+                  rowKey="gatewayId"
+                  loading={loading}
+                  pagination={false}
+                  locale={{
+                    emptyText: '暂无 API 网关实例'
+                  }}
+                />
+              </div>
+            ),
+          },
+          {
+            key: 'APIG_AI',
+            label: 'AI 网关',
+            children: (
+              <div className="bg-white rounded-lg">
+                <div className="px-6 py-4 border-b border-gray-200">
+                  <h3 className="text-lg font-medium text-gray-900">AI 网关</h3>
+                  <p className="text-sm text-gray-500 mt-1">阿里云 AI 网关服务</p>
+                </div>
+                <Table
+                  columns={apigColumns}
+                  dataSource={apigAiGateways}
+                  rowKey="gatewayId"
+                  loading={loading}
+                  pagination={false}
+                  locale={{
+                    emptyText: '暂无 AI 网关实例'
+                  }}
+                />
+              </div>
+            ),
+          },
+          {
+            key: 'ADP_AI_GATEWAY',
+            label: 'ADP AI 网关',
+            children: (
+              <div className="bg-white rounded-lg">
+                <div className="px-6 py-4 border-b border-gray-200">
+                  <h3 className="text-lg font-medium text-gray-900">ADP AI 网关</h3>
+                  <p className="text-sm text-gray-500 mt-1">阿里云 ADP AI 网关服务</p>
+                </div>
+                <Table
+                  columns={adpAiColumns}
+                  dataSource={adpAiGateways}
+                  rowKey="gatewayId"
+                  loading={loading}
+                  pagination={false}
+                  locale={{
+                    emptyText: '暂无 ADP AI 网关实例'
+                  }}
+                />
+              </div>
+            ),
+          },
+          {
+            key: 'HIGRESS',
+            label: 'Higress 网关',
+            children: (
+              <div className="bg-white rounded-lg">
+                <div className="px-6 py-4 border-b border-gray-200">
+                  <h3 className="text-lg font-medium text-gray-900">Higress 网关</h3>
+                  <p className="text-sm text-gray-500 mt-1">Higress 云原生网关</p>
+                </div>
+                <Table
+                  columns={higressColumns}
+                  dataSource={higressGateways}
+                  rowKey="gatewayId"
+                  loading={loading}
+                  pagination={false}
+                  locale={{
+                    emptyText: '暂无 Higress 网关实例'
+                  }}
+                />
+              </div>
+            ),
+          },
+        ]}
+      />
 
       <ImportGatewayModal
         visible={importVisible}
