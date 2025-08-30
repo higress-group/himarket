@@ -240,11 +240,22 @@ public class ConsumerServiceImpl implements ConsumerService {
         ProductSubscription subscription = param.convertTo();
         subscription.setConsumerId(consumerId);
         
-        // 检查autoApprove设置
-        PortalResult portal = portalService.getPortal(consumer.getPortalId());
-        log.info("portal: {}", JSONUtil.toJsonStr(portal));
-        boolean autoApprove = portal.getPortalSettingConfig() != null
-                && BooleanUtil.isTrue(portal.getPortalSettingConfig().getAutoApproveSubscriptions());
+        // 检查产品级别的自动审批设置
+        boolean autoApprove = false;
+        
+        // 优先检查产品级别的autoApprove配置
+        if (product.getAutoApprove() != null) {
+            // 如果产品配置了autoApprove，直接使用产品级别的配置
+            autoApprove = product.getAutoApprove();
+            log.info("使用产品级别自动审批配置: productId={}, autoApprove={}", param.getProductId(), autoApprove);
+        } else {
+            // 如果产品未配置autoApprove，则使用平台级别的配置
+            PortalResult portal = portalService.getPortal(consumer.getPortalId());
+            log.info("portal: {}", JSONUtil.toJsonStr(portal));
+            autoApprove = portal.getPortalSettingConfig() != null
+                    && BooleanUtil.isTrue(portal.getPortalSettingConfig().getAutoApproveSubscriptions());
+            log.info("使用平台级别自动审批配置: portalId={}, autoApprove={}", consumer.getPortalId(), autoApprove);
+        }
         
         if (autoApprove) {
             // 如果autoApprove为true，立即授权并设置为APPROVED状态

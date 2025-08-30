@@ -17,33 +17,17 @@
  * under the License.
  */
 
-package com.alibaba.apiopenplatform.dto.params.product;
+package com.alibaba.apiopenplatform.core.annotation;
 
-import com.alibaba.apiopenplatform.dto.converter.InputConverter;
-import com.alibaba.apiopenplatform.entity.Product;
-import com.alibaba.apiopenplatform.support.enums.ProductType;
-import com.alibaba.apiopenplatform.support.product.ProductIcon;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
+import org.springframework.security.access.prepost.PreAuthorize;
 
-import javax.validation.constraints.NotBlank;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-@Data
-public class UpdateProductParam implements InputConverter<Product> {
-
-    private String name;
-
-    private String description;
-
-    private ProductType type;
-
-    private Boolean enableConsumerAuth;
-
-    private String document;
-
-    private ProductIcon icon;
-
-    private String category;
-
-    private Boolean autoApprove;
+@Target({ElementType.METHOD, ElementType.TYPE})
+@Retention(RetentionPolicy.RUNTIME)
+@PreAuthorize("hasRole('ADMIN') or hasRole('DEVELOPER')")
+public @interface AdminOrDeveloperAuth {
 }

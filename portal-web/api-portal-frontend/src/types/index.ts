@@ -39,6 +39,7 @@ export interface BaseProduct {
   description: string;
   status: ProductStatus;
   enableConsumerAuth: boolean | null;
+  autoApprove?: boolean;
   type: ProductType;
   document: string | null;
   icon: string | null;

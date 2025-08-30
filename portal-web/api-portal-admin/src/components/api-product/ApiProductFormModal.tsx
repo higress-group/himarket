@@ -186,6 +186,17 @@ export default function ApiProductFormModal({
         </Form.Item>
 
         <Form.Item
+          label="自动审批订阅"
+          name="autoApprove"
+          tooltip="启用后，该产品的订阅申请将自动审批通过，无需管理员手动审批。留空则使用平台级别的自动审批设置。"
+        >
+          <Select placeholder="请选择自动审批设置" allowClear>
+            <Select.Option value={true}>启用</Select.Option>
+            <Select.Option value={false}>禁用</Select.Option>
+          </Select>
+        </Form.Item>
+
+        <Form.Item
           label="上传头像"
           name="icon"
         >

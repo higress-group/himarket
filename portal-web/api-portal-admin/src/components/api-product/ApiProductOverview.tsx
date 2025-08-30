@@ -119,6 +119,18 @@ export function ApiProductOverview({ apiProduct }: ApiProductOverviewProps) {
                 <span className="text-gray-600">产品描述</span>
                 <span>{apiProduct.description}</span>
               </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">自动审批订阅</span>
+                <span>
+                  {apiProduct.autoApprove === true ? (
+                    <Tag color="green">启用</Tag>
+                  ) : apiProduct.autoApprove === false ? (
+                    <Tag color="red">禁用</Tag>
+                  ) : (
+                    <Tag color="default">使用平台设置</Tag>
+                  )}
+                </span>
+              </div>
               
             </div>
           </Card>

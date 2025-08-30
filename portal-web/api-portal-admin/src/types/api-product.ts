@@ -34,6 +34,7 @@ export interface ApiProduct {
   status: 'PENDING' | 'READY' | 'PUBLISHED' | string;
   createAt: string;
   enableConsumerAuth?: boolean;
+  autoApprove?: boolean;
   apiConfig?: ApiProductConfig;
   mcpConfig?: ApiProductMcpConfig;
   document?: string;

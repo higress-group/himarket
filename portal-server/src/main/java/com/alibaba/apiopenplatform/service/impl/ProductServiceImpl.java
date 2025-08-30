@@ -95,6 +95,12 @@ public class ProductServiceImpl implements ProductService {
         Product product = param.convertTo();
         product.setProductId(productId);
         product.setAdminId(contextHolder.getUser());
+        
+        // 设置默认的自动审批配置，如果未指定则默认为null（使用平台级别配置）
+        if (param.getAutoApprove() != null) {
+            product.setAutoApprove(param.getAutoApprove());
+        }
+        
         productRepository.save(product);
 
         return getProduct(productId);
@@ -143,6 +149,9 @@ public class ProductServiceImpl implements ProductService {
 
         // Consumer鉴权配置同步至网关
         Optional.ofNullable(param.getEnableConsumerAuth()).ifPresent(product::setEnableConsumerAuth);
+        
+        // 更新自动审批配置
+        Optional.ofNullable(param.getAutoApprove()).ifPresent(product::setAutoApprove);
 
         productRepository.saveAndFlush(product);
         return getProduct(product.getProductId());
