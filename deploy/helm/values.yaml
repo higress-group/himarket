@@ -1,6 +1,6 @@
 hub: opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group
 
-api_portal_frontend:
+frontend:
   image:
     repository: api-portal-frontend
     tag: "1.0.0"
@@ -11,7 +11,7 @@ api_portal_frontend:
   replicaCount: 1
   serverPort: 8000
 
-api_portal_admin:
+admin:
   image:
     repository: api-portal-admin
     tag: "1.0.0"
@@ -22,7 +22,7 @@ api_portal_admin:
   replicaCount: 1
   serverPort: 8000
 
-api_portal_server:
+server:
   image:
     repository: api-portal-server
     tag: "1.0.0"
@@ -33,10 +33,16 @@ api_portal_server:
   replicaCount: 1
   serverPort: 8080
 
-# MySQL数据库需在 api-portal-server-cm.yaml 中配置
+# 数据库配置
+database:
+  host: "rm-uf6pc9n1jzi2478l4eo.mysql.rds.aliyuncs.com"
+  port: "3306"
+  name: "Portal_DB"
+  username: "portal_test"
+  password: "portal-Go"
 
 serviceAccount:
-  name: "api-portal"
+  name: "himarket"
 
 resources:
   limits:

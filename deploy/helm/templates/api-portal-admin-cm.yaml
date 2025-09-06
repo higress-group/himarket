@@ -1,8 +1,0 @@
-kind: ConfigMap
-apiVersion: v1
-metadata:
-  labels:
-    app: api-portal-admin
-  name: api-portal-admin
-data:
-  API_PORTAL_SERVER: "http://api-portal-server"

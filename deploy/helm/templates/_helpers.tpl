@@ -1,3 +1,3 @@
-{{- define "product-api-portal.serviceAccountName" -}}
+{{- define "himarket.serviceAccountName" -}}
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}

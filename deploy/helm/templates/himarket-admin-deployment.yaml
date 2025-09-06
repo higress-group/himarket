@@ -1,35 +1,35 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: api-portal-frontend
+  name: himarket-admin
   labels:
-    app: api-portal-frontend
+    app: himarket-admin
 spec:
-  replicas: {{ .Values.api_portal_frontend.replicaCount }}
+  replicas: {{ .Values.admin.replicaCount }}
   selector:
     matchLabels:
-      app: api-portal-frontend
+      app: himarket-admin
   template:
     metadata:
       labels:
-        app: api-portal-frontend
+        app: himarket-admin
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      serviceAccountName: {{ include "product-api-portal.serviceAccountName" . }}
+      serviceAccountName: {{ include "himarket.serviceAccountName" . }}
       containers:
-        - name: api-portal-frontend
-          image: "{{ .Values.hub }}/{{ .Values.api_portal_frontend.image.repository }}:{{ .Values.api_portal_frontend.image.tag}}"
-          imagePullPolicy: {{ .Values.api_portal_frontend.image.pullPolicy }}
+        - name: admin
+          image: "{{ .Values.hub }}/{{ .Values.admin.image.repository }}:{{ .Values.admin.image.tag}}"
+          imagePullPolicy: {{ .Values.admin.image.pullPolicy }}
           ports:
             - name: http
-              containerPort: {{ .Values.api_portal_frontend.serverPort }}
+              containerPort: {{ .Values.admin.serverPort }}
               protocol: TCP
           envFrom:
             - configMapRef:
-                name: api-portal-frontend
+                name: himarket-admin
           {{- with .Values.resources }}
           resources:
             {{- toYaml . | nindent 12 }}

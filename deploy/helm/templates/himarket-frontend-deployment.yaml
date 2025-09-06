@@ -1,43 +1,35 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: api-portal-server
+  name: himarket-frontend
   labels:
-    app: api-portal-server
+    app: himarket-frontend
 spec:
-  replicas: {{ .Values.api_portal_server.replicaCount }}
+  replicas: {{ .Values.frontend.replicaCount }}
   selector:
     matchLabels:
-      app: api-portal-server
+      app: himarket-frontend
   template:
     metadata:
       labels:
-        app: api-portal-server
+        app: himarket-frontend
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      serviceAccountName: {{ include "product-api-portal.serviceAccountName" . }}
+      serviceAccountName: {{ include "himarket.serviceAccountName" . }}
       containers:
-        - name: api-portal-server
-          image: "{{ .Values.hub }}/{{ .Values.api_portal_server.image.repository }}:{{ .Values.api_portal_server.image.tag}}"
-          imagePullPolicy: {{ .Values.api_portal_server.image.pullPolicy }}
+        - name: frontend
+          image: "{{ .Values.hub }}/{{ .Values.frontend.image.repository }}:{{ .Values.frontend.image.tag}}"
+          imagePullPolicy: {{ .Values.frontend.image.pullPolicy }}
           ports:
             - name: http
-              containerPort: {{ .Values.api_portal_server.serverPort }}
+              containerPort: {{ .Values.frontend.serverPort }}
               protocol: TCP
           envFrom:
             - configMapRef:
-                name: api-portal-server
-{{/*          {{- with .Values.livenessProbe }}*/}}
-{{/*          livenessProbe:*/}}
-{{/*            {{- toYaml . | nindent 12 }}*/}}
-{{/*          {{- end }}*/}}
-{{/*          {{- with .Values.readinessProbe }}*/}}
-{{/*          readinessProbe:*/}}
-{{/*            {{- toYaml . | nindent 12 }}*/}}
-{{/*          {{- end }}*/}}
+                name: himarket-frontend
           {{- with .Values.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
