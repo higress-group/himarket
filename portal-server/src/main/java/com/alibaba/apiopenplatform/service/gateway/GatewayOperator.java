@@ -66,6 +66,13 @@ public abstract class GatewayOperator<T> {
 
     abstract public GatewayType getGatewayType();
 
+    /**
+     * 获取网关控制台仪表盘链接
+     * @param gateway 网关实体
+     * @return 仪表盘访问链接
+     */
+    abstract public String getDashboard(Gateway gateway);
+
     @SuppressWarnings("unchecked")
     protected T getClient(Gateway gateway) {
         String clientKey = gateway.getGatewayType().isAPIG() ?

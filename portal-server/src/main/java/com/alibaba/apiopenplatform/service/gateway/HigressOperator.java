@@ -231,6 +231,11 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
         return GatewayType.HIGRESS;
     }
 
+    @Override
+    public String getDashboard(Gateway gateway) {
+        throw new UnsupportedOperationException("Higress gateway does not support getting dashboard");
+    }
+
     @Data
     @Builder
     public static class HigressConsumerConfig {

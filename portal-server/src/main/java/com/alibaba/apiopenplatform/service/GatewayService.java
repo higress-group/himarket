@@ -99,4 +99,11 @@ public interface GatewayService {
     void revokeConsumerAuthorization(String gatewayId, String gwConsumerId, ConsumerAuthConfig config);
 
     GatewayConfig getGatewayConfig(String gatewayId);
+
+    /**
+     * 获取仪表板URL
+     *
+     * @return 仪表板URL
+     */
+    String getDashboard(String gatewayId);
 }

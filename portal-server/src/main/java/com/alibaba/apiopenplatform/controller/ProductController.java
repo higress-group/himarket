@@ -119,4 +119,10 @@ public class ProductController {
     public void deleteProductRef(@PathVariable String productId) {
         productService.deleteProductRef(productId);
     }
+
+    @Operation(summary = "获取API产品的Dashboard监控面板URL")
+    @GetMapping("/{productId}/dashboard")
+    public String getProductDashboard(@PathVariable String productId) {
+        return productService.getProductDashboard(productId);
+    }
 }
