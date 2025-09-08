@@ -7,7 +7,7 @@ frontend:
     pullPolicy: Always
   service:
     type: LoadBalancer
-    port: 5173
+    port: 80
   replicaCount: 1
   serverPort: 8000
 
@@ -18,7 +18,7 @@ admin:
     pullPolicy: Always
   service:
     type: LoadBalancer
-    port: 5174
+    port: 80
   replicaCount: 1
   serverPort: 8000
 
@@ -29,7 +29,7 @@ server:
     pullPolicy: Always
   service:
     type: ClusterIP
-    port: 8080
+    port: 80
   replicaCount: 1
   serverPort: 8080
 
