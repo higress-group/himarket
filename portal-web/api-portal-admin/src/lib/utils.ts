@@ -40,6 +40,9 @@ export const getServiceName = (linkedServiceParam: any) => {
   if (linkedServiceParam?.higressRefConfig) {
     return linkedServiceParam.higressRefConfig.mcpServerName
   }
+  if (linkedServiceParam?.adpAIGatewayRefConfig) {
+    return linkedServiceParam.adpAIGatewayRefConfig.mcpServerName
+  }
   return '未知服务'
 }
 

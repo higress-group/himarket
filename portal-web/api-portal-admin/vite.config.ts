@@ -10,6 +10,7 @@ const apiPrefix = env.VITE_API_BASE_URL
 export default defineConfig({
   plugins: [react()],
   server: {
+    host: '0.0.0.0',
     port: 5174,
     proxy: {
       [apiPrefix]: {

@@ -32,6 +32,7 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.net.URI;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -50,21 +51,19 @@ public class PortalResolvingFilter extends OncePerRequestFilter {
             String xForwardedHost = request.getHeader("X-Forwarded-Host");
             String xRealIp = request.getHeader("X-Real-IP");
             String xForwardedFor = request.getHeader("X-Forwarded-For");
-            
+
             String domain = null;
             if (origin != null) {
                 try {
-                    java.net.URI uri = new java.net.URI(origin);
+                    URI uri = new URI(origin);
                     domain = uri.getHost();
-                } catch (Exception e) {
-                    // 解析失败时可降级处理
-                    domain = null;
+                } catch (Exception ignored) {
                 }
             }
-            
-            log.info("域名解析调试 - Origin: {}, Host: {}, X-Forwarded-Host: {}, ServerName: {}, X-Real-IP: {}, X-Forwarded-For: {}", 
+
+            log.info("域名解析调试 - Origin: {}, Host: {}, X-Forwarded-Host: {}, ServerName: {}, X-Real-IP: {}, X-Forwarded-For: {}",
                     origin, host, xForwardedHost, request.getServerName(), xRealIp, xForwardedFor);
-            
+
             if (domain == null) {
                 // 优先使用Host头，如果没有则使用ServerName
                 if (host != null && !host.isEmpty()) {
@@ -80,6 +79,11 @@ public class PortalResolvingFilter extends OncePerRequestFilter {
                 log.info("Resolved portal for domain: {} with portalId: {}", domain, portalId);
             } else {
                 log.info("No portal found for domain: {}", domain);
+                String defaultPortalId = portalService.getDefaultPortal();
+                if (StrUtil.isNotBlank(defaultPortalId)) {
+                    contextHolder.savePortal(defaultPortalId);
+                    log.info("Use default portal: {}", defaultPortalId);
+                }
             }
 
             chain.doFilter(request, response);

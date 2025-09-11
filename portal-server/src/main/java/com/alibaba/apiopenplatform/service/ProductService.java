@@ -131,4 +131,12 @@ public interface ProductService {
     void handlePortalDeletion(PortalDeletingEvent event);
 
     Map<String, ProductResult> getProducts(List<String> productIds);
+
+    /**
+     * 获取API产品的Dashboard监控面板URL
+     *
+     * @param productId
+     * @return Dashboard URL
+     */
+    String getProductDashboard(String productId);
 }

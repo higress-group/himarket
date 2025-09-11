@@ -249,4 +249,10 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
         }
         return gatewayOperator;
     }
+
+    @Override
+    public String getDashboard(String gatewayId) {
+        Gateway gateway = findGateway(gatewayId);
+        return getOperator(gateway).getDashboard(gateway);
+    }
 }

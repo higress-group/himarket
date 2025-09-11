@@ -23,8 +23,6 @@ import com.alibaba.apiopenplatform.support.enums.DomainType;
 import com.alibaba.apiopenplatform.support.enums.ProtocolType;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import org.hibernate.annotations.OnDelete;
-import org.hibernate.annotations.OnDeleteAction;
 
 import javax.persistence.*;
 
@@ -41,10 +39,6 @@ public class PortalDomain extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    //    @ManyToOne
-//    @JoinColumn(name = "portal_id", referencedColumnName = "portal_id")
-//    @OnDelete(action = OnDeleteAction.CASCADE)
-//    private Portal portal;
     @Column(name = "portal_id", length = 64, nullable = false)
     private String portalId;
 

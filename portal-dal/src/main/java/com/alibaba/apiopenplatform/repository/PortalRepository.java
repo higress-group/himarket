@@ -22,11 +22,12 @@ package com.alibaba.apiopenplatform.repository;
 import com.alibaba.apiopenplatform.entity.Portal;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.repository.EntityGraph;
 
 import java.util.Optional;
 
 public interface PortalRepository extends BaseRepository<Portal, Long> {
+
+    Optional<Portal> findFirstByOrderByIdAsc();
 
     Optional<Portal> findByPortalIdAndAdminId(String portalId, String adminId);
 

@@ -37,7 +37,8 @@ export const SourceMap: Record<string, string> = {
   APIG_AI: "AI网关",
   HIGRESS: "Higress",
   NACOS: "Nacos",
-  APIG_API: "API网关"
+  APIG_API: "API网关",
+  ADP_AI_GATEWAY: "专有云AI网关"
 };
 
 // 类型映射

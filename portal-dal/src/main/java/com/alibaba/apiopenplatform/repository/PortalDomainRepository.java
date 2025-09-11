@@ -21,6 +21,7 @@ package com.alibaba.apiopenplatform.repository;
 
 import com.alibaba.apiopenplatform.entity.PortalDomain;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface PortalDomainRepository extends BaseRepository<PortalDomain, Long> {
@@ -28,4 +29,10 @@ public interface PortalDomainRepository extends BaseRepository<PortalDomain, Lon
     Optional<PortalDomain> findByDomain(String domain);
 
     Optional<PortalDomain> findByPortalIdAndDomain(String portalId, String domain);
+
+    List<PortalDomain> findAllByPortalId(String portalId);
+
+    List<PortalDomain> findAllByPortalIdIn(List<String> portalIds);
+
+    void deleteAllByPortalId(String portalId);
 }

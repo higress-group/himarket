@@ -43,7 +43,7 @@ public class Portal extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "portal_id", length =64, nullable = false)
+    @Column(name = "portal_id", length = 64, nullable = false)
     private String portalId;
 
     @Column(name = "name", length = 64, nullable = false)
@@ -63,7 +63,6 @@ public class Portal extends BaseEntity {
     @Convert(converter = PortalUiConfigConverter.class)
     private PortalUiConfig portalUiConfig;
 
-    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
-    @JoinColumn(name = "portal_id", referencedColumnName = "portal_id")
+    @Transient
     private List<PortalDomain> portalDomains = new ArrayList<>();
 }

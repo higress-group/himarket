@@ -5,6 +5,8 @@
   HiMarket AI 开放平台
 </h1>
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/higress-group/himarket)
+
 ## HiMarket 是什么？
 
 HiMarket 是一个开箱即用的 AI 开放平台解决方案，可以用于构建企业级的 AI 能力市场与开发者生态中心。

@@ -5,6 +5,7 @@ import com.alibaba.apiopenplatform.core.exception.ErrorCode;
 import com.alibaba.apiopenplatform.dto.params.gateway.QueryAPIGParam;
 import com.alibaba.apiopenplatform.dto.params.gateway.QueryAdpAIGatewayParam;
 import com.alibaba.apiopenplatform.dto.result.*;
+import com.alibaba.apiopenplatform.dto.result.AdpGatewayInstanceResult;
 import com.alibaba.apiopenplatform.entity.Consumer;
 import com.alibaba.apiopenplatform.entity.ConsumerCredential;
 import com.alibaba.apiopenplatform.entity.Gateway;
@@ -133,7 +134,7 @@ public class AdpAIGatewayOperator extends GatewayOperator {
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 AdpMcpServerDetailResult result = response.getBody();
                 if (result.getCode() != null && result.getCode() == 200 && result.getData() != null) {
-                    return convertToMCPConfig(result.getData());
+                    return convertToMCPConfig(result.getData(), config);
                 }
                 String msg = result.getMessage() != null ? result.getMessage() : result.getMsg();
                 throw new BusinessException(ErrorCode.GATEWAY_ERROR, msg);
@@ -155,7 +156,7 @@ public class AdpAIGatewayOperator extends GatewayOperator {
     /**
      * 将 ADP MCP Server 详情转换为 MCPConfigResult 格式
      */
-    private String convertToMCPConfig(AdpMcpServerDetailResult.AdpMcpServerDetail data) {
+    private String convertToMCPConfig(AdpMcpServerDetailResult.AdpMcpServerDetail data, AdpAIGatewayConfig config) {
         MCPConfigResult mcpConfig = new MCPConfigResult();
         mcpConfig.setMcpServerName(data.getName());
 
@@ -163,15 +164,21 @@ public class AdpAIGatewayOperator extends GatewayOperator {
         MCPConfigResult.MCPServerConfig serverConfig = new MCPConfigResult.MCPServerConfig();
         serverConfig.setPath("/" + data.getName());
         
-        // 设置域名信息
-        if (data.getServices() != null && !data.getServices().isEmpty()) {
-            List<MCPConfigResult.Domain> domains = data.getServices().stream()
-                    .map(domain -> MCPConfigResult.Domain.builder()
-                            .domain(domain.getName() + ":" + domain.getPort())
-                            .protocol("http")
-                            .build())
-                    .collect(Collectors.toList());
+        // 获取网关实例访问信息并设置域名信息
+        List<MCPConfigResult.Domain> domains = getGatewayAccessDomains(data.getGwInstanceId(), config);
+        if (domains != null && !domains.isEmpty()) {
             serverConfig.setDomains(domains);
+        } else {
+            // 如果无法获取网关访问信息，则使用原有的services信息作为备选
+            if (data.getServices() != null && !data.getServices().isEmpty()) {
+                List<MCPConfigResult.Domain> fallbackDomains = data.getServices().stream()
+                        .map(domain -> MCPConfigResult.Domain.builder()
+                                .domain(domain.getName() + ":" + domain.getPort())
+                                .protocol("http")
+                                .build())
+                        .collect(Collectors.toList());
+                serverConfig.setDomains(fallbackDomains);
+            }
         }
         
         mcpConfig.setMcpServerConfig(serverConfig);
@@ -186,6 +193,118 @@ public class AdpAIGatewayOperator extends GatewayOperator {
         mcpConfig.setMeta(meta);
 
         return JSONUtil.toJsonStr(mcpConfig);
+    }
+
+    /**
+     * 获取网关实例的访问信息并构建域名列表
+     */
+    private List<MCPConfigResult.Domain> getGatewayAccessDomains(String gwInstanceId, AdpAIGatewayConfig config) {
+        AdpAIGatewayClient client = new AdpAIGatewayClient(config);
+        try {
+            String url = client.getFullUrl("/gatewayInstance/getInstanceInfo");
+            String requestBody = String.format("{\"gwInstanceId\": \"%s\"}", gwInstanceId);
+            HttpEntity<String> requestEntity = client.createRequestEntity(requestBody);
+
+            // 注意：getInstanceInfo 返回的 data 是单个实例对象（无 records 字段），直接从 data.accessMode 读取
+            ResponseEntity<String> response = client.getRestTemplate().exchange(
+                    url, HttpMethod.POST, requestEntity, String.class);
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                cn.hutool.json.JSONObject root = JSONUtil.parseObj(response.getBody());
+                Integer code = root.getInt("code");
+                if (code != null && code == 200 && root.containsKey("data")) {
+                    cn.hutool.json.JSONObject dataObj = root.getJSONObject("data");
+                    if (dataObj != null && dataObj.containsKey("accessMode")) {
+                        cn.hutool.json.JSONArray arr = dataObj.getJSONArray("accessMode");
+                        List<AdpGatewayInstanceResult.AccessMode> accessModes = JSONUtil.toList(arr, AdpGatewayInstanceResult.AccessMode.class);
+                        return buildDomainsFromAccessModes(accessModes);
+                    }
+                    log.warn("Gateway instance has no accessMode, instanceId={}", gwInstanceId);
+                    return null;
+                }
+                String message = root.getStr("message", root.getStr("msg"));
+                log.warn("Failed to get gateway instance access info: {}", message);
+                return null;
+            }
+            log.warn("Failed to call gateway instance access API");
+            return null;
+        } catch (Exception e) {
+            log.error("Error fetching gateway access info for instance: {}", gwInstanceId, e);
+            return null;
+        } finally {
+            client.close();
+        }
+    }
+
+    /**
+     * 根据网关实例访问信息构建域名列表
+     */
+    private List<MCPConfigResult.Domain> buildDomainsFromAccessInfo(AdpGatewayInstanceResult.AdpGatewayInstanceData data) {
+        // 兼容 listInstances 调用：取第一条记录的 accessMode
+        if (data != null && data.getRecords() != null && !data.getRecords().isEmpty()) {
+            AdpGatewayInstanceResult.AdpGatewayInstance instance = data.getRecords().get(0);
+            if (instance.getAccessMode() != null) {
+                return buildDomainsFromAccessModes(instance.getAccessMode());
+            }
+        }
+        return new ArrayList<>();
+    }
+
+    private List<MCPConfigResult.Domain> buildDomainsFromAccessModes(List<AdpGatewayInstanceResult.AccessMode> accessModes) {
+        List<MCPConfigResult.Domain> domains = new ArrayList<>();
+        if (accessModes == null || accessModes.isEmpty()) { return domains; }
+        AdpGatewayInstanceResult.AccessMode accessMode = accessModes.get(0);
+
+        // 1) LoadBalancer: externalIps:80
+        if ("LoadBalancer".equalsIgnoreCase(accessMode.getAccessModeType())) {
+            if (accessMode.getExternalIps() != null && !accessMode.getExternalIps().isEmpty()) {
+                for (String externalIp : accessMode.getExternalIps()) {
+                    if (externalIp == null || externalIp.isEmpty()) { continue; }
+                    MCPConfigResult.Domain domain = MCPConfigResult.Domain.builder()
+                            .domain(externalIp + ":80")
+                            .protocol("http")
+                            .build();
+                    domains.add(domain);
+                }
+            }
+        }
+
+        // 2) NodePort: ips + ports → ip:nodePort
+        if (domains.isEmpty() && "NodePort".equalsIgnoreCase(accessMode.getAccessModeType())) {
+            List<String> ips = accessMode.getIps();
+            List<String> ports = accessMode.getPorts();
+            if (ips != null && !ips.isEmpty() && ports != null && !ports.isEmpty()) {
+                for (String ip : ips) {
+                    if (ip == null || ip.isEmpty()) { continue; }
+                    for (String portMapping : ports) {
+                        if (portMapping == null || portMapping.isEmpty()) { continue; }
+                        String[] parts = portMapping.split(":");
+                        if (parts.length >= 2) {
+                            String nodePort = parts[1].split("/")[0];
+                            MCPConfigResult.Domain domain = MCPConfigResult.Domain.builder()
+                                    .domain(ip + ":" + nodePort)
+                                    .protocol("http")
+                                    .build();
+                            domains.add(domain);
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3) fallback: only externalIps → :80
+        if (domains.isEmpty() && accessMode.getExternalIps() != null && !accessMode.getExternalIps().isEmpty()) {
+            for (String externalIp : accessMode.getExternalIps()) {
+                if (externalIp == null || externalIp.isEmpty()) { continue; }
+                MCPConfigResult.Domain domain = MCPConfigResult.Domain.builder()
+                        .domain(externalIp + ":80")
+                        .protocol("http")
+                        .build();
+                domains.add(domain);
+            }
+        }
+
+        return domains;
     }
 
     @Override
@@ -221,6 +340,11 @@ public class AdpAIGatewayOperator extends GatewayOperator {
     @Override
     public GatewayType getGatewayType() {
         return GatewayType.ADP_AI_GATEWAY;
+    }
+
+    @Override
+    public String getDashboard(Gateway gateway) {
+        return null;
     }
 
     @Override

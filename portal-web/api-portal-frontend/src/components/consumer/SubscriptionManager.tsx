@@ -175,7 +175,7 @@ export function SubscriptionManager({ consumerId, subscriptions, onSubscriptions
           rowKey={(record) => record.productId}
           pagination={false}
           size="small"
-          locale={{ emptyText: '暂无订阅记录，请点击上方按钮进行授权' }}
+          locale={{ emptyText: '暂无订阅记录，请点击上方按钮进行订阅' }}
         />
       </Card>
 

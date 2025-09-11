@@ -3,6 +3,7 @@ import { Button, Table, Modal, Form, Input, message, Select } from 'antd'
 import { PlusOutlined } from '@ant-design/icons'
 import { gatewayApi } from '@/lib/api'
 import { Gateway, ApigConfig } from '@/types'
+import { getGatewayTypeLabel } from '@/lib/constant'
 
 interface ImportGatewayModalProps {
   visible: boolean
@@ -283,7 +284,11 @@ export default function ImportGatewayModal({ visible, gatewayType, onCancel, onS
               rowKey="gatewayId"
               columns={[
                 { title: 'ID', dataIndex: 'gatewayId' },
-                { title: '类型', dataIndex: 'gatewayType' },
+                { 
+                  title: '类型', 
+                  dataIndex: 'gatewayType',
+                  render: (gatewayType: string) => getGatewayTypeLabel(gatewayType as any)
+                },
                 { title: '名称', dataIndex: 'gatewayName' },
               ]}
               dataSource={gatewayList}

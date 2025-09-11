@@ -119,7 +119,7 @@ export default function Consoles() {
     },
   ]
 
-  // 专有云AI 网关的列定义
+  // 专有云 AI 网关的列定义
   const adpAiColumns = [
     {
       title: '网关ID',
@@ -275,7 +275,7 @@ export default function Consoles() {
           },
           {
             key: 'ADP_AI_GATEWAY',
-            label: '专有云AI 网关',
+            label: '专有云 AI 网关',
             children: (
               <div className="bg-white rounded-lg">
                 <div className="px-6 py-4 border-b border-gray-200">
@@ -289,7 +289,7 @@ export default function Consoles() {
                   loading={loading}
                   pagination={false}
                   locale={{
-                    emptyText: '暂无 专有云AI 网关实例'
+                    emptyText: '暂无 专有云 AI 网关实例'
                   }}
                 />
               </div>

@@ -22,13 +22,13 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.alibaba.apiopenplatform</groupId>
-    <artifactId>portal-management</artifactId>
+    <groupId>com.alibaba.himarket</groupId>
+    <artifactId>himarket</artifactId>
     <version>1.0-SNAPSHOT</version>
     <packaging>pom</packaging>
-    <name>portal-management</name>
-    <description>API Open Platform Portal Management</description>
-    <url>https://github.com/alibaba/portal-management</url>
+    <name>himarket</name>
+    <description>HiMarket AI OPEN Platform</description>
+    <url>https://github.com/higress-group/himarket</url>
     
     <licenses>
         <license>

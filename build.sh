@@ -13,7 +13,7 @@ cd portal-bootstrap
 echo "Building backend Docker image..."
 docker buildx build \
     --platform linux/amd64 \
-    -t api-portal-server:$VERSION \
+    -t himarket-server:$VERSION \
     --load .
 echo "Backend server build completed"
 cd ..
@@ -25,7 +25,7 @@ rm -rf ./dist
 npm install --force
 npm run build
 docker buildx build \
-    -t api-portal-frontend:$VERSION \
+    -t himarket-frontend:$VERSION \
     --platform linux/amd64 \
     --load .
 
@@ -36,7 +36,7 @@ rm -rf ./dist
 npm install --force
 npm run build
 docker buildx build \
-    -t api-portal-admin:$VERSION \
+    -t himarket-admin:$VERSION \
     --platform linux/amd64 \
     --load .
 

@@ -10,6 +10,7 @@ import { ApiProductLinkApi } from '@/components/api-product/ApiProductLinkApi'
 import { ApiProductApiDocs } from '@/components/api-product/ApiProductApiDocs'
 import { ApiProductUsageGuide } from '@/components/api-product/ApiProductUsageGuide'
 import { ApiProductPortal } from '@/components/api-product/ApiProductPortal'
+import { ApiProductDashboard } from '@/components/api-product/ApiProductDashboard'
 import { apiProductApi } from '@/lib/api';
 import type { ApiProduct } from '@/types/api-product';
 import ApiProductFormModal from '@/components/api-product/ApiProductFormModal';
@@ -40,6 +41,11 @@ const menuItems = [
     key: "portal",
     label: "Portal",
     description: "发布的门户"
+  },
+  {
+    key: "dashboard",
+    label: "Dashboard",
+    description: "实时监控和统计"
   }
 ]
 
@@ -104,6 +110,8 @@ export default function ApiProductDetail() {
         return <ApiProductUsageGuide apiProduct={apiProduct} handleRefresh={fetchApiProduct} />
       case "portal":
         return <ApiProductPortal apiProduct={apiProduct} />
+      case "dashboard":
+        return <ApiProductDashboard apiProduct={apiProduct} />
       default:
         return <ApiProductOverview apiProduct={apiProduct} />
     }

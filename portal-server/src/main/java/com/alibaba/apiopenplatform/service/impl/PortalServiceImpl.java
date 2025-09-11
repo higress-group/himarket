@@ -52,13 +52,17 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import javax.persistence.criteria.Predicate;
+import javax.transaction.Transactional;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
 @RequiredArgsConstructor
+@Transactional
 public class PortalServiceImpl implements PortalService {
 
     private final PortalRepository portalRepository;
@@ -92,8 +96,8 @@ public class PortalServiceImpl implements PortalService {
         PortalDomain portalDomain = new PortalDomain();
         portalDomain.setDomain(String.format(domainFormat, portalId));
         portalDomain.setPortalId(portalId);
-        portal.getPortalDomains().add(portalDomain);
 
+        portalDomainRepository.save(portalDomain);
         portalRepository.save(portal);
 
         return getPortal(portalId);
@@ -102,6 +106,9 @@ public class PortalServiceImpl implements PortalService {
     @Override
     public PortalResult getPortal(String portalId) {
         Portal portal = findPortal(portalId);
+        List<PortalDomain> domains = portalDomainRepository.findAllByPortalId(portalId);
+        portal.setPortalDomains(domains);
+
         return new PortalResult().convertFrom(portal);
     }
 
@@ -114,6 +121,22 @@ public class PortalServiceImpl implements PortalService {
     @Override
     public PageResult<PortalResult> listPortals(Pageable pageable) {
         Page<Portal> portals = portalRepository.findAll(pageable);
+
+        // 填充Domain
+        if (portals.hasContent()) {
+            List<String> portalIds = portals.getContent().stream()
+                    .map(Portal::getPortalId)
+                    .collect(Collectors.toList());
+
+            List<PortalDomain> allDomains = portalDomainRepository.findAllByPortalIdIn(portalIds);
+            Map<String, List<PortalDomain>> portalDomains = allDomains.stream()
+                    .collect(Collectors.groupingBy(PortalDomain::getPortalId));
+
+            portals.getContent().forEach(portal -> {
+                List<PortalDomain> domains = portalDomains.getOrDefault(portal.getPortalId(), new ArrayList<>());
+                portal.setPortalDomains(domains);
+            });
+        }
 
         return new PageResult<PortalResult>().convertFrom(portals, portal -> new PortalResult().convertFrom(portal));
     }
@@ -151,6 +174,9 @@ public class PortalServiceImpl implements PortalService {
     public void deletePortal(String portalId) {
         Portal portal = findPortal(portalId);
 
+        // 清理Domain
+        portalDomainRepository.deleteAllByPortalId(portalId);
+
         // 异步清理门户资源
         eventPublisher.publishEvent(new PortalDeletingEvent(portalId));
         portalRepository.delete(portal);
@@ -165,7 +191,7 @@ public class PortalServiceImpl implements PortalService {
 
     @Override
     public PortalResult bindDomain(String portalId, BindDomainParam param) {
-        Portal portal = findPortal(portalId);
+        existsPortal(portalId);
         portalDomainRepository.findByPortalIdAndDomain(portalId, param.getDomain())
                 .ifPresent(portalDomain -> {
                     throw new BusinessException(ErrorCode.RESOURCE_EXIST, Resources.PORTAL_DOMAIN, param.getDomain());
@@ -173,9 +199,8 @@ public class PortalServiceImpl implements PortalService {
 
         PortalDomain portalDomain = param.convertTo();
         portalDomain.setPortalId(portalId);
-        portal.getPortalDomains().add(portalDomain);
 
-        portalRepository.saveAndFlush(portal);
+        portalDomainRepository.save(portalDomain);
         return getPortal(portalId);
     }
 
@@ -195,7 +220,7 @@ public class PortalServiceImpl implements PortalService {
     @Override
     public PageResult<SubscriptionResult> listSubscriptions(String portalId, QuerySubscriptionParam param, Pageable pageable) {
         // Ensure portal exists
-        findPortal(portalId);
+        existsPortal(portalId);
 
         Specification<ProductSubscription> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
@@ -208,6 +233,15 @@ public class PortalServiceImpl implements PortalService {
 
         Page<ProductSubscription> page = subscriptionRepository.findAll(spec, pageable);
         return new PageResult<SubscriptionResult>().convertFrom(page, s -> new SubscriptionResult().convertFrom(s));
+    }
+
+    @Override
+    public String getDefaultPortal() {
+        Portal portal = portalRepository.findFirstByOrderByIdAsc().orElse(null);
+        if (portal == null) {
+            return null;
+        }
+        return portal.getPortalId();
     }
 
     private Portal findPortal(String portalId) {

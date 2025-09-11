@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import api from "../lib/api";
 import { Layout } from "../components/Layout";
@@ -98,7 +98,7 @@ function McpDetail() {
   };
 
   // 生成连接配置的函数
-  const generateConnectionConfig = (
+  const generateConnectionConfig = useCallback((
     domains: Array<{ domain: string; protocol: string }> | null | undefined,
     path: string | null | undefined,
     serverName: string,
@@ -117,7 +117,11 @@ function McpDetail() {
     if (domains && domains.length > 0 && path) {
       const domain = domains[0];
       const baseUrl = `${domain.protocol}://${domain.domain}`;
-      const endpoint = `${baseUrl}${path}`;
+      let endpoint = `${baseUrl}${path}`;
+
+      if (mcpConfig?.meta?.source === 'ADP_AI_GATEWAY') {
+        endpoint = `${baseUrl}/mcp-servers${path}`;
+      }
 
       const httpConfig = `{
   "mcpServers": {
@@ -145,7 +149,7 @@ function McpDetail() {
     setHttpJson("");
     setSseJson("");
     setLocalJson("");
-  };
+  }, [mcpConfig]);
 
   useEffect(() => {
     const fetchDetail = async () => {
@@ -175,14 +179,6 @@ function McpDetail() {
                   setParsedTools(parsedConfig.tools);
                 }
               }
-
-              // 生成连接配置
-              generateConnectionConfig(
-                mcpProduct.mcpConfig.mcpServerConfig.domains,
-                mcpProduct.mcpConfig.mcpServerConfig.path,
-                mcpProduct.mcpConfig.mcpServerName,
-                mcpProduct.mcpConfig.mcpServerConfig.rawConfig
-              );
             }
           }
         } else {
@@ -197,6 +193,18 @@ function McpDetail() {
     };
     fetchDetail();
   }, [mcpName]);
+
+  // 监听 mcpConfig 变化，重新生成连接配置
+  useEffect(() => {
+    if (mcpConfig) {
+      generateConnectionConfig(
+        mcpConfig.mcpServerConfig.domains,
+        mcpConfig.mcpServerConfig.path,
+        mcpConfig.mcpServerName,
+        mcpConfig.mcpServerConfig.rawConfig
+      );
+    }
+  }, [mcpConfig]);
 
   const handleCopy = async (text: string) => {
     try {
@@ -318,7 +326,7 @@ function McpDetail() {
                                 ) => (
                                   <div key={i} className="mb-2">
                                     <div>
-                                      <strong>域名:</strong> {d.domain}
+                                      <strong>域名/IP:</strong> {d.domain}
                                     </div>
                                     <div>
                                       <strong>协议:</strong> {d.protocol}

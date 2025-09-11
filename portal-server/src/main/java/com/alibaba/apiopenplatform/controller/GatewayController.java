@@ -89,14 +89,6 @@ public class GatewayController {
         return gatewayService.fetchRESTAPIs(gatewayId, page, size);
     }
 
-//    @Operation(summary = "获取API列表")
-//    @GetMapping("/{gatewayId}/apis")
-//    public PageResult<APIResult> fetchAPIs(@PathVariable String gatewayId,
-//                                           @RequestParam String apiType,
-//                                           Pageable pageable) {
-//        return gatewayService.fetchAPIs(gatewayId, apiType, pageable);
-//    }
-
     @Operation(summary = "获取MCP Server列表")
     @GetMapping("/{gatewayId}/mcp-servers")
     public PageResult<GatewayMCPServerResult> fetchMcpServers(@PathVariable String gatewayId,
@@ -105,6 +97,7 @@ public class GatewayController {
         return gatewayService.fetchMcpServers(gatewayId, page, size);
     }
 
+
     @Operation(summary = "获取Model Server列表")
     @GetMapping("/{gatewayId}/model-servers")
     public PageResult<APIResult> fetchModelServers(@PathVariable String gatewayId,
@@ -112,5 +105,11 @@ public class GatewayController {
                                                               @RequestParam(defaultValue = "500") int size) {
         log.warn("fetchModelServers begin.." + gatewayId + " size:" + size);
         return gatewayService.fetchModelServers(gatewayId, page, size);
+    }
+  
+    @Operation(summary = "获取仪表板URL")
+    @GetMapping("/{gatewayId}/dashboard")
+    public String getDashboard(@PathVariable String gatewayId) {
+        return gatewayService.getDashboard(gatewayId);
     }
 }
