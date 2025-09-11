@@ -30,11 +30,13 @@ import com.alibaba.apiopenplatform.service.AdpAIGatewayService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
 
+@Slf4j
 @Tag(name = "网关资源管理")
 @RestController
 @RequestMapping("/gateways")
@@ -87,14 +89,6 @@ public class GatewayController {
         return gatewayService.fetchRESTAPIs(gatewayId, page, size);
     }
 
-//    @Operation(summary = "获取API列表")
-//    @GetMapping("/{gatewayId}/apis")
-//    public PageResult<APIResult> fetchAPIs(@PathVariable String gatewayId,
-//                                           @RequestParam String apiType,
-//                                           Pageable pageable) {
-//        return gatewayService.fetchAPIs(gatewayId, apiType, pageable);
-//    }
-
     @Operation(summary = "获取MCP Server列表")
     @GetMapping("/{gatewayId}/mcp-servers")
     public PageResult<GatewayMCPServerResult> fetchMcpServers(@PathVariable String gatewayId,
@@ -103,6 +97,16 @@ public class GatewayController {
         return gatewayService.fetchMcpServers(gatewayId, page, size);
     }
 
+
+    @Operation(summary = "获取Model Server列表")
+    @GetMapping("/{gatewayId}/model-servers")
+    public PageResult<APIResult> fetchModelServers(@PathVariable String gatewayId,
+                                                              @RequestParam(defaultValue = "1") int page,
+                                                              @RequestParam(defaultValue = "500") int size) {
+        log.warn("fetchModelServers begin.." + gatewayId + " size:" + size);
+        return gatewayService.fetchModelServers(gatewayId, page, size);
+    }
+  
     @Operation(summary = "获取仪表板URL")
     @GetMapping("/{gatewayId}/dashboard")
     public String getDashboard(@PathVariable String gatewayId) {

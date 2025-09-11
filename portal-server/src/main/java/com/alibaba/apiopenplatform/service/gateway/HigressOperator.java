@@ -98,6 +98,11 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
     }
 
     @Override
+    public PageResult<APIResult> fetchModelServers(Gateway gateway, int page, int size) {
+        return null;
+    }
+
+    @Override
     public String fetchAPIConfig(Gateway gateway, Object config) {
         throw new UnsupportedOperationException("Higress gateway does not support fetching API config");
     }
@@ -138,6 +143,11 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
         m.setMeta(meta);
 
         return JSONUtil.toJsonStr(m);
+    }
+
+    @Override
+    public String fetchModelConfig(Gateway gateway, Object config) {
+        return "";
     }
 
     @Override

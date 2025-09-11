@@ -1,34 +1,27 @@
 import { Routes, Route } from "react-router-dom";
-import Home from "./pages/Home";
 import Apis from "./pages/Apis";
+import Models from "./pages/Models.tsx";
 import ApiDetail from "./pages/ApiDetail";
-import Consumers from "./pages/Consumers";
 import ConsumerDetail from "./pages/ConsumerDetail";
-import GettingStarted from "./pages/GettingStarted";
-import Mcp from "./pages/Mcp";
+import Home from "./pages/Home";
 import Login from "./pages/Login";
-import Register from "./pages/Register";
-import Profile from './pages/Profile'
-import McpDetail from "./pages/McpDetail";
 import Callback from "./pages/Callback";
+import Mcp from "./pages/Mcp";
+import McpDetail from "./pages/McpDetail";
 
-export function Router() {
+export default function Router() {
   return (
     <Routes>
       <Route path="/" element={<Home />} />
-      <Route path="/getting-started" element={<GettingStarted />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/callback" element={<Callback />} />
       <Route path="/apis" element={<Apis />} />
       <Route path="/apis/:id" element={<ApiDetail />} />
-      <Route path="/consumers" element={<Consumers />} />
-      <Route path="/consumers/:consumerId" element={<ConsumerDetail />} />
+      <Route path="/models/:id" element={<ApiDetail />} />
+      <Route path="/models" element={<Models />} />
       <Route path="/mcp" element={<Mcp />} />
       <Route path="/mcp/:mcpName" element={<McpDetail />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
-      <Route path="/profile" element={<Profile />} />
-      <Route path="/callback" element={<Callback />} />
-
-      {/* 其他页面可继续添加 */}
+      <Route path="/consumers/:consumerId" element={<ConsumerDetail />} />
     </Routes>
   );
 } 

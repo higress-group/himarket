@@ -26,4 +26,6 @@ public enum ProductType {
     HTTP_API,
 
     MCP_SERVER,
+
+    MODEL_API,
 }

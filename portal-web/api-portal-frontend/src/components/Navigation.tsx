@@ -72,6 +72,12 @@ export function Navigation({ loading = false }: NavigationProps) {
                   APIs
                 </Link>
                 <Link 
+                  to="/models" 
+                  className={getNavLinkClass('/models')}
+                >
+                  Model
+                </Link>
+                <Link 
                   to="/mcp" 
                   className={getNavLinkClass('/mcp')}
                 >

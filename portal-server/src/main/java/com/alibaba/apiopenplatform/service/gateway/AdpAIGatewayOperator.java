@@ -92,6 +92,12 @@ public class AdpAIGatewayOperator extends GatewayOperator {
     }
 
     @Override
+    public PageResult<? extends GatewayMCPServerResult> fetchModelServers(Gateway gateway, int page, int size) {
+        // ADP AI 网关的“模型服务”目前与 MCP Server 统一由后端提供接口，沿用相同列表
+        return fetchMcpServers(gateway, page, size);
+    }
+
+    @Override
     public String fetchAPIConfig(Gateway gateway, Object config) {
         return "";
     }
@@ -140,6 +146,11 @@ public class AdpAIGatewayOperator extends GatewayOperator {
         } finally {
             client.close();
         }
+    }
+
+    @Override
+    public String fetchModelConfig(Gateway gateway, Object config) {
+        return "";
     }
 
     /**

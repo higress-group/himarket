@@ -3,7 +3,7 @@ export interface ApiProduct {
   productId: string;
   name: string;
   description: string;
-  type: 'REST_API' | 'MCP_SERVER';
+  type: 'REST_API' | 'MCP_SERVER' | 'MODEL_API';
   category: string;
   status: 'PENDING' | 'READY' | 'PUBLISHED' | string;
   createdAt: string;
@@ -14,6 +14,7 @@ export interface ApiProduct {
 export const ProductType = {
   REST_API: 'REST_API',
   MCP_SERVER: 'MCP_SERVER',
+  MODEL_API: 'MODEL_API',
 } as const;
 export type ProductType = typeof ProductType[keyof typeof ProductType];
 
@@ -57,6 +58,40 @@ export interface RestApiProduct extends BaseProduct {
   mcpSpec: null;
 }
 
+// Model API 配置
+export interface ModelConfig {
+  modelApiName: string;
+  aiProtocols?: string[];
+  basePath?: string;
+  domains?: Array<{
+    domain: string;
+    protocol: string;
+  }>;
+  services?: Array<{
+    modelName?: string | null;
+    modelNamePattern?: string | null;
+    serviceName: string;
+    protocol?: string | null;
+    address?: string;
+    protocols?: string[];
+  }>;
+  routes?: Array<{
+    name: string;
+    methods?: string[];
+    paths?: Array<{
+      type: string;
+      value: string;
+    }>;
+    ignoreUriCase?: boolean;
+  }>;
+}
+
+// Model API 产品
+export interface ModelApiProduct extends BaseProduct {
+  apiSpec: null;
+  modelApiConfig?: ModelConfig;
+}
+
 // MCP Server 产品
 // @ts-ignore
 export interface McpServerProduct extends BaseProduct {
@@ -67,7 +102,7 @@ export interface McpServerProduct extends BaseProduct {
 }
 
 // 联合类型
-export type Product = RestApiProduct | McpServerProduct;
+export type Product = RestApiProduct | McpServerProduct | ModelApiProduct;
 
 // API 响应结构
 export interface ApiResponse<T> {

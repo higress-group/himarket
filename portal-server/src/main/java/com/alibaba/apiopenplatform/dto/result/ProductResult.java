@@ -56,6 +56,8 @@ public class ProductResult implements OutputConverter<ProductResult, Product> {
 
     private APIConfigResult apiConfig;
 
+    private ModelConfigResult modelApiConfig;
+
     private MCPConfigResult mcpConfig;
 
     private Boolean enabled;

@@ -1,5 +1,5 @@
 import { BrowserRouter } from "react-router-dom";
-import { Router } from "./router";
+import Router from "./router";
 import { ConfigProvider } from 'antd';
 import './App.css'
 import aliyunThemeToken from './aliyunThemeToken.ts';

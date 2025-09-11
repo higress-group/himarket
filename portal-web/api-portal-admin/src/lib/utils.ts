@@ -98,4 +98,5 @@ export const formatDate = (dateString: string | Date): string => {
 export const ProductTypeMap: Record<string, string> = {
   REST_API: 'REST API',
   MCP_SERVER: 'MCP Server',
+  MODEL_API: 'Model API',
 };

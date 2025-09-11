@@ -30,6 +30,29 @@ interface ApiProductApiDocsProps {
 export function ApiProductApiDocs({ apiProduct }: ApiProductApiDocsProps) {
   const [content, setContent] = useState("");
 
+  // Model API 概览数据
+  const [modelOverview, setModelOverview] = useState<{
+    name?: string;
+    protocols?: string[];
+    basePath?: string;
+    domains?: Array<{ domain: string; protocol: string }>;
+  }>({});
+
+  const [modelServices, setModelServices] = useState<Array<{
+    serviceName: string;
+    modelName?: string | null;
+    protocol?: string | null;
+    address?: string;
+    protocols?: string[];
+  }>>([]);
+
+  const [modelRoutes, setModelRoutes] = useState<Array<{
+    name: string;
+    methods?: string[];
+    path?: string;
+    ignoreUriCase?: boolean;
+  }>>([]);
+
   // OpenAPI 端点
   const [endpoints, setEndpoints] = useState<
     Array<{
@@ -117,11 +140,11 @@ export function ApiProductApiDocs({ apiProduct }: ApiProductApiDocsProps) {
   };
 
   // 复制到剪贴板
-  const handleCopy = (text: string) => {
-    navigator.clipboard.writeText(text).then(() => {
-      // 可以添加成功提示
-    });
-  };
+  // const handleCopy = (text: string) => {
+  //   navigator.clipboard.writeText(text).then(() => {
+  //     // 可以添加成功提示
+  //   });
+  // };
 
   useEffect(() => {
     // 设置源码内容
@@ -247,6 +270,42 @@ export function ApiProductApiDocs({ apiProduct }: ApiProductApiDocsProps) {
     } else {
       setMcpParsed({});
     }
+
+    // 解析 Model API（如有）
+    if (apiProduct.modelApiConfig) {
+      const m = apiProduct.modelApiConfig;
+      setModelOverview({
+        name: m.modelApiName,
+        protocols: m.aiProtocols,
+        basePath: m.basePath,
+        domains: m.domains,
+      });
+      setModelServices(
+        Array.isArray(m.services)
+          ? m.services.map(s => ({
+              serviceName: s.serviceName,
+              modelName: s.modelName ?? null,
+              protocol: s.protocol ?? null,
+              address: s.address,
+              protocols: s.protocols,
+            }))
+          : []
+      );
+      setModelRoutes(
+        Array.isArray(m.routes)
+          ? m.routes.map(r => ({
+              name: r.name,
+              methods: r.methods,
+              path: Array.isArray(r.paths) && r.paths.length > 0 ? r.paths[0].value : undefined,
+              ignoreUriCase: r.ignoreUriCase,
+            }))
+          : []
+      );
+    } else {
+      setModelOverview({});
+      setModelServices([]);
+      setModelRoutes([]);
+    }
   }, [apiProduct]);
 
   const isOpenApi = useMemo(
@@ -255,6 +314,11 @@ export function ApiProductApiDocs({ apiProduct }: ApiProductApiDocsProps) {
   );
   const isMcp = useMemo(
     () => Boolean(apiProduct.mcpConfig?.tools),
+    [apiProduct]
+  );
+
+  const isModelApi = useMemo(
+    () => Boolean(apiProduct.modelApiConfig),
     [apiProduct]
   );
 
@@ -471,6 +535,79 @@ export function ApiProductApiDocs({ apiProduct }: ApiProductApiDocsProps) {
                         </Collapse.Panel>
                       ))}
                     </Collapse>
+                  </>
+                )}
+                {isModelApi && (
+                  <>
+                    <Descriptions
+                      column={2}
+                      bordered
+                      size="small"
+                      className="mb-4"
+                    >
+                      <Descriptions.Item label="名称">
+                        {modelOverview.name || "—"}
+                      </Descriptions.Item>
+                      <Descriptions.Item label="协议">
+                        {(modelOverview.protocols || []).join(", ") || "—"}
+                      </Descriptions.Item>
+                      <Descriptions.Item label="Base Path">
+                        {modelOverview.basePath || "/"}
+                      </Descriptions.Item>
+                      <Descriptions.Item label="域名">
+                        {modelOverview.domains && modelOverview.domains.length > 0
+                          ? `${modelOverview.domains[0].protocol}://${modelOverview.domains[0].domain}`
+                          : "—"}
+                      </Descriptions.Item>
+                    </Descriptions>
+
+                    <Card size="small" title="服务">
+                      <Table
+                        size="small"
+                        pagination={false}
+                        rowKey={(r) => r.serviceName}
+                        columns={[
+                          { title: "服务名", dataIndex: "serviceName", key: "serviceName", width: 220 },
+                          { title: "模型名", dataIndex: "modelName", key: "modelName", width: 220, render: (v: string | null) => v || "—" },
+                          { title: "协议", dataIndex: "protocol", key: "protocol", render: (v: string | null) => (
+                            v ? <Tag color="blue">{String(v).toUpperCase()}</Tag> : <span className="text-gray-400">—</span>
+                          ) },
+                          { title: "全部协议", dataIndex: "protocols", key: "protocols", render: (list?: string[]) => (
+                            <Space wrap>
+                              {(list || []).map((p) => (
+                                <Tag key={p} color="geekblue">{p}</Tag>
+                              ))}
+                            </Space>
+                          ) },
+                          { title: "地址", dataIndex: "address", key: "address", width: 320, render: (addr?: string) => (
+                            addr ? <code className="text-sm bg-gray-100 px-2 py-1 rounded">{addr}</code> : <span className="text-gray-400">—</span>
+                          ) },
+                        ] as any}
+                        dataSource={modelServices}
+                      />
+                    </Card>
+
+                    <Card size="small" title="路由">
+                      <Table
+                        size="small"
+                        pagination={false}
+                        rowKey={(r) => r.name}
+                        columns={[
+                          { title: "名称", dataIndex: "name", key: "name", width: 260 },
+                          { title: "方法", dataIndex: "methods", key: "methods", width: 160, render: (methods?: string[]) => (
+                            <Space wrap>
+                              {(methods || []).map((m) => (
+                                <Tag key={m} color="blue">{m}</Tag>
+                              ))}
+                            </Space>
+                          ) },
+                          { title: "路径", dataIndex: "path", key: "path", render: (path?: string) => (
+                            path ? <code className="text-sm bg-gray-100 px-2 py-1 rounded">{path}</code> : <span className="text-gray-400">—</span>
+                          ) },
+                        ] as any}
+                        dataSource={modelRoutes}
+                      />
+                    </Card>
                   </>
                 )}
                 {!isOpenApi && !isMcp && (

@@ -23,12 +23,16 @@ const ProductCard = memo(({ product, onNavigate, handleRefresh, onEdit }: {
       const base64Data = icon.substring(startIndex, endIndex).trim();
       return <img src={base64Data} alt="icon" style={{ borderRadius: '8px', minHeight: '40px' }} />
     } else {
-       return type === "REST_API" ? <ApiOutlined className="h-4 w-4" /> : <ClockCircleOutlined className="h-4 w-4" />
-     }
+      return type === "REST_API"
+        ? <ApiOutlined className="h-4 w-4" />
+        : type === "MCP_SERVER"
+          ? <ClockCircleOutlined className="h-4 w-4" />
+          : <ClockCircleOutlined className="h-4 w-4" />
+    }
   }
 
   const getTypeBadgeVariant = (type: string) => {
-    return type === "REST_API" ? "blue" : "purple"
+    return type === "REST_API" ? "blue" : (type === "MCP_SERVER" ? "purple" : "magenta")
   }
   const handleClick = useCallback(() => {
     onNavigate(product.productId)
@@ -89,7 +93,7 @@ const ProductCard = memo(({ product, onNavigate, handleRefresh, onEdit }: {
             <h3 className="text-lg font-semibold">{product.name}</h3>
             <div className="flex items-center gap-2 mt-1 flex-wrap">
               {product.category && <Badge color="green" text={product.category} />}
-              <Badge color={getTypeBadgeVariant(product.type)} text={product.type === "REST_API" ? "REST API" : "MCP Server"} />
+              <Badge color={getTypeBadgeVariant(product.type)} text={product.type === "REST_API" ? "REST API" : (product.type === "MCP_SERVER" ? "MCP Server" : "Model API")} />
               <Badge color={getStatusBadgeVariant(product.status)} text={product.status === "PENDING" ? "待配置" : product.status === "READY" ? "待发布" : "已发布"} />
             </div>
           </div>
@@ -161,6 +165,7 @@ export default function ApiProducts() {
     [
       { label: 'REST API', value: 'REST_API' },
       { label: 'MCP Server', value: 'MCP_SERVER' },
+      { label: 'Model API', value: 'MODEL_API' },
     ]
   ), [])
 

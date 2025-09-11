@@ -202,6 +202,7 @@ export default function ApiProductFormModal({
           <Select placeholder="请选择类型">
             <Select.Option value="REST_API">REST API</Select.Option>
             <Select.Option value="MCP_SERVER">MCP Server</Select.Option>
+            <Select.Option value="MODEL_API">Model API</Select.Option>
           </Select>
         </Form.Item>
 

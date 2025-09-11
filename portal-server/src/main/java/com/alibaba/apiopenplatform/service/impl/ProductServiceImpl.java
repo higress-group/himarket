@@ -280,7 +280,10 @@ public class ProductServiceImpl implements ProductService {
             if (product.getType() == ProductType.REST_API) {
                 String apiConfig = gatewayService.fetchAPIConfig(gateway.getGatewayId(), config);
                 productRef.setApiConfig(apiConfig);
-            } else {
+            } else if (product.getType() == ProductType.MODEL_API) {
+                String apiConfig = gatewayService.fetchModelConfig(gateway.getGatewayId(), config);
+                productRef.setModelApiConfig(apiConfig);
+            } else  {
                 String mcpConfig = gatewayService.fetchMcpConfig(gateway.getGatewayId(), config);
                 productRef.setMcpConfig(mcpConfig);
             }
@@ -302,6 +305,10 @@ public class ProductServiceImpl implements ProductService {
                     product.setEnabled(productRef.getEnabled());
                     if (StrUtil.isNotBlank(productRef.getApiConfig())) {
                         product.setApiConfig(JSONUtil.toBean(productRef.getApiConfig(), APIConfigResult.class));
+                    }
+
+                    if (StrUtil.isNotBlank(productRef.getModelApiConfig())) {
+                        product.setModelApiConfig(JSONUtil.toBean(productRef.getModelApiConfig(), ModelConfigResult.class));
                     }
 
                     // API Config

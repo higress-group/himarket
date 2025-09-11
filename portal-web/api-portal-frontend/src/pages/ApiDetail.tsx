@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Card, Table, Tag, Alert, Button, Modal } from "antd";
+import { Card, Table, Tag, Alert, Button, Modal, Space } from "antd";
 
 import { FileTextOutlined } from "@ant-design/icons";
 import { Layout } from "../components/Layout";
 import { ProductHeader } from "../components/ProductHeader";
 import api from "../lib/api";
-import type { Product, ApiResponse } from "../types";
+import type { Product, ApiResponse, ModelApiProduct } from "../types";
 import MonacoEditor from "react-monaco-editor";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from 'remark-gfm';
@@ -43,6 +43,8 @@ function ApiDetailPage() {
   const [endpoints, setEndpoints] = useState<ApiEndpoint[]>([]);
   const [isSpecModalVisible, setIsSpecModalVisible] = useState(false);
   const [currentSpec, setCurrentSpec] = useState('');
+  const [modelRoutes, setModelRoutes] = useState<Array<{ name: string; methods?: string[]; paths?: Array<{ type: string; value: string }>; ignoreUriCase?: boolean }>>([]);
+  const [modelServices, setModelServices] = useState<Array<{ serviceName: string; modelName?: string | null; modelNamePattern?: string | null; protocol?: string | null; address?: string; protocols?: string[] }>>([]);
 
   useEffect(() => {
     if (!id) return;
@@ -56,47 +58,52 @@ function ApiDetailPage() {
       const response: ApiResponse<UpdatedProduct> = await api.get(`/products/${id}`);
       if (response.code === "SUCCESS" && response.data) {
         setApiData(response.data);
-        
+        // 如果是MODEL_API，准备渲染路由与服务
+        if (response.data.type === 'MODEL_API' && (response.data as unknown as ModelApiProduct).modelApiConfig) {
+          const m = (response.data as unknown as ModelApiProduct).modelApiConfig!;
+          setModelRoutes(
+            Array.isArray(m.routes) ? m.routes : []
+          );
+          setModelServices(
+            Array.isArray(m.services) ? m.services.map(s => ({
+              serviceName: s.serviceName,
+              modelName: s.modelName ?? null,
+              modelNamePattern: s.modelNamePattern ?? null,
+              protocol: s.protocol ?? null,
+              address: s.address,
+              protocols: s.protocols,
+            })) : []
+          );
+        }
+
         // 尝试从apiConfig.spec中解析端点信息
         if (response.data.apiConfig?.spec) {
           try {
             // 解析OpenAPI规范
             const spec = response.data.apiConfig.spec;
             const endpointsList: ApiEndpoint[] = [];
-            
-            // 改进的OpenAPI解析逻辑
             const lines = spec.split('\n');
             let currentPath = '';
             let inPaths = false;
-            
             for (let i = 0; i < lines.length; i++) {
               const line = lines[i];
               const trimmedLine = line.trim();
               const indentLevel = line.length - line.trimStart().length;
-              
-              // 检测是否进入paths部分
               if (trimmedLine === 'paths:' || trimmedLine.startsWith('paths:')) {
                 inPaths = true;
                 continue;
               }
-              
-              // 如果不在paths部分，跳过
               if (!inPaths) continue;
-              
-              // 检测路径 - 必须是顶级缩进（通常是2个空格）
               if (inPaths && indentLevel === 2 && trimmedLine.startsWith('/') && trimmedLine.endsWith(':')) {
-                currentPath = trimmedLine.slice(0, -1); // 移除末尾的冒号
+                currentPath = trimmedLine.slice(0, -1);
                 continue;
               }
-              
-              // 检测HTTP方法 - 必须是路径下的子级（通常是4个空格）
               if (inPaths && indentLevel === 4) {
                 const httpMethods = ['get:', 'post:', 'put:', 'delete:', 'patch:', 'head:', 'options:'];
                 for (const method of httpMethods) {
                   if (trimmedLine.startsWith(method)) {
                     const methodName = method.replace(':', '').toUpperCase();
                     const operationId = extractOperationId(lines, i);
-                    
                     endpointsList.push({
                       key: `${methodName}-${currentPath}`,
                       method: methodName,
@@ -110,7 +117,6 @@ function ApiDetailPage() {
                 }
               }
             }
-            
             if (endpointsList.length > 0) {
               setEndpoints(endpointsList);
             } else {
@@ -133,20 +139,14 @@ function ApiDetailPage() {
   };
 
   const extractOperationId = (lines: string[], startIndex: number): string => {
-    // 从当前行开始向后查找operationId
     const currentIndent = lines[startIndex].length - lines[startIndex].trimStart().length;
-    
     for (let i = startIndex + 1; i < Math.min(startIndex + 20, lines.length); i++) {
       const line = lines[i];
       const trimmedLine = line.trim();
       const lineIndent = line.length - line.trimStart().length;
-      
-      // 如果缩进级别小于等于当前级别，说明已经离开了当前方法块
       if (lineIndent <= currentIndent && trimmedLine !== '') {
         break;
       }
-      
-      // 查找operationId
       if (trimmedLine.startsWith('operationId:')) {
         return trimmedLine.replace('operationId:', '').trim();
       }
@@ -155,14 +155,7 @@ function ApiDetailPage() {
   };
 
   const setDefaultEndpoints = () => {
-    setEndpoints([
-      {
-        key: "1",
-        method: "GET",
-        path: "/api/endpoints",
-        description: "获取端点列表"
-      }
-    ]);
+    setEndpoints([]);
   };
 
   const showSpecModal = (spec: string) => {
@@ -190,23 +183,16 @@ function ApiDetailPage() {
         <code className="text-sm bg-gray-100 px-2 py-1 rounded">{path}</code>
       )
     },
-    // {
-    //   title: '操作ID',
-    //   dataIndex: 'operationId',
-    //   key: 'operationId',
-    //   width: 150,
-    //   render: (operationId: string) => (
-    //     <span className="text-sm text-gray-600">{operationId || '-'}</span>
-    //   )
-    // },
-    // {
-    //   title: '描述',
-    //   dataIndex: 'description',
-    //   key: 'description',
-    // }
   ];
 
-
+  const providerBadge = (address?: string) => {
+    if (!address) return null;
+    const host = address.replace(/^https?:\/\//, '').toLowerCase();
+    if (host.includes('dashscope.aliyuncs.com')) {
+      return <Tag color="gold">阿里云百炼</Tag>;
+    }
+    return null;
+  };
 
   if (error) {
     return (
@@ -233,7 +219,6 @@ function ApiDetailPage() {
         category={apiData.category}
         icon={apiData.icon || undefined}
         defaultIcon="/logo.png"
-        // version="v1.0.0"
         enabled={apiData.enabled}
         showVersion={true}
         showEnabled={false}
@@ -251,11 +236,11 @@ function ApiDetailPage() {
               )}
       </Card>
 
-      <Card 
-        title={
-          <div className="flex items-center justify-between">
-            <span>API 端点</span>
-            {apiData.apiConfig && (
+      {apiData.apiConfig && (
+        <Card 
+          title={
+            <div className="flex items-center justify-between">
+              <span>API 端点</span>
               <Button 
                 type="text" 
                 icon={<FileTextOutlined />} 
@@ -264,19 +249,75 @@ function ApiDetailPage() {
               >
                 查看 OpenAPI 规范
               </Button>
-            )}
-          </div>
-        } 
-        className="mb-8"
-      >
-        <Table 
-          columns={columns} 
-          dataSource={endpoints}
-          rowKey="key"
-          pagination={false}
-          size="small"
-        />
-      </Card>
+            </div>
+          } 
+          className="mb-8"
+        >
+          <Table 
+            columns={columns} 
+            dataSource={endpoints}
+            rowKey="key"
+            pagination={false}
+            size="small"
+          />
+        </Card>
+      )}
+
+      {apiData.type === 'MODEL_API' && (
+        <>
+          <Card className="mb-6" title="模型服务">
+            <Table
+              size="small"
+              pagination={false}
+              rowKey={(r) => r.serviceName}
+              columns={[
+                { title: '服务名', dataIndex: 'serviceName', key: 'serviceName', width: 180 },
+                { title: '模型名', dataIndex: 'modelName', key: 'modelName', width: 180, render: (v: string | null) => v || '—' },
+                { title: '协议', dataIndex: 'protocol', key: 'protocol', width: 140, render: (v: string | null) => (
+                  v ? <Tag color="blue">{String(v).toUpperCase()}</Tag> : <span className="text-gray-400">—</span>
+                ) },
+                { title: '全部协议', dataIndex: 'protocols', key: 'protocols', render: (list?: string[]) => (
+                  <Space wrap>
+                    {(list || []).map(p => (
+                      <Tag key={p} color="geekblue">{p}</Tag>
+                    ))}
+                  </Space>
+                ) },
+                { title: '地址', dataIndex: 'address', key: 'address', width: 320, render: (addr?: string) => (
+                  <Space>
+                    {addr ? <code className="text-sm bg-gray-100 px-2 py-1 rounded">{addr}</code> : <span className="text-gray-400">—</span>}
+                    {providerBadge(addr)}
+                  </Space>
+                ) },
+              ] as any}
+              dataSource={modelServices}
+            />
+          </Card>
+
+          <Card className="mb-6" title="模型路由">
+            <Table
+              size="small"
+              pagination={false}
+              rowKey={(r) => r.name}
+              columns={[
+                { title: '名称', dataIndex: 'name', key: 'name', width: 260 },
+                { title: '方法', dataIndex: 'methods', key: 'methods', width: 180, render: (methods?: string[]) => (
+                  <>
+                    {(methods || []).map((m) => (
+                      <Tag key={m} color="blue">{m}</Tag>
+                    ))}
+                  </>
+                ) },
+                { title: '路径', dataIndex: 'paths', key: 'paths', render: (paths?: Array<{ type: string; value: string }>) => {
+                  const p = Array.isArray(paths) && paths.length > 0 ? paths[0] : undefined;
+                  return p ? <code className="text-sm bg-gray-100 px-2 py-1 rounded">{p.value}</code> : <span className="text-gray-400">—</span>;
+                } },
+              ] as any}
+              dataSource={modelRoutes}
+            />
+          </Card>
+        </>
+      )}
 
       {/* OpenAPI 规范模态框 */}
       <Modal

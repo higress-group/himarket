@@ -13,11 +13,11 @@ spring:
         format_sql: true
 
 db:
-   host: YourDBHost
+   host: rm-uf6rn70n3l8vzzkp90o.mysql.rds.aliyuncs.com
    port: 3306
-   name: YourDBName
+   name: hhh
    username: YourDBUser
-   password: YourDBPassword
+   password: apigo@123
 
 # Encryptor
 encryption:
