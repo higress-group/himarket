@@ -19,27 +19,36 @@
 
 package com.alibaba.apiopenplatform.support.gateway;
 
-import com.alibaba.apiopenplatform.entity.Gateway;
-import com.alibaba.apiopenplatform.support.enums.GatewayType;
-import lombok.Builder;
+import com.alibaba.apiopenplatform.support.common.Encrypted;
 import lombok.Data;
 
 @Data
-@Builder
-public class GatewayConfig {
+public class ApsaraGatewayConfig {
 
-    private GatewayType gatewayType;
+    private String regionId;
 
-    private APIGConfig apigConfig;
+    @Encrypted
+    private String accessKeyId;
 
-    private AdpAIGatewayConfig adpAIGatewayConfig;
+    @Encrypted
+    private String accessKeySecret;
 
-    private ApsaraGatewayConfig apsaraGatewayConfig;
+    /** 可选：STS 临时凭证 */
+    @Encrypted
+    private String securityToken;
 
-    private HigressConfig higressConfig;
-    
-    /**
-     * 网关实体引用，用于获取gatewayId等信息
-     */
-    private Gateway gateway;
+    /** POP 路由相关 */
+    private String domain;
+    private String product;
+    private String version;
+
+    /** 业务头 */
+    private String xAcsOrganizationId;
+    private String xAcsCallerSdkSource;
+    private String xAcsResourceGroupId;
+    private String xAcsCallerType;
+
+    public String buildUniqueKey() {
+        return String.format("%s:%s:%s:%s:%s", accessKeyId, accessKeySecret, regionId, product, version);
+    }
 }

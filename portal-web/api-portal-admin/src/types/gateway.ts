@@ -1,7 +1,7 @@
 export interface Gateway {
   gatewayId: string
   gatewayName: string
-  gatewayType: 'APIG_API' | 'HIGRESS' | 'APIG_AI' | 'ADP_AI_GATEWAY'
+  gatewayType: 'APIG_API' | 'HIGRESS' | 'APIG_AI' | 'ADP_AI_GATEWAY' | 'APSARA_GATEWAY'
   createAt: string
   apigConfig?: ApigConfig
   higressConfig?: HigressConfig
@@ -32,4 +32,4 @@ export interface NacosInstance {
   createAt?: string | number
 }
 
-export type GatewayType = 'APIG_API' | 'APIG_AI' | 'HIGRESS' | 'ADP_AI_GATEWAY'
+export type GatewayType = 'APIG_API' | 'APIG_AI' | 'HIGRESS' | 'ADP_AI_GATEWAY' | 'APSARA_GATEWAY'

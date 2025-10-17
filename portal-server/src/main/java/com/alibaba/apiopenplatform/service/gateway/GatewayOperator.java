@@ -109,6 +109,9 @@ public abstract class GatewayOperator<T> {
             case APIG_API:
             case APIG_AI:
                 return new APIGClient(gateway.getApigConfig());
+            case APSARA_GATEWAY:
+                return new com.alibaba.apiopenplatform.service.gateway.client.ApsaraGatewayClient(
+                        gateway.getApsaraGatewayConfig());
             case HIGRESS:
                 return new HigressClient(gateway.getHigressConfig());
             default:

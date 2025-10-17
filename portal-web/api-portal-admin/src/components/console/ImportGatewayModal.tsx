@@ -7,7 +7,7 @@ import { getGatewayTypeLabel } from '@/lib/constant'
 
 interface ImportGatewayModalProps {
   visible: boolean
-  gatewayType: 'APIG_API' | 'APIG_AI' | 'ADP_AI_GATEWAY'
+  gatewayType: 'APIG_API' | 'APIG_AI' | 'ADP_AI_GATEWAY' | 'APSARA_GATEWAY'
   onCancel: () => void
   onSuccess: () => void
 }
@@ -74,6 +74,21 @@ export default function ImportGatewayModal({ visible, gatewayType, onCancel, onS
     }
   }
 
+  const fetchApsaraGateways = async (values: any, page = 1, size = 50) => {
+    setGatewayLoading(true)
+    try {
+      const res = await gatewayApi.getApsaraGateways({...values, page, size})
+      setGatewayList(res.data?.content || [])
+      setGatewayPagination({
+        current: page,
+        pageSize: size,
+        total: res.data?.totalElements || 0,
+      })
+    } finally {
+      setGatewayLoading(false)
+    }
+  }
+
   // 处理网关选择
   const handleGatewaySelect = (gateway: Gateway) => {
     setSelectedGateway(gateway)
@@ -102,6 +117,8 @@ export default function ImportGatewayModal({ visible, gatewayType, onCancel, onS
     }
     if (gatewayType === 'ADP_AI_GATEWAY') {
       payload.adpAIGatewayConfig = apigConfig
+    } else if (gatewayType === 'APSARA_GATEWAY') {
+      payload.apsaraGatewayConfig = apigConfig
     } else {
       payload.apigConfig = apigConfig
     }
@@ -274,6 +291,79 @@ export default function ImportGatewayModal({ visible, gatewayType, onCancel, onS
             >
               获取网关列表
             </Button>
+          </div>
+        )}
+
+        {gatewayList.length === 0 && gatewayType === 'APSARA_GATEWAY' && (
+          <div className="mb-4">
+            <h3 className="text-lg font-medium mb-3">Apsara 认证与路由</h3>
+            <Form.Item label="RegionId" name="regionId" rules={[{ required: true, message: '请输入RegionId' }]}>
+              <Input />
+            </Form.Item>
+            <Form.Item label="AccessKeyId" name="accessKeyId" rules={[{ required: true, message: '请输入AccessKeyId' }]}>
+              <Input />
+            </Form.Item>
+            <Form.Item label="AccessKeySecret" name="accessKeySecret" rules={[{ required: true, message: '请输入AccessKeySecret' }]}>
+              <Input.Password />
+            </Form.Item>
+            <Form.Item label="SecurityToken(可选)" name="securityToken">
+              <Input />
+            </Form.Item>
+            <Form.Item label="Domain" name="domain" rules={[{ required: true, message: '请输入Domain' }]}>
+              <Input placeholder="csb-cop-api-biz.inter.envXX.example.com" />
+            </Form.Item>
+            <Form.Item label="Product" name="product" rules={[{ required: true, message: '请输入Product' }]} initialValue="csb2">
+              <Input />
+            </Form.Item>
+            <Form.Item label="Version" name="version" rules={[{ required: true, message: '请输入Version' }]} initialValue="2023-02-06">
+              <Input />
+            </Form.Item>
+            <Form.Item label="x-acs-organizationid" name="xAcsOrganizationId" rules={[{ required: true, message: '请输入组织ID' }]}>
+              <Input />
+            </Form.Item>
+            <Form.Item label="x-acs-caller-sdk-source" name="xAcsCallerSdkSource">
+              <Input />
+            </Form.Item>
+            <Form.Item label="x-acs-resourcegroupid(可选)" name="xAcsResourceGroupId">
+              <Input />
+            </Form.Item>
+            <Form.Item label="x-acs-caller-type(可选)" name="xAcsCallerType">
+              <Input />
+            </Form.Item>
+            <div className="flex gap-2">
+              <Button 
+                onClick={() => {
+                  try {
+                    const raw = localStorage.getItem('apsaraImportConfig')
+                    if (!raw) {
+                      message.info('暂无历史参数')
+                      return
+                    }
+                    const data = JSON.parse(raw)
+                    importForm.setFieldsValue(data)
+                    message.success('已填充上次参数')
+                  } catch {
+                    message.error('读取历史参数失败')
+                  }
+                }}
+              >
+                填充上次参数
+              </Button>
+              <Button 
+                type="primary"
+                onClick={() => {
+                  importForm.validateFields().then((values) => {
+                    setApigConfig(values)
+                    sessionStorage.setItem('importFormConfig', JSON.stringify(values))
+                    localStorage.setItem('apsaraImportConfig', JSON.stringify(values))
+                    // APSARA 需要远程拉取列表
+                    fetchApsaraGateways({...values, gatewayType: 'APSARA_GATEWAY'})
+                  })
+                }}
+              >
+                使用以上配置继续
+              </Button>
+            </div>
           </div>
         )}
 

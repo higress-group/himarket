@@ -42,6 +42,11 @@ public enum GatewayType {
     ADP_AI_GATEWAY("ADP_AI_GATEWAY"),
 
     /**
+     * Apsara 网关（POP 协议网关）
+     */
+    APSARA_GATEWAY("APSARA_GATEWAY"),
+
+    /**
      * Higress
      */
     HIGRESS("Higress"),
@@ -64,5 +69,9 @@ public enum GatewayType {
 
     public boolean isAdpAIGateway() {
         return this == ADP_AI_GATEWAY;
+    }
+
+    public boolean isApsaraGateway() {
+        return this == APSARA_GATEWAY;
     }
 }

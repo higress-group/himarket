@@ -17,29 +17,16 @@
  * under the License.
  */
 
-package com.alibaba.apiopenplatform.support.gateway;
+package com.alibaba.apiopenplatform.converter;
 
-import com.alibaba.apiopenplatform.entity.Gateway;
-import com.alibaba.apiopenplatform.support.enums.GatewayType;
-import lombok.Builder;
-import lombok.Data;
+import com.alibaba.apiopenplatform.support.gateway.ApsaraGatewayConfig;
 
-@Data
-@Builder
-public class GatewayConfig {
+import javax.persistence.Converter;
 
-    private GatewayType gatewayType;
+@Converter(autoApply = true)
+public class ApsaraGatewayConfigConverter extends JsonConverter<ApsaraGatewayConfig> {
 
-    private APIGConfig apigConfig;
-
-    private AdpAIGatewayConfig adpAIGatewayConfig;
-
-    private ApsaraGatewayConfig apsaraGatewayConfig;
-
-    private HigressConfig higressConfig;
-    
-    /**
-     * 网关实体引用，用于获取gatewayId等信息
-     */
-    private Gateway gateway;
+    public ApsaraGatewayConfigConverter() {
+        super(ApsaraGatewayConfig.class);
+    }
 }

@@ -67,6 +67,12 @@ export default function GatewayTypeSelector({ visible, onCancel, onSelect }: Gat
                 <div className="text-sm text-gray-500">专有云 AI 网关服务</div>
               </div>
             </Radio>
+            <Radio value="APSARA_GATEWAY" className="w-full p-3 border rounded-lg hover:bg-gray-50">
+              <div className="ml-2">
+                <div className="font-medium">{GATEWAY_TYPE_LABELS.APSARA_GATEWAY}</div>
+                <div className="text-sm text-gray-500">阿里云飞天企业版 AI 网关</div>
+              </div>
+            </Radio>
           </Space>
         </Radio.Group>
       </div>

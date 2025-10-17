@@ -198,6 +198,10 @@ export const gatewayApi = {
       ...data,
     } })
   },
+  // 获取Apsara网关
+  getApsaraGateways: (data: any) => {
+    return api.post(`/gateways/apsara`, data)
+  },
   // 获取ADP网关
   getAdpGateways: (data: any) => {
     return api.post(`/gateways/adp`, data)
