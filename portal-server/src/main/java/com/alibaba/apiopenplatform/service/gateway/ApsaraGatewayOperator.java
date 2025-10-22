@@ -6,17 +6,19 @@ import com.alibaba.apiopenplatform.core.exception.BusinessException;
 import com.alibaba.apiopenplatform.core.exception.ErrorCode;
 import com.alibaba.apiopenplatform.dto.result.*;
 import com.alibaba.apiopenplatform.entity.Gateway;
-import com.alibaba.apiopenplatform.service.gateway.client.ApsaraGatewayClient;
+import com.alibaba.apiopenplatform.service.gateway.client.ApsaraStackGatewayClient;
 import com.alibaba.apiopenplatform.support.consumer.ConsumerAuthConfig;
 import com.alibaba.apiopenplatform.support.enums.GatewayType;
 import com.alibaba.apiopenplatform.support.gateway.GatewayConfig;
+import com.alibaba.apiopenplatform.support.gateway.ApsaraGatewayConfig;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import com.aliyun.apsarastack.csb220230206.models.*;
 import com.aliyuncs.http.MethodType;
 
 @Service
 @Slf4j
-public class ApsaraGatewayOperator extends GatewayOperator<ApsaraGatewayClient> {
+public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayClient> {
 
     @Override
     public PageResult<APIResult> fetchHTTPAPIs(Gateway gateway, int page, int size) {
@@ -30,23 +32,39 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraGatewayClient> 
 
     @Override
     public PageResult<? extends GatewayMCPServerResult> fetchMcpServers(Gateway gateway, int page, int size) {
-        ApsaraGatewayClient client = getClient(gateway);
+        ApsaraStackGatewayClient client = getClient(gateway);
         try {
-            JSONObject body = JSONUtil.createObj()
-                    .set("current", page)
-                    .set("size", size)
-                    .set("gwInstanceId", gateway.getGatewayId());
-            return client.execute("/mcpServer/listMcpServers", MethodType.POST, body, data -> {
-                if (!data.getJSONObject("data").getBool("asapiSuccess", false)) {
-                    throw new BusinessException(ErrorCode.GATEWAY_ERROR, data.toString());
+            // 使用SDK获取MCP服务器列表
+            ListMcpServersResponse response = client.ListMcpServers(gateway.getGatewayId(), page, size);
+            
+            if (response.getBody() == null) {
+                return PageResult.of(new java.util.ArrayList<>(), page, size, 0);
+            }
+            
+            // 修复类型不兼容问题
+            // 根据错误信息，getData()返回的是ListMcpServersResponseBodyData类型
+            com.aliyun.apsarastack.csb220230206.models.ListMcpServersResponseBody.ListMcpServersResponseBodyData data = 
+                response.getBody().getData();
+            
+            if (data == null) {
+                return PageResult.of(new java.util.ArrayList<>(), page, size, 0);
+            }
+            
+            int total = data.getTotal() != null ? data.getTotal() : 0;
+            
+            java.util.List<GatewayMCPServerResult> items = new java.util.ArrayList<>();
+            // 修复records的类型引用
+            if (data.getRecords() != null) {
+                for (com.aliyun.apsarastack.csb220230206.models.ListMcpServersResponseBody.ListMcpServersResponseBodyDataRecords record : data.getRecords()) {
+                    AdpMCPServerResult result = new AdpMCPServerResult();
+                    // result.setMcpServerId(record.getMcpServerId());
+                    result.setMcpServerName(record.getName());
+                    // 根据需要设置其他字段
+                    items.add(result);
                 }
-                JSONObject inner = data.getJSONObject("data").getJSONObject("data");
-                int total = inner.getInt("total", 0);
-                java.util.List<com.alibaba.apiopenplatform.dto.result.AdpMCPServerResult> records =
-                        JSONUtil.toList(inner.getJSONArray("records"), com.alibaba.apiopenplatform.dto.result.AdpMCPServerResult.class);
-                java.util.List<GatewayMCPServerResult> items = new java.util.ArrayList<>(records);
-                return PageResult.of(items, page, size, total);
-            });
+            }
+            
+            return PageResult.of(items, page, size, total);
         } catch (Exception e) {
             log.error("Error fetching MCP servers by Apsara", e);
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, e.getMessage());
@@ -65,60 +83,56 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraGatewayClient> 
 
     @Override
     public PageResult<GatewayResult> fetchGateways(Object param, int page, int size) {
-        ApsaraGatewayClient client = null;
+        // 将入参转换为配置
+        com.alibaba.apiopenplatform.dto.params.gateway.QueryApsaraGatewayParam p =
+                (com.alibaba.apiopenplatform.dto.params.gateway.QueryApsaraGatewayParam) param;
+        
+        ApsaraGatewayConfig cfg = new ApsaraGatewayConfig();
+        cfg.setRegionId(p.getRegionId());
+        cfg.setAccessKeyId(p.getAccessKeyId());
+        cfg.setAccessKeySecret(p.getAccessKeySecret());
+        cfg.setSecurityToken(p.getSecurityToken());
+        cfg.setDomain(p.getDomain());
+        cfg.setProduct(p.getProduct());
+        cfg.setVersion(p.getVersion());
+        cfg.setXAcsOrganizationId(p.getXAcsOrganizationId());
+        cfg.setXAcsCallerSdkSource(p.getXAcsCallerSdkSource());
+        cfg.setXAcsResourceGroupId(p.getXAcsResourceGroupId());
+        cfg.setXAcsCallerType(p.getXAcsCallerType());
+
+        ApsaraStackGatewayClient client = new ApsaraStackGatewayClient(cfg);
+        
         try {
-            // 将入参转换为配置
-            com.alibaba.apiopenplatform.dto.params.gateway.QueryApsaraGatewayParam p =
-                    (com.alibaba.apiopenplatform.dto.params.gateway.QueryApsaraGatewayParam) param;
-            com.alibaba.apiopenplatform.support.gateway.ApsaraGatewayConfig cfg = new com.alibaba.apiopenplatform.support.gateway.ApsaraGatewayConfig();
-            cfg.setRegionId(p.getRegionId());
-            cfg.setAccessKeyId(p.getAccessKeyId());
-            cfg.setAccessKeySecret(p.getAccessKeySecret());
-            cfg.setSecurityToken(p.getSecurityToken());
-            cfg.setDomain(p.getDomain());
-            cfg.setProduct(p.getProduct());
-            cfg.setVersion(p.getVersion());
-            cfg.setXAcsOrganizationId(p.getXAcsOrganizationId());
-            cfg.setXAcsCallerSdkSource(p.getXAcsCallerSdkSource());
-            cfg.setXAcsResourceGroupId(p.getXAcsResourceGroupId());
-            cfg.setXAcsCallerType(p.getXAcsCallerType());
-
-            client = new ApsaraGatewayClient(cfg);
-
-            cn.hutool.json.JSONObject body = JSONUtil.createObj()
-                    .set("current", page)
-                    .set("size", size);
-
-            return client.execute("/gatewayInstance/listInstances", MethodType.POST, body, data -> {
-                cn.hutool.json.JSONObject d = data.getJSONObject("data");
-                if (d == null) {
-                    return PageResult.of(java.util.Collections.emptyList(), page, size, 0);
+            // 使用SDK的ListInstances方法获取网关实例列表
+            ListInstancesResponse response = client.ListInstances(page, size);
+            
+            if (response.getBody() == null || response.getBody().getData() == null) {
+                return PageResult.of(new java.util.ArrayList<>(), page, size, 0);
+            }
+            
+            com.aliyun.apsarastack.csb220230206.models.ListInstancesResponseBody.ListInstancesResponseBodyData data = 
+                response.getBody().getData();
+            
+            int total = data.getTotal() != null ? data.getTotal() : 0;
+            
+            java.util.List<GatewayResult> list = new java.util.ArrayList<>();
+            if (data.getRecords() != null) {
+                for (com.aliyun.apsarastack.csb220230206.models.ListInstancesResponseBody.ListInstancesResponseBodyDataRecords record : data.getRecords()) {
+                    GatewayResult gr = GatewayResult.builder()
+                            .gatewayId(record.getGwInstanceId())
+                            .gatewayName(record.getName())
+                            .gatewayType(GatewayType.APSARA_GATEWAY)
+                            .build();
+                    list.add(gr);
                 }
-                java.util.List<com.alibaba.apiopenplatform.dto.result.GatewayResult> list = new java.util.ArrayList<>();
-                int total = d.getInt("total", 0);
-                cn.hutool.json.JSONArray records = d.getJSONArray("records");
-                if (records != null) {
-                    for (Object obj : records) {
-                        cn.hutool.json.JSONObject it = (cn.hutool.json.JSONObject) obj;
-                        String id = it.getStr("gwInstanceId");
-                        String name = it.getStr("name");
-                        GatewayResult gr = GatewayResult.builder()
-                                .gatewayId(id)
-                                .gatewayName(name)
-                                .gatewayType(GatewayType.APSARA_GATEWAY)
-                                .build();
-                        list.add(gr);
-                    }
-                }
-                return PageResult.of(list, page, size, total);
-            });
+            }
+            
+            return PageResult.of(list, page, size, total);
         } catch (Exception e) {
             log.error("Error listing Apsara gateways", e);
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, e.getMessage());
         } finally {
-            if (client != null) {
-                client.close();
-            }
+            client.close();
         }
     }
 
@@ -165,5 +179,10 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraGatewayClient> 
     @Override
     public String getDashboard(Gateway gateway, String type) {
         return null;
+    }
+    
+    @Override
+    protected ApsaraStackGatewayClient getClient(Gateway gateway) {
+        return (ApsaraStackGatewayClient) super.getClient(gateway);
     }
 }

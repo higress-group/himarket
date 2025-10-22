@@ -151,6 +151,15 @@
             <artifactId>snakeyaml</artifactId>
             <version>2.0</version>
         </dependency>
+        
+        <!-- ApsaraStack CSB SDK -->
+        <dependency>
+            <groupId>com.aliyun.apsarastack</groupId>
+            <artifactId>csb220230206</artifactId>
+            <version>1.5.3-SNAPSHOT</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/lib/csb220230206-1.5.3.jar</systemPath>
+        </dependency>
     </dependencies>
 
 </project>
