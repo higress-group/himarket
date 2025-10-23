@@ -4,7 +4,10 @@ import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.apiopenplatform.core.exception.BusinessException;
 import com.alibaba.apiopenplatform.core.exception.ErrorCode;
+import com.alibaba.apiopenplatform.dto.params.gateway.QueryApsaraGatewayParam;
 import com.alibaba.apiopenplatform.dto.result.*;
+import com.alibaba.apiopenplatform.entity.Consumer;
+import com.alibaba.apiopenplatform.entity.ConsumerCredential;
 import com.alibaba.apiopenplatform.entity.Gateway;
 import com.alibaba.apiopenplatform.service.gateway.client.ApsaraStackGatewayClient;
 import com.alibaba.apiopenplatform.support.consumer.ConsumerAuthConfig;
@@ -15,6 +18,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import com.aliyun.apsarastack.csb220230206.models.*;
 import com.aliyuncs.http.MethodType;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 @Slf4j
@@ -38,24 +44,24 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
             ListMcpServersResponse response = client.ListMcpServers(gateway.getGatewayId(), page, size);
             
             if (response.getBody() == null) {
-                return PageResult.of(new java.util.ArrayList<>(), page, size, 0);
+                return PageResult.of(new ArrayList<>(), page, size, 0);
             }
             
             // 修复类型不兼容问题
             // 根据错误信息，getData()返回的是ListMcpServersResponseBodyData类型
-            com.aliyun.apsarastack.csb220230206.models.ListMcpServersResponseBody.ListMcpServersResponseBodyData data = 
+            ListMcpServersResponseBody.ListMcpServersResponseBodyData data = 
                 response.getBody().getData();
             
             if (data == null) {
-                return PageResult.of(new java.util.ArrayList<>(), page, size, 0);
+                return PageResult.of(new ArrayList<>(), page, size, 0);
             }
             
             int total = data.getTotal() != null ? data.getTotal() : 0;
             
-            java.util.List<GatewayMCPServerResult> items = new java.util.ArrayList<>();
+            List<GatewayMCPServerResult> items = new ArrayList<>();
             // 修复records的类型引用
             if (data.getRecords() != null) {
-                for (com.aliyun.apsarastack.csb220230206.models.ListMcpServersResponseBody.ListMcpServersResponseBodyDataRecords record : data.getRecords()) {
+                for (ListMcpServersResponseBody.ListMcpServersResponseBodyDataRecords record : data.getRecords()) {
                     AdpMCPServerResult result = new AdpMCPServerResult();
                     // result.setMcpServerId(record.getMcpServerId());
                     result.setMcpServerName(record.getName());
@@ -84,8 +90,7 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
     @Override
     public PageResult<GatewayResult> fetchGateways(Object param, int page, int size) {
         // 将入参转换为配置
-        com.alibaba.apiopenplatform.dto.params.gateway.QueryApsaraGatewayParam p =
-                (com.alibaba.apiopenplatform.dto.params.gateway.QueryApsaraGatewayParam) param;
+        QueryApsaraGatewayParam p = (QueryApsaraGatewayParam) param;
         
         ApsaraGatewayConfig cfg = new ApsaraGatewayConfig();
         cfg.setRegionId(p.getRegionId());
@@ -104,20 +109,22 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
         
         try {
             // 使用SDK的ListInstances方法获取网关实例列表
-            ListInstancesResponse response = client.ListInstances(page, size);
+            // brokerEngineType默认为HIGRESS
+            String brokerEngineType = p.getBrokerEngineType() != null ? p.getBrokerEngineType() : "HIGRESS";
+            ListInstancesResponse response = client.ListInstances(page, size, brokerEngineType);
             
             if (response.getBody() == null || response.getBody().getData() == null) {
-                return PageResult.of(new java.util.ArrayList<>(), page, size, 0);
+                return PageResult.of(new ArrayList<>(), page, size, 0);
             }
             
-            com.aliyun.apsarastack.csb220230206.models.ListInstancesResponseBody.ListInstancesResponseBodyData data = 
+            ListInstancesResponseBody.ListInstancesResponseBodyData data = 
                 response.getBody().getData();
             
             int total = data.getTotal() != null ? data.getTotal() : 0;
             
-            java.util.List<GatewayResult> list = new java.util.ArrayList<>();
+            List<GatewayResult> list = new ArrayList<>();
             if (data.getRecords() != null) {
-                for (com.aliyun.apsarastack.csb220230206.models.ListInstancesResponseBody.ListInstancesResponseBodyDataRecords record : data.getRecords()) {
+                for (ListInstancesResponseBody.ListInstancesResponseBodyDataRecords record : data.getRecords()) {
                     GatewayResult gr = GatewayResult.builder()
                             .gatewayId(record.getGwInstanceId())
                             .gatewayName(record.getName())
@@ -137,12 +144,12 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
     }
 
     @Override
-    public String createConsumer(com.alibaba.apiopenplatform.entity.Consumer consumer, com.alibaba.apiopenplatform.entity.ConsumerCredential credential, GatewayConfig config) {
+    public String createConsumer(Consumer consumer, ConsumerCredential credential, GatewayConfig config) {
         throw new UnsupportedOperationException("Apsara gateway not implemented for create consumer");
     }
 
     @Override
-    public void updateConsumer(String consumerId, com.alibaba.apiopenplatform.entity.ConsumerCredential credential, GatewayConfig config) {
+    public void updateConsumer(String consumerId, ConsumerCredential credential, GatewayConfig config) {
         throw new UnsupportedOperationException("Apsara gateway not implemented for update consumer");
     }
 
@@ -162,13 +169,13 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
     }
 
     @Override
-    public void revokeConsumerAuthorization(Gateway gateway, String consumerId, ConsumerAuthConfig authConfig) {
-        throw new UnsupportedOperationException("Apsara gateway not implemented for revoke authorization");
+    public APIResult fetchAPI(Gateway gateway, String apiId) {
+        throw new UnsupportedOperationException("Apsara gateway not implemented for fetch api");
     }
 
     @Override
-    public APIResult fetchAPI(Gateway gateway, String apiId) {
-        throw new UnsupportedOperationException("Apsara gateway not implemented for fetch api");
+    public void revokeConsumerAuthorization(Gateway gateway, String consumerId, ConsumerAuthConfig authConfig) {
+        throw new UnsupportedOperationException("Apsara gateway not implemented for revoke authorization");
     }
 
     @Override

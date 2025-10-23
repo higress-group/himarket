@@ -47,6 +47,9 @@ public class QueryApsaraGatewayParam implements InputConverter<ApsaraGatewayConf
     private String xAcsResourceGroupId;
     @JsonProperty("xAcsCallerType")
     private String xAcsCallerType;
+
+    @JsonProperty("brokerEngineType")
+    private String brokerEngineType;
 }
 
 

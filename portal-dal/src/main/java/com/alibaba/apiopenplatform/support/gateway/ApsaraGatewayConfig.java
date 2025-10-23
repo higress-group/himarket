@@ -47,6 +47,7 @@ public class ApsaraGatewayConfig {
     private String xAcsCallerSdkSource;
     private String xAcsResourceGroupId;
     private String xAcsCallerType;
+    private String xAcsRoleId;
 
     public String buildUniqueKey() {
         return String.format("%s:%s:%s:%s:%s", accessKeyId, accessKeySecret, regionId, product, version);

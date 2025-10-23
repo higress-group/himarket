@@ -72,6 +72,10 @@ public class ApsaraStackGatewayClient extends GatewayClient {
         if (config.getXAcsCallerType() != null) {
             headers.put("x-acs-caller-type", config.getXAcsCallerType());
         }
+        // 角色id
+        if (config.getXAcsRoleId() != null) {
+            headers.put("x-acs-roleId", config.getXAcsRoleId());
+        }
         return headers;
     }
 
@@ -103,11 +107,14 @@ public class ApsaraStackGatewayClient extends GatewayClient {
         }
     }
     
-    public ListInstancesResponse ListInstances(int current, int size) {
+    public ListInstancesResponse ListInstances(int current, int size, String brokerEngineType) {
         try {
             ListInstancesRequest request = new ListInstancesRequest();
             request.setCurrent(current);
             request.setSize(size);
+            if (brokerEngineType != null && !brokerEngineType.isEmpty()) {
+                request.setBrokerEngineType(brokerEngineType);
+            }
             
             return client.listInstancesWithOptions(request, buildRequestHeaders(), runtime);
         } catch (Exception e) {
