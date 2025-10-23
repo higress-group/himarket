@@ -55,6 +55,10 @@ public class ProductRef extends BaseEntity {
     @Convert(converter = APIGRefConfigConverter.class)
     private APIGRefConfig adpAIGatewayRefConfig;
 
+    @Column(name = "apsara_gateway_ref_config", columnDefinition = "json")
+    @Convert(converter = APIGRefConfigConverter.class)
+    private APIGRefConfig apsaraGatewayRefConfig;
+
     @Column(name = "higress_ref_config", columnDefinition = "json")
     @Convert(converter = HigressRefConfigConverter.class)
     private HigressRefConfig higressRefConfig;

@@ -5,6 +5,7 @@ export interface Gateway {
   createAt: string
   apigConfig?: ApigConfig
   higressConfig?: HigressConfig
+  apsaraGatewayConfig?: ApsaraGatewayConfig
 }
 
 export interface ApigConfig {
@@ -17,6 +18,15 @@ export interface HigressConfig {
   username: string
   address: string
   password: string
+}
+
+export interface ApsaraGatewayConfig {
+  endpoint: string
+  accessKey: string
+  secretKey: string
+  product: string
+  version: string
+  xAcsRoleId?: string
 }
 
 export interface NacosInstance {

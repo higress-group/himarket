@@ -140,7 +140,23 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
     // HTTP/SSE 模式
     if (domains && domains.length > 0 && path) {
       const domain = domains[0]
-      const fullUrl = `${domain.protocol}://${domain.domain}${path || '/'}`
+      // 处理域名和端口，隐藏默认端口（80/443）
+      const formatDomainWithPort = (domainStr: string, protocol: string) => {
+        const [host, port] = domainStr.split(':');
+        // 如果没有端口，直接返回域名
+        if (!port) return domainStr;
+        
+        // 隐藏 HTTP 默认端口 80
+        if (protocol === 'http' && port === '80') return host;
+        // 隐藏 HTTPS 默认端口 443
+        if (protocol === 'https' && port === '443') return host;
+        
+        // 其他情况保留端口
+        return domainStr;
+      };
+      
+      const formattedDomain = formatDomainWithPort(domain.domain, domain.protocol);
+      const fullUrl = `${domain.protocol}://${formattedDomain}/mcp-servers${path || '/'}`
 
       if (protocolType === 'SSE') {
         // 仅生成SSE配置，不追加/sse
@@ -213,10 +229,13 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
   const fetchGateways = async () => {
     setGatewayLoading(true)
     try {
-      const res = await gatewayApi.getGateways()
+      const res = await gatewayApi.getGateways({
+        page: 1,
+        size: 1000,
+      })
       const result = apiProduct.type === 'REST_API' ?
        res.data?.content?.filter?.((item: Gateway) => item.gatewayType === 'APIG_API') :
-       res.data?.content?.filter?.((item: Gateway) => item.gatewayType === 'HIGRESS' || item.gatewayType === 'APIG_AI' || item.gatewayType === 'ADP_AI_GATEWAY')
+       res.data?.content?.filter?.((item: Gateway) => item.gatewayType === 'HIGRESS' || item.gatewayType === 'APIG_AI' || item.gatewayType === 'ADP_AI_GATEWAY' || item.gatewayType === 'APSARA_GATEWAY')
       setGateways(result || [])
     } catch (error) {
       console.error('获取网关列表失败:', error)
@@ -312,6 +331,20 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
           type: 'MCP Server'
         }))
         setApiList(mcpServers)
+      } else if (gateway.gatewayType === 'APSARA_GATEWAY') {
+        // APSARA_GATEWAY类型：获取MCP Server列表
+        const res = await gatewayApi.getGatewayMcpServers(gatewayId, {
+          page: 1,
+          size: 500 // 获取所有MCP Server
+        })
+        const mcpServers = (res.data?.content || []).map((api: any) => ({
+          mcpServerName: api.mcpServerName || api.name,
+          fromGatewayType: 'APSARA_GATEWAY' as const,
+          mcpRouteId: api.mcpRouteId,
+          mcpServerId: api.mcpServerId,
+          type: 'MCP Server'
+        }))
+        setApiList(mcpServers)
       }
     } catch (error) {
     } finally {
@@ -393,6 +426,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
           namespaceId: selectedNamespace || 'public'
         } : undefined,
         adpAIGatewayRefConfig: selectedApi && 'fromGatewayType' in selectedApi && selectedApi.fromGatewayType === 'ADP_AI_GATEWAY' ? selectedApi as APIGAIMCPItem : undefined,
+        apsaraGatewayRefConfig: selectedApi && 'fromGatewayType' in selectedApi && selectedApi.fromGatewayType === 'APSARA_GATEWAY' ? selectedApi as APIGAIMCPItem : undefined,
       }
       apiProductApi.createApiProductRef(apiProduct.productId, newService).then(async () => {
         message.success('关联成功')
@@ -486,6 +520,11 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
         // 专有云AI网关上的MCP Server
         apiName = linkedService.adpAIGatewayRefConfig.mcpServerName || '未命名'
         sourceInfo = '专有云AI网关'
+        gatewayInfo = linkedService.gatewayId || '未知'
+      } else if (linkedService.sourceType === 'GATEWAY' && linkedService.apsaraGatewayRefConfig) {
+        // 飞天企业版AI网关上的MCP Server
+        apiName = linkedService.apsaraGatewayRefConfig.mcpServerName || '未命名'
+        sourceInfo = '飞天企业版AI网关'
         gatewayInfo = linkedService.gatewayId || '未知'
       } else if (linkedService.sourceType === 'NACOS' && linkedService.nacosRefConfig) {
         // Nacos上的MCP Server

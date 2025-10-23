@@ -92,6 +92,19 @@ function McpDetail() {
     }
   };
 
+  // 格式化域名端口
+  const formatDomainWithPort = (domainStr: string, protocol: string) => {
+    const [host, port] = domainStr.split(':');
+    if (!port) return domainStr;
+    
+    // 隐藏 HTTP 默认端口 80
+    if (protocol === 'http' && port === '80') return host;
+    // 隐藏 HTTPS 默认端口 443
+    if (protocol === 'https' && port === '443') return host;
+    
+    return domainStr;
+  };
+
   // 生成连接配置的函数
   const generateConnectionConfig = useCallback((
     domains: Array<{ domain: string; protocol: string }> | null | undefined,
@@ -112,10 +125,11 @@ function McpDetail() {
     // HTTP/SSE 模式
     if (domains && domains.length > 0 && path) {
       const domain = domains[0];
-      const baseUrl = `${domain.protocol}://${domain.domain}`;
+      const formattedDomain = formatDomainWithPort(domain.domain, domain.protocol);
+      const baseUrl = `${domain.protocol}://${formattedDomain}`;
       let endpoint = `${baseUrl}${path}`;
 
-      if (mcpConfig?.meta?.source === 'ADP_AI_GATEWAY') {
+      if (mcpConfig?.meta?.source === 'ADP_AI_GATEWAY' || mcpConfig?.meta?.source === 'APSARA_GATEWAY') {
         endpoint = `${baseUrl}/mcp-servers${path}`;
       }
 

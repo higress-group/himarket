@@ -122,4 +122,151 @@ public class ApsaraStackGatewayClient extends GatewayClient {
             throw new RuntimeException(e);
         }
     }
+    
+    /**
+     * 获取MCP Server详情
+     */
+    public GetMcpServerResponse GetMcpServer(String gwInstanceId, String mcpServerName) {
+        try {
+            GetMcpServerRequest request = new GetMcpServerRequest();
+            request.setGwInstanceId(gwInstanceId);
+            request.setMcpServerName(mcpServerName);
+            
+            return client.getMcpServerWithOptions(request, buildRequestHeaders(), runtime);
+        } catch (Exception e) {
+            log.error("Error getting MCP server", e);
+            throw new RuntimeException(e);
+        }
+    }
+    
+    /**
+     * 获取网关实例详情
+     */
+    public GetInstanceInfoResponse GetInstance(String gwInstanceId) {
+        try {
+            GetInstanceInfoRequest request = new GetInstanceInfoRequest();
+            request.setGwInstanceId(gwInstanceId);
+            
+            return client.getInstanceInfoWithOptions(request, buildRequestHeaders(), runtime);
+        } catch (Exception e) {
+            log.error("Error getting instance", e);
+            throw new RuntimeException(e);
+        }
+    }
+    
+    /**
+     * 创建应用（Consumer）
+     */
+    public CreateAppResponse CreateApp(String gwInstanceId, String appName, String key, Integer authType) {
+        try {
+            CreateAppRequest request = new CreateAppRequest();
+            request.setGwInstanceId(gwInstanceId);
+            request.setAppName(appName);
+            request.setKey(key);
+            request.setAuthType(authType);
+            
+            return client.createAppWithOptions(request, buildRequestHeaders(), runtime);
+        } catch (Exception e) {
+            log.error("Error creating app", e);
+            throw new RuntimeException(e);
+        }
+    }
+    
+    /**
+     * 更新应用（Consumer）
+     */
+    public ModifyAppResponse ModifyApp(String gwInstanceId, String appId, String appName, String key, Integer authType, String description, Boolean enable) {
+        try {
+            ModifyAppRequest request = new ModifyAppRequest();
+            request.setGwInstanceId(gwInstanceId);
+            request.setAppId(appId);
+            request.setAppName(appName);
+            if (key != null) {
+                request.setKey(key);
+            }
+            request.setAuthType(authType);
+            if (description != null) {
+                request.setDescription(description);
+            }
+            if (enable != null) {
+                // SDK使用isDisable字段，需要取反
+                request.setIsDisable(!enable);
+            }
+            
+            return client.modifyAppWithOptions(request, buildRequestHeaders(), runtime);
+        } catch (Exception e) {
+            log.error("Error modifying app", e);
+            throw new RuntimeException(e);
+        }
+    }
+    
+    /**
+     * 删除应用（Consumer）
+     */
+    public BatchDeleteAppResponse DeleteApp(String gwInstanceId, String appId) {
+        try {
+            BatchDeleteAppRequest request = new BatchDeleteAppRequest();
+            request.setGwInstanceId(gwInstanceId);
+            request.setAppIds(java.util.Collections.singletonList(appId));
+            
+            return client.batchDeleteAppWithOptions(request, buildRequestHeaders(), runtime);
+        } catch (Exception e) {
+            log.error("Error deleting app", e);
+            throw new RuntimeException(e);
+        }
+    }
+    
+    /**
+     * 查询应用列表（用于检查Consumer是否存在）
+     * @param gwInstanceId 网关实例ID
+     * @param serviceType 服务类型（可选）
+     */
+    public ListAppsByGwInstanceIdResponse ListAppsByGwInstanceId(String gwInstanceId, Integer serviceType) {
+        try {
+            ListAppsByGwInstanceIdRequest request = new ListAppsByGwInstanceIdRequest();
+            request.setGwInstanceId(gwInstanceId);
+            if (serviceType != null) {
+                request.setServiceType(serviceType);
+            }
+            
+            return client.listAppsByGwInstanceIdWithOptions(request, buildRequestHeaders(), runtime);
+        } catch (Exception e) {
+            log.error("Error listing apps by instance", e);
+            throw new RuntimeException(e);
+        }
+    }
+    
+    /**
+     * 为MCP Server添加授权的消费者
+     */
+    public AddMcpServerConsumersResponse AddMcpServerConsumers(String gwInstanceId, String mcpServerName, java.util.List<String> consumers) {
+        try {
+            AddMcpServerConsumersRequest request = new AddMcpServerConsumersRequest();
+            request.setGwInstanceId(gwInstanceId);
+            request.setMcpServerName(mcpServerName);
+            request.setConsumers(consumers);
+            
+            return client.addMcpServerConsumersWithOptions(request, buildRequestHeaders(), runtime);
+        } catch (Exception e) {
+            log.error("Error adding MCP server consumers", e);
+            throw new RuntimeException(e);
+        }
+    }
+    
+    /**
+     * 删除MCP Server的授权消费者
+     */
+    public DeleteMcpServerConsumersResponse DeleteMcpServerConsumers(String gwInstanceId, String mcpServerName, java.util.List<String> consumers) {
+        try {
+            DeleteMcpServerConsumersRequest request = new DeleteMcpServerConsumersRequest();
+            request.setGwInstanceId(gwInstanceId);
+            request.setMcpServerName(mcpServerName);
+            request.setConsumers(consumers);
+            
+            return client.deleteMcpServerConsumersWithOptions(request, buildRequestHeaders(), runtime);
+        } catch (Exception e) {
+            log.error("Error deleting MCP server consumers", e);
+            throw new RuntimeException(e);
+        }
+    }
 }

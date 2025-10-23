@@ -51,7 +51,7 @@ export interface NacosMCPItem {
 
 export interface APIGAIMCPItem {
   mcpServerName: string;
-  fromGatewayType: 'APIG_AI' | 'ADP_AI_GATEWAY';
+  fromGatewayType: 'APIG_AI' | 'ADP_AI_GATEWAY' | 'APSARA_GATEWAY';
   mcpRouteId: string;
   mcpServerId?: string;
   apiId?: string;
@@ -70,6 +70,7 @@ export interface LinkedService {
   higressRefConfig?: HigressMCPItem;
   nacosRefConfig?: NacosMCPItem;
   adpAIGatewayRefConfig?: APIGAIMCPItem;
+  apsaraGatewayRefConfig?: APIGAIMCPItem;
 }
 
 export interface ApiProduct {
