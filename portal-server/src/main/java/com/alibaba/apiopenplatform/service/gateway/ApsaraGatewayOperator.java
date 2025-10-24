@@ -624,7 +624,7 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
             }
             
             // 获取错误信息
-            String message = response.getBody() != null ? response.getBody().getMessage() : "Unknown error";
+            String message = response.getBody() != null ? response.getBody().getMsg() : "Unknown error";
             
             // 如果是资源不存在（已被删除），只记录警告，不抛异常
             if (message != null && (message.contains("not found") || message.contains("不存在") 
