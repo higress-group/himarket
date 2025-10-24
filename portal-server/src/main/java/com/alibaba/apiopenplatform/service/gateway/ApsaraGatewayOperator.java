@@ -346,6 +346,9 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
                 key = credential.getApiKeyConfig().getCredentials().get(0).getApiKey();
             }
 
+            log.info("Creating consumer in Apsara gateway: gatewayId={}, consumerName={}, hasApiKey={}",
+                gateway.getGatewayId(), consumer.getName(), key != null);
+
             CreateAppResponse response = client.CreateApp(
                 gateway.getGatewayId(),
                 consumer.getName(),
@@ -353,11 +356,29 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
                 5  // authType: 5 = API_KEY
             );
 
-            if (response.getBody() != null && response.getBody().getData() != null) {
-                // SDK返回的data就是appName，直接返回
-                return extractConsumerIdFromResponse(response.getBody().getData(), consumer.getName());
+            // 检查响应
+            if (response.getBody() != null) {
+                log.info("CreateApp response: code={}, message={}, data={}",
+                    response.getBody().getCode(),
+                    response.getBody().getMsg(),
+                    response.getBody().getData());
+
+                // 检查状态码
+                if (response.getBody().getCode() != null && response.getBody().getCode() == 200) {
+                    if (response.getBody().getData() != null) {
+                        // SDK返回的data就是appName，直接返回
+                        return extractConsumerIdFromResponse(response.getBody().getData(), consumer.getName());
+                    }
+                    // 即使data为null，如果状态码是200，也认为创建成功，使用consumer name作为ID
+                    log.warn("CreateApp succeeded but data is null, using consumer name as ID");
+                    return consumer.getName();
+                }
+                // 状态码不是200，抛出详细错误信息
+                String errorMsg = String.format("Failed to create consumer in Apsara gateway: code=%d, message=%s",
+                    response.getBody().getCode(), response.getBody().getMsg());
+                throw new BusinessException(ErrorCode.GATEWAY_ERROR, errorMsg);
             }
-            throw new BusinessException(ErrorCode.GATEWAY_ERROR, "Failed to create consumer in Apsara gateway");
+            throw new BusinessException(ErrorCode.GATEWAY_ERROR, "Failed to create consumer in Apsara gateway: empty response");
         } catch (BusinessException e) {
             log.error("Business error creating consumer in Apsara gateway", e);
             throw e;

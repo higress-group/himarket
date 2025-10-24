@@ -28,7 +28,7 @@ public interface SubscriptionRepository extends BaseRepository<ProductSubscripti
 
     Optional<ProductSubscription> findByConsumerIdAndProductId(String consumerId, String productId);
 
-    List<ProductSubscription> findALlByConsumerId(String consumerId);
+    List<ProductSubscription> findAllByConsumerId(String consumerId);
 
     List<ProductSubscription> findAllByProductId(String productId);
 

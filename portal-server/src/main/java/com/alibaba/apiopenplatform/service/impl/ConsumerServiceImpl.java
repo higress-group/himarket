@@ -130,13 +130,39 @@ public class ConsumerServiceImpl implements ConsumerService {
     @Override
     public void deleteConsumer(String consumerId) {
         Consumer consumer = contextHolder.isDeveloper() ? findDevConsumer(consumerId) : findConsumer(consumerId);
-        // 订阅
+        
+        // 1. 先解除所有产品的授权
+        List<ProductSubscription> subscriptions = subscriptionRepository.findAllByConsumerId(consumerId);
+        for (ProductSubscription subscription : subscriptions) {
+            try {
+                // 如果订阅有授权配置，需要先解除授权
+                if (subscription.getConsumerAuthConfig() != null) {
+                    ProductRefResult productRef = productService.getProductRef(subscription.getProductId());
+                    if (productRef != null) {
+                        GatewayConfig gatewayConfig = gatewayService.getGatewayConfig(productRef.getGatewayId());
+                        ConsumerRef consumerRef = matchConsumerRef(consumerId, gatewayConfig);
+                        if (consumerRef != null) {
+                            gatewayService.revokeConsumerAuthorization(
+                                productRef.getGatewayId(), 
+                                consumerRef.getGwConsumerId(), 
+                                subscription.getConsumerAuthConfig()
+                            );
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log.error("revoke consumer authorization error, consumerId: {}, productId: {}", 
+                    consumerId, subscription.getProductId(), e);
+            }
+        }
+        
+        // 2. 删除订阅记录
         subscriptionRepository.deleteAllByConsumerId(consumerId);
 
-        // 凭证
+        // 3. 删除凭证
         credentialRepository.deleteAllByConsumerId(consumerId);
 
-        // 删除网关上的Consumer
+        // 4. 删除网关上的Consumer
         List<ConsumerRef> consumerRefs = consumerRefRepository.findAllByConsumerId(consumerId);
         for (ConsumerRef consumerRef : consumerRefs) {
             try {
@@ -145,7 +171,11 @@ public class ConsumerServiceImpl implements ConsumerService {
                 log.error("deleteConsumer gatewayConsumer error, gwConsumerId: {}", consumerRef.getGwConsumerId(), e);
             }
         }
+        
+        // 5. 删除ConsumerRef记录
+        consumerRefRepository.deleteAll(consumerRefs);
 
+        // 6. 最后删除Consumer本身
         consumerRepository.delete(consumer);
     }
 
