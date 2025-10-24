@@ -1,3 +1,5 @@
+import type { ProductCategory } from "./product-category";
+
 export interface ApiProductConfig {
   spec: string;
   meta: {
@@ -78,7 +80,6 @@ export interface ApiProduct {
   name: string;
   description: string;
   type: 'REST_API' | 'MCP_SERVER';
-  category: string;
   status: 'PENDING' | 'READY' | 'PUBLISHED' | string;
   createAt: string;
   enableConsumerAuth?: boolean;
@@ -87,4 +88,5 @@ export interface ApiProduct {
   mcpConfig?: ApiProductMcpConfig;
   document?: string;
   icon?: ProductIcon | null;
-} 
+  categories?: ProductCategory[];
+}

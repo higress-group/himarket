@@ -33,7 +33,6 @@ export interface ApiProduct {
   name: string;
   description: string;
   type: 'REST_API' | 'MCP_SERVER';
-  category: string;
   status: 'PENDING' | 'READY' | 'PUBLISHED' | string;
   createAt: string;
   createdAt?: string; // 兼容字段
@@ -79,7 +78,6 @@ export interface BaseProduct {
   type: ProductType;
   document: string | null;
   icon: ProductIcon | null;
-  category: ProductCategory;
   productType: ProductType;
   productName: string;
   mcpConfig: any;

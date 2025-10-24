@@ -17,24 +17,28 @@
  * under the License.
  */
 
-package com.alibaba.apiopenplatform.dto.params.product;
+package com.alibaba.apiopenplatform.entity;
 
-import com.alibaba.apiopenplatform.support.enums.ProductStatus;
-import com.alibaba.apiopenplatform.support.enums.ProductType;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
-import java.util.List;
+import javax.persistence.*;
 
+@EqualsAndHashCode(callSuper = true)
+@Entity
+@Table(name = "product_category_relation",
+        uniqueConstraints = {
+                @UniqueConstraint(columnNames = {"product_id", "category_id"}, name = "uk_product_category")
+        })
 @Data
-public class QueryProductParam {
+public class ProductCategoryRelation extends BaseEntity {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-    private String portalId;
+    @Column(name = "product_id", length = 64, nullable = false)
+    private String productId;
 
-    private ProductType type;
-
-    private String name;
-
-    private ProductStatus status;
-    
-    private List<String> categoryIds; // 支持通过类别ID列表查询
+    @Column(name = "category_id", length = 64, nullable = false)
+    private String categoryId;
 }

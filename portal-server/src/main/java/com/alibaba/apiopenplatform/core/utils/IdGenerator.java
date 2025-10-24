@@ -31,6 +31,7 @@ import cn.hutool.core.lang.ObjectId;
  * - API产品ID: api-xxxxxx
  * - 开发者ID: dev-xxxxxx
  * - 管理员ID: admin-xxxxxx
+ * - 产品类别ID: category-xxxxxx
  * <p>
  * 注意:
  * - API ID由网关同步，不在此生成
@@ -45,6 +46,7 @@ public class IdGenerator {
     private static final String ADMINISTRATOR_PREFIX = "admin-";
     private static final String NACOS_PREFIX = "nacos-";
     private static final String HIGRESS_PREFIX = "higress-";
+    private static final String CATEGORY_PREFIX = "category-";
 
     public static String genHigressGatewayId() {
         return HIGRESS_PREFIX + ObjectId.next();
@@ -68,6 +70,10 @@ public class IdGenerator {
 
     public static String genAdministratorId() {
         return ADMINISTRATOR_PREFIX + ObjectId.next();
+    }
+
+    public static String genCategoryId() {
+        return CATEGORY_PREFIX + ObjectId.next();
     }
 
     public static String genNacosId() {

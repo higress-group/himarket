@@ -183,6 +183,10 @@ export const apiProductApi = {
   // 获取API产品的Dashboard监控面板URL
   getProductDashboard: (productId: string) => {
     return api.get(`/products/${productId}/dashboard`)
+  },
+  // 获取产品关联的类别
+  getProductCategories: (productId: string) => {
+    return api.get(`/products/${productId}/categories`)
   }
 }
 

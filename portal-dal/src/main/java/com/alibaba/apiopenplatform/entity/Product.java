@@ -67,9 +67,6 @@ public class Product extends BaseEntity {
     @Convert(converter = ProductIconConverter.class)
     private ProductIcon icon;
 
-    @Column(name = "category", length = 64)
-    private String category;
-
     @Column(name = "status", length = 64)
     @Enumerated(EnumType.STRING)
     private ProductStatus status = ProductStatus.PENDING;

@@ -20,46 +20,14 @@
 package com.alibaba.apiopenplatform.dto.result;
 
 import com.alibaba.apiopenplatform.dto.converter.OutputConverter;
-import com.alibaba.apiopenplatform.entity.Product;
-import com.alibaba.apiopenplatform.support.enums.ProductStatus;
-import com.alibaba.apiopenplatform.support.enums.ProductType;
-import com.alibaba.apiopenplatform.support.product.ProductIcon;
+import com.alibaba.apiopenplatform.entity.ProductCategory;
 import lombok.Data;
 
-import java.time.LocalDateTime;
-import java.util.List;
-
 @Data
-public class ProductResult implements OutputConverter<ProductResult, Product> {
-
-    private String productId;
-
+public class ProductCategoryResult implements OutputConverter<ProductCategoryResult, ProductCategory> {
+    private Long id;
+    private String categoryId;
+    private String code;
     private String name;
-
     private String description;
-
-    private ProductStatus status = ProductStatus.PENDING;
-
-    private Boolean enableConsumerAuth = false;
-
-    private ProductType type;
-
-    private String document;
-
-    private ProductIcon icon;
-
-    private String category;
-    private List<ProductCategoryResult> categories;
-
-    private Boolean autoApprove;
-
-    private LocalDateTime createAt;
-
-    private LocalDateTime updatedAt;
-
-    private APIConfigResult apiConfig;
-
-    private MCPConfigResult mcpConfig;
-
-    private Boolean enabled;
 }

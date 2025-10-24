@@ -19,30 +19,24 @@
 
 package com.alibaba.apiopenplatform.repository;
 
-import org.springframework.stereotype.Repository;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-
-import java.util.Collection;
 import java.util.List;
-import java.util.Optional;
 
-import com.alibaba.apiopenplatform.entity.Product;
+import com.alibaba.apiopenplatform.entity.ProductCategoryRelation;
+
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 @Repository
-public interface ProductRepository extends BaseRepository<Product, Long> {
+public interface ProductCategoryRelationRepository extends BaseRepository<ProductCategoryRelation, Long> {
+    List<ProductCategoryRelation> findByProductId(String productId);
 
-    Optional<Product> findByProductId(String productId);
+    List<ProductCategoryRelation> findByCategoryId(String categoryId);
 
-    Optional<Product> findByProductIdAndAdminId(String productId, String adminId);
-
-    Optional<Product> findByNameAndAdminId(String name, String adminId);
-
-    Page<Product> findByProductIdIn(Collection<String> productIds, Pageable pageable);
-
-    List<Product> findByProductIdIn(Collection<String> productIds);
-
-    Page<Product> findByAdminId(String adminId, Pageable pageable);
-
-
+    @Modifying
+    @Transactional
+    @Query("DELETE FROM ProductCategoryRelation p WHERE p.productId = :productId")
+    void deleteByProductId(@Param("productId") String productId);
 }

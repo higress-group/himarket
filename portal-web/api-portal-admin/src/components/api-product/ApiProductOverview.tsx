@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, Row, Col, Statistic, Button, message } from 'antd'
+import { Card, Row, Col, Statistic, Button, message, Tag } from 'antd'
 import { 
   ApiOutlined, 
   GlobalOutlined,
@@ -15,6 +15,8 @@ import {
 import type { ApiProduct } from '@/types/api-product'
 import { getServiceName, formatDateTime, copyToClipboard } from '@/lib/utils'
 import { apiProductApi } from '@/lib/api'
+import { getProductCategories } from '@/lib/productCategoryApi'
+import type { ProductCategory } from '@/types/product-category'
 
 
 interface ApiProductOverviewProps {
@@ -27,14 +29,16 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
 
   const [portalCount, setPortalCount] = useState(0)
   const [subscriberCount] = useState(0)
+  const [productCategories, setProductCategories] = useState<ProductCategory[]>([])
 
   const navigate = useNavigate()
 
   useEffect(() => {
     if (apiProduct.productId) {
       fetchPublishedPortals()
+      fetchProductCategories()
     }
-  }, [apiProduct.productId])
+  }, [apiProduct.productId, apiProduct])
 
   const fetchPublishedPortals = async () => {
     try {
@@ -42,6 +46,41 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
       setPortalCount(res.data.content?.length || 0)
     } catch (error) {
     } finally {
+    }
+  }
+
+  const fetchProductCategories = async () => {
+    try {
+      // 获取产品关联的类别信息
+      const res = await apiProductApi.getProductCategories(apiProduct.productId)
+      
+      // 检查返回的数据结构，确保是数组
+      let categoriesData = res.data;
+      
+      // 如果没有关联类别，直接设置空数组
+      if (!categoriesData || categoriesData.length === 0) {
+        setProductCategories([])
+        return
+      }
+      
+      // 获取所有类别信息以显示类别名称
+      const allCategoriesRes = await getProductCategories()
+      const allCategories = allCategoriesRes.data
+      
+      // 将产品关联的类别ID映射为类别名称
+      const categoriesWithNames = categoriesData.map((category: any) => {
+        // 处理不同的数据格式
+        const categoryId = category.categoryId || category.id;
+        const fullCategoryInfo = allCategories.find((c: ProductCategory) => 
+          (c.categoryId === categoryId) || (c.id === categoryId)
+        )
+        return fullCategoryInfo || category
+      })
+      
+      setProductCategories(categoriesWithNames)
+    } catch (error) {
+      console.error('获取产品类别失败:', error)
+      setProductCategories([])
     }
   }
 
@@ -124,6 +163,21 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
               </div>
               <span className="text-xs text-gray-600">创建时间:</span>
               <span className="col-span-2 text-xs text-gray-700">{formatDateTime(apiProduct.createAt)}</span>
+            </div>
+            
+            <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
+              <span className="text-xs text-gray-600">产品类别:</span>
+              <div className="col-span-5 text-xs text-gray-900">
+                {productCategories && productCategories.length > 0 ? (
+                  productCategories.map(category => (
+                    <Tag key={category.categoryId} color="blue">
+                      {category.name}
+                    </Tag>
+                  ))
+                ) : (
+                  <span className="text-gray-400">未分类</span>
+                )}
+              </div>
             </div>
 
             {apiProduct.description && (

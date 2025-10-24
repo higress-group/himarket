@@ -20,7 +20,6 @@ interface ApiProductListItem {
   status: string;
   version: string;
   endpoints: number;
-  category: string;
   creator: string;
   icon?: ProductIcon;
   updatedAt: string;
@@ -66,7 +65,6 @@ function APIsPage() {
           status: item.status === ProductStatus.ENABLE ? 'active' : 'inactive',
           version: 'v1.0.0',
           endpoints: 0,
-          category: item.category,
           creator: 'Unknown',
           icon: item.icon || undefined,
           updatedAt: item.updatedAt?.slice(0, 10) || ''
@@ -220,4 +218,4 @@ function APIsPage() {
   );
 }
 
-export default APIsPage; 
+export default APIsPage;

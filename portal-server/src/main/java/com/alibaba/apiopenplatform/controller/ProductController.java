@@ -19,20 +19,38 @@
 
 package com.alibaba.apiopenplatform.controller;
 
+import java.util.List;
+
+import javax.validation.Valid;
+
 import com.alibaba.apiopenplatform.core.annotation.AdminAuth;
 import com.alibaba.apiopenplatform.core.annotation.AdminOrDeveloperAuth;
-import com.alibaba.apiopenplatform.dto.params.product.*;
+import com.alibaba.apiopenplatform.dto.params.product.CreateProductParam;
 import com.alibaba.apiopenplatform.dto.params.product.CreateProductRefParam;
-import com.alibaba.apiopenplatform.dto.result.*;
+import com.alibaba.apiopenplatform.dto.params.product.QueryProductParam;
+import com.alibaba.apiopenplatform.dto.params.product.QueryProductSubscriptionParam;
+import com.alibaba.apiopenplatform.dto.params.product.UpdateProductParam;
+import com.alibaba.apiopenplatform.dto.result.PageResult;
+import com.alibaba.apiopenplatform.dto.result.ProductCategoryResult;
+import com.alibaba.apiopenplatform.dto.result.ProductPublicationResult;
+import com.alibaba.apiopenplatform.dto.result.ProductRefResult;
+import com.alibaba.apiopenplatform.dto.result.ProductResult;
+import com.alibaba.apiopenplatform.dto.result.SubscriptionResult;
 import com.alibaba.apiopenplatform.service.ProductService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Pageable;
-import org.springframework.web.bind.annotation.*;
 
-import javax.validation.Valid;
+import org.springframework.data.domain.Pageable;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 @Tag(name = "API产品管理", description = "提供API产品的创建、更新、删除、查询、订阅等管理功能")
 @RestController
@@ -47,7 +65,8 @@ public class ProductController {
     @PostMapping
     @AdminAuth
     public ProductResult createProduct(@RequestBody @Valid CreateProductParam param) {
-        return productService.createProduct(param);
+        ProductResult result = productService.createProduct(param);
+        return result;
     }
 
     @Operation(summary = "获取API产品列表")
@@ -67,7 +86,8 @@ public class ProductController {
     @PutMapping("/{productId}")
     @AdminAuth
     public ProductResult updateProduct(@PathVariable String productId, @RequestBody @Valid UpdateProductParam param) {
-        return productService.updateProduct(productId, param);
+        ProductResult result = productService.updateProduct(productId, param);
+        return result;
     }
 
     @Operation(summary = "发布API产品")
@@ -132,5 +152,18 @@ public class ProductController {
             QueryProductSubscriptionParam param,
             Pageable pageable) {
         return productService.listProductSubscriptions(productId, param, pageable);
+    }
+
+    @Operation(summary = "设置产品类别")
+    @PostMapping("/{productId}/categories")
+    @AdminAuth
+    public void setProductCategories(@PathVariable String productId, @RequestBody List<String> categoryIds) {
+        productService.setProductCategories(productId, categoryIds);
+    }
+
+    @Operation(summary = "获取产品关联的类别")
+    @GetMapping("/{productId}/categories")
+    public List<ProductCategoryResult> getProductCategories(@PathVariable String productId) {
+        return productService.getProductCategories(productId);
     }
 }

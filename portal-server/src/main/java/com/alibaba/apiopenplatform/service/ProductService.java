@@ -154,4 +154,27 @@ public interface ProductService {
      * @return
      */
     void existsProduct(String productId);
+    
+    /**
+     * 为产品设置类别（仅绑定关系）
+     *
+     * @param productId
+     * @param categoryIds
+     */
+    void setProductCategories(String productId, List<String> categoryIds);
+    
+    /**
+     * 获取产品关联的类别
+     *
+     * @param productId
+     * @return
+     */
+    List<ProductCategoryResult> getProductCategories(String productId);
+    
+    /**
+     * 删除产品时清理产品类别关联关系
+     *
+     * @param productId
+     */
+    void clearProductCategoryRelations(String productId);
 }

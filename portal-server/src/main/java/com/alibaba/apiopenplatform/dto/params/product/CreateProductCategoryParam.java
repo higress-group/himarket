@@ -19,22 +19,19 @@
 
 package com.alibaba.apiopenplatform.dto.params.product;
 
-import com.alibaba.apiopenplatform.support.enums.ProductStatus;
-import com.alibaba.apiopenplatform.support.enums.ProductType;
+import com.alibaba.apiopenplatform.dto.converter.InputConverter;
+import com.alibaba.apiopenplatform.entity.ProductCategory;
 import lombok.Data;
 
-import java.util.List;
+import javax.validation.constraints.NotBlank;
 
 @Data
-public class QueryProductParam {
+public class CreateProductCategoryParam implements InputConverter<ProductCategory> {
+    @NotBlank(message = "类别代码不能为空")
+    private String code;
 
-    private String portalId;
-
-    private ProductType type;
-
+    @NotBlank(message = "类别名称不能为空")
     private String name;
 
-    private ProductStatus status;
-    
-    private List<String> categoryIds; // 支持通过类别ID列表查询
+    private String description;
 }
