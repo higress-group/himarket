@@ -27,7 +27,6 @@ public class ApsaraGatewayConfig {
 
     private String regionId;
 
-    @Encrypted
     private String accessKeyId;
 
     @Encrypted
@@ -50,6 +49,19 @@ public class ApsaraGatewayConfig {
     private String xAcsRoleId;
 
     public String buildUniqueKey() {
-        return String.format("%s:%s:%s:%s:%s", accessKeyId, accessKeySecret, regionId, product, version);
+        // 包含所有影响身份识别和路由的字段，确保配置唯一性准确
+        return String.format("%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s",
+                accessKeyId,
+                accessKeySecret,
+                regionId,
+                product,
+                version,
+                securityToken != null ? securityToken : "",
+                domain != null ? domain : "",
+                xAcsOrganizationId != null ? xAcsOrganizationId : "",
+                xAcsCallerSdkSource != null ? xAcsCallerSdkSource : "",
+                xAcsResourceGroupId != null ? xAcsResourceGroupId : "",
+                xAcsCallerType != null ? xAcsCallerType : "",
+                xAcsRoleId != null ? xAcsRoleId : "");
     }
 }

@@ -2,6 +2,8 @@ package com.alibaba.apiopenplatform.service.gateway.client;
 
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
+import com.alibaba.apiopenplatform.core.exception.BusinessException;
+import com.alibaba.apiopenplatform.core.exception.ErrorCode;
 import com.alibaba.apiopenplatform.support.gateway.ApsaraGatewayConfig;
 import com.aliyuncs.CommonRequest;
 import com.aliyuncs.CommonResponse;
@@ -81,7 +83,8 @@ public class ApsaraGatewayClient extends GatewayClient {
             return converter.apply(data);
         } catch (ClientException e) {
             log.error("Error executing Apsara request", e);
-            throw new RuntimeException(e);
+            throw new BusinessException(ErrorCode.GATEWAY_ERROR, e, 
+                "Failed to communicate with Apsara gateway: " + e.getMessage());
         }
     }
 }

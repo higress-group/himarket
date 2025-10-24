@@ -417,18 +417,26 @@ public class AdpAIGatewayOperator extends GatewayOperator {
 
             String url = client.getFullUrl("/application/modifyApp");
 
+            // 明确各参数含义，避免重复使用consumerId带来的混淆
+            String appId = consumerId;  // 应用ID，用于标识要更新的应用
+            String appName = consumerId;  // 应用名称，通常与appId保持一致
+            String description = "Consumer managed by Portal";  // 语义化的描述信息
+            Integer authType = 5;  // 认证类型：API_KEY
+            String authTypeName = "API_KEY";  // 认证类型名称
+            Boolean enable = true;  // 启用状态
+
             // 构建请求体
             cn.hutool.json.JSONObject requestData = JSONUtil.createObj();
-            requestData.set("appId", consumerId);
-            requestData.set("appName", consumerId);
-            requestData.set("authType", 5);                 // 固定参数
-            requestData.set("authTypeName", "API_KEY");
-            requestData.set("description", consumerId);
-            requestData.set("enable", true);                // 固定参数
+            requestData.set("appId", appId);
+            requestData.set("appName", appName);
+            requestData.set("authType", authType);
+            requestData.set("authTypeName", authTypeName);
+            requestData.set("description", description);
+            requestData.set("enable", enable);
             if (apiKey != null) {
                 requestData.set("key", apiKey);
             }
-            requestData.set("groups", Collections.singletonList("true")); // 固定参数
+            requestData.set("groups", Collections.singletonList("true"));
             requestData.set("gwInstanceId", gateway.getGatewayId());
 
             String requestBody = requestData.toString();
@@ -661,19 +669,35 @@ public class AdpAIGatewayOperator extends GatewayOperator {
                 if (code == 200) {
                     log.info("Successfully revoked consumer {} authorization from MCP server {}", 
                         consumerId, adpAIAuthConfig.getMcpServerName());
-                } else {
-                    String message = responseJson.getStr("message", responseJson.getStr("msg", "Unknown error"));
-                    log.warn("Failed to revoke consumer authorization from MCP server: {}", message);
-                    // 撤销授权失败不抛异常，只记录日志
+                    return;
                 }
-            } else {
-                log.warn("Failed to revoke consumer authorization from MCP server, HTTP status: {}", 
-                    response.getStatusCode());
+                
+                // 获取错误信息
+                String message = responseJson.getStr("message", responseJson.getStr("msg", "Unknown error"));
+                
+                // 如果是资源不存在（已被删除），只记录警告，不抛异常
+                if (message != null && (message.contains("not found") || message.contains("不存在") 
+                        || message.contains("NotFound") || code == 404)) {
+                    log.warn("Consumer authorization already removed or not found: consumerId={}, mcpServer={}, message={}",
+                        consumerId, adpAIAuthConfig.getMcpServerName(), message);
+                    return;
+                }
+                
+                // 其他错误抛出异常
+                String errorMsg = "Failed to revoke consumer authorization from MCP server: " + message;
+                log.error(errorMsg);
+                throw new BusinessException(ErrorCode.GATEWAY_ERROR, errorMsg);
             }
+            
+            throw new BusinessException(ErrorCode.GATEWAY_ERROR, 
+                "Failed to revoke consumer authorization, HTTP status: " + response.getStatusCode());
+        } catch (BusinessException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Error revoking consumer {} authorization from MCP server {}", 
                 consumerId, adpAIAuthConfig.getMcpServerName(), e);
-            // 撤销授权失败不抛异常，只记录日志
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, 
+                "Error revoking consumer authorization: " + e.getMessage());
         } finally {
             client.close();
         }

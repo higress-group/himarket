@@ -427,14 +427,21 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
                 apiKey = credential.getApiKeyConfig().getCredentials().get(0).getApiKey();
             }
 
+            // 明确各参数含义，避免重复使用consumerId带来的混淆
+            String appId = consumerId;  // 应用ID，用于标识要更新的应用
+            String appName = consumerId;  // 应用名称，通常与appId保持一致
+            String description = "Consumer managed by Portal";  // 语义化的描述信息
+            Integer authType = 5;  // 认证类型：API_KEY
+            Boolean enable = true;  // 启用状态
+
             ModifyAppResponse response = client.ModifyApp(
                 gateway.getGatewayId(),
-                consumerId,
-                consumerId,  // appName
+                appId,
+                appName,
                 apiKey,
-                5,  // authType: API_KEY
-                consumerId,  // description
-                true  // enable
+                authType,
+                description,
+                enable
             );
 
             if (response.getBody() != null && response.getBody().getCode() == 200) {
@@ -613,14 +620,31 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
             if (response.getBody() != null && response.getBody().getCode() == 200) {
                 log.info("Successfully revoked consumer {} authorization from MCP server {}", 
                     consumerId, adpAIAuthConfig.getMcpServerName());
-            } else {
-                log.warn("Failed to revoke consumer authorization from MCP server");
-                // 撤销授权失败不抛异常，只记录日志
+                return;
             }
+            
+            // 获取错误信息
+            String message = response.getBody() != null ? response.getBody().getMessage() : "Unknown error";
+            
+            // 如果是资源不存在（已被删除），只记录警告，不抛异常
+            if (message != null && (message.contains("not found") || message.contains("不存在") 
+                    || message.contains("NotFound"))) {
+                log.warn("Consumer authorization already removed or not found: consumerId={}, mcpServer={}, message={}",
+                    consumerId, adpAIAuthConfig.getMcpServerName(), message);
+                return;
+            }
+            
+            // 其他错误抛出异常
+            String errorMsg = "Failed to revoke consumer authorization from MCP server: " + message;
+            log.error(errorMsg);
+            throw new BusinessException(ErrorCode.GATEWAY_ERROR, errorMsg);
+        } catch (BusinessException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Error revoking consumer {} authorization from MCP server {}", 
                 consumerId, adpAIAuthConfig.getMcpServerName(), e);
-            // 撤销授权失败不抛异常，只记录日志
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, 
+                "Error revoking consumer authorization: " + e.getMessage());
         } finally {
             client.close();
         }

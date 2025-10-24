@@ -34,4 +34,17 @@ public class BusinessException extends RuntimeException {
         this.code = errorCode.name();
         this.message = errorCode.getMessage(args);
     }
+
+    /**
+     * 带原始异常的构造函数，用于保留完整的异常栈信息
+     * @param errorCode 错误码
+     * @param cause 原始异常
+     * @param args 错误消息参数
+     */
+    public BusinessException(ErrorCode errorCode, Throwable cause, Object... args) {
+        super(errorCode.getMessage(args), cause);
+        this.status = errorCode.getStatus();
+        this.code = errorCode.name();
+        this.message = errorCode.getMessage(args);
+    }
 }
