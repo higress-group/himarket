@@ -101,7 +101,33 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
 
     @Override
     public PageResult<ModelAPIResult> fetchModelAPIs(Gateway gateway, int page, int size) {
-        return null;
+        HigressClient client = getClient(gateway);
+
+        Map<String, String> queryParams = MapBuilder.<String, String>create()
+                .put("pageNum", String.valueOf(page))
+                .put("pageSize", String.valueOf(size))
+                .build();
+
+        try {
+            HigressPageResponse<HigressMCPConfig> response = client.execute("/v1/ai/providers",
+                    HttpMethod.GET,
+                    queryParams,
+                    null,
+                    new ParameterizedTypeReference<HigressPageResponse<HigressMCPConfig>>() {
+                    });
+
+            List<ModelAPIResult> modelAPIs = response.getData().stream()
+                    .map(config -> ModelAPIResult.builder()
+                            .modelApiId(config.type+"-"+config.getName())
+                            .modelApiName(config.getName())
+                            .build())
+                    .collect(Collectors.toList());
+
+            return PageResult.of(modelAPIs, page, size, response.getTotal());
+        } catch (Exception e) {
+            log.warn("Failed to fetch model APIs from Higress, returning empty result", e);
+            return PageResult.of(Collections.emptyList(), page, size, 0);
+        }
     }
 
     @Override

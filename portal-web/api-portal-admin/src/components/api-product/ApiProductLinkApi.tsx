@@ -286,8 +286,8 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
         // Agent API 只支持 APIG_AI 网关
         result = res.data?.content?.filter?.((item: Gateway) => item.gatewayType === 'APIG_AI');
       } else if (apiProduct.type === 'MODEL_API') {
-        // Model API 只支持 APIG_AI 网关
-        result = res.data?.content?.filter?.((item: Gateway) => item.gatewayType === 'APIG_AI');
+        // Model API 支持 APIG_AI 和 HIGRESS 网关
+        result = res.data?.content?.filter?.((item: Gateway) => item.gatewayType === 'APIG_AI' || item.gatewayType === 'HIGRESS');
       } else {
         // MCP Server 支持 HIGRESS、APIG_AI、ADP_AI_GATEWAY
         result = res.data?.content?.filter?.((item: Gateway) => item.gatewayType === 'HIGRESS' || item.gatewayType === 'APIG_AI' || item.gatewayType === 'ADP_AI_GATEWAY' || item.gatewayType === 'APSARA_GATEWAY');
@@ -347,17 +347,33 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
         }))
         setApiList(restApis)
       } else if (gateway.gatewayType === 'HIGRESS') {
-        // HIGRESS类型：获取MCP Server列表
-        const res = await gatewayApi.getGatewayMcpServers(gatewayId, {
-          page: 1,
-          size: 1000 // 获取所有MCP Server
-        })
-        const mcpServers = (res.data?.content || []).map((api: any) => ({
-          mcpServerName: api.mcpServerName,
-          fromGatewayType: 'HIGRESS' as const,
-          type: 'MCP Server'
-        }))
-        setApiList(mcpServers)
+        // HIGRESS类型：对于Model API产品，获取Model API列表；其他情况获取MCP Server列表
+        if (apiProduct.type === 'MODEL_API') {
+          // HIGRESS类型 + Model API产品：获取Model API列表
+          const res = await gatewayApi.getGatewayModelApis(gatewayId, {
+            page: 1,
+            size: 1000 // 获取所有Model API
+          })
+          const modelApis = (res.data?.content || []).map((api: any) => ({
+            modelApiId: api.modelApiId,
+            modelApiName: api.modelApiName,
+            fromGatewayType: 'HIGRESS' as const,
+            type: 'Model API'
+          }))
+          setApiList(modelApis)
+        } else {
+          // HIGRESS类型：获取MCP Server列表
+          const res = await gatewayApi.getGatewayMcpServers(gatewayId, {
+            page: 1,
+            size: 1000 // 获取所有MCP Server
+          })
+          const mcpServers = (res.data?.content || []).map((api: any) => ({
+            mcpServerName: api.mcpServerName,
+            fromGatewayType: 'HIGRESS' as const,
+            type: 'MCP Server'
+          }))
+          setApiList(mcpServers)
+        }
       } else if (gateway.gatewayType === 'APIG_AI') {
         if (apiProduct.type === 'AGENT_API') {
           // APIG_AI类型 + Agent API产品：获取Agent API列表
@@ -1528,6 +1544,10 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                   // 如果是Agent API类型，只显示AI网关（APIG_AI）
                   if (apiProduct.type === 'AGENT_API') {
                     return gateway.gatewayType === 'APIG_AI';
+                  }
+                  // 如果是Model API类型，只显示AI网关（APIG_AI）和Higress网关
+                  if (apiProduct.type === 'MODEL_API') {
+                    return gateway.gatewayType === 'APIG_AI' || gateway.gatewayType === 'HIGRESS';
                   }
                   return true;
                 }).map(gateway => (
