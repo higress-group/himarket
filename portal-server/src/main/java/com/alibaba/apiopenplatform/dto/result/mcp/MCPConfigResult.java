@@ -19,7 +19,7 @@
 
 package com.alibaba.apiopenplatform.dto.result.mcp;
 
-import com.alibaba.apiopenplatform.dto.result.httpapi.DomainResult;
+import com.alibaba.apiopenplatform.dto.result.common.DomainResult;
 import lombok.Data;
 import lombok.Getter;
 

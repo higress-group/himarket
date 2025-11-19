@@ -31,6 +31,5 @@ public class HigressRefConfig {
 	/**
 	 * Model Identify Info
 	 */
-	private String modelApiId;
-	private String modelApiName;
+	private String modelRouteName;
 }

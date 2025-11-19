@@ -26,7 +26,8 @@ import com.alibaba.apiopenplatform.dto.result.common.PageResult;
 import com.alibaba.apiopenplatform.dto.result.gateway.GatewayResult;
 import com.alibaba.apiopenplatform.dto.result.mcp.GatewayMCPServerResult;
 import com.alibaba.apiopenplatform.dto.result.agent.AgentAPIResult;
-import com.alibaba.apiopenplatform.dto.result.model.ModelAPIResult;
+import com.alibaba.apiopenplatform.dto.result.model.AIGWModelAPIResult;
+import com.alibaba.apiopenplatform.dto.result.model.GatewayModelAPIResult;
 import com.alibaba.apiopenplatform.service.GatewayService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -113,9 +114,9 @@ public class GatewayController {
 
     @Operation(summary = "获取Model API列表")
     @GetMapping("/{gatewayId}/model-apis")
-    public PageResult<ModelAPIResult> fetchModelAPIs(@PathVariable String gatewayId,
-                                                     @RequestParam(defaultValue = "1") int page,
-                                                     @RequestParam(defaultValue = "500") int size) {
+    public PageResult<GatewayModelAPIResult> fetchModelAPIs(@PathVariable String gatewayId,
+                                                            @RequestParam(defaultValue = "1") int page,
+                                                            @RequestParam(defaultValue = "500") int size) {
         return gatewayService.fetchModelAPIs(gatewayId, page, size);
     }
 

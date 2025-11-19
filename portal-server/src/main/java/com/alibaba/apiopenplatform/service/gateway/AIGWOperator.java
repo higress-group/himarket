@@ -25,7 +25,7 @@ import cn.hutool.json.JSONUtil;
 import com.alibaba.apiopenplatform.core.exception.BusinessException;
 import com.alibaba.apiopenplatform.core.exception.ErrorCode;
 import com.alibaba.apiopenplatform.dto.result.httpapi.APIResult;
-import com.alibaba.apiopenplatform.dto.result.httpapi.DomainResult;
+import com.alibaba.apiopenplatform.dto.result.common.DomainResult;
 import com.alibaba.apiopenplatform.dto.result.common.PageResult;
 import com.alibaba.apiopenplatform.dto.result.mcp.APIGMCPServerResult;
 import com.alibaba.apiopenplatform.dto.result.mcp.GatewayMCPServerResult;
@@ -33,7 +33,8 @@ import com.alibaba.apiopenplatform.dto.result.agent.AgentAPIResult;
 import com.alibaba.apiopenplatform.dto.result.agent.AgentConfigResult;
 import com.alibaba.apiopenplatform.dto.result.httpapi.HttpRouteResult;
 import com.alibaba.apiopenplatform.dto.result.mcp.MCPConfigResult;
-import com.alibaba.apiopenplatform.dto.result.model.ModelAPIResult;
+import com.alibaba.apiopenplatform.dto.result.model.AIGWModelAPIResult;
+import com.alibaba.apiopenplatform.dto.result.model.GatewayModelAPIResult;
 import com.alibaba.apiopenplatform.dto.result.model.ModelConfigResult;
 import com.alibaba.apiopenplatform.entity.Gateway;
 import com.alibaba.apiopenplatform.service.gateway.client.APIGClient;
@@ -58,7 +59,7 @@ import java.util.stream.Stream;
 
 @Service
 @Slf4j
-public class AIGatewayOperator extends APIGOperator {
+public class AIGWOperator extends APIGOperator {
 
     @Override
     public PageResult<? extends GatewayMCPServerResult> fetchMcpServers(Gateway gateway, int page, int size) {
@@ -332,11 +333,11 @@ public class AIGatewayOperator extends APIGOperator {
     }
 
     @Override
-    public PageResult<ModelAPIResult> fetchModelAPIs(Gateway gateway, int page, int size) {
+    public PageResult<? extends GatewayModelAPIResult> fetchModelAPIs(Gateway gateway, int page, int size) {
         PageResult<APIResult> apiResult = fetchAPIs(gateway, APIGAPIType.MODEL, page, size);
 
-        return new PageResult<ModelAPIResult>().mapFrom(apiResult, api ->
-                ModelAPIResult.builder()
+        return new PageResult<AIGWModelAPIResult>().mapFrom(apiResult, api ->
+                AIGWModelAPIResult.builder()
                         .modelApiId(api.getApiId())
                         .modelApiName(api.getApiName())
                         .build()
@@ -385,12 +386,12 @@ public class AIGatewayOperator extends APIGOperator {
                 .map(httpRoute -> new HttpRouteResult().convertFrom(httpRoute, apiDomains))
                 .collect(Collectors.toList());
 
-        ModelConfigResult.ModelAPIConfig apiConfig = ModelConfigResult.ModelAPIConfig.builder()
+        ModelConfigResult.AIGWModelAPIConfig apiConfig = ModelConfigResult.AIGWModelAPIConfig.builder()
                 .aiProtocols(apiInfo.getAiProtocols())
                 .modelCategory(apiInfo.getModelCategory())
                 .routes(routeResults)
                 .build();
-        result.setModelAPIConfig(apiConfig);
+        result.setAigwModelAPIConfig(apiConfig);
 
         return JSONUtil.toJsonStr(result);
     }

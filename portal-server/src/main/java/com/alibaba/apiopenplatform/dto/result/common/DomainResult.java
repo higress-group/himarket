@@ -18,7 +18,7 @@
  */
 
 
-package com.alibaba.apiopenplatform.dto.result.httpapi;
+package com.alibaba.apiopenplatform.dto.result.common;
 
 import lombok.Builder;
 import lombok.Data;

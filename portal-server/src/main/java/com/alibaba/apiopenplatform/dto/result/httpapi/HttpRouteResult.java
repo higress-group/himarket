@@ -2,6 +2,7 @@ package com.alibaba.apiopenplatform.dto.result.httpapi;
 
 import cn.hutool.core.util.BooleanUtil;
 import com.alibaba.apiopenplatform.dto.converter.OutputConverter;
+import com.alibaba.apiopenplatform.dto.result.common.DomainResult;
 import lombok.Builder;
 import lombok.Data;
 import com.aliyun.sdk.service.apig20240327.models.HttpRoute;

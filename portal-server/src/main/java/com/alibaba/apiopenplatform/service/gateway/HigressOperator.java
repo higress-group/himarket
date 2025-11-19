@@ -23,16 +23,17 @@ import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.map.MapBuilder;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.apiopenplatform.dto.result.agent.AgentAPIResult;
+import com.alibaba.apiopenplatform.dto.result.higress.HigressRouteResult;
 import com.alibaba.apiopenplatform.dto.result.httpapi.APIResult;
 import com.alibaba.apiopenplatform.dto.result.common.PageResult;
 import com.alibaba.apiopenplatform.dto.result.gateway.GatewayResult;
-import com.alibaba.apiopenplatform.dto.result.httpapi.DomainResult;
+import com.alibaba.apiopenplatform.dto.result.common.DomainResult;
 import com.alibaba.apiopenplatform.dto.result.mcp.GatewayMCPServerResult;
 import com.alibaba.apiopenplatform.dto.result.mcp.HigressMCPServerResult;
 import com.alibaba.apiopenplatform.dto.result.mcp.MCPConfigResult;
-import com.alibaba.apiopenplatform.dto.result.model.ModelAPIResult;
+import com.alibaba.apiopenplatform.dto.result.model.GatewayModelAPIResult;
+import com.alibaba.apiopenplatform.dto.result.model.HigressModelResult;
 import com.alibaba.apiopenplatform.dto.result.model.ModelConfigResult;
-import com.alibaba.apiopenplatform.dto.result.model.ModelConfigResult.HigressModelAPIConfig;
 import com.alibaba.apiopenplatform.entity.Gateway;
 import com.alibaba.apiopenplatform.entity.Consumer;
 import com.alibaba.apiopenplatform.entity.ConsumerCredential;
@@ -102,7 +103,7 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
     }
 
     @Override
-    public PageResult<ModelAPIResult> fetchModelAPIs(Gateway gateway, int page, int size) {
+    public PageResult<? extends GatewayModelAPIResult> fetchModelAPIs(Gateway gateway, int page, int size) {
         HigressClient client = getClient(gateway);
 
         Map<String, String> queryParams = MapBuilder.<String, String>create()
@@ -118,9 +119,9 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
                     new ParameterizedTypeReference<HigressPageResponse<HigressRouteConfig>>() {
                     });
 
-            List<ModelAPIResult> modelAPIs = response.getData().stream()
-                    .map(config -> ModelAPIResult.builder()
-                            .modelApiName(config.getName())
+            List<HigressModelResult> modelAPIs = response.getData().stream()
+                    .map(config -> HigressModelResult.builder()
+                            .name(config.getName())
                             .build())
                     .collect(Collectors.toList());
 
@@ -209,28 +210,26 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
 
     @Override
     public String fetchModelConfig(Gateway gateway, Object conf) {
-	  HigressRefConfig higressRefConfig = (HigressRefConfig) conf;
-	  HigressClient client = getClient(gateway);
+        HigressRefConfig higressRefConfig = (HigressRefConfig) conf;
+        HigressClient client = getClient(gateway);
 
-	  HigressResponse<HigressRouteConfig> response = client.execute("/v1/ai/routes/"+ higressRefConfig.getModelApiName(),
-		  HttpMethod.GET,
-		  null,
-		  null,
-		  new ParameterizedTypeReference<HigressResponse<HigressRouteConfig>>() {
-		  });
+        HigressResponse<HigressRouteConfig> response = client.execute("/v1/ai/routes/" + higressRefConfig.getModelRouteName(),
+                HttpMethod.GET,
+                null,
+                null,
+                new ParameterizedTypeReference<HigressResponse<HigressRouteConfig>>() {
+                });
 
-	  ModelConfigResult result = new ModelConfigResult();
-	  if (response.getData() != null) {
-		HigressRouteConfig data = response.getData();
+        HigressRouteConfig higressRouteConfig = response.getData();
+        ModelConfigResult result = new ModelConfigResult();
 
-		result.setHigressModelAPIConfig(HigressModelAPIConfig.builder().name(data.getName())
-			.domains(data.getDomains()).pathPredicate(data.pathPredicate)
-			.headerPredicates(data.getHeaderPredicates())
-			.urlParamPredicates(data.urlParamPredicates)
-			.upstreams(data.upstreams)
-			.build());
-	  }
-	  return JSONUtil.toJsonStr(result);
+        HigressRouteResult higressRouteResult = new HigressRouteResult().convertFrom(higressRouteConfig);
+        ModelConfigResult.HigressModelConfig higressModelConfig = ModelConfigResult.HigressModelConfig.builder()
+                .aiRoute(higressRouteResult)
+                .build();
+
+        result.setHigressModelConfig(higressModelConfig);
+        return JSONUtil.toJsonStr(result);
     }
 
     @Override
@@ -402,77 +401,49 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
         private String enableHttps;
     }
 
-	@Data
-	public static class HigressModelConfig {
-		private String name;
-		private String type;
-		private String protocol;
-		private List<String> tokens;
-		private TokenFailoverConfig tokenFailoverConfig;
-		private Map<String, Object> rawConfigs;
-	}
+    @Data
+    public static class HigressRouteConfig {
+        // common
+        private String name;
+        private List<String> domains;
+        private List<String> methods;
+        private HigressPathPredicate pathPredicate;
+        private List<HigressHeaderPredicate> headerPredicates;
+        private List<HigressUrlParamPredicate> urlParamPredicates;
 
-	@Data
-	public static class TokenFailoverConfig {
-		private Boolean enabled;
-		private Integer failureThreshold;
-		private Integer successThreshold;
-		private Integer healthCheckInterval;
-		private Integer healthCheckTimeout;
-		private String healthCheckModel;
-	}
+        // for ai route
+        private List<HigressModelPredicate> modelPredicates;
+    }
 
-	@Data
-	public static class HigressRouteConfig {
-		private String name;
-		private String version;
-		private List<String> domains;
-		private RoutePredicate pathPredicate;
-		private List<KeyedRoutePredicate> headerPredicates;
-		private List<KeyedRoutePredicate> urlParamPredicates;
-		private List<AiUpstream> upstreams;
-		private List<AiModelPredicate> modelPredicates;
-		private RouteAuthConfig authConfig;
-		private AiRouteFallbackConfig fallbackConfig;
-	}
+    @Data
+    public static class HigressPathPredicate {
+        private String matchType;
+        private String matchValue;
+        private Boolean caseSensitive;
+    }
 
-	@Data
-	public static class RoutePredicate {
-		private String matchType;
-		private String matchValue;
-		private Boolean caseSensitive;
-	}
+    @Data
+    public static class HigressHeaderPredicate {
+        private String matchType;
+        private String matchValue;
+        private Boolean caseSensitive;
+        private String key;
+    }
 
-	@Data
-	public static class KeyedRoutePredicate extends RoutePredicate{
-	 	 private String key;
-	}
+    @Data
+    public static class HigressUrlParamPredicate {
+        private String matchType;
+        private String matchValue;
+        private Boolean caseSensitive;
+        private String key;
+    }
 
-	@Data
-	public static class AiUpstream {
-		private String provider;
-		private Integer weight;
-		private Map<String, String> modelMapping;
-	}
-
-	@Data
-	public static class AiModelPredicate extends RoutePredicate{
-
-	}
-
-	@Data
-	public static class RouteAuthConfig{
-		private Boolean enabled;
-		private List<String> allowedConsumers;
-	}
-
-	@Data
-	public static class AiRouteFallbackConfig{
-		private Boolean enabled;
-		private List<AiUpstream> upstreams;
-		private String fallbackStrategy;
-		private List<String> responseCodes;
-	}
+    @Data
+    public static class HigressModelPredicate {
+        private String matchType;
+        private String matchValue;
+        private Boolean caseSensitive;
+    }
 
     public HigressAuthConsumerConfig buildAuthHigressConsumer(String gatewayName, String consumerId) {
         return HigressAuthConsumerConfig.builder()

@@ -26,7 +26,8 @@ import com.alibaba.apiopenplatform.dto.result.common.PageResult;
 import com.alibaba.apiopenplatform.dto.result.gateway.GatewayResult;
 import com.alibaba.apiopenplatform.dto.result.mcp.GatewayMCPServerResult;
 import com.alibaba.apiopenplatform.dto.result.agent.AgentAPIResult;
-import com.alibaba.apiopenplatform.dto.result.model.ModelAPIResult;
+import com.alibaba.apiopenplatform.dto.result.model.AIGWModelAPIResult;
+import com.alibaba.apiopenplatform.dto.result.model.GatewayModelAPIResult;
 import com.alibaba.apiopenplatform.entity.*;
 import com.alibaba.apiopenplatform.service.gateway.client.APIGClient;
 import com.alibaba.apiopenplatform.service.gateway.client.GatewayClient;
@@ -55,7 +56,7 @@ public abstract class GatewayOperator<T> {
 
     abstract public PageResult<AgentAPIResult> fetchAgentAPIs(Gateway gateway, int page, int size);
 
-    abstract public PageResult<ModelAPIResult> fetchModelAPIs(Gateway gateway, int page, int size);
+    abstract public PageResult<? extends GatewayModelAPIResult> fetchModelAPIs(Gateway gateway, int page, int size);
 
     abstract public String fetchAPIConfig(Gateway gateway, Object config);
 
