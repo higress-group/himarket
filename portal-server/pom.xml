@@ -160,6 +160,12 @@
             <scope>system</scope>
             <systemPath>${project.basedir}/lib/csb220230206-1.5.3.jar</systemPath>
         </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webflux</artifactId>
+        </dependency>
+
     </dependencies>
 
 </project>

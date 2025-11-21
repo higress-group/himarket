@@ -48,6 +48,9 @@ public class IdGenerator {
     private static final String HIGRESS_PREFIX = "higress-";
     private static final String CATEGORY_PREFIX = "category-";
 
+    private static final String SESSION_PREFIX = "session-";
+    private static final String CHAT_PREFIX = "chat-";
+
     public static String genHigressGatewayId() {
         return HIGRESS_PREFIX + ObjectId.next();
     }
@@ -78,6 +81,14 @@ public class IdGenerator {
 
     public static String genNacosId() {
         return NACOS_PREFIX + ObjectId.next();
+    }
+
+    public static String genSessionId() {
+        return SESSION_PREFIX + ObjectId.next();
+    }
+
+    public static String genChatId() {
+        return CHAT_PREFIX + ObjectId.next();
     }
 
     public static String genIdWithPrefix(String prefix) {

@@ -21,10 +21,8 @@ package com.alibaba.apiopenplatform.service.gateway.client;
 
 import cn.hutool.core.map.MapBuilder;
 import cn.hutool.json.JSONUtil;
-import com.alibaba.apiopenplatform.service.gateway.HigressOperator;
 import com.alibaba.apiopenplatform.service.gateway.factory.HTTPClientFactory;
 import com.alibaba.apiopenplatform.support.gateway.HigressConfig;
-import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
@@ -194,20 +192,4 @@ public class HigressClient extends GatewayClient {
     public void close() {
         HTTPClientFactory.closeClient(restTemplate);
     }
-
-    public static void main(String[] args) {
-        HigressConfig higressConfig = new HigressConfig();
-        higressConfig.setAddress("http://demo.higress.io");
-        higressConfig.setUsername("admin");
-        higressConfig.setPassword("admin");
-
-        HigressClient higressClient = new HigressClient(higressConfig);
-//        Object  mcpServerInfo = higressClient.execute("/v1/mcpServer", HttpMethod.GET, null, null, new ParameterizedTypeReference<Object>() {
-//        });
-
-        HigressOperator.HigressPageResponse<HigressOperator.HigressMCPConfig> response = higressClient.execute("/v1/mcpServer", HttpMethod.GET, null, null, new ParameterizedTypeReference<HigressOperator.HigressPageResponse<HigressOperator.HigressMCPConfig>>() {
-        });
-        System.out.println(JSONUtil.toJsonStr(response));
-    }
-
 }

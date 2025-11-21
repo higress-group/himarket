@@ -19,18 +19,23 @@
 
 package com.alibaba.apiopenplatform.config;
 
+import org.jetbrains.annotations.NotNull;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableHandlerMethodArgumentResolver;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
+import org.springframework.web.servlet.config.annotation.AsyncSupportConfigurer;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.util.List;
 
 @Configuration
-public class PageConfig {
+public class WebMvcConfig {
+
     @Bean
     public PageableHandlerMethodArgumentResolver pageableResolver() {
         PageableHandlerMethodArgumentResolver resolver = new PageableHandlerMethodArgumentResolver();
@@ -43,11 +48,17 @@ public class PageConfig {
     }
 
     @Bean
-    public WebMvcConfigurer webMvcConfigurer() {
+    public WebMvcConfigurer webMvcConfigurer(@Qualifier("taskExecutor") AsyncTaskExecutor taskExecutor) {
         return new WebMvcConfigurer() {
             @Override
-            public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
+            public void addArgumentResolvers(@NotNull List<HandlerMethodArgumentResolver> resolvers) {
                 resolvers.add(pageableResolver());
+            }
+
+            @Override
+            public void configureAsyncSupport(@NotNull AsyncSupportConfigurer configurer) {
+                configurer.setTaskExecutor(taskExecutor);
+                configurer.setDefaultTimeout(30000);
             }
         };
     }

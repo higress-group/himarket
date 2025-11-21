@@ -22,7 +22,6 @@ package com.alibaba.apiopenplatform.service.impl;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 import javax.persistence.criteria.Predicate;
@@ -372,6 +371,22 @@ public class ProductServiceImpl implements ProductService {
     public void existsProduct(String productId) {
         productRepository.findByProductId(productId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, Resources.PRODUCT, productId));
+    }
+
+    @Override
+    public void existsProducts(List<String> productIds) {
+        List<String> existedProductIds = productRepository.findByProductIdIn(productIds)
+                .stream()
+                .map(Product::getProductId)
+                .collect(Collectors.toList());
+
+        List<String> notFoundProductIds = productIds.stream()
+                .filter(productId -> !existedProductIds.contains(productId))
+                .collect(Collectors.toList());
+
+        if (!notFoundProductIds.isEmpty()) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, Resources.PRODUCT, String.join(",", notFoundProductIds));
+        }
     }
 
     @Override

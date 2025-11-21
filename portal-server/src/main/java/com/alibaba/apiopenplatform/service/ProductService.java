@@ -160,6 +160,14 @@ public interface ProductService {
     void existsProduct(String productId);
 
     /**
+     * Check if API product exists
+     *
+     * @param productIds
+     * @return
+     */
+    void existsProducts(List<String> productIds);
+
+    /**
      * Set product categories (binding relationship only)
      *
      * @param productId
