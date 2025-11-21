@@ -1,3 +1,5 @@
+import { colors } from './src/aliyunThemeToken.ts';
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: [
@@ -7,6 +9,8 @@ export default {
   theme: {
     extend: {
       colors: {
+        "black-normal": "#404040",
+        ...colors,
         gray: {
           50: '#f9fafb',
           100: '#f3f4f6',
