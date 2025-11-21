@@ -1,0 +1,61 @@
+import { Link, useLocation } from "react-router-dom";
+
+
+export function Header() {
+  const location = useLocation();
+
+  const tabs = [
+    { path: "/square", label: "API 广场" },
+    { path: "/chat", label: "体验中心" },
+  ];
+
+  const isActiveTab = (path: string) => {
+    return location.pathname === path || location.pathname.startsWith(path + "/");
+  };
+
+  return (
+    <nav className="sticky top-0 z-50 backdrop-blur-md bg-transparent">
+      <div className="w-full mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center px-6 py-3">
+          <div className="flex items-center">
+            <Link to="/" className="flex items-center space-x-2 hover:opacity-80 transition-all duration-300">
+              <div className="w-8 h-8 rounded-full flex items-center justify-center">
+                {/* LOGO区域 */}
+                <img
+                  src="/logo.png"
+                  alt="logo"
+                  className="w-6 h-6"
+                  style={{ display: "block" }}
+                />
+              </div>
+              <span className="text-xl font-bold text-gray-900">HiMarket</span>
+            </Link>
+            <div className="h-6 w-[1px] bg-gray-200 mx-5"></div>
+            {/* Tab 区域 */}
+            <div className="flex items-center gap-1.5">
+              {tabs.map((tab) => (
+                <Link key={tab.path} to={tab.path}>
+                  <div
+                    className={`
+                      px-4 py-1.5 rounded-full
+                      transition-all duration-300 ease-in-out
+                      ${
+                        isActiveTab(tab.path)
+                          ? "bg-white text-gray-900 font-medium shadow-sm scale-[1.02]"
+                          : "text-gray-600 hover:bg-white/60 hover:text-gray-900 hover:shadow-sm hover:scale-[1.02]"
+                      }
+                    `}
+                  >
+                    {tab.label}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+          <div className="flex items-center space-x-4">
+          </div>
+        </div>
+      </div>
+    </nav>
+  )
+}

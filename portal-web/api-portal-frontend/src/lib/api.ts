@@ -14,10 +14,18 @@ const api: AxiosInstance = axios.create({
 // 请求拦截器
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
+    // 优先使用临时 token（开发环境），临时 token 已包含 Bearer 前缀
+    const tempToken = (import.meta as any).env.VITE_TEMP_AUTH_TOKEN;
     const accessToken = localStorage.getItem('access_token');
-    
-    if (accessToken && config.headers) {
-      config.headers.Authorization = `Bearer ${accessToken}`;
+
+    if (config.headers) {
+      if (tempToken) {
+        // 临时 token 直接使用（已包含 Bearer 前缀）
+        config.headers.Authorization = tempToken;
+      } else if (accessToken) {
+        // 生产环境 token 需要添加 Bearer 前缀
+        config.headers.Authorization = `Bearer ${accessToken}`;
+      }
     }
     return config;
   },
@@ -203,8 +211,157 @@ export function developerLogout(): Promise<void> {
 export const categoryApi = {
   // 获取指定产品类型下的类别列表
   getCategoriesByProductType: (productType: string) => {
-    return api.get(`/product-categories?productType=${productType}&size=1000`)
+    return api.get(`/product-categories`, {
+      params: {
+        productType,
+        size: 1000
+      }
+    })
   }
+}
+
+// ============ 聊天相关 API ============
+
+// 分类信息接口
+export interface Category {
+  categoryId: string;
+  name: string;
+  description: string;
+  icon: {
+    type: "URL" | "BASE64";
+    value: string;
+  } | null;
+  createAt: string;
+  updatedAt: string;
+}
+
+// 产品信息接口
+export interface Product {
+  productId: string;
+  name: string;
+  description: string;
+  status: string;
+  enableConsumerAuth: boolean;
+  type: string;
+  document: string | null;
+  icon: any | null;
+  categories: string[];
+  autoApprove: boolean | null;
+  createAt: string;
+  updatedAt: string;
+  modelConfig?: {
+    modelAPIConfig: {
+      modelCategory: string;
+      aiProtocols: string[];
+      routes: any[];
+      services: any[] | null;
+    };
+  };
+  enabled: boolean;
+}
+
+// 会话相关接口
+export interface Session {
+  sessionId: string;
+  name: string;
+  productIds: string[];
+  talkType: string;
+  status: string;
+  createAt: string;
+  updateAt: string;
+}
+
+// 聊天消息接口
+export interface ChatMessage {
+  conversationId: string;
+  questionId: string;
+  answerIndex: number;
+  question: string;
+  attachments?: any[];
+  stream?: boolean;
+  needMemory?: boolean;
+  enableThinking?: boolean;
+  searchType?: string;
+}
+
+// 历史对话接口
+export interface Conversation {
+  conversationId: string;
+  questions: Question[];
+}
+
+export interface Question {
+  questionId: string;
+  content: string;
+  attachments: any[];
+  answers: Answer[];
+}
+
+export interface Answer {
+  results: AnswerResult[];
+}
+
+export interface AnswerResult {
+  answerId: string;
+  productId: string;
+  content: string;
+}
+
+// 获取模型列表
+export function getProducts(params: {
+  type: string;
+  categoryIds?: string[];
+  page?: number;
+  size?: number;
+}) {
+  return api.get('/products', {
+    params: {
+      type: params.type,
+      categoryIds: params.categoryIds,
+      page: params.page || 0,
+      size: params.size || 100,
+    },
+  });
+}
+
+// 创建会话
+export function createSession(data: {
+  talkType: string;
+  name: string;
+  productIds: string[];
+}) {
+  return api.post('/sessions', data);
+}
+
+// 获取会话列表
+export function getSessions(params?: { page?: number; size?: number }) {
+  return api.get('/sessions', {
+    params: {
+      page: params?.page || 0,
+      size: params?.size || 20,
+    },
+  });
+}
+
+// 更新会话名称
+export function updateSession(sessionId: string, data: { name: string }) {
+  return api.put(`/sessions/${sessionId}`, data);
+}
+
+// 发送聊天消息（流式）
+export function sendChatMessage(sessionId: string, message: ChatMessage) {
+  return api.post(`/sessions/${sessionId}/chats`, message);
+}
+
+// 发送聊天消息（流式，返回完整 URL 用于 SSE）
+export function getChatMessageStreamUrl(sessionId: string): string {
+  const baseURL = (api.defaults.baseURL || '') as string;
+  return `${baseURL}/sessions/${sessionId}/chats`;
+}
+
+// 获取历史聊天记录
+export function getConversations(sessionId: string) {
+  return api.get(`/sessions/${sessionId}/conversations`);
 }
 
 export default api 
