@@ -3,15 +3,11 @@ package com.alibaba.apiopenplatform.support.enums;
 /**
  * @author zh
  */
-public enum ChatAttachmentType {
+public enum AIProtocol {
 
-    IMAGE,
+    OPENAI,
 
-    VIDEO,
-
-    AUDIO,
-
-    TEXT,
+    ANTHROPIC,
 
     ;
 

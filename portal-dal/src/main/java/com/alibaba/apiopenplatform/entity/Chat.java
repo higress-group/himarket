@@ -1,7 +1,9 @@
 package com.alibaba.apiopenplatform.entity;
 
+import com.alibaba.apiopenplatform.converter.ChatUsageConverter;
 import com.alibaba.apiopenplatform.converter.ListJsonConverter;
-import com.alibaba.apiopenplatform.support.chat.attachment.AttachmentConfig;
+import com.alibaba.apiopenplatform.support.chat.ChatUsage;
+import com.alibaba.apiopenplatform.support.chat.attachment.ChatAttachmentConfig;
 import com.alibaba.apiopenplatform.support.enums.ChatStatus;
 import lombok.Data;
 import lombok.experimental.Accessors;
@@ -75,7 +77,7 @@ public class Chat extends BaseEntity {
      */
     @Column(name = "attachments", columnDefinition = "json")
     @Convert(converter = ListJsonConverter.class)
-    private List<AttachmentConfig> attachments;
+    private List<ChatAttachmentConfig> attachments;
 
     /**
      * Answer ID
@@ -88,4 +90,17 @@ public class Chat extends BaseEntity {
      */
     @Column(name = "answer", columnDefinition = "longtext")
     private String answer;
+
+    /**
+     * The index of the question submitted
+     */
+    @Column(name = "sequence", columnDefinition = "int DEFAULT 0")
+    private Integer sequence;
+
+    /**
+     * Usage
+     */
+    @Column(name = "chat_usage", columnDefinition = "json")
+    @Convert(converter = ChatUsageConverter.class)
+    private ChatUsage chatUsage;
 }

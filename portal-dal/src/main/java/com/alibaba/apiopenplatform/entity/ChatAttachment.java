@@ -1,10 +1,9 @@
 package com.alibaba.apiopenplatform.entity;
 
-import com.alibaba.apiopenplatform.converter.AttachmentDataConverter;
-import com.alibaba.apiopenplatform.support.chat.attachment.ChatAttachmentData;
 import com.alibaba.apiopenplatform.support.enums.ChatAttachmentType;
 import lombok.Data;
 import lombok.experimental.Accessors;
+import org.hibernate.annotations.ColumnDefault;
 
 import javax.persistence.*;
 
@@ -54,14 +53,13 @@ public class ChatAttachment {
     /**
      * Size
      */
-    @Column(name = "size", nullable = false)
+    @Column(name = "size", columnDefinition = "bigint")
+    @ColumnDefault("0")
     private Long size;
 
     /**
-     * Data
+     * Raw data
      */
-    @Lob
-    @Column(name = "data")
-    @Convert(converter = AttachmentDataConverter.class)
-    private ChatAttachmentData data;
+    @Column(name = "data", columnDefinition = "mediumblob")
+    private byte[] data;
 }

@@ -287,6 +287,11 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
         throw new UnsupportedOperationException("Higress gateway does not support getting dashboard");
     }
 
+    @Override
+    public List<String> fetchGatewayIps(Gateway gateway) {
+        return Collections.emptyList();
+    }
+
     @Data
     @Builder
     public static class HigressConsumerConfig {
