@@ -1,14 +1,19 @@
-export default  {
-  "colorPrimary": "#0064c8",
-  "colorPrimaryBg": "#F0F7FF",
-  "colorPrimaryBgHover": "#CAE3FD",
-  "colorPrimaryBorder": "#90C0EF",
-  "colorPrimaryBorderHover": "#589ADB",
-  "colorPrimaryHover": "#2A7DD1",
-  "colorPrimaryActive": "#0057AD",
-  "colorPrimaryTextHover": "#2A7DD1",
-  "colorPrimaryText": "#0064c8",
-  "colorPrimaryTextActive": "#0057AD",
+export const colors = {
+  "colorPrimary": "#6366F1",
+  "colorPrimaryBgHover": "#E0E7FF",
+}
+
+export default {
+  ...colors,
+  "colorPrimaryBg": "#EEF2FF",
+  "colorPrimaryBgHover": "#E0E7FF",
+  "colorPrimaryBorder": "#C7D2FE",
+  "colorPrimaryBorderHover": "#A5B4FC",
+  "colorPrimaryHover": "#818CF8",
+  "colorPrimaryActive": "#4F46E5",
+  "colorPrimaryTextHover": "#818CF8",
+  "colorPrimaryText": "#6366F1",
+  "colorPrimaryTextActive": "#4F46E5",
   "fontSize": 12,
   "borderRadius": 2,
   "fontSizeSM": 12,

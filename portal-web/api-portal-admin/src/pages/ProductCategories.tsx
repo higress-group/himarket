@@ -8,7 +8,8 @@ import {
   Empty,
   Skeleton,
   Pagination,
-  Dropdown
+  Dropdown,
+  Modal
 } from 'antd';
 import { 
   PlusOutlined, 
@@ -16,7 +17,8 @@ import {
   DeleteOutlined, 
   FolderOutlined,
   MoreOutlined,
-  SearchOutlined
+  SearchOutlined,
+  ExclamationCircleOutlined
 } from '@ant-design/icons';
 import { 
   getProductCategoriesByPage, 
@@ -99,14 +101,28 @@ export default function ProductCategories() {
 
   // 处理删除类别
   const handleDelete = async (categoryId: string) => {
-    try {
-      await deleteProductCategory(categoryId);
-      message.success('类别删除成功');
-      handleRefresh();
-    } catch (error) {
-      console.error('删除类别失败:', error);
-      message.error('删除类别失败，可能该类别正在使用中');
-    }
+    // 找到要删除的类别
+    const category = categories.find(cat => cat.categoryId === categoryId);
+    const categoryName = category?.name || '该类别';
+
+    Modal.confirm({
+      title: '确认删除',
+      icon: <ExclamationCircleOutlined />,
+      content: `确定要删除类别 "${categoryName}" 吗？此操作不可恢复。`,
+      okText: '确认删除',
+      okType: 'danger',
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          await deleteProductCategory(categoryId);
+          message.success('类别删除成功');
+          handleRefresh();
+        } catch (error) {
+          console.error('删除类别失败:', error);
+          message.error('删除类别失败，可能该类别正在使用中');
+        }
+      },
+    });
   };
 
   // 打开创建弹窗

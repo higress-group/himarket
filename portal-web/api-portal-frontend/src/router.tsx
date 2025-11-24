@@ -16,11 +16,17 @@ import Model from "./pages/Model";
 import ModelDetail from "./pages/ModelDetail";
 import Callback from "./pages/Callback";
 import OidcCallback from "./pages/OidcCallback";
+import Square from "./pages/Square";
+import Center from "./pages/Center";
+import Chat from "./pages/Chat";
 
 export function Router() {
   return (
     <Routes>
       <Route path="/" element={<Home />} />
+      <Route path="/square" element={<Square />} />
+      <Route path="/center" element={<Center />} />
+      <Route path="/chat" element={<Chat />} />
       <Route path="/getting-started" element={<GettingStarted />} />
       <Route path="/apis" element={<Apis />} />
       <Route path="/apis/:apiProductId" element={<ApiDetail />} />
