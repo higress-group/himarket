@@ -1,0 +1,45 @@
+/* 用户菜单下拉框样式 */
+.user-dropdown .ant-dropdown-menu {
+  background: rgba(255, 255, 255, 0.8) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.4) !important;
+  border-radius: 12px !important;
+  padding: 8px !important;
+  min-width: 200px !important;
+}
+
+.user-dropdown .ant-dropdown-menu-item {
+  border-radius: 8px !important;
+  margin: 2px 0 !important;
+  padding: 10px 12px !important;
+  transition: all 0.2s ease-in-out !important;
+  color: #4b5563 !important;
+  font-size: 14px !important;
+}
+
+.user-dropdown .ant-dropdown-menu-item:hover {
+  background: rgba(255, 255, 255, 0.6) !important;
+  transform: scale(1.02);
+}
+
+.user-dropdown .ant-dropdown-menu-item-disabled {
+  background: transparent !important;
+  cursor: default !important;
+}
+
+.user-dropdown .ant-dropdown-menu-item-disabled:hover {
+  background: transparent !important;
+  transform: none !important;
+}
+
+.user-dropdown .ant-dropdown-menu-item-icon {
+  font-size: 14px !important;
+  margin-right: 8px !important;
+}
+
+.user-dropdown .ant-dropdown-menu-item-divider {
+  background: rgba(0, 0, 0, 0.06) !important;
+  margin: 6px 0 !important;
+}

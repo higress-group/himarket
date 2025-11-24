@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { DownOutlined, CheckOutlined, SearchOutlined, RobotOutlined, ThunderboltOutlined, BulbOutlined, PictureOutlined } from "@ant-design/icons";
+import { DownOutlined, CheckOutlined, SearchOutlined } from "@ant-design/icons";
 import { Dropdown, Input, Tabs, Spin } from "antd";
+import { ProductIconRenderer } from "../icon/ProductIconRenderer";
 
 interface Model {
   id: string;
@@ -19,23 +20,6 @@ interface ModelSelectorProps {
   categories?: Array<{ id: string; name: string }>; // 分类列表
   categoriesLoading?: boolean; // 分类加载状态
 }
-
-// 图标映射组件
-const ModelIcon = ({ iconType }: { iconType: string }) => {
-  const iconClass = "text-base";
-  switch (iconType) {
-    case "robot":
-      return <RobotOutlined className={iconClass} />;
-    case "thunderbolt":
-      return <ThunderboltOutlined className={iconClass} />;
-    case "bulb":
-      return <BulbOutlined className={iconClass} />;
-    case "picture":
-      return <PictureOutlined className={iconClass} />;
-    default:
-      return <RobotOutlined className={iconClass} />;
-  }
-};
 
 export function ModelSelector({
   selectedModel,
@@ -120,18 +104,18 @@ export function ModelSelector({
                   px-3 py-2.5 rounded-lg cursor-pointer
                   flex items-center gap-3
                   transition-all duration-200
-                  hover:bg-gray-50 hover:scale-[1.01]
+                  hover:bg-colorPrimaryBgHover hover:scale-[1.01]
                   ${
                     model.id === selectedModel
-                      ? "bg-primary-50 text-primary-600"
+                      ? "bg-colorPrimary/10 text-colorPrimary"
                       : "text-gray-700 hover:text-gray-900"
                   }
                 `}
               >
-                <ModelIcon iconType={model.icon} />
+                <ProductIconRenderer iconType={model.icon} className="w-5 h-5" />
                 <span className="font-medium flex-1">{model.name}</span>
                 {model.id === selectedModel && (
-                  <CheckOutlined className="text-primary-500 text-xs" />
+                  <CheckOutlined className="text-colorPrimary text-xs" />
                 )}
               </div>
             ))}
@@ -157,9 +141,13 @@ export function ModelSelector({
           trigger={['click']}
           placement="bottomLeft"
         >
+          {/* 当前模型 */}
           <button
-            className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 hover:scale-[1.01]"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 hover:scale-[1.01] bg-colorPrimaryBgHover"
           >
+            {currentModel?.icon && (
+              <ProductIconRenderer iconType={currentModel.icon} className="w-5 h-5" />
+            )}
             <span className="font-medium text-gray-900">
               {currentModel?.name || "选择模型"}
             </span>

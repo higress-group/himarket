@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { AppstoreAddOutlined, CloseOutlined, PlusOutlined, DownOutlined, SearchOutlined, CheckOutlined, RobotOutlined, ThunderboltOutlined, BulbOutlined, PictureOutlined } from "@ant-design/icons";
+import { AppstoreAddOutlined, CloseOutlined, PlusOutlined, DownOutlined, SearchOutlined, CheckOutlined } from "@ant-design/icons";
 import { Dropdown, Input, Tabs, message as antdMessage } from "antd";
 import { ModelSelector } from "./ModelSelector";
 import { MessageList } from "./MessageList";
@@ -7,6 +7,8 @@ import { InputBox } from "./InputBox";
 import { SuggestedQuestions } from "./SuggestedQuestions";
 import { MultiModelSelector } from "./MultiModelSelector";
 import { type Product, getProducts, categoryApi, type Category } from "../../lib/api";
+import { getIconString } from "../../lib/iconUtils";
+import { ProductIconRenderer } from "../icon/ProductIconRenderer";
 
 // 模型数据接口（用于组件内部）
 interface ModelData {
@@ -17,23 +19,6 @@ interface ModelData {
   icon: string;
   productCategories: string[]; // 产品分类 ID 数组
 }
-
-// 图标映射组件
-const ModelIcon = ({ iconType }: { iconType: string }) => {
-  const iconClass = "text-base";
-  switch (iconType) {
-    case "robot":
-      return <RobotOutlined className={iconClass} />;
-    case "thunderbolt":
-      return <ThunderboltOutlined className={iconClass} />;
-    case "bulb":
-      return <BulbOutlined className={iconClass} />;
-    case "picture":
-      return <PictureOutlined className={iconClass} />;
-    default:
-      return <RobotOutlined className={iconClass} />;
-  }
-};
 
 interface Message {
   id: string;
@@ -99,15 +84,6 @@ export function ChatArea({ messages, selectedProduct, onSelectProduct: _onSelect
     }
   };
 
-  // 根据模型类别映射图标
-  const getModelIcon = (category: string): string => {
-    if (category.includes("Text") || category.includes("文本")) return "robot";
-    if (category.includes("Image") || category.includes("图像")) return "picture";
-    if (category.includes("Audio") || category.includes("音频")) return "thunderbolt";
-    if (category.includes("Video") || category.includes("视频")) return "bulb";
-    return "robot";
-  };
-
   // 获取分类列表
   useEffect(() => {
     const fetchCategories = async () => {
@@ -161,7 +137,7 @@ export function ChatArea({ messages, selectedProduct, onSelectProduct: _onSelect
             name: product.name,
             description: product.description,
             category: product.modelConfig?.modelAPIConfig?.modelCategory || "对话模型",
-            icon: getModelIcon(product.modelConfig?.modelAPIConfig?.modelCategory || ""),
+            icon: getIconString(product.icon), // 使用产品的 icon 字段
             productCategories: product.categories || [], // 添加产品分类
           }));
 
@@ -355,7 +331,7 @@ export function ChatArea({ messages, selectedProduct, onSelectProduct: _onSelect
                   }
                 `}
               >
-                <ModelIcon iconType={model.icon} />
+                <ProductIconRenderer iconType={model.icon} className="w-5 h-5" />
                 <span className="font-medium flex-1">{model.name}</span>
                 {model.id === currentModelId && (
                   <CheckOutlined className="text-colorPrimary text-xs" />
@@ -377,7 +353,7 @@ export function ChatArea({ messages, selectedProduct, onSelectProduct: _onSelect
     <div className="flex-1 flex flex-col h-full">
       {/* 顶部栏：模型选择器 + 多模型对比按钮（仅在单模型模式显示） */}
       {!isCompareMode && (
-        <div className="flex items-center justify-between px-4 py-4">
+        <div className="flex items-center gap-4 px-4 py-4">
           <ModelSelector
             selectedModel={selectedModel}
             onSelectModel={handleSelectModel}
@@ -386,6 +362,9 @@ export function ChatArea({ messages, selectedProduct, onSelectProduct: _onSelect
             categories={categories}
             categoriesLoading={categoriesLoading}
           />
+
+          {/* 分割线 */}
+          <div className="h-6 w-px bg-gray-300"></div>
 
           <button
             onClick={handleToggleCompare}

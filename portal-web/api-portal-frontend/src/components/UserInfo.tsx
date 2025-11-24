@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { Button, Avatar, Dropdown, Skeleton, message } from "antd";
-import { UserOutlined, LogoutOutlined, AppstoreOutlined } from "@ant-design/icons";
+import { LogoutOutlined, AppstoreOutlined } from "@ant-design/icons";
 import api, { developerLogout } from "../lib/api";
 import { useNavigate } from "react-router-dom";
+import "./UserInfo.css";
 
 interface UserInfo {
   displayName: string;
@@ -104,10 +105,10 @@ export function UserInfo() {
     {
       key: 'user-info',
       label: (
-        <div className="px-3 py-2">
-          <div className="font-semibold text-gray-900">{userInfo?.displayName}</div>
+        <div className="px-2 py-2">
+          <div className="font-semibold text-gray-900 text-base">{userInfo?.displayName}</div>
           {userInfo?.email && (
-            <div className="text-sm text-gray-500">{userInfo.email}</div>
+            <div className="text-xs text-gray-500 mt-0.5">{userInfo.email}</div>
           )}
         </div>
       ),
@@ -133,11 +134,21 @@ export function UserInfo() {
     },
   ];
 
+  // 获取用户名首字母
+  const getInitials = (name: string) => {
+    if (!name) return 'U';
+    // 如果是中文名，取第一个字
+    if (/[\u4e00-\u9fa5]/.test(name)) {
+      return name.charAt(0);
+    }
+    // 如果是英文名，取第一个字母
+    return name.charAt(0).toUpperCase();
+  };
+
   if (loading) {
     return (
       <div className="flex items-center space-x-2">
         <Skeleton.Avatar size={32} active />
-        {/* <Skeleton.Input active size="small" style={{ width: 80, height: 24 }} /> */}
       </div>
     );
   }
@@ -148,11 +159,16 @@ export function UserInfo() {
         menu={{ items: menuItems }}
         placement="bottomRight"
         trigger={['hover']}
-        overlayClassName="user-dropdown" 
+        overlayClassName="user-dropdown"
       >
-        <div className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 px-2 py-1 rounded">
-          <Avatar src={userInfo.avatar} icon={<UserOutlined />} size="default" />
-          {/* <span>{userInfo.displayName}</span> */}
+        <div className="flex items-center space-x-2 cursor-pointer hover:opacity-80 transition-opacity px-2 py-1 rounded-full">
+          {userInfo.avatar ? (
+            <Avatar src={userInfo.avatar} size="default" />
+          ) : (
+            <Avatar size="default" className="bg-colorPrimary text-white font-medium">
+              {getInitials(userInfo.displayName)}
+            </Avatar>
+          )}
         </div>
       </Dropdown>
     );
@@ -160,11 +176,11 @@ export function UserInfo() {
 
   return (
     <Button
-      icon={<UserOutlined />}
       onClick={() => {
         navigate(`/login`);
       }}
       type="default"
+      className="rounded-full bg-colorPrimary text-white border-none hover:opacity-90"
     >
       登录
     </Button>

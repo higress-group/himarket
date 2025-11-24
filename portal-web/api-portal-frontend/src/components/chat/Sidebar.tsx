@@ -19,6 +19,7 @@ interface SidebarProps {
   currentSessionId: string | null;
   onNewChat: () => void;
   onSelectSession?: (sessionId: string, productIds: string[]) => void;
+  refreshTrigger?: number; // 添加刷新触发器
 }
 
 interface ChatSession {
@@ -49,7 +50,7 @@ const categorizeSessionsByTime = (sessions: ChatSession[]) => {
   return { today, last7Days, last30Days };
 };
 
-export function Sidebar({ currentSessionId, onNewChat, onSelectSession }: SidebarProps) {
+export function Sidebar({ currentSessionId, onNewChat, onSelectSession, refreshTrigger }: SidebarProps) {
   // const [selectedFeature, setSelectedFeature] = useState("language-model");
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
@@ -89,7 +90,7 @@ export function Sidebar({ currentSessionId, onNewChat, onSelectSession }: Sideba
     };
 
     fetchSessions();
-  }, []);
+  }, [refreshTrigger]); // 当 refreshTrigger 改变时重新获取
 
   const { today, last7Days, last30Days } = categorizeSessionsByTime(sessions);
 
@@ -165,7 +166,6 @@ export function Sidebar({ currentSessionId, onNewChat, onSelectSession }: Sideba
 
   // 取消编辑
   const handleCancelEdit = () => {
-    console.log('Canceling edit mode');
     setEditingSessionId(null);
     setEditingName("");
     setOriginalName("");
@@ -295,7 +295,6 @@ export function Sidebar({ currentSessionId, onNewChat, onSelectSession }: Sideba
                       onKeyDown={(e) => handleEditKeyDown(e, session.id)}
                       onBlur={() => {
                         // 失焦时如果名称没变则取消编辑
-                        console.log('Input blur - editingName:', editingName.trim(), 'originalName:', originalName);
                         if (editingName.trim() === originalName) {
                           handleCancelEdit();
                         }
@@ -323,7 +322,6 @@ export function Sidebar({ currentSessionId, onNewChat, onSelectSession }: Sideba
                         e.stopPropagation();
                       }}
                       onClick={(e) => {
-                        console.log('Cancel button clicked');
                         e.stopPropagation();
                         handleCancelEdit();
                       }}
@@ -377,7 +375,7 @@ export function Sidebar({ currentSessionId, onNewChat, onSelectSession }: Sideba
   return (
     <div
       className={`
-        bg-white/40 backdrop-blur-xl rounded-lg flex flex-col m-4 mr-0
+        bg-white/40 backdrop-blur-xl rounded-lg flex flex-col m-4 mr-0 mb-0
         transition-all duration-300 ease-in-out
         ${isCollapsed ? "w-16" : "w-64"}
       `}

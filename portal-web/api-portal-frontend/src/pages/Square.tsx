@@ -6,6 +6,7 @@ import { Layout } from "../components/Layout";
 import { CategoryMenu } from "../components/square/CategoryMenu";
 import { ModelCard } from "../components/square/ModelCard";
 import { getProducts, type Product, categoryApi, type Category } from "../lib/api";
+import { getIconString } from "../lib/iconUtils";
 
 function Square() {
   const navigate = useNavigate();
@@ -188,7 +189,7 @@ function Square() {
                 {filteredModels.map((product) => (
                   <ModelCard
                     key={product.productId}
-                    icon="🤖"
+                    icon={getIconString(product.icon)}
                     name={product.name}
                     description={product.description}
                     company={product.modelConfig?.modelAPIConfig?.aiProtocols?.[0] || "AI Model"}
