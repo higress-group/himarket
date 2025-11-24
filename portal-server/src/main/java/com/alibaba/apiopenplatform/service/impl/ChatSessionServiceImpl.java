@@ -216,6 +216,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
                                     .answerId(chat.getAnswerId())
                                     .productId(chat.getProductId())
                                     .content(chat.getAnswer())
+                                    .usage(chat.getChatUsage())
                                     .build())
                             .collect(Collectors.toList());
 

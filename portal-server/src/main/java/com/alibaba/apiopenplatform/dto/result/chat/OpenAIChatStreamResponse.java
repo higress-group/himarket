@@ -1,6 +1,7 @@
 package com.alibaba.apiopenplatform.dto.result.chat;
 
 import cn.hutool.core.annotation.Alias;
+import com.alibaba.apiopenplatform.support.chat.ChatUsage;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
@@ -128,5 +129,16 @@ public class OpenAIChatStreamResponse {
         @JsonProperty("cached_tokens")
         @Alias("cached_tokens")
         private Integer cachedTokens;
+    }
+
+    public ChatUsage toStandardUsage() {
+        return ChatUsage.builder()
+                .promptTokens(this.usage.getPromptTokens())
+                .completionTokens(this.usage.getCompletionTokens())
+                .totalTokens(this.usage.getTotalTokens())
+                .promptTokensDetails(ChatUsage.PromptTokensDetails.builder()
+                        .cachedTokens(this.usage.getPromptTokensDetails().getCachedTokens())
+                        .build())
+                .build();
     }
 }

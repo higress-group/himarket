@@ -304,6 +304,7 @@ public class ChatServiceImpl implements ChatService {
         chatRepository.findByChatId(chatId).ifPresent(chat -> {
             chat.setAnswer(result.getAnswer());
             chat.setStatus(result.isSuccess() ? ChatStatus.SUCCESS : ChatStatus.FAILED);
+            chat.setChatUsage(result.getUsage());
             chatRepository.save(chat);
         });
     }

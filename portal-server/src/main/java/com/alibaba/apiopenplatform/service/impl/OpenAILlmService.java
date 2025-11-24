@@ -1,7 +1,9 @@
 package com.alibaba.apiopenplatform.service.impl;
 
 import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.date.StopWatch;
 import cn.hutool.core.util.StrUtil;
+import com.alibaba.apiopenplatform.dto.params.chat.ChatContent;
 import com.alibaba.apiopenplatform.dto.result.httpapi.DomainResult;
 import com.alibaba.apiopenplatform.dto.result.httpapi.HttpRouteResult;
 import com.alibaba.apiopenplatform.dto.result.model.ModelConfigResult;
@@ -10,6 +12,7 @@ import com.alibaba.apiopenplatform.dto.result.chat.LlmChatRequest;
 import com.alibaba.apiopenplatform.dto.params.chat.ChatRequestBody;
 import com.alibaba.apiopenplatform.dto.result.chat.OpenAIChatStreamResponse;
 import cn.hutool.json.JSONUtil;
+import com.alibaba.apiopenplatform.support.chat.ChatUsage;
 import com.alibaba.apiopenplatform.support.enums.AIProtocol;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpMethod;
@@ -53,32 +56,35 @@ public class OpenAILlmService extends AbstractLlmService {
     }
 
     @Override
-    public String processStreamChunk(String chunk, StringBuilder answerContent, StringBuilder unexpectedContent) {
+    public void processStreamChunk(String chunk, ChatContent chatContent) {
         try {
             if ("[DONE]".equals(chunk)) {
-                return chunk;
+                return;
             }
 
-            log.info("zhaoh-test-jsonData: {}", chunk);
             // OpenAI common response format
             OpenAIChatStreamResponse response = JSONUtil.toBean(chunk, OpenAIChatStreamResponse.class);
-            log.info("zhaoh-test-response: {}", JSONUtil.toJsonStr(response));
 
             // Answer from LLM
             String content = extractContentFromResponse(response);
             log.info("zhaoh-test-content: {}", content);
 
             if (content != null) {
-                answerContent.append(content);
+                // Append to answer content and reset current content
+                chatContent.getAnswerContent().append(content);
+                chatContent.setCurrentContent(content);
             }
 
-            return JSONUtil.toJsonStr(response);
+            if (response.getUsage() != null) {
+                ChatUsage usage = response.toStandardUsage();
+                chatContent.setUsage(usage);
+            }
+
         } catch (Exception e) {
             log.warn("Failed to process chunk: {}", chunk, e);
             // Caused by invalid JSON or other errors, append to unexpected content
-            unexpectedContent.append(chunk);
-            answerContent.append(chunk);
-            return null;
+            chatContent.getUnexpectedContent().append(chunk);
+            chatContent.getAnswerContent().append(chunk);
         }
     }
 
@@ -127,6 +133,8 @@ public class OpenAILlmService extends AbstractLlmService {
 
             // Find first external domain
             Optional<DomainResult> externalDomain = route.getDomains().stream()
+                    // TODO 调试场景专用，防止域名被ICP拦截，可恶啊
+                    .filter(domain -> StrUtil.endWith(domain.getDomain(), ".alicloudapi.com"))
                     .filter(domain -> !StrUtil.equalsIgnoreCase(domain.getNetworkType(), "intranet"))
                     .findFirst();
 

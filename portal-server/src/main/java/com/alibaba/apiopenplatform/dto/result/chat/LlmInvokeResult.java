@@ -1,5 +1,7 @@
 package com.alibaba.apiopenplatform.dto.result.chat;
 
+import com.alibaba.apiopenplatform.dto.params.chat.ChatContent;
+import com.alibaba.apiopenplatform.support.chat.ChatUsage;
 import lombok.Builder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -27,16 +29,15 @@ public class LlmInvokeResult {
     private long elapsedTime;
 
     /**
-     * Answer length
+     * Usage, exists only when success
      */
-    private int answerLength;
+    private ChatUsage usage;
 
-    public static LlmInvokeResult of(boolean success, String answer, long elapsedTime) {
+    public static LlmInvokeResult of(ChatContent chatContent) {
         return LlmInvokeResult.builder()
-                .success(success)
-                .answer(answer)
-                .elapsedTime(elapsedTime)
-                .answerLength(answer != null ? answer.length() : 0)
+                .success(chatContent.success())
+                .answer(chatContent.getAnswerContent().toString())
+                .usage(chatContent.getUsage())
                 .build();
     }
 }

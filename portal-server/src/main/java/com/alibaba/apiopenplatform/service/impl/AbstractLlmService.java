@@ -5,6 +5,7 @@ import cn.hutool.core.map.MapUtil;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.apiopenplatform.core.exception.BusinessException;
 import com.alibaba.apiopenplatform.core.exception.ErrorCode;
+import com.alibaba.apiopenplatform.dto.params.chat.ChatContent;
 import com.alibaba.apiopenplatform.service.LlmService;
 import com.alibaba.apiopenplatform.dto.params.chat.InvokeModelParam;
 import com.alibaba.apiopenplatform.dto.result.chat.LlmChatRequest;
@@ -20,7 +21,6 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Map;
-import java.util.Objects;
 import java.util.function.Consumer;
 
 @Slf4j
@@ -46,16 +46,14 @@ public abstract class AbstractLlmService implements LlmService {
     protected abstract LlmChatRequest composeRequest(InvokeModelParam param);
 
     private SseEmitter call(LlmChatRequest request, HttpServletResponse response, Consumer<LlmInvokeResult> resultHandler) {
-        StringBuilder answerContent = new StringBuilder();
-        StringBuilder unexpectedContent = new StringBuilder();
         // Use SseEmitter for streaming
         SseEmitter emitter = new SseEmitter(-1L);
 
-        StopWatch stopWatch = new StopWatch();
-        stopWatch.start();
         request.tryResolveDns();
         log.info("zhaoh-test-request: {}", JSONUtil.toJsonStr(request));
 
+        ChatContent chatContent = new ChatContent();
+        chatContent.start();
         webClient
                 .post()
                 .uri(request.getUrl().toString())
@@ -71,9 +69,15 @@ public abstract class AbstractLlmService implements LlmService {
                     // Handle response body
                     return clientResponse.bodyToFlux(String.class)
                             .delayElements(Duration.ofMillis(100))
-                            .map(chunk -> processStreamChunk(chunk, answerContent, unexpectedContent));
+                            .handle((chunk, sink) -> {
+                                processStreamChunk(chunk, chatContent);
+                                // Only send the chunk if there is no error and unexpected content is empty
+                                if (chatContent.success()) {
+                                    sink.next(chunk);
+                                }
+                            });
                 })
-                .filter(Objects::nonNull)
+//                .filter(Objects::nonNull)
                 .doOnNext(chunk -> {
                     try {
                         emitter.send(SseEmitter.event().data(chunk));
@@ -82,28 +86,28 @@ public abstract class AbstractLlmService implements LlmService {
                     }
                 })
                 .doOnComplete(() -> {
-                    stopWatch.stop();
+                    chatContent.stop();
 
-                    boolean success = unexpectedContent.length() == 0;
-                    if (!success) {
-                        sendError(emitter, unexpectedContent.toString());
+                    if (!chatContent.success()) {
+                        sendError(emitter, chatContent.getUnexpectedContent().toString());
                     }
                     emitter.complete();
                     // Allow the caller to handle the result
-                    resultHandler.accept(LlmInvokeResult.of(success, answerContent.toString(), stopWatch.getTotalTimeMillis()));
+                    resultHandler.accept(LlmInvokeResult.of(chatContent));
                 })
                 .doOnError(error -> {
-                    stopWatch.stop();
+                    chatContent.stop();
                     // Handle the error
                     log.error("Model API call failed", error);
                     sendError(emitter, error.getMessage());
                     emitter.complete();
-                    resultHandler.accept(LlmInvokeResult.of(false, answerContent + error.getMessage(), stopWatch.getTotalTimeMillis()));
+                    chatContent.setAnswerContent(chatContent.getAnswerContent().append(error.getMessage()));
+                    resultHandler.accept(LlmInvokeResult.of(chatContent));
                 }).subscribe();
         return emitter;
     }
 
-    protected abstract String processStreamChunk(String chunk, StringBuilder answerContent, StringBuilder unexpectedContent);
+    protected abstract void processStreamChunk(String chunk, ChatContent chatContent);
 
     private void sendError(SseEmitter emitter, String message) {
         try {

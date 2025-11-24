@@ -1,5 +1,6 @@
 package com.alibaba.apiopenplatform.dto.result.chat;
 
+import com.alibaba.apiopenplatform.support.chat.ChatUsage;
 import com.alibaba.apiopenplatform.support.chat.attachment.ChatAttachmentConfig;
 import lombok.Builder;
 import lombok.Data;
@@ -39,6 +40,8 @@ public class ConversationResult {
         private String productId;
 
         private String content;
+
+        private ChatUsage usage;
     }
 
     @Data
