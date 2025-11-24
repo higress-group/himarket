@@ -22,6 +22,7 @@ import type {
 } from "../types";
 import remarkGfm from 'remark-gfm';
 import styles from './ModelDetail.module.css';
+import { DefaultModelIcon } from "../components/icon/defaultModelIcon";
 
 const { Panel } = Collapse;
 
@@ -277,7 +278,7 @@ function ModelDetail() {
                 <img src={`data:image/png;base64,${data.icon.value}`} alt={data.name} className="w-full h-full object-cover" />
               )
             ) : (
-              <span className="text-3xl">🤖</span>
+              <DefaultModelIcon className="w-5 h-5" />
             )}
           </div>
 

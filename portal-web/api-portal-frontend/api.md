@@ -76,7 +76,10 @@
         "enableConsumerAuth": false,
         "type": "MODEL_API",
         "document": null,
-        "icon": null,
+        "icon": {
+          "type": "URL",
+          "value": "string"
+        },
         "categories": [],
         "autoApprove": null,
         "createAt": "2025-11-13T20:01:19.568",
@@ -478,4 +481,3 @@ conversationId、questionId由前端生成，格式分别为conversation-{xxx}�
 - answers: 每个问题的回答轮次列表，有多少个元素，就表示进行了多少轮，“再来一次”时可以根据元素数量；
 
 - results: 每轮次的 Model API 的回答列表，用列表结构是因为可以设置多模型对比，results下存储的是多个 Model API 的回答。
-

@@ -1,4 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
+import { UserInfo } from "./UserInfo";
 
 
 export function Header() {
@@ -15,8 +16,8 @@ export function Header() {
 
   return (
     <nav className="sticky top-0 z-50 backdrop-blur-md bg-transparent">
-      <div className="w-full mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center px-6 py-3">
+      <div className="w-full mx-auto">
+        <div className="flex justify-between items-center px-8 py-3">
           <div className="flex items-center">
             <Link to="/" className="flex items-center space-x-2 hover:opacity-80 transition-all duration-300">
               <div className="w-8 h-8 rounded-full flex items-center justify-center">
@@ -53,6 +54,7 @@ export function Header() {
             </div>
           </div>
           <div className="flex items-center space-x-4">
+            <UserInfo />
           </div>
         </div>
       </div>

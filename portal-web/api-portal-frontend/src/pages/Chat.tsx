@@ -10,6 +10,7 @@ import api, {
   sendChatMessage,
   getConversations,
   getChatMessageStreamUrl,
+  getProducts,
   type Conversation,
 } from "../lib/api";
 import { generateConversationId, generateQuestionId } from "../lib/uuid";
@@ -49,14 +50,32 @@ function Chat() {
   // 记录每个 questionId 对应的问题内容，用于重新生成
   const [questionContentMap, setQuestionContentMap] = useState<Map<string, string>>(new Map());
   const [isLoading, setIsLoading] = useState(false); // 添加loading状态
+  const [sidebarRefreshTrigger, setSidebarRefreshTrigger] = useState(0); // 用于触发 Sidebar 刷新
 
-  // 从 location.state 接收选中的产品
+  // 从 location.state 接收选中的产品，或者加载默认第一个模型
   useEffect(() => {
     const state = location.state as { selectedProduct?: Product } | null;
     if (state?.selectedProduct) {
       setSelectedProduct(state.selectedProduct);
       // 清除 location.state，避免刷新后重复应用
       window.history.replaceState({}, document.title);
+    } else {
+      // 如果没有选中的产品，自动加载并选择第一个模型
+      const loadDefaultModel = async () => {
+        try {
+          const response: any = await getProducts({
+            type: "MODEL_API",
+            page: 0,
+            size: 1,
+          });
+          if (response.code === "SUCCESS" && response.data?.content?.length > 0) {
+            setSelectedProduct(response.data.content[0]);
+          }
+        } catch (error) {
+          console.error("Failed to load default model:", error);
+        }
+      };
+      loadDefaultModel();
     }
   }, [location]);
 
@@ -90,18 +109,19 @@ function Chat() {
         if (sessionResponse.code === "SUCCESS") {
           sessionId = sessionResponse.data.sessionId;
           setCurrentSessionId(sessionId);
+          // 触发 Sidebar 刷新以显示新会话
+          setSidebarRefreshTrigger(prev => prev + 1);
         } else {
           throw new Error("创建会话失败");
         }
       }
 
-      // 生成或使用现有的 conversationId 和 questionId
-      const conversationId = currentConversationId || generateConversationId();
+      // 每次新问答都生成新的 conversationId 和 questionId
+      const conversationId = generateConversationId();
       const questionId = generateQuestionId();
 
-      if (!currentConversationId) {
-        setCurrentConversationId(conversationId);
-      }
+      // 更新当前的 conversationId
+      setCurrentConversationId(conversationId);
 
       // 保存问题内容，用于重新生成
       setQuestionContentMap(prev => {
@@ -130,6 +150,7 @@ function Chat() {
         const assistantMessageId = `${Date.now()}-assistant`;
         let fullContent = '';
         let chatId = '';
+        let firstTokenTime: number | undefined;
 
         // 立即添加一个空的 AI 消息框用于显示 loading
         setMessages(prev => [...prev, {
@@ -161,21 +182,23 @@ function Chat() {
             },
             onChunk: (chunk) => {
               fullContent += chunk;
+              // 第一个 chunk 到达，记录首字时间
+              if (fullContent === chunk && firstTokenTime === undefined) {
+                firstTokenTime = Date.now() - startTime;
+                setIsLoading(false);
+              }
               // 更新消息内容
               setMessages(prev => prev.map(msg =>
                 msg.id === assistantMessageId
                   ? { ...msg, content: fullContent }
                   : msg
               ));
-              // 第一个 chunk 到达，关闭 loading 状态
-              if (fullContent === chunk) {
-                setIsLoading(false);
-              }
             },
             onComplete: (content) => {
               const totalTime = Date.now() - startTime;
               const newVersion: MessageVersion = {
                 content: content,
+                firstTokenTime: firstTokenTime ? Math.round(firstTokenTime) : undefined,
                 totalTime: Math.round(totalTime),
                 inputTokens: Math.round(messagePayload.question.length * 1.5),
                 outputTokens: Math.round(content.length * 1.5),
@@ -187,6 +210,7 @@ function Chat() {
                       ...msg,
                       id: chatId || assistantMessageId,
                       content: content,
+                      firstTokenTime: newVersion.firstTokenTime,
                       totalTime: newVersion.totalTime,
                       inputTokens: newVersion.inputTokens,
                       outputTokens: newVersion.outputTokens,
@@ -279,6 +303,7 @@ function Chat() {
 
       if (useStream) {
         let fullContent = '';
+        let firstTokenTime: number | undefined;
 
         // 先显示 loading 状态
         setMessages(prev => prev.map(msg =>
@@ -303,19 +328,22 @@ function Chat() {
           {
             onChunk: (chunk) => {
               fullContent += chunk;
+              // 第一个 chunk 到达，记录首字时间
+              if (fullContent === chunk && firstTokenTime === undefined) {
+                firstTokenTime = Date.now() - startTime;
+                setIsLoading(false);
+              }
               setMessages(prev => prev.map(msg =>
                 msg.id === messageId
                   ? { ...msg, content: fullContent }
                   : msg
               ));
-              if (fullContent === chunk) {
-                setIsLoading(false);
-              }
             },
             onComplete: (content) => {
               const totalTime = Date.now() - startTime;
               const newVersion: MessageVersion = {
                 content: content,
+                firstTokenTime: firstTokenTime ? Math.round(firstTokenTime) : undefined,
                 totalTime: Math.round(totalTime),
                 inputTokens: Math.round(questionContent.length * 1.5),
                 outputTokens: Math.round(content.length * 1.5),
@@ -328,6 +356,7 @@ function Chat() {
                   return {
                     ...msg,
                     content: newVersion.content,
+                    firstTokenTime: newVersion.firstTokenTime,
                     totalTime: newVersion.totalTime,
                     inputTokens: newVersion.inputTokens,
                     outputTokens: newVersion.outputTokens,
@@ -475,6 +504,7 @@ function Chat() {
           currentSessionId={currentSessionId}
           onNewChat={handleNewChat}
           onSelectSession={handleSelectSession}
+          refreshTrigger={sidebarRefreshTrigger}
         />
         <ChatArea
           messages={messages}

@@ -1,0 +1,176 @@
+/* Table 样式统一 - Glass-morphism 风格 */
+
+/* Table 容器样式 */
+.ant-table-wrapper {
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* Table 头部 */
+.ant-table-thead > tr > th {
+  background: rgba(255, 255, 255, 0.5) !important;
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
+  font-weight: 600;
+  color: #374151 !important;
+  padding: 14px 16px !important;
+}
+
+/* Table 行 */
+.ant-table-tbody > tr > td {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04) !important;
+  padding: 14px 16px !important;
+  background: transparent !important;
+}
+
+/* Table 行 hover 效果 */
+.ant-table-tbody > tr:hover > td {
+  background: rgba(255, 255, 255, 0.4) !important;
+  backdrop-filter: blur(5px);
+}
+
+/* Table 无数据时的样式 */
+.ant-table-placeholder {
+  background: transparent !important;
+}
+
+.ant-empty-description {
+  color: #9ca3af !important;
+}
+
+/* 分页器样式 */
+.ant-pagination {
+  margin-top: 24px !important;
+}
+
+.ant-pagination .ant-pagination-item {
+  border-radius: 8px !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  background: rgba(255, 255, 255, 0.6) !important;
+  backdrop-filter: blur(5px);
+  transition: all 0.2s ease-in-out !important;
+}
+
+.ant-pagination .ant-pagination-item a {
+  color: #4b5563 !important;
+  display: block !important;
+}
+
+.ant-pagination .ant-pagination-item:hover {
+  border-color: rgba(0, 0, 0, 0.15) !important;
+  background: rgba(255, 255, 255, 0.8) !important;
+  transform: scale(1.05);
+}
+
+.ant-pagination .ant-pagination-item:hover a {
+  color: #1f2937 !important;
+}
+
+.ant-pagination .ant-pagination-item-active {
+  background: #6366F1 !important;
+  border-color: #6366F1 !important;
+}
+
+.ant-pagination .ant-pagination-item-active a {
+  color: white !important;
+}
+
+.ant-pagination .ant-pagination-item-active:hover {
+  background: #818CF8 !important;
+  border-color: #818CF8 !important;
+}
+
+.ant-pagination .ant-pagination-item-active:hover a {
+  color: white !important;
+}
+
+.ant-pagination .ant-pagination-prev,
+.ant-pagination .ant-pagination-next,
+.ant-pagination .ant-pagination-jump-prev,
+.ant-pagination .ant-pagination-jump-next {
+  border-radius: 8px !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  background: rgba(255, 255, 255, 0.6) !important;
+  backdrop-filter: blur(5px);
+  transition: all 0.2s ease-in-out !important;
+}
+
+.ant-pagination .ant-pagination-prev button,
+.ant-pagination .ant-pagination-next button,
+.ant-pagination .ant-pagination-jump-prev button,
+.ant-pagination .ant-pagination-jump-next button {
+  color: #4b5563 !important;
+}
+
+.ant-pagination .ant-pagination-prev:hover,
+.ant-pagination .ant-pagination-next:hover {
+  border-color: rgba(0, 0, 0, 0.15) !important;
+  background: rgba(255, 255, 255, 0.8) !important;
+  transform: scale(1.05);
+}
+
+.ant-pagination .ant-pagination-prev:hover button,
+.ant-pagination .ant-pagination-next:hover button {
+  color: #1f2937 !important;
+}
+
+.ant-pagination .ant-pagination-disabled {
+  opacity: 0.4 !important;
+}
+
+.ant-pagination .ant-pagination-disabled:hover {
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  transform: none !important;
+}
+
+/* 分页器输入框 */
+.ant-pagination .ant-pagination-options-quick-jumper input {
+  border-radius: 8px !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  background: rgba(255, 255, 255, 0.6) !important;
+  backdrop-filter: blur(5px);
+  transition: all 0.2s ease-in-out !important;
+  color: #4b5563 !important;
+}
+
+.ant-pagination .ant-pagination-options-quick-jumper input:hover,
+.ant-pagination .ant-pagination-options-quick-jumper input:focus {
+  border-color: rgba(0, 0, 0, 0.15) !important;
+  background: rgba(255, 255, 255, 0.8) !important;
+}
+
+/* 分页器下拉选择 */
+.ant-pagination .ant-select-selector {
+  border-radius: 8px !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  background: rgba(255, 255, 255, 0.6) !important;
+  backdrop-filter: blur(5px);
+  transition: all 0.2s ease-in-out !important;
+}
+
+.ant-pagination .ant-select-selection-item {
+  color: #4b5563 !important;
+}
+
+.ant-pagination .ant-select-selector:hover {
+  border-color: rgba(0, 0, 0, 0.15) !important;
+  background: rgba(255, 255, 255, 0.8) !important;
+}
+
+.ant-pagination .ant-select-focused .ant-select-selector {
+  border-color: rgba(0, 0, 0, 0.15) !important;
+  background: rgba(255, 255, 255, 0.8) !important;
+  box-shadow: none !important;
+}
+
+/* 分页信息文本 */
+.ant-pagination .ant-pagination-total-text {
+  color: #6b7280 !important;
+}
+
+/* 搜索框样式 - 移除，使用 Square 页面的样式 */
+
+/* Loading 样式 */
+.ant-spin-dot-item {
+  background-color: var(--ant-primary-color) !important;
+}

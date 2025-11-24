@@ -1,6 +1,5 @@
 import { useState } from "react";
 import {
-  Card,
   Button,
   message,
   Modal,
@@ -205,7 +204,7 @@ export function SubscriptionManager({ consumerId, subscriptions, onSubscriptions
 
   return (
     <>
-      <Card style={{ borderRadius: '12px' }}>
+      <div className="bg-white/60 backdrop-blur-sm rounded-xl p-6 border border-white/60 shadow-sm">
         {/* 搜索框和订阅按钮在同一行 */}
         <div className="mb-4 flex justify-between items-center gap-4">
           <AdvancedSearch
@@ -217,6 +216,7 @@ export function SubscriptionManager({ consumerId, subscriptions, onSubscriptions
             type="primary"
             icon={<PlusOutlined />}
             onClick={openProductModal}
+            className="rounded-full"
           >
             订阅
           </Button>
@@ -230,7 +230,7 @@ export function SubscriptionManager({ consumerId, subscriptions, onSubscriptions
           loading={loading}
           locale={{ emptyText: '暂无订阅记录，请点击上方按钮进行订阅' }}
         />
-      </Card>
+      </div>
 
       {/* 产品选择弹窗 */}
       <Modal
@@ -293,7 +293,7 @@ export function SubscriptionManager({ consumerId, subscriptions, onSubscriptions
             filterOption={(input, option) => {
               const product = filteredProducts.find(p => p.productId === option?.value);
               if (!product) return false;
-              
+
               const searchText = input.toLowerCase();
               return (
                 product.name?.toLowerCase().includes(searchText) ||

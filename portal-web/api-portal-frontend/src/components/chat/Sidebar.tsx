@@ -19,6 +19,7 @@ interface SidebarProps {
   currentSessionId: string | null;
   onNewChat: () => void;
   onSelectSession?: (sessionId: string, productIds: string[]) => void;
+  refreshTrigger?: number; // 添加刷新触发器
 }
 
 interface ChatSession {
@@ -49,7 +50,7 @@ const categorizeSessionsByTime = (sessions: ChatSession[]) => {
   return { today, last7Days, last30Days };
 };
 
-export function Sidebar({ currentSessionId, onNewChat, onSelectSession }: SidebarProps) {
+export function Sidebar({ currentSessionId, onNewChat, onSelectSession, refreshTrigger }: SidebarProps) {
   // const [selectedFeature, setSelectedFeature] = useState("language-model");
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
@@ -61,6 +62,7 @@ export function Sidebar({ currentSessionId, onNewChat, onSelectSession }: Sideba
   const [loading, setLoading] = useState(false);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
+  const [originalName, setOriginalName] = useState(""); // 保存原始名称用于取消
 
   // 获取会话列表
   useEffect(() => {
@@ -88,7 +90,7 @@ export function Sidebar({ currentSessionId, onNewChat, onSelectSession }: Sideba
     };
 
     fetchSessions();
-  }, []);
+  }, [refreshTrigger]); // 当 refreshTrigger 改变时重新获取
 
   const { today, last7Days, last30Days } = categorizeSessionsByTime(sessions);
 
@@ -122,27 +124,37 @@ export function Sidebar({ currentSessionId, onNewChat, onSelectSession }: Sideba
   const handleStartEdit = (sessionId: string, currentName: string) => {
     setEditingSessionId(sessionId);
     setEditingName(currentName);
+    setOriginalName(currentName); // 保存原始名称
   };
 
   // 保存会话名称
   const handleSaveEdit = async (sessionId: string) => {
-    if (!editingName.trim()) {
+    const trimmedName = editingName.trim();
+
+    if (!trimmedName) {
       antdMessage.error("会话名称不能为空");
       return;
     }
 
+    // 如果名称没有改变，直接取消编辑
+    if (trimmedName === originalName) {
+      handleCancelEdit();
+      return;
+    }
+
     try {
-      const response: any = await updateSession(sessionId, { name: editingName.trim() });
+      const response: any = await updateSession(sessionId, { name: trimmedName });
       if (response.code === "SUCCESS") {
         // 更新本地状态
         setSessions(prev => prev.map(session =>
           session.id === sessionId
-            ? { ...session, title: editingName.trim() }
+            ? { ...session, title: trimmedName }
             : session
         ));
         antdMessage.success("重命名成功");
         setEditingSessionId(null);
         setEditingName("");
+        setOriginalName("");
       } else {
         throw new Error("重命名失败");
       }
@@ -156,6 +168,7 @@ export function Sidebar({ currentSessionId, onNewChat, onSelectSession }: Sideba
   const handleCancelEdit = () => {
     setEditingSessionId(null);
     setEditingName("");
+    setOriginalName("");
   };
 
   // 处理键盘事件
@@ -274,17 +287,26 @@ export function Sidebar({ currentSessionId, onNewChat, onSelectSession }: Sideba
               >
                 {editingSessionId === session.id ? (
                   /* 编辑模式 */
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                     <input
                       type="text"
                       value={editingName}
                       onChange={(e) => setEditingName(e.target.value)}
                       onKeyDown={(e) => handleEditKeyDown(e, session.id)}
+                      onBlur={() => {
+                        // 失焦时如果名称没变则取消编辑
+                        if (editingName.trim() === originalName) {
+                          handleCancelEdit();
+                        }
+                      }}
                       className="flex-1 px-2 py-1 text-sm border border-colorPrimary rounded focus:outline-none focus:ring-1 focus:ring-colorPrimary"
                       autoFocus
-                      onClick={(e) => e.stopPropagation()}
                     />
                     <button
+                      onMouseDown={(e) => {
+                        e.preventDefault(); // 防止触发 input 的 blur
+                        e.stopPropagation();
+                      }}
                       onClick={(e) => {
                         e.stopPropagation();
                         handleSaveEdit(session.id);
@@ -295,6 +317,10 @@ export function Sidebar({ currentSessionId, onNewChat, onSelectSession }: Sideba
                       <CheckOutlined className="text-xs" />
                     </button>
                     <button
+                      onMouseDown={(e) => {
+                        e.preventDefault(); // 防止触发 input 的 blur
+                        e.stopPropagation();
+                      }}
                       onClick={(e) => {
                         e.stopPropagation();
                         handleCancelEdit();
@@ -349,7 +375,7 @@ export function Sidebar({ currentSessionId, onNewChat, onSelectSession }: Sideba
   return (
     <div
       className={`
-        bg-white/40 backdrop-blur-xl rounded-lg flex flex-col m-4 mr-0
+        bg-white/40 backdrop-blur-xl rounded-lg flex flex-col m-4 mr-0 mb-0
         transition-all duration-300 ease-in-out
         ${isCollapsed ? "w-16" : "w-64"}
       `}
