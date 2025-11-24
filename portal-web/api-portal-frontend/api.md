@@ -245,7 +245,7 @@
 {
   "talkType": "MODEL", //必填
   "name": "string", // 会话名称（必填）
-  "productIds": [] // 对话的 Model 列表（必填）， 多个 ModelId 表示多 Model 对比
+  "products": [] // 对话的 Model 列表（必填）， 多个 ModelId 表示多 Model 对比
 }
 ```
 
@@ -276,7 +276,7 @@
         {
             "sessionId": "session-12345",
             "name": "AI技术讨论",
-            "productIds": ["gpt-4"],
+            "products": ["gpt-4"],
             "createAt": "2024-01-15T10:30:00Z",
             "updateAt": "2024-01-15T15:30:00Z"
         }
@@ -298,9 +298,15 @@
 }
 ```
 
+## 删除会话
+
+### DELETE /sessions/{sessionId}
+
+调用时机：删除会话时
+
 ## 聊天接口
 
-### POST /sessions/{sessionId}/chats
+### POST /chats
 
 调用时机：用户发送消息的任何场景
 
@@ -308,15 +314,16 @@
 
 ```json
 {
+    "productId": "string",            // 模型 ID （必填）
     "conversationId": "string",       // 对话 ID (必填，前端生成)
     "questionId": "string",           // 问题 ID (必填，前端生成)
-    "answerIndex": 0,                 // 回答轮次序号 (必填，默认 0)
     "question": "string",             // 问题内容 (必填)
     "attachments": [],                // 多模态附件 (可选)
     "stream": true,                   // 是否流式响应 (可选，默认 true)
     "needMemory": true,               // 是否使用历史记忆 (可选，默认 true)
     "enableThinking": true,           // 是否开启思考模式（可选，默认 false）
-    "serarchType": "string"           // 为空时表示关闭搜索功能，BING/GOOGLE/KNOWLEDGE 代表开启搜索以及采用的搜索类型
+    "serarchType": "string",           // 为空时表示关闭搜索功能，BING/GOOGLE/KNOWLEDGE 代表开启搜索以及采用的搜索类型
+    "sessionId": "string"              // 会话 ID
 }
 ```
 
@@ -342,15 +349,19 @@ data: {"status":"start","chatId":"chat-001"}
 - 内容流事件
 
 ```text
-data: {"status":"chunk","chatId":"chat-001","content":"人工智能"}
-data: {"status":"chunk","chatId":"chat-001","content":"是计算机科学"}
-data: {"status":"chunk","chatId":"chat-001","content":"的一个重要分支"}
+data:{"id":"chatcmpl-0a0297d5-87cc-4190-a69b-da411faa65c8","object":"chat.completion.chunk","created":1763705190,"model":"qwen-max","choices":[{"delta":{"content":"你好"},"index":0}]}
+
+data:{"id":"chatcmpl-0a0297d5-87cc-4190-a69b-da411faa65c8","object":"chat.completion.chunk","created":1763705190,"model":"qwen-max","choices":[{"delta":{"content":"！有什么可以帮助"},"index":0}]}
+
+data:{"id":"chatcmpl-0a0297d5-87cc-4190-a69b-da411faa65c8","object":"chat.completion.chunk","created":1763705190,"model":"qwen-max","choices":[{"delta":{"content":"你的吗？"},"index":0}]}
+
+data:{"id":"chatcmpl-0a0297d5-87cc-4190-a69b-da411faa65c8","object":"chat.completion.chunk","created":1763705190,"model":"qwen-max","choices":[{"delta":{"content":""},"index":0,"finish_reason":"stop"}]}
 ```
 
 - 完成事件
 
 ```text
-data: {"status":"complete","chatId":"chat-001","fullContent":"人工..."}
+data:{"id":"chatcmpl-0a0297d5-87cc-4190-a69b-da411faa65c8","object":"chat.completion.chunk","created":1763705190,"usage":{"prompt_tokens":10,"completion_tokens":7,"total_tokens":17,"prompt_tokens_details":{"cached_tokens":0}},"model":"qwen-max","choices":[]}
 ```
 
 - 结束标志
@@ -362,7 +373,7 @@ data: [DONE]
 - 错误事件
 
 ```text
-data: {"status":"error","chatId":"chat-001","error":"模型调用失败","code":"MODEL_ERROR"}
+data: {"status":"error","chatId":"chat-001","message":"模型调用失败","code":"MODEL_ERROR"}
 ```
 
 块式响应格式（暂定）
@@ -386,12 +397,11 @@ data: {"status":"error","chatId":"chat-001","error":"模型调用失败","code":
 {
   "conversationId": "conversation-001",     // 新的对话 ID
   "questionId": "question-001",             // 新的问题 ID
-  "answerIndex": 0,                         // 首次提交
   "question": "请介绍人工智能"
 }
 ```
 
-conversationId、questionId由前端生成，格式分别为conversation-{xxx}和question-{xxx}，xxx 表示一个长度为 24 的由小写字母和数字组合的 UUID（与后端的 UUID 逻辑相同），answerIndex表示同一个问题的第几次问答，从 0 开始。
+conversationId、questionId由前端生成，格式分别为conversation-{xxx}和question-{xxx}，xxx 表示一个长度为 24 的由小写字母和数字组合的 UUID（与后端的 UUID 逻辑相同）。
 
 场景 2：编辑问题
 
@@ -399,12 +409,11 @@ conversationId、questionId由前端生成，格式分别为conversation-{xxx}�
 {
   "conversationId": "conversation-001",     // 相同的对话 ID
   "questionId": "question-001",             // 新的问题 ID
-  "answerIndex": 0,                         // 重置为 0
   "question": "请详细介绍人工智能的发展历史"
 }
 ```
 
-编辑问题时，conversationId不变，questionId重新生成，因为这是一个新版本的问题，answerIndex初始为 0，表示新版问题的首次回答。
+编辑问题时，conversationId不变，questionId重新生成，因为这是一个新版本的问题。
 
 场景3：再来一次
 
@@ -412,12 +421,11 @@ conversationId、questionId由前端生成，格式分别为conversation-{xxx}�
 {
   "conversationId": "conversation-001",     // 相同的对话 ID
   "questionId": "question-001",             // 相同的问题 ID
-  "answerIndex": 1,                         // 递增轮次
   "question": "请介绍人工智能"                // 相同的问题内容
 }
 ```
 
-再来一次时，conversationId和questionId均不变，因为是同一个问题，answerIndex要加 1，表示下一各轮次的回答。
+再来一次时，conversationId和questionId均不变，因为是同一个问题。
 
 ## 多 Product 对比
 
@@ -467,7 +475,7 @@ conversationId、questionId由前端生成，格式分别为conversation-{xxx}�
 
 - questions: 每个对话下的问题版本列表；
 
-- answers: 每个问题的回答轮次列表，有多少个元素，就表示进行了多少轮，“再来一次”时可以根据元素数量设置新的answerIndex；
+- answers: 每个问题的回答轮次列表，有多少个元素，就表示进行了多少轮，“再来一次”时可以根据元素数量；
 
 - results: 每轮次的 Model API 的回答列表，用列表结构是因为可以设置多模型对比，results下存储的是多个 Model API 的回答。
 

@@ -14,18 +14,10 @@ const api: AxiosInstance = axios.create({
 // 请求拦截器
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    // 优先使用临时 token（开发环境），临时 token 已包含 Bearer 前缀
-    const tempToken = (import.meta as any).env.VITE_TEMP_AUTH_TOKEN;
     const accessToken = localStorage.getItem('access_token');
 
-    if (config.headers) {
-      if (tempToken) {
-        // 临时 token 直接使用（已包含 Bearer 前缀）
-        config.headers.Authorization = tempToken;
-      } else if (accessToken) {
-        // 生产环境 token 需要添加 Bearer 前缀
-        config.headers.Authorization = `Bearer ${accessToken}`;
-      }
+    if (config.headers && accessToken) {
+      config.headers.Authorization = `Bearer ${accessToken}`;
     }
     return config;
   },
@@ -264,7 +256,7 @@ export interface Product {
 export interface Session {
   sessionId: string;
   name: string;
-  productIds: string[];
+  products: string[];
   talkType: string;
   status: string;
   createAt: string;
@@ -273,9 +265,10 @@ export interface Session {
 
 // 聊天消息接口
 export interface ChatMessage {
+  productId: string;
+  sessionId: string;
   conversationId: string;
   questionId: string;
-  answerIndex: number;
   question: string;
   attachments?: any[];
   stream?: boolean;
@@ -328,7 +321,7 @@ export function getProducts(params: {
 export function createSession(data: {
   talkType: string;
   name: string;
-  productIds: string[];
+  products: string[];
 }) {
   return api.post('/sessions', data);
 }
@@ -348,15 +341,20 @@ export function updateSession(sessionId: string, data: { name: string }) {
   return api.put(`/sessions/${sessionId}`, data);
 }
 
-// 发送聊天消息（流式）
-export function sendChatMessage(sessionId: string, message: ChatMessage) {
-  return api.post(`/sessions/${sessionId}/chats`, message);
+// 删除会话
+export function deleteSession(sessionId: string) {
+  return api.delete(`/sessions/${sessionId}`);
+}
+
+// 发送聊天消息
+export function sendChatMessage(message: ChatMessage) {
+  return api.post('/chats', message);
 }
 
 // 发送聊天消息（流式，返回完整 URL 用于 SSE）
-export function getChatMessageStreamUrl(sessionId: string): string {
+export function getChatMessageStreamUrl(): string {
   const baseURL = (api.defaults.baseURL || '') as string;
-  return `${baseURL}/sessions/${sessionId}/chats`;
+  return `${baseURL}/chats`;
 }
 
 // 获取历史聊天记录

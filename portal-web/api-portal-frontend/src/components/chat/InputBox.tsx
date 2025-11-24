@@ -1,22 +1,23 @@
 import { useState } from "react";
-import { SendOutlined } from "@ant-design/icons";
+import { SendOutlined, LoadingOutlined } from "@ant-design/icons";
 
 interface InputBoxProps {
   onSendMessage: (content: string) => void;
+  isLoading?: boolean;
 }
 
-export function InputBox({ onSendMessage }: InputBoxProps) {
+export function InputBox({ onSendMessage, isLoading = false }: InputBoxProps) {
   const [input, setInput] = useState("");
 
   const handleSend = () => {
-    if (input.trim()) {
+    if (input.trim() && !isLoading) {
       onSendMessage(input.trim());
       setInput("");
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey && !isLoading) {
       e.preventDefault();
       handleSend();
     }
@@ -34,18 +35,22 @@ export function InputBox({ onSendMessage }: InputBoxProps) {
       />
       <button
         onClick={handleSend}
-        disabled={!input.trim()}
+        disabled={!input.trim() || isLoading}
         className={`
           absolute right-5 bottom-5 w-8 h-8 rounded-lg flex items-center justify-center
           transition-all duration-200
           ${
-            input.trim()
+            input.trim() && !isLoading
               ? "bg-primary-500 text-white hover:bg-primary-600"
               : "bg-gray-200 text-gray-400 cursor-not-allowed"
           }
         `}
       >
-        <SendOutlined className="text-sm" />
+        {isLoading ? (
+          <LoadingOutlined className="text-sm animate-spin" />
+        ) : (
+          <SendOutlined className="text-sm" />
+        )}
       </button>
     </div>
   );

@@ -3,21 +3,29 @@ import {
   PlusOutlined, DownOutlined,
   MenuFoldOutlined, MenuUnfoldOutlined,
   HistoryOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  MoreOutlined,
+  CheckOutlined,
+  CloseOutlined,
   //  RobotOutlined,
 } from "@ant-design/icons";
-import { message as antdMessage, Spin } from "antd";
-import { getSessions, type Session } from "../../lib/api";
+import { message as antdMessage, Spin, Dropdown, Modal } from "antd";
+import type { MenuProps } from "antd";
+import { getSessions, updateSession, deleteSession, type Session } from "../../lib/api";
+import "./Sidebar.css";
 
 interface SidebarProps {
   currentSessionId: string | null;
   onNewChat: () => void;
-  onSelectSession?: (sessionId: string) => void;
+  onSelectSession?: (sessionId: string, productIds: string[]) => void;
 }
 
 interface ChatSession {
   id: string;
   title: string;
   timestamp: Date;
+  productIds: string[];
 }
 
 const categorizeSessionsByTime = (sessions: ChatSession[]) => {
@@ -51,6 +59,8 @@ export function Sidebar({ currentSessionId, onNewChat, onSelectSession }: Sideba
   });
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [loading, setLoading] = useState(false);
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState("");
 
   // 获取会话列表
   useEffect(() => {
@@ -64,7 +74,9 @@ export function Sidebar({ currentSessionId, onNewChat, onSelectSession }: Sideba
             id: session.sessionId,
             title: session.name || "未命名会话",
             timestamp: new Date(session.updateAt || session.createAt),
+            productIds: session.products || [],
           }));
+          console.log('Loaded sessions:', sessionList);
           setSessions(sessionList);
         }
       } catch (error) {
@@ -106,6 +118,113 @@ export function Sidebar({ currentSessionId, onNewChat, onSelectSession }: Sideba
     }));
   };
 
+  // 开始编辑会话名称
+  const handleStartEdit = (sessionId: string, currentName: string) => {
+    setEditingSessionId(sessionId);
+    setEditingName(currentName);
+  };
+
+  // 保存会话名称
+  const handleSaveEdit = async (sessionId: string) => {
+    if (!editingName.trim()) {
+      antdMessage.error("会话名称不能为空");
+      return;
+    }
+
+    try {
+      const response: any = await updateSession(sessionId, { name: editingName.trim() });
+      if (response.code === "SUCCESS") {
+        // 更新本地状态
+        setSessions(prev => prev.map(session =>
+          session.id === sessionId
+            ? { ...session, title: editingName.trim() }
+            : session
+        ));
+        antdMessage.success("重命名成功");
+        setEditingSessionId(null);
+        setEditingName("");
+      } else {
+        throw new Error("重命名失败");
+      }
+    } catch (error) {
+      console.error("Failed to rename session:", error);
+      antdMessage.error("重命名失败");
+    }
+  };
+
+  // 取消编辑
+  const handleCancelEdit = () => {
+    setEditingSessionId(null);
+    setEditingName("");
+  };
+
+  // 处理键盘事件
+  const handleEditKeyDown = (e: React.KeyboardEvent, sessionId: string) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleSaveEdit(sessionId);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      handleCancelEdit();
+    }
+  };
+
+  // 删除会话
+  const handleDeleteSession = (sessionId: string, sessionName: string) => {
+    Modal.confirm({
+      title: '确认删除',
+      content: `确定要删除会话 "${sessionName}" 吗？此操作无法撤销。`,
+      okText: '删除',
+      okType: 'danger',
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          const response: any = await deleteSession(sessionId);
+          if (response.code === "SUCCESS") {
+            // 从本地状态中移除
+            setSessions(prev => prev.filter(session => session.id !== sessionId));
+            antdMessage.success("删除成功");
+
+            // 如果删除的是当前选中的会话，触发新建会话
+            if (currentSessionId === sessionId) {
+              onNewChat();
+            }
+          } else {
+            throw new Error("删除失败");
+          }
+        } catch (error) {
+          console.error("Failed to delete session:", error);
+          antdMessage.error("删除失败");
+        }
+      },
+    });
+  };
+
+  // 渲染会话菜单
+  const getSessionMenu = (session: ChatSession): MenuProps => ({
+    items: [
+      {
+        key: 'rename',
+        label: '重命名',
+        icon: <EditOutlined />,
+        onClick: ({ domEvent }) => {
+          domEvent.stopPropagation();
+          handleStartEdit(session.id, session.title);
+        },
+      },
+      {
+        key: 'delete',
+        label: '删除',
+        icon: <DeleteOutlined />,
+        danger: true,
+        onClick: ({ domEvent }) => {
+          domEvent.stopPropagation();
+          handleDeleteSession(session.id, session.title);
+        },
+      },
+    ],
+  });
+
   const renderSessionGroup = (
     title: string,
     sessions: ChatSession[],
@@ -139,9 +258,8 @@ export function Sidebar({ currentSessionId, onNewChat, onSelectSession }: Sideba
             {sessions.map((session, index) => (
               <div
                 key={session.id}
-                onClick={() => onSelectSession?.(session.id)}
                 className={`
-                  px-3 py-2 rounded-lg cursor-pointer text-sm
+                  px-3 py-2 rounded-lg text-sm
                   transition-all duration-200 ease-in-out
                   hover:scale-[1.02] hover:shadow-sm
                   ${currentSessionId === session.id
@@ -154,9 +272,72 @@ export function Sidebar({ currentSessionId, onNewChat, onSelectSession }: Sideba
                   animation: expandedSections[sectionKey] ? 'slideIn 300ms ease-out forwards' : 'none',
                 }}
               >
-                <div className="flex items-center gap-2">
-                  <span className="truncate">{session.title}</span>
-                </div>
+                {editingSessionId === session.id ? (
+                  /* 编辑模式 */
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={editingName}
+                      onChange={(e) => setEditingName(e.target.value)}
+                      onKeyDown={(e) => handleEditKeyDown(e, session.id)}
+                      className="flex-1 px-2 py-1 text-sm border border-colorPrimary rounded focus:outline-none focus:ring-1 focus:ring-colorPrimary"
+                      autoFocus
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSaveEdit(session.id);
+                      }}
+                      className="p-1 text-green-600 hover:bg-green-50 rounded transition-colors"
+                      title="保存"
+                    >
+                      <CheckOutlined className="text-xs" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCancelEdit();
+                      }}
+                      className="p-1 text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                      title="取消"
+                    >
+                      <CloseOutlined className="text-xs" />
+                    </button>
+                  </div>
+                ) : (
+                  /* 正常模式 */
+                  <div
+                    className="flex items-center gap-2 cursor-pointer group"
+                    onClick={() => {
+                      console.log('Selected session:', session.id, 'productIds:', session.productIds);
+                      onSelectSession?.(session.id, session.productIds);
+                    }}
+                  >
+                    <span className="truncate flex-1">{session.title}</span>
+                    <Dropdown
+                      menu={getSessionMenu(session)}
+                      trigger={['click']}
+                      placement="bottomRight"
+                      overlayClassName="session-menu-dropdown"
+                      dropdownRender={(menu) => (
+                        <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-lg border border-white/40 overflow-hidden">
+                          {menu}
+                        </div>
+                      )}
+                    >
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                        }}
+                        className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-colorPrimary hover:bg-gray-200 rounded transition-all"
+                        title="更多操作"
+                      >
+                        <MoreOutlined className="text-xs" />
+                      </button>
+                    </Dropdown>
+                  </div>
+                )}
               </div>
             ))}
           </div>

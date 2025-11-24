@@ -4,7 +4,7 @@ import { message as antdMessage } from "antd";
 import { Layout } from "../components/Layout";
 import { Sidebar } from "../components/chat/Sidebar";
 import { ChatArea } from "../components/chat/ChatArea";
-import {
+import api, {
   type Product,
   createSession,
   sendChatMessage,
@@ -14,6 +14,14 @@ import {
 } from "../lib/api";
 import { generateConversationId, generateQuestionId } from "../lib/uuid";
 import { handleSSEStream } from "../lib/sse";
+
+interface MessageVersion {
+  content: string;
+  firstTokenTime?: number;
+  totalTime?: number;
+  inputTokens?: number;
+  outputTokens?: number;
+}
 
 interface Message {
   id: string;
@@ -25,6 +33,10 @@ interface Message {
   totalTime?: number;
   inputTokens?: number;
   outputTokens?: number;
+  // 多版本答案支持（仅 assistant 消息）
+  questionId?: string; // 关联的问题ID
+  versions?: MessageVersion[]; // 所有版本的答案
+  currentVersionIndex?: number; // 当前显示的版本索引（0-based）
 }
 
 function Chat() {
@@ -34,6 +46,9 @@ function Chat() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [useStream, _setUseStream] = useState(true); // 默认使用流式响应
+  // 记录每个 questionId 对应的问题内容，用于重新生成
+  const [questionContentMap, setQuestionContentMap] = useState<Map<string, string>>(new Map());
+  const [isLoading, setIsLoading] = useState(false); // 添加loading状态
 
   // 从 location.state 接收选中的产品
   useEffect(() => {
@@ -51,6 +66,7 @@ function Chat() {
       return;
     }
 
+    setIsLoading(true); // 开始loading
     const startTime = Date.now();
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -68,7 +84,7 @@ function Chat() {
         const sessionResponse: any = await createSession({
           talkType: "MODEL",
           name: content.substring(0, 20) + "...", // 使用问题前20个字符作为会话名称
-          productIds: [selectedProduct.productId],
+          products: [selectedProduct.productId],
         });
 
         if (sessionResponse.code === "SUCCESS") {
@@ -87,15 +103,23 @@ function Chat() {
         setCurrentConversationId(conversationId);
       }
 
+      // 保存问题内容，用于重新生成
+      setQuestionContentMap(prev => {
+        const newMap = new Map(prev);
+        newMap.set(questionId, content);
+        return newMap;
+      });
+
       // 发送消息（sessionId 已确保不为 null）
       if (!sessionId) {
         throw new Error("会话ID不存在");
       }
 
       const messagePayload = {
+        productId: selectedProduct.productId,
+        sessionId,
         conversationId,
         questionId,
-        answerIndex: 0,
         question: content,
         stream: useStream,
         needMemory: true,
@@ -107,16 +131,18 @@ function Chat() {
         let fullContent = '';
         let chatId = '';
 
-        // 先添加一个空的 AI 消息
+        // 立即添加一个空的 AI 消息框用于显示 loading
         setMessages(prev => [...prev, {
           id: assistantMessageId,
           role: "assistant",
           content: '',
           timestamp: new Date(),
+          questionId, // 关联问题ID
+          versions: [], // 初始化版本数组
+          currentVersionIndex: 0, // 当前版本索引
         }]);
 
-        const streamUrl = getChatMessageStreamUrl(sessionId);
-        const tempToken = (import.meta as any).env.VITE_TEMP_AUTH_TOKEN;
+        const streamUrl = getChatMessageStreamUrl();
         const accessToken = localStorage.getItem('access_token');
 
         await handleSSEStream(
@@ -125,8 +151,7 @@ function Chat() {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              // 临时 token 已包含 Bearer 前缀，直接使用；生产环境 token 需要添加 Bearer 前缀
-              'Authorization': tempToken || (accessToken ? `Bearer ${accessToken}` : ''),
+              'Authorization': accessToken ? `Bearer ${accessToken}` : '',
             },
             body: JSON.stringify(messagePayload),
           },
@@ -136,37 +161,54 @@ function Chat() {
             },
             onChunk: (chunk) => {
               fullContent += chunk;
+              // 更新消息内容
               setMessages(prev => prev.map(msg =>
                 msg.id === assistantMessageId
                   ? { ...msg, content: fullContent }
                   : msg
               ));
+              // 第一个 chunk 到达，关闭 loading 状态
+              if (fullContent === chunk) {
+                setIsLoading(false);
+              }
             },
             onComplete: (content) => {
               const totalTime = Date.now() - startTime;
+              const newVersion: MessageVersion = {
+                content: content,
+                totalTime: Math.round(totalTime),
+                inputTokens: Math.round(messagePayload.question.length * 1.5),
+                outputTokens: Math.round(content.length * 1.5),
+              };
+
               setMessages(prev => prev.map(msg =>
                 msg.id === assistantMessageId
                   ? {
                       ...msg,
                       id: chatId || assistantMessageId,
                       content: content,
-                      totalTime: Math.round(totalTime),
-                      inputTokens: Math.round(messagePayload.question.length * 1.5),
-                      outputTokens: Math.round(content.length * 1.5),
+                      totalTime: newVersion.totalTime,
+                      inputTokens: newVersion.inputTokens,
+                      outputTokens: newVersion.outputTokens,
+                      versions: [newVersion], // 添加到版本数组
+                      currentVersionIndex: 0,
                     }
                   : msg
               ));
+
+              setIsLoading(false); // 完成loading
             },
             onError: (error) => {
               antdMessage.error(`发送消息失败: ${error}`);
               // 移除空的 AI 消息
               setMessages(prev => prev.filter(msg => msg.id !== assistantMessageId));
+              setIsLoading(false); // 错误时也要重置loading
             },
           }
         );
       } else {
         // 非流式响应处理
-        const chatResponse: any = await sendChatMessage(sessionId, messagePayload);
+        const chatResponse: any = await sendChatMessage(messagePayload);
 
         // 处理响应
         if (chatResponse.success && chatResponse.answer) {
@@ -181,7 +223,10 @@ function Chat() {
             outputTokens: Math.round(chatResponse.answer.length * 1.5), // TODO: 从响应中获取
           };
           setMessages(prev => [...prev, assistantMessage]);
+
+          setIsLoading(false); // 完成loading
         } else {
+          setIsLoading(false); // 失败时也要重置
           throw new Error("获取回复失败");
         }
       }
@@ -191,7 +236,152 @@ function Chat() {
 
       // 移除用户消息
       setMessages(prev => prev.filter(msg => msg.id !== userMessage.id));
+      setIsLoading(false); // 错误时重置loading
     }
+  };
+
+  // 重新生成答案
+  const handleRefreshMessage = async (messageId: string) => {
+    if (!selectedProduct || !currentSessionId) {
+      antdMessage.error("无法重新生成，缺少必要信息");
+      return;
+    }
+
+    // 找到要重新生成的消息
+    const message = messages.find(msg => msg.id === messageId);
+    if (!message || message.role !== "assistant" || !message.questionId) {
+      antdMessage.error("无法找到对应的问题");
+      return;
+    }
+
+    const questionId = message.questionId;
+    const questionContent = questionContentMap.get(questionId);
+    if (!questionContent) {
+      antdMessage.error("无法找到原始问题内容");
+      return;
+    }
+
+    setIsLoading(true);
+    const startTime = Date.now();
+
+    try {
+      const conversationId = currentConversationId || generateConversationId();
+
+      const messagePayload = {
+        productId: selectedProduct.productId,
+        sessionId: currentSessionId,
+        conversationId,
+        questionId,
+        question: questionContent,
+        stream: useStream,
+        needMemory: true,
+      };
+
+      if (useStream) {
+        let fullContent = '';
+
+        // 先显示 loading 状态
+        setMessages(prev => prev.map(msg =>
+          msg.id === messageId
+            ? { ...msg, content: '' }
+            : msg
+        ));
+
+        const streamUrl = getChatMessageStreamUrl();
+        const accessToken = localStorage.getItem('access_token');
+
+        await handleSSEStream(
+          streamUrl,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': accessToken ? `Bearer ${accessToken}` : '',
+            },
+            body: JSON.stringify(messagePayload),
+          },
+          {
+            onChunk: (chunk) => {
+              fullContent += chunk;
+              setMessages(prev => prev.map(msg =>
+                msg.id === messageId
+                  ? { ...msg, content: fullContent }
+                  : msg
+              ));
+              if (fullContent === chunk) {
+                setIsLoading(false);
+              }
+            },
+            onComplete: (content) => {
+              const totalTime = Date.now() - startTime;
+              const newVersion: MessageVersion = {
+                content: content,
+                totalTime: Math.round(totalTime),
+                inputTokens: Math.round(questionContent.length * 1.5),
+                outputTokens: Math.round(content.length * 1.5),
+              };
+
+              setMessages(prev => prev.map(msg => {
+                if (msg.id === messageId) {
+                  const updatedVersions = [...(msg.versions || []), newVersion];
+                  const newIndex = updatedVersions.length - 1;
+                  return {
+                    ...msg,
+                    content: newVersion.content,
+                    totalTime: newVersion.totalTime,
+                    inputTokens: newVersion.inputTokens,
+                    outputTokens: newVersion.outputTokens,
+                    versions: updatedVersions,
+                    currentVersionIndex: newIndex,
+                  };
+                }
+                return msg;
+              }));
+
+              setIsLoading(false);
+            },
+            onError: (error) => {
+              antdMessage.error(`重新生成失败: ${error}`);
+              setIsLoading(false);
+            },
+          }
+        );
+      }
+    } catch (error) {
+      console.error("Failed to refresh message:", error);
+      antdMessage.error("重新生成失败");
+      setIsLoading(false);
+    }
+  };
+
+  // 切换答案版本
+  const handleChangeVersion = (messageId: string, direction: 'prev' | 'next') => {
+    setMessages(prev => prev.map(msg => {
+      if (msg.id === messageId && msg.versions && msg.versions.length > 1) {
+        const currentIndex = msg.currentVersionIndex ?? 0;
+        let newIndex = currentIndex;
+
+        if (direction === 'prev' && currentIndex > 0) {
+          newIndex = currentIndex - 1;
+        } else if (direction === 'next' && currentIndex < msg.versions.length - 1) {
+          newIndex = currentIndex + 1;
+        }
+
+        if (newIndex !== currentIndex) {
+          const selectedVersion = msg.versions[newIndex];
+          return {
+            ...msg,
+            content: selectedVersion.content,
+            firstTokenTime: selectedVersion.firstTokenTime,
+            totalTime: selectedVersion.totalTime,
+            inputTokens: selectedVersion.inputTokens,
+            outputTokens: selectedVersion.outputTokens,
+            currentVersionIndex: newIndex,
+          };
+        }
+      }
+      return msg;
+    }));
   };
 
   const handleNewChat = () => {
@@ -205,10 +395,31 @@ function Chat() {
   };
 
   // 加载会话的历史聊天记录
-  const handleSelectSession = async (sessionId: string) => {
+  const handleSelectSession = async (sessionId: string, productIds: string[]) => {
     try {
       setCurrentSessionId(sessionId);
       setMessages([]); // 先清空消息
+
+      // 根据 productIds 加载产品信息
+      if (productIds && productIds.length > 0) {
+        try {
+          // 加载第一个产品作为选中产品（TODO: 支持多模型对比）
+          const productResponse: any = await api.get(`/products/${productIds[0]}`);
+          console.log('Product response:', productResponse);
+          if (productResponse.code === "SUCCESS" && productResponse.data) {
+            setSelectedProduct(productResponse.data);
+          } else {
+            console.error("Failed to load product: Invalid response", productResponse);
+            antdMessage.error("加载模型信息失败");
+          }
+        } catch (error) {
+          console.error("Failed to load product:", error);
+          antdMessage.error("加载模型信息失败，请重新选择模型");
+        }
+      } else {
+        console.warn("No productIds in session");
+        antdMessage.warning("该会话没有关联的模型，请先选择模型");
+      }
 
       const response: any = await getConversations(sessionId);
 
@@ -259,7 +470,7 @@ function Chat() {
 
   return (
     <Layout>
-      <div className="flex flex-1 h-full bg-transparent">
+      <div className="flex h-[calc(100vh-92px)] bg-transparent">
         <Sidebar
           currentSessionId={currentSessionId}
           onNewChat={handleNewChat}
@@ -270,6 +481,9 @@ function Chat() {
           selectedProduct={selectedProduct}
           onSelectProduct={handleSelectProduct}
           onSendMessage={handleSendMessage}
+          onRefreshMessage={handleRefreshMessage}
+          onChangeVersion={handleChangeVersion}
+          isLoading={isLoading}
         />
       </div>
     </Layout>

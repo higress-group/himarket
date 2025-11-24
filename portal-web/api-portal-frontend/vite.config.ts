@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/
 const env = loadEnv(process.env.NODE_ENV || 'development', process.cwd(), '')
 const apiPrefix = env.VITE_API_BASE_URL
-const tempApiUrl = env.VITE_TEMP_API_URL || 'http://localhost:8080'
+const backendUrl = env.VITE_API_BASE_URL || 'http://localhost:8080'
 
 export default defineConfig({
   plugins: [react()],
@@ -14,7 +14,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       [apiPrefix]: {
-        target: tempApiUrl,
+        target: backendUrl,
         changeOrigin: true,
         rewrite: (p) => p.replace(new RegExp(`^${apiPrefix}`), ''),
       },

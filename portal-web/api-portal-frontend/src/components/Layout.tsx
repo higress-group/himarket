@@ -12,7 +12,7 @@ interface LayoutProps {
 export function Layout({ children, className = "", loading = false }: LayoutProps) {
   return (
     <div
-      className={`min-h-screen h-full ${className}`}
+      className={`min-h-screen ${className}`}
       style={{
         backgroundImage: `url(${bgImage})`,
         backgroundSize: 'cover',
@@ -22,15 +22,15 @@ export function Layout({ children, className = "", loading = false }: LayoutProp
       }}
     >
       <div
-        className="min-h-screen h-full"
+        className="min-h-screen"
         style={{
           backdropFilter: 'blur(204px)',
           WebkitBackdropFilter: 'blur(204px)',
         }}
       >
         <Header />
-        <main style={{ height: "calc(100% - 60px)" }}>
-          <div className="w-full h-full mx-auto px-4 sm:px-6 lg:px-8">
+        <main className="min-h-[calc(100vh-60px)] pb-8">
+          <div className="w-full mx-auto px-4 sm:px-6 lg:px-8">
             {loading ? (
               <div className="space-y-8 py-8">
                 {/* 页面标题骨架屏 */}

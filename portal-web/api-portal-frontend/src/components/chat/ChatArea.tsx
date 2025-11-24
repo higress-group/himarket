@@ -45,6 +45,16 @@ interface Message {
   totalTime?: number;
   inputTokens?: number;
   outputTokens?: number;
+  // 多版本答案支持
+  questionId?: string;
+  versions?: Array<{
+    content: string;
+    firstTokenTime?: number;
+    totalTime?: number;
+    inputTokens?: number;
+    outputTokens?: number;
+  }>;
+  currentVersionIndex?: number;
 }
 
 interface ChatAreaProps {
@@ -52,9 +62,12 @@ interface ChatAreaProps {
   selectedProduct: Product | null;
   onSelectProduct: (product: Product) => void;
   onSendMessage: (content: string) => void;
+  onRefreshMessage?: (messageId: string) => void;
+  onChangeVersion?: (messageId: string, direction: 'prev' | 'next') => void;
+  isLoading?: boolean;
 }
 
-export function ChatArea({ messages, selectedProduct, onSelectProduct: _onSelectProduct, onSendMessage }: ChatAreaProps) {
+export function ChatArea({ messages, selectedProduct, onSelectProduct: _onSelectProduct, onSendMessage, onRefreshMessage, onChangeVersion, isLoading = false }: ChatAreaProps) {
   const hasMessages = messages.length > 0;
   const [isCompareMode, setIsCompareMode] = useState(false);
   const [compareModels, setCompareModels] = useState<string[]>([]);
@@ -472,7 +485,7 @@ export function ChatArea({ messages, selectedProduct, onSelectProduct: _onSelect
 
                   {/* 输入框 */}
                   <div className="mb-8">
-                    <InputBox onSendMessage={onSendMessage} />
+                    <InputBox onSendMessage={onSendMessage} isLoading={isLoading} />
                   </div>
 
                   {/* 推荐问题 */}
@@ -481,7 +494,13 @@ export function ChatArea({ messages, selectedProduct, onSelectProduct: _onSelect
               </div>
             ) : (
               /* 聊天消息列表 */
-              <MessageList messages={messages} modelName={getModelName(selectedModel)} />
+              <MessageList
+                messages={messages}
+                modelName={getModelName(selectedModel)}
+                onRefresh={onRefreshMessage}
+                onChangeVersion={onChangeVersion}
+                isLoading={isLoading}
+              />
             )}
           </div>
         )}
@@ -491,7 +510,7 @@ export function ChatArea({ messages, selectedProduct, onSelectProduct: _onSelect
       {((!isCompareMode && hasMessages) || isCompareMode) && (
         <div className="p-4">
           <div className="max-w-3xl mx-auto">
-            <InputBox onSendMessage={isCompareMode ? handleCompareSendMessage : onSendMessage} />
+            <InputBox onSendMessage={isCompareMode ? handleCompareSendMessage : onSendMessage} isLoading={isLoading} />
           </div>
         </div>
       )}
