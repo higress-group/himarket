@@ -1,20 +1,17 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import api from "../lib/api";
 import { Layout } from "../components/Layout";
-import { ProductHeader } from "../components/ProductHeader";
 import {
-  Card,
   Alert,
   Button,
   message,
   Tabs,
-  Row,
-  Col,
   Collapse,
   Select,
+  Spin,
 } from "antd";
-import { CopyOutlined, RobotOutlined } from "@ant-design/icons";
+import { CopyOutlined, RobotOutlined, ArrowLeftOutlined } from "@ant-design/icons";
 import ReactMarkdown from "react-markdown";
 import { ProductType } from "../types";
 import type {
@@ -24,11 +21,13 @@ import type {
   ApiProductAgentConfig,
 } from "../types";
 import remarkGfm from 'remark-gfm';
+import styles from './ModelDetail.module.css';
 
 const { Panel } = Collapse;
 
 function AgentDetail() {
   const { agentProductId } = useParams();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [data, setData] = useState<Product | null>(null);
@@ -84,36 +83,21 @@ function AgentDetail() {
     setSelectedAgentDomainIndex(0);
   }, [data?.productId]);
 
-  if (error) {
+  if (loading) {
     return (
       <Layout>
-        <div style={{ padding: "24px" }}>
-          <Alert
-            message="加载失败"
-            description={error}
-            type="error"
-            showIcon
-          />
+        <div className="flex justify-center items-center h-screen">
+          <Spin size="large" tip="加载中..." />
         </div>
       </Layout>
     );
   }
 
-  if (!data && !loading) {
+  if (error || !data) {
     return (
       <Layout>
-        <div style={{ padding: "24px" }}>
-          <Alert message="未找到对应的Agent API" type="warning" showIcon />
-        </div>
-      </Layout>
-    );
-  }
-
-  if (!data) {
-    return (
-      <Layout>
-        <div className="flex justify-center items-center h-64">
-          <div>Loading...</div>
+        <div className="p-8">
+          <Alert message="错误" description={error || "未找到对应的Agent API"} type="error" showIcon />
         </div>
       </Layout>
     );
@@ -199,212 +183,109 @@ function AgentDetail() {
 
   return (
     <Layout>
-      <div className="mb-6">
-        <ProductHeader
-          name={data?.name || ''}
-          description={data?.description || ''}
-          icon={data?.icon}
-          defaultIcon="/Agent.svg"
-          updatedAt={data?.updatedAt}
-          productType="AGENT_API"
-        />
-        <hr className="border-gray-200 mt-4" />
+      {/* 头部 */}
+      <div className="mb-8">
+        {/* 返回按钮 */}
+        <button
+          onClick={() => navigate(-1)}
+          className="
+            flex items-center gap-2 mb-4 px-4 py-2 rounded-xl
+            text-gray-600 hover:text-colorPrimary
+            hover:bg-colorPrimaryBgHover
+            transition-all duration-200
+          "
+        >
+          <ArrowLeftOutlined />
+          <span>返回</span>
+        </button>
+
+        {/* 产品头部信息 */}
+        <div className="flex items-center gap-6 mb-4">
+          {/* 图标 */}
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-colorPrimary/10 to-colorPrimary/5 flex items-center justify-center flex-shrink-0 overflow-hidden">
+            {data.icon ? (
+              data.icon.type === 'URL' ? (
+                <img src={data.icon.value} alt={data.name} className="w-full h-full object-cover" />
+              ) : (
+                <img src={`data:image/png;base64,${data.icon.value}`} alt={data.name} className="w-full h-full object-cover" />
+              )
+            ) : (
+              <RobotOutlined className="text-2xl text-colorPrimary" />
+            )}
+          </div>
+
+          {/* 名称和元信息 */}
+          <div className="flex-1 min-w-0">
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">{data.name}</h1>
+            <div className="flex items-center gap-3 text-sm text-gray-500">
+              <span>更新时间: {new Date(data.updatedAt).toLocaleDateString('zh-CN')}</span>
+              {agentConfig?.agentAPIConfig?.agentProtocols && agentConfig.agentAPIConfig.agentProtocols.length > 0 && (
+                <>
+                  <span className="text-gray-300">|</span>
+                  <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-xs font-medium">
+                    {agentConfig.agentAPIConfig.agentProtocols[0]}
+                  </span>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* 描述 */}
+        <div className="text-gray-600 text-base leading-relaxed">
+          {data.description}
+        </div>
       </div>
 
-      {/* 主要内容区域 - 左右布局 */}
-      <Row gutter={24}>
+      {/* 主要内容区域 */}
+      <div className="flex gap-6">
         {/* 左侧内容 */}
-        <Col span={15}>
-          <Card className="mb-6 rounded-lg border-gray-200">
+        <div className="flex-1">
+          <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-6">
             <Tabs
               defaultActiveKey="overview"
+              className="model-detail-tabs"
               items={[
                 {
                   key: "overview",
-                  label: "Overview",
+                  label: "概览",
                   children: data?.document ? (
                     <div className="min-h-[400px]">
-                      <div 
-                        className="prose prose-lg max-w-none"
-                        style={{
-                          lineHeight: '1.7',
-                          color: '#374151',
-                          fontSize: '16px',
-                          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
-                        }}
-                      >
-                        <style>{`
-                          .prose h1 {
-                            color: #111827;
-                            font-weight: 700;
-                            font-size: 2.25rem;
-                            line-height: 1.2;
-                            margin-top: 0;
-                            margin-bottom: 1.5rem;
-                            border-bottom: 2px solid #e5e7eb;
-                            padding-bottom: 0.5rem;
-                          }
-                          .prose h2 {
-                            color: #1f2937;
-                            font-weight: 600;
-                            font-size: 1.875rem;
-                            line-height: 1.3;
-                            margin-top: 2rem;
-                            margin-bottom: 1rem;
-                            border-bottom: 1px solid #e5e7eb;
-                            padding-bottom: 0.25rem;
-                          }
-                          .prose h3 {
-                            color: #374151;
-                            font-weight: 600;
-                            font-size: 1.5rem;
-                            margin-top: 1.5rem;
-                            margin-bottom: 0.75rem;
-                          }
-                          .prose p {
-                            margin-bottom: 1.25rem;
-                            color: #4b5563;
-                            line-height: 1.7;
-                            font-size: 16px;
-                          }
-                          .prose code {
-                            background-color: #f3f4f6;
-                            border: 1px solid #e5e7eb;
-                            border-radius: 0.375rem;
-                            padding: 0.125rem 0.375rem;
-                            font-size: 0.875rem;
-                            color: #374151;
-                            font-weight: 500;
-                          }
-                          .prose pre {
-                            background-color: #1f2937;
-                            border-radius: 0.5rem;
-                            padding: 1.25rem;
-                            overflow-x: auto;
-                            margin: 1.5rem 0;
-                            border: 1px solid #374151;
-                          }
-                          .prose pre code {
-                            background-color: transparent;
-                            border: none;
-                            color: #f9fafb;
-                            padding: 0;
-                            font-size: 0.875rem;
-                            font-weight: normal;
-                          }
-                          .prose blockquote {
-                            border-left: 4px solid #3b82f6;
-                            padding-left: 1rem;
-                            margin: 1.5rem 0;
-                            color: #6b7280;
-                            font-style: italic;
-                            background-color: #f8fafc;
-                            padding: 1rem;
-                            border-radius: 0.375rem;
-                            font-size: 16px;
-                          }
-                          .prose ul, .prose ol {
-                            margin: 1.25rem 0;
-                            padding-left: 1.5rem;
-                          }
-                          .prose ol {
-                            list-style-type: decimal;
-                            list-style-position: outside;
-                          }
-                          .prose ul {
-                            list-style-type: disc;
-                            list-style-position: outside;
-                          }
-                          .prose li {
-                            margin: 0.5rem 0;
-                            color: #4b5563;
-                            display: list-item;
-                            font-size: 16px;
-                          }
-                          .prose ol li {
-                            padding-left: 0.25rem;
-                          }
-                          .prose ul li {
-                            padding-left: 0.25rem;
-                          }
-                          .prose table {
-                            width: 100%;
-                            border-collapse: collapse;
-                            margin: 1.5rem 0;
-                            font-size: 16px;
-                          }
-                          .prose th, .prose td {
-                            border: 1px solid #d1d5db;
-                            padding: 0.75rem;
-                            text-align: left;
-                          }
-                          .prose th {
-                            background-color: #f9fafb;
-                            font-weight: 600;
-                            color: #374151;
-                            font-size: 16px;
-                          }
-                          .prose td {
-                            color: #4b5563;
-                            font-size: 16px;
-                          }
-                          .prose a {
-                            color: #3b82f6;
-                            text-decoration: underline;
-                            font-weight: 500;
-                            transition: color 0.2s;
-                            font-size: inherit;
-                          }
-                          .prose a:hover {
-                            color: #1d4ed8;
-                          }
-                          .prose strong {
-                            color: #111827;
-                            font-weight: 600;
-                            font-size: inherit;
-                          }
-                          .prose em {
-                            color: #6b7280;
-                            font-style: italic;
-                            font-size: inherit;
-                          }
-                          .prose hr {
-                            border: none;
-                            height: 1px;
-                            background-color: #e5e7eb;
-                            margin: 2rem 0;
-                          }
-                        `}</style>
+                      <div className={styles.markdown}>
                         <ReactMarkdown remarkPlugins={[remarkGfm]}>{data.document}</ReactMarkdown>
                       </div>
                     </div>
                   ) : (
-                    <div className="text-gray-500 text-center py-8">
-                      No overview available
+                    <div className="text-gray-500 text-center py-16">
+                      暂无概览信息
                     </div>
                   ),
                 },
                 {
                   key: "configuration",
-                  label: `Configuration${agentConfig?.agentAPIConfig?.routes ? ` (${agentConfig.agentAPIConfig.routes.length})` : ''}`,
+                  label: `配置${agentConfig?.agentAPIConfig?.routes ? ` (${agentConfig.agentAPIConfig.routes.length})` : ''}`,
                   children: agentConfig?.agentAPIConfig ? (
-                    <div className="space-y-4">
+                    <div className="space-y-6">
                       {/* 协议信息 */}
-                      <div className="text-sm">
-                        <span className="text-gray-700">协议: </span>
-                        <span className="font-medium">{agentConfig.agentAPIConfig.agentProtocols?.join(', ') || 'DashScope'}</span>
-                      </div>
+                      {agentConfig.agentAPIConfig.agentProtocols && agentConfig.agentAPIConfig.agentProtocols.length > 0 && (
+                        <div className="p-4 bg-gray-50 rounded-xl">
+                          <div className="text-xs text-gray-500 mb-1">协议</div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {agentConfig.agentAPIConfig.agentProtocols.join(', ')}
+                          </div>
+                        </div>
+                      )}
 
-                      {/* 路由配置表格 */}
+                      {/* 路由配置 */}
                       {agentConfig.agentAPIConfig.routes && agentConfig.agentAPIConfig.routes.length > 0 && (
                         <div>
-                          <div className="text-sm text-gray-600 mb-3">路由配置:</div>
-                          
+                          <div className="text-sm font-medium text-gray-900 mb-3">路由配置</div>
+
                           {/* 域名选择器 */}
                           {agentDomainOptions.length > 1 && (
-                            <div className="mb-2">
-                              <div className="flex items-stretch border border-gray-200 rounded-md overflow-hidden">
-                                <div className="bg-gray-50 px-3 py-2 text-xs text-gray-600 border-r border-gray-200 flex items-center whitespace-nowrap">
+                            <div className="mb-4">
+                              <div className="flex items-stretch border border-gray-200 rounded-xl overflow-hidden bg-white">
+                                <div className="bg-gray-50 px-4 py-3 text-sm text-gray-600 border-r border-gray-200 flex items-center whitespace-nowrap font-medium">
                                   域名
                                 </div>
                                 <div className="flex-1">
@@ -416,13 +297,13 @@ function AgentDetail() {
                                     size="middle"
                                     bordered={false}
                                     style={{
-                                      fontSize: '12px',
+                                      fontSize: '14px',
                                       height: '100%'
                                     }}
                                   >
                                     {agentDomainOptions.map((option) => (
                                       <Select.Option key={option.value} value={option.value}>
-                                        <span className="text-xs text-gray-900 font-mono">
+                                        <span className="text-sm text-gray-900 font-mono">
                                           {option.label}
                                         </span>
                                       </Select.Option>
@@ -432,14 +313,14 @@ function AgentDetail() {
                               </div>
                             </div>
                           )}
-                          
-                          <div className="border border-gray-200 rounded-lg overflow-hidden">
+
+                          <div className="border border-gray-200 rounded-xl overflow-hidden bg-white">
                             <Collapse ghost expandIconPosition="end">
                               {agentConfig.agentAPIConfig.routes.map((route, index) => (
                                 <Panel
                                   key={index}
                                   header={
-                                    <div className="flex items-center justify-between py-3 px-4 hover:bg-gray-50">
+                                    <div className="flex items-center justify-between py-3 px-4 hover:bg-gray-50/50 transition-colors">
                                       <div className="flex-1">
                                         <div className="font-mono text-sm font-medium text-blue-600 mb-1">
                                           {getRouteDisplayText(route, selectedAgentDomainIndex)}
@@ -452,6 +333,7 @@ function AgentDetail() {
                                         size="small"
                                         type="text"
                                         icon={<CopyOutlined />}
+                                        className="ml-2"
                                         onClick={async (e) => {
                                           e.stopPropagation()
                                           if (allUniqueDomains.length > 0 && allUniqueDomains.length > selectedAgentDomainIndex) {
@@ -473,38 +355,40 @@ function AgentDetail() {
                                     borderBottom: index < agentConfig.agentAPIConfig.routes.length - 1 ? '1px solid #e5e7eb' : 'none'
                                   }}
                                 >
-                                  <div className="pl-4 space-y-3">
+                                  <div className="px-4 pb-4 space-y-4">
                                     {/* 域名信息 */}
                                     <div>
-                                      <div className="text-xs text-gray-500 mb-1">域名:</div>
-                                      {route.domains?.map((domain: any, domainIndex: number) => (
-                                        <div key={domainIndex} className="text-sm">
-                                          <span className="font-mono">{domain.protocol.toLowerCase()}://{domain.domain}</span>
-                                        </div>
-                                      ))}
+                                      <div className="text-xs text-gray-500 mb-2">域名:</div>
+                                      <div className="space-y-1">
+                                        {route.domains?.map((domain: any, domainIndex: number) => (
+                                          <div key={domainIndex} className="text-sm font-mono text-gray-700 bg-gray-50 px-3 py-2 rounded-lg">
+                                            {domain.protocol.toLowerCase()}://{domain.domain}
+                                          </div>
+                                        ))}
+                                      </div>
                                     </div>
 
                                     {/* 匹配规则 */}
-                                    <div className="grid grid-cols-2 gap-4 text-sm">
-                                      <div>
-                                        <div className="text-xs text-gray-500">路径:</div>
-                                        <div className="font-mono">
+                                    <div className="grid grid-cols-2 gap-4">
+                                      <div className="p-3 bg-gray-50 rounded-lg">
+                                        <div className="text-xs text-gray-500 mb-1">路径:</div>
+                                        <div className="font-mono text-sm text-gray-900">
                                           {getMatchTypePrefix(route.match?.path?.type)} {route.match?.path?.value}
                                         </div>
                                       </div>
-                                      <div>
-                                        <div className="text-xs text-gray-500">方法:</div>
-                                        <div>{route.match?.methods ? route.match.methods.join(', ') : 'ANY'}</div>
+                                      <div className="p-3 bg-gray-50 rounded-lg">
+                                        <div className="text-xs text-gray-500 mb-1">方法:</div>
+                                        <div className="text-sm text-gray-900">{route.match?.methods ? route.match.methods.join(', ') : 'ANY'}</div>
                                       </div>
                                     </div>
 
                                     {/* 请求头匹配 */}
                                     {route.match?.headers && route.match.headers.length > 0 && (
                                       <div>
-                                        <div className="text-xs text-gray-500 mb-1">请求头匹配:</div>
+                                        <div className="text-xs text-gray-500 mb-2">请求头匹配:</div>
                                         <div className="space-y-1">
                                           {route.match.headers.map((header: any, headerIndex: number) => (
-                                            <div key={headerIndex} className="text-sm font-mono">
+                                            <div key={headerIndex} className="text-sm font-mono bg-gray-50 px-3 py-2 rounded-lg">
                                               {header.name} {getMatchTypePrefix(header.type)} {header.value}
                                             </div>
                                           ))}
@@ -515,10 +399,10 @@ function AgentDetail() {
                                     {/* 查询参数匹配 */}
                                     {route.match?.queryParams && route.match.queryParams.length > 0 && (
                                       <div>
-                                        <div className="text-xs text-gray-500 mb-1">查询参数匹配:</div>
+                                        <div className="text-xs text-gray-500 mb-2">查询参数匹配:</div>
                                         <div className="space-y-1">
                                           {route.match.queryParams.map((param: any, paramIndex: number) => (
-                                            <div key={paramIndex} className="text-sm font-mono">
+                                            <div key={paramIndex} className="text-sm font-mono bg-gray-50 px-3 py-2 rounded-lg">
                                               {param.name} {getMatchTypePrefix(param.type)} {param.value}
                                             </div>
                                           ))}
@@ -529,8 +413,8 @@ function AgentDetail() {
                                     {/* 描述 */}
                                     {route.description && (
                                       <div>
-                                        <div className="text-xs text-gray-500">描述:</div>
-                                        <div className="text-sm">{route.description}</div>
+                                        <div className="text-xs text-gray-500 mb-1">描述:</div>
+                                        <div className="text-sm text-gray-700">{route.description}</div>
                                       </div>
                                     )}
                                   </div>
@@ -542,36 +426,34 @@ function AgentDetail() {
                       )}
                     </div>
                   ) : (
-                    <div className="text-gray-500 text-center py-8">
-                      No configuration available
+                    <div className="text-gray-500 text-center py-16">
+                      暂无配置信息
                     </div>
                   ),
                 },
               ]}
             />
-          </Card>
-        </Col>
+          </div>
+        </div>
 
         {/* 右侧调试功能 */}
-        <Col span={9}>
-          <Card className="mb-6 rounded-lg border-gray-200">
-            <div className="mb-4">
-              <h3 className="text-sm font-semibold mb-3">Agent调试</h3>
-              <div className="text-center py-8">
-                <div className="mb-3">
-                  <RobotOutlined className="text-3xl text-gray-300" />
-                </div>
-                <div className="text-gray-500 mb-2">
-                  <div className="text-sm">Agent调试</div>
-                </div>
-                <div className="text-sm text-gray-400">
-                  🚀 敬请期待
-                </div>
+        <div className="w-80">
+          <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-6">
+            <h3 className="text-base font-semibold text-gray-900 mb-4">Agent调试</h3>
+            <div className="text-center py-12">
+              <div className="mb-4">
+                <RobotOutlined className="text-4xl text-gray-300" />
+              </div>
+              <div className="text-gray-500 mb-2 text-sm">
+                Agent调试功能
+              </div>
+              <div className="text-sm text-gray-400">
+                🚀 敬请期待
               </div>
             </div>
-          </Card>
-        </Col>
-      </Row>
+          </div>
+        </div>
+      </div>
     </Layout>
   );
 }

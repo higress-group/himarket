@@ -1,5 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { UserInfo } from "./UserInfo";
+import LogoIcon from "./icon/logo";
 
 
 export function Header() {
@@ -22,12 +23,7 @@ export function Header() {
             <Link to="/" className="flex items-center space-x-2 hover:opacity-80 transition-all duration-300">
               <div className="w-8 h-8 rounded-full flex items-center justify-center">
                 {/* LOGO区域 */}
-                <img
-                  src="/logo.png"
-                  alt="logo"
-                  className="w-6 h-6"
-                  style={{ display: "block" }}
-                />
+                <LogoIcon className="w-6 h-6" />
               </div>
               <span className="text-xl font-bold text-gray-900">HiMarket</span>
             </Link>

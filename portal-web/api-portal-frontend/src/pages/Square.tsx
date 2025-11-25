@@ -10,13 +10,12 @@ import { getIconString } from "../lib/iconUtils";
 
 function Square() {
   const navigate = useNavigate();
-  const tabs = ["Model", "MCP", "Agent", "APIs"];
-  const tabTypeMap: Record<string, string> = {
-    "Model": "MODEL_API",
-    "MCP": "MCP_SERVER",
-    "Agent": "AGENT_API",
-    "APIs": "REST_API",
-  };
+  const tabs = [
+    { label: "模型", value: "Model", key: "MODEL_API" },
+    { label: "MCP", value: "MCP", key: "MCP_SERVER" },
+    { label: "智能体", value: "Agent", key: "AGENT_API" },
+    { label: "API", value: "APIs", key: "REST_API" },
+  ];
 
   const [activeTab, setActiveTab] = useState(tabs[0]);
   const [activeCategory, setActiveCategory] = useState("all");
@@ -31,7 +30,7 @@ function Square() {
     const fetchCategories = async () => {
       setCategoriesLoading(true);
       try {
-        const productType = tabTypeMap[activeTab];
+        const productType = activeTab.key;
         const response: any = await categoryApi.getCategoriesByProductType(productType);
 
         if (response.code === "SUCCESS" && response.data?.content) {
@@ -59,14 +58,14 @@ function Square() {
     };
 
     fetchCategories();
-  }, [activeTab]);
+  }, [activeTab.value]);
 
   // 获取产品列表
   useEffect(() => {
     const fetchProducts = async () => {
       setLoading(true);
       try {
-        const productType = tabTypeMap[activeTab];
+        const productType = activeTab.key;
         const categoryIds = activeCategory === "all" ? undefined : [activeCategory];
 
         const response: any = await getProducts({
@@ -88,7 +87,7 @@ function Square() {
     };
 
     fetchProducts();
-  }, [activeTab, activeCategory]);
+  }, [activeTab.key, activeCategory]);
 
   const filteredModels = products.filter((product) => {
     const matchesSearch =
@@ -126,7 +125,7 @@ function Square() {
 
   return (
     <Layout>
-      <div className="flex h-[calc(100vh-92px)]">
+      <div className="flex h-[calc(100vh-96px)]">
         {/* 左侧类型列表 */}
         <CategoryMenu
           categories={categories}
@@ -140,25 +139,24 @@ function Square() {
           {/* 上半部分：Tab + 搜索框 */}
           <div className="flex items-center justify-between mb-6">
             {/* Tab 区域 */}
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-6 pl-4">
               {tabs.map((tab) => {
-                const isActive = tab === activeTab;
+                const isActive = tab.value === activeTab.value;
                 return (
                   <div
-                    key={tab}
+                    key={tab.value}
                     onClick={() => setActiveTab(tab)}
                     className={`
                       text-xl font-medium cursor-pointer
                       transition-all duration-300 ease-in-out
                       origin-left
-                      ${
-                        isActive
-                          ? "text-black scale-110"
-                          : "text-gray-400 hover:text-gray-600 hover:scale-105"
+                      ${isActive
+                        ? "text-black scale-110"
+                        : "text-gray-400 hover:text-gray-600 hover:scale-105"
                       }
                     `}
                   >
-                    {tab}
+                    {tab.label}
                   </div>
                 );
               })}
@@ -195,7 +193,7 @@ function Square() {
                     company={product.modelConfig?.modelAPIConfig?.aiProtocols?.[0] || "AI Model"}
                     releaseDate={new Date(product.createAt).toLocaleDateString('zh-CN')}
                     onClick={() => handleViewDetail(product)}
-                    onTryNow={activeTab === "Model" ? () => handleTryNow(product) : undefined}
+                    onTryNow={activeTab.value === "Model" ? () => handleTryNow(product) : undefined}
                   />
                 ))}
                 {!loading && filteredModels.length === 0 && (

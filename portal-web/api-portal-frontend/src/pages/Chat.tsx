@@ -105,7 +105,7 @@ function Chat() {
       if (!sessionId) {
         const sessionResponse: any = await createSession({
           talkType: "MODEL",
-          name: content.substring(0, 20) + "...", // 使用问题前20个字符作为会话名称
+          name: content.length > 20 ? content.substring(0, 20) + "..." : content, // 只在超过20个字符时添加省略号
           products: [selectedProduct.productId],
         });
 
@@ -268,22 +268,27 @@ function Chat() {
     } catch (error) {
       console.error("Failed to send message:", error);
 
-      // 查找并更新 AI 消息为错误状态
+      // 查找并更新最后一条 AI 消息为错误状态（如果还没有被标记为错误）
       setMessages(prev => {
         const lastMsg = prev[prev.length - 1];
-        // 如果最后一条消息是 assistant 且内容为空，说明是刚创建的 loading 消息
-        if (lastMsg && lastMsg.role === "assistant" && lastMsg.content === '') {
+        // 如果最后一条消息是 assistant，更新它为错误状态（避免添加新消息）
+        if (lastMsg && lastMsg.role === "assistant") {
+          // 如果已经是错误状态，不再重复更新
+          if (lastMsg.error) {
+            return prev;
+          }
           return prev.map((msg, idx) =>
             idx === prev.length - 1
               ? {
                   ...msg,
+                  content: '',
                   error: true,
                   errorMessage: '网络异常，请重试',
                 }
               : msg
           );
         }
-        // 如果没有找到空的 assistant 消息，添加一个错误消息
+        // 如果最后一条不是 assistant 消息，添加一个错误消息（这种情况很少见）
         return [...prev, {
           id: `${Date.now()}-error`,
           role: "assistant" as const,
@@ -421,9 +426,9 @@ function Chat() {
       }
     } catch (error) {
       console.error("Failed to refresh message:", error);
-      // 更新消息为错误状态
+      // 更新消息为错误状态（避免重复更新）
       setMessages(prev => prev.map(msg =>
-        msg.id === messageId
+        msg.id === messageId && !msg.error // 只在还不是错误状态时更新
           ? {
               ...msg,
               content: '',
@@ -470,6 +475,7 @@ function Chat() {
     setMessages([]);
     setCurrentSessionId(null);
     setCurrentConversationId(null);
+    setQuestionContentMap(new Map()); // 清空问题内容映射
   };
 
   const handleSelectProduct = (product: Product) => {
@@ -515,6 +521,7 @@ function Chat() {
 
         // 将会话记录转换为消息列表
         const allMessages: Message[] = [];
+        const newQuestionContentMap = new Map<string, string>();
 
         conversations.forEach(conversation => {
           conversation.questions.forEach(question => {
@@ -526,25 +533,51 @@ function Chat() {
               timestamp: new Date(),
             });
 
-            // 添加 AI 回复（取最后一轮的第一个结果）
+            // 保存问题内容到 map，用于重新生成
+            newQuestionContentMap.set(question.questionId, question.content);
+
+            // 添加 AI 回复，支持多版本答案
             if (question.answers.length > 0) {
-              const lastAnswer = question.answers[question.answers.length - 1];
-              if (lastAnswer.results.length > 0) {
-                const result = lastAnswer.results[0];
+              // 将所有 answers 转换为 versions
+              const versions: MessageVersion[] = question.answers
+                .filter(answer => answer.results.length > 0)
+                .map(answer => {
+                  const result = answer.results[0]; // 取第一个 result（多模型对比场景）
+                  return {
+                    content: result.content,
+                    totalTime: result.usage?.elapsed_time,
+                    inputTokens: result.usage?.prompt_tokens,
+                    outputTokens: result.usage?.completion_tokens,
+                  };
+                });
+
+              if (versions.length > 0) {
+                // 显示最后一个版本（用户最后看到的）
+                const currentVersionIndex = versions.length - 1;
+                const currentVersion = versions[currentVersionIndex];
+                const lastAnswer = question.answers[question.answers.length - 1];
+                const lastResult = lastAnswer.results[0];
+
                 allMessages.push({
-                  id: result.answerId,
+                  id: lastResult.answerId,
                   role: "assistant",
-                  content: result.content,
+                  content: currentVersion.content,
                   timestamp: new Date(),
-                  // 从 usage 字段获取统计信息
-                  totalTime: result.usage?.elapsed_time,
-                  inputTokens: result.usage?.prompt_tokens,
-                  outputTokens: result.usage?.completion_tokens,
+                  questionId: question.questionId, // 关联问题ID，用于重新生成
+                  versions: versions, // 保存所有版本
+                  currentVersionIndex: currentVersionIndex, // 当前显示的版本索引
+                  // 从当前版本获取统计信息
+                  totalTime: currentVersion.totalTime,
+                  inputTokens: currentVersion.inputTokens,
+                  outputTokens: currentVersion.outputTokens,
                 });
               }
             }
           });
         });
+
+        // 更新问题内容映射
+        setQuestionContentMap(newQuestionContentMap);
 
         // 数据加载完成后再更新消息列表，避免闪烁
         setMessages(allMessages);
@@ -562,7 +595,7 @@ function Chat() {
 
   return (
     <Layout>
-      <div className="flex h-[calc(100vh-92px)] bg-transparent">
+      <div className="flex h-[calc(100vh-96px)] bg-transparent">
         <Sidebar
           currentSessionId={currentSessionId}
           onNewChat={handleNewChat}

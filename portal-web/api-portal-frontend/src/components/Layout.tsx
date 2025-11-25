@@ -29,7 +29,7 @@ export function Layout({ children, className = "", loading = false }: LayoutProp
         }}
       >
         <Header />
-        <main className="min-h-[calc(100vh-60px)] pb-8">
+        <main className="min-h-[calc(100vh-96px)] pb-8">
           <div className="w-full mx-auto px-8">
             {loading ? (
               <div className="space-y-8 py-8">
