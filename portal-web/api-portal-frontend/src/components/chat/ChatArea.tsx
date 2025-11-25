@@ -40,6 +40,9 @@ interface Message {
     outputTokens?: number;
   }>;
   currentVersionIndex?: number;
+  // 错误状态
+  error?: boolean;
+  errorMessage?: string;
 }
 
 interface ChatAreaProps {
@@ -219,6 +222,11 @@ export function ChatArea({ messages, selectedProduct, onSelectProduct: _onSelect
   const getModelName = (modelId: string) => {
     const model = modelList.find(m => m.id === modelId);
     return model ? model.name : modelId;
+  };
+
+  const getModelIcon = (modelId: string) => {
+    const model = modelList.find(m => m.id === modelId);
+    return model ? model.icon : undefined;
   };
 
   // 处理对比模式下的消息发送
@@ -442,7 +450,11 @@ export function ChatArea({ messages, selectedProduct, onSelectProduct: _onSelect
                       等待输入...
                     </div>
                   ) : (
-                    <MessageList messages={compareMessages[modelId] || []} modelName={getModelName(modelId)} />
+                    <MessageList
+                      messages={compareMessages[modelId] || []}
+                      modelName={getModelName(modelId)}
+                      modelIcon={getModelIcon(modelId)}
+                    />
                   )}
                 </div>
               </div>
@@ -476,6 +488,7 @@ export function ChatArea({ messages, selectedProduct, onSelectProduct: _onSelect
               <MessageList
                 messages={messages}
                 modelName={getModelName(selectedModel)}
+                modelIcon={getModelIcon(selectedModel)}
                 onRefresh={onRefreshMessage}
                 onChangeVersion={onChangeVersion}
                 isLoading={isLoading}
@@ -487,7 +500,7 @@ export function ChatArea({ messages, selectedProduct, onSelectProduct: _onSelect
 
       {/* 底部输入框（单模型有消息时显示，或对比模式下始终显示） */}
       {((!isCompareMode && hasMessages) || isCompareMode) && (
-        <div className="p-4">
+        <div className="p-4 pb-0">
           <div className="max-w-3xl mx-auto">
             <InputBox onSendMessage={isCompareMode ? handleCompareSendMessage : onSendMessage} isLoading={isLoading} />
           </div>

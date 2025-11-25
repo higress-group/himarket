@@ -1,6 +1,9 @@
-import { RobotOutlined, CopyOutlined, ReloadOutlined, LoadingOutlined, LeftOutlined, RightOutlined } from "@ant-design/icons";
+import { CopyOutlined, ReloadOutlined, LeftOutlined, RightOutlined } from "@ant-design/icons";
 import { useEffect, useRef, useState } from "react";
 import { message } from "antd";
+import MarkdownRender from "../MarkdownRender";
+import { ProductIconRenderer } from "../icon/ProductIconRenderer";
+import { DefaultModelIcon } from "../icon/DefaultModelIcon";
 
 interface Message {
   id: string;
@@ -22,17 +25,21 @@ interface Message {
     outputTokens?: number;
   }>;
   currentVersionIndex?: number;
+  // 错误状态
+  error?: boolean;
+  errorMessage?: string;
 }
 
 interface MessageListProps {
   messages: Message[];
   modelName?: string;
+  modelIcon?: string; // 添加模型 icon
   onRefresh?: (messageId: string) => void;
   onChangeVersion?: (messageId: string, direction: 'prev' | 'next') => void;
   isLoading?: boolean;
 }
 
-export function MessageList({ messages, modelName = "AI Assistant", onRefresh, onChangeVersion, isLoading = false }: MessageListProps) {
+export function MessageList({ messages, modelName = "AI Assistant", modelIcon, onRefresh, onChangeVersion, isLoading = false }: MessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -62,7 +69,7 @@ export function MessageList({ messages, modelName = "AI Assistant", onRefresh, o
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8">
+    <div className="mx-auto px-8 py-8">
       <div className="space-y-6">
         {messages.map((msg, index) => (
           <div key={msg.id}>
@@ -82,7 +89,7 @@ export function MessageList({ messages, modelName = "AI Assistant", onRefresh, o
               <div className="flex gap-3">
                 {/* 模型头像 */}
                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-colorPrimary/20 to-colorPrimary/10 flex items-center justify-center flex-shrink-0">
-                  <RobotOutlined className="text-colorPrimary text-sm" />
+                  <ProductIconRenderer iconType={modelIcon} className="w-5 h-5" />
                 </div>
 
                 {/* 消息内容 */}
@@ -91,28 +98,35 @@ export function MessageList({ messages, modelName = "AI Assistant", onRefresh, o
                   <div className="text-sm text-gray-500 mb-1.5">{modelName}</div>
 
                   <div className="bg-white/80 backdrop-blur-sm px-4 py-3 rounded-2xl rounded-tl-sm border border-gray-100">
-                    {/* 如果内容为空且是最后一条消息且正在加载，显示 loading */}
-                    {msg.content === '' && index === messages.length - 1 && isLoading ? (
+                    {/* 如果是错误状态，显示错误提示 */}
+                    {msg.error ? (
+                      <div className="flex items-center gap-2 text-red-500">
+                        <span>{msg.errorMessage || '网络异常，请重试'}</span>
+                      </div>
+                    ) : msg.content === '' && isLoading ? (
+                      /* 如果内容为空且正在加载，显示 loading */
                       <div className="flex items-center gap-2 text-gray-500">
-                        <LoadingOutlined className="text-sm animate-spin text-colorPrimary" />
-                        <span>正在思考...</span>
+                        <span>正在思考</span>
+                        <div className="flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 bg-colorPrimary rounded-full" style={{ animation: 'bounceStrong 1s infinite', animationDelay: '0ms' }}></span>
+                          <span className="w-1.5 h-1.5 bg-colorPrimary rounded-full" style={{ animation: 'bounceStrong 1s infinite', animationDelay: '150ms' }}></span>
+                          <span className="w-1.5 h-1.5 bg-colorPrimary rounded-full" style={{ animation: 'bounceStrong 1s infinite', animationDelay: '300ms' }}></span>
+                        </div>
                       </div>
                     ) : (
-                      <div className="text-gray-900 whitespace-pre-wrap leading-relaxed">
-                        {msg.content}
-                      </div>
+                      <MarkdownRender content={msg.content} />
                     )}
                   </div>
 
-                  {/* 统计信息和功能按钮 - 只在有内容时显示 */}
-                  {msg.content && (
+                  {/* 统计信息和功能按钮 - 只在有内容或错误时显示 */}
+                  {(msg.content || msg.error) && (
                     <div className="flex items-center justify-between mt-2 px-1">
                       {/* 左侧：统计信息 */}
-                      <div className="flex items-center gap-3 text-xs text-gray-400">
-                        <span>首字 {formatTime(msg.firstTokenTime)}</span>
-                        <span>耗时 {formatTime(msg.totalTime)}</span>
-                        <span>输入 {msg.inputTokens ?? "-"}</span>
-                        <span>输出 {msg.outputTokens ?? "-"}</span>
+                      <div className="flex items-center gap-2 text-xs text-gray-400">
+                        <span>首字： {formatTime(msg.firstTokenTime)}</span>
+                        <span>耗时： {formatTime(msg.totalTime)}</span>
+                        <span>输入 Token： {msg.inputTokens ?? "-"}</span>
+                        <span>输出 Token： {msg.outputTokens ?? "-"}</span>
                       </div>
 
                       {/* 右侧：功能按钮 */}

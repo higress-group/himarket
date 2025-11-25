@@ -41,7 +41,7 @@ export function InputBox({ onSendMessage, isLoading = false }: InputBoxProps) {
           transition-all duration-200
           ${
             input.trim() && !isLoading
-              ? "bg-primary-500 text-white hover:bg-primary-600"
+              ? "bg-colorPrimary text-white hover:opacity-90"
               : "bg-gray-200 text-gray-400 cursor-not-allowed"
           }
         `}

@@ -15,13 +15,13 @@ interface CategoryMenuProps {
 
 export function CategoryMenu({ categories, activeCategory, onSelectCategory, loading = false }: CategoryMenuProps) {
   return (
-    <div className="w-56 bg-white/40 backdrop-blur-xl rounded-2xl p-4 mr-6">
+    <div className="w-64 bg-white/40 backdrop-blur-xl rounded-lg flex flex-col m-4 mr-0 mb-0 overflow-hidden">
       {loading ? (
         <div className="flex items-center justify-center py-8">
           <Spin />
         </div>
       ) : (
-        <div className="space-y-1">
+        <div className="flex-1 overflow-y-auto p-4 space-y-1">
           {categories.map((category) => {
             const isActive = category.id === activeCategory;
             return (
