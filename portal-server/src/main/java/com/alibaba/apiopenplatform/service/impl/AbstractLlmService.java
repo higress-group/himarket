@@ -1,6 +1,5 @@
 package com.alibaba.apiopenplatform.service.impl;
 
-import cn.hutool.core.date.StopWatch;
 import cn.hutool.core.map.MapUtil;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.apiopenplatform.core.exception.BusinessException;
@@ -65,7 +64,13 @@ public abstract class AbstractLlmService implements LlmService {
                 .exchangeToFlux(clientResponse -> {
                     // Set response headers which are from the gateway
                     HttpHeaders responseHeaders = clientResponse.headers().asHttpHeaders();
-                    responseHeaders.forEach((key, values) -> values.forEach(value -> response.addHeader(key, value)));
+
+                    // Skip Transfer-Encoding header to avoid duplicated headers
+                    responseHeaders.forEach((key, values) -> {
+                        if (key != null && !key.equalsIgnoreCase("transfer-encoding")) {
+                            values.forEach(value -> response.addHeader(key, value));
+                        }
+                    });
 
                     // Handle response body
                     return clientResponse.bodyToFlux(String.class)
