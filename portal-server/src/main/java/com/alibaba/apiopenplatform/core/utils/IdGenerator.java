@@ -47,6 +47,7 @@ public class IdGenerator {
     private static final String NACOS_PREFIX = "nacos-";
     private static final String HIGRESS_PREFIX = "higress-";
     private static final String CATEGORY_PREFIX = "category-";
+    private static final String SEARCH_ENGINE_PREFIX = "search-";
 
     private static final String SESSION_PREFIX = "session-";
     private static final String CHAT_PREFIX = "chat-";
@@ -89,6 +90,15 @@ public class IdGenerator {
 
     public static String genChatId() {
         return CHAT_PREFIX + ObjectId.next();
+    }
+
+    /**
+     * 生成搜索引擎配置ID
+     * 格式: search-{ObjectId}
+     * 例如: search-507f1f77bcf86cd799439011
+     */
+    public static String genSearchEngineConfigId() {
+        return SEARCH_ENGINE_PREFIX + ObjectId.next();
     }
 
     public static String genIdWithPrefix(String prefix) {

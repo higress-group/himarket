@@ -19,42 +19,49 @@
 
 package com.alibaba.apiopenplatform.support.portal;
 
+import com.alibaba.apiopenplatform.support.common.Encrypted;
+import com.alibaba.apiopenplatform.support.enums.SearchEngineType;
 import lombok.Data;
 
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
+/**
+ * 搜索引擎配置（POJO）
+ * 完全参考 OidcConfig 的设计模式
+ * 作为 Portal 配置的一部分，存储在 portal_setting_config JSON 字段中
+ * 一个 Portal 只能配置一个搜索引擎
+ */
 @Data
-public class PortalSettingConfig {
+public class SearchEngineConfig {
 
     /**
-     * 内置的账号密码认证，默认开启
+     * 搜索引擎类型
+     * 当前仅支持 GOOGLE
      */
-    private Boolean builtinAuthEnabled = true;
+    private SearchEngineType engineType;
 
     /**
-     * OIDC配置
+     * 搜索引擎名称（展示用）
      */
-    private List<OidcConfig> oidcConfigs;
+    private String engineName;
 
     /**
-     * 开启自动审批开发者注册
+     * API Key
+     * 标记 @Encrypted 注解后，系统会自动加密/解密
      */
-    private Boolean autoApproveDevelopers = false;
+    @Encrypted
+    private String apiKey;
 
     /**
-     * 开启自动审批订阅申请
+     * 是否启用，默认启用
      */
-    private Boolean autoApproveSubscriptions = true;
+    private boolean enabled = true;
 
     /**
-     * OAuth2配置
+     * 额外配置
+     * 使用 Map 灵活存储扩展配置
+     * 例如：{"timeout": 30, "domain": "google.com"}
      */
-    private List<OAuth2Config> oauth2Configs;
-    
-    /**
-     * 搜索引擎配置（新增）
-     * 每个 Portal 只能配置一个搜索引擎
-     * null 表示未配置
-     */
-    private SearchEngineConfig searchEngineConfig;
+    private Map<String, Object> extraConfig = new HashMap<>();
 }
