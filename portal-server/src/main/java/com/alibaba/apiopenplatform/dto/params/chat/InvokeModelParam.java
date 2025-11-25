@@ -19,6 +19,8 @@ public class InvokeModelParam {
 
     private Map<String, String> requestHeaders;
 
+    private Map<String, String> queryParams;
+
     private List<ChatMessage> chatMessages;
 
     private Boolean stream;

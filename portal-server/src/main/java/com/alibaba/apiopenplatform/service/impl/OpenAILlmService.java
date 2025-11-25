@@ -16,6 +16,7 @@ import com.alibaba.apiopenplatform.support.enums.AIProtocol;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Service;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -30,8 +31,8 @@ public class OpenAILlmService extends AbstractLlmService {
 
     @Override
     protected LlmChatRequest composeRequest(InvokeModelParam param) {
-        // 1. Get request URL
-        URL url = getUrl(param.getModelConfig());
+        // 1. Get request URL (with query params)
+        URL url = getUrl(param.getModelConfig(), param.getQueryParams());
 
         // 2. Build headers
         Map<String, String> headers = param.getRequestHeaders() == null ? new HashMap<>() : param.getRequestHeaders();
@@ -66,7 +67,6 @@ public class OpenAILlmService extends AbstractLlmService {
 
             // Answer from LLM
             String content = extractContentFromResponse(response);
-            log.info("zhaoh-test-content: {}", content);
 
             if (content != null) {
                 // Append to answer content and reset current content
@@ -108,7 +108,7 @@ public class OpenAILlmService extends AbstractLlmService {
         return 0.9;
     }
 
-    private URL getUrl(ModelConfigResult modelConfig) {
+    private URL getUrl(ModelConfigResult modelConfig, Map<String, String> queryParams) {
         ModelConfigResult.ModelAPIConfig modelAPIConfig = modelConfig.getModelAPIConfig();
         if (modelAPIConfig == null) {
             return null;
@@ -143,7 +143,17 @@ public class OpenAILlmService extends AbstractLlmService {
                         domain.getProtocol().toLowerCase() : "http";
 
                 try {
-                    return new URL(protocol, domain.getDomain(), pathValue);
+                    // Build URL with query params
+                    UriComponentsBuilder builder = UriComponentsBuilder.newInstance()
+                            .scheme(protocol)
+                            .host(domain.getDomain())
+                            .path(pathValue);
+                    
+                    if (CollUtil.isNotEmpty(queryParams)) {
+                        queryParams.forEach(builder::queryParam);
+                    }
+                    
+                    return new URL(builder.build().toUriString());
                 } catch (MalformedURLException e) {
                     throw new RuntimeException(e);
                 }
@@ -152,6 +162,10 @@ public class OpenAILlmService extends AbstractLlmService {
 
         // No suitable route found
         return null;
+    }
+
+    private URL getUrl(ModelConfigResult modelConfig) {
+        return getUrl(modelConfig, null);
     }
 
     @Override

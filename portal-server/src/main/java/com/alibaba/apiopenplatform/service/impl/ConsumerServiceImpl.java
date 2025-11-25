@@ -38,6 +38,7 @@ import com.alibaba.apiopenplatform.dto.params.consumer.QuerySubscriptionParam;
 import com.alibaba.apiopenplatform.dto.result.common.PageResult;
 import com.alibaba.apiopenplatform.dto.result.consumer.ConsumerCredentialResult;
 import com.alibaba.apiopenplatform.dto.result.consumer.ConsumerResult;
+import com.alibaba.apiopenplatform.dto.result.consumer.CredentialContext;
 import com.alibaba.apiopenplatform.dto.result.portal.PortalResult;
 import com.alibaba.apiopenplatform.dto.result.product.ProductRefResult;
 import com.alibaba.apiopenplatform.dto.result.product.ProductResult;
@@ -59,6 +60,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 
 import jakarta.persistence.criteria.Predicate;
@@ -622,5 +624,61 @@ public class ConsumerServiceImpl implements ConsumerService {
             }
         }
         return null;
+    }
+
+    @Override
+    public CredentialContext getDefaultCredential(String developerId) {
+        return consumerRepository
+                .findFirstByDeveloperId(developerId, Sort.by(Sort.Direction.ASC, "createAt"))
+                .flatMap(consumer -> credentialRepository.findByConsumerId(consumer.getConsumerId()))
+                .map(this::buildAuthInfo)
+                .orElseGet(() -> {
+                    log.debug("No credential found for developer: {}", developerId);
+                    return CredentialContext.builder().build();
+                });
+    }
+
+    /**
+     * Build authentication info from credential
+     * 
+     * Source types:
+     * - DEFAULT: Authorization: Bearer {apiKey}
+     * - Query: ?{key}={apiKey}  
+     * - Header (or others): {key}: {apiKey}
+     * 
+     * @param credential consumer credential
+     * @return authentication info (never null, but maps may be empty)
+     */
+    private CredentialContext buildAuthInfo(ConsumerCredential credential) {
+        Map<String, String> headers = new HashMap<>();
+        Map<String, String> queryParams = new HashMap<>();
+        
+        ApiKeyConfig config = credential.getApiKeyConfig();
+        
+        // Check if apiKey config exists and has credentials
+        if (config == null || config.getCredentials() == null || config.getCredentials().isEmpty()) {
+            log.debug("No API key configured for credential");
+            return CredentialContext.builder().build();
+        }
+        
+        // Use first credential
+        String apiKey = config.getCredentials().get(0).getApiKey();
+        String source = config.getSource();
+        String key = config.getKey();
+        
+        // Add to headers or queryParams based on source
+        if ("DEFAULT".equalsIgnoreCase(source)) {
+            headers.put("Authorization", "Bearer " + apiKey);
+        } else if ("Query".equalsIgnoreCase(source)) {
+            queryParams.put(key, apiKey);
+        } else {
+            // Header or other values
+            headers.put(key, apiKey);
+        }
+        
+        return CredentialContext.builder()
+                .headers(headers)
+                .queryParams(queryParams)
+                .build();
     }
 }
