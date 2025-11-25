@@ -21,7 +21,7 @@ package com.alibaba.apiopenplatform.converter;
 
 import com.alibaba.apiopenplatform.support.gateway.ApsaraGatewayConfig;
 
-import javax.persistence.Converter;
+import jakarta.persistence.Converter;
 
 @Converter(autoApply = true)
 public class ApsaraGatewayConfigConverter extends JsonConverter<ApsaraGatewayConfig> {

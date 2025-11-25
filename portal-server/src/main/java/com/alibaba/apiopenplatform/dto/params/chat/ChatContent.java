@@ -1,38 +1,49 @@
 package com.alibaba.apiopenplatform.dto.params.chat;
 
-import cn.hutool.core.date.StopWatch;
 import com.alibaba.apiopenplatform.support.chat.ChatUsage;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
 /**
  * @author zh
  * @description Save current chunk and append to answer content
  */
-@Data
+@Getter
+@Setter
 public class ChatContent {
 
     private StringBuilder answerContent = new StringBuilder();
 
     private StringBuilder unexpectedContent = new StringBuilder();
 
-    private StopWatch stopWatch = new StopWatch();
+    private String currentContent;
+
+    private Long startTime;
+
+    private Long firstPackageTime;
 
     private ChatUsage usage;
 
-    private String currentContent;
-
     public boolean success() {
-        return unexpectedContent.length() == 0;
+        return unexpectedContent.isEmpty();
     }
 
     public void start() {
-        stopWatch.start();
+        startTime = System.currentTimeMillis();
+    }
+
+    public void recordFirstToken() {
+        if (firstPackageTime == null && startTime != null) {
+            firstPackageTime = System.currentTimeMillis() - startTime;
+        }
     }
 
     public void stop() {
-        stopWatch.stop();
         if (usage != null) {
-            usage.setElapsedTime(stopWatch.getTotalTimeMillis());
+            usage.setElapsedTime(System.currentTimeMillis() - startTime);
+            if (firstPackageTime != null) {
+                usage.setFirstPackageTime(firstPackageTime);
+            }
         }
     }
 }

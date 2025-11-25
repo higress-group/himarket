@@ -36,7 +36,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -152,7 +152,7 @@ public class ChatServiceImpl implements ChatService {
                 })
                 .filter(Objects::nonNull)
                 .sorted(Comparator.comparing(Chat::getCreateAt))
-                .collect(Collectors.toList());
+                .toList();
 
         // 4. Convert to chat messages
         List<ChatMessage> chatMessages = new ArrayList<>();

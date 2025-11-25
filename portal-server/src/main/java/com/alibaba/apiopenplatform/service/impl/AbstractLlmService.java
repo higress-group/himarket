@@ -16,7 +16,7 @@ import org.springframework.http.MediaType;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Map;
@@ -76,6 +76,9 @@ public abstract class AbstractLlmService implements LlmService {
                     return clientResponse.bodyToFlux(String.class)
                             .delayElements(Duration.ofMillis(100))
                             .handle((chunk, sink) -> {
+                                // Record first token time
+                                chatContent.recordFirstToken();
+                                
                                 processStreamChunk(chunk, chatContent);
                                 // Only send the chunk if there is no error and unexpected content is empty
                                 if (chatContent.success()) {

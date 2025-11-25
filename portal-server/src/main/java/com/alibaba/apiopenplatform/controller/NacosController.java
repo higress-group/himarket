@@ -35,7 +35,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
 
-import javax.validation.Valid;
+import jakarta.validation.Valid;
 
 @Tag(name = "Nacos资源管理", description = "Nacos实例管理与能力市场统一控制器")
 @RestController

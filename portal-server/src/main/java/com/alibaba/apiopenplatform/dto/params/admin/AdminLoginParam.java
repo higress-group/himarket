@@ -20,7 +20,7 @@
 package com.alibaba.apiopenplatform.dto.params.admin;
 
 import lombok.Data;
-import javax.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotBlank;
 import lombok.NoArgsConstructor;
 
 /**

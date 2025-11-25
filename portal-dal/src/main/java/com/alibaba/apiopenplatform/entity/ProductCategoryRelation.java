@@ -22,7 +22,7 @@ package com.alibaba.apiopenplatform.entity;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 
 @EqualsAndHashCode(callSuper = true)
 @Entity

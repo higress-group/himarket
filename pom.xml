@@ -45,20 +45,20 @@
     </modules>
 
     <properties>
-        <java.version>1.8</java.version>
+        <java.version>17</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <spring-boot.version>2.7.18</spring-boot.version>
+        <spring-boot.version>3.2.5</spring-boot.version>
         <mariadb.version>3.4.1</mariadb.version>
         <mysql.version>8.0.33</mysql.version>
-        <hutool.version>5.8.32</hutool.version>
+        <hutool.version>5.8.33</hutool.version>
         <bouncycastle.version>1.78</bouncycastle.version>
-        <springdoc.version>1.7.0</springdoc.version>
+        <springdoc.version>2.5.0</springdoc.version>
         <apigsdk.version>5.0.3</apigsdk.version>
         <msesdk.version>7.21.0</msesdk.version>
         <aliyunsdk.version>4.4.6</aliyunsdk.version>
         <okhttp.version>4.12.0</okhttp.version>
-        <flyway.version>9.22.3</flyway.version>
+        <flyway.version>10.15.0</flyway.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
     </properties>
@@ -111,7 +111,7 @@
 
             <dependency>
                 <groupId>org.springdoc</groupId>
-                <artifactId>springdoc-openapi-ui</artifactId>
+                <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
                 <version>${springdoc.version}</version>
             </dependency>
 
@@ -179,11 +179,12 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-compiler-plugin</artifactId>
-                    <version>3.8.1</version>
+                    <version>3.11.0</version>
                     <configuration>
                         <source>${java.version}</source>
                         <target>${java.version}</target>
                         <encoding>${project.build.sourceEncoding}</encoding>
+                        <parameters>true</parameters>
                     </configuration>
                 </plugin>
             </plugins>

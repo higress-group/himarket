@@ -1,7 +1,6 @@
 package com.alibaba.apiopenplatform.service.impl;
 
 import cn.hutool.core.collection.CollUtil;
-import cn.hutool.core.date.StopWatch;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.apiopenplatform.dto.params.chat.ChatContent;
 import com.alibaba.apiopenplatform.dto.result.httpapi.DomainResult;

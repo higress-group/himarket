@@ -4,7 +4,7 @@ import com.alibaba.apiopenplatform.converter.ListJsonConverter;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 import java.util.List;
 
 @Entity

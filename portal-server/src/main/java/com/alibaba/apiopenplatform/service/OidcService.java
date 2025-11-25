@@ -23,8 +23,8 @@ package com.alibaba.apiopenplatform.service;
 import com.alibaba.apiopenplatform.dto.result.common.AuthResult;
 import com.alibaba.apiopenplatform.dto.result.idp.IdpResult;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
 
 public interface OidcService {

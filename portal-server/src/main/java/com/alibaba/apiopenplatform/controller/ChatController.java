@@ -1,5 +1,6 @@
 package com.alibaba.apiopenplatform.controller;
 
+import com.alibaba.apiopenplatform.core.annotation.AdminOrDeveloperAuth;
 import com.alibaba.apiopenplatform.service.ChatService;
 import com.alibaba.apiopenplatform.dto.params.chat.CreateChatParam;
 import lombok.RequiredArgsConstructor;
@@ -9,14 +10,15 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import javax.servlet.http.HttpServletResponse;
-import javax.validation.Valid;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/chats")
 @RequiredArgsConstructor
 @Validated
 @Slf4j
+@AdminOrDeveloperAuth
 public class ChatController {
 
     private final ChatService chatService;

@@ -27,7 +27,7 @@ import com.alibaba.apiopenplatform.support.common.Encrypted;
 import com.alibaba.apiopenplatform.support.common.Encryptor;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.persistence.AttributeConverter;
+import jakarta.persistence.AttributeConverter;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;

@@ -34,12 +34,20 @@ import org.springframework.data.domain.Pageable;
 public interface ConsumerService {
 
     /**
-     * 创建Consumer
+     * Create a consumer
      *
-     * @param param
-     * @return
+     * @param param consumer creation parameters
+     * @return consumer result
      */
     ConsumerResult createConsumer(CreateConsumerParam param);
+
+    /**
+     * Create a default consumer for a developer
+     *
+     * @param param       consumer creation parameters
+     * @param developerId developer ID
+     */
+    void createConsumerInner(CreateConsumerParam param, String developerId);
 
     /**
      * 获取Consumer列表

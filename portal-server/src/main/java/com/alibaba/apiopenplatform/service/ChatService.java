@@ -4,7 +4,7 @@ import com.alibaba.apiopenplatform.core.event.ChatSessionDeletingEvent;
 import com.alibaba.apiopenplatform.dto.params.chat.CreateChatParam;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletResponse;
 
 /**
  * @author zh

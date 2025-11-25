@@ -5,7 +5,7 @@ import com.alibaba.apiopenplatform.dto.result.chat.LlmInvokeResult;
 import com.alibaba.apiopenplatform.support.enums.AIProtocol;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletResponse;
 import java.util.function.Consumer;
 
 /**
