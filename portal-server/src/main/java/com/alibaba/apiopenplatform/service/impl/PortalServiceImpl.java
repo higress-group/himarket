@@ -311,7 +311,7 @@ public class PortalServiceImpl implements PortalService {
 
     /**
      * 核心方法：根据引擎类型获取 API Key
-     * 供 GoogleTalkSearchAbility 等搜索能力调用
+     * 供 TalkSearchAbilityServiceGoogleImpl 等搜索能力调用
      */
     @Override
     public String getSearchEngineApiKey(String portalId, SearchEngineType engineType) {

@@ -17,14 +17,14 @@
  * under the License.
  */
 
-package com.alibaba.apiopenplatform.search.service.impl;
+package com.alibaba.apiopenplatform.service.impl;
 
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.apiopenplatform.core.security.ContextHolder;
-import com.alibaba.apiopenplatform.search.model.SearchContext;
-import com.alibaba.apiopenplatform.search.model.SearchInput;
-import com.alibaba.apiopenplatform.search.service.TalkSearchAbility;
+import com.alibaba.apiopenplatform.support.chat.search.SearchContext;
+import com.alibaba.apiopenplatform.support.chat.search.SearchInput;
+import com.alibaba.apiopenplatform.service.TalkSearchAbilityService;
 import com.alibaba.apiopenplatform.service.PortalService;
 import com.alibaba.apiopenplatform.support.enums.SearchEngineType;
 import lombok.extern.slf4j.Slf4j;
@@ -50,7 +50,8 @@ import java.util.Set;
 
 @Service
 @Slf4j
-public class GoogleTalkSearchAbility implements TalkSearchAbility<Map<String, Object>, ResponseEntity<String>> {
+public class TalkSearchAbilityServiceGoogleImpl
+        implements TalkSearchAbilityService<Map<String, Object>, ResponseEntity<String>> {
     
     private final RestTemplate restTemplate;
     private final PortalService portalService;
@@ -87,7 +88,7 @@ public class GoogleTalkSearchAbility implements TalkSearchAbility<Map<String, Ob
             "website"
     );
     
-    public GoogleTalkSearchAbility(RestTemplate restTemplate,
+    public TalkSearchAbilityServiceGoogleImpl(RestTemplate restTemplate,
                                    PortalService portalService,
                                    ContextHolder contextHolder) {
         this.restTemplate = restTemplate;
@@ -136,7 +137,7 @@ public class GoogleTalkSearchAbility implements TalkSearchAbility<Map<String, Ob
             
             return buildSearchResponse(searchResponse);
         }catch (Exception e){
-            log.error("GoogleTalkSearchAbility search error:{}", e.getMessage(), e);
+            log.error("TalkSearchAbilityServiceGoogleImpl search error:{}", e.getMessage(), e);
             return new ArrayList<>();
         }
     }
