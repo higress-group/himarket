@@ -33,6 +33,7 @@ public abstract class AbstractLlmService implements LlmService {
 
     @Override
     public SseEmitter invokeLLM(InvokeModelParam param, HttpServletResponse response, Consumer<LlmInvokeResult> resultHandler) {
+       // ResultHandler is mainly used to record answer and usage
         try {
             LlmChatRequest request = composeRequest(param);
 
