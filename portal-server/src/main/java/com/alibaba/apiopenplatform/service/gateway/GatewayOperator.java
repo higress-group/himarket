@@ -38,6 +38,7 @@ import com.alibaba.apiopenplatform.support.gateway.GatewayConfig;
 import com.aliyun.sdk.service.apig20240327.models.HttpApiApiInfo;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -89,13 +90,9 @@ public abstract class GatewayOperator<T> {
 
     abstract public GatewayType getGatewayType();
 
-    /**
-     * 获取网关控制台仪表盘链接
-     *
-     * @param gateway 网关实体
-     * @return 仪表盘访问链接
-     */
     abstract public String getDashboard(Gateway gateway, String type);
+
+    abstract public List<String> fetchGatewayIps(Gateway gateway);
 
     @SuppressWarnings("unchecked")
     protected T getClient(Gateway gateway) {

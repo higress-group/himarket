@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
-import { Card, Tabs, Button, Typography, Table, Popconfirm, Modal, Radio, Input, Select, Form, message } from "antd";
+import { Tabs, Button, Typography, Table, Popconfirm, Modal, Radio, Input, Select, Form, message } from "antd";
 import { EditOutlined, PlusOutlined, CopyOutlined, DeleteOutlined } from "@ant-design/icons";
 import api from "../../lib/api";
-import type { 
-  ConsumerCredentialResult, 
+import type {
+  ConsumerCredentialResult,
   CreateCredentialParam,
   ConsumerCredential,
   HMACCredential,
@@ -339,75 +339,80 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
   ];
 
   return (
-    <Card title="认证方式" style={{ borderRadius: '12px' }}>
-      <Tabs defaultActiveKey="API_KEY">
-        <Tabs.TabPane tab="API Key" key="API_KEY">
-          <div className="mb-4">
-            {/* 凭证来源配置 */}
-            <div className="mb-4 p-3 bg-gray-50 rounded border">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <Text className="font-medium text-gray-700">凭证来源：</Text>
-                  <Text type="secondary" className="text-sm">
-                    {currentSource === 'Default' ? 'Authorization: Bearer <token>' : `${currentSource}：${currentKey}`}
-                  </Text>
+    <div className="bg-white/60 backdrop-blur-sm rounded-xl border border-white/60 shadow-sm overflow-hidden">
+      <div className="p-6">
+        <h3 className="text-base font-semibold text-gray-900 mb-4">认证方式</h3>
+        <Tabs defaultActiveKey="API_KEY">
+          <Tabs.TabPane tab="API Key" key="API_KEY">
+            <div className="mb-4">
+              {/* 凭证来源配置 */}
+              <div className="mb-4 p-4 bg-white/50 backdrop-blur-sm rounded-lg border border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <Text className="font-medium text-gray-700">凭证来源：</Text>
+                    <Text type="secondary" className="text-sm">
+                      {currentSource === 'Default' ? 'Authorization: Bearer <token>' : `${currentSource}：${currentKey}`}
+                    </Text>
+                  </div>
+                  <Button type="link" size="small" icon={<EditOutlined/>} onClick={openSourceModal}>
+                    编辑
+                  </Button>
                 </div>
-                <Button type="link" size="small" icon={<EditOutlined/>} onClick={openSourceModal}>
-                  编辑
-                </Button>
               </div>
+
+              <Button
+                type="primary"
+                icon={<PlusOutlined/>}
+                onClick={() => {
+                  setCredentialType('API_KEY');
+                  openCredentialModal();
+                }}
+                className="rounded-full"
+              >
+                添加凭证
+              </Button>
             </div>
+            <Table
+              columns={apiKeyColumns}
+              dataSource={currentConfig?.apiKeyConfig?.credentials || []}
+              rowKey={(record) => record.apiKey || Math.random().toString()}
+              pagination={false}
+              size="small"
+              locale={{emptyText: '暂无API Key凭证，请点击上方按钮创建'}}
+            />
+          </Tabs.TabPane>
 
-            <Button
-              type="primary"
-              icon={<PlusOutlined/>}
-              onClick={() => {
-                setCredentialType('API_KEY');
-                openCredentialModal();
-              }}
-            >
-              添加凭证
-            </Button>
-          </div>
-          <Table
-            columns={apiKeyColumns}
-            dataSource={currentConfig?.apiKeyConfig?.credentials || []}
-            rowKey={(record) => record.apiKey || Math.random().toString()}
-            pagination={false}
-            size="small"
-            locale={{emptyText: '暂无API Key凭证，请点击上方按钮创建'}}
-          />
-        </Tabs.TabPane>
+          <Tabs.TabPane tab="HMAC" key="HMAC">
+            <div className="mb-4">
+              <Button
+                type="primary"
+                icon={<PlusOutlined/>}
+                onClick={() => {
+                  setCredentialType('HMAC');
+                  openCredentialModal();
+                }}
+                className="rounded-full"
+              >
+                添加AK/SK
+              </Button>
+            </div>
+            <Table
+              columns={hmacColumns}
+              dataSource={currentConfig?.hmacConfig?.credentials || []}
+              rowKey={(record) => record.ak || record.sk || Math.random().toString()}
+              pagination={false}
+              size="small"
+              locale={{emptyText: '暂无AK/SK凭证，请点击上方按钮创建'}}
+            />
+          </Tabs.TabPane>
 
-        <Tabs.TabPane tab="HMAC" key="HMAC">
-          <div className="mb-4">
-            <Button
-              type="primary"
-              icon={<PlusOutlined/>}
-              onClick={() => {
-                setCredentialType('HMAC');
-                openCredentialModal();
-              }}
-            >
-              添加AK/SK
-            </Button>
-          </div>
-          <Table
-            columns={hmacColumns}
-            dataSource={currentConfig?.hmacConfig?.credentials || []}
-            rowKey={(record) => record.ak || record.sk || Math.random().toString()}
-            pagination={false}
-            size="small"
-            locale={{emptyText: '暂无AK/SK凭证，请点击上方按钮创建'}}
-          />
-        </Tabs.TabPane>
-
-        <Tabs.TabPane tab="JWT" key="JWT" disabled>
-          <div className="text-center py-8 text-gray-500">
-            JWT功能暂未开放
-          </div>
-        </Tabs.TabPane>
-      </Tabs>
+          <Tabs.TabPane tab="JWT" key="JWT" disabled>
+            <div className="text-center py-8 text-gray-500">
+              JWT功能暂未开放
+            </div>
+          </Tabs.TabPane>
+        </Tabs>
+      </div>
 
       {/* 创建凭证模态框 */}
       <Modal
@@ -614,6 +619,6 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
           </Form.Item>
         </Form>
       </Modal>
-    </Card>
+    </div>
   );
 }

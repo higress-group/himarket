@@ -169,4 +169,11 @@ public class ProductController {
     public void setProductCategories(@PathVariable String productId, @RequestBody List<String> categoryIds) {
         productService.setProductCategories(productId, categoryIds);
     }
+
+    @Operation(summary = "重新加载API产品配置")
+    @PostMapping("/{productId}/reload")
+    @AdminAuth
+    public void reloadProductConfig(@PathVariable String productId) {
+        productService.reloadProductConfig(productId);
+    }
 }

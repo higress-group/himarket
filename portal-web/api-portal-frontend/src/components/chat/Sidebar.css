@@ -1,0 +1,34 @@
+/* 会话菜单下拉框样式 */
+.session-menu-dropdown .ant-dropdown-menu {
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 4px !important;
+}
+
+.session-menu-dropdown .ant-dropdown-menu-item {
+  border-radius: 8px !important;
+  margin: 2px 0 !important;
+  padding: 8px 12px !important;
+  transition: all 0.2s ease-in-out !important;
+  color: #4b5563 !important;
+  font-size: 14px !important;
+}
+
+.session-menu-dropdown .ant-dropdown-menu-item:hover {
+  background: rgba(255, 255, 255, 0.5) !important;
+  transform: scale(1.02);
+}
+
+.session-menu-dropdown .ant-dropdown-menu-item-danger {
+  color: #ef4444 !important;
+}
+
+.session-menu-dropdown .ant-dropdown-menu-item-danger:hover {
+  background: rgba(254, 226, 226, 0.8) !important;
+  color: #dc2626 !important;
+}
+
+.session-menu-dropdown .ant-dropdown-menu-item-icon {
+  font-size: 14px !important;
+  margin-right: 8px !important;
+}

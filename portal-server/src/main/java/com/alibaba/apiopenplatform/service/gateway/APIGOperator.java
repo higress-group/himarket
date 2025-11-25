@@ -57,6 +57,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 
+import java.sql.Struct;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -488,6 +489,39 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
         String dashboardUrl = String.format("https://sls.console.aliyun.com/lognext/project/%s/dashboard/%s?filters=cluster_id%%253A%%2520%s&slsRegion=%s&sls_ticket=%s&isShare=true&hideTopbar=true&hideSidebar=true&ignoreTabLocalStorage=true", projectName, dashboardId, gatewayId, region, ticket);
         log.info("Dashboard URL: {}", dashboardUrl);
         return dashboardUrl;
+    }
+
+    @Override
+    public List<String> fetchGatewayIps(Gateway gateway) {
+
+        APIGClient client = getClient(gateway);
+        try {
+            CompletableFuture<GetGatewayResponse> f = client.execute(c -> {
+                GetGatewayRequest request = GetGatewayRequest.builder()
+                        .gatewayId(gateway.getGatewayId())
+                        .build();
+
+                return c.getGateway(request);
+
+            });
+
+            GetGatewayResponse response = f.join();
+            if (response.getStatusCode() != 200) {
+                throw new BusinessException(ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
+            }
+
+            List<GetGatewayResponseBody.LoadBalancers> loadBalancers = response.getBody().getData().getLoadBalancers();
+            return loadBalancers.stream()
+                    // Only internet load balancer support
+                    .filter(loadBalancer -> StrUtil.equalsIgnoreCase(loadBalancer.getAddressType(), "internet"))
+                    .map(GetGatewayResponseBody.LoadBalancers::getIpv4Addresses)
+                    .filter(Objects::nonNull)
+                    .flatMap(Collection::stream)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            log.error("Error fetching API", e);
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Error fetching API，Cause：" + e.getMessage());
+        }
     }
 
     public HttpApiApiInfo fetchAPI(Gateway gateway, String apiId) {

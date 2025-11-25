@@ -34,7 +34,7 @@ import java.util.Map;
 public interface ProductService {
 
     /**
-     * 创建API产品
+     * Create API product
      *
      * @param param
      * @return
@@ -42,7 +42,7 @@ public interface ProductService {
     ProductResult createProduct(CreateProductParam param);
 
     /**
-     * 查询API产品
+     * Get API product
      *
      * @param productId
      * @return
@@ -50,7 +50,7 @@ public interface ProductService {
     ProductResult getProduct(String productId);
 
     /**
-     * 查询API产品列表
+     * List API products
      *
      * @param param
      * @param pageable
@@ -59,7 +59,7 @@ public interface ProductService {
     PageResult<ProductResult> listProducts(QueryProductParam param, Pageable pageable);
 
     /**
-     * 更新门户
+     * Update API product
      *
      * @param productId
      * @param param
@@ -68,7 +68,7 @@ public interface ProductService {
     ProductResult updateProduct(String productId, UpdateProductParam param);
 
     /**
-     * 发布API产品
+     * Publish API product
      *
      * @param productId
      * @param portalId
@@ -77,7 +77,7 @@ public interface ProductService {
     void publishProduct(String productId, String portalId);
 
     /**
-     * 获取API产品的发布信息
+     * Get API product publication information
      *
      * @param productId
      * @param pageable
@@ -86,7 +86,7 @@ public interface ProductService {
     PageResult<ProductPublicationResult> getPublications(String productId, Pageable pageable);
 
     /**
-     * 下线产品
+     * Unpublish API product
      *
      * @param productId
      * @param portalId
@@ -95,14 +95,14 @@ public interface ProductService {
     void unpublishProduct(String productId, String portalId);
 
     /**
-     * 删除产品
+     * Delete API product
      *
      * @param productId
      */
     void deleteProduct(String productId);
 
     /**
-     * API产品引用API或MCP Server
+     * API product references API
      *
      * @param productId
      * @param param
@@ -110,7 +110,7 @@ public interface ProductService {
     void addProductRef(String productId, CreateProductRefParam param);
 
     /**
-     * 查询API产品引用的资源
+     * Get API product referenced resources
      *
      * @param productId
      * @return
@@ -118,14 +118,14 @@ public interface ProductService {
     ProductRefResult getProductRef(String productId);
 
     /**
-     * 删除API产品的引用
+     * Delete API product reference
      *
      * @param productId
      */
     void deleteProductRef(String productId);
 
     /**
-     * 清理门户资源
+     * Clean up portal resources
      *
      * @param event
      */
@@ -134,7 +134,7 @@ public interface ProductService {
     Map<String, ProductResult> getProducts(List<String> productIds);
 
     /**
-     * 获取API产品的Dashboard监控面板URL
+     * Get API product dashboard monitoring panel URL
      *
      * @param productId
      * @return Dashboard URL
@@ -142,7 +142,7 @@ public interface ProductService {
     String getProductDashboard(String productId);
 
     /**
-     * 获取API产品的订阅信息
+     * Get API product subscription information
      *
      * @param productId
      * @param param
@@ -152,25 +152,40 @@ public interface ProductService {
     PageResult<SubscriptionResult> listProductSubscriptions(String productId, QueryProductSubscriptionParam param, Pageable pageable);
 
     /**
-     * 检查API产品是否存在
+     * Check if API product exists
      *
      * @param productId
      * @return
      */
     void existsProduct(String productId);
-    
+
     /**
-     * 为产品设置类别（仅绑定关系）
+     * Check if API product exists
+     *
+     * @param productIds
+     * @return
+     */
+    void existsProducts(List<String> productIds);
+
+    /**
+     * Set product categories (binding relationship only)
      *
      * @param productId
      * @param categoryIds
      */
     void setProductCategories(String productId, List<String> categoryIds);
-    
+
     /**
-     * 删除产品时清理产品类别关联关系
+     * Clear product category relationships when deleting product
      *
      * @param productId
      */
     void clearProductCategoryRelations(String productId);
+
+    /**
+     * Reload API configuration for the product
+     *
+     * @param productId
+     */
+    void reloadProductConfig(String productId);
 }

@@ -7,6 +7,7 @@ import api from "../lib/api";
 import { ConsumerBasicInfo, AuthConfig, SubscriptionManager } from "../components/consumer";
 import type { Consumer, Subscription } from "../types/consumer";
 import type { ApiResponse } from "../types";
+import "../styles/table.css";
 
 function ConsumerDetailPage() {
   const { consumerId } = useParams();
@@ -78,68 +79,78 @@ function ConsumerDetailPage() {
   return (
     <Layout>
       {consumer ? (
-        <>
+        <div className="w-full">
           {/* 消费者头部 - 返回按钮 + 消费者名称 */}
-          <div className="mb-2">
-            <div className="flex items-center gap-2">
-              <ArrowLeftOutlined 
-                className="text-gray-500 hover:text-gray-700 cursor-pointer"
-                style={{ fontSize: '20px', fontWeight: 'normal' }}
+          <div className="mb-6">
+            <div className="flex items-center gap-3">
+              <button
                 onClick={() => navigate('/consumers')}
-              />
-              <span className="text-2xl font-normal text-gray-500">
+                className="w-8 h-8 rounded-full bg-white/80 backdrop-blur-sm hover:bg-white flex items-center justify-center transition-all duration-200 hover:scale-105 shadow-sm"
+              >
+                <ArrowLeftOutlined className="text-gray-600 text-sm" />
+              </button>
+              <h1 className="text-2xl font-semibold text-gray-900">
                 {consumer.name}
-              </span>
+              </h1>
             </div>
           </div>
-          
-          <Tabs activeKey={activeTab} onChange={setActiveTab}>
-            <Tabs.TabPane tab="基本信息" key="basic">
-              <ConsumerBasicInfo consumer={consumer} />
-              <div className="mt-6">
-                <AuthConfig consumerId={consumerId!} />
-              </div>
-            </Tabs.TabPane>
 
-            <Tabs.TabPane tab="订阅列表" key="authorization">
-              <SubscriptionManager 
-                consumerId={consumerId!}
-                subscriptions={subscriptions}
-                onSubscriptionsChange={async (searchParams) => {
-                  // 重新获取订阅列表
-                  if (consumerId) {
-                    setSubscriptionsLoading(true);
-                    try {
-                      // 构建查询参数
-                      const params = new URLSearchParams();
-                      if (searchParams?.productName) {
-                        params.append('productName', searchParams.productName);
+          {/* Tabs 区域 - glass-morphism 风格 */}
+          <div className="bg-white/40 backdrop-blur-xl rounded-2xl shadow-lg border border-white/40 overflow-hidden">
+            <Tabs
+              activeKey={activeTab}
+              onChange={setActiveTab}
+              className="consumer-detail-tabs px-3"
+            >
+              <Tabs.TabPane tab="基本信息" key="basic">
+                <div className="p-6 space-y-6">
+                  <ConsumerBasicInfo consumer={consumer} />
+                  <AuthConfig consumerId={consumerId!} />
+                </div>
+              </Tabs.TabPane>
+
+              <Tabs.TabPane tab="订阅列表" key="authorization">
+                <div className="p-6">
+                  <SubscriptionManager
+                    consumerId={consumerId!}
+                    subscriptions={subscriptions}
+                    onSubscriptionsChange={async (searchParams) => {
+                      // 重新获取订阅列表
+                      if (consumerId) {
+                        setSubscriptionsLoading(true);
+                        try {
+                          // 构建查询参数
+                          const params = new URLSearchParams();
+                          if (searchParams?.productName) {
+                            params.append('productName', searchParams.productName);
+                          }
+                          if (searchParams?.status) {
+                            params.append('status', searchParams.status);
+                          }
+
+                          const queryString = params.toString();
+                          const url = `/consumers/${consumerId}/subscriptions${queryString ? `?${queryString}` : ''}`;
+
+                          const response: ApiResponse<{content: Subscription[], totalElements: number}> = await api.get(url);
+                          if (response?.code === "SUCCESS" && response?.data) {
+                            // 从分页数据中提取实际的订阅数组
+                            const subscriptionsData = response.data.content || [];
+                            setSubscriptions(subscriptionsData);
+                          }
+                        } catch (error) {
+                          console.error('获取订阅列表失败:', error);
+                        } finally {
+                          setSubscriptionsLoading(false);
+                        }
                       }
-                      if (searchParams?.status) {
-                        params.append('status', searchParams.status);
-                      }
-                      
-                      const queryString = params.toString();
-                      const url = `/consumers/${consumerId}/subscriptions${queryString ? `?${queryString}` : ''}`;
-                      
-                      const response: ApiResponse<{content: Subscription[], totalElements: number}> = await api.get(url);
-                      if (response?.code === "SUCCESS" && response?.data) {
-                        // 从分页数据中提取实际的订阅数组
-                        const subscriptionsData = response.data.content || [];
-                        setSubscriptions(subscriptionsData);
-                      }
-                    } catch (error) {
-                      console.error('获取订阅列表失败:', error);
-                    } finally {
-                      setSubscriptionsLoading(false);
-                    }
-                  }
-                }}
-                loading={subscriptionsLoading}
-              />
-            </Tabs.TabPane>
-          </Tabs>
-        </>
+                    }}
+                    loading={subscriptionsLoading}
+                  />
+                </div>
+              </Tabs.TabPane>
+            </Tabs>
+          </div>
+        </div>
       ) : (
         <div className="flex items-center justify-center h-64">
           <div className="text-gray-500">加载中...</div>
