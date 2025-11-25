@@ -1,6 +1,7 @@
 export const colors = {
   "colorPrimary": "#6366F1",
   "colorPrimaryBgHover": "#E0E7FF",
+  "colorTextSecondaryCustom": "#A3A3A3",
 }
 
 export default {

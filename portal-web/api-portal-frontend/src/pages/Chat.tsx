@@ -38,6 +38,9 @@ interface Message {
   questionId?: string; // 关联的问题ID
   versions?: MessageVersion[]; // 所有版本的答案
   currentVersionIndex?: number; // 当前显示的版本索引（0-based）
+  // 错误状态
+  error?: boolean; // 是否是错误消息
+  errorMessage?: string; // 错误提示文本
 }
 
 function Chat() {
@@ -223,9 +226,17 @@ function Chat() {
               setIsLoading(false); // 完成loading
             },
             onError: (error) => {
-              antdMessage.error(`发送消息失败: ${error}`);
-              // 移除空的 AI 消息
-              setMessages(prev => prev.filter(msg => msg.id !== assistantMessageId));
+              // 不再移除消息，而是更新为错误状态
+              setMessages(prev => prev.map(msg =>
+                msg.id === assistantMessageId
+                  ? {
+                      ...msg,
+                      content: '',
+                      error: true,
+                      errorMessage: '网络异常，请重试',
+                    }
+                  : msg
+              ));
               setIsLoading(false); // 错误时也要重置loading
             },
           }
@@ -256,10 +267,32 @@ function Chat() {
       }
     } catch (error) {
       console.error("Failed to send message:", error);
-      antdMessage.error("发送消息失败");
 
-      // 移除用户消息
-      setMessages(prev => prev.filter(msg => msg.id !== userMessage.id));
+      // 查找并更新 AI 消息为错误状态
+      setMessages(prev => {
+        const lastMsg = prev[prev.length - 1];
+        // 如果最后一条消息是 assistant 且内容为空，说明是刚创建的 loading 消息
+        if (lastMsg && lastMsg.role === "assistant" && lastMsg.content === '') {
+          return prev.map((msg, idx) =>
+            idx === prev.length - 1
+              ? {
+                  ...msg,
+                  error: true,
+                  errorMessage: '网络异常，请重试',
+                }
+              : msg
+          );
+        }
+        // 如果没有找到空的 assistant 消息，添加一个错误消息
+        return [...prev, {
+          id: `${Date.now()}-error`,
+          role: "assistant" as const,
+          content: '',
+          timestamp: new Date(),
+          error: true,
+          errorMessage: '网络异常，请重试',
+        }];
+      });
       setIsLoading(false); // 错误时重置loading
     }
   };
@@ -305,10 +338,10 @@ function Chat() {
         let fullContent = '';
         let firstTokenTime: number | undefined;
 
-        // 先显示 loading 状态
+        // 先显示 loading 状态（清空内容和错误状态）
         setMessages(prev => prev.map(msg =>
           msg.id === messageId
-            ? { ...msg, content: '' }
+            ? { ...msg, content: '', error: undefined, errorMessage: undefined }
             : msg
         ));
 
@@ -370,7 +403,17 @@ function Chat() {
               setIsLoading(false);
             },
             onError: (error) => {
-              antdMessage.error(`重新生成失败: ${error}`);
+              // 更新消息为错误状态，而不是只显示 toast
+              setMessages(prev => prev.map(msg =>
+                msg.id === messageId
+                  ? {
+                      ...msg,
+                      content: '',
+                      error: true,
+                      errorMessage: '重新生成失败，请重试',
+                    }
+                  : msg
+              ));
               setIsLoading(false);
             },
           }
@@ -378,7 +421,17 @@ function Chat() {
       }
     } catch (error) {
       console.error("Failed to refresh message:", error);
-      antdMessage.error("重新生成失败");
+      // 更新消息为错误状态
+      setMessages(prev => prev.map(msg =>
+        msg.id === messageId
+          ? {
+              ...msg,
+              content: '',
+              error: true,
+              errorMessage: '重新生成失败，请重试',
+            }
+          : msg
+      ));
       setIsLoading(false);
     }
   };
@@ -425,9 +478,14 @@ function Chat() {
 
   // 加载会话的历史聊天记录
   const handleSelectSession = async (sessionId: string, productIds: string[]) => {
+    // 如果点击的是当前已选中的会话，不重复加载
+    if (currentSessionId === sessionId) {
+      return;
+    }
+
     try {
       setCurrentSessionId(sessionId);
-      setMessages([]); // 先清空消息
+      // 不要立即清空消息，避免闪烁
 
       // 根据 productIds 加载产品信息
       if (productIds && productIds.length > 0) {
@@ -478,12 +536,17 @@ function Chat() {
                   role: "assistant",
                   content: result.content,
                   timestamp: new Date(),
+                  // 从 usage 字段获取统计信息
+                  totalTime: result.usage?.elapsed_time,
+                  inputTokens: result.usage?.prompt_tokens,
+                  outputTokens: result.usage?.completion_tokens,
                 });
               }
             }
           });
         });
 
+        // 数据加载完成后再更新消息列表，避免闪烁
         setMessages(allMessages);
 
         // 设置当前的 conversationId（使用最后一个对话的 ID）

@@ -126,7 +126,7 @@ function Square() {
 
   return (
     <Layout>
-      <div className="flex h-full">
+      <div className="flex h-[calc(100vh-92px)]">
         {/* 左侧类型列表 */}
         <CategoryMenu
           categories={categories}
