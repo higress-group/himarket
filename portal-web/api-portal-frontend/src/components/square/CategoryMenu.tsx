@@ -15,7 +15,7 @@ interface CategoryMenuProps {
 
 export function CategoryMenu({ categories, activeCategory, onSelectCategory, loading = false }: CategoryMenuProps) {
   return (
-    <div className="w-64 bg-white/40 backdrop-blur-xl rounded-lg flex flex-col m-4 mr-0 mb-0 overflow-hidden">
+    <div className="w-64 bg-white/40 backdrop-blur-xl rounded-lg flex flex-col overflow-hidden">
       {loading ? (
         <div className="flex items-center justify-center py-8">
           <Spin />

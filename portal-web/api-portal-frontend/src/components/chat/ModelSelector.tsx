@@ -143,7 +143,7 @@ export function ModelSelector({
         >
           {/* 当前模型 */}
           <button
-            className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 hover:scale-[1.01] bg-colorPrimaryBgHover"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl transition-all duration-200 hover:scale-[1.01] hover:bg-colorPrimaryBgHover"
           >
             {currentModel?.icon && (
               <ProductIconRenderer iconType={currentModel.icon} className="w-5 h-5" />

@@ -5,6 +5,7 @@ import { UserOutlined, LockOutlined } from "@ant-design/icons";
 import api from "../lib/api";
 import bgImage from "../assets/bg.png";
 import { AxiosError } from "axios";
+import { Layout } from "../components/Layout";
 
 const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
@@ -38,18 +39,9 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div
-      className="flex items-center justify-center min-h-screen"
-      style={{
-        backgroundImage: `url(${bgImage})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
-        backgroundAttachment: 'fixed',
-      }}
-    >
+    <Layout>
       <div
-        className="min-h-screen w-full flex items-center justify-center"
+        className="min-h-[calc(100vh-96px)] w-full flex items-center justify-center"
         style={{
           backdropFilter: 'blur(204px)',
           WebkitBackdropFilter: 'blur(204px)',
@@ -57,10 +49,13 @@ const Login: React.FC = () => {
       >
         <div className="w-full max-w-md mx-4">
           {/* 登录卡片 */}
-          <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-8 shadow-lg">
-            <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold text-gray-900">欢迎来到 HiMarket</h2>
-              <p className="text-sm text-gray-600 mt-2">登录您的账户</p>
+          <div className="bg-white backdrop-blur-sm rounded-2xl p-8 shadow-lg">
+            <div className="mb-8">
+              <h2 className="text-[32px] flex text-gray-900">
+                <h2 className="text-colorPrimary">嗨，</h2>
+                您好
+              </h2>
+              <p className="text-sm text-[#85888D]">欢迎来到 Himarket，登录以继续</p>
             </div>
 
             {/* 账号密码登录表单 */}
@@ -111,17 +106,10 @@ const Login: React.FC = () => {
                 </Button>
               </Form.Item>
             </Form>
-            {/* 底部提示 */}
-            <div className="mt-6 text-center text-sm text-gray-600">
-              没有账号？
-              <Link to="/register" className="text-colorPrimary hover:underline ml-1 font-medium">
-                立即注册
-              </Link>
-            </div>
           </div>
         </div>
       </div>
-    </div>
+    </Layout>
   );
 };
 

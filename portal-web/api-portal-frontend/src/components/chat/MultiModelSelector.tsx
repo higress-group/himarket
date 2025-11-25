@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Modal, Checkbox, Spin } from "antd";
-import { RobotOutlined, ThunderboltOutlined, BulbOutlined, PictureOutlined } from "@ant-design/icons";
+import { ProductIconRenderer } from "../icon/ProductIconRenderer";
 
 interface Model {
   id: string;
@@ -20,28 +20,17 @@ interface MultiModelSelectorProps {
   loading?: boolean;
 }
 
-// 图标映射组件
-const ModelIcon = ({ iconType }: { iconType: string }) => {
-  const iconClass = "text-lg";
-  switch (iconType) {
-    case "robot":
-      return <RobotOutlined className={iconClass} />;
-    case "thunderbolt":
-      return <ThunderboltOutlined className={iconClass} />;
-    case "bulb":
-      return <BulbOutlined className={iconClass} />;
-    case "picture":
-      return <PictureOutlined className={iconClass} />;
-    default:
-      return <RobotOutlined className={iconClass} />;
-  }
-};
-
 export function MultiModelSelector({ currentModel, excludeModels = [], onConfirm, onCancel, modelList = [], loading = false }: MultiModelSelectorProps) {
   const [selectedModels, setSelectedModels] = useState<string[]>([]);
 
   // 过滤掉已排除的模型
   const availableModels = modelList.filter(model => !excludeModels.includes(model.id));
+
+  // 根据模型ID获取模型名称
+  const getModelName = (modelId: string) => {
+    const model = modelList.find(m => m.id === modelId);
+    return model ? model.name : modelId;
+  };
 
   const handleToggleModel = (modelId: string) => {
     // 当前模型不能被取消选择
@@ -78,20 +67,33 @@ export function MultiModelSelector({ currentModel, excludeModels = [], onConfirm
       onCancel={onCancel}
       okText="开始对比"
       cancelText="取消"
-      okButtonProps={{ disabled: selectedModels.length < 1 }}
+      okButtonProps={{
+        disabled: selectedModels.length < 1,
+        className: "rounded-lg"
+      }}
+      cancelButtonProps={{
+        className: "rounded-lg"
+      }}
       width={600}
+      className="multi-model-selector-modal"
+      styles={{
+        content: {
+          borderRadius: '16px',
+          overflow: 'hidden'
+        }
+      }}
     >
       <div className="py-4">
         <div className="mb-4 text-sm text-gray-500">
           {excludeModels.length > 0 ? (
             <>
-              已选模型：<span className="font-semibold text-colorPrimary">{excludeModels.join(', ')}</span>
-              {" "}| 再选择 1-{maxSelectable} 个模型进行对比（已选 {selectedModels.length}/{maxSelectable}）
+              已选模型：<span className="font-medium text-colorPrimary">{excludeModels.map(id => getModelName(id)).join('、')}</span>
+              {" "}| 再选择 1-{maxSelectable} 个模型（已选 {selectedModels.length}/{maxSelectable}）
             </>
           ) : (
             <>
-              当前模型：<span className="font-semibold text-colorPrimary">{currentModel}</span>
-              {" "}| 再选择 1-2 个模型进行对比（已选 {selectedModels.length}/2）
+              当前模型：<span className="font-medium text-colorPrimary">{getModelName(currentModel)}</span>
+              {" "}| 再选择 1-2 个模型（已选 {selectedModels.length}/2）
             </>
           )}
         </div>
@@ -112,36 +114,37 @@ export function MultiModelSelector({ currentModel, excludeModels = [], onConfirm
                   key={model.id}
                   onClick={() => !isDisabled && handleToggleModel(model.id)}
                   className={`
-                    p-4 rounded-xl border transition-all duration-200
+                    px-4 py-3 rounded-xl border transition-all duration-200
                     ${
                       isCurrentModel
                         ? "bg-colorPrimary/5 border-colorPrimary/30 cursor-default"
                         : isSelected
-                        ? "bg-colorPrimary/10 border-colorPrimary"
+                        ? "bg-colorPrimary/10 border-colorPrimary shadow-sm scale-[1.01]"
                         : isDisabled
-                        ? "bg-gray-50 border-gray-200 cursor-not-allowed opacity-50"
-                        : "bg-white border-gray-200 hover:border-colorPrimary hover:bg-colorPrimary/5 cursor-pointer"
+                        ? "bg-gray-50 border-gray-200 cursor-not-allowed opacity-60"
+                        : "bg-white border-gray-200 hover:border-colorPrimary/50 hover:bg-colorPrimaryBgHover cursor-pointer hover:scale-[1.01] hover:shadow-sm"
                     }
                   `}
                 >
-                  <div className="flex items-start gap-3">
+                  <div className="flex items-center gap-3">
                     {isCurrentModel ? (
-                      <div className="mt-0.5 text-xs text-colorPrimary font-medium">当前</div>
+                      <div className="px-2 py-0.5 text-xs text-colorPrimary font-medium bg-colorPrimary/10 rounded">
+                        当前
+                      </div>
                     ) : (
                       <Checkbox
                         checked={isSelected}
                         disabled={isDisabled}
                         onChange={() => handleToggleModel(model.id)}
+                        onClick={(e) => e.stopPropagation()}
                       />
                     )}
 
-                    <ModelIcon iconType={model.icon} />
+                    <ProductIconRenderer iconType={model.icon} className="w-6 h-6" />
 
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-semibold text-gray-900">{model.name}</span>
-                      </div>
-                      <p className="text-sm text-gray-600">{model.description}</p>
+                      <div className="font-semibold text-gray-900 mb-0.5">{model.name}</div>
+                      <p className="text-sm text-gray-500 line-clamp-1">{model.description}</p>
                     </div>
                   </div>
                 </div>

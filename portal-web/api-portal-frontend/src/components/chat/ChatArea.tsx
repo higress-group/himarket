@@ -469,8 +469,8 @@ export function ChatArea({ messages, selectedProduct, onSelectProduct: _onSelect
                 <div className="max-w-3xl w-full">
                   {/* 欢迎标题 */}
                   <div className="text-center mb-12">
-                    <h1 className="text-4xl font-medium text-gray-900 mb-2">
-                      您好，欢迎来到 Himarket
+                    <h1 className="text-2xl font-medium text-gray-900 mb-2">
+                      您好，欢迎来到 <span className="text-colorPrimary">Himarket 体验中心_</span>
                     </h1>
                   </div>
 
