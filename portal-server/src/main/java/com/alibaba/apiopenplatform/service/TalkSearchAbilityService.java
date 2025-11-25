@@ -17,23 +17,21 @@
  * under the License.
  */
 
-package com.alibaba.apiopenplatform.search.service;
+package com.alibaba.apiopenplatform.service;
 
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
+import com.alibaba.apiopenplatform.support.chat.search.SearchContext;
+import com.alibaba.apiopenplatform.support.chat.search.SearchInput;
 
 import java.util.List;
 
-@Slf4j
-@Service
-public class TalkSearchFactory {
+public interface TalkSearchAbilityService<T, V>{
     
-    @Autowired
-    List<TalkSearchAbility> talkSearchAbilityList;
+    List<SearchContext> search(SearchInput ideaTalkSearchInput);
     
-    public TalkSearchAbility getSearchAbility(String searchType) {
-        return talkSearchAbilityList.stream().filter(searchAbility -> searchAbility.getSearchType().equals(searchType))
-                .findFirst().orElse(null);
-    }
+    T buildSearchRequest(SearchInput ideaTalkSearchInput);
+    
+    String getSearchType();
+    
+    List<SearchContext> buildSearchResponse(V searchResponse);
+
 }

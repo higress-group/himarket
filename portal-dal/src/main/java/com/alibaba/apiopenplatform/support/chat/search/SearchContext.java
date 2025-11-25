@@ -17,22 +17,43 @@
  * under the License.
  */
 
-package com.alibaba.apiopenplatform.search.model;
+package com.alibaba.apiopenplatform.support.chat.search;
 
+
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 
-import java.util.List;
+import java.net.URI;
+import java.net.URISyntaxException;
 
 @Data
 @Accessors(chain = true)
-public class SearchInput {
-    private String query;
+@NoArgsConstructor
+@AllArgsConstructor
+public class SearchContext {
     
-    /**
-     * 时间范围，格式: ["2025-03-31", "2025-04-30"]
-     * 空列表或null表示不限制时间
-     * 两个元素分别表示开始日期和结束日期
-     */
-    private List<String> time;
+    private String url;
+    
+    private String title;
+    
+    private String content;
+    
+    private String siteName;
+    
+    private String date;
+    
+    public void postInit() {
+        if ((siteName == null || siteName.isEmpty()) && url != null && !url.isEmpty()) {
+            try {
+                URI uri = new URI(url);
+                this.siteName = uri.getHost();
+            } catch (URISyntaxException e) {
+                // 日志记录，但不抛出异常
+                System.err.println("Failed to parse URL '" + url + "': " + e.getMessage());
+            }
+        }
+    }
+
 }

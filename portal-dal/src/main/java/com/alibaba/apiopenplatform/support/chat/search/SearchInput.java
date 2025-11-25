@@ -17,21 +17,22 @@
  * under the License.
  */
 
-package com.alibaba.apiopenplatform.search.service;
+package com.alibaba.apiopenplatform.support.chat.search;
 
-import com.alibaba.apiopenplatform.search.model.SearchContext;
-import com.alibaba.apiopenplatform.search.model.SearchInput;
+import lombok.Data;
+import lombok.experimental.Accessors;
 
 import java.util.List;
 
-public interface TalkSearchAbility<T, V>{
+@Data
+@Accessors(chain = true)
+public class SearchInput {
+    private String query;
     
-    List<SearchContext> search(SearchInput ideaTalkSearchInput);
-    
-    T buildSearchRequest(SearchInput ideaTalkSearchInput);
-    
-    String getSearchType();
-    
-    List<SearchContext> buildSearchResponse(V searchResponse);
-
+    /**
+     * 时间范围，格式: ["2025-03-31", "2025-04-30"]
+     * 空列表或null表示不限制时间
+     * 两个元素分别表示开始日期和结束日期
+     */
+    private List<String> time;
 }

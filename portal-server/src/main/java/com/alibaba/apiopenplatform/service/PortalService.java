@@ -132,7 +132,7 @@ public interface PortalService {
 
     /**
      * 根据引擎类型获取 API Key（供搜索功能使用）
-     * 核心方法：GoogleTalkSearchAbility 将调用此方法
+     * 核心方法：TalkSearchAbilityServiceGoogleImpl 将调用此方法
      *
      * @param portalId   Portal ID
      * @param engineType 搜索引擎类型
