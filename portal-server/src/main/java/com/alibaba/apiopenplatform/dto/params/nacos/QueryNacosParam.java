@@ -21,7 +21,7 @@ package com.alibaba.apiopenplatform.dto.params.nacos;
 
 import lombok.Data;
 
-import javax.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotBlank;
 
 import com.aliyun.teaopenapi.models.Config;
 

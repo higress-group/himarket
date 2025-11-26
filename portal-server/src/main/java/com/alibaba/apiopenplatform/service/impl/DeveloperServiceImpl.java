@@ -25,6 +25,7 @@ import com.alibaba.apiopenplatform.core.constant.Resources;
 import com.alibaba.apiopenplatform.core.event.DeveloperDeletingEvent;
 import com.alibaba.apiopenplatform.core.event.PortalDeletingEvent;
 import com.alibaba.apiopenplatform.core.utils.TokenUtil;
+import com.alibaba.apiopenplatform.dto.params.consumer.CreateConsumerParam;
 import com.alibaba.apiopenplatform.dto.params.developer.CreateDeveloperParam;
 import com.alibaba.apiopenplatform.dto.params.developer.CreateExternalDeveloperParam;
 import com.alibaba.apiopenplatform.dto.params.developer.QueryDeveloperParam;
@@ -36,6 +37,7 @@ import com.alibaba.apiopenplatform.entity.Developer;
 import com.alibaba.apiopenplatform.entity.Portal;
 import com.alibaba.apiopenplatform.repository.DeveloperRepository;
 import com.alibaba.apiopenplatform.repository.PortalRepository;
+import com.alibaba.apiopenplatform.service.ConsumerService;
 import com.alibaba.apiopenplatform.service.DeveloperService;
 import com.alibaba.apiopenplatform.core.utils.PasswordHasher;
 import com.alibaba.apiopenplatform.core.utils.IdGenerator;
@@ -57,9 +59,9 @@ import com.alibaba.apiopenplatform.core.exception.BusinessException;
 import com.alibaba.apiopenplatform.core.exception.ErrorCode;
 import com.alibaba.apiopenplatform.core.security.ContextHolder;
 
-import javax.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Predicate;
 import java.util.*;
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 
 @Service
 @RequiredArgsConstructor
@@ -77,10 +79,14 @@ public class DeveloperServiceImpl implements DeveloperService {
 
     private final ApplicationEventPublisher eventPublisher;
 
+    private final ConsumerService consumerService;
+
     @Override
     public AuthResult registerDeveloper(CreateDeveloperParam param) {
         DeveloperResult developer = createDeveloper(param);
 
+        // Allocate default consumer
+        createDefaultConsumer(developer.getDeveloperId());
         // 检查是否自动审批
         String portalId = contextHolder.getPortal();
         Portal portal = findPortal(portalId);
@@ -337,4 +343,13 @@ public class DeveloperServiceImpl implements DeveloperService {
         return resetPassword(currentUserId, oldPassword, newPassword);
     }
 
+    private void createDefaultConsumer(String developerId) {
+        consumerService.createConsumerInner(
+                CreateConsumerParam.builder()
+                        .name("default-consumer")
+                        .description("Developer's default consumer")
+                        .build(),
+                developerId
+        );
+    }
 }

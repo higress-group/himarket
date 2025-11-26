@@ -19,7 +19,7 @@
 
 package com.alibaba.apiopenplatform.entity;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;

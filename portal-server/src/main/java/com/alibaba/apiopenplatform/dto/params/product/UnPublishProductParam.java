@@ -21,7 +21,7 @@ package com.alibaba.apiopenplatform.dto.params.product;
 
 import lombok.Data;
 
-import javax.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotBlank;
 
 @Data
 public class UnPublishProductParam {

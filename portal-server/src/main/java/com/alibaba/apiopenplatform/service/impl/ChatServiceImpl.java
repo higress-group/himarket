@@ -10,6 +10,7 @@ import com.alibaba.apiopenplatform.core.exception.ErrorCode;
 import com.alibaba.apiopenplatform.core.security.ContextHolder;
 import com.alibaba.apiopenplatform.core.utils.CacheUtil;
 import com.alibaba.apiopenplatform.core.utils.IdGenerator;
+import com.alibaba.apiopenplatform.dto.result.consumer.CredentialContext;
 import com.alibaba.apiopenplatform.dto.result.product.ProductRefResult;
 import com.alibaba.apiopenplatform.entity.Chat;
 import com.alibaba.apiopenplatform.entity.ChatAttachment;
@@ -36,7 +37,8 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletResponse;
+
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -59,6 +61,8 @@ public class ChatServiceImpl implements ChatService {
     private final ProductService productService;
 
     private final GatewayService gatewayService;
+
+    private final ConsumerService consumerService;
 
     private final Cache<String, List<String>> cache = CacheUtil.newCache(5);
 
@@ -152,7 +156,7 @@ public class ChatServiceImpl implements ChatService {
                 })
                 .filter(Objects::nonNull)
                 .sorted(Comparator.comparing(Chat::getCreateAt))
-                .collect(Collectors.toList());
+                .toList();
 
         // 4. Convert to chat messages
         List<ChatMessage> chatMessages = new ArrayList<>();
@@ -292,8 +296,13 @@ public class ChatServiceImpl implements ChatService {
         String gatewayId = productRef.getGatewayId();
         List<String> gatewayIps = cache.get(gatewayId, gatewayService::fetchGatewayIps);
 
+        // Get authentication info
+        CredentialContext credentialContext = consumerService.getDefaultCredential(contextHolder.getUser());
+
         return InvokeModelParam.builder()
-                .modelConfig(productResult.getModelConfig())
+                .product(productResult)
+                .requestHeaders(credentialContext.getHeaders())
+                .queryParams(credentialContext.getQueryParams())
                 .chatMessages(chatMessages)
                 .stream(param.getStream())
                 .gatewayIps(gatewayIps)

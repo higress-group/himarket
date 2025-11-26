@@ -40,7 +40,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import javax.validation.Valid;
+import jakarta.validation.Valid;
 
 @Tag(name = "Consumer管理", description = "提供Consumer注册、审批、产品订阅等管理功能")
 @RestController

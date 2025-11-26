@@ -1,6 +1,6 @@
 package com.alibaba.apiopenplatform.converter;
 
-import javax.persistence.Converter;
+import jakarta.persistence.Converter;
 import java.util.List;
 
 @Converter(autoApply = true)

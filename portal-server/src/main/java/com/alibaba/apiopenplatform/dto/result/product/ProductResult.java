@@ -29,6 +29,7 @@ import com.alibaba.apiopenplatform.entity.Product;
 import com.alibaba.apiopenplatform.support.enums.ProductStatus;
 import com.alibaba.apiopenplatform.support.enums.ProductType;
 import com.alibaba.apiopenplatform.support.product.Icon;
+import com.alibaba.apiopenplatform.support.product.ProductFeature;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -70,4 +71,6 @@ public class ProductResult implements OutputConverter<ProductResult, Product> {
     private ModelConfigResult modelConfig;
 
     private Boolean enabled;
+
+    private ProductFeature feature;
 }

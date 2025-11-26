@@ -33,11 +33,6 @@ public class LlmChatRequest {
     private Map<String, String> headers;
 
     /**
-     * Custom query params
-     */
-    private Map<String, String> queryParams;
-
-    /**
      * Body
      */
     private Object body;

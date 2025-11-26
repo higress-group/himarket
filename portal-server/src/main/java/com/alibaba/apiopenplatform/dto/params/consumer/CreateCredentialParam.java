@@ -26,7 +26,7 @@ import com.alibaba.apiopenplatform.support.consumer.HmacConfig;
 import com.alibaba.apiopenplatform.support.consumer.JwtConfig;
 import lombok.Data;
 
-import javax.validation.constraints.AssertTrue;
+import jakarta.validation.constraints.AssertTrue;
 
 @Data
 public class CreateCredentialParam implements InputConverter<ConsumerCredential> {

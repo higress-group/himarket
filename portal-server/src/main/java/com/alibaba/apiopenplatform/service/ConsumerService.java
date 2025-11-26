@@ -24,6 +24,7 @@ import com.alibaba.apiopenplatform.dto.params.consumer.CreateConsumerParam;
 import com.alibaba.apiopenplatform.dto.result.consumer.ConsumerResult;
 import com.alibaba.apiopenplatform.dto.result.common.PageResult;
 import com.alibaba.apiopenplatform.dto.result.consumer.ConsumerCredentialResult;
+import com.alibaba.apiopenplatform.dto.result.consumer.CredentialContext;
 import com.alibaba.apiopenplatform.dto.params.consumer.CreateCredentialParam;
 import com.alibaba.apiopenplatform.dto.params.consumer.UpdateCredentialParam;
 import com.alibaba.apiopenplatform.dto.result.product.SubscriptionResult;
@@ -34,12 +35,20 @@ import org.springframework.data.domain.Pageable;
 public interface ConsumerService {
 
     /**
-     * 创建Consumer
+     * Create a consumer
      *
-     * @param param
-     * @return
+     * @param param consumer creation parameters
+     * @return consumer result
      */
     ConsumerResult createConsumer(CreateConsumerParam param);
+
+    /**
+     * Create a default consumer for a developer
+     *
+     * @param param       consumer creation parameters
+     * @param developerId developer ID
+     */
+    void createConsumerInner(CreateConsumerParam param, String developerId);
 
     /**
      * 获取Consumer列表
@@ -138,4 +147,13 @@ public interface ConsumerService {
      * @param productId
      */
     SubscriptionResult approveSubscription(String consumerId, String productId);
+
+    /**
+     * Get default credential authentication info for developer
+     * Returns empty maps if consumer or credential not found
+     * 
+     * @param developerId developer ID
+     * @return credential authentication info (never null, but maps may be empty)
+     */
+    CredentialContext getDefaultCredential(String developerId);
 }

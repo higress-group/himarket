@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from "react";
 import { message } from "antd";
 import MarkdownRender from "../MarkdownRender";
 import { ProductIconRenderer } from "../icon/ProductIconRenderer";
-import { DefaultModelIcon } from "../icon/DefaultModelIcon";
 
 interface Message {
   id: string;
@@ -71,7 +70,7 @@ export function MessageList({ messages, modelName = "AI Assistant", modelIcon, o
   return (
     <div className="mx-auto px-8 py-8">
       <div className="space-y-6">
-        {messages.map((msg, index) => (
+        {messages.map((msg) => (
           <div key={msg.id}>
             {msg.role === "user" ? (
               /* 用户消息 - 右对齐，无头像 */

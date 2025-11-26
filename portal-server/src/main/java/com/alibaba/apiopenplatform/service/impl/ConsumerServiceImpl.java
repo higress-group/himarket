@@ -38,6 +38,7 @@ import com.alibaba.apiopenplatform.dto.params.consumer.QuerySubscriptionParam;
 import com.alibaba.apiopenplatform.dto.result.common.PageResult;
 import com.alibaba.apiopenplatform.dto.result.consumer.ConsumerCredentialResult;
 import com.alibaba.apiopenplatform.dto.result.consumer.ConsumerResult;
+import com.alibaba.apiopenplatform.dto.result.consumer.CredentialContext;
 import com.alibaba.apiopenplatform.dto.result.portal.PortalResult;
 import com.alibaba.apiopenplatform.dto.result.product.ProductRefResult;
 import com.alibaba.apiopenplatform.dto.result.product.ProductResult;
@@ -46,10 +47,7 @@ import com.alibaba.apiopenplatform.entity.*;
 import com.alibaba.apiopenplatform.repository.ConsumerRepository;
 import com.alibaba.apiopenplatform.repository.ConsumerCredentialRepository;
 import com.alibaba.apiopenplatform.repository.SubscriptionRepository;
-import com.alibaba.apiopenplatform.service.ConsumerService;
-import com.alibaba.apiopenplatform.service.GatewayService;
-import com.alibaba.apiopenplatform.service.PortalService;
-import com.alibaba.apiopenplatform.service.ProductService;
+import com.alibaba.apiopenplatform.service.*;
 import com.alibaba.apiopenplatform.support.consumer.ApiKeyConfig;
 import com.alibaba.apiopenplatform.support.consumer.ConsumerAuthConfig;
 import com.alibaba.apiopenplatform.support.consumer.HmacConfig;
@@ -62,16 +60,18 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 
-import javax.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Predicate;
 
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
-import javax.persistence.criteria.Root;
-import javax.persistence.criteria.Subquery;
-import javax.transaction.Transactional;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
+import jakarta.transaction.Transactional;
+
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -102,17 +102,28 @@ public class ConsumerServiceImpl implements ConsumerService {
 
     @Override
     public ConsumerResult createConsumer(CreateConsumerParam param) {
+        // Get current user from SecurityContext
+        String developerId = contextHolder.getUser();
+        return doCreateConsumer(param, developerId);
+    }
+
+    @Override
+    public void createConsumerInner(CreateConsumerParam param, String developerId) {
+        doCreateConsumer(param, developerId);
+    }
+
+    private ConsumerResult doCreateConsumer(CreateConsumerParam param, String developerId) {
         PortalResult portal = portalService.getPortal(contextHolder.getPortal());
 
         String consumerId = IdGenerator.genConsumerId();
         Consumer consumer = param.convertTo();
         consumer.setConsumerId(consumerId);
-        consumer.setDeveloperId(contextHolder.getUser());
+        consumer.setDeveloperId(developerId);
         consumer.setPortalId(portal.getPortalId());
 
         consumerRepository.save(consumer);
 
-        // 初始化Credential
+        // Initialize credential
         ConsumerCredential credential = initCredential(consumerId);
         credentialRepository.save(credential);
 
@@ -136,7 +147,7 @@ public class ConsumerServiceImpl implements ConsumerService {
     @Override
     public void deleteConsumer(String consumerId) {
         Consumer consumer = contextHolder.isDeveloper() ? findDevConsumer(consumerId) : findConsumer(consumerId);
-        
+
         // 1. 先解除所有产品的授权
         List<ProductSubscription> subscriptions = subscriptionRepository.findAllByConsumerId(consumerId);
         for (ProductSubscription subscription : subscriptions) {
@@ -149,19 +160,19 @@ public class ConsumerServiceImpl implements ConsumerService {
                         ConsumerRef consumerRef = matchConsumerRef(consumerId, gatewayConfig);
                         if (consumerRef != null) {
                             gatewayService.revokeConsumerAuthorization(
-                                productRef.getGatewayId(), 
-                                consumerRef.getGwConsumerId(), 
-                                subscription.getConsumerAuthConfig()
+                                    productRef.getGatewayId(),
+                                    consumerRef.getGwConsumerId(),
+                                    subscription.getConsumerAuthConfig()
                             );
                         }
                     }
                 }
             } catch (Exception e) {
-                log.error("revoke consumer authorization error, consumerId: {}, productId: {}", 
-                    consumerId, subscription.getProductId(), e);
+                log.error("revoke consumer authorization error, consumerId: {}, productId: {}",
+                        consumerId, subscription.getProductId(), e);
             }
         }
-        
+
         // 2. 删除订阅记录
         subscriptionRepository.deleteAllByConsumerId(consumerId);
 
@@ -177,7 +188,7 @@ public class ConsumerServiceImpl implements ConsumerService {
                 log.error("deleteConsumer gatewayConsumer error, gwConsumerId: {}", consumerRef.getGwConsumerId(), e);
             }
         }
-        
+
         // 5. 删除ConsumerRef记录
         consumerRefRepository.deleteAll(consumerRefs);
 
@@ -514,19 +525,19 @@ public class ConsumerServiceImpl implements ConsumerService {
         // 检查是否在网关上有对应的Consumer
         ConsumerRef existingConsumerRef = matchConsumerRef(consumer.getConsumerId(), gatewayConfig);
         String gwConsumerId;
-        
+
         if (existingConsumerRef != null) {
             // 如果存在ConsumerRef记录，需要检查实际网关中是否还存在该消费者
             gwConsumerId = existingConsumerRef.getGwConsumerId();
-            
+
             // 检查实际网关中是否还存在该消费者
             if (!isConsumerExistsInGateway(gwConsumerId, gatewayConfig)) {
-                log.warn("网关中的消费者已被删除，需要重新创建: gwConsumerId={}, gatewayType={}", 
-                    gwConsumerId, gatewayConfig.getGatewayType());
-                
+                log.warn("网关中的消费者已被删除，需要重新创建: gwConsumerId={}, gatewayType={}",
+                        gwConsumerId, gatewayConfig.getGatewayType());
+
                 // 删除过期的ConsumerRef记录
                 consumerRefRepository.delete(existingConsumerRef);
-                
+
                 // 重新创建消费者
                 gwConsumerId = gatewayService.createConsumer(consumer, credential, gatewayConfig);
                 consumerRefRepository.save(ConsumerRef.builder()
@@ -558,8 +569,8 @@ public class ConsumerServiceImpl implements ConsumerService {
         try {
             return gatewayService.isConsumerExists(gwConsumerId, gatewayConfig);
         } catch (Exception e) {
-            log.warn("检查网关消费者存在性失败: gwConsumerId={}, gatewayType={}", 
-                gwConsumerId, gatewayConfig.getGatewayType(), e);
+            log.warn("检查网关消费者存在性失败: gwConsumerId={}, gatewayType={}",
+                    gwConsumerId, gatewayConfig.getGatewayType(), e);
             // 如果检查失败，默认认为存在，避免无谓的重新创建
             return true;
         }
@@ -613,5 +624,61 @@ public class ConsumerServiceImpl implements ConsumerService {
             }
         }
         return null;
+    }
+
+    @Override
+    public CredentialContext getDefaultCredential(String developerId) {
+        return consumerRepository
+                .findFirstByDeveloperId(developerId, Sort.by(Sort.Direction.ASC, "createAt"))
+                .flatMap(consumer -> credentialRepository.findByConsumerId(consumer.getConsumerId()))
+                .map(this::buildAuthInfo)
+                .orElseGet(() -> {
+                    log.debug("No credential found for developer: {}", developerId);
+                    return CredentialContext.builder().build();
+                });
+    }
+
+    /**
+     * Build authentication info from credential
+     * 
+     * Source types:
+     * - DEFAULT: Authorization: Bearer {apiKey}
+     * - Query: ?{key}={apiKey}  
+     * - Header (or others): {key}: {apiKey}
+     * 
+     * @param credential consumer credential
+     * @return authentication info (never null, but maps may be empty)
+     */
+    private CredentialContext buildAuthInfo(ConsumerCredential credential) {
+        Map<String, String> headers = new HashMap<>();
+        Map<String, String> queryParams = new HashMap<>();
+        
+        ApiKeyConfig config = credential.getApiKeyConfig();
+        
+        // Check if apiKey config exists and has credentials
+        if (config == null || config.getCredentials() == null || config.getCredentials().isEmpty()) {
+            log.debug("No API key configured for credential");
+            return CredentialContext.builder().build();
+        }
+        
+        // Use first credential
+        String apiKey = config.getCredentials().get(0).getApiKey();
+        String source = config.getSource();
+        String key = config.getKey();
+        
+        // Add to headers or queryParams based on source
+        if ("DEFAULT".equalsIgnoreCase(source)) {
+            headers.put("Authorization", "Bearer " + apiKey);
+        } else if ("Query".equalsIgnoreCase(source)) {
+            queryParams.put(key, apiKey);
+        } else {
+            // Header or other values
+            headers.put(key, apiKey);
+        }
+        
+        return CredentialContext.builder()
+                .headers(headers)
+                .queryParams(queryParams)
+                .build();
     }
 }

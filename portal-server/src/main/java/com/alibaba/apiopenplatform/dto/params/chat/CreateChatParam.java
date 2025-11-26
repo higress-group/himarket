@@ -5,7 +5,7 @@ import com.alibaba.apiopenplatform.entity.Chat;
 import com.alibaba.apiopenplatform.support.chat.attachment.ChatAttachmentConfig;
 import lombok.Data;
 
-import javax.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 
 @Data

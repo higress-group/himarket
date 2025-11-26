@@ -1,6 +1,5 @@
 package com.alibaba.apiopenplatform.service.impl;
 
-import cn.hutool.core.date.StopWatch;
 import cn.hutool.core.map.MapUtil;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.apiopenplatform.core.exception.BusinessException;
@@ -17,7 +16,7 @@ import org.springframework.http.MediaType;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Map;
@@ -65,16 +64,25 @@ public abstract class AbstractLlmService implements LlmService {
                 .exchangeToFlux(clientResponse -> {
                     // Set response headers which are from the gateway
                     HttpHeaders responseHeaders = clientResponse.headers().asHttpHeaders();
-                    responseHeaders.forEach((key, values) -> values.forEach(value -> response.addHeader(key, value)));
+
+                    // Skip Transfer-Encoding header to avoid duplicated headers
+                    responseHeaders.forEach((key, values) -> {
+                        if (key != null && !key.equalsIgnoreCase("transfer-encoding")) {
+                            values.forEach(value -> response.addHeader(key, value));
+                        }
+                    });
 
                     // Handle response body
                     return clientResponse.bodyToFlux(String.class)
                             .delayElements(Duration.ofMillis(100))
                             .handle((chunk, sink) -> {
-                                processStreamChunk(chunk, chatContent);
+                                // Record first token time
+                                chatContent.recordFirstPackageTime();
+
+                                String s = processStreamChunk(chunk, chatContent);
                                 // Only send the chunk if there is no error and unexpected content is empty
                                 if (chatContent.success()) {
-                                    sink.next(chunk);
+                                    sink.next(s);
                                 }
                             });
                 })
@@ -87,7 +95,6 @@ public abstract class AbstractLlmService implements LlmService {
                     }
                 })
                 .doOnComplete(() -> {
-                    chatContent.stop();
 
                     if (!chatContent.success()) {
                         sendError(emitter, chatContent.getUnexpectedContent().toString());
@@ -97,7 +104,6 @@ public abstract class AbstractLlmService implements LlmService {
                     resultHandler.accept(LlmInvokeResult.of(chatContent));
                 })
                 .doOnError(error -> {
-                    chatContent.stop();
                     // Handle the error
                     log.error("Model API call failed", error);
                     sendError(emitter, error.getMessage());
@@ -108,7 +114,7 @@ public abstract class AbstractLlmService implements LlmService {
         return emitter;
     }
 
-    protected abstract void processStreamChunk(String chunk, ChatContent chatContent);
+    protected abstract String processStreamChunk(String chunk, ChatContent chatContent);
 
     private void sendError(SseEmitter emitter, String message) {
         try {

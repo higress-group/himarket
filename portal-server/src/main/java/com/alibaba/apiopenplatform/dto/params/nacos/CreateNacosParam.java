@@ -24,7 +24,7 @@ import com.alibaba.apiopenplatform.entity.NacosInstance;
 
 import lombok.Data;
 
-import javax.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotBlank;
 
 /**
  * 创建Nacos实例参数

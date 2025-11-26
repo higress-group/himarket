@@ -22,8 +22,8 @@ package com.alibaba.apiopenplatform.dto.params.developer;
 import com.alibaba.apiopenplatform.dto.converter.InputConverter;
 import com.alibaba.apiopenplatform.entity.Developer;
 import lombok.Data;
-import javax.validation.constraints.Email;
-import javax.validation.constraints.Size;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.Size;
 
 /**
  * 开发者更新个人信息请求参数

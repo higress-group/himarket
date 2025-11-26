@@ -29,7 +29,7 @@ import com.alibaba.apiopenplatform.support.product.NacosRefConfig;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 
 @EqualsAndHashCode(callSuper = true)
 @Entity

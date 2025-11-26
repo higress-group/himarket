@@ -92,6 +92,11 @@ public class OpenAIChatStreamResponse {
 
     @Data
     public static class Usage {
+
+        @JsonProperty("first_package_time")
+        @Alias("first_package_time")
+        private Long firstPackageTime;
+
         /**
          * Tokens used for prompt
          */

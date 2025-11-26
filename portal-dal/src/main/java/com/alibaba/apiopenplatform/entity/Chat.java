@@ -8,7 +8,7 @@ import com.alibaba.apiopenplatform.support.enums.ChatStatus;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 import java.util.List;
 
 @Entity

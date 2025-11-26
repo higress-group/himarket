@@ -1,7 +1,6 @@
 package com.alibaba.apiopenplatform.support.chat;
 
 import cn.hutool.core.annotation.Alias;
-import cn.hutool.core.date.StopWatch;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 import lombok.Data;
@@ -16,6 +15,10 @@ public class ChatUsage {
     @JsonProperty("elapsed_time")
     @Alias("elapsed_time")
     private Long elapsedTime;
+
+    @JsonProperty("first_package_time")
+    @Alias("first_package_time")
+    private Long firstPackageTime;
 
     @JsonProperty("prompt_tokens")
     @Alias("prompt_tokens")

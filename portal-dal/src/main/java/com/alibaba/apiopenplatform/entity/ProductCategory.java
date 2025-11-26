@@ -19,7 +19,7 @@
 
 package com.alibaba.apiopenplatform.entity;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 
 import com.alibaba.apiopenplatform.converter.IconConverter;
 import com.alibaba.apiopenplatform.support.product.Icon;

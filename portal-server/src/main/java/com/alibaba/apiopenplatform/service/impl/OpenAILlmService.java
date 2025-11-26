@@ -1,7 +1,6 @@
 package com.alibaba.apiopenplatform.service.impl;
 
 import cn.hutool.core.collection.CollUtil;
-import cn.hutool.core.date.StopWatch;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.apiopenplatform.dto.params.chat.ChatContent;
 import com.alibaba.apiopenplatform.dto.result.httpapi.DomainResult;
@@ -12,11 +11,15 @@ import com.alibaba.apiopenplatform.dto.result.chat.LlmChatRequest;
 import com.alibaba.apiopenplatform.dto.params.chat.ChatRequestBody;
 import com.alibaba.apiopenplatform.dto.result.chat.OpenAIChatStreamResponse;
 import cn.hutool.json.JSONUtil;
+import com.alibaba.apiopenplatform.dto.result.product.ProductResult;
 import com.alibaba.apiopenplatform.support.chat.ChatUsage;
 import com.alibaba.apiopenplatform.support.enums.AIProtocol;
+import com.alibaba.apiopenplatform.support.product.ModelFeature;
+import com.alibaba.apiopenplatform.support.product.ProductFeature;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Service;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -31,19 +34,23 @@ public class OpenAILlmService extends AbstractLlmService {
 
     @Override
     protected LlmChatRequest composeRequest(InvokeModelParam param) {
-        // 1. Get request URL
-        URL url = getUrl(param.getModelConfig());
+        // Not be null
+        ProductResult product = param.getProduct();
+        ModelConfigResult modelConfig = product.getModelConfig();
+        // 1. Get request URL (with query params)
+        URL url = getUrl(modelConfig, param.getQueryParams());
 
         // 2. Build headers
         Map<String, String> headers = param.getRequestHeaders() == null ? new HashMap<>() : param.getRequestHeaders();
 
         // 3. Build request body
+        ModelFeature modelFeature = getOrDefaultModelFeature(product);
         ChatRequestBody requestBody = ChatRequestBody.builder()
-                .model(extractModelName())
+                .model(modelFeature.getModel())
                 .messages(param.getChatMessages())
-                .stream(true)
-                .maxTokens(extractMaxTokens())
-                .temperature(extractTemperature())
+                .stream(modelFeature.getStreaming())
+                .maxTokens(modelFeature.getMaxTokens())
+                .temperature(modelFeature.getTemperature())
                 .build();
 
         return LlmChatRequest.builder()
@@ -56,10 +63,10 @@ public class OpenAILlmService extends AbstractLlmService {
     }
 
     @Override
-    public void processStreamChunk(String chunk, ChatContent chatContent) {
+    public String processStreamChunk(String chunk, ChatContent chatContent) {
         try {
             if ("[DONE]".equals(chunk)) {
-                return;
+                return chunk;
             }
 
             // OpenAI common response format
@@ -67,7 +74,6 @@ public class OpenAILlmService extends AbstractLlmService {
 
             // Answer from LLM
             String content = extractContentFromResponse(response);
-            log.info("zhaoh-test-content: {}", content);
 
             if (content != null) {
                 // Append to answer content and reset current content
@@ -78,14 +84,18 @@ public class OpenAILlmService extends AbstractLlmService {
             if (response.getUsage() != null) {
                 ChatUsage usage = response.toStandardUsage();
                 chatContent.setUsage(usage);
+                chatContent.stop();
+                response.getUsage().setFirstPackageTime(chatContent.getFirstPackageTime());
             }
 
+            return JSONUtil.toJsonStr(response);
         } catch (Exception e) {
             log.warn("Failed to process chunk: {}", chunk, e);
             // Caused by invalid JSON or other errors, append to unexpected content
             chatContent.getUnexpectedContent().append(chunk);
             chatContent.getAnswerContent().append(chunk);
         }
+        return chunk;
     }
 
     private String extractContentFromResponse(OpenAIChatStreamResponse response) {
@@ -97,19 +107,30 @@ public class OpenAILlmService extends AbstractLlmService {
                 .orElse(null);
     }
 
-    private String extractModelName() {
-        return "qwen-max";
+    private ModelFeature getOrDefaultModelFeature(ProductResult product) {
+        ModelFeature modelFeature = Optional.ofNullable(product)
+                .map(ProductResult::getFeature)
+                .map(ProductFeature::getModelFeature)
+                .orElse(new ModelFeature());
+
+        // Default values
+        if (modelFeature.getModel() == null) {
+            modelFeature.setModel("qwen-max");
+        }
+        if (modelFeature.getMaxTokens() == null) {
+            modelFeature.setMaxTokens(5000);
+        }
+        if (modelFeature.getTemperature() == null) {
+            modelFeature.setTemperature(0.9);
+        }
+        if (modelFeature.getStreaming() == null) {
+            modelFeature.setStreaming(true);
+        }
+
+        return modelFeature;
     }
 
-    private Integer extractMaxTokens() {
-        return 5000;
-    }
-
-    private Double extractTemperature() {
-        return 0.9;
-    }
-
-    private URL getUrl(ModelConfigResult modelConfig) {
+    private URL getUrl(ModelConfigResult modelConfig, Map<String, String> queryParams) {
         ModelConfigResult.ModelAPIConfig modelAPIConfig = modelConfig.getModelAPIConfig();
         if (modelAPIConfig == null) {
             return null;
@@ -144,7 +165,17 @@ public class OpenAILlmService extends AbstractLlmService {
                         domain.getProtocol().toLowerCase() : "http";
 
                 try {
-                    return new URL(protocol, domain.getDomain(), pathValue);
+                    // Build URL with query params
+                    UriComponentsBuilder builder = UriComponentsBuilder.newInstance()
+                            .scheme(protocol)
+                            .host(domain.getDomain())
+                            .path(pathValue);
+
+                    if (CollUtil.isNotEmpty(queryParams)) {
+                        queryParams.forEach(builder::queryParam);
+                    }
+
+                    return new URL(builder.build().toUriString());
                 } catch (MalformedURLException e) {
                     throw new RuntimeException(e);
                 }

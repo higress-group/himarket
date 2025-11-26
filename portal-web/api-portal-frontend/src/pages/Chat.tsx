@@ -225,7 +225,7 @@ function Chat() {
 
               setIsLoading(false); // 完成loading
             },
-            onError: (error) => {
+            onError: () => {
               // 不再移除消息，而是更新为错误状态
               setMessages(prev => prev.map(msg =>
                 msg.id === assistantMessageId
@@ -407,7 +407,7 @@ function Chat() {
 
               setIsLoading(false);
             },
-            onError: (error) => {
+            onError: () => {
               // 更新消息为错误状态，而不是只显示 toast
               setMessages(prev => prev.map(msg =>
                 msg.id === messageId
