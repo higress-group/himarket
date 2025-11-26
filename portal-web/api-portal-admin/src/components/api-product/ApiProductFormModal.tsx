@@ -61,16 +61,22 @@ export default function ApiProductFormModal({
     fetchProductCategories();
     
     if (visible && isEditMode && initialData && initialData.name) {
-      setTimeout(() => {
-        // 1. 先设置所有字段
-        form.setFieldsValue({
-          name: initialData.name,
-          description: initialData.description,
-          type: initialData.type,
-          autoApprove: initialData.autoApprove,
-          feature: initialData.feature,
-        });
-      }, 100);
+      // 先设置基本字段
+      form.setFieldsValue({
+        name: initialData.name,
+        description: initialData.description,
+        type: initialData.type,
+        autoApprove: initialData.autoApprove,
+      });
+      
+      // 延迟设置 feature，确保 Collapse 已展开
+      if (initialData.feature) {
+        setTimeout(() => {
+          form.setFieldsValue({
+            feature: initialData.feature,
+          });
+        }, 300);
+      }
 
       // 2. 处理 icon 字段
       if (initialData.icon) {
@@ -500,7 +506,7 @@ export default function ApiProductFormModal({
         )}
 
         {/* Feature Configuration */}
-        {productType === 'MODEL_API' && <ModelFeatureForm />}
+        {productType === 'MODEL_API' && <ModelFeatureForm initialExpanded={isEditMode && !!initialData?.feature} />}
       </Form>
     </Modal>
   );

@@ -189,10 +189,10 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
                 )}
               </div>
               {/* Feature 配置 */}
-              {apiProduct.feature?.modelFeature ? (
-                <>
-                  <span className="text-xs text-gray-600">模型参数:</span>
-                  <div className="col-span-2 text-xs text-gray-700 space-x-2">
+              <span className="text-xs text-gray-600">模型参数:</span>
+              <div className="col-span-2 text-xs text-gray-700 space-x-2">
+                {apiProduct.feature?.modelFeature ? (
+                  <>
                     {apiProduct.feature.modelFeature.model && (
                       <span>Model: <span className="text-gray-900">{apiProduct.feature.modelFeature.model}</span></span>
                     )}
@@ -202,14 +202,11 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
                     {apiProduct.feature.modelFeature.temperature !== null && apiProduct.feature.modelFeature.temperature !== undefined && (
                       <span>Temperature: <span className="text-gray-900">{apiProduct.feature.modelFeature.temperature}</span></span>
                     )}
-                  </div>
-                </>
-              ) : (
-                <>
-                  <span className="text-xs text-gray-600"></span>
-                  <span className="col-span-2 text-xs text-gray-700"></span>
-                </>
-              )}
+                  </>
+                ) : (
+                  <span className="text-gray-400">-</span>
+                )}
+              </div>
             </div>
 
             {apiProduct.description && (

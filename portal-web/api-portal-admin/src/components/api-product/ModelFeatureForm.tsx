@@ -1,8 +1,15 @@
+import { useState, useEffect } from "react";
 import { Form, Input, InputNumber, Collapse, Row, Col } from "antd";
 
 const { Panel } = Collapse;
 
-export default function ModelFeatureForm() {
+interface ModelFeatureFormProps {
+  initialExpanded?: boolean;
+}
+
+export default function ModelFeatureForm({ initialExpanded = false }: ModelFeatureFormProps) {
+  const [activeKey, setActiveKey] = useState<string[]>(initialExpanded ? ['1'] : []);
+  
   const tooltipStyle = {
     overlayInnerStyle: {
       backgroundColor: '#000',
@@ -10,8 +17,19 @@ export default function ModelFeatureForm() {
     }
   };
 
+  useEffect(() => {
+    if (initialExpanded) {
+      setActiveKey(['1']);
+    }
+  }, [initialExpanded]);
+
   return (
-    <Collapse ghost defaultActiveKey={[]} style={{ marginBottom: 16 }}>
+    <Collapse 
+      ghost 
+      activeKey={activeKey} 
+      onChange={(keys) => setActiveKey(keys as string[])}
+      style={{ marginBottom: 16 }}
+    >
       <Panel header="模型参数" key="1">
         <Row gutter={16}>
           <Col span={8}>
