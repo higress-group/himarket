@@ -98,10 +98,22 @@ const Login: React.FC = () => {
                   type="primary"
                   htmlType="submit"
                   loading={loading}
-                  className="w-full rounded-xl h-11"
+                  className="w-full rounded-xl h-10"
                   size="large"
                 >
                   {loading ? "登录中..." : "登录"}
+                </Button>
+              </Form.Item>
+              <Form.Item>
+                <Button
+                  loading={loading}
+                  className="w-full rounded-xl h-10"
+                  size="large"
+                  onClick={() => {
+                    navigate("/register")
+                  }}
+                >
+                  注册
                 </Button>
               </Form.Item>
             </Form>

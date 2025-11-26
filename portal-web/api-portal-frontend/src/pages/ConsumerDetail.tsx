@@ -18,6 +18,23 @@ function ConsumerDetailPage() {
   const [consumer, setConsumer] = useState<IConsumer>();
   const [subscriptions, setSubscriptions] = useState<ISubscription[]>([]);
   const [activeTab, setActiveTab] = useState('basic');
+  const [refreshIndex, setRefreshIndex] = useState(0);
+
+  const fetchSubscriptions = async (consumerId: string) => {
+    setSubscriptionsLoading(true);
+    try {
+      const response = await APIs.getConsumerSubscriptions(consumerId);
+      if (response?.code === "SUCCESS" && response?.data) {
+        // 从分页数据中提取实际的订阅数组
+        const subscriptionsData = response.data.content || [];
+        setSubscriptions(subscriptionsData);
+      }
+    } catch (error) {
+      console.error('获取订阅列表失败:', error);
+    } finally {
+      setSubscriptionsLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!consumerId) return;
@@ -34,35 +51,16 @@ function ConsumerDetailPage() {
       }
     };
 
-    const fetchSubscriptions = async () => {
-      setSubscriptionsLoading(true);
-      try {
-        const response = await APIs.getConsumerSubscriptions(consumerId);
-        if (response?.code === "SUCCESS" && response?.data) {
-          // 从分页数据中提取实际的订阅数组
-          const subscriptionsData = response.data.content || [];
-          setSubscriptions(subscriptionsData);
-        }
-      } catch (error) {
-        console.error('获取订阅列表失败:', error);
-      } finally {
-        setSubscriptionsLoading(false);
-      }
-    };
-
-    const loadData = async () => {
-      try {
-        await Promise.all([
-          fetchConsumerDetail(),
-          fetchSubscriptions()
-        ]);
-      } finally {
-        // 不设置loading状态，避免闪烁
-      }
-    };
-
-    loadData();
+    fetchConsumerDetail();
   }, [consumerId]);
+
+  useEffect(() => {
+    if (consumerId) {
+      fetchSubscriptions(consumerId);
+    }
+  }, [consumerId, refreshIndex]);
+
+
 
   if (error) {
     return (
@@ -109,6 +107,7 @@ function ConsumerDetailPage() {
 
               <Tabs.TabPane tab="订阅列表" key="authorization">
                 <SubscriptionManager
+                  onRefresh={() => setRefreshIndex(v => v + 1)}
                   consumerId={consumerId!}
                   subscriptions={subscriptions}
                   onSubscriptionsChange={async (searchParams) => {

@@ -376,7 +376,11 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
                           {currentSource === 'Default' ? 'Authorization: Bearer <token>' : `${currentSource}：${currentKey}`}
                         </Text>
                       </div>
-                      <Button className="text-colorPrimary ml-2" type="text" size="small" icon={<EditOutlined />} onClick={openSourceModal}>
+                      <Button
+                        className="text-colorPrimary hover:text-colorPrimarySecondary ml-2"
+                        size="small" type="text" icon={<EditOutlined />}
+                        onClick={openSourceModal}
+                      >
                         编辑
                       </Button>
                     </div>
