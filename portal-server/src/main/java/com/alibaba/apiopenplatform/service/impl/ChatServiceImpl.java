@@ -61,6 +61,8 @@ public class ChatServiceImpl implements ChatService {
     private final ProductService productService;
 
     private final GatewayService gatewayService;
+    
+    private final TalkSearchService talkSearchService;
 
     private final ConsumerService consumerService;
 
@@ -79,6 +81,8 @@ public class ChatServiceImpl implements ChatService {
         List<ChatMessage> historyMessages = buildHistoryMessages(param);
 
         List<ChatMessage> chatMessages = mergeAndTruncateMessages(currentMessage, historyMessages);
+        
+        chatMessages = talkSearchService.buildSearchMessages(chatMessages, chat, param.getSearchType());
 
         InvokeModelParam invokeModelParam = buildInvokeModelParam(param, chatMessages, chat);
 
