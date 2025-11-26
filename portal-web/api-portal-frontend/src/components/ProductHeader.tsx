@@ -2,9 +2,10 @@ import React, { useState, useEffect } from "react";
 import { Typography, Button, Modal, Select, message, Popconfirm, Input, Pagination, Spin } from "antd";
 import { ApiOutlined, CheckCircleFilled, ClockCircleFilled, ExclamationCircleFilled, PlusOutlined, RobotOutlined, BulbOutlined } from "@ant-design/icons";
 import { useParams } from "react-router-dom";
-import { getConsumers, subscribeProduct, getProductSubscriptionStatus, unsubscribeProduct, getProductSubscriptions } from "../lib/api";
+import { getConsumers, subscribeProduct, unsubscribeProduct, getProductSubscriptions } from "../lib/api";
 import type { Consumer } from "../types/consumer";
-import type { McpConfig, ProductIcon } from "../types";
+import type { IMCPConfig, IProductIcon } from "../lib/apis/typing";
+import APIs, { getProductSubscriptionStatus, type ISubscription } from "../lib/apis";
 
 const { Title, Paragraph } = Typography;
 const { Search } = Input;
@@ -12,15 +13,17 @@ const { Search } = Input;
 interface ProductHeaderProps {
   name: string;
   description: string;
-  icon?: ProductIcon | null;
+  icon?: IProductIcon;
   defaultIcon?: string;
-  mcpConfig?: McpConfig | null;
+  mcpConfig?: IMCPConfig;
   updatedAt?: string;
   productType?: 'REST_API' | 'MCP_SERVER' | 'AGENT_API' | 'MODEL_API';
 }
 
+type UnwrapPromise<T> = T extends Promise<infer U> ? U : T;
+
 // 处理产品图标的函数
-const getIconUrl = (icon?: ProductIcon | null, defaultIcon?: string): string => {
+const getIconUrl = (icon?: IProductIcon, defaultIcon?: string): string => {
   const fallback = defaultIcon || "/logo.svg";
   
   if (!icon) {
@@ -69,21 +72,12 @@ export const ProductHeader: React.FC<ProductHeaderProps> = ({
   const [imageLoadFailed, setImageLoadFailed] = useState(false);
 
   // 订阅状态相关的state
-  const [subscriptionStatus, setSubscriptionStatus] = useState<{
-    hasSubscription: boolean;
-    subscribedConsumers: any[];
-    allConsumers: any[];
-    fullSubscriptionData?: {
-      content: any[];
-      totalElements: number;
-      totalPages: number;
-    };
-  } | null>(null);
+  const [subscriptionStatus, setSubscriptionStatus] = useState<UnwrapPromise<ReturnType<typeof getProductSubscriptionStatus>>>();
   const [subscriptionLoading, setSubscriptionLoading] = useState(false);
   
   // 订阅详情分页数据（用于管理弹窗）
   const [subscriptionDetails, setSubscriptionDetails] = useState<{
-    content: any[];
+    content: ISubscription[];
     totalElements: number;
     totalPages: number;
   }>({ content: [], totalElements: 0, totalPages: 0 });
@@ -104,7 +98,7 @@ export const ProductHeader: React.FC<ProductHeaderProps> = ({
     
     setSubscriptionLoading(true);
     try {
-      const status = await getProductSubscriptionStatus(productId);
+      const status = await APIs.getProductSubscriptionStatus(productId);
       setSubscriptionStatus(status);
     } catch (error) {
       console.error('获取订阅状态失败:', error);
@@ -151,6 +145,7 @@ export const ProductHeader: React.FC<ProductHeaderProps> = ({
         setConsumers(response.data.content || response.data);
       }
     } catch (error) {
+      console.log(error)
       // message.error('获取消费者列表失败');
     } finally {
       setConsumersLoading(false);

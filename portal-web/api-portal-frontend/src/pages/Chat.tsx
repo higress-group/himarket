@@ -4,17 +4,9 @@ import { message as antdMessage } from "antd";
 import { Layout } from "../components/Layout";
 import { Sidebar } from "../components/chat/Sidebar";
 import { ChatArea } from "../components/chat/ChatArea";
-import api, {
-  type Product,
-  createSession,
-  sendChatMessage,
-  getConversations,
-  getChatMessageStreamUrl,
-  getProducts,
-  type Conversation,
-} from "../lib/api";
 import { generateConversationId, generateQuestionId } from "../lib/uuid";
 import { handleSSEStream } from "../lib/sse";
+import APIs, { type IConversation, type IProductDetail } from "../lib/apis";
 
 interface MessageVersion {
   content: string;
@@ -47,9 +39,9 @@ function Chat() {
   const location = useLocation();
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<IProductDetail>();
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
-  const [useStream, _setUseStream] = useState(true); // 默认使用流式响应
+  const [useStream] = useState(true); // 默认使用流式响应
   // 记录每个 questionId 对应的问题内容，用于重新生成
   const [questionContentMap, setQuestionContentMap] = useState<Map<string, string>>(new Map());
   const [isLoading, setIsLoading] = useState(false); // 添加loading状态
@@ -57,7 +49,7 @@ function Chat() {
 
   // 从 location.state 接收选中的产品，或者加载默认第一个模型
   useEffect(() => {
-    const state = location.state as { selectedProduct?: Product } | null;
+    const state = location.state as { selectedProduct?: IProductDetail } | null;
     if (state?.selectedProduct) {
       setSelectedProduct(state.selectedProduct);
       // 清除 location.state，避免刷新后重复应用
@@ -66,7 +58,7 @@ function Chat() {
       // 如果没有选中的产品，自动加载并选择第一个模型
       const loadDefaultModel = async () => {
         try {
-          const response: any = await getProducts({
+          const response = await APIs.getProducts({
             type: "MODEL_API",
             page: 0,
             size: 1,
@@ -103,7 +95,7 @@ function Chat() {
       // 如果没有会话，先创建会话
       let sessionId = currentSessionId;
       if (!sessionId) {
-        const sessionResponse: any = await createSession({
+        const sessionResponse = await APIs.createSession({
           talkType: "MODEL",
           name: content.length > 20 ? content.substring(0, 20) + "..." : content, // 只在超过20个字符时添加省略号
           products: [selectedProduct.productId],
@@ -166,7 +158,7 @@ function Chat() {
           currentVersionIndex: 0, // 当前版本索引
         }]);
 
-        const streamUrl = getChatMessageStreamUrl();
+        const streamUrl = APIs.getChatMessageStreamUrl();
         const accessToken = localStorage.getItem('access_token');
 
         await handleSSEStream(
@@ -197,29 +189,29 @@ function Chat() {
                   : msg
               ));
             },
-            onComplete: (content) => {
+            onComplete: (content, _chatId, usage) => {
               const totalTime = Date.now() - startTime;
               const newVersion: MessageVersion = {
                 content: content,
                 firstTokenTime: firstTokenTime ? Math.round(firstTokenTime) : undefined,
-                totalTime: Math.round(totalTime),
-                inputTokens: Math.round(messagePayload.question.length * 1.5),
-                outputTokens: Math.round(content.length * 1.5),
+                totalTime: usage?.elapsed_time || Math.round(totalTime),
+                inputTokens: usage?.prompt_tokens,
+                outputTokens: usage?.completion_tokens,
               };
 
               setMessages(prev => prev.map(msg =>
                 msg.id === assistantMessageId
                   ? {
-                      ...msg,
-                      id: chatId || assistantMessageId,
-                      content: content,
-                      firstTokenTime: newVersion.firstTokenTime,
-                      totalTime: newVersion.totalTime,
-                      inputTokens: newVersion.inputTokens,
-                      outputTokens: newVersion.outputTokens,
-                      versions: [newVersion], // 添加到版本数组
-                      currentVersionIndex: 0,
-                    }
+                    ...msg,
+                    id: chatId || assistantMessageId,
+                    content: content,
+                    firstTokenTime: newVersion.firstTokenTime,
+                    totalTime: newVersion.totalTime,
+                    inputTokens: newVersion.inputTokens,
+                    outputTokens: newVersion.outputTokens,
+                    versions: [newVersion], // 添加到版本数组
+                    currentVersionIndex: 0,
+                  }
                   : msg
               ));
 
@@ -230,40 +222,17 @@ function Chat() {
               setMessages(prev => prev.map(msg =>
                 msg.id === assistantMessageId
                   ? {
-                      ...msg,
-                      content: '',
-                      error: true,
-                      errorMessage: '网络异常，请重试',
-                    }
+                    ...msg,
+                    content: '',
+                    error: true,
+                    errorMessage: '网络异常，请重试',
+                  }
                   : msg
               ));
               setIsLoading(false); // 错误时也要重置loading
             },
           }
         );
-      } else {
-        // 非流式响应处理
-        const chatResponse: any = await sendChatMessage(messagePayload);
-
-        // 处理响应
-        if (chatResponse.success && chatResponse.answer) {
-          const assistantMessage: Message = {
-            id: chatResponse.chatId || Date.now().toString(),
-            role: "assistant",
-            content: chatResponse.answer,
-            timestamp: new Date(),
-            firstTokenTime: Math.round(Math.random() * 500), // TODO: 从响应中获取
-            totalTime: Math.round(Date.now() - startTime),
-            inputTokens: Math.round(content.length * 1.5), // TODO: 从响应中获取
-            outputTokens: Math.round(chatResponse.answer.length * 1.5), // TODO: 从响应中获取
-          };
-          setMessages(prev => [...prev, assistantMessage]);
-
-          setIsLoading(false); // 完成loading
-        } else {
-          setIsLoading(false); // 失败时也要重置
-          throw new Error("获取回复失败");
-        }
       }
     } catch (error) {
       console.error("Failed to send message:", error);
@@ -280,11 +249,11 @@ function Chat() {
           return prev.map((msg, idx) =>
             idx === prev.length - 1
               ? {
-                  ...msg,
-                  content: '',
-                  error: true,
-                  errorMessage: '网络异常，请重试',
-                }
+                ...msg,
+                content: '',
+                error: true,
+                errorMessage: '网络异常，请重试',
+              }
               : msg
           );
         }
@@ -350,7 +319,7 @@ function Chat() {
             : msg
         ));
 
-        const streamUrl = getChatMessageStreamUrl();
+        const streamUrl = APIs.getChatMessageStreamUrl();
         const accessToken = localStorage.getItem('access_token');
 
         await handleSSEStream(
@@ -377,14 +346,14 @@ function Chat() {
                   : msg
               ));
             },
-            onComplete: (content) => {
+            onComplete: (content, _chatId, usage) => {
               const totalTime = Date.now() - startTime;
               const newVersion: MessageVersion = {
                 content: content,
                 firstTokenTime: firstTokenTime ? Math.round(firstTokenTime) : undefined,
-                totalTime: Math.round(totalTime),
-                inputTokens: Math.round(questionContent.length * 1.5),
-                outputTokens: Math.round(content.length * 1.5),
+                totalTime: usage?.elapsed_time || Math.round(totalTime),
+                inputTokens: usage?.prompt_tokens,
+                outputTokens: usage?.completion_tokens,
               };
 
               setMessages(prev => prev.map(msg => {
@@ -412,11 +381,11 @@ function Chat() {
               setMessages(prev => prev.map(msg =>
                 msg.id === messageId
                   ? {
-                      ...msg,
-                      content: '',
-                      error: true,
-                      errorMessage: '重新生成失败，请重试',
-                    }
+                    ...msg,
+                    content: '',
+                    error: true,
+                    errorMessage: '重新生成失败，请重试',
+                  }
                   : msg
               ));
               setIsLoading(false);
@@ -430,11 +399,11 @@ function Chat() {
       setMessages(prev => prev.map(msg =>
         msg.id === messageId && !msg.error // 只在还不是错误状态时更新
           ? {
-              ...msg,
-              content: '',
-              error: true,
-              errorMessage: '重新生成失败，请重试',
-            }
+            ...msg,
+            content: '',
+            error: true,
+            errorMessage: '重新生成失败，请重试',
+          }
           : msg
       ));
       setIsLoading(false);
@@ -478,7 +447,7 @@ function Chat() {
     setQuestionContentMap(new Map()); // 清空问题内容映射
   };
 
-  const handleSelectProduct = (product: Product) => {
+  const handleSelectProduct = (product: IProductDetail) => {
     setSelectedProduct(product);
   };
 
@@ -497,8 +466,7 @@ function Chat() {
       if (productIds && productIds.length > 0) {
         try {
           // 加载第一个产品作为选中产品（TODO: 支持多模型对比）
-          const productResponse: any = await api.get(`/products/${productIds[0]}`);
-          console.log('Product response:', productResponse);
+          const productResponse = await APIs.getProduct({ id: productIds[0] });
           if (productResponse.code === "SUCCESS" && productResponse.data) {
             setSelectedProduct(productResponse.data);
           } else {
@@ -514,10 +482,10 @@ function Chat() {
         antdMessage.warning("该会话没有关联的模型，请先选择模型");
       }
 
-      const response: any = await getConversations(sessionId);
+      const response = await APIs.getConversations(sessionId);
 
       if (response.code === "SUCCESS" && response.data) {
-        const conversations: Conversation[] = response.data;
+        const conversations: IConversation[] = response.data;
 
         // 将会话记录转换为消息列表
         const allMessages: Message[] = [];
@@ -593,6 +561,8 @@ function Chat() {
     }
   };
 
+  console.log(questionContentMap, 'asd...0')
+  console.log(messages, 'asd...1')
   return (
     <Layout>
       <div className="flex h-[calc(100vh-96px)] bg-transparent">
@@ -603,6 +573,7 @@ function Chat() {
           refreshTrigger={sidebarRefreshTrigger}
         />
         <ChatArea
+          currentSessionId={currentSessionId ?? undefined}
           messages={messages}
           selectedProduct={selectedProduct}
           onSelectProduct={handleSelectProduct}

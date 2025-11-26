@@ -119,10 +119,10 @@ export function MultiModelSelector({ currentModel, excludeModels = [], onConfirm
                       isCurrentModel
                         ? "bg-colorPrimary/5 border-colorPrimary/30 cursor-default"
                         : isSelected
-                        ? "bg-colorPrimary/10 border-colorPrimary shadow-sm scale-[1.01]"
+                        ? "bg-colorPrimary/10 border-colorPrimary shadow-sm "
                         : isDisabled
                         ? "bg-gray-50 border-gray-200 cursor-not-allowed opacity-60"
-                        : "bg-white border-gray-200 hover:border-colorPrimary/50 hover:bg-colorPrimaryBgHover cursor-pointer hover:scale-[1.01] hover:shadow-sm"
+                        : "bg-white border-gray-200 hover:border-colorPrimary/50 hover:bg-colorPrimaryBgHover cursor-pointer hover:shadow-sm"
                     }
                   `}
                 >

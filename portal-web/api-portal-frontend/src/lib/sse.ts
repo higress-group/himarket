@@ -33,10 +33,17 @@ export interface OpenAIChunk {
   };
 }
 
+export interface SSEUsage {
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+  elapsed_time?: number; // 服务端计算的总耗时（毫秒）
+}
+
 export interface SSEOptions {
   onStart?: (chatId: string) => void;
   onChunk?: (content: string, chatId: string) => void;
-  onComplete?: (fullContent: string, chatId: string) => void;
+  onComplete?: (fullContent: string, chatId: string, usage?: SSEUsage) => void;
   onError?: (error: string, code?: string) => void;
 }
 
@@ -66,6 +73,7 @@ export async function handleSSEStream(
   let buffer = '';
   let chatId = '';
   let fullContent = '';
+  let usage: SSEUsage | undefined;
 
   try {
     while (true) {
@@ -87,7 +95,7 @@ export async function handleSSEStream(
           if (data === '[DONE]') {
             // 流结束，调用 onComplete
             if (fullContent && chatId) {
-              callbacks.onComplete?.(fullContent, chatId);
+              callbacks.onComplete?.(fullContent, chatId, usage);
             }
             break;
           }
@@ -116,7 +124,7 @@ export async function handleSSEStream(
 
                 case 'complete':
                   if (oldMessage.fullContent && oldMessage.chatId) {
-                    callbacks.onComplete?.(oldMessage.fullContent, oldMessage.chatId);
+                    callbacks.onComplete?.(oldMessage.fullContent, oldMessage.chatId, usage);
                   }
                   break;
 
@@ -144,8 +152,14 @@ export async function handleSSEStream(
                 }
               }
 
-              // 如果有 usage 信息，说明是完成事件（不需要处理，等待 [DONE]）
-              // finish_reason 为 "stop" 也表示这是最后一个内容块
+              // 提取 usage 信息（通常在最后一个 chunk 中）
+              if (chunk.usage) {
+                usage = {
+                  prompt_tokens: chunk.usage.prompt_tokens,
+                  completion_tokens: chunk.usage.completion_tokens,
+                  total_tokens: chunk.usage.total_tokens,
+                };
+              }
             }
           } catch (error) {
             console.error('Failed to parse SSE message:', error, 'Data:', data);

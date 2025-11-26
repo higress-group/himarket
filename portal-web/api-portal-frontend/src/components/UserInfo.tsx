@@ -105,7 +105,7 @@ export function UserInfo() {
     {
       key: 'user-info',
       label: (
-        <div className="px-2 py-2">
+        <div>
           <div className="font-semibold text-gray-900 text-base">{userInfo?.displayName}</div>
           {userInfo?.email && (
             <div className="text-xs text-gray-500 mt-0.5">{userInfo.email}</div>
@@ -165,7 +165,7 @@ export function UserInfo() {
           {userInfo.avatar ? (
             <Avatar src={userInfo.avatar} size="default" />
           ) : (
-            <Avatar size="default" className="bg-colorPrimary text-white font-medium">
+            <Avatar size="default" className="bg-colorPrimarySecondary text-mainTitle font-medium">
               {getInitials(userInfo.displayName)}
             </Avatar>
           )}
@@ -180,7 +180,7 @@ export function UserInfo() {
         navigate(`/login`);
       }}
       type="default"
-      className="rounded-full bg-colorPrimary text-white border-none hover:opacity-90"
+      className="rounded-full shadow-none bg-colorPrimary text-white border-none hover:opacity-90"
     >
       登录
     </Button>

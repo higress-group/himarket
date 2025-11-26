@@ -64,11 +64,11 @@ export const SwaggerUIWrapper: React.FC<SwaggerUIWrapperProps> = ({ apiSpec }) =
         displayOperationId={true}
         supportedSubmitMethods={['get', 'post', 'put', 'delete', 'patch', 'head', 'options']}
         deepLinking={false}
-        requestInterceptor={(request: any) => {
+        requestInterceptor={(request) => {
           console.log('Request:', request);
           return request;
         }}
-        responseInterceptor={(response: any) => {
+        responseInterceptor={(response) => {
           console.log('Response:', response);
           return response;
         }}

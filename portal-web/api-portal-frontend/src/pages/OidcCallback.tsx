@@ -20,7 +20,7 @@ const OidcCallback: React.FC = () => {
   const handleOidcCallbackProcess = async () => {
     try {
       setLoading(true)
-      
+
       // 1. 从URL提取参数
       const searchParams = new URLSearchParams(location.search)
       const code = searchParams.get('code')
@@ -58,7 +58,7 @@ const OidcCallback: React.FC = () => {
       navigate('/', { replace: true })
 
     } catch (error: any) {
-      
+
       let errorMessage = '登录失败，请重试'
       if (error.response?.status === 400) {
         errorMessage = '授权码无效或已过期'
@@ -67,10 +67,10 @@ const OidcCallback: React.FC = () => {
       } else if (error.message) {
         errorMessage = error.message
       }
-      
+
       message.error(errorMessage)
       navigate('/login', { replace: true })
-      
+
     } finally {
       setLoading(false)
     }

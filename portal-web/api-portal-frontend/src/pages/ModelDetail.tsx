@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import api from "../lib/api";
 import { Layout } from "../components/Layout";
+import { ProductHeader } from "../components/ProductHeader";
 import {
   Alert,
   Button,
@@ -14,15 +14,11 @@ import {
 import { CopyOutlined, BulbOutlined, ArrowLeftOutlined } from "@ant-design/icons";
 import ReactMarkdown from "react-markdown";
 import { ProductType } from "../types";
-import type {
-  Product,
-  ModelApiProduct,
-  ApiResponse,
-  ApiProductModelConfig,
-} from "../types";
 import remarkGfm from 'remark-gfm';
 import styles from './ModelDetail.module.css';
-import { DefaultModelIcon } from "../components/icon/defaultModelIcon";
+import type { IProductDetail } from "../lib/apis";
+import type { IModelConfig, IRoute } from "../lib/apis/typing";
+import APIs from "../lib/apis";
 
 const { Panel } = Collapse;
 
@@ -31,8 +27,8 @@ function ModelDetail() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [data, setData] = useState<Product | null>(null);
-  const [modelConfig, setModelConfig] = useState<ApiProductModelConfig | null>(null);
+  const [data, setData] = useState<IProductDetail>();
+  const [modelConfig, setModelConfig] = useState<IModelConfig>();
   const [selectedModelDomainIndex, setSelectedModelDomainIndex] = useState<number>(0);
 
   // 复制到剪贴板函数
@@ -54,13 +50,13 @@ function ModelDetail() {
       setLoading(true);
       setError("");
       try {
-        const response: ApiResponse<Product> = await api.get(`/products/${modelProductId}`);
+        const response = await APIs.getProduct({id: modelProductId});
         if (response.code === "SUCCESS" && response.data) {
           setData(response.data);
 
           // 处理Model配置
           if (response.data.type === ProductType.MODEL_API) {
-            const modelProduct = response.data as ModelApiProduct;
+            const modelProduct = response.data;
 
             if (modelProduct.modelConfig) {
               setModelConfig(modelProduct.modelConfig);
@@ -92,7 +88,7 @@ function ModelDetail() {
 
     modelConfig.modelAPIConfig.routes.forEach(route => {
       if (route.domains && route.domains.length > 0) {
-        route.domains.forEach((domain: any) => {
+        route.domains.forEach((domain) => {
           const key = `${domain.protocol}://${domain.domain}`
           domainsMap.set(key, domain)
         })
@@ -124,7 +120,7 @@ function ModelDetail() {
     }
   };
 
-  const getRouteDisplayText = (route: any, domainIndex: number = 0) => {
+  const getRouteDisplayText = (route: IRoute, domainIndex: number = 0) => {
     if (!route.match) return 'Unknown Route'
 
     const path = route.match.path?.value || '/'
@@ -160,7 +156,7 @@ function ModelDetail() {
     return routeText
   };
 
-  const getMethodsText = (route: any) => {
+  const getMethodsText = (route: IRoute) => {
     const methods = route.match?.methods
     if (!methods || methods.length === 0) {
       return 'ANY'
@@ -267,42 +263,13 @@ function ModelDetail() {
           <span>返回</span>
         </button>
 
-        {/* 产品头部信息 */}
-        <div className="flex items-center gap-6 mb-4">
-          {/* 图标 */}
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-colorPrimary/10 to-colorPrimary/5 flex items-center justify-center flex-shrink-0 overflow-hidden">
-            {data.icon ? (
-              data.icon.type === 'URL' ? (
-                <img src={data.icon.value} alt={data.name} className="w-full h-full object-cover" />
-              ) : (
-                <img src={`data:image/png;base64,${data.icon.value}`} alt={data.name} className="w-full h-full object-cover" />
-              )
-            ) : (
-              <DefaultModelIcon className="w-5 h-5" />
-            )}
-          </div>
-
-          {/* 名称和元信息 */}
-          <div className="flex-1 min-w-0">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">{data.name}</h1>
-            <div className="flex items-center gap-3 text-sm text-gray-500">
-              <span>更新时间: {new Date(data.updatedAt).toLocaleDateString('zh-CN')}</span>
-              {modelConfig?.modelAPIConfig?.aiProtocols && (
-                <>
-                  <span className="text-gray-300">|</span>
-                  <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-xs font-medium">
-                    {modelConfig.modelAPIConfig.aiProtocols[0]}
-                  </span>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* 描述 */}
-        <div className="text-gray-600 text-base leading-relaxed">
-          {data.description}
-        </div>
+        <ProductHeader
+          name={data.name}
+          description={data.description}
+          icon={data.icon}
+          updatedAt={data.updatedAt}
+          productType="MODEL_API"
+        />
       </div>
 
       {/* 主要内容区域 */}
@@ -428,7 +395,7 @@ function ModelDetail() {
                                     {/* 域名信息 */}
                                     <div>
                                       <div className="text-xs text-gray-500 mb-2">域名:</div>
-                                      {route.domains?.map((domain: any, domainIndex: number) => (
+                                      {route.domains?.map((domain, domainIndex: number) => (
                                         <div key={domainIndex} className="text-sm font-mono bg-gray-50 px-3 py-2 rounded-lg mb-1">
                                           {domain.protocol.toLowerCase()}://{domain.domain}
                                         </div>
@@ -456,7 +423,7 @@ function ModelDetail() {
                                       <div>
                                         <div className="text-xs text-gray-500 mb-2">请求头匹配:</div>
                                         <div className="space-y-1">
-                                          {route.match.headers.map((header: any, headerIndex: number) => (
+                                          {route.match.headers.map((header, headerIndex: number) => (
                                             <div key={headerIndex} className="text-sm font-mono bg-gray-50 px-3 py-2 rounded-lg">
                                               {header.name} {getMatchTypePrefix(header.type)} {header.value}
                                             </div>
@@ -470,7 +437,7 @@ function ModelDetail() {
                                       <div>
                                         <div className="text-xs text-gray-500 mb-2">查询参数匹配:</div>
                                         <div className="space-y-1">
-                                          {route.match.queryParams.map((param: any, paramIndex: number) => (
+                                          {route.match.queryParams.map((param, paramIndex: number) => (
                                             <div key={paramIndex} className="text-sm font-mono bg-gray-50 px-3 py-2 rounded-lg">
                                               {param.name} {getMatchTypePrefix(param.type)} {param.value}
                                             </div>
@@ -539,6 +506,7 @@ function ModelDetail() {
                                     await navigator.clipboard.writeText(curlCommand);
                                     message.success('Curl命令已复制到剪贴板');
                                   } catch (error) {
+                                    console.log(error)
                                     message.error('复制失败');
                                   }
                                 }

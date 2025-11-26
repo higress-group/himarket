@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import api from "../lib/api";
 import { Layout } from "../components/Layout";
+import { ProductHeader } from "../components/ProductHeader";
 import {
   Alert,
   Button,
@@ -14,14 +14,10 @@ import {
 import { CopyOutlined, RobotOutlined, ArrowLeftOutlined } from "@ant-design/icons";
 import ReactMarkdown from "react-markdown";
 import { ProductType } from "../types";
-import type {
-  Product,
-  AgentApiProduct,
-  ApiResponse,
-  ApiProductAgentConfig,
-} from "../types";
 import remarkGfm from 'remark-gfm';
 import styles from './ModelDetail.module.css';
+import type { IAgentConfig } from "../lib/apis/typing";
+import APIs, { type IProductDetail } from "../lib/apis";
 
 const { Panel } = Collapse;
 
@@ -30,8 +26,8 @@ function AgentDetail() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [data, setData] = useState<Product | null>(null);
-  const [agentConfig, setAgentConfig] = useState<ApiProductAgentConfig | null>(null);
+  const [data, setData] = useState<IProductDetail>();
+  const [agentConfig, setAgentConfig] = useState<IAgentConfig>();
   const [selectedAgentDomainIndex, setSelectedAgentDomainIndex] = useState<number>(0);
 
   // 复制到剪贴板函数
@@ -53,13 +49,13 @@ function AgentDetail() {
       setLoading(true);
       setError("");
       try {
-        const response: ApiResponse<Product> = await api.get(`/products/${agentProductId}`);
+        const response = await APIs.getProduct({ id: agentProductId });
         if (response.code === "SUCCESS" && response.data) {
           setData(response.data);
 
           // 处理Agent配置
           if (response.data.type === ProductType.AGENT_API) {
-            const agentProduct = response.data as AgentApiProduct;
+            const agentProduct = response.data;
 
             if (agentProduct.agentConfig) {
               setAgentConfig(agentProduct.agentConfig);
@@ -106,18 +102,18 @@ function AgentDetail() {
   // 获取所有唯一域名
   const getAllUniqueDomains = () => {
     if (!agentConfig?.agentAPIConfig?.routes) return []
-    
+
     const domainsMap = new Map<string, { domain: string; protocol: string }>()
-    
+
     agentConfig.agentAPIConfig.routes.forEach(route => {
       if (route.domains && route.domains.length > 0) {
-        route.domains.forEach((domain: any) => {
+        route.domains.forEach((domain) => {
           const key = `${domain.protocol}://${domain.domain}`
           domainsMap.set(key, domain)
         })
       }
     })
-    
+
     return Array.from(domainsMap.values())
   }
 
@@ -139,12 +135,12 @@ function AgentDetail() {
     }
   }
 
-  const getRouteDisplayText = (route: any, domainIndex: number = 0) => {
+  const getRouteDisplayText = (route: IAgentConfig["agentAPIConfig"]["routes"][0], domainIndex: number = 0) => {
     if (!route.match) return 'Unknown Route'
-    
+
     const path = route.match.path?.value || '/'
     const pathType = route.match.path?.type
-    
+
     // 拼接域名信息 - 使用选择的域名索引
     let domainInfo = ''
     if (allUniqueDomains.length > 0 && allUniqueDomains.length > domainIndex) {
@@ -155,7 +151,7 @@ function AgentDetail() {
       const domain = route.domains[0]
       domainInfo = `${domain.protocol.toLowerCase()}://${domain.domain}`
     }
-    
+
     // 构建基本路由信息（匹配符号直接加到path后面）
     let pathWithSuffix = path
     if (pathType === 'Prefix') {
@@ -163,18 +159,18 @@ function AgentDetail() {
     } else if (pathType === 'RegularExpression') {
       pathWithSuffix = `${path}~`
     }
-    
+
     let routeText = `${domainInfo}${pathWithSuffix}`
-    
+
     // 添加描述信息
     if (route.description && route.description.trim()) {
       routeText += ` - ${route.description.trim()}`
     }
-    
+
     return routeText
   }
 
-  const getMethodsText = (route: any) => {
+  const getMethodsText = (route: IAgentConfig["agentAPIConfig"]["routes"][0]) => {
     if (!route.match?.methods || route.match.methods.length === 0) {
       return 'ANY'
     }
@@ -199,42 +195,13 @@ function AgentDetail() {
           <span>返回</span>
         </button>
 
-        {/* 产品头部信息 */}
-        <div className="flex items-center gap-6 mb-4">
-          {/* 图标 */}
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-colorPrimary/10 to-colorPrimary/5 flex items-center justify-center flex-shrink-0 overflow-hidden">
-            {data.icon ? (
-              data.icon.type === 'URL' ? (
-                <img src={data.icon.value} alt={data.name} className="w-full h-full object-cover" />
-              ) : (
-                <img src={`data:image/png;base64,${data.icon.value}`} alt={data.name} className="w-full h-full object-cover" />
-              )
-            ) : (
-              <RobotOutlined className="text-2xl text-colorPrimary" />
-            )}
-          </div>
-
-          {/* 名称和元信息 */}
-          <div className="flex-1 min-w-0">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">{data.name}</h1>
-            <div className="flex items-center gap-3 text-sm text-gray-500">
-              <span>更新时间: {new Date(data.updatedAt).toLocaleDateString('zh-CN')}</span>
-              {agentConfig?.agentAPIConfig?.agentProtocols && agentConfig.agentAPIConfig.agentProtocols.length > 0 && (
-                <>
-                  <span className="text-gray-300">|</span>
-                  <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-xs font-medium">
-                    {agentConfig.agentAPIConfig.agentProtocols[0]}
-                  </span>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* 描述 */}
-        <div className="text-gray-600 text-base leading-relaxed">
-          {data.description}
-        </div>
+        <ProductHeader
+          name={data.name}
+          description={data.description}
+          icon={data.icon}
+          updatedAt={data.updatedAt}
+          productType="AGENT_API"
+        />
       </div>
 
       {/* 主要内容区域 */}
@@ -360,7 +327,7 @@ function AgentDetail() {
                                     <div>
                                       <div className="text-xs text-gray-500 mb-2">域名:</div>
                                       <div className="space-y-1">
-                                        {route.domains?.map((domain: any, domainIndex: number) => (
+                                        {route.domains?.map((domain, domainIndex: number) => (
                                           <div key={domainIndex} className="text-sm font-mono text-gray-700 bg-gray-50 px-3 py-2 rounded-lg">
                                             {domain.protocol.toLowerCase()}://{domain.domain}
                                           </div>
@@ -387,7 +354,7 @@ function AgentDetail() {
                                       <div>
                                         <div className="text-xs text-gray-500 mb-2">请求头匹配:</div>
                                         <div className="space-y-1">
-                                          {route.match.headers.map((header: any, headerIndex: number) => (
+                                          {route.match.headers.map((header, headerIndex: number) => (
                                             <div key={headerIndex} className="text-sm font-mono bg-gray-50 px-3 py-2 rounded-lg">
                                               {header.name} {getMatchTypePrefix(header.type)} {header.value}
                                             </div>
@@ -401,7 +368,7 @@ function AgentDetail() {
                                       <div>
                                         <div className="text-xs text-gray-500 mb-2">查询参数匹配:</div>
                                         <div className="space-y-1">
-                                          {route.match.queryParams.map((param: any, paramIndex: number) => (
+                                          {route.match.queryParams.map((param, paramIndex: number) => (
                                             <div key={paramIndex} className="text-sm font-mono bg-gray-50 px-3 py-2 rounded-lg">
                                               {param.name} {getMatchTypePrefix(param.type)} {param.value}
                                             </div>

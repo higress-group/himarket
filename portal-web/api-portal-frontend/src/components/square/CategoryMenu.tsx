@@ -15,7 +15,7 @@ interface CategoryMenuProps {
 
 export function CategoryMenu({ categories, activeCategory, onSelectCategory, loading = false }: CategoryMenuProps) {
   return (
-    <div className="w-64 bg-white/40 backdrop-blur-xl rounded-lg flex flex-col overflow-hidden">
+    <div className="w-64 backdrop-blur-xl rounded-lg flex flex-col overflow-hidden">
       {loading ? (
         <div className="flex items-center justify-center py-8">
           <Spin />
@@ -29,12 +29,11 @@ export function CategoryMenu({ categories, activeCategory, onSelectCategory, loa
                 key={category.id}
                 onClick={() => onSelectCategory(category.id)}
                 className={`
-                  px-4 py-2.5 rounded-xl cursor-pointer
+                  px-4 py-2.5 rounded-lg cursor-pointer
                   transition-all duration-300 ease-in-out
-                  ${
-                    isActive
-                      ? "bg-colorPrimary text-white shadow-md"
-                      : "text-gray-700 hover:bg-colorPrimaryBgHover hover:text-colorPrimary"
+                  ${isActive
+                    ? "bg-colorPrimaryBgHover text-mainTitle shadow-md"
+                    : "text-gray-700 hover:bg-colorPrimaryBgHover text-mainTitle"
                   }
                 `}
               >

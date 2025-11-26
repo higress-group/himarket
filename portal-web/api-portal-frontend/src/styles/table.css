@@ -1,30 +1,33 @@
 /* Table 样式统一 - Glass-morphism 风格 */
 
-/* Table 容器样式 */
 .ant-table-wrapper {
-  border-radius: 12px;
-  overflow: hidden;
+  /* border-radius: 12px; */
+  /* overflow: hidden; */
 }
 
 /* Table 头部 */
-.ant-table-thead > tr > th {
+.ant-table-thead>tr>th {
   background: rgba(255, 255, 255, 0.5) !important;
   backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
+  border-bottom: 1px solid #e5e5e5 !important;
+  /* border-bottom: 0 !important; */
   font-weight: 600;
   color: #374151 !important;
   padding: 14px 16px !important;
 }
 
 /* Table 行 */
-.ant-table-tbody > tr > td {
-  border-bottom: 1px solid rgba(0, 0, 0, 0.04) !important;
+.ant-table-tbody>tr>td {
+  border-bottom: 1px solid #e5e5e5 !important;
   padding: 14px 16px !important;
-  background: transparent !important;
+}
+
+.ant-table-tbody>tr:last-child>td {
+  border-bottom: 0 !important;
 }
 
 /* Table 行 hover 效果 */
-.ant-table-tbody > tr:hover > td {
+.ant-table-tbody>tr:hover>td {
   background: rgba(255, 255, 255, 0.4) !important;
   backdrop-filter: blur(5px);
 }
@@ -39,9 +42,6 @@
 }
 
 /* 分页器样式 */
-.ant-pagination {
-  margin-top: 24px !important;
-}
 
 .ant-pagination .ant-pagination-item {
   border-radius: 8px !important;

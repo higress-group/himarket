@@ -1,9 +1,10 @@
 export const colors = {
   "colorPrimary": "#6366F1",
   "colorPrimaryBgHover": "#E0E7FF",
+  "colorPrimarySecondary": "#C7D2FE",
   "colorTextSecondaryCustom": "#A3A3A3",
   "subTitle": "#737373",
-  "mainTitle": "#40404"
+  "mainTitle": "#404040"
 }
 
 export default {

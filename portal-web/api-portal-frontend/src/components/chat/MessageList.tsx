@@ -70,13 +70,13 @@ export function MessageList({ messages, modelName = "AI Assistant", modelIcon, o
   return (
     <div className="mx-auto px-8 py-8">
       <div className="space-y-6">
-        {messages.map((msg) => (
-          <div key={msg.id}>
+        {messages.map((msg, idx) => (
+          <div key={msg.id + "-" + idx}>
             {msg.role === "user" ? (
               /* 用户消息 - 右对齐，无头像 */
               <div className="flex justify-end">
                 <div className="max-w-[80%]">
-                  <div className="bg-colorPrimary text-white px-4 py-3 rounded-2xl rounded-tr-sm">
+                  <div className="bg-colorPrimaryBgHover px-4 py-3 rounded-lg">
                     <div className="whitespace-pre-wrap leading-relaxed">
                       {msg.content}
                     </div>
@@ -96,7 +96,7 @@ export function MessageList({ messages, modelName = "AI Assistant", modelIcon, o
                   {/* 模型名称 */}
                   <div className="text-sm text-gray-500 mb-1.5">{modelName}</div>
 
-                  <div className="bg-white/80 backdrop-blur-sm px-4 py-3 rounded-2xl rounded-tl-sm border border-gray-100">
+                  <div className="bg-white/80 backdrop-blur-sm px-4 py-3 rounded-lg border border-gray-100">
                     {/* 如果是错误状态，显示错误提示 */}
                     {msg.error ? (
                       <div className="flex items-center gap-2 text-red-500">
@@ -105,7 +105,6 @@ export function MessageList({ messages, modelName = "AI Assistant", modelIcon, o
                     ) : msg.content === '' && isLoading ? (
                       /* 如果内容为空且正在加载，显示 loading */
                       <div className="flex items-center gap-2 text-gray-500">
-                        <span>正在思考</span>
                         <div className="flex items-center gap-1">
                           <span className="w-1.5 h-1.5 bg-colorPrimary rounded-full" style={{ animation: 'bounceStrong 1s infinite', animationDelay: '0ms' }}></span>
                           <span className="w-1.5 h-1.5 bg-colorPrimary rounded-full" style={{ animation: 'bounceStrong 1s infinite', animationDelay: '150ms' }}></span>
