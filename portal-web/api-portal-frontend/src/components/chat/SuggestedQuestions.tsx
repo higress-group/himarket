@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ReloadOutlined } from "@ant-design/icons";
+import TipIcon from "../icon/tip";
 
 // Mock 推荐问题数据
 const allQuestions = [
@@ -41,10 +42,10 @@ export function SuggestedQuestions({ onSelectQuestion }: SuggestedQuestionsProps
     <div>
       {/* 标题和刷新按钮 */}
       <div className="flex items-center gap-2 mb-4">
-        <h3 className="text-sm font-medium text-gray-600">推荐问题</h3>
+        <h3 className="text-sm font-medium text-[#737373]">推荐问题</h3>
         <button
           onClick={handleRefresh}
-          className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all duration-200"
+          className="p-1.5 text-[#737373] hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all duration-200"
           title="刷新推荐"
         >
           <ReloadOutlined className={`text-xs transition-transform duration-300 ${isRefreshing ? 'animate-spin' : ''}`} />
@@ -71,7 +72,10 @@ export function SuggestedQuestions({ onSelectQuestion }: SuggestedQuestionsProps
               animationDelay: `${index * 100}ms`,
             }}
           >
-            <p className="text-sm text-gray-700 leading-relaxed group-hover:text-colorPrimary transition-colors duration-300">{question}</p>
+            <p className="flex items-center gap-2 text-sm text-gray-700 leading-relaxed group-hover:text-colorPrimary transition-colors duration-300">
+              <TipIcon className="fill-colorPrimary" />
+              {question}
+            </p>
           </div>
         ))}
       </div>

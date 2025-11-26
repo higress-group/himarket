@@ -351,8 +351,9 @@ export const ProductHeader: React.FC<ProductHeaderProps> = ({
                 </div>
                 
                 {/* 管理按钮 */}
-                <Button 
-                  type="primary" 
+                <Button
+                  type="primary"
+                  className="rounded-xl"
                   onClick={showManageModal}
                 >
                   管理订阅
@@ -516,16 +517,17 @@ export const ProductHeader: React.FC<ProductHeaderProps> = ({
           <div className={`border-t pt-3 ${subscriptionDetails.totalElements > 0 ? 'mt-4' : 'mt-2'}`}>
             <div className="flex justify-end">
               {!isApplyingSubscription ? (
-                <Button 
-                  type="primary" 
+                <Button
+                  type="primary"
                   icon={<PlusOutlined />}
+                  className="rounded-xl"
                   onClick={startApplyingSubscription}
                 >
                   订阅
                 </Button>
               ) : (
                 <div className="w-full">
-                  <div className="bg-gray-50 p-4 rounded">
+                  <div className="bg-gray-50 p-4 rounded-xl">
                     <div className="mb-4">
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         选择消费者
@@ -559,11 +561,12 @@ export const ProductHeader: React.FC<ProductHeaderProps> = ({
                       </Select>
                     </div>
                     <div className="flex justify-end gap-2">
-                      <Button onClick={cancelApplyingSubscription}>
+                      <Button className="rounded-xl" onClick={cancelApplyingSubscription}>
                         取消
                       </Button>
-                      <Button 
+                      <Button
                         type="primary"
+                        className="rounded-xl"
                         loading={submitLoading}
                         disabled={!selectedConsumerId}
                         onClick={handleApplySubscription}

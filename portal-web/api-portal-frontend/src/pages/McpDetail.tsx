@@ -4,15 +4,13 @@ import api from "../lib/api";
 import { Layout } from "../components/Layout";
 import { ProductHeader } from "../components/ProductHeader";
 import {
-  Card,
   Alert,
   Button,
   message,
   Tabs,
-  Row,
-  Col,
   Collapse,
   Select,
+  Spin,
 } from "antd";
 import { CopyOutlined } from "@ant-design/icons";
 import ReactMarkdown from "react-markdown";
@@ -30,6 +28,7 @@ import 'react-markdown-editor-lite/lib/index.css'
 function McpDetail() {
   const { mcpProductId } = useParams();
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
   const [data, setData] = useState<Product | null>(null);
   const [mcpConfig, setMcpConfig] = useState<McpConfig | null>(null);
   const [parsedTools, setParsedTools] = useState<
@@ -199,6 +198,7 @@ function McpDetail() {
       if (!mcpProductId) {
         return;
       }
+      setLoading(true);
       setError("");
       try {
         const response: ApiResponse<Product> = await api.get(`/products/${mcpProductId}`);
@@ -229,6 +229,8 @@ function McpDetail() {
       } catch (error) {
         console.error("API请求失败:", error);
         setError("加载失败，请稍后重试");
+      } finally {
+        setLoading(false);
       }
     };
     fetchDetail();
@@ -280,19 +282,31 @@ function McpDetail() {
     }
   };
 
+  if (loading) {
+    return (
+      <Layout>
+        <div className="flex justify-center items-center h-screen">
+          <Spin size="large" tip="加载中..." />
+        </div>
+      </Layout>
+    );
+  }
 
   if (error) {
     return (
       <Layout>
-        <Alert message={error} type="error" showIcon className="my-8" />
+        <div className="p-8">
+          <Alert message="错误" description={error} type="error" showIcon />
+        </div>
       </Layout>
     );
   }
+
   if (!data) {
     return (
       <Layout>
-        <div className="flex justify-center items-center h-64">
-          <div>Loading...</div>
+        <div className="flex justify-center items-center h-screen">
+          <Spin size="large" tip="加载中..." />
         </div>
       </Layout>
     );
@@ -305,7 +319,8 @@ function McpDetail() {
 
   return (
     <Layout>
-      <div className="mb-6">
+      {/* 头部 */}
+      <div className="mb-8">
         <ProductHeader
           name={name}
           description={description}
@@ -315,16 +330,16 @@ function McpDetail() {
           updatedAt={data.updatedAt}
           productType="MCP_SERVER"
         />
-        <hr className="border-gray-200 mt-4" />
       </div>
 
       {/* 主要内容区域 - 左右布局 */}
-      <Row gutter={24}>
+      <div className="flex gap-6">
         {/* 左侧内容 */}
-        <Col span={15}>
-          <Card className="mb-6 rounded-lg border-gray-200">
+        <div className="flex-1">
+          <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-6">
             <Tabs
               defaultActiveKey="overview"
+              className="model-detail-tabs"
               items={[
                 {
                   key: "overview",
@@ -555,15 +570,14 @@ function McpDetail() {
                 },
               ]}
             />
-          </Card>
-        </Col>
+          </div>
+        </div>
 
         {/* 右侧连接指导 */}
-        <Col span={9}>
+        <div className="w-96">
           {mcpConfig && (
-            <Card className="mb-6 rounded-lg border-gray-200">
-              <div className="mb-4">
-                <h3 className="text-sm font-semibold mb-3">连接点配置</h3>
+            <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-6">
+              <h3 className="text-base font-semibold mb-4 text-gray-900">连接点配置</h3>
 
                 {/* 域名选择器 */}
                 {mcpConfig?.mcpServerConfig?.domains && mcpConfig.mcpServerConfig.domains.length > 0 && (
@@ -670,11 +684,10 @@ function McpDetail() {
                     return tabs;
                   })()}
                 />
-              </div>
-            </Card>
+            </div>
           )}
-        </Col>
-      </Row>
+        </div>
+      </div>
     </Layout>
   );
 }

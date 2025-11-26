@@ -46,14 +46,14 @@ export function ModelCard({ icon, name, description, company, releaseDate, onCli
       </div>
 
       {/* 中部：简介（固定两行） */}
-      <p className="text-sm text-gray-600 mb-4 line-clamp-2 leading-relaxed flex-1">
+      <p className="text-sm mb-4 line-clamp-2 leading-relaxed flex-1" style={{ color: '#A3A3A3' }}>
         {description}
       </p>
 
       {/* 底部：公司和发布日期 - 只有在有按钮时才在 hover 时淡出 */}
       <div className={`flex items-center justify-between text-xs transition-opacity duration-300 ${onTryNow ? 'group-hover:opacity-0' : ''}`}>
-        <span className="text-gray-500 truncate">{company}</span>
-        <span className="text-gray-400 ml-2 flex-shrink-0">{releaseDate}</span>
+        <span className="truncate" style={{ color: '#A3A3A3' }}>{company}</span>
+        <span className="ml-2 flex-shrink-0" style={{ color: '#A3A3A3' }}>{releaseDate}</span>
       </div>
 
       {/* 底部按钮组 - hover 时淡入 + 轻微上移 */}

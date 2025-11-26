@@ -236,7 +236,10 @@ export interface Product {
   enableConsumerAuth: boolean;
   type: string;
   document: string | null;
-  icon: any | null;
+  icon?: {
+    type: string;
+    value: string;
+  };
   categories: string[];
   autoApprove: boolean | null;
   createAt: string;
@@ -298,6 +301,11 @@ export interface AnswerResult {
   answerId: string;
   productId: string;
   content: string;
+  usage?: {
+    elapsed_time?: number;
+    prompt_tokens?: number;
+    completion_tokens?: number;
+  };
 }
 
 // 获取模型列表

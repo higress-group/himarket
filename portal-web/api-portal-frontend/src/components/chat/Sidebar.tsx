@@ -248,7 +248,7 @@ export function Sidebar({ currentSessionId, onNewChat, onSelectSession, refreshT
     return (
       <div className="mb-4">
         <div
-          className="flex items-center justify-between px-3 py-2 text-sm text-gray-600 cursor-pointer hover:bg-gray-50 rounded-lg transition-all duration-200 hover:scale-[1.02]"
+          className="flex items-center justify-between px-3 py-2 text-sm text-subTitle cursor-pointer hover:bg-gray-50 rounded-lg transition-all duration-200 hover:scale-[1.02]"
           onClick={() => toggleSection(sectionKey)}
         >
           <span className="font-medium">{title}</span>
@@ -274,10 +274,10 @@ export function Sidebar({ currentSessionId, onNewChat, onSelectSession, refreshT
                 className={`
                   px-3 py-2 rounded-lg text-sm
                   transition-all duration-200 ease-in-out
-                  hover:scale-[1.02] hover:shadow-sm
+                  hover:scale-[1.02] hover:shadow-sm text-mainTitle
                   ${currentSessionId === session.id
-                    ? "bg-gray-100 text-gray-900 font-medium"
-                    : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                    ? "bg-colorPrimaryBgHover font-medium"
+                    : "text-gray-600 hover:bg-colorPrimaryBgHover hover:text-gray-900"
                   }
                 `}
                 style={{
@@ -293,13 +293,13 @@ export function Sidebar({ currentSessionId, onNewChat, onSelectSession, refreshT
                       value={editingName}
                       onChange={(e) => setEditingName(e.target.value)}
                       onKeyDown={(e) => handleEditKeyDown(e, session.id)}
-                      onBlur={() => {
-                        // 失焦时如果名称没变则取消编辑
-                        if (editingName.trim() === originalName) {
+                      onBlur={(e) => {
+                        // 延迟执行，让按钮的点击事件有机会先执行
+                        setTimeout(() => {
                           handleCancelEdit();
-                        }
+                        }, 200);
                       }}
-                      className="flex-1 px-2 py-1 text-sm border border-colorPrimary rounded focus:outline-none focus:ring-1 focus:ring-colorPrimary"
+                      className="flex-1 max-w-[70%] px-2 py-1 text-sm border border-colorPrimary rounded focus:outline-none focus:ring-1 focus:ring-colorPrimary"
                       autoFocus
                     />
                     <button
@@ -311,10 +311,10 @@ export function Sidebar({ currentSessionId, onNewChat, onSelectSession, refreshT
                         e.stopPropagation();
                         handleSaveEdit(session.id);
                       }}
-                      className="p-1 text-green-600 hover:bg-green-50 rounded transition-colors"
+                      className="flex-shrink-0 p-1 text-green-600 hover:bg-green-50 rounded transition-colors"
                       title="保存"
                     >
-                      <CheckOutlined className="text-xs" />
+                      <CheckOutlined className="text-sm" />
                     </button>
                     <button
                       onMouseDown={(e) => {
@@ -325,10 +325,10 @@ export function Sidebar({ currentSessionId, onNewChat, onSelectSession, refreshT
                         e.stopPropagation();
                         handleCancelEdit();
                       }}
-                      className="p-1 text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                      className="flex-shrink-0 p-1 text-gray-600 hover:bg-gray-100 rounded transition-colors"
                       title="取消"
                     >
-                      <CloseOutlined className="text-xs" />
+                      <CloseOutlined className="text-sm" />
                     </button>
                   </div>
                 ) : (
@@ -359,7 +359,7 @@ export function Sidebar({ currentSessionId, onNewChat, onSelectSession, refreshT
                         className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-colorPrimary hover:bg-gray-200 rounded transition-all"
                         title="更多操作"
                       >
-                        <MoreOutlined className="text-xs" />
+                        <MoreOutlined className="text-base" />
                       </button>
                     </Dropdown>
                   </div>
@@ -380,17 +380,18 @@ export function Sidebar({ currentSessionId, onNewChat, onSelectSession, refreshT
         ${isCollapsed ? "w-16" : "w-64"}
       `}
     >
-      {/* 新增会话按钮 */}
+      {/* 新增话按钮 */}
       <div className="p-4">
         <button
           onClick={onNewChat}
           className={`
-            flex items-center bg-white border border-gray-200 rounded-lg
+            flex items-center bg-white rounded-lg
+            border-[4px] border-colorPrimaryBgHover/50
             transition-all duration-200 ease-in-out
-            hover:bg-gray-50 hover:shadow-md hover:scale-[1.02] active:scale-95
+            hover:bg-gray-50 hover:shadow-md hover:scale-[1.02] active:scale-95 text-nowrap overflow-hidden
             ${isCollapsed ? "w-8 h-8 p-0 justify-center" : "w-full px-3 py-2 justify-between"}
           `}
-          title={isCollapsed ? "新增会话" : ""}
+          title={isCollapsed ? "新会话" : ""}
         >
           {isCollapsed ? (
             <PlusOutlined className="transition-transform duration-200 hover:rotate-90" />
@@ -398,17 +399,15 @@ export function Sidebar({ currentSessionId, onNewChat, onSelectSession, refreshT
             <>
               <div className="flex items-center gap-2">
                 <PlusOutlined className="transition-transform duration-200 text-sm" />
-                <span className="text-sm font-medium">新增会话</span>
+                <span className="text-sm font-medium">新会话</span>
               </div>
-              <div className="flex items-center gap-0.5 text-xs text-gray-400">
+              <div className="flex items-center gap-1 text-xs text-gray-400">
                 <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-sans">
                   {isMac ? '⇧' : 'Shift'}
                 </kbd>
-                <span className="text-gray-400">+</span>
                 <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-sans">
                   {isMac ? '⌘' : 'Ctrl'}
                 </kbd>
-                <span className="text-gray-400">+</span>
                 <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-sans">
                   O
                 </kbd>

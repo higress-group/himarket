@@ -1,7 +1,7 @@
 import { DefaultModelIcon } from "./defaultModelIcon";
 
 interface ProductIconRendererProps {
-  iconType: string;
+  iconType?: string;
   className?: string;
 }
 

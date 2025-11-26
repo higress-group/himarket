@@ -461,7 +461,16 @@ conversationId、questionId由前端生成，格式分别为conversation-{xxx}�
                             {
                                 "answerId": "answer-001",
                                 "productId": "gpt-4",
-                                "content": "AI的回答内容"
+                                "content": "AI的回答内容",
+                                "usage": {
+                                  "elapsed_time": 2999,
+                                  "prompt_tokens": 10,
+                                  "completion_tokens": 19,
+                                  "total_tokens": 29,
+                                  "prompt_tokens_details": {
+                                      "cached_tokens": 0
+                                  }
+                                }
                             }
                         ]
                     }
