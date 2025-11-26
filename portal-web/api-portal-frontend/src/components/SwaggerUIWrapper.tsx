@@ -11,7 +11,7 @@ interface SwaggerUIWrapperProps {
 
 export const SwaggerUIWrapper: React.FC<SwaggerUIWrapperProps> = ({ apiSpec }) => {
   // 直接解析原始规范，不进行重新构建
-  let swaggerSpec: any;
+  let swaggerSpec;
   
   try {
     // 尝试解析YAML格式
@@ -64,11 +64,11 @@ export const SwaggerUIWrapper: React.FC<SwaggerUIWrapperProps> = ({ apiSpec }) =
         displayOperationId={true}
         supportedSubmitMethods={['get', 'post', 'put', 'delete', 'patch', 'head', 'options']}
         deepLinking={false}
-        requestInterceptor={(request: any) => {
+        requestInterceptor={(request) => {
           console.log('Request:', request);
           return request;
         }}
-        responseInterceptor={(response: any) => {
+        responseInterceptor={(response) => {
           console.log('Response:', response);
           return response;
         }}

@@ -5,22 +5,18 @@ import { useNavigate } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import { CategoryMenu } from "../components/square/CategoryMenu";
 import { ModelCard } from "../components/square/ModelCard";
-import { getProducts, type Product, categoryApi, type Category } from "../lib/api";
+import APIs, { type ICategory } from "../lib/apis";
 import { getIconString } from "../lib/iconUtils";
+import type { IProductDetail } from "../lib/apis/product";
 
-function Square() {
+function Square(props: { activeType: string }) {
+  const { activeType } = props;
   const navigate = useNavigate();
-  const tabs = [
-    { label: "模型", value: "Model", key: "MODEL_API" },
-    { label: "MCP", value: "MCP", key: "MCP_SERVER" },
-    { label: "智能体", value: "Agent", key: "AGENT_API" },
-    { label: "API", value: "APIs", key: "REST_API" },
-  ];
 
-  const [activeTab, setActiveTab] = useState(tabs[0]);
+
   const [activeCategory, setActiveCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<IProductDetail[]>([]);
   const [categories, setCategories] = useState<Array<{ id: string; name: string; count: number }>>([]);
   const [loading, setLoading] = useState(false);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
@@ -30,11 +26,11 @@ function Square() {
     const fetchCategories = async () => {
       setCategoriesLoading(true);
       try {
-        const productType = activeTab.key;
-        const response: any = await categoryApi.getCategoriesByProductType(productType);
+        const productType = activeType
+        const response = await APIs.getCategoriesByProductType({ productType });
 
         if (response.code === "SUCCESS" && response.data?.content) {
-          const categoryList = response.data.content.map((cat: Category) => ({
+          const categoryList = response.data.content.map((cat: ICategory) => ({
             id: cat.categoryId,
             name: cat.name,
             count: 0, // 后端没有返回数量，先设为 0
@@ -58,23 +54,22 @@ function Square() {
     };
 
     fetchCategories();
-  }, [activeTab.value]);
+  }, [activeType]);
 
   // 获取产品列表
   useEffect(() => {
     const fetchProducts = async () => {
       setLoading(true);
       try {
-        const productType = activeTab.key;
+        const productType = activeType;
         const categoryIds = activeCategory === "all" ? undefined : [activeCategory];
 
-        const response: any = await getProducts({
+        const response = await APIs.getProducts({
           type: productType,
           categoryIds,
           page: 0,
           size: 100,
         });
-
         if (response.code === "SUCCESS" && response.data?.content) {
           setProducts(response.data.content);
         }
@@ -87,7 +82,7 @@ function Square() {
     };
 
     fetchProducts();
-  }, [activeTab.key, activeCategory]);
+  }, [activeType, activeCategory]);
 
   const filteredModels = products.filter((product) => {
     const matchesSearch =
@@ -98,12 +93,12 @@ function Square() {
     return matchesSearch;
   });
 
-  const handleTryNow = (product: Product) => {
+  const handleTryNow = (product: IProductDetail) => {
     // 跳转到 Chat 页面并传递选中的模型 ID
     navigate("/chat", { state: { selectedProduct: product } });
   };
 
-  const handleViewDetail = (product: Product) => {
+  const handleViewDetail = (product: IProductDetail) => {
     // 根据产品类型跳转到对应的详情页面
     switch (product.type) {
       case "MODEL_API":
@@ -137,34 +132,10 @@ function Square() {
         {/* 右侧内容区域 */}
         <div className="flex-1 flex flex-col">
           {/* 上半部分：Tab + 搜索框 */}
-          <div className="flex items-center justify-between mb-6">
-            {/* Tab 区域 */}
-            <div className="flex items-center gap-6 pl-4">
-              {tabs.map((tab) => {
-                const isActive = tab.value === activeTab.value;
-                return (
-                  <div
-                    key={tab.value}
-                    onClick={() => setActiveTab(tab)}
-                    className={`
-                      text-xl font-medium cursor-pointer
-                      transition-all duration-300 ease-in-out
-                      origin-left
-                      ${isActive
-                        ? "text-black scale-110"
-                        : "text-gray-400 hover:text-gray-600 hover:scale-105"
-                      }
-                    `}
-                  >
-                    {tab.label}
-                  </div>
-                );
-              })}
-            </div>
-
+          <div className="flex items-center justify-end mb-2 pl-4">
             {/* 搜索框 */}
             <Input
-              placeholder="搜索模型..."
+              placeholder="搜索..."
               prefix={<SearchOutlined className="text-gray-400" />}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -193,7 +164,7 @@ function Square() {
                     company={product.modelConfig?.modelAPIConfig?.aiProtocols?.[0] || "AI Model"}
                     releaseDate={new Date(product.createAt).toLocaleDateString('zh-CN')}
                     onClick={() => handleViewDetail(product)}
-                    onTryNow={activeTab.value === "Model" ? () => handleTryNow(product) : undefined}
+                    onTryNow={activeType === "MODEL_API" ? () => handleTryNow(product) : undefined}
                   />
                 ))}
                 {!loading && filteredModels.length === 0 && (

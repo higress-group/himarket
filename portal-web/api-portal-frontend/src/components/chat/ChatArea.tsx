@@ -6,9 +6,12 @@ import { MessageList } from "./MessageList";
 import { InputBox } from "./InputBox";
 import { SuggestedQuestions } from "./SuggestedQuestions";
 import { MultiModelSelector } from "./MultiModelSelector";
-import { type Product, getProducts, categoryApi, type Category } from "../../lib/api";
 import { getIconString } from "../../lib/iconUtils";
 import { ProductIconRenderer } from "../icon/ProductIconRenderer";
+import { generateConversationId, generateQuestionId } from "../../lib/uuid";
+import { handleSSEStream } from "../../lib/sse";
+import type { IProductDetail } from "../../lib/apis";
+import APIs from "../../lib/apis";
 
 // 模型数据接口（用于组件内部）
 interface ModelData {
@@ -47,15 +50,16 @@ interface Message {
 
 interface ChatAreaProps {
   messages: Message[];
-  selectedProduct: Product | null;
-  onSelectProduct: (product: Product) => void;
+  selectedProduct?: IProductDetail;
+  onSelectProduct: (product: IProductDetail) => void;
   onSendMessage: (content: string) => void;
   onRefreshMessage?: (messageId: string) => void;
   onChangeVersion?: (messageId: string, direction: 'prev' | 'next') => void;
   isLoading?: boolean;
+  currentSessionId?: string;
 }
 
-export function ChatArea({ messages, selectedProduct, onSelectProduct: _onSelectProduct, onSendMessage, onRefreshMessage, onChangeVersion, isLoading = false }: ChatAreaProps) {
+export function ChatArea({ currentSessionId, messages, selectedProduct, onSelectProduct: _onSelectProduct, onSendMessage, onRefreshMessage, onChangeVersion, isLoading = false }: ChatAreaProps) {
   const hasMessages = messages.length > 0;
   const [isCompareMode, setIsCompareMode] = useState(false);
   const [compareModels, setCompareModels] = useState<string[]>([]);
@@ -64,6 +68,8 @@ export function ChatArea({ messages, selectedProduct, onSelectProduct: _onSelect
   const [dropdownActiveCategory, setDropdownActiveCategory] = useState("对话模型");
   // 每个模型独立的消息列表
   const [compareMessages, setCompareMessages] = useState<Record<string, Message[]>>({});
+  // 每个模型独立的会话 ID
+  const [compareSessionIds, setCompareSessionIds] = useState<Record<string, string>>({});
   // 模型列表（从 API 获取）
   const [modelList, setModelList] = useState<ModelData[]>([]);
   const [modelsLoading, setModelsLoading] = useState(false);
@@ -83,7 +89,7 @@ export function ChatArea({ messages, selectedProduct, onSelectProduct: _onSelect
         productId: model.id,
         name: model.name,
         description: model.description,
-      } as Product);
+      } as IProductDetail);
     }
   };
 
@@ -92,10 +98,10 @@ export function ChatArea({ messages, selectedProduct, onSelectProduct: _onSelect
     const fetchCategories = async () => {
       setCategoriesLoading(true);
       try {
-        const response: any = await categoryApi.getCategoriesByProductType("MODEL_API");
+        const response = await APIs.getCategoriesByProductType({ productType: "MODEL_API" });
 
         if (response.code === "SUCCESS" && response.data?.content) {
-          const categoryList = response.data.content.map((cat: Category) => ({
+          const categoryList = response.data.content.map((cat) => ({
             id: cat.categoryId,
             name: cat.name,
           }));
@@ -125,14 +131,14 @@ export function ChatArea({ messages, selectedProduct, onSelectProduct: _onSelect
     const fetchProducts = async () => {
       setModelsLoading(true);
       try {
-        const response: any = await getProducts({
+        const response = await APIs.getProducts({
           type: "MODEL_API",
           page: 0,
           size: 100,
         });
 
         if (response.code === "SUCCESS" && response.data?.content) {
-          const products: Product[] = response.data.content;
+          const products: IProductDetail[] = response.data.content;
 
           // 转换为 ModelData 格式
           const models: ModelData[] = products.map(product => ({
@@ -141,7 +147,7 @@ export function ChatArea({ messages, selectedProduct, onSelectProduct: _onSelect
             description: product.description,
             category: product.modelConfig?.modelAPIConfig?.modelCategory || "对话模型",
             icon: getIconString(product.icon), // 使用产品的 icon 字段
-            productCategories: product.categories || [], // 添加产品分类
+            productCategories: product.categories.map(cat => cat.categoryId) || [], // 添加产品分类
           }));
 
           setModelList(models);
@@ -197,11 +203,17 @@ export function ChatArea({ messages, selectedProduct, onSelectProduct: _onSelect
       setIsCompareMode(false);
       setCompareModels([]);
       setCompareMessages({});
+      setCompareSessionIds({}); // 清空所有会话ID
     } else {
-      // 删除该模型的消息
+      // 删除该模型的消息和会话ID
       const newCompareMessages = { ...compareMessages };
       delete newCompareMessages[modelId];
       setCompareMessages(newCompareMessages);
+
+      const newSessionIds = { ...compareSessionIds };
+      delete newSessionIds[modelId];
+      setCompareSessionIds(newSessionIds);
+
       setCompareModels(newModels);
     }
   };
@@ -213,9 +225,26 @@ export function ChatArea({ messages, selectedProduct, onSelectProduct: _onSelect
 
   const handleSwitchModel = (index: number, newModelId: string) => {
     // 切换指定位置的模型
+    const oldModelId = compareModels[index];
     const newModels = [...compareModels];
     newModels[index] = newModelId;
     setCompareModels(newModels);
+
+    // 复制旧模型的用户消息到新模型（保留对话上下文）
+    if (oldModelId && compareMessages[oldModelId]) {
+      const userMessages = compareMessages[oldModelId].filter(msg => msg.role === "user");
+      setCompareMessages(prev => ({
+        ...prev,
+        [newModelId]: userMessages
+      }));
+    }
+
+    // 移除旧模型的会话ID（新模型会创建新会话）
+    if (oldModelId) {
+      const newSessionIds = { ...compareSessionIds };
+      delete newSessionIds[oldModelId];
+      setCompareSessionIds(newSessionIds);
+    }
   };
 
   // 获取模型名称
@@ -230,7 +259,7 @@ export function ChatArea({ messages, selectedProduct, onSelectProduct: _onSelect
   };
 
   // 处理对比模式下的消息发送
-  const handleCompareSendMessage = (content: string) => {
+  const handleCompareSendMessage = async (content: string) => {
     const startTime = Date.now();
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -245,29 +274,130 @@ export function ChatArea({ messages, selectedProduct, onSelectProduct: _onSelect
       newCompareMessages[modelId] = [...(newCompareMessages[modelId] || []), userMessage];
     });
     setCompareMessages(newCompareMessages);
-
-    // 为每个模型模拟独立的 AI 响应
-    compareModels.forEach((modelId, index) => {
-      const firstTokenDelay = 200 + Math.random() * 300;
-      const totalDelay = 800 + Math.random() * 1200 + index * 200; // 稍微错开响应时间
-
-      setTimeout(() => {
-        const assistantMessage: Message = {
-          id: `${Date.now()}-${modelId}`,
-          role: "assistant",
-          content: `这是 ${getModelName(modelId)} 的模拟回复。在实际应用中，这里会显示来自该模型的真实响应内容。`,
-          timestamp: new Date(),
-          firstTokenTime: Math.round(firstTokenDelay),
-          totalTime: Math.round(Date.now() - startTime),
-          inputTokens: Math.round(content.length * 1.5),
-          outputTokens: Math.round(50 + Math.random() * 100),
+    const conversationId = generateConversationId();
+    const questionId = generateQuestionId();
+    let sessionId = currentSessionId;
+    if (!sessionId) {
+      // 获取或创建该模型的会话
+      const res = await APIs.createSession({
+        talkType: "MODEL",
+        name: content.length > 20 ? content.substring(0, 20) + "..." : content,
+        products: compareModels,
+      });
+      if (res.code === "SUCCESS") {
+        sessionId = res.data.sessionId;
+      } else {
+        throw new Error("创建会话失败");
+      }
+    }
+    const requests = compareModels.map(async (modelId) => {
+      try {
+        const messagePayload = {
+          productId: modelId,
+          sessionId,
+          conversationId,
+          questionId,
+          question: content,
+          stream: true,
+          needMemory: true,
         };
+
+        // 创建 loading 消息
+        const assistantMessageId = `${Date.now()}-${modelId}`;
+        let fullContent = '';
+        let chatId = '';
+        let firstTokenTime: number | undefined;
+
+        // 添加空的 AI 消息用于显示 loading
         setCompareMessages(prev => ({
           ...prev,
-          [modelId]: [...(prev[modelId] || []), assistantMessage],
+          [modelId]: [...(prev[modelId] || []), {
+            id: assistantMessageId,
+            role: "assistant" as const,
+            content: '',
+            timestamp: new Date(),
+          }]
         }));
-      }, totalDelay);
+
+        // 发送 SSE 请求
+        const streamUrl = APIs.getChatMessageStreamUrl();
+        const accessToken = localStorage.getItem('access_token');
+
+        await handleSSEStream(
+          streamUrl,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': accessToken ? `Bearer ${accessToken}` : '',
+            },
+            body: JSON.stringify(messagePayload),
+          },
+          {
+            onStart: (id) => {
+              chatId = id;
+            },
+            onChunk: (chunk) => {
+              fullContent += chunk;
+              // 第一个 chunk 到达，记录首字时间
+              if (fullContent === chunk && firstTokenTime === undefined) {
+                firstTokenTime = Date.now() - startTime;
+              }
+              // 更新消息内容
+              setCompareMessages(prev => ({
+                ...prev,
+                [modelId]: (prev[modelId] || []).map(msg =>
+                  msg.id === assistantMessageId
+                    ? { ...msg, content: fullContent }
+                    : msg
+                )
+              }));
+            },
+            onComplete: (content, _chatId, usage) => {
+              const totalTime = Date.now() - startTime;
+              setCompareMessages(prev => ({
+                ...prev,
+                [modelId]: (prev[modelId] || []).map(msg =>
+                  msg.id === assistantMessageId
+                    ? {
+                      ...msg,
+                      id: chatId || assistantMessageId,
+                      content: content,
+                      firstTokenTime: firstTokenTime ? Math.round(firstTokenTime) : undefined,
+                      totalTime: usage?.elapsed_time || Math.round(totalTime),
+                      inputTokens: usage?.prompt_tokens,
+                      outputTokens: usage?.completion_tokens,
+                    }
+                    : msg
+                )
+              }));
+            },
+            onError: (error) => {
+              console.error(`Model ${modelId} error:`, error);
+              setCompareMessages(prev => ({
+                ...prev,
+                [modelId]: (prev[modelId] || []).map(msg =>
+                  msg.id === assistantMessageId
+                    ? {
+                      ...msg,
+                      content: '',
+                      error: true,
+                      errorMessage: '网络异常，请重试',
+                    }
+                    : msg
+                )
+              }));
+            },
+          }
+        );
+      } catch (error) {
+        console.error(`Failed to send message to model ${modelId}:`, error);
+        antdMessage.error(`模型 ${getModelName(modelId)} 请求失败`);
+      }
     });
+
+    // 等待所有请求完成
+    await Promise.allSettled(requests);
   };
 
   // 渲染模型选择浮层（与 ModelSelector 保持一致）
@@ -332,10 +462,9 @@ export function ChatArea({ messages, selectedProduct, onSelectProduct: _onSelect
                   flex items-center gap-3
                   transition-all duration-200
                   hover:bg-gray-50 hover:scale-[1.01]
-                  ${
-                    model.id === currentModelId
-                      ? "bg-colorPrimary/10 text-colorPrimary"
-                      : "text-gray-700 hover:text-gray-900"
+                  ${model.id === currentModelId
+                    ? "bg-colorPrimary/10 text-colorPrimary"
+                    : "text-gray-700 hover:text-gray-900"
                   }
                 `}
               >
@@ -447,7 +576,6 @@ export function ChatArea({ messages, selectedProduct, onSelectProduct: _onSelect
                 <div className="flex-1 overflow-y-auto px-4 py-4">
                   {!(compareMessages[modelId]?.length > 0) ? (
                     <div className="flex items-center justify-center h-full text-gray-400 text-sm">
-                      等待输入...
                     </div>
                   ) : (
                     <MessageList

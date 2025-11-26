@@ -7,7 +7,10 @@ export function Header() {
   const location = useLocation();
 
   const tabs = [
-    { path: "/square", label: "API 广场" },
+    { path: "/model", label: "模型" },
+    { path: "/mcp", label: "MCP" },
+    { path: "/agent", label: "智能体" },
+    { path: "/api", label: "API" },
     { path: "/chat", label: "体验中心" },
   ];
 
@@ -25,7 +28,7 @@ export function Header() {
                 {/* LOGO区域 */}
                 <LogoIcon className="w-6 h-6" />
               </div>
-              <span className="text-xl font-bold text-gray-900">HiMarket</span>
+              <span className="text-xl text-gray-900">HiMarket</span>
             </Link>
             <div className="h-6 w-[1px] bg-gray-200 mx-5"></div>
             {/* Tab 区域 */}

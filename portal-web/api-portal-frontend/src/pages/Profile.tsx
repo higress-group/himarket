@@ -1,23 +1,16 @@
 import React, { useEffect, useState } from 'react'
 // import { useLocation } from 'react-router-dom'
 
-import api, { getOidcProviders, type IdpResult } from '../lib/api'
 import aliyunIcon from '../assets/aliyun.png';
 import githubIcon from '../assets/github.png';
 import googleIcon from '../assets/google.png';
-import {message} from "antd";
+import { message } from "antd";
+import APIs, { type IIdentity, type IIdpProvider } from '../lib/apis';
 
 const providerIcons: Record<string, string> = {
   aliyun: aliyunIcon,
   github: githubIcon,
   google: googleIcon,
-}
-
-
-interface Identity {
-  provider: string;
-  displayName: string;
-  rawInfoJson: string;
 }
 
 interface UserProfile {
@@ -27,7 +20,7 @@ interface UserProfile {
   provider?: string;
 }
 
-const parseUserProfile = (identity: Identity): UserProfile => {
+const parseUserProfile = (identity: IIdentity): UserProfile => {
   if (!identity) return {};
   let raw: Record<string, unknown> = {};
   try {
@@ -62,17 +55,17 @@ const parseUserProfile = (identity: Identity): UserProfile => {
 };
 
 const Profile: React.FC = () => {
-  const [providers, setProviders] = useState<IdpResult[]>([])
-  const [identities, setIdentities] = useState<Identity[]>([])
+  const [providers, setProviders] = useState<IIdpProvider[]>([])
+  const [identities, setIdentities] = useState<IIdentity[]>([])
 
   useEffect(() => {
     // 使用OidcController的接口获取OIDC提供商
-    getOidcProviders()
-      .then((response: any) => {
+    APIs.getOidcProviders()
+      .then((response) => {
         console.log('OIDC providers response:', response);
-        
+
         // 处理不同的响应格式
-        let providersData: IdpResult[];
+        let providersData: IIdpProvider[];
         if (Array.isArray(response)) {
           providersData = response;
         } else if (response && Array.isArray(response.data)) {
@@ -83,7 +76,7 @@ const Profile: React.FC = () => {
         } else {
           providersData = [];
         }
-        
+
         console.log('Processed providers data:', providersData);
         setProviders(providersData);
       })
@@ -94,10 +87,9 @@ const Profile: React.FC = () => {
   }, [])
 
   useEffect(() => {
-    api.post('/developers/list-identities')
-      .then((res: Identity[] | { data: Identity[] }) => {
-        if (Array.isArray(res)) setIdentities(res)
-        else setIdentities(res.data || [])
+    APIs.developersListIdentities()
+      .then((res) => {
+        setIdentities(res.data || [])
       })
       .catch(() => setIdentities([]))
   }, [])
@@ -107,7 +99,7 @@ const Profile: React.FC = () => {
     // 由于简化了OIDC流程，绑定功能需要单独实现
     // 暂时提示用户功能开发中
     message.info(`${provider} 账号绑定功能开发中，敬请期待`);
-    
+
     // 后续可以考虑以下实现方案：
     // 1. 为绑定功能创建专门的回调页面
     // 2. 通过URL参数区分登录和绑定模式

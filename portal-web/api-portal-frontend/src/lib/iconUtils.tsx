@@ -1,5 +1,5 @@
 import { DefaultModelIcon } from "../components/icon/defaultModelIcon";
-import type { ProductIcon } from "../types";
+import type { IProductIcon } from "./apis/typing";
 
 /**
  * 渲染产品图标
@@ -9,7 +9,7 @@ import type { ProductIcon } from "../types";
  * @returns React 元素
  */
 export function renderProductIcon(
-  icon: ProductIcon | null | undefined,
+  icon?: IProductIcon,
   alt: string = "icon",
   className: string = "w-full h-full object-cover"
 ): JSX.Element {
@@ -37,7 +37,7 @@ export function renderProductIcon(
  * @param icon - 产品图标对象
  * @returns 图标的字符串表示
  */
-export function getIconString(icon: ProductIcon | null | undefined): string {
+export function getIconString(icon?: IProductIcon): string {
   if (!icon || !icon.value) {
     return "default"; // 标记为使用默认图标
   }

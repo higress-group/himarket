@@ -4,34 +4,23 @@ import { Card, Alert, Row, Col, Tabs } from "antd";
 import { Layout } from "../components/Layout";
 import { ProductHeader } from "../components/ProductHeader";
 import { SwaggerUIWrapper } from "../components/SwaggerUIWrapper";
-import api from "../lib/api";
-import type { Product, ApiResponse } from "../types";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from 'remark-gfm';
 import 'react-markdown-editor-lite/lib/index.css';
 import * as yaml from 'js-yaml';
 import { Button, Typography, Space, Divider, message } from "antd";
 import { CopyOutlined, RocketOutlined, DownloadOutlined } from "@ant-design/icons";
+import type { IProductDetail } from "../lib/apis";
+import APIs from "../lib/apis";
 
 const { Title, Paragraph } = Typography;
 
-interface UpdatedProduct extends Omit<Product, 'apiSpec'> {
-  apiConfig?: {
-    spec: string;
-    meta: {
-      source: string;
-      type: string;
-    };
-  };
-  createAt: string;
-  enabled: boolean;
-}
 
 function ApiDetailPage() {
   const { apiProductId } = useParams();
   const [, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [apiData, setApiData] = useState<UpdatedProduct | null>(null);
+  const [apiData, setApiData] = useState<IProductDetail>();
   const [baseUrl, setBaseUrl] = useState<string>('');
   const [examplePath, setExamplePath] = useState<string>('/{path}');
   const [exampleMethod, setExampleMethod] = useState<string>('GET');
@@ -44,34 +33,35 @@ function ApiDetailPage() {
   const fetchApiDetail = async () => {
     setLoading(true);
     setError('');
+    if (!apiProductId) return;
     try {
-      const response: ApiResponse<UpdatedProduct> = await api.get(`/products/${apiProductId}`);
+      const response = await APIs.getProduct({ id: apiProductId });
       if (response.code === "SUCCESS" && response.data) {
         setApiData(response.data);
-        
+
         // 提取基础URL和示例路径用于curl示例
         if (response.data.apiConfig?.spec) {
           try {
-            let openApiDoc: any;
+            let openApiDoc;
             try {
               openApiDoc = yaml.load(response.data.apiConfig.spec);
             } catch {
               openApiDoc = JSON.parse(response.data.apiConfig.spec);
             }
-            
+
             // 提取服务器URL并处理尾部斜杠
             let serverUrl = openApiDoc?.servers?.[0]?.url || '';
             if (serverUrl && serverUrl.endsWith('/')) {
               serverUrl = serverUrl.slice(0, -1); // 移除末尾的斜杠
             }
             setBaseUrl(serverUrl);
-            
+
             // 提取第一个可用的路径和方法作为示例
             const paths = openApiDoc?.paths;
             if (paths && typeof paths === 'object') {
               const pathEntries = Object.entries(paths);
               if (pathEntries.length > 0) {
-                const [firstPath, pathMethods] = pathEntries[0] as [string, any];
+                const [firstPath, pathMethods] = pathEntries[0];
                 if (pathMethods && typeof pathMethods === 'object') {
                   const methods = Object.keys(pathMethods);
                   if (methods.length > 0) {
@@ -143,7 +133,7 @@ function ApiDetailPage() {
                   label: "Overview",
                   children: apiData.document ? (
                     <div className="min-h-[400px]">
-                      <div 
+                      <div
                         className="prose prose-lg max-w-none"
                         style={{
                           lineHeight: '1.7',
@@ -325,7 +315,7 @@ function ApiDetailPage() {
 
         {/* 右侧内容 */}
         <Col span={9}>
-          <Card 
+          <Card
             className="rounded-lg border-gray-200"
             title={
               <Space>
@@ -339,13 +329,13 @@ function ApiDetailPage() {
                 <Title level={5}>cURL调用示例</Title>
                 <div className="bg-gray-50 p-3 rounded border relative">
                   <pre className="text-sm mb-0">
-{`curl -X ${exampleMethod} \\
+                    {`curl -X ${exampleMethod} \\
   '${baseUrl || 'https://api.example.com'}${examplePath}' \\
   -H 'Accept: application/json' \\
   -H 'Content-Type: application/json'`}
                   </pre>
-                  <Button 
-                    type="text" 
+                  <Button
+                    type="text"
                     size="small"
                     icon={<CopyOutlined />}
                     className="absolute top-2 right-2"
@@ -367,7 +357,7 @@ function ApiDetailPage() {
                   下载完整的OpenAPI规范文件，用于代码生成、API测试等场景
                 </Paragraph>
                 <Space>
-                  <Button 
+                  <Button
                     type="primary"
                     icon={<DownloadOutlined />}
                     onClick={() => {
@@ -387,7 +377,7 @@ function ApiDetailPage() {
                   >
                     下载YAML
                   </Button>
-                  <Button 
+                  <Button
                     icon={<DownloadOutlined />}
                     onClick={() => {
                       if (apiData?.apiConfig?.spec) {
@@ -404,7 +394,8 @@ function ApiDetailPage() {
                           document.body.removeChild(link);
                           URL.revokeObjectURL(url);
                           message.success('OpenAPI规范文件下载成功', 1);
-                        } catch (error) {
+                        } catch (err) {
+                          console.log(err)
                           message.error('转换JSON格式失败');
                         }
                       }

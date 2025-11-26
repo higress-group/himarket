@@ -1,6 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams } from "react-router-dom";
-import api from "../lib/api";
 import { Layout } from "../components/Layout";
 import { ProductHeader } from "../components/ProductHeader";
 import {
@@ -15,22 +14,19 @@ import {
 import { CopyOutlined } from "@ant-design/icons";
 import ReactMarkdown from "react-markdown";
 import { ProductType } from "../types";
-import type {
-  Product,
-  McpConfig,
-  McpServerProduct,
-  ApiResponse,
-} from "../types";
 import * as yaml from "js-yaml";
 import remarkGfm from 'remark-gfm';
 import 'react-markdown-editor-lite/lib/index.css'
+import type { IMCPConfig } from "../lib/apis/typing";
+import type { IProductDetail } from "../lib/apis";
+import APIs from "../lib/apis";
 
 function McpDetail() {
   const { mcpProductId } = useParams();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
-  const [data, setData] = useState<Product | null>(null);
-  const [mcpConfig, setMcpConfig] = useState<McpConfig | null>(null);
+  const [data, setData] = useState<IProductDetail>();
+  const [mcpConfig, setMcpConfig] = useState<IMCPConfig>();
   const [parsedTools, setParsedTools] = useState<
     Array<{
       name: string;
@@ -201,13 +197,13 @@ function McpDetail() {
       setLoading(true);
       setError("");
       try {
-        const response: ApiResponse<Product> = await api.get(`/products/${mcpProductId}`);
+        const response = await APIs.getProduct({id: mcpProductId});
         if (response.code === "SUCCESS" && response.data) {
           setData(response.data);
 
           // 处理MCP配置（统一使用新结构 mcpConfig）
           if (response.data.type === ProductType.MCP_SERVER) {
-            const mcpProduct = response.data as McpServerProduct;
+            const mcpProduct = response.data;
 
             if (mcpProduct.mcpConfig) {
               setMcpConfig(mcpProduct.mcpConfig);
@@ -244,7 +240,7 @@ function McpDetail() {
         mcpConfig.mcpServerConfig.path,
         mcpConfig.mcpServerName || data.name,
         mcpConfig.mcpServerConfig.rawConfig,
-        (mcpConfig.meta as any)?.protocol,
+        mcpConfig.meta?.protocol,
         selectedDomainIndex
       );
     }

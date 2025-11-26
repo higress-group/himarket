@@ -17,15 +17,16 @@ import ModelDetail from "./pages/ModelDetail";
 import Callback from "./pages/Callback";
 import OidcCallback from "./pages/OidcCallback";
 import Square from "./pages/Square";
-import Center from "./pages/Center";
 import Chat from "./pages/Chat";
 
 export function Router() {
   return (
     <Routes>
       <Route path="/" element={<Home />} />
-      <Route path="/square" element={<Square />} />
-      <Route path="/center" element={<Center />} />
+      <Route path="/model" element={<Square activeType="MODEL_API" />} />
+      <Route path="/mcp" element={<Square activeType="MCP_SERVER" />} />
+      <Route path="/agent" element={<Square activeType="AGENT_API" />} />
+      <Route path="/api" element={<Square activeType="REST_API" />} />
       <Route path="/chat" element={<Chat />} />
       <Route path="/getting-started" element={<GettingStarted />} />
       <Route path="/apis" element={<Apis />} />

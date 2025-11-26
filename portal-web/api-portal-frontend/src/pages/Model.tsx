@@ -4,9 +4,10 @@ const { Title, Paragraph } = Typography;
 import { FolderFilled, FolderOpenFilled } from "@ant-design/icons";
 import { Link } from "react-router-dom";
 import { Layout } from "../components/Layout";
-import api, { categoryApi } from "../lib/api";
 import { ProductStatus } from "../types";
-import type { Product, ModelApiProduct, ApiResponse, PaginatedResponse, ProductIcon, ProductCategoryData } from "../types";
+import type { IModelConfig, IProductIcon } from "../lib/apis/typing";
+import type { ICategory } from "../lib/apis";
+import APIs from "../lib/apis";
 
 interface ModelAPI {
   key: string;
@@ -17,9 +18,9 @@ interface ModelAPI {
   protocols: number;
   category: string;
   creator: string;
-  icon?: ProductIcon | null;
-  modelConfig?: any;
-  categories: ProductCategoryData[];
+  icon?: IProductIcon;
+  modelConfig?: IModelConfig;
+  categories: ICategory[];
   updatedAt: string;
 }
 
@@ -28,7 +29,7 @@ function ModelPage() {
   const [modelAPIs, setModelAPIs] = useState<ModelAPI[]>([]);
   const [allModels, setAllModels] = useState<ModelAPI[]>([]);
   const [searchText, setSearchText] = useState('');
-  const [categories, setCategories] = useState<ProductCategoryData[]>([]);
+  const [categories, setCategories] = useState<ICategory[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
   useEffect(() => {
@@ -39,7 +40,7 @@ function ModelPage() {
   // 获取类别列表
   const fetchCategories = async () => {
     try {
-      const response: any = await categoryApi.getCategoriesByProductType('MODEL_API');
+      const response = await APIs.getCategoriesByProductType({ productType: 'MODEL_API' });
       if (response.code === "SUCCESS" && response.data) {
         setCategories(response.data.content || []);
       }
@@ -49,13 +50,13 @@ function ModelPage() {
   };
 
   // 处理产品图标的函数
-  const getIconUrl = (icon?: ProductIcon | null): string => {
+  const getIconUrl = (icon?: IProductIcon): string => {
     const fallback = "/Model.svg";
-    
+
     if (!icon) {
       return fallback;
     }
-    
+
     switch (icon.type) {
       case "URL":
         return icon.value || fallback;
@@ -83,10 +84,10 @@ function ModelPage() {
   };
 
   // 获取适用场景英文标识
-  const getModelCategoryLabel = (modelConfig?: any): string => {
+  const getModelCategoryLabel = (modelConfig?: IModelConfig): string => {
     const category = modelConfig?.modelAPIConfig?.modelCategory;
     if (!category) return 'Model';
-    
+
     // 直接返回英文标识，首字母大写
     switch (category) {
       case 'Text':
@@ -111,13 +112,12 @@ function ModelPage() {
   const fetchModelAPIs = async () => {
     setLoading(true);
     try {
-      const response: ApiResponse<PaginatedResponse<Product>> = await api.get("/products?type=MODEL_API&page=0&size=100");
-      
+      const response = await APIs.getProducts({ type: "MODEL_API", page: 0, size: 100 });
       if (response.code === "SUCCESS" && response.data) {
         // 移除重复过滤，简化数据映射
-        const mapped = response.data.content.map((item: Product) => {
+        const mapped = response.data.content.map((item) => {
           // 由于API已经筛选了MODEL_API类型，我们可以安全地进行类型断言
-          const modelProduct = item as ModelApiProduct;
+          const modelProduct = item;
           return {
             key: modelProduct.productId,
             name: modelProduct.name,
@@ -132,7 +132,7 @@ function ModelPage() {
             categories: modelProduct.categories || [],
             updatedAt: modelProduct.updatedAt?.slice(0, 10) || ''
           };
-        });
+        }) as ModelAPI[];
         setAllModels(mapped);
         setModelAPIs(mapped);
       }
@@ -149,7 +149,7 @@ function ModelPage() {
     if (categoryId === 'all') {
       setModelAPIs(allModels);
     } else {
-      const filtered = allModels.filter(model => 
+      const filtered = allModels.filter(model =>
         model.categories.some(cat => cat.categoryId === categoryId)
       );
       setModelAPIs(filtered);
@@ -157,13 +157,13 @@ function ModelPage() {
   };
 
   // 获取类别图标
-  const getCategoryIcon = (icon?: ProductIcon, _isSelected?: boolean, isAll?: boolean) => {
+  const getCategoryIcon = (icon?: IProductIcon, _isSelected?: boolean, isAll?: boolean) => {
     if (!icon || !icon.value) {
       // "全部"使用打开的文件夹图标，其他使用普通文件夹图标
       const IconComponent = isAll ? FolderOpenFilled : FolderFilled;
       return <IconComponent style={{ fontSize: '18px', color: '#D1D5DB' }} />;
     }
-    
+
     let iconUrl = '';
     if (icon.type === 'URL') {
       iconUrl = icon.value;
@@ -171,11 +171,11 @@ function ModelPage() {
       // 处理BASE64数据，确保有正确的前缀
       iconUrl = icon.value.startsWith('data:') ? icon.value : `data:image/png;base64,${icon.value}`;
     }
-    
+
     return (
-      <img 
-        src={iconUrl} 
-        alt="" 
+      <img
+        src={iconUrl}
+        alt=""
         style={{ width: '18px', height: '18px' }}
         onError={(e) => {
           e.currentTarget.style.display = 'none';
@@ -201,37 +201,35 @@ function ModelPage() {
         </Paragraph>
       </div>
 
-        {/* Search Section */}
-        <div className="flex justify-center mb-8">
-          <div className="relative w-full max-w-lg">
-            <div className="border border-gray-300 rounded-md overflow-hidden hover:border-blue-500 focus-within:border-blue-500 focus-within:shadow-sm" style={{ width: '100%', maxWidth: '500px' }}>
-              <Input.Search
-                placeholder="请输入内容"
-                size="large"
-                value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
-                className="border-0 rounded-none"
-                variant="borderless"
-              />
-            </div>
+      {/* Search Section */}
+      <div className="flex justify-center mb-8">
+        <div className="relative w-full max-w-lg">
+          <div className="border border-gray-300 rounded-md overflow-hidden hover:border-blue-500 focus-within:border-blue-500 focus-within:shadow-sm" style={{ width: '100%', maxWidth: '500px' }}>
+            <Input.Search
+              placeholder="请输入内容"
+              size="large"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              className="border-0 rounded-none"
+              variant="borderless"
+            />
           </div>
         </div>
+      </div>
 
       {/* Category Tags Section */}
       <div className="mb-2">
         <div className="py-3 px-4 border border-gray-200 rounded-lg bg-[#f4f4f6]">
           <div className="flex flex-wrap items-center gap-4">
             <div
-              className={`cursor-pointer transition-all duration-200 px-3 py-1.5 rounded-md flex items-center gap-2 text-sm border ${
-                selectedCategory === 'all' 
-                  ? 'bg-white shadow-sm text-blue-600 border-blue-200' 
-                  : 'text-gray-600 border-transparent hover:bg-white hover:shadow-sm hover:border-gray-200'
-              }`}
+              className={`cursor-pointer transition-all duration-200 px-3 py-1.5 rounded-md flex items-center gap-2 text-sm border ${selectedCategory === 'all'
+                ? 'bg-white shadow-sm text-blue-600 border-blue-200'
+                : 'text-gray-600 border-transparent hover:bg-white hover:shadow-sm hover:border-gray-200'
+                }`}
               onClick={() => handleCategoryChange('all')}
             >
-              <div className={`w-4 h-4 rounded border flex items-center justify-center ${
-                selectedCategory === 'all' ? 'border-blue-500 bg-blue-500' : 'border-gray-300 bg-white'
-              }`}>
+              <div className={`w-4 h-4 rounded border flex items-center justify-center ${selectedCategory === 'all' ? 'border-blue-500 bg-blue-500' : 'border-gray-300 bg-white'
+                }`}>
                 {selectedCategory === 'all' && (
                   <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -244,16 +242,14 @@ function ModelPage() {
             {categories.map(category => (
               <div
                 key={category.categoryId}
-                className={`cursor-pointer transition-all duration-200 px-3 py-1.5 rounded-md flex items-center gap-2 text-sm border ${
-                  selectedCategory === category.categoryId
-                    ? 'bg-white shadow-sm text-blue-600 border-blue-200'
-                    : 'text-gray-600 border-transparent hover:bg-white hover:shadow-sm hover:border-gray-200'
-                }`}
+                className={`cursor-pointer transition-all duration-200 px-3 py-1.5 rounded-md flex items-center gap-2 text-sm border ${selectedCategory === category.categoryId
+                  ? 'bg-white shadow-sm text-blue-600 border-blue-200'
+                  : 'text-gray-600 border-transparent hover:bg-white hover:shadow-sm hover:border-gray-200'
+                  }`}
                 onClick={() => handleCategoryChange(category.categoryId)}
               >
-                <div className={`w-4 h-4 rounded border flex items-center justify-center ${
-                  selectedCategory === category.categoryId ? 'border-blue-500 bg-blue-500' : 'border-gray-300 bg-white'
-                }`}>
+                <div className={`w-4 h-4 rounded border flex items-center justify-center ${selectedCategory === category.categoryId ? 'border-blue-500 bg-blue-500' : 'border-gray-300 bg-white'
+                  }`}>
                   {selectedCategory === category.categoryId && (
                     <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -304,7 +300,7 @@ function ModelPage() {
                   ) : (
                     <Avatar
                       size={48}
-                      style={{ 
+                      style={{
                         backgroundColor: getModelIconColor(model.name),
                         fontSize: '18px',
                         fontWeight: 'bold'
@@ -343,8 +339,8 @@ function ModelPage() {
       )}
 
       {!loading && filteredModelAPIs.length === 0 && (
-        <div style={{ 
-          textAlign: 'center', 
+        <div style={{
+          textAlign: 'center',
           padding: '60px 20px',
           color: '#999'
         }}>
