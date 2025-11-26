@@ -34,6 +34,8 @@ import java.net.URISyntaxException;
 @AllArgsConstructor
 public class SearchContext {
     
+    private int id;
+    
     private String url;
     
     private String title;
@@ -54,6 +56,10 @@ public class SearchContext {
                 System.err.println("Failed to parse URL '" + url + "': " + e.getMessage());
             }
         }
+    }
+    
+    public String formatCitation() {
+        return String.format("[[citation:%d]] title:%s,content:%s (url: %s, date:%s)", id, title, content, url, date);
     }
 
 }

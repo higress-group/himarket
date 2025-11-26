@@ -21,6 +21,7 @@ package com.alibaba.apiopenplatform.service;
 
 import com.alibaba.apiopenplatform.support.chat.search.SearchContext;
 import com.alibaba.apiopenplatform.support.chat.search.SearchInput;
+import com.alibaba.apiopenplatform.support.chat.search.SearchOutput;
 
 import java.util.List;
 

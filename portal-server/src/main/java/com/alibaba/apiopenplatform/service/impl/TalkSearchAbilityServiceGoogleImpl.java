@@ -26,6 +26,7 @@ import com.alibaba.apiopenplatform.support.chat.search.SearchContext;
 import com.alibaba.apiopenplatform.support.chat.search.SearchInput;
 import com.alibaba.apiopenplatform.service.TalkSearchAbilityService;
 import com.alibaba.apiopenplatform.service.PortalService;
+import com.alibaba.apiopenplatform.support.chat.search.SearchOutput;
 import com.alibaba.apiopenplatform.support.enums.SearchEngineType;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -211,6 +212,7 @@ public class TalkSearchAbilityServiceGoogleImpl
     @Override
     public List<SearchContext> buildSearchResponse(ResponseEntity<String> searchResponse) {
         List<SearchContext> searchContexts = new ArrayList<>();
+        int id = 1;
         if (searchResponse.getStatusCode().is2xxSuccessful()){
             String body = searchResponse.getBody();
             JSONObject jsonObject = JSONUtil.parseObj(body);
@@ -230,14 +232,13 @@ public class TalkSearchAbilityServiceGoogleImpl
                        }
                    }
                    
-                   SearchContext searchContext = new SearchContext(
-                           getStringValue(result, "link", ""),
-                           getStringValue(result, "title", ""),
-                           snippet,
-                           getStringValue(result, "source", ""),
-                           getStringValue(result, "date", "")
-                   );
-                   
+                   SearchContext searchContext = new SearchContext()
+                           .setUrl(getStringValue(result, "link", ""))
+                           .setTitle(getStringValue(result, "title", ""))
+                           .setContent( snippet)
+                           .setSiteName(getStringValue(result, "source", ""))
+                           .setDate(getStringValue(result, "date", ""));
+                   searchContext.setId(id++);
                    searchContext.postInit();
                    
                    searchContexts.add(searchContext);
@@ -248,6 +249,7 @@ public class TalkSearchAbilityServiceGoogleImpl
             Map<String, Object> knowledgeGraph = getMapValue(jsonObject, "knowledge_graph");
             if (knowledgeGraph != null && !knowledgeGraph.isEmpty()) {
                 SearchContext searchContext= parseKnowledgeGraph(knowledgeGraph);
+                searchContext.setId(id++);
                 searchContexts.add(searchContext);
             }
             
@@ -329,13 +331,14 @@ public class TalkSearchAbilityServiceGoogleImpl
             siteName = getStringValue(source, "name", "");
         }
         
-        SearchContext searchContext = new SearchContext(
-                link,
-                getStringValue(knowledgeGraph, "title", ""),
-                snippet,
-                siteName,
-                getStringValue(knowledgeGraph, "date", "")
-        );
+        
+        
+        SearchContext searchContext = new SearchContext()
+                .setUrl(link)
+                .setTitle(getStringValue(knowledgeGraph, "title", ""))
+                .setSiteName(siteName)
+                .setContent(snippet)
+                .setDate(getStringValue(knowledgeGraph, "date", ""));
         
         searchContext.postInit();
         return searchContext;
