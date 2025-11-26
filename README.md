@@ -182,7 +182,7 @@ HiMarket 门户是多租户设计，通过域名来识别不同的门户实例�
 ### 阿里云开箱即用
 阿里云计算巢支持了该项目开箱即用版本，可以使用下面链接一键部署社区版：
 
-[![Deploy on AlibabaCloud ComputeNest](https://service-info-public.oss-cn-hangzhou.aliyuncs.com/computenest.svg)](https://computenest.console.aliyun.com/service/instance/create/cn-hangzhou?type=user&ServiceName=HiMarket%20AI%20%E5%BC%80%E6%94%BE%E5%B9%B3%E5%8F%B0)
+[![Deploy on AlibabaCloud ComputeNest](https://service-info-public.oss-cn-hangzhou.aliyuncs.com/computenest.svg)](https://computenest.console.aliyun.com/service/instance/create/cn-hangzhou?type=user&ServiceId=service-b96fefcb748f47b7b958)
 
 ## 社区
 
