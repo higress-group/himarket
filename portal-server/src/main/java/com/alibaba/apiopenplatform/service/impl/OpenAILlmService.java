@@ -17,7 +17,6 @@ import com.alibaba.apiopenplatform.support.enums.AIProtocol;
 import com.alibaba.apiopenplatform.support.product.ModelFeature;
 import com.alibaba.apiopenplatform.support.product.ProductFeature;
 import lombok.extern.slf4j.Slf4j;
-import org.dom4j.rule.Mode;
 import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Service;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -64,10 +63,10 @@ public class OpenAILlmService extends AbstractLlmService {
     }
 
     @Override
-    public void processStreamChunk(String chunk, ChatContent chatContent) {
+    public String processStreamChunk(String chunk, ChatContent chatContent) {
         try {
             if ("[DONE]".equals(chunk)) {
-                return;
+                return chunk;
             }
 
             // OpenAI common response format
@@ -85,14 +84,18 @@ public class OpenAILlmService extends AbstractLlmService {
             if (response.getUsage() != null) {
                 ChatUsage usage = response.toStandardUsage();
                 chatContent.setUsage(usage);
+                chatContent.stop();
+                response.getUsage().setFirstPackageTime(chatContent.getFirstPackageTime());
             }
 
+            return JSONUtil.toJsonStr(response);
         } catch (Exception e) {
             log.warn("Failed to process chunk: {}", chunk, e);
             // Caused by invalid JSON or other errors, append to unexpected content
             chatContent.getUnexpectedContent().append(chunk);
             chatContent.getAnswerContent().append(chunk);
         }
+        return chunk;
     }
 
     private String extractContentFromResponse(OpenAIChatStreamResponse response) {

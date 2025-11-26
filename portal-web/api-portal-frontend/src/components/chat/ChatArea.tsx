@@ -9,6 +9,7 @@ import { MultiModelSelector } from "./MultiModelSelector";
 import { type Product, getProducts, categoryApi, type Category } from "../../lib/api";
 import { getIconString } from "../../lib/iconUtils";
 import { ProductIconRenderer } from "../icon/ProductIconRenderer";
+import type { ProductIcon } from "../../types";
 
 // 模型数据接口（用于组件内部）
 interface ModelData {
@@ -140,7 +141,7 @@ export function ChatArea({ messages, selectedProduct, onSelectProduct: _onSelect
             name: product.name,
             description: product.description,
             category: product.modelConfig?.modelAPIConfig?.modelCategory || "对话模型",
-            icon: getIconString(product.icon), // 使用产品的 icon 字段
+            icon: getIconString(product.icon as ProductIcon | null | undefined), // 使用产品的 icon 字段
             productCategories: product.categories || [], // 添加产品分类
           }));
 

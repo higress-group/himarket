@@ -1,9 +1,8 @@
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Form, Input, Button, message } from "antd";
 import { UserOutlined, LockOutlined } from "@ant-design/icons";
 import api from "../lib/api";
-import bgImage from "../assets/bg.png";
 import { AxiosError } from "axios";
 import { Layout } from "../components/Layout";
 

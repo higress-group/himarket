@@ -32,7 +32,7 @@ public class ChatContent {
         startTime = System.currentTimeMillis();
     }
 
-    public void recordFirstToken() {
+    public void recordFirstPackageTime() {
         if (firstPackageTime == null && startTime != null) {
             firstPackageTime = System.currentTimeMillis() - startTime;
         }

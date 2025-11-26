@@ -293,7 +293,7 @@ export function Sidebar({ currentSessionId, onNewChat, onSelectSession, refreshT
                       value={editingName}
                       onChange={(e) => setEditingName(e.target.value)}
                       onKeyDown={(e) => handleEditKeyDown(e, session.id)}
-                      onBlur={(e) => {
+                      onBlur={() => {
                         // 延迟执行，让按钮的点击事件有机会先执行
                         setTimeout(() => {
                           handleCancelEdit();
