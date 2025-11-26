@@ -20,9 +20,11 @@
 package com.alibaba.apiopenplatform.entity;
 
 import com.alibaba.apiopenplatform.converter.IconConverter;
+import com.alibaba.apiopenplatform.converter.ProductFeatureConverter;
 import com.alibaba.apiopenplatform.support.enums.ProductStatus;
 import com.alibaba.apiopenplatform.support.enums.ProductType;
 import com.alibaba.apiopenplatform.support.product.Icon;
+import com.alibaba.apiopenplatform.support.product.ProductFeature;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -73,4 +75,8 @@ public class Product extends BaseEntity {
 
     @Column(name = "auto_approve")
     private Boolean autoApprove;
+
+    @Column(name = "feature", columnDefinition = "json")
+    @Convert(converter = ProductFeatureConverter.class)
+    private ProductFeature feature;
 }

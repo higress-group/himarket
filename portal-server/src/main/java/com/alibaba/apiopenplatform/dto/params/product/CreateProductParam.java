@@ -26,6 +26,7 @@ import com.alibaba.apiopenplatform.dto.converter.InputConverter;
 import com.alibaba.apiopenplatform.entity.Product;
 import com.alibaba.apiopenplatform.support.enums.ProductType;
 import com.alibaba.apiopenplatform.support.product.Icon;
+import com.alibaba.apiopenplatform.support.product.ProductFeature;
 import lombok.Data;
 
 import jakarta.validation.constraints.AssertTrue;
@@ -53,6 +54,8 @@ public class CreateProductParam implements InputConverter<Product> {
     private Boolean autoApprove;
     
     private List<String> categories;
+
+    private ProductFeature feature;
 
     @AssertTrue(message = "Icon大小不能超过16KB")
     public boolean checkIcon() {

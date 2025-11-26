@@ -16,6 +16,7 @@ import { apiProductApi } from "@/lib/api";
 import { getProductCategories } from "@/lib/productCategoryApi";
 import type { ApiProduct } from "@/types/api-product";
 import type { ProductCategory } from "@/types/product-category";
+import ModelFeatureForm from "./ModelFeatureForm";
 
 interface ApiProductFormModalProps {
   visible: boolean;
@@ -40,6 +41,9 @@ export default function ApiProductFormModal({
   const [iconMode, setIconMode] = useState<'BASE64' | 'URL'>('URL');
   const [productCategories, setProductCategories] = useState<ProductCategory[]>([]);
   const isEditMode = !!productId;
+  
+  // Watch product type to show/hide feature form
+  const productType = Form.useWatch('type', form);
 
   // 获取产品类别列表
   const fetchProductCategories = async () => {
@@ -64,6 +68,7 @@ export default function ApiProductFormModal({
           description: initialData.description,
           type: initialData.type,
           autoApprove: initialData.autoApprove,
+          feature: initialData.feature,
         });
       }, 100);
 
@@ -277,7 +282,12 @@ export default function ApiProductFormModal({
           name="type"
           rules={[{ required: true, message: "请选择类型" }]}
         >
-          <Select placeholder="请选择类型">
+          <Select 
+            placeholder="请选择类型"
+            onChange={() => {
+              form.setFieldValue('feature', undefined);
+            }}
+          >
             <Select.Option value="REST_API">REST API</Select.Option>
             <Select.Option value="MCP_SERVER">MCP Server</Select.Option>
             <Select.Option value="AGENT_API">Agent API</Select.Option>
@@ -488,6 +498,9 @@ export default function ApiProductFormModal({
             src={previewImage}
           />
         )}
+
+        {/* Feature Configuration */}
+        {productType === 'MODEL_API' && <ModelFeatureForm />}
       </Form>
     </Modal>
   );

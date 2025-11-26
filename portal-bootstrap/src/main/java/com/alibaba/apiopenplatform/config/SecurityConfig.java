@@ -94,13 +94,13 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // 异步分发不进行权限检查（解决SSE等流式响应完成后的AccessDenied问题）
                         .dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll()
-                        // OPTIONS请求放行
+                // OPTIONS请求放行
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        // 认证相关接口放行
+                // 认证相关接口放行
                         .requestMatchers(AUTH_WHITELIST).permitAll()
-                        // Swagger相关接口放行
+                // Swagger相关接口放行
                         .requestMatchers(SWAGGER_WHITELIST).permitAll()
-                        // 系统路径放行
+                // 系统路径放行
                         .requestMatchers(SYSTEM_WHITELIST).permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(new JwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)

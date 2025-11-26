@@ -11,9 +11,13 @@ import com.alibaba.apiopenplatform.dto.result.chat.LlmChatRequest;
 import com.alibaba.apiopenplatform.dto.params.chat.ChatRequestBody;
 import com.alibaba.apiopenplatform.dto.result.chat.OpenAIChatStreamResponse;
 import cn.hutool.json.JSONUtil;
+import com.alibaba.apiopenplatform.dto.result.product.ProductResult;
 import com.alibaba.apiopenplatform.support.chat.ChatUsage;
 import com.alibaba.apiopenplatform.support.enums.AIProtocol;
+import com.alibaba.apiopenplatform.support.product.ModelFeature;
+import com.alibaba.apiopenplatform.support.product.ProductFeature;
 import lombok.extern.slf4j.Slf4j;
+import org.dom4j.rule.Mode;
 import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Service;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -31,19 +35,23 @@ public class OpenAILlmService extends AbstractLlmService {
 
     @Override
     protected LlmChatRequest composeRequest(InvokeModelParam param) {
+        // Not be null
+        ProductResult product = param.getProduct();
+        ModelConfigResult modelConfig = product.getModelConfig();
         // 1. Get request URL (with query params)
-        URL url = getUrl(param.getModelConfig(), param.getQueryParams());
+        URL url = getUrl(modelConfig, param.getQueryParams());
 
         // 2. Build headers
         Map<String, String> headers = param.getRequestHeaders() == null ? new HashMap<>() : param.getRequestHeaders();
 
         // 3. Build request body
+        ModelFeature modelFeature = getOrDefaultModelFeature(product);
         ChatRequestBody requestBody = ChatRequestBody.builder()
-                .model(extractModelName())
+                .model(modelFeature.getModel())
                 .messages(param.getChatMessages())
-                .stream(true)
-                .maxTokens(extractMaxTokens())
-                .temperature(extractTemperature())
+                .stream(modelFeature.getStreaming())
+                .maxTokens(modelFeature.getMaxTokens())
+                .temperature(modelFeature.getTemperature())
                 .build();
 
         return LlmChatRequest.builder()
@@ -96,16 +104,27 @@ public class OpenAILlmService extends AbstractLlmService {
                 .orElse(null);
     }
 
-    private String extractModelName() {
-        return "qwen-max";
-    }
+    private ModelFeature getOrDefaultModelFeature(ProductResult product) {
+        ModelFeature modelFeature = Optional.ofNullable(product)
+                .map(ProductResult::getFeature)
+                .map(ProductFeature::getModelFeature)
+                .orElse(new ModelFeature());
 
-    private Integer extractMaxTokens() {
-        return 5000;
-    }
+        // Default values
+        if (modelFeature.getModel() == null) {
+            modelFeature.setModel("qwen-max");
+        }
+        if (modelFeature.getMaxTokens() == null) {
+            modelFeature.setMaxTokens(5000);
+        }
+        if (modelFeature.getTemperature() == null) {
+            modelFeature.setTemperature(0.9);
+        }
+        if (modelFeature.getStreaming() == null) {
+            modelFeature.setStreaming(true);
+        }
 
-    private Double extractTemperature() {
-        return 0.9;
+        return modelFeature;
     }
 
     private URL getUrl(ModelConfigResult modelConfig, Map<String, String> queryParams) {
@@ -148,11 +167,11 @@ public class OpenAILlmService extends AbstractLlmService {
                             .scheme(protocol)
                             .host(domain.getDomain())
                             .path(pathValue);
-                    
+
                     if (CollUtil.isNotEmpty(queryParams)) {
                         queryParams.forEach(builder::queryParam);
                     }
-                    
+
                     return new URL(builder.build().toUriString());
                 } catch (MalformedURLException e) {
                     throw new RuntimeException(e);
@@ -162,10 +181,6 @@ public class OpenAILlmService extends AbstractLlmService {
 
         // No suitable route found
         return null;
-    }
-
-    private URL getUrl(ModelConfigResult modelConfig) {
-        return getUrl(modelConfig, null);
     }
 
     @Override

@@ -1,6 +1,6 @@
 -- V3__Add_chat_tables.sql
--- Add chat, chat_session, and chat_attachment tables
--- Description: Support for AI chat functionality with session management and attachments
+-- Add chat, chat_session, chat_attachment tables and product feature column
+-- Description: Support for AI chat functionality with session management, attachments, and product feature configuration
 
 START TRANSACTION;
 
@@ -63,6 +63,27 @@ CREATE TABLE IF NOT EXISTS `chat_attachment` (
     UNIQUE KEY `uk_attachment_id` (`attachment_id`),
     KEY `idx_user_id` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ========================================
+-- Add feature column to product table (safe)
+-- ========================================
+SET @dbname = DATABASE();
+SET @tablename = 'product';
+SET @columnname = 'feature';
+SET @preparedStatement = (SELECT IF(
+  (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE
+      (TABLE_SCHEMA = @dbname)
+      AND (TABLE_NAME = @tablename)
+      AND (COLUMN_NAME = @columnname)
+  ) > 0,
+  'SELECT 1',
+  'ALTER TABLE `product` ADD COLUMN `feature` json DEFAULT NULL'
+));
+PREPARE alterIfNotExists FROM @preparedStatement;
+EXECUTE alterIfNotExists;
+DEALLOCATE PREPARE alterIfNotExists;
 
 COMMIT;
 

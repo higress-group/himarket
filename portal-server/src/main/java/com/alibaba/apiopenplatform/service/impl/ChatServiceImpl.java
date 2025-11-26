@@ -300,7 +300,7 @@ public class ChatServiceImpl implements ChatService {
         CredentialContext credentialContext = consumerService.getDefaultCredential(contextHolder.getUser());
 
         return InvokeModelParam.builder()
-                .modelConfig(productResult.getModelConfig())
+                .product(productResult)
                 .requestHeaders(credentialContext.getHeaders())
                 .queryParams(credentialContext.getQueryParams())
                 .chatMessages(chatMessages)
