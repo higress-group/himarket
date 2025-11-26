@@ -448,7 +448,13 @@ function Chat() {
   };
 
   const handleSelectProduct = (product: IProductDetail) => {
+    // 当重新选择模型时，开启新会话
     setSelectedProduct(product);
+    // 清除当前会话状态
+    setMessages([]);
+    setCurrentSessionId(null);
+    setCurrentConversationId(null);
+    setQuestionContentMap(new Map());
   };
 
   // 加载会话的历史聊天记录
@@ -561,8 +567,6 @@ function Chat() {
     }
   };
 
-  console.log(questionContentMap, 'asd...0')
-  console.log(messages, 'asd...1')
   return (
     <Layout>
       <div className="flex h-[calc(100vh-96px)] bg-transparent">
@@ -573,7 +577,7 @@ function Chat() {
           refreshTrigger={sidebarRefreshTrigger}
         />
         <ChatArea
-          currentSessionId={currentSessionId}
+          currentSessionId={currentSessionId || undefined}
           messages={messages}
           selectedProduct={selectedProduct}
           onSelectProduct={handleSelectProduct}
