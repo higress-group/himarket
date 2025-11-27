@@ -85,18 +85,20 @@ export function MessageList({ messages, modelName = "AI Assistant", modelIcon, o
               </div>
             ) : (
               /* AI 消息 - 左对齐，带头像和模型名称 */
-              <div className="flex gap-3">
-                {/* 模型头像 */}
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-colorPrimary/20 to-colorPrimary/10 flex items-center justify-center flex-shrink-0">
-                  <ProductIconRenderer iconType={modelIcon} className="w-5 h-5" />
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  {/* 模型头像 */}
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-colorPrimary/20 to-colorPrimary/10 flex items-center justify-center flex-shrink-0">
+                    <ProductIconRenderer iconType={modelIcon} className="w-5 h-5" />
+                  </div>
+                  {/* 模型名称 */}
+                  <div className="text-sm text-gray-500 mb-1.5">{modelName}</div>
                 </div>
 
                 {/* 消息内容 */}
-                <div className="flex-1 max-w-[80%]">
-                  {/* 模型名称 */}
-                  <div className="text-sm text-gray-500 mb-1.5">{modelName}</div>
-
-                  <div className="bg-white/80 backdrop-blur-sm px-4 py-3 rounded-lg border border-gray-100">
+                <div className="flex-1">
+                  <div
+                    className="overflow-auto bg-white/80 backdrop-blur-sm px-4 py-3 rounded-lg border border-gray-100">
                     {/* 如果是错误状态，显示错误提示 */}
                     {msg.error ? (
                       <div className="flex items-center gap-2 text-red-500">
@@ -112,7 +114,9 @@ export function MessageList({ messages, modelName = "AI Assistant", modelIcon, o
                         </div>
                       </div>
                     ) : (
-                      <MarkdownRender content={msg.content} />
+                      <div className="prose">
+                        <MarkdownRender content={msg.content} />
+                      </div>
                     )}
                   </div>
 

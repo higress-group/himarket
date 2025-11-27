@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ReloadOutlined } from "@ant-design/icons";
-import TipIcon from "../icon/tip";
+import { Tip } from "../icon";
 
 // Mock 推荐问题数据
 const allQuestions = [
@@ -73,7 +73,7 @@ export function SuggestedQuestions({ onSelectQuestion }: SuggestedQuestionsProps
             }}
           >
             <p className="flex items-center gap-2 text-sm text-gray-700 leading-relaxed group-hover:text-colorPrimary transition-colors duration-300">
-              <TipIcon className="fill-colorPrimary" />
+              <Tip className="fill-colorPrimary" />
               {question}
             </p>
           </div>

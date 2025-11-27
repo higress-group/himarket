@@ -463,12 +463,13 @@ conversationId、questionId由前端生成，格式分别为conversation-{xxx}�
                                 "productId": "gpt-4",
                                 "content": "AI的回答内容",
                                 "usage": {
-                                  "elapsed_time": 2999,
-                                  "prompt_tokens": 10,
-                                  "completion_tokens": 19,
-                                  "total_tokens": 29,
+                                  "elapsed_time": 3227,
+                                  "first_package_time": 100,
+                                  "prompt_tokens": 9,
+                                  "completion_tokens": 8,
+                                  "total_tokens": 17,
                                   "prompt_tokens_details": {
-                                      "cached_tokens": 0
+                                    "cached_tokens": 0
                                   }
                                 }
                             }
@@ -490,3 +491,53 @@ conversationId、questionId由前端生成，格式分别为conversation-{xxx}�
 - answers: 每个问题的回答轮次列表，有多少个元素，就表示进行了多少轮，“再来一次”时可以根据元素数量；
 
 - results: 每轮次的 Model API 的回答列表，用列表结构是因为可以设置多模型对比，results下存储的是多个 Model API 的回答。
+
+
+## 历史聊天记录 - 新结构版本
+
+历史聊天记录指的是点开会话后，查看会话下的聊天消息列表。
+
+### GET /sessions/{sessionId}/conversations/v2
+
+调用时机：用户打开会话时，显示历史消息
+
+响应示例：
+
+```json
+[
+    {
+        "productId": "product-6909c6c40a18f837e86dd2d5",
+        "conversations": [
+            {
+                "conversationId": "conversation-oiujtqxtc40gcmk4tz2icrbh",
+                "questions": [
+                    {
+                        "questionId": "question-if94y56ngkvwy1qqynu33aq1",
+                        "content": "你好",
+                        "createdAt": "2025-11-25T19:30:25.251",
+                        "attachments": [],
+                        "answers": [
+                            {
+                                "sequence": 1,
+                                "content": "你好！有什么我可以帮助你的吗？",
+                                "usage": {
+                                    "elapsed_time": 3227,
+                                    "first_byte_timeout": 100,
+                                    "prompt_tokens": 9,
+                                    "completion_tokens": 8,
+                                    "total_tokens": 17,
+                                    "prompt_tokens_details": {
+                                        "cached_tokens": 0
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    },
+]
+```
+
+返回为数组， 代表多模型对比时的不同模型会话

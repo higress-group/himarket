@@ -12,13 +12,11 @@ import {
   Spin,
 } from "antd";
 import { CopyOutlined, BulbOutlined, ArrowLeftOutlined } from "@ant-design/icons";
-import ReactMarkdown from "react-markdown";
 import { ProductType } from "../types";
-import remarkGfm from 'remark-gfm';
-import styles from './ModelDetail.module.css';
 import type { IProductDetail } from "../lib/apis";
 import type { IModelConfig, IRoute } from "../lib/apis/typing";
 import APIs from "../lib/apis";
+import MarkdownRender from "../components/MarkdownRender";
 
 const { Panel } = Collapse;
 
@@ -50,7 +48,7 @@ function ModelDetail() {
       setLoading(true);
       setError("");
       try {
-        const response = await APIs.getProduct({id: modelProductId});
+        const response = await APIs.getProduct({ id: modelProductId });
         if (response.code === "SUCCESS" && response.data) {
           setData(response.data);
 
@@ -276,19 +274,17 @@ function ModelDetail() {
       <div className="flex gap-6">
         {/* 左侧内容 */}
         <div className="flex-1">
-          <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-6">
+          <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-6 pt-0">
             <Tabs
+              size="large"
               defaultActiveKey="overview"
-              className="model-detail-tabs"
               items={[
                 {
                   key: "overview",
                   label: "概览",
                   children: data?.document ? (
-                    <div className="min-h-[400px]">
-                      <div className={styles.markdown}>
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{data.document}</ReactMarkdown>
-                      </div>
+                    <div className="min-h-[400px] prose prose-lg">
+                      <MarkdownRender content={data.document} />
                     </div>
                   ) : (
                     <div className="text-gray-500 text-center py-16">
@@ -304,15 +300,15 @@ function ModelDetail() {
                       {/* 基本信息 */}
                       <div className="grid grid-cols-2 gap-4">
                         {modelConfig.modelAPIConfig.modelCategory && (
-                          <div className="p-4 bg-gray-50 rounded-xl">
-                            <div className="text-xs text-gray-500 mb-1">适用场景</div>
+                          <div className="bg-gray-50 rounded-xl">
+                            <div className="text-sm text-gray-500 mb-1">适用场景</div>
                             <div className="text-sm font-medium text-gray-900">
                               {getModelCategoryText(modelConfig.modelAPIConfig.modelCategory)}
                             </div>
                           </div>
                         )}
-                        <div className="p-4 bg-gray-50 rounded-xl">
-                          <div className="text-xs text-gray-500 mb-1">协议</div>
+                        <div className="bg-gray-50 rounded-xl">
+                          <div className="text-sm text-gray-500 mb-1">协议</div>
                           <div className="text-sm font-medium text-gray-900">
                             {modelConfig.modelAPIConfig.aiProtocols?.join(', ') || 'DashScope'}
                           </div>
@@ -335,7 +331,6 @@ function ModelDetail() {
                                   className="flex-1"
                                   placeholder="选择域名"
                                   size="middle"
-                                  bordered={false}
                                 >
                                   {modelDomainOptions.map((option) => (
                                     <Select.Option key={option.value} value={option.value}>
@@ -467,10 +462,9 @@ function ModelDetail() {
         {/* 右侧内容 - Model调试 */}
         <div className="w-96">
           <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-6">
-            <h3 className="text-base font-semibold mb-4 text-gray-900">Model 调试</h3>
+            <h3 className="text-base font-semibold mb-2 text-gray-900">Model 调试</h3>
             <Tabs
               defaultActiveKey="chat"
-              className="model-debug-tabs"
               items={[
                 {
                   key: "chat",

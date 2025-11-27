@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Form, Input, Button, message } from "antd";
 import { UserOutlined, LockOutlined } from "@ant-design/icons";
 import api from "../lib/api";
@@ -75,7 +75,7 @@ const Login: React.FC = () => {
                   prefix={<UserOutlined className="text-gray-400" />}
                   placeholder="账号"
                   autoComplete="username"
-                  className="rounded-xl"
+                  className="rounded-lg"
                 />
               </Form.Item>
 
@@ -89,7 +89,7 @@ const Login: React.FC = () => {
                   prefix={<LockOutlined className="text-gray-400" />}
                   placeholder="密码"
                   autoComplete="current-password"
-                  className="rounded-xl"
+                  className="rounded-lg"
                 />
               </Form.Item>
 
@@ -98,25 +98,16 @@ const Login: React.FC = () => {
                   type="primary"
                   htmlType="submit"
                   loading={loading}
-                  className="w-full rounded-xl h-10"
+                  className="w-full rounded-lg h-10"
                   size="large"
                 >
                   {loading ? "登录中..." : "登录"}
                 </Button>
               </Form.Item>
-              <Form.Item>
-                <Button
-                  loading={loading}
-                  className="w-full rounded-xl h-10"
-                  size="large"
-                  onClick={() => {
-                    navigate("/register")
-                  }}
-                >
-                  注册
-                </Button>
-              </Form.Item>
             </Form>
+            <div className="text-center text-subTitle">
+              没有账号？<Link to="/register" className="text-colorPrimary hover:text-colorPrimary hover:underline">注册</Link>
+            </div>
           </div>
         </div>
       </div>

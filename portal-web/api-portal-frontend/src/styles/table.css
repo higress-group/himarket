@@ -1,19 +1,14 @@
-/* Table 样式统一 - Glass-morphism 风格 */
-
-.ant-table-wrapper {
-  /* border-radius: 12px; */
-  /* overflow: hidden; */
-}
 
 /* Table 头部 */
 .ant-table-thead>tr>th {
   background: rgba(255, 255, 255, 0.5) !important;
-  backdrop-filter: blur(10px);
   border-bottom: 1px solid #e5e5e5 !important;
-  /* border-bottom: 0 !important; */
   font-weight: 600;
   color: #374151 !important;
   padding: 14px 16px !important;
+  &::before {
+    display: none;
+  }
 }
 
 /* Table 行 */

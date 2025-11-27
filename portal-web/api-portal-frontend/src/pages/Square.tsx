@@ -8,6 +8,7 @@ import { ModelCard } from "../components/square/ModelCard";
 import APIs, { type ICategory } from "../lib/apis";
 import { getIconString } from "../lib/iconUtils";
 import type { IProductDetail } from "../lib/apis/product";
+import dayjs from "dayjs";
 
 function Square(props: { activeType: string }) {
   const { activeType } = props;
@@ -36,11 +37,13 @@ function Square(props: { activeType: string }) {
             count: 0, // 后端没有返回数量，先设为 0
           }));
 
-          // 添加"全部"选项
-          setCategories([
-            { id: "all", name: "全部", count: 0 },
-            ...categoryList
-          ]);
+          if (categoryList.length > 0) {
+            // 添加"全部"选项
+            setCategories([
+              { id: "all", name: "全部", count: 0 },
+              ...categoryList
+            ]);
+          }
 
           // 重置选中的分类为"全部"
           setActiveCategory("all");
@@ -122,12 +125,16 @@ function Square(props: { activeType: string }) {
     <Layout>
       <div className="flex h-[calc(100vh-96px)]">
         {/* 左侧类型列表 */}
-        <CategoryMenu
-          categories={categories}
-          activeCategory={activeCategory}
-          onSelectCategory={setActiveCategory}
-          loading={categoriesLoading}
-        />
+        {
+          categories.length > 0 && (
+            <CategoryMenu
+              categories={categories}
+              activeCategory={activeCategory}
+              onSelectCategory={setActiveCategory}
+              loading={categoriesLoading}
+            />
+          )
+        }
 
         {/* 右侧内容区域 */}
         <div className="flex-1 flex flex-col">
@@ -162,7 +169,7 @@ function Square(props: { activeType: string }) {
                     name={product.name}
                     description={product.description}
                     company={product.modelConfig?.modelAPIConfig?.aiProtocols?.[0] || "AI Model"}
-                    releaseDate={new Date(product.createAt).toLocaleDateString('zh-CN')}
+                    releaseDate={dayjs(product.createAt).format("YYYY-MM-DD HH:mm:ss")}
                     onClick={() => handleViewDetail(product)}
                     onTryNow={activeType === "MODEL_API" ? () => handleTryNow(product) : undefined}
                   />

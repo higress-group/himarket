@@ -624,7 +624,7 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
                 const nextKey = value === 'Default' ? 'Authorization' : '';
                 sourceForm.setFieldsValue({ key: nextKey });
               }}
-              style={{ width: '100%' }}
+              className="w-full rounded-lg"
             >
               <Select.Option value="Header">Header</Select.Option>
               <Select.Option value="QueryString">QueryString</Select.Option>
@@ -649,7 +649,7 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
                     },
                   ]}
                 >
-                  <Input placeholder="请输入键名" />
+                  <Input className="rounded-lg" placeholder="请输入键名" />
                 </Form.Item>
               ) : null
             }

@@ -34,6 +34,7 @@ export interface OpenAIChunk {
 }
 
 export interface SSEUsage {
+  first_byte_timeout?: number; // 首字符时间（毫秒）
   prompt_tokens: number;
   completion_tokens: number;
   total_tokens: number;
@@ -44,7 +45,7 @@ export interface SSEOptions {
   onStart?: (chatId: string) => void;
   onChunk?: (content: string, chatId: string) => void;
   onComplete?: (fullContent: string, chatId: string, usage?: SSEUsage) => void;
-  onError?: (error: string, code?: string) => void;
+  onError?: (error: string, code?: string, httpStatus?: number) => void;
 }
 
 export async function handleSSEStream(
@@ -61,7 +62,21 @@ export async function handleSSEStream(
   });
 
   if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
+    const status = response.status;
+
+    // 处理 403 错误：清除 token 并跳转登录
+    if (status === 403) {
+      localStorage.removeItem('access_token');
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
+      return;
+    }
+
+    // 其他 HTTP 错误，通过 onError 回调处理
+    const errorMessage = `HTTP error! status: ${status}`;
+    callbacks.onError?.(errorMessage, undefined, status);
+    return;
   }
 
   const reader = response.body?.getReader();

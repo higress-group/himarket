@@ -12,12 +12,10 @@ import {
   Spin,
 } from "antd";
 import { CopyOutlined, RobotOutlined, ArrowLeftOutlined } from "@ant-design/icons";
-import ReactMarkdown from "react-markdown";
 import { ProductType } from "../types";
-import remarkGfm from 'remark-gfm';
-import styles from './ModelDetail.module.css';
 import type { IAgentConfig } from "../lib/apis/typing";
 import APIs, { type IProductDetail } from "../lib/apis";
+import MarkdownRender from "../components/MarkdownRender";
 
 const { Panel } = Collapse;
 
@@ -208,18 +206,18 @@ function AgentDetail() {
       <div className="flex gap-6">
         {/* 左侧内容 */}
         <div className="flex-1">
-          <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-6">
+          <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-6 pt-0">
             <Tabs
+              size="large"
               defaultActiveKey="overview"
-              className="model-detail-tabs"
               items={[
                 {
                   key: "overview",
                   label: "概览",
                   children: data?.document ? (
                     <div className="min-h-[400px]">
-                      <div className={styles.markdown}>
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{data.document}</ReactMarkdown>
+                      <div className="prose prose-lg">
+                        <MarkdownRender content={data.document} />
                       </div>
                     </div>
                   ) : (
@@ -235,8 +233,8 @@ function AgentDetail() {
                     <div className="space-y-6">
                       {/* 协议信息 */}
                       {agentConfig.agentAPIConfig.agentProtocols && agentConfig.agentAPIConfig.agentProtocols.length > 0 && (
-                        <div className="p-4 bg-gray-50 rounded-xl">
-                          <div className="text-xs text-gray-500 mb-1">协议</div>
+                        <div className="bg-gray-50 rounded-xl">
+                          <div className="text-sm text-gray-500 mb-1">协议</div>
                           <div className="text-sm font-medium text-gray-900">
                             {agentConfig.agentAPIConfig.agentProtocols.join(', ')}
                           </div>
@@ -251,10 +249,8 @@ function AgentDetail() {
                           {/* 域名选择器 */}
                           {agentDomainOptions.length > 1 && (
                             <div className="mb-4">
-                              <div className="flex items-stretch border border-gray-200 rounded-xl overflow-hidden bg-white">
-                                <div className="bg-gray-50 px-4 py-3 text-sm text-gray-600 border-r border-gray-200 flex items-center whitespace-nowrap font-medium">
-                                  域名
-                                </div>
+                              <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-xl">
+                                <span className="flex items-center gap-2 p-3 bg-gray-50 rounded-xl">域名:</span>
                                 <div className="flex-1">
                                   <Select
                                     value={selectedAgentDomainIndex}
@@ -262,11 +258,6 @@ function AgentDetail() {
                                     className="w-full"
                                     placeholder="选择域名"
                                     size="middle"
-                                    bordered={false}
-                                    style={{
-                                      fontSize: '14px',
-                                      height: '100%'
-                                    }}
                                   >
                                     {agentDomainOptions.map((option) => (
                                       <Select.Option key={option.value} value={option.value}>

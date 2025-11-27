@@ -6,7 +6,7 @@ import { Sidebar } from "../components/chat/Sidebar";
 import { ChatArea } from "../components/chat/ChatArea";
 import { generateConversationId, generateQuestionId } from "../lib/uuid";
 import { handleSSEStream } from "../lib/sse";
-import APIs, { type IConversation, type IProductDetail } from "../lib/apis";
+import APIs, { type IProductConversations, type IProductDetail } from "../lib/apis";
 
 interface MessageVersion {
   content: string;
@@ -46,6 +46,12 @@ function Chat() {
   const [questionContentMap, setQuestionContentMap] = useState<Map<string, string>>(new Map());
   const [isLoading, setIsLoading] = useState(false); // 添加loading状态
   const [sidebarRefreshTrigger, setSidebarRefreshTrigger] = useState(0); // 用于触发 Sidebar 刷新
+  const [chatAreaKey, setChatAreaKey] = useState(0); // 用于重置 ChatArea 组件状态
+  // 多模型对比的初始化数据（用于从历史会话加载）
+  const [initialCompareData, setInitialCompareData] = useState<{
+    models: string[];
+    messages: Record<string, Message[]>;
+  } | null>(null);
 
   // 从 location.state 接收选中的产品，或者加载默认第一个模型
   useEffect(() => {
@@ -347,11 +353,10 @@ function Chat() {
               ));
             },
             onComplete: (content, _chatId, usage) => {
-              const totalTime = Date.now() - startTime;
               const newVersion: MessageVersion = {
                 content: content,
-                firstTokenTime: firstTokenTime ? Math.round(firstTokenTime) : undefined,
-                totalTime: usage?.elapsed_time || Math.round(totalTime),
+                firstTokenTime: usage?.first_byte_timeout || 0,
+                totalTime: usage?.elapsed_time || 0,
                 inputTokens: usage?.prompt_tokens,
                 outputTokens: usage?.completion_tokens,
               };
@@ -445,6 +450,7 @@ function Chat() {
     setCurrentSessionId(null);
     setCurrentConversationId(null);
     setQuestionContentMap(new Map()); // 清空问题内容映射
+    setChatAreaKey(prev => prev + 1); // 重置 ChatArea 组件，清除对比模式状态
   };
 
   const handleSelectProduct = (product: IProductDetail) => {
@@ -455,6 +461,13 @@ function Chat() {
     setCurrentSessionId(null);
     setCurrentConversationId(null);
     setQuestionContentMap(new Map());
+    setChatAreaKey(prev => prev + 1); // 重置 ChatArea 组件，清除对比模式状态
+  };
+
+  // 当退出对比模式时，更新单模型消息
+  const handleExitCompareMode = (newMessages: Message[]) => {
+    setMessages(newMessages);
+    setInitialCompareData(null); // 清空对比数据
   };
 
   // 加载会话的历史聊天记录
@@ -466,6 +479,8 @@ function Chat() {
 
     try {
       setCurrentSessionId(sessionId);
+      // 重置 ChatArea 组件以清除对比模式状态
+      setChatAreaKey(prev => prev + 1);
       // 不要立即清空消息，避免闪烁
 
       // 根据 productIds 加载产品信息
@@ -488,55 +503,128 @@ function Chat() {
         antdMessage.warning("该会话没有关联的模型，请先选择模型");
       }
 
-      const response = await APIs.getConversations(sessionId);
+      const response = await APIs.getConversationsV2(sessionId);
 
       if (response.code === "SUCCESS" && response.data) {
-        const conversations: IConversation[] = response.data;
+        const productConversations: IProductConversations[] = response.data;
 
-        // 将会话记录转换为消息列表
-        const allMessages: Message[] = [];
-        const newQuestionContentMap = new Map<string, string>();
+        if (productConversations.length === 0) {
+          setMessages([]);
+          setInitialCompareData(null);
+          return;
+        }
 
-        conversations.forEach(conversation => {
-          conversation.questions.forEach(question => {
-            // 添加用户消息
-            allMessages.push({
-              id: question.questionId,
-              role: "user",
-              content: question.content,
-              timestamp: new Date(),
-            });
+        // 判断是单模型还是多模型会话
+        const isMultiModel = productConversations.length > 1;
 
-            // 保存问题内容到 map，用于重新生成
-            newQuestionContentMap.set(question.questionId, question.content);
+        if (isMultiModel) {
+          // 多模型对比场景：准备多模型对比的初始化数据
+          const models: string[] = productConversations.map(pc => pc.productId);
+          const compareMessages: Record<string, Message[]> = {};
+          const newQuestionContentMap = new Map<string, string>();
 
-            // 添加 AI 回复，支持多版本答案
-            if (question.answers.length > 0) {
-              // 将所有 answers 转换为 versions
-              const versions: MessageVersion[] = question.answers
-                .filter(answer => answer.results.length > 0)
-                .map(answer => {
-                  const result = answer.results[0]; // 取第一个 result（多模型对比场景）
-                  return {
-                    content: result.content,
-                    totalTime: result.usage?.elapsed_time,
-                    inputTokens: result.usage?.prompt_tokens,
-                    outputTokens: result.usage?.completion_tokens,
-                  };
+          productConversations.forEach(productConv => {
+            const productId = productConv.productId;
+            const allMessages: Message[] = [];
+
+            productConv.conversations.forEach(conversation => {
+              conversation.questions.forEach(question => {
+                // 添加用户消息
+                allMessages.push({
+                  id: question.questionId,
+                  role: "user",
+                  content: question.content,
+                  timestamp: new Date(question.createdAt),
                 });
 
-              if (versions.length > 0) {
+                // 保存问题内容到 map（只需要保存一次）
+                if (!newQuestionContentMap.has(question.questionId)) {
+                  newQuestionContentMap.set(question.questionId, question.content);
+                }
+
+                // 添加 AI 回复
+                if (question.answers.length > 0) {
+                  const versions: MessageVersion[] = question.answers.map(answer => ({
+                    content: answer.content,
+                    totalTime: answer.usage?.elapsed_time,
+                    inputTokens: answer.usage?.prompt_tokens,
+                    outputTokens: answer.usage?.completion_tokens,
+                  }));
+
+                  const currentVersionIndex = versions.length - 1;
+                  const currentVersion = versions[currentVersionIndex];
+
+                  allMessages.push({
+                    id: `${productId}-${question.questionId}-answer-${currentVersionIndex}`,
+                    role: "assistant",
+                    content: currentVersion.content,
+                    timestamp: new Date(question.createdAt),
+                    questionId: question.questionId,
+                    versions: versions,
+                    currentVersionIndex: currentVersionIndex,
+                    totalTime: currentVersion.totalTime,
+                    inputTokens: currentVersion.inputTokens,
+                    outputTokens: currentVersion.outputTokens,
+                  });
+                }
+              });
+            });
+
+            compareMessages[productId] = allMessages;
+          });
+
+          // 设置多模型对比的初始化数据
+          setInitialCompareData({ models, messages: compareMessages });
+          setQuestionContentMap(newQuestionContentMap);
+          setMessages([]); // 清空单模型消息
+          setChatAreaKey(prev => prev + 1); // 重置 ChatArea 以应用多模型数据
+
+          // 设置当前的 conversationId（使用第一个product的最后一个对话）
+          if (productConversations[0].conversations.length > 0) {
+            const lastConv = productConversations[0].conversations[productConversations[0].conversations.length - 1];
+            setCurrentConversationId(lastConv.conversationId);
+          }
+        } else {
+          // 单模型场景：保持现有逻辑
+          const firstProductConversations = productConversations[0];
+          const conversations = firstProductConversations.conversations;
+
+          const allMessages: Message[] = [];
+          const newQuestionContentMap = new Map<string, string>();
+
+          conversations.forEach(conversation => {
+            conversation.questions.forEach(question => {
+              // 添加用户消息
+              allMessages.push({
+                id: question.questionId,
+                role: "user",
+                content: question.content,
+                timestamp: new Date(question.createdAt),
+              });
+
+              // 保存问题内容到 map，用于重新生成
+              newQuestionContentMap.set(question.questionId, question.content);
+
+              // 添加 AI 回复，支持多版本答案
+              if (question.answers.length > 0) {
+                // 将所有 answers 转换为 versions（V2 版本答案直接是对象数组）
+                const versions: MessageVersion[] = question.answers.map(answer => ({
+                  content: answer.content,
+                  totalTime: answer.usage?.elapsed_time,
+                  inputTokens: answer.usage?.prompt_tokens,
+                  outputTokens: answer.usage?.completion_tokens,
+                  firstTokenTime: answer.usage?.first_byte_timeout,
+                }));
+
                 // 显示最后一个版本（用户最后看到的）
                 const currentVersionIndex = versions.length - 1;
                 const currentVersion = versions[currentVersionIndex];
-                const lastAnswer = question.answers[question.answers.length - 1];
-                const lastResult = lastAnswer.results[0];
 
                 allMessages.push({
-                  id: lastResult.answerId,
+                  id: `${question.questionId}-answer-${currentVersionIndex}`,
                   role: "assistant",
                   content: currentVersion.content,
-                  timestamp: new Date(),
+                  timestamp: new Date(question.createdAt),
                   questionId: question.questionId, // 关联问题ID，用于重新生成
                   versions: versions, // 保存所有版本
                   currentVersionIndex: currentVersionIndex, // 当前显示的版本索引
@@ -544,21 +632,21 @@ function Chat() {
                   totalTime: currentVersion.totalTime,
                   inputTokens: currentVersion.inputTokens,
                   outputTokens: currentVersion.outputTokens,
+                  firstTokenTime: currentVersion.firstTokenTime,
                 });
               }
-            }
+            });
           });
-        });
 
-        // 更新问题内容映射
-        setQuestionContentMap(newQuestionContentMap);
+          // 更新问题内容映射
+          setQuestionContentMap(newQuestionContentMap);
+          setMessages(allMessages);
+          setInitialCompareData(null); // 清空多模型数据
 
-        // 数据加载完成后再更新消息列表，避免闪烁
-        setMessages(allMessages);
-
-        // 设置当前的 conversationId（使用最后一个对话的 ID）
-        if (conversations.length > 0) {
-          setCurrentConversationId(conversations[conversations.length - 1].conversationId);
+          // 设置当前的 conversationId（使用最后一个对话的 ID）
+          if (conversations.length > 0) {
+            setCurrentConversationId(conversations[conversations.length - 1].conversationId);
+          }
         }
       }
     } catch (error) {
@@ -577,6 +665,7 @@ function Chat() {
           refreshTrigger={sidebarRefreshTrigger}
         />
         <ChatArea
+          key={chatAreaKey}
           currentSessionId={currentSessionId || undefined}
           messages={messages}
           selectedProduct={selectedProduct}
@@ -585,6 +674,8 @@ function Chat() {
           onRefreshMessage={handleRefreshMessage}
           onChangeVersion={handleChangeVersion}
           isLoading={isLoading}
+          initialCompareData={initialCompareData}
+          onExitCompareMode={handleExitCompareMode}
         />
       </div>
     </Layout>
