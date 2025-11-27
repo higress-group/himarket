@@ -10,46 +10,36 @@ import java.util.List;
 
 @Data
 @Builder
-public class ConversationResult {
+public class ProductConversationResult {
 
-    private String conversationId;
+    private String productId;
+    
+    private List<ConversationResult> conversationResults;
 
-    private List<QuestionResult> questions;
+    @Data
+    @Builder
+    public static class ConversationResult {
+        private String conversationId;
+        private List<QuestionResult> questions;
+    }
 
     @Data
     @Builder
     public static class QuestionResult {
-
         private String questionId;
-
         private String content;
-
         private LocalDateTime createdAt;
-
         private List<ChatAttachmentConfig> attachments;
-
-        private List<AnswerGroupResult> answers;
+        private List<AnswerResult> answers;
     }
 
     @Data
     @Builder
     public static class AnswerResult {
-
+        private Integer sequence;
         private String answerId;
-
-        private String productId;
-
         private String content;
-
         private ChatUsage usage;
     }
-
-    @Data
-    @Builder
-    public static class AnswerGroupResult {
-
-        private Integer sequence;
-
-        private List<AnswerResult> results;
-    }
 }
+
