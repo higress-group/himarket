@@ -17,44 +17,20 @@
  * under the License.
  */
 
-package com.alibaba.apiopenplatform.support.portal;
+package com.alibaba.apiopenplatform.support.chat.search;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.util.List;
 
 @Data
-public class PortalSettingConfig {
-
-    /**
-     * 内置的账号密码认证，默认开启
-     */
-    private Boolean builtinAuthEnabled = true;
-
-    /**
-     * OIDC配置
-     */
-    private List<OidcConfig> oidcConfigs;
-
-    /**
-     * 开启自动审批开发者注册
-     */
-    private Boolean autoApproveDevelopers = false;
-
-    /**
-     * 开启自动审批订阅申请
-     */
-    private Boolean autoApproveSubscriptions = true;
-
-    /**
-     * OAuth2配置
-     */
-    private List<OAuth2Config> oauth2Configs;
+@AllArgsConstructor
+@NoArgsConstructor
+public class SearchOutput {
     
-    /**
-     * 搜索引擎配置（新增）
-     * 每个 Portal 只能配置一个搜索引擎
-     * null 表示未配置
-     */
-    private SearchEngineConfig searchEngineConfig;
+    private List<SearchContext> searchContexts;
+    
+    private List<String> citations;
 }

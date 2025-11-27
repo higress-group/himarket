@@ -17,44 +17,24 @@
  * under the License.
  */
 
-package com.alibaba.apiopenplatform.support.portal;
+package com.alibaba.apiopenplatform.service.impl;
 
-import lombok.Data;
+import com.alibaba.apiopenplatform.service.TalkSearchAbilityService;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
 import java.util.List;
 
-@Data
-public class PortalSettingConfig {
-
-    /**
-     * 内置的账号密码认证，默认开启
-     */
-    private Boolean builtinAuthEnabled = true;
-
-    /**
-     * OIDC配置
-     */
-    private List<OidcConfig> oidcConfigs;
-
-    /**
-     * 开启自动审批开发者注册
-     */
-    private Boolean autoApproveDevelopers = false;
-
-    /**
-     * 开启自动审批订阅申请
-     */
-    private Boolean autoApproveSubscriptions = true;
-
-    /**
-     * OAuth2配置
-     */
-    private List<OAuth2Config> oauth2Configs;
+@Slf4j
+@Service
+public class TalkSearchFactory {
     
-    /**
-     * 搜索引擎配置（新增）
-     * 每个 Portal 只能配置一个搜索引擎
-     * null 表示未配置
-     */
-    private SearchEngineConfig searchEngineConfig;
+    @Autowired
+    private List<TalkSearchAbilityService> talkSearchAbilityList;
+    
+    public TalkSearchAbilityService getSearchAbility(String searchType) {
+        return talkSearchAbilityList.stream().filter(searchAbility -> searchAbility.getSearchType().equals(searchType))
+                .findFirst().orElse(null);
+    }
 }

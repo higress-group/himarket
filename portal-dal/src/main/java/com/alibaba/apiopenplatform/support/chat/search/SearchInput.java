@@ -17,44 +17,22 @@
  * under the License.
  */
 
-package com.alibaba.apiopenplatform.support.portal;
+package com.alibaba.apiopenplatform.support.chat.search;
 
 import lombok.Data;
+import lombok.experimental.Accessors;
 
 import java.util.List;
 
 @Data
-public class PortalSettingConfig {
-
-    /**
-     * 内置的账号密码认证，默认开启
-     */
-    private Boolean builtinAuthEnabled = true;
-
-    /**
-     * OIDC配置
-     */
-    private List<OidcConfig> oidcConfigs;
-
-    /**
-     * 开启自动审批开发者注册
-     */
-    private Boolean autoApproveDevelopers = false;
-
-    /**
-     * 开启自动审批订阅申请
-     */
-    private Boolean autoApproveSubscriptions = true;
-
-    /**
-     * OAuth2配置
-     */
-    private List<OAuth2Config> oauth2Configs;
+@Accessors(chain = true)
+public class SearchInput {
+    private String query;
     
     /**
-     * 搜索引擎配置（新增）
-     * 每个 Portal 只能配置一个搜索引擎
-     * null 表示未配置
+     * 时间范围，格式: ["2025-03-31", "2025-04-30"]
+     * 空列表或null表示不限制时间
+     * 两个元素分别表示开始日期和结束日期
      */
-    private SearchEngineConfig searchEngineConfig;
+    private List<String> time;
 }
