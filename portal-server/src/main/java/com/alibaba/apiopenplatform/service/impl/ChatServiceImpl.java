@@ -71,8 +71,6 @@ public class ChatServiceImpl implements ChatService {
 //        sessionService.updateStatus(param.getSessionId(), ChatSessionStatus.PROCESSING);
 
         Chat chat = createChat(param);
-        
-        param.setSearchType("GOOGLE");
 
         // Current message, contains user message and attachments
         ChatMessage currentMessage = buildUserMessage(chat);
@@ -81,7 +79,6 @@ public class ChatServiceImpl implements ChatService {
         List<ChatMessage> historyMessages = buildHistoryMessages(param);
 
         List<ChatMessage> chatMessages = mergeAndTruncateMessages(currentMessage, historyMessages);
-        
 
         InvokeModelParam invokeModelParam = buildInvokeModelParam(param, chatMessages, chat);
 
