@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Tabs, Button, Typography, Table, Popconfirm, Modal, Radio, Input, Select, Form, message } from "antd";
+import { useState, useEffect, useMemo } from "react";
+import { Button, Typography, Table, Popconfirm, Modal, Radio, Input, Select, Form, message } from "antd";
 import { EditOutlined, PlusOutlined, CopyOutlined, DeleteOutlined } from "@ant-design/icons";
 import api from "../../lib/api";
 import type {
@@ -10,6 +10,8 @@ import type {
   APIKeyCredential
 } from "../../types/consumer";
 import type { ApiResponse } from "../../types";
+import MultiSwitchButton from "../switch-button.tsx";
+import { modelStyles } from "../../lib/styles.ts";
 
 const { Text } = Typography;
 
@@ -22,20 +24,22 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
   const [currentSource, setCurrentSource] = useState<string>('Default');
   const [currentKey, setCurrentKey] = useState<string>('Authorization');
   const [currentConfig, setCurrentConfig] = useState<ConsumerCredentialResult | null>(null);
-  
+
   // 凭证管理相关状态
   const [credentialType, setCredentialType] = useState<'API_KEY' | 'HMAC'>('API_KEY');
   const [credentialModalVisible, setCredentialModalVisible] = useState(false);
   const [credentialLoading, setCredentialLoading] = useState(false);
-  
+
   // 编辑来源相关状态
   const [sourceModalVisible, setSourceModalVisible] = useState(false);
   const [editingSource, setEditingSource] = useState<string>('Default');
   const [editingKey, setEditingKey] = useState<string>('Authorization');
-  
+
   // 表单
   const [sourceForm] = Form.useForm();
   const [credentialForm] = Form.useForm();
+
+  const [activeTab, setActiveTab] = useState<string>('API_KEY');
 
   // 获取当前配置
   const fetchCurrentConfig = async () => {
@@ -160,6 +164,7 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
         message.success('已复制到剪贴板');
       }
     } catch (err) {
+      console.log(err)
       // Ignore
     } finally {
       document.body.removeChild(textArea);
@@ -219,7 +224,7 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
     const initKey = initSource === 'Default' ? 'Authorization' : currentKey;
     setEditingSource(initSource);
     setEditingKey(initKey);
-    sourceForm.setFieldsValue({source: initSource, key: initKey});
+    sourceForm.setFieldsValue({ source: initSource, key: initKey });
     setSourceModalVisible(true);
   };
 
@@ -238,10 +243,10 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
 
     if (type === 'apiKey') {
-      const apiKey = Array.from({length: 32}, () => chars.charAt(Math.floor(Math.random() * chars.length))).join('');
+      const apiKey = Array.from({ length: 32 }, () => chars.charAt(Math.floor(Math.random() * chars.length))).join('');
       const setValue = () => {
         try {
-          credentialForm.setFieldsValue({customApiKey: apiKey});
+          credentialForm.setFieldsValue({ customApiKey: apiKey });
         } catch (error) {
           console.error('设置API Key失败:', error);
         }
@@ -253,8 +258,8 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
       }
       return apiKey;
     } else {
-      const ak = Array.from({length: 32}, () => chars.charAt(Math.floor(Math.random() * chars.length))).join('');
-      const sk = Array.from({length: 64}, () => chars.charAt(Math.floor(Math.random() * chars.length))).join('');
+      const ak = Array.from({ length: 32 }, () => chars.charAt(Math.floor(Math.random() * chars.length))).join('');
+      const sk = Array.from({ length: 64 }, () => chars.charAt(Math.floor(Math.random() * chars.length))).join('');
       const setValue = () => {
         try {
           credentialForm.setFieldsValue({
@@ -282,22 +287,22 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
   // API Key 列
   const apiKeyColumns = [
     {
-      title: 'API Key',
+      title: <span className="text-[#737373]">API Key</span>,
       dataIndex: 'apiKey',
       key: 'apiKey',
       render: (apiKey: string) => (
         <div className="flex items-center space-x-2">
-          <code className="text-sm bg-gray-100 px-2 py-1 rounded">{apiKey}</code>
-          <Button type="text" size="small" icon={<CopyOutlined/>} onClick={() => handleCopyCredential(apiKey)}/>
+          <code className="text-sm px-2 py-1 border border-[#e5e5e5] rounded-lg">{apiKey}</code>
+          <Button type="text" size="small" icon={<CopyOutlined className="text-colorPrimary" />} onClick={() => handleCopyCredential(apiKey)} />
         </div>
       ),
     },
     {
-      title: '操作',
+      title: <span className="text-[#737373]">操作</span>,
       key: 'action',
       render: (record: ConsumerCredential) => (
         <Popconfirm title="确定要删除该API Key凭证吗？" onConfirm={() => handleDeleteCredential('API_KEY', record)}>
-          <Button type="link" danger size="small" icon={<DeleteOutlined/>}>删除</Button>
+          <Button className="rounded-lg" icon={<DeleteOutlined className="text-red-500" />} />
         </Popconfirm>
       ),
     },
@@ -311,8 +316,8 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
       key: 'ak',
       render: (ak: string) => (
         <div className="flex items-center space-x-2">
-          <code className="text-sm bg-gray-100 px-2 py-1 rounded">{ak}</code>
-          <Button type="text" size="small" icon={<CopyOutlined/>} onClick={() => handleCopyCredential(ak)}/>
+          <code className="text-sm px-2 py-1 border border-[#e5e5e5] rounded-lg">{ak}</code>
+          <Button type="text" size="small" icon={<CopyOutlined className="text-colorPrimary" />} onClick={() => handleCopyCredential(ak)} />
         </div>
       ),
     },
@@ -322,8 +327,8 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
       key: 'sk',
       render: (sk: string) => (
         <div className="flex items-center space-x-2">
-          <code className="text-sm bg-gray-100 px-2 py-1 rounded">{maskSecretKey(sk)}</code>
-          <Button type="text" size="small" icon={<CopyOutlined/>} onClick={() => handleCopyCredential(sk)}/>
+          <code className="text-sm px-2 py-1 border border-[#e5e5e5] rounded-lg">{maskSecretKey(sk)}</code>
+          <Button type="text" size="small" icon={<CopyOutlined className="text-colorPrimary" />} onClick={() => handleCopyCredential(sk)} />
         </div>
       ),
     },
@@ -332,86 +337,112 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
       key: 'action',
       render: (record: ConsumerCredential) => (
         <Popconfirm title="确定要删除该AK/SK凭证吗？" onConfirm={() => handleDeleteCredential('HMAC', record)}>
-          <Button type="link" danger size="small" icon={<DeleteOutlined/>}>删除</Button>
+          <Button className="rounded-lg" size="small" icon={<DeleteOutlined className="text-red-500" />} />
         </Popconfirm>
       ),
     },
   ];
 
+  const switchBtnOptions = useMemo(() => {
+    return [
+      { label: "API Key", value: "API_KEY" },
+      { label: "HMAC", value: "HMAC" },
+      { label: "JWT", value: "JWT" }
+    ]
+  }, [])
+
   return (
-    <div className="bg-white/60 backdrop-blur-sm rounded-xl border border-white/60 shadow-sm overflow-hidden">
+    <div className="bg-white backdrop-blur-sm rounded-xl border border-white/60 shadow-sm overflow-hidden">
       <div className="p-6">
-        <h3 className="text-base font-semibold text-gray-900 mb-4">认证方式</h3>
-        <Tabs defaultActiveKey="API_KEY">
-          <Tabs.TabPane tab="API Key" key="API_KEY">
-            <div className="mb-4">
-              {/* 凭证来源配置 */}
-              <div className="mb-4 p-4 bg-white/50 backdrop-blur-sm rounded-lg border border-gray-100">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <Text className="font-medium text-gray-700">凭证来源：</Text>
-                    <Text type="secondary" className="text-sm">
-                      {currentSource === 'Default' ? 'Authorization: Bearer <token>' : `${currentSource}：${currentKey}`}
-                    </Text>
+        <h3 className="text-base font-semibold text-gray-900 mb-4 ">认证方式</h3>
+        <MultiSwitchButton
+          initialValue={activeTab}
+          onChange={(val) => {
+            setActiveTab(val);
+          }}
+          options={switchBtnOptions}
+        />
+        <div className="mt-6">
+          {
+            activeTab === 'API_KEY' && (
+              <div>
+                <div className="mb-4">
+                  {/* 凭证来源配置 */}
+                  <div className="mb-6 p-4 backdrop-blur-sm rounded-lg border border-[#e5e5e5]">
+                    <div className="flex items-center">
+                      <div className="flex items-center gap-4">
+                        <span className="font-medium">凭证来源：</span>
+                        <Text type="secondary" >
+                          {currentSource === 'Default' ? 'Authorization: Bearer <token>' : `${currentSource}：${currentKey}`}
+                        </Text>
+                      </div>
+                      <Button className="text-colorPrimary ml-2" type="text" size="small" icon={<EditOutlined />} onClick={openSourceModal}>
+                        编辑
+                      </Button>
+                    </div>
                   </div>
-                  <Button type="link" size="small" icon={<EditOutlined/>} onClick={openSourceModal}>
-                    编辑
+
+                  <Button
+                    type="primary"
+                    icon={<PlusOutlined />}
+                    onClick={() => {
+                      setCredentialType('API_KEY');
+                      openCredentialModal();
+                    }}
+                    className="rounded-lg"
+                  >
+                    新增凭证
                   </Button>
                 </div>
+                <div className="p-1 border border-[#e5e5e5] rounded-lg overflow-hidden">
+                  <Table
+                    columns={apiKeyColumns}
+                    dataSource={currentConfig?.apiKeyConfig?.credentials || []}
+                    rowKey={(record) => record.apiKey || Math.random().toString()}
+                    pagination={false}
+                    locale={{ emptyText: '暂无API Key凭证，请点击上方按钮创建' }}
+                  />
+                </div>
               </div>
-
-              <Button
-                type="primary"
-                icon={<PlusOutlined/>}
-                onClick={() => {
-                  setCredentialType('API_KEY');
-                  openCredentialModal();
-                }}
-                className="rounded-full"
-              >
-                添加凭证
-              </Button>
-            </div>
-            <Table
-              columns={apiKeyColumns}
-              dataSource={currentConfig?.apiKeyConfig?.credentials || []}
-              rowKey={(record) => record.apiKey || Math.random().toString()}
-              pagination={false}
-              size="small"
-              locale={{emptyText: '暂无API Key凭证，请点击上方按钮创建'}}
-            />
-          </Tabs.TabPane>
-
-          <Tabs.TabPane tab="HMAC" key="HMAC">
-            <div className="mb-4">
-              <Button
-                type="primary"
-                icon={<PlusOutlined/>}
-                onClick={() => {
-                  setCredentialType('HMAC');
-                  openCredentialModal();
-                }}
-                className="rounded-full"
-              >
-                添加AK/SK
-              </Button>
-            </div>
-            <Table
-              columns={hmacColumns}
-              dataSource={currentConfig?.hmacConfig?.credentials || []}
-              rowKey={(record) => record.ak || record.sk || Math.random().toString()}
-              pagination={false}
-              size="small"
-              locale={{emptyText: '暂无AK/SK凭证，请点击上方按钮创建'}}
-            />
-          </Tabs.TabPane>
-
-          <Tabs.TabPane tab="JWT" key="JWT" disabled>
-            <div className="text-center py-8 text-gray-500">
-              JWT功能暂未开放
-            </div>
-          </Tabs.TabPane>
-        </Tabs>
+            )
+          }
+          {
+            activeTab === "HMAC" && (
+              <div>
+                <div className="mb-4">
+                  <Button
+                    type="primary"
+                    icon={<PlusOutlined />}
+                    onClick={() => {
+                      setCredentialType('HMAC');
+                      openCredentialModal();
+                    }}
+                    className="rounded-lg"
+                  >
+                    添加AK/SK
+                  </Button>
+                </div>
+                <div className="border border-[#e5e5e5] rounded-lg overflow-hidden">
+                  <Table
+                    columns={hmacColumns}
+                    dataSource={currentConfig?.hmacConfig?.credentials || []}
+                    rowKey={(record) => record.ak || record.sk || Math.random().toString()}
+                    pagination={false}
+                    size="small"
+                    locale={{ emptyText: '暂无AK/SK凭证，请点击上方按钮创建' }}
+                  />
+                </div>
+              </div>
+            )
+          }
+          {
+            activeTab === "JWT" && (
+              <div className="text-center py-8 text-gray-500">
+                JWT功能暂未开放
+              </div>
+            )
+          }
+        </div>
       </div>
 
       {/* 创建凭证模态框 */}
@@ -426,6 +457,7 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
         confirmLoading={credentialLoading}
         okText="添加"
         cancelText="取消"
+        styles={modelStyles}
       >
         <Form form={credentialForm} initialValues={{
           generationMethod: 'SYSTEM',
@@ -440,7 +472,7 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
             </div>
             <Form.Item
               name="generationMethod"
-              rules={[{required: true, message: '请选择生成方式'}]}
+              rules={[{ required: true, message: '请选择生成方式' }]}
               className="mb-0"
             >
               <Radio.Group>
@@ -451,7 +483,7 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
           </div>
 
           <Form.Item noStyle shouldUpdate={(prev, curr) => prev.generationMethod !== curr.generationMethod}>
-            {({getFieldValue}) => {
+            {({ getFieldValue }) => {
               const method = getFieldValue('generationMethod');
               if (method === 'CUSTOM') {
                 return (
@@ -465,17 +497,17 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
                         <Form.Item
                           name="customApiKey"
                           rules={[
-                            {required: true, message: '请输入自定义API Key'},
+                            { required: true, message: '请输入自定义API Key' },
                             {
                               pattern: /^[A-Za-z0-9_-]+$/,
                               message: '支持英文、数字、下划线(_)和短横线(-)'
                             },
-                            {min: 8, message: 'API Key长度至少8个字符'},
-                            {max: 128, message: 'API Key长度不能超过128个字符'}
+                            { min: 8, message: 'API Key长度至少8个字符' },
+                            { max: 128, message: 'API Key长度不能超过128个字符' }
                           ]}
                           className="mb-2"
                         >
-                          <Input placeholder="请输入凭证" maxLength={128}/>
+                          <Input placeholder="请输入凭证" maxLength={128} />
                         </Form.Item>
                         <div className="text-xs text-gray-500">
                           长度为8-128个字符，可包含英文、数字、下划线（_）和短横线（-）
@@ -492,17 +524,17 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
                           <Form.Item
                             name="customAccessKey"
                             rules={[
-                              {required: true, message: '请输入自定义Access Key'},
+                              { required: true, message: '请输入自定义Access Key' },
                               {
                                 pattern: /^[A-Za-z0-9_-]+$/,
                                 message: '支持英文、数字、下划线(_)和短横线(-)'
                               },
-                              {min: 8, message: 'Access Key长度至少8个字符'},
-                              {max: 128, message: 'Access Key长度不能超过128个字符'}
+                              { min: 8, message: 'Access Key长度至少8个字符' },
+                              { max: 128, message: 'Access Key长度不能超过128个字符' }
                             ]}
                             className="mb-2"
                           >
-                            <Input placeholder="请输入Access Key" maxLength={128}/>
+                            <Input placeholder="请输入Access Key" maxLength={128} />
                           </Form.Item>
                           <div className="text-xs text-gray-500">
                             长度为8-128个字符，可包含英文、数字、下划线（_）和短横线（-）
@@ -516,17 +548,17 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
                           <Form.Item
                             name="customSecretKey"
                             rules={[
-                              {required: true, message: '请输入自定义Secret Key'},
+                              { required: true, message: '请输入自定义Secret Key' },
                               {
                                 pattern: /^[A-Za-z0-9_-]+$/,
                                 message: '支持英文、数字、下划线(_)和短横线(-)'
                               },
-                              {min: 8, message: 'Secret Key长度至少8个字符'},
-                              {max: 128, message: 'Secret Key长度不能超过128个字符'}
+                              { min: 8, message: 'Secret Key长度至少8个字符' },
+                              { max: 128, message: 'Secret Key长度不能超过128个字符' }
                             ]}
                             className="mb-2"
                           >
-                            <Input placeholder="请输入 Secret Key" maxLength={128}/>
+                            <Input placeholder="请输入 Secret Key" maxLength={128} />
                           </Form.Item>
                           <div className="text-xs text-gray-500">
                             长度为8-128个字符，可包含英文、数字、下划线（_）和短横线（-）
@@ -573,21 +605,22 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
             // 校验失败，不提交
           }
         }}
+        styles={modelStyles}
         okText="保存"
         cancelText="取消"
       >
-        <Form form={sourceForm} layout="vertical" initialValues={{source: editingSource, key: editingKey}}>
+        <Form form={sourceForm} layout="vertical" initialValues={{ source: editingSource, key: editingKey }}>
           <Form.Item
             label="凭证来源"
             name="source"
-            rules={[{required: true, message: '请选择凭证来源'}]}
+            rules={[{ required: true, message: '请选择凭证来源' }]}
           >
             <Select
               onChange={(value) => {
                 const nextKey = value === 'Default' ? 'Authorization' : '';
-                sourceForm.setFieldsValue({key: nextKey});
+                sourceForm.setFieldsValue({ key: nextKey });
               }}
-              style={{width: '100%'}}
+              style={{ width: '100%' }}
             >
               <Select.Option value="Header">Header</Select.Option>
               <Select.Option value="QueryString">QueryString</Select.Option>
@@ -596,7 +629,7 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
           </Form.Item>
 
           <Form.Item noStyle shouldUpdate={(prev, curr) => prev.source !== curr.source}>
-            {({getFieldValue}) =>
+            {({ getFieldValue }) =>
               getFieldValue('source') !== 'Default' ? (
                 <Form.Item
                   label="键名"
@@ -612,7 +645,7 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
                     },
                   ]}
                 >
-                  <Input placeholder="请输入键名"/>
+                  <Input placeholder="请输入键名" />
                 </Form.Item>
               ) : null
             }

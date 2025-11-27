@@ -3,7 +3,8 @@ package com.alibaba.apiopenplatform.service;
 import com.alibaba.apiopenplatform.dto.result.common.PageResult;
 import com.alibaba.apiopenplatform.entity.ChatSession;
 import com.alibaba.apiopenplatform.dto.result.chat.ChatSessionResult;
-import com.alibaba.apiopenplatform.dto.result.chat.ConversationResult;
+import com.alibaba.apiopenplatform.dto.result.chat.ConversationResult_V1;
+import com.alibaba.apiopenplatform.dto.result.chat.ProductConversationResult;
 import com.alibaba.apiopenplatform.dto.params.chat.CreateChatSessionParam;
 import com.alibaba.apiopenplatform.dto.params.chat.UpdateChatSessionParam;
 import org.springframework.data.domain.Pageable;
@@ -68,7 +69,16 @@ public interface ChatSessionService {
      * @param sessionId
      * @return
      */
-    List<ConversationResult> listConversations(String sessionId);
+    List<ConversationResult_V1> listConversations(String sessionId);
+
+    /**
+     * List conversations grouped by product for a chat session
+     * Structure: Product[] -> Conversations[] -> Questions[] -> Answers[]
+     *
+     * @param sessionId
+     * @return List of ProductConversationResult
+     */
+    List<ProductConversationResult> listConversationsV2(String sessionId);
 
     /**
      * Get a chat session for the current user

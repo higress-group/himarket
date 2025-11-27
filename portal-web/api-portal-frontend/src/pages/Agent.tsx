@@ -4,11 +4,11 @@ const { Title, Paragraph } = Typography;
 import { FolderFilled, FolderOpenFilled } from "@ant-design/icons";
 import { Link } from "react-router-dom";
 import { Layout } from "../components/Layout";
-import api, { categoryApi } from "../lib/api";
 import { ProductStatus } from "../types";
-import type { Product, AgentApiProduct, ApiResponse, PaginatedResponse, ProductIcon, ProductCategoryData } from "../types";
+import APIs, { type ICategory } from "../lib/apis";
+import type { IAgentConfig, IProductIcon } from "../lib/apis/typing";
 
-interface AgentAPI {
+interface IAgentAPI {
   key: string;
   name: string;
   description: string;
@@ -17,18 +17,18 @@ interface AgentAPI {
   protocols: number;
   category: string;
   creator: string;
-  icon?: ProductIcon;
-  agentConfig?: any;
-  categories: ProductCategoryData[];
+  icon?: IProductIcon;
+  agentConfig?: IAgentConfig;
+  categories: ICategory[];
   updatedAt: string;
 }
 
 function AgentPage() {
   const [loading, setLoading] = useState(false);
-  const [agentAPIs, setAgentAPIs] = useState<AgentAPI[]>([]);
-  const [allAgents, setAllAgents] = useState<AgentAPI[]>([]);
+  const [agentAPIs, setAgentAPIs] = useState<IAgentAPI[]>([]);
+  const [allAgents, setAllAgents] = useState<IAgentAPI[]>([]);
   const [searchText, setSearchText] = useState('');
-  const [categories, setCategories] = useState<ProductCategoryData[]>([]);
+  const [categories, setCategories] = useState<ICategory[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
   useEffect(() => {
@@ -39,7 +39,7 @@ function AgentPage() {
   // 获取类别列表
   const fetchCategories = async () => {
     try {
-      const response: any = await categoryApi.getCategoriesByProductType('AGENT_API');
+      const response = await APIs.getCategoriesByProductType({productType: 'AGENT_API'});
       if (response.code === "SUCCESS" && response.data) {
         setCategories(response.data.content || []);
       }
@@ -49,7 +49,7 @@ function AgentPage() {
   };
 
   // 处理产品图标的函数
-  const getIconUrl = (icon?: ProductIcon | null): string => {
+  const getIconUrl = (icon?: IProductIcon): string => {
     const fallback = "/Agent.svg";
     
     if (!icon) {
@@ -70,12 +70,12 @@ function AgentPage() {
   const fetchAgentAPIs = async () => {
     setLoading(true);
     try {
-      const response: ApiResponse<PaginatedResponse<Product>> = await api.get("/products?type=AGENT_API&page=0&size=100");
+      const response = await APIs.getProducts({type: "AGENT_API", page: 0, size: 100});
       if (response.code === "SUCCESS" && response.data) {
         // 移除重复过滤，简化数据映射
-        const mapped = response.data.content.map((item: Product) => {
+        const mapped = response.data.content.map((item) => {
           // 由于API已经筛选了AGENT_API类型，我们可以安全地进行类型断言
-          const agentProduct = item as AgentApiProduct;
+          const agentProduct = item;
           return {
             key: agentProduct.productId,
             name: agentProduct.name,
@@ -90,7 +90,7 @@ function AgentPage() {
             categories: agentProduct.categories || [],
             updatedAt: agentProduct.updatedAt?.slice(0, 10) || ''
           };
-        });
+        }) as IAgentAPI[];
         setAllAgents(mapped);
         setAgentAPIs(mapped);
       }
@@ -115,7 +115,7 @@ function AgentPage() {
   };
 
   // 获取类别图标
-  const getCategoryIcon = (icon?: ProductIcon, _isSelected?: boolean, isAll?: boolean) => {
+  const getCategoryIcon = (icon?: IProductIcon, _isSelected?: boolean, isAll?: boolean) => {
     if (!icon || !icon.value) {
       // "全部"使用打开的文件夹图标，其他使用普通文件夹图标
       const IconComponent = isAll ? FolderOpenFilled : FolderFilled;

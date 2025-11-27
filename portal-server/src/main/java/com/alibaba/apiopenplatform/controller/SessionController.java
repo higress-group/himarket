@@ -4,7 +4,8 @@ import com.alibaba.apiopenplatform.core.annotation.AdminOrDeveloperAuth;
 import com.alibaba.apiopenplatform.dto.result.common.PageResult;
 import com.alibaba.apiopenplatform.service.ChatSessionService;
 import com.alibaba.apiopenplatform.dto.result.chat.ChatSessionResult;
-import com.alibaba.apiopenplatform.dto.result.chat.ConversationResult;
+import com.alibaba.apiopenplatform.dto.result.chat.ConversationResult_V1;
+import com.alibaba.apiopenplatform.dto.result.chat.ProductConversationResult;
 import com.alibaba.apiopenplatform.dto.params.chat.CreateChatSessionParam;
 import com.alibaba.apiopenplatform.dto.params.chat.UpdateChatSessionParam;
 import lombok.RequiredArgsConstructor;
@@ -52,8 +53,14 @@ public class SessionController {
     }
 
     @GetMapping("/{sessionId}/conversations")
-    public List<ConversationResult> listConversations(
+    public List<ConversationResult_V1> listConversations(
             @PathVariable @NotBlank String sessionId) {
         return sessionService.listConversations(sessionId);
+    }
+
+    @GetMapping("/{sessionId}/conversations/v2")
+    public List<ProductConversationResult> listConversationsByProduct(
+            @PathVariable @NotBlank String sessionId) {
+        return sessionService.listConversationsV2(sessionId);
     }
 }

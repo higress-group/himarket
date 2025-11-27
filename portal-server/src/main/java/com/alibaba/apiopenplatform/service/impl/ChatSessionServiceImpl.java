@@ -13,7 +13,8 @@ import com.alibaba.apiopenplatform.service.ProductService;
 import com.alibaba.apiopenplatform.repository.ChatRepository;
 import com.alibaba.apiopenplatform.repository.ChatSessionRepository;
 import com.alibaba.apiopenplatform.dto.result.chat.ChatSessionResult;
-import com.alibaba.apiopenplatform.dto.result.chat.ConversationResult;
+import com.alibaba.apiopenplatform.dto.result.chat.ConversationResult_V1;
+import com.alibaba.apiopenplatform.dto.result.chat.ProductConversationResult;
 import com.alibaba.apiopenplatform.dto.params.chat.CreateChatSessionParam;
 import com.alibaba.apiopenplatform.dto.params.chat.UpdateChatSessionParam;
 import lombok.RequiredArgsConstructor;
@@ -142,7 +143,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
     }
 
     @Override
-    public List<ConversationResult> listConversations(String sessionId) {
+    public List<ConversationResult_V1> listConversations(String sessionId) {
         List<Chat> chats = chatRepository.findAllBySessionIdAndUserId(
                 sessionId, contextHolder.getUser(),
                 Sort.by(Sort.Direction.ASC, "createAt")
@@ -160,14 +161,14 @@ public class ChatSessionServiceImpl implements ChatSessionService {
                 ));
 
         return conversationMap.entrySet().stream()
-                .map(entry -> ConversationResult.builder()
+                .map(entry -> ConversationResult_V1.builder()
                         .conversationId(entry.getKey())
                         .questions(buildQuestions(entry.getValue()))
                         .build())
                 .collect(Collectors.toList());
     }
 
-    private List<ConversationResult.QuestionResult> buildQuestions(List<Chat> conversationChats) {
+    private List<ConversationResult_V1.QuestionResult> buildQuestions(List<Chat> conversationChats) {
         // Group by question ID
         Map<String, List<Chat>> questionGroups = conversationChats.stream()
                 .collect(Collectors.groupingBy(
@@ -177,11 +178,11 @@ public class ChatSessionServiceImpl implements ChatSessionService {
                 ));
 
         // Build question results
-        List<ConversationResult.QuestionResult> questions = new ArrayList<>();
+        List<ConversationResult_V1.QuestionResult> questions = new ArrayList<>();
         for (Map.Entry<String, List<Chat>> e : questionGroups.entrySet()) {
             Chat firstChat = e.getValue().get(0);
 
-            ConversationResult.QuestionResult question = ConversationResult.QuestionResult.builder()
+            ConversationResult_V1.QuestionResult question = ConversationResult_V1.QuestionResult.builder()
                     .questionId(e.getKey())
                     .content(firstChat.getQuestion())
                     .createdAt(firstChat.getCreateAt())
@@ -196,7 +197,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
         return questions;
     }
 
-    private List<ConversationResult.AnswerGroupResult> buildAnswerGroups(List<Chat> questionChats) {
+    private List<ConversationResult_V1.AnswerGroupResult> buildAnswerGroups(List<Chat> questionChats) {
         // Group by sequence
         Map<Integer, List<Chat>> sequenceGroups = questionChats.stream()
                 .filter(chat -> chat.getSequence() != null)
@@ -211,8 +212,8 @@ public class ChatSessionServiceImpl implements ChatSessionService {
                 .sorted()
                 .map(sequence -> {
                     // Build answers for current sequence
-                    List<ConversationResult.AnswerResult> answers = sequenceGroups.get(sequence).stream()
-                            .map(chat -> ConversationResult.AnswerResult.builder()
+                    List<ConversationResult_V1.AnswerResult> answers = sequenceGroups.get(sequence).stream()
+                            .map(chat -> ConversationResult_V1.AnswerResult.builder()
                                     .answerId(chat.getAnswerId())
                                     .productId(chat.getProductId())
                                     .content(chat.getAnswer())
@@ -220,9 +221,115 @@ public class ChatSessionServiceImpl implements ChatSessionService {
                                     .build())
                             .collect(Collectors.toList());
 
-                    return ConversationResult.AnswerGroupResult.builder()
+                    return ConversationResult_V1.AnswerGroupResult.builder()
                             .sequence(sequence)
                             .results(answers)
+                            .build();
+                })
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<ProductConversationResult> listConversationsV2(String sessionId) {
+        // 1. Query all chats for the session
+        List<Chat> chats = chatRepository.findAllBySessionIdAndUserId(
+                sessionId, contextHolder.getUser(),
+                Sort.by(Sort.Direction.ASC, "createAt")
+        );
+        
+        if (CollUtil.isEmpty(chats)) {
+            return Collections.emptyList();
+        }
+
+        // 2. Group by productId
+        Map<String, List<Chat>> productGroups = chats.stream()
+                .collect(Collectors.groupingBy(
+                        Chat::getProductId,
+                        LinkedHashMap::new,
+                        Collectors.toList()
+                ));
+
+        // 3. Build result list for each product
+        return productGroups.entrySet().stream()
+                .map(entry -> {
+                    String productId = entry.getKey();
+                    List<Chat> productChats = entry.getValue();
+                    
+                    return ProductConversationResult.builder()
+                            .productId(productId)
+                            .conversationResults(buildProductConversations(productChats))
+                            .build();
+                })
+                .collect(Collectors.toList());
+    }
+
+    private List<ProductConversationResult.ConversationResult> buildProductConversations(List<Chat> productChats) {
+        // Group by conversationId
+        Map<String, List<Chat>> conversationGroups = productChats.stream()
+                .collect(Collectors.groupingBy(
+                        Chat::getConversationId,
+                        LinkedHashMap::new,
+                        Collectors.toList()
+                ));
+
+        return conversationGroups.entrySet().stream()
+                .map(entry -> ProductConversationResult.ConversationResult.builder()
+                        .conversationId(entry.getKey())
+                        .questions(buildProductQuestions(entry.getValue()))
+                        .build())
+                .collect(Collectors.toList());
+    }
+
+    private List<ProductConversationResult.QuestionResult> buildProductQuestions(List<Chat> conversationChats) {
+        // Group by questionId
+        Map<String, List<Chat>> questionGroups = conversationChats.stream()
+                .collect(Collectors.groupingBy(
+                        Chat::getQuestionId,
+                        LinkedHashMap::new,
+                        Collectors.toList()
+                ));
+
+        List<ProductConversationResult.QuestionResult> questions = new ArrayList<>();
+        for (Map.Entry<String, List<Chat>> entry : questionGroups.entrySet()) {
+            Chat firstChat = entry.getValue().get(0);
+
+            ProductConversationResult.QuestionResult question = ProductConversationResult.QuestionResult.builder()
+                    .questionId(entry.getKey())
+                    .content(firstChat.getQuestion())
+                    .createdAt(firstChat.getCreateAt())
+                    .attachments(Optional.ofNullable(firstChat.getAttachments())
+                            .orElse(Collections.emptyList()))
+                    .answers(buildProductAnswers(entry.getValue()))
+                    .build();
+
+            questions.add(question);
+        }
+
+        return questions;
+    }
+
+    private List<ProductConversationResult.AnswerResult> buildProductAnswers(List<Chat> questionChats) {
+        // Group by sequence
+        Map<Integer, List<Chat>> sequenceGroups = questionChats.stream()
+                .filter(chat -> chat.getSequence() != null)
+                .collect(Collectors.groupingBy(
+                        Chat::getSequence,
+                        LinkedHashMap::new,
+                        Collectors.toList()
+                ));
+
+        // Build answers sorted by sequence
+        return sequenceGroups.keySet().stream()
+                .sorted()
+                .map(sequence -> {
+                    // Since we're grouping by product already, there should be only one chat per sequence
+                    Chat chat = sequenceGroups.get(sequence).get(0);
+                    
+                    return ProductConversationResult.AnswerResult.builder()
+                            .sequence(sequence)
+                            .answerId(chat.getAnswerId())
+                            .content(chat.getAnswer())
+                            .usage(chat.getChatUsage())
                             .build();
                 })
                 .collect(Collectors.toList());

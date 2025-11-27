@@ -76,16 +76,15 @@ public class OpenAILlmService extends AbstractLlmService {
             String content = extractContentFromResponse(response);
 
             if (content != null) {
-                // Append to answer content and reset current content
+                // Append to answer content
                 chatContent.getAnswerContent().append(content);
-                chatContent.setCurrentContent(content);
             }
 
             if (response.getUsage() != null) {
                 ChatUsage usage = response.toStandardUsage();
                 chatContent.setUsage(usage);
                 chatContent.stop();
-                response.getUsage().setFirstPackageTime(chatContent.getFirstPackageTime());
+                response.getUsage().setFirstByteTimeout(chatContent.getFirstByteTimeout());
             }
 
             return JSONUtil.toJsonStr(response);

@@ -17,9 +17,13 @@ import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import jakarta.servlet.http.HttpServletResponse;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 @Slf4j
@@ -36,7 +40,7 @@ public abstract class AbstractLlmService implements LlmService {
         try {
             LlmChatRequest request = composeRequest(param);
 
-            return call(request, response, resultHandler);
+            return callV2(request, response, resultHandler);
         } catch (Exception e) {
             log.error("Failed to invoke LLM", e);
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, e.getMessage());
@@ -67,7 +71,8 @@ public abstract class AbstractLlmService implements LlmService {
 
                     // Skip Transfer-Encoding header to avoid duplicated headers
                     responseHeaders.forEach((key, values) -> {
-                        if (key != null && !key.equalsIgnoreCase("transfer-encoding")) {
+                        if (key != null && !key.equalsIgnoreCase("transfer-encoding")
+                                && !key.equalsIgnoreCase("content-length")) {
                             values.forEach(value -> response.addHeader(key, value));
                         }
                     });
@@ -77,7 +82,7 @@ public abstract class AbstractLlmService implements LlmService {
                             .delayElements(Duration.ofMillis(100))
                             .handle((chunk, sink) -> {
                                 // Record first token time
-                                chatContent.recordFirstPackageTime();
+                                chatContent.recordFirstByteTimeout();
 
                                 String s = processStreamChunk(chunk, chatContent);
                                 // Only send the chunk if there is no error and unexpected content is empty
@@ -116,14 +121,89 @@ public abstract class AbstractLlmService implements LlmService {
 
     protected abstract String processStreamChunk(String chunk, ChatContent chatContent);
 
+    private SseEmitter callV2(LlmChatRequest request, HttpServletResponse response, Consumer<LlmInvokeResult> resultHandler) {
+        SseEmitter emitter = new SseEmitter(-1L);
+
+        request.tryResolveDns();
+        log.info("zhaoh-test-request: {}", JSONUtil.toJsonStr(request));
+
+        ChatContent chatContent = new ChatContent();
+        chatContent.start();
+        
+        webClient
+                .post()
+                .uri(request.getUrl().toString())
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.TEXT_EVENT_STREAM)
+                .headers(headers -> request.getHeaders().forEach(headers::add))
+                .bodyValue(request.getBody())
+                .exchangeToFlux(clientResponse -> {
+                    // Set response headers which are from the gateway
+                    HttpHeaders responseHeaders = clientResponse.headers().asHttpHeaders();
+
+                    // Skip Transfer-Encoding and Content-Length headers
+                    responseHeaders.forEach((key, values) -> {
+                        if (key != null && !key.equalsIgnoreCase("transfer-encoding")
+                                && !key.equalsIgnoreCase("content-length")) {
+                            values.forEach(value -> response.addHeader(key, value));
+                        }
+                    });
+
+                    return clientResponse.bodyToFlux(String.class)
+                            .delayElements(Duration.ofMillis(100))
+                            .handle((chunk, sink) -> {
+                                chatContent.recordFirstByteTimeout();
+                                String s = processStreamChunk(chunk, chatContent);
+                                if (chatContent.success()) {
+                                    sink.next(s);
+                                }
+                            })
+                            // When the stream is complete, send the error event if there is any unexpected content
+                            .concatWith(
+                                Mono.defer(() -> chatContent.success()
+                                        ? Mono.empty()
+                                        : Mono.just(formatErrorEvent(chatContent.getUnexpectedContent().toString()))
+                                )
+                            );
+                })
+                // Catch request-level errors: DNS resolution, connection timeout, etc.
+                .onErrorResume(error -> {
+                    log.error("Model API call failed", error);
+                    chatContent.getUnexpectedContent().append(error.getMessage());
+                    chatContent.setAnswerContent(chatContent.getAnswerContent().append(error.getMessage()));
+                    return Flux.just(formatErrorEvent(error.getMessage()));
+                })
+                .doOnNext(chunk -> {
+                    try {
+                        emitter.send(SseEmitter.event().data(chunk));
+                    } catch (IOException e) {
+                        log.warn("Failed to send chunk to client", e);
+                    }
+                })
+                .doOnComplete(() -> {
+                    try {
+                        TimeUnit.SECONDS.sleep(3);
+                    } catch (InterruptedException ignored) {
+                    }
+                    emitter.complete();
+                    resultHandler.accept(LlmInvokeResult.of(chatContent));
+                })
+                .subscribe();
+                
+        return emitter;
+    }
+
+    private String formatErrorEvent(String message) {
+        Map<String, String> errEvent = MapUtil.<String, String>builder()
+                .put("status", "error")
+                .put("message", message)
+                .build();
+        return JSONUtil.toJsonStr(errEvent);
+    }
+
     private void sendError(SseEmitter emitter, String message) {
         try {
-            Map<String, String> errEvent = MapUtil.<String, String>builder()
-                    .put("status", "error")
-                    .put("message", message)
-                    .build();
-            emitter.send(SseEmitter.event()
-                    .data(JSONUtil.toJsonStr(errEvent)));
+            emitter.send(SseEmitter.event().data(formatErrorEvent(message)));
         } catch (IOException e) {
             log.error("Failed to send error event", e);
         }

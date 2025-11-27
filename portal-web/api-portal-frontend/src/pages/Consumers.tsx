@@ -1,5 +1,5 @@
-import { Table, Button, Space, Typography, Input } from "antd";
-import { DeleteOutlined, EyeOutlined, PlusOutlined, SearchOutlined } from "@ant-design/icons";
+import { Table, Button, Space, Typography, Input, Pagination, type TableColumnType } from "antd";
+import { DeleteOutlined, PlusOutlined, SearchOutlined, ReloadOutlined } from "@ant-design/icons";
 import { Layout } from "../components/Layout";
 import { useEffect, useState, useCallback } from "react";
 import { getConsumers, deleteConsumer, createConsumer } from "../lib/api";
@@ -7,7 +7,6 @@ import { message, Modal } from "antd";
 import { Link, useSearchParams } from "react-router-dom";
 import { formatDateTime } from "../lib/utils";
 import type { Consumer } from "../types/consumer";
-import "../styles/table.css";
 
 const { Title } = Typography;
 
@@ -90,15 +89,15 @@ function ConsumersPage() {
     }
   };
 
-  const columns = [
+  const columns: TableColumnType<Consumer>[] = [
     {
       title: '消费者',
       dataIndex: 'name',
       key: 'name',
-      render: (name: string, record: Consumer) => (
+      width: "20%",
+      render: (name: string) => (
         <div>
           <div className="font-medium">{name}</div>
-          <div className="text-xs text-gray-400">{record.description}</div>
         </div>
       ),
     },
@@ -106,7 +105,15 @@ function ConsumersPage() {
       title: '创建时间',
       dataIndex: 'createAt',
       key: 'createAt',
+      width: "20%",
       render: (date: string) => date ? formatDateTime(date) : '-',
+    },
+    {
+      title: "描述",
+      dataIndex: "description",
+      key: "description",
+      width: "30%",
+      render: (description: string) => description || '-',
     },
     {
       title: '操作',
@@ -115,15 +122,12 @@ function ConsumersPage() {
         <Space>
           <Link to={`/consumers/${record.consumerId}`}>
             <Button
-              type="link"
-              icon={<EyeOutlined />}
+              className="rounded-lg text-colorPrimary"
             >
               查看详情
             </Button>
           </Link>
-          <Button type="link" danger icon={<DeleteOutlined />} onClick={() => handleDelete(record)}>
-            删除
-          </Button>
+          <Button className="rounded-lg" icon={<DeleteOutlined className="text-[#EF4444]" />} onClick={() => handleDelete(record)}></Button>
         </Space>
       ),
     },
@@ -131,62 +135,73 @@ function ConsumersPage() {
 
   return (
     <Layout>
-      <div className="w-full">
-        {/* 页面标题 */}
-        <div className="mb-6">
-          <Title level={2} className="mb-0 text-gray-900">
-            {productId ? '产品订阅管理' : '消费者'}
-          </Title>
-        </div>
+      <div className="w-full ">
 
         {/* 主内容区域 - glass-morphism 风格 */}
-        <div className="bg-white/40 backdrop-blur-xl rounded-2xl shadow-lg border border-white/40 p-6">
+        <div className="min-h-[calc(100vh-96px)] bg-white backdrop-blur-xl rounded-2xl shadow-xs border border-white/40 p-6">
+          <div className="mb-5">
+            <Title level={2} className="text-gray-900">
+              {productId ? '产品订阅管理' : '消费者管理'}
+            </Title>
+          </div>
           {/* 搜索和新增按钮 */}
           <div className="mb-4 flex justify-between items-center">
-            <Input
-              placeholder="搜索消费者..."
-              prefix={<SearchOutlined className="text-gray-400" />}
-              value={searchInput}
-              onChange={e => setSearchInput(e.target.value)}
-              onPressEnter={() => handleSearch()}
-              allowClear
-              className="w-80 rounded-xl"
-              style={{
-                backgroundColor: "rgba(255, 255, 255, 0.6)",
-                backdropFilter: "blur(10px)",
-              }}
-            />
-            {!productId && (
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={() => setAddModalOpen(true)}
-                className="rounded-full"
-              >
-                新增消费者
-              </Button>
-            )}
+            <div className="flex gap-2 items-center">
+              {!productId && (
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={() => setAddModalOpen(true)}
+                  className="rounded-lg"
+                >
+                  新增消费者
+                </Button>
+              )}
+              <Input
+                placeholder="搜索消费者..."
+                prefix={<SearchOutlined className="text-gray-400" />}
+                value={searchInput}
+                onChange={e => setSearchInput(e.target.value)}
+                onPressEnter={() => handleSearch()}
+                allowClear
+                className="w-80 rounded-lg"
+                style={{
+                  backgroundColor: "rgba(255, 255, 255, 0.6)",
+                  backdropFilter: "blur(10px)",
+                }}
+              />
+            </div>
+            <div>
+              <Button className="rounded-lg" icon={<ReloadOutlined />} />
+            </div>
           </div>
 
           {/* 表格 */}
-          <Table
-            columns={columns}
-            dataSource={consumers}
-            rowKey="consumerId"
-            loading={loading}
-            pagination={{
-              total,
-              current: page,
-              pageSize,
-              showSizeChanger: true,
-              showQuickJumper: true,
-              showTotal: (total) => `共 ${total} 条`,
-              onChange: (p, ps) => {
-                setPage(p);
-                setPageSize(ps);
-              },
-            }}
-          />
+          <div className="overflow-hidden rounded-lg border border-[#e5e5e5]">
+            <Table
+              columns={columns}
+              dataSource={consumers}
+              rowKey="consumerId"
+              loading={loading}
+              pagination={false}
+            />
+          </div>
+          <div className="flex w-full justify-end items-center p-3">
+            <Pagination
+              {...{
+                total,
+                current: page,
+                pageSize,
+                showSizeChanger: true,
+                showQuickJumper: true,
+                showTotal: (total) => `共 ${total} 条`,
+                onChange: (p, ps) => {
+                  setPage(p);
+                  setPageSize(ps);
+                },
+              }}
+            />
+          </div>
         </div>
 
         {/* 新增消费者模态框 */}

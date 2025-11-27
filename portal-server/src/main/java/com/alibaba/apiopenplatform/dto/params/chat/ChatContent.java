@@ -16,11 +16,9 @@ public class ChatContent {
 
     private StringBuilder unexpectedContent = new StringBuilder();
 
-    private String currentContent;
-
     private Long startTime;
 
-    private Long firstPackageTime;
+    private Long firstByteTimeout;
 
     private ChatUsage usage;
 
@@ -32,17 +30,17 @@ public class ChatContent {
         startTime = System.currentTimeMillis();
     }
 
-    public void recordFirstPackageTime() {
-        if (firstPackageTime == null && startTime != null) {
-            firstPackageTime = System.currentTimeMillis() - startTime;
+    public void recordFirstByteTimeout() {
+        if (firstByteTimeout == null && startTime != null) {
+            firstByteTimeout = System.currentTimeMillis() - startTime;
         }
     }
 
     public void stop() {
         if (usage != null) {
             usage.setElapsedTime(System.currentTimeMillis() - startTime);
-            if (firstPackageTime != null) {
-                usage.setFirstPackageTime(firstPackageTime);
+            if (firstByteTimeout != null) {
+                usage.setFirstByteTimeout(firstByteTimeout);
             }
         }
     }

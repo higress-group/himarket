@@ -16,9 +16,9 @@ public class ChatUsage {
     @Alias("elapsed_time")
     private Long elapsedTime;
 
-    @JsonProperty("first_package_time")
-    @Alias("first_package_time")
-    private Long firstPackageTime;
+    @JsonProperty("first_byte_timeout")
+    @Alias("first_byte_timeout")
+    private Long firstByteTimeout;
 
     @JsonProperty("prompt_tokens")
     @Alias("prompt_tokens")

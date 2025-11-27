@@ -12,8 +12,8 @@ import {
 } from "@ant-design/icons";
 import { message as antdMessage, Spin, Dropdown, Modal } from "antd";
 import type { MenuProps } from "antd";
-import { getSessions, updateSession, deleteSession, type Session } from "../../lib/api";
 import "./Sidebar.css";
+import APIs, { type ISession } from "../../lib/apis";
 
 interface SidebarProps {
   currentSessionId: string | null;
@@ -69,10 +69,10 @@ export function Sidebar({ currentSessionId, onNewChat, onSelectSession, refreshT
     const fetchSessions = async () => {
       setLoading(true);
       try {
-        const response: any = await getSessions({ page: 0, size: 50 });
+        const response = await APIs.getSessions({ page: 0, size: 50 });
 
         if (response.code === "SUCCESS" && response.data?.content) {
-          const sessionList: ChatSession[] = response.data.content.map((session: Session) => ({
+          const sessionList: ChatSession[] = response.data.content.map((session: ISession) => ({
             id: session.sessionId,
             title: session.name || "未命名会话",
             timestamp: new Date(session.updateAt || session.createAt),
@@ -143,7 +143,7 @@ export function Sidebar({ currentSessionId, onNewChat, onSelectSession, refreshT
     }
 
     try {
-      const response: any = await updateSession(sessionId, { name: trimmedName });
+      const response = await APIs.updateSession(sessionId, { name: trimmedName });
       if (response.code === "SUCCESS") {
         // 更新本地状态
         setSessions(prev => prev.map(session =>
@@ -192,7 +192,7 @@ export function Sidebar({ currentSessionId, onNewChat, onSelectSession, refreshT
       cancelText: '取消',
       onOk: async () => {
         try {
-          const response: any = await deleteSession(sessionId);
+          const response = await APIs.deleteSession(sessionId);
           if (response.code === "SUCCESS") {
             // 从本地状态中移除
             setSessions(prev => prev.filter(session => session.id !== sessionId));
@@ -294,10 +294,7 @@ export function Sidebar({ currentSessionId, onNewChat, onSelectSession, refreshT
                       onChange={(e) => setEditingName(e.target.value)}
                       onKeyDown={(e) => handleEditKeyDown(e, session.id)}
                       onBlur={() => {
-                        // 延迟执行，让按钮的点击事件有机会先执行
-                        setTimeout(() => {
-                          handleCancelEdit();
-                        }, 200);
+                        handleCancelEdit();
                       }}
                       className="flex-1 max-w-[70%] px-2 py-1 text-sm border border-colorPrimary rounded focus:outline-none focus:ring-1 focus:ring-colorPrimary"
                       autoFocus
@@ -346,7 +343,7 @@ export function Sidebar({ currentSessionId, onNewChat, onSelectSession, refreshT
                       trigger={['click']}
                       placement="bottomRight"
                       overlayClassName="session-menu-dropdown"
-                      dropdownRender={(menu) => (
+                      popupRender={(menu) => (
                         <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-lg border border-white/40 overflow-hidden">
                           {menu}
                         </div>
