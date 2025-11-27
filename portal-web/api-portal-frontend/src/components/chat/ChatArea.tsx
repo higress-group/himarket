@@ -451,9 +451,10 @@ export function ChatArea({ currentSessionId, messages, selectedProduct, onSelect
     setIsCompareModeLoading(false); // 完成 loading
   };
 
+  console.log(compareMessages, 'compareMessages...');
 
   return (
-    <div className={`flex-1 h-full ${isCompareMode || !currentSessionId ? "flex flex-col" : "grid grid-cols-1"}`}>
+    <div className={`flex-1 h-full ${isCompareMode || !currentSessionId ? "flex flex-col" : "grid grid-cols-1 grid-rows-[auto_1fr_auto]"}`}>
       {/* 顶部栏：模型选择器 + 多模型对比按钮（仅在单模型模式显示） */}
       {!isCompareMode && (
         <div className="h-20 flex items-center gap-4 px-4 py-4">
@@ -501,7 +502,7 @@ export function ChatArea({ currentSessionId, messages, selectedProduct, onSelect
       <div className="flex-1 overflow-hidden">
         {isCompareMode ? (
           /* 多模型对比视图 - 使用分割线 */
-          <div className={`h-full grid  ${compareModels.length === 2 ? "grid-cols-2" : " grid-cols-3"}`}>
+          <div className={`h-full grid grid-rows-[auto_1fr_auto] ${compareModels.length === 2 ? "grid-cols-2" : " grid-cols-3"}`}>
             {compareModels.map((modelId, index) => (
               <div
                 key={`${modelId}-${index}`}

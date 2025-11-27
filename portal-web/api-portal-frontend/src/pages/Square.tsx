@@ -43,6 +43,8 @@ function Square(props: { activeType: string }) {
               { id: "all", name: "全部", count: 0 },
               ...categoryList
             ]);
+          } else {
+            setCategories([])
           }
 
           // 重置选中的分类为"全部"

@@ -271,7 +271,7 @@ function ModelDetail() {
       </div>
 
       {/* 主要内容区域 */}
-      <div className="flex gap-6">
+      <div className="flex gap-6 pb-6">
         {/* 左侧内容 */}
         <div className="flex-1">
           <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-6 pt-0">

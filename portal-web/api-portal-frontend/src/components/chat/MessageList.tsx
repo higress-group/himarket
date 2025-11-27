@@ -68,7 +68,7 @@ export function MessageList({ messages, modelName = "AI Assistant", modelIcon, o
   };
 
   return (
-    <div className="mx-auto px-8 py-8">
+    <div className="mx-auto px-6 pb-4">
       <div className="space-y-6">
         {messages.map((msg, idx) => (
           <div key={msg.id + "-" + idx}>
