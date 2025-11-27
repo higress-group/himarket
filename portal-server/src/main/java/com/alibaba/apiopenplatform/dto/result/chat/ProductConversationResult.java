@@ -14,7 +14,7 @@ public class ProductConversationResult {
 
     private String productId;
     
-    private List<ConversationResult> conversationResults;
+    private List<ConversationResult> conversations;
 
     @Data
     @Builder

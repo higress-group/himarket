@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * @author zh
@@ -137,13 +138,19 @@ public class OpenAIChatStreamResponse {
     }
 
     public ChatUsage toStandardUsage() {
+        if (this.usage == null) {
+            return null;
+        }
+
         return ChatUsage.builder()
                 .promptTokens(this.usage.getPromptTokens())
                 .completionTokens(this.usage.getCompletionTokens())
                 .totalTokens(this.usage.getTotalTokens())
-                .promptTokensDetails(ChatUsage.PromptTokensDetails.builder()
-                        .cachedTokens(this.usage.getPromptTokensDetails().getCachedTokens())
-                        .build())
+                .promptTokensDetails(Optional.ofNullable(this.usage.getPromptTokensDetails())
+                        .map(details -> ChatUsage.PromptTokensDetails.builder()
+                                .cachedTokens(details.getCachedTokens())
+                                .build())
+                        .orElse(null))
                 .build();
     }
 }
