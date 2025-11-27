@@ -24,12 +24,15 @@ import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.apiopenplatform.core.exception.BusinessException;
 import com.alibaba.apiopenplatform.core.exception.ErrorCode;
+import com.alibaba.apiopenplatform.core.security.ContextHolder;
 import com.alibaba.apiopenplatform.core.utils.CacheUtil;
+import com.alibaba.apiopenplatform.dto.params.chat.CreateChatParam;
 import com.alibaba.apiopenplatform.dto.params.chat.InvokeModelParam;
 import com.alibaba.apiopenplatform.dto.result.chat.LlmInvokeResult;
+import com.alibaba.apiopenplatform.dto.result.consumer.CredentialContext;
 import com.alibaba.apiopenplatform.dto.result.product.ProductRefResult;
 import com.alibaba.apiopenplatform.dto.result.product.ProductResult;
-import com.alibaba.apiopenplatform.entity.Chat;
+import com.alibaba.apiopenplatform.service.ConsumerService;
 import com.alibaba.apiopenplatform.service.GatewayService;
 import com.alibaba.apiopenplatform.service.LlmService;
 import com.alibaba.apiopenplatform.service.ProductService;
@@ -95,16 +98,26 @@ public class SearchRewirteServiceImpl implements SearchRewriteService {
     
     private final GatewayService gatewayService;
     
+    private final ContextHolder contextHolder;
+    
+    private final ConsumerService consumerService;
+    
     private final Cache<String, List<String>> cache = CacheUtil.newCache(5);
     
-    public SearchRewirteServiceImpl(LlmService llmService, ProductService productService, GatewayService gatewayService) {
+    public SearchRewirteServiceImpl(LlmService llmService,
+            ProductService productService,
+            GatewayService gatewayService,
+            ContextHolder contextHolder,
+            ConsumerService consumerService) {
         this.llmService = llmService;
         this.productService = productService;
         this.gatewayService = gatewayService;
+        this.contextHolder = contextHolder;
+        this.consumerService = consumerService;
     }
     
     @Override
-    public SearchInput rewriteWithRetry(List<ChatMessage> chatMessages, Chat chat) {
+    public SearchInput rewriteWithRetry(List<ChatMessage> chatMessages, CreateChatParam chat) {
         Retryer<SearchInput> retry = RetryerBuilder.<SearchInput>newBuilder()
                 .retryIfException()
                 .withStopStrategy(StopStrategies.stopAfterDelay(3000L, TimeUnit.MILLISECONDS))
@@ -122,10 +135,10 @@ public class SearchRewirteServiceImpl implements SearchRewriteService {
     }
     
     
-    private SearchInput rewrite(List<ChatMessage> chatMessages, Chat chat) {
+    private SearchInput rewrite(List<ChatMessage> chatMessages, CreateChatParam param) {
         List<ChatMessage> messages = buildRewriteMessagesFromHistory(chatMessages);
         
-        InvokeModelParam invokeModelParam = buildInvokeModelParam(messages, chat);
+        InvokeModelParam invokeModelParam = buildInvokeModelParam(messages, param);
         
         // 使用 CountDownLatch 等待异步调用完成
         CountDownLatch latch = new CountDownLatch(1);
@@ -216,18 +229,22 @@ public class SearchRewirteServiceImpl implements SearchRewriteService {
         }
     }
     
-    private InvokeModelParam buildInvokeModelParam(List<ChatMessage> messages, Chat chat) {
-        ProductResult productResult = productService.getProduct(chat.getProductId());
+    private InvokeModelParam buildInvokeModelParam(List<ChatMessage> messages, CreateChatParam param) {
+        ProductResult productResult = productService.getProduct(param.getProductId());
         
         // Get gateway IPs
-        ProductRefResult productRef = productService.getProductRef(chat.getProductId());
+        ProductRefResult productRef = productService.getProductRef(param.getProductId());
         String gatewayId = productRef.getGatewayId();
         List<String> gatewayIps = cache.get(gatewayId, gatewayService::fetchGatewayIps);
         
+        CredentialContext credentialContext = consumerService.getDefaultCredential(contextHolder.getUser());
+        
         return InvokeModelParam.builder()
-                .modelConfig(productResult.getModelConfig())
+                .product(productResult)
+                .requestHeaders(credentialContext.getHeaders())
+                .queryParams(credentialContext.getQueryParams())
                 .chatMessages(messages)
-                .stream(true)  // 使用流式输出，以便通过 AbstractLlmService 处理
+                .stream(param.getStream())
                 .gatewayIps(gatewayIps)
                 .build();
     }

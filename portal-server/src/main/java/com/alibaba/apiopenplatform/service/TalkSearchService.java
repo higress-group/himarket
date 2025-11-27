@@ -19,12 +19,12 @@
 
 package com.alibaba.apiopenplatform.service;
 
-import com.alibaba.apiopenplatform.entity.Chat;
+import com.alibaba.apiopenplatform.dto.params.chat.CreateChatParam;
 import com.alibaba.apiopenplatform.support.chat.ChatMessage;
 
 import java.util.List;
 
 public interface TalkSearchService {
     
-    List<ChatMessage> buildSearchMessages(List<ChatMessage> chatMessages, Chat chat, String searchType);
+    List<ChatMessage> buildSearchMessages(List<ChatMessage> chatMessages, CreateChatParam param);
 }

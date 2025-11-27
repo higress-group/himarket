@@ -21,7 +21,6 @@
 package com.alibaba.apiopenplatform.service;
 
 import com.alibaba.apiopenplatform.dto.params.chat.CreateChatParam;
-import com.alibaba.apiopenplatform.entity.Chat;
 import com.alibaba.apiopenplatform.support.chat.ChatMessage;
 import com.alibaba.apiopenplatform.support.chat.search.SearchInput;
 
@@ -29,6 +28,6 @@ import java.util.List;
 
 public interface SearchRewriteService {
     
-    SearchInput rewriteWithRetry(List<ChatMessage> chatMessages, Chat chat);
+    SearchInput rewriteWithRetry(List<ChatMessage> chatMessages, CreateChatParam createChatParam);
     
 }
