@@ -15,6 +15,7 @@ interface Message {
   inputTokens?: number; // 输入 token
   outputTokens?: number; // 输出 token
   // 多版本答案支持
+  question?: string;
   questionId?: string;
   versions?: Array<{
     content: string;
@@ -33,12 +34,16 @@ interface MessageListProps {
   messages: Message[];
   modelName?: string;
   modelIcon?: string; // 添加模型 icon
-  onRefresh?: (messageId: string) => void;
+  onRefresh?: (msg: Message) => void;
   onChangeVersion?: (messageId: string, direction: 'prev' | 'next') => void;
   isLoading?: boolean;
+  autoScrollEnabled?: boolean;
 }
 
-export function MessageList({ messages, modelName = "AI Assistant", modelIcon, onRefresh, onChangeVersion, isLoading = false }: MessageListProps) {
+export function MessageList({
+  messages, modelName = "AI Assistant", modelIcon, onRefresh, onChangeVersion, isLoading = false,
+  autoScrollEnabled = true,
+}: MessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -47,8 +52,10 @@ export function MessageList({ messages, modelName = "AI Assistant", modelIcon, o
   };
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    if (autoScrollEnabled) {
+      scrollToBottom();
+    }
+  }, [messages, autoScrollEnabled]);
 
   const handleCopy = async (content: string, messageId: string) => {
     try {
@@ -144,7 +151,9 @@ export function MessageList({ messages, modelName = "AI Assistant", modelIcon, o
                           <CopyOutlined className="text-sm" />
                         </button>
                         <button
-                          onClick={() => onRefresh?.(msg.id)}
+                          onClick={() => {
+                            onRefresh?.(msg);
+                          }}
                           className="p-1.5 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors duration-200"
                           title="重新生成"
                         >

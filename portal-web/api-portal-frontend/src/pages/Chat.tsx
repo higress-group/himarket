@@ -5,16 +5,9 @@ import { Layout } from "../components/Layout";
 import { Sidebar } from "../components/chat/Sidebar";
 import { ChatArea } from "../components/chat/ChatArea";
 import { generateConversationId, generateQuestionId } from "../lib/uuid";
-import { handleSSEStream } from "../lib/sse";
+import { handleSSEStream, } from "../lib/sse";
 import APIs, { type IProductConversations, type IProductDetail } from "../lib/apis";
-
-interface MessageVersion {
-  content: string;
-  firstTokenTime?: number;
-  totalTime?: number;
-  inputTokens?: number;
-  outputTokens?: number;
-}
+import type { IMessageVersion } from "../types";
 
 interface Message {
   id: string;
@@ -26,9 +19,11 @@ interface Message {
   totalTime?: number;
   inputTokens?: number;
   outputTokens?: number;
+  question?: string;
   // 多版本答案支持（仅 assistant 消息）
   questionId?: string; // 关联的问题ID
-  versions?: MessageVersion[]; // 所有版本的答案
+  conversationId?: string; // 关联的会话ID
+  versions?: IMessageVersion[]; // 所有版本的答案
   currentVersionIndex?: number; // 当前显示的版本索引（0-based）
   // 错误状态
   error?: boolean; // 是否是错误消息
@@ -42,8 +37,6 @@ function Chat() {
   const [selectedProduct, setSelectedProduct] = useState<IProductDetail>();
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [useStream] = useState(true); // 默认使用流式响应
-  // 记录每个 questionId 对应的问题内容，用于重新生成
-  const [questionContentMap, setQuestionContentMap] = useState<Map<string, string>>(new Map());
   const [isLoading, setIsLoading] = useState(false); // 添加loading状态
   const [sidebarRefreshTrigger, setSidebarRefreshTrigger] = useState(0); // 用于触发 Sidebar 刷新
   const [chatAreaKey, setChatAreaKey] = useState(0); // 用于重置 ChatArea 组件状态
@@ -124,13 +117,6 @@ function Chat() {
       // 更新当前的 conversationId
       setCurrentConversationId(conversationId);
 
-      // 保存问题内容，用于重新生成
-      setQuestionContentMap(prev => {
-        const newMap = new Map(prev);
-        newMap.set(questionId, content);
-        return newMap;
-      });
-
       // 发送消息（sessionId 已确保不为 null）
       if (!sessionId) {
         throw new Error("会话ID不存在");
@@ -162,6 +148,8 @@ function Chat() {
           questionId, // 关联问题ID
           versions: [], // 初始化版本数组
           currentVersionIndex: 0, // 当前版本索引
+          conversationId: conversationId,
+          question: content
         }]);
 
         const streamUrl = APIs.getChatMessageStreamUrl();
@@ -197,7 +185,7 @@ function Chat() {
             },
             onComplete: (content, _chatId, usage) => {
               const totalTime = Date.now() - startTime;
-              const newVersion: MessageVersion = {
+              const newVersion: IMessageVersion = {
                 content: content,
                 firstTokenTime: firstTokenTime ? Math.round(firstTokenTime) : undefined,
                 totalTime: usage?.elapsed_time || Math.round(totalTime),
@@ -278,38 +266,48 @@ function Chat() {
   };
 
   // 重新生成答案
-  const handleRefreshMessage = async (messageId: string) => {
+  const handleRefreshMessage = async (me: Message, config: {
+    msgs: Message[];
+    onChunk?: (content: string) => void;
+    onComplete?: (content: string, version: IMessageVersion) => void;
+    onError?: (errorMessage: string) => void;
+  } = {
+      msgs: messages,
+    }) => {
+    const messageId = me.id;
+    const { msgs, onChunk, onComplete, onError: onMsgError } = config;
     if (!selectedProduct || !currentSessionId) {
       antdMessage.error("无法重新生成，缺少必要信息");
       return;
     }
 
     // 找到要重新生成的消息
-    const message = messages.find(msg => msg.id === messageId);
+    const message = msgs.find(msg => msg.id === messageId);
+    console.log(msgs, messageId, message,  'zxc...')
     if (!message || message.role !== "assistant" || !message.questionId) {
       antdMessage.error("无法找到对应的问题");
       return;
     }
 
     const questionId = message.questionId;
-    const questionContent = questionContentMap.get(questionId);
-    if (!questionContent) {
-      antdMessage.error("无法找到原始问题内容");
-      return;
-    }
+    // const questionContent = questionContentMap.get(questionId);
+    // if (!questionContent) {
+    //   antdMessage.error("无法找到原始问题内容");
+    //   return;
+    // }
 
     setIsLoading(true);
     const startTime = Date.now();
 
     try {
-      const conversationId = currentConversationId || generateConversationId();
+      const conversationId = me.conversationId || currentConversationId;
 
       const messagePayload = {
         productId: selectedProduct.productId,
         sessionId: currentSessionId,
         conversationId,
         questionId,
-        question: questionContent,
+        question: me.question,
         stream: useStream,
         needMemory: true,
       };
@@ -346,53 +344,63 @@ function Chat() {
                 firstTokenTime = Date.now() - startTime;
                 setIsLoading(false);
               }
-              setMessages(prev => prev.map(msg =>
-                msg.id === messageId
-                  ? { ...msg, content: fullContent }
-                  : msg
-              ));
+              if (onChunk) {
+                onChunk(fullContent);
+              } else {
+                setMessages(prev => prev.map(msg =>
+                  msg.id === messageId
+                    ? { ...msg, content: fullContent }
+                    : msg
+                ));
+              }
             },
             onComplete: (content, _chatId, usage) => {
-              const newVersion: MessageVersion = {
+              const newVersion: IMessageVersion = {
                 content: content,
                 firstTokenTime: usage?.first_byte_timeout || 0,
                 totalTime: usage?.elapsed_time || 0,
                 inputTokens: usage?.prompt_tokens,
                 outputTokens: usage?.completion_tokens,
               };
-
-              setMessages(prev => prev.map(msg => {
-                if (msg.id === messageId) {
-                  const updatedVersions = [...(msg.versions || []), newVersion];
-                  const newIndex = updatedVersions.length - 1;
-                  return {
-                    ...msg,
-                    content: newVersion.content,
-                    firstTokenTime: newVersion.firstTokenTime,
-                    totalTime: newVersion.totalTime,
-                    inputTokens: newVersion.inputTokens,
-                    outputTokens: newVersion.outputTokens,
-                    versions: updatedVersions,
-                    currentVersionIndex: newIndex,
-                  };
-                }
-                return msg;
-              }));
-
+              if (onComplete) {
+                onComplete(content, newVersion);
+              } else {
+                setMessages(prev => prev.map(msg => {
+                  if (msg.id === messageId) {
+                    const updatedVersions = [...(msg.versions || []), newVersion];
+                    const newIndex = updatedVersions.length - 1;
+                    return {
+                      ...msg,
+                      content: newVersion.content,
+                      firstTokenTime: newVersion.firstTokenTime,
+                      totalTime: newVersion.totalTime,
+                      inputTokens: newVersion.inputTokens,
+                      outputTokens: newVersion.outputTokens,
+                      versions: updatedVersions,
+                      currentVersionIndex: newIndex,
+                    };
+                  }
+                  return msg;
+                }));
+              }
               setIsLoading(false);
             },
             onError: () => {
-              // 更新消息为错误状态，而不是只显示 toast
-              setMessages(prev => prev.map(msg =>
-                msg.id === messageId
-                  ? {
-                    ...msg,
-                    content: '',
-                    error: true,
-                    errorMessage: '重新生成失败，请重试',
-                  }
-                  : msg
-              ));
+              if (onMsgError) {
+                onMsgError('重新生成失败，请重试');
+              } else {
+                // 更新消息为错误状态，而不是只显示 toast
+                setMessages(prev => prev.map(msg =>
+                  msg.id === messageId
+                    ? {
+                      ...msg,
+                      content: '',
+                      error: true,
+                      errorMessage: '重新生成失败，请重试',
+                    }
+                    : msg
+                ));
+              }
               setIsLoading(false);
             },
           }
@@ -449,8 +457,8 @@ function Chat() {
     setMessages([]);
     setCurrentSessionId(null);
     setCurrentConversationId(null);
-    setQuestionContentMap(new Map()); // 清空问题内容映射
     setChatAreaKey(prev => prev + 1); // 重置 ChatArea 组件，清除对比模式状态
+    setInitialCompareData(null); // 清空对比数据
   };
 
   const handleSelectProduct = (product: IProductDetail) => {
@@ -460,7 +468,6 @@ function Chat() {
     setMessages([]);
     setCurrentSessionId(null);
     setCurrentConversationId(null);
-    setQuestionContentMap(new Map());
     setChatAreaKey(prev => prev + 1); // 重置 ChatArea 组件，清除对比模式状态
   };
 
@@ -535,6 +542,7 @@ function Chat() {
                   role: "user",
                   content: question.content,
                   timestamp: new Date(question.createdAt),
+                  conversationId: conversation.conversationId
                 });
 
                 // 保存问题内容到 map（只需要保存一次）
@@ -544,7 +552,7 @@ function Chat() {
 
                 // 添加 AI 回复
                 if (question.answers.length > 0) {
-                  const versions: MessageVersion[] = question.answers.map(answer => ({
+                  const versions: IMessageVersion[] = question.answers.map(answer => ({
                     content: answer.content,
                     totalTime: answer.usage?.elapsed_time,
                     inputTokens: answer.usage?.prompt_tokens,
@@ -565,6 +573,9 @@ function Chat() {
                     totalTime: currentVersion.totalTime,
                     inputTokens: currentVersion.inputTokens,
                     outputTokens: currentVersion.outputTokens,
+                    firstTokenTime: currentVersion.firstTokenTime,
+                    conversationId: conversation.conversationId,
+                    question: question.content
                   });
                 }
               });
@@ -575,7 +586,6 @@ function Chat() {
 
           // 设置多模型对比的初始化数据
           setInitialCompareData({ models, messages: compareMessages });
-          setQuestionContentMap(newQuestionContentMap);
           setMessages([]); // 清空单模型消息
           setChatAreaKey(prev => prev + 1); // 重置 ChatArea 以应用多模型数据
 
@@ -600,6 +610,7 @@ function Chat() {
                 role: "user",
                 content: question.content,
                 timestamp: new Date(question.createdAt),
+                conversationId: conversation.conversationId
               });
 
               // 保存问题内容到 map，用于重新生成
@@ -608,7 +619,7 @@ function Chat() {
               // 添加 AI 回复，支持多版本答案
               if (question.answers.length > 0) {
                 // 将所有 answers 转换为 versions（V2 版本答案直接是对象数组）
-                const versions: MessageVersion[] = question.answers.map(answer => ({
+                const versions: IMessageVersion[] = question.answers.map(answer => ({
                   content: answer.content,
                   totalTime: answer.usage?.elapsed_time,
                   inputTokens: answer.usage?.prompt_tokens,
@@ -633,13 +644,14 @@ function Chat() {
                   inputTokens: currentVersion.inputTokens,
                   outputTokens: currentVersion.outputTokens,
                   firstTokenTime: currentVersion.firstTokenTime,
+                  conversationId: conversation.conversationId,
+                  question: question.content
                 });
               }
             });
           });
 
           // 更新问题内容映射
-          setQuestionContentMap(newQuestionContentMap);
           setMessages(allMessages);
           setInitialCompareData(null); // 清空多模型数据
 
@@ -655,6 +667,7 @@ function Chat() {
     }
   };
 
+  console.log(initialCompareData, 'initialCompareData...')
   return (
     <Layout>
       <div className="flex h-[calc(100vh-96px)] bg-transparent">
@@ -676,6 +689,10 @@ function Chat() {
           isLoading={isLoading}
           initialCompareData={initialCompareData}
           onExitCompareMode={handleExitCompareMode}
+          refreshSidebar={(sessionId) => {
+            setCurrentSessionId(sessionId);
+            setSidebarRefreshTrigger(v => v + 1);
+          }}
         />
       </div>
     </Layout>

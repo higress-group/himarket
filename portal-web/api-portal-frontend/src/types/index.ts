@@ -279,3 +279,12 @@ export interface McpConfig {
     protocol?: string;
   };
 }
+
+
+export interface IMessageVersion {
+  content: string;
+  firstTokenTime?: number;
+  totalTime?: number;
+  inputTokens?: number;
+  outputTokens?: number;
+}

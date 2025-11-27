@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import {  CloseOutlined, PlusOutlined } from "@ant-design/icons";
+import { CloseOutlined, PlusOutlined } from "@ant-design/icons";
 import { message as antdMessage } from "antd";
 import { ModelSelector } from "./ModelSelector";
 import { MessageList } from "./MessageList";
@@ -11,6 +11,7 @@ import { generateConversationId, generateQuestionId } from "../../lib/uuid";
 import { handleSSEStream } from "../../lib/sse";
 import type { IProductDetail } from "../../lib/apis";
 import APIs from "../../lib/apis";
+import type { IMessageVersion } from "../../types";
 
 // 模型数据接口（用于组件内部）
 interface ModelData {
@@ -33,6 +34,7 @@ interface Message {
   inputTokens?: number;
   outputTokens?: number;
   // 多版本答案支持
+  question?: string;
   questionId?: string;
   versions?: Array<{
     content: string;
@@ -42,6 +44,7 @@ interface Message {
     outputTokens?: number;
   }>;
   currentVersionIndex?: number;
+  conversationId?: string;
   // 错误状态
   error?: boolean;
   errorMessage?: string;
@@ -52,7 +55,12 @@ interface ChatAreaProps {
   selectedProduct?: IProductDetail;
   onSelectProduct: (product: IProductDetail) => void;
   onSendMessage: (content: string) => void;
-  onRefreshMessage?: (messageId: string) => void;
+  onRefreshMessage?: (message: Message, config?: {
+    msgs: Message[];
+    onChunk: (content: string) => void;
+    onComplete: (content: string, version: IMessageVersion) => void;
+    onError: (errorMessage: string) => void;
+  }) => void;
   onChangeVersion?: (messageId: string, direction: 'prev' | 'next') => void;
   isLoading?: boolean;
   currentSessionId?: string;
@@ -63,9 +71,14 @@ interface ChatAreaProps {
   } | null;
   // 当退出对比模式时，通知父组件更新单模型消息
   onExitCompareMode?: (messages: Message[]) => void;
+  refreshSidebar?: (sessionId: string) => void;
 }
 
-export function ChatArea({ currentSessionId, messages, selectedProduct, onSelectProduct: _onSelectProduct, onSendMessage, onRefreshMessage, onChangeVersion, isLoading = false, initialCompareData, onExitCompareMode }: ChatAreaProps) {
+export function ChatArea({
+  currentSessionId, messages, selectedProduct, onSelectProduct: _onSelectProduct, onSendMessage, onRefreshMessage, onChangeVersion, isLoading = false, initialCompareData, onExitCompareMode,
+  refreshSidebar
+
+}: ChatAreaProps) {
   const hasMessages = messages.length > 0;
   const [isCompareMode, setIsCompareMode] = useState(false);
   const [compareModels, setCompareModels] = useState<string[]>([]);
@@ -83,6 +96,8 @@ export function ChatArea({ currentSessionId, messages, selectedProduct, onSelect
   // 多模型对比模式的 loading 状态
   const [isCompareModeLoading, setIsCompareModeLoading] = useState(false);
 
+  const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
+
   // 当前选中的模型ID（从product转换而来，用于兼容现有逻辑）
   const selectedModel = selectedProduct?.productId || "";
 
@@ -92,6 +107,10 @@ export function ChatArea({ currentSessionId, messages, selectedProduct, onSelect
       setIsCompareMode(true);
       setCompareModels(initialCompareData.models);
       setCompareMessages(initialCompareData.messages);
+    } else {
+      setIsCompareMode(false);
+      setCompareModels([]);
+      setCompareMessages({});
     }
   }, [initialCompareData]);
 
@@ -301,6 +320,7 @@ export function ChatArea({ currentSessionId, messages, selectedProduct, onSelect
       });
       if (res.code === "SUCCESS") {
         sessionId = res.data.sessionId;
+        refreshSidebar?.(sessionId);
       } else {
         throw new Error("创建会话失败");
       }
@@ -332,6 +352,9 @@ export function ChatArea({ currentSessionId, messages, selectedProduct, onSelect
             role: "assistant" as const,
             content: '',
             timestamp: new Date(),
+            questionId: questionId,
+            question: content,
+            conversationId: conversationId,
           }]
         }));
 
@@ -451,8 +474,6 @@ export function ChatArea({ currentSessionId, messages, selectedProduct, onSelect
     setIsCompareModeLoading(false); // 完成 loading
   };
 
-  console.log(compareMessages, 'compareMessages...');
-
   return (
     <div className={`flex-1 h-full ${isCompareMode || !currentSessionId ? "flex flex-col" : "grid grid-cols-1 grid-rows-[auto_1fr_auto]"}`}>
       {/* 顶部栏：模型选择器 + 多模型对比按钮（仅在单模型模式显示） */}
@@ -543,6 +564,99 @@ export function ChatArea({ currentSessionId, messages, selectedProduct, onSelect
                       modelName={getModelName(modelId)}
                       modelIcon={getModelIcon(modelId)}
                       isLoading={isCompareModeLoading}
+                      autoScrollEnabled={autoScrollEnabled}
+                      onRefresh={(message) => {
+                        console.log(message, 'refresh message....');
+                        setAutoScrollEnabled(false);
+                        const messages = compareMessages[modelId];
+                        if (messages) {
+                          onRefreshMessage?.(message, {
+                            msgs: messages,
+                            onChunk: (content: string) => {
+                              // 更新消息内容
+                              setCompareMessages(prev => ({
+                                ...prev,
+                                [modelId]: (prev[modelId] || []).map(msg =>
+                                  msg.id === message.id
+                                    ? { ...msg, content: content }
+                                    : msg
+                                )
+                              }));
+                            },
+                            onComplete: (_content: string, version: IMessageVersion) => {
+                              setCompareMessages(prev => ({
+                                ...prev,
+                                [modelId]: (prev[modelId] || []).map(msg => {
+                                  if (msg.id === message.id) {
+                                    const updatedVersions = [...(msg.versions || []), version];
+                                    const newIndex = updatedVersions.length - 1;
+                                    return {
+                                      ...msg,
+                                      content: version.content,
+                                      firstTokenTime: version.firstTokenTime,
+                                      totalTime: version.totalTime,
+                                      inputTokens: version.inputTokens,
+                                      outputTokens: version.outputTokens,
+                                      versions: updatedVersions,
+                                      currentVersionIndex: newIndex,
+                                    };
+                                  }
+                                  return msg
+                                }
+                                )
+                              }));
+                            },
+                            onError: (errorMessage: string) => {
+                              setCompareMessages(prev => ({
+                                ...prev,
+                                [modelId]: (prev[modelId] || []).map(msg =>
+                                  msg.id === message.id
+                                    ? {
+                                      ...msg,
+                                      error: true,
+                                      errorMessage: errorMessage,
+                                    }
+                                    : msg
+                                )
+                              }));
+                            }
+                          })
+                        }
+                      }}
+                      onChangeVersion={(messageId, direction) => {
+                        setCompareMessages(prev => {
+                          const cur = prev[modelId] || [];
+                          return {
+                            ...prev,
+                            [modelId]: cur.map((msg) => {
+                              if (msg.id === messageId && msg.versions && msg.versions.length > 1) {
+                                const currentIndex = msg.currentVersionIndex ?? 0;
+                                let newIndex = currentIndex;
+
+                                if (direction === 'prev' && currentIndex > 0) {
+                                  newIndex = currentIndex - 1;
+                                } else if (direction === 'next' && currentIndex < msg.versions.length - 1) {
+                                  newIndex = currentIndex + 1;
+                                }
+
+                                if (newIndex !== currentIndex) {
+                                  const selectedVersion = msg.versions[newIndex];
+                                  return {
+                                    ...msg,
+                                    content: selectedVersion.content,
+                                    firstTokenTime: selectedVersion.firstTokenTime,
+                                    totalTime: selectedVersion.totalTime,
+                                    inputTokens: selectedVersion.inputTokens,
+                                    outputTokens: selectedVersion.outputTokens,
+                                    currentVersionIndex: newIndex,
+                                  };
+                                }
+                              }
+                              return msg;
+                            })
+                          }
+                        });
+                      }}
                     />
                   )}
                 </div>
@@ -565,11 +679,17 @@ export function ChatArea({ currentSessionId, messages, selectedProduct, onSelect
 
                   {/* 输入框 */}
                   <div className="mb-8">
-                    <InputBox onSendMessage={onSendMessage} isLoading={isLoading} />
+                    <InputBox onSendMessage={(c) => {
+                      setAutoScrollEnabled(true);
+                      onSendMessage(c)
+                    }} isLoading={isLoading} />
                   </div>
 
                   {/* 推荐问题 */}
-                  <SuggestedQuestions onSelectQuestion={onSendMessage} />
+                  <SuggestedQuestions onSelectQuestion={(c) => {
+                    setAutoScrollEnabled(true);
+                    onSendMessage(c);
+                  }} />
                 </div>
               </div>
             ) : (
@@ -578,9 +698,13 @@ export function ChatArea({ currentSessionId, messages, selectedProduct, onSelect
                 messages={messages}
                 modelName={getModelName(selectedModel)}
                 modelIcon={getModelIcon(selectedModel)}
-                onRefresh={onRefreshMessage}
+                onRefresh={(m) => {
+                  setAutoScrollEnabled(false);
+                  onRefreshMessage?.(m)
+                }}
                 onChangeVersion={onChangeVersion}
                 isLoading={isLoading}
+                autoScrollEnabled={autoScrollEnabled}
               />
             )}
           </div>
@@ -592,7 +716,14 @@ export function ChatArea({ currentSessionId, messages, selectedProduct, onSelect
         <div className="p-4 pb-0">
           <div className="max-w-3xl mx-auto">
             <InputBox
-              onSendMessage={isCompareMode ? handleCompareSendMessage : onSendMessage}
+              onSendMessage={(c) => {
+                setAutoScrollEnabled(true);
+                if (isCompareMode) {
+                  handleCompareSendMessage(c);
+                } else {
+                  onSendMessage(c);
+                }
+              }}
               isLoading={isCompareMode ? isCompareModeLoading : isLoading}
             />
           </div>
