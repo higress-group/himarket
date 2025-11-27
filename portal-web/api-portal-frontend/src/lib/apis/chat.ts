@@ -61,6 +61,41 @@ export interface IConversation {
   questions: IQuestion[];
 }
 
+// ============ V2 版本数据结构 ============
+
+export interface IAnswerV2 {
+  sequence: number;
+  content: string;
+  usage?: {
+    elapsed_time?: number;
+    first_byte_timeout?: number;
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+    prompt_tokens_details?: {
+      cached_tokens?: number;
+    };
+  };
+}
+
+export interface IQuestionV2 {
+  questionId: string;
+  content: string;
+  createdAt: string;
+  attachments: IAttachment[];
+  answers: IAnswerV2[];
+}
+
+export interface IConversationV2 {
+  conversationId: string;
+  questions: IQuestionV2[];
+}
+
+export interface IProductConversations {
+  productId: string;
+  conversations: IConversationV2[];
+}
+
 interface CreateSessionData {
   talkType: string;
   name: string;
@@ -162,5 +197,14 @@ export function getChatMessageStreamUrl(): string {
 export function getConversations(sessionId: string) {
   return request.get<RespI<IConversation[]>, RespI<IConversation[]>>(
     `/sessions/${sessionId}/conversations`
+  );
+}
+
+/**
+ * 获取会话的历史聊天记录（V2版本 - 支持多模型对比）
+ */
+export function getConversationsV2(sessionId: string) {
+  return request.get<RespI<IProductConversations[]>, RespI<IProductConversations[]>>(
+    `/sessions/${sessionId}/conversations/v2`
   );
 }

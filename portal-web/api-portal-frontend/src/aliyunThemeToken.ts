@@ -19,7 +19,7 @@ export default {
   "colorPrimaryText": "#6366F1",
   "colorPrimaryTextActive": "#4F46E5",
   "fontSize": 12,
-  "borderRadius": 2,
+  "borderRadius": 8,
   "fontSizeSM": 12,
   "lineHeight": 1.5,
   "lineHeightSM": 1.5,

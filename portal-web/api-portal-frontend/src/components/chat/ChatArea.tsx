@@ -1,13 +1,12 @@
 import { useState, useEffect } from "react";
-import { AppstoreAddOutlined, CloseOutlined, PlusOutlined, DownOutlined, SearchOutlined, CheckOutlined } from "@ant-design/icons";
-import { Dropdown, Input, Tabs, message as antdMessage } from "antd";
+import {  CloseOutlined, PlusOutlined } from "@ant-design/icons";
+import { message as antdMessage } from "antd";
 import { ModelSelector } from "./ModelSelector";
 import { MessageList } from "./MessageList";
 import { InputBox } from "./InputBox";
 import { SuggestedQuestions } from "./SuggestedQuestions";
 import { MultiModelSelector } from "./MultiModelSelector";
 import { getIconString } from "../../lib/iconUtils";
-import { ProductIconRenderer } from "../icon/ProductIconRenderer";
 import { generateConversationId, generateQuestionId } from "../../lib/uuid";
 import { handleSSEStream } from "../../lib/sse";
 import type { IProductDetail } from "../../lib/apis";
@@ -57,15 +56,20 @@ interface ChatAreaProps {
   onChangeVersion?: (messageId: string, direction: 'prev' | 'next') => void;
   isLoading?: boolean;
   currentSessionId?: string;
+  // 用于从历史会话加载多模型对比数据
+  initialCompareData?: {
+    models: string[];
+    messages: Record<string, Message[]>;
+  } | null;
+  // 当退出对比模式时，通知父组件更新单模型消息
+  onExitCompareMode?: (messages: Message[]) => void;
 }
 
-export function ChatArea({ currentSessionId, messages, selectedProduct, onSelectProduct: _onSelectProduct, onSendMessage, onRefreshMessage, onChangeVersion, isLoading = false }: ChatAreaProps) {
+export function ChatArea({ currentSessionId, messages, selectedProduct, onSelectProduct: _onSelectProduct, onSendMessage, onRefreshMessage, onChangeVersion, isLoading = false, initialCompareData, onExitCompareMode }: ChatAreaProps) {
   const hasMessages = messages.length > 0;
   const [isCompareMode, setIsCompareMode] = useState(false);
   const [compareModels, setCompareModels] = useState<string[]>([]);
   const [showModelSelector, setShowModelSelector] = useState(false);
-  const [dropdownSearchQuery, setDropdownSearchQuery] = useState("");
-  const [dropdownActiveCategory, setDropdownActiveCategory] = useState("对话模型");
   // 每个模型独立的消息列表
   const [compareMessages, setCompareMessages] = useState<Record<string, Message[]>>({});
   // 每个模型独立的会话 ID
@@ -76,9 +80,20 @@ export function ChatArea({ currentSessionId, messages, selectedProduct, onSelect
   // 分类列表（从 API 获取）
   const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
+  // 多模型对比模式的 loading 状态
+  const [isCompareModeLoading, setIsCompareModeLoading] = useState(false);
 
   // 当前选中的模型ID（从product转换而来，用于兼容现有逻辑）
   const selectedModel = selectedProduct?.productId || "";
+
+  // 处理历史会话加载的多模型对比数据
+  useEffect(() => {
+    if (initialCompareData) {
+      setIsCompareMode(true);
+      setCompareModels(initialCompareData.models);
+      setCompareMessages(initialCompareData.messages);
+    }
+  }, [initialCompareData]);
 
   // 模型选择处理（调用父组件的 onSelectProduct）
   const handleSelectModel = (modelId: string) => {
@@ -111,9 +126,6 @@ export function ChatArea({ currentSessionId, messages, selectedProduct, onSelect
             { id: "all", name: "全部" },
             ...categoryList
           ]);
-
-          // 设置默认选中"全部"
-          setDropdownActiveCategory("all");
         }
       } catch (error) {
         console.error("Failed to fetch categories:", error);
@@ -199,13 +211,39 @@ export function ChatArea({ currentSessionId, messages, selectedProduct, onSelect
   const handleCloseModel = (modelId: string) => {
     const newModels = compareModels.filter((id) => id !== modelId);
     if (newModels.length <= 1) {
-      // 只剩一个或没有了，退出对比模式
-      setIsCompareMode(false);
-      setCompareModels([]);
-      setCompareMessages({});
-      setCompareSessionIds({}); // 清空所有会话ID
+      // 只剩一个模型，退出对比模式，保留剩余模型的消息
+      if (newModels.length === 1) {
+        const remainingModelId = newModels[0];
+        const remainingMessages = compareMessages[remainingModelId] || [];
+
+        // 通知父组件选择这个模型
+        const model = modelList.find(m => m.id === remainingModelId);
+        if (model && _onSelectProduct) {
+          _onSelectProduct({
+            productId: model.id,
+            name: model.name,
+            description: model.description,
+          } as IProductDetail);
+        }
+
+        // 通知父组件更新消息（保留剩余模型的消息）
+        onExitCompareMode?.(remainingMessages);
+
+        // 退出对比模式
+        setIsCompareMode(false);
+        setCompareModels([]);
+        setCompareMessages({});
+        // 不清空会话ID，保持当前会话
+      } else {
+        // 没有剩余模型，退出对比模式并清空所有内容
+        onExitCompareMode?.([]);
+        setIsCompareMode(false);
+        setCompareModels([]);
+        setCompareMessages({});
+        setCompareSessionIds({});
+      }
     } else {
-      // 删除该模型的消息和会话ID
+      // 还有多个模型，继续对比模式
       const newCompareMessages = { ...compareMessages };
       delete newCompareMessages[modelId];
       setCompareMessages(newCompareMessages);
@@ -223,30 +261,6 @@ export function ChatArea({ currentSessionId, messages, selectedProduct, onSelect
     setShowModelSelector(true);
   };
 
-  const handleSwitchModel = (index: number, newModelId: string) => {
-    // 切换指定位置的模型
-    const oldModelId = compareModels[index];
-    const newModels = [...compareModels];
-    newModels[index] = newModelId;
-    setCompareModels(newModels);
-
-    // 复制旧模型的用户消息到新模型（保留对话上下文）
-    if (oldModelId && compareMessages[oldModelId]) {
-      const userMessages = compareMessages[oldModelId].filter(msg => msg.role === "user");
-      setCompareMessages(prev => ({
-        ...prev,
-        [newModelId]: userMessages
-      }));
-    }
-
-    // 移除旧模型的会话ID（新模型会创建新会话）
-    if (oldModelId) {
-      const newSessionIds = { ...compareSessionIds };
-      delete newSessionIds[oldModelId];
-      setCompareSessionIds(newSessionIds);
-    }
-  };
-
   // 获取模型名称
   const getModelName = (modelId: string) => {
     const model = modelList.find(m => m.id === modelId);
@@ -260,6 +274,7 @@ export function ChatArea({ currentSessionId, messages, selectedProduct, onSelect
 
   // 处理对比模式下的消息发送
   const handleCompareSendMessage = async (content: string) => {
+    setIsCompareModeLoading(true); // 开始 loading
     const startTime = Date.now();
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -291,6 +306,9 @@ export function ChatArea({ currentSessionId, messages, selectedProduct, onSelect
       }
     }
     const requests = compareModels.map(async (modelId) => {
+      // 创建 loading 消息 ID（在 try 外面定义，以便 catch 可以使用）
+      const assistantMessageId = `${Date.now()}-${modelId}`;
+
       try {
         const messagePayload = {
           productId: modelId,
@@ -302,8 +320,6 @@ export function ChatArea({ currentSessionId, messages, selectedProduct, onSelect
           needMemory: true,
         };
 
-        // 创建 loading 消息
-        const assistantMessageId = `${Date.now()}-${modelId}`;
         let fullContent = '';
         let chatId = '';
         let firstTokenTime: number | undefined;
@@ -392,105 +408,56 @@ export function ChatArea({ currentSessionId, messages, selectedProduct, onSelect
         );
       } catch (error) {
         console.error(`Failed to send message to model ${modelId}:`, error);
-        antdMessage.error(`模型 ${getModelName(modelId)} 请求失败`);
+        // 更新消息为错误状态（如果还没有添加消息，则添加错误消息）
+        setCompareMessages(prev => {
+          const modelMessages = prev[modelId] || [];
+          const hasAssistantMessage = modelMessages.some(msg => msg.id === assistantMessageId);
+
+          if (hasAssistantMessage) {
+            // 已有消息，更新为错误状态
+            return {
+              ...prev,
+              [modelId]: modelMessages.map(msg =>
+                msg.id === assistantMessageId
+                  ? {
+                    ...msg,
+                    content: '',
+                    error: true,
+                    errorMessage: '请求失败，请重试',
+                  }
+                  : msg
+              )
+            };
+          } else {
+            // 还没有添加消息，添加一个错误消息
+            return {
+              ...prev,
+              [modelId]: [...modelMessages, {
+                id: assistantMessageId,
+                role: "assistant" as const,
+                content: '',
+                timestamp: new Date(),
+                error: true,
+                errorMessage: '请求失败，请重试',
+              }]
+            };
+          }
+        });
       }
     });
 
     // 等待所有请求完成
     await Promise.allSettled(requests);
+    setIsCompareModeLoading(false); // 完成 loading
   };
 
-  // 渲染模型选择浮层（与 ModelSelector 保持一致）
-  const renderModelDropdown = (currentModelId: string, onSelect: (modelId: string) => void) => {
-    const filteredModels = modelList.filter(model => {
-      // 分类过滤：如果选择"全部"或模型的 productCategories 包含当前选中的分类
-      const matchesCategory = dropdownActiveCategory === "all" ||
-        model.productCategories.includes(dropdownActiveCategory);
-
-      // 搜索过滤
-      const matchesSearch = dropdownSearchQuery === "" ||
-        model.name.toLowerCase().includes(dropdownSearchQuery.toLowerCase()) ||
-        model.description.toLowerCase().includes(dropdownSearchQuery.toLowerCase());
-
-      return matchesCategory && matchesSearch;
-    });
-
-    return (
-      <div className="bg-white rounded-lg shadow-xl border border-gray-200 w-[420px] max-h-[500px] flex flex-col">
-        {/* 搜索框 */}
-        <div className="p-4 pb-3">
-          <Input
-            prefix={<SearchOutlined className="text-gray-400" />}
-            placeholder="搜索模型..."
-            value={dropdownSearchQuery}
-            onChange={(e) => setDropdownSearchQuery(e.target.value)}
-            className="rounded-lg"
-            allowClear
-          />
-        </div>
-
-        {/* Tab 分类 */}
-        <div className="px-4">
-          {categoriesLoading ? (
-            <div className="flex items-center justify-center py-4">
-              <span className="text-gray-400 text-sm">加载分类中...</span>
-            </div>
-          ) : (
-            <Tabs
-              activeKey={dropdownActiveCategory}
-              onChange={setDropdownActiveCategory}
-              items={categories.map(category => ({
-                key: category.id,
-                label: category.name,
-              }))}
-            />
-          )}
-        </div>
-
-        {/* 模型列表 */}
-        <div className="flex-1 overflow-y-auto px-4 pb-4">
-          <div className="space-y-1">
-            {filteredModels.map(model => (
-              <div
-                key={model.id}
-                onClick={() => {
-                  onSelect(model.id);
-                  setDropdownSearchQuery("");
-                }}
-                className={`
-                  px-3 py-2.5 rounded-lg cursor-pointer
-                  flex items-center gap-3
-                  transition-all duration-200
-                  hover:bg-gray-50 hover:scale-[1.01]
-                  ${model.id === currentModelId
-                    ? "bg-colorPrimary/10 text-colorPrimary"
-                    : "text-gray-700 hover:text-gray-900"
-                  }
-                `}
-              >
-                <ProductIconRenderer iconType={model.icon} className="w-5 h-5" />
-                <span className="font-medium flex-1">{model.name}</span>
-                {model.id === currentModelId && (
-                  <CheckOutlined className="text-colorPrimary text-xs" />
-                )}
-              </div>
-            ))}
-            {filteredModels.length === 0 && (
-              <div className="text-center py-8 text-gray-400">
-                未找到匹配的模型
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  };
+  console.log(compareMessages, 'compareMessages...');
 
   return (
-    <div className="flex-1 flex flex-col h-full">
+    <div className={`flex-1 h-full ${isCompareMode || !currentSessionId ? "flex flex-col" : "grid grid-cols-1 grid-rows-[auto_1fr_auto]"}`}>
       {/* 顶部栏：模型选择器 + 多模型对比按钮（仅在单模型模式显示） */}
       {!isCompareMode && (
-        <div className="flex items-center gap-4 px-4 py-4">
+        <div className="h-20 flex items-center gap-4 px-4 py-4">
           <ModelSelector
             selectedModel={selectedModel}
             onSelectModel={handleSelectModel}
@@ -513,7 +480,7 @@ export function ChatArea({ currentSessionId, messages, selectedProduct, onSelect
               transition-all duration-300
             "
           >
-            <AppstoreAddOutlined />
+            <PlusOutlined />
             <span className="text-sm font-medium">多模型对比</span>
           </button>
         </div>
@@ -535,24 +502,17 @@ export function ChatArea({ currentSessionId, messages, selectedProduct, onSelect
       <div className="flex-1 overflow-hidden">
         {isCompareMode ? (
           /* 多模型对比视图 - 使用分割线 */
-          <div className="h-full flex">
+          <div className={`h-full grid grid-rows-[auto_1fr_auto] ${compareModels.length === 2 ? "grid-cols-2" : " grid-cols-3"}`}>
             {compareModels.map((modelId, index) => (
               <div
                 key={`${modelId}-${index}`}
-                className={`flex-1 flex flex-col ${index < compareModels.length - 1 ? 'border-r border-gray-200' : ''}`}
+                className={`overflow-auto flex-1 flex flex-col ${index < compareModels.length - 1 ? 'border-r border-gray-200' : ''}`}
               >
                 {/* 模型名称标题（可切换） + 关闭按钮 + 添加按钮 */}
                 <div className="px-4 py-3 flex items-center justify-between border-b border-gray-200">
-                  <Dropdown
-                    popupRender={() => renderModelDropdown(modelId, (newModelId) => handleSwitchModel(index, newModelId))}
-                    trigger={['click']}
-                    placement="bottomLeft"
-                  >
-                    <button className="flex items-center gap-1 text-sm font-semibold text-gray-900 hover:text-colorPrimary transition-colors">
-                      {getModelName(modelId)}
-                      <DownOutlined className="text-xs text-gray-400" />
-                    </button>
-                  </Dropdown>
+                  <button className="flex items-center gap-1 text-sm font-semibold text-gray-900 hover:text-colorPrimary transition-colors">
+                    {getModelName(modelId)}
+                  </button>
                   <div className="flex items-center gap-2">
                     {index === 1 && compareModels.length < 3 && (
                       <button
@@ -582,6 +542,7 @@ export function ChatArea({ currentSessionId, messages, selectedProduct, onSelect
                       messages={compareMessages[modelId] || []}
                       modelName={getModelName(modelId)}
                       modelIcon={getModelIcon(modelId)}
+                      isLoading={isCompareModeLoading}
                     />
                   )}
                 </div>
@@ -630,7 +591,10 @@ export function ChatArea({ currentSessionId, messages, selectedProduct, onSelect
       {((!isCompareMode && hasMessages) || isCompareMode) && (
         <div className="p-4 pb-0">
           <div className="max-w-3xl mx-auto">
-            <InputBox onSendMessage={isCompareMode ? handleCompareSendMessage : onSendMessage} isLoading={isLoading} />
+            <InputBox
+              onSendMessage={isCompareMode ? handleCompareSendMessage : onSendMessage}
+              isLoading={isCompareMode ? isCompareModeLoading : isLoading}
+            />
           </div>
         </div>
       )}
