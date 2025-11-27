@@ -45,8 +45,14 @@ export function getProducts(params: {
   page?: number;
   size?: number;
 }) {
-  const p = `type=${params.type}${params.categoryIds?.length ? `&${encodeURIComponent("categoryIds[]")}=${params.categoryIds.join(`&${encodeURIComponent("categoryIds[]")}=`)}` : ''}&page=${params.page || 0}&size=${params.size || 100}`;
-  return request.get<RespI<GetProductsResp>, RespI<GetProductsResp>>('/products?' + p);
+  return request.get<RespI<GetProductsResp>, RespI<GetProductsResp>>('/products', {
+    params: {
+      type: params.type,
+      categoryIds: params.categoryIds,
+      page: params.page || 0,
+      size: params.size || 100,
+    },
+  });
 }
 
 
