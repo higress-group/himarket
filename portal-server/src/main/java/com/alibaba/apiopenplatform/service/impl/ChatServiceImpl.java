@@ -2,6 +2,7 @@ package com.alibaba.apiopenplatform.service.impl;
 
 import cn.hutool.core.codec.Base64;
 import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.collection.CollectionUtil;
 import cn.hutool.core.util.ArrayUtil;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.apiopenplatform.core.event.ChatSessionDeletingEvent;
@@ -10,6 +11,7 @@ import com.alibaba.apiopenplatform.core.exception.ErrorCode;
 import com.alibaba.apiopenplatform.core.security.ContextHolder;
 import com.alibaba.apiopenplatform.core.utils.CacheUtil;
 import com.alibaba.apiopenplatform.core.utils.IdGenerator;
+import com.alibaba.apiopenplatform.dto.result.chat.ChatAnswerMessage;
 import com.alibaba.apiopenplatform.dto.result.consumer.CredentialContext;
 import com.alibaba.apiopenplatform.dto.result.product.ProductRefResult;
 import com.alibaba.apiopenplatform.entity.Chat;
@@ -25,9 +27,12 @@ import com.alibaba.apiopenplatform.dto.result.chat.LlmInvokeResult;
 import com.alibaba.apiopenplatform.support.chat.attachment.ChatAttachmentConfig;
 import com.alibaba.apiopenplatform.support.chat.ChatMessage;
 import com.alibaba.apiopenplatform.support.chat.content.*;
+import com.alibaba.apiopenplatform.dto.params.chat.ChatMcpServerConfig;
+import com.alibaba.apiopenplatform.support.chat.mcp.McpServerConfig;
 import com.alibaba.apiopenplatform.support.enums.ChatAttachmentType;
 import com.alibaba.apiopenplatform.support.enums.ChatRole;
 import com.alibaba.apiopenplatform.support.enums.ChatStatus;
+import com.alibaba.apiopenplatform.support.enums.ProductType;
 import com.github.benmanes.caffeine.cache.Cache;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,9 +40,9 @@ import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Sort;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import jakarta.servlet.http.HttpServletResponse;
+import reactor.core.publisher.Flux;
 
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -66,7 +71,7 @@ public class ChatServiceImpl implements ChatService {
 
     private final Cache<String, List<String>> cache = CacheUtil.newCache(5);
 
-    public SseEmitter chat(CreateChatParam param, HttpServletResponse response) {
+    public Flux<ChatAnswerMessage> chat(CreateChatParam param, HttpServletResponse response) {
         performAllChecks(param);
 //        sessionService.updateStatus(param.getSessionId(), ChatSessionStatus.PROCESSING);
 
@@ -80,7 +85,9 @@ public class ChatServiceImpl implements ChatService {
 
         List<ChatMessage> chatMessages = mergeAndTruncateMessages(currentMessage, historyMessages);
 
-        InvokeModelParam invokeModelParam = buildInvokeModelParam(param, chatMessages, chat);
+        List<McpServerConfig> mcpResults = buildMcpServerConfigs(param);
+
+        InvokeModelParam invokeModelParam = buildInvokeModelParam(param, chatMessages, mcpResults, chat);
 
         // Invoke LLM
         return llmService.invokeLLM(invokeModelParam, response, r -> updateChatResult(chat.getChatId(), r));
@@ -112,6 +119,23 @@ public class ChatServiceImpl implements ChatService {
         // check edit
 
         // check once more
+    }
+
+
+    private List<McpServerConfig> buildMcpServerConfigs(CreateChatParam param) {
+        List<ChatMcpServerConfig> mcpServers = param.getMcpServers();
+        if (CollectionUtil.isEmpty(mcpServers)) {
+            return Collections.emptyList();
+        }
+        List<McpServerConfig> mcpServerConfigs = new ArrayList<>();
+        List<String> productIds = mcpServers.stream().map(ChatMcpServerConfig::getProductId).collect(Collectors.toList());
+        productIds.forEach(productId -> {
+            ProductResult product = productService.getProduct(productId);
+            if (product.getType() == ProductType.MCP_SERVER && product.getMcpConfig() != null) {
+                mcpServerConfigs.add(product.getMcpConfig().toStandardMcpServer());
+            }
+        });
+        return mcpServerConfigs;
     }
 
     private List<ChatMessage> buildHistoryMessages(CreateChatParam param) {
@@ -287,7 +311,7 @@ public class ChatServiceImpl implements ChatService {
         return messages;
     }
 
-    private InvokeModelParam buildInvokeModelParam(CreateChatParam param, List<ChatMessage> chatMessages, Chat chat) {
+    private InvokeModelParam buildInvokeModelParam(CreateChatParam param, List<ChatMessage> chatMessages, List<McpServerConfig> mcpServerConfigs, Chat chat) {
         // Get product config
         ProductResult productResult = productService.getProduct(param.getProductId());
 
@@ -300,12 +324,15 @@ public class ChatServiceImpl implements ChatService {
         CredentialContext credentialContext = consumerService.getDefaultCredential(contextHolder.getUser());
 
         return InvokeModelParam.builder()
+                .chatId(chat.getChatId())
+                .userQuestion(param.getQuestion())
                 .product(productResult)
                 .requestHeaders(credentialContext.getHeaders())
                 .queryParams(credentialContext.getQueryParams())
                 .chatMessages(chatMessages)
                 .stream(param.getStream())
                 .gatewayIps(gatewayIps)
+                .mcpServerConfigs(mcpServerConfigs)
                 .build();
     }
 

@@ -1,6 +1,7 @@
 package com.alibaba.apiopenplatform.dto.params.chat;
 
 import com.alibaba.apiopenplatform.support.chat.ChatMessage;
+import com.alibaba.apiopenplatform.support.chat.mcp.McpServerConfig;
 import lombok.Builder;
 import lombok.Data;
 
@@ -23,5 +24,9 @@ public class ChatRequestBody {
 
     private Double temperature;
 
+    private String userQuestion;
+
     private List<ChatMessage> messages;
+
+    private List<McpServerConfig> mcpServerConfigs;
 }

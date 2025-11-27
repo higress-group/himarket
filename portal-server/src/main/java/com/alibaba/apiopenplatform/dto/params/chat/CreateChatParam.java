@@ -52,6 +52,11 @@ public class CreateChatParam implements InputConverter<Chat> {
     private List<ChatAttachmentConfig> attachments;
 
     /**
+     * MCP servers to use in chat
+     */
+    private List<ChatMcpServerConfig> mcpServers;
+
+    /**
      * If need stream
      */
     private Boolean stream = true;

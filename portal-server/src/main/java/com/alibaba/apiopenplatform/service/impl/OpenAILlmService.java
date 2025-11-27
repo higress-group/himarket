@@ -1,189 +1,411 @@
 package com.alibaba.apiopenplatform.service.impl;
 
 import cn.hutool.core.collection.CollUtil;
-import cn.hutool.core.util.StrUtil;
-import com.alibaba.apiopenplatform.dto.params.chat.ChatContent;
-import com.alibaba.apiopenplatform.dto.result.httpapi.DomainResult;
-import com.alibaba.apiopenplatform.dto.result.httpapi.HttpRouteResult;
-import com.alibaba.apiopenplatform.dto.result.model.ModelConfigResult;
-import com.alibaba.apiopenplatform.dto.params.chat.InvokeModelParam;
-import com.alibaba.apiopenplatform.dto.result.chat.LlmChatRequest;
-import com.alibaba.apiopenplatform.dto.params.chat.ChatRequestBody;
-import com.alibaba.apiopenplatform.dto.result.chat.OpenAIChatStreamResponse;
+import com.alibaba.apiopenplatform.dto.params.chat.*;
+import com.alibaba.apiopenplatform.dto.result.chat.*;
 import cn.hutool.json.JSONUtil;
-import com.alibaba.apiopenplatform.dto.result.product.ProductResult;
+import com.alibaba.apiopenplatform.support.chat.ChatMessage;
 import com.alibaba.apiopenplatform.support.chat.ChatUsage;
+import com.alibaba.apiopenplatform.support.chat.mcp.McpServerConfig;
 import com.alibaba.apiopenplatform.support.enums.AIProtocol;
-import com.alibaba.apiopenplatform.support.product.ModelFeature;
-import com.alibaba.apiopenplatform.support.product.ProductFeature;
+import com.alibaba.apiopenplatform.support.enums.ChatRole;
+import io.modelcontextprotocol.spec.McpSchema;
+import jakarta.annotation.Resource;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpMethod;
+import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.messages.*;
+import org.springframework.ai.chat.metadata.ChatGenerationMetadata;
+import org.springframework.ai.chat.metadata.EmptyUsage;
+import org.springframework.ai.chat.metadata.Usage;
+import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.chat.model.Generation;
+import org.springframework.ai.chat.prompt.ChatOptions;
+import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.mcp.SyncMcpToolCallback;
+import org.springframework.ai.model.tool.ToolCallingChatOptions;
+import org.springframework.ai.model.tool.ToolCallingManager;
+import org.springframework.ai.model.tool.ToolExecutionResult;
+import org.springframework.ai.openai.OpenAiChatModel;
+import org.springframework.ai.openai.OpenAiChatOptions;
+import org.springframework.ai.openai.api.OpenAiApi;
+import org.springframework.ai.tool.ToolCallback;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
-import org.springframework.web.util.UriComponentsBuilder;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
+import reactor.core.publisher.Flux;
 
-import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
+
+import static com.alibaba.apiopenplatform.dto.result.chat.ChatAnswerMessage.MessageType.*;
 
 @Service
 @Slf4j
 public class OpenAILlmService extends AbstractLlmService {
 
-    @Override
-    protected LlmChatRequest composeRequest(InvokeModelParam param) {
-        // Not be null
-        ProductResult product = param.getProduct();
-        ModelConfigResult modelConfig = product.getModelConfig();
-        // 1. Get request URL (with query params)
-        URL url = getUrl(modelConfig, param.getQueryParams());
+    @Value("${spring.ai.openai.api-key}")
+    private String defaultApiKey;
 
-        // 2. Build headers
-        Map<String, String> headers = param.getRequestHeaders() == null ? new HashMap<>() : param.getRequestHeaders();
+    @Resource
+    private ToolCallingManager toolCallingManager;
+    @Resource
+    private McpClientFactory   mcpClientFactory;
 
-        // 3. Build request body
-        ModelFeature modelFeature = getOrDefaultModelFeature(product);
-        ChatRequestBody requestBody = ChatRequestBody.builder()
-                .model(modelFeature.getModel())
-                .messages(param.getChatMessages())
-                .stream(modelFeature.getStreaming())
-                .maxTokens(modelFeature.getMaxTokens())
-                .temperature(modelFeature.getTemperature())
-                .build();
+    private final WebClient.Builder webClientBuilder = WebClient.builder()
+            .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(16 * 1024 * 1024));
 
-        return LlmChatRequest.builder()
-                .url(url)
-                .method(HttpMethod.POST)
+
+    private List<Message> convertMessages(ChatRequestBody chatRequestBody) {
+        List<ChatMessage> messages = chatRequestBody.getMessages();
+        List<Message> contextMessages = new ArrayList<>();
+        messages.forEach(chatMessage -> {
+            String role = chatMessage.getRole();
+            ChatRole chatRole = ChatRole.of(role);
+            switch (chatRole) {
+                case USER:
+                    contextMessages.add(new UserMessage(chatMessage.getContent().toString()));
+                    break;
+                case SYSTEM:
+                    contextMessages.add(new SystemMessage(chatMessage.getContent().toString()));
+                    break;
+                case ASSISTANT:
+                    contextMessages.add(new AssistantMessage(chatMessage.getContent().toString()));
+                    break;
+                default:
+                    break;
+            }
+        });
+        return contextMessages;
+    }
+
+
+
+    private void cleanContext(ChatContext chatContext) {
+        chatContext.getMcpClientHolders().forEach(h -> {
+            try {
+                h.close();
+            } catch (Exception e) {
+                log.error("close mcp client error", e);
+            }
+        });
+    }
+
+    private ChatClient newChatClient(LlmChatRequest request) {
+        MultiValueMap<String, String> headers = new HttpHeaders();
+        Optional.ofNullable(request.getHeaders()).ifPresent(headerMap -> {
+            headerMap.forEach(headers::add);
+        });
+        URL url = request.getUrl();
+        String baseUrl = String.format("%s://%s", url.getProtocol(), url.getHost());
+        if (url.getPort() > 0) {
+            baseUrl += ":" + url.getPort();
+        }
+        OpenAiApi openAiApi = OpenAiApi.builder()
+                .baseUrl(baseUrl)
+                .completionsPath(url.getPath())
                 .headers(headers)
-                .body(requestBody)
-                .gatewayIps(param.getGatewayIps())
+                .apiKey(StringUtils.defaultIfBlank(request.getApiKey(), defaultApiKey))
+                .webClientBuilder(webClientBuilder)
+                .build();
+
+        OpenAiChatModel chatModel = OpenAiChatModel.builder()
+                .openAiApi(openAiApi)
+                .toolCallingManager(toolCallingManager)
+                .defaultOptions(OpenAiChatOptions.builder()
+                        .streamUsage(true)
+                        .build())
+                .build();
+
+        return ChatClient.builder(chatModel).build();
+    }
+
+
+    private ChatContext initChatContext(LlmChatRequest request) {
+        ChatRequestBody chatRequestBody = request.getChatRequest();
+        List<McpServerConfig> mcpServerConfigs = chatRequestBody.getMcpServerConfigs();
+        Map<McpToolMeta, ToolCallback> toolsMap = new HashMap<>();
+        List<McpClientHolder> mcpClientHolders = new ArrayList<>();
+        if (CollUtil.isNotEmpty(mcpServerConfigs)) {
+            mcpServerConfigs.forEach(mcpServerConfig -> {
+                mcpServerConfig.getMcpServers().forEach((serverName, config) -> {
+                    // TODO: mcp server的认证
+                    McpClientHolder mcpClientHolder = mcpClientFactory.initClient(config.getType(), config.getUrl(), Collections.emptyMap());
+                    if (mcpClientHolder == null) {
+                        return;
+                    }
+                    mcpClientHolders.add(mcpClientHolder);
+                    List<McpSchema.Tool> tools = mcpClientHolder.listTools();
+                    tools.forEach(tool -> {
+                        McpToolMeta mcpToolMeta = new McpToolMeta();
+                        mcpToolMeta.setToolName(tool.name());
+                        mcpToolMeta.setToolNameCn(tool.title());
+                        mcpToolMeta.setMcpName(serverName);
+                        mcpToolMeta.setMcpNameCn(serverName);
+                        toolsMap.put(mcpToolMeta, new SyncMcpToolCallback(mcpClientHolder.getMcpSyncClient(), tool));
+                    });
+                });
+            });
+        }
+        ToolCallingChatOptions.Builder chatOptionsBuilder = ToolCallingChatOptions.builder()
+                .temperature(chatRequestBody.getTemperature())
+                .maxTokens(chatRequestBody.getMaxTokens())
+                .topP(chatRequestBody.getTopP())
+                .model(chatRequestBody.getModel())
+                .internalToolExecutionEnabled(false);
+        ToolContext toolContext = ToolContext.of(toolsMap);
+
+        if (CollectionUtils.isNotEmpty(toolContext.getToolCallbacks())) {
+            chatOptionsBuilder.toolCallbacks(toolContext.getToolCallbacks());
+        }
+        ChatOptions chatOptions = chatOptionsBuilder.build();
+        return ChatContext.builder()
+                .chatId(request.getChatId())
+                .chatOptions(chatOptions)
+                .toolContext(toolContext)
+                .mcpClientHolders(mcpClientHolders)
                 .build();
     }
 
     @Override
-    public String processStreamChunk(String chunk, ChatContent chatContent) {
-        try {
-            if ("[DONE]".equals(chunk)) {
-                return chunk;
-            }
+    protected Flux<ChatAnswerMessage> call(LlmChatRequest request, HttpServletResponse response, Consumer<LlmInvokeResult> resultHandler) {
+        log.debug("request: {}", JSONUtil.toJsonStr(request));
+        request.tryResolveDns();
 
-            // OpenAI common response format
-            OpenAIChatStreamResponse response = JSONUtil.toBean(chunk, OpenAIChatStreamResponse.class);
+        ChatRequestBody chatRequestBody = request.getChatRequest();
+        List<Message> messages = convertMessages(chatRequestBody);
+        AtomicInteger modelRequestCount = new AtomicInteger(1);
 
-            // Answer from LLM
-            String content = extractContentFromResponse(response);
+        ChatClient chatClient = newChatClient(request);
 
-            if (content != null) {
-                // Append to answer content and reset current content
-                chatContent.getAnswerContent().append(content);
-                chatContent.setCurrentContent(content);
-            }
+        ChatContext chatContext = initChatContext(request);
+        chatContext.setChatClient(chatClient);
 
-            if (response.getUsage() != null) {
-                ChatUsage usage = response.toStandardUsage();
-                chatContent.setUsage(usage);
-                chatContent.stop();
-                response.getUsage().setFirstPackageTime(chatContent.getFirstPackageTime());
-            }
+        chatContext.start();
 
-            return JSONUtil.toJsonStr(response);
-        } catch (Exception e) {
-            log.warn("Failed to process chunk: {}", chunk, e);
-            // Caused by invalid JSON or other errors, append to unexpected content
-            chatContent.getUnexpectedContent().append(chunk);
-            chatContent.getAnswerContent().append(chunk);
-        }
-        return chunk;
-    }
-
-    private String extractContentFromResponse(OpenAIChatStreamResponse response) {
-        return Optional.ofNullable(response.getChoices())
-                .filter(choices -> !choices.isEmpty())
-                .map(choices -> choices.get(0))
-                .map(OpenAIChatStreamResponse.Choice::getDelta)
-                .map(OpenAIChatStreamResponse.Delta::getContent)
-                .orElse(null);
-    }
-
-    private ModelFeature getOrDefaultModelFeature(ProductResult product) {
-        ModelFeature modelFeature = Optional.ofNullable(product)
-                .map(ProductResult::getFeature)
-                .map(ProductFeature::getModelFeature)
-                .orElse(new ModelFeature());
-
-        // Default values
-        if (modelFeature.getModel() == null) {
-            modelFeature.setModel("qwen-max");
-        }
-        if (modelFeature.getMaxTokens() == null) {
-            modelFeature.setMaxTokens(5000);
-        }
-        if (modelFeature.getTemperature() == null) {
-            modelFeature.setTemperature(0.9);
-        }
-        if (modelFeature.getStreaming() == null) {
-            modelFeature.setStreaming(true);
-        }
-
-        return modelFeature;
-    }
-
-    private URL getUrl(ModelConfigResult modelConfig, Map<String, String> queryParams) {
-        ModelConfigResult.ModelAPIConfig modelAPIConfig = modelConfig.getModelAPIConfig();
-        if (modelAPIConfig == null) {
-            return null;
-        }
-
-        List<HttpRouteResult> routes = modelAPIConfig.getRoutes();
-        if (CollUtil.isEmpty(routes)) {
-            return null;
-        }
-
-        // Find route ending with /chat/completions
-        for (HttpRouteResult route : routes) {
-            String pathValue = Optional.ofNullable(route.getMatch())
-                    .map(HttpRouteResult.RouteMatchResult::getPath)
-                    .map(HttpRouteResult.RouteMatchPath::getValue)
-                    .orElse("");
-
-            if (!pathValue.endsWith("/chat/completions")) {
-                continue;
-            }
-
-            // Find first external domain
-            Optional<DomainResult> externalDomain = route.getDomains().stream()
-                    // TODO 调试场景专用，防止域名被ICP拦截，可恶啊
-                    .filter(domain -> StrUtil.endWith(domain.getDomain(), ".alicloudapi.com"))
-                    .filter(domain -> !StrUtil.equalsIgnoreCase(domain.getNetworkType(), "intranet"))
-                    .findFirst();
-
-            if (externalDomain.isPresent()) {
-                DomainResult domain = externalDomain.get();
-                String protocol = StrUtil.isNotBlank(domain.getProtocol()) ?
-                        domain.getProtocol().toLowerCase() : "http";
-
-                try {
-                    // Build URL with query params
-                    UriComponentsBuilder builder = UriComponentsBuilder.newInstance()
-                            .scheme(protocol)
-                            .host(domain.getDomain())
-                            .path(pathValue);
-
-                    if (CollUtil.isNotEmpty(queryParams)) {
-                        queryParams.forEach(builder::queryParam);
+        ChatClient.ChatClientRequestSpec clientRequestSpec = chatClient.prompt(new Prompt(messages, chatContext.getChatOptions()))
+                .options(chatContext.getChatOptions());
+        Flux<ChatAnswerMessage> fluxResponse = clientRequestSpec.stream()
+                .chatResponse()
+                .flatMap(chatResponse -> {
+                    if (chatResponse.getResult() == null) {
+                        return Flux.empty();
                     }
 
-                    return new URL(builder.build().toUriString());
-                } catch (MalformedURLException e) {
-                    throw new RuntimeException(e);
+                    if (chatResponse.hasToolCalls()) {
+                        // 处理工具调用的情况
+                        return handleToolCallsInStream(chatContext, chatResponse, messages, modelRequestCount, resultHandler);
+                    } else {
+                        // 没有工具调用，直接返回响应
+                        return handleAnswerInStream(chatResponse, messages, chatContext);
+                    }
+                })
+                .startWith(newChatAnswerMessage(null, chatRequestBody.getUserQuestion(), USER, chatContext))
+                .doOnNext(chatAnswerMessage -> {
+                    chatContext.recordFirstPackageTime();
+                    log.debug("chatId={} chatAnswerMessage: {}", request.getChatId(), JSONUtil.toJsonStr(chatAnswerMessage));
+                })
+                .doOnComplete(() -> {
+                    resultHandler.accept(LlmInvokeResult.of(chatContext));
+                });
+        return applyErrorHandling(fluxResponse, chatContext, resultHandler)
+                .doFinally(s -> {
+                    cleanContext(chatContext);
+                    chatContext.stop();
+                });
+    }
+
+    private Flux<ChatAnswerMessage> handleToolCallsInStream(ChatContext chatContext, ChatResponse chatResponse, List<Message> messages,
+                                                            AtomicInteger modelRequestCount, Consumer<LlmInvokeResult> resultHandler) {
+        ChatOptions chatOptions = chatContext.getChatOptions();
+        ToolContext toolContext = chatContext.getToolContext();
+        Usage usage = chatResponse.getMetadata().getUsage();
+        return Flux.fromIterable(chatResponse.getResults())
+                .flatMap(generation -> {
+                    AssistantMessage assistantMessage = generation.getOutput();
+                    messages.add(assistantMessage);
+                    if (assistantMessage.hasToolCalls()) {
+                        List<AssistantMessage.ToolCall> toolCalls = assistantMessage.getToolCalls();
+                        ToolExecutionResult toolExecutionResult = toolCallingManager.executeToolCalls(new Prompt(messages, chatOptions), chatResponse);
+                        List<Message> conversationHistory = toolExecutionResult.conversationHistory();
+                        Message lastMessage = conversationHistory.get(conversationHistory.size() - 1);
+                        // 工具调用的消息
+                        List<ChatAnswerMessage> toolMessages = buildToolMessages(usage, toolCalls, lastMessage, chatContext);
+
+                        // 创建新的prompt包含工具调用结果
+                        messages.add(lastMessage);
+
+                        // 限制模型调用次数，防止无限循环
+                        if (modelRequestCount.incrementAndGet() > MAX_MODEL_REQUEST_PER_CHAT) {
+                            return Flux.fromIterable(toolMessages);
+                        }
+
+                        Flux<ChatAnswerMessage> followingAnswers = chatContext.getChatClient().prompt(new Prompt(messages, chatOptions))
+                                .options(chatOptions)
+                                .toolCallbacks(toolContext.getToolCallbacks())
+                                .stream()
+                                .chatResponse()
+                                .flatMap(nextChatResponse -> {
+                                    if (nextChatResponse.getResult() == null) {
+                                        log.warn("chatResponse.generation is null, which is unexpected");
+                                        return Flux.empty();
+                                    }
+                                    if (nextChatResponse.hasToolCalls()) {
+                                        return handleToolCallsInStream(chatContext, nextChatResponse, messages, modelRequestCount, resultHandler);
+                                    }
+                                    return handleAnswerInStream(nextChatResponse, messages, chatContext);
+                                });
+
+                        return Flux.concat(
+                                Flux.fromIterable(toolMessages),
+                                applyErrorHandling(followingAnswers, chatContext, resultHandler)
+                        );
+                    } else {
+                        log.warn("chatResponse.hasToolCalls == true, but also exists AssistantMessage that has no toolCalls");
+                        return Flux.just(buildChatAnswerMessageVO(usage, generation, chatContext));
+                    }
+                });
+    }
+
+    private Flux<ChatAnswerMessage> applyErrorHandling(Flux<ChatAnswerMessage> flux, ChatContext chatContext, Consumer<LlmInvokeResult> resultHandler) {
+        String chatId = chatContext.getChatId();
+        return flux.doOnError(e -> {
+                    log.error("chatId={} error", chatId, e);
+                    chatContext.getUnexpectedContent().append(e.getMessage());
+                    resultHandler.accept(LlmInvokeResult.of(chatContext));
+                })
+                .doOnCancel(() -> {
+                    log.warn("chat {} canceled", chatId);
+                    resultHandler.accept(LlmInvokeResult.of(chatContext));
+                })
+                .onErrorResume(WebClientResponseException.class, e -> {
+                    log.error("chatId={}, request has response error {}", chatId, e.getMessage(), e);
+                    return Flux.just(newErrorMessage(chatId, "WEB_RESPONSE_ERROR", e.getMessage()));
+                })
+                .onErrorResume(TimeoutException.class, e -> {
+                    log.error("chatId={}, request timeout {}", chatId, e.getMessage(), e);
+                    return Flux.just(newErrorMessage(chatId, "TIMEOUT", e.getMessage()));
+                })
+                .onErrorResume(Throwable.class, e -> {
+                    log.error("chatId={}, request has unknown error {}", chatId, e.getMessage(), e);
+                    return Flux.just(newErrorMessage(chatId, "UNKNOWN_ERROR", e.getMessage()));
+                });
+    }
+
+
+    private List<ChatAnswerMessage> buildToolMessages(Usage usage, List<AssistantMessage.ToolCall> toolCalls, Message lastMessage, ChatContext chatContext) {
+        ToolContext toolContext = chatContext.getToolContext();
+        List<ChatAnswerMessage> toolMessages = new ArrayList<>();
+        if (lastMessage instanceof ToolResponseMessage toolResponseMessage) {
+            List<ToolResponseMessage.ToolResponse> toolResponses = toolResponseMessage.getResponses();
+            for (int i = 0; i < toolCalls.size(); i++) {
+                AssistantMessage.ToolCall toolCall = toolCalls.get(i);
+                if (i < toolResponses.size()) {
+                    ToolResponseMessage.ToolResponse toolResponse = toolResponses.get(i);
+                    ChatAnswerMessage.ToolCall toolCallVO = this.constructToolCall(toolCall, toolContext);
+                    ChatAnswerMessage.ToolResponse toolResponseVO = this.constructToolResponse(toolResponse, toolContext);
+                    toolMessages.add(newChatAnswerMessage(usage, toolCallVO, TOOL_CALL, chatContext));
+                    toolMessages.add(newChatAnswerMessage(usage, toolResponseVO, TOOL_RESPONSE, chatContext));
                 }
             }
         }
+        return toolMessages;
+    }
 
-        // No suitable route found
-        return null;
+    protected ChatAnswerMessage.ToolResponse constructToolResponse(ToolResponseMessage.ToolResponse toolResponse, ToolContext toolContext) {
+        ChatAnswerMessage.ToolResponse tr = new ChatAnswerMessage.ToolResponse();
+        tr.setId(toolResponse.id());
+        tr.setName(toolResponse.name());
+        tr.setResponseData(toolResponse.responseData());
+        tr.setOutput(toolResponse.responseData());
+        String innerToolName = toolResponse.name();
+        Optional.ofNullable(toolContext.getToolMeta(innerToolName))
+                .ifPresent(tr::setToolMeta);
+        return tr;
+    }
+
+    private ChatAnswerMessage newErrorMessage(String chatId, String error, String message) {
+        return ChatAnswerMessage.builder()
+                .chatId(chatId)
+                .error(error)
+                .message(message)
+                .msgType(ERROR)
+                .build();
+    }
+
+    protected ChatAnswerMessage newChatAnswerMessage(Usage usage, Object content, ChatAnswerMessage.MessageType messageType, ChatContext chatContext) {
+        // Append to answer content and reset current content
+        if (messageType == ANSWER && content instanceof String strContent) {
+            chatContext.getAnswerContent().append(strContent);
+            chatContext.setCurrentContent(strContent);
+        }
+
+        ChatUsage chatUsage = (usage != null && !(usage instanceof EmptyUsage)) ?
+                ChatUsage.builder()
+                        .firstPackageTime(chatContext.getFirstPackageTime())
+                        .promptTokens(usage.getPromptTokens())
+                        .completionTokens(usage.getCompletionTokens())
+                        .totalTokens(usage.getTotalTokens())
+                        .build()
+                : null;
+
+        if (messageType == STOP) {
+            chatContext.setUsage(chatUsage);
+            chatContext.stop();
+        }
+
+        return ChatAnswerMessage.builder()
+                .chatId(chatContext.getChatId())
+                .content(content)
+                .chatUsage(chatUsage)
+                .msgType(messageType)
+                .build();
+    }
+
+    private ChatAnswerMessage.ToolCall constructToolCall(AssistantMessage.ToolCall toolCall, ToolContext toolContext) {
+        ChatAnswerMessage.ToolCall toolCallVO = new ChatAnswerMessage.ToolCall();
+        toolCallVO.setId(toolCall.id());
+        toolCallVO.setName(toolCall.name());
+        toolCallVO.setType(toolCall.type());
+        toolCallVO.setArguments(toolCall.arguments());
+        toolCallVO.setInput(toolCall.arguments());
+
+        String innerToolName = toolCall.name();
+        Optional.ofNullable(toolContext.getToolDefinition(innerToolName))
+                .ifPresent(toolDefinition -> {
+                    toolCallVO.setInputSchema(toolDefinition.inputSchema());
+                });
+        Optional.ofNullable(toolContext.getToolMeta(innerToolName))
+                .ifPresent(toolCallVO::setToolMeta);
+        return toolCallVO;
+    }
+
+    protected ChatAnswerMessage buildChatAnswerMessageVO(Usage usage, Generation generation, ChatContext chatContent) {
+        AssistantMessage message = generation.getOutput();
+        ChatGenerationMetadata metadata = generation.getMetadata();
+        boolean isStop = StringUtils.equalsIgnoreCase("STOP", metadata.getFinishReason());
+        ChatAnswerMessage.MessageType messageType = isStop ? STOP : ANSWER;
+        return newChatAnswerMessage(usage, message.getText(), messageType, chatContent);
+    }
+
+    private Flux<ChatAnswerMessage> handleAnswerInStream(ChatResponse chatResponse, List<Message> messages, ChatContext chatContext) {
+        Usage usage = chatResponse.getMetadata().getUsage();
+        return Flux.fromIterable(chatResponse.getResults()).map(generation -> {
+            AssistantMessage assistantMessage = generation.getOutput();
+            messages.add(assistantMessage);
+            ChatGenerationMetadata metadata = generation.getMetadata();
+            boolean isStop = StringUtils.equalsIgnoreCase("STOP", metadata.getFinishReason());
+            ChatAnswerMessage.MessageType messageType = isStop ? STOP : ANSWER;
+            return newChatAnswerMessage(usage, assistantMessage.getText(), messageType, chatContext);
+        });
     }
 
     @Override
