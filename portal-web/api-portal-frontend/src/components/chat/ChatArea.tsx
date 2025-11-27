@@ -453,10 +453,10 @@ export function ChatArea({ currentSessionId, messages, selectedProduct, onSelect
 
 
   return (
-    <div className={`flex-1 h-full ${isCompareMode ? "flex flex-col" : "grid grid-cols-1"}`}>
+    <div className={`flex-1 h-full ${isCompareMode || !currentSessionId ? "flex flex-col" : "grid grid-cols-1"}`}>
       {/* 顶部栏：模型选择器 + 多模型对比按钮（仅在单模型模式显示） */}
       {!isCompareMode && (
-        <div className="flex items-center gap-4 px-4 py-4">
+        <div className="h-20 flex items-center gap-4 px-4 py-4">
           <ModelSelector
             selectedModel={selectedModel}
             onSelectModel={handleSelectModel}
