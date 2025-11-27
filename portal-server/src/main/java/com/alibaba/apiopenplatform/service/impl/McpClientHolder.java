@@ -46,7 +46,7 @@ public class McpClientHolder implements Closeable {
 
     public List<McpSchema.Tool> listTools() {
         if (this.mcpSyncClient == null) {
-            return null;
+            return Collections.emptyList();
         }
         McpSchema.ListToolsResult toolsRet;
         try {
@@ -54,7 +54,7 @@ public class McpClientHolder implements Closeable {
             toolsRet = mcpSyncClient.listTools();
         } catch (Exception e) {
             log.error("mcp tools list error", e);
-            return null;
+            return Collections.emptyList();
         }
         if (toolsRet != null) {
             return toolsRet.tools();

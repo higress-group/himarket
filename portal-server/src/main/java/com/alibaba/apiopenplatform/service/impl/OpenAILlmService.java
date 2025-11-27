@@ -1,9 +1,14 @@
 package com.alibaba.apiopenplatform.service.impl;
 
 import cn.hutool.core.collection.CollUtil;
-import com.alibaba.apiopenplatform.dto.params.chat.*;
-import com.alibaba.apiopenplatform.dto.result.chat.*;
 import cn.hutool.json.JSONUtil;
+import com.alibaba.apiopenplatform.dto.params.chat.ChatContext;
+import com.alibaba.apiopenplatform.dto.params.chat.ChatRequestBody;
+import com.alibaba.apiopenplatform.dto.params.chat.McpToolMeta;
+import com.alibaba.apiopenplatform.dto.params.chat.ToolContext;
+import com.alibaba.apiopenplatform.dto.result.chat.ChatAnswerMessage;
+import com.alibaba.apiopenplatform.dto.result.chat.LlmChatRequest;
+import com.alibaba.apiopenplatform.dto.result.chat.LlmInvokeResult;
 import com.alibaba.apiopenplatform.support.chat.ChatMessage;
 import com.alibaba.apiopenplatform.support.chat.ChatUsage;
 import com.alibaba.apiopenplatform.support.chat.mcp.McpServerConfig;
@@ -44,6 +49,7 @@ import java.net.URL;
 import java.util.*;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 import static com.alibaba.apiopenplatform.dto.result.chat.ChatAnswerMessage.MessageType.*;
@@ -86,7 +92,6 @@ public class OpenAILlmService extends AbstractLlmService {
         });
         return contextMessages;
     }
-
 
 
     private void cleanContext(ChatContext chatContext) {
@@ -144,7 +149,7 @@ public class OpenAILlmService extends AbstractLlmService {
                     }
                     mcpClientHolders.add(mcpClientHolder);
                     List<McpSchema.Tool> tools = mcpClientHolder.listTools();
-                    tools.forEach(tool -> {
+                    Optional.ofNullable(tools).orElse(Collections.emptyList()).forEach(tool -> {
                         McpToolMeta mcpToolMeta = new McpToolMeta();
                         mcpToolMeta.setToolName(tool.name());
                         mcpToolMeta.setToolNameCn(tool.title());
@@ -225,8 +230,6 @@ public class OpenAILlmService extends AbstractLlmService {
 
     private Flux<ChatAnswerMessage> handleToolCallsInStream(ChatContext chatContext, ChatResponse chatResponse, List<Message> messages,
                                                             AtomicInteger modelRequestCount, Consumer<LlmInvokeResult> resultHandler) {
-        ChatOptions chatOptions = chatContext.getChatOptions();
-        ToolContext toolContext = chatContext.getToolContext();
         Usage usage = chatResponse.getMetadata().getUsage();
         return Flux.fromIterable(chatResponse.getResults())
                 .flatMap(generation -> {
@@ -234,45 +237,52 @@ public class OpenAILlmService extends AbstractLlmService {
                     messages.add(assistantMessage);
                     if (assistantMessage.hasToolCalls()) {
                         List<AssistantMessage.ToolCall> toolCalls = assistantMessage.getToolCalls();
-                        ToolExecutionResult toolExecutionResult = toolCallingManager.executeToolCalls(new Prompt(messages, chatOptions), chatResponse);
-                        List<Message> conversationHistory = toolExecutionResult.conversationHistory();
-                        Message lastMessage = conversationHistory.get(conversationHistory.size() - 1);
-                        // 工具调用的消息
-                        List<ChatAnswerMessage> toolMessages = buildToolMessages(usage, toolCalls, lastMessage, chatContext);
+                        Flux<ChatAnswerMessage> calls = buildToolCallMessages(toolCalls, usage, chatContext);
 
-                        // 创建新的prompt包含工具调用结果
-                        messages.add(lastMessage);
-
+                        // 工具调用
+                        Flux<ChatAnswerMessage> responses = executeToolCalls(usage, messages, chatContext, chatResponse);
                         // 限制模型调用次数，防止无限循环
                         if (modelRequestCount.incrementAndGet() > MAX_MODEL_REQUEST_PER_CHAT) {
-                            return Flux.fromIterable(toolMessages);
+                            return Flux.concat(
+                                    calls,
+                                    responses,
+                                    // 强制返回一个STOP
+                                    Flux.just(newChatAnswerMessage(usage, null, STOP, chatContext))
+                            );
                         }
 
-                        Flux<ChatAnswerMessage> followingAnswers = chatContext.getChatClient().prompt(new Prompt(messages, chatOptions))
-                                .options(chatOptions)
-                                .toolCallbacks(toolContext.getToolCallbacks())
-                                .stream()
-                                .chatResponse()
-                                .flatMap(nextChatResponse -> {
-                                    if (nextChatResponse.getResult() == null) {
-                                        log.warn("chatResponse.generation is null, which is unexpected");
-                                        return Flux.empty();
-                                    }
-                                    if (nextChatResponse.hasToolCalls()) {
-                                        return handleToolCallsInStream(chatContext, nextChatResponse, messages, modelRequestCount, resultHandler);
-                                    }
-                                    return handleAnswerInStream(nextChatResponse, messages, chatContext);
-                                });
-
+                        // 下一轮对话
+                        Flux<ChatAnswerMessage> nextAnswers = initiateNextCall(messages, chatContext, modelRequestCount, resultHandler);
                         return Flux.concat(
-                                Flux.fromIterable(toolMessages),
-                                applyErrorHandling(followingAnswers, chatContext, resultHandler)
+                                calls,
+                                responses,
+                                applyErrorHandling(nextAnswers, chatContext, resultHandler)
                         );
                     } else {
                         log.warn("chatResponse.hasToolCalls == true, but also exists AssistantMessage that has no toolCalls");
                         return Flux.just(buildChatAnswerMessageVO(usage, generation, chatContext));
                     }
                 });
+    }
+
+    private Flux<ChatAnswerMessage> initiateNextCall(List<Message> messages, ChatContext chatContext, AtomicInteger modelRequestCount, Consumer<LlmInvokeResult> resultHandler) {
+        ChatOptions chatOptions = chatContext.getChatOptions();
+        return Flux.defer(() -> chatContext.getChatClient().prompt(new Prompt(messages, chatOptions))
+                .options(chatOptions)
+                .toolCallbacks(chatContext.getToolContext().getToolCallbacks())
+                .stream()
+                .chatResponse()
+                .flatMap(nextChatResponse -> {
+                    if (nextChatResponse.getResult() == null) {
+                        log.warn("chatResponse.generation is null, which is unexpected");
+                        return Flux.empty();
+                    }
+                    if (nextChatResponse.hasToolCalls()) {
+                        return handleToolCallsInStream(chatContext, nextChatResponse, messages, modelRequestCount, resultHandler);
+                    }
+                    return handleAnswerInStream(nextChatResponse, messages, chatContext);
+                })
+        );
     }
 
     private Flux<ChatAnswerMessage> applyErrorHandling(Flux<ChatAnswerMessage> flux, ChatContext chatContext, Consumer<LlmInvokeResult> resultHandler) {
@@ -288,44 +298,74 @@ public class OpenAILlmService extends AbstractLlmService {
                 })
                 .onErrorResume(WebClientResponseException.class, e -> {
                     log.error("chatId={}, request has response error {}", chatId, e.getMessage(), e);
-                    return Flux.just(newErrorMessage(chatId, "WEB_RESPONSE_ERROR", e.getMessage()));
+                    return Flux.just(
+                            newErrorMessage(chatId, "WEB_RESPONSE_ERROR", e.getMessage()),
+                            newChatAnswerMessage(null, null, STOP, chatContext)
+                    );
                 })
                 .onErrorResume(TimeoutException.class, e -> {
                     log.error("chatId={}, request timeout {}", chatId, e.getMessage(), e);
-                    return Flux.just(newErrorMessage(chatId, "TIMEOUT", e.getMessage()));
+                    return Flux.just(
+                            newErrorMessage(chatId, "TIMEOUT", e.getMessage()),
+                            newChatAnswerMessage(null, null, STOP, chatContext)
+                    );
                 })
                 .onErrorResume(Throwable.class, e -> {
                     log.error("chatId={}, request has unknown error {}", chatId, e.getMessage(), e);
-                    return Flux.just(newErrorMessage(chatId, "UNKNOWN_ERROR", e.getMessage()));
+                    return Flux.just(
+                            newErrorMessage(chatId, "UNKNOWN_ERROR", e.getMessage()),
+                            newChatAnswerMessage(null, null, STOP, chatContext)
+                    );
                 });
     }
 
-
-    private List<ChatAnswerMessage> buildToolMessages(Usage usage, List<AssistantMessage.ToolCall> toolCalls, Message lastMessage, ChatContext chatContext) {
-        ToolContext toolContext = chatContext.getToolContext();
-        List<ChatAnswerMessage> toolMessages = new ArrayList<>();
-        if (lastMessage instanceof ToolResponseMessage toolResponseMessage) {
-            List<ToolResponseMessage.ToolResponse> toolResponses = toolResponseMessage.getResponses();
-            for (int i = 0; i < toolCalls.size(); i++) {
-                AssistantMessage.ToolCall toolCall = toolCalls.get(i);
-                if (i < toolResponses.size()) {
-                    ToolResponseMessage.ToolResponse toolResponse = toolResponses.get(i);
-                    ChatAnswerMessage.ToolCall toolCallVO = this.constructToolCall(toolCall, toolContext);
-                    ChatAnswerMessage.ToolResponse toolResponseVO = this.constructToolResponse(toolResponse, toolContext);
-                    toolMessages.add(newChatAnswerMessage(usage, toolCallVO, TOOL_CALL, chatContext));
-                    toolMessages.add(newChatAnswerMessage(usage, toolResponseVO, TOOL_RESPONSE, chatContext));
-                }
-            }
-        }
-        return toolMessages;
+    private Flux<ChatAnswerMessage> buildToolCallMessages(List<AssistantMessage.ToolCall> toolCalls, Usage usage, ChatContext chatContext) {
+        List<ChatAnswerMessage> callMessages = toolCalls.stream().map(toolCall -> {
+            ChatAnswerMessage.ToolCall tc = this.constructToolCall(toolCall, chatContext.getToolContext());
+            return newChatAnswerMessage(usage, tc, TOOL_CALL, chatContext);
+        }).toList();
+        return Flux.fromIterable(callMessages);
     }
 
-    protected ChatAnswerMessage.ToolResponse constructToolResponse(ToolResponseMessage.ToolResponse toolResponse, ToolContext toolContext) {
+    private Flux<ChatAnswerMessage> executeToolCalls(Usage usage, List<Message> messages, ChatContext chatContext, ChatResponse chatResponse) {
+        return Flux.defer(() -> {
+            // 工具调用
+            ToolExecutionResult toolExecutionResult = null;
+            long startTime = System.currentTimeMillis();
+            AtomicLong costMillis = new AtomicLong(0);
+            try {
+                toolExecutionResult = toolCallingManager.executeToolCalls(new Prompt(messages, chatContext.getChatOptions()), chatResponse);
+            } catch (Throwable t) {
+                log.error("toolCallingManager.executeToolCalls has error", t);
+                return Flux.error(t);
+            } finally {
+                costMillis.set(System.currentTimeMillis() - startTime);
+                log.info("toolCallingManager.executeToolCalls cost: {}ms", costMillis.get());
+            }
+            List<Message> conversationHistory = toolExecutionResult.conversationHistory();
+            Message lastMessage = conversationHistory.get(conversationHistory.size() - 1);
+
+            // 工具调用结果需要加到上下文中
+            messages.add(lastMessage);
+            List<ChatAnswerMessage> toolResponseMessages = new ArrayList<>();
+            if (lastMessage instanceof ToolResponseMessage toolResponseMessage) {
+                List<ToolResponseMessage.ToolResponse> toolResponses = toolResponseMessage.getResponses();
+                toolResponses.forEach(toolResponse -> {
+                    ChatAnswerMessage.ToolResponse tr = this.constructToolResponse(toolResponse, chatContext.getToolContext(), costMillis.get());
+                    toolResponseMessages.add(newChatAnswerMessage(usage, tr, TOOL_RESPONSE, chatContext));
+                });
+            }
+            return Flux.fromIterable(toolResponseMessages);
+        });
+    }
+
+    protected ChatAnswerMessage.ToolResponse constructToolResponse(ToolResponseMessage.ToolResponse toolResponse, ToolContext toolContext, long costMillis) {
         ChatAnswerMessage.ToolResponse tr = new ChatAnswerMessage.ToolResponse();
         tr.setId(toolResponse.id());
         tr.setName(toolResponse.name());
         tr.setResponseData(toolResponse.responseData());
         tr.setOutput(toolResponse.responseData());
+        tr.setCostMillis(costMillis);
         String innerToolName = toolResponse.name();
         Optional.ofNullable(toolContext.getToolMeta(innerToolName))
                 .ifPresent(tr::setToolMeta);

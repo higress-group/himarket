@@ -99,6 +99,7 @@ public class ChatAnswerMessage {
         private McpToolMeta toolMeta;
         // 根据ToolResponse的responseData做json解析后的结果
         private Object      output;
+        private Long        costMillis;
         /**
          * 以下字段来自:
          * {@link org.springframework.ai.chat.messages.ToolResponseMessage.ToolResponse}
