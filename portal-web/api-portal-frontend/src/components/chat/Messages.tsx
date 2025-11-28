@@ -11,12 +11,11 @@ interface MessageListProps {
   modelIcon?: string; // 添加模型 icon
   onRefresh?: (msg: IModelConversation['conversations'][0], quest: IModelConversation['conversations'][0]['questions'][0]) => void;
   onChangeVersion?: (conversationId: string, questionId: string, direction: 'prev' | 'next') => void;
-  isLoading?: boolean;
   autoScrollEnabled?: boolean;
 }
 
 export function Messages({
-  conversations, modelName = "AI Assistant", modelIcon, onRefresh, onChangeVersion, isLoading = false,
+  conversations, modelName = "AI Assistant", modelIcon, onRefresh, onChangeVersion,
   autoScrollEnabled = true,
 }: MessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);

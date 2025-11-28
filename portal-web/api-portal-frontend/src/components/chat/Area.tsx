@@ -1,25 +1,20 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { CloseOutlined, PlusOutlined } from "@ant-design/icons";
-import { message as antdMessage } from "antd";
 import { ModelSelector } from "./ModelSelector";
-import { MessageList } from "./MessageList";
 import { Messages } from "./Messages";
 import { InputBox } from "./InputBox";
 import { SuggestedQuestions } from "./SuggestedQuestions";
 import { MultiModelSelector } from "./MultiModelSelector";
-import { getIconString } from "../../lib/iconUtils";
-import { generateConversationId, generateQuestionId } from "../../lib/uuid";
-import { handleSSEStream } from "../../lib/sse";
 import type { ICategory, IProductDetail } from "../../lib/apis";
 import APIs from "../../lib/apis";
-import type { IMessageVersion, IModelConversation } from "../../types";
+import type { IModelConversation } from "../../types";
 
 
 interface ChatAreaProps {
   modelConversations: IModelConversation[];
   currentSessionId?: string;
   selectedModel?: IProductDetail;
-
+  generating: boolean,
   onChangeActiveAnswer: (modelId: string, conversationId: string, questionId: string, direction: 'prev' | 'next') => void
   onSendMessage: (message: string) => void;
   onSelectProduct: (product: IProductDetail) => void;
@@ -31,12 +26,14 @@ interface ChatAreaProps {
   }) => void;
 
   addModels: (ids: string[]) => void;
+  closeModel: (modelId: string) => void;
 }
 
 export function ChatArea(props: ChatAreaProps) {
   const {
-    modelConversations, currentSessionId, onChangeActiveAnswer, onSendMessage,
-    onSelectProduct, selectedModel, handleGenerateMessage, addModels
+    modelConversations, onChangeActiveAnswer, onSendMessage,
+    onSelectProduct, selectedModel, handleGenerateMessage, addModels, closeModel,
+    generating,
   } = props;
 
   const isCompareMode = modelConversations.length > 1;
@@ -47,6 +44,7 @@ export function ChatArea(props: ChatAreaProps) {
   const [categories, setCategories] = useState<ICategory[]>([]);
 
   const [showModelSelector, setShowModelSelector] = useState(false);
+  const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
 
   useEffect(() => {
     APIs.getProducts({ type: "MODEL_API" }).then(res => {
@@ -80,11 +78,20 @@ export function ChatArea(props: ChatAreaProps) {
     setShowModelSelector(false);
   }
 
+  const handleAddModel = () => {
+    // 添加新的对比模型
+    setShowModelSelector(true);
+  };
+
+  const selectedModelIds = useMemo(() => {
+    return modelConversations.map(model => model.id);
+  }, [modelConversations]);
+
 
   return (
     <div className="h-full flex flex-col flex-1">
 
-      <div className={`overflow-auto h-full grid grid-rows-[auto] ${modelConversations.length === 0 ? "" : modelConversations.length === 1 ? "grid-cols-1 " : modelConversations.length === 2 ? "grid-cols-2" : "grid-cols-3"}`}>
+      <div className={`overflow-auto ${modelConversations.length === 0 ? "" : "h-full"} grid grid-rows-[auto] ${modelConversations.length === 0 ? "" : modelConversations.length === 1 ? "grid-cols-1 " : modelConversations.length === 2 ? "grid-cols-2" : "grid-cols-3"}`}>
         {/* 主要内容区域 */}
         {
           modelConversations.map((model, index) => {
@@ -118,20 +125,21 @@ export function ChatArea(props: ChatAreaProps) {
                           <span className="text-sm font-medium">多模型对比</span>
                         </button>
                       </div>
-                      {
-                        showModelSelector && (
-                          <MultiModelSelector
-                            currentModelId={model.id}
-                            excludeModels={[]}
-                            onConfirm={handleSelectModels}
-                            onCancel={() => setShowModelSelector(false)}
-                            modelList={modelList}
-                          // loading={modelsLoading}
-                          />
-                        )
-                      }
+
 
                     </div>
+                  )
+                }
+                {
+                  showModelSelector && (
+                    <MultiModelSelector
+                      currentModelId={model.id}
+                      excludeModels={selectedModelIds}
+                      onConfirm={handleSelectModels}
+                      onCancel={() => setShowModelSelector(false)}
+                      modelList={modelList}
+                    // loading={modelsLoading}
+                    />
                   )
                 }
 
@@ -145,7 +153,7 @@ export function ChatArea(props: ChatAreaProps) {
                       <div className="flex items-center gap-2">
                         {index === 1 && modelConversations.length < 3 && (
                           <button
-                            // onClick={handleAddModel}
+                            onClick={handleAddModel}
                             className="text-gray-400 hover:text-colorPrimary transition-colors duration-200"
                             title="添加对比模型"
                           >
@@ -153,7 +161,7 @@ export function ChatArea(props: ChatAreaProps) {
                           </button>
                         )}
                         <button
-                          // onClick={() => handleCloseModel(modelId)}
+                          onClick={() => closeModel(model.id)}
                           className="text-gray-400 hover:text-gray-600 transition-colors duration-200"
                         >
                           <CloseOutlined className="text-xs" />
@@ -168,7 +176,9 @@ export function ChatArea(props: ChatAreaProps) {
                   <Messages
                     conversations={model.conversations}
                     onChangeVersion={(...args) => onChangeActiveAnswer(model.id, ...args)}
+                    autoScrollEnabled={autoScrollEnabled}
                     onRefresh={(con, quest) => {
+                      setAutoScrollEnabled(false);
                       handleGenerateMessage({
                         modelId: model.id,
                         conversationId: con.id,
@@ -224,22 +234,49 @@ export function ChatArea(props: ChatAreaProps) {
         }
 
       </div>
-      <div className="p-4 pb-0">
-        <div className="max-w-3xl mx-auto">
-          <InputBox
-            onSendMessage={(c) => {
-              onSendMessage(c);
-              // setAutoScrollEnabled(true);
-              // if (isCompareMode) {
-              //   handleCompareSendMessage(c);
-              // } else {
-              //   onSendMessage(c);
-              // }
-            }}
-          // isLoading={isCompareMode ? isCompareModeLoading : isLoading}
-          />
-        </div>
-      </div>
+      {
+        modelConversations.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full px-4">
+            <div className="max-w-3xl w-full">
+              {/* 欢迎标题 */}
+              <div className="text-center mb-12">
+                <h1 className="text-2xl font-medium text-gray-900 mb-2">
+                  您好，欢迎来到 <span className="text-colorPrimary">Himarket 体验中心_</span>
+                </h1>
+              </div>
+
+              {/* 输入框 */}
+              <div className="mb-8">
+                <InputBox onSendMessage={(c) => {
+                  setAutoScrollEnabled(true);
+                  onSendMessage(c)
+                }}
+                  isLoading={generating}
+                />
+              </div>
+
+              {/* 推荐问题 */}
+              <SuggestedQuestions
+                onSelectQuestion={(c) => {
+                  setAutoScrollEnabled(true);
+                  onSendMessage(c);
+                }} />
+            </div>
+          </div>
+        ) : (
+          <div className="p-4 pb-0">
+            <div className="max-w-3xl mx-auto">
+              <InputBox
+                onSendMessage={(c) => {
+                  setAutoScrollEnabled(true);
+                  onSendMessage(c);
+                }}
+                isLoading={generating}
+              />
+            </div>
+          </div>
+        )
+      }
     </div>
   );
 }

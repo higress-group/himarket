@@ -3,46 +3,24 @@ import { useLocation } from "react-router-dom";
 import { message as antdMessage } from "antd";
 import { Layout } from "../components/Layout";
 import { Sidebar } from "../components/chat/Sidebar";
-import { ChatArea } from "../components/chat/area";
 import { generateConversationId, generateQuestionId } from "../lib/uuid";
 import { handleSSEStream, } from "../lib/sse";
-import APIs, { type IProductConversations, type IProductDetail, type ISession } from "../lib/apis";
-import type { IMessageVersion, IModelConversation } from "../types";
-
-interface Message {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  timestamp: Date;
-  // AI 返回时的统计信息
-  firstTokenTime?: number;
-  totalTime?: number;
-  inputTokens?: number;
-  outputTokens?: number;
-  question?: string;
-  // 多版本答案支持（仅 assistant 消息）
-  questionId?: string; // 关联的问题ID
-  conversationId?: string; // 关联的会话ID
-  versions?: IMessageVersion[]; // 所有版本的答案
-  currentVersionIndex?: number; // 当前显示的版本索引（0-based）
-  // 错误状态
-  error?: boolean; // 是否是错误消息
-  errorMessage?: string; // 错误提示文本
-}
+import APIs, { type IProductConversations, type IProductDetail } from "../lib/apis";
+import type { IModelConversation } from "../types";
+import { ChatArea } from "../components/chat/Area";
 
 
 function Chat() {
   const location = useLocation();
   const [currentSessionId, setCurrentSessionId] = useState<string>();
-  const [messages, setMessages] = useState<Message[]>([]);
   const [selectedModel, setSelectedModel] = useState<IProductDetail>();
-  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [useStream] = useState(true); // 默认使用流式响应
-  const [isLoading, setIsLoading] = useState(false); // 添加loading状态
   const [sidebarRefreshTrigger, setSidebarRefreshTrigger] = useState(0); // 用于触发 Sidebar 刷新
   // 多模型对比的初始化数据（用于从历史会话加载）
 
   const [modelConversation, setModelConversation] = useState<IModelConversation[]>([]);
+
+  const [generating, setGenerating] = useState(false);
 
   // 从 location.state 接收选中的产品，或者加载默认第一个模型
   useEffect(() => {
@@ -78,6 +56,7 @@ function Chat() {
     }
 
     try {
+      setGenerating(true);
       // 如果没有会话，先创建会话
       let sessionId = currentSessionId;
       if (!sessionId) {
@@ -93,6 +72,7 @@ function Chat() {
           // 触发 Sidebar 刷新以显示新会话
           setSidebarRefreshTrigger(prev => prev + 1);
         } else {
+          setGenerating(false);
           throw new Error("创建会话失败");
         }
       }
@@ -101,25 +81,25 @@ function Chat() {
       const conversationId = generateConversationId();
       const questionId = generateQuestionId();
 
-      // 更新当前的 conversationId
-      setCurrentConversationId(conversationId);
 
       // 发送消息（sessionId 已确保不为 null）
       if (!sessionId) {
         throw new Error("会话ID不存在");
       }
 
-      const messagePayload = {
-        productId: selectedModel.productId,
-        sessionId,
-        conversationId,
-        questionId,
-        question: content,
-        stream: useStream,
-        needMemory: true,
-      };
+      const modelIds = modelConversation.length ? modelConversation.map(model => model.id) : [selectedModel.productId];
 
-      if (useStream) {
+      const requests = modelIds.map(async (modelId) => {
+        const messagePayload = {
+          productId: modelId,
+          sessionId,
+          conversationId,
+          questionId,
+          question: content,
+          stream: useStream,
+          needMemory: true,
+        };
+
         let fullContent = '';
 
         setModelConversation(prev => {
@@ -157,6 +137,7 @@ function Chat() {
             ]
           }
           return prev.map(model => {
+            if (model.id !== modelId) return model;
             return {
               ...model,
               conversations: [
@@ -198,6 +179,7 @@ function Chat() {
               fullContent += chunk;
               setModelConversation((prev) => {
                 return prev.map(model => {
+                  if (model.id !== modelId) return model;
                   return {
                     ...model,
                     conversations: model.conversations.map(con => {
@@ -232,6 +214,7 @@ function Chat() {
             onComplete: (content, _chatId, usage) => {
               setModelConversation((prev) => {
                 return prev.map(model => {
+                  if (model.id !== modelId) return model;
                   return {
                     ...model,
                     conversations: model.conversations.map(con => {
@@ -261,11 +244,11 @@ function Chat() {
                   }
                 })
               })
-              setIsLoading(false); // 完成loading
             },
             onError: () => {
               setModelConversation((prev) => {
                 return prev.map(model => {
+                  if (model.id !== modelId) return model;
                   return {
                     ...model,
                     conversations: model.conversations.map(con => {
@@ -296,11 +279,16 @@ function Chat() {
                   }
                 })
               })
-              setIsLoading(false); // 错误时也要重置loading
             },
           }
         );
-      }
+      });
+
+      // 等待所有请求完成
+      setGenerating(true);
+      await Promise.allSettled(requests);
+      setGenerating(false);
+
     } catch (error) {
       setModelConversation((prev) => {
         return prev.map(model => {
@@ -333,7 +321,8 @@ function Chat() {
             })
           }
         })
-      })
+      });
+      setGenerating(false);
       console.error("Failed to send message:", error);
     }
   };
@@ -345,6 +334,7 @@ function Chat() {
     modelId: string, conversationId: string, questionId: string, content: string
   }) => {
 
+    setGenerating(true);
     try {
       const messagePayload = {
         productId: modelId, sessionId: currentSessionId,
@@ -358,6 +348,7 @@ function Chat() {
       // 加载 loading
       setModelConversation(prev => {
         return prev.map(model => {
+          if (model.id !== modelId) return model;
           return {
             ...model,
             conversations: model.conversations.map(con => {
@@ -385,6 +376,7 @@ function Chat() {
           fullContent += chunk;
           setModelConversation((prev) => {
             return prev.map(model => {
+              if (model.id !== modelId) return model;
               return {
                 ...model,
                 conversations: model.conversations.map(con => {
@@ -394,22 +386,30 @@ function Chat() {
                     loading: false,
                     questions: con.questions.map(question => {
                       if (question.id !== questionId) return question;
+                      const ans = lastIdx !== -1 ? question.answers.map((answer, idx) => {
+                        if (idx !== question.answers.length - 1) return answer;
+                        return {
+                          ...answer,
+                          content: fullContent,
+                        }
+                      }) : [
+                        ...question.answers,
+                        {
+                          errorMsg: "",
+                          content: fullContent,
+                          firstTokenTime: 0,
+                          totalTime: 0,
+                          inputTokens: 0,
+                          outputTokens: 0,
+                        }
+                      ]
                       if (lastIdx === -1) {
                         lastIdx = question.answers.length + 1;
                       }
                       return {
                         ...question,
-                        answers: lastIdx !== -1 ? question.answers : [
-                          ...question.answers,
-                          {
-                            errorMsg: "",
-                            content: fullContent,
-                            firstTokenTime: 0,
-                            totalTime: 0,
-                            inputTokens: 0,
-                            outputTokens: 0,
-                          }
-                        ]
+                        activeAnswerIndex: ans.length - 1,
+                        answers: ans
                       }
                     })
                   }
@@ -421,6 +421,7 @@ function Chat() {
         onComplete: (_content, _chatId, usage) => {
           setModelConversation((prev) => {
             return prev.map(model => {
+              if (model.id !== modelId) return model;
               return {
                 ...model,
                 conversations: model.conversations.map(con => {
@@ -432,24 +433,27 @@ function Chat() {
                       if (question.id !== questionId) return question;
                       return {
                         ...question,
-                        answers: [
-                          ...question.answers,
-                          {
-                            errorMsg: "",
-                            content: fullContent,
-                            firstTokenTime: usage?.first_byte_timeout || 0,
-                            totalTime: usage?.elapsed_time || 0,
-                            inputTokens: usage?.prompt_tokens || 0,
-                            outputTokens: usage?.completion_tokens || 0,
+                        answers: question.answers.map((answer, idx) => {
+                          if (idx === question.answers.length - 1) {
+                            return {
+                              errorMsg: "",
+                              content: fullContent,
+                              firstTokenTime: usage?.first_byte_timeout || 0,
+                              totalTime: usage?.elapsed_time || 0,
+                              inputTokens: usage?.prompt_tokens || 0,
+                              outputTokens: usage?.completion_tokens || 0,
+                            }
                           }
-                        ]
+                          return answer;
+                        })
                       }
                     })
                   }
                 })
               }
             })
-          })
+          });
+          setGenerating(false);
         },
         onError: () => {
           setModelConversation((prev) => {
@@ -482,10 +486,13 @@ function Chat() {
                 })
               }
             })
-          })
+          });
+          setGenerating(false)
         }
       })
     } catch (error) {
+      setGenerating(false);
+      console.log(error)
     }
 
   };
@@ -493,7 +500,6 @@ function Chat() {
   const handleNewChat = () => {
     setModelConversation([]);
     setCurrentSessionId(undefined);
-    setCurrentConversationId(null);
   };
 
   const handleSelectProduct = (product: IProductDetail) => {
@@ -502,7 +508,6 @@ function Chat() {
     // 清除当前会话状态
     setCurrentSessionId(undefined);
     setModelConversation([]);
-    setCurrentConversationId(null);
   };
 
   const onChangeActiveAnswer = (modelId: string, conversationId: string, questionId: string, direction: 'prev' | 'next') => {
@@ -550,7 +555,7 @@ function Chat() {
     try {
       setCurrentSessionId(sessionId);
       // 不要立即清空消息，避免闪烁
-
+      setGenerating(true);
       const response = await APIs.getConversationsV2(sessionId);
 
       if (response.code === "SUCCESS" && response.data) {
@@ -570,7 +575,7 @@ function Chat() {
                     id: question.questionId,
                     content: question.content,
                     createdAt: question.createdAt,
-                    activeAnswerIndex: 0,
+                    activeAnswerIndex: question.answers.length - 1,
                     answers: question.answers.map(answer => {
                       return {
                         errorMsg: "",
@@ -589,16 +594,17 @@ function Chat() {
           }
         })
         setModelConversation(m);
+        setGenerating(false)
         return;
       }
     } catch (error) {
+      setGenerating(false);
       console.error("Failed to load conversation:", error);
       antdMessage.error("加载聊天记录失败");
     }
   };
 
   const addModels = (modelIds: string[]) => {
-    console.log(modelIds, modelConversation.length, 'asd...')
     if (modelConversation.length === 0) {
       setModelConversation([
         {
@@ -633,7 +639,12 @@ function Chat() {
     }
   }
 
-  console.log(modelConversation, 'initialCompareData...')
+  const closeModel = (modelId: string) => {
+    setModelConversation(prev => {
+      return prev.filter(model => model.id !== modelId);
+    })
+  }
+
   return (
     <Layout>
       <div className="flex h-[calc(100vh-96px)] bg-transparent">
@@ -644,31 +655,17 @@ function Chat() {
           refreshTrigger={sidebarRefreshTrigger}
         />
         <ChatArea
-          modelConversations={modelConversation} currentSessionId={currentSessionId}
+          modelConversations={modelConversation}
+          currentSessionId={currentSessionId}
           onChangeActiveAnswer={onChangeActiveAnswer}
           onSendMessage={handleSendMessage}
           onSelectProduct={handleSelectProduct}
           selectedModel={selectedModel}
           handleGenerateMessage={handleGenerateMessage}
           addModels={addModels}
+          closeModel={closeModel}
+          generating={generating}
         />
-        {/* <ChatArea
-          key={chatAreaKey}
-          currentSessionId={currentSessionId || undefined}
-          messages={messages}
-          selectedProduct={selectedProduct}
-          onSelectProduct={handleSelectProduct}
-          onSendMessage={handleSendMessage}
-          onRefreshMessage={handleRefreshMessage}
-          onChangeVersion={handleChangeVersion}
-          isLoading={isLoading}
-          initialCompareData={initialCompareData}
-          onExitCompareMode={handleExitCompareMode}
-          refreshSidebar={(sessionId) => {
-            setCurrentSessionId(sessionId);
-            setSidebarRefreshTrigger(v => v + 1);
-          }}
-        /> */}
       </div>
     </Layout>
   );
