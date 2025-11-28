@@ -93,6 +93,11 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
                     throw new BusinessException(ErrorCode.CONFLICT, StrUtil.format("{}:{}已存在", Resources.GATEWAY, param.getGatewayId()));
                 });
 
+        gatewayRepository.findByGatewayName(param.getGatewayName())
+                .ifPresent(gateway -> {
+                    throw new BusinessException(ErrorCode.CONFLICT, StrUtil.format("{}:{}已存在", Resources.GATEWAY, param.getGatewayName()));
+                });
+
         Gateway gateway = param.convertTo();
         if (gateway.getGatewayType().isHigress()) {
             gateway.setGatewayId(IdGenerator.genHigressGatewayId());
