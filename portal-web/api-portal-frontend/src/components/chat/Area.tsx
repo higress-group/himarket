@@ -238,7 +238,7 @@ export function ChatArea(props: ChatAreaProps) {
       {
         modelConversations.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full px-4">
-            <div className="max-w-3xl w-full">
+            <div className="max-w-4xl w-full">
               {/* 欢迎标题 */}
               <div className="text-center mb-12">
                 <h1 className="text-2xl font-medium text-gray-900 mb-2">

@@ -555,7 +555,7 @@ function Chat() {
     try {
       setCurrentSessionId(sessionId);
       // 不要立即清空消息，避免闪烁
-      setGenerating(true);
+      // setGenerating(true);
       const response = await APIs.getConversationsV2(sessionId);
 
       if (response.code === "SUCCESS" && response.data) {
@@ -594,11 +594,11 @@ function Chat() {
           }
         })
         setModelConversation(m);
-        setGenerating(false)
+        // setGenerating(false)
         return;
       }
     } catch (error) {
-      setGenerating(false);
+      // setGenerating(false);
       console.error("Failed to load conversation:", error);
       antdMessage.error("加载聊天记录失败");
     }
