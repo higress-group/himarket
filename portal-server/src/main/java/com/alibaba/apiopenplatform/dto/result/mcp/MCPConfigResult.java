@@ -20,9 +20,12 @@
 package com.alibaba.apiopenplatform.dto.result.mcp;
 
 import com.alibaba.apiopenplatform.dto.result.httpapi.DomainResult;
+import com.alibaba.apiopenplatform.support.chat.mcp.McpServerConfig;
 import lombok.Data;
 import lombok.Getter;
+import org.apache.commons.lang3.StringUtils;
 
+import java.util.Collections;
 import java.util.List;
 
 @Data
@@ -35,6 +38,25 @@ public class MCPConfigResult {
     protected String tools;
 
     protected McpMetadata meta;
+
+    public McpServerConfig toStandardMcpServer() {
+        McpServerConfig mcpServerConfig = new McpServerConfig();
+        McpServerConfig.McpServer mcpServer = new McpServerConfig.McpServer();
+
+        mcpServer.setType(meta.getProtocol().toLowerCase());
+        List<DomainResult> domains = this.mcpServerConfig.getDomains();
+        DomainResult domainResult = domains.get(0);
+        String url = String.format("%s://%s", domainResult.getProtocol(), domainResult.getDomain());
+        if (StringUtils.equalsIgnoreCase(mcpServer.getType(), "sse")) {
+            if (!url.endsWith("/sse")) {
+                url = url.endsWith("/") ? url + "sse" : url + "/sse";
+            }
+        }
+        mcpServer.setUrl(url);
+
+        mcpServerConfig.setMcpServers(Collections.singletonMap(mcpServerName, mcpServer));
+        return mcpServerConfig;
+    }
 
     @Data
     public static class McpMetadata {
@@ -63,7 +85,7 @@ public class MCPConfigResult {
         /**
          * for gateway
          */
-        private String path;
+        private String             path;
         private List<DomainResult> domains;
 
         /**

@@ -1,212 +1,166 @@
 package com.alibaba.apiopenplatform.service.impl;
 
-import cn.hutool.core.map.MapUtil;
-import cn.hutool.json.JSONUtil;
-import com.alibaba.apiopenplatform.core.exception.BusinessException;
+import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.util.StrUtil;
 import com.alibaba.apiopenplatform.core.exception.ErrorCode;
-import com.alibaba.apiopenplatform.dto.params.chat.ChatContent;
+import com.alibaba.apiopenplatform.dto.params.chat.ChatRequestBody;
+import com.alibaba.apiopenplatform.dto.result.chat.ChatAnswerMessage;
+import com.alibaba.apiopenplatform.dto.result.httpapi.DomainResult;
+import com.alibaba.apiopenplatform.dto.result.httpapi.HttpRouteResult;
+import com.alibaba.apiopenplatform.dto.result.model.ModelConfigResult;
+import com.alibaba.apiopenplatform.dto.result.product.ProductResult;
 import com.alibaba.apiopenplatform.service.LlmService;
 import com.alibaba.apiopenplatform.dto.params.chat.InvokeModelParam;
 import com.alibaba.apiopenplatform.dto.result.chat.LlmChatRequest;
 import com.alibaba.apiopenplatform.dto.result.chat.LlmInvokeResult;
+import com.alibaba.apiopenplatform.support.product.ModelFeature;
+import com.alibaba.apiopenplatform.support.product.ProductFeature;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 
-import java.io.IOException;
-import java.time.Duration;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
+import java.util.Optional;
 import java.util.function.Consumer;
 
 @Slf4j
 @RequiredArgsConstructor
 public abstract class AbstractLlmService implements LlmService {
 
-    private final WebClient webClient = WebClient.builder()
-            .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(16 * 1024 * 1024))
-            .build();
+    // 一次chat中模型调用的最大次数
+    protected static final int MAX_MODEL_REQUEST_PER_CHAT = 20;
 
     @Override
-    public SseEmitter invokeLLM(InvokeModelParam param, HttpServletResponse response, Consumer<LlmInvokeResult> resultHandler) {
-       // ResultHandler is mainly used to record answer and usage
+    public Flux<ChatAnswerMessage> invokeLLM(InvokeModelParam param, HttpServletResponse response, Consumer<LlmInvokeResult> resultHandler) {
+        // ResultHandler is mainly used to record answer and usage
         try {
             LlmChatRequest request = composeRequest(param);
 
-            return callV2(request, response, resultHandler);
+            return call(request, response, resultHandler);
         } catch (Exception e) {
-            log.error("Failed to invoke LLM", e);
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, e.getMessage());
+            log.error("Failed to invoke LLM, chatId={}", param.getChatId(), e);
+            response.setStatus(ErrorCode.INTERNAL_ERROR.getStatus().value());
+            return Flux.just(ChatAnswerMessage.ofError(ErrorCode.INTERNAL_ERROR.getMessage(e.getMessage()), "Failed to invoke LLM"));
         }
     }
 
-    protected abstract LlmChatRequest composeRequest(InvokeModelParam param);
+    protected abstract Flux<ChatAnswerMessage> call(LlmChatRequest request, HttpServletResponse response, Consumer<LlmInvokeResult> resultHandler);
 
-    private SseEmitter call(LlmChatRequest request, HttpServletResponse response, Consumer<LlmInvokeResult> resultHandler) {
-        // Use SseEmitter for streaming
-        SseEmitter emitter = new SseEmitter(-1L);
+    private LlmChatRequest composeRequest(InvokeModelParam param) {
+        // Not be null
+        ProductResult product = param.getProduct();
+        ModelConfigResult modelConfig = product.getModelConfig();
+        // 1. Get request URL (with query params)
+        URL url = getUrl(modelConfig, param.getQueryParams());
 
-        request.tryResolveDns();
-        log.info("zhaoh-test-request: {}", JSONUtil.toJsonStr(request));
+        // 2. Build headers
+        Map<String, String> headers = param.getRequestHeaders() == null ? new HashMap<>() : param.getRequestHeaders();
 
-        ChatContent chatContent = new ChatContent();
-        chatContent.start();
-        webClient
-                .post()
-                .uri(request.getUrl().toString())
-                .contentType(MediaType.APPLICATION_JSON)
-                .accept(MediaType.TEXT_EVENT_STREAM)
-                .headers(headers -> request.getHeaders().forEach(headers::add))
-                .bodyValue(request.getBody())
-                .exchangeToFlux(clientResponse -> {
-                    // Set response headers which are from the gateway
-                    HttpHeaders responseHeaders = clientResponse.headers().asHttpHeaders();
-
-                    // Skip Transfer-Encoding header to avoid duplicated headers
-                    responseHeaders.forEach((key, values) -> {
-                        if (key != null && !key.equalsIgnoreCase("transfer-encoding")
-                                && !key.equalsIgnoreCase("content-length")) {
-                            values.forEach(value -> response.addHeader(key, value));
-                        }
-                    });
-
-                    // Handle response body
-                    return clientResponse.bodyToFlux(String.class)
-                            .delayElements(Duration.ofMillis(100))
-                            .handle((chunk, sink) -> {
-                                // Record first token time
-                                chatContent.recordFirstByteTimeout();
-
-                                String s = processStreamChunk(chunk, chatContent);
-                                // Only send the chunk if there is no error and unexpected content is empty
-                                if (chatContent.success()) {
-                                    sink.next(s);
-                                }
-                            });
-                })
-//                .filter(Objects::nonNull)
-                .doOnNext(chunk -> {
-                    try {
-                        emitter.send(SseEmitter.event().data(chunk));
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
-                    }
-                })
-                .doOnComplete(() -> {
-
-                    if (!chatContent.success()) {
-                        sendError(emitter, chatContent.getUnexpectedContent().toString());
-                    }
-                    emitter.complete();
-                    // Allow the caller to handle the result
-                    resultHandler.accept(LlmInvokeResult.of(chatContent));
-                })
-                .doOnError(error -> {
-                    // Handle the error
-                    log.error("Model API call failed", error);
-                    sendError(emitter, error.getMessage());
-                    emitter.complete();
-                    chatContent.setAnswerContent(chatContent.getAnswerContent().append(error.getMessage()));
-                    resultHandler.accept(LlmInvokeResult.of(chatContent));
-                }).subscribe();
-        return emitter;
-    }
-
-    protected abstract String processStreamChunk(String chunk, ChatContent chatContent);
-
-    private SseEmitter callV2(LlmChatRequest request, HttpServletResponse response, Consumer<LlmInvokeResult> resultHandler) {
-        SseEmitter emitter = new SseEmitter(-1L);
-
-        request.tryResolveDns();
-        log.info("zhaoh-test-request: {}", JSONUtil.toJsonStr(request));
-
-        ChatContent chatContent = new ChatContent();
-        chatContent.start();
-        
-        webClient
-                .post()
-                .uri(request.getUrl().toString())
-                .contentType(MediaType.APPLICATION_JSON)
-                .accept(MediaType.TEXT_EVENT_STREAM)
-                .headers(headers -> request.getHeaders().forEach(headers::add))
-                .bodyValue(request.getBody())
-                .exchangeToFlux(clientResponse -> {
-                    // Set response headers which are from the gateway
-                    HttpHeaders responseHeaders = clientResponse.headers().asHttpHeaders();
-
-                    // Skip Transfer-Encoding and Content-Length headers
-                    responseHeaders.forEach((key, values) -> {
-                        if (key != null && !key.equalsIgnoreCase("transfer-encoding")
-                                && !key.equalsIgnoreCase("content-length")) {
-                            values.forEach(value -> response.addHeader(key, value));
-                        }
-                    });
-
-                    return clientResponse.bodyToFlux(String.class)
-                            .delayElements(Duration.ofMillis(100))
-                            .handle((chunk, sink) -> {
-                                chatContent.recordFirstByteTimeout();
-                                String s = processStreamChunk(chunk, chatContent);
-                                if (chatContent.success()) {
-                                    sink.next(s);
-                                }
-                            })
-                            // When the stream is complete, send the error event if there is any unexpected content
-                            .concatWith(
-                                Mono.defer(() -> chatContent.success()
-                                        ? Mono.empty()
-                                        : Mono.just(formatErrorEvent(chatContent.getUnexpectedContent().toString()))
-                                )
-                            );
-                })
-                // Catch request-level errors: DNS resolution, connection timeout, etc.
-                .onErrorResume(error -> {
-                    log.error("Model API call failed", error);
-                    chatContent.getUnexpectedContent().append(error.getMessage());
-                    chatContent.setAnswerContent(chatContent.getAnswerContent().append(error.getMessage()));
-                    return Flux.just(formatErrorEvent(error.getMessage()));
-                })
-                .doOnNext(chunk -> {
-                    try {
-                        emitter.send(SseEmitter.event().data(chunk));
-                    } catch (IOException e) {
-                        log.warn("Failed to send chunk to client", e);
-                    }
-                })
-                .doOnComplete(() -> {
-                    try {
-                        TimeUnit.SECONDS.sleep(3);
-                    } catch (InterruptedException ignored) {
-                    }
-                    emitter.complete();
-                    resultHandler.accept(LlmInvokeResult.of(chatContent));
-                })
-                .subscribe();
-                
-        return emitter;
-    }
-
-    private String formatErrorEvent(String message) {
-        Map<String, String> errEvent = MapUtil.<String, String>builder()
-                .put("status", "error")
-                .put("message", message)
+        // 3. Build request body
+        ModelFeature modelFeature = getOrDefaultModelFeature(product);
+        ChatRequestBody chatRequest = ChatRequestBody.builder()
+                .model(modelFeature.getModel())
+                .userQuestion(param.getUserQuestion())
+                .messages(param.getChatMessages())
+                // TODO: 这个参数应该用不到了
+                .stream(modelFeature.getStreaming())
+                .maxTokens(modelFeature.getMaxTokens())
+                .temperature(modelFeature.getTemperature())
+                .mcpServerConfigs(param.getMcpServerConfigs())
                 .build();
-        return JSONUtil.toJsonStr(errEvent);
+
+        return LlmChatRequest.builder()
+                .chatId(param.getChatId())
+                .url(url)
+                .headers(headers)
+                .chatRequest(chatRequest)
+                .gatewayIps(param.getGatewayIps())
+                .build();
     }
 
-    private void sendError(SseEmitter emitter, String message) {
-        try {
-            emitter.send(SseEmitter.event().data(formatErrorEvent(message)));
-        } catch (IOException e) {
-            log.error("Failed to send error event", e);
+    private ModelFeature getOrDefaultModelFeature(ProductResult product) {
+        ModelFeature modelFeature = Optional.ofNullable(product)
+                .map(ProductResult::getFeature)
+                .map(ProductFeature::getModelFeature)
+                .orElse(new ModelFeature());
+
+        // Default values
+        if (modelFeature.getModel() == null) {
+            modelFeature.setModel("qwen-max");
         }
+        if (modelFeature.getMaxTokens() == null) {
+            modelFeature.setMaxTokens(5000);
+        }
+        if (modelFeature.getTemperature() == null) {
+            modelFeature.setTemperature(0.9);
+        }
+        if (modelFeature.getStreaming() == null) {
+            modelFeature.setStreaming(true);
+        }
+
+        return modelFeature;
     }
 
+    private URL getUrl(ModelConfigResult modelConfig, Map<String, String> queryParams) {
+        ModelConfigResult.ModelAPIConfig modelAPIConfig = modelConfig.getModelAPIConfig();
+        if (modelAPIConfig == null) {
+            return null;
+        }
+
+        List<HttpRouteResult> routes = modelAPIConfig.getRoutes();
+        if (CollUtil.isEmpty(routes)) {
+            return null;
+        }
+
+        // Find route ending with /chat/completions
+        for (HttpRouteResult route : routes) {
+            String pathValue = Optional.ofNullable(route.getMatch())
+                    .map(HttpRouteResult.RouteMatchResult::getPath)
+                    .map(HttpRouteResult.RouteMatchPath::getValue)
+                    .orElse("");
+
+            if (!pathValue.endsWith("/chat/completions")) {
+                continue;
+            }
+
+            // Find first external domain
+            Optional<DomainResult> externalDomain = route.getDomains().stream()
+                    // TODO 调试场景专用，防止域名被ICP拦截，可恶啊
+                    .filter(domain -> StrUtil.endWith(domain.getDomain(), ".alicloudapi.com"))
+                    .filter(domain -> !StrUtil.equalsIgnoreCase(domain.getNetworkType(), "intranet"))
+                    .findFirst();
+
+            if (externalDomain.isPresent()) {
+                DomainResult domain = externalDomain.get();
+                String protocol = StrUtil.isNotBlank(domain.getProtocol()) ?
+                        domain.getProtocol().toLowerCase() : "http";
+
+                try {
+                    // Build URL with query params
+                    UriComponentsBuilder builder = UriComponentsBuilder.newInstance()
+                            .scheme(protocol)
+                            .host(domain.getDomain())
+                            .path(pathValue);
+
+                    if (CollUtil.isNotEmpty(queryParams)) {
+                        queryParams.forEach(builder::queryParam);
+                    }
+
+                    return new URL(builder.build().toUriString());
+                } catch (MalformedURLException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        }
+
+        // No suitable route found
+        return null;
+    }
 }

@@ -1,10 +1,10 @@
 package com.alibaba.apiopenplatform.dto.result.chat;
 
 import cn.hutool.core.collection.CollUtil;
+import com.alibaba.apiopenplatform.dto.params.chat.ChatRequestBody;
 import lombok.Builder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpMethod;
 
 import java.net.URL;
 import java.util.HashMap;
@@ -18,14 +18,14 @@ import java.util.Random;
 public class LlmChatRequest {
 
     /**
+     * the unique chatId
+     */
+    private String chatId;
+
+    /**
      * URL, contains protocol, host and path
      */
     private URL url;
-
-    /**
-     * Method
-     */
-    private HttpMethod method;
 
     /**
      * Custom headers
@@ -33,9 +33,14 @@ public class LlmChatRequest {
     private Map<String, String> headers;
 
     /**
-     * Body
+     * the llm api key
      */
-    private Object body;
+    private String apiKey;
+
+    /**
+     * chatRequest
+     */
+    private ChatRequestBody chatRequest;
 
     /**
      * If not empty, use these IPs to resolve DNS
