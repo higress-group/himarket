@@ -40,7 +40,7 @@ export function Header() {
       `}
     >
       <div className="w-full mx-auto">
-        <div className="flex justify-between items-center px-8 py-3">
+        <div className="flex justify-between items-center px-8 py-1">
           <div className="flex items-center">
             <Link to="/" className="flex items-center space-x-2 hover:opacity-80 transition-all duration-300">
               <div className="w-8 h-8 rounded-full flex items-center justify-center">

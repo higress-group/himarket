@@ -552,6 +552,8 @@ function Chat() {
       return;
     }
 
+    setGenerating(false);
+
     try {
       setCurrentSessionId(sessionId);
       // 不要立即清空消息，避免闪烁
