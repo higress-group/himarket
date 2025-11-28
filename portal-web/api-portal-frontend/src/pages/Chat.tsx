@@ -63,7 +63,7 @@ function Chat() {
         const sessionResponse = await APIs.createSession({
           talkType: "MODEL",
           name: content.length > 20 ? content.substring(0, 20) + "..." : content, // 只在超过20个字符时添加省略号
-          products: [selectedModel.productId],
+          products: modelConversation.length ? modelConversation.map(v => v.id) : [selectedModel.productId],
         });
 
         if (sessionResponse.code === "SUCCESS") {
@@ -605,6 +605,7 @@ function Chat() {
   };
 
   const addModels = (modelIds: string[]) => {
+    setCurrentSessionId(undefined);
     if (modelConversation.length === 0) {
       setModelConversation([
         {
@@ -625,7 +626,14 @@ function Chat() {
     } else {
       setModelConversation(prev => {
         return [
-          ...prev,
+          ...prev.map(model => {
+            return {
+              sessionId: currentSessionId || "",
+              id: model.id,
+              name: "",
+              conversations: [], 
+            }
+          }),
           ...modelIds.map(id => {
             return {
               sessionId: currentSessionId || "",

@@ -11,7 +11,7 @@ import {
   Select,
   Spin,
 } from "antd";
-import { CopyOutlined, BulbOutlined, ArrowLeftOutlined } from "@ant-design/icons";
+import { CopyOutlined, ArrowLeftOutlined } from "@ant-design/icons";
 import { ProductType } from "../types";
 import type { IProductDetail } from "../lib/apis";
 import type { IModelConfig, IRoute } from "../lib/apis/typing";
@@ -471,9 +471,13 @@ function ModelDetail() {
                   label: "Chat",
                   children: (
                     <div className="flex flex-col items-center justify-center py-16 text-center">
-                      <BulbOutlined className="text-4xl text-gray-300 mb-4" />
-                      <p className="text-gray-500 mb-2">Chat 调试</p>
-                      <p className="text-sm text-gray-400">🚀 敬请期待</p>
+                      <Button type="primary" className="rounded-lg"
+                        onClick={() => {
+                          navigate("/chat", { state: { selectedProduct: data } });
+                        }}
+                      >
+                        前往调试
+                      </Button>
                     </div>
                   ),
                 },

@@ -158,7 +158,7 @@ export function getSessions(params?: GetSessionsParams) {
  * 更新会话名称
  */
 export function updateSession(sessionId: string, data: UpdateSessionData) {
-  return request.put<RespI<ISession>, RespI<ISession>>(
+  return request.patch<RespI<ISession>, RespI<ISession>>(
     `/sessions/${sessionId}`,
     data
   );
