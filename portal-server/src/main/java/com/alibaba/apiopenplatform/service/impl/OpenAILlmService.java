@@ -215,7 +215,7 @@ public class OpenAILlmService extends AbstractLlmService {
                 })
                 .startWith(newChatAnswerMessage(null, chatRequestBody.getUserQuestion(), USER, chatContext))
                 .doOnNext(chatAnswerMessage -> {
-                    chatContext.recordFirstPackageTime();
+                    chatContext.recordFirstByteTimeout();
                     log.debug("chatId={} chatAnswerMessage: {}", request.getChatId(), JSONUtil.toJsonStr(chatAnswerMessage));
                 })
                 .doOnComplete(() -> {
@@ -385,12 +385,11 @@ public class OpenAILlmService extends AbstractLlmService {
         // Append to answer content and reset current content
         if (messageType == ANSWER && content instanceof String strContent) {
             chatContext.getAnswerContent().append(strContent);
-            chatContext.setCurrentContent(strContent);
         }
 
         ChatUsage chatUsage = (usage != null && !(usage instanceof EmptyUsage)) ?
                 ChatUsage.builder()
-                        .firstPackageTime(chatContext.getFirstPackageTime())
+                        .firstByteTimeout(chatContext.getFirstByteTimeout())
                         .promptTokens(usage.getPromptTokens())
                         .completionTokens(usage.getCompletionTokens())
                         .totalTokens(usage.getTotalTokens())
