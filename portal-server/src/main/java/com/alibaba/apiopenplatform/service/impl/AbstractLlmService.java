@@ -19,6 +19,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.ai.openai.api.OpenAiApi;
 import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Flux;
 
@@ -75,6 +76,11 @@ public abstract class AbstractLlmService implements LlmService {
                 .temperature(modelFeature.getTemperature())
                 .mcpServerConfigs(param.getMcpServerConfigs())
                 .build();
+        
+        if (modelFeature.getWebSearch() && param.getEnableWebSearch()) {
+            chatRequest.setWebSearchOptions(new OpenAiApi.ChatCompletionRequest.WebSearchOptions(
+                    OpenAiApi.ChatCompletionRequest.WebSearchOptions.SearchContextSize.MEDIUM, null));
+        }
 
         return LlmChatRequest.builder()
                 .chatId(param.getChatId())

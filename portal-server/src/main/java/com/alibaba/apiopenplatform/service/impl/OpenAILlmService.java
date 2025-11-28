@@ -160,11 +160,12 @@ public class OpenAILlmService extends AbstractLlmService {
                 });
             });
         }
-        ToolCallingChatOptions.Builder chatOptionsBuilder = ToolCallingChatOptions.builder()
+        OpenAiChatOptions.Builder chatOptionsBuilder = OpenAiChatOptions.builder()
                 .temperature(chatRequestBody.getTemperature())
                 .maxTokens(chatRequestBody.getMaxTokens())
                 .topP(chatRequestBody.getTopP())
                 .model(chatRequestBody.getModel())
+                .webSearchOptions(chatRequestBody.getWebSearchOptions())
                 .internalToolExecutionEnabled(false);
         ToolContext toolContext = ToolContext.of(toolsMap);
 
