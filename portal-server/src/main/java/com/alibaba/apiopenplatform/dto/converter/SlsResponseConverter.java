@@ -1,21 +1,20 @@
-package com.aliyun.csb.util;
-
-import com.aliyun.csb.model.response.sls.GenericSlsQueryResponse;
-import com.aliyun.csb.model.response.sls.TimeSeriesChartResponse;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.util.StringUtils;
+package com.alibaba.apiopenplatform.dto.converter;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.alibaba.apiopenplatform.dto.params.sls.GenericSlsQueryResponse;
+import com.alibaba.apiopenplatform.dto.params.sls.TimeSeriesChartResponse;
+
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.StringUtils;
+
 /**
  * SLS查询响应转换工具类
  * 用于将通用查询结果转换为前端所需的各种格式
  *
- * @author jingfeng.xjf
- * @date 2025/11/08
  */
 @Slf4j
 public class SlsResponseConverter {

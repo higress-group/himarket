@@ -1,13 +1,14 @@
-package com.aliyun.csb.model.response.sls;
+package com.alibaba.apiopenplatform.dto.params.sls;
 
-import com.aliyun.csb.manager.sls.SlsPresetSqlRegistry;
+import java.util.List;
+import java.util.Map;
+
+import com.alibaba.apiopenplatform.service.gateway.factory.SlsPresetSqlRegistry;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.util.List;
-import java.util.Map;
 
 /**
  * 场景化查询统一响应封装

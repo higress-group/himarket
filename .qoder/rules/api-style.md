@@ -1,0 +1,196 @@
+---
+trigger: glob
+glob: *.java,portal-server/src/main/java/com/alibaba/apiopenplatform/**
+---
+### 项目 RESTful API 设计与实现规则
+
+核心指令： 在生成或审查 RESTful API 相关代码时，你必须严格遵守以下规则。这些规则定义了我们项目的 API 标准，旨在确保一致性、可预测性和可维护性。
+
+#### 1. URI 设计规范
+
+- 必须使用名词，禁止使用动词。 URI 代表资源，而 HTTP 方法（GET, POST, PUT）代表对资源的操作。
+  - 正确: `GET /orders`
+  - 错误: `GET /get-orders`
+  - 正确: `POST /orders`
+  - 错误: `POST /create-order`
+- 集合（Collection）URI 必须使用复数名词。
+  - 正确: `/customers`, `/orders`
+- URI 结构应保持简洁，层级不宜过深。 资源关系应优先通过 HATEOAS 链接表达，而不是复杂的 URI 路径。
+  - 允许: `/customers/{id}/orders` (表示特定客户的所有订单)
+  - 禁止: `/customers/{id}/orders/{orderId}/products` (层级过深，难以维护)
+- 禁止在 API 中暴露数据库内部结构。 API 应建模业务实体，而不是数据库表。
+
+#### 2. HTTP 方法与状态码约定
+
+| 资源                   | POST                   | GET                      | PUT                | PATCH              | DELETE                   |
+| :--------------------- | :--------------------- | :----------------------- | :----------------- | :----------------- | :----------------------- |
+| /customers             | 创建新客户 (201)       | 获取所有客户 (200)       | 批量更新客户 (204) | (不常用)           | 删除所有客户 (204)       |
+| /customers/{id}        | (方法不允许, 405)      | 获取客户详情 (200)       | 完整替换客户 (204) | 部分更新客户 (204) | 删除客户 (204)           |
+| /customers/{id}/orders | 为客户创建新订单 (201) | 获取客户的所有订单 (200) | (不常用)           | (不常用)           | 删除客户的所有订单 (204) |
+
+- POST (创建):
+
+  - 必须在成功创建资源后返回 `201 Created` 状态码。
+
+  - 响应的 `Location` 头必须包含新创建资源的 URI。
+
+  - 示例:
+
+    ```
+    http
+    
+    HTTP/1.1 201 Created
+    Location: /api/orders/12345
+    ```
+
+- PUT (完整更新/替换):
+
+  - 必须是幂等的。
+  - 请求体必须包含资源的完整表示。
+  - 成功更新后应返回 `204 No Content`。
+
+- PATCH (部分更新):
+
+  - 请求体只包含需要修改的字段。
+
+  - 优先支持 JSON Merge Patch (`application/merge-patch+json`)。字段值为 `null` 表示删除该字段。
+
+  - 成功更新后应返回 `204 No Content`。
+
+  - 示例 (JSON Merge Patch):
+
+    ```
+    // 请求 PATCH /resources/1
+    {
+        "price": 12,    // 更新 price
+        "color": null,  // 删除 color
+        "size": "small" // 添加 size
+    }
+    ```
+
+- DELETE:
+
+  - 成功删除后必须返回 `204 No Content`。
+
+------
+
+#### 3. 数据处理与响应结构
+
+- HATEOAS (超媒体作为应用状态引擎):
+
+  - 所有资源表示都必须包含一个 `links` 数组，用于资源发现和状态转换。
+
+  - 每个链接对象必须包含 `rel` (关系), `href` (URI), `action` (HTTP 方法), 和 `types` (支持的媒体类型)。
+
+  - 必须包含一个 `rel: "self"` 的自引用链接。
+
+  - 示例:
+
+    ```
+    {
+      "orderID": 3,
+      "orderValue": 16.60,
+      "links": [
+        {
+          "rel": "customer",
+          "href": "https://api.contoso.com/customers/3",
+          "action": "GET",
+          "types": ["application/json"]
+        },
+        {
+          "rel": "self",
+          "href": "https://api.contoso.com/orders/3",
+          "action": "GET",
+          "types": ["application/json"]
+        }
+      ]
+    }
+    ```
+
+- 分页 (Pagination):
+
+  - 对集合资源的 `GET` 请求必须支持分页。
+  - 使用查询参数 `limit` 和 `offset`。
+  - 默认值: `limit=25`, `offset=0`。
+  - `limit` 的值必须有上限（例如：100），以防止滥用。
+  - 示例: `GET /orders?limit=50&offset=100`
+
+- 筛选与排序 (Filtering & Sorting):
+
+  - 允许通过查询参数进行筛选和排序。
+  - 示例 (筛选): `GET /orders?status=shipped&minCost=100`
+  - 示例 (排序): `GET /orders?sort=price`
+
+- 字段选择 (Field Selection):
+
+  - 允许客户端通过 `fields` 查询参数指定所需的字段，以减少响应负载。
+  - 示例: `GET /orders?fields=orderID,orderValue`
+
+------
+
+#### 4. 版本控制 (Versioning)
+
+- 必须采用媒体类型版本控制 (Media Type Versioning)。 这是我们项目的首选策略，因为它与 HATEOAS 结合得最好。
+
+- 客户端通过 `Accept` 头请求特定版本。
+
+- 服务器通过 `Content-Type` 头确认响应的版本。
+
+- 示例:
+
+  - 请求:
+
+    ```
+    GET /customers/3
+    Accept: application/vnd.contoso.v1+json
+    ```
+
+  - 响应:
+
+    ```
+    HTTP/1.1 200 OK
+    Content-Type: application/vnd.contoso.v1+json; charset=utf-8
+    
+    {"id":3, "name":"Fabrikam, Inc."}
+    ```
+
+------
+
+#### 5. 高级模式
+
+- 异步操作 (Asynchronous Operations):
+
+  - 对于耗时长的操作 (POST, PUT, PATCH, DELETE)，必须实现异步模式。
+  - 步骤 1: 立即返回 `202 Accepted`，并在 `Location` 头中提供一个状态轮询端点的 URI。
+  - 步骤 2: 客户端轮询该状态端点，该端点返回操作的当前状态（如 "In progress"）。
+  - 步骤 3: 操作完成后，状态端点应返回 `303 See Other`，并在 `Location` 头中提供新创建或更新后资源的最终 URI。
+
+- 多租户 (Multi-tenancy):
+
+  - 租户识别必须通过自定义 HTTP 请求头 `X-Tenant-ID` 完成。
+
+  - 示例:
+
+    ```
+    GET /orders/3
+    X-Tenant-ID: adventureworks
+    ```
+
+- 分布式跟踪 (Distributed Tracing):
+
+  - 所有 API 请求和响应都必须支持并传播 `Correlation-ID` 头，以实现端到端的可观测性。
+
+  - 如果请求中存在 `Correlation-ID`，响应中必须回显相同的值。如果请求中没有，API 网关或服务应生成一个新的。
+
+  - 示例:
+
+    ```
+    // 请求
+    GET /orders/3
+    Correlation-ID: aaaa0000-bb11-2222-33cc-444444dddddd
+    
+    // 响应
+    HTTP/1.1 200 OK
+    Correlation-ID: aaaa0000-bb11-2222-33cc-444444dddddd
+    {...}
+    ```

@@ -1,13 +1,7 @@
-package com.aliyun.csb.model.enums;
+package com.alibaba.apiopenplatform.support.enums;
 
 import lombok.Getter;
 
-/**
- * SLS认证类型枚举
- *
- * @author jingfeng.xjf
- * @date 2025/11/08
- */
 @Getter
 public enum SlsAuthType {
     /**

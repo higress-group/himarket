@@ -1,11 +1,11 @@
-package com.aliyun.csb.manager.sls;
+package com.alibaba.apiopenplatform.service.gateway.factory;
+
+import java.util.HashMap;
+import java.util.Map;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * 预置场景SQL注册表

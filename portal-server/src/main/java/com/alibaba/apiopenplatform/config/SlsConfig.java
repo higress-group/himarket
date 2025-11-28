@@ -1,6 +1,7 @@
-package com.aliyun.csb.config;
+package com.alibaba.apiopenplatform.config;
 
-import com.aliyun.csb.model.enums.SlsAuthType;
+import com.alibaba.apiopenplatform.support.enums.SlsAuthType;
+
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;

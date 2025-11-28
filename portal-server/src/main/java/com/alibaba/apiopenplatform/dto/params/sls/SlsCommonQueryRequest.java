@@ -1,12 +1,12 @@
-package com.aliyun.csb.model.request.sls;
+package com.alibaba.apiopenplatform.dto.params.sls;
+
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
-
-import javax.validation.constraints.Max;
-import javax.validation.constraints.Min;
-import javax.validation.constraints.NotNull;
 
 /**
  * SLS通用SQL查询请求

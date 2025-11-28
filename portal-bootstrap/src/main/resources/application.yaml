@@ -42,3 +42,23 @@ logging:
   level:
     root: INFO
     com.alibaba.apiopenplatform: INFO
+
+sls:
+  # SLS服务端点（必填）
+  # cn-chengdu.log.aliyuncs.com
+  endpoint: ${SLS_ENDPOINT:}
+  # 认证方式：STS 或 AK_SK
+  auth-type: ${SLS_AUTH_TYPE:STS}
+  # AK/SK认证方式的密钥（仅当 auth-type=AK_SK 时生效）
+  access-key-id: ${SLS_ACCESS_KEY_ID:}
+  access-key-secret: ${SLS_ACCESS_KEY_SECRET:}
+  # 默认Project名称
+  default-project: ${SLS_DEFAULT_PROJECT:apigateway-csb-cop}
+  # 默认Logstore名称
+  default-logstore: ${SLS_DEFAULT_LOGSTORE:apig-access-log}
+  # AliyunLogConfig CR 配置
+  aliyun-log-config:
+    # CR所在的namespace
+    namespace: ${SLS_ALIYUN_LOG_CONFIG_NAMESPACE:apigateway-system}
+    # CR的名称
+    cr-name: ${SLS_ALIYUN_LOG_CONFIG_CR_NAME:apigateway-access-log}

@@ -1,10 +1,10 @@
-package com.aliyun.csb.model.request.sls;
+package com.alibaba.apiopenplatform.dto.params.sls;
 
-import javax.validation.constraints.Max;
-import javax.validation.constraints.Min;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.Data;
 
 /**

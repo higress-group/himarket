@@ -1,4 +1,4 @@
-package com.aliyun.csb.model.request.sls;
+package com.alibaba.apiopenplatform.dto.params.sls;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;

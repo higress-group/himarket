@@ -19,42 +19,58 @@
 
 package com.alibaba.apiopenplatform.service.gateway;
 
-import cn.hutool.core.codec.Base64;
-import cn.hutool.core.util.StrUtil;
-import cn.hutool.json.JSONUtil;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
 import com.alibaba.apiopenplatform.core.exception.BusinessException;
 import com.alibaba.apiopenplatform.core.exception.ErrorCode;
-import com.alibaba.apiopenplatform.dto.result.httpapi.APIResult;
-import com.alibaba.apiopenplatform.dto.result.httpapi.DomainResult;
-import com.alibaba.apiopenplatform.dto.result.common.PageResult;
-import com.alibaba.apiopenplatform.dto.result.mcp.APIGMCPServerResult;
-import com.alibaba.apiopenplatform.dto.result.mcp.GatewayMCPServerResult;
 import com.alibaba.apiopenplatform.dto.result.agent.AgentAPIResult;
 import com.alibaba.apiopenplatform.dto.result.agent.AgentConfigResult;
+import com.alibaba.apiopenplatform.dto.result.common.PageResult;
+import com.alibaba.apiopenplatform.dto.result.httpapi.APIResult;
+import com.alibaba.apiopenplatform.dto.result.httpapi.DomainResult;
 import com.alibaba.apiopenplatform.dto.result.httpapi.HttpRouteResult;
+import com.alibaba.apiopenplatform.dto.result.mcp.APIGMCPServerResult;
+import com.alibaba.apiopenplatform.dto.result.mcp.GatewayMCPServerResult;
 import com.alibaba.apiopenplatform.dto.result.mcp.MCPConfigResult;
 import com.alibaba.apiopenplatform.dto.result.model.ModelAPIResult;
 import com.alibaba.apiopenplatform.dto.result.model.ModelConfigResult;
 import com.alibaba.apiopenplatform.entity.Gateway;
 import com.alibaba.apiopenplatform.service.gateway.client.APIGClient;
-import com.alibaba.apiopenplatform.service.gateway.client.SLSClient;
 import com.alibaba.apiopenplatform.support.consumer.APIGAuthConfig;
 import com.alibaba.apiopenplatform.support.consumer.ConsumerAuthConfig;
 import com.alibaba.apiopenplatform.support.enums.APIGAPIType;
 import com.alibaba.apiopenplatform.support.enums.APIGResourceType;
 import com.alibaba.apiopenplatform.support.enums.GatewayType;
 import com.alibaba.apiopenplatform.support.product.APIGRefConfig;
+
+import cn.hutool.core.codec.Base64;
+import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONUtil;
 import com.aliyun.sdk.gateway.pop.exception.PopClientException;
-import com.aliyun.sdk.service.apig20240327.models.*;
-import com.aliyun.sdk.service.sls20201230.models.*;
+import com.aliyun.sdk.service.apig20240327.models.CreateConsumerAuthorizationRulesRequest;
+import com.aliyun.sdk.service.apig20240327.models.CreateConsumerAuthorizationRulesResponse;
+import com.aliyun.sdk.service.apig20240327.models.GetMcpServerRequest;
+import com.aliyun.sdk.service.apig20240327.models.GetMcpServerResponse;
+import com.aliyun.sdk.service.apig20240327.models.GetMcpServerResponseBody;
+import com.aliyun.sdk.service.apig20240327.models.HttpApiApiInfo;
+import com.aliyun.sdk.service.apig20240327.models.HttpRoute;
+import com.aliyun.sdk.service.apig20240327.models.ListMcpServersRequest;
+import com.aliyun.sdk.service.apig20240327.models.ListMcpServersResponse;
+import com.aliyun.sdk.service.apig20240327.models.ListPluginAttachmentsRequest;
+import com.aliyun.sdk.service.apig20240327.models.ListPluginAttachmentsResponse;
+import com.aliyun.sdk.service.apig20240327.models.ListPluginAttachmentsResponseBody;
+import com.aliyun.sdk.service.apig20240327.models.PluginClassInfo;
+import com.aliyun.sdk.service.apig20240327.models.QueryConsumerAuthorizationRulesRequest;
+import com.aliyun.sdk.service.apig20240327.models.QueryConsumerAuthorizationRulesResponse;
+import com.aliyun.sdk.service.apig20240327.models.QueryConsumerAuthorizationRulesResponseBody;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-
-import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @Service
 @Slf4j
@@ -402,56 +418,7 @@ public class AIGatewayOperator extends APIGOperator {
 
     @Override
     public String getDashboard(Gateway gateway, String type) {
-        SLSClient ticketClient = new SLSClient(gateway.getApigConfig(), true);
-        String ticket = null;
-        try {
-            CreateTicketResponse response = ticketClient.execute(c -> {
-                CreateTicketRequest request = CreateTicketRequest.builder().build();
-                try {
-                    return c.createTicket(request).get();
-                } catch (InterruptedException | ExecutionException e) {
-                    throw new RuntimeException(e);
-                }
-            });
-            ticket = response.getBody().getTicket();
-        } catch (Exception e) {
-            log.error("Error fetching API", e);
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Error fetching createTicket API,Cause:" + e.getMessage());
-        }
-        SLSClient client = new SLSClient(gateway.getApigConfig(), false);
-        String projectName = null;
-        try {
-            ListProjectResponse response = client.execute(c -> {
-                ListProjectRequest request = ListProjectRequest.builder().projectName("product").build();
-                try {
-                    return c.listProject(request).get();
-                } catch (InterruptedException | ExecutionException e) {
-                    throw new RuntimeException(e);
-                }
-            });
-            projectName = response.getBody().getProjects().get(0).getProjectName();
-        } catch (Exception e) {
-            log.error("Error fetching Project", e);
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Error fetching Project,Cause:" + e.getMessage());
-        }
-        String region = gateway.getApigConfig().getRegion();
-        String gatewayId = gateway.getGatewayId();
-        String dashboardId = "";
-        String gatewayFilter = "";
-        if (type.equals("Portal")) {
-            dashboardId = "dashboard-1758009692051-393998";
-            gatewayFilter = "";
-        } else if (type.equals("MCP")) {
-            dashboardId = "dashboard-1757483808537-433375";
-            gatewayFilter = "filters=cluster_id%%253A%%2520" + gatewayId;
-        } else if (type.equals("API")) {
-            dashboardId = "dashboard-1756276497392-966932";
-            gatewayFilter = "filters=cluster_id%%253A%%2520" + gatewayId;
-            ;
-        }
-        String dashboardUrl = String.format("https://sls.console.aliyun.com/lognext/project/%s/dashboard/%s?%s&slsRegion=%s&sls_ticket=%s&isShare=true&hideTopbar=true&hideSidebar=true&ignoreTabLocalStorage=true", projectName, dashboardId, gatewayFilter, region, ticket);
-        log.info("Dashboard URL: {}", dashboardUrl);
-        return dashboardUrl;
+        throw new UnsupportedOperationException("Dashboard feature has been removed");
     }
 
     public String fetchMcpTools(Gateway gateway, String routeId) {

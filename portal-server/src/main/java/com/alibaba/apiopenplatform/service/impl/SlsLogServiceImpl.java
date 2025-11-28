@@ -1,4 +1,4 @@
-package com.aliyun.csb.service.impl;
+package com.alibaba.apiopenplatform.service.impl;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -18,23 +18,18 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import javax.annotation.PostConstruct;
+import com.alibaba.apiopenplatform.config.SlsConfig;
+import com.alibaba.apiopenplatform.core.exception.BusinessException;
+import com.alibaba.apiopenplatform.core.exception.ErrorCode;
+import com.alibaba.apiopenplatform.dto.params.sls.GenericSlsQueryRequest;
+import com.alibaba.apiopenplatform.dto.params.sls.GenericSlsQueryResponse;
+import com.alibaba.apiopenplatform.dto.params.sls.SlsCheckLogstoreRequest;
+import com.alibaba.apiopenplatform.dto.params.sls.SlsCheckProjectRequest;
+import com.alibaba.apiopenplatform.dto.params.sls.SlsCommonQueryRequest;
+import com.alibaba.apiopenplatform.service.SlsLogService;
+import com.alibaba.apiopenplatform.service.gateway.factory.SlsClientFactory;
+import com.alibaba.apiopenplatform.support.enums.SlsAuthType;
 
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
-
-import com.aliyun.csb.common.exception.BusinessException;
-import com.aliyun.csb.config.SlsConfig;
-import com.aliyun.csb.manager.k8s.K8sManager;
-import com.aliyun.csb.manager.sls.SlsClientFactory;
-import com.aliyun.csb.model.entity.K8sClusterConfig;
-import com.aliyun.csb.model.enums.SlsAuthType;
-import com.aliyun.csb.model.request.sls.GenericSlsQueryRequest;
-import com.aliyun.csb.model.request.sls.SlsCheckLogstoreRequest;
-import com.aliyun.csb.model.request.sls.SlsCheckProjectRequest;
-import com.aliyun.csb.model.request.sls.SlsCommonQueryRequest;
-import com.aliyun.csb.model.response.sls.GenericSlsQueryResponse;
-import com.aliyun.csb.service.SlsLogService;
 import com.aliyun.openservices.log.Client;
 import com.aliyun.openservices.log.common.Index;
 import com.aliyun.openservices.log.common.IndexJsonKey;
@@ -46,16 +41,10 @@ import com.aliyun.openservices.log.common.QueriedLog;
 import com.aliyun.openservices.log.exception.LogException;
 import com.aliyun.openservices.log.response.GetIndexResponse;
 import com.aliyun.openservices.log.response.GetLogsResponse;
-import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
-import io.fabric8.kubernetes.api.model.GenericKubernetesResourceList;
-import io.fabric8.kubernetes.api.model.NamespaceBuilder;
-import io.fabric8.kubernetes.api.model.ObjectMeta;
-import io.fabric8.kubernetes.api.model.apiextensions.v1.CustomResourceDefinition;
-import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.dsl.MixedOperation;
-import io.fabric8.kubernetes.client.dsl.Resource;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -63,53 +52,49 @@ import org.springframework.util.StringUtils;
  * 通用SLS日志查询服务实现
  *
  * @author jingfeng.xjf
- * @date 2025/11/08
+ * @date 2025/11/29
  */
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class SlsLogServiceImpl implements SlsLogService {
 
     private static final String ALIYUN_LOG_CONFIG_CRD_NAME = "aliyunlogconfigs.log.alibabacloud.com";
 
-    @Autowired
-    private SlsClientFactory slsClientFactory;
+    private final SlsClientFactory slsClientFactory;
 
-    @Autowired
-    private SlsConfig slsConfig;
-
-    @Autowired
-    private K8sManager k8sManager;
+    private final SlsConfig slsConfig;
 
     /**
      * Project存在性缓存，10分钟过期
      */
-    private final Cache<String, Boolean> projectExistsCache = CacheBuilder.newBuilder()
-            .expireAfterWrite(10, TimeUnit.MINUTES)
-            .maximumSize(100)
-            .build();
+    private final Cache<String, Boolean> projectExistsCache = Caffeine.newBuilder()
+        .expireAfterWrite(10, TimeUnit.MINUTES)
+        .maximumSize(100)
+        .build();
 
     /**
      * Logstore存在性缓存，10分钟过期
      */
-    private final Cache<String, Boolean> logstoreExistsCache = CacheBuilder.newBuilder()
-            .expireAfterWrite(10, TimeUnit.MINUTES)
-            .maximumSize(200)
-            .build();
+    private final Cache<String, Boolean> logstoreExistsCache = Caffeine.newBuilder()
+        .expireAfterWrite(10, TimeUnit.MINUTES)
+        .maximumSize(200)
+        .build();
 
     /**
      * 分词符常量 - 用于不同类型的字段索引
      */
     // 22个分词符（保守策略）：用于标识类字段（model、api、consumer、route_name等），保留完整标识，不拆分 -、_、.
     private static final List<String> TOKENS_22 = Arrays.asList(
-            ",", "'", "\"", ";", "=", "(", ")", "[", "]", "{", "}", 
-            "?", "@", "&", "<", ">", "/", ":", "\n", "\t", "\r", " "
+        ",", "'", "\"", ";", "=", "(", ")", "[", "]", "{", "}",
+        "?", "@", "&", "<", ">", "/", ":", "\n", "\t", "\r", " "
     );
-    
+
     // 26个分词符（完整策略）：用于路径、网络地址等字段，更全面的分词
     private static final List<String> TOKENS_26 = Arrays.asList(
-            ",", "'", "\"", ";", "\\", "$", "#", "|", "=", "\n", "\t", "\r", 
-            "!", "%", "&", "*", "+", "-", ".", "/", ":", "<", ">", "?", 
-            "@", "[", "]", "^", "_", "{", "}", " "
+        ",", "'", "\"", ";", "\\", "$", "#", "|", "=", "\n", "\t", "\r",
+        "!", "%", "&", "*", "+", "-", ".", "/", ":", "<", ">", "?",
+        "@", "[", "]", "^", "_", "{", "}", " "
     );
 
     /**
@@ -125,18 +110,13 @@ public class SlsLogServiceImpl implements SlsLogService {
         "upstream_local_address", "upstream_protocol", "upstream_transport_failure_reason",
         "user_agent", "x_forwarded_for", "request_body", "response_body", "__tag__:_cluster_id_"
     };
-    
+
     // 数值类型字段
     private static final String[] LONG_FIELDS = {
         "bytes_received", "bytes_sent", "duration", "ext_authz_duration",
         "ext_authz_status_code", "request_duration", "response_code",
         "response_tx_duration", "upstream_service_time"
     };
-
-    @PostConstruct
-    public void init() {
-        log.info("SLS log service initialized, endpoint: {}", slsConfig.getEndpoint());
-    }
 
     @Override
     public GenericSlsQueryResponse executeQuery(GenericSlsQueryRequest request) {
@@ -155,7 +135,7 @@ public class SlsLogServiceImpl implements SlsLogService {
         String finalSql = buildSqlWithFilters(request);
         finalSql = replaceSqlInterval(finalSql, request.getInterval());
         String scenario = StringUtils.hasText(request.getScenario()) ? request.getScenario() : "custom";
-        
+
         try {
             // 检查project和logstore是否存在
             if (!isProjectExists(client, project)) {
@@ -170,12 +150,12 @@ public class SlsLogServiceImpl implements SlsLogService {
 
             // 执行查询
             GetLogsResponse response = client.executeLogstoreSql(
-                    project,
-                    logstore,
-                    request.getFromTime(),
-                    request.getToTime(),
-                    finalSql,
-                    false
+                project,
+                logstore,
+                request.getFromTime(),
+                request.getToTime(),
+                finalSql,
+                false
             );
 
             // 解析结果
@@ -193,10 +173,10 @@ public class SlsLogServiceImpl implements SlsLogService {
                     "Original SQL: {}\n" +
                     "Final SQL: {}\n" +
                     "======================================",
-                    scenario, project, logstore,
-                    request.getFromTime(), request.getToTime(),
-                    result.getCount(), result.getElapsedMillis(),
-                    request.getSql(), finalSql);
+                scenario, project, logstore,
+                request.getFromTime(), request.getToTime(),
+                result.getCount(), result.getElapsedMillis(),
+                request.getSql(), finalSql);
 
             return result;
 
@@ -209,7 +189,7 @@ public class SlsLogServiceImpl implements SlsLogService {
                     "Final SQL: {}\n" +
                     "Error: {}\n" +
                     "======================================",
-                    scenario, project, logstore, request.getSql(), finalSql, e.getMessage(), e);
+                scenario, project, logstore, request.getSql(), finalSql, e.getMessage(), e);
             return buildErrorResponse(request.getSql(), e.getMessage(), System.currentTimeMillis() - startTime);
         }
     }
@@ -232,9 +212,9 @@ public class SlsLogServiceImpl implements SlsLogService {
     public Boolean checkProjectExists(SlsCheckProjectRequest request) {
         Client client = slsClientFactory.createClient(request.getUserId());
         // 如果传入了project参数，则检查指定的project；否则检查默认project
-        String project = StringUtils.hasText(request.getProject()) 
-                ? request.getProject() 
-                : slsConfig.getDefaultProject();
+        String project = StringUtils.hasText(request.getProject())
+            ? request.getProject()
+            : slsConfig.getDefaultProject();
         return isProjectExists(client, project);
     }
 
@@ -242,13 +222,13 @@ public class SlsLogServiceImpl implements SlsLogService {
     public Boolean checkLogstoreExists(SlsCheckLogstoreRequest request) {
         Client client = slsClientFactory.createClient(request.getUserId());
         // 如果传入了project参数，则使用指定的project；否则使用默认project
-        String project = StringUtils.hasText(request.getProject()) 
-                ? request.getProject() 
-                : slsConfig.getDefaultProject();
+        String project = StringUtils.hasText(request.getProject())
+            ? request.getProject()
+            : slsConfig.getDefaultProject();
         // 如果传入了logstore参数，则检查指定的logstore；否则检查默认logstore
-        String logstore = StringUtils.hasText(request.getLogstore()) 
-                ? request.getLogstore() 
-                : slsConfig.getDefaultLogstore();
+        String logstore = StringUtils.hasText(request.getLogstore())
+            ? request.getLogstore()
+            : slsConfig.getDefaultLogstore();
         return isLogstoreExists(client, project, logstore);
     }
 
@@ -256,18 +236,14 @@ public class SlsLogServiceImpl implements SlsLogService {
      * 检查Project是否存在
      */
     private boolean isProjectExists(Client client, String project) {
-        try {
-            return projectExistsCache.get(project, () -> {
-                try {
-                    client.GetProject(project);
-                    return true;
-                } catch (LogException e) {
-                    return false;
-                }
-            });
-        } catch (Exception e) {
-            return false;
-        }
+        return Boolean.TRUE.equals(projectExistsCache.get(project, key -> {
+            try {
+                client.GetProject(project);
+                return true;
+            } catch (LogException e) {
+                return false;
+            }
+        }));
     }
 
     /**
@@ -275,18 +251,14 @@ public class SlsLogServiceImpl implements SlsLogService {
      */
     private boolean isLogstoreExists(Client client, String project, String logstore) {
         String cacheKey = project + ":" + logstore;
-        try {
-            return logstoreExistsCache.get(cacheKey, () -> {
-                try {
-                    client.GetLogStore(project, logstore);
-                    return true;
-                } catch (LogException e) {
-                    return false;
-                }
-            });
-        } catch (Exception e) {
-            return false;
-        }
+        return Boolean.TRUE.equals(logstoreExistsCache.get(cacheKey, key -> {
+            try {
+                client.GetLogStore(project, logstore);
+                return true;
+            } catch (LogException e) {
+                return false;
+            }
+        }));
     }
 
     /**
@@ -319,13 +291,13 @@ public class SlsLogServiceImpl implements SlsLogService {
         }
 
         return GenericSlsQueryResponse.builder()
-                .success(true)
-                .processStatus(response.IsCompleted() ? "Complete" : "InComplete")
-                .count((long) response.GetCount())
-                .logs(logs.isEmpty() ? null : logs)
-                .aggregations(aggregations.isEmpty() ? null : aggregations)
-                .sql(sql)
-                .build();
+            .success(true)
+            .processStatus(response.IsCompleted() ? "Complete" : "InComplete")
+            .count((long)response.GetCount())
+            .logs(logs.isEmpty() ? null : logs)
+            .aggregations(aggregations.isEmpty() ? null : aggregations)
+            .sql(sql)
+            .build();
     }
 
     /**
@@ -333,13 +305,13 @@ public class SlsLogServiceImpl implements SlsLogService {
      */
     private GenericSlsQueryResponse buildEmptyResponse(String sql, String message) {
         return GenericSlsQueryResponse.builder()
-                .success(true)
-                .processStatus("Complete")
-                .count(0L)
-                .logs(Collections.emptyList())
-                .sql(sql)
-                .errorMessage(message)
-                .build();
+            .success(true)
+            .processStatus("Complete")
+            .count(0L)
+            .logs(Collections.emptyList())
+            .sql(sql)
+            .errorMessage(message)
+            .build();
     }
 
     /**
@@ -347,16 +319,17 @@ public class SlsLogServiceImpl implements SlsLogService {
      */
     private GenericSlsQueryResponse buildErrorResponse(String sql, String errorMessage, long elapsed) {
         return GenericSlsQueryResponse.builder()
-                .success(false)
-                .sql(sql)
-                .errorMessage(errorMessage)
-                .elapsedMillis(elapsed)
-                .build();
+            .success(false)
+            .sql(sql)
+            .errorMessage(errorMessage)
+            .elapsedMillis(elapsed)
+            .build();
     }
 
     /**
      * 替换SQL中的interval占位符
-     * @param sql 原始SQL
+     *
+     * @param sql      原始SQL
      * @param interval 时间间隔（秒），为null时默认15秒
      * @return 替换后的SQL
      */
@@ -377,12 +350,12 @@ public class SlsLogServiceImpl implements SlsLogService {
         // 验证认证参数（仅当配置为STS时需要userId）
         if (slsConfig.getAuthType() == SlsAuthType.STS) {
             if (!StringUtils.hasText(request.getUserId())) {
-                throw new BusinessException("UserId is required when authType is STS");
+                throw new BusinessException(ErrorCode.INVALID_REQUEST, "UserId is required when authType is STS");
             }
         }
 
         if (!StringUtils.hasText(request.getSql())) {
-            throw new BusinessException("SQL cannot be empty");
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "SQL cannot be empty");
         }
 
         // 处理时间区间：优先使用 fromTime/toTime；若为空则解析 startTime/endTime（支持 ISO 8601）
@@ -394,14 +367,15 @@ public class SlsLogServiceImpl implements SlsLogService {
                     request.setFromTime(from);
                     request.setToTime(to);
                 } catch (Exception e) {
-                    throw new BusinessException("Invalid StartTime/EndTime format, expected ISO 8601 or yyyy-MM-dd HH:mm:ss");
+                    throw new BusinessException(ErrorCode.INVALID_REQUEST,
+                        "Invalid StartTime/EndTime format, expected ISO 8601 or yyyy-MM-dd HH:mm:ss");
                 }
             } else {
-                throw new BusinessException("FromTime/ToTime or StartTime/EndTime is required");
+                throw new BusinessException(ErrorCode.INVALID_REQUEST, "FromTime/ToTime or StartTime/EndTime is required");
             }
         }
         if (request.getFromTime() >= request.getToTime()) {
-            throw new BusinessException("FromTime must be less than ToTime");
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "FromTime must be less than ToTime");
         }
     }
 
@@ -414,24 +388,24 @@ public class SlsLogServiceImpl implements SlsLogService {
         // 优先尝试 ISO 8601（UTC Z）
         try {
             if (timeStr.endsWith("Z")) {
-                return (int) Instant.parse(timeStr).getEpochSecond();
+                return (int)Instant.parse(timeStr).getEpochSecond();
             }
         } catch (Exception ignored) {
         }
         // 尝试 ISO 8601（带偏移）
         try {
             if (timeStr.contains("T")) {
-                return (int) OffsetDateTime.parse(timeStr).toEpochSecond();
+                return (int)OffsetDateTime.parse(timeStr).toEpochSecond();
             }
         } catch (Exception ignored) {
         }
         // 回退到本地时间格式
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
         LocalDateTime ldt = LocalDateTime.parse(timeStr, formatter);
-        return (int) ldt.atZone(ZoneId.systemDefault()).toEpochSecond();
+        return (int)ldt.atZone(ZoneId.systemDefault()).toEpochSecond();
     }
 
-/**
+    /**
      * 将通用过滤参数合并到SQL的检索段,保持select部分不变
      * 示例SQL结构:(<检索段>) | select <统计语句>
      * 支持数组过滤条件,使用OR语句拼接,并添加字段存在性检查
@@ -450,27 +424,27 @@ public class SlsLogServiceImpl implements SlsLogService {
         String selectPart = parts[1].trim();
 
         List<String> filters = new ArrayList<>();
-        
+
         // cluster_id => cluster_id(精确匹配,支持OR)
         if (request.getClusterId() != null && request.getClusterId().length > 0) {
             filters.add(buildOrFilter("cluster_id", request.getClusterId()));
         }
-        
+
         // api => ai_log.api(精确匹配,支持OR)
         if (request.getApi() != null && request.getApi().length > 0) {
             filters.add(buildOrFilter("ai_log.api", request.getApi()));
         }
-        
+
         // model => ai_log.model(精确匹配,支持OR)
         if (request.getModel() != null && request.getModel().length > 0) {
             filters.add(buildOrFilter("ai_log.model", request.getModel()));
         }
-        
+
         // consumer => consumer(顶层字段,精确匹配,支持OR)
         if (request.getConsumer() != null && request.getConsumer().length > 0) {
             filters.add(buildOrFilter("consumer", request.getConsumer()));
         }
-        
+
         // route => route_name(精确匹配,支持OR)
         if (request.getRoute() != null && request.getRoute().length > 0) {
             filters.add(buildOrFilter("route_name", request.getRoute()));
@@ -482,13 +456,13 @@ public class SlsLogServiceImpl implements SlsLogService {
         }
 
         String merged = StringUtils.hasText(searchPart) ? searchPart : "(*)";
-        
+
         // 将所有过滤条件用 and 连接,并用括号包裹以保持优先级
         if (!filters.isEmpty()) {
             String allFilters = "(" + String.join(" and ", filters) + ")";
             merged = "(" + merged + ")" + "and " + allFilters;
         }
-        
+
         // 追加limit限制,避免返回过多数据
         String lowerSelect = selectPart.toLowerCase(Locale.ROOT);
         int defaultLimit = 1000;
@@ -501,7 +475,8 @@ public class SlsLogServiceImpl implements SlsLogService {
 
     /**
      * 构建OR过滤条件，并添加字段存在性检查
-     * @param field 字段名
+     *
+     * @param field  字段名
      * @param values 值数组
      * @return OR过滤条件字符串，例如：((field: "value1" OR field: "value2") and field: *)
      */
@@ -519,13 +494,13 @@ public class SlsLogServiceImpl implements SlsLogService {
         if (conditions.isEmpty()) {
             return "";
         }
-        
+
         // 单个值：(field: "value" and field: *)
         // 多个值：((field: "value1" OR field: "value2") and field: *)
-        String orCondition = conditions.size() == 1 
-            ? conditions.get(0) 
+        String orCondition = conditions.size() == 1
+            ? conditions.get(0)
             : "(" + String.join(" OR ", conditions) + ")";
-        
+
         // 添加字段存在性检查
         return "(" + orCondition + " and " + field + ": *)";
     }
@@ -536,7 +511,8 @@ public class SlsLogServiceImpl implements SlsLogService {
      *
      * @param userId 用户ID（用于STS认证）
      */
-    public void updateGlobalLogIndex(String userId) {
+    @Override
+    public void updateLogIndex(String userId) {
         String project = slsConfig.getDefaultProject();
         String logstore = slsConfig.getDefaultLogstore();
 
@@ -565,7 +541,7 @@ public class SlsLogServiceImpl implements SlsLogService {
 
         } catch (Exception e) {
             log.error("[Global Log Index] Failed to update index for project: {}, logstore: {}",
-                    project, logstore, e);
+                project, logstore, e);
         }
     }
 
@@ -587,7 +563,8 @@ public class SlsLogServiceImpl implements SlsLogService {
 
         // 如果索引已存在，检查所有必要字段是否都已配置
         if (indexExists && isAllRequiredIndexesConfigured(index)) {
-            log.info("[Global Log Index] All required indexes already configured for {}/{}, skip update", project, logstore);
+            log.info("[Global Log Index] All required indexes already configured for {}/{}, skip update", project,
+                logstore);
             return;
         }
 
@@ -654,7 +631,7 @@ public class SlsLogServiceImpl implements SlsLogService {
         // 收集代码中定义的所有必要字段
         // 这个方法会在实际添加索引的逻辑中调用，确保字段列表与实际添加的字段保持同步
         Set<String> definedFields = getDefinedIndexFields();
-        
+
         // 检查所有定义的字段是否都存在于现有索引中
         for (String field : definedFields) {
             if (!keys.containsKey(field)) {
@@ -674,7 +651,7 @@ public class SlsLogServiceImpl implements SlsLogService {
     /**
      * 添加文本类型字段索引（如果不存在）
      * 根据字段类型使用不同的分词符策略
-     * 
+     *
      * @param indexKeys 索引键集合
      * @param fieldName 字段名称
      */
@@ -683,20 +660,20 @@ public class SlsLogServiceImpl implements SlsLogService {
         if (keys != null && keys.containsKey(fieldName)) {
             return;
         }
-        
+
         IndexKey key = new IndexKey();
         key.SetType("text");
         key.SetDocValue(true);
         key.SetCaseSensitive(false);
         key.SetChn(false);
-        
+
         // 根据字段类型选择合适的分词符
         List<String> tokens = getTokensForField(fieldName);
         key.SetToken(tokens);
-        
+
         indexKeys.AddKey(fieldName, key);
     }
-    
+
     /**
      * 根据字段名称返回对应的分词符策略
      */
@@ -711,7 +688,7 @@ public class SlsLogServiceImpl implements SlsLogService {
             "original_path".equals(fieldName)) {
             return TOKENS_26;
         }
-        
+
         // 标识类字段 - 使用22个分词符（保守策略），保留 -、_、. 等标识符内部字符
         // 包括：route_name, upstream_cluster, consumer, cluster_id, authority,
         //      requested_server_name, method, protocol, trace_id, request_id 等
@@ -720,7 +697,7 @@ public class SlsLogServiceImpl implements SlsLogService {
 
     /**
      * 添加数值类型（long）字段索引（如果不存在）
-     * 
+     *
      * @param indexKeys 索引键集合
      * @param fieldName 字段名称
      */
@@ -729,7 +706,7 @@ public class SlsLogServiceImpl implements SlsLogService {
         if (keys != null && keys.containsKey(fieldName)) {
             return;
         }
-        
+
         IndexKey key = new IndexKey();
         key.SetType("long");
         key.SetDocValue(true);
@@ -738,7 +715,7 @@ public class SlsLogServiceImpl implements SlsLogService {
 
     /**
      * 为 ai_log JSON 字段添加显式子字段索引配置
-     * 
+     *
      * @param indexKeys 索引键集合
      */
     private void addAiLogJsonIndex(IndexKeys indexKeys) {
@@ -746,7 +723,7 @@ public class SlsLogServiceImpl implements SlsLogService {
         if (keys != null && keys.containsKey("ai_log")) {
             return;
         }
-        
+
         IndexJsonKey jsonKey = new IndexJsonKey();
         // ai_log 可能存在自定义扩展字段
         jsonKey.setIndexAll(true);
@@ -758,7 +735,7 @@ public class SlsLogServiceImpl implements SlsLogService {
 
         // 配置 ai_log 的子字段索引
         IndexKeys subIndexKeys = new IndexKeys();
-        
+
         // 文本类型子字段
         addJsonSubField(subIndexKeys, "api", "text");
         addJsonSubField(subIndexKeys, "cache_status", "text");
@@ -769,242 +746,58 @@ public class SlsLogServiceImpl implements SlsLogService {
         addJsonSubField(subIndexKeys, "response_type", "text");
         addJsonSubField(subIndexKeys, "safecheck_status", "text");
         addJsonSubField(subIndexKeys, "token_ratelimit_status", "text");
-        
+
         // 数值类型子字段
         addJsonSubField(subIndexKeys, "input_token", "long");
         addJsonSubField(subIndexKeys, "llm_first_token_duration", "long");
         addJsonSubField(subIndexKeys, "llm_service_duration", "long");
         addJsonSubField(subIndexKeys, "output_token", "long");
-        
+
         jsonKey.setJsonKeys(subIndexKeys);
         indexKeys.AddKey("ai_log", jsonKey);
-        log.info("[Global Log Index] Added JSON index with {} explicit sub-fields for field: ai_log", subIndexKeys.GetKeys().size());
+        log.info("[Global Log Index] Added JSON index with {} explicit sub-fields for field: ai_log",
+            subIndexKeys.GetKeys().size());
     }
-    
+
     /**
      * 为JSON字段添加子字段索引（通用方法）
-     * 
+     *
      * @param indexKeys 索引键集合
      * @param fieldName 字段名称
-     * @param type 字段类型（text/long）
+     * @param type      字段类型（text/long）
      */
     private void addJsonSubField(IndexKeys indexKeys, String fieldName, String type) {
         IndexKey key = new IndexKey();
         key.SetType(type);
         key.SetDocValue(true);
-        
+
         if ("text".equals(type)) {
             key.SetCaseSensitive(false);
             key.SetChn(false);
         }
-        
+
         indexKeys.AddKey(fieldName, key);
     }
 
     /**
      * 获取代码中定义的所有索引字段名称
      * 这个列表应该与 addGlobalLogIndex() 方法中实际添加的字段保持一致
-     * 
+     *
      * @return 所有索引字段名称的集合
      */
     private Set<String> getDefinedIndexFields() {
         Set<String> fields = new HashSet<>();
-        
+
         // JSON字段
         fields.add("ai_log");
-        
+
         // 文本字段
         fields.addAll(Arrays.asList(TEXT_FIELDS));
-        
+
         // 数值字段
         fields.addAll(Arrays.asList(LONG_FIELDS));
-        
+
         return fields;
     }
 
-    @Override
-    public void ensureAliyunLogConfigExists(K8sClusterConfig cluster) {
-        try {
-            KubernetesClient k8sClient = k8sManager.getK8sClientByClusterId(cluster.getK8sClusterCode());
-
-            // 检查 AliyunLogConfig CRD 是否存在
-            if (!checkAliyunLogConfigCRD(k8sClient)) {
-                log.warn("[AliyunLogConfig] CRD {} not found in cluster {}, skipping CR creation",
-                        ALIYUN_LOG_CONFIG_CRD_NAME, cluster.getK8sClusterName());
-                return;
-            }
-
-            // 检查 namespace 是否存在，不存在则创建
-            ensureNamespaceExists(k8sClient);
-
-            // 检查 CR 是否已存在
-            GenericKubernetesResource existingCR = getAliyunLogConfigCR(k8sClient);
-            if (existingCR != null) {
-                log.info("[AliyunLogConfig] CR {} already exists in cluster {}, skipping creation",
-                        slsConfig.getAliyunLogConfig().getCrName(), cluster.getK8sClusterName());
-                return;
-            }
-
-            // 创建 AliyunLogConfig CR
-            createAliyunLogConfigCR(k8sClient);
-            log.info("[AliyunLogConfig] Successfully created CR {} in cluster {}",
-                    slsConfig.getAliyunLogConfig().getCrName(), cluster.getK8sClusterName());
-
-        } catch (Exception e) {
-            log.error("[AliyunLogConfig] Failed to ensure AliyunLogConfig CR for cluster: {}",
-                    cluster.getK8sClusterName(), e);
-            throw e;
-        }
-    }
-
-    /**
-     * 检查 AliyunLogConfig CRD 是否存在
-     */
-    private boolean checkAliyunLogConfigCRD(KubernetesClient k8sClient) {
-        try {
-            CustomResourceDefinition crd = k8sClient.apiextensions().v1()
-                    .customResourceDefinitions()
-                    .withName(ALIYUN_LOG_CONFIG_CRD_NAME)
-                    .get();
-            return crd != null;
-        } catch (Exception e) {
-            log.error("[AliyunLogConfig] Failed to check CRD existence", e);
-            return false;
-        }
-    }
-
-    /**
-     * 确保 namespace 存在
-     */
-    private void ensureNamespaceExists(KubernetesClient k8sClient) {
-        try {
-            String namespace = slsConfig.getAliyunLogConfig().getNamespace();
-            if (k8sClient.namespaces().withName(namespace).get() == null) {
-                k8sClient.namespaces().createOrReplace(new NamespaceBuilder()
-                        .withNewMetadata()
-                        .withName(namespace)
-                        .endMetadata()
-                        .build());
-                log.info("[AliyunLogConfig] Created namespace: {}", namespace);
-            }
-        } catch (Exception e) {
-            // Namespace可能已存在，忽略错误
-            log.debug("[AliyunLogConfig] Namespace {} may already exist", slsConfig.getAliyunLogConfig().getNamespace());
-        }
-    }
-
-    /**
-     * 获取 AliyunLogConfig CR
-     */
-    private GenericKubernetesResource getAliyunLogConfigCR(KubernetesClient k8sClient) {
-        try {
-            MixedOperation<GenericKubernetesResource, GenericKubernetesResourceList, Resource<GenericKubernetesResource>> client =
-                    k8sClient.genericKubernetesResources("log.alibabacloud.com/v1alpha1", "AliyunLogConfig");
-
-            return client.inNamespace(slsConfig.getAliyunLogConfig().getNamespace())
-                    .withName(slsConfig.getAliyunLogConfig().getCrName())
-                    .get();
-        } catch (Exception e) {
-            log.debug("[AliyunLogConfig] Failed to get CR, may not exist yet", e);
-            return null;
-        }
-    }
-
-    /**
-     * 创建 AliyunLogConfig CR
-     */
-    private void createAliyunLogConfigCR(KubernetesClient k8sClient) {
-        GenericKubernetesResource cr = new GenericKubernetesResource();
-        cr.setApiVersion("log.alibabacloud.com/v1alpha1");
-        cr.setKind("AliyunLogConfig");
-
-        // 设置 metadata
-        ObjectMeta metadata = new ObjectMeta();
-        metadata.setName(slsConfig.getAliyunLogConfig().getCrName());
-        metadata.setNamespace(slsConfig.getAliyunLogConfig().getNamespace());
-        cr.setMetadata(metadata);
-
-        // 设置 spec
-        Map<String, Object> spec = buildAliyunLogConfigSpec();
-        cr.setAdditionalProperty("spec", spec);
-
-        // 创建 CR
-        MixedOperation<GenericKubernetesResource, GenericKubernetesResourceList, Resource<GenericKubernetesResource>> client =
-                k8sClient.genericKubernetesResources("log.alibabacloud.com/v1alpha1", "AliyunLogConfig");
-
-        client.inNamespace(slsConfig.getAliyunLogConfig().getNamespace()).create(cr);
-    }
-
-    /**
-     * 构建 AliyunLogConfig spec
-     */
-    private Map<String, Object> buildAliyunLogConfigSpec() {
-        Map<String, Object> spec = new HashMap<>();
-        
-        // 从配置中心获取 project 和 logstore
-        spec.put("project", slsConfig.getDefaultProject());
-        spec.put("logstore", slsConfig.getDefaultLogstore());
-
-        // 构建 logtailConfig
-        Map<String, Object> logtailConfig = new HashMap<>();
-        logtailConfig.put("inputType", "plugin");
-        logtailConfig.put("configName", "apig-access-log-logtail");
-
-        // 构建 inputDetail
-        Map<String, Object> inputDetail = new HashMap<>();
-        Map<String, Object> plugin = new HashMap<>();
-
-        // 构建 inputs
-        Map<String, Object> input = new HashMap<>();
-        input.put("type", "service_docker_stdout");
-        
-        Map<String, Object> detail = new HashMap<>();
-        detail.put("Stdout", true);
-        detail.put("Stderr", true);
-        
-        Map<String, String> includeEnv = new HashMap<>();
-        includeEnv.put("INSTANCE_NAME", "higress-gateway");
-        detail.put("IncludeEnv", includeEnv);
-        
-        input.put("detail", detail);
-        plugin.put("inputs", new Object[]{input});
-
-        // 构建 processors
-        Map<String, Object> filterProcessor = new HashMap<>();
-        filterProcessor.put("type", "processor_filter_regex");
-        
-        Map<String, Object> filterDetail = new HashMap<>();
-        Map<String, String> exclude = new HashMap<>();
-        exclude.put("content", "^\\[Envoy");
-        filterDetail.put("Exclude", exclude);
-        
-        Map<String, String> include = new HashMap<>();
-        include.put("content", "{.*?}");
-        filterDetail.put("Include", include);
-        
-        filterProcessor.put("detail", filterDetail);
-
-        Map<String, Object> jsonProcessor = new HashMap<>();
-        jsonProcessor.put("type", "processor_json");
-        
-        Map<String, Object> jsonDetail = new HashMap<>();
-        jsonDetail.put("ExpandConnector", "");
-        jsonDetail.put("ExpandDepth", 0);
-        jsonDetail.put("KeepSource", false);
-        jsonDetail.put("NoKeyError", false);
-        jsonDetail.put("Prefix", "");
-        jsonDetail.put("SourceKey", "content");
-        jsonDetail.put("UseSourceKeyAsPrefix", false);
-        
-        jsonProcessor.put("detail", jsonDetail);
-
-        plugin.put("processors", new Object[]{filterProcessor, jsonProcessor});
-
-        inputDetail.put("plugin", plugin);
-        logtailConfig.put("inputDetail", inputDetail);
-
-        spec.put("logtailConfig", logtailConfig);
-
-        return spec;
-    }
 }
