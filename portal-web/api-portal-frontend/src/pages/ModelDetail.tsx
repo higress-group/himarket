@@ -11,7 +11,7 @@ import {
   Select,
   Spin,
 } from "antd";
-import { CopyOutlined, BulbOutlined, ArrowLeftOutlined } from "@ant-design/icons";
+import { CopyOutlined, ArrowLeftOutlined, MessageOutlined, ThunderboltOutlined } from "@ant-design/icons";
 import { ProductType } from "../types";
 import type { IProductDetail } from "../lib/apis";
 import type { IModelConfig, IRoute } from "../lib/apis/typing";
@@ -470,10 +470,45 @@ function ModelDetail() {
                   key: "chat",
                   label: "Chat",
                   children: (
-                    <div className="flex flex-col items-center justify-center py-16 text-center">
-                      <BulbOutlined className="text-4xl text-gray-300 mb-4" />
-                      <p className="text-gray-500 mb-2">Chat 调试</p>
-                      <p className="text-sm text-gray-400">🚀 敬请期待</p>
+                    <div className="space-y-4">
+                      {/* 功能介绍 */}
+                      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
+                        <div className="flex items-start gap-3 mb-3">
+                          <MessageOutlined className="text-xl text-blue-600 mt-0.5" />
+                          <div>
+                            <h4 className="text-sm font-semibold text-gray-900 mb-1">实时对话测试</h4>
+                            <p className="text-xs text-gray-600 leading-relaxed">
+                              在交互式环境中测试模型能力，支持多轮对话、实时响应
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 功能特性 */}
+                      <div className="space-y-2">
+                        <div className="flex items-start gap-2 text-xs text-gray-600">
+                          <ThunderboltOutlined className="text-amber-500 mt-0.5" />
+                          <span>支持流式输出，实时查看生成结果</span>
+                        </div>
+                        <div className="flex items-start gap-2 text-xs text-gray-600">
+                          <MessageOutlined className="text-blue-500 mt-0.5" />
+                          <span>保存对话历史，支持多轮交互测试</span>
+                        </div>
+                      </div>
+
+                      {/* 操作按钮 */}
+                      <Button
+                        type="primary"
+                        block
+                        size="large"
+                        icon={<MessageOutlined />}
+                        className="rounded-lg mt-4"
+                        onClick={() => {
+                          navigate("/chat", { state: { selectedProduct: data } });
+                        }}
+                      >
+                        开始对话测试
+                      </Button>
                     </div>
                   ),
                 },

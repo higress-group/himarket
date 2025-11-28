@@ -169,11 +169,7 @@ export async function handleSSEStream(
 
               // 提取 usage 信息（通常在最后一个 chunk 中）
               if (chunk.usage) {
-                usage = {
-                  prompt_tokens: chunk.usage.prompt_tokens,
-                  completion_tokens: chunk.usage.completion_tokens,
-                  total_tokens: chunk.usage.total_tokens,
-                };
+                usage = chunk.usage;
               }
             }
           } catch (error) {

@@ -15,7 +15,6 @@ const request: AxiosInstance = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  // 配置参数序列化器，确保数组参数符合 RFC 3986 标准
   paramsSerializer: params => {
     return qs.stringify(params, {
       arrayFormat: 'repeat',  // 数组格式: ids=1&ids=2（而不是 ids[]=1）

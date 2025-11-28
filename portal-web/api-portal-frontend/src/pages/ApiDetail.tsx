@@ -1,18 +1,15 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import { Card, Alert, Row, Col, Tabs } from "antd";
+import { useNavigate, useParams } from "react-router-dom";
+import { Alert, Tabs, Space, Button, message } from "antd";
 import { Layout } from "../components/Layout";
 import { ProductHeader } from "../components/ProductHeader";
 import { SwaggerUIWrapper } from "../components/SwaggerUIWrapper";
 import 'react-markdown-editor-lite/lib/index.css';
 import * as yaml from 'js-yaml';
-import { Button, Typography, Space, Divider, message } from "antd";
-import { CopyOutlined, RocketOutlined, DownloadOutlined } from "@ant-design/icons";
+import { CopyOutlined, DownloadOutlined, ArrowLeftOutlined } from "@ant-design/icons";
 import type { IProductDetail } from "../lib/apis";
 import APIs from "../lib/apis";
 import MarkdownRender from "../components/MarkdownRender";
-
-const { Title, Paragraph } = Typography;
 
 
 function ApiDetailPage() {
@@ -23,6 +20,7 @@ function ApiDetailPage() {
   const [baseUrl, setBaseUrl] = useState<string>('');
   const [examplePath, setExamplePath] = useState<string>('/{path}');
   const [exampleMethod, setExampleMethod] = useState<string>('GET');
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!apiProductId) return;
@@ -107,7 +105,22 @@ function ApiDetailPage() {
 
   return (
     <Layout>
-      <div className="mb-6">
+      {/* 头部 */}
+      <div className="mb-8">
+        {/* 返回按钮 */}
+        <button
+          onClick={() => navigate(-1)}
+          className="
+            flex items-center gap-2 mb-4 px-4 py-2 rounded-xl
+            text-gray-600 hover:text-colorPrimary
+            hover:bg-colorPrimaryBgHover
+            transition-all duration-200
+          "
+        >
+          <ArrowLeftOutlined />
+          <span>返回</span>
+        </button>
+
         <ProductHeader
           name={apiData.name}
           description={apiData.description}
@@ -116,149 +129,153 @@ function ApiDetailPage() {
           updatedAt={apiData.updatedAt}
           productType="REST_API"
         />
-        <hr className="border-gray-200 mt-4" />
       </div>
 
-      <div className="pb-6">
-        {/* 主要内容区域 - 左右布局 */}
-        <Row gutter={24}>
-          {/* 左侧内容 */}
-          <Col span={15}>
-            <Card className="mb-6 rounded-lg border-gray-200">
-              <Tabs
-                defaultActiveKey="overview"
-                items={[
-                  {
-                    key: "overview",
-                    label: "Overview",
-                    children: apiData.document ? (
-                      <div className="min-h-[400px]">
-                        <div className="prose prose-lg max-w-none">
-                          <MarkdownRender content={apiData.document} />
+      {/* 主要内容区域 */}
+      <div className="flex gap-6 pb-6">
+        {/* 左侧内容 */}
+        <div className="flex-1">
+          <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-6 pt-0">
+            <Tabs
+              size="large"
+              defaultActiveKey="overview"
+              items={[
+                {
+                  key: "overview",
+                  label: "概览",
+                  children: apiData.document ? (
+                    <div className="min-h-[400px] prose prose-lg">
+                      <MarkdownRender content={apiData.document} />
+                    </div>
+                  ) : (
+                    <div className="text-gray-500 text-center py-16">
+                      暂无概览信息
+                    </div>
+                  ),
+                },
+                {
+                  key: "openapi-spec",
+                  label: "OpenAPI 规范",
+                  children: (
+                    <div>
+                      {apiData.apiConfig && apiData.apiConfig.spec ? (
+                        <SwaggerUIWrapper apiSpec={apiData.apiConfig.spec} />
+                      ) : (
+                        <div className="text-gray-500 text-center py-16">
+                          暂无OpenAPI规范
                         </div>
-                      </div>
-                    ) : (
-                      <div className="text-gray-500 text-center py-8">
-                        暂无文档内容
-                      </div>
-                    ),
-                  },
-                  {
-                    key: "openapi-spec",
-                    label: "OpenAPI Specification",
-                    children: (
-                      <div>
-                        {apiData.apiConfig && apiData.apiConfig.spec ? (
-                          <SwaggerUIWrapper apiSpec={apiData.apiConfig.spec} />
-                        ) : (
-                          <div className="text-gray-500 text-center py-8">
-                            暂无OpenAPI规范
-                          </div>
-                        )}
-                      </div>
-                    ),
-                  },
-                ]}
-              />
-            </Card>
-          </Col>
+                      )}
+                    </div>
+                  ),
+                },
+              ]}
+            />
+          </div>
+        </div>
 
-          {/* 右侧内容 */}
-          <Col span={9}>
-            <Card
-              className="rounded-lg border-gray-200"
-              title={
-                <Space>
-                  <RocketOutlined />
-                  <span>快速开始</span>
-                </Space>
-              }>
-              <Space direction="vertical" className="w-full" size="middle">
-                {/* cURL示例 */}
-                <div>
-                  <Title level={5}>cURL调用示例</Title>
-                  <div className="bg-gray-50 p-3 rounded border relative">
-                    <pre className="text-sm mb-0">
-                      {`curl -X ${exampleMethod} \\
+        {/* 右侧内容 */}
+        <div className="w-96">
+          <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-6">
+            <h3 className="text-base font-semibold mb-4 text-gray-900">快速开始</h3>
+            <Tabs
+              defaultActiveKey="curl"
+              items={[
+                {
+                  key: "curl",
+                  label: "cURL",
+                  children: (
+                    <div className="space-y-4">
+                      {/* cURL示例 */}
+                      <div className="relative">
+                        <pre className="bg-gray-900 text-gray-100 p-4 rounded-xl text-xs overflow-x-auto whitespace-pre-wrap border border-gray-700">
+                          <code>{`curl -X ${exampleMethod} \\
   '${baseUrl || 'https://api.example.com'}${examplePath}' \\
   -H 'Accept: application/json' \\
-  -H 'Content-Type: application/json'`}
-                    </pre>
-                    <Button
-                      type="text"
-                      size="small"
-                      icon={<CopyOutlined />}
-                      className="absolute top-2 right-2"
-                      onClick={() => {
-                        const curlCommand = `curl -X ${exampleMethod} \\\n  '${baseUrl || 'https://api.example.com'}${examplePath}' \\\n  -H 'Accept: application/json' \\\n  -H 'Content-Type: application/json'`;
-                        navigator.clipboard.writeText(curlCommand);
-                        message.success('cURL命令已复制到剪贴板', 1);
-                      }}
-                    />
-                  </div>
-                </div>
-
-                <Divider />
-
-                {/* 下载OAS文件 */}
-                <div>
-                  <Title level={5}>OpenAPI规范文件</Title>
-                  <Paragraph type="secondary">
-                    下载完整的OpenAPI规范文件，用于代码生成、API测试等场景
-                  </Paragraph>
-                  <Space>
-                    <Button
-                      type="primary"
-                      icon={<DownloadOutlined />}
-                      onClick={() => {
-                        if (apiData?.apiConfig?.spec) {
-                          const blob = new Blob([apiData.apiConfig.spec], { type: 'text/yaml' });
-                          const url = URL.createObjectURL(blob);
-                          const link = document.createElement('a');
-                          link.href = url;
-                          link.download = `${apiData.name || 'api'}-openapi.yaml`;
-                          document.body.appendChild(link);
-                          link.click();
-                          document.body.removeChild(link);
-                          URL.revokeObjectURL(url);
-                          message.success('OpenAPI规范文件下载成功', 1);
-                        }
-                      }}
-                    >
-                      下载YAML
-                    </Button>
-                    <Button
-                      icon={<DownloadOutlined />}
-                      onClick={() => {
-                        if (apiData?.apiConfig?.spec) {
-                          try {
-                            const yamlDoc = yaml.load(apiData.apiConfig.spec);
-                            const jsonSpec = JSON.stringify(yamlDoc, null, 2);
-                            const blob = new Blob([jsonSpec], { type: 'application/json' });
-                            const url = URL.createObjectURL(blob);
-                            const link = document.createElement('a');
-                            link.href = url;
-                            link.download = `${apiData.name || 'api'}-openapi.json`;
-                            document.body.appendChild(link);
-                            link.click();
-                            document.body.removeChild(link);
-                            URL.revokeObjectURL(url);
-                            message.success('OpenAPI规范文件下载成功', 1);
-                          } catch (err) {
-                            console.log(err)
-                            message.error('转换JSON格式失败');
-                          }
-                        }
-                      }}
-                    >
-                      下载JSON
-                    </Button>
-                  </Space>
-                </div>
-              </Space>
-            </Card>
-          </Col>
-        </Row>
+  -H 'Content-Type: application/json'`}</code>
+                        </pre>
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={<CopyOutlined />}
+                          className="absolute top-2 right-2 text-gray-400 hover:text-white"
+                          onClick={() => {
+                            const curlCommand = `curl -X ${exampleMethod} \\
+  '${baseUrl || 'https://api.example.com'}${examplePath}' \\
+  -H 'Accept: application/json' \\
+  -H 'Content-Type: application/json'`;
+                            navigator.clipboard.writeText(curlCommand);
+                            message.success('cURL命令已复制到剪贴板', 1);
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ),
+                },
+                {
+                  key: "download",
+                  label: "下载",
+                  children: (
+                    <div className="space-y-4">
+                      <div className="text-xs text-gray-500 mb-3">
+                        下载完整的OpenAPI规范文件，用于代码生成、API测试等场景
+                      </div>
+                      <Space direction="vertical" className="w-full">
+                        <Button
+                          block
+                          type="primary"
+                          icon={<DownloadOutlined />}
+                          onClick={() => {
+                            if (apiData?.apiConfig?.spec) {
+                              const blob = new Blob([apiData.apiConfig.spec], { type: 'text/yaml' });
+                              const url = URL.createObjectURL(blob);
+                              const link = document.createElement('a');
+                              link.href = url;
+                              link.download = `${apiData.name || 'api'}-openapi.yaml`;
+                              document.body.appendChild(link);
+                              link.click();
+                              document.body.removeChild(link);
+                              URL.revokeObjectURL(url);
+                              message.success('OpenAPI规范文件下载成功', 1);
+                            }
+                          }}
+                        >
+                          下载 YAML
+                        </Button>
+                        <Button
+                          block
+                          icon={<DownloadOutlined />}
+                          onClick={() => {
+                            if (apiData?.apiConfig?.spec) {
+                              try {
+                                const yamlDoc = yaml.load(apiData.apiConfig.spec);
+                                const jsonSpec = JSON.stringify(yamlDoc, null, 2);
+                                const blob = new Blob([jsonSpec], { type: 'application/json' });
+                                const url = URL.createObjectURL(blob);
+                                const link = document.createElement('a');
+                                link.href = url;
+                                link.download = `${apiData.name || 'api'}-openapi.json`;
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                                URL.revokeObjectURL(url);
+                                message.success('OpenAPI规范文件下载成功', 1);
+                              } catch (err) {
+                                console.log(err)
+                                message.error('转换JSON格式失败');
+                              }
+                            }
+                          }}
+                        >
+                          下载 JSON
+                        </Button>
+                      </Space>
+                    </div>
+                  ),
+                },
+              ]}
+            />
+          </div>
+        </div>
       </div>
     </Layout>
   );

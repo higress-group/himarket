@@ -52,7 +52,11 @@ export function Header() {
             </div>
           </div>
           <div className="flex items-center space-x-4">
-            <UserInfo />
+            {
+              location.pathname !== "/login" && location.pathname !== "/register" && (
+                <UserInfo />
+              )
+            }
           </div>
         </div>
       </div>

@@ -84,7 +84,8 @@ public class OpenAILlmService extends AbstractLlmService {
                 ChatUsage usage = response.toStandardUsage();
                 chatContent.setUsage(usage);
                 chatContent.stop();
-                response.getUsage().setFirstByteTimeout(chatContent.getFirstByteTimeout());
+                response.getUsage().setFirstByteTimeout(usage.getFirstByteTimeout());
+                response.getUsage().setElapsedTime(usage.getElapsedTime());
             }
 
             return JSONUtil.toJsonStr(response);

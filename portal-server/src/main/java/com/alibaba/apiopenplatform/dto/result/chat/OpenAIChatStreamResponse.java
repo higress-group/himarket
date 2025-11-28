@@ -98,6 +98,10 @@ public class OpenAIChatStreamResponse {
         @Alias("first_byte_timeout")
         private Long firstByteTimeout;
 
+        @JsonProperty("elapsed_time")
+        @Alias("elapsed_time")
+        private Long elapsedTime;
+
         /**
          * Tokens used for prompt
          */

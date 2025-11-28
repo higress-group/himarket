@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import { ProductHeader } from "../components/ProductHeader";
 import {
@@ -11,7 +11,7 @@ import {
   Select,
   Spin,
 } from "antd";
-import { CopyOutlined } from "@ant-design/icons";
+import { ArrowLeftOutlined, CopyOutlined } from "@ant-design/icons";
 import { ProductType } from "../types";
 import * as yaml from "js-yaml";
 import type { IMCPConfig } from "../lib/apis/typing";
@@ -44,6 +44,8 @@ function McpDetail() {
   const [sseJson, setSseJson] = useState("");
   const [localJson, setLocalJson] = useState("");
   const [selectedDomainIndex, setSelectedDomainIndex] = useState<number>(0);
+
+  const navigate = useNavigate();
 
   // 解析YAML配置的函数
   const parseYamlConfig = (
@@ -195,7 +197,7 @@ function McpDetail() {
       setLoading(true);
       setError("");
       try {
-        const response = await APIs.getProduct({id: mcpProductId});
+        const response = await APIs.getProduct({ id: mcpProductId });
         if (response.code === "SUCCESS" && response.data) {
           setData(response.data);
 
@@ -315,6 +317,18 @@ function McpDetail() {
     <Layout>
       {/* 头部 */}
       <div className="mb-8">
+        <button
+          onClick={() => navigate(-1)}
+          className="
+            flex items-center gap-2 mb-4 px-4 py-2 rounded-xl
+            text-gray-600 hover:text-colorPrimary
+            hover:bg-colorPrimaryBgHover
+            transition-all duration-200
+          "
+        >
+          <ArrowLeftOutlined />
+          <span>返回</span>
+        </button>
         <ProductHeader
           name={name}
           description={description}
@@ -364,7 +378,7 @@ function McpDetail() {
                               children: (
                                 <div className="px-4 pb-2">
                                   <div className="text-gray-600 mb-4">{tool.description}</div>
-                                  
+
                                   {tool.args && tool.args.length > 0 && (
                                     <div>
                                       <p className="font-medium text-gray-700 mb-3">输入参数:</p>
@@ -393,7 +407,7 @@ function McpDetail() {
                                       ))}
                                     </div>
                                   )}
-                                  
+
                                   {(!tool.args || tool.args.length === 0) && (
                                     <div className="text-gray-500 text-sm">No parameters required</div>
                                   )}
@@ -421,111 +435,111 @@ function McpDetail() {
             <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-6">
               <h3 className="text-base font-semibold mb-4 text-gray-900">连接点配置</h3>
 
-                {/* 域名选择器 */}
-                {mcpConfig?.mcpServerConfig?.domains && mcpConfig.mcpServerConfig.domains.length > 0 && (
-                  <div className="mb-2">
-                    <div className="flex items-stretch border border-gray-200 rounded-md overflow-hidden">
-                      <div className="bg-gray-50 px-3 py-2 text-xs text-gray-600 border-r border-gray-200 flex items-center whitespace-nowrap">
-                        域名
-                      </div>
-                      <div className="flex-1">
-                        <Select
-                          value={selectedDomainIndex}
-                          onChange={setSelectedDomainIndex}
-                          className="w-full"
-                          placeholder="选择域名"
-                          size="middle"
-                          bordered={false}
-                          style={{
-                            fontSize: '12px',
-                            height: '100%'
-                          }}
-                        >
-                          {getDomainOptions(mcpConfig.mcpServerConfig.domains).map((option) => (
-                            <Select.Option key={option.value} value={option.value}>
-                              <span className="text-xs text-gray-900 font-mono">
-                                {option.label}
-                              </span>
-                            </Select.Option>
-                          ))}
-                        </Select>
-                      </div>
+              {/* 域名选择器 */}
+              {mcpConfig?.mcpServerConfig?.domains && mcpConfig.mcpServerConfig.domains.length > 0 && (
+                <div className="mb-2">
+                  <div className="flex items-stretch border border-gray-200 rounded-md overflow-hidden">
+                    <div className="bg-gray-50 px-3 py-2 text-xs text-gray-600 border-r border-gray-200 flex items-center whitespace-nowrap">
+                      域名
+                    </div>
+                    <div className="flex-1">
+                      <Select
+                        value={selectedDomainIndex}
+                        onChange={setSelectedDomainIndex}
+                        className="w-full"
+                        placeholder="选择域名"
+                        size="middle"
+                        variant="borderless"
+                        style={{
+                          fontSize: '12px',
+                          height: '100%'
+                        }}
+                      >
+                        {getDomainOptions(mcpConfig.mcpServerConfig.domains).map((option) => (
+                          <Select.Option key={option.value} value={option.value}>
+                            <span className="text-xs text-gray-900 font-mono">
+                              {option.label}
+                            </span>
+                          </Select.Option>
+                        ))}
+                      </Select>
                     </div>
                   </div>
-                )}
+                </div>
+              )}
 
-                <Tabs
-                  size="small" 
-                  defaultActiveKey={hasLocalConfig ? "local" : (sseJson ? "sse" : "http")}
-                  items={(() => {
-                    const tabs = [];
-                    
-                    if (hasLocalConfig) {
+              <Tabs
+                size="small"
+                defaultActiveKey={hasLocalConfig ? "local" : (sseJson ? "sse" : "http")}
+                items={(() => {
+                  const tabs = [];
+
+                  if (hasLocalConfig) {
+                    tabs.push({
+                      key: "local",
+                      label: "Stdio",
+                      children: (
+                        <div className="relative bg-gray-50 border border-gray-200 rounded-lg overflow-hidden">
+                          <Button
+                            type="text"
+                            size="small"
+                            icon={<CopyOutlined />}
+                            className="absolute top-2 right-2 z-10 text-gray-400 hover:text-white"
+                            onClick={() => handleCopy(localJson)}
+                          />
+                          <div className="bg-gray-800 text-gray-100 font-mono text-xs overflow-x-auto">
+                            <pre className="whitespace-pre p-3">{localJson}</pre>
+                          </div>
+                        </div>
+                      ),
+                    });
+                  } else {
+                    if (sseJson) {
                       tabs.push({
-                        key: "local",
-                        label: "Stdio",
+                        key: "sse",
+                        label: "SSE",
                         children: (
-                          <div className="relative bg-gray-50 border border-gray-200 rounded-md p-3">
+                          <div className="relative bg-gray-50 border border-gray-200 rounded-lg overflow-hidden">
                             <Button
                               type="text"
                               size="small"
                               icon={<CopyOutlined />}
-                              className="absolute top-2 right-2 z-10"
-                              onClick={() => handleCopy(localJson)}
+                              className="absolute top-2 right-2 z-10 text-gray-400 hover:text-white"
+                              onClick={() => handleCopy(sseJson)}
                             />
-                            <div className="text-gray-800 font-mono text-xs overflow-x-auto">
-                              <pre className="whitespace-pre">{localJson}</pre>
+                            <div className="bg-gray-800 text-gray-100 font-mono text-xs overflow-x-auto">
+                              <pre className="whitespace-pre p-3">{sseJson}</pre>
                             </div>
                           </div>
                         ),
                       });
-                    } else {
-                      if (sseJson) {
-                        tabs.push({
-                          key: "sse",
-                          label: "SSE",
-                          children: (
-                            <div className="relative bg-gray-50 border border-gray-200 rounded-md p-3">
-                              <Button
-                                type="text"
-                                size="small"
-                                icon={<CopyOutlined />}
-                                className="absolute top-2 right-2 z-10"
-                                onClick={() => handleCopy(sseJson)}
-                              />
-                              <div className="text-gray-800 font-mono text-xs overflow-x-auto">
-                                <pre className="whitespace-pre">{sseJson}</pre>
-                              </div>
-                            </div>
-                          ),
-                        });
-                      }
-                      
-                      if (httpJson) {
-                        tabs.push({
-                          key: "http",
-                          label: "Streaming HTTP",
-                          children: (
-                            <div className="relative bg-gray-50 border border-gray-200 rounded-md p-3">
-                              <Button
-                                type="text"
-                                size="small"
-                                icon={<CopyOutlined />}
-                                className="absolute top-2 right-2 z-10"
-                                onClick={() => handleCopy(httpJson)}
-                              />
-                              <div className="text-gray-800 font-mono text-xs overflow-x-auto">
-                                <pre className="whitespace-pre">{httpJson}</pre>
-                              </div>
-                            </div>
-                          ),
-                        });
-                      }
                     }
-                    
-                    return tabs;
-                  })()}
-                />
+
+                    if (httpJson) {
+                      tabs.push({
+                        key: "http",
+                        label: "Streaming HTTP",
+                        children: (
+                          <div className="relative bg-gray-50 border border-gray-200 rounded-lg overflow-hidden">
+                            <Button
+                              type="text"
+                              size="small"
+                              icon={<CopyOutlined />}
+                              className="absolute top-2 right-2 z-10 text-gray-400 hover:text-white"
+                              onClick={() => handleCopy(httpJson)}
+                            />
+                            <div className="bg-gray-900  text-gray-100 font-mono text-xs overflow-x-auto">
+                              <pre className="whitespace-pre p-3">{httpJson}</pre>
+                            </div>
+                          </div>
+                        ),
+                      });
+                    }
+                  }
+
+                  return tabs;
+                })()}
+              />
             </div>
           )}
         </div>

@@ -2,27 +2,20 @@ import { useState } from "react";
 import { DownOutlined, CheckOutlined, SearchOutlined } from "@ant-design/icons";
 import { Dropdown, Input, Tabs, Spin } from "antd";
 import { ProductIconRenderer } from "../icon/ProductIconRenderer";
+import type { ICategory, IProductDetail } from "../../lib/apis";
 
-interface Model {
-  id: string;
-  name: string;
-  description: string;
-  category: string;
-  icon: string;
-  productCategories: string[]; // 产品分类 ID 数组
-}
 
 interface ModelSelectorProps {
-  selectedModel: string;
-  onSelectModel: (modelId: string) => void;
-  modelList?: Model[];
+  selectedModelId: string;
+  onSelectModel: (model: IProductDetail) => void;
+  modelList?: IProductDetail[];
   loading?: boolean;
-  categories?: Array<{ id: string; name: string }>; // 分类列表
+  categories: ICategory[]; // 分类列表
   categoriesLoading?: boolean; // 分类加载状态
 }
 
 export function ModelSelector({
-  selectedModel,
+  selectedModelId,
   onSelectModel,
   modelList = [],
   loading = false,
@@ -31,15 +24,15 @@ export function ModelSelector({
 }: ModelSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeCategory, setActiveCategory] = useState("all");
+  const [activeCategory, setActiveCategory] = useState<string>("all");
 
-  const currentModel = modelList.find(m => m.id === selectedModel) || modelList[0];
+  const currentModel = modelList.find(m => m.productId === selectedModelId) || modelList[0];
 
   // 根据分类和搜索过滤模型
   const filteredModels = modelList.filter(model => {
     // 分类过滤：如果选择"全部"或模型的 productCategories 包含当前选中的分类
     const matchesCategory = activeCategory === "all" ||
-      model.productCategories.includes(activeCategory);
+      model.categories.map(c => c.categoryId).includes(activeCategory);
 
     // 搜索过滤
     const matchesSearch = searchQuery === "" ||
@@ -49,8 +42,8 @@ export function ModelSelector({
     return matchesCategory && matchesSearch;
   });
 
-  const handleModelSelect = (modelId: string) => {
-    onSelectModel(modelId);
+  const handleModelSelect = (model: IProductDetail) => {
+    onSelectModel(model);
     setIsOpen(false);
     setSearchQuery("");
   };
@@ -81,7 +74,7 @@ export function ModelSelector({
             activeKey={activeCategory}
             onChange={setActiveCategory}
             items={categories.map(category => ({
-              key: category.id,
+              key: category.categoryId,
               label: category.name,
             }))}
           />
@@ -98,23 +91,23 @@ export function ModelSelector({
           <div className="space-y-1">
             {filteredModels.map(model => (
               <div
-                key={model.id}
-                onClick={() => handleModelSelect(model.id)}
+                key={model.productId}
+                onClick={() => handleModelSelect(model)}
                 className={`
                   px-3 py-2.5 rounded-lg cursor-pointer
                   flex items-center gap-3
                   transition-all duration-200
                   hover:bg-colorPrimaryBgHover hover:scale-[1.01]
                   ${
-                    model.id === selectedModel
+                    model.productId === selectedModelId
                       ? "bg-colorPrimary/10 text-colorPrimary"
                       : "text-gray-700 hover:text-gray-900"
                   }
                 `}
               >
-                <ProductIconRenderer iconType={model.icon} className="w-5 h-5" />
+                <ProductIconRenderer iconType={model.icon?.type} className="w-5 h-5" />
                 <span className="font-medium flex-1">{model.name}</span>
-                {model.id === selectedModel && (
+                {model.productId === selectedModelId && (
                   <CheckOutlined className="text-colorPrimary text-xs" />
                 )}
               </div>
@@ -146,7 +139,7 @@ export function ModelSelector({
             className="flex items-center gap-2 px-4 py-2 rounded-xl transition-all duration-200 hover:scale-[1.01] hover:bg-colorPrimaryBgHover"
           >
             {currentModel?.icon && (
-              <ProductIconRenderer iconType={currentModel.icon} className="w-5 h-5" />
+              <ProductIconRenderer iconType={currentModel.icon.type} className="w-5 h-5" />
             )}
             <span className="font-medium text-gray-900">
               {currentModel?.name || "选择模型"}
