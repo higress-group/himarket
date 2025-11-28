@@ -29,6 +29,8 @@ public class InvokeModelParam {
     private List<ChatMessage> chatMessages;
 
     private Boolean stream;
+    
+    private Boolean enableWebSearch;
 
     private List<String> gatewayIps;
 

@@ -331,6 +331,7 @@ public class ChatServiceImpl implements ChatService {
                 .queryParams(credentialContext.getQueryParams())
                 .chatMessages(chatMessages)
                 .stream(param.getStream())
+                .enableWebSearch(param.getEnableWebSearch())
                 .gatewayIps(gatewayIps)
                 .mcpServerConfigs(mcpServerConfigs)
                 .build();
