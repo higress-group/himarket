@@ -32,7 +32,7 @@ function HomePage() {
         
         {/* Get Started 按钮 */}
         <div className="mb-24">
-          <Link to="/apis">
+          <Link to="/models">
             <Button 
               type="primary" 
               size="large" 
