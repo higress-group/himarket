@@ -37,6 +37,9 @@ export interface IProductDetail {
 
 interface GetProductsResp {
   content: IProductDetail[];
+  number: number
+  size: number
+  totalElements: number
 }
 // 获取模型列表
 export function getProducts(params: {

@@ -177,6 +177,7 @@ export function ChatArea(props: ChatAreaProps) {
                     conversations={model.conversations}
                     onChangeVersion={(...args) => onChangeActiveAnswer(model.id, ...args)}
                     autoScrollEnabled={autoScrollEnabled}
+                    modelName={currentModel?.name}
                     onRefresh={(con, quest) => {
                       setAutoScrollEnabled(false);
                       handleGenerateMessage({
