@@ -279,3 +279,36 @@ export interface McpConfig {
     protocol?: string;
   };
 }
+
+
+export interface IMessageVersion {
+  content: string;
+  firstTokenTime?: number;
+  totalTime?: number;
+  inputTokens?: number;
+  outputTokens?: number;
+}
+
+export interface IModelConversation {
+  sessionId: string;
+  id: string;
+  name: string;
+  conversations: {
+    id: string;
+    loading: boolean;
+    questions: {
+      id: string;
+      content: string;
+      createdAt: string;
+      activeAnswerIndex: number;
+      answers: {
+        errorMsg: string;
+        content: string;
+        firstTokenTime: number;
+        totalTime: number;
+        inputTokens: number;
+        outputTokens: number;
+      }[]
+    }[]
+  }[]
+}

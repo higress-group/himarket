@@ -17,44 +17,33 @@
  * under the License.
  */
 
-package com.alibaba.apiopenplatform.support.portal;
+package com.alibaba.apiopenplatform.dto.result.search;
 
+import com.alibaba.apiopenplatform.support.enums.SearchEngineType;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
-import java.util.List;
-
+/**
+ * 可用搜索引擎结果
+ * 供开发者查询当前 Portal 有哪些可用的搜索引擎
+ * 不包含敏感信息（如 API Key）
+ */
 @Data
-public class PortalSettingConfig {
+@NoArgsConstructor
+@AllArgsConstructor
+public class AvailableSearchEngineResult {
 
     /**
-     * 内置的账号密码认证，默认开启
+     * 搜索引擎类型
+     * 例如: GOOGLE
      */
-    private Boolean builtinAuthEnabled = true;
+    private SearchEngineType engineType;
 
     /**
-     * OIDC配置
+     * 搜索引擎名称（展示用）
+     * 例如: "Google搜索"
      */
-    private List<OidcConfig> oidcConfigs;
-
-    /**
-     * 开启自动审批开发者注册
-     */
-    private Boolean autoApproveDevelopers = false;
-
-    /**
-     * 开启自动审批订阅申请
-     */
-    private Boolean autoApproveSubscriptions = true;
-
-    /**
-     * OAuth2配置
-     */
-    private List<OAuth2Config> oauth2Configs;
-    
-    /**
-     * 搜索引擎配置（新增）
-     * 每个 Portal 只能配置一个搜索引擎
-     * null 表示未配置
-     */
-    private SearchEngineConfig searchEngineConfig;
+    private String engineName;
 }
+

@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { Button, Avatar, Dropdown, Skeleton, message } from "antd";
-import { LogoutOutlined, AppstoreOutlined } from "@ant-design/icons";
-import api, { developerLogout } from "../lib/api";
 import { useNavigate } from "react-router-dom";
+import { LogOut, UserRoundCheck } from "./icon";
+import APIs from "../lib/apis";
 import "./UserInfo.css";
 
 interface UserInfo {
@@ -50,30 +50,30 @@ export function UserInfo() {
     globalLoading = true;
     setLoading(true);
 
-    api.get("/developers/profile")
-        .then((response) => {
-          const data = response.data;
-          if (data) {
-            const userData = {
-              displayName: data.username || data.email || "未命名用户",
-              email: data.email,
-              avatar: data.avatarUrl || undefined,
-            };
-            globalUserInfo = userData;
-            if (mounted.current) {
-              setUserInfo(userData);
-            }
-          }
-        })
-        .catch((error) => {
-          console.error('获取用户信息失败:', error);
-        })
-        .finally(() => {
-          globalLoading = false;
+    APIs.getDeveloperInfo()
+      .then((response) => {
+        const data = response.data;
+        if (data) {
+          const userData = {
+            displayName: data.username || data.email || "未命名用户",
+            email: data.email,
+            avatar: data.avatarUrl || undefined,
+          };
+          globalUserInfo = userData;
           if (mounted.current) {
-            setLoading(false);
+            setUserInfo(userData);
           }
-        });
+        }
+      })
+      .catch((error) => {
+        console.error('获取用户信息失败:', error);
+      })
+      .finally(() => {
+        globalLoading = false;
+        if (mounted.current) {
+          setLoading(false);
+        }
+      });
 
     return () => {
       mounted.current = false;
@@ -83,7 +83,7 @@ export function UserInfo() {
   const handleLogout = async () => {
     try {
       // 调用后端logout接口，使token失效
-      await developerLogout();
+      await APIs.developerLogout();
     } catch (error) {
       // 即使接口调用失败，也要清除本地token，避免用户被卡住
       console.error('退出登录接口调用失败:', error);
@@ -119,7 +119,7 @@ export function UserInfo() {
     },
     {
       key: 'my-applications',
-      icon: <AppstoreOutlined />,
+      icon: <UserRoundCheck className="mr-1" />,
       label: '消费者管理',
       onClick: () => navigate('/consumers'),
     },
@@ -128,7 +128,7 @@ export function UserInfo() {
     },
     {
       key: 'logout',
-      icon: <LogoutOutlined />,
+      icon: <LogOut className="mr-1" />,
       label: '退出登录',
       onClick: handleLogout,
     },

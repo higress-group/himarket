@@ -1,4 +1,4 @@
-import { DefaultModelIcon } from "../components/icon/defaultModelIcon";
+import { DefaultModel } from "../components/icon";
 import type { IProductIcon } from "./apis/typing";
 
 /**
@@ -15,7 +15,7 @@ export function renderProductIcon(
 ): JSX.Element {
   // 如果没有 icon 或 icon 为空，使用默认图标
   if (!icon || !icon.value) {
-    return <DefaultModelIcon />;
+    return <DefaultModel />;
   }
 
   // 如果是 URL 类型
@@ -29,7 +29,7 @@ export function renderProductIcon(
   }
 
   // 其他情况返回默认图标
-  return <DefaultModelIcon />;
+  return <DefaultModel />;
 }
 
 /**

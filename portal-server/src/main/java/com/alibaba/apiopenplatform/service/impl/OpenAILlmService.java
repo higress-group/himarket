@@ -84,7 +84,8 @@ public class OpenAILlmService extends AbstractLlmService {
                 ChatUsage usage = response.toStandardUsage();
                 chatContent.setUsage(usage);
                 chatContent.stop();
-                response.getUsage().setFirstByteTimeout(chatContent.getFirstByteTimeout());
+                response.getUsage().setFirstByteTimeout(usage.getFirstByteTimeout());
+                response.getUsage().setElapsedTime(usage.getElapsedTime());
             }
 
             return JSONUtil.toJsonStr(response);
@@ -154,7 +155,7 @@ public class OpenAILlmService extends AbstractLlmService {
             // Find first external domain
             Optional<DomainResult> externalDomain = route.getDomains().stream()
                     // TODO 调试场景专用，防止域名被ICP拦截，可恶啊
-                    .filter(domain -> StrUtil.endWith(domain.getDomain(), ".alicloudapi.com"))
+//                    .filter(domain -> StrUtil.endWith(domain.getDomain(), ".alicloudapi.com"))
                     .filter(domain -> !StrUtil.equalsIgnoreCase(domain.getNetworkType(), "intranet"))
                     .findFirst();
 

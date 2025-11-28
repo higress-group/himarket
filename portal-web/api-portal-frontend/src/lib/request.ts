@@ -1,6 +1,7 @@
 import axios from 'axios'
 import type { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 import { message } from 'antd';
+import qs from 'qs';
 
 export interface RespI<T> {
   code: string;
@@ -14,6 +15,13 @@ const request: AxiosInstance = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  paramsSerializer: params => {
+    return qs.stringify(params, {
+      arrayFormat: 'repeat',  // 数组格式: ids=1&ids=2（而不是 ids[]=1）
+      skipNulls: true,         // 跳过 null 和 undefined 值
+      encode: true             // 确保特殊字符被正确编码
+    });
+  }
 })
 
 

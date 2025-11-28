@@ -1,40 +1,33 @@
 import { useState } from "react";
 import { Modal, Checkbox, Spin } from "antd";
 import { ProductIconRenderer } from "../icon/ProductIconRenderer";
+import type { IProductDetail } from "../../lib/apis";
 
-interface Model {
-  id: string;
-  name: string;
-  description: string;
-  category: string;
-  icon: string;
-  productCategories: string[]; // 产品分类 ID 数组
-}
 
 interface MultiModelSelectorProps {
-  currentModel: string;
+  currentModelId: string;
   excludeModels?: string[];
   onConfirm: (models: string[]) => void;
   onCancel: () => void;
-  modelList?: Model[];
+  modelList?: IProductDetail[];
   loading?: boolean;
 }
 
-export function MultiModelSelector({ currentModel, excludeModels = [], onConfirm, onCancel, modelList = [], loading = false }: MultiModelSelectorProps) {
+export function MultiModelSelector({ currentModelId, excludeModels = [], onConfirm, onCancel, modelList = [], loading = false }: MultiModelSelectorProps) {
   const [selectedModels, setSelectedModels] = useState<string[]>([]);
 
   // 过滤掉已排除的模型
-  const availableModels = modelList.filter(model => !excludeModels.includes(model.id));
+  const availableModels = modelList.filter(model => !excludeModels.includes(model.productId));
 
   // 根据模型ID获取模型名称
   const getModelName = (modelId: string) => {
-    const model = modelList.find(m => m.id === modelId);
+    const model = modelList.find(m => m.productId === modelId);
     return model ? model.name : modelId;
   };
 
   const handleToggleModel = (modelId: string) => {
     // 当前模型不能被取消选择
-    if (modelId === currentModel) return;
+    if (modelId === currentModelId) return;
 
     setSelectedModels((prev) => {
       if (prev.includes(modelId)) {
@@ -92,7 +85,7 @@ export function MultiModelSelector({ currentModel, excludeModels = [], onConfirm
             </>
           ) : (
             <>
-              当前模型：<span className="font-medium text-colorPrimary">{getModelName(currentModel)}</span>
+              当前模型：<span className="font-medium text-colorPrimary">{getModelName(currentModelId)}</span>
               {" "}| 再选择 1-2 个模型（已选 {selectedModels.length}/2）
             </>
           )}
@@ -105,14 +98,14 @@ export function MultiModelSelector({ currentModel, excludeModels = [], onConfirm
         ) : (
           <div className="space-y-2 max-h-[400px] overflow-y-auto">
             {availableModels.map((model) => {
-              const isCurrentModel = model.id === currentModel && excludeModels.length === 0;
-              const isSelected = selectedModels.includes(model.id);
+              const isCurrentModel = model.productId === currentModelId && excludeModels.length === 0;
+              const isSelected = selectedModels.includes(model.productId);
               const isDisabled = !isCurrentModel && !isSelected && selectedModels.length >= maxSelectable;
 
               return (
                 <div
-                  key={model.id}
-                  onClick={() => !isDisabled && handleToggleModel(model.id)}
+                  key={model.productId}
+                  onClick={() => !isDisabled && handleToggleModel(model.productId)}
                   className={`
                     px-4 py-3 rounded-xl border transition-all duration-200
                     ${
@@ -135,12 +128,12 @@ export function MultiModelSelector({ currentModel, excludeModels = [], onConfirm
                       <Checkbox
                         checked={isSelected}
                         disabled={isDisabled}
-                        onChange={() => handleToggleModel(model.id)}
+                        onChange={() => handleToggleModel(model.productId)}
                         onClick={(e) => e.stopPropagation()}
                       />
                     )}
 
-                    <ProductIconRenderer iconType={model.icon} className="w-6 h-6" />
+                    <ProductIconRenderer iconType={model.icon?.type} className="w-6 h-6" />
 
                     <div className="flex-1 min-w-0">
                       <div className="font-semibold text-gray-900 mb-0.5">{model.name}</div>

@@ -24,6 +24,8 @@ import com.alibaba.apiopenplatform.dto.result.common.PageResult;
 import com.alibaba.apiopenplatform.dto.result.portal.PortalResult;
 import com.alibaba.apiopenplatform.dto.params.consumer.QuerySubscriptionParam;
 import com.alibaba.apiopenplatform.dto.result.product.SubscriptionResult;
+import com.alibaba.apiopenplatform.support.enums.SearchEngineType;
+import com.alibaba.apiopenplatform.support.portal.SearchEngineConfig;
 import org.springframework.data.domain.Pageable;
 
 public interface PortalService {
@@ -125,4 +127,25 @@ public interface PortalService {
      * @return Dashboard URL
      */
     String getDashboard(String portalId);
+
+    // ========== 搜索引擎配置查询 ==========
+
+    /**
+     * 根据引擎类型获取 API Key（供搜索功能使用）
+     * 核心方法：TalkSearchAbilityServiceGoogleImpl 将调用此方法
+     *
+     * @param portalId   Portal ID
+     * @param engineType 搜索引擎类型
+     * @return API Key（自动解密）
+     * @throws com.alibaba.apiopenplatform.core.exception.BusinessException 如果未配置搜索引擎或搜索引擎未启用
+     */
+    String getSearchEngineApiKey(String portalId, SearchEngineType engineType);
+
+    /**
+     * 获取 Portal 的搜索引擎配置（供开发者查询）
+     *
+     * @param portalId Portal ID
+     * @return 搜索引擎配置，如果未配置则返回 null
+     */
+    SearchEngineConfig getSearchEngineConfig(String portalId);
 }
