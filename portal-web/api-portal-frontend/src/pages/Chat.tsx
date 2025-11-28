@@ -211,7 +211,7 @@ function Chat() {
                 })
               })
             },
-            onComplete: (content, _chatId, usage) => {
+            onComplete: (_content, _chatId, usage) => {
               setModelConversation((prev) => {
                 return prev.map(model => {
                   if (model.id !== modelId) return model;
