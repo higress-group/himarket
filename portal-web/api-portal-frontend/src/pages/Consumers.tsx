@@ -24,6 +24,7 @@ function ConsumersPage() {
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [addLoading, setAddLoading] = useState(false);
   const [addForm, setAddForm] = useState({ name: '', description: '' });
+  const [refreshIndex, setRefreshIndex] = useState(0);
 
   const fetchConsumers = useCallback(async (searchKeyword?: string, targetPage?: number) => {
     setLoading(true);
@@ -39,7 +40,7 @@ function ConsumersPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize]); // 不依赖 searchName
+  }, [page, pageSize, refreshIndex]); // 不依赖 searchName
 
   // 初始加载和分页变化时调用
   useEffect(() => {
@@ -172,7 +173,7 @@ function ConsumersPage() {
               />
             </div>
             <div>
-              <Button className="rounded-lg" icon={<ReloadOutlined />} />
+              <Button className="rounded-lg" icon={<ReloadOutlined />} onClick={() => setRefreshIndex(v => v + 1)} />
             </div>
           </div>
 

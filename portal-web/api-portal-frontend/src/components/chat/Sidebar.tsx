@@ -16,7 +16,7 @@ import "./Sidebar.css";
 import APIs, { type ISession } from "../../lib/apis";
 
 interface SidebarProps {
-  currentSessionId: string | null;
+  currentSessionId?: string;
   onNewChat: () => void;
   onSelectSession?: (sessionId: string, productIds: string[]) => void;
   refreshTrigger?: number; // 添加刷新触发器
@@ -263,7 +263,7 @@ export function Sidebar({ currentSessionId, onNewChat, onSelectSession, refreshT
         </div>
         <div
           className={`
-            overflow-hidden transition-all duration-300 ease-in-out
+            overflow-auto transition-all duration-300 ease-in-out
             ${expandedSections[sectionKey] ? "max-h-[500px] opacity-100 mt-1" : "max-h-0 opacity-0"}
           `}
         >
@@ -372,7 +372,7 @@ export function Sidebar({ currentSessionId, onNewChat, onSelectSession, refreshT
   return (
     <div
       className={`
-        bg-white/40 backdrop-blur-xl rounded-lg flex flex-col m-4 mr-0 mb-0
+        bg-white/40 backdrop-blur-xl rounded-lg flex flex-col ml-4
         transition-all duration-300 ease-in-out
         ${isCollapsed ? "w-16" : "w-64"}
       `}

@@ -376,7 +376,11 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
                           {currentSource === 'Default' ? 'Authorization: Bearer <token>' : `${currentSource}：${currentKey}`}
                         </Text>
                       </div>
-                      <Button className="text-colorPrimary ml-2" type="text" size="small" icon={<EditOutlined />} onClick={openSourceModal}>
+                      <Button
+                        className="text-colorPrimary hover:text-colorPrimarySecondary ml-2"
+                        size="small" type="text" icon={<EditOutlined />}
+                        onClick={openSourceModal}
+                      >
                         编辑
                       </Button>
                     </div>
@@ -620,7 +624,7 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
                 const nextKey = value === 'Default' ? 'Authorization' : '';
                 sourceForm.setFieldsValue({ key: nextKey });
               }}
-              style={{ width: '100%' }}
+              className="w-full rounded-lg"
             >
               <Select.Option value="Header">Header</Select.Option>
               <Select.Option value="QueryString">QueryString</Select.Option>
@@ -645,7 +649,7 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
                     },
                   ]}
                 >
-                  <Input placeholder="请输入键名" />
+                  <Input className="rounded-lg" placeholder="请输入键名" />
                 </Form.Item>
               ) : null
             }
