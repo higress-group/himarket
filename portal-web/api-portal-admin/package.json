@@ -13,9 +13,11 @@
     "serve-live": "npx live-server dist --port=3000 --entry-file=index.html"
   },
   "dependencies": {
-    "@babel/runtime": "^8.0.0-alpha.17",
+    "@babel/runtime": "^7.24.0",
     "antd": "^5.15.7",
     "axios": "^1.7.9",
+    "dayjs": "^1.11.10",
+    "echarts": "^5.5.0",
     "clsx": "^2.1.1",
     "helmet": "^7.1.0",
     "js-yaml": "^4.1.0",
@@ -33,7 +35,7 @@
     "terser": "^5.43.1"
   },
   "resolutions": {
-    "@babel/runtime": "^8.0.0-alpha.17"
+    "@babel/runtime": "^7.24.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.30.1",

@@ -9,6 +9,8 @@ import NacosConsoles from '@/pages/NacosConsoles';
 import PortalDetail from '@/pages/PortalDetail';
 import ApiProductDetail from '@/pages/ApiProductDetail';
 import Login from '@/pages/Login';
+import ModelDashboard from '@/pages/ModelDashboard';
+import McpMonitor from '@/pages/McpMonitor';
 
 export const router = createBrowserRouter([
   {
@@ -58,6 +60,18 @@ export const router = createBrowserRouter([
       {
         path: 'consoles/nacos',
         element: <NacosConsoles />,
+      },
+      {
+        path: 'observability',
+        element: <Navigate to="/observability/model-dashboard" replace />,
+      },
+      {
+        path: 'observability/model-dashboard',
+        element: <ModelDashboard />,
+      },
+      {
+        path: 'observability/mcp-monitor',
+        element: <McpMonitor />,
       },
       {
         path: '*',

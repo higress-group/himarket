@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
-import { GlobalOutlined, AppstoreOutlined, DesktopOutlined, UserOutlined, MenuOutlined, SettingOutlined, FolderOutlined } from '@ant-design/icons'
+import { GlobalOutlined, AppstoreOutlined, DesktopOutlined, UserOutlined, MenuOutlined, SettingOutlined, FolderOutlined, BarChartOutlined, DashboardOutlined, MonitorOutlined } from '@ant-design/icons'
 import { Button } from 'antd'
 import { isAuthenticated, removeToken } from '../lib/utils'
 
@@ -55,6 +55,16 @@ const Layout: React.FC = () => {
       children: [
         { name: 'Nacos实例', cn: 'Nacos实例', href: '/consoles/nacos', icon: DesktopOutlined },
         { name: '网关实例', cn: '网关实例', href: '/consoles/gateway', icon: DesktopOutlined },
+      ]
+    },
+    {
+      name: '观测分析',
+      cn: '观测分析',
+      href: '/observability',
+      icon: BarChartOutlined,
+      children: [
+        { name: '模型监控', cn: '模型监控', href: '/observability/model-dashboard', icon: DashboardOutlined },
+        { name: 'MCP监控', cn: 'MCP监控', href: '/observability/mcp-monitor', icon: MonitorOutlined },
       ]
     },
   ]
