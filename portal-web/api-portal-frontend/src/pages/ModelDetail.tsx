@@ -11,14 +11,12 @@ import {
   Select,
   Spin,
 } from "antd";
-import { CopyOutlined, BulbOutlined, ArrowLeftOutlined } from "@ant-design/icons";
-import ReactMarkdown from "react-markdown";
+import { CopyOutlined, ArrowLeftOutlined, MessageOutlined, ThunderboltOutlined } from "@ant-design/icons";
 import { ProductType } from "../types";
-import remarkGfm from 'remark-gfm';
-import styles from './ModelDetail.module.css';
 import type { IProductDetail } from "../lib/apis";
 import type { IModelConfig, IRoute } from "../lib/apis/typing";
 import APIs from "../lib/apis";
+import MarkdownRender from "../components/MarkdownRender";
 
 const { Panel } = Collapse;
 
@@ -50,7 +48,7 @@ function ModelDetail() {
       setLoading(true);
       setError("");
       try {
-        const response = await APIs.getProduct({id: modelProductId});
+        const response = await APIs.getProduct({ id: modelProductId });
         if (response.code === "SUCCESS" && response.data) {
           setData(response.data);
 
@@ -273,22 +271,20 @@ function ModelDetail() {
       </div>
 
       {/* 主要内容区域 */}
-      <div className="flex gap-6">
+      <div className="flex gap-6 pb-6">
         {/* 左侧内容 */}
         <div className="flex-1">
-          <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-6">
+          <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-6 pt-0">
             <Tabs
+              size="large"
               defaultActiveKey="overview"
-              className="model-detail-tabs"
               items={[
                 {
                   key: "overview",
                   label: "概览",
                   children: data?.document ? (
-                    <div className="min-h-[400px]">
-                      <div className={styles.markdown}>
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{data.document}</ReactMarkdown>
-                      </div>
+                    <div className="min-h-[400px] prose prose-lg">
+                      <MarkdownRender content={data.document} />
                     </div>
                   ) : (
                     <div className="text-gray-500 text-center py-16">
@@ -304,15 +300,15 @@ function ModelDetail() {
                       {/* 基本信息 */}
                       <div className="grid grid-cols-2 gap-4">
                         {modelConfig.modelAPIConfig.modelCategory && (
-                          <div className="p-4 bg-gray-50 rounded-xl">
-                            <div className="text-xs text-gray-500 mb-1">适用场景</div>
+                          <div className="bg-gray-50 rounded-xl">
+                            <div className="text-sm text-gray-500 mb-1">适用场景</div>
                             <div className="text-sm font-medium text-gray-900">
                               {getModelCategoryText(modelConfig.modelAPIConfig.modelCategory)}
                             </div>
                           </div>
                         )}
-                        <div className="p-4 bg-gray-50 rounded-xl">
-                          <div className="text-xs text-gray-500 mb-1">协议</div>
+                        <div className="bg-gray-50 rounded-xl">
+                          <div className="text-sm text-gray-500 mb-1">协议</div>
                           <div className="text-sm font-medium text-gray-900">
                             {modelConfig.modelAPIConfig.aiProtocols?.join(', ') || 'DashScope'}
                           </div>
@@ -335,7 +331,6 @@ function ModelDetail() {
                                   className="flex-1"
                                   placeholder="选择域名"
                                   size="middle"
-                                  bordered={false}
                                 >
                                   {modelDomainOptions.map((option) => (
                                     <Select.Option key={option.value} value={option.value}>
@@ -467,19 +462,53 @@ function ModelDetail() {
         {/* 右侧内容 - Model调试 */}
         <div className="w-96">
           <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-6">
-            <h3 className="text-base font-semibold mb-4 text-gray-900">Model 调试</h3>
+            <h3 className="text-base font-semibold mb-2 text-gray-900">Model 调试</h3>
             <Tabs
               defaultActiveKey="chat"
-              className="model-debug-tabs"
               items={[
                 {
                   key: "chat",
                   label: "Chat",
                   children: (
-                    <div className="flex flex-col items-center justify-center py-16 text-center">
-                      <BulbOutlined className="text-4xl text-gray-300 mb-4" />
-                      <p className="text-gray-500 mb-2">Chat 调试</p>
-                      <p className="text-sm text-gray-400">🚀 敬请期待</p>
+                    <div className="space-y-4">
+                      {/* 功能介绍 */}
+                      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
+                        <div className="flex items-start gap-3 mb-3">
+                          <MessageOutlined className="text-xl text-blue-600 mt-0.5" />
+                          <div>
+                            <h4 className="text-sm font-semibold text-gray-900 mb-1">实时对话测试</h4>
+                            <p className="text-xs text-gray-600 leading-relaxed">
+                              在交互式环境中测试模型能力，支持多轮对话、实时响应
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 功能特性 */}
+                      <div className="space-y-2">
+                        <div className="flex items-start gap-2 text-xs text-gray-600">
+                          <ThunderboltOutlined className="text-amber-500 mt-0.5" />
+                          <span>支持流式输出，实时查看生成结果</span>
+                        </div>
+                        <div className="flex items-start gap-2 text-xs text-gray-600">
+                          <MessageOutlined className="text-blue-500 mt-0.5" />
+                          <span>保存对话历史，支持多轮交互测试</span>
+                        </div>
+                      </div>
+
+                      {/* 操作按钮 */}
+                      <Button
+                        type="primary"
+                        block
+                        size="large"
+                        icon={<MessageOutlined />}
+                        className="rounded-lg mt-4"
+                        onClick={() => {
+                          navigate("/chat", { state: { selectedProduct: data } });
+                        }}
+                      >
+                        开始对话测试
+                      </Button>
                     </div>
                   ),
                 },

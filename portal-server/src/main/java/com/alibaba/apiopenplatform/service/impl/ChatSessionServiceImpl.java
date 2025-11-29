@@ -257,7 +257,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
                     
                     return ProductConversationResult.builder()
                             .productId(productId)
-                            .conversationResults(buildProductConversations(productChats))
+                            .conversations(buildProductConversations(productChats))
                             .build();
                 })
                 .collect(Collectors.toList());

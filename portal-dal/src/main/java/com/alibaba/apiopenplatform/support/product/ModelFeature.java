@@ -42,5 +42,7 @@ public class ModelFeature {
      * Enable streaming response
      */
     private Boolean streaming;
+    
+    private Boolean webSearch=true;
 }
 

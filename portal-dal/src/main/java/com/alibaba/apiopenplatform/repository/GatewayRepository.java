@@ -29,5 +29,7 @@ public interface GatewayRepository extends BaseRepository<Gateway, Long> {
 
     Optional<Gateway> findByGatewayId(String gatewayId);
 
+    Optional<Gateway> findByGatewayName(String gatewayName);
+
     Page<Gateway> findByAdminId(String adminId, Pageable pageable);
 }

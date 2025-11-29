@@ -11,6 +11,9 @@ spring:
     properties:
       hibernate:
         format_sql: true
+  ai:
+    openai:
+      api-key: sk-1234567890
 
 db:
    host: ${DB_HOST:localhost}

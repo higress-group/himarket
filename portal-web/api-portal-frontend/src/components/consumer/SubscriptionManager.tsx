@@ -10,6 +10,7 @@ import {
 } from "antd";
 import {
   PlusOutlined,
+  ReloadOutlined,
 } from "@ant-design/icons";
 import api from "../../lib/api";
 import type { Subscription } from "../../types/consumer";
@@ -24,10 +25,11 @@ interface SubscriptionManagerProps {
   consumerId: string;
   subscriptions: ISubscription[];
   onSubscriptionsChange: (searchParams?: { productName: string; status: string }) => void;
+  onRefresh: () => void;
   loading?: boolean;
 }
 
-export function SubscriptionManager({ consumerId, subscriptions, onSubscriptionsChange, loading = false }: SubscriptionManagerProps) {
+export function SubscriptionManager({ consumerId, subscriptions, onSubscriptionsChange, loading = false, onRefresh }: SubscriptionManagerProps) {
   const [productModalVisible, setProductModalVisible] = useState(false);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [productLoading, setProductLoading] = useState(false);
@@ -210,20 +212,23 @@ export function SubscriptionManager({ consumerId, subscriptions, onSubscriptions
     <>
       <div className="bg-white">
         {/* 搜索框和订阅按钮在同一行 */}
-        <div className="mb-4 flex items-start gap-4">
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={openProductModal}
-            className="rounded-lg"
-          >
-            订阅
-          </Button>
-          <AdvancedSearch
-            searchParamsList={searchParamsList}
-            onSearch={handleAdvancedSearch}
-            onClear={handleClearAllSearch}
-          />
+        <div className="mb-4 flex justify-between">
+          <div className="flex items-center gap-4">
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={openProductModal}
+              className="rounded-lg"
+            >
+              订阅
+            </Button>
+            <AdvancedSearch
+              searchParamsList={searchParamsList}
+              onSearch={handleAdvancedSearch}
+              onClear={handleClearAllSearch}
+            />
+          </div>
+          <Button onClick={onRefresh} className="rounded-lg" icon={<ReloadOutlined />} />
         </div>
         <div className="border border-[#e5e5e5] rounded-lg overflow-hidden">
           <Table

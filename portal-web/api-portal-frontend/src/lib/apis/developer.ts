@@ -26,7 +26,23 @@ interface OidcCallbackParams {
   state: string;
 }
 
+interface IDeveloperInfo {
+  username: string;
+  email: string;
+  createdAt: string;
+  avatarUrl?: string
+}
+
 // ============ API 函数 ============
+
+/**
+ * 获取用户登陆信息
+ */
+export function getDeveloperInfo() {
+  return request.get<RespI<IDeveloperInfo>, RespI<IDeveloperInfo>>(
+    '/developers/profile'
+  );
+}
 
 /**
  * 获取 OIDC 提供商列表

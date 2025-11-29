@@ -1,16 +1,16 @@
 import { Link, useLocation } from "react-router-dom";
 import { UserInfo } from "./UserInfo";
-import LogoIcon from "./icon/logo";
+import { Himarket, Logo } from "./icon";
 
 
 export function Header() {
   const location = useLocation();
 
   const tabs = [
-    { path: "/model", label: "模型" },
+    { path: "/models", label: "模型" },
     { path: "/mcp", label: "MCP" },
-    { path: "/agent", label: "智能体" },
-    { path: "/api", label: "API" },
+    { path: "/agents", label: "智能体" },
+    { path: "/apis", label: "API" },
     { path: "/chat", label: "体验中心" },
   ];
 
@@ -26,9 +26,9 @@ export function Header() {
             <Link to="/" className="flex items-center space-x-2 hover:opacity-80 transition-all duration-300">
               <div className="w-8 h-8 rounded-full flex items-center justify-center">
                 {/* LOGO区域 */}
-                <LogoIcon className="w-6 h-6" />
+                <Logo className="w-6 h-6" />
               </div>
-              <span className="text-xl text-gray-900">HiMarket</span>
+              <Himarket />
             </Link>
             <div className="h-6 w-[1px] bg-gray-200 mx-5"></div>
             {/* Tab 区域 */}
@@ -39,10 +39,9 @@ export function Header() {
                     className={`
                       px-4 py-1.5 rounded-full
                       transition-all duration-300 ease-in-out
-                      ${
-                        isActiveTab(tab.path)
-                          ? "bg-white text-gray-900 font-medium shadow-sm scale-[1.02]"
-                          : "text-gray-600 hover:bg-white/60 hover:text-gray-900 hover:shadow-sm hover:scale-[1.02]"
+                      ${isActiveTab(tab.path)
+                        ? "bg-white text-gray-900 font-medium shadow-sm scale-[1.02]"
+                        : "text-gray-600 hover:bg-white/60 hover:text-gray-900 hover:shadow-sm hover:scale-[1.02]"
                       }
                     `}
                   >
@@ -53,7 +52,11 @@ export function Header() {
             </div>
           </div>
           <div className="flex items-center space-x-4">
-            <UserInfo />
+            {
+              location.pathname !== "/login" && location.pathname !== "/register" && (
+                <UserInfo />
+              )
+            }
           </div>
         </div>
       </div>
