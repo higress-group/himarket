@@ -9,8 +9,6 @@ import org.springframework.context.annotation.Configuration;
 /**
  * SLS日志服务配置
  *
- * @author jingfeng.xjf
- * @date 2025/11/08
  */
 @Data
 @Configuration

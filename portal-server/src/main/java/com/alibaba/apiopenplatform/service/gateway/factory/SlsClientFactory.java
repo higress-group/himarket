@@ -21,8 +21,6 @@ import org.springframework.util.StringUtils;
 /**
  * SLS客户端工厂，根据配置文件自动选择STS或AK/SK认证方式
  *
- * @author jingfeng.xjf
- * @date 2025/11/08
  */
 @Component
 @Slf4j

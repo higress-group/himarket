@@ -11,8 +11,6 @@ import lombok.Data;
 /**
  * SLS通用SQL查询请求
  *
- * @author jingfeng.xjf
- * @date 2025/11/19
  */
 @Data
 @JsonInclude(JsonInclude.Include.NON_NULL)

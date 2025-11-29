@@ -8,7 +8,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -51,8 +50,6 @@ import org.springframework.util.StringUtils;
 /**
  * 通用SLS日志查询服务实现
  *
- * @author jingfeng.xjf
- * @date 2025/11/29
  */
 @Service
 @Slf4j

@@ -10,8 +10,6 @@ import lombok.Data;
 /**
  * 通用SLS日志查询请求
  *
- * @author jingfeng.xjf
- * @date 2025/11/08
  */
 @Data
 @JsonInclude(JsonInclude.Include.NON_NULL)

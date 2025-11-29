@@ -10,8 +10,6 @@ import com.alibaba.apiopenplatform.dto.params.sls.SlsCommonQueryRequest;
  * 通用SLS日志查询服务
  * 支持多种认证方式和场景化查询
  *
- * @author jingfeng.xjf
- * @date 2025/11/08
  */
 public interface SlsLogService {
 

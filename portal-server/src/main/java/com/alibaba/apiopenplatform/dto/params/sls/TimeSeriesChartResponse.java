@@ -13,8 +13,6 @@ import lombok.NoArgsConstructor;
  * 时序图表数据响应
  * 用于前端时序图表渲染
  *
- * @author jingfeng.xjf
- * @date 2025/11/08
  */
 @Data
 @Builder

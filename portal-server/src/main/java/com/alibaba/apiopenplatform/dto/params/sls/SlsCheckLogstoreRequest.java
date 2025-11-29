@@ -7,8 +7,6 @@ import lombok.Data;
 /**
  * SLS检查Logstore是否存在请求
  *
- * @author jingfeng.xjf
- * @date 2025/11/19
  */
 @Data
 @JsonInclude(JsonInclude.Include.NON_NULL)

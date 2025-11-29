@@ -12,8 +12,6 @@ import lombok.NoArgsConstructor;
 /**
  * 通用SLS查询响应
  *
- * @author jingfeng.xjf
- * @date 2025/11/08
  */
 @Data
 @Builder
