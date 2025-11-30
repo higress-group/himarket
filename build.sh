@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION=1.0.0
+VERSION=ai-playground
 
 set -e
 
@@ -22,7 +22,7 @@ cd ..
 cd portal-web/api-portal-frontend
 echo "=== Building frontend ==="
 rm -rf ./dist
-npm install --force
+tnpm install --force
 npm run build
 docker buildx build \
     -t himarket-frontend:$VERSION \
@@ -33,7 +33,7 @@ docker buildx build \
 cd ../api-portal-admin
 echo "=== Building admin ==="
 rm -rf ./dist
-npm install --force
+tnpm install --force
 npm run build
 docker buildx build \
     -t himarket-admin:$VERSION \
