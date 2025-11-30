@@ -7,14 +7,12 @@ import {
   EyeOutlined,
   LinkOutlined,
   BookOutlined,
-  GlobalOutlined,
-  DashboardOutlined
+  GlobalOutlined
 } from '@ant-design/icons'
 import { ApiProductOverview } from '@/components/api-product/ApiProductOverview'
 import { ApiProductLinkApi } from '@/components/api-product/ApiProductLinkApi'
 import { ApiProductUsageGuide } from '@/components/api-product/ApiProductUsageGuide'
 import { ApiProductPortal } from '@/components/api-product/ApiProductPortal'
-import { ApiProductDashboard } from '@/components/api-product/ApiProductDashboard'
 import { apiProductApi } from '@/lib/api';
 import type { ApiProduct, LinkedService } from '@/types/api-product';
 
@@ -44,12 +42,6 @@ const menuItems = [
     label: "Portal",
     description: "发布的门户",
     icon: GlobalOutlined
-  },
-  {
-    key: "dashboard",
-    label: "Dashboard",
-    description: "实时监控和统计",
-    icon: DashboardOutlined
   }
 ]
 
@@ -135,8 +127,6 @@ export default function ApiProductDetail() {
         return <ApiProductUsageGuide apiProduct={apiProduct} handleRefresh={fetchApiProduct} />
       case "portal":
         return <ApiProductPortal apiProduct={apiProduct} />
-      case "dashboard":
-        return <ApiProductDashboard apiProduct={apiProduct} />
       default:
         return <ApiProductOverview apiProduct={apiProduct} linkedService={linkedService} onEdit={handleEdit} />
     }
