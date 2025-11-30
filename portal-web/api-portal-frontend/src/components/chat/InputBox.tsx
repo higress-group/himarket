@@ -1,14 +1,20 @@
 import { useState } from "react";
 import { SendOutlined } from "@ant-design/icons";
 import SendButton from "../send-button";
-// import { Mcp } from "../icon";
+import { Mcp } from "../icon";
 
 interface InputBoxProps {
   onSendMessage: (content: string) => void;
   isLoading?: boolean;
+  mcpEnabled?: boolean
+  onMcpClick?: () => void
 }
 
-export function InputBox({ onSendMessage, isLoading = false }: InputBoxProps) {
+export function InputBox(props: InputBoxProps) {
+  const {
+    onSendMessage, isLoading = false, mcpEnabled = false,
+    onMcpClick
+  } = props;
   const [input, setInput] = useState("");
 
   const handleSend = () => {
@@ -47,8 +53,10 @@ export function InputBox({ onSendMessage, isLoading = false }: InputBoxProps) {
       <div
         className="absolute bottom-5 flex justify-between w-full px-6 left-0"
       >
-        {/* <Mcp className="fill-colorPrimary w-4 h-4" /> */}
-        <div></div>
+        <ToolButton onClick={onMcpClick} enabled={mcpEnabled}>
+          <Mcp className={`w-4 h-4 ${mcpEnabled ? "text-colorPrimary" : "fill-subTitle"}`} />
+          <span className="text-sm text-subTitle">MCP</span>
+        </ToolButton>
         <SendButton
           className={`w-9 h-9 ${input.trim() && !isLoading
             ? "bg-colorPrimary text-white hover:opacity-90"
@@ -62,4 +70,15 @@ export function InputBox({ onSendMessage, isLoading = false }: InputBoxProps) {
       </div>
     </div>
   );
+}
+
+function ToolButton({ enabled, children, onClick }: { enabled: boolean; children: React.ReactNode, onClick?: () => void }) {
+  return (
+    <div
+      onClick={onClick}
+      className={`flex gap-2 items-center justify-center px-2 rounded-md cursor-pointer ${enabled ? "bg-colorPrimaryBgHover" : ""} hover:bg-colorPrimaryBgHover transition-all ease-linear duration-200`}
+    >
+      {children}
+    </div>
+  )
 }

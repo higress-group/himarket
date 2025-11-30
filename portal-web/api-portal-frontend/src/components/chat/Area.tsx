@@ -1,13 +1,15 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { CloseOutlined, PlusOutlined } from "@ant-design/icons";
 import { ModelSelector } from "./ModelSelector";
 import { Messages } from "./Messages";
 import { InputBox } from "./InputBox";
 import { SuggestedQuestions } from "./SuggestedQuestions";
 import { MultiModelSelector } from "./MultiModelSelector";
-import type { ICategory, IProductDetail } from "../../lib/apis";
-import APIs from "../../lib/apis";
+import type { IProductDetail } from "../../lib/apis";
 import type { IModelConversation } from "../../types";
+import McpModal from "./McpModal";
+import useProducts from "../../hooks/useProducts";
+import useCategories from "../../hooks/useCategories";
 
 
 interface ChatAreaProps {
@@ -38,36 +40,25 @@ export function ChatArea(props: ChatAreaProps) {
 
   const isCompareMode = modelConversations.length > 1;
 
+  const { data: mcpList, get: getMcpList } = useProducts({ type: "MCP_SERVER" });
+  const { data: modelList, get: getModels } = useProducts({ type: "MODEL_API" });
+  const { data: categories, get: getCategories } = useCategories({ type: "MODEL_API", addAll: true });
+  const { data: mcpCategories, get: getMcpCategories } = useCategories({ type: "MCP_SERVER", addAll: true });
 
-  const [modelList, setModelList] = useState<IProductDetail[]>([]);
-
-  const [categories, setCategories] = useState<ICategory[]>([]);
 
   const [showModelSelector, setShowModelSelector] = useState(false);
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
+  const [showMcpModal, setShowMcpModal] = useState(false);
 
-  useEffect(() => {
-    APIs.getProducts({ type: "MODEL_API" }).then(res => {
-      if (res.data?.content) {
-        setModelList(res.data.content);
-      }
-    });
 
-    APIs.getCategoriesByProductType({ productType: "MODEL_API" }).then(res => {
-      if (res.data?.content) {
-        setCategories([
-          {
-            categoryId: "all",
-            name: "全部",
-            description: "",
-            createAt: "",
-            updatedAt: "",
-          },
-          ...res.data.content
-        ]);
-      }
-    });
+  const handleMcpFilter = useCallback((id: string) => {
+
   }, [])
+
+  const toggleMcpModal = useCallback(() => {
+    console.log('asd...')
+    setShowMcpModal(v => !v);
+  }, []);
 
   const handleToggleCompare = () => {
     setShowModelSelector(true);
@@ -248,11 +239,13 @@ export function ChatArea(props: ChatAreaProps) {
 
               {/* 输入框 */}
               <div className="mb-8">
-                <InputBox onSendMessage={(c) => {
-                  setAutoScrollEnabled(true);
-                  onSendMessage(c)
-                }}
+                <InputBox
+                  onSendMessage={(c) => {
+                    setAutoScrollEnabled(true);
+                    onSendMessage(c)
+                  }}
                   isLoading={generating}
+                  onMcpClick={toggleMcpModal}
                 />
               </div>
 
@@ -268,6 +261,7 @@ export function ChatArea(props: ChatAreaProps) {
           <div className="p-4 pb-0">
             <div className="max-w-3xl mx-auto">
               <InputBox
+                onMcpClick={toggleMcpModal}
                 onSendMessage={(c) => {
                   setAutoScrollEnabled(true);
                   onSendMessage(c);
@@ -278,6 +272,12 @@ export function ChatArea(props: ChatAreaProps) {
           </div>
         )
       }
+      <McpModal
+        open={showMcpModal}
+        categories={mcpCategories}
+        data={mcpList}
+        onFilter={handleMcpFilter}
+      />
     </div>
   );
 }

@@ -126,7 +126,7 @@ export function ModelSelector({
   return (
     <>
       {/* 顶部模型选择器 */}
-      <div className="p-4">
+      <div className="p-4 pr-0">
         <Dropdown
           open={isOpen}
           onOpenChange={setIsOpen}
