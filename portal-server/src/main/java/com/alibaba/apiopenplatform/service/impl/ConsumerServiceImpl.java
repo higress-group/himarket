@@ -628,13 +628,62 @@ public class ConsumerServiceImpl implements ConsumerService {
 
     @Override
     public CredentialContext getDefaultCredential(String developerId) {
+        try {
+            // 复用 getPrimaryConsumer 逻辑（会自动初始化 primary）
+            ConsumerResult consumer = getPrimaryConsumer();
+
+            return credentialRepository
+                    .findByConsumerId(consumer.getConsumerId())
+                    .map(this::buildAuthInfo)
+                    .orElseGet(() -> {
+                        log.debug("No credential found for consumer: {}", consumer.getConsumerId());
+                        return CredentialContext.builder().build();
+                    });
+        } catch (BusinessException e) {
+            log.debug("No consumer found for developer: {}", developerId);
+            return CredentialContext.builder().build();
+        }
+    }
+
+    @Override
+    @Transactional
+    public void setPrimaryConsumer(String consumerId) {
+        String developerId = contextHolder.getUser();
+        Consumer consumer = findDevConsumer(developerId);
+
+        // Return if consumer is already primary
+        if (BooleanUtil.isTrue(consumer.getIsPrimary())) {
+            log.debug("Consumer already primary: consumerId={}", consumerId);
+            return;
+        }
+
+        // Clear primary consumer for the developer
+        consumerRepository.clearPrimary(developerId);
+
+        consumer.setIsPrimary(true);
+        consumerRepository.save(consumer);
+    }
+
+    @Override
+    public ConsumerResult getPrimaryConsumer() {
+        String developerId = contextHolder.getUser();
         return consumerRepository
-                .findFirstByDeveloperId(developerId, Sort.by(Sort.Direction.ASC, "createAt"))
-                .flatMap(consumer -> credentialRepository.findByConsumerId(consumer.getConsumerId()))
-                .map(this::buildAuthInfo)
+                .findByDeveloperIdAndIsPrimary(developerId, true)
+                .map(consumer -> {
+                    log.debug("Found existing primary consumer: developerId={}, consumerId={}",
+                            developerId, consumer.getConsumerId());
+                    return new ConsumerResult().convertFrom(consumer);
+                })
+                // If no primary consumer found, set the first consumer as primary
                 .orElseGet(() -> {
-                    log.debug("No credential found for developer: {}", developerId);
-                    return CredentialContext.builder().build();
+                    Consumer firstConsumer = consumerRepository
+                            .findFirstByDeveloperId(developerId, Sort.by(Sort.Direction.ASC, "createAt"))
+                            .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_REQUEST, "No consumer found for developer: " + developerId));
+
+                    firstConsumer.setIsPrimary(true);
+                    consumerRepository.save(firstConsumer);
+
+                    return new ConsumerResult().convertFrom(firstConsumer);
                 });
     }
 
@@ -677,6 +726,7 @@ public class ConsumerServiceImpl implements ConsumerService {
         }
         
         return CredentialContext.builder()
+                .apiKey(apiKey)
                 .headers(headers)
                 .queryParams(queryParams)
                 .build();

@@ -23,6 +23,9 @@ import com.alibaba.apiopenplatform.entity.Consumer;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.Collection;
 import java.util.List;
@@ -47,4 +50,15 @@ public interface ConsumerRepository extends BaseRepository<Consumer, Long> {
     List<Consumer> findByConsumerIdIn(Collection<String> consumerIds);
 
     Optional<Consumer> findFirstByDeveloperId(String developerId, Sort sort);
+
+    Optional<Consumer> findByDeveloperIdAndIsPrimary(String developerId, Boolean isPrimary);
+
+    /**
+     * Clear primary flag for all consumers under a developer
+     *
+     * @param developerId
+     */
+    @Modifying
+    @Query("UPDATE Consumer c SET c.isPrimary = NULL WHERE c.developerId = :developerId")
+    void clearPrimary(@Param("developerId") String developerId);
 }

@@ -85,5 +85,30 @@ PREPARE alterIfNotExists FROM @preparedStatement;
 EXECUTE alterIfNotExists;
 DEALLOCATE PREPARE alterIfNotExists;
 
+-- ========================================
+-- Add is_primary field to consumer table
+-- ========================================
+-- This field is used to mark the primary consumer for a developer
+-- NULL = not explicitly set (for backward compatibility with old data)
+-- TRUE = explicitly marked as primary
+-- Only one consumer per developer can be marked as primary
+SET @dbname = DATABASE();
+SET @tablename = 'consumer';
+SET @columnname = 'is_primary';
+SET @preparedStatement = (SELECT IF(
+  (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE
+      (TABLE_SCHEMA = @dbname)
+      AND (TABLE_NAME = @tablename)
+      AND (COLUMN_NAME = @columnname)
+  ) > 0,
+  'SELECT 1',
+  'ALTER TABLE `consumer` ADD COLUMN `is_primary` TINYINT(1) DEFAULT NULL'
+));
+PREPARE alterIfNotExists FROM @preparedStatement;
+EXECUTE alterIfNotExists;
+DEALLOCATE PREPARE alterIfNotExists;
+
 COMMIT;
 

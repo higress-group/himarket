@@ -136,4 +136,18 @@ public class ConsumerController {
     public SubscriptionResult approveSubscription(@PathVariable String consumerId, @PathVariable String productId) {
         return consumerService.approveSubscription(consumerId, productId);
     }
+
+    @Operation(summary = "设置Primary Consumer")
+    @PutMapping("/{consumerId}/primary")
+    @DeveloperAuth
+    public void setPrimaryConsumer(@PathVariable String consumerId) {
+        consumerService.setPrimaryConsumer(consumerId);
+    }
+
+    @Operation(summary = "获取Primary Consumer")
+    @GetMapping("/primary")
+    @DeveloperAuth
+    public ConsumerResult getPrimaryConsumer() {
+        return consumerService.getPrimaryConsumer();
+    }
 }
