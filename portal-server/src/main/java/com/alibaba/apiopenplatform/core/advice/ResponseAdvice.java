@@ -48,6 +48,7 @@ import java.lang.reflect.Method;
  * 以下情况不会被包装:
  * 1. 返回值已经是 {@link ResponseEntity}
  * 2. 返回值已经是 {@link Response}
+ * 3. ExceptionAdvice 已经处理的异常响应（避免二次包装）
  */
 @RestControllerAdvice
 @Slf4j
@@ -74,6 +75,11 @@ public class ResponseAdvice implements ResponseBodyAdvice<Object> {
     public Object beforeBodyWrite(Object body, MethodParameter returnType,
                                   MediaType selectedContentType, Class<? extends HttpMessageConverter<?>> selectedConverterType,
                                   ServerHttpRequest request, ServerHttpResponse response) {
+        // 如果body已经是Response对象，说明是ExceptionAdvice处理过的异常响应，直接返回，避免二次包装
+        if (body instanceof Response) {
+            return body;
+        }
+        
         // 设置成功响应码
         response.setStatusCode(HttpStatus.OK);
 

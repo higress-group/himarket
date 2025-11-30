@@ -52,6 +52,7 @@ public class ExceptionAdvice {
 
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<Response<Void>> handleBusinessException(BusinessException e) {
+        log.warn("[Business Exception] code: {}, message: {}", e.getCode(), e.getMessage());
         return ResponseEntity
                 .status(e.getStatus())
                 .body(Response.fail(e.getCode(), e.getMessage()));
@@ -62,7 +63,8 @@ public class ExceptionAdvice {
         String message = e.getBindingResult().getFieldErrors().stream()
                 .map(fieldError -> fieldError.getField() + ": " + fieldError.getDefaultMessage())
                 .collect(Collectors.joining("; "));
-        log.error("Validation failed", e);
+        // 参数校验失败属于用户行为，不打印堆栈
+        log.warn("[Validation Exception] invalid parameters: {}", message);
         return ResponseEntity
                 .status(ErrorCode.INVALID_PARAMETER.getStatus())
                 .body(Response.fail(ErrorCode.INVALID_PARAMETER.name(), message));
@@ -70,7 +72,10 @@ public class ExceptionAdvice {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Response<Void>> handleSystemException(Exception e) {
-        log.error("System error", e);
+        // 完整打印异常堆栈信息，包括异常类型、消息和堆栈跟踪
+        log.error("[System Exception] type: {}, message: {}", 
+                e.getClass().getSimpleName(), e.getMessage(), e);
+        
         return ResponseEntity
                 .status(ErrorCode.INTERNAL_ERROR.getStatus())
                 .body(Response.fail(
