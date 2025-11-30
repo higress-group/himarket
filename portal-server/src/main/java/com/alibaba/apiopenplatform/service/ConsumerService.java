@@ -151,9 +151,23 @@ public interface ConsumerService {
     /**
      * Get default credential authentication info for developer
      * Returns empty maps if consumer or credential not found
-     * 
+     *
      * @param developerId developer ID
      * @return credential authentication info (never null, but maps may be empty)
      */
     CredentialContext getDefaultCredential(String developerId);
+
+    /**
+     * Set primary consumer
+     *
+     * @param consumerId Consumer ID
+     */
+    void setPrimaryConsumer(String consumerId);
+
+    /**
+     * Obtain primary consumer
+     *
+     * @return ConsumerResult
+     */
+    ConsumerResult getPrimaryConsumer();
 }

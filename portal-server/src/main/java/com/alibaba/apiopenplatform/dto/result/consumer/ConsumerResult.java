@@ -34,5 +34,7 @@ public class ConsumerResult implements OutputConverter<ConsumerResult, Consumer>
 
     private String description;
 
+    private Boolean isPrimary;
+
     private LocalDateTime createAt;
 }

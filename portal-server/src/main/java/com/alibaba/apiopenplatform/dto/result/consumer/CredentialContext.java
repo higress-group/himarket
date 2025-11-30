@@ -29,6 +29,8 @@ import java.util.Map;
 @Builder
 public class CredentialContext {
 
+    private String apiKey;
+
     @Builder.Default
     private Map<String, String> headers = new HashMap<>();
 
