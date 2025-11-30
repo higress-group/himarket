@@ -39,13 +39,6 @@ jwt:
   secret: YourJWTSecret
   expiration: 2h
 
-logging:
-  pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n"
-  level:
-    root: INFO
-    com.alibaba.apiopenplatform: INFO
-
 sls:
   # SLS服务端点（必填）
   # cn-chengdu.log.aliyuncs.com
