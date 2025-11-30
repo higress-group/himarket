@@ -194,6 +194,13 @@
             <version>3.2.3</version>
         </dependency>
 
+        <!-- Spring Boot Configuration Processor for IDE support -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-configuration-processor</artifactId>
+            <optional>true</optional>
+        </dependency>
+
     </dependencies>
 
 </project>
