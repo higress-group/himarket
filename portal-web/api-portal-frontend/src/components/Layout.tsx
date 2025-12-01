@@ -14,6 +14,8 @@ export function Layout({ children, className = "", loading = false }: LayoutProp
     <div
       className={`min-h-screen ${className}`}
       style={{
+        // background: "linear-gradient(254deg, rgba(234, 228, 248, .7) 32%, rgba(215, 229, 243, 0.7) 93%)",
+        backdropFilter: "blur(82px)",
         backgroundImage: `url(${bgImage})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',

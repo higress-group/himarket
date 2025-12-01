@@ -1,10 +1,21 @@
 import { Link, useLocation } from "react-router-dom";
+import { useState, useEffect } from "react";
 import { UserInfo } from "./UserInfo";
 import { Himarket, Logo } from "./icon";
 
 
 export function Header() {
   const location = useLocation();
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 10);
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const tabs = [
     { path: "/models", label: "模型" },
@@ -19,9 +30,17 @@ export function Header() {
   };
 
   return (
-    <nav className="sticky top-0 z-50 backdrop-blur-md bg-transparent">
+    <nav
+      className={`
+        sticky top-0 z-50 transition-all duration-1000 ease-in-out
+        ${isScrolled
+          ? "bg-gray-100/90 shadow-sm"
+          : "backdrop-blur-md bg-transparent"
+        }
+      `}
+    >
       <div className="w-full mx-auto">
-        <div className="flex justify-between items-center px-8 py-3">
+        <div className="flex justify-between items-center px-8 py-1">
           <div className="flex items-center">
             <Link to="/" className="flex items-center space-x-2 hover:opacity-80 transition-all duration-300">
               <div className="w-8 h-8 rounded-full flex items-center justify-center">

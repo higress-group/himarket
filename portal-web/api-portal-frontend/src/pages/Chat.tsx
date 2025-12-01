@@ -19,6 +19,7 @@ function Chat() {
   // 多模型对比的初始化数据（用于从历史会话加载）
 
   const [modelConversation, setModelConversation] = useState<IModelConversation[]>([]);
+  const [isMcpExecuting, setIsMcpExecuting] = useState(false);
 
   const [generating, setGenerating] = useState(false);
 
@@ -49,7 +50,7 @@ function Chat() {
     }
   }, [location]);
 
-  const handleSendMessage = async (content: string) => {
+  const handleSendMessage = async (content: string, mcps: IProductDetail[]) => {
     if (!selectedModel) {
       antdMessage.error("请先选择一个模型");
       return;
@@ -98,6 +99,7 @@ function Chat() {
           question: content,
           stream: useStream,
           needMemory: true,
+          mcpProducts: mcps.map(mcp => mcp.productId),
         };
 
         let fullContent = '';
@@ -175,6 +177,58 @@ function Chat() {
             body: JSON.stringify(messagePayload),
           },
           {
+            onToolCall: (toolCall) => {
+              setIsMcpExecuting(true);
+              setModelConversation((prev) => {
+                return prev.map(model => {
+                  if (model.id !== modelId) return model;
+                  return {
+                    ...model,
+                    conversations: model.conversations.map(con => {
+                      if (con.id !== conversationId) return con;
+                      return {
+                        ...con,
+                        questions: con.questions.map(question => {
+                          if (question.id === questionId) {
+                            return {
+                              ...question,
+                              mcpToolCalls: [...(question.mcpToolCalls || []), toolCall]
+                            };
+                          }
+                          return question;
+                        })
+                      };
+                    })
+                  };
+                });
+              });
+            },
+            onToolResponse: (toolResponse) => {
+              setIsMcpExecuting(false);
+              setModelConversation((prev) => {
+                return prev.map(model => {
+                  if (model.id !== modelId) return model;
+                  return {
+                    ...model,
+                    conversations: model.conversations.map(con => {
+                      if (con.id !== conversationId) return con;
+                      return {
+                        ...con,
+                        questions: con.questions.map(question => {
+                          if (question.id === questionId) {
+                            return {
+                              ...question,
+                              mcpToolResponses: [...(question.mcpToolResponses || []), toolResponse]
+                            };
+                          }
+                          return question;
+                        })
+                      };
+                    })
+                  };
+                });
+              });
+            },
             onChunk: (chunk) => {
               fullContent += chunk;
               setModelConversation((prev) => {
@@ -212,6 +266,7 @@ function Chat() {
               })
             },
             onComplete: (_content, _chatId, usage) => {
+              setIsMcpExecuting(false);
               setModelConversation((prev) => {
                 return prev.map(model => {
                   if (model.id !== modelId) return model;
@@ -246,6 +301,7 @@ function Chat() {
               })
             },
             onError: () => {
+              setIsMcpExecuting(false);
               setModelConversation((prev) => {
                 return prev.map(model => {
                   if (model.id !== modelId) return model;
@@ -329,9 +385,11 @@ function Chat() {
 
   // 重新生成答案
   const handleGenerateMessage = async ({
-    modelId, conversationId, questionId, content
+    modelId, conversationId, questionId, content,
+    mcps,
   }: {
-    modelId: string, conversationId: string, questionId: string, content: string
+    modelId: string, conversationId: string, questionId: string, content: string,
+    mcps: IProductDetail[]
   }) => {
 
     setGenerating(true);
@@ -341,6 +399,7 @@ function Chat() {
         conversationId, questionId,
         question: content, stream: true,
         needMemory: true,
+        mcpProducts: mcps.map(mcp => mcp.productId),
       };
       let fullContent = '';
       let lastIdx = -1;
@@ -372,6 +431,58 @@ function Chat() {
           },
           body: JSON.stringify(messagePayload),
         }, {
+        onToolCall: (toolCall) => {
+          setIsMcpExecuting(true);
+          setModelConversation((prev) => {
+            return prev.map(model => {
+              if (model.id !== modelId) return model;
+              return {
+                ...model,
+                conversations: model.conversations.map(con => {
+                  if (con.id !== conversationId) return con;
+                  return {
+                    ...con,
+                    questions: con.questions.map(question => {
+                      if (question.id === questionId) {
+                        return {
+                          ...question,
+                          mcpToolCalls: [...(question.mcpToolCalls || []), toolCall]
+                        };
+                      }
+                      return question;
+                    })
+                  };
+                })
+              };
+            });
+          });
+        },
+        onToolResponse: (toolResponse) => {
+          setIsMcpExecuting(false);
+          setModelConversation((prev) => {
+            return prev.map(model => {
+              if (model.id !== modelId) return model;
+              return {
+                ...model,
+                conversations: model.conversations.map(con => {
+                  if (con.id !== conversationId) return con;
+                  return {
+                    ...con,
+                    questions: con.questions.map(question => {
+                      if (question.id === questionId) {
+                        return {
+                          ...question,
+                          mcpToolResponses: [...(question.mcpToolResponses || []), toolResponse]
+                        };
+                      }
+                      return question;
+                    })
+                  };
+                })
+              };
+            });
+          });
+        },
         onChunk: (chunk) => {
           fullContent += chunk;
           setModelConversation((prev) => {
@@ -419,6 +530,7 @@ function Chat() {
           })
         },
         onComplete: (_content, _chatId, usage) => {
+          setIsMcpExecuting(false);
           setModelConversation((prev) => {
             return prev.map(model => {
               if (model.id !== modelId) return model;
@@ -456,6 +568,7 @@ function Chat() {
           setGenerating(false);
         },
         onError: () => {
+          setIsMcpExecuting(false);
           setModelConversation((prev) => {
             return prev.map(model => {
               return {
@@ -552,10 +665,12 @@ function Chat() {
       return;
     }
 
+    setGenerating(false);
+
     try {
       setCurrentSessionId(sessionId);
       // 不要立即清空消息，避免闪烁
-      setGenerating(true);
+      // setGenerating(true);
       const response = await APIs.getConversationsV2(sessionId);
 
       if (response.code === "SUCCESS" && response.data) {
@@ -594,11 +709,11 @@ function Chat() {
           }
         })
         setModelConversation(m);
-        setGenerating(false)
+        // setGenerating(false)
         return;
       }
     } catch (error) {
-      setGenerating(false);
+      // setGenerating(false);
       console.error("Failed to load conversation:", error);
       antdMessage.error("加载聊天记录失败");
     }
@@ -631,7 +746,7 @@ function Chat() {
               sessionId: currentSessionId || "",
               id: model.id,
               name: "",
-              conversations: [], 
+              conversations: [],
             }
           }),
           ...modelIds.map(id => {
@@ -663,6 +778,7 @@ function Chat() {
           refreshTrigger={sidebarRefreshTrigger}
         />
         <ChatArea
+          isMcpExecuting={isMcpExecuting}
           modelConversations={modelConversation}
           currentSessionId={currentSessionId}
           onChangeActiveAnswer={onChangeActiveAnswer}

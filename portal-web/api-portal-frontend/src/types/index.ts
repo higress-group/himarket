@@ -289,6 +289,32 @@ export interface IMessageVersion {
   outputTokens?: number;
 }
 
+// MCP 工具调用相关类型
+export interface IMcpToolMeta {
+  toolName: string;
+  toolNameCn?: string | null;
+  mcpName: string;
+  mcpNameCn?: string | null;
+}
+
+export interface IMcpToolCall {
+  toolMeta: IMcpToolMeta;
+  inputSchema: string;
+  input: string;
+  id: string;
+  type: string;
+  name: string;
+  arguments: string;
+}
+
+export interface IMcpToolResponse {
+  toolMeta: IMcpToolMeta;
+  output: string;
+  id: string;
+  name: string;
+  responseData: string;
+}
+
 export interface IModelConversation {
   sessionId: string;
   id: string;
@@ -301,6 +327,8 @@ export interface IModelConversation {
       content: string;
       createdAt: string;
       activeAnswerIndex: number;
+      mcpToolCalls?: IMcpToolCall[];  // MCP 工具调用列表
+      mcpToolResponses?: IMcpToolResponse[];  // MCP 工具响应列表
       answers: {
         errorMsg: string;
         content: string;

@@ -1,5 +1,7 @@
 // SSE 流式响应处理
 
+import type { IToolCall, IToolResponse, IChatUsage } from './apis/chat';
+
 // 旧格式消息（保留兼容）
 export interface SSEMessage {
   status: 'start' | 'chunk' | 'complete' | 'error';
@@ -8,6 +10,19 @@ export interface SSEMessage {
   fullContent?: string;
   message?: string; // 错误消息
   code?: string;
+}
+
+// 新格式消息类型
+export type SSEMsgType = 'USER' | 'TOOL_CALL' | 'TOOL_RESPONSE' | 'ANSWER' | 'STOP' | 'ERROR';
+
+// 新格式统一消息结构
+export interface SSENewMessage {
+  chatId: string;
+  msgType: SSEMsgType;
+  content: string | IToolCall | IToolResponse | null;
+  chatUsage: IChatUsage | null;
+  error?: string;      // 错误类型
+  message?: string;    // 错误消息
 }
 
 // OpenAI 格式消息
@@ -44,6 +59,8 @@ export interface SSEUsage {
 export interface SSEOptions {
   onStart?: (chatId: string) => void;
   onChunk?: (content: string, chatId: string) => void;
+  onToolCall?: (toolCall: IToolCall, chatId: string, usage?: IChatUsage) => void;
+  onToolResponse?: (toolResponse: IToolResponse, chatId: string, usage?: IChatUsage) => void;
   onComplete?: (fullContent: string, chatId: string, usage?: SSEUsage) => void;
   onError?: (error: string, code?: string, httpStatus?: number) => void;
 }
@@ -118,8 +135,79 @@ export async function handleSSEStream(
           try {
             const message = JSON.parse(data);
 
+            // 检查是否是新格式（带 msgType 字段）
+            if ('msgType' in message) {
+              const newMessage = message as SSENewMessage;
+
+              // 更新 chatId
+              if (newMessage.chatId && !chatId) {
+                chatId = newMessage.chatId;
+              }
+
+              switch (newMessage.msgType) {
+                case 'USER':
+                  // 用户消息开始
+                  if (newMessage.chatId) {
+                    callbacks.onStart?.(newMessage.chatId);
+                  }
+                  break;
+
+                case 'TOOL_CALL':
+                  // MCP 工具调用
+                  if (newMessage.content && typeof newMessage.content === 'object') {
+                    callbacks.onToolCall?.(
+                      newMessage.content as IToolCall,
+                      newMessage.chatId,
+                      newMessage.chatUsage || undefined
+                    );
+                  }
+                  break;
+
+                case 'TOOL_RESPONSE':
+                  // MCP 工具返回
+                  if (newMessage.content && typeof newMessage.content === 'object') {
+                    callbacks.onToolResponse?.(
+                      newMessage.content as IToolResponse,
+                      newMessage.chatId,
+                      newMessage.chatUsage || undefined
+                    );
+                  }
+                  break;
+
+                case 'ANSWER':
+                  // 模型回答内容流
+                  if (typeof newMessage.content === 'string' && newMessage.chatId) {
+                    fullContent += newMessage.content;
+                    callbacks.onChunk?.(newMessage.content, newMessage.chatId);
+                  }
+                  break;
+
+                case 'STOP':
+                  // 流式响应完成
+                  if (newMessage.chatId) {
+                    // 转换 chatUsage 到 SSEUsage 格式
+                    const sseUsage: SSEUsage | undefined = newMessage.chatUsage ? {
+                      first_byte_timeout: newMessage.chatUsage.first_byte_timeout ?? undefined,
+                      prompt_tokens: newMessage.chatUsage.prompt_tokens || 0,
+                      completion_tokens: newMessage.chatUsage.completion_tokens || 0,
+                      total_tokens: newMessage.chatUsage.total_tokens || 0,
+                      elapsed_time: newMessage.chatUsage.elapsed_time ?? undefined,
+                    } : undefined;
+                    callbacks.onComplete?.(fullContent, newMessage.chatId, sseUsage);
+                  }
+                  break;
+
+                case 'ERROR':
+                  // 错误事件
+                  callbacks.onError?.(
+                    newMessage.message || 'Unknown error',
+                    newMessage.error
+                  );
+                  break;
+              }
+            }
             // 检查是否是旧格式（带 status 字段）
-            if ('status' in message) {
+            else if ('status' in message) {
               const oldMessage = message as SSEMessage;
 
               switch (oldMessage.status) {

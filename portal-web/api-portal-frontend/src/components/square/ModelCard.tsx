@@ -1,4 +1,4 @@
-import { DefaultModel } from "../icon";
+import { ProductIconRenderer } from "../icon/ProductIconRenderer";
 
 interface ModelCardProps {
   icon: string;
@@ -11,9 +11,6 @@ interface ModelCardProps {
 }
 
 export function ModelCard({ icon, name, description, company, releaseDate, onClick, onTryNow }: ModelCardProps) {
-  // 判断是否使用默认图标
-  const isDefaultIcon = !icon || icon === "default";
-
   return (
     <div
       onClick={onClick}
@@ -34,13 +31,7 @@ export function ModelCard({ icon, name, description, company, releaseDate, onCli
       {/* 上部：图标和名称 */}
       <div className="flex items-center gap-3 mb-3">
         <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-colorPrimary/10 to-colorPrimary/5 flex items-center justify-center flex-shrink-0 overflow-hidden">
-          {isDefaultIcon ? (
-            <DefaultModel />
-          ) : icon.startsWith('http') || icon.startsWith('data:image') ? (
-            <img src={icon} alt={name} className="w-full h-full object-cover" />
-          ) : (
-            <DefaultModel />
-          )}
+          <ProductIconRenderer className="w-full h-full object-cover" iconType={icon} />
         </div>
         <h3 className="text-base font-semibold text-gray-900 truncate flex-1">{name}</h3>
       </div>

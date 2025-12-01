@@ -132,3 +132,20 @@ export interface IService {
 export interface IModelConfig {
   modelAPIConfig: IModelAPIConfig;
 }
+
+export interface IInputSchema {
+  id?: string;
+  type: "string" | "number" | "boolean" | "array" | "object";
+  name?: string;
+  properties?: IInputSchema[];
+  items?: IInputSchema[];
+  required?: string[];
+  description?: string;
+  error?: string;
+}
+
+export interface ITool {
+  name: string;
+  description: string;
+  inputSchema: IInputSchema;
+}

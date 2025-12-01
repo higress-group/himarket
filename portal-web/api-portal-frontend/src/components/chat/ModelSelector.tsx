@@ -105,7 +105,7 @@ export function ModelSelector({
                   }
                 `}
               >
-                <ProductIconRenderer iconType={model.icon?.type} className="w-5 h-5" />
+                <ProductIconRenderer iconType={model.icon?.value} className="w-5 h-5" />
                 <span className="font-medium flex-1">{model.name}</span>
                 {model.productId === selectedModelId && (
                   <CheckOutlined className="text-colorPrimary text-xs" />
@@ -126,7 +126,7 @@ export function ModelSelector({
   return (
     <>
       {/* 顶部模型选择器 */}
-      <div className="p-4">
+      <div className="p-4 pr-0">
         <Dropdown
           open={isOpen}
           onOpenChange={setIsOpen}
@@ -139,7 +139,7 @@ export function ModelSelector({
             className="flex items-center gap-2 px-4 py-2 rounded-xl transition-all duration-200 hover:scale-[1.01] hover:bg-colorPrimaryBgHover"
           >
             {currentModel?.icon && (
-              <ProductIconRenderer iconType={currentModel.icon.type} className="w-5 h-5" />
+              <ProductIconRenderer iconType={currentModel.icon.value} className="w-5 h-5" />
             )}
             <span className="font-medium text-gray-900">
               {currentModel?.name || "选择模型"}
