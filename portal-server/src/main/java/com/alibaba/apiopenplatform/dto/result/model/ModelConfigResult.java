@@ -1,6 +1,5 @@
 package com.alibaba.apiopenplatform.dto.result.model;
 
-import com.alibaba.apiopenplatform.dto.result.higress.HigressRouteResult;
 import com.alibaba.apiopenplatform.dto.result.httpapi.HttpRouteResult;
 import com.alibaba.apiopenplatform.dto.result.httpapi.ServiceResult;
 import lombok.Builder;
@@ -14,28 +13,14 @@ import java.util.List;
 @Data
 public class ModelConfigResult {
 
-    /**
-     * for AI gateway
-     */
-    private AIGWModelAPIConfig aigwModelAPIConfig;
-
-    /**
-     * for Higress
-     */
-	private HigressModelConfig higressModelConfig;
+    private ModelAPIConfig modelAPIConfig;
 
     @Data
     @Builder
-    public static class AIGWModelAPIConfig {
+    public static class ModelAPIConfig {
         private String modelCategory;
         private List<String> aiProtocols;
         private List<HttpRouteResult> routes;
         private List<ServiceResult> services;
-    }
-
-	@Data
-	@Builder
-	public static class HigressModelConfig {
-      private HigressRouteResult aiRoute;
     }
 }

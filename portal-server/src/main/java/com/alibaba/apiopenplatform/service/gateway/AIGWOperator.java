@@ -386,12 +386,12 @@ public class AIGWOperator extends APIGOperator {
                 .map(httpRoute -> new HttpRouteResult().convertFrom(httpRoute, apiDomains))
                 .collect(Collectors.toList());
 
-        ModelConfigResult.AIGWModelAPIConfig apiConfig = ModelConfigResult.AIGWModelAPIConfig.builder()
+        ModelConfigResult.ModelAPIConfig apiConfig = ModelConfigResult.ModelAPIConfig.builder()
                 .aiProtocols(apiInfo.getAiProtocols())
                 .modelCategory(apiInfo.getModelCategory())
                 .routes(routeResults)
                 .build();
-        result.setAigwModelAPIConfig(apiConfig);
+        result.setModelAPIConfig(apiConfig);
 
         return JSONUtil.toJsonStr(result);
     }

@@ -10,5 +10,5 @@ import lombok.Data;
 @Builder
 public class HigressModelResult extends GatewayModelAPIResult {
 
-    private String name;
+    private String modelRouteName;
 }

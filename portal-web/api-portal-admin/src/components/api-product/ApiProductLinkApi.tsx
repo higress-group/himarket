@@ -1,7 +1,7 @@
 import { Card, Button, Modal, Form, Select, message, Collapse, Tabs, Row, Col } from 'antd'
 import { PlusOutlined, DeleteOutlined, ExclamationCircleOutlined, CopyOutlined } from '@ant-design/icons'
 import { useState, useEffect } from 'react'
-import type { ApiProduct, LinkedService, RestAPIItem, HigressMCPItem, NacosMCPItem, APIGAIMCPItem, AIGatewayAgentItem, AIGatewayModelItem, ApiItem } from '@/types/api-product'
+import type { ApiProduct, LinkedService, RestAPIItem, NacosMCPItem, APIGAIMCPItem, AIGatewayAgentItem, AIGatewayModelItem, ApiItem } from '@/types/api-product'
 import type { Gateway, NacosInstance } from '@/types/gateway'
 import { apiProductApi, gatewayApi, nacosApi } from '@/lib/api'
 import { getGatewayTypeLabel } from '@/lib/constant'
@@ -355,8 +355,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
             size: 1000 // 获取所有Model API
           })
           const modelApis = (res.data?.content || []).map((api: any) => ({
-            modelApiId: api.modelApiId,
-            modelApiName: api.modelApiName,
+            modelRouteName: api.modelRouteName,
             fromGatewayType: 'HIGRESS' as const,
             type: 'Model API'
           }))
@@ -516,8 +515,11 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
           // Agent API: 匹配agentApiId或agentApiName
           return item.agentApiId === apiId || item.agentApiName === apiId
         } else if ('modelApiId' in item || 'modelApiName' in item) {
-          // Model API: 匹配modelApiId或modelApiName
+          // Model API (AI Gateway): 匹配modelApiId或modelApiName
           return item.modelApiId === apiId || item.modelApiName === apiId
+        } else if ('modelRouteName' in item && item.fromGatewayType === 'HIGRESS') {
+          // Model API (Higress): 匹配modelRouteName字段
+          return item.modelRouteName === apiId
         }
         return false
       })
@@ -527,7 +529,11 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
         sourceType,
         productId: apiProduct.productId,
         apigRefConfig: selectedApi && ('apiId' in selectedApi || 'agentApiId' in selectedApi || 'agentApiName' in selectedApi || 'modelApiId' in selectedApi || 'modelApiName' in selectedApi) && (!('fromGatewayType' in selectedApi) || selectedApi.fromGatewayType !== 'HIGRESS') ? selectedApi as RestAPIItem | APIGAIMCPItem | AIGatewayAgentItem | AIGatewayModelItem : undefined,
-        higressRefConfig: selectedApi && 'fromGatewayType' in selectedApi && selectedApi.fromGatewayType === 'HIGRESS' ? selectedApi as HigressMCPItem : undefined,
+        higressRefConfig: selectedApi && 'fromGatewayType' in selectedApi && selectedApi.fromGatewayType === 'HIGRESS' ? (
+          apiProduct.type === 'MODEL_API' 
+            ? { modelRouteName: (selectedApi as any).modelRouteName, fromGatewayType: 'HIGRESS' as const }
+            : { mcpServerName: (selectedApi as any).mcpServerName, fromGatewayType: 'HIGRESS' as const }
+        ) : undefined,
         nacosRefConfig: sourceType === 'NACOS' && selectedApi && 'fromGatewayType' in selectedApi && selectedApi.fromGatewayType === 'NACOS' ? {
           ...selectedApi,
           namespaceId: selectedNamespace || 'public'
@@ -651,7 +657,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
       }
       // 注意：Agent API 不支持专有云AI网关（ADP_AI_GATEWAY）
     } else if (apiProduct.type === 'MODEL_API') {
-      // Model API 类型产品 - 只能关联 AI 网关上的 Model API
+      // Model API 类型产品 - 可以关联 AI 网关或 Higress 网关上的 Model API
       apiType = 'Model API'
 
       if (linkedService.sourceType === 'GATEWAY' && linkedService.apigRefConfig && 'modelApiName' in linkedService.apigRefConfig) {
@@ -659,8 +665,12 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
         apiName = linkedService.apigRefConfig.modelApiName || '未命名'
         sourceInfo = 'AI网关'
         gatewayInfo = linkedService.gatewayId || '未知'
+      } else if (linkedService.sourceType === 'GATEWAY' && linkedService.higressRefConfig && 'modelRouteName' in linkedService.higressRefConfig) {
+        // Higress网关上的Model API（AI路由）
+        apiName = linkedService.higressRefConfig.modelRouteName || '未命名'
+        sourceInfo = 'Higress网关'
+        gatewayInfo = linkedService.gatewayId || '未知'
       }
-      // 注意：Model API 不支持专有云AI网关（ADP_AI_GATEWAY）
     }
 
     return {
@@ -1660,9 +1670,17 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                     value = api.agentApiId || api.agentApiName;
                     displayName = api.agentApiName;
                   } else if (apiProduct.type === 'MODEL_API') {
-                    key = api.modelApiId || api.modelApiName;
-                    value = api.modelApiId || api.modelApiName;
-                    displayName = api.modelApiName;
+                    if (api.fromGatewayType === 'HIGRESS') {
+                      // Higress: 只有 modelRouteName 字段
+                      key = api.modelRouteName;
+                      value = api.modelRouteName;
+                      displayName = api.modelRouteName;
+                    } else {
+                      // AI Gateway (APIG_AI): 有 modelApiId 和 modelApiName
+                      key = api.modelApiId || api.modelApiName;
+                      value = api.modelApiId || api.modelApiName;
+                      displayName = api.modelApiName;
+                    }
                   } else {
                     // MCP Server
                     key = api.mcpRouteId || api.mcpServerName || api.name;

@@ -3,7 +3,7 @@ package com.alibaba.apiopenplatform.service.impl;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.apiopenplatform.dto.params.chat.ChatContent;
-import com.alibaba.apiopenplatform.dto.result.httpapi.DomainResult;
+import com.alibaba.apiopenplatform.dto.result.common.DomainResult;
 import com.alibaba.apiopenplatform.dto.result.httpapi.HttpRouteResult;
 import com.alibaba.apiopenplatform.dto.result.model.ModelConfigResult;
 import com.alibaba.apiopenplatform.dto.params.chat.InvokeModelParam;

@@ -103,7 +103,8 @@ export interface RestAPIItem {
 }
 
 export interface HigressMCPItem {
-  mcpServerName: string;
+  mcpServerName?: string;      // MCP Server 名称（用于 MCP Server 产品）
+  modelRouteName?: string;     // Model API 路由名称（用于 Model API 产品）
   fromGatewayType: 'HIGRESS';
 }
 

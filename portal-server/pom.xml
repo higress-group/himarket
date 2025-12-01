@@ -129,6 +129,21 @@
           <artifactId>alibabacloud-sls20201230</artifactId>
           <version>4.0.11</version>
         </dependency>
+
+        <dependency>
+            <groupId>io.higress.api</groupId>
+            <artifactId>higress-admin-sdk</artifactId>
+            <exclusions>
+                <exclusion>
+                    <artifactId>bcprov-jdk18on</artifactId>
+                    <groupId>org.bouncycastle</groupId>
+                </exclusion>
+                <exclusion>
+                    <artifactId>commons-io</artifactId>
+                    <groupId>commons-io</groupId>
+                </exclusion>
+            </exclusions>
+        </dependency>
         
         <dependency>
             <groupId>org.bouncycastle</groupId>
