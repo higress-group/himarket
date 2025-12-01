@@ -8,9 +8,7 @@ import lombok.Data;
  */
 @Data
 @Builder
-public class ModelAPIResult {
+public class HigressModelResult extends GatewayModelAPIResult {
 
-    private String modelApiId;
-
-    private String modelApiName;
+    private String modelRouteName;
 }

@@ -32,7 +32,7 @@ import com.alibaba.apiopenplatform.dto.result.httpapi.APIResult;
 import com.alibaba.apiopenplatform.dto.result.common.PageResult;
 import com.alibaba.apiopenplatform.dto.result.gateway.GatewayResult;
 import com.alibaba.apiopenplatform.dto.result.mcp.GatewayMCPServerResult;
-import com.alibaba.apiopenplatform.dto.result.model.ModelAPIResult;
+import com.alibaba.apiopenplatform.dto.result.model.GatewayModelAPIResult;
 import com.alibaba.apiopenplatform.dto.result.product.ProductRefResult;
 import com.alibaba.apiopenplatform.entity.*;
 import com.alibaba.apiopenplatform.repository.GatewayRepository;
@@ -185,7 +185,7 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
     }
 
     @Override
-    public PageResult<ModelAPIResult> fetchModelAPIs(String gatewayId, int page, int size) {
+    public PageResult<GatewayModelAPIResult> fetchModelAPIs(String gatewayId, int page, int size) {
         Gateway gateway = findGateway(gatewayId);
         return getOperator(gateway).fetchModelAPIs(gateway, page, size);
     }

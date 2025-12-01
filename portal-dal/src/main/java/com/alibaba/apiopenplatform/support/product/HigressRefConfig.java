@@ -27,4 +27,9 @@ public class HigressRefConfig {
     private String routeName;
 
     private String mcpServerName;
+
+	/**
+	 * Model Identify Info
+	 */
+	private String modelRouteName;
 }

@@ -18,9 +18,6 @@ public class ModelConfigResult {
     @Data
     @Builder
     public static class ModelAPIConfig {
-        /**
-         * for AI gateway
-         */
         private String modelCategory;
         private List<String> aiProtocols;
         private List<HttpRouteResult> routes;

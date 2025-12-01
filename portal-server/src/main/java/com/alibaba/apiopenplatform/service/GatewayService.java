@@ -25,7 +25,8 @@ import com.alibaba.apiopenplatform.dto.result.common.PageResult;
 import com.alibaba.apiopenplatform.dto.result.gateway.GatewayResult;
 import com.alibaba.apiopenplatform.dto.result.mcp.GatewayMCPServerResult;
 import com.alibaba.apiopenplatform.dto.result.agent.AgentAPIResult;
-import com.alibaba.apiopenplatform.dto.result.model.ModelAPIResult;
+import com.alibaba.apiopenplatform.dto.result.model.AIGWModelAPIResult;
+import com.alibaba.apiopenplatform.dto.result.model.GatewayModelAPIResult;
 import com.alibaba.apiopenplatform.dto.result.product.ProductRefResult;
 import com.alibaba.apiopenplatform.entity.Consumer;
 import com.alibaba.apiopenplatform.entity.ConsumerCredential;
@@ -97,7 +98,7 @@ public interface GatewayService {
 
     PageResult<AgentAPIResult> fetchAgentAPIs(String gatewayId, int page, int size);
 
-    PageResult<ModelAPIResult> fetchModelAPIs(String gatewayId, int page, int size);
+    PageResult<GatewayModelAPIResult> fetchModelAPIs(String gatewayId, int page, int size);
 
     String fetchAPIConfig(String gatewayId, Object config);
 

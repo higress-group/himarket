@@ -19,8 +19,8 @@
 
 package com.alibaba.apiopenplatform.dto.result.mcp;
 
-import com.alibaba.apiopenplatform.dto.result.httpapi.DomainResult;
 import com.alibaba.apiopenplatform.support.chat.mcp.McpServerConfig;
+import com.alibaba.apiopenplatform.dto.result.common.DomainResult;
 import lombok.Data;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
@@ -85,7 +85,7 @@ public class MCPConfigResult {
         /**
          * for gateway
          */
-        private String             path;
+        private String path;
         private List<DomainResult> domains;
 
         /**

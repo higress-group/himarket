@@ -19,26 +19,22 @@
 
 package com.alibaba.apiopenplatform.service.gateway;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
+import cn.hutool.core.codec.Base64;
+import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONUtil;
 import com.alibaba.apiopenplatform.core.exception.BusinessException;
 import com.alibaba.apiopenplatform.core.exception.ErrorCode;
-import com.alibaba.apiopenplatform.dto.result.agent.AgentAPIResult;
-import com.alibaba.apiopenplatform.dto.result.agent.AgentConfigResult;
-import com.alibaba.apiopenplatform.dto.result.common.PageResult;
 import com.alibaba.apiopenplatform.dto.result.httpapi.APIResult;
-import com.alibaba.apiopenplatform.dto.result.httpapi.DomainResult;
-import com.alibaba.apiopenplatform.dto.result.httpapi.HttpRouteResult;
+import com.alibaba.apiopenplatform.dto.result.common.DomainResult;
+import com.alibaba.apiopenplatform.dto.result.common.PageResult;
 import com.alibaba.apiopenplatform.dto.result.mcp.APIGMCPServerResult;
 import com.alibaba.apiopenplatform.dto.result.mcp.GatewayMCPServerResult;
+import com.alibaba.apiopenplatform.dto.result.agent.AgentAPIResult;
+import com.alibaba.apiopenplatform.dto.result.agent.AgentConfigResult;
+import com.alibaba.apiopenplatform.dto.result.httpapi.HttpRouteResult;
 import com.alibaba.apiopenplatform.dto.result.mcp.MCPConfigResult;
-import com.alibaba.apiopenplatform.dto.result.model.ModelAPIResult;
+import com.alibaba.apiopenplatform.dto.result.model.AIGWModelAPIResult;
+import com.alibaba.apiopenplatform.dto.result.model.GatewayModelAPIResult;
 import com.alibaba.apiopenplatform.dto.result.model.ModelConfigResult;
 import com.alibaba.apiopenplatform.entity.Gateway;
 import com.alibaba.apiopenplatform.service.gateway.client.APIGClient;
@@ -48,33 +44,20 @@ import com.alibaba.apiopenplatform.support.enums.APIGAPIType;
 import com.alibaba.apiopenplatform.support.enums.APIGResourceType;
 import com.alibaba.apiopenplatform.support.enums.GatewayType;
 import com.alibaba.apiopenplatform.support.product.APIGRefConfig;
-
-import cn.hutool.core.codec.Base64;
-import cn.hutool.core.util.StrUtil;
-import cn.hutool.json.JSONUtil;
 import com.aliyun.sdk.gateway.pop.exception.PopClientException;
-import com.aliyun.sdk.service.apig20240327.models.CreateConsumerAuthorizationRulesRequest;
-import com.aliyun.sdk.service.apig20240327.models.CreateConsumerAuthorizationRulesResponse;
-import com.aliyun.sdk.service.apig20240327.models.GetMcpServerRequest;
-import com.aliyun.sdk.service.apig20240327.models.GetMcpServerResponse;
-import com.aliyun.sdk.service.apig20240327.models.GetMcpServerResponseBody;
-import com.aliyun.sdk.service.apig20240327.models.HttpApiApiInfo;
-import com.aliyun.sdk.service.apig20240327.models.HttpRoute;
-import com.aliyun.sdk.service.apig20240327.models.ListMcpServersRequest;
-import com.aliyun.sdk.service.apig20240327.models.ListMcpServersResponse;
-import com.aliyun.sdk.service.apig20240327.models.ListPluginAttachmentsRequest;
-import com.aliyun.sdk.service.apig20240327.models.ListPluginAttachmentsResponse;
-import com.aliyun.sdk.service.apig20240327.models.ListPluginAttachmentsResponseBody;
-import com.aliyun.sdk.service.apig20240327.models.PluginClassInfo;
-import com.aliyun.sdk.service.apig20240327.models.QueryConsumerAuthorizationRulesRequest;
-import com.aliyun.sdk.service.apig20240327.models.QueryConsumerAuthorizationRulesResponse;
-import com.aliyun.sdk.service.apig20240327.models.QueryConsumerAuthorizationRulesResponseBody;
+import com.aliyun.sdk.service.apig20240327.models.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
 @Service
 @Slf4j
-public class AIGatewayOperator extends APIGOperator {
+public class AIGWOperator extends APIGOperator {
 
     @Override
     public PageResult<? extends GatewayMCPServerResult> fetchMcpServers(Gateway gateway, int page, int size) {
@@ -348,11 +331,11 @@ public class AIGatewayOperator extends APIGOperator {
     }
 
     @Override
-    public PageResult<ModelAPIResult> fetchModelAPIs(Gateway gateway, int page, int size) {
+    public PageResult<? extends GatewayModelAPIResult> fetchModelAPIs(Gateway gateway, int page, int size) {
         PageResult<APIResult> apiResult = fetchAPIs(gateway, APIGAPIType.MODEL, page, size);
 
-        return new PageResult<ModelAPIResult>().mapFrom(apiResult, api ->
-                ModelAPIResult.builder()
+        return new PageResult<AIGWModelAPIResult>().mapFrom(apiResult, api ->
+                AIGWModelAPIResult.builder()
                         .modelApiId(api.getApiId())
                         .modelApiName(api.getApiName())
                         .build()

@@ -2,10 +2,13 @@ package com.alibaba.apiopenplatform.dto.result.httpapi;
 
 import cn.hutool.core.util.BooleanUtil;
 import com.alibaba.apiopenplatform.dto.converter.OutputConverter;
+import com.alibaba.apiopenplatform.dto.result.common.DomainResult;
+import com.alibaba.apiopenplatform.service.gateway.HigressOperator;
 import lombok.Builder;
 import lombok.Data;
 import com.aliyun.sdk.service.apig20240327.models.HttpRoute;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -22,6 +25,13 @@ public class HttpRouteResult implements OutputConverter<HttpRouteResult, HttpRou
     private BackendResult backend;
     private Boolean builtin;
 
+    /**
+     * Convert from AIGW HttpRoute
+     *
+     * @param route
+     * @param domains
+     * @return
+     */
     public HttpRouteResult convertFrom(HttpRoute route, List<DomainResult> domains) {
         // path
         RouteMatchPath matchPath = Optional.ofNullable(route.getMatch().getPath())
@@ -73,6 +83,76 @@ public class HttpRouteResult implements OutputConverter<HttpRouteResult, HttpRou
         return this;
     }
 
+    /**
+     * Convert from Higress AIRoute
+     *
+     * @param aiRoute
+     * @return
+     */
+    public HttpRouteResult convertFrom(HigressOperator.HigressAIRoute aiRoute, List<DomainResult> domains) {
+        // path
+        HttpRouteResult.RouteMatchPath matchPath = Optional.ofNullable(aiRoute.getPathPredicate())
+                .map(path -> HttpRouteResult.RouteMatchPath.builder()
+                        .value(path.getMatchValue())
+                        .type(path.getMatchType())
+                        .caseSensitive(path.getCaseSensitive())
+                        .build())
+                .orElse(null);
+
+        // methods
+        List<String> methods = Collections.singletonList("POST");
+
+        // headers
+        List<HttpRouteResult.RouteMatchHeader> matchHeaders = Optional.ofNullable(aiRoute.getHeaderPredicates())
+                .map(headers -> headers.stream()
+                        .map(header -> HttpRouteResult.RouteMatchHeader.builder()
+                                .name(header.getKey())
+                                .type(header.getMatchType())
+                                .value(header.getMatchValue())
+                                .caseSensitive(header.getCaseSensitive())
+                                .build())
+                        .collect(Collectors.toList()))
+                .orElse(null);
+
+        // queryParams
+        List<HttpRouteResult.RouteMatchQuery> matchQueries = Optional.ofNullable(aiRoute.getUrlParamPredicates())
+                .map(params -> params.stream()
+                        .map(param -> HttpRouteResult.RouteMatchQuery.builder()
+                                .name(param.getKey())
+                                .type(param.getMatchType())
+                                .value(param.getMatchValue())
+                                .caseSensitive(param.getCaseSensitive())
+                                .build())
+                        .collect(Collectors.toList()))
+                .orElse(null);
+
+        // modelMatches
+        List<HttpRouteResult.ModelMatch> modelMatches = Optional.ofNullable(aiRoute.getModelPredicates())
+                .map(params -> params.stream()
+                        .map(param -> HttpRouteResult.ModelMatch.builder()
+                                .name("model")
+                                .type(param.getMatchType())
+                                .value(param.getMatchValue())
+                                .caseSensitive(param.getCaseSensitive())
+                                .build())
+                        .collect(Collectors.toList()))
+                .orElse(null);
+
+        // routeMatch
+        HttpRouteResult.RouteMatchResult routeMatchResult = HttpRouteResult.RouteMatchResult.builder()
+                .methods(methods)
+                .path(matchPath)
+                .headers(matchHeaders)
+                .queryParams(matchQueries)
+                .modelMatches(modelMatches)
+                .build();
+
+        setDomains(domains);
+        setMatch(routeMatchResult);
+
+        return this;
+    }
+
     @Data
     @Builder
     public static class RouteMatchResult {
@@ -81,6 +161,8 @@ public class HttpRouteResult implements OutputConverter<HttpRouteResult, HttpRou
 
         private List<RouteMatchHeader> headers;
         private List<RouteMatchQuery> queryParams;
+
+        private List<ModelMatch> modelMatches;
     }
 
     @Data
@@ -88,6 +170,7 @@ public class HttpRouteResult implements OutputConverter<HttpRouteResult, HttpRou
     public static class RouteMatchPath {
         private String value;
         private String type;
+        private Boolean caseSensitive;
     }
 
     @Data
@@ -96,6 +179,7 @@ public class HttpRouteResult implements OutputConverter<HttpRouteResult, HttpRou
         private String name;
         private String type;
         private String value;
+        private Boolean caseSensitive;
     }
 
     @Data
@@ -104,5 +188,15 @@ public class HttpRouteResult implements OutputConverter<HttpRouteResult, HttpRou
         private String name;
         private String type;
         private String value;
+        private Boolean caseSensitive;
+    }
+
+    @Data
+    @Builder
+    public static class ModelMatch {
+        private String name;
+        private String type;
+        private String value;
+        private Boolean caseSensitive;
     }
 }
