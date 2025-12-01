@@ -22,7 +22,7 @@ export function McpToolCallPanel({ toolCalls = [], toolResponses = [] }: McpTool
   });
 
   return (
-    <div className="my-4">
+    <div>
       {toolItems.map(({ toolCall, toolResponse }, index) => {
         const panelKey = `mcp-tool-${index}`;
         const mcpServerName = toolCall.toolMeta.mcpNameCn || toolCall.toolMeta.mcpName;
@@ -55,7 +55,9 @@ export function McpToolCallPanel({ toolCalls = [], toolResponses = [] }: McpTool
                 label: (
                   <div className="flex items-center gap-2">
                     <Mcp className="w-4 h-4 fill-colorPrimary" />
-                    <span className="font-medium text-colorPrimary">MCP 工具执行中</span>
+                    <span className="font-medium text-colorPrimary">
+                      {toolResponse ? "MCP 工具执行完成" : "MCP 工具执行中"}
+                    </span>
                     <span className="text-gray-500">· {mcpServerName}</span>
                   </div>
                 ),
@@ -64,20 +66,20 @@ export function McpToolCallPanel({ toolCalls = [], toolResponses = [] }: McpTool
                     {/* MCP Server 名称 */}
                     <div>
                       <div className="text-xs font-medium text-gray-500 mb-1">MCP Server</div>
-                      <div className="text-sm text-gray-900">{mcpServerName}</div>
+                      <div className="text-sm p-2 border border-[#e5e5e5] rounded-lg text-gray-800">{mcpServerName}</div>
                     </div>
 
                     {/* Tools 列表 */}
                     <div>
                       <div className="text-xs font-medium text-gray-500 mb-1">Tool</div>
-                      <div className="text-sm text-gray-900">{toolName}</div>
+                      <div className="text-sm text-gray-800 border border-[#e5e5e5] p-2 rounded-lg">{toolName}</div>
                     </div>
 
                     {/* Parameters */}
                     <div>
                       <div className="text-xs font-medium text-gray-500 mb-1">Parameters</div>
-                      <div className="bg-gray-50 rounded-lg p-3 overflow-x-auto">
-                        <pre className="text-xs text-gray-700 whitespace-pre-wrap">
+                      <div className="rounded-lg p-2 overflow-x-auto border border-[#e5e5e5]">
+                        <pre className="text-xs text-gray-800 whitespace-pre-wrap">
                           {typeof parsedInput === "object"
                             ? JSON.stringify(parsedInput, null, 2)
                             : String(parsedInput)}
@@ -89,8 +91,8 @@ export function McpToolCallPanel({ toolCalls = [], toolResponses = [] }: McpTool
                     {toolResponse && (
                       <div>
                         <div className="text-xs font-medium text-gray-500 mb-1">Results</div>
-                        <div className="bg-green-50 rounded-lg p-3 overflow-x-auto border border-green-100">
-                          <pre className="text-xs text-gray-700 whitespace-pre-wrap">
+                        <div className="bg-white rounded-lg p-2 overflow-x-auto border border-[#e5e5e5]">
+                          <pre className="text-xs text-gray-800 whitespace-pre-wrap">
                             {typeof parsedResponse === "object"
                               ? JSON.stringify(parsedResponse, null, 2)
                               : String(parsedResponse)}
@@ -107,7 +109,7 @@ export function McpToolCallPanel({ toolCalls = [], toolResponses = [] }: McpTool
                 ),
               },
             ]}
-            className="bg-blue-50/50 border border-blue-100"
+            className="bg-white border border-blue-100"
           />
         );
       })}

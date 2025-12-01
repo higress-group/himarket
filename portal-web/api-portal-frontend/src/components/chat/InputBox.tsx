@@ -9,13 +9,14 @@ interface InputBoxProps {
   isLoading?: boolean;
   mcpEnabled?: boolean;
   onMcpClick?: () => void;
-  addedMcps: IProductDetail[]
+  addedMcps: IProductDetail[];
+  isMcpExecuting?: boolean;
 }
 
 export function InputBox(props: InputBoxProps) {
   const {
     onSendMessage, isLoading = false, mcpEnabled = false,
-    onMcpClick, addedMcps
+    onMcpClick, addedMcps, isMcpExecuting = false
   } = props;
   const [input, setInput] = useState("");
 
@@ -39,7 +40,9 @@ export function InputBox(props: InputBoxProps) {
         background: "linear-gradient(256deg, rgba(234, 228, 248, 1) 36%, rgba(215, 229, 243, 1) 100%)",
       }}
     >
-      {/* <div className="px-3 py-1 text-sm">MCP 工具执行中...</div> */}
+      {isMcpExecuting && (
+        <div className="px-3 py-1 text-sm">MCP 工具执行中...</div>
+      )}
       <div
         className="w-full h-full pb-14 p-4 bg-white/80 backdrop-blur-sm rounded-3xl shadow-sm "
       >
@@ -64,6 +67,7 @@ export function InputBox(props: InputBoxProps) {
             ? "bg-colorPrimary text-white hover:opacity-90"
             : "bg-colorPrimarySecondary text-colorPrimary cursor-not-allowed"}`}
           isLoading={isLoading}
+          onClick={handleSend}
         >
           <SendOutlined
             className={"text-sm text-white"}
