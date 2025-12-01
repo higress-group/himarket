@@ -176,6 +176,56 @@ function Chat() {
             body: JSON.stringify(messagePayload),
           },
           {
+            onToolCall: (toolCall) => {
+              setModelConversation((prev) => {
+                return prev.map(model => {
+                  if (model.id !== modelId) return model;
+                  return {
+                    ...model,
+                    conversations: model.conversations.map(con => {
+                      if (con.id !== conversationId) return con;
+                      return {
+                        ...con,
+                        questions: con.questions.map(question => {
+                          if (question.id === questionId) {
+                            return {
+                              ...question,
+                              mcpToolCalls: [...(question.mcpToolCalls || []), toolCall]
+                            };
+                          }
+                          return question;
+                        })
+                      };
+                    })
+                  };
+                });
+              });
+            },
+            onToolResponse: (toolResponse) => {
+              setModelConversation((prev) => {
+                return prev.map(model => {
+                  if (model.id !== modelId) return model;
+                  return {
+                    ...model,
+                    conversations: model.conversations.map(con => {
+                      if (con.id !== conversationId) return con;
+                      return {
+                        ...con,
+                        questions: con.questions.map(question => {
+                          if (question.id === questionId) {
+                            return {
+                              ...question,
+                              mcpToolResponses: [...(question.mcpToolResponses || []), toolResponse]
+                            };
+                          }
+                          return question;
+                        })
+                      };
+                    })
+                  };
+                });
+              });
+            },
             onChunk: (chunk) => {
               fullContent += chunk;
               setModelConversation((prev) => {
@@ -376,6 +426,56 @@ function Chat() {
           },
           body: JSON.stringify(messagePayload),
         }, {
+        onToolCall: (toolCall) => {
+          setModelConversation((prev) => {
+            return prev.map(model => {
+              if (model.id !== modelId) return model;
+              return {
+                ...model,
+                conversations: model.conversations.map(con => {
+                  if (con.id !== conversationId) return con;
+                  return {
+                    ...con,
+                    questions: con.questions.map(question => {
+                      if (question.id === questionId) {
+                        return {
+                          ...question,
+                          mcpToolCalls: [...(question.mcpToolCalls || []), toolCall]
+                        };
+                      }
+                      return question;
+                    })
+                  };
+                })
+              };
+            });
+          });
+        },
+        onToolResponse: (toolResponse) => {
+          setModelConversation((prev) => {
+            return prev.map(model => {
+              if (model.id !== modelId) return model;
+              return {
+                ...model,
+                conversations: model.conversations.map(con => {
+                  if (con.id !== conversationId) return con;
+                  return {
+                    ...con,
+                    questions: con.questions.map(question => {
+                      if (question.id === questionId) {
+                        return {
+                          ...question,
+                          mcpToolResponses: [...(question.mcpToolResponses || []), toolResponse]
+                        };
+                      }
+                      return question;
+                    })
+                  };
+                })
+              };
+            });
+          });
+        },
         onChunk: (chunk) => {
           fullContent += chunk;
           setModelConversation((prev) => {
