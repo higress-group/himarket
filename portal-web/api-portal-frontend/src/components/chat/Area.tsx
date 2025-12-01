@@ -20,6 +20,7 @@ interface ChatAreaProps {
   currentSessionId?: string;
   selectedModel?: IProductDetail;
   generating: boolean,
+  isMcpExecuting: boolean;
   onChangeActiveAnswer: (modelId: string, conversationId: string, questionId: string, direction: 'prev' | 'next') => void
   onSendMessage: (message: string, mcps: IProductDetail[]) => void;
   onSelectProduct: (product: IProductDetail) => void;
@@ -39,7 +40,7 @@ export function ChatArea(props: ChatAreaProps) {
   const {
     modelConversations, onChangeActiveAnswer, onSendMessage,
     onSelectProduct, selectedModel, handleGenerateMessage, addModels, closeModel,
-    generating,
+    generating, isMcpExecuting
   } = props;
 
   const isCompareMode = modelConversations.length > 1;
@@ -333,6 +334,7 @@ export function ChatArea(props: ChatAreaProps) {
                   onMcpClick={toggleMcpModal}
                   mcpEnabled={mcpEnabled}
                   addedMcps={addedMcps}
+                  isMcpExecuting={isMcpExecuting}
                 />
               </div>
 
@@ -356,6 +358,7 @@ export function ChatArea(props: ChatAreaProps) {
                 isLoading={generating}
                 mcpEnabled={mcpEnabled}
                 addedMcps={addedMcps}
+                isMcpExecuting={isMcpExecuting}
               />
             </div>
           </div>

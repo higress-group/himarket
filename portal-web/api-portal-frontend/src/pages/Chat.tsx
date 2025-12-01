@@ -19,6 +19,7 @@ function Chat() {
   // 多模型对比的初始化数据（用于从历史会话加载）
 
   const [modelConversation, setModelConversation] = useState<IModelConversation[]>([]);
+  const [isMcpExecuting, setIsMcpExecuting] = useState(false);
 
   const [generating, setGenerating] = useState(false);
 
@@ -177,6 +178,7 @@ function Chat() {
           },
           {
             onToolCall: (toolCall) => {
+              setIsMcpExecuting(true);
               setModelConversation((prev) => {
                 return prev.map(model => {
                   if (model.id !== modelId) return model;
@@ -202,6 +204,7 @@ function Chat() {
               });
             },
             onToolResponse: (toolResponse) => {
+              setIsMcpExecuting(false);
               setModelConversation((prev) => {
                 return prev.map(model => {
                   if (model.id !== modelId) return model;
@@ -262,7 +265,8 @@ function Chat() {
                 })
               })
             },
-            onComplete: (content, _chatId, usage) => {
+            onComplete: (_content, _chatId, usage) => {
+              setIsMcpExecuting(false);
               setModelConversation((prev) => {
                 return prev.map(model => {
                   if (model.id !== modelId) return model;
@@ -297,6 +301,7 @@ function Chat() {
               })
             },
             onError: () => {
+              setIsMcpExecuting(false);
               setModelConversation((prev) => {
                 return prev.map(model => {
                   if (model.id !== modelId) return model;
@@ -427,6 +432,7 @@ function Chat() {
           body: JSON.stringify(messagePayload),
         }, {
         onToolCall: (toolCall) => {
+          setIsMcpExecuting(true);
           setModelConversation((prev) => {
             return prev.map(model => {
               if (model.id !== modelId) return model;
@@ -452,6 +458,7 @@ function Chat() {
           });
         },
         onToolResponse: (toolResponse) => {
+          setIsMcpExecuting(false);
           setModelConversation((prev) => {
             return prev.map(model => {
               if (model.id !== modelId) return model;
@@ -523,6 +530,7 @@ function Chat() {
           })
         },
         onComplete: (_content, _chatId, usage) => {
+          setIsMcpExecuting(false);
           setModelConversation((prev) => {
             return prev.map(model => {
               if (model.id !== modelId) return model;
@@ -560,6 +568,7 @@ function Chat() {
           setGenerating(false);
         },
         onError: () => {
+          setIsMcpExecuting(false);
           setModelConversation((prev) => {
             return prev.map(model => {
               return {
@@ -737,7 +746,7 @@ function Chat() {
               sessionId: currentSessionId || "",
               id: model.id,
               name: "",
-              conversations: [], 
+              conversations: [],
             }
           }),
           ...modelIds.map(id => {
@@ -769,6 +778,7 @@ function Chat() {
           refreshTrigger={sidebarRefreshTrigger}
         />
         <ChatArea
+          isMcpExecuting={isMcpExecuting}
           modelConversations={modelConversation}
           currentSessionId={currentSessionId}
           onChangeActiveAnswer={onChangeActiveAnswer}

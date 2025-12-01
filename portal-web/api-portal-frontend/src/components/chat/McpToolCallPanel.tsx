@@ -58,7 +58,7 @@ export function McpToolCallPanel({ toolCalls = [], toolResponses = [] }: McpTool
                     <span className="font-medium text-colorPrimary">
                       {toolResponse ? "MCP 工具执行完成" : "MCP 工具执行中"}
                     </span>
-                    <span className="text-gray-500">· {mcpServerName}</span>
+                    <span className="text-gray-500">{mcpServerName}</span>
                   </div>
                 ),
                 children: (
