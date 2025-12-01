@@ -61,6 +61,44 @@ export interface IConversation {
   questions: IQuestion[];
 }
 
+// ============ MCP 工具调用相关类型 ============
+
+export interface IToolMeta {
+  toolName: string;           // 工具名称
+  toolNameCn?: string | null; // 工具中文名称
+  mcpName: string;            // MCP server 名称
+  mcpNameCn?: string | null;  // MCP server 中文名称
+}
+
+export interface IToolCall {
+  toolMeta: IToolMeta;
+  inputSchema: string;        // 工具入参定义 (JSON string)
+  input: string;              // 工具入参 (JSON string)
+  id: string;                 // 工具调用唯一 ID
+  type: string;               // 通常为 "function"
+  name: string;               // 工具函数名
+  arguments: string;          // 工具参数 (JSON string)
+}
+
+export interface IToolResponse {
+  toolMeta: IToolMeta;
+  output: string;             // 工具调用输出
+  id: string;                 // 工具调用唯一 ID
+  name: string;               // 工具函数名
+  responseData: string;       // 响应数据
+}
+
+export interface IChatUsage {
+  elapsed_time?: number | null;
+  first_byte_timeout?: number | null;
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  total_tokens?: number;
+  prompt_tokens_details?: {
+    cached_tokens?: number;
+  } | null;
+}
+
 // ============ V2 版本数据结构 ============
 
 export interface IAnswerV2 {

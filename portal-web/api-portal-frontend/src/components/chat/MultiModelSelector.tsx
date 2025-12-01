@@ -133,7 +133,7 @@ export function MultiModelSelector({ currentModelId, excludeModels = [], onConfi
                       />
                     )}
 
-                    <ProductIconRenderer iconType={model.icon?.type} className="w-6 h-6" />
+                    <ProductIconRenderer iconType={model.icon?.value} className="w-6 h-6" />
 
                     <div className="flex-1 min-w-0">
                       <div className="font-semibold text-gray-900 mb-0.5">{model.name}</div>

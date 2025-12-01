@@ -1,15 +1,18 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { message } from "antd";
 import { CloseOutlined, PlusOutlined } from "@ant-design/icons";
 import { ModelSelector } from "./ModelSelector";
 import { Messages } from "./Messages";
 import { InputBox } from "./InputBox";
 import { SuggestedQuestions } from "./SuggestedQuestions";
 import { MultiModelSelector } from "./MultiModelSelector";
-import type { IProductDetail } from "../../lib/apis";
-import type { IModelConversation } from "../../types";
 import McpModal from "./McpModal";
 import useProducts from "../../hooks/useProducts";
 import useCategories from "../../hooks/useCategories";
+import APIs from "../../lib/apis";
+
+import type { IGetPrimaryConsumerResp, IProductDetail, ISubscription } from "../../lib/apis";
+import type { IModelConversation } from "../../types";
 
 
 interface ChatAreaProps {
@@ -18,13 +21,14 @@ interface ChatAreaProps {
   selectedModel?: IProductDetail;
   generating: boolean,
   onChangeActiveAnswer: (modelId: string, conversationId: string, questionId: string, direction: 'prev' | 'next') => void
-  onSendMessage: (message: string) => void;
+  onSendMessage: (message: string, mcps: IProductDetail[]) => void;
   onSelectProduct: (product: IProductDetail) => void;
   handleGenerateMessage: (ids: {
     modelId: string;
     conversationId: string;
     questionId: string;
     content: string;
+    mcps: IProductDetail[]
   }) => void;
 
   addModels: (ids: string[]) => void;
@@ -40,11 +44,26 @@ export function ChatArea(props: ChatAreaProps) {
 
   const isCompareMode = modelConversations.length > 1;
 
-  const { data: mcpList, get: getMcpList } = useProducts({ type: "MCP_SERVER" });
-  const { data: modelList, get: getModels } = useProducts({ type: "MODEL_API" });
-  const { data: categories, get: getCategories } = useCategories({ type: "MODEL_API", addAll: true });
-  const { data: mcpCategories, get: getMcpCategories } = useCategories({ type: "MCP_SERVER", addAll: true });
+  const {
+    data: mcpList, get: getMcpList, loading: mcpListLoading,
+    set: setMcpList
+  } = useProducts({ type: "MCP_SERVER", needInit: false });
+  const { data: modelList } = useProducts({ type: "MODEL_API" });
+  const { data: categories } = useCategories({ type: "MODEL_API", addAll: true });
+  const { data: mcpCategories } = useCategories({ type: "MCP_SERVER", addAll: true });
 
+  const primaryConsumer = useRef<IGetPrimaryConsumerResp>();
+
+  const [addedMcps, setAddedMcps] = useState<IProductDetail[]>([]);
+  const [mcpSubscripts, setMcpSubscripts] = useState<ISubscription[]>([]);
+  const [mcpEnabled, setMcpEnabled] = useState(() => {
+    try {
+      return JSON.parse(window.localStorage.getItem("mcpEnabled") || "false")
+    } catch (error) {
+      console.log(error)
+      return false;
+    }
+  });
 
   const [showModelSelector, setShowModelSelector] = useState(false);
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
@@ -52,11 +71,29 @@ export function ChatArea(props: ChatAreaProps) {
 
 
   const handleMcpFilter = useCallback((id: string) => {
+    if (id === "added") {
+      setMcpList(addedMcps);
+    } else {
+      getMcpList({
+        type: "MCP_SERVER",
+        categoryIds: ['all', 'added'].includes(id) ? [] : [id],
+      });
+    }
+  }, [addedMcps]);
 
-  }, [])
+  const handleMcpSearch = useCallback((id: string, name: string) => {
+    if (id === "added") {
+      setMcpList(() => addedMcps.filter(mcp => mcp.name.includes(name)))
+    } else {
+      getMcpList({
+        type: "MCP_SERVER",
+        categoryIds: ['all', 'added'].includes(id) ? [] : [id],
+        name
+      });
+    }
+  }, [addedMcps]);
 
   const toggleMcpModal = useCallback(() => {
-    console.log('asd...')
     setShowMcpModal(v => !v);
   }, []);
 
@@ -78,6 +115,53 @@ export function ChatArea(props: ChatAreaProps) {
     return modelConversations.map(model => model.id);
   }, [modelConversations]);
 
+  const handleAddMcp = useCallback((product: IProductDetail) => {
+    setAddedMcps(v => {
+      if (v.length === 10) {
+        message.error("最多添加 10 个 MCP 服务")
+        return v;
+      }
+      return [product, ...v]
+    });
+  }, []);
+
+  const handleRemoveMcp = useCallback((product: IProductDetail) => {
+    setAddedMcps(v => v.filter(i => i.productId !== product.productId))
+  }, []);
+
+  const handleQuickSubscribe = useCallback((product: IProductDetail) => {
+    if (!primaryConsumer.current) return;
+    APIs.subscribeProduct(primaryConsumer.current.consumerId, product.productId)
+      .then(({ data }) => {
+        if (data) {
+          message.success("订阅成功")
+          APIs.getConsumerSubscriptions(data.consumerId, { size: 1000 })
+            .then(({ data }) => {
+              setMcpSubscripts(data.content);
+            })
+        } else {
+          message.error("订阅失败")
+        }
+      }).catch(() => {
+        message.error("订阅失败")
+      })
+  }, []);
+
+  const handleMcpEnable = (enable: boolean) => {
+    localStorage.setItem("mcpEnabled", JSON.stringify(enable));
+    setMcpEnabled(enable);
+  }
+
+  useEffect(() => {
+    APIs.getPrimaryConsumer()
+      .then(({ data }) => {
+        primaryConsumer.current = data;
+        APIs.getConsumerSubscriptions(data.consumerId, { size: 1000 })
+          .then(({ data }) => {
+            setMcpSubscripts(data.content);
+          })
+      })
+  }, []);
 
   return (
     <div className="h-full flex flex-col flex-1">
@@ -176,6 +260,7 @@ export function ChatArea(props: ChatAreaProps) {
                         conversationId: con.id,
                         questionId: quest.id,
                         content: quest.content,
+                        mcps: addedMcps,
                       })
                     }}
                   />
@@ -242,10 +327,12 @@ export function ChatArea(props: ChatAreaProps) {
                 <InputBox
                   onSendMessage={(c) => {
                     setAutoScrollEnabled(true);
-                    onSendMessage(c)
+                    onSendMessage(c, addedMcps)
                   }}
                   isLoading={generating}
                   onMcpClick={toggleMcpModal}
+                  mcpEnabled={mcpEnabled}
+                  addedMcps={addedMcps}
                 />
               </div>
 
@@ -253,7 +340,7 @@ export function ChatArea(props: ChatAreaProps) {
               <SuggestedQuestions
                 onSelectQuestion={(c) => {
                   setAutoScrollEnabled(true);
-                  onSendMessage(c);
+                  onSendMessage(c, addedMcps);
                 }} />
             </div>
           </div>
@@ -264,9 +351,11 @@ export function ChatArea(props: ChatAreaProps) {
                 onMcpClick={toggleMcpModal}
                 onSendMessage={(c) => {
                   setAutoScrollEnabled(true);
-                  onSendMessage(c);
+                  onSendMessage(c, addedMcps);
                 }}
                 isLoading={generating}
+                mcpEnabled={mcpEnabled}
+                addedMcps={addedMcps}
               />
             </div>
           </div>
@@ -277,6 +366,16 @@ export function ChatArea(props: ChatAreaProps) {
         categories={mcpCategories}
         data={mcpList}
         onFilter={handleMcpFilter}
+        onSearch={handleMcpSearch}
+        mcpLoading={mcpListLoading}
+        added={addedMcps}
+        subscripts={mcpSubscripts}
+        onAdd={handleAddMcp}
+        onEnabled={handleMcpEnable}
+        enabled={mcpEnabled}
+        onRemove={handleRemoveMcp}
+        onClose={() => setShowMcpModal(false)}
+        onQuickSubscribe={handleQuickSubscribe}
       />
     </div>
   );

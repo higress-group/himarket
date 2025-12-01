@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { message } from "antd";
 import MarkdownRender from "../MarkdownRender";
 import { ProductIconRenderer } from "../icon/ProductIconRenderer";
+import { McpToolCallPanel } from "./McpToolCallPanel";
 import type { IModelConversation } from "../../types";
 
 interface MessageListProps {
@@ -74,6 +75,14 @@ export function Messages({
                     {/* 模型名称 */}
                     <div className="text-sm text-gray-500 mb-1.5">{modelName}</div>
                   </div>
+
+                  {/* MCP 工具调用面板 */}
+                  {(question.mcpToolCalls && question.mcpToolCalls.length > 0) && (
+                    <McpToolCallPanel
+                      toolCalls={question.mcpToolCalls}
+                      toolResponses={question.mcpToolResponses}
+                    />
+                  )}
 
                   {/* 消息内容 */}
                   <div className="flex-1">

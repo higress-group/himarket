@@ -223,3 +223,20 @@ export async function getProductSubscriptionStatus(productId: string) {
     throw error;
   }
 }
+
+
+/**
+ * 获取默认消费者
+ */
+export interface IGetPrimaryConsumerResp {
+  consumerId: string;
+  name: string;
+  description: string;
+  isPrimary: true,
+  createAt: string;
+}
+export function getPrimaryConsumer() {
+  return request<RespI<IGetPrimaryConsumerResp>, RespI<IGetPrimaryConsumerResp>>(
+    "/consumers/primary"
+  );
+}

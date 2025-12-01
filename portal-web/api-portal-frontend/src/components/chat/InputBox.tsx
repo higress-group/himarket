@@ -2,18 +2,20 @@ import { useState } from "react";
 import { SendOutlined } from "@ant-design/icons";
 import SendButton from "../send-button";
 import { Mcp } from "../icon";
+import type { IProductDetail } from "../../lib/apis";
 
 interface InputBoxProps {
   onSendMessage: (content: string) => void;
   isLoading?: boolean;
-  mcpEnabled?: boolean
-  onMcpClick?: () => void
+  mcpEnabled?: boolean;
+  onMcpClick?: () => void;
+  addedMcps: IProductDetail[]
 }
 
 export function InputBox(props: InputBoxProps) {
   const {
     onSendMessage, isLoading = false, mcpEnabled = false,
-    onMcpClick
+    onMcpClick, addedMcps
   } = props;
   const [input, setInput] = useState("");
 
@@ -54,8 +56,8 @@ export function InputBox(props: InputBoxProps) {
         className="absolute bottom-5 flex justify-between w-full px-6 left-0"
       >
         <ToolButton onClick={onMcpClick} enabled={mcpEnabled}>
-          <Mcp className={`w-4 h-4 ${mcpEnabled ? "text-colorPrimary" : "fill-subTitle"}`} />
-          <span className="text-sm text-subTitle">MCP</span>
+          <Mcp className={`w-4 h-4 hover:fill-colorPrimary ${mcpEnabled ? "fill-colorPrimary" : "fill-subTitle"}`} />
+          <span className="text-sm text-subTitle">MCP {addedMcps.length ? `(${addedMcps.length})` : ""}</span>
         </ToolButton>
         <SendButton
           className={`w-9 h-9 ${input.trim() && !isLoading

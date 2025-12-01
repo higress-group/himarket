@@ -49,7 +49,7 @@ function Chat() {
     }
   }, [location]);
 
-  const handleSendMessage = async (content: string) => {
+  const handleSendMessage = async (content: string, mcps: IProductDetail[]) => {
     if (!selectedModel) {
       antdMessage.error("请先选择一个模型");
       return;
@@ -98,6 +98,7 @@ function Chat() {
           question: content,
           stream: useStream,
           needMemory: true,
+          mcpProducts: mcps.map(mcp => mcp.productId),
         };
 
         let fullContent = '';
@@ -329,9 +330,11 @@ function Chat() {
 
   // 重新生成答案
   const handleGenerateMessage = async ({
-    modelId, conversationId, questionId, content
+    modelId, conversationId, questionId, content,
+    mcps,
   }: {
-    modelId: string, conversationId: string, questionId: string, content: string
+    modelId: string, conversationId: string, questionId: string, content: string,
+    mcps: IProductDetail[]
   }) => {
 
     setGenerating(true);
@@ -341,6 +344,7 @@ function Chat() {
         conversationId, questionId,
         question: content, stream: true,
         needMemory: true,
+        mcpProducts: mcps.map(mcp => mcp.productId),
       };
       let fullContent = '';
       let lastIdx = -1;

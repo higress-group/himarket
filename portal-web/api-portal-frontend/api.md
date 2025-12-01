@@ -237,6 +237,61 @@
 }
 ```
 
+## 获取 MCP 服务的工具及参数
+
+### GET /products/mcp/{productId}/tools/list
+
+调用时机：获取 MCP 服务的工具详情，本质上就是调用 MCP 服务的 tools/list
+
+响应结果
+
+```json
+{
+  "nextCursor": "",
+  "tools": [
+    {
+      "name": "getCurTime",
+      "description": "获取当前最新日期时间。注意：模型不知道当前时间，需要通过此日期工具查询最新日期",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "fundReturnWithFrame",
+      "description": "基金收益归因解读API 支持用户输入基金代码、基金简称、基金全称，输出基金近一个月的涨跌情况以及对应关联的板块分析。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "scene": {
+            "default": "",
+            "description": "基金全称，例如华夏成长证券投资基金。",
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "fundscore",
+      "description": "基金分数API 基于基金分类，根据不同类型的定位和特点，选取了盈利能力、风险控制能力、选股能力、择时能力、业绩稳定性、收益风险比、大类资产配置能力、基金经理能力等多个维度对基金在过去一年表现情况进行综合评价，评价打分范围：0-100。支持用户输入基金代码、基金简称、基金全称，查询基金综合分数。",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "fundObject": {
+            "default": "",
+            "description": "公募基金实体标识，支持输入基金代码、基金简称、基金全称，仅支持输入一个。",
+            "type": "string"
+          }
+        },
+        "required": [
+          "fundObject"
+        ]
+      }
+    }
+  ]
+}
+```
+
 ## 创建会话
 
 ### POST /sessions
@@ -346,37 +401,64 @@ Connection: keep-alive
 - 开始事件
 
 ```text
-data: {"status":"start","chatId":"chat-001"}
+data:{"chatId":"chat-692813820ab255788b33c74b","msgType":"USER","content":"杭州天气怎么样","chatUsage":null}
 ```
 
 - 内容流事件
 
+  - 工具调用：msgType=TOOL_CALL
+
+  ```text
+  data:{"chatId":"chat-692813820ab255788b33c74b","msgType":"TOOL_CALL","content":{"toolMeta":{"toolName":"查询天气的mcp server","toolNameCn":null,"mcpName":"weather","mcpNameCn":"weather"},"inputSchema":"{\"type\":\"object\",\"properties\":{\"city\":{\"description\":\"城市名称\",\"title\":\"City\",\"type\":\"string\"}},\"required\":[\"city\"]}","input":"{\"city\": \"杭州\"}","id":"call_dd2791f599a94394a30d94","type":"function","name":"j_查询天气的mcpserver","arguments":"{\"city\": \"杭州\"}"},"chatUsage":{"elapsed_time":null,"first_byte_timeout":6810,"prompt_tokens":313,"completion_tokens":23,"total_tokens":336,"prompt_tokens_details":null}}
+  ```
+
+  content.toolMeta.toolName: 工具名称，前端可以展示出来
+  content.toolMeta.toolNameCn: 工具title，前端可以展示出来
+  content.toolMeta.mcpName：mcp server名称
+  content.inputSchema：工具入参定义
+  content.input: 工具入参
+  content.id: 工具调用唯一id
+
+  - 工具返回：msgType=TOOL_RESPONSE
+
+  ```text
+  data:{"chatId":"chat-692813820ab255788b33c74b","msgType":"TOOL_RESPONSE","content":{"toolMeta":{"toolName":"查询天气的mcp server","toolNameCn":null,"mcpName":"weather","mcpNameCn":"weather"},"output":"[{\"text\":\"{\\n  \\\"code\\\": \\\"31\\\",\\n  \\\"temperature\\\": \\\"12\\\",\\n  \\\"text\\\": \\\"霾\\\"\\n}\"}]","id":"call_dd2791f599a94394a30d94","name":"j_查询天气的mcpserver","responseData":"[{\"text\":\"{\\n  \\\"code\\\": \\\"31\\\",\\n  \\\"temperature\\\": \\\"12\\\",\\n  \\\"text\\\": \\\"霾\\\"\\n}\"}]"},"chatUsage":{"elapsed_time":null,"first_byte_timeout":6810,"prompt_tokens":313,"completion_tokens":23,"total_tokens":336,"prompt_tokens_details":null}}
+  ```
+
+  content.toolMeta.toolName: 工具名称，前端可以展示出来
+  content.toolMeta.toolNameCn: 工具title，前端可以展示出来
+  content.toolMeta.mcpName：mcp server名称
+  content.output: 工具调用输出
+  content.id: 工具调用唯一id
+
+  - 模型返回
+
+  ```text
+  data:{"chatId":"chat-692813820ab255788b33c74b","msgType":"ANSWER","content":"杭州","chatUsage":null}
+
+  data:{"chatId":"chat-692813820ab255788b33c74b","msgType":"ANSWER","content":"现在的天气是有","chatUsage":null}
+
+  data:{"chatId":"chat-692813820ab255788b33c74b","msgType":"ANSWER","content":"霾，温度","chatUsage":null}
+
+  data:{"chatId":"chat-692813820ab255788b33c74b","msgType":"ANSWER","content":"是12℃。建议","chatUsage":null}
+
+  data:{"chatId":"chat-692813820ab255788b33c74b","msgType":"ANSWER","content":"减少外出，如果","chatUsage":null}
+
+  data:{"chatId":"chat-692813820ab255788b33c74b","msgType":"ANSWER","content":"需要外出请佩戴","chatUsage":null}
+
+  data:{"chatId":"chat-692813820ab255788b33c74b","msgType":"ANSWER","content":"口罩。","chatUsage":null}
+  ```
+
+- 完成事件, msgType为STOP，并且带有usage，包含 Token 消耗信息
+
 ```text
-data:{"id":"chatcmpl-0a0297d5-87cc-4190-a69b-da411faa65c8","object":"chat.completion.chunk","created":1763705190,"model":"qwen-max","choices":[{"delta":{"content":"你好"},"index":0}]}
-
-data:{"id":"chatcmpl-0a0297d5-87cc-4190-a69b-da411faa65c8","object":"chat.completion.chunk","created":1763705190,"model":"qwen-max","choices":[{"delta":{"content":"！有什么可以帮助"},"index":0}]}
-
-data:{"id":"chatcmpl-0a0297d5-87cc-4190-a69b-da411faa65c8","object":"chat.completion.chunk","created":1763705190,"model":"qwen-max","choices":[{"delta":{"content":"你的吗？"},"index":0}]}
-
-data:{"id":"chatcmpl-0a0297d5-87cc-4190-a69b-da411faa65c8","object":"chat.completion.chunk","created":1763705190,"model":"qwen-max","choices":[{"delta":{"content":""},"index":0,"finish_reason":"stop"}]}
-```
-
-- 完成事件
-
-```text
-data:{"id":"chatcmpl-0a0297d5-87cc-4190-a69b-da411faa65c8","object":"chat.completion.chunk","created":1763705190,"usage":{"prompt_tokens":10,"completion_tokens":7,"total_tokens":17,"prompt_tokens_details":{"cached_tokens":0}},"model":"qwen-max","choices":[]}
-```
-
-- 结束标志
-
-```text
-data: [DONE]
+data:{"chatId":"chat-692813820ab255788b33c74b","msgType":"STOP","content":"","chatUsage":{"elapsed_time":15076,"first_byte_timeout":6810,"prompt_tokens":377,"completion_tokens":26,"total_tokens":403,"prompt_tokens_details":null}}
 ```
 
 - 错误事件
 
 ```text
-data: {"status":"error","chatId":"chat-001","message":"模型调用失败","code":"MODEL_ERROR"}
+data:{"chatId":"chat-692833f50ab2dd5366971cc6","msgType":"ERROR","content":null,"chatUsage":null,"error":"WEB_RESPONSE_ERROR","message":"429 Too Many Requests from POST http://101.37.68.6/aaa/v1/chat/completions"}
 ```
 
 块式响应格式（暂定）
@@ -464,7 +546,7 @@ conversationId、questionId由前端生成，格式分别为conversation-{xxx}�
                                 "content": "AI的回答内容",
                                 "usage": {
                                   "elapsed_time": 3227,
-                                  "first_package_time": 100,
+                                  "first_byte_timeout": 100,
                                   "prompt_tokens": 9,
                                   "completion_tokens": 8,
                                   "total_tokens": 17,
