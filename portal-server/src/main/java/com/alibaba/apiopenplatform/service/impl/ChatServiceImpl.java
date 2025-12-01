@@ -27,7 +27,6 @@ import com.alibaba.apiopenplatform.dto.result.chat.LlmInvokeResult;
 import com.alibaba.apiopenplatform.support.chat.attachment.ChatAttachmentConfig;
 import com.alibaba.apiopenplatform.support.chat.ChatMessage;
 import com.alibaba.apiopenplatform.support.chat.content.*;
-import com.alibaba.apiopenplatform.dto.params.chat.ChatMcpServerConfig;
 import com.alibaba.apiopenplatform.support.chat.mcp.McpServerConfig;
 import com.alibaba.apiopenplatform.support.enums.ChatAttachmentType;
 import com.alibaba.apiopenplatform.support.enums.ChatRole;
@@ -123,13 +122,12 @@ public class ChatServiceImpl implements ChatService {
 
 
     private List<McpServerConfig> buildMcpServerConfigs(CreateChatParam param) {
-        List<ChatMcpServerConfig> mcpServers = param.getMcpServers();
-        if (CollectionUtil.isEmpty(mcpServers)) {
+        List<String> mcpProducts = param.getMcpProducts();
+        if (CollectionUtil.isEmpty(mcpProducts)) {
             return Collections.emptyList();
         }
         List<McpServerConfig> mcpServerConfigs = new ArrayList<>();
-        List<String> productIds = mcpServers.stream().map(ChatMcpServerConfig::getProductId).collect(Collectors.toList());
-        productIds.forEach(productId -> {
+        mcpProducts.forEach(productId -> {
             ProductResult product = productService.getProduct(productId);
             if (product.getType() == ProductType.MCP_SERVER && product.getMcpConfig() != null) {
                 mcpServerConfigs.add(product.getMcpConfig().toStandardMcpServer());

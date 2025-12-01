@@ -22,7 +22,7 @@ cd ..
 cd portal-web/api-portal-frontend
 echo "=== Building frontend ==="
 rm -rf ./dist
-tnpm install --force
+npm install --force
 npm run build
 docker buildx build \
     -t himarket-frontend:$VERSION \
@@ -33,7 +33,7 @@ docker buildx build \
 cd ../api-portal-admin
 echo "=== Building admin ==="
 rm -rf ./dist
-tnpm install --force
+npm install --force
 npm run build
 docker buildx build \
     -t himarket-admin:$VERSION \
