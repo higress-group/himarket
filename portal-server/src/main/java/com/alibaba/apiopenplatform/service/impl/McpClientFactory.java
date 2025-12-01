@@ -39,17 +39,7 @@ public class McpClientFactory {
 
         try {
             McpClientTransport mcpClientTransport = null;
-            if (StringUtils.equalsIgnoreCase(type, "StreamableHTTP")) {
-                mcpClientTransport = HttpClientStreamableHttpTransport.builder(endpoint)
-                        .customizeRequest(builder -> {
-                            if (MapUtils.isNotEmpty(headers)) {
-                                headers.forEach(builder::header);
-                            }
-                        })
-                        .endpoint(path)
-                        .connectTimeout(Duration.ofSeconds(2))
-                        .build();
-            } else if (StringUtils.equalsIgnoreCase(type, "sse")) {
+            if (StringUtils.equalsIgnoreCase(type, "sse")) {
                 mcpClientTransport = HttpClientSseClientTransport.builder(endpoint)
                         .customizeRequest(builder -> {
                             if (MapUtils.isNotEmpty(headers)) {
@@ -60,8 +50,15 @@ public class McpClientFactory {
                         .sseEndpoint(path)
                         .build();
             } else {
-                log.error("unsupported mcp server type {}", type);
-                return null;
+                mcpClientTransport = HttpClientStreamableHttpTransport.builder(endpoint)
+                        .customizeRequest(builder -> {
+                            if (MapUtils.isNotEmpty(headers)) {
+                                headers.forEach(builder::header);
+                            }
+                        })
+                        .endpoint(path)
+                        .connectTimeout(Duration.ofSeconds(2))
+                        .build();
             }
             client = McpClient.sync(mcpClientTransport).requestTimeout(Duration.ofSeconds(10))
                     .capabilities(McpSchema.ClientCapabilities.builder().roots(true) // Enable roots capability

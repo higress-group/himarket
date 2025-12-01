@@ -19,6 +19,7 @@
 
 package com.alibaba.apiopenplatform.dto.result.mcp;
 
+import cn.hutool.core.util.StrUtil;
 import com.alibaba.apiopenplatform.support.chat.mcp.McpServerConfig;
 import com.alibaba.apiopenplatform.dto.result.common.DomainResult;
 import lombok.Data;
@@ -47,6 +48,12 @@ public class MCPConfigResult {
         List<DomainResult> domains = this.mcpServerConfig.getDomains();
         DomainResult domainResult = domains.get(0);
         String url = String.format("%s://%s", domainResult.getProtocol(), domainResult.getDomain());
+
+        String path = this.getMcpServerConfig().getPath();
+        if (StrUtil.isNotBlank(path)) {
+            url = path.startsWith("/") ? url + path : url + "/" + path;
+        }
+
         if (StringUtils.equalsIgnoreCase(mcpServer.getType(), "sse")) {
             if (!url.endsWith("/sse")) {
                 url = url.endsWith("/") ? url + "sse" : url + "/sse";

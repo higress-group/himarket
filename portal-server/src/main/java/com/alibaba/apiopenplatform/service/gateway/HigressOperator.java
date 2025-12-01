@@ -156,7 +156,13 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
 
         // mcpServer config
         MCPConfigResult.MCPServerConfig c = new MCPConfigResult.MCPServerConfig();
-        c.setPath("/mcp-servers/" + higressMCPConfig.getName());
+
+        boolean isDirect = "direct_route".equalsIgnoreCase(higressMCPConfig.getType());
+        DirectRouteConfig directRouteConfig = higressMCPConfig.getDirectRouteConfig();
+        String transportType = isDirect ? directRouteConfig.getTransportType() : null;
+        String path = isDirect ? directRouteConfig.getPath() : "/mcp-servers/" + higressMCPConfig.getName();
+
+        c.setPath(path);
         List<String> domains = higressMCPConfig.getDomains();
         if (CollUtil.isEmpty(domains)) {
             c.setDomains(Collections.singletonList(
@@ -188,6 +194,7 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
         MCPConfigResult.McpMetadata meta = new MCPConfigResult.McpMetadata();
         meta.setSource(GatewayType.HIGRESS.name());
         meta.setCreateFromType(higressMCPConfig.getType());
+        meta.setProtocol(transportType);
         m.setMeta(meta);
 
         return JSONUtil.toJsonStr(m);
@@ -464,6 +471,13 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
         private String type;
         private List<String> domains;
         private String rawConfigurations;
+        private DirectRouteConfig directRouteConfig;
+    }
+
+    @Data
+    public static class DirectRouteConfig {
+        private String path;
+        private String transportType;
     }
 
     @Data
