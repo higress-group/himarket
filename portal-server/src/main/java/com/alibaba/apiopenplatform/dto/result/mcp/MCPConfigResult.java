@@ -50,7 +50,10 @@ public class MCPConfigResult {
 
         mcpServer.setType(StringUtils.isBlank(meta.getProtocol()) ? "sse" : meta.getProtocol().toLowerCase());
         List<DomainResult> domains = this.mcpServerConfig.getDomains();
-        DomainResult domainResult = domains.get(0);
+        DomainResult domainResult = domains.stream()
+                .filter(domain -> !"intranet".equalsIgnoreCase(domain.getNetworkType()) && !"*".equals(domain.getDomain()))
+                .findFirst()
+                .orElse(domains.get(0));
         String url = String.format("%s://%s", domainResult.getProtocol(), domainResult.getDomain());
 
         String path = this.getMcpServerConfig().getPath();

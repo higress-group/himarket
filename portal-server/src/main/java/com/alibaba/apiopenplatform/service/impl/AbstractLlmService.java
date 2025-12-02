@@ -88,6 +88,7 @@ public abstract class AbstractLlmService implements LlmService {
                 .headers(headers)
                 .chatRequest(chatRequest)
                 .gatewayIps(param.getGatewayIps())
+                .credentialContext(param.getCredentialContext())
                 .build();
     }
 
@@ -139,7 +140,7 @@ public abstract class AbstractLlmService implements LlmService {
             // Find first external domain
             Optional<DomainResult> externalDomain = route.getDomains().stream()
                     // TODO 调试场景专用，防止域名被ICP拦截，可恶啊
-                    .filter(domain -> StrUtil.endWith(domain.getDomain(), ".alicloudapi.com"))
+//                    .filter(domain -> StrUtil.endWith(domain.getDomain(), ".alicloudapi.com"))
                     .filter(domain -> !StrUtil.equalsIgnoreCase(domain.getNetworkType(), "intranet"))
                     .findFirst();
 

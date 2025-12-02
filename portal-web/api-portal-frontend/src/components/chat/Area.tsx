@@ -13,6 +13,7 @@ import APIs from "../../lib/apis";
 
 import type { IGetPrimaryConsumerResp, IProductDetail, ISubscription } from "../../lib/apis";
 import type { IModelConversation } from "../../types";
+import { safeJSONParse } from "../../lib/utils";
 
 
 interface ChatAreaProps {
@@ -55,15 +56,12 @@ export function ChatArea(props: ChatAreaProps) {
 
   const primaryConsumer = useRef<IGetPrimaryConsumerResp>();
 
-  const [addedMcps, setAddedMcps] = useState<IProductDetail[]>([]);
+  const [addedMcps, setAddedMcps] = useState<IProductDetail[]>((): IProductDetail[] => {
+    return safeJSONParse(window.localStorage.getItem("addedMcps") || "[]", [])
+  });
   const [mcpSubscripts, setMcpSubscripts] = useState<ISubscription[]>([]);
   const [mcpEnabled, setMcpEnabled] = useState(() => {
-    try {
-      return JSON.parse(window.localStorage.getItem("mcpEnabled") || "false")
-    } catch (error) {
-      console.log(error)
-      return false;
-    }
+    return safeJSONParse(window.localStorage.getItem("mcpEnabled") || "false", false)
   });
 
   const [showModelSelector, setShowModelSelector] = useState(false);
@@ -122,13 +120,19 @@ export function ChatArea(props: ChatAreaProps) {
         message.error("最多添加 10 个 MCP 服务")
         return v;
       }
-      return [product, ...v]
+      const res = [product, ...v];
+      localStorage.setItem("addedMcps", JSON.stringify(res))
+      return res;
     });
   }, []);
 
   const handleRemoveMcp = useCallback((product: IProductDetail) => {
     setAddedMcps(v => v.filter(i => i.productId !== product.productId))
   }, []);
+
+  const handleRemoveAll = useCallback(() => {
+    setAddedMcps([]);
+  }, [])
 
   const handleQuickSubscribe = useCallback((product: IProductDetail) => {
     if (!primaryConsumer.current) return;
@@ -379,6 +383,7 @@ export function ChatArea(props: ChatAreaProps) {
         onRemove={handleRemoveMcp}
         onClose={() => setShowMcpModal(false)}
         onQuickSubscribe={handleQuickSubscribe}
+        onRemoveAll={handleRemoveAll}
       />
     </div>
   );

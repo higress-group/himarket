@@ -332,6 +332,7 @@ public class ChatServiceImpl implements ChatService {
                 .enableWebSearch(param.getEnableWebSearch())
                 .gatewayIps(gatewayIps)
                 .mcpServerConfigs(mcpServerConfigs)
+                .credentialContext(credentialContext)
                 .build();
     }
 
