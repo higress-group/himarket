@@ -240,3 +240,11 @@ export function getPrimaryConsumer() {
     "/consumers/primary"
   );
 }
+
+/**
+ * 更新默认消费者
+ */
+
+export function putPrimaryConsumer(id: string) {
+  return request.put<RespI<unknown>, RespI<unknown>>(`/consumers/${id}/primary`)
+}
