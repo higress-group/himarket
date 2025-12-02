@@ -457,11 +457,15 @@ public class ProductServiceImpl implements ProductService {
 
         try (McpClientHolder mcpClientHolder =
                      mcpClientFactory.initClient(server.getType(), server.getUrl(), credentialContext.getHeaders(), credentialContext.getQueryParams())) {
+            if (mcpClientHolder == null) {
+                log.error("initClient returned null");
+                throw new BusinessException(ErrorCode.INTERNAL_ERROR, Resources.PRODUCT, productId, "initClient returned null");
+            }
             List<McpSchema.Tool> tools = mcpClientHolder.listTools();
             mcpToolListResult.setTools(tools);
         } catch (IOException e) {
             log.error("mcp client close error {}", e.getMessage());
-            return null;
+            return mcpToolListResult;
         }
         return mcpToolListResult;
     }
