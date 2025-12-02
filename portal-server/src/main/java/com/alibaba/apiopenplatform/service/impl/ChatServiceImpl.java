@@ -133,7 +133,8 @@ public class ChatServiceImpl implements ChatService {
 
         for (String productId : mcpProducts) {
             if (!subscribedProductIds.contains(productId)) {
-                throw new BusinessException(ErrorCode.INVALID_PARAMETER, Resources.PRODUCT, productId + " mcp is not subscribed, not allowed to use");
+//                throw new BusinessException(ErrorCode.INVALID_PARAMETER, Resources.PRODUCT, productId + " mcp is not subscribed, not allowed to use");
+                log.warn("mcp product {} is not subscribed, not allowed to use", productId);
             }
         }
 
