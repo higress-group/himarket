@@ -123,13 +123,18 @@ public class ChatServiceImpl implements ChatService {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "MCP servers count is more than 10, currently max size is 10");
         }
 
-        for (String productId : mcpProducts) {
-            String consumerId = consumerService.getPrimaryConsumer().getConsumerId();
-            boolean subscribed = subscriptionRepository.findByConsumerIdAndProductId(consumerId, productId).isPresent();
-            if (!subscribed) {
-                throw new BusinessException(ErrorCode.INVALID_PARAMETER, Resources.PRODUCT, productId + " mcp is not subscribed, not allowed to use");
-            }
-        }
+        String consumerId = consumerService.getPrimaryConsumer().getConsumerId();
+                // 批量查询提高性能
+                List<ProductSubscription> subscriptions = subscriptionRepository.findAllByConsumerId(consumerId);
+                Set<String> subscribedProductIds = subscriptions.stream()
+                        .map(ProductSubscription::getProductId)
+                        .collect(Collectors.toSet());
+                
+                for (String productId : mcpProducts) {
+                    if (!subscribedProductIds.contains(productId)) {
+                        throw new BusinessException(ErrorCode.INVALID_PARAMETER, Resources.PRODUCT, productId + " mcp is not subscribed, not allowed to use");
+                    }
+                }
 
         // chat count
 
