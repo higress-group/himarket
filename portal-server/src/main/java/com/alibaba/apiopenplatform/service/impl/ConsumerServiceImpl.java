@@ -648,8 +648,7 @@ public class ConsumerServiceImpl implements ConsumerService {
     @Override
     @Transactional
     public void setPrimaryConsumer(String consumerId) {
-        String developerId = contextHolder.getUser();
-        Consumer consumer = findDevConsumer(developerId);
+        Consumer consumer = findDevConsumer(consumerId);
 
         // Return if consumer is already primary
         if (BooleanUtil.isTrue(consumer.getIsPrimary())) {
@@ -658,7 +657,7 @@ public class ConsumerServiceImpl implements ConsumerService {
         }
 
         // Clear primary consumer for the developer
-        consumerRepository.clearPrimary(developerId);
+        consumerRepository.clearPrimary(contextHolder.getUser());
 
         consumer.setIsPrimary(true);
         consumerRepository.save(consumer);

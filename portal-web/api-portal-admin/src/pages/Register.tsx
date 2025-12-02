@@ -9,8 +9,7 @@ const Register: React.FC = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const searchParams = new URLSearchParams(location.search)
-  const portalId = searchParams.get('portalId') || ''
-
+  searchParams.get('portalId') || '';
   const handleRegister = async (values: { username: string; password: string; confirmPassword: string }) => {
     setError('')
     if (!values.username || !values.password || !values.confirmPassword) {
