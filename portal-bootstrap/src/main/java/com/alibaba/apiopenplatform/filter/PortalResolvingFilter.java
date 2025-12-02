@@ -61,7 +61,7 @@ public class PortalResolvingFilter extends OncePerRequestFilter {
                 }
             }
 
-            log.info("域名解析调试 - Origin: {}, Host: {}, X-Forwarded-Host: {}, ServerName: {}, X-Real-IP: {}, X-Forwarded-For: {}",
+            log.debug("域名解析调试 - Origin: {}, Host: {}, X-Forwarded-Host: {}, ServerName: {}, X-Real-IP: {}, X-Forwarded-For: {}",
                     origin, host, xForwardedHost, request.getServerName(), xRealIp, xForwardedFor);
 
             if (domain == null) {
@@ -76,13 +76,13 @@ public class PortalResolvingFilter extends OncePerRequestFilter {
 
             if (StrUtil.isNotBlank(portalId)) {
                 contextHolder.savePortal(portalId);
-                log.info("Resolved portal for domain: {} with portalId: {}", domain, portalId);
+                log.debug("Resolved portal for domain: {} with portalId: {}", domain, portalId);
             } else {
-                log.info("No portal found for domain: {}", domain);
+                log.debug("No portal found for domain: {}", domain);
                 String defaultPortalId = portalService.getDefaultPortal();
                 if (StrUtil.isNotBlank(defaultPortalId)) {
                     contextHolder.savePortal(defaultPortalId);
-                    log.info("Use default portal: {}", defaultPortalId);
+                    log.debug("Use default portal: {}", defaultPortalId);
                 }
             }
 

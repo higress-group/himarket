@@ -16,7 +16,7 @@ import org.springframework.context.annotation.Configuration;
 public class SlsConfig {
 
     /**
-     * 认证方式：STS 或 AK_SK
+     * 认证方式:STS 或 AK_SK
      */
     private SlsAuthType authType = SlsAuthType.AK_SK;
 
@@ -25,6 +25,14 @@ public class SlsConfig {
      * 例如: cn-hangzhou.log.aliyuncs.com
      */
     private String endpoint;
+
+    /**
+     * 检查SLS配置是否有效
+     * @return true表示配置有效,false表示配置无效
+     */
+    public boolean isConfigured() {
+        return endpoint != null && !endpoint.trim().isEmpty();
+    }
 
     /**
      * 访问密钥ID（仅当authType=AK_SK时使用）
