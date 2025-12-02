@@ -17,28 +17,14 @@
  * under the License.
  */
 
-package com.alibaba.apiopenplatform.dto.params.product;
+package com.alibaba.apiopenplatform.dto.result.mcp;
 
-import com.alibaba.apiopenplatform.support.enums.ProductStatus;
-import com.alibaba.apiopenplatform.support.enums.ProductType;
+import io.modelcontextprotocol.spec.McpSchema;
 import lombok.Data;
 
 import java.util.List;
 
 @Data
-public class QueryProductParam {
-
-    private String portalId;
-
-    private ProductType type;
-
-    private String name;
-
-    private ProductStatus status;
-    
-    private List<String> categoryIds;
-    
-    private String excludeCategoryId;
-
-    private Boolean querySubscribeStatus;
+public class McpToolListResult {
+    List<McpSchema.Tool> tools;
 }

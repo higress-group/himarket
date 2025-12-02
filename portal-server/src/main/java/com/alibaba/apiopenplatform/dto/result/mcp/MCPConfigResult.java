@@ -20,6 +20,9 @@
 package com.alibaba.apiopenplatform.dto.result.mcp;
 
 import cn.hutool.core.util.StrUtil;
+import com.alibaba.apiopenplatform.core.constant.Resources;
+import com.alibaba.apiopenplatform.core.exception.BusinessException;
+import com.alibaba.apiopenplatform.core.exception.ErrorCode;
 import com.alibaba.apiopenplatform.support.chat.mcp.McpServerConfig;
 import com.alibaba.apiopenplatform.dto.result.common.DomainResult;
 import lombok.Data;
@@ -28,6 +31,7 @@ import org.apache.commons.lang3.StringUtils;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Random;
 
 @Data
 public class MCPConfigResult {
@@ -44,7 +48,7 @@ public class MCPConfigResult {
         McpServerConfig mcpServerConfig = new McpServerConfig();
         McpServerConfig.McpServer mcpServer = new McpServerConfig.McpServer();
 
-        mcpServer.setType(meta.getProtocol().toLowerCase());
+        mcpServer.setType(StringUtils.isBlank(meta.getProtocol()) ? "sse" : meta.getProtocol().toLowerCase());
         List<DomainResult> domains = this.mcpServerConfig.getDomains();
         DomainResult domainResult = domains.stream()
                 .filter(domain -> !"intranet".equalsIgnoreCase(domain.getNetworkType()) && !"*".equals(domain.getDomain()))
@@ -66,6 +70,20 @@ public class MCPConfigResult {
 
         mcpServerConfig.setMcpServers(Collections.singletonMap(mcpServerName, mcpServer));
         return mcpServerConfig;
+    }
+
+    public void convertDomainToGatewayIp(List<String> gatewayIps) {
+
+        List<DomainResult> domains = this.mcpServerConfig.getDomains();
+        for (DomainResult domain : domains) {
+            if (StringUtils.equals(domain.getDomain(), "<higress-gateway-ip>")) {
+                if (gatewayIps.isEmpty()) {
+                    throw new BusinessException(ErrorCode.GATEWAY_ERROR, Resources.GATEWAY, "no available ip to replace <higress-gateway-ip>");
+                }
+                String randomGatewayIp = gatewayIps.get(new Random().nextInt(gatewayIps.size()));
+                domain.setDomain(randomGatewayIp);
+            }
+        }
     }
 
     @Data

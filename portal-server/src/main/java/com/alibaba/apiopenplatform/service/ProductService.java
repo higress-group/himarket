@@ -22,6 +22,7 @@ package com.alibaba.apiopenplatform.service;
 import com.alibaba.apiopenplatform.core.event.PortalDeletingEvent;
 import com.alibaba.apiopenplatform.dto.params.product.*;
 import com.alibaba.apiopenplatform.dto.result.common.PageResult;
+import com.alibaba.apiopenplatform.dto.result.mcp.McpToolListResult;
 import com.alibaba.apiopenplatform.dto.result.product.ProductPublicationResult;
 import com.alibaba.apiopenplatform.dto.result.product.ProductRefResult;
 import com.alibaba.apiopenplatform.dto.result.product.ProductResult;
@@ -188,4 +189,11 @@ public interface ProductService {
      * @param productId
      */
     void reloadProductConfig(String productId);
+
+    /**
+     * List MCP tools for the product
+     *
+     * @param productId
+     */
+    McpToolListResult listMcpTools(String productId);
 }

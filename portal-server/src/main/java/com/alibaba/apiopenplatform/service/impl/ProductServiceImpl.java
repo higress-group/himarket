@@ -19,11 +19,14 @@
 
 package com.alibaba.apiopenplatform.service.impl;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.io.IOException;
+import java.util.*;
 import java.util.stream.Collectors;
 
+import com.alibaba.apiopenplatform.dto.result.consumer.CredentialContext;
+import com.alibaba.apiopenplatform.dto.result.mcp.McpToolListResult;
+import com.alibaba.apiopenplatform.support.chat.mcp.McpServerConfig;
+import io.modelcontextprotocol.spec.McpSchema;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
@@ -61,6 +64,8 @@ import com.alibaba.apiopenplatform.support.product.NacosRefConfig;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.commons.lang3.BooleanUtils;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Page;
@@ -74,6 +79,8 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 @Transactional
 public class ProductServiceImpl implements ProductService {
+
+    private final ApplicationContext ctx;
 
     private final ContextHolder contextHolder;
 
@@ -142,6 +149,7 @@ public class ProductServiceImpl implements ProductService {
                 products, product -> {
                     ProductResult result = new ProductResult().convertFrom(product);
                     fillProduct(result);
+                    fillProductSubscribeInfo(result, param);
                     return result;
                 });
     }
@@ -413,6 +421,51 @@ public class ProductServiceImpl implements ProductService {
         productRefRepository.saveAndFlush(productRef);
     }
 
+    @Override
+    public McpToolListResult listMcpTools(String productId) {
+        // check product exists and check whether it is a mcp server type
+        ProductResult product = getProduct(productId);
+        if (product.getType() != ProductType.MCP_SERVER) {
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, Resources.PRODUCT, productId);
+        }
+        ConsumerService consumerService = ctx.getBean(ConsumerService.class);
+        String consumerId = consumerService.getPrimaryConsumer().getConsumerId();
+
+        // check if product is subscribed by consumer
+        boolean subscribed = subscriptionRepository.findByConsumerIdAndProductId(consumerId, productId).isPresent();
+        if (!subscribed) {
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, Resources.PRODUCT, productId + " is not subscribed, not allowed to list tools");
+        }
+
+        // get mcp server config, and replace domain with gateway ip
+        MCPConfigResult mcpConfig = product.getMcpConfig();
+        // Get gateway IPs
+        ProductRefResult productRef = getProductRef(productId);
+        String gatewayId = productRef.getGatewayId();
+        List<String> gatewayIps = gatewayService.fetchGatewayIps(gatewayId);
+        mcpConfig.convertDomainToGatewayIp(gatewayIps);
+
+        McpServerConfig.McpServer server = mcpConfig.toStandardMcpServer()
+                .getMcpServers().get(mcpConfig.getMcpServerName());
+
+        // Get authentication info (use applicationContext to get bean to avoid circular dependency)
+        CredentialContext credentialContext = consumerService.getDefaultCredential(contextHolder.getUser());
+
+        // get mcp tools info
+        McpToolListResult mcpToolListResult = new McpToolListResult();
+        McpClientFactory mcpClientFactory = new McpClientFactory();
+
+        try (McpClientHolder mcpClientHolder =
+                     mcpClientFactory.initClient(server.getType(), server.getUrl(), credentialContext.getHeaders(), credentialContext.getQueryParams())) {
+            List<McpSchema.Tool> tools = mcpClientHolder.listTools();
+            mcpToolListResult.setTools(tools);
+        } catch (IOException e) {
+            log.error("mcp client close error {}", e.getMessage());
+            return null;
+        }
+        return mcpToolListResult;
+    }
+
     private void syncConfig(Product product, ProductRef productRef) {
         SourceType sourceType = productRef.getSourceType();
 
@@ -594,5 +647,20 @@ public class ProductServiceImpl implements ProductService {
 
             return cb.and(predicates.toArray(new Predicate[0]));
         };
+    }
+
+    private void fillProductSubscribeInfo(ProductResult product, QueryProductParam param) {
+        // if null or false, then skip
+        if (!BooleanUtils.isTrue(param.getQuerySubscribeStatus())) {
+            return;
+        }
+
+        // get default consumer id (use applicationContext to get bean to avoid circular dependency)
+        ConsumerService consumerService = ctx.getBean(ConsumerService.class);
+        String consumerId = consumerService.getPrimaryConsumer().getConsumerId();
+
+        // check if product is subscribed by consumer
+        boolean exists = subscriptionRepository.findByConsumerIdAndProductId(consumerId, product.getProductId()).isPresent();
+        product.setIsSubscribed(exists);
     }
 }
