@@ -120,7 +120,7 @@ public class ChatServiceImpl implements ChatService {
 
         // check mcpServers count is less than 10, and all of them are subscribed
         List<String> mcpProducts = param.getMcpProducts();
-        if (mcpProducts.size() > 10) {
+        if (CollUtil.isNotEmpty(mcpProducts) && mcpProducts.size() > 10) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "MCP servers count is more than 10, currently max size is 10");
         }
 
