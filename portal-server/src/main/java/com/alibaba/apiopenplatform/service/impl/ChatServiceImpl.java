@@ -19,6 +19,7 @@ import com.alibaba.apiopenplatform.entity.Chat;
 import com.alibaba.apiopenplatform.entity.ChatAttachment;
 import com.alibaba.apiopenplatform.entity.ChatSession;
 import com.alibaba.apiopenplatform.dto.result.product.ProductResult;
+import com.alibaba.apiopenplatform.entity.ProductSubscription;
 import com.alibaba.apiopenplatform.repository.ChatAttachmentRepository;
 import com.alibaba.apiopenplatform.repository.SubscriptionRepository;
 import com.alibaba.apiopenplatform.service.*;
@@ -124,17 +125,17 @@ public class ChatServiceImpl implements ChatService {
         }
 
         String consumerId = consumerService.getPrimaryConsumer().getConsumerId();
-                // 批量查询提高性能
-                List<ProductSubscription> subscriptions = subscriptionRepository.findAllByConsumerId(consumerId);
-                Set<String> subscribedProductIds = subscriptions.stream()
-                        .map(ProductSubscription::getProductId)
-                        .collect(Collectors.toSet());
-                
-                for (String productId : mcpProducts) {
-                    if (!subscribedProductIds.contains(productId)) {
-                        throw new BusinessException(ErrorCode.INVALID_PARAMETER, Resources.PRODUCT, productId + " mcp is not subscribed, not allowed to use");
-                    }
-                }
+        // 批量查询提高性能
+        List<ProductSubscription> subscriptions = subscriptionRepository.findAllByConsumerId(consumerId);
+        Set<String> subscribedProductIds = subscriptions.stream()
+                .map(ProductSubscription::getProductId)
+                .collect(Collectors.toSet());
+
+        for (String productId : mcpProducts) {
+            if (!subscribedProductIds.contains(productId)) {
+                throw new BusinessException(ErrorCode.INVALID_PARAMETER, Resources.PRODUCT, productId + " mcp is not subscribed, not allowed to use");
+            }
+        }
 
         // chat count
 
