@@ -143,7 +143,7 @@ public class OpenAILlmService extends AbstractLlmService {
             mcpServerConfigs.forEach(mcpServerConfig -> {
                 mcpServerConfig.getMcpServers().forEach((serverName, config) -> {
                     // TODO: mcp server的认证
-                    McpClientHolder mcpClientHolder = mcpClientFactory.initClient(config.getType(), config.getUrl(), Collections.emptyMap());
+                    McpClientHolder mcpClientHolder = mcpClientFactory.initClient(config.getType(), config.getUrl(), request.getHeaders());
                     if (mcpClientHolder == null) {
                         return;
                     }
