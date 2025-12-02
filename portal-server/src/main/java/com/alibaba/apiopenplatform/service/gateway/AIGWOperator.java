@@ -51,7 +51,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -364,6 +363,12 @@ public class AIGWOperator extends APIGOperator {
                 .routes(routeResults)
                 .build();
         result.setAgentAPIConfig(agentAPIConfig);
+
+        // 构建元数据（与 agentAPIConfig 同级）
+        AgentConfigResult.AgentMetadata meta = AgentConfigResult.AgentMetadata.builder()
+                .source(GatewayType.APIG_AI.name())  // 标识来源为 AI 网关
+                .build();
+        result.setMeta(meta);  // 设置元数据到顶层
 
         return JSONUtil.toJsonStr(result);
     }

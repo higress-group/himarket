@@ -28,8 +28,10 @@ import com.alibaba.apiopenplatform.dto.result.mcp.NacosMCPServerResult;
 import com.alibaba.apiopenplatform.dto.result.nacos.NacosNamespaceResult;
 import com.alibaba.apiopenplatform.dto.result.nacos.NacosResult;
 import com.alibaba.apiopenplatform.dto.result.common.PageResult;
+import com.alibaba.apiopenplatform.dto.result.agent.NacosAgentResult;
 import com.alibaba.apiopenplatform.service.NacosService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -96,6 +98,29 @@ public class NacosController {
     public PageResult<NacosNamespaceResult> fetchNamespaces(@PathVariable String nacosId,
                                                             Pageable pageable) throws Exception {
         return nacosService.fetchNamespaces(nacosId, pageable);
+    }
+
+    // ==================== Agent 相关 ====================
+
+    /**
+     * 获取 Nacos 中的 Agent 列表
+     * 注意：与 GatewayController 保持一致，只提供列表接口，不提供详情接口
+     */
+    @Operation(
+        summary = "获取 Nacos 中的 Agent 列表", 
+        description = "获取指定 Nacos 实例中注册的 Agent 列表，可按命名空间过滤"
+    )
+    @GetMapping("/{nacosId}/agents")
+    public PageResult<NacosAgentResult> fetchAgents(
+            @Parameter(description = "Nacos 实例 ID", required = true)
+            @PathVariable String nacosId,
+            
+            @Parameter(description = "命名空间 ID（可选，默认 public）")
+            @RequestParam(value = "namespaceId", required = false) String namespaceId,
+            
+            Pageable pageable) throws Exception {
+        
+        return nacosService.fetchAgents(nacosId, namespaceId, pageable);
     }
 
 } 

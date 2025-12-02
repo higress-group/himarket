@@ -36,8 +36,8 @@ export interface ApiProductMcpConfig {
 
 export interface ApiProductAgentConfig {
   agentAPIConfig: {
-    agentProtocols: string[];
-    routes: Array<{
+    agentProtocols: string[];  // 协议列表，包含 "a2a" 时使用 agentCard
+    routes?: Array<{           // HTTP 路由（非 A2A 协议使用）
       domains: Array<{
         domain: string;
         protocol: string;
@@ -61,6 +61,33 @@ export interface ApiProductAgentConfig {
         }> | null;
       };
     }>;
+    agentCard?: {              // Agent Card 信息（A2A 协议）
+      name: string;
+      version: string;
+      description?: string;
+      url?: string;
+      preferredTransport?: string;
+      protocolVersion?: string; // 协议版本
+      skills?: Array<{
+        id: string;
+        name: string;
+        description?: string;
+        tags?: string[];
+      }>;
+      capabilities?: {
+        streaming?: boolean;
+        [key: string]: any;
+      };
+      additionalInterfaces?: Array<{  // 附加接口信息（注意：复数形式）
+        transport: string;  // 传输协议（HTTP/gRPC/JSONRPC）
+        url: string;
+        [key: string]: any;
+      }>;
+      [key: string]: any;      // 支持其他扩展字段
+    };
+  };
+  meta?: {                     // 元数据信息
+    source?: string;           // 来源：NACOS / APIG_AI / HIGRESS 等
   };
 }
 
@@ -135,7 +162,15 @@ export interface AIGatewayModelItem {
   fromGatewayType: 'APIG_AI'; // Model API 只支持 APIG_AI 网关
 }
 
-export type ApiItem = RestAPIItem | HigressMCPItem | APIGAIMCPItem | NacosMCPItem | AIGatewayAgentItem | AIGatewayModelItem;
+// Nacos Agent 列表项
+export interface NacosAgentItem {
+  agentName: string;          // Agent 名称（唯一标识）
+  description?: string;       // Agent 描述
+  fromGatewayType: 'NACOS';   // 标识来源
+  type: string;               // 显示类型，如 "Agent API (public)"
+}
+
+export type ApiItem = RestAPIItem | HigressMCPItem | APIGAIMCPItem | NacosMCPItem | AIGatewayAgentItem | AIGatewayModelItem | NacosAgentItem;
 
 // 关联服务配置
 export interface LinkedService {
@@ -145,7 +180,7 @@ export interface LinkedService {
   sourceType: 'GATEWAY' | 'NACOS';
   apigRefConfig?: RestAPIItem | APIGAIMCPItem | AIGatewayAgentItem | AIGatewayModelItem;
   higressRefConfig?: HigressMCPItem;
-  nacosRefConfig?: NacosMCPItem;
+  nacosRefConfig?: NacosMCPItem | NacosAgentItem;  // 扩展支持 Agent
   adpAIGatewayRefConfig?: APIGAIMCPItem;
   apsaraGatewayRefConfig?: APIGAIMCPItem;
 }

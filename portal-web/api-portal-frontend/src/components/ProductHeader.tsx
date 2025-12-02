@@ -16,6 +16,7 @@ interface ProductHeaderProps {
   icon?: IProductIcon;
   defaultIcon?: string;
   mcpConfig?: IMCPConfig;
+  agentConfig?: any;  // 添加 agentConfig 支持，用于判断 Agent 来源
   updatedAt?: string;
   productType?: 'REST_API' | 'MCP_SERVER' | 'AGENT_API' | 'MODEL_API';
 }
@@ -47,6 +48,7 @@ export const ProductHeader: React.FC<ProductHeaderProps> = ({
   icon,
   defaultIcon = "/default-icon.png",
   mcpConfig,
+  agentConfig,
   updatedAt,
   productType,
 }) => {
@@ -87,7 +89,20 @@ export const ProductHeader: React.FC<ProductHeaderProps> = ({
   const [searchKeyword, setSearchKeyword] = useState("");
 
   // 判断是否应该显示申请订阅按钮
-  const shouldShowSubscribeButton = productType === 'AGENT_API' || productType === 'MODEL_API' || (!mcpConfig || mcpConfig.meta.source !== 'NACOS');
+  // MCP_SERVER: 来自 NACOS 时不显示
+  // AGENT_API: 来自 NACOS 时不显示
+  // MODEL_API: 始终显示
+  // REST_API: 始终显示
+  const isNacosAgent = productType === 'AGENT_API' && 
+    agentConfig?.meta?.source?.toUpperCase() === 'NACOS';
+  const isNacosMcp = productType === 'MCP_SERVER' && 
+    mcpConfig?.meta?.source?.toUpperCase() === 'NACOS';
+  
+  const shouldShowSubscribeButton = 
+    productType === 'MODEL_API' ||                      // MODEL_API: 始终显示
+    productType === 'REST_API' ||                       // REST_API: 始终显示
+    (productType === 'AGENT_API' && !isNacosAgent) ||   // AGENT_API: 非 Nacos 时显示
+    (productType === 'MCP_SERVER' && !isNacosMcp);      // MCP_SERVER: 非 Nacos 时显示
 
   // 获取产品ID - 根据产品类型获取正确的参数
   const productId = apiProductId || mcpProductId || agentProductId || modelProductId || '';
