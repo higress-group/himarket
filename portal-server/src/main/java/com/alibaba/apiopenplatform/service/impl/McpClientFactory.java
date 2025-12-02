@@ -36,10 +36,13 @@ public class McpClientFactory {
         String host = uri.getAuthority();
         String endpoint = scheme + "://" + host;
         StringBuilder paramsSuffix = new StringBuilder(params.isEmpty() ? "" : "?");
-        for (Map.Entry<String, String> entry : params.entrySet()) {
-            paramsSuffix.append(entry.getKey()).append("=").append(entry.getValue()).append("&");
-        }
-        path = path + paramsSuffix;
+                for (Map.Entry<String, String> entry : params.entrySet()) {
+                    paramsSuffix.append(entry.getKey()).append("=").append(entry.getValue()).append("&");
+                }
+                if (paramsSuffix.length() > 1) {
+                    paramsSuffix.deleteCharAt(paramsSuffix.length() - 1);
+                }
+                path = path + paramsSuffix;
         McpSyncClient client;
 
         try {
