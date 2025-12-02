@@ -2,6 +2,7 @@ package com.alibaba.apiopenplatform.dto.result.chat;
 
 import cn.hutool.core.collection.CollUtil;
 import com.alibaba.apiopenplatform.dto.params.chat.ChatRequestBody;
+import com.alibaba.apiopenplatform.dto.result.consumer.CredentialContext;
 import lombok.Builder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -46,6 +47,9 @@ public class LlmChatRequest {
      * If not empty, use these IPs to resolve DNS
      */
     private List<String> gatewayIps;
+
+
+    private CredentialContext credentialContext;
 
     public void tryResolveDns() {
         if (CollUtil.isEmpty(gatewayIps) || !"http".equalsIgnoreCase(url.getProtocol())) {

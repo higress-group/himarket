@@ -88,6 +88,7 @@ public abstract class AbstractLlmService implements LlmService {
                 .headers(headers)
                 .chatRequest(chatRequest)
                 .gatewayIps(param.getGatewayIps())
+                .credentialContext(param.getCredentialContext())
                 .build();
     }
 

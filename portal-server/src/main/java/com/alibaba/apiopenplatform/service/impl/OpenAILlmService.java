@@ -118,7 +118,7 @@ public class OpenAILlmService extends AbstractLlmService {
                 .baseUrl(baseUrl)
                 .completionsPath(url.getPath())
                 .headers(headers)
-                .apiKey(StringUtils.defaultIfBlank(request.getApiKey(), defaultApiKey))
+                .apiKey(request.getCredentialContext() != null ? request.getCredentialContext().getApiKey() : defaultApiKey)
                 .webClientBuilder(webClientBuilder)
                 .build();
 
