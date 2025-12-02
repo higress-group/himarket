@@ -1,0 +1,355 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+# 读取 data 目录下的 .env（可选）以覆盖默认变量
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+DATA_DIR="${SCRIPT_DIR}/data"
+
+# 保存已经通过 export 设置的环境变量（优先级最高）到临时文件
+EXPORTED_VARS_FILE="/tmp/himarket-exported-vars-$$.tmp"
+: > "$EXPORTED_VARS_FILE"  # 清空文件
+
+# 保存当前所有非空环境变量
+while IFS='=' read -r key _; do
+  if [[ -n "$key" && "$key" != "_" && "$key" != "BASH_"* && "$key" != "SHLVL" ]]; then
+    eval "current_value=\${$key}"
+    if [[ -n "$current_value" ]]; then
+      printf '%s=%s\n' "$key" "$current_value" >> "$EXPORTED_VARS_FILE"
+    fi
+  fi
+done < <(compgen -e)
+
+if [[ -f "${DATA_DIR}/.env" ]]; then
+  set -a
+  . "${DATA_DIR}/.env"
+  set +a
+fi
+
+# 恢复通过 export 设置的环境变量，确保其优先级最高
+if [[ -s "$EXPORTED_VARS_FILE" ]]; then
+  while IFS='=' read -r key value; do
+    if [[ -n "$key" ]]; then
+      export "$key"="$value"
+    fi
+  done < "$EXPORTED_VARS_FILE"
+fi
+
+# 清理临时文件
+rm -f "$EXPORTED_VARS_FILE"
+
+# 统一命名空间（从环境变量读取）
+NS="${NAMESPACE:-himarket}"
+
+# Chart 与值文件（相对路径）
+HIMARKET_CHART_PATH="${PROJECT_ROOT}"
+HIMARKET_VALUES_FILE="${PROJECT_ROOT}/values.yaml"
+
+# HiMarket 镜像配置（可在 .env 中覆盖）
+HIMARKET_HUB="${HIMARKET_HUB}"
+HIMARKET_IMAGE_TAG="${HIMARKET_IMAGE_TAG}"
+HIMARKET_MYSQL_IMAGE_TAG="${HIMARKET_MYSQL_IMAGE_TAG}"
+
+# MySQL 数据库配置（可在 .env 中覆盖）
+HIMARKET_MYSQL_ENABLED="${HIMARKET_MYSQL_ENABLED}"
+EXTERNAL_DB_HOST="${EXTERNAL_DB_HOST}"
+EXTERNAL_DB_PORT="${EXTERNAL_DB_PORT:-3306}"
+EXTERNAL_DB_NAME="${EXTERNAL_DB_NAME}"
+EXTERNAL_DB_USERNAME="${EXTERNAL_DB_USERNAME}"
+EXTERNAL_DB_PASSWORD="${EXTERNAL_DB_PASSWORD}"
+
+# Helm 仓库配置（可在 .env 中覆盖）
+HIGRESS_REPO_NAME="${HIGRESS_REPO_NAME:-higress.io}"
+HIGRESS_REPO_URL="${HIGRESS_REPO_URL:-https://higress.cn/helm-charts}"
+HIGRESS_CHART_REF="${HIGRESS_CHART_REF:-higress.io/higress}"
+
+NACOS_REPO_NAME="${NACOS_REPO_NAME:-ygqygq2}"
+NACOS_REPO_URL="${NACOS_REPO_URL:-https://ygqygq2.github.io/charts/}"
+NACOS_CHART_REF="${NACOS_CHART_REF:-ygqygq2/nacos}"
+
+# Nacos 版本号（可在 .env 中覆盖）
+NACOS_VERSION="${NACOS_VERSION}"
+
+# Nacos 镜像配置（可在 .env 中覆盖）
+NACOS_IMAGE_REGISTRY="${NACOS_IMAGE_REGISTRY}"
+NACOS_IMAGE_REPOSITORY="${NACOS_IMAGE_REPOSITORY}"
+NACOS_PLUGIN_IMAGE_REGISTRY="${NACOS_PLUGIN_IMAGE_REGISTRY}"
+NACOS_PLUGIN_IMAGE_REPOSITORY="${NACOS_PLUGIN_IMAGE_REPOSITORY}"
+NACOS_PLUGIN_IMAGE_TAG="${NACOS_PLUGIN_IMAGE_TAG}"
+NACOS_INITDB_IMAGE_REGISTRY="${NACOS_INITDB_IMAGE_REGISTRY}"
+NACOS_INITDB_IMAGE_REPOSITORY="${NACOS_INITDB_IMAGE_REPOSITORY}"
+NACOS_INITDB_IMAGE_TAG="${NACOS_INITDB_IMAGE_TAG}"
+
+# Nacos MySQL 镜像配置（可在 .env 中覆盖）
+NACOS_MYSQL_IMAGE_REGISTRY="${NACOS_MYSQL_IMAGE_REGISTRY}"
+NACOS_MYSQL_IMAGE_REPOSITORY="${NACOS_MYSQL_IMAGE_REPOSITORY}"
+NACOS_MYSQL_IMAGE_TAG="${NACOS_MYSQL_IMAGE_TAG}"
+
+# Higress Console 用户名密码（可在 .env 中覆盖）
+HIGRESS_USERNAME="${HIGRESS_USERNAME:-admin}"
+HIGRESS_PASSWORD="${HIGRESS_PASSWORD:-admin}"
+
+log() { echo "[deploy $(date +'%H:%M:%S')] $*"; }
+err() { echo "[ERROR] $*" >&2; }
+
+require_cmd() {
+  command -v "$1" >/dev/null 2>&1 || { err "缺少命令: $1"; exit 1; }
+}
+
+create_ns() {
+  local ns="$1"
+  kubectl get ns "$ns" >/dev/null 2>&1 || kubectl create ns "$ns"
+}
+
+helm_upsert() {
+  # args: release ns chart_ref extra_args...
+  local release="$1"; shift
+  local ns="$1"; shift
+  local chart="$1"; shift
+  local max_attempts=3
+  local attempt=1
+  while (( attempt <= max_attempts )); do
+    log "安装/升级 ${release} (第 ${attempt}/${max_attempts} 次)..."
+    if helm upgrade --install "$release" "$chart" -n "$ns" \
+         --create-namespace --wait --atomic --timeout 20m "$@"; then
+      log "${release} 安装成功"
+      return 0
+    else
+      err "${release} 安装失败（第 ${attempt} 次），准备重试"
+      helm uninstall "$release" -n "$ns" >/dev/null 2>&1 || true
+      sleep 8
+      attempt=$((attempt+1))
+    fi
+  done
+  err "${release} 多次安装失败"
+  return 1
+}
+
+wait_rollout() {
+  # args: ns kind name timeoutSeconds
+  local ns="$1"; shift
+  local kind="$1"; shift
+  local name="$1"; shift
+  local timeout="${1:-900}"
+  log "等待 ${ns} 中 ${kind}/${name} 就绪..."
+  if ! kubectl rollout status -n "$ns" "${kind}/${name}" --timeout="${timeout}s"; then
+    err "等待 ${kind}/${name} 就绪超时"
+    kubectl describe "$kind" "$name" -n "$ns" || true
+    kubectl get pods -n "$ns" -o wide || true
+    return 1
+  fi
+}
+
+# 安全更新 Higress ConfigMap 的 mcpServer 配置
+update_higress_mcp_redis() {
+  local ns="$1"
+  log "开始配置 Higress mcpServer.redis..."
+
+  # 检查 ConfigMap 是否存在
+  if ! kubectl get configmap higress-config -n "$ns" >/dev/null 2>&1; then
+    err "ConfigMap higress-config 不存在于命名空间 ${ns}"
+    return 1
+  fi
+
+  # 创建临时文件存储当前完整 ConfigMap
+  local tmp_cm="/tmp/higress-config-full-${RANDOM}.yaml"
+  kubectl get configmap higress-config -n "$ns" -o yaml > "$tmp_cm"
+
+  # 创建临时文件存储修改后的 data.higress
+  local tmp_higress="/tmp/higress-data-${RANDOM}.yaml"
+
+  # 提取 data.higress 内容
+  kubectl get configmap higress-config -n "$ns" -o jsonpath='{.data.higress}' > "$tmp_higress"
+
+  # 定义新的 mcpServer 配置块
+  local mcp_config='mcpServer:
+  enable: true
+  redis:
+    address: "redis-stack-server:6379"
+    password: ""
+    db: 0
+    username: "redis-stack-server"
+  servers: []
+  sse_path_suffix: "/sse"'
+
+  # 检查是否已有 mcpServer 配置(可能有缩进)
+  if grep -q '^mcpServer:' "$tmp_higress" || grep -q '^  mcpServer:' "$tmp_higress"; then
+    log "检测到已有 mcpServer 配置，准备替换..."
+    # 使用 sed 删除从 mcpServer: 开始到下一个顶级键之前的所有行
+    sed -i.bak '/^mcpServer:/,/^[a-zA-Z]/{ /^[a-zA-Z]/!d; /^mcpServer:/d; }' "$tmp_higress"
+    # 如果是缩进的 mcpServer，同样处理
+    sed -i.bak '/^  mcpServer:/,/^[a-zA-Z]/{ /^[a-zA-Z]/!d; /^  mcpServer:/d; }' "$tmp_higress"
+  else
+    log "未检测到 mcpServer 配置，将新增该配置块"
+  fi
+
+  # 在文件末尾追加新的 mcpServer 配置
+  echo "" >> "$tmp_higress"
+  echo "$mcp_config" >> "$tmp_higress"
+
+  # 使用 kubectl create --dry-run 生成新的 ConfigMap YAML
+  local tmp_new_cm="/tmp/higress-config-new-${RANDOM}.yaml"
+  kubectl create configmap higress-config \
+    --from-file=higress="$tmp_higress" \
+    --dry-run=client -o yaml > "$tmp_new_cm"
+
+  # 复制原 ConfigMap 的 labels 和 annotations
+  local labels=$(kubectl get configmap higress-config -n "$ns" -o jsonpath='{.metadata.labels}' | tr -d '\n')
+  local annotations=$(kubectl get configmap higress-config -n "$ns" -o jsonpath='{.metadata.annotations}' | tr -d '\n')
+
+  # 使用 kubectl replace 替换整个 ConfigMap
+  log "应用 mcpServer 配置到 ConfigMap..."
+  kubectl get configmap higress-config -n "$ns" -o yaml | \
+    kubectl create configmap higress-config --from-file=higress="$tmp_higress" --dry-run=client -o yaml | \
+    kubectl replace -n "$ns" -f -
+
+  local result=$?
+
+  # 清理临时文件
+  rm -f "$tmp_cm" "$tmp_higress" "${tmp_higress}.bak" "$tmp_new_cm"
+
+  if [[ $result -eq 0 ]]; then
+    log "mcpServer 配置已成功应用"
+    # 重启 higress-gateway 以应用新配置
+    log "重启 higress-gateway 以应用配置..."
+    kubectl rollout restart deployment higress-gateway -n "$ns" >/dev/null 2>&1 || true
+    return 0
+  else
+    err "应用 mcpServer 配置失败"
+    return 1
+  fi
+}
+
+# 执行指定阶段的钩子脚本
+run_hooks() {
+  local phase="$1"  # 如 post_ready
+  local hooks_dir="${SCRIPT_DIR}/hooks/${phase}.d"
+
+  if [[ ! -d "$hooks_dir" ]]; then
+    log "钩子目录不存在，跳过: ${hooks_dir}"
+    return 0
+  fi
+
+  log "执行 ${phase} 阶段钩子..."
+
+  # 按文件名排序执行所有 .sh 脚本
+  local hook_count=0
+  for hook in "${hooks_dir}"/*.sh; do
+    if [[ -f "$hook" && -x "$hook" ]]; then
+      hook_count=$((hook_count+1))
+      log "运行钩子 [${hook_count}]: $(basename "$hook")"
+
+      # 继承当前环境变量（NS、DB_*等）并执行
+      if bash "$hook"; then
+        log "钩子成功: $(basename "$hook")"
+      else
+        err "钩子失败: $(basename "$hook")"
+        if [[ "${SKIP_HOOK_ERRORS:-false}" != "true" ]]; then
+          return 1
+        fi
+        log "警告：跳过钩子错误（SKIP_HOOK_ERRORS=true）"
+      fi
+    fi
+  done
+
+  if [[ $hook_count -eq 0 ]]; then
+    log "${phase} 阶段无可执行钩子"
+  else
+    log "${phase} 阶段共执行 ${hook_count} 个钩子"
+  fi
+}
+
+cluster_preflight() {
+  require_cmd kubectl
+  require_cmd helm
+  kubectl cluster-info >/dev/null
+  log "当前上下文: $(kubectl config current-context || echo 'unknown')"
+}
+
+add_repos() {
+  helm repo add "$HIGRESS_REPO_NAME" "$HIGRESS_REPO_URL"
+  helm repo add "$NACOS_REPO_NAME" "$NACOS_REPO_URL"
+  helm repo update "$HIGRESS_REPO_NAME"
+  helm repo update "$NACOS_REPO_NAME"
+}
+
+deploy_all() {
+  cluster_preflight
+  create_ns "$NS"
+  add_repos
+
+  # 1) 部署 HiMarket
+  log "准备部署 HiMarket..."
+  echo "使用 externalEnv.database.host=${EXTERNAL_DB_HOST}"
+  helm_upsert "himarket" "$NS" "$HIMARKET_CHART_PATH" -f "$HIMARKET_VALUES_FILE" \
+    --set "hub=${HIMARKET_HUB}" \
+    --set "frontend.image.tag=${HIMARKET_IMAGE_TAG}" \
+    --set "admin.image.tag=${HIMARKET_IMAGE_TAG}" \
+    --set "server.image.tag=${HIMARKET_IMAGE_TAG}" \
+    --set "mysql.image.tag=${HIMARKET_MYSQL_IMAGE_TAG}" \
+    --set "mysql.enabled=${HIMARKET_MYSQL_ENABLED}" \
+    --set "database.host=${EXTERNAL_DB_HOST}" \
+    --set "database.port=${EXTERNAL_DB_PORT}" \
+    --set "database.name=${EXTERNAL_DB_NAME}" \
+    --set "database.username=${EXTERNAL_DB_USERNAME}" \
+    --set "database.password=${EXTERNAL_DB_PASSWORD}"
+
+  log "使用数据库配置: mode=${MODE}, host=${DB_HOST}:${DB_PORT}, db=${DB_NAME}, user=${DB_USER}"
+
+  # 2) 部署 Nacos（官方 chart），使用动态数据库配置
+  helm_upsert "nacos" "$NS" "$NACOS_CHART_REF" \
+    --set "service.type=LoadBalancer" \
+    --set "mysql.enabled=true" \
+    --set "mysql.image.registry=${NACOS_MYSQL_IMAGE_REGISTRY}" \
+    --set "mysql.image.repository=${NACOS_MYSQL_IMAGE_REPOSITORY}" \
+    --set "mysql.image.tag=${NACOS_MYSQL_IMAGE_TAG}" \
+    --set "image.registry=${NACOS_IMAGE_REGISTRY}" \
+    --set "image.repository=${NACOS_IMAGE_REPOSITORY}" \
+    --set "image.tag=${NACOS_VERSION}" \
+    --set "plugin.image.registry=${NACOS_PLUGIN_IMAGE_REGISTRY}" \
+    --set "plugin.image.repository=${NACOS_PLUGIN_IMAGE_REPOSITORY}" \
+    --set "plugin.image.tag=${NACOS_PLUGIN_IMAGE_TAG}" \
+    --set "initDB.image.registry=${NACOS_INITDB_IMAGE_REGISTRY}" \
+    --set "initDB.image.repository=${NACOS_INITDB_IMAGE_REPOSITORY}" \
+    --set "initDB.image.tag=${NACOS_INITDB_IMAGE_TAG}"
+
+  wait_rollout "$NS" "statefulset" "nacos" 900
+
+  # 3) 部署 Higress（官方 chart），直接设置参数
+  helm_upsert "higress" "$NS" "$HIGRESS_CHART_REF" \
+    --set "higress-core.global.enableRedis=true" \
+    --set "higress-console.service.type=LoadBalancer" \
+    --set "higress-console.admin.username=${HIGRESS_USERNAME}" \
+    --set "higress-console.admin.password=${HIGRESS_PASSWORD}"
+  wait_rollout "$NS" "deployment" "higress-gateway" 900
+  wait_rollout "$NS" "deployment" "higress-controller" 600
+
+  # 配置 Higress MCP Redis 到 ConfigMap（安全合并，不覆盖其它字段）
+  update_higress_mcp_redis "$NS" || log "警告：mcpServer 配置更新失败，请手动检查"
+
+  # 4) 执行 post_ready 阶段钩子（数据初始化等）
+  log "所有组件部署就绪，开始执行数据初始化钩子..."
+  run_hooks "post_ready" || log "警告：部分钩子执行失败，请检查日志"
+
+  log "全部部署完成。所有资源安装在命名空间: ${NS}"
+  log "服务暴露方式固定为 LoadBalancer；请通过 EXTERNAL-IP 访问前端/管理与网关。"
+}
+
+uninstall_all() {
+  log "开始卸载所有组件（命名空间保留）..."
+  helm uninstall higress -n "$NS" || true
+  helm uninstall nacos -n "$NS" || true
+  helm uninstall himarket -n "$NS" || true
+  log "卸载完成。"
+}
+
+main() {
+  local action="${1:-install}"
+  case "$action" in
+    install) deploy_all ;;
+    uninstall) uninstall_all ;;
+    *) err "未知操作：${action}（支持：install|uninstall）" ; exit 1 ;;
+  esac
+}
+
+main "$@"
