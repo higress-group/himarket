@@ -21,6 +21,7 @@ package com.alibaba.apiopenplatform.controller;
 
 import java.util.List;
 
+import com.alibaba.apiopenplatform.dto.result.mcp.McpToolListResult;
 import jakarta.validation.Valid;
 
 import com.alibaba.apiopenplatform.core.annotation.AdminAuth;
@@ -177,5 +178,13 @@ public class ProductController {
     @AdminAuth
     public void reloadProductConfig(@PathVariable String productId) {
         productService.reloadProductConfig(productId);
+    }
+
+    @Operation(summary = "获取MCP服务的工具详情")
+    @GetMapping("/{productId}/tools")
+    @AdminOrDeveloperAuth
+    public McpToolListResult listMcpTools(
+            @PathVariable String productId) {
+        return productService.listMcpTools(productId);
     }
 }

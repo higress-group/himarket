@@ -2,6 +2,7 @@ package com.alibaba.apiopenplatform.service.impl;
 
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.json.JSONUtil;
+import com.alibaba.apiopenplatform.core.security.ContextHolder;
 import com.alibaba.apiopenplatform.dto.params.chat.ChatContext;
 import com.alibaba.apiopenplatform.dto.params.chat.ChatRequestBody;
 import com.alibaba.apiopenplatform.dto.params.chat.McpToolMeta;
@@ -9,6 +10,8 @@ import com.alibaba.apiopenplatform.dto.params.chat.ToolContext;
 import com.alibaba.apiopenplatform.dto.result.chat.ChatAnswerMessage;
 import com.alibaba.apiopenplatform.dto.result.chat.LlmChatRequest;
 import com.alibaba.apiopenplatform.dto.result.chat.LlmInvokeResult;
+import com.alibaba.apiopenplatform.dto.result.consumer.CredentialContext;
+import com.alibaba.apiopenplatform.service.ConsumerService;
 import com.alibaba.apiopenplatform.support.chat.ChatMessage;
 import com.alibaba.apiopenplatform.support.chat.ChatUsage;
 import com.alibaba.apiopenplatform.support.chat.mcp.McpServerConfig;
@@ -30,7 +33,6 @@ import org.springframework.ai.chat.model.Generation;
 import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.mcp.SyncMcpToolCallback;
-import org.springframework.ai.model.tool.ToolCallingChatOptions;
 import org.springframework.ai.model.tool.ToolCallingManager;
 import org.springframework.ai.model.tool.ToolExecutionResult;
 import org.springframework.ai.openai.OpenAiChatModel;
@@ -45,6 +47,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Flux;
 
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.*;
 import java.util.concurrent.TimeoutException;
@@ -65,6 +68,14 @@ public class OpenAILlmService extends AbstractLlmService {
     private ToolCallingManager toolCallingManager;
     @Resource
     private McpClientFactory   mcpClientFactory;
+
+    @Resource
+    private ConsumerService consumerService;
+
+    @Resource
+    private ContextHolder contextHolder;
+
+
 
     private final WebClient.Builder webClientBuilder = WebClient.builder()
             .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(16 * 1024 * 1024));
@@ -142,8 +153,10 @@ public class OpenAILlmService extends AbstractLlmService {
         if (CollUtil.isNotEmpty(mcpServerConfigs)) {
             mcpServerConfigs.forEach(mcpServerConfig -> {
                 mcpServerConfig.getMcpServers().forEach((serverName, config) -> {
-                    // TODO: mcp server的认证
-                    McpClientHolder mcpClientHolder = mcpClientFactory.initClient(config.getType(), config.getUrl(), Collections.emptyMap());
+                    // Get authentication info (use applicationContext to get bean to avoid circular dependency)
+                    CredentialContext credentialContext = consumerService.getDefaultCredential(contextHolder.getUser());
+
+                    McpClientHolder mcpClientHolder = mcpClientFactory.initClient(config.getType(), config.getUrl(), credentialContext.getHeaders(), credentialContext.getQueryParams());
                     if (mcpClientHolder == null) {
                         return;
                     }

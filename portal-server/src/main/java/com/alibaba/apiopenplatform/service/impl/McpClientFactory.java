@@ -24,7 +24,7 @@ import java.util.Map;
 @Slf4j
 public class McpClientFactory {
 
-    public McpClientHolder initClient(String type, String url, Map<String, String> headers) {
+    public McpClientHolder initClient(String type, String url, Map<String, String> headers, Map<String, String> params) {
         URI uri = getUri(url);
         if (uri == null) {
             return null;
@@ -35,6 +35,11 @@ public class McpClientFactory {
         String scheme = uri.getScheme();
         String host = uri.getAuthority();
         String endpoint = scheme + "://" + host;
+        StringBuilder paramsSuffix = new StringBuilder(params.isEmpty() ? "" : "?");
+        for (Map.Entry<String, String> entry : params.entrySet()) {
+            paramsSuffix.append(entry.getKey()).append("=").append(entry.getValue()).append("&");
+        }
+        path = path + paramsSuffix;
         McpSyncClient client;
 
         try {

@@ -73,4 +73,6 @@ public class ProductResult implements OutputConverter<ProductResult, Product> {
     private Boolean enabled;
 
     private ProductFeature feature;
+
+    private Boolean isSubscribed;
 }
