@@ -428,6 +428,14 @@ public class ProductServiceImpl implements ProductService {
         if (product.getType() != ProductType.MCP_SERVER) {
             throw new BusinessException(ErrorCode.INVALID_PARAMETER, Resources.PRODUCT, productId);
         }
+        ConsumerService consumerService = ctx.getBean(ConsumerService.class);
+        String consumerId = consumerService.getPrimaryConsumer().getConsumerId();
+
+        // check if product is subscribed by consumer
+        boolean subscribed = subscriptionRepository.findByConsumerIdAndProductId(consumerId, productId).isPresent();
+        if (!subscribed) {
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, Resources.PRODUCT, productId + " is not subscribed, not allowed to list tools");
+        }
 
         // get mcp server config, and replace domain with gateway ip
         MCPConfigResult mcpConfig = product.getMcpConfig();
@@ -441,7 +449,6 @@ public class ProductServiceImpl implements ProductService {
                 .getMcpServers().get(mcpConfig.getMcpServerName());
 
         // Get authentication info (use applicationContext to get bean to avoid circular dependency)
-        ConsumerService consumerService = ctx.getBean(ConsumerService.class);
         CredentialContext credentialContext = consumerService.getDefaultCredential(contextHolder.getUser());
 
         // get mcp tools info
