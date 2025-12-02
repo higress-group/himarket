@@ -133,7 +133,7 @@ function AgentDetail() {
     }
   }
 
-  const getRouteDisplayText = (route: IAgentConfig["agentAPIConfig"]["routes"][0], domainIndex: number = 0) => {
+  const getRouteDisplayText = (route: NonNullable<IAgentConfig["agentAPIConfig"]["routes"]>[0], domainIndex: number = 0) => {
     if (!route.match) return 'Unknown Route'
 
     const path = route.match.path?.value || '/'
@@ -168,7 +168,7 @@ function AgentDetail() {
     return routeText
   }
 
-  const getMethodsText = (route: IAgentConfig["agentAPIConfig"]["routes"][0]) => {
+  const getMethodsText = (route: NonNullable<IAgentConfig["agentAPIConfig"]["routes"]>[0]) => {
     if (!route.match?.methods || route.match.methods.length === 0) {
       return 'ANY'
     }
@@ -199,6 +199,7 @@ function AgentDetail() {
           icon={data.icon}
           updatedAt={data.updatedAt}
           productType="AGENT_API"
+          agentConfig={agentConfig}
         />
       </div>
 
@@ -233,15 +234,133 @@ function AgentDetail() {
                     <div className="space-y-6">
                       {/* 协议信息 */}
                       {agentConfig.agentAPIConfig.agentProtocols && agentConfig.agentAPIConfig.agentProtocols.length > 0 && (
-                        <div className="bg-gray-50 rounded-xl">
-                          <div className="text-sm text-gray-500 mb-1">协议</div>
+                        <div className="p-4 bg-gray-50 rounded-xl">
+                          <div className="text-sm text-gray-500 mb-1">支持协议</div>
                           <div className="text-sm font-medium text-gray-900">
                             {agentConfig.agentAPIConfig.agentProtocols.join(', ')}
                           </div>
                         </div>
                       )}
 
-                      {/* 路由配置 */}
+                      {/* A2A 协议：额外显示 AgentCard */}
+                      {agentConfig.agentAPIConfig.agentProtocols?.includes('a2a') && agentConfig.agentAPIConfig.agentCard && (
+                        <div className="p-6 bg-white border border-gray-200 rounded-xl">
+                          <h3 className="text-lg font-semibold mb-4 text-gray-900">Agent Card 信息</h3>
+                          <div className="space-y-4">
+                            {/* 基本信息 */}
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="p-3 bg-gray-50 rounded-lg">
+                                <div className="text-sm text-gray-500 mb-1">名称</div>
+                                <div className="font-medium text-gray-900">{agentConfig.agentAPIConfig.agentCard.name}</div>
+                              </div>
+                              <div className="p-3 bg-gray-50 rounded-lg">
+                                <div className="text-sm text-gray-500 mb-1">版本</div>
+                                <div className="font-medium text-gray-900">{agentConfig.agentAPIConfig.agentCard.version}</div>
+                              </div>
+                            </div>
+
+                            {agentConfig.agentAPIConfig.agentCard.protocolVersion && (
+                              <div className="p-3 bg-gray-50 rounded-lg">
+                                <div className="text-sm text-gray-500 mb-1">协议版本</div>
+                                <div className="font-mono text-sm text-gray-900">{agentConfig.agentAPIConfig.agentCard.protocolVersion}</div>
+                              </div>
+                            )}
+
+                            {agentConfig.agentAPIConfig.agentCard.description && (
+                              <div className="p-3 bg-gray-50 rounded-lg">
+                                <div className="text-sm text-gray-500 mb-1">描述</div>
+                                <div className="text-gray-900">{agentConfig.agentAPIConfig.agentCard.description}</div>
+                              </div>
+                            )}
+
+                            {agentConfig.agentAPIConfig.agentCard.url && (
+                              <div className="p-3 bg-gray-50 rounded-lg">
+                                <div className="text-sm text-gray-500 mb-1">URL</div>
+                                <div className="font-mono text-sm text-gray-900">{agentConfig.agentAPIConfig.agentCard.url}</div>
+                              </div>
+                            )}
+
+                            {agentConfig.agentAPIConfig.agentCard.preferredTransport && (
+                              <div className="p-3 bg-gray-50 rounded-lg">
+                                <div className="text-sm text-gray-500 mb-1">传输协议</div>
+                                <div className="text-gray-900">{agentConfig.agentAPIConfig.agentCard.preferredTransport}</div>
+                              </div>
+                            )}
+
+                            {/* Additional Interfaces */}
+                            {agentConfig.agentAPIConfig.agentCard.additionalInterfaces && agentConfig.agentAPIConfig.agentCard.additionalInterfaces.length > 0 && (
+                              <div>
+                                <div className="text-sm text-gray-500 mb-2">附加接口</div>
+                                <div className="space-y-2">
+                                  {agentConfig.agentAPIConfig.agentCard.additionalInterfaces.map((iface: any, idx: number) => (
+                                    <div key={idx} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-medium">
+                                          {iface.transport || 'Unknown'}
+                                        </span>
+                                      </div>
+                                      <div className="font-mono text-sm text-gray-700 break-all">
+                                        {iface.url}
+                                      </div>
+                                      {/* 显示其他附加字段 */}
+                                      {Object.keys(iface).filter(k => k !== 'transport' && k !== 'url').length > 0 && (
+                                        <div className="mt-2 text-xs text-gray-500">
+                                          {Object.entries(iface)
+                                            .filter(([k]) => k !== 'transport' && k !== 'url')
+                                            .map(([k, v]) => (
+                                              <div key={k}>
+                                                <span className="font-medium">{k}:</span> {String(v)}
+                                              </div>
+                                            ))
+                                          }
+                                        </div>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Skills */}
+                            {agentConfig.agentAPIConfig.agentCard.skills && agentConfig.agentAPIConfig.agentCard.skills.length > 0 && (
+                              <div>
+                                <div className="text-sm text-gray-500 mb-2">技能列表</div>
+                                <div className="space-y-2">
+                                  {agentConfig.agentAPIConfig.agentCard.skills.map((skill: any, idx: number) => (
+                                    <div key={idx} className="border border-gray-200 rounded-lg p-3 bg-white">
+                                      <div className="font-medium text-gray-900">{skill.name}</div>
+                                      {skill.description && (
+                                        <div className="text-sm text-gray-600 mt-1">{skill.description}</div>
+                                      )}
+                                      {skill.tags && skill.tags.length > 0 && (
+                                        <div className="flex gap-2 mt-2 flex-wrap">
+                                          {skill.tags.map((tag: string, tagIdx: number) => (
+                                            <span key={tagIdx} className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                                              {tag}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Capabilities */}
+                            {agentConfig.agentAPIConfig.agentCard.capabilities && (
+                              <div>
+                                <div className="text-sm text-gray-500 mb-2">能力</div>
+                                <pre className="bg-gray-50 p-3 rounded-lg text-sm overflow-auto text-gray-900">
+                                  {JSON.stringify(agentConfig.agentAPIConfig.agentCard.capabilities, null, 2)}
+                                </pre>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 路由配置（如果有）*/}
                       {agentConfig.agentAPIConfig.routes && agentConfig.agentAPIConfig.routes.length > 0 && (
                         <div>
                           <div className="text-sm font-medium text-gray-900 mb-3">路由配置</div>
@@ -310,7 +429,7 @@ function AgentDetail() {
                                     </div>
                                   }
                                   style={{
-                                    borderBottom: index < agentConfig.agentAPIConfig.routes.length - 1 ? '1px solid #e5e7eb' : 'none'
+                                    borderBottom: index < (agentConfig.agentAPIConfig.routes?.length || 0) - 1 ? '1px solid #e5e7eb' : 'none'
                                   }}
                                 >
                                   <div className="px-4 pb-4 space-y-4">

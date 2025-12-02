@@ -30,8 +30,8 @@ export interface ApiProductMcpConfig {
 
 export interface ApiProductAgentConfig {
   agentAPIConfig: {
-    agentProtocols: string[];
-    routes: Array<{
+    agentProtocols: string[];  // 协议列表，包含 "a2a" 时使用 agentCard
+    routes?: Array<{           // HTTP 路由（非 A2A 协议使用）
       domains: Array<{
         domain: string;
         protocol: string;
@@ -55,6 +55,33 @@ export interface ApiProductAgentConfig {
         }> | null;
       };
     }>;
+    agentCard?: {              // Agent Card 信息（A2A 协议）
+      name: string;
+      version: string;
+      description?: string;
+      url?: string;
+      preferredTransport?: string;
+      protocolVersion?: string; // 协议版本
+      skills?: Array<{
+        id: string;
+        name: string;
+        description?: string;
+        tags?: string[];
+      }>;
+      capabilities?: {
+        streaming?: boolean;
+        [key: string]: any;
+      };
+      additionalInterfaces?: Array<{  // 附加接口信息（注意：复数形式）
+        transport: string;  // 传输协议（HTTP/gRPC/JSONRPC）
+        url: string;
+        [key: string]: any;
+      }>;
+      [key: string]: any;      // 支持其他扩展字段
+    };
+  };
+  meta?: {                     // 元数据信息
+    source?: string;           // 来源：NACOS / APIG_AI / HIGRESS 等
   };
 }
 

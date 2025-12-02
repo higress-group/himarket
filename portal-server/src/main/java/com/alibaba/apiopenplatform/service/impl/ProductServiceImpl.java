@@ -449,9 +449,33 @@ public class ProductServiceImpl implements ProductService {
         } else if (sourceType.isNacos()) {
             // Handle Nacos configuration
             NacosRefConfig nacosRefConfig = productRef.getNacosRefConfig();
-            if (nacosRefConfig != null) {
-                String mcpConfig = nacosService.fetchMcpConfig(productRef.getNacosId(), nacosRefConfig);
-                productRef.setMcpConfig(mcpConfig);
+            if (nacosRefConfig == null) {
+                throw new BusinessException(ErrorCode.INVALID_REQUEST,
+                        "Nacos reference config is required");
+            }
+
+            switch (product.getType()) {
+                case MCP_SERVER:
+                    // MCP Server 配置同步（现有逻辑）
+                    String mcpConfig = nacosService.fetchMcpConfig(
+                            productRef.getNacosId(),
+                            nacosRefConfig
+                    );
+                    productRef.setMcpConfig(mcpConfig);
+                    break;
+
+                case AGENT_API:
+                    // Agent 配置同步
+                    String agentConfig = nacosService.fetchAgentConfig(
+                            productRef.getNacosId(),
+                            nacosRefConfig
+                    );
+                    productRef.setAgentConfig(agentConfig);
+                    break;
+
+                default:
+                    throw new BusinessException(ErrorCode.INVALID_REQUEST,
+                            "Nacos source does not support product type: " + product.getType());
             }
         }
     }

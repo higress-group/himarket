@@ -270,6 +270,14 @@ export const nacosApi = {
       params: data
     })
   },
+  // 获取 Nacos Agent 列表
+  getNacosAgents: (nacosId: string, params?: { 
+    page?: number; 
+    size?: number; 
+    namespaceId?: string 
+  }) => {
+    return api.get(`/nacos/${nacosId}/agents`, { params })
+  },
   // 获取指定 Nacos 实例的命名空间列表
   getNamespaces: (nacosId: string, params?: { page?: number; size?: number }) => {
     return api.get(`/nacos/${nacosId}/namespaces`, { params })

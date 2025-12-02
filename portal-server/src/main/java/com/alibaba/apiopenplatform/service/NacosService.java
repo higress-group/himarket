@@ -29,6 +29,7 @@ import com.alibaba.apiopenplatform.dto.result.common.PageResult;
 import com.alibaba.apiopenplatform.support.product.NacosRefConfig;
 import org.springframework.data.domain.Pageable;
 import com.alibaba.apiopenplatform.dto.result.nacos.NacosNamespaceResult;
+import com.alibaba.apiopenplatform.dto.result.agent.NacosAgentResult;
 
 /**
  * Nacos服务接口，定义Nacos实例管理和MCP服务器配置相关操作
@@ -117,4 +118,30 @@ public interface NacosService {
      * 获取指定 Nacos 实例的命名空间列表
      */
     PageResult<NacosNamespaceResult> fetchNamespaces(String nacosId, Pageable pageable) throws Exception;
+
+    // ==================== Agent 相关 ====================
+
+    /**
+     * 获取 Agent 列表
+     *
+     * @param nacosId Nacos 实例唯一标识
+     * @param namespaceId 命名空间 ID（可选，为空表示使用默认命名空间）
+     * @param pageable 分页参数
+     * @return 分页的 Agent 列表
+     * @throws Exception 获取 Agent 列表时可能抛出的异常
+     */
+    PageResult<NacosAgentResult> fetchAgents(
+            String nacosId,
+            String namespaceId,
+            Pageable pageable) throws Exception;
+
+    /**
+     * 获取 Agent 配置（用于产品关联时同步配置，默认最新版本）
+     * 注意：此方法仅供内部使用，不对外暴露为 REST 接口
+     *
+     * @param nacosId Nacos 实例唯一标识
+     * @param nacosRefConfig Nacos 引用配置（包含 agentName 和 namespaceId）
+     * @return Agent 配置的 JSON 字符串
+     */
+    String fetchAgentConfig(String nacosId, NacosRefConfig nacosRefConfig);
 }

@@ -6,7 +6,7 @@ export interface IProductIcon {
 export interface IAgentConfig {
   agentAPIConfig: {
     agentProtocols: string[];
-    routes: {
+    routes?: {
       domains: {
         domain: string;
         protocol: string;
@@ -40,8 +40,35 @@ export interface IAgentConfig {
         }[]
       },
       builtin: boolean
-    }[]
-  }
+    }[];
+    agentCard?: {
+      name: string;
+      version: string;
+      description?: string;
+      url?: string;
+      preferredTransport?: string;
+      protocolVersion?: string;
+      skills?: Array<{
+        id: string;
+        name: string;
+        description?: string;
+        tags?: string[];
+      }>;
+      capabilities?: {
+        streaming?: boolean;
+        [key: string]: any;
+      };
+      additionalInterfaces?: Array<{
+        transport: string;
+        url: string;
+        [key: string]: any;
+      }>;
+      [key: string]: any;
+    };
+  };
+  meta?: {  // 元数据信息
+    source?: string;  // 来源：NACOS / APIG_AI / HIGRESS 等
+  };
 }
 
 export interface IAPIConfig {
