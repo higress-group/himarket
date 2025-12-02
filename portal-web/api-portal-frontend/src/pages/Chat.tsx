@@ -50,7 +50,7 @@ function Chat() {
     }
   }, [location]);
 
-  const handleSendMessage = async (content: string, mcps: IProductDetail[]) => {
+  const handleSendMessage = async (content: string, mcps: IProductDetail[], enableWebSearch: boolean, modelMap: Map<string, IProductDetail>) => {
     if (!selectedModel) {
       antdMessage.error("请先选择一个模型");
       return;
@@ -89,8 +89,9 @@ function Chat() {
       }
 
       const modelIds = modelConversation.length ? modelConversation.map(model => model.id) : [selectedModel.productId];
-
+      // const modelInsts = modelIds.map(id => modelMap.get(id));
       const requests = modelIds.map(async (modelId) => {
+        const isSupport = modelMap.get(modelId)?.feature?.modelFeature?.webSearch || false;
         const messagePayload = {
           productId: modelId,
           sessionId,
@@ -100,6 +101,7 @@ function Chat() {
           stream: useStream,
           needMemory: true,
           mcpProducts: mcps.map(mcp => mcp.productId),
+          enableWebSearch: enableWebSearch ? isSupport : false,
         };
 
         let fullContent = '';
@@ -386,13 +388,13 @@ function Chat() {
   // 重新生成答案
   const handleGenerateMessage = async ({
     modelId, conversationId, questionId, content,
-    mcps,
+    mcps, enableWebSearch, modelMap
   }: {
     modelId: string, conversationId: string, questionId: string, content: string,
-    mcps: IProductDetail[]
+    mcps: IProductDetail[], enableWebSearch: boolean, modelMap: Map<string, IProductDetail>
   }) => {
-
     setGenerating(true);
+    const isSupportWebSearch = modelMap.get(modelId)?.feature?.modelFeature?.webSearch || false;
     try {
       const messagePayload = {
         productId: modelId, sessionId: currentSessionId,
@@ -400,6 +402,7 @@ function Chat() {
         question: content, stream: true,
         needMemory: true,
         mcpProducts: mcps.map(mcp => mcp.productId),
+        enableWebSearch: enableWebSearch ? isSupportWebSearch : false
       };
       let fullContent = '';
       let lastIdx = -1;

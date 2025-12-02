@@ -23,14 +23,16 @@ interface ChatAreaProps {
   generating: boolean,
   isMcpExecuting: boolean;
   onChangeActiveAnswer: (modelId: string, conversationId: string, questionId: string, direction: 'prev' | 'next') => void
-  onSendMessage: (message: string, mcps: IProductDetail[]) => void;
+  onSendMessage: (message: string, mcps: IProductDetail[], enableWebSearch: boolean, modelMap: Map<string, IProductDetail>) => void;
   onSelectProduct: (product: IProductDetail) => void;
   handleGenerateMessage: (ids: {
     modelId: string;
     conversationId: string;
     questionId: string;
     content: string;
-    mcps: IProductDetail[]
+    mcps: IProductDetail[],
+    enableWebSearch: boolean;
+    modelMap: Map<string, IProductDetail>
   }) => void;
 
   addModels: (ids: string[]) => void;
@@ -63,6 +65,8 @@ export function ChatArea(props: ChatAreaProps) {
   const [mcpEnabled, setMcpEnabled] = useState(() => {
     return safeJSONParse(window.localStorage.getItem("mcpEnabled") || "false", false)
   });
+
+  const [enableWebSearch, setEnableWebSearch] = useState(false);
 
   const [showModelSelector, setShowModelSelector] = useState(false);
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
@@ -156,6 +160,23 @@ export function ChatArea(props: ChatAreaProps) {
     localStorage.setItem("mcpEnabled", JSON.stringify(enable));
     setMcpEnabled(enable);
   }
+
+  const modelMap = useMemo(() => {
+    const m = new Map<string, IProductDetail>;
+    modelList.forEach(model => {
+      m.set(model.productId, model);
+    });
+    return m
+  }, [modelList])
+
+  const showWebSearch = useMemo(() => {
+    if (modelConversations.length === 0) {
+      return selectedModel?.feature?.modelFeature?.webSearch || false;
+    }
+    return modelConversations.some(v => {
+      return modelMap.get(v.id)?.feature?.modelFeature?.webSearch || false;
+    });
+  }, [modelConversations, modelMap, selectedModel]);
 
   useEffect(() => {
     APIs.getPrimaryConsumer()
@@ -266,6 +287,8 @@ export function ChatArea(props: ChatAreaProps) {
                         questionId: quest.id,
                         content: quest.content,
                         mcps: addedMcps,
+                        enableWebSearch,
+                        modelMap,
                       })
                     }}
                   />
@@ -332,13 +355,16 @@ export function ChatArea(props: ChatAreaProps) {
                 <InputBox
                   onSendMessage={(c) => {
                     setAutoScrollEnabled(true);
-                    onSendMessage(c, addedMcps)
+                    onSendMessage(c, addedMcps, enableWebSearch, modelMap)
                   }}
                   isLoading={generating}
                   onMcpClick={toggleMcpModal}
                   mcpEnabled={mcpEnabled}
                   addedMcps={addedMcps}
                   isMcpExecuting={isMcpExecuting}
+                  showWebSearch={showWebSearch}
+                  onWebSearchEnable={setEnableWebSearch}
+                  webSearchEnabled={enableWebSearch}
                 />
               </div>
 
@@ -346,7 +372,7 @@ export function ChatArea(props: ChatAreaProps) {
               <SuggestedQuestions
                 onSelectQuestion={(c) => {
                   setAutoScrollEnabled(true);
-                  onSendMessage(c, addedMcps);
+                  onSendMessage(c, addedMcps, enableWebSearch, modelMap);
                 }} />
             </div>
           </div>
@@ -357,12 +383,15 @@ export function ChatArea(props: ChatAreaProps) {
                 onMcpClick={toggleMcpModal}
                 onSendMessage={(c) => {
                   setAutoScrollEnabled(true);
-                  onSendMessage(c, addedMcps);
+                  onSendMessage(c, addedMcps, enableWebSearch, modelMap);
                 }}
                 isLoading={generating}
                 mcpEnabled={mcpEnabled}
                 addedMcps={addedMcps}
                 isMcpExecuting={isMcpExecuting}
+                showWebSearch={showWebSearch}
+                onWebSearchEnable={setEnableWebSearch}
+                webSearchEnabled={enableWebSearch}
               />
             </div>
           </div>
