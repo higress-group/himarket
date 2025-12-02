@@ -1,22 +1,26 @@
 import { useState } from "react";
 import { SendOutlined } from "@ant-design/icons";
 import SendButton from "../send-button";
-import { Mcp } from "../icon";
+import { Global, Mcp } from "../icon";
 import type { IProductDetail } from "../../lib/apis";
 
 interface InputBoxProps {
-  onSendMessage: (content: string) => void;
   isLoading?: boolean;
   mcpEnabled?: boolean;
-  onMcpClick?: () => void;
   addedMcps: IProductDetail[];
   isMcpExecuting?: boolean;
+  showWebSearch: boolean;
+  webSearchEnabled: boolean;
+  onWebSearchEnable: (enabled: boolean) => void;
+  onMcpClick?: () => void;
+  onSendMessage: (content: string) => void;
 }
 
 export function InputBox(props: InputBoxProps) {
   const {
     onSendMessage, isLoading = false, mcpEnabled = false,
-    onMcpClick, addedMcps, isMcpExecuting = false
+    onMcpClick, addedMcps, isMcpExecuting = false, showWebSearch,
+    webSearchEnabled, onWebSearchEnable,
   } = props;
   const [input, setInput] = useState("");
 
@@ -58,10 +62,20 @@ export function InputBox(props: InputBoxProps) {
       <div
         className="absolute bottom-5 flex justify-between w-full px-6 left-0"
       >
-        <ToolButton onClick={onMcpClick} enabled={mcpEnabled}>
-          <Mcp className={`w-4 h-4 hover:fill-colorPrimary ${mcpEnabled ? "fill-colorPrimary" : "fill-subTitle"}`} />
-          <span className="text-sm text-subTitle">MCP {addedMcps.length ? `(${addedMcps.length})` : ""}</span>
-        </ToolButton>
+        <div className="inline-flex gap-2">
+          {
+            showWebSearch && (
+              <ToolButton onClick={() => onWebSearchEnable(!webSearchEnabled)} enabled={webSearchEnabled}>
+                <Global className={`w-4 h-4 ${webSearchEnabled ? "fill-colorPrimary" : "fill-subTitle"}`} />
+                <span className="text-sm text-subTitle">联网</span>
+              </ToolButton>
+            )
+          }
+          <ToolButton onClick={onMcpClick} enabled={mcpEnabled}>
+            <Mcp className={`w-4 h-4 ${mcpEnabled ? "fill-colorPrimary" : "fill-subTitle"}`} />
+            <span className="text-sm text-subTitle">MCP {addedMcps.length ? `(${addedMcps.length})` : ""}</span>
+          </ToolButton>
+        </div>
         <SendButton
           className={`w-9 h-9 ${input.trim() && !isLoading
             ? "bg-colorPrimary text-white hover:opacity-90"
@@ -82,7 +96,7 @@ function ToolButton({ enabled, children, onClick }: { enabled: boolean; children
   return (
     <div
       onClick={onClick}
-      className={`flex gap-2 items-center justify-center px-2 rounded-md cursor-pointer ${enabled ? "bg-colorPrimaryBgHover" : ""} hover:bg-colorPrimaryBgHover transition-all ease-linear duration-200`}
+      className={`flex h-full gap-2 items-center justify-center px-2 rounded-lg cursor-pointer ${enabled ? "bg-colorPrimaryBgHover" : ""}  transition-all ease-linear duration-400`}
     >
       {children}
     </div>

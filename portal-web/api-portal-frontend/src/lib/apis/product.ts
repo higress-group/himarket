@@ -33,6 +33,11 @@ export interface IProductDetail {
   mcpConfig: IMCPConfig;
   modelConfig?: IModelConfig;
   enabled: boolean;
+  feature?: {
+    modelFeature: {
+      webSearch: boolean;
+    }
+  }
 }
 
 interface GetProductsResp {
@@ -167,6 +172,6 @@ export function getMcpTools(params: { productId: string }) {
 
   // 真实接口调用（暂时注释）
   return request.get<RespI<IMcpToolsListResp>, RespI<IMcpToolsListResp>>(
-    `/products/mcp/${params.productId}/tools/list`
+    `/products/${params.productId}/tools`
   );
 }
