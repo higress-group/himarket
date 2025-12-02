@@ -83,3 +83,12 @@ export const formatDate = (dateString: string | Date): string => {
     return String(dateString);
   }
 }; 
+
+export const safeJSONParse = <T>(value: string, fallback: T): T => {
+  try {
+    return JSON.parse(value);
+  } catch (error) {
+    console.log(error);
+    return fallback;
+  }
+}
