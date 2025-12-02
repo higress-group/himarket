@@ -5,6 +5,7 @@ import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.collection.CollectionUtil;
 import cn.hutool.core.util.ArrayUtil;
 import cn.hutool.core.util.StrUtil;
+import com.alibaba.apiopenplatform.core.constant.Resources;
 import com.alibaba.apiopenplatform.core.event.ChatSessionDeletingEvent;
 import com.alibaba.apiopenplatform.core.exception.BusinessException;
 import com.alibaba.apiopenplatform.core.exception.ErrorCode;
@@ -18,7 +19,9 @@ import com.alibaba.apiopenplatform.entity.Chat;
 import com.alibaba.apiopenplatform.entity.ChatAttachment;
 import com.alibaba.apiopenplatform.entity.ChatSession;
 import com.alibaba.apiopenplatform.dto.result.product.ProductResult;
+import com.alibaba.apiopenplatform.entity.ProductSubscription;
 import com.alibaba.apiopenplatform.repository.ChatAttachmentRepository;
+import com.alibaba.apiopenplatform.repository.SubscriptionRepository;
 import com.alibaba.apiopenplatform.service.*;
 import com.alibaba.apiopenplatform.repository.ChatRepository;
 import com.alibaba.apiopenplatform.dto.params.chat.CreateChatParam;
@@ -59,6 +62,8 @@ public class ChatServiceImpl implements ChatService {
     private final ChatRepository chatRepository;
 
     private final ChatAttachmentRepository chatAttachmentRepository;
+
+    private final SubscriptionRepository subscriptionRepository;
 
     private final ContextHolder contextHolder;
 
@@ -111,6 +116,25 @@ public class ChatServiceImpl implements ChatService {
 
         if (!session.getProducts().contains(param.getProductId())) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "Product not in current session");
+        }
+
+        // check mcpServers count is less than 10, and all of them are subscribed
+        List<String> mcpProducts = param.getMcpProducts();
+        if (mcpProducts.size() > 10) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "MCP servers count is more than 10, currently max size is 10");
+        }
+
+        String consumerId = consumerService.getPrimaryConsumer().getConsumerId();
+        // 批量查询提高性能
+        List<ProductSubscription> subscriptions = subscriptionRepository.findAllByConsumerId(consumerId);
+        Set<String> subscribedProductIds = subscriptions.stream()
+                .map(ProductSubscription::getProductId)
+                .collect(Collectors.toSet());
+
+        for (String productId : mcpProducts) {
+            if (!subscribedProductIds.contains(productId)) {
+                throw new BusinessException(ErrorCode.INVALID_PARAMETER, Resources.PRODUCT, productId + " mcp is not subscribed, not allowed to use");
+            }
         }
 
         // chat count
