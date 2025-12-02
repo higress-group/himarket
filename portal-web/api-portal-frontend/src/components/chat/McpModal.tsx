@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
-import { Modal, Switch, Input, Skeleton, type ModalProps } from "antd";
-import { CloseOutlined, SearchOutlined } from "@ant-design/icons";
+import { Modal, Switch, Input, Skeleton, type ModalProps, Button } from "antd";
+import { CloseOutlined, DeleteOutlined, SearchOutlined } from "@ant-design/icons";
 import type { ICategory, IProductDetail, ISubscription } from "../../lib/apis";
 import McpCard from "./McpCard";
 
@@ -13,6 +13,7 @@ interface McpModal extends ModalProps {
   mcpLoading?: boolean;
   onAdd: (product: IProductDetail) => void;
   onRemove: (product: IProductDetail) => void;
+  onRemoveAll: () => void;
   subscripts: ISubscription[];
   enabled?: boolean;
   onEnabled: (enabled: boolean) => void;
@@ -26,7 +27,7 @@ function McpModal(props: McpModal) {
     onSearch, mcpLoading, added,
     onAdd, subscripts, onEnabled,
     enabled, onRemove, onClose,
-    onQuickSubscribe,
+    onQuickSubscribe, onRemoveAll,
     ...modalProps
   } = props;
   const [searchText, setSearchText] = useState("");
@@ -40,6 +41,13 @@ function McpModal(props: McpModal) {
   const addedIds = useMemo(() => {
     return added.map(v => v.productId);
   }, [added]);
+
+  const filteredData = useMemo(() => {
+    if (active === "added") {
+      return added
+    }
+    return data;
+  }, [data, active, added]);
 
   return (
     <Modal
@@ -106,17 +114,21 @@ function McpModal(props: McpModal) {
           </div>
         </div>
 
-        <div className="flex-[5] flex flex-col gap-4 overflow-y-auto" data-sign-name="mcp-list">
+        <div className="flex-[5] flex flex-col gap-4 overflow-hidden" data-sign-name="mcp-list">
           <div className="flex flex-col gap-2">
             <div className="flex w-full gap-4 justify-between">
-              <Input.Search
+              <Input
                 placeholder="搜索 MCP Server..."
                 prefix={<SearchOutlined />}
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
                 allowClear
                 size="large"
-                onSearch={(value) => onSearch(active, value.trim())}
+                onKeyDown={(evt) => {
+                  if (evt.code === "Enter") {
+                    onSearch(active, (evt.target as HTMLInputElement).value.trim())
+                  }
+                }}
               />
               <div onClick={onClose} className="flex h-full items-center justify-center cursor-pointer">
                 <CloseOutlined />
@@ -156,17 +168,27 @@ function McpModal(props: McpModal) {
                 ))}
               </div>
             ) : (
-              <div className="grid grid-cols-3 gap-4 content-start overflow-y-auto p-1" data-sign-name="mcp-card-grid"> {data.map((item) => (
-                <McpCard
-                  key={item.productId} data={item}
-                  isAdded={addedIds.includes(item.productId)}
-                  onAdd={onAdd}
-                  onRemove={onRemove}
-                  isSubscribed={scbscriptsIds.includes(item.productId)}
-                  onQuickSubscribe={onQuickSubscribe}
-                />
-              ))}
+              <div className="grid grid-cols-3 gap-4 content-start overflow-y-auto p-1 flex-1" data-sign-name="mcp-card-grid">
+                {
+                  filteredData.map((item) => (
+                    <McpCard
+                      key={item.productId} data={item}
+                      isAdded={addedIds.includes(item.productId)}
+                      onAdd={onAdd}
+                      onRemove={onRemove}
+                      isSubscribed={scbscriptsIds.includes(item.productId)}
+                      onQuickSubscribe={onQuickSubscribe}
+                    />
+                  ))}
               </div>
+            )
+          }
+          {
+            active === "added" && (
+              <Button onClick={onRemoveAll} block size="large">
+                <DeleteOutlined />
+                批量取消添加
+              </Button>
             )
           }
         </div>
