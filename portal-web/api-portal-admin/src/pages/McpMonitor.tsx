@@ -170,7 +170,7 @@ const McpMonitor: React.FC = () => {
       if (successRateChartInstance.current) {
         const dataPoints = successRateResponse.timeSeries?.dataPoints || [];
         const option = dataPoints.length > 0
-          ? generateLineChartOption(dataPoints, { yAxisLabel: '成功率', isPercentage: true })
+          ? generateLineChartOption(dataPoints, { isPercentage: true, seriesName: '成功率' })
           : generateEmptyChartOption();
         successRateChartInstance.current.setOption(option, true);
       }
@@ -184,7 +184,7 @@ const McpMonitor: React.FC = () => {
       if (qpsChartInstance.current) {
         const dataPoints = qpsResponse.timeSeries?.dataPoints || [];
         const option = dataPoints.length > 0
-          ? generateLineChartOption(dataPoints, { yAxisLabel: 'QPS' })
+          ? generateLineChartOption(dataPoints, { seriesName: 'QPS' })
           : generateEmptyChartOption();
         qpsChartInstance.current.setOption(option, true);
       }
@@ -208,7 +208,7 @@ const McpMonitor: React.FC = () => {
 
       if (rtChartInstance.current) {
         const option = rtSeries[0].dataPoints.length > 0
-          ? generateMultiLineChartOption(rtSeries, { yAxisLabel: '响应时间(ms)' })
+          ? generateMultiLineChartOption(rtSeries)
           : generateEmptyChartOption();
         rtChartInstance.current.setOption(option, true);
       }
@@ -326,7 +326,7 @@ const McpMonitor: React.FC = () => {
       <Card className="mb-6" title="过滤条件">
         <Form form={form} layout="vertical">
           <Row gutter={16}>
-            <Col span={7}>
+            <Col flex="350px">
               <Form.Item name="timeRange" label="时间范围" rules={[{ required: true, message: '请选择时间范围' }]}>
                 <RangePicker
                   showTime
@@ -337,7 +337,7 @@ const McpMonitor: React.FC = () => {
                 />
               </Form.Item>
             </Col>
-            <Col span={4}>
+            <Col flex="180px">
               <Form.Item name="interval" label="查询粒度">
                 <Select style={{ width: '100%' }}>
                   <Select.Option value={1}>1秒</Select.Option>
@@ -477,6 +477,8 @@ const McpMonitor: React.FC = () => {
               columns={generateTableColumns(tableData.methodDistribution)}
               pagination={false}
               rowKey={(_, index) => index?.toString() || '0'}
+              scroll={{ x: 'max-content' }}
+              size="small"
             />
           </Card>
         </Col>
@@ -490,6 +492,8 @@ const McpMonitor: React.FC = () => {
               columns={generateTableColumns(tableData.gatewayStatus)}
               pagination={false}
               rowKey={(_, index) => index?.toString() || '0'}
+              scroll={{ x: 'max-content' }}
+              size="small"
             />
           </Card>
         </Col>
@@ -506,6 +510,8 @@ const McpMonitor: React.FC = () => {
               columns={generateTableColumns(tableData.backendStatus)}
               pagination={false}
               rowKey={(_, index) => index?.toString() || '0'}
+              scroll={{ x: 'max-content' }}
+              size="small"
             />
           </Card>
         </Col>
@@ -519,6 +525,8 @@ const McpMonitor: React.FC = () => {
               columns={generateTableColumns(tableData.requestDistribution)}
               pagination={false}
               rowKey={(_, index) => index?.toString() || '0'}
+              scroll={{ x: 'max-content' }}
+              size="small"
             />
           </Card>
         </Col>

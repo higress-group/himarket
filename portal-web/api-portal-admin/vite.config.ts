@@ -14,7 +14,7 @@ export default defineConfig({
     port: 5174,
     proxy: {
       [apiPrefix]: {
-        target: 'http://localhost:8080',
+        target: 'http://nlb-ofxbj2uxo1f7wqjgi6.cn-shanghai.nlb.aliyuncsslb.com',
         changeOrigin: true,
         rewrite: (path) => path.replace(new RegExp(`^${apiPrefix}`), ''),
       },

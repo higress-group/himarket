@@ -205,7 +205,7 @@ const ModelDashboard: React.FC = () => {
 
       if (qpsChartInstance.current) {
         const option = qpsSeries[0].dataPoints.length > 0
-          ? generateMultiLineChartOption(qpsSeries, { yAxisLabel: 'QPS' })
+          ? generateMultiLineChartOption(qpsSeries)
           : generateEmptyChartOption();
         qpsChartInstance.current.setOption(option, true);
       }
@@ -219,7 +219,7 @@ const ModelDashboard: React.FC = () => {
       if (successRateChartInstance.current) {
         const dataPoints = successRateResponse.timeSeries?.dataPoints || [];
         const option = dataPoints.length > 0
-          ? generateLineChartOption(dataPoints, { yAxisLabel: '成功率', isPercentage: true })
+          ? generateLineChartOption(dataPoints, { isPercentage: true, seriesName: '成功率' })
           : generateEmptyChartOption();
         successRateChartInstance.current.setOption(option, true);
       }
@@ -239,7 +239,7 @@ const ModelDashboard: React.FC = () => {
 
       if (tokenPerSecChartInstance.current) {
         const option = tokenSeries[0].dataPoints.length > 0
-          ? generateMultiLineChartOption(tokenSeries, { yAxisLabel: 'Token/s' })
+          ? generateMultiLineChartOption(tokenSeries)
           : generateEmptyChartOption();
         tokenPerSecChartInstance.current.setOption(option, true);
       }
@@ -261,7 +261,7 @@ const ModelDashboard: React.FC = () => {
 
       if (rtChartInstance.current) {
         const option = rtSeries[0].dataPoints.length > 0
-          ? generateMultiLineChartOption(rtSeries, { yAxisLabel: '响应时间(ms)' })
+          ? generateMultiLineChartOption(rtSeries)
           : generateEmptyChartOption();
         rtChartInstance.current.setOption(option, true);
       }
@@ -275,7 +275,7 @@ const ModelDashboard: React.FC = () => {
       if (ratelimitedChartInstance.current) {
         const dataPoints = ratelimitedResponse.timeSeries?.dataPoints || [];
         const option = dataPoints.length > 0
-          ? generateLineChartOption(dataPoints, { yAxisLabel: '限流请求数' })
+          ? generateLineChartOption(dataPoints, { seriesName: '限流请求数' })
           : generateEmptyChartOption();
         ratelimitedChartInstance.current.setOption(option, true);
       }
@@ -295,7 +295,7 @@ const ModelDashboard: React.FC = () => {
 
       if (cacheChartInstance.current) {
         const option = cacheSeries[0].dataPoints.length > 0
-          ? generateMultiLineChartOption(cacheSeries, { yAxisLabel: '次数' })
+          ? generateMultiLineChartOption(cacheSeries)
           : generateEmptyChartOption();
         cacheChartInstance.current.setOption(option, true);
       }
@@ -428,7 +428,7 @@ const ModelDashboard: React.FC = () => {
       <Card className="mb-6" title="过滤条件">
         <Form form={form} layout="vertical">
           <Row gutter={16}>
-            <Col span={7}>
+            <Col flex="350px">
               <Form.Item name="timeRange" label="时间范围" rules={[{ required: true, message: '请选择时间范围' }]}>
                 <RangePicker
                   showTime
@@ -439,7 +439,7 @@ const ModelDashboard: React.FC = () => {
                 />
               </Form.Item>
             </Col>
-            <Col span={4}>
+            <Col flex="180px">
               <Form.Item name="interval" label="查询粒度">
                 <Select style={{ width: '100%' }}>
                   <Select.Option value={1}>1秒</Select.Option>
@@ -630,6 +630,8 @@ const ModelDashboard: React.FC = () => {
               columns={generateTableColumns(tableData.modelToken)}
               pagination={false}
               rowKey={(_, index) => index?.toString() || '0'}
+              scroll={{ x: 'max-content' }}
+              size="small"
             />
           </Card>
         </Col>
@@ -643,6 +645,8 @@ const ModelDashboard: React.FC = () => {
               columns={generateTableColumns(tableData.consumerToken)}
               pagination={false}
               rowKey={(_, index) => index?.toString() || '0'}
+              scroll={{ x: 'max-content' }}
+              size="small"
             />
           </Card>
         </Col>
@@ -660,6 +664,8 @@ const ModelDashboard: React.FC = () => {
               columns={generateTableColumns(tableData.serviceToken)}
               pagination={false}
               rowKey={(_, index) => index?.toString() || '0'}
+              scroll={{ x: 'max-content' }}
+              size="small"
             />
           </Card>
         </Col>
@@ -673,6 +679,8 @@ const ModelDashboard: React.FC = () => {
               columns={generateTableColumns(tableData.errorRequests)}
               pagination={false}
               rowKey={(_, index) => index?.toString() || '0'}
+              scroll={{ x: 'max-content' }}
+              size="small"
             />
           </Card>
         </Col>
@@ -690,6 +698,8 @@ const ModelDashboard: React.FC = () => {
               columns={generateTableColumns(tableData.ratelimitedConsumer)}
               pagination={false}
               rowKey={(_, index) => index?.toString() || '0'}
+              scroll={{ x: 'max-content' }}
+              size="small"
             />
           </Card>
         </Col>
@@ -703,6 +713,8 @@ const ModelDashboard: React.FC = () => {
               columns={generateTableColumns(tableData.riskLabel)}
               pagination={false}
               rowKey={(_, index) => index?.toString() || '0'}
+              scroll={{ x: 'max-content' }}
+              size="small"
             />
           </Card>
         </Col>
@@ -716,6 +728,8 @@ const ModelDashboard: React.FC = () => {
               columns={generateTableColumns(tableData.riskConsumer)}
               pagination={false}
               rowKey={(_, index) => index?.toString() || '0'}
+              scroll={{ x: 'max-content' }}
+              size="small"
             />
           </Card>
         </Col>
