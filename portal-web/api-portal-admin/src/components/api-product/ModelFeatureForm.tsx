@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Form, Input, InputNumber, Collapse, Row, Col } from "antd";
+import { Form, Input, InputNumber, Switch, Collapse, Row, Col } from "antd";
 
 const { Panel } = Collapse;
 
@@ -8,7 +8,7 @@ interface ModelFeatureFormProps {
 }
 
 export default function ModelFeatureForm({ initialExpanded = false }: ModelFeatureFormProps) {
-  const [activeKey, setActiveKey] = useState<string[]>(initialExpanded ? ['1'] : []);
+  const [activeKey, setActiveKey] = useState<string[]>([]);
   
   const tooltipStyle = {
     overlayInnerStyle: {
@@ -18,9 +18,7 @@ export default function ModelFeatureForm({ initialExpanded = false }: ModelFeatu
   };
 
   useEffect(() => {
-    if (initialExpanded) {
-      setActiveKey(['1']);
-    }
+    setActiveKey(initialExpanded ? ['1'] : []);
   }, [initialExpanded]);
 
   return (
@@ -30,7 +28,7 @@ export default function ModelFeatureForm({ initialExpanded = false }: ModelFeatu
       onChange={(keys) => setActiveKey(keys as string[])}
       style={{ marginBottom: 16 }}
     >
-      <Panel header="模型参数" key="1">
+      <Panel header="模型参数" key="1" forceRender>
         <Row gutter={16}>
           <Col span={8}>
             <Form.Item 
@@ -73,6 +71,20 @@ export default function ModelFeatureForm({ initialExpanded = false }: ModelFeatu
                 placeholder="0.9"
                 size="small"
               />
+            </Form.Item>
+          </Col>
+        </Row>
+        <Row gutter={16} style={{ marginTop: 16 }}>
+          <Col span={8}>
+            <Form.Item 
+              label="Web Search" 
+              name={['feature', 'modelFeature', 'webSearch']}
+              tooltip={{ title: "是否启用网络搜索能力", ...tooltipStyle }}
+              valuePropName="checked"
+              initialValue={true}
+              style={{ marginBottom: 0 }}
+            >
+              <Switch />
             </Form.Item>
           </Col>
         </Row>

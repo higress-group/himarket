@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component;
 
 import java.net.URI;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -25,6 +26,9 @@ import java.util.Map;
 public class McpClientFactory {
 
     public McpClientHolder initClient(String type, String url, Map<String, String> headers, Map<String, String> params) {
+        Map<String, String> mcpHeaders = new HashMap<>(headers);
+        mcpHeaders.remove("Host");
+
         URI uri = getUri(url);
         if (uri == null) {
             return null;
@@ -50,8 +54,8 @@ public class McpClientFactory {
             if (StringUtils.equalsIgnoreCase(type, "sse")) {
                 mcpClientTransport = HttpClientSseClientTransport.builder(endpoint)
                         .customizeRequest(builder -> {
-                            if (MapUtils.isNotEmpty(headers)) {
-                                headers.forEach(builder::header);
+                            if (MapUtils.isNotEmpty(mcpHeaders)) {
+                                mcpHeaders.forEach(builder::header);
                             }
                         })
                         .connectTimeout(Duration.ofSeconds(2))
@@ -60,8 +64,8 @@ public class McpClientFactory {
             } else {
                 mcpClientTransport = HttpClientStreamableHttpTransport.builder(endpoint)
                         .customizeRequest(builder -> {
-                            if (MapUtils.isNotEmpty(headers)) {
-                                headers.forEach(builder::header);
+                            if (MapUtils.isNotEmpty(mcpHeaders)) {
+                                mcpHeaders.forEach(builder::header);
                             }
                         })
                         .endpoint(path)

@@ -1,4 +1,4 @@
-FROM higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/nginx:alpine
+FROM docker.m.daocloud.io/nginx:1.24-alpine
 
 COPY nginx.conf /etc/nginx/nginx.conf
 COPY proxy.conf /etc/nginx/default.d/proxy.conf

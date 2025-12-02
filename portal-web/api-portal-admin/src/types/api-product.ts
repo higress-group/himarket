@@ -191,6 +191,7 @@ export interface ModelFeature {
   maxTokens?: number;
   temperature?: number;
   streaming?: boolean;
+  webSearch?: boolean;
 }
 
 export interface ProductFeature {

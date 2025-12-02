@@ -58,27 +58,23 @@ export default function ApiProductFormModal({
 
   // 初始化时加载已有数据
   useEffect(() => {
+    if (!visible) return;
+    
     fetchProductCategories();
     
-    if (visible && isEditMode && initialData && initialData.name) {
-      // 先设置基本字段
-      form.setFieldsValue({
-        name: initialData.name,
-        description: initialData.description,
-        type: initialData.type,
-        autoApprove: initialData.autoApprove,
-      });
-      
-      // 延迟设置 feature，确保 Collapse 已展开
-      if (initialData.feature) {
-        setTimeout(() => {
-          form.setFieldsValue({
-            feature: initialData.feature,
-          });
-        }, 300);
-      }
+    if (isEditMode && initialData && initialData.name) {
+      // 延迟设置表单值，确保表单组件已完全渲染
+      setTimeout(() => {
+        form.setFieldsValue({
+          name: initialData.name,
+          description: initialData.description,
+          type: initialData.type,
+          autoApprove: initialData.autoApprove,
+          feature: initialData.feature,
+        });
+      }, 300);
 
-      // 2. 处理 icon 字段
+      // 处理 icon 字段
       if (initialData.icon) {
         if (typeof initialData.icon === 'object' && initialData.icon.type && initialData.icon.value) {
           // 新格式：{ type: 'BASE64' | 'URL', value: string }
@@ -96,9 +92,13 @@ export default function ApiProductFormModal({
                 url: iconValue,
               },
             ]);
-            form.setFieldsValue({ icon: iconValue });
+            setTimeout(() => {
+              form.setFieldsValue({ icon: iconValue });
+            }, 100);
           } else {
-            form.setFieldsValue({ iconUrl: iconValue });
+            setTimeout(() => {
+              form.setFieldsValue({ iconUrl: iconValue });
+            }, 100);
           }
         } else {
           // 兼容旧格式（字符串格式）
@@ -117,7 +117,9 @@ export default function ApiProductFormModal({
                 url: base64Data,
               },
             ]);
-            form.setFieldsValue({ icon: base64Data });
+            setTimeout(() => {
+              form.setFieldsValue({ icon: base64Data });
+            }, 100);
           }
         }
       }
@@ -126,7 +128,9 @@ export default function ApiProductFormModal({
       if (initialData.productId) {
         apiProductApi.getProductCategories(initialData.productId).then((response) => {
           const categoryIds = response.data.map((category: any) => category.categoryId);
-          form.setFieldsValue({ categories: categoryIds });
+          setTimeout(() => {
+            form.setFieldsValue({ categories: categoryIds });
+          }, 100);
         }).catch((error) => {
           console.error("获取产品关联类别失败:", error);
         });
@@ -137,7 +141,7 @@ export default function ApiProductFormModal({
       setFileList([]);
       setIconMode('URL');
     }
-  }, [visible, isEditMode, initialData, form]);
+  }, [visible]);
 
   // 将文件转为 Base64
   const getBase64 = (file: File): Promise<string> =>
@@ -266,7 +270,7 @@ export default function ApiProductFormModal({
       confirmLoading={loading}
       width={600}
     >
-      <Form form={form} layout="vertical" preserve={false}>
+      <Form form={form} layout="vertical">
         <Form.Item
           label="名称"
           name="name"
