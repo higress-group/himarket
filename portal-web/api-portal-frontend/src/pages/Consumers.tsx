@@ -132,6 +132,8 @@ function ConsumersPage() {
       .then(({ code }) => {
         if (code === "SUCCESS") {
           message.success("修改成功！")
+          setShowModifyPrimaryConsumerModal(false);
+          getPrimaryConsumer();
         }
       }).catch(() => {
         message.error("修改失败，请重试")

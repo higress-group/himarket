@@ -1,4 +1,4 @@
-import {useState, useEffect} from "react";
+import { useState, useEffect } from "react";
 import {
     Card,
     Button,
@@ -26,13 +26,14 @@ import type {
     HMACCredential,
     APIKeyCredential
 } from "../../types/consumer";
-import type {ApiResponse} from "../../types";
+import type { ApiResponse } from "../../types";
+import { copyToClipboard } from "../../lib/utils";
 
 interface CredentialManagerProps {
     consumerId: string;
 }
 
-export function CredentialManager({consumerId}: CredentialManagerProps) {
+export function CredentialManager({ consumerId }: CredentialManagerProps) {
     const [credentialType, setCredentialType] = useState<'API_KEY' | 'HMAC'>('API_KEY');
     const [credentialModalVisible, setCredentialModalVisible] = useState(false);
     const [credentialLoading, setCredentialLoading] = useState(false);
@@ -165,26 +166,9 @@ export function CredentialManager({consumerId}: CredentialManagerProps) {
         }
     };
     const handleCopyCredential = (text: string) => {
-        const textArea = document.createElement('textarea');
-        textArea.value = text;
-        textArea.style.position = 'fixed';
-        textArea.style.left = '-9999px'; // 避免影响页面布局
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-
-        try {
-            const success = document.execCommand('copy');
-            if (success) {
-                message.success('已复制到剪贴板');
-            } else {
-                // message.error('复制失败，请手动复制内容');
-            }
-        } catch (err) {
-            // message.error('复制失败，请手动复制内容');
-        } finally {
-            document.body.removeChild(textArea); // 清理 DOM
-        }
+        copyToClipboard(text).then(() => {
+            message.success('已复制到剪贴板');
+        });
     };
 
 
@@ -263,12 +247,12 @@ export function CredentialManager({consumerId}: CredentialManagerProps) {
 
         if (type === 'apiKey') {
             // 生成32位API Key
-            const apiKey = Array.from({length: 32}, () => chars.charAt(Math.floor(Math.random() * chars.length))).join('');
+            const apiKey = Array.from({ length: 32 }, () => chars.charAt(Math.floor(Math.random() * chars.length))).join('');
 
             // 确保表单字段已经渲染并设置值
             const setValue = () => {
                 try {
-                    credentialForm.setFieldsValue({customApiKey: apiKey});
+                    credentialForm.setFieldsValue({ customApiKey: apiKey });
                 } catch (error) {
                     console.error('设置API Key失败:', error);
                 }
@@ -284,8 +268,8 @@ export function CredentialManager({consumerId}: CredentialManagerProps) {
             return apiKey;
         } else {
             // 生成32位Access Key和64位Secret Key
-            const ak = Array.from({length: 32}, () => chars.charAt(Math.floor(Math.random() * chars.length))).join('');
-            const sk = Array.from({length: 64}, () => chars.charAt(Math.floor(Math.random() * chars.length))).join('');
+            const ak = Array.from({ length: 32 }, () => chars.charAt(Math.floor(Math.random() * chars.length))).join('');
+            const sk = Array.from({ length: 64 }, () => chars.charAt(Math.floor(Math.random() * chars.length))).join('');
 
             // 确保表单字段已经渲染并设置值
             const setValue = () => {
@@ -320,8 +304,8 @@ export function CredentialManager({consumerId}: CredentialManagerProps) {
             render: (apiKey: string) => (
                 <div className="flex items-center space-x-2">
                     <code className="text-sm bg-gray-100 px-2 py-1 rounded">{apiKey}</code>
-                    <Button type="text" size="small" icon={<CopyOutlined/>}
-                            onClick={() => handleCopyCredential(apiKey)}/>
+                    <Button type="text" size="small" icon={<CopyOutlined />}
+                        onClick={() => handleCopyCredential(apiKey)} />
                 </div>
             ),
         },
@@ -330,8 +314,8 @@ export function CredentialManager({consumerId}: CredentialManagerProps) {
             key: 'action',
             render: (record: ConsumerCredential) => (
                 <Popconfirm title="确定要删除该API Key凭证吗？"
-                            onConfirm={() => handleDeleteCredential('API_KEY', record)}>
-                    <Button type="link" danger size="small" icon={<DeleteOutlined/>}>删除</Button>
+                    onConfirm={() => handleDeleteCredential('API_KEY', record)}>
+                    <Button type="link" danger size="small" icon={<DeleteOutlined />}>删除</Button>
                 </Popconfirm>
             ),
         },
@@ -352,7 +336,7 @@ export function CredentialManager({consumerId}: CredentialManagerProps) {
             render: (ak: string) => (
                 <div className="flex items-center space-x-2">
                     <code className="text-sm bg-gray-100 px-2 py-1 rounded">{ak}</code>
-                    <Button type="text" size="small" icon={<CopyOutlined/>} onClick={() => handleCopyCredential(ak)}/>
+                    <Button type="text" size="small" icon={<CopyOutlined />} onClick={() => handleCopyCredential(ak)} />
                 </div>
             ),
         },
@@ -363,7 +347,7 @@ export function CredentialManager({consumerId}: CredentialManagerProps) {
             render: (sk: string) => (
                 <div className="flex items-center space-x-2">
                     <code className="text-sm bg-gray-100 px-2 py-1 rounded">{maskSecretKey(sk)}</code>
-                    <Button type="text" size="small" icon={<CopyOutlined/>} onClick={() => handleCopyCredential(sk)}/>
+                    <Button type="text" size="small" icon={<CopyOutlined />} onClick={() => handleCopyCredential(sk)} />
                 </div>
             ),
         },
@@ -372,7 +356,7 @@ export function CredentialManager({consumerId}: CredentialManagerProps) {
             key: 'action',
             render: (record: ConsumerCredential) => (
                 <Popconfirm title="确定要删除该AK/SK凭证吗？" onConfirm={() => handleDeleteCredential('HMAC', record)}>
-                    <Button type="link" danger size="small" icon={<DeleteOutlined/>}>删除</Button>
+                    <Button type="link" danger size="small" icon={<DeleteOutlined />}>删除</Button>
                 </Popconfirm>
             ),
         },
@@ -386,7 +370,7 @@ export function CredentialManager({consumerId}: CredentialManagerProps) {
                         <div className="mb-4">
                             <Button
                                 type="primary"
-                                icon={<PlusOutlined/>}
+                                icon={<PlusOutlined />}
                                 onClick={() => {
                                     setCredentialType('API_KEY');
                                     openCredentialModal();
@@ -401,7 +385,7 @@ export function CredentialManager({consumerId}: CredentialManagerProps) {
                             rowKey={(record) => record.apiKey || Math.random().toString()}
                             pagination={false}
                             size="small"
-                            locale={{emptyText: '暂无API Key凭证，请点击上方按钮创建'}}
+                            locale={{ emptyText: '暂无API Key凭证，请点击上方按钮创建' }}
                         />
                     </Tabs.TabPane>
 
@@ -409,7 +393,7 @@ export function CredentialManager({consumerId}: CredentialManagerProps) {
                         <div className="mb-4">
                             <Button
                                 type="primary"
-                                icon={<PlusOutlined/>}
+                                icon={<PlusOutlined />}
                                 onClick={() => {
                                     setCredentialType('HMAC');
                                     openCredentialModal();
@@ -424,7 +408,7 @@ export function CredentialManager({consumerId}: CredentialManagerProps) {
                             rowKey={(record) => record.ak || record.sk || Math.random().toString()}
                             pagination={false}
                             size="small"
-                            locale={{emptyText: '暂无AK/SK凭证，请点击上方按钮创建'}}
+                            locale={{ emptyText: '暂无AK/SK凭证，请点击上方按钮创建' }}
                         />
                     </Tabs.TabPane>
 
@@ -462,7 +446,7 @@ export function CredentialManager({consumerId}: CredentialManagerProps) {
                         </div>
                         <Form.Item
                             name="generationMethod"
-                            rules={[{required: true, message: '请选择生成方式'}]}
+                            rules={[{ required: true, message: '请选择生成方式' }]}
                             className="mb-0"
                         >
                             <Radio.Group>
@@ -473,7 +457,7 @@ export function CredentialManager({consumerId}: CredentialManagerProps) {
                     </div>
 
                     <Form.Item noStyle shouldUpdate={(prev, curr) => prev.generationMethod !== curr.generationMethod}>
-                        {({getFieldValue}) => {
+                        {({ getFieldValue }) => {
                             const method = getFieldValue('generationMethod');
                             if (method === 'CUSTOM') {
                                 return (
@@ -487,17 +471,17 @@ export function CredentialManager({consumerId}: CredentialManagerProps) {
                                                 <Form.Item
                                                     name="customApiKey"
                                                     rules={[
-                                                        {required: true, message: '请输入自定义API Key'},
+                                                        { required: true, message: '请输入自定义API Key' },
                                                         {
                                                             pattern: /^[A-Za-z0-9_-]+$/,
                                                             message: '支持英文、数字、下划线(_)和短横线(-)'
                                                         },
-                                                        {min: 8, message: 'API Key长度至少8个字符'},
-                                                        {max: 128, message: 'API Key长度不能超过128个字符'}
+                                                        { min: 8, message: 'API Key长度至少8个字符' },
+                                                        { max: 128, message: 'API Key长度不能超过128个字符' }
                                                     ]}
                                                     className="mb-2"
                                                 >
-                                                    <Input placeholder="请输入凭证" maxLength={128}/>
+                                                    <Input placeholder="请输入凭证" maxLength={128} />
                                                 </Form.Item>
                                                 <div className="text-xs text-gray-500">
                                                     长度为8-128个字符，可包含英文、数字、下划线（_）和短横线（-）
@@ -514,17 +498,17 @@ export function CredentialManager({consumerId}: CredentialManagerProps) {
                                                     <Form.Item
                                                         name="customAccessKey"
                                                         rules={[
-                                                            {required: true, message: '请输入自定义Access Key'},
+                                                            { required: true, message: '请输入自定义Access Key' },
                                                             {
                                                                 pattern: /^[A-Za-z0-9_-]+$/,
                                                                 message: '支持英文、数字、下划线(_)和短横线(-)'
                                                             },
-                                                            {min: 8, message: 'Access Key长度至少8个字符'},
-                                                            {max: 128, message: 'Access Key长度不能超过128个字符'}
+                                                            { min: 8, message: 'Access Key长度至少8个字符' },
+                                                            { max: 128, message: 'Access Key长度不能超过128个字符' }
                                                         ]}
                                                         className="mb-2"
                                                     >
-                                                        <Input placeholder="请输入Access Key" maxLength={128}/>
+                                                        <Input placeholder="请输入Access Key" maxLength={128} />
                                                     </Form.Item>
                                                     <div className="text-xs text-gray-500">
                                                         长度为8-128个字符，可包含英文、数字、下划线（_）和短横线（-）
@@ -538,17 +522,17 @@ export function CredentialManager({consumerId}: CredentialManagerProps) {
                                                     <Form.Item
                                                         name="customSecretKey"
                                                         rules={[
-                                                            {required: true, message: '请输入自定义Secret Key'},
+                                                            { required: true, message: '请输入自定义Secret Key' },
                                                             {
                                                                 pattern: /^[A-Za-z0-9_-]+$/,
                                                                 message: '支持英文、数字、下划线(_)和短横线(-)'
                                                             },
-                                                            {min: 8, message: 'Secret Key长度至少8个字符'},
-                                                            {max: 128, message: 'Secret Key长度不能超过128个字符'}
+                                                            { min: 8, message: 'Secret Key长度至少8个字符' },
+                                                            { max: 128, message: 'Secret Key长度不能超过128个字符' }
                                                         ]}
                                                         className="mb-2"
                                                     >
-                                                        <Input placeholder="请输入 Secret Key" maxLength={128}/>
+                                                        <Input placeholder="请输入 Secret Key" maxLength={128} />
                                                     </Form.Item>
                                                     <div className="text-xs text-gray-500">
                                                         长度为8-128个字符，可包含英文、数字、下划线（_）和短横线（-）
@@ -562,7 +546,7 @@ export function CredentialManager({consumerId}: CredentialManagerProps) {
                                 return (
                                     <div>
                                         <div className="flex items-center gap-2 text-sm text-gray-500">
-                                            <InfoCircleOutlined/>
+                                            <InfoCircleOutlined />
                                             <span>系统将自动生成符合规范的凭证</span>
                                         </div>
                                     </div>
@@ -600,18 +584,18 @@ export function CredentialManager({consumerId}: CredentialManagerProps) {
                 okText="保存"
                 cancelText="取消"
             >
-                <Form form={sourceForm} layout="vertical" initialValues={{source: editingSource, key: editingKey}}>
+                <Form form={sourceForm} layout="vertical" initialValues={{ source: editingSource, key: editingKey }}>
                     <Form.Item
                         label="凭证来源"
                         name="source"
-                        rules={[{required: true, message: '请选择凭证来源'}]}
+                        rules={[{ required: true, message: '请选择凭证来源' }]}
                     >
                         <Select
                             onChange={(value) => {
                                 const nextKey = value === 'Default' ? 'Authorization' : '';
-                                sourceForm.setFieldsValue({key: nextKey});
+                                sourceForm.setFieldsValue({ key: nextKey });
                             }}
-                            style={{width: '100%'}}
+                            style={{ width: '100%' }}
                         >
                             <Select.Option value="Header">Header</Select.Option>
                             <Select.Option value="QueryString">QueryString</Select.Option>
@@ -620,7 +604,7 @@ export function CredentialManager({consumerId}: CredentialManagerProps) {
                     </Form.Item>
 
                     <Form.Item noStyle shouldUpdate={(prev, curr) => prev.source !== curr.source}>
-                        {({getFieldValue}) =>
+                        {({ getFieldValue }) =>
                             getFieldValue('source') !== 'Default' ? (
                                 <Form.Item
                                     label="键名"
@@ -636,7 +620,7 @@ export function CredentialManager({consumerId}: CredentialManagerProps) {
                                         },
                                     ]}
                                 >
-                                    <Input placeholder="请输入键名"/>
+                                    <Input placeholder="请输入键名" />
                                 </Form.Item>
                             ) : null
                         }

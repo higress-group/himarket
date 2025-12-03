@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Form, Input, Button, message } from "antd";
 import { UserOutlined, LockOutlined } from "@ant-design/icons";
 import api from "../lib/api";
@@ -9,6 +9,7 @@ import { Layout } from "../components/Layout";
 const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   // 账号密码登录
   const handlePasswordLogin = async (values: { username: string; password: string }) => {
@@ -22,7 +23,14 @@ const Login: React.FC = () => {
       if (res && res.data && res.data.access_token) {
         message.success('登录成功！', 1);
         localStorage.setItem('access_token', res.data.access_token)
-        navigate('/')
+
+        // 检查URL中是否有returnUrl参数
+        const returnUrl = searchParams.get('returnUrl');
+        if (returnUrl) {
+          navigate(decodeURIComponent(returnUrl));
+        } else {
+          navigate('/');
+        }
       } else {
         message.error("登录失败，未获取到access_token");
       }

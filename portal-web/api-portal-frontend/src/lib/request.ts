@@ -53,14 +53,18 @@ request.interceptors.response.use(
         // 清除token信息
         localStorage.removeItem('access_token');
         if (window.location.pathname !== '/login') {
-          window.location.href = '/login';
+          // 将当前页面路径作为returnUrl参数传递给登录页
+          const returnUrl = encodeURIComponent(window.location.pathname + window.location.search + window.location.hash);
+          window.location.href = `/login?returnUrl=${returnUrl}`;
         }
         break;
       case 403:
         // 清除token信息
         localStorage.removeItem('access_token');
         if (window.location.pathname !== '/login') {
-          window.location.href = '/login';
+          // 将当前页面路径作为returnUrl参数传递给登录页
+          const returnUrl = encodeURIComponent(window.location.pathname + window.location.search + window.location.hash);
+          window.location.href = `/login?returnUrl=${returnUrl}`;
         }
         break;
       case 404:

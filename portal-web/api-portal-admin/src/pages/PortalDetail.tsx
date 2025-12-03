@@ -63,12 +63,12 @@ const menuItems = [
   //   icon: UserOutlined,
   //   description: "消费者管理"
   // },
-  {
-    key: "dashboard",
-    label: "Dashboard",
-    icon: DashboardOutlined,
-    description: "监控面板"
-  }
+  // {
+  //   key: "dashboard",
+  //   label: "Dashboard",
+  //   icon: DashboardOutlined,
+  //   description: "监控面板"
+  // }
 ]
 
 export default function PortalDetail() {

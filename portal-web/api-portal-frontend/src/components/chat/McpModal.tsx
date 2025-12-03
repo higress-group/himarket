@@ -168,23 +168,30 @@ function McpModal(props: McpModal) {
                 ))}
               </div>
             ) : (
-              <div className="grid grid-cols-3 gap-4 content-start overflow-y-auto p-1 flex-1" data-sign-name="mcp-card-grid">
-                {
-                  filteredData.map((item) => (
-                    <McpCard
-                      key={item.productId} data={item}
-                      isAdded={addedIds.includes(item.productId)}
-                      onAdd={onAdd}
-                      onRemove={onRemove}
-                      isSubscribed={scbscriptsIds.includes(item.productId)}
-                      onQuickSubscribe={onQuickSubscribe}
-                    />
-                  ))}
-              </div>
+              filteredData.length === 0 ? (
+                <Empty onViewAll={() => {
+                  setActive("all");
+                  onFilter("all");
+                }} active={active} />
+              ) : (
+                <div className="grid grid-cols-3 gap-4 content-start overflow-y-auto p-1 flex-1" data-sign-name="mcp-card-grid">
+                  {
+                    filteredData.map((item) => (
+                      <McpCard
+                        key={item.productId} data={item}
+                        isAdded={addedIds.includes(item.productId)}
+                        onAdd={onAdd}
+                        onRemove={onRemove}
+                        isSubscribed={scbscriptsIds.includes(item.productId)}
+                        onQuickSubscribe={onQuickSubscribe}
+                      />
+                    ))}
+                </div>
+              )
             )
           }
           {
-            active === "added" && (
+            active === "added" && filteredData.length > 0 && (
               <Button onClick={onRemoveAll} block size="large">
                 <DeleteOutlined />
                 批量取消添加
@@ -194,6 +201,34 @@ function McpModal(props: McpModal) {
         </div>
       </div>
     </Modal>
+  )
+}
+
+
+function Empty({ active, onViewAll }: { active: string; onViewAll: () => void }) {
+  return (
+    <div className="grid grid-cols-3 gap-4 content-start overflow-y-auto p-1 flex-1 relative">
+      <div className="absolute z-10 top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%] flex flex-col gap-4 justify-center">
+        <div className="">
+          <div className="text-center text-lg">暂无 MCP Server...</div>
+          {active === "added" && (
+            <span>您可以从全部 MCP Server 中选择并添加您需要的 Server</span>
+          )}
+        </div>
+        <div className="flex justify-center">
+          <Button type="primary" onClick={onViewAll}>预览全部 Server</Button>
+        </div>
+      </div>
+      {
+        Array.from({ length: 9 }).map((_, index) => (
+          <div
+            key={index}
+            className="bg-gray-100/70 backdrop-blur-sm rounded-2xl p-5 h-[160px] flex flex-col gap-4"
+          >
+          </div>
+        ))
+      }
+    </div>
   )
 }
 

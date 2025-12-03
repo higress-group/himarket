@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import { ProductHeader } from "../components/ProductHeader";
@@ -18,6 +18,7 @@ import type { IMCPConfig } from "../lib/apis/typing";
 import type { IProductDetail } from "../lib/apis";
 import APIs from "../lib/apis";
 import MarkdownRender from "../components/MarkdownRender";
+import { copyToClipboard } from "../lib/utils";
 
 function McpDetail() {
   const { mcpProductId } = useParams();
@@ -258,25 +259,15 @@ function McpDetail() {
   }
 
   const handleCopy = async (text: string) => {
-    try {
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(text);
-      } else {
-        // 非安全上下文降级处理
-        const textarea = document.createElement("textarea");
-        textarea.value = text;
-        textarea.style.position = "fixed";
-        document.body.appendChild(textarea);
-        textarea.focus();
-        textarea.select();
-        document.execCommand("copy");
-        document.body.removeChild(textarea);
-      }
-      message.success("已复制到剪贴板", 1);
-    } catch {
-      message.error("复制失败，请手动复制");
-    }
+    copyToClipboard(text).then(() => {
+      message.success("已复制到剪贴板")
+    });
   };
+
+
+  const domainOptions = useMemo(() => {
+    return getDomainOptions(mcpConfig?.mcpServerConfig?.domains || []);
+  }, [mcpConfig?.mcpServerConfig?.domains]);
 
   if (loading) {
     return (
@@ -310,7 +301,6 @@ function McpDetail() {
 
   const { name, description } = data;
   const hasLocalConfig = Boolean(mcpConfig?.mcpServerConfig.rawConfig);
-
 
 
   return (
@@ -433,16 +423,26 @@ function McpDetail() {
         <div className="w-96">
           {mcpConfig && (
             <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-6">
-              <h3 className="text-base font-semibold mb-4 text-gray-900">连接点配置</h3>
+              <div className="flex items-center gap-2 mb-4">
+                <h3 className="text-base font-semibold  text-gray-900">
+                  连接点配置
+                </h3>
+                <CopyOutlined className="ml-1 text-sm text-subTitle" onClick={() => {
+                  copyToClipboard(domainOptions[selectedDomainIndex].label).then(() => {
+                    message.success("域名已复制");
+                  });
+                }} />
+              </div>
 
               {/* 域名选择器 */}
               {mcpConfig?.mcpServerConfig?.domains && mcpConfig.mcpServerConfig.domains.length > 0 && (
                 <div className="mb-2">
-                  <div className="flex items-stretch border border-gray-200 rounded-md overflow-hidden">
-                    <div className="bg-gray-50 px-3 py-2 text-xs text-gray-600 border-r border-gray-200 flex items-center whitespace-nowrap">
+                  <div className="flex border border-gray-200 rounded-md overflow-hidden">
+                    <div
+                      className="flex-shrink-0 bg-gray-50 px-3 py-2 text-xs text-gray-600 border-r border-gray-200 flex items-center whitespace-nowrap">
                       域名
                     </div>
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <Select
                         value={selectedDomainIndex}
                         onChange={setSelectedDomainIndex}
@@ -454,10 +454,11 @@ function McpDetail() {
                           fontSize: '12px',
                           height: '100%'
                         }}
+                      // options={getDomainOptions(mcpConfig.mcpServerConfig.domains)}
                       >
-                        {getDomainOptions(mcpConfig.mcpServerConfig.domains).map((option) => (
+                        {domainOptions.map((option) => (
                           <Select.Option key={option.value} value={option.value}>
-                            <span className="text-xs text-gray-900 font-mono">
+                            <span title={option.label} className="text-xs text-gray-900 font-mono">
                               {option.label}
                             </span>
                           </Select.Option>

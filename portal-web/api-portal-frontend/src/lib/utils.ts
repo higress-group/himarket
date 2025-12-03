@@ -92,3 +92,45 @@ export const safeJSONParse = <T>(value: string, fallback: T): T => {
     return fallback;
   }
 }
+
+export function copyToClipboard(text: string) {
+  // 返回一个 Promise 对象
+  return new Promise((resolve, reject) => {
+    if (navigator.clipboard && window.isSecureContext) {
+      // 使用 Clipboard API 写入剪切板
+      navigator.clipboard.writeText(text).then(resolve, reject);
+    } else {
+      // 非安全环境下或不支持 Clipboard API 的浏览器的回退方法
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+
+      // 避免出现滚动条
+      textArea.style.position = 'fixed';
+      textArea.style.top = '0';
+      textArea.style.left = '0';
+      textArea.style.width = '2em';
+      textArea.style.height = '2em';
+      textArea.style.padding = '0';
+      textArea.style.border = 'none';
+      textArea.style.outline = 'none';
+      textArea.style.boxShadow = 'none';
+      textArea.style.background = 'transparent';
+
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+
+      try {
+        const successful = document.execCommand('copy');
+        if (successful) {
+          resolve(true);
+        } else {
+          return(false)
+        }
+      } catch (err) {
+        reject(err); // 如果执行失败，调用 reject
+      }
+      document.body.removeChild(textArea);
+    }
+  });
+}
