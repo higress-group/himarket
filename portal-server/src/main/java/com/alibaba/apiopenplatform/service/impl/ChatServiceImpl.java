@@ -120,7 +120,7 @@ public class ChatServiceImpl implements ChatService {
 
         // check mcpServers count is less than 10, and all of them are subscribed
         List<String> mcpProducts = param.getMcpProducts();
-        if (mcpProducts.size() > 10) {
+        if (CollUtil.isNotEmpty(mcpProducts) && mcpProducts.size() > 10) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "MCP servers count is more than 10, currently max size is 10");
         }
 
@@ -133,7 +133,8 @@ public class ChatServiceImpl implements ChatService {
 
         for (String productId : mcpProducts) {
             if (!subscribedProductIds.contains(productId)) {
-                throw new BusinessException(ErrorCode.INVALID_PARAMETER, Resources.PRODUCT, productId + " mcp is not subscribed, not allowed to use");
+//                throw new BusinessException(ErrorCode.INVALID_PARAMETER, Resources.PRODUCT, productId + " mcp is not subscribed, not allowed to use");
+                log.warn("mcp product {} is not subscribed, not allowed to use", productId);
             }
         }
 

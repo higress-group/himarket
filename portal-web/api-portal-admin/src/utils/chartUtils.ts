@@ -19,15 +19,17 @@ export interface ChartBaseOptions {
  */
 export function generateLineChartOption(
   dataPoints: DataPoint[],
-  options: ChartBaseOptions = {}
+  options: ChartBaseOptions & { seriesName?: string } = {}
 ): echarts.EChartsOption {
-  const { title, xAxisLabel, yAxisLabel, isPercentage = false } = options;
+  const { title, xAxisLabel, yAxisLabel, isPercentage = false, seriesName } = options;
 
   // 提取时间戳和值
   const timestamps = dataPoints.map(p => p.timestamp);
   const values = dataPoints.map(p => {
     const val = typeof p.value === 'string' ? parseFloat(p.value) : p.value;
-    return isNaN(val) ? 0 : val;
+    const numVal = isNaN(val) ? 0 : val;
+    // 如果是百分比，将0-1的小数转换为0-100的百分比
+    return isPercentage ? numVal * 100 : numVal;
   });
 
   return {
@@ -76,7 +78,7 @@ export function generateLineChartOption(
     },
     series: [
       {
-        name: yAxisLabel || '数值',
+        name: seriesName || '数值',
         type: 'line' as const,
         smooth: true,
         showSymbol: false,
@@ -109,7 +111,9 @@ export function generateMultiLineChartOption(
   const series = seriesData.map(s => {
     const values = s.dataPoints.map(p => {
       const val = typeof p.value === 'string' ? parseFloat(p.value) : p.value;
-      return isNaN(val) ? 0 : val;
+      const numVal = isNaN(val) ? 0 : val;
+      // 如果是百分比，将0-1的小数转换为0-100的百分比
+      return isPercentage ? numVal * 100 : numVal;
     });
 
     return {
