@@ -24,7 +24,7 @@ import com.alibaba.apiopenplatform.entity.ProductCategory;
 import com.alibaba.apiopenplatform.support.product.Icon;
 import lombok.Data;
 
-import javax.validation.constraints.Size;
+import jakarta.validation.constraints.Size;
 
 @Data
 public class UpdateProductCategoryParam implements InputConverter<ProductCategory> {

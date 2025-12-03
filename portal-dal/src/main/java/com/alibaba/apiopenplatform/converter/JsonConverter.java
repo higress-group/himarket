@@ -27,8 +27,10 @@ import com.alibaba.apiopenplatform.support.common.Encrypted;
 import com.alibaba.apiopenplatform.support.common.Encryptor;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.persistence.AttributeConverter;
+import jakarta.persistence.AttributeConverter;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.List;
 
 @Slf4j
 public abstract class JsonConverter<T> implements AttributeConverter<T, String> {
@@ -50,9 +52,15 @@ public abstract class JsonConverter<T> implements AttributeConverter<T, String> 
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public T convertToEntityAttribute(String dbData) {
         if (dbData == null) {
             return null;
+        }
+        if (List.class.isAssignableFrom(type)) {
+            T attribute = (T) JSONUtil.toList(dbData, Object.class);
+            decrypt(attribute);
+            return attribute;
         }
 
         T attribute = JSONUtil.toBean(dbData, type);
@@ -60,9 +68,13 @@ public abstract class JsonConverter<T> implements AttributeConverter<T, String> 
         return attribute;
     }
 
+    @SuppressWarnings("unchecked")
     private T cloneAndEncrypt(T original) {
         // Clone避免JPA更新数据
-        T cloned = JSONUtil.toBean(JSONUtil.toJsonStr(original), type);
+//        T cloned = JSONUtil.toBean(JSONUtil.toJsonStr(original), type);
+        T cloned = original instanceof List ?
+                (T) new ArrayList<>((List<?>) original) :
+                JSONUtil.toBean(JSONUtil.toJsonStr(original), type);
         handleEncryption(cloned, true);
         return cloned;
     }

@@ -21,7 +21,7 @@ package com.alibaba.apiopenplatform.controller;
 
 import java.util.List;
 
-import javax.validation.Valid;
+import jakarta.validation.Valid;
 
 import com.alibaba.apiopenplatform.core.annotation.AdminAuth;
 import com.alibaba.apiopenplatform.core.annotation.AdminOrDeveloperAuth;
@@ -168,5 +168,12 @@ public class ProductController {
     @AdminAuth
     public void setProductCategories(@PathVariable String productId, @RequestBody List<String> categoryIds) {
         productService.setProductCategories(productId, categoryIds);
+    }
+
+    @Operation(summary = "重新加载API产品配置")
+    @PostMapping("/{productId}/reload")
+    @AdminAuth
+    public void reloadProductConfig(@PathVariable String productId) {
+        productService.reloadProductConfig(productId);
     }
 }

@@ -23,8 +23,8 @@ import com.alibaba.apiopenplatform.dto.converter.InputConverter;
 import com.alibaba.apiopenplatform.entity.Administrator;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.Size;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 /**
  * 管理员注册/创建参数DTO

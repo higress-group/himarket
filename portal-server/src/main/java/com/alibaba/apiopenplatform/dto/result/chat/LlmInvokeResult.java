@@ -1,0 +1,43 @@
+package com.alibaba.apiopenplatform.dto.result.chat;
+
+import com.alibaba.apiopenplatform.dto.params.chat.ChatContent;
+import com.alibaba.apiopenplatform.support.chat.ChatUsage;
+import lombok.Builder;
+import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
+
+@Data
+@Builder
+@Slf4j
+public class LlmInvokeResult {
+
+    private boolean success;
+
+    /**
+     * Completed answer
+     */
+    private String answer;
+
+    /**
+     * If failed, error message
+     */
+    private String errorMessage;
+
+    /**
+     * Elapsed time, in milliseconds
+     */
+    private long elapsedTime;
+
+    /**
+     * Usage, exists only when success
+     */
+    private ChatUsage usage;
+
+    public static LlmInvokeResult of(ChatContent chatContent) {
+        return LlmInvokeResult.builder()
+                .success(chatContent.success())
+                .answer(chatContent.getAnswerContent().toString())
+                .usage(chatContent.getUsage())
+                .build();
+    }
+}

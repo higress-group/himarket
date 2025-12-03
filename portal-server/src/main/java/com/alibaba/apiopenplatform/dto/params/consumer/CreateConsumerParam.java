@@ -21,12 +21,14 @@ package com.alibaba.apiopenplatform.dto.params.consumer;
 
 import com.alibaba.apiopenplatform.dto.converter.InputConverter;
 import com.alibaba.apiopenplatform.entity.Consumer;
+import lombok.Builder;
 import lombok.Data;
 
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.Size;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 @Data
+@Builder
 public class CreateConsumerParam implements InputConverter<Consumer> {
 
     @NotBlank(message = "Consumer名称不能为空")

@@ -53,7 +53,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
-import javax.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Predicate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -295,6 +295,12 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
     public String getDashboard(String gatewayId, String type) {
         Gateway gateway = findGateway(gatewayId);
         return getOperator(gateway).getDashboard(gateway, type); //type: Portal,MCP,API
+    }
+
+    @Override
+    public List<String> fetchGatewayIps(String gatewayId) {
+        Gateway gateway = findGateway(gatewayId);
+        return getOperator(gateway).fetchGatewayIps(gateway);
     }
 
     private Specification<Gateway> buildGatewaySpec(QueryGatewayParam param) {

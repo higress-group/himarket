@@ -21,7 +21,7 @@ package com.alibaba.apiopenplatform.converter;
 
 import com.alibaba.apiopenplatform.support.consumer.HmacConfig;
 
-import javax.persistence.Converter;
+import jakarta.persistence.Converter;
 
 @Converter(autoApply = true)
 public class HmacConfigConverter extends JsonConverter<HmacConfig> {

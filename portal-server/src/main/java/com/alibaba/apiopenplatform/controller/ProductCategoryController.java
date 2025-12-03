@@ -34,7 +34,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
 
-import javax.validation.Valid;
+import jakarta.validation.Valid;
 import java.util.List;
 
 @Tag(name = "产品类别管理", description = "提供产品类别的创建、更新、删除、查询等管理功能")

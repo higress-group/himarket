@@ -32,8 +32,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import javax.validation.Valid;
-import javax.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpServletRequest;
 import com.alibaba.apiopenplatform.dto.params.admin.ResetPasswordParam;
 
 @Tag(name = "开发者管理", description = "提供开发者认证、管理等功能")

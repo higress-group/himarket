@@ -48,9 +48,11 @@ import org.springframework.data.domain.PageRequest;
 import com.alibaba.apiopenplatform.service.IdpService;
 import com.alibaba.apiopenplatform.service.PortalService;
 import com.alibaba.apiopenplatform.support.enums.DomainType;
+import com.alibaba.apiopenplatform.support.enums.SearchEngineType;
 import com.alibaba.apiopenplatform.support.portal.OidcConfig;
 import com.alibaba.apiopenplatform.support.portal.PortalSettingConfig;
 import com.alibaba.apiopenplatform.support.portal.PortalUiConfig;
+import com.alibaba.apiopenplatform.support.portal.SearchEngineConfig;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -59,8 +61,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
-import javax.persistence.criteria.Predicate;
-import javax.transaction.Transactional;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.transaction.Transactional;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -169,14 +171,23 @@ public class PortalServiceImpl implements PortalService {
                 });
 
         param.update(portal);
-        // 验证OIDC配置
+        
+        // 验证配置
         PortalSettingConfig setting = portal.getPortalSettingConfig();
+        
+        // 验证OIDC配置
         if (CollUtil.isNotEmpty(setting.getOidcConfigs())) {
             idpService.validateOidcConfigs(setting.getOidcConfigs());
         }
 
+        // 验证OAuth2配置
         if (CollUtil.isNotEmpty(setting.getOauth2Configs())) {
             idpService.validateOAuth2Configs(setting.getOauth2Configs());
+        }
+
+        // 验证搜索引擎配置（新增）
+        if (setting.getSearchEngineConfig() != null) {
+            validateSearchEngineConfig(setting.getSearchEngineConfig());
         }
 
         // 至少保留一种认证方式
@@ -294,5 +305,86 @@ public class PortalServiceImpl implements PortalService {
     private Portal findPortal(String portalId) {
         return portalRepository.findByPortalId(portalId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, Resources.PORTAL, portalId));
+    }
+
+    // ========== 搜索引擎配置查询实现 ==========
+
+    /**
+     * 核心方法：根据引擎类型获取 API Key
+     * 供 TalkSearchAbilityServiceGoogleImpl 等搜索能力调用
+     */
+    @Override
+    public String getSearchEngineApiKey(String portalId, SearchEngineType engineType) {
+        Portal portal = findPortal(portalId);
+        PortalSettingConfig settings = portal.getPortalSettingConfig();
+
+        if (settings == null || settings.getSearchEngineConfig() == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND,
+                    StrUtil.format("Portal {} 未配置搜索引擎", portalId));
+        }
+
+        SearchEngineConfig config = settings.getSearchEngineConfig();
+
+        // 检查引擎类型是否匹配
+        if (config.getEngineType() != engineType) {
+            throw new BusinessException(ErrorCode.NOT_FOUND,
+                    StrUtil.format("Portal {} 配置的搜索引擎类型是 {}，不是 {}",
+                            portalId, config.getEngineType(), engineType));
+        }
+
+        // 检查是否启用
+        if (!config.isEnabled()) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST,
+                    StrUtil.format("Portal {} 的搜索引擎已禁用", portalId));
+        }
+
+        return config.getApiKey(); // API Key 会自动解密（通过 @Encrypted 注解）
+    }
+
+    @Override
+    public SearchEngineConfig getSearchEngineConfig(String portalId) {
+        Portal portal = findPortal(portalId);
+        PortalSettingConfig settings = portal.getPortalSettingConfig();
+
+        if (settings == null) {
+            return null;
+        }
+
+        return settings.getSearchEngineConfig();
+    }
+
+    // ========== 私有辅助方法 ==========
+
+    /**
+     * 验证搜索引擎配置
+     */
+    private void validateSearchEngineConfig(SearchEngineConfig config) {
+        if (config == null) {
+            return;
+        }
+
+        // 验证引擎类型是否支持
+        if (config.getEngineType() == null) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "搜索引擎类型不能为空");
+        }
+
+        if (!SearchEngineType.isSupported(config.getEngineType())) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST,
+                    StrUtil.format("不支持的搜索引擎类型: {}，当前仅支持: {}",
+                            config.getEngineType(),
+                            SearchEngineType.getSupportedTypes()));
+        }
+
+        // 验证必填字段
+        if (StrUtil.isBlank(config.getEngineName())) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "搜索引擎名称不能为空");
+        }
+
+        if (StrUtil.isBlank(config.getApiKey())) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "API Key不能为空");
+        }
+
+        log.info("Validated search engine config: type={}, name={}",
+                config.getEngineType(), config.getEngineName());
     }
 }

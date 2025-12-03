@@ -21,7 +21,7 @@ package com.alibaba.apiopenplatform.converter;
 
 import com.alibaba.apiopenplatform.support.consumer.ApiKeyConfig;
 
-import javax.persistence.Converter;
+import jakarta.persistence.Converter;
 
 @Converter(autoApply = true)
 public class ApiKeyConfigConverter extends JsonConverter<ApiKeyConfig> {

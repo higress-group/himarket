@@ -149,6 +149,18 @@ export interface LinkedService {
   apsaraGatewayRefConfig?: APIGAIMCPItem;
 }
 
+// Product Feature Types
+export interface ModelFeature {
+  model?: string;
+  maxTokens?: number;
+  temperature?: number;
+  streaming?: boolean;
+}
+
+export interface ProductFeature {
+  modelFeature?: ModelFeature;
+}
+
 export interface ApiProduct {
   productId: string;
   name: string;
@@ -165,4 +177,5 @@ export interface ApiProduct {
   document?: string;
   icon?: ProductIcon | null;
   categories?: ProductCategory[];
+  feature?: ProductFeature;
 }

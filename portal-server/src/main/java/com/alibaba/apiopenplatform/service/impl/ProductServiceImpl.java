@@ -22,13 +22,12 @@ package com.alibaba.apiopenplatform.service.impl;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
-import javax.persistence.criteria.Predicate;
-import javax.persistence.criteria.Root;
-import javax.persistence.criteria.Subquery;
-import javax.transaction.Transactional;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
+import jakarta.transaction.Transactional;
 
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
@@ -102,7 +101,7 @@ public class ProductServiceImpl implements ProductService {
     public ProductResult createProduct(CreateProductParam param) {
         productRepository.findByNameAndAdminId(param.getName(), contextHolder.getUser())
                 .ifPresent(product -> {
-                    throw new BusinessException(ErrorCode.CONFLICT, StrUtil.format("{}:{}已存在", Resources.PRODUCT, product.getName()));
+                    throw new BusinessException(ErrorCode.CONFLICT, StrUtil.format("Product with name '{}' already exists", product.getName()));
                 });
 
         String productId = IdGenerator.genApiProductId();
@@ -111,14 +110,9 @@ public class ProductServiceImpl implements ProductService {
         product.setProductId(productId);
         product.setAdminId(contextHolder.getUser());
 
-        // 设置默认的自动审批配置，如果未指定则默认为null（使用平台级别配置）
-        if (param.getAutoApprove() != null) {
-            product.setAutoApprove(param.getAutoApprove());
-        }
-
         productRepository.save(product);
 
-        // 设置产品类别
+        // Set product categories
         setProductCategories(productId, param.getCategories());
 
         return getProduct(productId);
@@ -132,8 +126,8 @@ public class ProductServiceImpl implements ProductService {
 
         ProductResult result = new ProductResult().convertFrom(product);
 
-        // 补充Product信息
-        fullFillProduct(result);
+        // Fill product information
+        fillProduct(result);
         return result;
     }
 
@@ -147,7 +141,7 @@ public class ProductServiceImpl implements ProductService {
         return new PageResult<ProductResult>().convertFrom(
                 products, product -> {
                     ProductResult result = new ProductResult().convertFrom(product);
-                    fullFillProduct(result);
+                    fillProduct(result);
                     return result;
                 });
     }
@@ -156,24 +150,18 @@ public class ProductServiceImpl implements ProductService {
     public ProductResult updateProduct(String productId, UpdateProductParam param) {
         Product product = findProduct(productId);
 
-        // 更换API产品类型
+        // Change API product type
         if (param.getType() != null && product.getType() != param.getType()) {
             productRefRepository.findFirstByProductId(productId)
                     .ifPresent(productRef -> {
-                        throw new BusinessException(ErrorCode.INVALID_REQUEST, "API产品已关联API");
+                        throw new BusinessException(ErrorCode.INVALID_REQUEST, "API product already linked to API");
                     });
         }
         param.update(product);
 
-        // Consumer鉴权配置同步至网关
-        Optional.ofNullable(param.getEnableConsumerAuth()).ifPresent(product::setEnableConsumerAuth);
-
-        // 更新自动审批配置
-        Optional.ofNullable(param.getAutoApprove()).ifPresent(product::setAutoApprove);
-
         productRepository.saveAndFlush(product);
 
-        // 设置产品类别
+        // Set product categories
         setProductCategories(product.getProductId(), param.getCategories());
 
         return getProduct(product.getProductId());
@@ -189,9 +177,9 @@ public class ProductServiceImpl implements ProductService {
         Product product = findProduct(productId);
         product.setStatus(ProductStatus.PUBLISHED);
 
-        // 未关联不允许发布
+        // Cannot publish if not linked
         if (getProductRef(productId) == null) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "API产品未关联API");
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "API product not linked to API");
         }
 
         ProductPublication productPublication = new ProductPublication();
@@ -228,7 +216,15 @@ public class ProductServiceImpl implements ProductService {
     public void unpublishProduct(String productId, String portalId) {
         portalService.existsPortal(portalId);
         Product product = findProduct(productId);
-        product.setStatus(ProductStatus.READY);
+
+        /*
+         * Update product status:
+         * If the product is published in other portals -> set to PUBLISHED
+         * If not published anywhere else -> set to READY
+         */
+        ProductStatus toStatus = publicationRepository.existsByProductIdAndPortalIdNot(productId, portalId) ?
+                ProductStatus.PUBLISHED : ProductStatus.READY;
+        product.setStatus(toStatus);
 
         publicationRepository.findByPortalIdAndProductId(portalId, productId)
                 .ifPresent(publicationRepository::delete);
@@ -239,16 +235,16 @@ public class ProductServiceImpl implements ProductService {
     public void deleteProduct(String productId) {
         Product product = findProduct(productId);
 
-        // 下线后删除
+        // Delete after unpublishing
         publicationRepository.deleteByProductId(productId);
 
-        // 清理产品类别关联关系
+        // Clear product category relationships
         clearProductCategoryRelations(productId);
 
         productRepository.delete(product);
         productRefRepository.deleteByProductId(productId);
 
-        // 异步清理Product资源
+        // Asynchronously clean up product resources
         eventPublisher.publishEvent(new ProductDeletingEvent(productId));
     }
 
@@ -261,14 +257,18 @@ public class ProductServiceImpl implements ProductService {
     public void addProductRef(String productId, CreateProductRefParam param) {
         Product product = findProduct(productId);
 
-        // 是否已存在API引用
+        // Check if API reference already exists
         productRefRepository.findByProductId(product.getProductId())
                 .ifPresent(productRef -> {
-                    throw new BusinessException(ErrorCode.CONFLICT, StrUtil.format("{}:{}已关联API", Resources.PRODUCT, productId));
+                    throw new BusinessException(ErrorCode.CONFLICT, "Product is already linked to an API");
                 });
         ProductRef productRef = param.convertTo();
         productRef.setProductId(productId);
         syncConfig(product, productRef);
+
+        // Update status
+        product.setStatus(ProductStatus.READY);
+        productRef.setEnabled(true);
 
         productRepository.save(product);
         productRefRepository.save(productRef);
@@ -287,15 +287,130 @@ public class ProductServiceImpl implements ProductService {
         product.setStatus(ProductStatus.PENDING);
 
         ProductRef productRef = productRefRepository.findFirstByProductId(productId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_REQUEST, "API产品未关联API"));
+                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_REQUEST, "API product not linked to API"));
 
-        // 已发布的产品不允许解绑
+        // Published products cannot be unbound
         if (publicationRepository.existsByProductId(productId)) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "API产品已发布");
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "API product already published");
         }
 
         productRefRepository.delete(productRef);
         productRepository.save(product);
+    }
+
+    @EventListener
+    @Async("taskExecutor")
+    @Override
+    public void handlePortalDeletion(PortalDeletingEvent event) {
+        String portalId = event.getPortalId();
+        try {
+            publicationRepository.deleteAllByPortalId(portalId);
+
+            log.info("Completed cleanup publications for portal {}", portalId);
+        } catch (Exception e) {
+            log.error("Failed to unpublish products for portal {}: {}", portalId, e.getMessage());
+        }
+    }
+
+    @Override
+    public Map<String, ProductResult> getProducts(List<String> productIds) {
+        List<Product> products = productRepository.findByProductIdIn(productIds);
+        return products.stream()
+                .collect(Collectors.toMap(Product::getProductId, product -> new ProductResult().convertFrom(product)));
+    }
+
+    @Override
+    public String getProductDashboard(String productId) {
+        // Get product associated gateway information
+        ProductRef productRef = productRefRepository.findFirstByProductId(productId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, Resources.PRODUCT, productId));
+
+        if (productRef.getGatewayId() == null) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "Product not linked to gateway service");
+        }
+        // Select dashboard type based on product type
+        Product product = findProduct(productId);
+        String dashboardType;
+        if (product.getType() == ProductType.MCP_SERVER) {
+            dashboardType = "MCP";
+        } else {
+            // REST_API, HTTP_API use unified API dashboard
+            dashboardType = "API";
+        }
+        // Get dashboard URL through gateway service
+        return gatewayService.getDashboard(productRef.getGatewayId(), dashboardType);
+    }
+
+    @Override
+    public PageResult<SubscriptionResult> listProductSubscriptions(String productId, QueryProductSubscriptionParam param, Pageable pageable) {
+        existsProduct(productId);
+        Page<ProductSubscription> subscriptions = subscriptionRepository.findAll(buildProductSubscriptionSpec(productId, param), pageable);
+
+        List<String> consumerIds = subscriptions.getContent().stream()
+                .map(ProductSubscription::getConsumerId)
+                .collect(Collectors.toList());
+        if (CollUtil.isEmpty(consumerIds)) {
+            return PageResult.empty(pageable.getPageNumber(), pageable.getPageSize());
+        }
+
+        Map<String, Consumer> consumers = consumerRepository.findByConsumerIdIn(consumerIds)
+                .stream()
+                .collect(Collectors.toMap(Consumer::getConsumerId, consumer -> consumer));
+
+        return new PageResult<SubscriptionResult>().convertFrom(subscriptions, s -> {
+            SubscriptionResult r = new SubscriptionResult().convertFrom(s);
+            Consumer consumer = consumers.get(r.getConsumerId());
+            if (consumer != null) {
+                r.setConsumerName(consumer.getName());
+            }
+            return r;
+        });
+    }
+
+    @Override
+    public void existsProduct(String productId) {
+        productRepository.findByProductId(productId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, Resources.PRODUCT, productId));
+    }
+
+    @Override
+    public void existsProducts(List<String> productIds) {
+        List<String> existedProductIds = productRepository.findByProductIdIn(productIds)
+                .stream()
+                .map(Product::getProductId)
+                .collect(Collectors.toList());
+
+        List<String> notFoundProductIds = productIds.stream()
+                .filter(productId -> !existedProductIds.contains(productId))
+                .collect(Collectors.toList());
+
+        if (!notFoundProductIds.isEmpty()) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, Resources.PRODUCT, String.join(",", notFoundProductIds));
+        }
+    }
+
+    @Override
+    public void setProductCategories(String productId, List<String> categoryIds) {
+        existsProduct(productId);
+
+        productCategoryService.unbindAllProductCategories(productId);
+        productCategoryService.bindProductCategories(productId, categoryIds);
+    }
+
+    @Override
+    public void clearProductCategoryRelations(String productId) {
+        productCategoryService.unbindAllProductCategories(productId);
+    }
+
+    @Override
+    public void reloadProductConfig(String productId) {
+        Product product = findProduct(productId);
+        ProductRef productRef = productRefRepository.findFirstByProductId(productId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_REQUEST, "API product not linked to API"));
+
+        syncConfig(product, productRef);
+
+        productRefRepository.saveAndFlush(productRef);
     }
 
     private void syncConfig(Product product, ProductRef productRef) {
@@ -339,14 +454,10 @@ public class ProductServiceImpl implements ProductService {
                 productRef.setMcpConfig(mcpConfig);
             }
         }
-
-        // Update status
-        product.setStatus(ProductStatus.READY);
-        productRef.setEnabled(true);
     }
 
-    private void fullFillProduct(ProductResult product) {
-        // 填充产品类别信息
+    private void fillProduct(ProductResult product) {
+        // Fill product category information
         product.setCategories(productCategoryService.listCategoriesForProduct(product.getProductId()));
 
         productRefRepository.findFirstByProductId(product.getProductId())
@@ -371,10 +482,6 @@ public class ProductServiceImpl implements ProductService {
                         product.setModelConfig(JSONUtil.toBean(productRef.getModelConfig(), ModelConfigResult.class));
                     }
                 });
-
-        if (publicationRepository.existsByProductId(product.getProductId())) {
-            product.setStatus(ProductStatus.PUBLISHED);
-        }
     }
 
     private Product findPublishedProduct(String portalId, String productId) {
@@ -429,102 +536,12 @@ public class ProductServiceImpl implements ProductService {
         };
     }
 
-    @EventListener
-    @Async("taskExecutor")
-    @Override
-    public void handlePortalDeletion(PortalDeletingEvent event) {
-        String portalId = event.getPortalId();
-        try {
-            log.info("Starting to cleanup publications for portal {}", portalId);
-            publicationRepository.deleteAllByPortalId(portalId);
-
-            log.info("Completed cleanup publications for portal {}", portalId);
-        } catch (Exception e) {
-            log.error("Failed to cleanup developers for portal {}: {}", portalId, e.getMessage());
-        }
-    }
-
-    @Override
-    public Map<String, ProductResult> getProducts(List<String> productIds) {
-        List<Product> products = productRepository.findByProductIdIn(productIds);
-        return products.stream()
-                .collect(Collectors.toMap(Product::getProductId, product -> new ProductResult().convertFrom(product)));
-    }
-
-    @Override
-    public String getProductDashboard(String productId) {
-        // 获取产品关联的网关信息
-        ProductRef productRef = productRefRepository.findFirstByProductId(productId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, Resources.PRODUCT, productId));
-
-        if (productRef.getGatewayId() == null) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "该产品尚未关联网关服务");
-        }
-        // 基于产品类型选择Dashboard类型
-        Product product = findProduct(productId);
-        String dashboardType;
-        if (product.getType() == ProductType.MCP_SERVER) {
-            dashboardType = "MCP";
-        } else {
-            // REST_API、HTTP_API 统一走 API 面板
-            dashboardType = "API";
-        }
-        // 通过网关服务获取Dashboard URL
-        return gatewayService.getDashboard(productRef.getGatewayId(), dashboardType);
-    }
-
-    @Override
-    public PageResult<SubscriptionResult> listProductSubscriptions(String productId, QueryProductSubscriptionParam param, Pageable pageable) {
-        existsProduct(productId);
-        Page<ProductSubscription> subscriptions = subscriptionRepository.findAll(buildProductSubscriptionSpec(productId, param), pageable);
-
-        List<String> consumerIds = subscriptions.getContent().stream()
-                .map(ProductSubscription::getConsumerId)
-                .collect(Collectors.toList());
-        if (CollUtil.isEmpty(consumerIds)) {
-            return PageResult.empty(pageable.getPageNumber(), pageable.getPageSize());
-        }
-
-        Map<String, Consumer> consumers = consumerRepository.findByConsumerIdIn(consumerIds)
-                .stream()
-                .collect(Collectors.toMap(Consumer::getConsumerId, consumer -> consumer));
-
-        return new PageResult<SubscriptionResult>().convertFrom(subscriptions, s -> {
-            SubscriptionResult r = new SubscriptionResult().convertFrom(s);
-            Consumer consumer = consumers.get(r.getConsumerId());
-            if (consumer != null) {
-                r.setConsumerName(consumer.getName());
-            }
-            return r;
-        });
-    }
-
-    @Override
-    public void existsProduct(String productId) {
-        productRepository.findByProductId(productId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, Resources.PRODUCT, productId));
-    }
-
-    @Override
-    public void setProductCategories(String productId, List<String> categoryIds) {
-        // 验证产品是否存在
-        existsProduct(productId);
-
-        productCategoryService.unbindAllProductCategories(productId);
-        productCategoryService.bindProductCategories(productId, categoryIds);
-    }
-
-    @Override
-    public void clearProductCategoryRelations(String productId) {
-        productCategoryService.unbindAllProductCategories(productId);
-    }
-
     private Specification<ProductSubscription> buildProductSubscriptionSpec(String productId, QueryProductSubscriptionParam param) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(cb.equal(root.get("productId"), productId));
 
-            // 如果是开发者，只能查看自己的Consumer订阅
+            // If developer, can only view own consumer subscriptions
             if (contextHolder.isDeveloper()) {
                 Subquery<String> consumerSubquery = query.subquery(String.class);
                 Root<Consumer> consumerRoot = consumerSubquery.from(Consumer.class);

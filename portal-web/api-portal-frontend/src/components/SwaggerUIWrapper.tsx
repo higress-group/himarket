@@ -11,7 +11,7 @@ interface SwaggerUIWrapperProps {
 
 export const SwaggerUIWrapper: React.FC<SwaggerUIWrapperProps> = ({ apiSpec }) => {
   // 直接解析原始规范，不进行重新构建
-  let swaggerSpec;
+  let swaggerSpec: any;
   
   try {
     // 尝试解析YAML格式

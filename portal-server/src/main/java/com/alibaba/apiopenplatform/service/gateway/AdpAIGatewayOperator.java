@@ -23,7 +23,6 @@ package com.alibaba.apiopenplatform.service.gateway;
 import com.alibaba.apiopenplatform.core.exception.BusinessException;
 import com.alibaba.apiopenplatform.core.exception.ErrorCode;
 import com.alibaba.apiopenplatform.dto.params.gateway.QueryAdpAIGatewayParam;
-import com.alibaba.apiopenplatform.dto.result.*;
 import com.alibaba.apiopenplatform.dto.result.httpapi.APIResult;
 import com.alibaba.apiopenplatform.dto.result.common.PageResult;
 import com.alibaba.apiopenplatform.dto.result.gateway.AdpGatewayInstanceResult;
@@ -765,6 +764,11 @@ public class AdpAIGatewayOperator extends GatewayOperator {
     @Override
     public String getDashboard(Gateway gateway,String type) {
         return null;
+    }
+
+    @Override
+    public List<String> fetchGatewayIps(Gateway gateway) {
+        return Collections.emptyList();
     }
 
     @Override

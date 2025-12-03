@@ -30,8 +30,8 @@ import com.alibaba.apiopenplatform.core.constant.CommonConstants;
 import com.alibaba.apiopenplatform.support.common.User;
 import com.alibaba.apiopenplatform.support.enums.UserType;
 
-import javax.servlet.http.Cookie;
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.*;

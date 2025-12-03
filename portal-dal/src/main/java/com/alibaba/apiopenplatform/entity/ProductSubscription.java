@@ -25,7 +25,7 @@ import com.alibaba.apiopenplatform.support.enums.SubscriptionStatus;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 
 @Entity
 @Table(name = "product_subscription",

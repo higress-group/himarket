@@ -20,8 +20,7 @@
 package com.alibaba.apiopenplatform.dto.params.developer;
 
 import lombok.Data;
-import javax.validation.constraints.NotBlank;
-import lombok.NoArgsConstructor;
+import jakarta.validation.constraints.NotBlank;
 
 @Data
 public class DeveloperLoginParam {

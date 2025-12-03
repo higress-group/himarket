@@ -57,4 +57,7 @@ public class Resources {
 
     public static final String SUBSCRIPTION = "Subscription";
 
+
+    public static final String CHAT_SESSION = "ChatSession";
+
 }

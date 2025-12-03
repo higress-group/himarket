@@ -50,4 +50,11 @@ public class PortalSettingConfig {
      * OAuth2配置
      */
     private List<OAuth2Config> oauth2Configs;
+    
+    /**
+     * 搜索引擎配置（新增）
+     * 每个 Portal 只能配置一个搜索引擎
+     * null 表示未配置
+     */
+    private SearchEngineConfig searchEngineConfig;
 }

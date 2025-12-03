@@ -24,7 +24,7 @@ import com.alibaba.apiopenplatform.support.enums.ProtocolType;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 
 @Entity
 @Table(name = "portal_domain",

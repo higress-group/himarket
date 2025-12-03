@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, createRef, act } from "react";
+import { useState, useEffect, useRef, createRef } from "react";
 
 // Define the props type for the generalized Switch component
 interface MultiSwitchProps {

@@ -29,10 +29,10 @@ import com.alibaba.apiopenplatform.support.gateway.HigressConfig;
 import com.alibaba.apiopenplatform.support.gateway.ApsaraGatewayConfig;
 import lombok.Data;
 
-import javax.validation.Valid;
-import javax.validation.constraints.AssertTrue;
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.NotNull;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.AssertTrue;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
 @Data
 public class ImportGatewayParam implements InputConverter<Gateway> {

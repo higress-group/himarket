@@ -30,7 +30,7 @@ import com.alibaba.apiopenplatform.dto.result.common.PageResult;
 import com.alibaba.apiopenplatform.support.enums.DeveloperStatus;
 import org.springframework.data.domain.Pageable;
 
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 
 public interface DeveloperService {
 

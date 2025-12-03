@@ -20,7 +20,6 @@
 package com.alibaba.apiopenplatform.config;
 
 import com.alibaba.apiopenplatform.core.security.JwtAuthenticationFilter;
-import com.alibaba.apiopenplatform.core.utils.TokenUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
@@ -28,7 +27,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
-import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
@@ -41,6 +40,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.*;
 
 import com.alibaba.apiopenplatform.core.security.DeveloperAuthenticationProvider;
+import jakarta.servlet.DispatcherType;
 import org.springframework.http.HttpMethod;
 
 /**
@@ -50,7 +50,7 @@ import org.springframework.http.HttpMethod;
 @Configuration
 @RequiredArgsConstructor
 @Slf4j
-@EnableGlobalMethodSecurity(prePostEnabled = true)
+@EnableMethodSecurity
 public class SecurityConfig {
 
     private final DeveloperAuthenticationProvider developerAuthenticationProvider;
@@ -88,22 +88,21 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .cors(Customizer.withDefaults())
-                .csrf().disable()
-                .sessionManagement()
-                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-//                .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
-                .and()
-                .authorizeRequests()
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
+                        // 异步分发不进行权限检查（解决SSE等流式响应完成后的AccessDenied问题）
+                        .dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll()
                 // OPTIONS请求放行
-                .antMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 // 认证相关接口放行
-                .antMatchers(AUTH_WHITELIST).permitAll()
+                        .requestMatchers(AUTH_WHITELIST).permitAll()
                 // Swagger相关接口放行
-                .antMatchers(SWAGGER_WHITELIST).permitAll()
+                        .requestMatchers(SWAGGER_WHITELIST).permitAll()
                 // 系统路径放行
-                .antMatchers(SYSTEM_WHITELIST).permitAll()
-                .anyRequest().authenticated()
-                .and()
+                        .requestMatchers(SYSTEM_WHITELIST).permitAll()
+                        .anyRequest().authenticated())
                 .addFilterBefore(new JwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
                 .authenticationProvider(developerAuthenticationProvider);
         return http.build();

@@ -27,7 +27,7 @@ import com.alibaba.apiopenplatform.support.product.HigressRefConfig;
 import com.alibaba.apiopenplatform.support.product.NacosRefConfig;
 import lombok.Data;
 
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
 
 @Data
 public class CreateProductRefParam implements InputConverter<ProductRef> {

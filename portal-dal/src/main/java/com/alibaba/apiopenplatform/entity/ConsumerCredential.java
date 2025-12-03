@@ -27,7 +27,7 @@ import com.alibaba.apiopenplatform.support.consumer.HmacConfig;
 import com.alibaba.apiopenplatform.support.consumer.JwtConfig;
 import lombok.Data;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 
 @Entity
 @Table(name = "consumer_credential",

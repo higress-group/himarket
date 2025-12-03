@@ -23,7 +23,7 @@ import com.alibaba.apiopenplatform.dto.converter.InputConverter;
 import com.alibaba.apiopenplatform.entity.ProductSubscription;
 import lombok.Data;
 
-import javax.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotBlank;
 
 @Data
 public class CreateSubscriptionParam implements InputConverter<ProductSubscription> {

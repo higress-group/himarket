@@ -21,7 +21,7 @@ package com.alibaba.apiopenplatform.converter;
 
 import com.alibaba.apiopenplatform.support.product.NacosRefConfig;
 
-import javax.persistence.Converter;
+import jakarta.persistence.Converter;
 
 @Converter
 public class NacosRefConfigConverter extends JsonConverter<NacosRefConfig> {

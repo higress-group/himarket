@@ -43,6 +43,10 @@ public class ContextHolder {
         portalContext.set(portalId);
     }
 
+    public void saveTemporaryUser(String userId) {
+        portalContext.set(userId);
+    }
+
     public void clearPortal() {
         portalContext.remove();
     }

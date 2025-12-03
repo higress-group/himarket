@@ -25,7 +25,7 @@ import com.alibaba.apiopenplatform.support.portal.PortalSettingConfig;
 import com.alibaba.apiopenplatform.support.portal.PortalUiConfig;
 import lombok.Data;
 
-import javax.validation.constraints.Size;
+import jakarta.validation.constraints.Size;
 
 @Data
 public class UpdatePortalParam implements InputConverter<Portal> {

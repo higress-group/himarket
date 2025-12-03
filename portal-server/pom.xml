@@ -12,8 +12,8 @@
     <artifactId>portal-server</artifactId>
 
     <properties>
-        <maven.compiler.source>8</maven.compiler.source>
-        <maven.compiler.target>8</maven.compiler.target>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
@@ -48,7 +48,7 @@
 
         <dependency>
             <groupId>org.springdoc</groupId>
-            <artifactId>springdoc-openapi-ui</artifactId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
         </dependency>
 
         <dependency>
@@ -145,6 +145,12 @@
             </exclusions>
         </dependency>
         
+        <dependency>
+            <groupId>com.github.rholder</groupId>
+            <artifactId>guava-retrying</artifactId>
+            <version>2.0.0</version>
+        </dependency>
+        
         <!-- SnakeYAML for JSON to YAML conversion -->
         <dependency>
             <groupId>org.yaml</groupId>
@@ -159,6 +165,11 @@
             <version>1.5.3-SNAPSHOT</version>
             <scope>system</scope>
             <systemPath>${project.basedir}/lib/csb220230206-1.5.3.jar</systemPath>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webflux</artifactId>
         </dependency>
     </dependencies>
 

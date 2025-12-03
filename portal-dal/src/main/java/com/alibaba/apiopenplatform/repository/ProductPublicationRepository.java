@@ -38,4 +38,6 @@ public interface ProductPublicationRepository extends BaseRepository<ProductPubl
     void deleteAllByPortalId(String portalId);
 
     boolean existsByProductId(String productId);
+
+    boolean existsByProductIdAndPortalIdNot(String productId, String portalId);
 }
