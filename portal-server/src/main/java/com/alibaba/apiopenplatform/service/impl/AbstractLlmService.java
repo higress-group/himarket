@@ -1,6 +1,7 @@
 package com.alibaba.apiopenplatform.service.impl;
 
 import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.util.BooleanUtil;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.apiopenplatform.core.exception.ErrorCode;
 import com.alibaba.apiopenplatform.dto.params.chat.ChatRequestBody;
@@ -77,7 +78,7 @@ public abstract class AbstractLlmService implements LlmService {
                 .mcpServerConfigs(param.getMcpServerConfigs())
                 .build();
 
-        if (modelFeature.getWebSearch() && param.getEnableWebSearch()) {
+        if (BooleanUtil.isTrue(modelFeature.getWebSearch()) && BooleanUtil.isTrue(param.getEnableWebSearch())) {
             chatRequest.setWebSearchOptions(new OpenAiApi.ChatCompletionRequest.WebSearchOptions(
                     OpenAiApi.ChatCompletionRequest.WebSearchOptions.SearchContextSize.MEDIUM, null));
         }
@@ -111,6 +112,9 @@ public abstract class AbstractLlmService implements LlmService {
                 .streaming(Optional.ofNullable(modelFeature)
                         .map(ModelFeature::getStreaming)
                         .orElse(true))
+                .webSearch(Optional.ofNullable(modelFeature)
+                        .map(ModelFeature::getWebSearch)
+                        .orElse(false))
                 .build();
     }
 

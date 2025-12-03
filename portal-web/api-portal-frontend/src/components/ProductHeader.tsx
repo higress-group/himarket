@@ -383,10 +383,6 @@ export const ProductHeader: React.FC<ProductHeaderProps> = ({
         footer={null}
         width={600}
         styles={{
-          content: {
-            borderRadius: '8px',
-            padding: 0
-          },
           header: {
             borderRadius: '8px 8px 0 0',
             marginBottom: 0,
