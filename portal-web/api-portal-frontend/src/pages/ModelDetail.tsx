@@ -102,7 +102,7 @@ function ModelDetail() {
         return '等于';
       case 'Prefix':
         return '前缀是';
-      case 'RegularExpression':
+      case 'Regex':
         return '正则是';
       default:
         return '等于';
@@ -130,7 +130,7 @@ function ModelDetail() {
     let pathWithSuffix = path
     if (pathType === 'Prefix') {
       pathWithSuffix = `${path}*`
-    } else if (pathType === 'RegularExpression') {
+    } else if (pathType === 'Regex') {
       pathWithSuffix = `${path}~`
     }
     // 精确匹配不加任何符号

@@ -979,7 +979,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
             return '等于'
           case 'Prefix':
             return '前缀是'
-          case 'RegularExpression':
+          case 'Regex':
             return '正则是'
           default:
             return '等于'
@@ -1032,7 +1032,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
         let pathWithSuffix = path
         if (pathType === 'Prefix') {
           pathWithSuffix = `${path}*`
-        } else if (pathType === 'RegularExpression') {
+        } else if (pathType === 'Regex') {
           pathWithSuffix = `${path}~`
         }
         // 精确匹配不加任何符号
@@ -1045,14 +1045,6 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
         }
 
         return routeText
-      }
-
-      // 获取方法显示文本
-      const getMethodsText = (route: any) => {
-        if (!route.match?.methods || route.match.methods.length === 0) {
-          return 'ANY'
-        }
-        return route.match.methods.join(', ')
       }
 
       // 生成完整URL
@@ -1381,7 +1373,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
             return '等于'
           case 'Prefix':
             return '前缀是'
-          case 'RegularExpression':
+          case 'Regex':
             return '正则是'
           default:
             return '等于'
@@ -1410,7 +1402,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
         let pathWithSuffix = path
         if (pathType === 'Prefix') {
           pathWithSuffix = `${path}*`
-        } else if (pathType === 'RegularExpression') {
+        } else if (pathType === 'Regex') {
           pathWithSuffix = `${path}~`
         }
 

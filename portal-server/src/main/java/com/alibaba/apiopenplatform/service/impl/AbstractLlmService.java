@@ -76,7 +76,7 @@ public abstract class AbstractLlmService implements LlmService {
                 .temperature(modelFeature.getTemperature())
                 .mcpServerConfigs(param.getMcpServerConfigs())
                 .build();
-        
+
         if (modelFeature.getWebSearch() && param.getEnableWebSearch()) {
             chatRequest.setWebSearchOptions(new OpenAiApi.ChatCompletionRequest.WebSearchOptions(
                     OpenAiApi.ChatCompletionRequest.WebSearchOptions.SearchContextSize.MEDIUM, null));
@@ -96,24 +96,24 @@ public abstract class AbstractLlmService implements LlmService {
         ModelFeature modelFeature = Optional.ofNullable(product)
                 .map(ProductResult::getFeature)
                 .map(ProductFeature::getModelFeature)
-                .orElse(new ModelFeature());
+                .orElseGet(() -> ModelFeature.builder().build());
 
-        // Default values
-        if (modelFeature.getModel() == null) {
-            modelFeature.setModel("qwen-max");
-        }
-        if (modelFeature.getMaxTokens() == null) {
-            modelFeature.setMaxTokens(5000);
-        }
-        if (modelFeature.getTemperature() == null) {
-            modelFeature.setTemperature(0.9);
-        }
-        if (modelFeature.getStreaming() == null) {
-            modelFeature.setStreaming(true);
-        }
-
-        return modelFeature;
+        return ModelFeature.builder()
+                .model(Optional.ofNullable(modelFeature)
+                        .map(ModelFeature::getModel)
+                        .orElse("qwen-max"))
+                .maxTokens(Optional.ofNullable(modelFeature)
+                        .map(ModelFeature::getMaxTokens)
+                        .orElse(5000))
+                .temperature(Optional.ofNullable(modelFeature)
+                        .map(ModelFeature::getTemperature)
+                        .orElse(0.9))
+                .streaming(Optional.ofNullable(modelFeature)
+                        .map(ModelFeature::getStreaming)
+                        .orElse(true))
+                .build();
     }
+
 
     private URL getUrl(ModelConfigResult modelConfig, Map<String, String> queryParams) {
         ModelConfigResult.ModelAPIConfig modelAPIConfig = modelConfig.getModelAPIConfig();
