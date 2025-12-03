@@ -154,15 +154,17 @@ update_higress_mcp_redis() {
     return 1
   fi
 
-  # 创建临时文件存储当前完整 ConfigMap
-  local tmp_cm="/tmp/higress-config-full-${RANDOM}.yaml"
-  kubectl get configmap higress-config -n "$ns" -o yaml > "$tmp_cm"
-
-  # 创建临时文件存储修改后的 data.higress
+  # 定义临时文件路径
   local tmp_higress="/tmp/higress-data-${RANDOM}.yaml"
+  local tmp_patch="/tmp/higress-patch-${RANDOM}.json"
+  local tmp_python_script="/tmp/json_escape_script-${RANDOM}.py"
 
-  # 提取 data.higress 内容
-  kubectl get configmap higress-config -n "$ns" -o jsonpath='{.data.higress}' > "$tmp_higress"
+  # 1. 提取 data.higress 内容 (原始JSON字符串，包含转义的\n)
+  local current_higress_content
+  current_higress_content=$(kubectl get configmap higress-config -n "$ns" -o jsonpath='{.data.higress}')
+
+  # 2. 反转义并保存到临时文件
+  printf "%b" "$current_higress_content" > "$tmp_higress"
 
   # 定义新的 mcpServer 配置块
   local mcp_config='mcpServer:
@@ -175,12 +177,13 @@ update_higress_mcp_redis() {
   servers: []
   sse_path_suffix: "/sse"'
 
+  # 3. 修改 data.higress 内容
   # 检查是否已有 mcpServer 配置(可能有缩进)
   if grep -q '^mcpServer:' "$tmp_higress" || grep -q '^  mcpServer:' "$tmp_higress"; then
     log "检测到已有 mcpServer 配置，准备替换..."
     # 使用 sed 删除从 mcpServer: 开始到下一个顶级键之前的所有行
     sed -i.bak '/^mcpServer:/,/^[a-zA-Z]/{ /^[a-zA-Z]/!d; /^mcpServer:/d; }' "$tmp_higress"
-    # 如果是缩进的 mcpServer，同样处理
+    # 再次清理，以防有缩进的 mcpServer
     sed -i.bak '/^  mcpServer:/,/^[a-zA-Z]/{ /^[a-zA-Z]/!d; /^  mcpServer:/d; }' "$tmp_higress"
   else
     log "未检测到 mcpServer 配置，将新增该配置块"
@@ -190,38 +193,51 @@ update_higress_mcp_redis() {
   echo "" >> "$tmp_higress"
   echo "$mcp_config" >> "$tmp_higress"
 
-  # 使用 kubectl create --dry-run 生成新的 ConfigMap YAML
-  local tmp_new_cm="/tmp/higress-config-new-${RANDOM}.yaml"
-  kubectl create configmap higress-config \
-    --from-file=higress="$tmp_higress" \
-    --dry-run=client -o yaml > "$tmp_new_cm"
+  # 4. 使用 Python 脚本将修改后的内容进行完整的 JSON 字符串转义
+  cat <<'EOF' > "$tmp_python_script"
+import json
+import sys
 
-  # 复制原 ConfigMap 的 labels 和 annotations
-  local labels=$(kubectl get configmap higress-config -n "$ns" -o jsonpath='{.metadata.labels}' | tr -d '\n')
-  local annotations=$(kubectl get configmap higress-config -n "$ns" -o jsonpath='{.metadata.annotations}' | tr -d '\n')
+# 读取文件内容
+with open(sys.argv[1], 'r') as f:
+    content = f.read()
+escaped_content = json.dumps(content)[1:-1]
+print(escaped_content)
+EOF
 
-  # 使用 kubectl replace 替换整个 ConfigMap
+  local updated_higress_content
+  updated_higress_content=$(python3 "$tmp_python_script" "$tmp_higress")
+
+  # 5. 构造 JSON Patch 文件
+  cat <<EOF > "$tmp_patch"
+[
+  {
+    "op": "replace",
+    "path": "/data/higress",
+    "value": "$updated_higress_content"
+  }
+]
+EOF
+
+  # 6. 使用 kubectl patch 应用修改
   log "应用 mcpServer 配置到 ConfigMap..."
-  kubectl get configmap higress-config -n "$ns" -o yaml | \
-    kubectl create configmap higress-config --from-file=higress="$tmp_higress" --dry-run=client -o yaml | \
-    kubectl replace -n "$ns" -f -
-
-  local result=$?
-
-  # 清理临时文件
-  rm -f "$tmp_cm" "$tmp_higress" "${tmp_higress}.bak" "$tmp_new_cm"
-
-  if [[ $result -eq 0 ]]; then
+  if kubectl patch configmap higress-config -n "$ns" --type='json' --patch-file "$tmp_patch"; then
     log "mcpServer 配置已成功应用"
     # 重启 higress-gateway 以应用新配置
     log "重启 higress-gateway 以应用配置..."
     kubectl rollout restart deployment higress-gateway -n "$ns" >/dev/null 2>&1 || true
-    return 0
+    local result=0
   else
     err "应用 mcpServer 配置失败"
-    return 1
+    local result=1
   fi
+
+  # 清理临时文件
+  rm -f "$tmp_higress" "${tmp_higress}.bak" "$tmp_patch" "$tmp_python_script"
+
+  return $result
 }
+
 
 # 执行指定阶段的钩子脚本
 run_hooks() {
