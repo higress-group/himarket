@@ -207,7 +207,7 @@ public class AIGWOperator extends APIGOperator {
         // tools
         String tools = resp.getMcpServerConfig();
         if (StrUtil.isNotBlank(tools)) {
-            mcpConfig.setTools(Base64.decodeStr(tools));
+            mcpConfig.setTools(Base64.isBase64(tools) ? Base64.decodeStr(tools) : tools);
         }
 
         return JSONUtil.toJsonStr(mcpConfig);
