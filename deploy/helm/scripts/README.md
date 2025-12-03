@@ -23,12 +23,14 @@ himarket/
     │   └── README.md                   # 配置文件详细说明
     └── hooks/                          # 钩子脚本目录
         └── post_ready.d/               # 部署就绪后执行的钩子
-            ├── 10-init-nacos-admin.sh      # Nacos 管理员密码初始化
+            ├── 10-init-nacos-admin.sh      # Nacos 管理员密码初始化（开源版）
             ├── 20-init-himarket-admin.sh   # HiMarket 管理员账号注册
+            ├── 25-init-commercial-nacos.sh # 商业化 Nacos 实例初始化
             ├── 30-init-higress-mcp.sh      # Higress MCP 统一初始化
             ├── 40-init-himarket-mcp.sh     # HiMarket MCP 统一初始化
             ├── 50-init-himarket-front.sh   # HiMarket 前台开发者账号注册
             ├── 60-init-portal-developer.sh # Portal 开发者审批与订阅
+            ├── 70-import-nacos-mcp.sh      # Nacos MCP 数据导入（开源版）
             └── ...                         # nacos数据初始化进himarket
 ```
 
@@ -44,15 +46,17 @@ himarket/
 
 该脚本会按顺序执行：
 1. 部署 HiMarket（可内置 MySQL 或使用外部数据库）
-2. 部署 Nacos（共享 HiMarket 的数据库）
+2. 部署 Nacos（共享 HiMarket 的数据库）**或** 使用商业化 Nacos 实例
 3. 部署 Higress（网关）
 4. 执行 `post_ready.d/` 下的所有钩子脚本（按序号自动初始化）：
-   - 10-init-nacos-admin.sh：初始化 Nacos 管理员密码
+   - 10-init-nacos-admin.sh：初始化 Nacos 管理员密码（开源版）
    - 20-init-himarket-admin.sh：注册 HiMarket 管理员账号
+   - 25-init-commercial-nacos.sh：初始化商业化 Nacos 实例（商业化版）
    - 30-init-higress-mcp.sh：**根据 higress-mcp.json 批量初始化所有 MCP 服务**
    - 40-init-himarket-mcp.sh：**根据 higress-mcp.json 批量配置产品和发布**
    - 50-init-himarket-front.sh：注册 HiMarket 前台开发者账号
    - 60-init-portal-developer.sh：审批开发者并自动订阅产品
+   - 70-import-nacos-mcp.sh：导入 MCP 配置到 Nacos（开源版）
 
 ### 卸载
 
@@ -82,6 +86,65 @@ himarket/
 export SKIP_HOOK_ERRORS=true
 ./scripts/deploy.sh install
 ```
+
+## 使用商业化 Nacos 实例
+
+如果你已经有阿里云 MSE 服务，可以跳过开源 Nacos 的部署，直接使用商业化实例。
+
+### 配置步骤
+
+1. **编辑 `.env` 文件**
+
+   ```bash
+   cd scripts/data
+   vi .env
+   ```
+
+2. **启用商业化 Nacos 开关**
+
+   ```bash
+   USE_COMMERCIAL_NACOS=true
+   ```
+
+3. **填写商业化 Nacos 配置**
+
+4. **执行部署**
+
+   ```bash
+   cd ..
+   ./deploy.sh install
+   ```
+
+### 行为变化
+
+当 `USE_COMMERCIAL_NACOS=true` 时：
+
+- ✅ **跳过**开源 Nacos 的 Helm 部署
+- ✅ **不执行** `10-init-nacos-admin.sh` （开源 Nacos 管理员初始化）
+- ✅ **不执行** `70-import-nacos-mcp.sh` （开源 Nacos MCP 导入）
+- ✅ **执行** `25-init-commercial-nacos.sh` （商业化 Nacos 初始化）
+  - 登录 HiMarket Admin 获取 Token
+  - 调用管理 API 创建/更新 Nacos 实例配置
+  - 登录商业化 Nacos 获取 accessToken
+
+### 注意事项
+
+1. **依赖顺序**
+   
+   商业化 Nacos 初始化脚本（25）在 HiMarket Admin（20）之后执行，因为需要先登录 HiMarket 获取 Token。
+
+2. **网络访问**
+   
+   确保部署环境能够访问：
+   - Nacos 服务地址（一般是公网或 VPC 内网）
+   - HiMarket Admin Service（自动获取）
+
+3. **切换回开源版**
+   
+   如需切换回开源 Nacos，设置：
+   ```bash
+   USE_COMMERCIAL_NACOS=false
+   ```
 
 ## 配置驱动架构
 
@@ -123,36 +186,7 @@ export SKIP_HOOK_ERRORS=true
 
 ### 环境变量配置
 
-编辑 `scripts/data/.env`：
-
-```bash
-# Kubernetes 命名空间
-NAMESPACE=himarket-dev
-
-# Nacos 版本号
-NACOS_VERSION=2.1.10
-
-# Higress Console 管理员密码
-HIGRESS_USERNAME=admin
-HIGRESS_PASSWORD=admin
-
-# Nacos 管理员密码
-NACOS_ADMIN_PASSWORD=nacos
-
-# HiMarket 管理员账号
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=admin
-
-# HiMarket 前台开发者账号
-FRONT_USERNAME=demo
-FRONT_PASSWORD=demo123
-```
-
-### 修改 Nacos/Higress 配置
-
-如需高级自定义，可编辑工作区根目录的适配配置文件：
-- `nacos/values-adapter-ok.yaml` - Nacos 适配配置
-- `higress/values-adapter-ok.yaml` - Higress 适配配置
+编辑 `scripts/data/.env`
 
 ## 添加新的 MCP 服务
 
