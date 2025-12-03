@@ -266,14 +266,6 @@ get_or_create_nacos() {
 }
 
 ########################################
-# 获取或创建 Nacos(保留旧函数供兼容)
-########################################
-ensure_nacos() {
-  get_or_create_nacos >/dev/null 2>&1 || true
-  return 0
-}
-
-########################################
 # 获取或创建 Portal ID
 ########################################
 get_or_create_portal() {
@@ -638,7 +630,7 @@ main() {
   local use_commercial_nacos="${USE_COMMERCIAL_NACOS:-false}"
   if [[ "$use_commercial_nacos" != "true" ]]; then
     log "使用开源 Nacos，注册到 HiMarket..."
-    ensure_nacos
+    get_or_create_nacos >/dev/null 2>&1 || true
   else
     log "使用商业化 Nacos，跳过开源 Nacos 注册"
   fi
