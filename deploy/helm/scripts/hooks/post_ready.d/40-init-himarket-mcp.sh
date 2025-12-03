@@ -24,6 +24,9 @@ ADMIN_USERNAME="${ADMIN_USERNAME:-admin}"
 ADMIN_PASSWORD="${ADMIN_PASSWORD:-admin}"
 HIGRESS_PASSWORD="${HIGRESS_PASSWORD:-admin}"
 
+# 是否商业化 Nacos 配置
+USE_COMMERCIAL_NACOS="${USE_COMMERCIAL_NACOS:-false}"
+
 # 最大重试次数
 MAX_RETRIES=3
 
@@ -493,7 +496,13 @@ main() {
   
   # 确保 Gateway 和 Nacos 存在
   log "初始化基础设施..."
-  ensure_nacos
+  # 根据配置决定是否注册开源 Nacos
+  if [[ "$USE_COMMERCIAL_NACOS" != "true" ]]; then
+    log "使用开源 Nacos，注册到 HiMarket..."
+    ensure_nacos
+  else
+    log "使用商业化 Nacos，跳过开源 Nacos 注册"
+  fi
   get_or_create_gateway >/dev/null 2>&1 || true
   
   # 读取 MCP 配置列表
