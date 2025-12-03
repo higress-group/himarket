@@ -41,6 +41,9 @@ rm -f "$EXPORTED_VARS_FILE"
 # 统一命名空间（从环境变量读取）
 NS="${NAMESPACE:-himarket}"
 
+# 商业化 Nacos 开关
+USE_COMMERCIAL_NACOS="${USE_COMMERCIAL_NACOS:-false}"
+
 # Chart 与值文件（相对路径）
 HIMARKET_CHART_PATH="${PROJECT_ROOT}"
 HIMARKET_VALUES_FILE="${PROJECT_ROOT}/values.yaml"
@@ -236,14 +239,31 @@ run_hooks() {
   local hook_count=0
   for hook in "${hooks_dir}"/*.sh; do
     if [[ -f "$hook" && -x "$hook" ]]; then
+      local hook_name=$(basename "$hook")
+      
+      # 根据商业化 Nacos 开关跳过特定脚本
+      if [[ "${USE_COMMERCIAL_NACOS}" == "true" ]]; then
+        # 使用商业化 Nacos 时，跳过开源 Nacos 相关脚本
+        if [[ "$hook_name" == "10-init-nacos-admin.sh" || "$hook_name" == "70-import-nacos-mcp.sh" ]]; then
+          log "跳过钩子: ${hook_name} (已启用商业化 Nacos)"
+          continue
+        fi
+      else
+        # 使用开源 Nacos 时，跳过商业化 Nacos 脚本
+        if [[ "$hook_name" == "25-init-commercial-nacos.sh" ]]; then
+          log "跳过钩子: ${hook_name} (未启用商业化 Nacos)"
+          continue
+        fi
+      fi
+      
       hook_count=$((hook_count+1))
-      log "运行钩子 [${hook_count}]: $(basename "$hook")"
+      log "运行钩子 [${hook_count}]: ${hook_name}"
 
       # 继承当前环境变量（NS、DB_*等）并执行
       if bash "$hook"; then
-        log "钩子成功: $(basename "$hook")"
+        log "钩子成功: ${hook_name}"
       else
-        err "钩子失败: $(basename "$hook")"
+        err "钩子失败: ${hook_name}"
         if [[ "${SKIP_HOOK_ERRORS:-false}" != "true" ]]; then
           return 1
         fi
@@ -280,7 +300,6 @@ deploy_all() {
 
   # 1) 部署 HiMarket
   log "准备部署 HiMarket..."
-  echo "使用 externalEnv.database.host=${EXTERNAL_DB_HOST}"
   helm_upsert "himarket" "$NS" "$HIMARKET_CHART_PATH" -f "$HIMARKET_VALUES_FILE" \
     --set "hub=${HIMARKET_HUB}" \
     --set "frontend.image.tag=${HIMARKET_IMAGE_TAG}" \
@@ -294,26 +313,29 @@ deploy_all() {
     --set "database.username=${EXTERNAL_DB_USERNAME}" \
     --set "database.password=${EXTERNAL_DB_PASSWORD}"
 
-  log "使用数据库配置: mode=${MODE}, host=${DB_HOST}:${DB_PORT}, db=${DB_NAME}, user=${DB_USER}"
-
-  # 2) 部署 Nacos（官方 chart），使用动态数据库配置
-  helm_upsert "nacos" "$NS" "$NACOS_CHART_REF" \
-    --set "service.type=LoadBalancer" \
-    --set "mysql.enabled=true" \
-    --set "mysql.image.registry=${NACOS_MYSQL_IMAGE_REGISTRY}" \
-    --set "mysql.image.repository=${NACOS_MYSQL_IMAGE_REPOSITORY}" \
-    --set "mysql.image.tag=${NACOS_MYSQL_IMAGE_TAG}" \
-    --set "image.registry=${NACOS_IMAGE_REGISTRY}" \
-    --set "image.repository=${NACOS_IMAGE_REPOSITORY}" \
-    --set "image.tag=${NACOS_VERSION}" \
-    --set "plugin.image.registry=${NACOS_PLUGIN_IMAGE_REGISTRY}" \
-    --set "plugin.image.repository=${NACOS_PLUGIN_IMAGE_REPOSITORY}" \
-    --set "plugin.image.tag=${NACOS_PLUGIN_IMAGE_TAG}" \
-    --set "initDB.image.registry=${NACOS_INITDB_IMAGE_REGISTRY}" \
-    --set "initDB.image.repository=${NACOS_INITDB_IMAGE_REPOSITORY}" \
-    --set "initDB.image.tag=${NACOS_INITDB_IMAGE_TAG}"
-
-  wait_rollout "$NS" "statefulset" "nacos" 900
+  # 2) 部署 Nacos（根据开关决定是否部署开源版本）
+  if [[ "${USE_COMMERCIAL_NACOS}" == "true" ]]; then
+    log "使用商业化 Nacos 实例，跳过开源 Nacos 部署"
+    log "商业化 Nacos 将在 post_ready 阶段进行初始化"
+  else
+    log "部署开源 Nacos..."
+    helm_upsert "nacos" "$NS" "$NACOS_CHART_REF" \
+      --set "service.type=LoadBalancer" \
+      --set "mysql.enabled=true" \
+      --set "mysql.image.registry=${NACOS_MYSQL_IMAGE_REGISTRY}" \
+      --set "mysql.image.repository=${NACOS_MYSQL_IMAGE_REPOSITORY}" \
+      --set "mysql.image.tag=${NACOS_MYSQL_IMAGE_TAG}" \
+      --set "image.registry=${NACOS_IMAGE_REGISTRY}" \
+      --set "image.repository=${NACOS_IMAGE_REPOSITORY}" \
+      --set "image.tag=${NACOS_VERSION}" \
+      --set "plugin.image.registry=${NACOS_PLUGIN_IMAGE_REGISTRY}" \
+      --set "plugin.image.repository=${NACOS_PLUGIN_IMAGE_REPOSITORY}" \
+      --set "plugin.image.tag=${NACOS_PLUGIN_IMAGE_TAG}" \
+      --set "initDB.image.registry=${NACOS_INITDB_IMAGE_REGISTRY}" \
+      --set "initDB.image.repository=${NACOS_INITDB_IMAGE_REPOSITORY}" \
+      --set "initDB.image.tag=${NACOS_INITDB_IMAGE_TAG}"
+    wait_rollout "$NS" "statefulset" "nacos" 900
+  fi
 
   # 3) 部署 Higress（官方 chart），直接设置参数
   helm_upsert "higress" "$NS" "$HIGRESS_CHART_REF" \
