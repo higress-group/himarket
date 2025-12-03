@@ -1,5 +1,6 @@
 export const colors = {
   "colorPrimary": "#6366F1",
+  "colorPrimaryBg": "#EEF2FF",
   "colorPrimaryBgHover": "#E0E7FF",
   "colorPrimarySecondary": "#C7D2FE",
   "colorTextSecondaryCustom": "#A3A3A3",
@@ -9,8 +10,6 @@ export const colors = {
 
 export default {
   ...colors,
-  "colorPrimaryBg": "#EEF2FF",
-  "colorPrimaryBgHover": "#E0E7FF",
   "colorPrimaryBorder": "#C7D2FE",
   "colorPrimaryBorderHover": "#A5B4FC",
   "colorPrimaryHover": "#818CF8",

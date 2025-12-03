@@ -4,7 +4,6 @@ import { Alert, Tabs, Space, Button, message } from "antd";
 import { Layout } from "../components/Layout";
 import { ProductHeader } from "../components/ProductHeader";
 import { SwaggerUIWrapper } from "../components/SwaggerUIWrapper";
-import 'react-markdown-editor-lite/lib/index.css';
 import * as yaml from 'js-yaml';
 import { CopyOutlined, DownloadOutlined, ArrowLeftOutlined } from "@ant-design/icons";
 import type { IProductDetail } from "../lib/apis";
@@ -132,9 +131,9 @@ function ApiDetailPage() {
       </div>
 
       {/* 主要内容区域 */}
-      <div className="flex gap-6 pb-6">
+      <div className="flex flex-col lg:flex-row gap-6">
         {/* 左侧内容 */}
-        <div className="flex-1">
+        <div className="w-full lg:w-[65%] order-2 lg:order-1">
           <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-6 pt-0">
             <Tabs
               size="large"
@@ -174,7 +173,7 @@ function ApiDetailPage() {
         </div>
 
         {/* 右侧内容 */}
-        <div className="w-96">
+        <div className="w-full lg:w-[35%] order-1 lg:order-2">
           <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-6">
             <h3 className="text-base font-semibold mb-4 text-gray-900">快速开始</h3>
             <Tabs
