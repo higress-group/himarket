@@ -207,7 +207,7 @@ public class AIGWOperator extends APIGOperator {
         // tools
         String tools = resp.getMcpServerConfig();
         if (StrUtil.isNotBlank(tools)) {
-            mcpConfig.setTools(Base64.decodeStr(tools));
+            mcpConfig.setTools(Base64.isBase64(tools) ? Base64.decodeStr(tools) : tools);
         }
 
         return JSONUtil.toJsonStr(mcpConfig);
@@ -358,8 +358,7 @@ public class AIGWOperator extends APIGOperator {
                 .collect(Collectors.toList());
 
         AgentConfigResult.AgentAPIConfig agentAPIConfig = AgentConfigResult.AgentAPIConfig.builder()
-                // TODO Retrieve agent protocol from route configuration
-                .agentProtocols(Collections.singletonList("DashScope"))
+                .agentProtocols(apiInfo.getAgentProtocols())
                 .routes(routeResults)
                 .build();
         result.setAgentAPIConfig(agentAPIConfig);

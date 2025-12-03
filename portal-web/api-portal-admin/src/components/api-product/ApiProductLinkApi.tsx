@@ -933,7 +933,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                         if (httpJson) {
                           tabs.push({
                             key: "http",
-                            label: "Streaming HTTP",
+                            label: "Streamable HTTP",
                             children: (
                               <div className="relative bg-gray-50 border border-gray-200 rounded-md p-3">
                                 <Button

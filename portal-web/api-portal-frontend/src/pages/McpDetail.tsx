@@ -518,7 +518,7 @@ function McpDetail() {
                     if (httpJson) {
                       tabs.push({
                         key: "http",
-                        label: "Streaming HTTP",
+                        label: "Streamable HTTP",
                         children: (
                           <div className="relative bg-gray-50 border border-gray-200 rounded-lg overflow-hidden">
                             <Button

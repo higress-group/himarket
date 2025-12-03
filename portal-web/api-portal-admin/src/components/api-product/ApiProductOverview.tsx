@@ -188,29 +188,33 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
                   <span className="text-gray-400">-</span>
                 )}
               </div>
-              {/* Feature 配置 */}
-              <span className="text-xs text-gray-600">模型参数:</span>
-              <div className="col-span-2 text-xs text-gray-700">
-                {apiProduct.feature?.modelFeature ? (
-                  <span>
-                    {[
-                      apiProduct.feature.modelFeature.model,
-                      apiProduct.feature.modelFeature.maxTokens && `${apiProduct.feature.modelFeature.maxTokens} tokens`,
-                      apiProduct.feature.modelFeature.temperature !== null && apiProduct.feature.modelFeature.temperature !== undefined && `温度 ${apiProduct.feature.modelFeature.temperature}`,
-                      apiProduct.feature.modelFeature.webSearch && '联网搜索'
-                    ].filter(Boolean).map((param, index, array) => (
-                      <span key={index}>
-                        <span className="text-gray-900">{param}</span>
-                        {index < array.length - 1 && (
-                          <span className="text-gray-400 mx-2">|</span>
-                        )}
+              {/* Feature 配置 - 仅 MODEL_API 类型显示 */}
+              {apiProduct.type === 'MODEL_API' && (
+                <>
+                  <span className="text-xs text-gray-600">模型参数:</span>
+                  <div className="col-span-2 text-xs text-gray-700">
+                    {apiProduct.feature?.modelFeature ? (
+                      <span>
+                        {[
+                          apiProduct.feature.modelFeature.model,
+                          apiProduct.feature.modelFeature.maxTokens && `${apiProduct.feature.modelFeature.maxTokens} tokens`,
+                          apiProduct.feature.modelFeature.temperature !== null && apiProduct.feature.modelFeature.temperature !== undefined && `temperature ${apiProduct.feature.modelFeature.temperature}`,
+                          apiProduct.feature.modelFeature.webSearch && '联网搜索'
+                        ].filter(Boolean).map((param, index, array) => (
+                          <span key={index}>
+                            <span className="text-gray-900">{param}</span>
+                            {index < array.length - 1 && (
+                              <span className="text-gray-400 mx-2">|</span>
+                            )}
+                          </span>
+                        ))}
                       </span>
-                    ))}
-                  </span>
-                ) : (
-                  <span className="text-gray-400">-</span>
-                )}
-              </div>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
 
             {apiProduct.description && (
