@@ -27,10 +27,10 @@ himarket/
             ├── 20-init-himarket-admin.sh   # HiMarket 管理员账号注册
             ├── 25-init-commercial-nacos.sh # 商业化 Nacos 实例初始化
             ├── 30-init-higress-mcp.sh      # Higress MCP 统一初始化
+            ├── 35-import-nacos-mcp.sh      # Nacos MCP 数据导入（开源版）
             ├── 40-init-himarket-mcp.sh     # HiMarket MCP 统一初始化
             ├── 50-init-himarket-front.sh   # HiMarket 前台开发者账号注册
             ├── 60-init-portal-developer.sh # Portal 开发者审批与订阅
-            ├── 70-import-nacos-mcp.sh      # Nacos MCP 数据导入（开源版）
             └── ...                         # nacos数据初始化进himarket
 ```
 
@@ -38,7 +38,7 @@ himarket/
 
 ### 一键部署
 
-在 `himarket/scripts` 目录下执行：
+在 `helm/scripts` 目录下执行：
 
 ```bash
 ./deploy.sh install
@@ -53,10 +53,10 @@ himarket/
    - 20-init-himarket-admin.sh：注册 HiMarket 管理员账号
    - 25-init-commercial-nacos.sh：初始化商业化 Nacos 实例（商业化版）
    - 30-init-higress-mcp.sh：**根据 higress-mcp.json 批量初始化所有 MCP 服务**
+   - 35-import-nacos-mcp.sh：导入 MCP 配置到 Nacos（开源版）
    - 40-init-himarket-mcp.sh：**根据 higress-mcp.json 批量配置产品和发布**
    - 50-init-himarket-front.sh：注册 HiMarket 前台开发者账号
    - 60-init-portal-developer.sh：审批开发者并自动订阅产品
-   - 70-import-nacos-mcp.sh：导入 MCP 配置到 Nacos（开源版）
 
 ### 卸载
 
@@ -121,7 +121,7 @@ export SKIP_HOOK_ERRORS=true
 
 - ✅ **跳过**开源 Nacos 的 Helm 部署
 - ✅ **不执行** `10-init-nacos-admin.sh` （开源 Nacos 管理员初始化）
-- ✅ **不执行** `70-import-nacos-mcp.sh` （开源 Nacos MCP 导入）
+- ✅ **不执行** `35-import-nacos-mcp.sh` （开源 Nacos MCP 导入）
 - ✅ **执行** `25-init-commercial-nacos.sh` （商业化 Nacos 初始化）
   - 登录 HiMarket Admin 获取 Token
   - 调用管理 API 创建/更新 Nacos 实例配置
