@@ -32,7 +32,7 @@ function McpModal(props: McpModal) {
   } = props;
   const [searchText, setSearchText] = useState("");
 
-  const [active, setActive] = useState("added");
+  const [active, setActive] = useState("all");
 
   const scbscriptsIds = useMemo(() => {
     return subscripts.map(v => v.productId);

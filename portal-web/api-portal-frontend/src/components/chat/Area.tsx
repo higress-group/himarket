@@ -51,16 +51,14 @@ export function ChatArea(props: ChatAreaProps) {
   const {
     data: mcpList, get: getMcpList, loading: mcpListLoading,
     set: setMcpList
-  } = useProducts({ type: "MCP_SERVER", needInit: false });
+  } = useProducts({ type: "MCP_SERVER" });
   const { data: modelList } = useProducts({ type: "MODEL_API" });
   const { data: categories } = useCategories({ type: "MODEL_API", addAll: true });
   const { data: mcpCategories } = useCategories({ type: "MCP_SERVER", addAll: true });
 
   const primaryConsumer = useRef<IGetPrimaryConsumerResp>();
 
-  const [addedMcps, setAddedMcps] = useState<IProductDetail[]>((): IProductDetail[] => {
-    return safeJSONParse(window.localStorage.getItem("addedMcps") || "[]", [])
-  });
+  const [addedMcps, setAddedMcps] = useState<IProductDetail[]>([]);
   const [mcpSubscripts, setMcpSubscripts] = useState<ISubscription[]>([]);
   const [mcpEnabled, setMcpEnabled] = useState(() => {
     return safeJSONParse(window.localStorage.getItem("mcpEnabled") || "false", false)
@@ -125,7 +123,6 @@ export function ChatArea(props: ChatAreaProps) {
         return v;
       }
       const res = [product, ...v];
-      localStorage.setItem("addedMcps", JSON.stringify(res))
       return res;
     });
   }, []);

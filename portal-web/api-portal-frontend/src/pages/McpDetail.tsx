@@ -3,13 +3,9 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import { ProductHeader } from "../components/ProductHeader";
 import {
-  Alert,
-  Button,
-  message,
-  Tabs,
-  Collapse,
-  Select,
-  Spin,
+  Alert, Button, message,
+  Tabs, Collapse, Select,
+  Spin, Tooltip,
 } from "antd";
 import { ArrowLeftOutlined, CopyOutlined } from "@ant-design/icons";
 import { ProductType } from "../types";
@@ -331,9 +327,9 @@ function McpDetail() {
       </div>
 
       {/* 主要内容区域 - 左右布局 */}
-      <div className="flex gap-6 pb-6">
+      <div className="flex flex-col lg:flex-row gap-6">
         {/* 左侧内容 */}
-        <div className="flex-1">
+        <div className="w-full lg:w-[65%] order-2 lg:order-1">
           <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-6">
             <Tabs
               defaultActiveKey="overview"
@@ -420,7 +416,7 @@ function McpDetail() {
         </div>
 
         {/* 右侧连接指导 */}
-        <div className="w-96">
+        <div className="w-full lg:w-[35%] order-1 lg:order-2">
           {mcpConfig && (
             <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-6">
               <div className="flex items-center gap-2 mb-4">
@@ -458,9 +454,11 @@ function McpDetail() {
                       >
                         {domainOptions.map((option) => (
                           <Select.Option key={option.value} value={option.value}>
-                            <span title={option.label} className="text-xs text-gray-900 font-mono">
-                              {option.label}
-                            </span>
+                            <Tooltip classNames={{ root: "bg-white" }} title={<span className="text-gray-900 bg-white">{option.label}</span>}>
+                              <span className="text-xs text-gray-900 font-mono">
+                                {option.label}
+                              </span>
+                            </Tooltip>
                           </Select.Option>
                         ))}
                       </Select>

@@ -7,7 +7,11 @@ const apiPrefix = env.VITE_API_BASE_URL
 const tempApiUrl = env.VITE_TEMP_API_URL || 'http://localhost:8080'
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react({
+    babel: {
+      plugins: ['babel-plugin-react-compiler']
+    }
+  })],
   server: {
     host: '0.0.0.0',
     allowedHosts: true,
@@ -21,11 +25,9 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    include: ['monaco-editor/esm/vs/editor/editor.api']
   },
   build: {
     rollupOptions: {
-      external: ['monaco-editor']
     }
   },
   define: {

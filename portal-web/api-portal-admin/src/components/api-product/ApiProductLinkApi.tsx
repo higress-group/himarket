@@ -51,7 +51,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
   const [selectedAgentDomainIndex, setSelectedAgentDomainIndex] = useState<number>(0)
   const [selectedModelDomainIndex, setSelectedModelDomainIndex] = useState<number>(0)
 
-  useEffect(() => {    
+  useEffect(() => {
     fetchGateways()
     fetchNacosInstances()
   }, [])
@@ -177,7 +177,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
     }
 
     // HTTP/SSE 模式
-      if (domains && domains.length > 0 && path && domainIndex < domains.length) {
+    if (domains && domains.length > 0 && path && domainIndex < domains.length) {
       const domain = domains[domainIndex]
       // 处理域名和端口，隐藏默认端口（80/443）
       const formatDomainWithPort = (domainStr: string, protocol: string) => {
@@ -199,7 +199,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
       let fullUrl = `${baseUrl}${path || '/'}`;
 
       if (apiProduct.mcpConfig?.meta?.source === 'ADP_AI_GATEWAY' ||
-          apiProduct.mcpConfig?.meta?.source === 'APSARA_GATEWAY') {
+        apiProduct.mcpConfig?.meta?.source === 'APSARA_GATEWAY') {
         fullUrl = `${baseUrl}/mcp-servers${path || '/'}`;
       }
 
@@ -317,10 +317,10 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
 
   const handleSourceTypeChange = (value: 'GATEWAY' | 'NACOS') => {
     setSourceType(value)
-  setSelectedGateway(null)
-  setSelectedNacos(null)
-  setSelectedNamespace(null)
-  setNacosNamespaces([])
+    setSelectedGateway(null)
+    setSelectedNacos(null)
+    setSelectedNamespace(null)
+    setNacosNamespaces([])
     setApiList([])
     form.setFieldsValue({
       gatewayId: undefined,
@@ -332,7 +332,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
   const handleGatewayChange = async (gatewayId: string) => {
     const gateway = gateways.find(g => g.gatewayId === gatewayId)
     setSelectedGateway(gateway || null)
-    
+
     if (!gateway) return
 
     setApiLoading(true)
@@ -522,7 +522,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
       apiProductApi.createApiProductRef(apiProduct.productId, newService).then(async () => {
         message.success('关联成功')
         setIsModalVisible(false)
-        
+
         // 重新获取关联信息并更新
         try {
           const res = await apiProductApi.getApiProductRef(apiProduct.productId)
@@ -531,10 +531,10 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
           console.error('获取关联API失败:', error)
           onLinkedServiceUpdate(null)
         }
-        
+
         // 重新获取产品详情（特别重要，因为关联API后apiProduct.apiConfig可能会更新）
         handleRefresh()
-        
+
         form.resetFields()
         setSelectedGateway(null)
         setSelectedNacos(null)
@@ -596,7 +596,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
     } else if (apiProduct.type === 'MCP_SERVER') {
       // MCP Server 类型产品 - 可以关联多种平台上的 MCP Server
       apiType = 'MCP Server'
-      
+
       if (linkedService.sourceType === 'GATEWAY' && linkedService.apigRefConfig && 'mcpServerName' in linkedService.apigRefConfig) {
         // AI网关上的MCP Server
         apiName = linkedService.apigRefConfig.mcpServerName || '未命名'
@@ -657,7 +657,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
 
   const renderLinkInfo = () => {
     const serviceInfo = getServiceInfo()
-    
+
     // 没有关联任何API
     if (!linkedService || !serviceInfo) {
       return (
@@ -673,7 +673,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
     }
 
     return (
-      <Card 
+      <Card
         className="mb-6"
         title="关联详情"
         extra={
@@ -690,7 +690,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
             <span className="text-xs text-gray-600">类型:</span>
             <span className="col-span-2 text-xs text-gray-900">{serviceInfo.apiType}</span>
           </div>
-          
+
           {/* 第二行：来源 + ID */}
           <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
             <span className="text-xs text-gray-600">来源:</span>
@@ -738,7 +738,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                                   children: (
                                     <div className="px-4 pb-2">
                                       <div className="text-gray-600 mb-4">{tool.description}</div>
-                                      
+
                                       {tool.args && tool.args.length > 0 && (
                                         <div>
                                           <p className="font-medium text-gray-700 mb-3">输入参数:</p>
@@ -831,11 +831,11 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                   )}
 
                   <Tabs
-                    size="small" 
+                    size="small"
                     defaultActiveKey={localJson ? "local" : (sseJson ? "sse" : "http")}
                     items={(() => {
                       const tabs = [];
-                      
+
                       if (localJson) {
                         tabs.push({
                           key: "local",
@@ -849,9 +849,9 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                                 onClick={() => handleCopy(localJson)}
                               >
                               </Button>
-                                <div className="text-gray-800 font-mono text-xs overflow-x-auto">
-                                  <pre className="whitespace-pre">{localJson}</pre>
-                                </div>
+                              <div className="text-gray-800 font-mono text-xs overflow-x-auto">
+                                <pre className="whitespace-pre">{localJson}</pre>
+                              </div>
                             </div>
                           ),
                         });
@@ -876,7 +876,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                             ),
                           });
                         }
-                        
+
                         if (httpJson) {
                           tabs.push({
                             key: "http",
@@ -898,7 +898,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                           });
                         }
                       }
-                      
+
                       return tabs;
                     })()}
                   />
@@ -934,7 +934,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
       // 获取所有唯一域名的简化版本
       const getAllUniqueDomains = () => {
         const domainsMap = new Map<string, { domain: string; protocol: string }>()
-        
+
         routes.forEach(route => {
           if (route.domains && route.domains.length > 0) {
             route.domains.forEach((domain: any) => {
@@ -943,7 +943,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
             })
           }
         })
-        
+
         return Array.from(domainsMap.values())
       }
 
@@ -1017,17 +1017,17 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
       return (
         <Card title="配置详情">
           <div className="space-y-4">
-          {/* 协议信息 */}
-          <div className="text-sm">
-            <span className="text-gray-700">协议: </span>
-            <span className="font-medium">{protocols.join(', ')}</span>
-          </div>
+            {/* 协议信息 */}
+            <div className="text-sm">
+              <span className="text-gray-700">协议: </span>
+              <span className="font-medium">{protocols.join(', ')}</span>
+            </div>
 
             {/* 路由配置表格 */}
             {routes.length > 0 && (
               <div>
                 <div className="text-sm text-gray-600 mb-3">路由配置:</div>
-                
+
                 {/* 域名选择器 */}
                 {agentDomainOptions.length > 1 && (
                   <div className="mb-2">
@@ -1060,9 +1060,11 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                     </div>
                   </div>
                 )}
-                
+
                 <div className="border border-gray-200 rounded-lg overflow-hidden">
-                  <Collapse ghost expandIconPosition="end">
+                  <Collapse
+                    ghost expandIconPosition="end"
+                  >
                     {routes.map((route, index) => (
                       <Collapse.Panel
                         key={index}
@@ -1096,71 +1098,71 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                         style={{
                           borderBottom: index < routes.length - 1 ? '1px solid #e5e7eb' : 'none'
                         }}
-                    >
-                      <div className="pl-4 space-y-3">
-                        {/* 域名信息 */}
-                        <div>
-                          <div className="text-xs text-gray-500 mb-1">域名:</div>
-                          {route.domains?.map((domain: any, domainIndex: number) => (
-                            <div key={domainIndex} className="text-sm">
-                              <span className="font-mono">{domain.protocol.toLowerCase()}://{domain.domain}</span>
+                      >
+                        <div className="pl-4 space-y-3">
+                          {/* 域名信息 */}
+                          <div>
+                            <div className="text-xs text-gray-500 mb-1">域名:</div>
+                            {route.domains?.map((domain: any, domainIndex: number) => (
+                              <div key={domainIndex} className="text-sm">
+                                <span className="font-mono">{domain.protocol.toLowerCase()}://{domain.domain}</span>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* 匹配规则 */}
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <div className="text-xs text-gray-500">路径:</div>
+                              <div className="font-mono">
+                                {getMatchTypePrefix(route.match?.path?.type)} {route.match?.path?.value}
+                              </div>
                             </div>
-                          ))}
+                            <div>
+                              <div className="text-xs text-gray-500">方法:</div>
+                              <div>{route.match?.methods ? route.match.methods.join(', ') : 'ANY'}</div>
+                            </div>
+                          </div>
+
+                          {/* 请求头匹配 */}
+                          {route.match?.headers && route.match.headers.length > 0 && (
+                            <div>
+                              <div className="text-xs text-gray-500 mb-1">请求头匹配:</div>
+                              <div className="space-y-1">
+                                {route.match.headers.map((header: any, headerIndex: number) => (
+                                  <div key={headerIndex} className="text-sm font-mono">
+                                    {header.name} {getMatchTypePrefix(header.type)} {header.value}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* 查询参数匹配 */}
+                          {route.match?.queryParams && route.match.queryParams.length > 0 && (
+                            <div>
+                              <div className="text-xs text-gray-500 mb-1">查询参数匹配:</div>
+                              <div className="space-y-1">
+                                {route.match.queryParams.map((param: any, paramIndex: number) => (
+                                  <div key={paramIndex} className="text-sm font-mono">
+                                    {param.name} {getMatchTypePrefix(param.type)} {param.value}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* 描述 */}
+                          {route.description && (
+                            <div>
+                              <div className="text-xs text-gray-500">描述:</div>
+                              <div className="text-sm">{route.description}</div>
+                            </div>
+                          )}
                         </div>
-
-                        {/* 匹配规则 */}
-                        <div className="grid grid-cols-2 gap-4 text-sm">
-                          <div>
-                            <div className="text-xs text-gray-500">路径:</div>
-                            <div className="font-mono">
-                              {getMatchTypePrefix(route.match?.path?.type)} {route.match?.path?.value}
-                            </div>
-                          </div>
-                          <div>
-                            <div className="text-xs text-gray-500">方法:</div>
-                            <div>{route.match?.methods ? route.match.methods.join(', ') : 'ANY'}</div>
-                          </div>
-                        </div>
-
-                        {/* 请求头匹配 */}
-                        {route.match?.headers && route.match.headers.length > 0 && (
-                          <div>
-                            <div className="text-xs text-gray-500 mb-1">请求头匹配:</div>
-                            <div className="space-y-1">
-                              {route.match.headers.map((header: any, headerIndex: number) => (
-                                <div key={headerIndex} className="text-sm font-mono">
-                                  {header.name} {getMatchTypePrefix(header.type)} {header.value}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* 查询参数匹配 */}
-                        {route.match?.queryParams && route.match.queryParams.length > 0 && (
-                          <div>
-                            <div className="text-xs text-gray-500 mb-1">查询参数匹配:</div>
-                            <div className="space-y-1">
-                              {route.match.queryParams.map((param: any, paramIndex: number) => (
-                                <div key={paramIndex} className="text-sm font-mono">
-                                  {param.name} {getMatchTypePrefix(param.type)} {param.value}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* 描述 */}
-                        {route.description && (
-                          <div>
-                            <div className="text-xs text-gray-500">描述:</div>
-                            <div className="text-sm">{route.description}</div>
-                          </div>
-                        )}
-                      </div>
-                    </Collapse.Panel>
-                  ))}
-                </Collapse>
+                      </Collapse.Panel>
+                    ))}
+                  </Collapse>
                 </div>
               </div>
             )}
@@ -1178,7 +1180,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
       // 获取所有唯一域名的简化版本
       const getAllModelUniqueDomains = () => {
         const domainsMap = new Map<string, { domain: string; protocol: string }>()
-        
+
         routes.forEach(route => {
           if (route.domains && route.domains.length > 0) {
             route.domains.forEach((domain: any) => {
@@ -1187,7 +1189,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
             })
           }
         })
-        
+
         return Array.from(domainsMap.values())
       }
 
@@ -1297,25 +1299,25 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
       return (
         <Card title="配置详情">
           <div className="space-y-4">
-          {/* 适用场景信息 */}
-          {modelAPIConfig.modelCategory && (
-            <div className="text-sm">
-              <span className="text-gray-700">适用场景: </span>
-              <span className="font-medium">{getModelCategoryText(modelAPIConfig.modelCategory)}</span>
-            </div>
-          )}
+            {/* 适用场景信息 */}
+            {modelAPIConfig.modelCategory && (
+              <div className="text-sm">
+                <span className="text-gray-700">适用场景: </span>
+                <span className="font-medium">{getModelCategoryText(modelAPIConfig.modelCategory)}</span>
+              </div>
+            )}
 
-          {/* 协议信息 */}
-          <div className="text-sm">
-            <span className="text-gray-700">协议: </span>
-            <span className="font-medium">{protocols.join(', ')}</span>
-          </div>
+            {/* 协议信息 */}
+            <div className="text-sm">
+              <span className="text-gray-700">协议: </span>
+              <span className="font-medium">{protocols.join(', ')}</span>
+            </div>
 
             {/* 路由配置表格 */}
             {routes.length > 0 && (
               <div>
                 <div className="text-sm text-gray-600 mb-3">路由配置:</div>
-                
+
                 {/* 域名选择器 */}
                 {modelDomainOptions.length > 0 && (
                   <div className="mb-2">
@@ -1348,7 +1350,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                     </div>
                   </div>
                 )}
-                
+
                 <div className="border border-gray-200 rounded-lg overflow-hidden">
                   <Collapse ghost expandIconPosition="end">
                     {routes.map((route, index) => (
@@ -1390,61 +1392,61 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                         style={{
                           borderBottom: index < routes.length - 1 ? '1px solid #e5e7eb' : 'none'
                         }}
-                    >
-                      <div className="pl-4 space-y-3">
-                        {/* 域名信息 */}
-                        <div>
-                          <div className="text-xs text-gray-500 mb-1">域名:</div>
-                          {route.domains?.map((domain: any, domainIndex: number) => (
-                            <div key={domainIndex} className="text-sm">
-                              <span className="font-mono">{domain.protocol.toLowerCase()}://{domain.domain}</span>
+                      >
+                        <div className="pl-4 space-y-3">
+                          {/* 域名信息 */}
+                          <div>
+                            <div className="text-xs text-gray-500 mb-1">域名:</div>
+                            {route.domains?.map((domain: any, domainIndex: number) => (
+                              <div key={domainIndex} className="text-sm">
+                                <span className="font-mono">{domain.protocol.toLowerCase()}://{domain.domain}</span>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* 匹配规则 */}
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <div className="text-xs text-gray-500">路径:</div>
+                              <div className="font-mono">
+                                {getMatchTypePrefix(route.match?.path?.type)} {route.match?.path?.value}
+                              </div>
                             </div>
-                          ))}
+                            <div>
+                              <div className="text-xs text-gray-500">方法:</div>
+                              <div>{route.match?.methods ? route.match.methods.join(', ') : 'ANY'}</div>
+                            </div>
+                          </div>
+
+                          {/* 请求头匹配 */}
+                          {route.match?.headers && route.match.headers.length > 0 && (
+                            <div>
+                              <div className="text-xs text-gray-500 mb-1">请求头匹配:</div>
+                              <div className="space-y-1">
+                                {route.match.headers.map((header: any, headerIndex: number) => (
+                                  <div key={headerIndex} className="text-sm font-mono">
+                                    {header.name} {getMatchTypePrefix(header.type)} {header.value}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* 查询参数匹配 */}
+                          {route.match?.queryParams && route.match.queryParams.length > 0 && (
+                            <div>
+                              <div className="text-xs text-gray-500 mb-1">查询参数匹配:</div>
+                              <div className="space-y-1">
+                                {route.match.queryParams.map((param: any, paramIndex: number) => (
+                                  <div key={paramIndex} className="text-sm font-mono">
+                                    {param.name} {getMatchTypePrefix(param.type)} {param.value}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
-
-                        {/* 匹配规则 */}
-                        <div className="grid grid-cols-2 gap-4 text-sm">
-                          <div>
-                            <div className="text-xs text-gray-500">路径:</div>
-                            <div className="font-mono">
-                              {getMatchTypePrefix(route.match?.path?.type)} {route.match?.path?.value}
-                            </div>
-                          </div>
-                          <div>
-                            <div className="text-xs text-gray-500">方法:</div>
-                            <div>{route.match?.methods ? route.match.methods.join(', ') : 'ANY'}</div>
-                          </div>
-                        </div>
-
-                        {/* 请求头匹配 */}
-                        {route.match?.headers && route.match.headers.length > 0 && (
-                          <div>
-                            <div className="text-xs text-gray-500 mb-1">请求头匹配:</div>
-                            <div className="space-y-1">
-                              {route.match.headers.map((header: any, headerIndex: number) => (
-                                <div key={headerIndex} className="text-sm font-mono">
-                                  {header.name} {getMatchTypePrefix(header.type)} {header.value}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* 查询参数匹配 */}
-                        {route.match?.queryParams && route.match.queryParams.length > 0 && (
-                          <div>
-                            <div className="text-xs text-gray-500 mb-1">查询参数匹配:</div>
-                            <div className="space-y-1">
-                              {route.match.queryParams.map((param: any, paramIndex: number) => (
-                                <div key={paramIndex} className="text-sm font-mono">
-                                  {param.name} {getMatchTypePrefix(param.type)} {param.value}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </Collapse.Panel>
+                      </Collapse.Panel>
                     ))}
                   </Collapse>
                 </div>
@@ -1511,8 +1513,8 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
               label="网关实例"
               rules={[{ required: true, message: '请选择网关' }]}
             >
-              <Select 
-                placeholder="请选择网关实例" 
+              <Select
+                placeholder="请选择网关实例"
                 loading={gatewayLoading}
                 showSearch
                 filterOption={(input, option) =>
@@ -1562,8 +1564,8 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                 optionLabelProp="label"
               >
                 {nacosInstances.map(nacos => (
-                  <Select.Option 
-                    key={nacos.nacosId} 
+                  <Select.Option
+                    key={nacos.nacosId}
                     value={nacos.nacosId}
                     label={nacos.nacosName}
                   >
@@ -1604,21 +1606,23 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
               </Select>
             </Form.Item>
           )}
-          
+
           {(selectedGateway || (selectedNacos && selectedNamespace)) && (
             <Form.Item
               name="apiId"
               label={apiProduct.type === 'REST_API' ? '选择REST API' :
-                     apiProduct.type === 'AGENT_API' ? '选择Agent API' :
-                     apiProduct.type === 'MODEL_API' ? '选择Model API' : '选择MCP Server'}
-              rules={[{ required: true, message: apiProduct.type === 'REST_API' ? '请选择REST API' :
-                       apiProduct.type === 'AGENT_API' ? '请选择Agent API' :
-                       apiProduct.type === 'MODEL_API' ? '请选择Model API' : '请选择MCP Server' }]}
+                apiProduct.type === 'AGENT_API' ? '选择Agent API' :
+                  apiProduct.type === 'MODEL_API' ? '选择Model API' : '选择MCP Server'}
+              rules={[{
+                required: true, message: apiProduct.type === 'REST_API' ? '请选择REST API' :
+                  apiProduct.type === 'AGENT_API' ? '请选择Agent API' :
+                    apiProduct.type === 'MODEL_API' ? '请选择Model API' : '请选择MCP Server'
+              }]}
             >
-              <Select 
+              <Select
                 placeholder={apiProduct.type === 'REST_API' ? '请选择REST API' :
-                           apiProduct.type === 'AGENT_API' ? '请选择Agent API' :
-                           apiProduct.type === 'MODEL_API' ? '请选择Model API' : '请选择MCP Server'}
+                  apiProduct.type === 'AGENT_API' ? '请选择Agent API' :
+                    apiProduct.type === 'MODEL_API' ? '请选择Model API' : '请选择MCP Server'}
                 loading={apiLoading}
                 showSearch
                 filterOption={(input, option) =>
