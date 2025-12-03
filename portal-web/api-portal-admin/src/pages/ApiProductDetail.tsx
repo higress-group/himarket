@@ -45,12 +45,12 @@ const menuItems = [
     description: "发布的门户",
     icon: GlobalOutlined
   },
-  {
-    key: "dashboard",
-    label: "Dashboard",
-    description: "实时监控和统计",
-    icon: DashboardOutlined
-  }
+  // {
+  //   key: "dashboard",
+  //   label: "Dashboard",
+  //   description: "实时监控和统计",
+  //   icon: DashboardOutlined
+  // }
 ]
 
 export default function ApiProductDetail() {

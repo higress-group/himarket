@@ -800,18 +800,18 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                   {/* 域名选择器 */}
                   {apiProduct.mcpConfig?.mcpServerConfig?.domains && apiProduct.mcpConfig.mcpServerConfig.domains.length > 0 && (
                     <div className="mb-2">
-                      <div className="flex items-stretch border border-gray-200 rounded-md overflow-hidden">
-                        <div className="bg-gray-50 px-3 py-2 text-xs text-gray-600 border-r border-gray-200 flex items-center whitespace-nowrap">
+                      <div className="flex border border-gray-200 rounded-md overflow-hidden">
+                        <div className="flex-shrink-0 bg-gray-50 px-3 py-2 text-xs text-gray-600 border-r border-gray-200 flex items-center whitespace-nowrap">
                           域名
                         </div>
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                           <Select
                             value={selectedDomainIndex}
                             onChange={setSelectedDomainIndex}
                             className="w-full"
                             placeholder="选择域名"
                             size="middle"
-                            bordered={false}
+                            variant='borderless'
                             style={{
                               fontSize: '12px',
                               height: '100%'
@@ -819,7 +819,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                           >
                             {getDomainOptions(apiProduct.mcpConfig.mcpServerConfig.domains).map((option) => (
                               <Select.Option key={option.value} value={option.value}>
-                                <span className="text-xs text-gray-900 font-mono">
+                                <span title={option.label} className="text-xs text-gray-900 font-mono">
                                   {option.label}
                                 </span>
                               </Select.Option>
@@ -1067,13 +1067,10 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                       <Collapse.Panel
                         key={index}
                         header={
-                          <div className="flex items-center justify-between py-3 px-4 hover:bg-gray-50">
+                          <div className="flex items-center justify-between py-2 px-4 hover:bg-gray-50">
                             <div className="flex-1">
-                              <div className="font-mono text-sm font-medium text-blue-600 mb-1">
+                              <div className="font-mono text-sm font-medium text-blue-600">
                                 {getRouteDisplayText(route, selectedAgentDomainIndex)}
-                              </div>
-                              <div className="text-xs text-gray-500">
-                                方法: <span className="font-medium text-gray-700">{getMethodsText(route)}</span>
                               </div>
                             </div>
                             <Button
