@@ -5,6 +5,7 @@ import MarkdownRender from "../MarkdownRender";
 import { ProductIconRenderer } from "../icon/ProductIconRenderer";
 import { McpToolCallPanel } from "./McpToolCallPanel";
 import type { IModelConversation } from "../../types";
+import { copyToClipboard } from "../../lib/utils";
 
 interface MessageListProps {
   conversations: IModelConversation['conversations'];
@@ -33,14 +34,11 @@ export function Messages({
   }, [conversations, autoScrollEnabled]);
 
   const handleCopy = async (content: string, messageId: string) => {
-    try {
-      await navigator.clipboard.writeText(content);
-      setCopiedId(messageId);
+    copyToClipboard(content).then(() => {
       message.success("已复制到剪贴板");
+      setCopiedId(messageId);
       setTimeout(() => setCopiedId(null), 2000);
-    } catch {
-      message.error("复制失败");
-    }
+    });
   };
 
   const formatTime = (ms?: number) => {

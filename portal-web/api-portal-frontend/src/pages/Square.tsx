@@ -239,7 +239,6 @@ function Square(props: { activeType: string }) {
                         icon={getIconString(product.icon)}
                         name={product.name}
                         description={product.description}
-                        company={product.modelConfig?.modelAPIConfig?.aiProtocols?.[0] || "AI Model"}
                         releaseDate={dayjs(product.createAt).format("YYYY-MM-DD HH:mm:ss")}
                         onClick={() => handleViewDetail(product)}
                         onTryNow={activeType === "MODEL_API" ? () => handleTryNow(product) : undefined}

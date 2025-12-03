@@ -16,6 +16,7 @@ import { ProductType } from "../types";
 import type { IAgentConfig } from "../lib/apis/typing";
 import APIs, { type IProductDetail } from "../lib/apis";
 import MarkdownRender from "../components/MarkdownRender";
+import { copyToClipboard } from "../lib/utils";
 
 const { Panel } = Collapse;
 
@@ -28,16 +29,6 @@ function AgentDetail() {
   const [agentConfig, setAgentConfig] = useState<IAgentConfig>();
   const [selectedAgentDomainIndex, setSelectedAgentDomainIndex] = useState<number>(0);
 
-  // 复制到剪贴板函数
-  const copyToClipboard = async (text: string, description: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      message.success(`${description}已复制到剪贴板`);
-    } catch (error) {
-      console.error("复制失败:", error);
-      message.error("复制失败，请手动复制");
-    }
-  };
 
   useEffect(() => {
     const fetchDetail = async () => {
@@ -249,8 +240,8 @@ function AgentDetail() {
                           {/* 域名选择器 */}
                           {agentDomainOptions.length > 1 && (
                             <div className="mb-4">
-                              <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-xl">
-                                <span className="flex items-center gap-2 p-3 bg-gray-50 rounded-xl">域名:</span>
+                              <div className="flex border border-gray-300 rounded-md overflow-hidden">
+                                <span className="flex-shrink-0 bg-gray-50 px-3 py-2 text-xs text-gray-600 border-r border-gray-300 flex items-center whitespace-nowrap">域名:</span>
                                 <div className="flex-1">
                                   <Select
                                     value={selectedAgentDomainIndex}
@@ -258,6 +249,7 @@ function AgentDetail() {
                                     className="w-full"
                                     placeholder="选择域名"
                                     size="middle"
+                                    variant="borderless"
                                   >
                                     {agentDomainOptions.map((option) => (
                                       <Select.Option key={option.value} value={option.value}>
@@ -298,12 +290,16 @@ function AgentDetail() {
                                             const selectedDomain = allUniqueDomains[selectedAgentDomainIndex]
                                             const path = route.match?.path?.value || '/'
                                             const fullUrl = `${selectedDomain.protocol.toLowerCase()}://${selectedDomain.domain}${path}`
-                                            await copyToClipboard(fullUrl, "链接")
+                                            copyToClipboard(fullUrl).then(() => {
+                                              message.success(`链接已复制到剪贴板`);
+                                            })
                                           } else if (route.domains && route.domains.length > 0) {
                                             const domain = route.domains[0]
                                             const path = route.match?.path?.value || '/'
                                             const fullUrl = `${domain.protocol.toLowerCase()}://${domain.domain}${path}`
-                                            await copyToClipboard(fullUrl, "链接")
+                                            copyToClipboard(fullUrl).then(() => {
+                                              message.success(`链接已复制到剪贴板`);
+                                            })
                                           }
                                         }}
                                       />

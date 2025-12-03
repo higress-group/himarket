@@ -4,7 +4,7 @@ interface ModelCardProps {
   icon: string;
   name: string;
   description: string;
-  company: string;
+  company?: string;
   releaseDate: string;
   onClick?: () => void;
   onTryNow?: () => void;
@@ -43,8 +43,10 @@ export function ModelCard({ icon, name, description, company, releaseDate, onCli
 
       {/* 底部：公司和发布日期 - 只有在有按钮时才在 hover 时淡出 */}
       <div className={`h-10 flex items-center justify-between text-xs transition-opacity duration-300 ${onTryNow ? 'group-hover:opacity-0' : ''}`}>
-        <span className="truncate text-[#a3a3a3]" >{company}</span>
-        <span className="ml-2 flex-shrink-0 text-[#a3a3a3]" >{releaseDate}</span>
+        {company ? (
+          <span className="truncate text-[#a3a3a3]" >{company}</span>
+        ) : null}
+        <span className="flex-shrink-0 text-[#a3a3a3]" >{releaseDate}</span>
       </div>
 
       {/* 底部按钮组 - hover 时淡入 + 轻微上移 */}
