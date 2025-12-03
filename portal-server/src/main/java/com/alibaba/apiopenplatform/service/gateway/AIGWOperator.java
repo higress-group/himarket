@@ -358,8 +358,7 @@ public class AIGWOperator extends APIGOperator {
                 .collect(Collectors.toList());
 
         AgentConfigResult.AgentAPIConfig agentAPIConfig = AgentConfigResult.AgentAPIConfig.builder()
-                // TODO Retrieve agent protocol from route configuration
-                .agentProtocols(Collections.singletonList("DashScope"))
+                .agentProtocols(apiInfo.getAgentProtocols())
                 .routes(routeResults)
                 .build();
         result.setAgentAPIConfig(agentAPIConfig);

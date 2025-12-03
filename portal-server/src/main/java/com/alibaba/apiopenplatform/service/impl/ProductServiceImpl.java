@@ -426,7 +426,7 @@ public class ProductServiceImpl implements ProductService {
         // check product exists and check whether it is a mcp server type
         ProductResult product = getProduct(productId);
         if (product.getType() != ProductType.MCP_SERVER) {
-            throw new BusinessException(ErrorCode.INVALID_PARAMETER, Resources.PRODUCT, productId);
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "API product is not a mcp server");
         }
         ConsumerService consumerService = ctx.getBean(ConsumerService.class);
         String consumerId = consumerService.getPrimaryConsumer().getConsumerId();
@@ -434,7 +434,7 @@ public class ProductServiceImpl implements ProductService {
         // check if product is subscribed by consumer
         boolean subscribed = subscriptionRepository.findByConsumerIdAndProductId(consumerId, productId).isPresent();
         if (!subscribed) {
-            throw new BusinessException(ErrorCode.INVALID_PARAMETER, Resources.PRODUCT, productId + " is not subscribed, not allowed to list tools");
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "API product is not subscribed, not allowed to list tools");
         }
 
         // get mcp server config, and replace domain with gateway ip

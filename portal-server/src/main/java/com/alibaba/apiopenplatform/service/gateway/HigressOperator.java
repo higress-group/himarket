@@ -194,7 +194,7 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
         MCPConfigResult.McpMetadata meta = new MCPConfigResult.McpMetadata();
         meta.setSource(GatewayType.HIGRESS.name());
         meta.setCreateFromType(higressMCPConfig.getType());
-        meta.setProtocol(transportType);
+        meta.setProtocol((StrUtil.isBlank(transportType) || transportType.equalsIgnoreCase("SSE")) ? "SSE" : "HTTP");
         m.setMeta(meta);
 
         return JSONUtil.toJsonStr(m);

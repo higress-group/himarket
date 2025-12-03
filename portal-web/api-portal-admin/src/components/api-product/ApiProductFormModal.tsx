@@ -65,14 +65,14 @@ export default function ApiProductFormModal({
     if (isEditMode && initialData && initialData.name) {
       // 延迟设置表单值，确保表单组件已完全渲染
       setTimeout(() => {
-        form.setFieldsValue({
-          name: initialData.name,
-          description: initialData.description,
-          type: initialData.type,
-          autoApprove: initialData.autoApprove,
-          feature: initialData.feature,
-        });
-      }, 300);
+      form.setFieldsValue({
+        name: initialData.name,
+        description: initialData.description,
+        type: initialData.type,
+        autoApprove: initialData.autoApprove,
+            feature: initialData.feature,
+          });
+        }, 300);
 
       // 处理 icon 字段
       if (initialData.icon) {
@@ -93,11 +93,11 @@ export default function ApiProductFormModal({
               },
             ]);
             setTimeout(() => {
-              form.setFieldsValue({ icon: iconValue });
+            form.setFieldsValue({ icon: iconValue });
             }, 100);
           } else {
             setTimeout(() => {
-              form.setFieldsValue({ iconUrl: iconValue });
+            form.setFieldsValue({ iconUrl: iconValue });
             }, 100);
           }
         } else {
@@ -118,7 +118,7 @@ export default function ApiProductFormModal({
               },
             ]);
             setTimeout(() => {
-              form.setFieldsValue({ icon: base64Data });
+            form.setFieldsValue({ icon: base64Data });
             }, 100);
           }
         }
@@ -129,7 +129,7 @@ export default function ApiProductFormModal({
         apiProductApi.getProductCategories(initialData.productId).then((response) => {
           const categoryIds = response.data.map((category: any) => category.categoryId);
           setTimeout(() => {
-            form.setFieldsValue({ categories: categoryIds });
+          form.setFieldsValue({ categories: categoryIds });
           }, 100);
         }).catch((error) => {
           console.error("获取产品关联类别失败:", error);
