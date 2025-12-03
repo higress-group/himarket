@@ -557,31 +557,27 @@ step_7_subscribe_products() {
     local body="{\"productId\":\"${product_id}\"}"
     local extra_args="-H 'Authorization: Bearer ${FRONTEND_TOKEN}'"
     
-    local attempt=1
     local subscribed=false
-    
-    while (( attempt <= MAX_RETRIES )); do
-      if call_api "订阅产品(${product_id})" "POST" "${FRONTEND_HOST}" "/api/v1/consumers/${CONSUMER_ID}/subscriptions" "$body" "$extra_args"; then
-        # 如果是 409，说明已订阅
-        if [[ "$API_HTTP_CODE" == "409" ]]; then
-          log "产品 ${product_id} 已订阅（幂等）"
-          subscribed=true
-          break
-        elif [[ "$API_HTTP_CODE" == "200" ]]; then
-          log "产品 ${product_id} 订阅成功"
-          subscribed=true
-          break
-        fi
-      else
-        err "订阅产品 ${product_id} 失败 (第 ${attempt} 次)"
-        if (( attempt < MAX_RETRIES )); then
-          log "等待 5 秒后重试..."
-          sleep 5
-        fi
+
+    if call_api "订阅产品(${product_id})" "POST" "${FRONTEND_HOST}" "/api/v1/consumers/${CONSUMER_ID}/subscriptions" "$body" "$extra_args"; then
+      # 如果是 409，说明已订阅
+      if [[ "$API_HTTP_CODE" == "409" ]]; then
+        log "产品 ${product_id} 已订阅（幂等）"
+        subscribed=true
+        break
+      elif [[ "$API_HTTP_CODE" == "200" ]]; then
+        log "产品 ${product_id} 订阅成功"
+        subscribed=true
+        break
       fi
-      
-      attempt=$((attempt+1))
-    done
+    else
+      # 检查是否是因为重复订阅导致的错误
+      if [[ "$API_HTTP_CODE" == "400" ]] && echo "$API_RESPONSE" | grep -q "重复订阅"; then
+        log "产品 ${product_id} 已订阅（幂等）"
+        subscribed=true
+        break  # 立即跳出重试循环
+      fi
+    fi
     
     if [[ "$subscribed" == "true" ]]; then
       success_count=$((success_count + 1))
