@@ -28,7 +28,7 @@ function HomePage() {
               backgroundClip: "text",
               WebkitTextFillColor: "transparent",
             }}>
-              HiMarket 企业级AI开放平台
+              Himarket 企业级AI开放平台
             </span>
           </Title>
           <Paragraph className="text-xl text-subTitle">

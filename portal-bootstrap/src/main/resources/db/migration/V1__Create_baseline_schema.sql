@@ -1,5 +1,5 @@
 -- ========================================
--- HiMarket Portal Database Baseline Schema
+-- Himarket Portal Database Baseline Schema
 -- Version: 1.0
 -- Description: Baseline database schema matching JPA entities exactly
 -- ========================================

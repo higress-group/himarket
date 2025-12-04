@@ -49,10 +49,10 @@ FRONTEND_TOKEN=""
 declare -a SUBSCRIBED_PRODUCTS=()
 
 ########################################
-# 获取 HiMarket Frontend Service 地址
+# 获取 Himarket Frontend Service 地址
 ########################################
 get_himarket_frontend_host() {
-  log "获取 HiMarket Frontend Service 地址..." >&2
+  log "获取 Himarket Frontend Service 地址..." >&2
 
   # 优先尝试 LoadBalancer IP
   local host=$(kubectl get svc himarket-frontend -n "${NS}" -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
@@ -62,15 +62,15 @@ get_himarket_frontend_host() {
     host="himarket-frontend.${NS}.svc.cluster.local"
   fi
 
-  log "HiMarket Frontend 地址: ${host}" >&2
+  log "Himarket Frontend 地址: ${host}" >&2
   echo "$host"
 }
 
 ########################################
-# 获取 HiMarket Admin Service 地址
+# 获取 Himarket Admin Service 地址
 ########################################
 get_himarket_admin_host() {
-  log "获取 HiMarket Admin Service 地址..." >&2
+  log "获取 Himarket Admin Service 地址..." >&2
 
   # 优先尝试 LoadBalancer IP
   local host=$(kubectl get svc himarket-admin -n "${NS}" -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
@@ -80,7 +80,7 @@ get_himarket_admin_host() {
     host="himarket-admin.${NS}.svc.cluster.local"
   fi
 
-  log "HiMarket Admin 地址: ${host}" >&2
+  log "Himarket Admin 地址: ${host}" >&2
   echo "$host"
 }
 

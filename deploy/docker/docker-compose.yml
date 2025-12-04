@@ -5,7 +5,7 @@ networks:
     driver: bridge
 
 services:
-  # MySQL 数据库(HiMarket) - 仅当 USE_BUILTIN_MYSQL=true 时部署
+  # MySQL 数据库(Himarket) - 仅当 USE_BUILTIN_MYSQL=true 时部署
   mysql:
     image: ${MYSQL_IMAGE:-opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/mysql:latest}
     container_name: himarket-mysql
@@ -92,7 +92,7 @@ services:
     profiles:
       - full-stack
 
-  # HiMarket Server
+  # Himarket Server
   himarket-server:
     image: ${HIMARKET_SERVER_IMAGE:-opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-server:latest}
     container_name: himarket-server
@@ -108,7 +108,7 @@ services:
       - himarket-network
     restart: always
 
-  # HiMarket Admin
+  # Himarket Admin
   himarket-admin:
     image: ${HIMARKET_ADMIN_IMAGE:-opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-admin:latest}
     container_name: himarket-admin
@@ -122,7 +122,7 @@ services:
       - himarket-network
     restart: always
 
-  # HiMarket Frontend
+  # Himarket Frontend
   himarket-frontend:
     image: ${HIMARKET_FRONTEND_IMAGE:-opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-frontend:latest}
     container_name: himarket-frontend

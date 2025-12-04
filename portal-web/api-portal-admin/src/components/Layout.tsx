@@ -134,7 +134,7 @@ const Layout: React.FC = () => {
                 className="hover:bg-gray-100"
               />
             </div>
-          <span className="text-2xl font-bold">HiMarket</span>
+          <span className="text-2xl font-bold">Himarket</span>
         </div>
         {/* 顶部右侧用户信息或登录按钮 */}
         {isLoggedIn ? (

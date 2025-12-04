@@ -65,7 +65,7 @@ export function Navigation({ loading = false }: NavigationProps) {
                   style={{ display: "block" }}
                 />
                 </div>
-                <span className="text-xl font-bold text-gray-900">HiMarket</span>
+                <span className="text-xl font-bold text-gray-900">Himarket</span>
               </Link>
             )}
           </div>

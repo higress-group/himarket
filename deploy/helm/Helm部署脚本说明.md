@@ -1,4 +1,4 @@
-# HiMarket 部署脚本说明
+# Himarket 部署脚本说明
 
 ## 快速开始
 
@@ -11,21 +11,21 @@
 ```
 
 该脚本会按顺序部署：
-1. **HiMarket**（可内置 MySQL 或使用外部数据库）
-2. **Nacos**（共享 HiMarket 的数据库）或使用商业化 Nacos 实例
+1. **Himarket**（可内置 MySQL 或使用外部数据库）
+2. **Nacos**（共享 Himarket 的数据库）或使用商业化 Nacos 实例
 3. **Higress**（网关）
 4. **执行初始化钩子**（按序号自动配置数据）
 
-### 仅部署 HiMarket（轻量模式）
+### 仅部署 Himarket（轻量模式）
 
-如果你已有独立的 Nacos 和 Higress，或只想快速部署 HiMarket 服务：
+如果你已有独立的 Nacos 和 Higress，或只想快速部署 Himarket 服务：
 
 ```bash
 ./deploy.sh himarket-only
 ```
 
 该模式会：
-- ✅ 部署 HiMarket（frontend、admin、server）
+- ✅ 部署 Himarket（frontend、admin、server）
 - ✅ 部署内置 MySQL（可选，通过 `.env` 配置）
 - ❌ 跳过 Nacos 部署
 - ❌ 跳过 Higress 部署
@@ -68,7 +68,7 @@ vi .env
 NAMESPACE=himarket-system
 ```
 
-#### 2. HiMarket 镜像配置
+#### 2. Himarket 镜像配置
 ```bash
 HIMARKET_HUB=opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group
 HIMARKET_IMAGE_TAG=latest
@@ -90,7 +90,7 @@ EXTERNAL_DB_PASSWORD=Your_DB_Password
 
 #### 4. 部署模式控制
 ```bash
-# 仅部署 HiMarket（跳过 Nacos、Higress 和钩子）
+# 仅部署 Himarket（跳过 Nacos、Higress 和钩子）
 HIMARKET_ONLY=false
 
 # 使用商业化 Nacos 实例（跳过开源 Nacos 部署）
@@ -133,7 +133,7 @@ FRONT_PASSWORD=demo123
 
 | 功能 | 完整部署 (`install`) | 轻量部署 (`himarket-only`) | 商业化 Nacos (`USE_COMMERCIAL_NACOS=true`) |
 |------|---------------------|---------------------------|------------------------------------------|
-| HiMarket | ✅ | ✅ | ✅ |
+| Himarket | ✅ | ✅ | ✅ |
 | 内置 MySQL | ✅ 可选 | ✅ 可选 | ✅ 可选 |
 | 开源 Nacos | ✅ | ❌ | ❌ |
 | 商业化 Nacos | ❌ | ❌ | ✅ |
@@ -156,12 +156,12 @@ FRONT_PASSWORD=demo123
 | 序号 | 脚本名 | 功能 | 开源 Nacos | 商业化 Nacos |
 |------|---------|------|-----------|-------------|
 | 10 | init-nacos-admin.sh | 初始化 Nacos 管理员密码 | ✅ | ❌ |
-| 20 | init-himarket-admin.sh | 注册 HiMarket 管理员账号 | ✅ | ✅ |
+| 20 | init-himarket-admin.sh | 注册 Himarket 管理员账号 | ✅ | ✅ |
 | 25 | init-commercial-nacos.sh | 初始化商业化 Nacos 实例 | ❌ | ✅ |
 | 30 | init-higress-mcp.sh | 批量初始化 Higress MCP 服务（higress-mcp.json） | ✅ | ✅ |
 | 35 | import-nacos-mcp.sh | 导入 MCP Server 到 Nacos（mcp.json） | ✅ | ❌ |
-| 40 | init-himarket-mcp.sh | 批量配置 HiMarket 产品发布（支持两种 MCP） | ✅ | ✅ |
-| 50 | init-himarket-front.sh | 注册 HiMarket 前台开发者 | ✅ | ✅ |
+| 40 | init-himarket-mcp.sh | 批量配置 Himarket 产品发布（支持两种 MCP） | ✅ | ✅ |
+| 50 | init-himarket-front.sh | 注册 Himarket 前台开发者 | ✅ | ✅ |
 | 60 | init-portal-developer.sh | 审批开发者并自动订阅 | ✅ | ✅ |
 
 ### 钩子规范
@@ -192,12 +192,12 @@ himarket/
     └── hooks/                          # 钩子脚本目录
         └── post_ready.d/               # 部署就绪后执行的钩子
             ├── 10-init-nacos-admin.sh      # Nacos 管理员密码初始化
-            ├── 20-init-himarket-admin.sh   # HiMarket 管理员账号注册
+            ├── 20-init-himarket-admin.sh   # Himarket 管理员账号注册
             ├── 25-init-commercial-nacos.sh # 商业化 Nacos 实例初始化
             ├── 30-init-higress-mcp.sh      # Higress MCP 统一初始化（读取 higress-mcp.json）
             ├── 35-import-nacos-mcp.sh      # Nacos MCP Server 导入（读取 mcp.json）
-            ├── 40-init-himarket-mcp.sh     # HiMarket MCP 统一初始化（处理两种 MCP）
-            ├── 50-init-himarket-front.sh   # HiMarket 前台开发者注册
+            ├── 40-init-himarket-mcp.sh     # Himarket MCP 统一初始化（处理两种 MCP）
+            ├── 50-init-himarket-front.sh   # Himarket 前台开发者注册
             └── 60-init-portal-developer.sh # Portal 开发者审批与订阅
 ```
 
@@ -261,7 +261,7 @@ export SKIP_HOOK_ERRORS=true
 - ✅ **不执行** `10-init-nacos-admin.sh`（开源 Nacos 管理员初始化）
 - ✅ **不执行** `35-import-nacos-mcp.sh`（开源 Nacos MCP 导入）
 - ✅ **执行** `25-init-commercial-nacos.sh`（商业化 Nacos 初始化）
-  - 登录 HiMarket Admin 获取 Token
+  - 登录 Himarket Admin 获取 Token
   - 调用管理 API 创建/更新 Nacos 实例配置
   - 登录商业化 Nacos 获取 accessToken
 ---
@@ -395,7 +395,7 @@ export SKIP_HOOK_ERRORS=true
 - `toolSpecification`：工具定义（可选）
   - `tools`：MCP 提供的工具列表
   - 每个工具包含名称、描述和输入参数定义
-- `himarket`：HiMarket 平台配置（可选）
+- `himarket`：Himarket 平台配置（可选）
   - `product`：产品信息
   - `publishToPortal`：是否发布到门户
   - `portalName`：目标门户名称
@@ -405,7 +405,7 @@ export SKIP_HOOK_ERRORS=true
 
 ### 配置技巧
 
-1. **跳过 HiMarket 配置**：移除 `himarket` 字段,MCP 只会导入到 Nacos
+1. **跳过 Himarket 配置**：移除 `himarket` 字段,MCP 只会导入到 Nacos
 2. **配置 API KEY**：如果有 API Key 或其他认证，需要在 YAML 文件或 json 文件中进行配置
 
 ---
@@ -455,7 +455,7 @@ log "自定义初始化完成"
 A: 根据你的场景选择：
 
 - **完整部署** (`./deploy.sh install`)：适合首次部署或一键搭建完整环境
-- **轻量部署** (`./deploy.sh himarket-only`)：适合已有 Nacos/Higress 或需要单独管理 HiMarket
+- **轻量部署** (`./deploy.sh himarket-only`)：适合已有 Nacos/Higress 或需要单独管理 Himarket
 - **商业化 Nacos** (`USE_COMMERCIAL_NACOS=true`)：适合生产环境，使用阿里云 MSE
 
 ### Q: 如果执行失败如何重试或想单独执行某个钩子脚本？
@@ -477,10 +477,10 @@ cd ../hooks/post_ready.d
 A: 
 1. 查看钩子日志输出，所有脚本都有详细的执行步骤和错误信息
 2. 检查 `scripts/data/.env` 中的环境变量是否正确配置
-3. 对于 Higress/HiMarket 相关钩子，确认服务已正常运行并可访问
+3. 对于 Higress/Himarket 相关钩子，确认服务已正常运行并可访问
 4. 使用 `kubectl logs` 查看相关 Pod 的日志
 
-### Q: 如何跳过某些 MCP 的 HiMarket 配置？
+### Q: 如何跳过某些 MCP 的 Himarket 配置？
 
 A: 在 `higress-mcp.json` 中移除或注释掉该 MCP 的 `himarket` 配置项：
 
@@ -490,7 +490,7 @@ A: 在 `higress-mcp.json` 中移除或注释掉该 MCP 的 `himarket` 配置项�
   "type": "OPEN_API",
   "higress": { ... },
   "openApiConfig": { ... }
-  // 不添加 himarket 配置，只会在 Higress 中创建，不会在 HiMarket 中配置
+  // 不添加 himarket 配置，只会在 Higress 中创建，不会在 Himarket 中配置
 }
 ```
 

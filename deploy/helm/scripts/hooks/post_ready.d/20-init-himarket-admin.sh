@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# HiMarket 管理员账号注册初始化钩子
+# Himarket 管理员账号注册初始化钩子
 # 由 deploy.sh 在部署就绪后自动调用
 # 继承环境变量: NS, ADMIN_USERNAME, ADMIN_PASSWORD
 
@@ -31,10 +31,10 @@ err() { echo "[ERROR] $*" >&2; }
 ADMIN_HOST=""
 
 ########################################
-# 获取 HiMarket Admin Service 地址
+# 获取 Himarket Admin Service 地址
 ########################################
 get_himarket_admin_host() {
-  log "获取 HiMarket Admin Service 地址..." >&2
+  log "获取 Himarket Admin Service 地址..." >&2
   
   # 优先尝试 LoadBalancer IP
   local host=$(kubectl get svc himarket-admin -n "${NS}" -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
@@ -44,7 +44,7 @@ get_himarket_admin_host() {
     host="himarket-admin.${NS}.svc.cluster.local"
   fi
   
-  log "HiMarket Admin 地址: ${host}" >&2
+  log "Himarket Admin 地址: ${host}" >&2
   echo "$host"
 }
 
@@ -145,7 +145,7 @@ register_admin_account() {
 ########################################
 main() {
   log "========================================"
-  log "开始初始化 HiMarket 管理员账号"
+  log "开始初始化 Himarket 管理员账号"
   log "========================================"
   
   # 获取服务地址

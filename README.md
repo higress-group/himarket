@@ -2,14 +2,14 @@
 <h1 align="center">
     <img width="406" height="96" alt="image" src="https://github.com/user-attachments/assets/e0956234-1a97-42c6-852d-411fa02c3f01" />
   <br>
-  HiMarket AI 开放平台
+  Himarket AI 开放平台
 </h1>
 
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/higress-group/himarket)
 
-## HiMarket 是什么？
+## Himarket 是什么？
 
-HiMarket 是一个开箱即用的 AI 开放平台解决方案，可以用于构建企业级的 AI 能力市场与开发者生态中心。
+Himarket 是一个开箱即用的 AI 开放平台解决方案，可以用于构建企业级的 AI 能力市场与开发者生态中心。
 
 它由三大核心组件构成，完美匹配企业内不同角色的需求：
 
@@ -82,9 +82,9 @@ npm run dev
 
 本地访问地址同上，一般为 http://${portal_frontend_domain}:5173
 
-在本地开发过程中，portal_frontend_domain 需要配置域名解析（本地修改 /etc/hosts 文件），在 HiMarket 的设计中，门户域名是解析到对应门户 ID 的依据。
+在本地开发过程中，portal_frontend_domain 需要配置域名解析（本地修改 /etc/hosts 文件），在 Himarket 的设计中，门户域名是解析到对应门户 ID 的依据。
 
-### HiMarket 后台管理
+### Himarket 后台管理
 
 #### 注册管理员
 
@@ -141,9 +141,9 @@ API Product 的初始状态为“待配置”，需要进行 Link API、发布�
 
 至此，一个 Higress 的 MCP Server 成功发布到了门户。
 
-### HiMarket 门户
+### Himarket 门户
 
-HiMarket 门户是多租户设计，通过域名来识别不同的门户实例。
+Himarket 门户是多租户设计，通过域名来识别不同的门户实例。
 
 门户会有一个默认分配的域名，但域名解析需要用户自己完成，例如自动分配了 portal-68ac4564bdb292ee9261ff4a.api.portal.local 域名，需要将其解析到 api-portal-frontend 对应的 IP 上。
 

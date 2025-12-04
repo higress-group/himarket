@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# HiMarket 管理员账号注册初始化钩子 (Docker 环境)
+# Himarket 管理员账号注册初始化钩子 (Docker 环境)
 # 由 deploy.sh 在部署就绪后自动调用
 
 set -euo pipefail
@@ -122,7 +122,7 @@ register_admin_account() {
 ########################################
 main() {
   log "========================================"
-  log "开始初始化 HiMarket 管理员账号"
+  log "开始初始化 Himarket 管理员账号"
   log "========================================"
   
   # 注册管理员账号

@@ -20,7 +20,7 @@
 7. [curl调用示例](#curl调用示例)
 
 ## 简介
-本文档为HiMarket平台的RESTful API提供详尽说明。API基于Spring Boot构建，采用JWT进行身份认证，通过Controller类暴露HTTP端点。主要功能模块包括管理员管理、开发者管理以及API产品管理。所有接口均使用JSON格式进行请求和响应数据交换。
+本文档为Himarket平台的RESTful API提供详尽说明。API基于Spring Boot构建，采用JWT进行身份认证，通过Controller类暴露HTTP端点。主要功能模块包括管理员管理、开发者管理以及API产品管理。所有接口均使用JSON格式进行请求和响应数据交换。
 
 **本文档引用的文件**  
 - [AdministratorController.java](file://portal-server/src/main/java/com/alibaba/apiopenplatform/controller/AdministratorController.java#L1-L87)

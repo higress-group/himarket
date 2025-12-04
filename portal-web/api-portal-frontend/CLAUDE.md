@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-HiMarket API Portal Frontend - A React-based developer portal for managing API products, MCP servers, AI agents, and AI models. The portal allows developers to browse, subscribe to, and manage various API products with OAuth/OIDC authentication.
+Himarket API Portal Frontend - A React-based developer portal for managing API products, MCP servers, AI agents, and AI models. The portal allows developers to browse, subscribe to, and manage various API products with OAuth/OIDC authentication.
 
 ## Tech Stack
 

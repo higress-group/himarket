@@ -61,7 +61,7 @@ export default function Dashboard() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">仪表板</h1>
         <p className="text-gray-500 mt-2">
-          欢迎使用HiMarket管理系统
+          欢迎使用Himarket管理系统
         </p>
       </div>
 

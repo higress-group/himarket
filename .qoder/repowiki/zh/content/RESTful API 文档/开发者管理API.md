@@ -33,10 +33,10 @@
 9. [结论](#结论)
 
 ## 简介
-HiMarket开发者管理API为平台提供完整的开发者生命周期管理功能，涵盖注册、登录、资料更新、状态管理及第三方OAuth2登录集成。本API基于Spring Boot构建，采用JWT进行身份认证，并支持与阿里云、Google、GitHub等平台的OAuth2集成。开发者账户需经管理员审批后方可访问受保护资源，确保平台安全性。
+Himarket开发者管理API为平台提供完整的开发者生命周期管理功能，涵盖注册、登录、资料更新、状态管理及第三方OAuth2登录集成。本API基于Spring Boot构建，采用JWT进行身份认证，并支持与阿里云、Google、GitHub等平台的OAuth2集成。开发者账户需经管理员审批后方可访问受保护资源，确保平台安全性。
 
 ## 项目结构
-HiMarket项目采用典型的分层微服务架构，主要分为`portal-bootstrap`（启动模块）、`portal-dal`（数据访问层）、`portal-server`（业务逻辑层）和`portal-web`（前端模块）。开发者管理功能的核心逻辑位于`portal-server`的`controller`和`service`包中，数据模型定义于`portal-dal`的`entity`包。
+Himarket项目采用典型的分层微服务架构，主要分为`portal-bootstrap`（启动模块）、`portal-dal`（数据访问层）、`portal-server`（业务逻辑层）和`portal-web`（前端模块）。开发者管理功能的核心逻辑位于`portal-server`的`controller`和`service`包中，数据模型定义于`portal-dal`的`entity`包。
 
 ```mermaid
 graph TB
@@ -344,4 +344,4 @@ DeveloperServiceImpl --> TokenUtil
 - [JwtAuthenticationFilter.java](file://portal-server/src/main/java/com/alibaba/apiopenplatform/core/security/JwtAuthenticationFilter.java#L1-L120)
 
 ## 结论
-HiMarket开发者管理API提供了完整的开发者生命周期管理功能，通过清晰的分层架构和安全的JWT认证机制，确保了系统的可维护性和安全性。OAuth2集成设计合理，支持灵活的第三方登录和身份管理。建议在生产环境中加强日志记录和监控，特别是对登录和状态变更操作的审计。
+Himarket开发者管理API提供了完整的开发者生命周期管理功能，通过清晰的分层架构和安全的JWT认证机制，确保了系统的可维护性和安全性。OAuth2集成设计合理，支持灵活的第三方登录和身份管理。建议在生产环境中加强日志记录和监控，特别是对登录和状态变更操作的审计。

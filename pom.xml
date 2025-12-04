@@ -27,7 +27,7 @@
     <version>1.0-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>himarket</name>
-    <description>HiMarket AI OPEN Platform</description>
+    <description>Himarket AI OPEN Platform</description>
     <url>https://github.com/higress-group/himarket</url>
 
     <licenses>

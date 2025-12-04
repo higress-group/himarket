@@ -17,7 +17,7 @@ fi
 
 NS="${NAMESPACE:-himarket}"
 
-# HiMarket Admin 登录凭据
+# Himarket Admin 登录凭据
 ADMIN_USERNAME="${ADMIN_USERNAME:-admin}"
 ADMIN_PASSWORD="${ADMIN_PASSWORD:-admin}"
 
@@ -40,10 +40,10 @@ log() { echo "[init-commercial-nacos $(date +'%H:%M:%S')] $*"; }
 err() { echo "[ERROR] $*" >&2; }
 
 ########################################
-# 获取 HiMarket Admin Service 地址
+# 获取 Himarket Admin Service 地址
 ########################################
 get_himarket_admin_host() {
-  log "获取 HiMarket Admin Service 地址..." >&2
+  log "获取 Himarket Admin Service 地址..." >&2
   
   local host=$(kubectl get svc himarket-admin -n "${NS}" -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
   
@@ -52,7 +52,7 @@ get_himarket_admin_host() {
     host="himarket-admin.${NS}.svc.cluster.local"
   fi
   
-  log "HiMarket Admin 地址: ${host}" >&2
+  log "Himarket Admin 地址: ${host}" >&2
   echo "$host"
 }
 
@@ -113,7 +113,7 @@ call_api() {
 }
 
 ########################################
-# 登录 HiMarket Admin 获取 Token
+# 登录 Himarket Admin 获取 Token
 ########################################
 login_admin() {
   local body="{\"username\":\"${ADMIN_USERNAME}\",\"password\":\"${ADMIN_PASSWORD}\"}"
@@ -293,12 +293,12 @@ main() {
   # 验证参数
   validate_params
 
-  # 获取 HiMarket Admin 地址
+  # 获取 Himarket Admin 地址
   HIMARKET_HOST=$(get_himarket_admin_host)
 
-  # 登录 HiMarket Admin 获取 Token
+  # 登录 Himarket Admin 获取 Token
   if ! login_admin; then
-    err "登录 HiMarket Admin 失败"
+    err "登录 Himarket Admin 失败"
     exit 1
   fi
 

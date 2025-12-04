@@ -31,7 +31,7 @@ stringData:
   MYSQL_PASSWORD: {{ $userPassword | quote }}
 
 ---
-# HiMarket Server Secret: 应用专用敏感配置（使用相同的密码）
+# Himarket Server Secret: 应用专用敏感配置（使用相同的密码）
 apiVersion: v1
 kind: Secret
 metadata:

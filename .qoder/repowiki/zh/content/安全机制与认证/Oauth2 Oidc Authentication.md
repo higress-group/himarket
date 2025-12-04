@@ -31,10 +31,10 @@
 9. [结论](#结论)
 
 ## 简介
-本文档详细介绍了HiMarket平台中的OAuth2和OIDC认证机制。该系统支持两种主要的第三方认证方式：OIDC授权码模式和OAuth2 JWT Bearer模式，允许开发者通过外部身份提供商进行安全认证。系统设计灵活，支持多身份提供商配置，并通过JWT令牌实现无状态认证。
+本文档详细介绍了Himarket平台中的OAuth2和OIDC认证机制。该系统支持两种主要的第三方认证方式：OIDC授权码模式和OAuth2 JWT Bearer模式，允许开发者通过外部身份提供商进行安全认证。系统设计灵活，支持多身份提供商配置，并通过JWT令牌实现无状态认证。
 
 ## 项目结构
-HiMarket平台的认证功能分布在多个模块中，形成了清晰的分层架构。认证相关的代码主要分布在portal-bootstrap、portal-server和portal-dal三个模块中，前端管理界面位于portal-web模块。
+Himarket平台的认证功能分布在多个模块中，形成了清晰的分层架构。认证相关的代码主要分布在portal-bootstrap、portal-server和portal-dal三个模块中，前端管理界面位于portal-web模块。
 
 ```mermaid
 graph TD
@@ -78,7 +78,7 @@ OAuth2/OIDC认证系统的核心组件包括安全配置、控制器、服务接
 - [OidcController.java](file://portal-server/src/main/java/com/alibaba/apiopenplatform/controller/OidcController.java)
 
 ## 架构概述
-HiMarket平台的OAuth2/OIDC认证架构采用分层设计，从前端到后端各组件协同工作，实现安全的第三方认证流程。系统支持两种主要的认证模式：OIDC授权码模式和OAuth2 JWT Bearer模式。
+Himarket平台的OAuth2/OIDC认证架构采用分层设计，从前端到后端各组件协同工作，实现安全的第三方认证流程。系统支持两种主要的认证模式：OIDC授权码模式和OAuth2 JWT Bearer模式。
 
 ```mermaid
 graph TD
@@ -106,7 +106,7 @@ style H fill:#f96,stroke:#333
 
 ## 详细组件分析
 ### OAuth2与OIDC认证组件分析
-HiMarket平台实现了完整的OAuth2和OIDC认证流程，支持开发者通过外部身份提供商进行安全登录。系统设计灵活，允许配置多个身份提供商，并通过JWT令牌实现无状态认证。
+Himarket平台实现了完整的OAuth2和OIDC认证流程，支持开发者通过外部身份提供商进行安全登录。系统设计灵活，允许配置多个身份提供商，并通过JWT令牌实现无状态认证。
 
 #### 认证流程组件
 ```mermaid
@@ -312,4 +312,4 @@ OAuth2/OIDC认证系统在设计时考虑了性能因素。系统采用无状态
 - [OidcServiceImpl.java](file://portal-server/src/main/java/com/alibaba/apiopenplatform/service/impl/OidcServiceImpl.java#L272-L275)
 
 ## 结论
-HiMarket平台的OAuth2/OIDC认证系统提供了一套完整、安全且灵活的第三方认证解决方案。系统支持两种主流的认证模式：OIDC授权码模式和OAuth2 JWT Bearer模式，能够满足不同场景下的认证需求。通过清晰的分层架构和模块化设计，系统实现了高内聚低耦合，便于维护和扩展。未来可以考虑增加对更多身份提供商的支持，以及优化外部HTTP请求的处理方式，进一步提升系统的性能和可靠性。
+Himarket平台的OAuth2/OIDC认证系统提供了一套完整、安全且灵活的第三方认证解决方案。系统支持两种主流的认证模式：OIDC授权码模式和OAuth2 JWT Bearer模式，能够满足不同场景下的认证需求。通过清晰的分层架构和模块化设计，系统实现了高内聚低耦合，便于维护和扩展。未来可以考虑增加对更多身份提供商的支持，以及优化外部HTTP请求的处理方式，进一步提升系统的性能和可靠性。

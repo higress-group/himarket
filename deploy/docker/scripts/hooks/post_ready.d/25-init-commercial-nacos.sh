@@ -16,7 +16,7 @@ if [[ -f "${DATA_DIR}/.env" ]]; then
   set +a
 fi
 
-# HiMarket Admin 登录凭据
+# Himarket Admin 登录凭据
 ADMIN_USERNAME="${ADMIN_USERNAME:-admin}"
 ADMIN_PASSWORD="${ADMIN_PASSWORD:-admin}"
 
@@ -96,7 +96,7 @@ call_api() {
 }
 
 ########################################
-# 登录 HiMarket Admin 获取 Token
+# 登录 Himarket Admin 获取 Token
 ########################################
 login_admin() {
   local body="{\"username\":\"${ADMIN_USERNAME}\",\"password\":\"${ADMIN_PASSWORD}\"}"
@@ -275,9 +275,9 @@ main() {
   # 验证参数（如果缺少必需参数则跳过）
   validate_params
   
-  # 登录 HiMarket Admin 获取 Token
+  # 登录 Himarket Admin 获取 Token
   if ! login_admin; then
-    err "登录 HiMarket Admin 失败"
+    err "登录 Himarket Admin 失败"
     exit 1
   fi
   

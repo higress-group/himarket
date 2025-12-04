@@ -44,14 +44,14 @@ NS="${NAMESPACE:-himarket}"
 # 商业化 Nacos 开关
 USE_COMMERCIAL_NACOS="${USE_COMMERCIAL_NACOS:-false}"
 
-# 仅部署 HiMarket 开关
+# 仅部署 Himarket 开关
 HIMARKET_ONLY="${HIMARKET_ONLY:-false}"
 
 # Chart 与值文件（相对路径）
 HIMARKET_CHART_PATH="${PROJECT_ROOT}"
 HIMARKET_VALUES_FILE="${PROJECT_ROOT}/values.yaml"
 
-# HiMarket 镜像配置（可在 .env 中覆盖）
+# Himarket 镜像配置（可在 .env 中覆盖）
 HIMARKET_HUB="${HIMARKET_HUB}"
 HIMARKET_IMAGE_TAG="${HIMARKET_IMAGE_TAG}"
 HIMARKET_MYSQL_IMAGE_TAG="${HIMARKET_MYSQL_IMAGE_TAG}"
@@ -316,11 +316,11 @@ deploy_all() {
   cluster_preflight
   create_ns "$NS"
 
-  # 如果是仅部署 HiMarket 模式
+  # 如果是仅部署 Himarket 模式
   if [[ "${HIMARKET_ONLY}" == "true" ]]; then
-    log "仅部署 HiMarket 模式（跳过 Nacos、Higress 及所有钩子）"
+    log "仅部署 Himarket 模式（跳过 Nacos、Higress 及所有钩子）"
     
-    # 只部署 HiMarket
+    # 只部署 Himarket
     helm_upsert "himarket" "$NS" "$HIMARKET_CHART_PATH" -f "$HIMARKET_VALUES_FILE" \
       --set "hub=${HIMARKET_HUB}" \
       --set "frontend.image.tag=${HIMARKET_IMAGE_TAG}" \
@@ -334,15 +334,15 @@ deploy_all() {
       --set "database.username=${EXTERNAL_DB_USERNAME}" \
       --set "database.password=${EXTERNAL_DB_PASSWORD}"
     
-    log "HiMarket 部署完成。所有资源安装在命名空间: ${NS}"
+    log "Himarket 部署完成。所有资源安装在命名空间: ${NS}"
     return 0
   fi
 
   # 完整部署模式
   add_repos
 
-  # 1) 部署 HiMarket
-  log "准备部署 HiMarket..."
+  # 1) 部署 Himarket
+  log "准备部署 Himarket..."
   helm_upsert "himarket" "$NS" "$HIMARKET_CHART_PATH" -f "$HIMARKET_VALUES_FILE" \
     --set "hub=${HIMARKET_HUB}" \
     --set "frontend.image.tag=${HIMARKET_IMAGE_TAG}" \

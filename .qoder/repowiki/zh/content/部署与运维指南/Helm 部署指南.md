@@ -27,13 +27,13 @@
 
 ## 简介
 
-HiMarket 是一个 AI 开放平台，提供前后端分离的微服务架构，支持通过 Helm 在 Kubernetes 集群中快速部署。本指南详细说明如何使用 Helm Chart 部署 HiMarket 应用，涵盖 Chart 元数据、values.yaml 配置项、Helm 模板机制、部署命令及最佳实践。
+Himarket 是一个 AI 开放平台，提供前后端分离的微服务架构，支持通过 Helm 在 Kubernetes 集群中快速部署。本指南详细说明如何使用 Helm Chart 部署 Himarket 应用，涵盖 Chart 元数据、values.yaml 配置项、Helm 模板机制、部署命令及最佳实践。
 
 **本节不涉及具体源码分析，因此无来源文件**
 
 ## 项目结构
 
-HiMarket 项目的 Helm 部署配置位于 `deploy/helm` 目录下，包含 Chart 定义、值配置和模板文件。整体结构清晰，遵循 Helm 最佳实践。
+Himarket 项目的 Helm 部署配置位于 `deploy/helm` 目录下，包含 Chart 定义、值配置和模板文件。整体结构清晰，遵循 Helm 最佳实践。
 
 ```mermaid
 graph TB
@@ -69,7 +69,7 @@ Templates --> |生成| K8sResources["Kubernetes 资源清单"]
 
 ## 核心组件
 
-HiMarket Helm Chart 包含以下核心组件：
+Himarket Helm Chart 包含以下核心组件：
 - **himarket-server**: 后端服务，处理所有业务逻辑
 - **himarket-admin**: 管理后台前端，供管理员配置系统
 - **himarket-frontend**: 开发者门户前端，供用户浏览和使用 API
@@ -84,7 +84,7 @@ HiMarket Helm Chart 包含以下核心组件：
 
 ## 架构概览
 
-HiMarket 采用典型的前后端分离架构，后端服务与数据库通信，两个前端应用分别面向管理员和开发者。
+Himarket 采用典型的前后端分离架构，后端服务与数据库通信，两个前端应用分别面向管理员和开发者。
 
 ```mermaid
 graph TD
@@ -113,7 +113,7 @@ style DB fill:#f96,stroke:#333
 
 ### himarket-server 分析
 
-`himarket-server` 是 HiMarket 的核心后端服务，负责处理所有业务逻辑、API 请求和数据库交互。
+`himarket-server` 是 Himarket 的核心后端服务，负责处理所有业务逻辑、API 请求和数据库交互。
 
 #### Deployment 配置分析
 
@@ -290,7 +290,7 @@ ServiceAccount 名称通过 Helm 辅助函数动态生成，确保命名一致�
 
 ## 依赖关系分析
 
-HiMarket 各组件之间存在明确的依赖关系，这些关系通过 Helm 模板和 Kubernetes 资源定义实现。
+Himarket 各组件之间存在明确的依赖关系，这些关系通过 Helm 模板和 Kubernetes 资源定义实现。
 
 ```mermaid
 graph LR
@@ -317,7 +317,7 @@ style MySQL fill:#f96,stroke:#333
 
 ## 性能考量
 
-HiMarket Helm Chart 在设计时考虑了性能和资源管理：
+Himarket Helm Chart 在设计时考虑了性能和资源管理：
 
 - **资源限制**: 通过 `resources` 字段为各组件设置 CPU 和内存限制
 - **持久化存储**: MySQL 使用 SSD 存储类（alicloud-disk-essd），确保 I/O 性能
@@ -368,6 +368,6 @@ kubectl logs -f <pod-name> -n himarket
 
 ## 结论
 
-HiMarket Helm Chart 提供了一套完整、灵活且安全的部署方案。通过合理的配置管理、条件性资源部署和智能密码机制，能够适应不同环境的部署需求。建议用户根据实际生产环境调整 values.yaml 中的配置，特别是资源限制、存储类和数据库设置，以确保系统的稳定性和性能。
+Himarket Helm Chart 提供了一套完整、灵活且安全的部署方案。通过合理的配置管理、条件性资源部署和智能密码机制，能够适应不同环境的部署需求。建议用户根据实际生产环境调整 values.yaml 中的配置，特别是资源限制、存储类和数据库设置，以确保系统的稳定性和性能。
 
 **本节为总结性内容，不涉及具体源码，因此无来源文件**

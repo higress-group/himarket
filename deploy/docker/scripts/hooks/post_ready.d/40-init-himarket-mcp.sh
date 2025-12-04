@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# HiMarket MCP 统一初始化钩子 (Docker 环境)
+# Himarket MCP 统一初始化钩子 (Docker 环境)
 # 由 deploy.sh 在部署就绪后自动调用
 # 依赖: 20-init-himarket-admin.sh (管理员账号已注册)
 # 继承环境变量: HIGRESS_PASSWORD, ADMIN_USERNAME, ADMIN_PASSWORD
@@ -436,7 +436,7 @@ bind_domain_to_portal() {
 }
 
 ########################################
-# 处理单个 Higress MCP 的 HiMarket 配置
+# 处理单个 Higress MCP 的 Himarket 配置
 ########################################
 process_single_higress_mcp() {
   local mcp_config="$1"
@@ -444,10 +444,10 @@ process_single_higress_mcp() {
   local mcp_name=$(echo "$mcp_config" | jq -r '.name')
   local mcp_type=$(echo "$mcp_config" | jq -r '.type')
   
-  # 检查是否需要在 HiMarket 中配置
+  # 检查是否需要在 Himarket 中配置
   local himarket_config=$(echo "$mcp_config" | jq -r '.himarket // empty')
   if [[ -z "$himarket_config" ]] || [[ "$himarket_config" == "null" ]]; then
-    log "[${mcp_name}] 跳过 HiMarket 配置（未定义）"
+    log "[${mcp_name}] 跳过 Himarket 配置（未定义）"
     return 0
   fi
   
@@ -455,7 +455,7 @@ process_single_higress_mcp() {
   log "处理 Higress MCP: ${mcp_name}"
   log "========================================"
   
-  # 提取 HiMarket 配置
+  # 提取 Himarket 配置
   local product_name=$(echo "$mcp_config" | jq -r '.himarket.product.name')
   local product_desc=$(echo "$mcp_config" | jq -r '.himarket.product.description')
   local product_type=$(echo "$mcp_config" | jq -r '.himarket.product.type')
@@ -522,7 +522,7 @@ process_single_higress_mcp() {
 }
 
 ########################################
-# 处理单个 Nacos MCP 的 HiMarket 配置
+# 处理单个 Nacos MCP 的 Himarket 配置
 ########################################
 process_single_nacos_mcp() {
   local mcp_config="$1"
@@ -530,10 +530,10 @@ process_single_nacos_mcp() {
   # 从 serverSpecification.name 提取 MCP 名称
   local mcp_name=$(echo "$mcp_config" | jq -r '.serverSpecification.name // .name')
   
-  # 检查是否需要在 HiMarket 中配置
+  # 检查是否需要在 Himarket 中配置
   local himarket_config=$(echo "$mcp_config" | jq -r '.himarket // empty')
   if [[ -z "$himarket_config" ]] || [[ "$himarket_config" == "null" ]]; then
-    log "[${mcp_name}] 跳过 HiMarket 配置（未定义）"
+    log "[${mcp_name}] 跳过 Himarket 配置（未定义）"
     return 0
   fi
   
@@ -541,7 +541,7 @@ process_single_nacos_mcp() {
   log "处理 Nacos MCP: ${mcp_name}"
   log "=========================================="
   
-  # 提取 HiMarket 配置
+  # 提取 Himarket 配置
   local product_name=$(echo "$mcp_config" | jq -r '.himarket.product.name')
   local product_desc=$(echo "$mcp_config" | jq -r '.himarket.product.description')
   local product_type=$(echo "$mcp_config" | jq -r '.himarket.product.type')
@@ -615,7 +615,7 @@ process_single_nacos_mcp() {
 # 主流程
 ########################################
 main() {
-  log "开始初始化 HiMarket MCP 配置..."
+  log "开始初始化 Himarket MCP 配置..."
   
   # 检查依赖
   check_dependencies
@@ -631,7 +631,7 @@ main() {
   
   # 根据配置决定是否注册开源 Nacos
   if [[ "$USE_COMMERCIAL_NACOS" != "true" ]]; then
-    log "使用开源 Nacos，注册到 HiMarket..."
+    log "使用开源 Nacos，注册到 Himarket..."
     get_or_create_nacos >/dev/null 2>&1 || true
   else
     log "使用商业化 Nacos，跳过开源 Nacos 注册"
@@ -688,7 +688,7 @@ main() {
   fi
   
   log "========================================"
-  log "HiMarket MCP 初始化完成报告"
+  log "Himarket MCP 初始化完成报告"
   log "========================================"
   log "总计: $((higress_mcp_count + nacos_mcp_count)) 个 MCP (Higress: ${higress_mcp_count}, Nacos: ${nacos_mcp_count})"
   log "成功: ${success_count} 个"
@@ -704,8 +704,8 @@ main() {
   fi
   
   log "========================================"
-  log "HiMarket Admin: http://${HIMARKET_HOST}"
-  log "HiMarket Frontend: http://${FRONTEND_HOST}"
+  log "Himarket Admin: http://${HIMARKET_HOST}"
+  log "Himarket Frontend: http://${FRONTEND_HOST}"
   log "========================================"
 }
 

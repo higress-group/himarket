@@ -1,6 +1,6 @@
 apiVersion: v2
 name: himarket
-description: HiMarket AI 开放平台 Helm Chart
+description: Himarket AI 开放平台 Helm Chart
 
 # A chart can be either an 'application' or a 'library' chart.
 #
