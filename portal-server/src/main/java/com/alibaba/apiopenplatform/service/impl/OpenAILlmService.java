@@ -2,6 +2,7 @@ package com.alibaba.apiopenplatform.service.impl;
 
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.json.JSONUtil;
+import com.alibaba.apiopenplatform.core.exception.ChatError;
 import com.alibaba.apiopenplatform.core.security.ContextHolder;
 import com.alibaba.apiopenplatform.dto.params.chat.ChatContext;
 import com.alibaba.apiopenplatform.dto.params.chat.ChatRequestBody;
@@ -299,35 +300,33 @@ public class OpenAILlmService extends AbstractLlmService {
         );
     }
 
-    private Flux<ChatAnswerMessage> applyErrorHandling(Flux<ChatAnswerMessage> flux, ChatContext chatContext, Consumer<LlmInvokeResult> resultHandler) {
+    private Flux<ChatAnswerMessage> applyErrorHandling(Flux<ChatAnswerMessage> flux, ChatContext chatContext,
+                                                       Consumer<LlmInvokeResult> resultHandler) {
         String chatId = chatContext.getChatId();
-        return flux.doOnError(e -> {
-                    log.error("chatId={} error", chatId, e);
-                    chatContext.getUnexpectedContent().append(e.getMessage());
-                    resultHandler.accept(LlmInvokeResult.of(chatContext));
-                })
+
+        return flux
                 .doOnCancel(() -> {
-                    log.warn("chat {} canceled", chatId);
+                    log.warn("Chat [{}] was canceled", chatId);
                     resultHandler.accept(LlmInvokeResult.of(chatContext));
                 })
-                .onErrorResume(WebClientResponseException.class, e -> {
-                    log.error("chatId={}, request has response error {}", chatId, e.getMessage(), e);
-                    return Flux.just(
-                            newErrorMessage(chatId, "WEB_RESPONSE_ERROR", e.getMessage()),
-                            newChatAnswerMessage(null, null, STOP, chatContext)
-                    );
+                .doOnError(e -> {
+                    log.error("Chat [{}] encountered error: {}", chatId, e.getMessage(), e);
+                    // Append error message to answer
+                    chatContext.appendAnswer(e.getMessage());
+                    chatContext.setSuccess(false);
+                    resultHandler.accept(LlmInvokeResult.of(chatContext));
                 })
-                .onErrorResume(TimeoutException.class, e -> {
-                    log.error("chatId={}, request timeout {}", chatId, e.getMessage(), e);
+                .onErrorResume(error -> {
+                    ChatError chatError = ChatError.from(error);
+                    log.error("Chat [{}] failed with {}: {}", chatId, chatError, error.getMessage(), error);
+
                     return Flux.just(
-                            newErrorMessage(chatId, "TIMEOUT", e.getMessage()),
-                            newChatAnswerMessage(null, null, STOP, chatContext)
-                    );
-                })
-                .onErrorResume(Throwable.class, e -> {
-                    log.error("chatId={}, request has unknown error {}", chatId, e.getMessage(), e);
-                    return Flux.just(
-                            newErrorMessage(chatId, "UNKNOWN_ERROR", e.getMessage()),
+                            ChatAnswerMessage.builder()
+                                    .chatId(chatId)
+                                    .error(chatError.name())
+                                    .message(error.getMessage())
+                                    .msgType(ERROR)
+                                    .build(),
                             newChatAnswerMessage(null, null, STOP, chatContext)
                     );
                 });
@@ -411,7 +410,7 @@ public class OpenAILlmService extends AbstractLlmService {
                 : null;
 
         if (messageType == STOP) {
-            chatContext.setUsage(chatUsage);
+            chatContext.setChatUsage(chatUsage);
             chatContext.stop();
         }
 
