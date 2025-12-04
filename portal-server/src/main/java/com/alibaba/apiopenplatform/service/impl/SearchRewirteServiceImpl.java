@@ -165,7 +165,6 @@ public class SearchRewirteServiceImpl implements SearchRewriteService {
             LlmInvokeResult result = resultRef.get();
             
             if (result == null || !result.isSuccess()) {
-                log.error("Rewrite failed: {}", result != null ? result.getErrorMessage() : "result is null");
                 throw new BusinessException(ErrorCode.INTERNAL_ERROR, "查询重写失败");
             }
             
