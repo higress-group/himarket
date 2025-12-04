@@ -1,5 +1,4 @@
-import { Button, Typography } from "antd";
-import { Link } from "react-router-dom";
+import { Typography } from "antd";
 import { Layout } from "../components/Layout";
 import { useEffect } from "react";
 import { getTokenFromCookie } from "../lib/utils";
