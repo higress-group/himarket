@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# HiMarket MCP 统一初始化钩子
+# HiMarket MCP 统一初始化钩子 (Docker 环境)
 # 由 deploy.sh 在部署就绪后自动调用
-# 依赖: 40-init-himarket-register.sh (管理员账号已注册)
-# 继承环境变量: NS, HIGRESS_PASSWORD, ADMIN_USERNAME, ADMIN_PASSWORD
+# 依赖: 20-init-himarket-admin.sh (管理员账号已注册)
+# 继承环境变量: HIGRESS_PASSWORD, ADMIN_USERNAME, ADMIN_PASSWORD
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DATA_DIR="${SCRIPT_DIR}/../../data"
+DATA_DIR="${SCRIPT_DIR}/../../../data"
 HIGRESS_MCP_CONFIG="${DATA_DIR}/higress-mcp.json"
 NACOS_MCP_CONFIG="${DATA_DIR}/nacos-mcp.json"
 
@@ -17,8 +17,6 @@ if [[ -f "${DATA_DIR}/.env" ]]; then
   . "${DATA_DIR}/.env"
   set +a
 fi
-
-NS="${NAMESPACE:-himarket}"
 
 # 默认登录凭据
 ADMIN_USERNAME="${ADMIN_USERNAME:-admin}"
@@ -33,8 +31,10 @@ err() { echo "[ERROR] $*" >&2; }
 
 # 全局变量
 AUTH_TOKEN=""
-HIMARKET_HOST=""
-FRONTEND_HOST=""
+HIMARKET_HOST="localhost:5174"
+FRONTEND_HOST="localhost:5173"
+# 是否商业化 Nacos 配置
+USE_COMMERCIAL_NACOS="${USE_COMMERCIAL_NACOS:-false}"
 
 # 缓存 ID 映射 (使用普通变量兼容 Bash 3.2)
 # 格式: PORTAL_ID_MAP_<name>=<id>
@@ -48,49 +48,14 @@ check_dependencies() {
     err "未找到 jq 命令，请先安装 jq"
     exit 1
   fi
-
+  
   if [ ! -f "$HIGRESS_MCP_CONFIG" ]; then
     log "警告: Higress MCP 配置文件不存在: $HIGRESS_MCP_CONFIG"
   fi
-
+  
   if [ ! -f "$NACOS_MCP_CONFIG" ]; then
     log "警告: Nacos MCP 配置文件不存在: $NACOS_MCP_CONFIG"
   fi
-}
-
-########################################
-# 获取 HiMarket Admin Service 地址
-########################################
-get_himarket_admin_host() {
-  log "获取 HiMarket Admin Service 地址..." >&2
-
-  local host=$(kubectl get svc himarket-admin -n "${NS}" -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
-
-  if [[ -z "$host" ]]; then
-    log "未检测到 LoadBalancer IP，使用 ClusterIP 模式" >&2
-    host="himarket-admin.${NS}.svc.cluster.local"
-  fi
-
-  log "HiMarket Admin 地址: ${host}" >&2
-  echo "$host"
-}
-
-########################################
-# 获取 HiMarket Frontend Service 地址
-########################################
-get_himarket_frontend_host() {
-  log "获取 HiMarket Frontend Service 地址..." >&2
-
-  local host
-  host=$(kubectl get svc himarket-frontend -n "${NS}" -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
-
-  if [[ -z "$host" ]]; then
-    log "未检测到 LoadBalancer IP，使用 ClusterIP 模式" >&2
-    host="himarket-frontend.${NS}.svc.cluster.local"
-  fi
-
-  log "HiMarket Frontend 地址: ${host}" >&2
-  echo "$host"
 }
 
 ########################################
@@ -101,31 +66,30 @@ call_api() {
   local method="$2"
   local path="$3"
   local body="${4:-}"
-
+  
   local url="http://${HIMARKET_HOST}${path}"
-
+  
   log "调用接口 [${api_name}]: ${method} ${url}"
-
+  
   local curl_cmd="curl -sS -w '\nHTTP_CODE:%{http_code}' -X ${method} '${url}'"
   curl_cmd="${curl_cmd} -H 'Content-Type: application/json'"
   curl_cmd="${curl_cmd} -H 'Accept: application/json, text/plain, */*'"
-
+  
   if [[ -n "$AUTH_TOKEN" ]]; then
     curl_cmd="${curl_cmd} -H 'Authorization: Bearer ${AUTH_TOKEN}'"
   fi
-
+  
   if [[ -n "$body" ]]; then
     curl_cmd="${curl_cmd} -d '${body}'"
   fi
-
+  
   curl_cmd="${curl_cmd} --connect-timeout 10 --max-time 30"
-
-  local result
-  result=$(eval "$curl_cmd" 2>&1 || echo "HTTP_CODE:000")
-
+  
+  local result=$(eval "$curl_cmd" 2>&1 || echo "HTTP_CODE:000")
+  
   local http_code=""
   local response=""
-
+  
   if [[ "$result" =~ HTTP_CODE:([0-9]{3}) ]]; then
     http_code="${BASH_REMATCH[1]}"
     response=$(echo "$result" | sed '/HTTP_CODE:/d')
@@ -133,16 +97,16 @@ call_api() {
     http_code="000"
     response="$result"
   fi
-
+  
   log "接口 [${api_name}] 返回: HTTP ${http_code}"
-
+  
   if [[ -n "$response" && "$response" != "000" ]]; then
     log "响应内容: ${response}"
   fi
-
+  
   export API_RESPONSE="$response"
   export API_HTTP_CODE="$http_code"
-
+  
   if [[ "$http_code" =~ ^2[0-9]{2}$ ]] || [[ "$http_code" == "409" ]]; then
     return 0
   else
@@ -156,7 +120,7 @@ call_api() {
 extract_json_field() {
   local json="$1"
   local field="$2"
-
+  
   if command -v jq >/dev/null 2>&1; then
     echo "$json" | jq -r ".${field} // empty" 2>/dev/null || echo ""
   else
@@ -169,43 +133,43 @@ extract_json_field() {
 ########################################
 login_admin() {
   local body="{\"username\":\"${ADMIN_USERNAME}\",\"password\":\"${ADMIN_PASSWORD}\"}"
-
+  
   local attempt=1
   while (( attempt <= MAX_RETRIES )); do
     log "执行登录 (第 ${attempt}/${MAX_RETRIES} 次)..."
-
+    
     if call_api "管理员登录" "POST" "/api/v1/admins/login" "$body"; then
       # 从响应体中提取 token，尝试多种可能的字段名
       AUTH_TOKEN=$(echo "$API_RESPONSE" | grep -o '"access_token":"[^"]*"' | head -1 | sed 's/"access_token":"//' | sed 's/"//' || echo "")
-
+      
       if [[ -z "$AUTH_TOKEN" ]]; then
         AUTH_TOKEN=$(echo "$API_RESPONSE" | grep -o '"token":"[^"]*"' | head -1 | sed 's/"token":"//' | sed 's/"//' || echo "")
       fi
-
+      
       if [[ -z "$AUTH_TOKEN" ]]; then
         AUTH_TOKEN=$(echo "$API_RESPONSE" | grep -o '"accessToken":"[^"]*"' | head -1 | sed 's/"accessToken":"//' | sed 's/"//' || echo "")
       fi
-
+      
       if [[ -z "$AUTH_TOKEN" ]]; then
         AUTH_TOKEN=$(echo "$API_RESPONSE" | sed -n 's/.*"access_token"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' || echo "")
       fi
-
+      
       if [[ -z "$AUTH_TOKEN" ]]; then
         err "无法从登录响应中提取 token"
         err "响应内容: $API_RESPONSE"
         return 1
       fi
-
+      
       log "登录成功，获取到 Token: ${AUTH_TOKEN:0:20}..."
       return 0
     fi
-
+    
     if (( attempt < MAX_RETRIES )); then
       sleep 5
     fi
     attempt=$((attempt+1))
   done
-
+  
   err "登录失败"
   return 1
 }
@@ -218,31 +182,29 @@ get_or_create_gateway() {
   local cache_var="GATEWAY_ID_MAP_${gateway_name//-/_}"
 
   # 先尝试从缓存获取
-  local cached_id
-  cached_id=$(eval "echo \$${cache_var}" 2>/dev/null || echo "")
+  local cached_id=$(eval "echo \$${cache_var}" 2>/dev/null || echo "")
   if [[ -n "$cached_id" ]]; then
     echo "$cached_id"
     return 0
   fi
 
-  # 尝试创建
-  local body="{\"gatewayName\":\"${gateway_name}\",\"gatewayType\":\"HIGRESS\",\"higressConfig\":{\"address\":\"http://higress-console:8080\",\"username\":\"admin\",\"password\":\"${HIGRESS_PASSWORD}\"}}"
-
+  # 尝试创建（Docker 环境使用 higress:8001）
+  local body="{\"gatewayName\":\"${gateway_name}\",\"gatewayType\":\"HIGRESS\",\"higressConfig\":{\"address\":\"http://higress:8001\",\"username\":\"admin\",\"password\":\"${HIGRESS_PASSWORD}\"}}"
+  
   call_api "插入网关" "POST" "/api/v1/gateways" "$body" >/dev/null 2>&1 || true
-
+  
   # 查询获取 ID（重定向日志输出）
   call_api "查询网关列表" "GET" "/api/v1/gateways" "" >/dev/null 2>&1
-
+  
   # 从响应中提取 Gateway ID
-  local gw_id
-  gw_id=$(echo "$API_RESPONSE" | jq -r '.data.content[]? // .[]? | select(.gatewayName=="'"${gateway_name}"'") | .gatewayId' 2>/dev/null | head -1 || echo "")
-
+  local gw_id=$(echo "$API_RESPONSE" | jq -r '.data.content[]? // .[]? | select(.gatewayName=="'"${gateway_name}"'") | .gatewayId' 2>/dev/null | head -1 || echo "")
+  
   if [[ -n "$gw_id" ]]; then
     eval "${cache_var}='$gw_id'"
     echo "$gw_id"
     return 0
   fi
-
+  
   return 1
 }
 
@@ -250,23 +212,22 @@ get_or_create_gateway() {
 # 获取或创建 Nacos ID
 ########################################
 get_or_create_nacos() {
-  # 尝试创建
+  # 尝试创建（Docker 环境使用 localhost:8848）
   local body='{"nacosName":"nacos-demo","serverUrl":"http://nacos:8848","username":"nacos","password":"nacos"}'
-
+  
   call_api "插入Nacos" "POST" "/api/v1/nacos" "$body" >/dev/null 2>&1 || true
-
+  
   # 查询获取 ID
   call_api "查询Nacos列表" "GET" "/api/v1/nacos" "" >/dev/null 2>&1
-
+  
   # 从响应中提取 Nacos ID
-  local nacos_id
-  nacos_id=$(echo "$API_RESPONSE" | jq -r '.data.content[]? // .[]? | select(.nacosName=="nacos-demo") | .nacosId' 2>/dev/null | head -1 || echo "")
-
+  local nacos_id=$(echo "$API_RESPONSE" | jq -r '.data.content[]? // .[]? | select(.nacosName=="nacos-demo") | .nacosId' 2>/dev/null | head -1 || echo "")
+  
   if [[ -n "$nacos_id" ]]; then
     echo "$nacos_id"
     return 0
   fi
-
+  
   return 1
 }
 
@@ -276,33 +237,31 @@ get_or_create_nacos() {
 get_or_create_portal() {
   local portal_name="$1"
   local cache_var="PORTAL_ID_MAP_${portal_name//-/_}"
-
+  
   # 先尝试从缓存获取
-  local cached_id
-  cached_id=$(eval "echo \$${cache_var}" 2>/dev/null || echo "")
+  local cached_id=$(eval "echo \$${cache_var}" 2>/dev/null || echo "")
   if [[ -n "$cached_id" ]]; then
     echo "$cached_id"
     return 0
   fi
-
+  
   # 尝试创建
   local body="{\"name\":\"${portal_name}\"}"
-
+  
   call_api "插入Portal" "POST" "/api/v1/portals" "$body" >/dev/null 2>&1 || true
-
+  
   # 查询获取 ID（重定向日志输出）
   call_api "查询Portal列表" "GET" "/api/v1/portals" "" >/dev/null 2>&1
-
+  
   # 从响应中提取 Portal ID（支持新的数据结构）
-  local p_id
-  p_id=$(echo "$API_RESPONSE" | jq -r '.data.content[]? // .[]? | select(.name=="'"${portal_name}"'") | .portalId' 2>/dev/null | head -1 || echo "")
-
+  local p_id=$(echo "$API_RESPONSE" | jq -r '.data.content[]? // .[]? | select(.name=="'"${portal_name}"'") | .portalId' 2>/dev/null | head -1 || echo "")
+  
   if [[ -n "$p_id" ]]; then
     eval "${cache_var}='$p_id'"
     echo "$p_id"
     return 0
   fi
-
+  
   return 1
 }
 
@@ -313,24 +272,23 @@ get_or_create_product() {
   local product_name="$1"
   local description="$2"
   local type="$3"
-
+  
   # 尝试创建
   local body="{\"name\":\"${product_name}\",\"description\":\"${description}\",\"type\":\"${type}\"}"
-
+  
   call_api "插入产品" "POST" "/api/v1/products" "$body" >/dev/null 2>&1 || true
-
+  
   # 查询获取 ID（重定向日志输出）
   call_api "查询产品列表" "GET" "/api/v1/products" "" >/dev/null 2>&1
-
+  
   # 从响应中提取 Product ID
-  local prod_id
-  prod_id=$(echo "$API_RESPONSE" | jq -r '.data.content[]? // .[]? | select(.name=="'"${product_name}"'") | .productId' 2>/dev/null | head -1 || echo "")
-
+  local prod_id=$(echo "$API_RESPONSE" | jq -r '.data.content[]? // .[]? | select(.name=="'"${product_name}"'") | .productId' 2>/dev/null | head -1 || echo "")
+  
   if [[ -n "$prod_id" ]]; then
     echo "$prod_id"
     return 0
   fi
-
+  
   return 1
 }
 
@@ -342,9 +300,9 @@ link_product_to_nacos() {
   local nacos_id="$2"
   local mcp_name="$3"
   local namespace_id="${4:-public}"
-
+  
   local body="{\"nacosId\":\"${nacos_id}\",\"sourceType\":\"NACOS\",\"productId\":\"${product_id}\",\"nacosRefConfig\":{\"mcpServerName\":\"${mcp_name}\",\"namespaceId\":\"${namespace_id}\"}}"
-
+  
   if call_api "关联产品到Nacos" "POST" "/api/v1/products/${product_id}/ref" "$body"; then
     log "[${mcp_name}] 产品关联到 Nacos 成功"
     return 0
@@ -362,11 +320,11 @@ link_product_to_gateway() {
   local gateway_id="$2"
   local mcp_name="$3"
   local mcp_type="$4"
-
+  
   local ref_type="MCP Server"
-
+  
   local body="{\"gatewayId\":\"${gateway_id}\",\"sourceType\":\"GATEWAY\",\"productId\":\"${product_id}\",\"higressRefConfig\":{\"mcpServerName\":\"${mcp_name}\",\"fromGatewayType\":\"HIGRESS\",\"type\":\"${ref_type}\"}}"
-
+  
   if call_api "关联产品" "POST" "/api/v1/products/${product_id}/ref" "$body"; then
     log "[${mcp_name}] 产品关联成功"
     return 0
@@ -383,7 +341,7 @@ publish_to_portal() {
   local product_id="$1"
   local portal_id="$2"
   local mcp_name="$3"
-
+  
   if call_api "发布到门户" "POST" "/api/v1/products/${product_id}/publications/${portal_id}" ""; then
     log "[${mcp_name}] 发布到门户成功"
     return 0
@@ -396,19 +354,53 @@ publish_to_portal() {
 ########################################
 # 绑定域名到 Portal
 ########################################
+get_bind_domain() {
+  # 优先级: 自动检测公网IP > FRONTEND_HOST (localhost)
+  
+  # 1. 尝试自动检测公网 IP（适用于云服务器）
+  local detected_ip=""
+  
+  # 尝试多个公网 IP 检测服务
+  for service in "ifconfig.me" "icanhazip.com" "ipecho.net/plain" "api.ipify.org"; do
+    detected_ip=$(curl -s --connect-timeout 3 --max-time 5 "http://${service}" 2>/dev/null | tr -d '[:space:]')
+    
+    # 验证是否为有效的 IPv4 地址（排除内网地址）
+    if [[ "$detected_ip" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+      if [[ ! "$detected_ip" =~ ^10\. ]] && \
+         [[ ! "$detected_ip" =~ ^172\.(1[6-9]|2[0-9]|3[0-1])\. ]] && \
+         [[ ! "$detected_ip" =~ ^192\.168\. ]] && \
+         [[ ! "$detected_ip" =~ ^127\. ]]; then
+        log "自动检测到公网 IP: ${detected_ip}" >&2
+        echo "${detected_ip}:5173"
+        return 0
+      fi
+    fi
+  done
+  
+  # 2. 默认使用本地地址
+  echo "${FRONTEND_HOST}"
+}
+
 bind_domain_to_portal() {
   local portal_id="$1"
   local portal_name="$2"
-
-  local body="{\"domain\":\"${FRONTEND_HOST}\",\"type\":\"CUSTOM\",\"protocol\":\"HTTP\"}"
-
-  log "[Portal: ${portal_name}] 开始绑定域名: ${FRONTEND_HOST}"
+  
+  # 获取实际绑定域名
+  local bind_domain=$(get_bind_domain)
+  local body="{\"domain\":\"${bind_domain}\",\"type\":\"CUSTOM\",\"protocol\":\"HTTP\"}"
+  
+  log "[Portal: ${portal_name}] 开始绑定域名: ${bind_domain}"
+  if [[ "${bind_domain}" != "${FRONTEND_HOST}" ]]; then
+    log "[Portal: ${portal_name}] 检测到公网地址，使用: ${bind_domain}"
+  else
+    log "[Portal: ${portal_name}] 使用本地地址: ${bind_domain}"
+  fi
   log "[Portal: ${portal_name}] Portal ID: ${portal_id}"
   log "[Portal: ${portal_name}] 请求体: ${body}"
-
+  
   if call_api "绑定域名" "POST" "/api/v1/portals/${portal_id}/domains" "$body"; then
     log "[Portal: ${portal_name}] API 调用成功，HTTP Code: ${API_HTTP_CODE}"
-
+    
     if [[ "$API_HTTP_CODE" == "200" ]] || [[ "$API_HTTP_CODE" == "201" ]]; then
       log "[Portal: ${portal_name}] 域名绑定成功"
       return 0
@@ -425,7 +417,7 @@ bind_domain_to_portal() {
     err "HTTP 状态码: ${API_HTTP_CODE}"
     err "请求体: ${body}"
     err "响应内容: ${API_RESPONSE}"
-    err "前台域名: ${FRONTEND_HOST}"
+    err "绑定域名: ${bind_domain}"
     err "Portal ID: ${portal_id}"
     return 1
   fi
@@ -436,70 +428,70 @@ bind_domain_to_portal() {
 ########################################
 process_single_higress_mcp() {
   local mcp_config="$1"
-
+  
   local mcp_name=$(echo "$mcp_config" | jq -r '.name')
   local mcp_type=$(echo "$mcp_config" | jq -r '.type')
-
+  
   # 检查是否需要在 HiMarket 中配置
   local himarket_config=$(echo "$mcp_config" | jq -r '.himarket // empty')
   if [[ -z "$himarket_config" ]] || [[ "$himarket_config" == "null" ]]; then
     log "[${mcp_name}] 跳过 HiMarket 配置（未定义）"
     return 0
   fi
-
+  
   log "========================================"
   log "处理 Higress MCP: ${mcp_name}"
   log "========================================"
-
+  
   # 提取 HiMarket 配置
   local product_name=$(echo "$mcp_config" | jq -r '.himarket.product.name')
   local product_desc=$(echo "$mcp_config" | jq -r '.himarket.product.description')
   local product_type=$(echo "$mcp_config" | jq -r '.himarket.product.type')
   local publish_to_portal=$(echo "$mcp_config" | jq -r '.himarket.publishToPortal')
   local portal_name=$(echo "$mcp_config" | jq -r '.himarket.portalName // "demo"')
-
+  
   # 1. 创建产品
   log "[${mcp_name}] 创建产品..."
   local product_id=$(get_or_create_product "$product_name" "$product_desc" "$product_type")
-
+  
   if [[ -z "$product_id" ]]; then
     err "[${mcp_name}] 无法获取产品 ID"
     return 1
   fi
-
+  
   log "[${mcp_name}] Product ID: ${product_id}"
-
+  
   # 2. 获取 Gateway ID
   log "[${mcp_name}] 获取网关 ID..."
   local gateway_id=$(get_or_create_gateway)
-
+  
   if [[ -z "$gateway_id" ]]; then
     err "[${mcp_name}] 无法获取网关 ID"
     return 1
   fi
-
+  
   log "[${mcp_name}] Gateway ID: ${gateway_id}"
-
+  
   # 3. 关联产品到网关
   log "[${mcp_name}] 关联产品到网关..."
   link_product_to_gateway "$product_id" "$gateway_id" "$mcp_name" "$mcp_type"
-
+  
   # 4. 如果需要发布到 Portal
   if [[ "$publish_to_portal" == "true" ]]; then
     log "[${mcp_name}] 获取或创建 Portal..."
     local portal_id=$(get_or_create_portal "$portal_name")
-
+    
     if [[ -z "$portal_id" ]]; then
       err "[${mcp_name}] 无法获取 Portal ID"
       return 1
     fi
-
+    
     log "[${mcp_name}] Portal ID: ${portal_id}"
-
+    
     # 发布产品到 Portal
     log "[${mcp_name}] 发布到 Portal..."
     publish_to_portal "$product_id" "$portal_id" "$mcp_name"
-
+    
     # 绑定域名（每个 Portal 只绑定一次）
     local domain_bound_var="PORTAL_ID_MAP_${portal_name//-/_}_domain_bound"
     local is_bound=$(eval "echo \$${domain_bound_var}" 2>/dev/null || echo "")
@@ -512,7 +504,7 @@ process_single_higress_mcp() {
       fi
     fi
   fi
-
+  
   log "[${mcp_name}] Higress MCP 配置完成"
   return 0
 }
@@ -522,20 +514,20 @@ process_single_higress_mcp() {
 ########################################
 process_single_nacos_mcp() {
   local mcp_config="$1"
-
+  
   local mcp_name=$(echo "$mcp_config" | jq -r '.name')
-
+  
   # 检查是否需要在 HiMarket 中配置
   local himarket_config=$(echo "$mcp_config" | jq -r '.himarket // empty')
   if [[ -z "$himarket_config" ]] || [[ "$himarket_config" == "null" ]]; then
     log "[${mcp_name}] 跳过 HiMarket 配置（未定义）"
     return 0
   fi
-
+  
   log "========================================"
   log "处理 Nacos MCP: ${mcp_name}"
   log "========================================"
-
+  
   # 提取 HiMarket 配置
   local product_name=$(echo "$mcp_config" | jq -r '.himarket.product.name')
   local product_desc=$(echo "$mcp_config" | jq -r '.himarket.product.description')
@@ -543,49 +535,49 @@ process_single_nacos_mcp() {
   local publish_to_portal=$(echo "$mcp_config" | jq -r '.himarket.publishToPortal')
   local portal_name=$(echo "$mcp_config" | jq -r '.himarket.portalName // "demo"')
   local namespace_id=$(echo "$mcp_config" | jq -r '.himarket.namespaceId // "public"')
-
+  
   # 1. 创建产品
   log "[${mcp_name}] 创建产品..."
   local product_id=$(get_or_create_product "$product_name" "$product_desc" "$product_type")
-
+  
   if [[ -z "$product_id" ]]; then
     err "[${mcp_name}] 无法获取产品 ID"
     return 1
   fi
-
+  
   log "[${mcp_name}] Product ID: ${product_id}"
-
+  
   # 2. 获取 Nacos ID
   log "[${mcp_name}] 获取 Nacos ID..."
   local nacos_id=$(get_or_create_nacos)
-
+  
   if [[ -z "$nacos_id" ]]; then
     err "[${mcp_name}] 无法获取 Nacos ID"
     return 1
   fi
-
+  
   log "[${mcp_name}] Nacos ID: ${nacos_id}"
-
+  
   # 3. 关联产品到 Nacos
   log "[${mcp_name}] 关联产品到 Nacos..."
   link_product_to_nacos "$product_id" "$nacos_id" "$mcp_name" "$namespace_id"
-
+  
   # 4. 如果需要发布到 Portal
   if [[ "$publish_to_portal" == "true" ]]; then
     log "[${mcp_name}] 获取或创建 Portal..."
     local portal_id=$(get_or_create_portal "$portal_name")
-
+    
     if [[ -z "$portal_id" ]]; then
       err "[${mcp_name}] 无法获取 Portal ID"
       return 1
     fi
-
+    
     log "[${mcp_name}] Portal ID: ${portal_id}"
-
+    
     # 发布产品到 Portal
     log "[${mcp_name}] 发布到 Portal..."
     publish_to_portal "$product_id" "$portal_id" "$mcp_name"
-
+    
     # 绑定域名（每个 Portal 只绑定一次）
     local domain_bound_var="PORTAL_ID_MAP_${portal_name//-/_}_domain_bound"
     local is_bound=$(eval "echo \$${domain_bound_var}" 2>/dev/null || echo "")
@@ -598,7 +590,7 @@ process_single_nacos_mcp() {
       fi
     fi
   fi
-
+  
   log "[${mcp_name}] Nacos MCP 配置完成"
   return 0
 }
@@ -608,26 +600,21 @@ process_single_nacos_mcp() {
 ########################################
 main() {
   log "开始初始化 HiMarket MCP 配置..."
-
+  
   # 检查依赖
   check_dependencies
-
-  # 获取服务地址
-  HIMARKET_HOST=$(get_himarket_admin_host)
-  FRONTEND_HOST=$(get_himarket_frontend_host)
-
+  
   # 登录
   if ! login_admin; then
     err "登录失败，无法继续"
     exit 1
   fi
-
+  
   # 确保 Gateway 和 Nacos 存在
   log "初始化基础设施..."
-
+  
   # 根据配置决定是否注册开源 Nacos
-  local use_commercial_nacos="${USE_COMMERCIAL_NACOS:-false}"
-  if [[ "$use_commercial_nacos" != "true" ]]; then
+  if [[ "$USE_COMMERCIAL_NACOS" != "true" ]]; then
     log "使用开源 Nacos，注册到 HiMarket..."
     get_or_create_nacos >/dev/null 2>&1 || true
   else
@@ -635,31 +622,31 @@ main() {
   fi
 
   get_or_create_gateway >/dev/null 2>&1 || true
-
+  
   # 读取 Higress MCP 配置列表
   local higress_mcp_count=0
   if [ -f "$HIGRESS_MCP_CONFIG" ]; then
     higress_mcp_count=$(jq '. | length' "$HIGRESS_MCP_CONFIG")
     log "检测到 ${higress_mcp_count} 个 Higress MCP 配置"
   fi
-
+  
   # 读取 Nacos MCP 配置列表
   local nacos_mcp_count=0
   if [ -f "$NACOS_MCP_CONFIG" ]; then
     nacos_mcp_count=$(jq '. | length' "$NACOS_MCP_CONFIG")
     log "检测到 ${nacos_mcp_count} 个 Nacos MCP 配置"
   fi
-
+  
   local success_count=0
   local failed_count=0
   local failed_list=""
-
+  
   # 遍历处理每个 Higress MCP
   if [ "$higress_mcp_count" -gt 0 ]; then
     for i in $(seq 0 $((higress_mcp_count - 1))); do
       local mcp_config=$(jq ".[$i]" "$HIGRESS_MCP_CONFIG")
       local mcp_name=$(echo "$mcp_config" | jq -r '.name')
-
+      
       if process_single_higress_mcp "$mcp_config"; then
         success_count=$((success_count + 1))
       else
@@ -668,13 +655,13 @@ main() {
       fi
     done
   fi
-
+  
   # 遍历处理每个 Nacos MCP
   if [ "$nacos_mcp_count" -gt 0 ]; then
     for i in $(seq 0 $((nacos_mcp_count - 1))); do
       local mcp_config=$(jq ".[$i]" "$NACOS_MCP_CONFIG")
       local mcp_name=$(echo "$mcp_config" | jq -r '.name')
-
+      
       if process_single_nacos_mcp "$mcp_config"; then
         success_count=$((success_count + 1))
       else
@@ -683,14 +670,14 @@ main() {
       fi
     done
   fi
-
+  
   log "========================================"
   log "HiMarket MCP 初始化完成报告"
   log "========================================"
   log "总计: $((higress_mcp_count + nacos_mcp_count)) 个 MCP (Higress: ${higress_mcp_count}, Nacos: ${nacos_mcp_count})"
   log "成功: ${success_count} 个"
   log "失败: ${failed_count} 个"
-
+  
   if [[ $failed_count -gt 0 ]]; then
     log ""
     log "失败的 MCP:"
@@ -699,7 +686,7 @@ main() {
     done
     exit 1
   fi
-
+  
   log "========================================"
   log "HiMarket Admin: http://${HIMARKET_HOST}"
   log "HiMarket Frontend: http://${FRONTEND_HOST}"
