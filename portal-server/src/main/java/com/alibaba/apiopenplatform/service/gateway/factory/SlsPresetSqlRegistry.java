@@ -178,7 +178,7 @@ public class SlsPresetSqlRegistry {
                 null, null));
         // 消费者token使用统计（仅模型大盘）
         presets.put("consumer_token_table", new Preset("consumer_token_table", DisplayType.TABLE,
-                "(ai_log.consumer : *) | select consumer as consumer, sum(cast(json_extract(ai_log, '$.input_token') as integer)) as input_token, sum(cast(json_extract(ai_log, '$.output_token') as integer)) as output_token, sum(cast(json_extract(ai_log, '$.input_token') as integer)) + sum(cast(json_extract(ai_log, '$.output_token') as integer)) as total_token, count(1) as request group by consumer order by total_token desc",
+                "(consumer : *) | select consumer as consumer, sum(cast(json_extract(ai_log, '$.input_token') as integer)) as input_token, sum(cast(json_extract(ai_log, '$.output_token') as integer)) as output_token, sum(cast(json_extract(ai_log, '$.input_token') as integer)) + sum(cast(json_extract(ai_log, '$.output_token') as integer)) as total_token, count(1) as request group by consumer order by total_token desc",
                 null, null));
         // 服务token使用统计（仅模型大盘）
         presets.put("service_token_table", new Preset("service_token_table", DisplayType.TABLE,
