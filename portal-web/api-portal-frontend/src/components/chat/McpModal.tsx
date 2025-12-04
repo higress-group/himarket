@@ -207,7 +207,7 @@ function McpModal(props: McpModal) {
 
 function Empty({ active, onViewAll }: { active: string; onViewAll: () => void }) {
   return (
-    <div className="grid grid-cols-3 gap-4 content-start overflow-y-auto p-1 flex-1 relative">
+    <div className="grid grid-cols-3 grid-rows-3 gap-4 content-start overflow-y-auto p-1 flex-1 relative">
       <div className="absolute z-10 top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%] flex flex-col gap-4 justify-center">
         <div className="">
           <div className="text-center text-lg">暂无 MCP Server...</div>
@@ -223,7 +223,7 @@ function Empty({ active, onViewAll }: { active: string; onViewAll: () => void })
         Array.from({ length: 9 }).map((_, index) => (
           <div
             key={index}
-            className="bg-gray-100/70 backdrop-blur-sm rounded-2xl p-5 h-[160px] flex flex-col gap-4"
+            className="bg-gray-100/70 backdrop-blur-sm rounded-2xl p-5  flex flex-col gap-4"
           >
           </div>
         ))
