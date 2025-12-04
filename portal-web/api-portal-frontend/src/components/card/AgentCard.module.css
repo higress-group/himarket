@@ -42,22 +42,22 @@
 }
 
 .iconList .icon1 {
-  z-index: 2;
+  z-index: 10;
   right: 20px;
 }
 
 .iconList .icon2 {
-  z-index: 3;
+  z-index: 9;
   right: 58px;
 }
 
 .iconList .icon3 {
-  z-index: 4;
+  z-index: 8;
   right: 96px;
 }
 
 .iconList .icon4 {
-  z-index: 5;
+  z-index: 7;
   left: 138px;
 }
 
@@ -67,12 +67,12 @@
 }
 
 .iconList .icon6 {
-  z-index: 7;
+  z-index: 5;
   left: 62px;
 }
 
 .iconList .icon7 {
-  z-index: 8;
+  z-index: 4;
   left: 24px;
 }
 

@@ -3,6 +3,8 @@ import styles from './FunAppCenterCard.module.css';
 import commonStyles from './CommonCard.module.css';
 import CommonCard from './CommonCard';
 import ArrowIcon from './ArrowIcon';
+import ChatThum from "../../assets/chat-thum.svg";
+import ChatThumCard from "../../assets/chat-thum-card.svg";
 
 interface FunFlowCardProps {
   onClick?: () => void;
@@ -21,43 +23,22 @@ const ICON_CONFIGS = [
 
 const FunAppCenterCard: React.FC<FunFlowCardProps> = ({ onClick }) => {
   return (
-    <CommonCard>
+    <CommonCard to="/chat">
       <div className={styles.funFlowCard} onClick={onClick}>
         <span className={styles.title}>
-          <span className={styles.titleLabel}>应用中心</span>
-          <span className={styles.titleName}>AppCenter</span>
+          <span className={styles.titleLabel}>体验中心</span>
         </span>
         <div className={styles.content}>
           <div className={styles.iconsRow}>
-            {ICON_CONFIGS.map((src, index) => {
-              const ICON_SPACING = 38;
-              const isRightSide = index < 3;
-              
-              return (
-                <img
-                  key={index}
-                  src={src}
-                  alt=""
-                  style={{
-                    zIndex: index + 1,
-                    ...(isRightSide
-                      ? { right: `${index * ICON_SPACING}px` }
-                      : { left: `${(6 - index) * ICON_SPACING}px` }),
-                  }}
-                />
-              );
-            })}
           </div>
           <div className={styles.imageSection}>
-            <div className={styles.leftImageSection}>
-              <img
-                className={styles.leftImage}
-                src="https://img.alicdn.com/imgextra/i1/6000000007339/O1CN01fH30F7245Jpj9yrcZ_!!6000000007339-2-gg_dtc.png"
-              />
-            </div>
+            <img
+              className={styles.leftImage}
+              src={ChatThumCard}
+            />
             <img
               className={styles.rightImage}
-              src="https://img.alicdn.com/imgextra/i3/O1CN0123mWnN1RtuZPNKzzC_!!6000000002170-2-tps-3112-1720.png"
+              src={ChatThum}
             />
           </div>
         </div>

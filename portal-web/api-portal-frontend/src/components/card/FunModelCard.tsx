@@ -20,13 +20,12 @@ const ICON_CONFIGS = [
 
 const FunModelCard: React.FC<FunModelCardProps> = ({ onClick, onFunArtClick }) => {
   return (
-    <CommonCard>
+    <CommonCard to="models">
       <div className={styles.funModelCardContainer}>
         <div className={styles.funModelCard} onClick={onClick}>
           <div className={styles.topContainer}>
             <div className={styles.serviceLabel}>
               <span>模型市场</span>
-              <span>FunModel</span>
             </div>
             <div className={styles.backgroundImageContainer}>
               <img
@@ -51,7 +50,7 @@ const FunModelCard: React.FC<FunModelCardProps> = ({ onClick, onFunArtClick }) =
                     src={src}
                     alt=""
                     style={{
-                      zIndex: index + 4,
+                      zIndex: 100 - index,
                       top: '76px',
                       ...(isRightSide
                         ? { right: `${RIGHT_START + index * ICON_SPACING}px` }
@@ -70,8 +69,6 @@ const FunModelCard: React.FC<FunModelCardProps> = ({ onClick, onFunArtClick }) =
               onFunArtClick && onFunArtClick();
             }}
           >
-            <span className={styles.bottomServiceLabel}>文生图</span>
-            <span className={styles.bottomServiceName}>FunArt</span>
             <ArrowIcon className={styles.bottomRightIcon} />
             <div className={styles.bottomBlueBlur}></div>
             <div className={styles.bottomBackground}>

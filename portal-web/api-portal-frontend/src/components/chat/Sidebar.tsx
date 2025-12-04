@@ -263,7 +263,7 @@ export function Sidebar({ currentSessionId, onNewChat, onSelectSession, refreshT
         <div
           className={`
             overflow-auto transition-all duration-300 ease-in-out sidebar-level-1
-            ${expandedSections[sectionKey] ? "max-h-[500px] opacity-100 mt-1" : "max-h-0 opacity-0"}
+            ${expandedSections[sectionKey] ? "opacity-100 mt-1" : "max-h-0 opacity-0"}
           `}
         >
           <div className="space-y-1">
