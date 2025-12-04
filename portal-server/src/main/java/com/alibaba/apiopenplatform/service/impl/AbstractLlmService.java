@@ -2,6 +2,7 @@ package com.alibaba.apiopenplatform.service.impl;
 
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.BooleanUtil;
+import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.apiopenplatform.core.exception.ErrorCode;
 import com.alibaba.apiopenplatform.dto.params.chat.ChatRequestBody;
@@ -99,22 +100,14 @@ public abstract class AbstractLlmService implements LlmService {
                 .map(ProductFeature::getModelFeature)
                 .orElseGet(() -> ModelFeature.builder().build());
 
+        // Get model feature from product or return default values if any field is null/blank
+        // Default values: model="qwen-max", maxTokens=5000, temperature=0.9, streaming=true, webSearch=false
         return ModelFeature.builder()
-                .model(Optional.ofNullable(modelFeature)
-                        .map(ModelFeature::getModel)
-                        .orElse("qwen-max"))
-                .maxTokens(Optional.ofNullable(modelFeature)
-                        .map(ModelFeature::getMaxTokens)
-                        .orElse(5000))
-                .temperature(Optional.ofNullable(modelFeature)
-                        .map(ModelFeature::getTemperature)
-                        .orElse(0.9))
-                .streaming(Optional.ofNullable(modelFeature)
-                        .map(ModelFeature::getStreaming)
-                        .orElse(true))
-                .webSearch(Optional.ofNullable(modelFeature)
-                        .map(ModelFeature::getWebSearch)
-                        .orElse(false))
+                .model(StrUtil.blankToDefault(modelFeature.getModel(), "qwen-max"))
+                .maxTokens(ObjectUtil.defaultIfNull(modelFeature.getMaxTokens(), 5000))
+                .temperature(ObjectUtil.defaultIfNull(modelFeature.getTemperature(), 0.9))
+                .streaming(ObjectUtil.defaultIfNull(modelFeature.getStreaming(), true))
+                .webSearch(ObjectUtil.defaultIfNull(modelFeature.getWebSearch(), false))
                 .build();
     }
 
