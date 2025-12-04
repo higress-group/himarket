@@ -1,36 +1,116 @@
 version: '3'
+
+networks:
+  himarket-network:
+    driver: bridge
+
 services:
+  # MySQL 数据库(HiMarket) - 仅当 USE_BUILTIN_MYSQL=true 时部署
   mysql:
-    image: opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/mysql:1.0.0
-    container_name: mysql
+    image: ${MYSQL_IMAGE:-opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/mysql:1.0.0}
+    container_name: himarket-mysql
     environment:
-      - MYSQL_ROOT_PASSWORD=123456
-      - MYSQL_DATABASE=portal_db
-      - MYSQL_USER=portal_user
-      - MYSQL_PASSWORD=portal_pass
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
     ports:
       - "3306:3306"
     volumes:
-      - ./mysql/data:/var/lib/mysql
+      - ./data/mysql:/var/lib/mysql
+    networks:
+      - himarket-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: always
+    profiles:
+      - builtin-mysql
 
-  himarket-server:
-    image: opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-server:1.0.0
-    container_name: himarket-server
+  # Nacos Server
+  nacos:
+    image: ${NACOS_IMAGE:-nacos-registry.cn-hangzhou.cr.aliyuncs.com/nacos/nacos-server:v3.1.1-slim}
+    container_name: nacos-standalone
     environment:
-      - DB_HOST=mysql
-      - DB_PORT=3306
-      - DB_NAME=portal_db
-      - DB_USERNAME=portal_user
-      - DB_PASSWORD=portal_pass
+      - PREFER_HOST_MODE=hostname
+      - MODE=standalone
+      - NACOS_AUTH_IDENTITY_KEY=${NACOS_AUTH_IDENTITY_KEY}
+      - NACOS_AUTH_IDENTITY_VALUE=${NACOS_AUTH_IDENTITY_VALUE}
+      - NACOS_AUTH_TOKEN=${NACOS_AUTH_TOKEN}
+    volumes:
+      - ./standalone-logs/:/home/nacos/logs
     ports:
       - "8080:8080"
+      - "8848:8848"
+      - "9848:9848"
+    networks:
+      - himarket-network
+    restart: always
+    profiles:
+      - full-stack
+
+  # Redis Stack Server(for Higress MCP)
+  redis-stack-server:
+    image: ${REDIS_IMAGE:-higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/redis-stack-server:7.4.0-v3}
+    container_name: redis-stack-server
+    ports:
+      - "6379:6379"
+    networks:
+      - himarket-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: always
+    profiles:
+      - full-stack
+
+  # Higress All-in-One (Gateway + Console)
+  higress:
+    image: ${HIGRESS_IMAGE:-higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/all-in-one:latest}
+    container_name: higress
+    ports:
+      - "8001:8001"  # Gateway HTTP
+      - "8082:8080"  # Console
+      - "8443:8443"  # Gateway HTTPS
     depends_on:
-      - mysql
+      - redis-stack-server
+      - nacos
+    networks:
+      - himarket-network
+    volumes:
+      - ./data/higress:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+    restart: always
+    profiles:
+      - full-stack
+
+  # HiMarket Server
+  himarket-server:
+    image: ${HIMARKET_SERVER_IMAGE:-opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-server:latest}
+    container_name: himarket-server
+    environment:
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_NAME=${DB_NAME}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+    ports:
+      - "8081:8080"
+    networks:
+      - himarket-network
     restart: always
 
+  # HiMarket Admin
   himarket-admin:
-    image: opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-admin:1.0.0
+    image: ${HIMARKET_ADMIN_IMAGE:-opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-admin:latest}
     container_name: himarket-admin
     environment:
       - HIMARKET_SERVER=http://himarket-server:8080
@@ -38,10 +118,13 @@ services:
       - "5174:8000"
     depends_on:
       - himarket-server
+    networks:
+      - himarket-network
     restart: always
 
+  # HiMarket Frontend
   himarket-frontend:
-    image: opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-frontend:1.0.0
+    image: ${HIMARKET_FRONTEND_IMAGE:-opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-frontend:latest}
     container_name: himarket-frontend
     environment:
       - HIMARKET_SERVER=http://himarket-server:8080
@@ -49,4 +132,6 @@ services:
       - "5173:8000"
     depends_on:
       - himarket-server
+    networks:
+      - himarket-network
     restart: always

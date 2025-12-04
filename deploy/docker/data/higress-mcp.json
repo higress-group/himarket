@@ -1,0 +1,86 @@
+[
+  {
+    "name": "travel",
+    "description": "出行小助手",
+    "type": "OPEN_API",
+    "higress": {
+      "domains": ["travel.assistant.io"],
+      "enableHttps": false,
+      "serviceSources": [
+        {
+          "type": "dns",
+          "name": "get-address-localtion",
+          "domain": "restapi.amap.com",
+          "port": 443,
+          "protocol": "https"
+        }
+      ],
+      "services": [
+        {
+          "name": "get-address-localtion.dns",
+          "port": 443,
+          "weight": 100
+        }
+      ],
+      "consumerAuth": {
+        "type": "key-auth",
+        "enable": false
+      }
+    },
+    "openApiConfig": {
+      "yamlFile": "travel.yaml"
+    },
+    "himarket": {
+      "product": {
+        "name": "travel",
+        "description": "出行小助手",
+        "type": "MCP_SERVER"
+      },
+      "publishToPortal": true,
+      "portalName": "demo"
+    }
+  },
+  {
+    "name": "fund-diagnosis",
+    "description": "基金诊断助手",
+    "type": "DIRECT_ROUTE",
+    "higress": {
+      "domains": ["fund.assistant.io"],
+      "enableHttps": false,
+      "serviceSources": [
+        {
+          "type": "dns",
+          "name": "ant",
+          "domain": "mcpgw.sofa.antdigital.com",
+          "port": 8080,
+          "protocol": "http"
+        }
+      ],
+      "services": [
+        {
+          "name": "ant.dns",
+          "port": 8080,
+          "version": "1.0",
+          "weight": 100
+        }
+      ],
+      "consumerAuth": {
+        "type": "key-auth",
+        "enable": false
+      }
+    },
+    "directRouteConfig": {
+      "path": "/mcp-servers/fund-diagnosis/sse",
+      "transportType": "sse"
+    },
+    "himarket": {
+      "product": {
+        "name": "fund-diagnosis",
+        "description": "基金诊断助手",
+        "type": "MCP_SERVER"
+      },
+      "publishToPortal": true,
+      "portalName": "demo"
+    }
+  }
+]

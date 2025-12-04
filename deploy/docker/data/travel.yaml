@@ -1,0 +1,268 @@
+server:
+  name: "travel"
+  securitySchemes:
+    - defaultCredential: "YOUR_AMAP_WEB_KEY_HERE"
+      id: "backendApiKeyQuery"
+      type: apiKey
+      in: query
+      name: key
+
+tools:
+  - args:
+      - name: address
+        description: "地址信息"
+        type: string
+        required: true
+        position: query
+    description: "获取城市的区域编码和经纬度信息"
+    name: "getAddressLocation"
+    requestTemplate:
+      method: "GET"
+      security:
+        id: "backendApiKeyQuery"
+      url: "https://restapi.amap.com/v3/geocode/geo"
+    responseTemplate:
+      prependBody: |+
+        # API Response Information
+        
+        Below is the API response with these fields:
+        
+        - **status**: 返回值为 0 或 1，0 表示请求失败；1 表示请求成功。
+        - **count**: 返回结果的个数。
+        - **info**: 当 status 为 0 时，info 会返回具体错误原因，否则返回“OK”
+        - **geocodes**: 地理编码信息列表:
+          - **country**: 国家
+          - **province**: 地址所在的省份名
+          - **city**: 地址所在的城市名 
+          - **citycode**: 城市编码
+          - **district**: 地址所在的区
+          - **street**: 街道
+          - **number**: 门牌
+          - **adcode**: 区域编码
+          - **location**: 坐标点
+          - **level**: 匹配级别
+
+        ## Original Response
+
+  - args:
+      - name: city
+        description: "区域编码"
+        type: integer
+        required: true
+        position: query
+      - name: extensions
+        description: "气象类型，可选值：base/all，base:实况天气，all:预报天气"
+        type: string
+        required: false
+        position: query
+        default: "all"
+    description: "根据输入的区域编码，查询目标区域当前/未来的天气情况"
+    name: "getCityWeather"
+    requestTemplate:
+      method: "GET"
+      security:
+        id: "backendApiKeyQuery"
+      url: "https://restapi.amap.com/v3/weather/weatherInfo"
+    responseTemplate:
+      prependBody: |+
+        # API Response Information
+        
+        Below is the API response with these fields:
+        
+        - **status**: 返回值为 0 或 1，0 表示请求失败；1 表示请求成功。
+        - **count**: 返回结果的个数。
+        - **info**: 当 status 为 0 时，info 会返回具体错误原因，否则返回“OK”
+        - **infocode**: 返回状态说明,10000代表正确
+        - **forecast**: 预报天气信息数据:
+          - **city**: 城市名称
+          - **adcode**: 城市编码
+          - **province**: 省份名称 
+          - **reporttime**: 预报发布时间
+          - **casts**: 预报数据 list 结构，元素 cast,按顺序为当天、第二天、第三天的预报数据:
+            - **date**: 日期
+            - **week**: 星期几
+            - **dayweather**: 白天天气现象
+            - **nightweather**: 晚上天气现象
+            - **daytemp**: 白天温度
+            - **nighttemp**: 晚上温度
+            - **daywind**: 白天风向
+            - **nightwind**: 晚上风向
+            - **daypower**: 白天风力
+            - **nightpower**: 晚上风力
+
+        ## Original Response
+
+  - args:
+      - name: keywords
+        description: "地点关键字"
+        type: string
+        required: true
+        position: query
+      - name: location
+        description: "中心点坐标"
+        type: string
+        required: true
+        position: query
+      - name: show_fields
+        description: "poi商业信息"
+        type: string
+        required: false
+        position: query
+        default: business,photos
+    description: "根据中心点的经纬度搜索周边景点或美食"
+    name: "aroundService"
+    requestTemplate:
+      method: "GET"
+      security:
+        id: "backendApiKeyQuery"
+      url: "https://restapi.amap.com/v5/place/around"
+    responseTemplate:
+      prependBody: |+
+        # API Response Information
+        
+        Below is the API response with these fields:
+        
+        - **status**: 返回值为 0 或 1，0 表示请求失败；1 表示请求成功。
+        - **count**: 返回结果的个数。
+        - **info**: 当 status 为 0 时，info 会返回具体错误原因，否则返回“OK”
+        - **infocode**: 返回状态说明,10000代表正确
+        - **pois**: 返回的 poi 完整集合:
+          - **poi**: 单个 poi 内包含的完整返回数据
+            - **name**: poi 名称
+            - **id**: poi 唯一标识 
+            - **location**: poi 经纬度
+            - **type**: poi 所属类型
+            - **typecode**: poi 分类编码
+            - **pname**: poi 所属省份
+            - **cityname**: poi 所属城市
+            - **adname**: poi 所属区县
+            - **address**: poi 详细地址
+            - **pcode**: poi 所属省份编码
+            - **adcode**: poi 所属区域编码
+            - **citycode**: poi 所属城市编码
+              - **business**: poi 商业信息
+                - **business_area**: poi 所属商圈
+                - **opentime_today**: poi 今日营业时间，如 08:30-17:30 08:30-09:00 12:00-13:30 09:00-13:00
+                - **opentime_week**: poi 营业时间描述，如 周一至周五:08:30-17:30(延时服务时间:08:30-09:00；12:00-13:30)；周六延时服务时间:09:00-13:00(法定节假日除外)
+                - **tel**: poi 的联系电话
+                - **tag**: poi 特色内容
+                - **rating**: poi 评分
+                - **cost**: poi 人均消费
+                - **parking_type**: 停车场类型（地下、地面、路边）
+                - **alias**: poi 的别名
+                - **keytag**: poi 标识
+                - **rectag**: 用于再次确认信息类型 
+              - **photos**: poi 图片相关信息
+                - **title**: poi 的图片介绍
+                - **url**: poi 图片的下载链接
+        ## Original Response
+
+  - args:
+      - name: origin
+        description: "起点经纬度"
+        type: string
+        required: true
+        position: query
+      - name: destination
+        description: "目的地经纬度"
+        type: string
+        required: true
+        position: query
+      - name: show_fields
+        description: "返回结果控制"
+        type: integer
+        required: true
+        position: query
+        default: 1
+    description: "骑行路线规划"
+    name: "cyclingRoutePlanning"
+    requestTemplate:
+      method: "GET"
+      security:
+        id: "backendApiKeyQuery"
+      url: "https://restapi.amap.com/v5/direction/bicycling"
+    responseTemplate:
+      prependBody: |+
+        # API Response Information
+        
+        Below is the API response with these fields:
+        
+        - **status**: 返回值为 0 或 1，0 表示请求失败；1 表示请求成功。
+        - **count**: 路径规划方案总数。
+        - **info**: 当 status 为 0 时，info 会返回具体错误原因，否则返回“OK”
+        - **infocode**: 返回状态说明,10000代表正确
+        - **route**: 返回的规划方案列表:
+          - **origin**: 起点经纬度
+          - **destination**: 终点经纬度
+          - **paths**: 算路方案详情 
+            - **distance**: 方案距离，单位：米
+            - **orientation**: 进入道路方向
+            - **road_name**: 分段道路名称
+            - **step_distance**: 分段距离信息
+            - **adcode**: 区域编码
+            - **location**: 坐标点
+            - **level**: 匹配级别
+          - **cost**: 方案所需时间及费用成本
+            - **duration**: 线路耗时
+          - **navi**: 导航动作指令
+            - **action**: 导航主要动作指令
+            - **assistant_action**: 导航辅助动作指令
+            - **walk_type**: 算路结果中存在的道路类型：0，普通道路 1，人行横道 3，地下通道 4，过街天桥,5，地铁通道 6，公园 7，广场 8，扶梯 9，直梯,10，索道 11，空中通道 12，建筑物穿越通道,13，行人通道 14，游船路线 15，观光车路线 16，滑道,18，扩路 19，道路附属连接线 20，阶梯 21，斜坡,22，桥 23，隧道 30，轮渡
+          - **polyline**: 分路段坐标点串 
+
+        ## Original Response
+
+  - args:
+      - name: keywords
+        description: "地点关键字"
+        type: string
+        required: true
+        position: query
+    description: "根据地点名称搜索地点详细信息"
+    name: "placeSearch"
+    requestTemplate:
+      method: "GET"
+      security:
+        id: "backendApiKeyQuery"
+      url: "https://restapi.amap.com/v5/place/text"
+    responseTemplate:
+      prependBody: |+
+        # API Response Information
+        
+        Below is the API response with these fields:
+        
+        - **status**: 返回值为 0 或 1，0 表示请求失败；1 表示请求成功。
+        - **count**: 返回结果的个数。
+        - **info**: 当 status 为 0 时，info 会返回具体错误原因，否则返回“OK”
+        - **infocode**: 返回状态说明,10000代表正确
+        - **pois**: 返回的 poi 完整集合:
+          - **poi**: 单个 poi 内包含的完整返回数据
+            - **name**: poi 名称
+            - **id**: poi 唯一标识 
+            - **location**: poi 经纬度
+            - **type**: poi 所属类型
+            - **typecode**: poi 分类编码
+            - **pname**: poi 所属省份
+            - **cityname**: poi 所属城市
+            - **adname**: poi 所属区县
+            - **address**: poi 详细地址
+            - **pcode**: poi 所属省份编码
+            - **adcode**: poi 所属区域编码
+            - **citycode**: poi 所属城市编码
+              - **business**: poi 商业信息
+                - **business_area**: poi 所属商圈
+                - **opentime_today**: poi 今日营业时间，如 08:30-17:30 08:30-09:00 12:00-13:30 09:00-13:00
+                - **opentime_week**: poi 营业时间描述，如 周一至周五:08:30-17:30(延时服务时间:08:30-09:00；12:00-13:30)；周六延时服务时间:09:00-13:00(法定节假日除外)
+                - **tel**: poi 的联系电话
+                - **tag**: poi 特色内容
+                - **rating**: poi 评分
+                - **cost**: poi 人均消费
+                - **parking_type**: 停车场类型（地下、地面、路边）
+                - **alias**: poi 的别名
+                - **keytag**: poi 标识
+                - **rectag**: 用于再次确认信息类型 
+              - **photos**: poi 图片相关信息
+                - **title**: poi 的图片介绍
+                - **url**: poi 图片的下载链接
+
+        ## Original Response
