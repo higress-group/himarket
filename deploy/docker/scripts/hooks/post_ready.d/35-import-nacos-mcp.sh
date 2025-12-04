@@ -166,14 +166,14 @@ if [ "$IS_ARRAY" = "true" ]; then
   # 数组格式，遍历所有 MCP
   ARRAY_LENGTH=$(jq 'length' "$MCP_JSON_FILE")
   log "检测到数组格式，共 $ARRAY_LENGTH 个 MCP 配置"
-  
+
   SUCCESS_COUNT=0
   FAIL_COUNT=0
-  
+
   for ((i=0; i<ARRAY_LENGTH; i++)); do
     log ""
     log "========== 处理第 $((i+1))/$ARRAY_LENGTH 个 MCP =========="
-    
+
     # 提取 serverSpecification
     SERVER_SPEC=$(jq -c ".[$i].serverSpecification" "$MCP_JSON_FILE")
     if [ "$SERVER_SPEC" = "null" ] || [ -z "$SERVER_SPEC" ]; then
@@ -194,12 +194,12 @@ if [ "$IS_ARRAY" = "true" ]; then
 
     # 调用创建函数
     if create_single_mcp "$MCP_NAME" "$SERVER_SPEC" "$TOOL_SPEC" "$ENDPOINT_SPEC"; then
-      ((SUCCESS_COUNT++))
+      ((SUCCESS_COUNT++)) || true
     else
-      ((FAIL_COUNT++))
+      ((FAIL_COUNT++)) || true
     fi
   done
-  
+
   log ""
   log "=========================================="
   log "所有 MCP 创建请求已发送完成。"
@@ -221,10 +221,10 @@ else
 
   # 提取 endpointSpecification (可选)
   ENDPOINT_SPEC=$(jq -c ".endpointSpecification // empty" "$MCP_JSON_FILE" || echo "")
-  
+
   log ""
   log "创建 MCP..."
-  
+
   # 调用创建函数
   create_single_mcp "$MCP_NAME" "$SERVER_SPEC" "$TOOL_SPEC" "$ENDPOINT_SPEC"
 fi
