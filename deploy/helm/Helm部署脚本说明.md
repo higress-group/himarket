@@ -158,9 +158,9 @@ FRONT_PASSWORD=demo123
 | 10 | init-nacos-admin.sh | 初始化 Nacos 管理员密码 | ✅ | ❌ |
 | 20 | init-himarket-admin.sh | 注册 HiMarket 管理员账号 | ✅ | ✅ |
 | 25 | init-commercial-nacos.sh | 初始化商业化 Nacos 实例 | ❌ | ✅ |
-| 30 | init-higress-mcp.sh | 批量初始化 Higress MCP 服务 | ✅ | ✅ |
-| 35 | import-nacos-mcp.sh | 导入 MCP 配置到 Nacos | ✅ | ❌ |
-| 40 | init-himarket-mcp.sh | 批量配置 HiMarket 产品发布 | ✅ | ✅ |
+| 30 | init-higress-mcp.sh | 批量初始化 Higress MCP 服务（higress-mcp.json） | ✅ | ✅ |
+| 35 | import-nacos-mcp.sh | 导入 MCP Server 到 Nacos（mcp.json） | ✅ | ❌ |
+| 40 | init-himarket-mcp.sh | 批量配置 HiMarket 产品发布（支持两种 MCP） | ✅ | ✅ |
 | 50 | init-himarket-front.sh | 注册 HiMarket 前台开发者 | ✅ | ✅ |
 | 60 | init-portal-developer.sh | 审批开发者并自动订阅 | ✅ | ✅ |
 
@@ -187,16 +187,16 @@ himarket/
     ├── data/                           # 数据文件目录
     │   ├── .env                        # 环境变量配置
     │   ├── higress-mcp.json            # Higress MCP 统一配置文件
-    │   ├── nacos-mcp.json              # Nacos MCP 统一配置文件
+    │   ├── mcp.json                    # Nacos MCP Server 统一配置文件
     │   └── travel.yaml                 # Travel MCP 的 OpenAPI 定义
     └── hooks/                          # 钩子脚本目录
         └── post_ready.d/               # 部署就绪后执行的钩子
             ├── 10-init-nacos-admin.sh      # Nacos 管理员密码初始化
             ├── 20-init-himarket-admin.sh   # HiMarket 管理员账号注册
             ├── 25-init-commercial-nacos.sh # 商业化 Nacos 实例初始化
-            ├── 30-init-higress-mcp.sh      # Higress MCP 统一初始化
-            ├── 35-import-nacos-mcp.sh      # Nacos MCP 数据导入
-            ├── 40-init-himarket-mcp.sh     # HiMarket MCP 统一初始化
+            ├── 30-init-higress-mcp.sh      # Higress MCP 统一初始化（读取 higress-mcp.json）
+            ├── 35-import-nacos-mcp.sh      # Nacos MCP Server 导入（读取 mcp.json）
+            ├── 40-init-himarket-mcp.sh     # HiMarket MCP 统一初始化（处理两种 MCP）
             ├── 50-init-himarket-front.sh   # HiMarket 前台开发者注册
             └── 60-init-portal-developer.sh # Portal 开发者审批与订阅
 ```
@@ -268,9 +268,18 @@ export SKIP_HOOK_ERRORS=true
 
 ## 配置驱动架构
 
-### 核心配置文件：higress-mcp.json
+### 核心配置文件
 
-所有 MCP 服务的配置统一在 `scripts/data/higress-mcp.json` 中管理，支持两种类型：
+本部署方案支持两种 MCP 配置方式：
+
+1. **higress-mcp.json**：适用于基于 Higress 网关的 MCP 服务
+2. **mcp.json**：适用于基于 Nacos 的标准 MCP Server 服务
+
+---
+
+### Higress MCP 配置：higress-mcp.json
+
+所有基于 Higress 的 MCP 服务配置统一在 `scripts/data/higress-mcp.json` 中管理，支持两种类型：
 
 1. **OPEN_API**：基于 OpenAPI YAML 定义的 MCP 服务（如天气、出行助手）
 2. **DIRECT_ROUTE**：直接路由方式的 MCP 服务（如基金诊断）
@@ -306,128 +315,98 @@ export SKIP_HOOK_ERRORS=true
 
 ---
 
-## 添加新的 Higress MCP 服务
+### Nacos MCP 配置：mcp.json
 
-**完全配置驱动，无需修改脚本代码！**
+标准 MCP Server 服务的配置统一在 `scripts/data/nacos-mcp.json` 中管理，这些服务会被导入到 Nacos 中。
 
-### 方式一：添加 OpenAPI 类型 MCP
-
-1. **创建 OpenAPI YAML 文件**
-
-   在 `scripts/data/` 目录下创建，例如 `weather.yaml`：
-
-   ```yaml
-   server:
-     name: "weather"
-     securitySchemes:
-       - defaultCredential: "你的 API Key" # 用户需配置自己的 API Key  
-         type: apiKey
-   tools:
-     - name: "getWeather"
-       description: "获取天气信息"
-       # ...
-   ```
-
-2. **在 higress-mcp.json 中添加配置**
-
-   ```json
-   {
-     "name": "weather",
-     "description": "天气助手",
-     "type": "OPEN_API",
-     "higress": {
-       "domains": ["weather.assistant.io"],
-       "serviceSources": [
-         {
-           "type": "dns",
-           "name": "weather-api",
-           "domain": "api.weather.com",
-           "port": 443,
-           "protocol": "https"
-         }
-       ],
-       "services": [
-         {
-           "name": "weather-api.dns",
-           "port": 443,
-           "weight": 100
-         }
-       ],
-       "consumerAuth": {
-         "type": "key-auth",
-         "enable": false
-       }
-     },
-     "openApiConfig": {
-       "yamlFile": "weather.yaml"
-     },
-     "himarket": {
-       "product": {
-         "name": "weather",
-         "description": "天气助手",
-         "type": "MCP_SERVER"
-       },
-       "publishToPortal": true,
-       "portalName": "demo"
-     }
-   }
-   ```
-
-3. **执行部署**
-
-   ```bash
-   ./deploy.sh install
-   ```
-
-### 方式二：添加 Direct Route 类型 MCP
-
-**更简单，无需创建 YAML 文件！**
-
-直接在 `higress-mcp.json` 中添加：
+配置示例：
 
 ```json
-{
-  "name": "my-service",
-  "description": "我的服务",
-  "type": "DIRECT_ROUTE",
-  "higress": {
-    "domains": ["my-service.assistant.io"],
-    "serviceSources": [
-      {
-        "type": "dns",
-        "name": "backend",
-        "domain": "backend.example.com",
-        "port": 8080,
-        "protocol": "http"
-      }
-    ],
-    "services": [
-      {
-        "name": "backend.dns",
-        "port": 8080,
-        "weight": 100
-      }
-    ],
-    "consumerAuth": {
-      "type": "key-auth",
-      "enable": false
-    }
-  },
-  "directRouteConfig": {
-    "path": "/mcp-servers/my-service/sse",
-    "transportType": "sse"
-  },
-  "himarket": {
-    "product": {
-      "name": "my-service",
-      "description": "我的服务",
-      "type": "MCP_SERVER"
+[
+  {
+    "serverSpecification": {
+      "protocol": "stdio",
+      "frontProtocol": "stdio",
+      "name": "git",
+      "description": "git v1.0.0",
+      "packages": [
+        {
+          "registryType": "pypi",
+          "identifier": "mcp-server-git",
+          "version": "latest",
+          "runtimeHint": "uvx",
+          "packageArguments": [
+            {
+              "type": "positional",
+              "format": "string",
+              "value": "--repository"
+            },
+            {
+              "type": "positional",
+              "format": "string",
+              "value": "path/to/git/repo"
+            }
+          ]
+        }
+      ],
+      "versionDetail": {
+        "version": "1.0.0"
+      },
+      "enabled": true
     },
-    "publishToPortal": true,
-    "portalName": "demo"
+    "toolSpecification": {
+      "tools": [
+        {
+          "name": "git_status",
+          "description": "Shows the working tree status",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "repo_path": {
+                "type": "string"
+              }
+            },
+            "required": ["repo_path"]
+          }
+        }
+      ]
+    },
+    "himarket": {
+      "product": {
+        "name": "git",
+        "description": "Git MCP Server",
+        "type": "MCP_SERVER"
+      },
+      "publishToPortal": true,
+      "portalName": "demo",
+      "namespaceId": "public"
+    }
   }
-}
+]
 ```
+
+**配置说明：**
+
+- `serverSpecification`：MCP Server 的基本信息和运行配置
+  - `name`：MCP 服务名称（必填）
+  - `protocol`：通信协议（stdio/http/sse）
+  - `packages`：运行时包配置
+  - `enabled`：是否启用
+- `toolSpecification`：工具定义（可选）
+  - `tools`：MCP 提供的工具列表
+  - 每个工具包含名称、描述和输入参数定义
+- `himarket`：HiMarket 平台配置（可选）
+  - `product`：产品信息
+  - `publishToPortal`：是否发布到门户
+  - `portalName`：目标门户名称
+  - `namespaceId`：Nacos 命名空间（默认 public）
+
+---
+
+### 配置技巧
+
+1. **跳过 HiMarket 配置**：移除 `himarket` 字段,MCP 只会导入到 Nacos
+2. **配置 API KEY**：如果有 API Key 或其他认证，需要在 YAML 文件或 json 文件中进行配置
 
 ---
 

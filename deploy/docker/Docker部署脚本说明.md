@@ -4,7 +4,7 @@
 
 ### 完整部署（推荐）
 
-在 `docker` 目录下执行：
+在 `docker/scripts` 目录下执行：
 
 ```bash
 ./deploy.sh install
@@ -192,17 +192,18 @@ COMMERCIAL_NACOS_SECRET_KEY=
 
 ```
 docker/
-├── deploy.sh                           # 主部署脚本
-├── docker-compose.yml                  # Docker Compose 配置文件
-├── Docker部署说明.md                    # 本文档
-├── data/                               # 数据文件目录
-│   ├── .env                            # 环境变量配置
-│   ├── higress-mcp.json                # Higress MCP 统一配置文件
-│   ├── nacos-mcp.json                  # Nacos MCP 统一配置文件
-│   └── travel.yaml                     # Travel MCP 的 OpenAPI 定义
-└── scripts/                            # 钩子脚本目录
+├── docker-compose.yml                      # Docker Compose 配置文件
+├── Docker部署说明.md                    
+├── Docker脚本部署说明.md                     # 本文档
+└── scripts/                                # 部署脚本目录
+    ├── deploy.sh                           # 主部署脚本
+    ├── data/                               # 数据文件目录
+    │   ├── .env                            # 环境变量配置
+    │   ├── higress-mcp.json                # Higress MCP 统一配置文件
+    │   ├── nacos-mcp.json                  # Nacos MCP 统一配置文件
+    │   └── travel.yaml                     # Travel MCP 的 OpenAPI 定义
     └── hooks/
-        └── post_ready.d/               # 部署就绪后执行的钩子
+        └── post_ready.d/                   # 部署就绪后执行的钩子
             ├── 10-init-nacos-admin.sh      # Nacos 管理员密码初始化
             ├── 15-init-higress-admin.sh    # Higress 管理员账号初始化
             ├── 20-init-himarket-admin.sh   # HiMarket 管理员账号注册

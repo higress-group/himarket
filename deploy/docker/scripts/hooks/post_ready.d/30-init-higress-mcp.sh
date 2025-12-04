@@ -7,7 +7,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DATA_DIR="${SCRIPT_DIR}/../../../data"
+DATA_DIR="${SCRIPT_DIR}/../../data"
 MCP_CONFIG="${DATA_DIR}/higress-mcp.json"
 
 # 从 .env 读取 Higress 密码与其他配置

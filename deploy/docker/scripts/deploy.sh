@@ -11,7 +11,7 @@ set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DATA_DIR="${SCRIPT_DIR}/data"
-HOOKS_DIR="${SCRIPT_DIR}/scripts/hooks"
+HOOKS_DIR="${SCRIPT_DIR}/hooks"
 
 # 导出部署模式环境变量供钩子脚本识别
 export DEPLOYMENT_MODE="docker"
