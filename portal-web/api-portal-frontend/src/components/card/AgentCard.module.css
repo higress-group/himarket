@@ -1,0 +1,177 @@
+.agentCard {
+  /*border-radius: 16px;*/
+  width: 320px;
+  height: 460px;
+  position: relative;
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border 0.3s ease;
+  overflow: hidden;
+  background: #FAFAFA;
+}
+
+.title {
+  position: absolute;
+  z-index: 1;
+  top: 20px;
+  left: 24px;
+}
+
+.titleLabel {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  color: #242424;
+  white-space: nowrap;
+}
+
+.titleName {
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 19px;
+  color: #242424;
+  white-space: nowrap;
+  margin-left: 8px;
+}
+
+.iconList img {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  position: absolute;
+  top: 76px;
+}
+
+.iconList .icon1 {
+  z-index: 2;
+  right: 20px;
+}
+
+.iconList .icon2 {
+  z-index: 3;
+  right: 58px;
+}
+
+.iconList .icon3 {
+  z-index: 4;
+  right: 96px;
+}
+
+.iconList .icon4 {
+  z-index: 5;
+  left: 138px;
+}
+
+.iconList .icon5 {
+  z-index: 6;
+  left: 100px;
+}
+
+.iconList .icon6 {
+  z-index: 7;
+  left: 62px;
+}
+
+.iconList .icon7 {
+  z-index: 8;
+  left: 24px;
+}
+
+.rightSection {
+  height: 276px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  position: absolute;
+  z-index: 9;
+  top: 62px;
+  right: -112px;
+}
+
+.rightImage {
+  width: 281px;
+  height: 276px;
+}
+
+.topGradient {
+  background: linear-gradient(180deg, #FAFAFA, #FAFAFA00);
+  width: 178px;
+  height: 45px;
+  position: absolute;
+  z-index: 10;
+  top: 53px;
+  right: 0px;
+}
+
+.smallIcon {
+  width: 20px;
+  height: 20px;
+  position: absolute;
+  z-index: 11;
+  bottom: 72px;
+  left: 80px;
+}
+
+.bottomGradient {
+  background: linear-gradient(180deg, #FAFAFA00, #ECEEF9);
+  width: 178px;
+  height: 312px;
+  position: absolute;
+  z-index: 12;
+  top: 148px;
+  right: 0px;
+}
+
+.bottomLeftImage {
+  width: 259px;
+  position: absolute;
+  z-index: 13;
+  bottom: 84px;
+  left: 24px;
+  transform: rotate(-6deg);
+  transition: transform 0.3s ease;
+}
+
+.bottomRightSection {
+  width: 294px;
+  position: absolute;
+  z-index: 14;
+  bottom: 0px;
+  left: 60px;
+  transition: transform 0.3s ease;
+}
+
+.bottomRightImage {
+  width: 294px;
+}
+
+.agentCard:hover .bottomLeftImage {
+  transform: rotate(-8deg);
+}
+
+.agentCard:hover .bottomRightImage {
+  transform: rotate(2deg);
+}
+
+.topRightIcon {
+  width: 28px;
+  height: 28px;
+  position: absolute;
+  z-index: 15;
+  top: 16px;
+  right: 24px;
+  opacity: 0;
+  transition: opacity 0.3s ease, background 0.3s ease;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.agentCard:hover .topRightIcon,
+.agentCard.selected .topRightIcon {
+  opacity: 1;
+}
+
+.topRightIcon:hover {
+  background: linear-gradient(224deg, #0040FF 15%, #000000 87%);
+}
