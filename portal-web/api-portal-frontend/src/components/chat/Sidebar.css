@@ -1,6 +1,6 @@
 .chat-session--sidebar {
   .sidebar-content {
-    scrollbar-width: none;
+    scrollbar-width: thin;
 
     .sidebar-level-1 {
       scrollbar-width: none;
