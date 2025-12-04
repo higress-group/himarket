@@ -1,6 +1,11 @@
 import React from 'react';
 import styles from './ArrowIcon.module.css';
-const ArrowIcon = ({ className }) => {
+
+interface ArrowIconProps {
+  className?: string;
+}
+
+const ArrowIcon: React.FC<ArrowIconProps> = ({ className }) => {
   return (
     <div className={`${className} ${styles.basicIcon}`}>
       <svg
