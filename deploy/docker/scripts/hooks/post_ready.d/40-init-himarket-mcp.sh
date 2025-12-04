@@ -7,7 +7,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DATA_DIR="${SCRIPT_DIR}/../../../data"
+DATA_DIR="${SCRIPT_DIR}/../../data"
 HIGRESS_MCP_CONFIG="${DATA_DIR}/higress-mcp.json"
 NACOS_MCP_CONFIG="${DATA_DIR}/nacos-mcp.json"
 

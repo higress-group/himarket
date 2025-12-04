@@ -5,7 +5,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DATA_DIR="${SCRIPT_DIR}/../../../data"
+DATA_DIR="${SCRIPT_DIR}/../../data"
 
 # 从 .env 加载凭据
 if [[ -f "${DATA_DIR}/.env" ]]; then
