@@ -334,13 +334,14 @@ public class ConsumerServiceImpl implements ConsumerService {
 
         if (subscription.getConsumerAuthConfig() != null) {
             ProductRefResult productRef = productService.getProductRef(productId);
-            GatewayConfig gatewayConfig = gatewayService.getGatewayConfig(productRef.getGatewayId());
-
-            // 取消网关上的Consumer授权
-            Optional.ofNullable(matchConsumerRef(consumerId, gatewayConfig))
-                    .ifPresent(consumerRef ->
-                            gatewayService.revokeConsumerAuthorization(productRef.getGatewayId(), consumerRef.getGwConsumerId(), subscription.getConsumerAuthConfig())
-                    );
+            if (productRef != null) {
+                GatewayConfig gatewayConfig = gatewayService.getGatewayConfig(productRef.getGatewayId());
+                // Revoke the consumer's authorization configuration from the gateway
+                Optional.ofNullable(matchConsumerRef(consumerId, gatewayConfig))
+                        .ifPresent(consumerRef ->
+                                gatewayService.revokeConsumerAuthorization(productRef.getGatewayId(), consumerRef.getGwConsumerId(), subscription.getConsumerAuthConfig())
+                        );
+            }
         }
 
         subscriptionRepository.deleteByConsumerIdAndProductId(consumerId, productId);

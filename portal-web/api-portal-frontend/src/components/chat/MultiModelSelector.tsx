@@ -70,7 +70,7 @@ export function MultiModelSelector({ currentModelId, excludeModels = [], onConfi
       width={600}
       className="multi-model-selector-modal"
       styles={{
-        content: {
+        body: {
           borderRadius: '16px',
           overflow: 'hidden'
         }

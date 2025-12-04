@@ -30,8 +30,12 @@ export function ApiProductUsageGuide({ apiProduct, handleRefresh }: ApiProductUs
   }
 
   const handleSave = () => {
+    // 提取 categoryIds 以保留产品类别信息
+    const categoryIds = apiProduct.categories?.map(cat => cat.categoryId) || [];
+    
     apiProductApi.updateApiProduct(apiProduct.productId, {
-      document: content
+      document: content,
+      categories: categoryIds
     }).then(() => {
       message.success('保存成功')
       setIsEditing(false)

@@ -1,6 +1,8 @@
 package com.alibaba.apiopenplatform.service.impl;
 
 import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.util.BooleanUtil;
+import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.apiopenplatform.core.exception.ErrorCode;
 import com.alibaba.apiopenplatform.dto.params.chat.ChatRequestBody;
@@ -76,8 +78,8 @@ public abstract class AbstractLlmService implements LlmService {
                 .temperature(modelFeature.getTemperature())
                 .mcpServerConfigs(param.getMcpServerConfigs())
                 .build();
-        
-        if (modelFeature.getWebSearch() && param.getEnableWebSearch()) {
+
+        if (BooleanUtil.isTrue(modelFeature.getWebSearch()) && BooleanUtil.isTrue(param.getEnableWebSearch())) {
             chatRequest.setWebSearchOptions(new OpenAiApi.ChatCompletionRequest.WebSearchOptions(
                     OpenAiApi.ChatCompletionRequest.WebSearchOptions.SearchContextSize.MEDIUM, null));
         }
@@ -96,24 +98,19 @@ public abstract class AbstractLlmService implements LlmService {
         ModelFeature modelFeature = Optional.ofNullable(product)
                 .map(ProductResult::getFeature)
                 .map(ProductFeature::getModelFeature)
-                .orElse(new ModelFeature());
+                .orElseGet(() -> ModelFeature.builder().build());
 
-        // Default values
-        if (modelFeature.getModel() == null) {
-            modelFeature.setModel("qwen-max");
-        }
-        if (modelFeature.getMaxTokens() == null) {
-            modelFeature.setMaxTokens(5000);
-        }
-        if (modelFeature.getTemperature() == null) {
-            modelFeature.setTemperature(0.9);
-        }
-        if (modelFeature.getStreaming() == null) {
-            modelFeature.setStreaming(true);
-        }
-
-        return modelFeature;
+        // Get model feature from product or return default values if any field is null/blank
+        // Default values: model="qwen-max", maxTokens=5000, temperature=0.9, streaming=true, webSearch=false
+        return ModelFeature.builder()
+                .model(StrUtil.blankToDefault(modelFeature.getModel(), "qwen-max"))
+                .maxTokens(ObjectUtil.defaultIfNull(modelFeature.getMaxTokens(), 5000))
+                .temperature(ObjectUtil.defaultIfNull(modelFeature.getTemperature(), 0.9))
+                .streaming(ObjectUtil.defaultIfNull(modelFeature.getStreaming(), true))
+                .webSearch(ObjectUtil.defaultIfNull(modelFeature.getWebSearch(), false))
+                .build();
     }
+
 
     private URL getUrl(ModelConfigResult modelConfig, Map<String, String> queryParams) {
         ModelConfigResult.ModelAPIConfig modelAPIConfig = modelConfig.getModelAPIConfig();
