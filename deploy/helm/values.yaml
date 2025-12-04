@@ -3,7 +3,7 @@ hub: opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group
 frontend:
   image:
     repository: himarket-frontend
-    tag: "1.0.0"
+    tag: "latest"
     pullPolicy: Always
   service:
     type: LoadBalancer
@@ -14,7 +14,7 @@ frontend:
 admin:
   image:
     repository: himarket-admin
-    tag: "1.0.0"
+    tag: "latest"
     pullPolicy: Always
   service:
     type: LoadBalancer
@@ -25,7 +25,7 @@ admin:
 server:
   image:
     repository: himarket-server
-    tag: "1.0.0"
+    tag: "latest"
     pullPolicy: Always
   service:
     type: ClusterIP
@@ -39,7 +39,7 @@ mysql:
   enabled: true
   image:
     repository: mysql
-    tag: "1.0.0"
+    tag: "latest"
     pullPolicy: Always
   
   # 数据库配置

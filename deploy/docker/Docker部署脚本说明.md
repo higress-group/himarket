@@ -72,7 +72,7 @@ HIMARKET_FRONTEND_IMAGE=opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-
 REDIS_IMAGE=higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/redis-stack-server:7.4.0-v3
 
 # MySQL
-MYSQL_IMAGE=opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/mysql:1.0.0
+MYSQL_IMAGE=opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/mysql:latest
 ```
 
 #### 2. MySQL 数据库配置

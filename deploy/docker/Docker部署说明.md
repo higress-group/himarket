@@ -18,7 +18,7 @@ AI 开放平台包含四个服务组件：
 version: '3'
 services:
   mysql:
-    image: opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/mysql:1.0.0
+    image: opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/mysql:latest
     container_name: mysql
     environment:
       - MYSQL_ROOT_PASSWORD=123456
@@ -32,7 +32,7 @@ services:
     restart: always
 
   himarket-server:
-    image: opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-server:1.0.0
+    image: opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-server:latest
     container_name: himarket-server
     environment:
       - DB_HOST=mysql
@@ -47,7 +47,7 @@ services:
     restart: always
 
   himarket-admin:
-    image: opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-admin:1.0.0
+    image: opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-admin:latest
     container_name: himarket-admin
     environment:
       - HIMARKET_SERVER=http://himarket-server:8080
@@ -58,7 +58,7 @@ services:
     restart: always
 
   himarket-frontend:
-    image: opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-frontend:1.0.0
+    image: opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-frontend:latest
     container_name: himarket-frontend
     environment:
       - HIMARKET_SERVER=http://himarket-server:8080
@@ -108,7 +108,7 @@ services:
   # 移除 mysql 服务配置
 
   himarket-server:
-    image: opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-server:1.0.0
+    image: opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-server:latest
     container_name: himarket-server
     environment:
       - DB_HOST=your-mysql-host        # 替换为你的数据库地址
@@ -165,13 +165,13 @@ cd /path/to/your/project
 ```yaml
 services:
   himarket-server:
-    image: himarket-server:1.0.0    # 替换为本地镜像
+    image: himarket-server:latest    # 替换为本地镜像
 
   himarket-admin:
-    image: himarket-admin:1.0.0     # 替换为本地镜像
+    image: himarket-admin:latest     # 替换为本地镜像
 
   himarket-frontend:
-    image: himarket-frontend:1.0.0  # 替换为本地镜像
+    image: himarket-frontend:latest  # 替换为本地镜像
 ```
 
 ### 启动服务

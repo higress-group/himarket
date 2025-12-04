@@ -45,7 +45,7 @@ AI 开放平台采用微服务架构，通过 Docker Compose 实现多容器协�
 version: '3'
 services:
   mysql:
-    image: opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/mysql:1.0.0
+    image: opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/mysql:latest
     container_name: mysql
     environment:
       - MYSQL_ROOT_PASSWORD=123456
@@ -59,7 +59,7 @@ services:
     restart: always
 
   himarket-server:
-    image: himarket-server:1.0.0
+    image: himarket-server:latest
     container_name: himarket-server
     environment:
       - DB_HOST=mysql
@@ -74,7 +74,7 @@ services:
     restart: always
 
   himarket-admin:
-    image: himarket-admin:1.0.0
+    image: himarket-admin:latest
     container_name: himarket-admin
     environment:
       - HIMARKET_SERVER=http://himarket-server:8080
@@ -85,7 +85,7 @@ services:
     restart: always
 
   himarket-frontend:
-    image: himarket-frontend:1.0.0
+    image: himarket-frontend:latest
     container_name: himarket-frontend
     environment:
       - HIMARKET_SERVER=http://himarket-server:8080
@@ -128,7 +128,7 @@ docker-compose logs -f
 
 ```yaml
 mysql:
-  image: opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/mysql:1.0.0
+  image: opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/mysql:latest
   container_name: mysql
   environment:
     - MYSQL_ROOT_PASSWORD=123456
@@ -142,7 +142,7 @@ mysql:
   restart: always
 ```
 
-- **镜像版本**: `mysql:1.0.0`（阿里云镜像仓库）
+- **镜像版本**: `mysql:latest`（阿里云镜像仓库）
 - **端口映射**: 主机 3306 → 容器 3306
 - **环境变量**:
   - `MYSQL_ROOT_PASSWORD`: root 用户密码
@@ -154,7 +154,7 @@ mysql:
 
 ```yaml
 himarket-server:
-  image: himarket-server:1.0.0
+  image: himarket-server:latest
   container_name: himarket-server
   environment:
     - DB_HOST=mysql
@@ -169,7 +169,7 @@ himarket-server:
   restart: always
 ```
 
-- **镜像版本**: `himarket-server:1.0.0`
+- **镜像版本**: `himarket-server:latest`
 - **端口映射**: 主机 8080 → 容器 8080
 - **环境变量**: 数据库连接参数，通过服务名 `mysql` 访问
 - **依赖关系**: 依赖 `mysql` 服务启动完成
@@ -251,13 +251,13 @@ himarket-admin:
 ```yaml
 services:
   himarket-server:
-    image: himarket-server:1.0.0  # 本地构建镜像
+    image: himarket-server:latest  # 本地构建镜像
 
   himarket-admin:
-    image: himarket-admin:1.0.0
+    image: himarket-admin:latest
 
   himarket-frontend:
-    image: himarket-frontend:1.0.0
+    image: himarket-frontend:latest
 ```
 
 ### 重新部署

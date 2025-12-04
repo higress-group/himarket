@@ -14,10 +14,10 @@ Helm 会部署三个应用，分别为：
 **镜像说明：**
 
 默认使用公开镜像仓库的镜像：
-- `himarket-server`: `opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-server:1.0.0`
-- `himarket-admin`: `opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-admin:1.0.0`
-- `himarket-frontend`: `opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-frontend:1.0.0`
-- (可选) `mysql`: `opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/mysql:1.0.0`
+- `himarket-server`: `opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-server:latest`
+- `himarket-admin`: `opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-admin:latest`
+- `himarket-frontend`: `opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-frontend:latest`
+- (可选) `mysql`: `opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/mysql:latest`
 
 ## 🗄️ 数据库配置
 
