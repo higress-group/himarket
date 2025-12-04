@@ -135,7 +135,7 @@ function McpModal(props: McpModal) {
               </div>
             </div>
             {
-              active === "added" && (
+              active === "added" && filteredData.length > 0 && (
                 <span>已添加 {added.length} / 10</span>
               )
             }

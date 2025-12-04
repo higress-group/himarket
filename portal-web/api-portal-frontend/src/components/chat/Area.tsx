@@ -14,6 +14,7 @@ import APIs from "../../lib/apis";
 import type { IGetPrimaryConsumerResp, IProductDetail, ISubscription } from "../../lib/apis";
 import type { IModelConversation } from "../../types";
 import { safeJSONParse } from "../../lib/utils";
+import TextType from "../TextType";
 
 
 interface ChatAreaProps {
@@ -343,7 +344,14 @@ export function ChatArea(props: ChatAreaProps) {
               {/* 欢迎标题 */}
               <div className="text-center mb-12">
                 <h1 className="text-2xl font-medium text-gray-900 mb-2">
-                  您好，欢迎来到 <span className="text-colorPrimary">Himarket 体验中心_</span>
+                  您好，欢迎来到 <span className="text-colorPrimary">
+                    <TextType
+                      text={["Himarket 体验中心_"]}
+                      typingSpeed={75}
+                      showCursor={true}
+                      cursorCharacter="|"
+                    />
+                  </span>
                 </h1>
               </div>
 
