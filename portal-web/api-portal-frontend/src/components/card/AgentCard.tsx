@@ -42,11 +42,10 @@ const ICON_CONFIGS = [
 
 const AgentCard: React.FC<AgentCardProps> = ({ onClick }) => {
   return (
-    <CommonCard>
+    <CommonCard to="/agents">
       <div className={styles.agentCard} onClick={onClick}>
         <span className={styles.title}>
           <span className={styles.titleLabel}>智能体</span>
-          <span className={styles.titleName}>AgentRun</span>
         </span>
         <div className={styles.iconList}>
           {ICON_CONFIGS.map((icon, index) => (
