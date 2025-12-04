@@ -384,7 +384,7 @@ export function ChatArea(props: ChatAreaProps) {
               <SuggestedQuestions
                 onSelectQuestion={(c) => {
                   setAutoScrollEnabled(true);
-                  onSendMessage(c, addedMcps, enableWebSearch, modelMap);
+                  onSendMessage(c, mcpEnabled ? addedMcps : [], enableWebSearch, modelMap);
                 }} />
             </div>
           </div>
@@ -395,7 +395,7 @@ export function ChatArea(props: ChatAreaProps) {
                 onMcpClick={toggleMcpModal}
                 onSendMessage={(c) => {
                   setAutoScrollEnabled(true);
-                  onSendMessage(c, addedMcps, enableWebSearch, modelMap);
+                  onSendMessage(c, mcpEnabled ? addedMcps : [], enableWebSearch, modelMap);
                 }}
                 isLoading={generating}
                 mcpEnabled={mcpEnabled}
