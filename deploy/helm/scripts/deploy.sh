@@ -44,6 +44,9 @@ NS="${NAMESPACE:-himarket}"
 # 商业化 Nacos 开关
 USE_COMMERCIAL_NACOS="${USE_COMMERCIAL_NACOS:-false}"
 
+# 仅部署 HiMarket 开关
+HIMARKET_ONLY="${HIMARKET_ONLY:-false}"
+
 # Chart 与值文件（相对路径）
 HIMARKET_CHART_PATH="${PROJECT_ROOT}"
 HIMARKET_VALUES_FILE="${PROJECT_ROOT}/values.yaml"
@@ -54,12 +57,12 @@ HIMARKET_IMAGE_TAG="${HIMARKET_IMAGE_TAG}"
 HIMARKET_MYSQL_IMAGE_TAG="${HIMARKET_MYSQL_IMAGE_TAG}"
 
 # MySQL 数据库配置（可在 .env 中覆盖）
-HIMARKET_MYSQL_ENABLED="${HIMARKET_MYSQL_ENABLED}"
-EXTERNAL_DB_HOST="${EXTERNAL_DB_HOST}"
+HIMARKET_MYSQL_ENABLED="${HIMARKET_MYSQL_ENABLED:-}"
+EXTERNAL_DB_HOST="${EXTERNAL_DB_HOST:-}"
 EXTERNAL_DB_PORT="${EXTERNAL_DB_PORT:-3306}"
-EXTERNAL_DB_NAME="${EXTERNAL_DB_NAME}"
-EXTERNAL_DB_USERNAME="${EXTERNAL_DB_USERNAME}"
-EXTERNAL_DB_PASSWORD="${EXTERNAL_DB_PASSWORD}"
+EXTERNAL_DB_NAME="${EXTERNAL_DB_NAME:-}"
+EXTERNAL_DB_USERNAME="${EXTERNAL_DB_USERNAME:-}"
+EXTERNAL_DB_PASSWORD="${EXTERNAL_DB_PASSWORD:-}"
 
 # Helm 仓库配置（可在 .env 中覆盖）
 HIGRESS_REPO_NAME="${HIGRESS_REPO_NAME:-higress.io}"
@@ -74,19 +77,19 @@ NACOS_CHART_REF="${NACOS_CHART_REF:-ygqygq2/nacos}"
 NACOS_VERSION="${NACOS_VERSION}"
 
 # Nacos 镜像配置（可在 .env 中覆盖）
-NACOS_IMAGE_REGISTRY="${NACOS_IMAGE_REGISTRY}"
-NACOS_IMAGE_REPOSITORY="${NACOS_IMAGE_REPOSITORY}"
-NACOS_PLUGIN_IMAGE_REGISTRY="${NACOS_PLUGIN_IMAGE_REGISTRY}"
-NACOS_PLUGIN_IMAGE_REPOSITORY="${NACOS_PLUGIN_IMAGE_REPOSITORY}"
-NACOS_PLUGIN_IMAGE_TAG="${NACOS_PLUGIN_IMAGE_TAG}"
-NACOS_INITDB_IMAGE_REGISTRY="${NACOS_INITDB_IMAGE_REGISTRY}"
-NACOS_INITDB_IMAGE_REPOSITORY="${NACOS_INITDB_IMAGE_REPOSITORY}"
-NACOS_INITDB_IMAGE_TAG="${NACOS_INITDB_IMAGE_TAG}"
+NACOS_IMAGE_REGISTRY="${NACOS_IMAGE_REGISTRY:-}"
+NACOS_IMAGE_REPOSITORY="${NACOS_IMAGE_REPOSITORY:-}"
+NACOS_PLUGIN_IMAGE_REGISTRY="${NACOS_PLUGIN_IMAGE_REGISTRY:-}"
+NACOS_PLUGIN_IMAGE_REPOSITORY="${NACOS_PLUGIN_IMAGE_REPOSITORY:-}"
+NACOS_PLUGIN_IMAGE_TAG="${NACOS_PLUGIN_IMAGE_TAG:-}"
+NACOS_INITDB_IMAGE_REGISTRY="${NACOS_INITDB_IMAGE_REGISTRY:-}"
+NACOS_INITDB_IMAGE_REPOSITORY="${NACOS_INITDB_IMAGE_REPOSITORY:-}"
+NACOS_INITDB_IMAGE_TAG="${NACOS_INITDB_IMAGE_TAG:-}"
 
 # Nacos MySQL 镜像配置（可在 .env 中覆盖）
-NACOS_MYSQL_IMAGE_REGISTRY="${NACOS_MYSQL_IMAGE_REGISTRY}"
-NACOS_MYSQL_IMAGE_REPOSITORY="${NACOS_MYSQL_IMAGE_REPOSITORY}"
-NACOS_MYSQL_IMAGE_TAG="${NACOS_MYSQL_IMAGE_TAG}"
+NACOS_MYSQL_IMAGE_REGISTRY="${NACOS_MYSQL_IMAGE_REGISTRY:-}"
+NACOS_MYSQL_IMAGE_REPOSITORY="${NACOS_MYSQL_IMAGE_REPOSITORY:-}"
+NACOS_MYSQL_IMAGE_TAG="${NACOS_MYSQL_IMAGE_TAG:-}"
 
 # Higress Console 用户名密码（可在 .env 中覆盖）
 HIGRESS_USERNAME="${HIGRESS_USERNAME:-admin}"
@@ -312,6 +315,30 @@ add_repos() {
 deploy_all() {
   cluster_preflight
   create_ns "$NS"
+
+  # 如果是仅部署 HiMarket 模式
+  if [[ "${HIMARKET_ONLY}" == "true" ]]; then
+    log "仅部署 HiMarket 模式（跳过 Nacos、Higress 及所有钩子）"
+    
+    # 只部署 HiMarket
+    helm_upsert "himarket" "$NS" "$HIMARKET_CHART_PATH" -f "$HIMARKET_VALUES_FILE" \
+      --set "hub=${HIMARKET_HUB}" \
+      --set "frontend.image.tag=${HIMARKET_IMAGE_TAG}" \
+      --set "admin.image.tag=${HIMARKET_IMAGE_TAG}" \
+      --set "server.image.tag=${HIMARKET_IMAGE_TAG}" \
+      --set "mysql.image.tag=${HIMARKET_MYSQL_IMAGE_TAG}" \
+      --set "mysql.enabled=${HIMARKET_MYSQL_ENABLED}" \
+      --set "database.host=${EXTERNAL_DB_HOST}" \
+      --set "database.port=${EXTERNAL_DB_PORT}" \
+      --set "database.name=${EXTERNAL_DB_NAME}" \
+      --set "database.username=${EXTERNAL_DB_USERNAME}" \
+      --set "database.password=${EXTERNAL_DB_PASSWORD}"
+    
+    log "HiMarket 部署完成。所有资源安装在命名空间: ${NS}"
+    return 0
+  fi
+
+  # 完整部署模式
   add_repos
 
   # 1) 部署 HiMarket
@@ -335,21 +362,24 @@ deploy_all() {
     log "商业化 Nacos 将在 post_ready 阶段进行初始化"
   else
     log "部署开源 Nacos..."
-    helm_upsert "nacos" "$NS" "$NACOS_CHART_REF" \
-      --set "service.type=LoadBalancer" \
-      --set "mysql.enabled=true" \
-      --set "mysql.image.registry=${NACOS_MYSQL_IMAGE_REGISTRY}" \
-      --set "mysql.image.repository=${NACOS_MYSQL_IMAGE_REPOSITORY}" \
-      --set "mysql.image.tag=${NACOS_MYSQL_IMAGE_TAG}" \
-      --set "image.registry=${NACOS_IMAGE_REGISTRY}" \
-      --set "image.repository=${NACOS_IMAGE_REPOSITORY}" \
-      --set "image.tag=${NACOS_VERSION}" \
-      --set "plugin.image.registry=${NACOS_PLUGIN_IMAGE_REGISTRY}" \
-      --set "plugin.image.repository=${NACOS_PLUGIN_IMAGE_REPOSITORY}" \
-      --set "plugin.image.tag=${NACOS_PLUGIN_IMAGE_TAG}" \
-      --set "initDB.image.registry=${NACOS_INITDB_IMAGE_REGISTRY}" \
-      --set "initDB.image.repository=${NACOS_INITDB_IMAGE_REPOSITORY}" \
-      --set "initDB.image.tag=${NACOS_INITDB_IMAGE_TAG}"
+    local nacos_args=()
+    nacos_args+=("--set" "service.type=LoadBalancer")
+    nacos_args+=("--set" "mysql.enabled=true")
+    
+    [[ -n "${NACOS_MYSQL_IMAGE_REGISTRY}" ]] && nacos_args+=("--set" "mysql.image.registry=${NACOS_MYSQL_IMAGE_REGISTRY}")
+    [[ -n "${NACOS_MYSQL_IMAGE_REPOSITORY}" ]] && nacos_args+=("--set" "mysql.image.repository=${NACOS_MYSQL_IMAGE_REPOSITORY}")
+    [[ -n "${NACOS_MYSQL_IMAGE_TAG}" ]] && nacos_args+=("--set" "mysql.image.tag=${NACOS_MYSQL_IMAGE_TAG}")
+    [[ -n "${NACOS_IMAGE_REGISTRY}" ]] && nacos_args+=("--set" "image.registry=${NACOS_IMAGE_REGISTRY}")
+    [[ -n "${NACOS_IMAGE_REPOSITORY}" ]] && nacos_args+=("--set" "image.repository=${NACOS_IMAGE_REPOSITORY}")
+    [[ -n "${NACOS_VERSION}" ]] && nacos_args+=("--set" "image.tag=${NACOS_VERSION}")
+    [[ -n "${NACOS_PLUGIN_IMAGE_REGISTRY}" ]] && nacos_args+=("--set" "plugin.image.registry=${NACOS_PLUGIN_IMAGE_REGISTRY}")
+    [[ -n "${NACOS_PLUGIN_IMAGE_REPOSITORY}" ]] && nacos_args+=("--set" "plugin.image.repository=${NACOS_PLUGIN_IMAGE_REPOSITORY}")
+    [[ -n "${NACOS_PLUGIN_IMAGE_TAG}" ]] && nacos_args+=("--set" "plugin.image.tag=${NACOS_PLUGIN_IMAGE_TAG}")
+    [[ -n "${NACOS_INITDB_IMAGE_REGISTRY}" ]] && nacos_args+=("--set" "initDB.image.registry=${NACOS_INITDB_IMAGE_REGISTRY}")
+    [[ -n "${NACOS_INITDB_IMAGE_REPOSITORY}" ]] && nacos_args+=("--set" "initDB.image.repository=${NACOS_INITDB_IMAGE_REPOSITORY}")
+    [[ -n "${NACOS_INITDB_IMAGE_TAG}" ]] && nacos_args+=("--set" "initDB.image.tag=${NACOS_INITDB_IMAGE_TAG}")
+    
+    helm_upsert "nacos" "$NS" "$NACOS_CHART_REF" "${nacos_args[@]}"
     wait_rollout "$NS" "statefulset" "nacos" 900
   fi
 
@@ -385,8 +415,12 @@ main() {
   local action="${1:-install}"
   case "$action" in
     install) deploy_all ;;
+    himarket-only) 
+      HIMARKET_ONLY="true"
+      deploy_all 
+      ;;
     uninstall) uninstall_all ;;
-    *) err "未知操作：${action}（支持：install|uninstall）" ; exit 1 ;;
+    *) err "未知操作：${action}（支持：install|himarket-only|uninstall）" ; exit 1 ;;
   esac
 }
 
