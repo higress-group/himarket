@@ -413,7 +413,16 @@ function Chat() {
           return {
             ...model,
             conversations: model.conversations.map(con => {
-              return { ...con, loading: con.id === conversationId };
+              return {
+                ...con,
+                loading: con.id === conversationId,
+                questions: con.questions.map(question => (
+                  {
+                    ...question,
+                    isNewQuestion: question.id === questionId ? true : question.isNewQuestion
+                  }
+                ))
+              };
             })
           }
         })
@@ -694,6 +703,7 @@ function Chat() {
                     content: question.content,
                     createdAt: question.createdAt,
                     activeAnswerIndex: question.answers.length - 1,
+                    isNewQuestion: false,
                     answers: question.answers.map(answer => {
                       return {
                         errorMsg: "",

@@ -277,14 +277,14 @@ export function ChatArea(props: ChatAreaProps) {
                     onChangeVersion={(...args) => onChangeActiveAnswer(model.id, ...args)}
                     autoScrollEnabled={autoScrollEnabled}
                     modelName={currentModel?.name}
-                    onRefresh={(con, quest) => {
-                      setAutoScrollEnabled(false);
+                    onRefresh={(con, quest, isLast) => {
+                      setAutoScrollEnabled(isLast);
                       handleGenerateMessage({
                         modelId: model.id,
                         conversationId: con.id,
                         questionId: quest.id,
                         content: quest.content,
-                        mcps: addedMcps,
+                        mcps: mcpEnabled ? addedMcps : [],
                         enableWebSearch,
                         modelMap,
                       })
@@ -360,7 +360,7 @@ export function ChatArea(props: ChatAreaProps) {
                 <InputBox
                   onSendMessage={(c) => {
                     setAutoScrollEnabled(true);
-                    onSendMessage(c, addedMcps, enableWebSearch, modelMap)
+                    onSendMessage(c, mcpEnabled ? addedMcps : [], enableWebSearch, modelMap)
                   }}
                   isLoading={generating}
                   onMcpClick={toggleMcpModal}

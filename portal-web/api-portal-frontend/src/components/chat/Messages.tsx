@@ -11,15 +11,14 @@ interface MessageListProps {
   conversations: IModelConversation['conversations'];
   modelName?: string;
   modelIcon?: string; // 添加模型 icon
-  onRefresh?: (msg: IModelConversation['conversations'][0], quest: IModelConversation['conversations'][0]['questions'][0]) => void;
+  onRefresh?: (msg: IModelConversation['conversations'][0], quest: IModelConversation['conversations'][0]['questions'][0], isLast: boolean) => void;
   onChangeVersion?: (conversationId: string, questionId: string, direction: 'prev' | 'next') => void;
   autoScrollEnabled?: boolean;
-  isNewChat?: boolean;
 }
 
 export function Messages({
   conversations, modelName = "AI Assistant", modelIcon, onRefresh, onChangeVersion,
-  autoScrollEnabled = true, isNewChat = true
+  autoScrollEnabled = true, 
 }: MessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -37,8 +36,8 @@ export function Messages({
   return (
     <div className="mx-auto px-6 pb-4">
       <div className="space-y-6">
-        {conversations.map((conversation) => {
-          return conversation.questions.map(question => {
+        {conversations.map((conversation, index) => {
+          return conversation.questions.map((question) => {
             const activeAnswer = question.answers[question.activeAnswerIndex];
             return (
               <Message
@@ -48,9 +47,10 @@ export function Messages({
                 activeAnswer={activeAnswer}
                 modelIcon={modelIcon}
                 modelName={modelName}
-                isNewChat={isNewChat}
+                isNewChat={question.isNewQuestion !== false}
                 onChangeVersion={onChangeVersion}
                 onRefresh={onRefresh}
+                isLast={index === conversations.length - 1}
               />
             )
           })
@@ -63,16 +63,19 @@ export function Messages({
 
 function Message({
   conversation, question, activeAnswer, modelIcon, modelName, isNewChat,
+  isLast,
   onChangeVersion, onRefresh,
 }: {
   conversation: IModelConversation["conversations"][0];
   question: IModelConversation["conversations"][0]['questions'][0],
   activeAnswer: IModelConversation["conversations"][0]['questions'][0]['answers'][0],
   modelIcon?: string; modelName?: string; isNewChat?: boolean;
+  isLast: boolean;
   onChangeVersion?: (conversationId: string, questionId: string, direction: 'prev' | 'next') => void;
-  onRefresh?: (msg: IModelConversation['conversations'][0], quest: IModelConversation['conversations'][0]['questions'][0]) => void;
+  onRefresh?: (msg: IModelConversation['conversations'][0], quest: IModelConversation['conversations'][0]['questions'][0], isLast: boolean) => void;
 }) {
 
+  const contentRef = useRef<HTMLDivElement>(null);
 
   const [expandedContent, setExpandedContent] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -90,6 +93,14 @@ function Message({
     if (ms < 1000) return `${ms}ms`;
     return `${(ms / 1000).toFixed(2)}s`;
   };
+
+  useEffect(() => {
+    if (contentRef.current) {
+      if (contentRef.current.getBoundingClientRect().height < 160) {
+        setExpandedContent(false);
+      }
+    }
+  }, [])
 
   return (
     <div key={question.id}>
@@ -123,13 +134,14 @@ function Message({
         {/* 消息内容 */}
         <div className="flex-1">
           <div
+            ref={contentRef}
             className={`${!isNewChat && expandedContent ? "max-h-40 overflow-hidden" : "overflow-auto"} relative  bg-white/80 backdrop-blur-sm px-4 py-3 rounded-lg border border-gray-100`}>
             {
               !isNewChat && expandedContent && (
                 <div
                   onClick={() => setExpandedContent(false)}
-                  className="bottom-mask flex justify-center items-center cursor-pointer absolute -bottom-px h-10 w-full " style={{ background: "linear-gradient(rgba(255, 255, 255, 0) 9%, rgb(255, 255, 255) 100%)" }}>
-                  <DownCircleOutlined className="text-gray-400" />
+                  className="bottom-mask flex justify-center items-end cursor-pointer absolute -bottom-px h-14 w-full " style={{ background: "linear-gradient(rgba(255, 255, 255, .4) 9%, rgb(255, 255, 255) 100%)" }}>
+                  <DownCircleOutlined className="text-gray-500 mb-2" />
                 </div>
               )
             }
@@ -179,10 +191,10 @@ function Message({
                 </button>
                 <button
                   onClick={() => {
-                    onRefresh?.(conversation, question);
+                    onRefresh?.(conversation, question, isLast);
                   }}
                   className="p-1.5 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors duration-200"
-                  title="重新生成"
+                  title={"重新生成"}
                 >
                   <ReloadOutlined className="text-sm" />
                 </button>

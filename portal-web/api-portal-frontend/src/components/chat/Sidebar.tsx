@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import {
   PlusOutlined, DownOutlined,
   MenuFoldOutlined, MenuUnfoldOutlined,
-  HistoryOutlined,
   EditOutlined,
   DeleteOutlined,
   MoreOutlined,

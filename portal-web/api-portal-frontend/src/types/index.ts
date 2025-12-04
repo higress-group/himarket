@@ -356,6 +356,7 @@ export interface IModelConversation {
       activeAnswerIndex: number;
       mcpToolCalls?: IMcpToolCall[];  // MCP 工具调用列表
       mcpToolResponses?: IMcpToolResponse[];  // MCP 工具响应列表
+      isNewQuestion?: boolean;
       answers: {
         errorMsg: string;
         content: string;
