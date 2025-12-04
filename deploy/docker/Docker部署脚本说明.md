@@ -357,7 +357,7 @@ docker/
    server:
      name: "weather"
      securitySchemes:
-       - defaultCredential: "${WEATHER_API_KEY}"  # 支持环境变量
+       - defaultCredential:  "你的 API Key" # 用户需配置自己的 API Key  
          type: apiKey
    tools:
      - name: "getWeather"
