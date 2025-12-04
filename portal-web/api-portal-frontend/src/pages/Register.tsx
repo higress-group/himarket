@@ -40,7 +40,7 @@ const Register: React.FC = () => {
           <div className='bg-white backdrop-blur-sm rounded-2xl p-8 shadow-lg'>
             <div className="mb-8">
               <h2 className="text-[32px] flex text-gray-900">
-                <h2 className="text-colorPrimary">嗨，</h2>
+                <span className="text-colorPrimary">嗨，</span>
                 您好
               </h2>
               <p className="text-sm text-[#85888D]">欢迎来到 Himarket</p>

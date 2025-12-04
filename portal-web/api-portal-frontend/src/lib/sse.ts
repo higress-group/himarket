@@ -200,7 +200,7 @@ export async function handleSSEStream(
                 case 'ERROR':
                   // 错误事件
                   callbacks.onError?.(
-                    newMessage.message || 'Unknown error',
+                    newMessage.message || "网络错误，请重试",
                     newMessage.error
                   );
                   break;
