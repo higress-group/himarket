@@ -343,14 +343,26 @@ link_product_to_nacos() {
   local mcp_name="$3"
   local namespace_id="${4:-public}"
 
-  local body="{\"nacosId\":\"${nacos_id}\",\"sourceType\":\"NACOS\",\"productId\":\"${product_id}\",\"nacosRefConfig\":{\"mcpServerName\":\"${mcp_name}\",\"namespaceId\":\"${namespace_id}\"}}"
+  # 构造正确的 type 字段
+  local ref_type="MCP Server (${namespace_id})"
+
+  local body="{\"nacosId\":\"${nacos_id}\",\"sourceType\":\"NACOS\",\"productId\":\"${product_id}\",\"nacosRefConfig\":{\"mcpServerName\":\"${mcp_name}\",\"fromGatewayType\":\"NACOS\",\"type\":\"${ref_type}\",\"namespaceId\":\"${namespace_id}\"}}"
 
   if call_api "关联产品到Nacos" "POST" "/api/v1/products/${product_id}/ref" "$body"; then
-    log "[${mcp_name}] 产品关联到 Nacos 成功"
-    return 0
+    if [[ "$API_HTTP_CODE" =~ ^2[0-9]{2}$ ]]; then
+      log "[${mcp_name}] 产品关联到 Nacos 成功"
+      return 0
+    elif [[ "$API_HTTP_CODE" == "409" ]]; then
+      log "[${mcp_name}] 产品已关联到 Nacos（跳过）"
+      return 0
+    else
+      err "[${mcp_name}] 产品关联到 Nacos 失败: HTTP ${API_HTTP_CODE}"
+      err "响应内容: ${API_RESPONSE}"
+      return 1
+    fi
   else
-    log "[${mcp_name}] 产品关联到 Nacos 失败（可能已关联）"
-    return 0  # 允许失败，继续执行
+    err "[${mcp_name}] 产品关联到 Nacos API 调用失败"
+    return 1
   fi
 }
 
@@ -523,7 +535,8 @@ process_single_higress_mcp() {
 process_single_nacos_mcp() {
   local mcp_config="$1"
 
-  local mcp_name=$(echo "$mcp_config" | jq -r '.name')
+  # 从 serverSpecification.name 提取 MCP 名称
+  local mcp_name=$(echo "$mcp_config" | jq -r '.serverSpecification.name // .name')
 
   # 检查是否需要在 HiMarket 中配置
   local himarket_config=$(echo "$mcp_config" | jq -r '.himarket // empty')
@@ -532,9 +545,9 @@ process_single_nacos_mcp() {
     return 0
   fi
 
-  log "========================================"
+  log "=========================================="
   log "处理 Nacos MCP: ${mcp_name}"
-  log "========================================"
+  log "=========================================="
 
   # 提取 HiMarket 配置
   local product_name=$(echo "$mcp_config" | jq -r '.himarket.product.name')
@@ -566,9 +579,12 @@ process_single_nacos_mcp() {
 
   log "[${mcp_name}] Nacos ID: ${nacos_id}"
 
-  # 3. 关联产品到 Nacos
+  # 3. 关联产品到 Nacos（必须成功才能继续）
   log "[${mcp_name}] 关联产品到 Nacos..."
-  link_product_to_nacos "$product_id" "$nacos_id" "$mcp_name" "$namespace_id"
+  if ! link_product_to_nacos "$product_id" "$nacos_id" "$mcp_name" "$namespace_id"; then
+    err "[${mcp_name}] 产品关联失败，无法继续发布"
+    return 1
+  fi
 
   # 4. 如果需要发布到 Portal
   if [[ "$publish_to_portal" == "true" ]]; then
@@ -673,7 +689,7 @@ main() {
   if [ "$nacos_mcp_count" -gt 0 ]; then
     for i in $(seq 0 $((nacos_mcp_count - 1))); do
       local mcp_config=$(jq ".[$i]" "$NACOS_MCP_CONFIG")
-      local mcp_name=$(echo "$mcp_config" | jq -r '.name')
+      local mcp_name=$(echo "$mcp_config" | jq -r '.serverSpecification.name // .name')
 
       if process_single_nacos_mcp "$mcp_config"; then
         success_count=$((success_count + 1))
