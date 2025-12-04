@@ -459,14 +459,15 @@ export function Sidebar({ currentSessionId, onNewChat, onSelectSession, refreshT
           )}
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto px-4 pb-4">
-          <div
-            className="px-2 py-2 text-center text-gray-600 hover:bg-gray-100 rounded-lg cursor-pointer transition-all duration-200 hover:scale-[1.05] active:scale-95"
-            title="历史会话"
-          >
-            <HistoryOutlined className="text-base transition-transform duration-200 hover:rotate-12" />
-          </div>
-        </div>
+        <div className="flex-1 overflow-y-auto px-4 pb-4" />
+        // <div className="flex-1 overflow-y-auto px-4 pb-4">
+        //   <div
+        //     className="px-2 py-2 text-center text-gray-600 hover:bg-gray-100 rounded-lg cursor-pointer transition-all duration-200 hover:scale-[1.05] active:scale-95"
+        //     title="历史会话"
+        //   >
+        //     <HistoryOutlined className="text-base transition-transform duration-200 hover:rotate-12" />
+        //   </div>
+        // </div>
       )}
 
       {/* 收起/展开按钮 */}
