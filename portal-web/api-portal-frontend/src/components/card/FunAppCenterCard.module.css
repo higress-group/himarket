@@ -1,0 +1,114 @@
+.funFlowCard {
+  /*border-radius: 16px;*/
+  width: 320px;
+  height: 460px;
+  position: relative;
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border 0.3s ease;
+  overflow: hidden;
+  background: #FAFAFA;
+}
+
+.title {
+  margin-left: 24px;
+  margin-top: 20px;
+  display: block;
+  text-align: left;
+}
+
+.titleLabel {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  color: #242424;
+  white-space: nowrap;
+}
+
+.titleName {
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 19px;
+  color: #242424;
+  white-space: nowrap;
+  margin-left: 8px;
+}
+
+.content {
+  width: 320px;
+  height: 372px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 36px;
+}
+
+.iconsRow {
+  width: 276px;
+  height: 48px;
+  position: relative;
+  z-index: 0;
+}
+
+.iconsRow img {
+  width: 48px;
+  height: 48px;
+  position: absolute;
+  top: 0px;
+}
+
+.imageSection {
+  width: 320px;
+  height: 272px;
+  position: relative;
+  z-index: 0;
+}
+
+.leftImageSection {
+  width: 120px;
+  height: 186px;
+  position: absolute;
+  z-index: 1;
+  top: 86px;
+  left: 0px;
+}
+
+.leftImage {
+  width: 124px;
+  height: 186px;
+  position: relative;
+  left: -4px;
+}
+
+.rightImage {
+  height: 260px;
+  border-radius: 8px 0px 0px 8px;
+  position: absolute;
+  z-index: 2;
+  bottom: 24px;
+  left: 86px;
+  box-shadow: 0px 2px 6px 0px rgba(0, 0, 0, 0.19);
+}
+
+.topRightIcon {
+  width: 28px;
+  height: 28px;
+  position: absolute;
+  z-index: 3;
+  top: 16px;
+  right: 24px;
+  opacity: 0;
+  transition: opacity 0.3s ease, background 0.3s ease;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.funFlowCard:hover .topRightIcon,
+.funFlowCard.selected .topRightIcon {
+  opacity: 1;
+}
+
+.topRightIcon:hover {
+  background: linear-gradient(224deg, #0040FF 15%, #000000 87%);
+}

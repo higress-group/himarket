@@ -3,11 +3,12 @@ import { Link } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import { useEffect } from "react";
 import { getTokenFromCookie } from "../lib/utils";
-import { FileTextOutlined, DownloadOutlined, CustomerServiceOutlined, CodeOutlined } from "@ant-design/icons";
+import { FunModelCard, AgentCard, FunAppCenterCard } from '../components/card';
 
 const { Title, Paragraph } = Typography;
 
 function HomePage() {
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const fromCookie = params.get("fromCookie");
@@ -44,34 +45,10 @@ function HomePage() {
         </div>
         
         {/* 特色功能卡片 */}
-        <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8">
-          <div className="rounded-lg p-6 border border-gray-200 text-center">
-            <div className="mb-3">
-              <FileTextOutlined className="text-3xl text-gray-600" />
-            </div>
-            <h3 className="text-sm font-medium text-gray-700">开发指南</h3>
-          </div>
-
-          <div className="rounded-lg p-6 border border-gray-200 text-center">
-            <div className="mb-3">
-              <CodeOutlined className="text-3xl text-gray-600" />
-            </div>
-            <h3 className="text-sm font-medium text-gray-700">API调试</h3>
-          </div>
-
-          <div className="rounded-lg p-6 border border-gray-200 text-center">
-            <div className="mb-3">
-              <DownloadOutlined className="text-3xl text-gray-600" />
-            </div>
-            <h3 className="text-sm font-medium text-gray-700">SDK下载</h3>
-          </div>
-
-          <div className="rounded-lg p-6 border border-gray-200 text-center">
-            <div className="mb-3">
-              <CustomerServiceOutlined className="text-3xl text-gray-600" />
-            </div>
-            <h3 className="text-sm font-medium text-gray-700">技术支持</h3>
-          </div>
+        <div className="flex flex-wrap gap-4 justify-center">
+          <FunModelCard onClick={()=>{}} onFunArtClick={()=>{}} />
+          <AgentCard onClick={()=>{}} />
+          <FunAppCenterCard onClick={()=>{}} />
         </div>
       </div>
     </Layout>

@@ -55,7 +55,6 @@ function Chat() {
       antdMessage.error("请先选择一个模型");
       return;
     }
-
     try {
       setGenerating(true);
       // 如果没有会话，先创建会话
@@ -283,7 +282,7 @@ function Chat() {
                               ...question,
                               answers: [
                                 {
-                                  errorMsg: "",
+                                  errorMsg: question.answers?.[0]?.errorMsg,
                                   content: fullContent,
                                   firstTokenTime: usage?.first_byte_timeout || 0,
                                   totalTime: usage?.elapsed_time || 0,
@@ -302,7 +301,7 @@ function Chat() {
                 })
               })
             },
-            onError: () => {
+            onError: (errorMsg) => {
               setIsMcpExecuting(false);
               setModelConversation((prev) => {
                 return prev.map(model => {
@@ -319,7 +318,7 @@ function Chat() {
                               ...question,
                               answers: [
                                 {
-                                  errorMsg: "网络错误，请重试",
+                                  errorMsg,
                                   content: fullContent,
                                   firstTokenTime: 0,
                                   totalTime: 0,
@@ -414,7 +413,16 @@ function Chat() {
           return {
             ...model,
             conversations: model.conversations.map(con => {
-              return { ...con, loading: con.id === conversationId };
+              return {
+                ...con,
+                loading: con.id === conversationId,
+                questions: con.questions.map(question => (
+                  {
+                    ...question,
+                    isNewQuestion: question.id === questionId ? true : question.isNewQuestion
+                  }
+                ))
+              };
             })
           }
         })
@@ -548,10 +556,11 @@ function Chat() {
                       if (question.id !== questionId) return question;
                       return {
                         ...question,
+                        activeAnswerIndex: question.answers.length - 1,
                         answers: question.answers.map((answer, idx) => {
                           if (idx === question.answers.length - 1) {
                             return {
-                              errorMsg: "",
+                              errorMsg: answer.errorMsg,
                               content: fullContent,
                               firstTokenTime: usage?.first_byte_timeout || 0,
                               totalTime: usage?.elapsed_time || 0,
@@ -570,7 +579,7 @@ function Chat() {
           });
           setGenerating(false);
         },
-        onError: () => {
+        onError: (errorMsg) => {
           setIsMcpExecuting(false);
           setModelConversation((prev) => {
             return prev.map(model => {
@@ -588,7 +597,7 @@ function Chat() {
                         answers: [
                           ...question.answers,
                           {
-                            errorMsg: "网络错误，请重试",
+                            errorMsg,
                             content: fullContent,
                             firstTokenTime: 0,
                             totalTime: 0,
@@ -694,6 +703,7 @@ function Chat() {
                     content: question.content,
                     createdAt: question.createdAt,
                     activeAnswerIndex: question.answers.length - 1,
+                    isNewQuestion: false,
                     answers: question.answers.map(answer => {
                       return {
                         errorMsg: "",
@@ -770,6 +780,7 @@ function Chat() {
       return prev.filter(model => model.id !== modelId);
     })
   }
+
 
   return (
     <Layout>

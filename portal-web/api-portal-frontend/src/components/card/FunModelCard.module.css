@@ -1,0 +1,284 @@
+.funModelCard {
+  /*border-radius: 16px;*/
+  width: 320px;
+  height: 460px;
+  position: relative;
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border 0.3s ease;
+  overflow: hidden;
+}
+
+.backgroundImageContainer {
+  width: 320px;
+  height: 404px;
+  /*border-radius: 16px;*/
+  background: #FAFAFA;
+  box-sizing: border-box;
+  border: 1px solid #E5E5E5;
+  border-left-width: 0px;
+  border-right-width: 0px;
+  border-top-width: 0px;
+  border-bottom-left-radius: 16px;
+  border-bottom-right-radius: 16px;
+  box-shadow: 0px 4px 12px 0px rgba(118, 94, 252, 0.15);
+  position: relative;
+  z-index: 2;
+  overflow: hidden;
+}
+
+.backgroundImageContainer .gifContainer {
+  position: absolute;
+  rotate: 20deg;
+  width: 490px;
+  overflow: hidden;
+  height: 280px;
+  position: absolute;
+  left: -42%;
+  bottom: -11%;
+}
+
+.backgroundImageContainer .gifIndex {
+  position: absolute;
+  rotate: 20deg;
+  width: 490px;
+  max-width: none;
+  overflow: hidden;
+  height: 280px;
+  position: absolute;
+  left: -42%;
+  bottom: -11%;
+}
+
+.backgroundImage {
+  width: 320px;
+  height: 404px;
+}
+
+.serviceLabel {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  color: #242424;
+  white-space: nowrap;
+  position: absolute;
+  z-index: 3;
+  top: 20px;
+  left: 24px;
+}
+
+.serviceLabel span + span {
+  margin-left: 8px;
+}
+
+.serviceName {
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 19px;
+  color: #242424;
+  white-space: nowrap;
+  position: absolute;
+  z-index: 2;
+  top: 20px;
+  left: 90px;
+}
+
+.topRightIcon {
+  width: 28px;
+  height: 28px;
+  position: absolute;
+  z-index: 3;
+  top: 16px;
+  right: 24px;
+  opacity: 0;
+  transition: opacity 0.3s ease, background 0.3s ease;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.topRightIcon:hover {
+  background: linear-gradient(224deg, #0040FF 15%, #000000 87%);
+}
+
+.iconList img {
+  width: 48px;
+  height: 48px;
+  position: absolute;
+}
+
+.bottomOverlay {
+  opacity: 0.6;
+  background: radial-gradient(ellipse 11% 11% at 46% 50%, #999BF6, #FAFAFA 99%);
+  box-shadow: 0px 4px 12px 0px #ACB0B71A;
+  width: 280px;
+  height: 68px;
+  position: absolute;
+  z-index: 11;
+  bottom: 0px;
+  left: 40px;
+}
+
+.blurredSection {
+  filter: blur(7px);
+  width: 284px;
+  height: 69px;
+  position: absolute;
+  z-index: 12;
+  bottom: 0px;
+  left: 0px;
+}
+
+.blurredImage {
+  width: 322px;
+  height: 143px;
+  position: relative;
+  left: -38px;
+}
+
+.bottomServiceLabel {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  color: #242424;
+  white-space: nowrap;
+  position: absolute;
+  z-index: 13;
+  bottom: 20px;
+  left: 24px;
+}
+
+.bottomServiceName {
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 19px;
+  color: #242424;
+  white-space: nowrap;
+  position: absolute;
+  z-index: 14;
+  bottom: 21px;
+  left: 76px;
+}
+
+.bottomRightSection {
+  width: 116px;
+  height: 148px;
+  position: absolute;
+  z-index: 15;
+  bottom: 0px;
+  right: 0px;
+}
+
+.bottomImage {
+  width: 301px;
+  height: 170px;
+}
+
+.bottomRightIcon {
+  position: absolute;
+  z-index: 16;
+  bottom: 16px;
+  right: 24px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: #0040FF;
+  background-color: #ffffff;
+  opacity: 0;
+  animation: fadeIn 0.3s ease-out 0.6s forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.topSmallIcon {
+  width: 20px;
+  height: 20px;
+  position: absolute;
+  z-index: 17;
+  top: 41px;
+  right: 73px;
+}
+
+.bottomBackground {
+  position: absolute;
+  left: -60px;
+  bottom: 0;
+  width: 400px;
+  height: 68px;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.blurredWhiteBar {
+  width: 306px;
+  height: 46px;
+  transform: rotate(19deg);
+  background: #FFFFFF;
+  filter: blur(7px);
+  position: absolute;
+  top: 50px;
+}
+
+.blurredWhiteBarLarge {
+  width: 376.87px;
+  height: 60px;
+  transform: rotate(19deg);
+  background: #FFFFFF;
+  filter: blur(9px);
+  position: absolute;
+  bottom: 20px;
+  left: 115px;
+}
+
+.bottomGradientOverlay {
+  width: 400px;
+  height: 68px;
+  background: radial-gradient(62% 62% at 46% 50%, #DEEBFF 0%, #FAFAFA 100%);
+  box-shadow: 0px 4px 12px 0px rgba(172, 176, 183, 0.1);
+}
+
+.bottomBlueBlur {
+  width: 301px;
+  height: 170px;
+  background: #0040FF;
+  filter: blur(69px);
+  transform: translateX(-380px);
+  transition: 0.3s;
+  position: absolute;
+  z-index: 1;
+  animation: slideIn 0.3s ease-out 0.6s forwards;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(-380px);
+  }
+  to {
+    transform: translateX(254px);
+  }
+}
+
+.arrowRightIcon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #1F1F1F;
+  color: #FFFFFF;
+}
+
+.arrowRightIcon:hover {
+  background: linear-gradient(224deg, #0040FF 15%, #000000 87%);
+}
+
+.topContainer:hover .topRightIcon {
+  opacity: 1;
+}

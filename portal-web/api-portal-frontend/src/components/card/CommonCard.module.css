@@ -1,0 +1,264 @@
+.testCircle {
+  position: absolute;
+  left: -160px;
+  top: -70px;
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  background: conic-gradient(from 30deg at center, transparent 0deg, transparent 15deg, white 15deg, white 30deg);
+  overflow: hidden;
+  opacity: 1;
+  transform: rotate(0deg);
+}
+
+.testCircle2 {
+  position: absolute;
+  left: -160px;
+  top: -70px;
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  background: conic-gradient(from 135deg at center, white 135deg, white 180deg, transparent 180deg, transparent 135deg);
+  overflow: hidden;
+  opacity: 1;
+  transform: rotate(0deg);
+}
+
+.testCircle3 {
+  position: absolute;
+  left: -160px;
+  top: -70px;
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  background: conic-gradient(from 315deg at center, white 0deg, white 180deg, transparent 180deg, transparent 315deg);
+  overflow: hidden;
+  opacity: 1;
+  transform: rotate(0deg);
+}
+
+/* 用于防止容器内部元素抖动，保证稳定 */
+.commonCardFloatingContainer {
+  width: 324px;
+  min-width: 324px;
+  height: 464px;
+  position: relative;
+}
+
+.animationContainer {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.square {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  bottom: 0;
+  margin: auto;
+  width: 320px;
+  height: 460px;
+  background: linear-gradient(131deg, #0040FF 9%, #C7BFFC 98%);
+  border-radius: 10px;
+  transition: all 0.5s;
+}
+
+.contentContainer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  bottom: 0;
+  width: fit-content;
+  height: fit-content;
+  cursor: pointer;
+  border-radius: 15px;
+  overflow: hidden;
+  margin: auto;
+  border: 1px solid #E5E5E5;
+}
+
+.commonCardContainer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  bottom: 0;
+  margin: auto;
+  border-radius: 16px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border 0.3s ease;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.commonCardContainer:hover {}
+
+/* 悬停时触发动画 */
+.commonCardContainer:hover .testCircle {
+  animation: testCircleAnimation 0.5s linear forwards;
+}
+
+.commonCardContainer:hover .testCircle2 {
+  animation: testCircle2Animation 0.5s linear forwards;
+}
+
+.commonCardContainer:hover .testCircle3 {
+  animation: testCircle3Animation 0.5s linear forwards;
+}
+
+/* 悬停时触发 square 动画 */
+.commonCardContainer:hover .square {
+  animation: squareAnimation 0.5s linear forwards;
+}
+
+/* 悬停时触发 square 动画 */
+.commonCardContainer:hover .square {
+  animation: commonCardContainerAnimation 0.5s linear forwards;
+}
+
+/* testCircle 动画：0-0.3s 旋转90度，然后隐藏 */
+@keyframes testCircleAnimation {
+  0% {
+    opacity: 1;
+    transform: rotate(0deg);
+  }
+
+  30% {
+    opacity: 1;
+    transform: rotate(90deg);
+  }
+
+  50.01% {
+    opacity: 0;
+    transform: rotate(90deg);
+  }
+
+  100% {
+    opacity: 0;
+    transform: rotate(90deg);
+  }
+}
+
+/* testCircle2 动画：0.3-0.8s 旋转150度，然后隐藏 */
+@keyframes testCircle2Animation {
+  0% {
+    opacity: 0;
+    transform: rotate(0deg);
+  }
+
+  30% {
+    opacity: 0;
+    transform: rotate(0deg);
+  }
+
+  30.01% {
+    opacity: 1;
+    transform: rotate(0deg);
+  }
+
+  80.01% {
+    opacity: 1;
+    transform: rotate(150deg);
+  }
+
+  100% {
+    opacity: 0;
+    transform: rotate(150deg);
+  }
+}
+
+/* testCircle3 动画：0.8-1s 旋转150度，然后隐藏 */
+@keyframes testCircle3Animation {
+  0% {
+    opacity: 0;
+    transform: rotate(0deg);
+  }
+
+  30% {
+    opacity: 1;
+    transform: rotate(0deg);
+  }
+
+  30.01% {
+    opacity: 1;
+    transform: rotate(0deg);
+  }
+
+  80% {
+    opacity: 1;
+    transform: rotate(0deg);
+  }
+
+  80.01% {
+    opacity: 0;
+    transform: rotate(0deg);
+  }
+
+  100% {
+    opacity: 0;
+    transform: rotate(0deg);
+  }
+}
+
+/* square 尺寸变化动画 */
+@keyframes squareAnimation {
+  0% {
+    width: 320px;
+    height: 460px;
+  }
+
+  5% {
+    width: 323px;
+    height: 463px;
+  }
+
+  50% {
+    width: 323px;
+    height: 463px;
+  }
+
+  100% {
+    width: 324px;
+    height: 464px;
+  }
+}
+
+/* square 尺寸变化动画 */
+@keyframes commonCardContainerAnimation {
+  0% {
+    width: 320px;
+    height: 460px;
+  }
+
+  5% {
+    width: 323px;
+    height: 463px;
+  }
+
+  50% {
+    width: 323px;
+    height: 463px;
+  }
+
+  100% {
+    width: 324px;
+    height: 464px;
+  }
+}
+
+.arrowRightIcon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #1F1F1F;
+  color: #FFFFFF;
+}
+
+.arrowRightIcon:hover {
+  background: linear-gradient(224deg, #0040FF 15%, #000000 87%);
+}

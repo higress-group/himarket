@@ -60,6 +60,7 @@ export function ChatArea(props: ChatAreaProps) {
   const primaryConsumer = useRef<IGetPrimaryConsumerResp>();
 
   const [addedMcps, setAddedMcps] = useState<IProductDetail[]>([]);
+  const addedMcpsRef = useRef<IProductDetail[]>([]);
   const [mcpSubscripts, setMcpSubscripts] = useState<ISubscription[]>([]);
   const [mcpEnabled, setMcpEnabled] = useState(() => {
     return safeJSONParse(window.localStorage.getItem("mcpEnabled") || "false", false)
@@ -85,7 +86,7 @@ export function ChatArea(props: ChatAreaProps) {
 
   const handleMcpSearch = useCallback((id: string, name: string) => {
     if (id === "added") {
-      setMcpList(() => addedMcps.filter(mcp => mcp.name.includes(name)))
+      setAddedMcps(() => addedMcpsRef.current.filter(mcp => mcp.name.includes(name)))
     } else {
       getMcpList({
         type: "MCP_SERVER",
@@ -124,16 +125,22 @@ export function ChatArea(props: ChatAreaProps) {
         return v;
       }
       const res = [product, ...v];
+      addedMcpsRef.current = res;
       return res;
     });
   }, []);
 
   const handleRemoveMcp = useCallback((product: IProductDetail) => {
-    setAddedMcps(v => v.filter(i => i.productId !== product.productId))
+    setAddedMcps(v => {
+      const res = v.filter(i => i.productId !== product.productId);
+      addedMcpsRef.current = res;
+      return res;
+    })
   }, []);
 
   const handleRemoveAll = useCallback(() => {
     setAddedMcps([]);
+    addedMcpsRef.current = []
   }, [])
 
   const handleQuickSubscribe = useCallback((product: IProductDetail) => {
@@ -277,14 +284,14 @@ export function ChatArea(props: ChatAreaProps) {
                     onChangeVersion={(...args) => onChangeActiveAnswer(model.id, ...args)}
                     autoScrollEnabled={autoScrollEnabled}
                     modelName={currentModel?.name}
-                    onRefresh={(con, quest) => {
-                      setAutoScrollEnabled(false);
+                    onRefresh={(con, quest, isLast) => {
+                      setAutoScrollEnabled(isLast);
                       handleGenerateMessage({
                         modelId: model.id,
                         conversationId: con.id,
                         questionId: quest.id,
                         content: quest.content,
-                        mcps: addedMcps,
+                        mcps: mcpEnabled ? addedMcps : [],
                         enableWebSearch,
                         modelMap,
                       })
@@ -360,7 +367,7 @@ export function ChatArea(props: ChatAreaProps) {
                 <InputBox
                   onSendMessage={(c) => {
                     setAutoScrollEnabled(true);
-                    onSendMessage(c, addedMcps, enableWebSearch, modelMap)
+                    onSendMessage(c, mcpEnabled ? addedMcps : [], enableWebSearch, modelMap)
                   }}
                   isLoading={generating}
                   onMcpClick={toggleMcpModal}
