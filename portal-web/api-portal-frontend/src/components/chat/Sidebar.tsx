@@ -246,7 +246,7 @@ export function Sidebar({ currentSessionId, onNewChat, onSelectSession, refreshT
     if (sessions.length === 0) return null;
 
     return (
-      <div className="mb-4">
+      <div className="mb-2">
         <div
           className={`${expandedSections[sectionKey] ? "bg-white" : ""} sticky top-0 z-10 flex items-center justify-between px-3 py-2 text-sm text-subTitle cursor-pointer hover:bg-white/30 rounded-lg transition-all duration-200 hover:scale-[1.02]  backdrop-blur-xl`}
           onClick={() => toggleSection(sectionKey)}
