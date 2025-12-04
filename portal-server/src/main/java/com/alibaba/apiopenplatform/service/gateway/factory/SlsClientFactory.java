@@ -9,7 +9,7 @@ import com.alibaba.apiopenplatform.support.enums.SlsAuthType;
 
 import com.aliyun.openservices.log.Client;
 import com.aliyun.openservices.log.common.auth.Credentials;
-import com.aliyun.openservices.log.common.auth.DefaultCredentails;
+import com.aliyun.openservices.log.common.auth.DefaultCredentials;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import lombok.RequiredArgsConstructor;
@@ -80,7 +80,7 @@ public class SlsClientFactory {
         String endpoint = getEffectiveEndpoint();
 
         try {
-            Credentials credentials = new DefaultCredentails(accessKeyId, accessKeySecret);
+            Credentials credentials = new DefaultCredentials(accessKeyId, accessKeySecret);
             log.debug("Creating SLS client with AK/SK, endpoint: {}", endpoint);
             return new Client(endpoint, credentials, null);
         } catch (Exception e) {

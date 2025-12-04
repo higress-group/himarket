@@ -200,7 +200,7 @@
         <dependency>
             <groupId>com.aliyun.openservices</groupId>
             <artifactId>aliyun-log</artifactId>
-            <version>0.7.82</version>
+            <version>0.6.142</version>
         </dependency>
 
         <dependency>
