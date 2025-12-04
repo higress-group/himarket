@@ -119,7 +119,7 @@ function AgentDetail() {
     switch (matchType) {
       case 'Exact': return '等于'
       case 'Prefix': return '前缀是'
-      case 'RegularExpression': return '正则是'
+      case 'Regex': return '正则是'
       default: return '等于'
     }
   }
@@ -145,7 +145,7 @@ function AgentDetail() {
     let pathWithSuffix = path
     if (pathType === 'Prefix') {
       pathWithSuffix = `${path}*`
-    } else if (pathType === 'RegularExpression') {
+    } else if (pathType === 'Regex') {
       pathWithSuffix = `${path}~`
     }
 

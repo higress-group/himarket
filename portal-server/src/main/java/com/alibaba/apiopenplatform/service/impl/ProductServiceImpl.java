@@ -26,6 +26,7 @@ import java.util.stream.Collectors;
 import com.alibaba.apiopenplatform.dto.result.consumer.CredentialContext;
 import com.alibaba.apiopenplatform.dto.result.mcp.McpToolListResult;
 import com.alibaba.apiopenplatform.support.chat.mcp.McpServerConfig;
+import com.alibaba.apiopenplatform.support.product.ProductFeature;
 import io.modelcontextprotocol.spec.McpSchema;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
@@ -157,13 +158,15 @@ public class ProductServiceImpl implements ProductService {
     @Override
     public ProductResult updateProduct(String productId, UpdateProductParam param) {
         Product product = findProduct(productId);
-
         // Change API product type
         if (param.getType() != null && product.getType() != param.getType()) {
             productRefRepository.findFirstByProductId(productId)
                     .ifPresent(productRef -> {
                         throw new BusinessException(ErrorCode.INVALID_REQUEST, "API product already linked to API");
                     });
+            // Clear product features
+            product.setFeature(null);
+            param.setFeature(null);
         }
         param.update(product);
 
