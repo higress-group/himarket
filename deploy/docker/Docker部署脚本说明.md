@@ -597,8 +597,8 @@ A: 数据持久化在以下目录：
 | HiMarket Frontend | 8000 | 5173 | 开发者门户界面 |
 | HiMarket Server | 8080 | 8081 | 后端 API 服务 |
 | Nacos | 8848 | 8080 | Nacos 控制台 |
-| Higress Console | 8080 | 8082 | Higress 控制台 |
-| Higress Gateway | 8001 | 8001 | 网关 HTTP 入口 |
+| Higress Console | 8001 | 8001 | Higress 控制台 |
+| Higress Gateway | 8082 | 8082 | 网关 HTTP 入口 |
 | Higress Gateway HTTPS | 8443 | 8443 | 网关 HTTPS 入口 |
 | MySQL | 3306 | 3306 | 数据库服务 |
 | Redis | 6379 | 6379 | Redis 服务 |

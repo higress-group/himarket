@@ -81,7 +81,8 @@ get_himarket_admin_host() {
 get_himarket_frontend_host() {
   log "获取 HiMarket Frontend Service 地址..." >&2
 
-  local host=$(kubectl get svc himarket-frontend -n "${NS}" -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
+  local host
+  host=$(kubectl get svc himarket-frontend -n "${NS}" -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
 
   if [[ -z "$host" ]]; then
     log "未检测到 LoadBalancer IP，使用 ClusterIP 模式" >&2
@@ -119,7 +120,8 @@ call_api() {
 
   curl_cmd="${curl_cmd} --connect-timeout 10 --max-time 30"
 
-  local result=$(eval "$curl_cmd" 2>&1 || echo "HTTP_CODE:000")
+  local result
+  result=$(eval "$curl_cmd" 2>&1 || echo "HTTP_CODE:000")
 
   local http_code=""
   local response=""
@@ -216,7 +218,8 @@ get_or_create_gateway() {
   local cache_var="GATEWAY_ID_MAP_${gateway_name//-/_}"
 
   # 先尝试从缓存获取
-  local cached_id=$(eval "echo \$${cache_var}" 2>/dev/null || echo "")
+  local cached_id
+  cached_id=$(eval "echo \$${cache_var}" 2>/dev/null || echo "")
   if [[ -n "$cached_id" ]]; then
     echo "$cached_id"
     return 0
@@ -231,7 +234,8 @@ get_or_create_gateway() {
   call_api "查询网关列表" "GET" "/api/v1/gateways" "" >/dev/null 2>&1
 
   # 从响应中提取 Gateway ID
-  local gw_id=$(echo "$API_RESPONSE" | jq -r '.data.content[]? // .[]? | select(.gatewayName=="'"${gateway_name}"'") | .gatewayId' 2>/dev/null | head -1 || echo "")
+  local gw_id
+  gw_id=$(echo "$API_RESPONSE" | jq -r '.data.content[]? // .[]? | select(.gatewayName=="'"${gateway_name}"'") | .gatewayId' 2>/dev/null | head -1 || echo "")
 
   if [[ -n "$gw_id" ]]; then
     eval "${cache_var}='$gw_id'"
@@ -255,7 +259,8 @@ get_or_create_nacos() {
   call_api "查询Nacos列表" "GET" "/api/v1/nacos" "" >/dev/null 2>&1
 
   # 从响应中提取 Nacos ID
-  local nacos_id=$(echo "$API_RESPONSE" | jq -r '.data.content[]? // .[]? | select(.nacosName=="nacos-demo") | .nacosId' 2>/dev/null | head -1 || echo "")
+  local nacos_id
+  nacos_id=$(echo "$API_RESPONSE" | jq -r '.data.content[]? // .[]? | select(.nacosName=="nacos-demo") | .nacosId' 2>/dev/null | head -1 || echo "")
 
   if [[ -n "$nacos_id" ]]; then
     echo "$nacos_id"
@@ -273,7 +278,8 @@ get_or_create_portal() {
   local cache_var="PORTAL_ID_MAP_${portal_name//-/_}"
 
   # 先尝试从缓存获取
-  local cached_id=$(eval "echo \$${cache_var}" 2>/dev/null || echo "")
+  local cached_id
+  cached_id=$(eval "echo \$${cache_var}" 2>/dev/null || echo "")
   if [[ -n "$cached_id" ]]; then
     echo "$cached_id"
     return 0
@@ -288,7 +294,8 @@ get_or_create_portal() {
   call_api "查询Portal列表" "GET" "/api/v1/portals" "" >/dev/null 2>&1
 
   # 从响应中提取 Portal ID（支持新的数据结构）
-  local p_id=$(echo "$API_RESPONSE" | jq -r '.data.content[]? // .[]? | select(.name=="'"${portal_name}"'") | .portalId' 2>/dev/null | head -1 || echo "")
+  local p_id
+  p_id=$(echo "$API_RESPONSE" | jq -r '.data.content[]? // .[]? | select(.name=="'"${portal_name}"'") | .portalId' 2>/dev/null | head -1 || echo "")
 
   if [[ -n "$p_id" ]]; then
     eval "${cache_var}='$p_id'"
@@ -316,7 +323,8 @@ get_or_create_product() {
   call_api "查询产品列表" "GET" "/api/v1/products" "" >/dev/null 2>&1
 
   # 从响应中提取 Product ID
-  local prod_id=$(echo "$API_RESPONSE" | jq -r '.data.content[]? // .[]? | select(.name=="'"${product_name}"'") | .productId' 2>/dev/null | head -1 || echo "")
+  local prod_id
+  prod_id=$(echo "$API_RESPONSE" | jq -r '.data.content[]? // .[]? | select(.name=="'"${product_name}"'") | .productId' 2>/dev/null | head -1 || echo "")
 
   if [[ -n "$prod_id" ]]; then
     echo "$prod_id"
@@ -593,15 +601,6 @@ process_single_nacos_mcp() {
 
   log "[${mcp_name}] Nacos MCP 配置完成"
   return 0
-}
-
-########################################
-# 处理单个 MCP 的 HiMarket 配置（兼容旧版本）
-########################################
-process_single_mcp() {
-  local mcp_config="$1"
-  # 调用 Higress 处理函数（保持兼容）
-  process_single_higress_mcp "$mcp_config"
 }
 
 ########################################

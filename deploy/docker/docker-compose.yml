@@ -73,8 +73,8 @@ services:
     image: ${HIGRESS_IMAGE:-higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/all-in-one:latest}
     container_name: higress
     ports:
-      - "8001:8001"  # Gateway HTTP
-      - "8082:8080"  # Console
+      - "8001:8001"  # Console
+      - "8082:8080"  # Gateway HTTP
       - "8443:8443"  # Gateway HTTPS
     depends_on:
       - redis-stack-server
