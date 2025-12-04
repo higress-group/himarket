@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION=ai-playground
+VERSION=latest
 
 set -e
 
