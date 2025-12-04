@@ -48,7 +48,7 @@ export function InputBox(props: InputBoxProps) {
         <div className="px-3 py-1 text-sm">MCP 工具执行中...</div>
       )}
       <div
-        className="w-full h-full pb-14 p-4 bg-white/80 backdrop-blur-sm rounded-3xl shadow-sm "
+        className="w-full h-full pb-14 p-4 bg-white/80 backdrop-blur-sm rounded-3xl"
       >
         <textarea
           value={input}

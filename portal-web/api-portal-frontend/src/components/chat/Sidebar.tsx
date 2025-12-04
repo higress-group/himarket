@@ -55,8 +55,8 @@ export function Sidebar({ currentSessionId, onNewChat, onSelectSession, refreshT
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
     today: true,
-    last7Days: true,
-    last30Days: true,
+    last7Days: false,
+    last30Days: false,
   });
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [loading, setLoading] = useState(false);
@@ -246,9 +246,9 @@ export function Sidebar({ currentSessionId, onNewChat, onSelectSession, refreshT
     if (sessions.length === 0) return null;
 
     return (
-      <div className="mb-4">
+      <div className="mb-2">
         <div
-          className="flex items-center justify-between px-3 py-2 text-sm text-subTitle cursor-pointer hover:bg-gray-50 rounded-lg transition-all duration-200 hover:scale-[1.02]"
+          className={`${expandedSections[sectionKey] ? "bg-white" : ""} sticky top-0 z-10 flex items-center justify-between px-3 py-2 text-sm text-subTitle cursor-pointer hover:bg-white/30 rounded-lg transition-all duration-200 hover:scale-[1.02]  backdrop-blur-xl`}
           onClick={() => toggleSection(sectionKey)}
         >
           <span className="font-medium">{title}</span>
@@ -263,7 +263,7 @@ export function Sidebar({ currentSessionId, onNewChat, onSelectSession, refreshT
         </div>
         <div
           className={`
-            overflow-auto transition-all duration-300 ease-in-out
+            overflow-auto transition-all duration-300 ease-in-out sidebar-level-1
             ${expandedSections[sectionKey] ? "max-h-[500px] opacity-100 mt-1" : "max-h-0 opacity-0"}
           `}
         >
@@ -372,8 +372,8 @@ export function Sidebar({ currentSessionId, onNewChat, onSelectSession, refreshT
   return (
     <div
       className={`
-        bg-white/40 backdrop-blur-xl rounded-lg flex flex-col ml-4
-        transition-all duration-300 ease-in-out
+        bg-white/50 backdrop-blur-xl rounded-lg flex flex-col ml-4
+        transition-all duration-300 ease-in-out chat-session--sidebar
         ${isCollapsed ? "w-16" : "w-64"}
       `}
     >
@@ -441,7 +441,7 @@ export function Sidebar({ currentSessionId, onNewChat, onSelectSession, refreshT
 
       {/* 历史会话列表 */}
       {!isCollapsed ? (
-        <div className="flex-1 overflow-y-auto px-4 pb-4">
+        <div className="flex-1 overflow-y-auto px-4 pb-4 sidebar-content">
           {loading ? (
             <div className="flex items-center justify-center py-8">
               <Spin tip="加载中..." />

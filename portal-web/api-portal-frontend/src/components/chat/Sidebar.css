@@ -1,3 +1,15 @@
+.chat-session--sidebar {
+  .sidebar-content {
+    scrollbar-width: thin;
+
+    .sidebar-level-1 {
+      scrollbar-width: none;
+    }
+  }
+}
+
+
+
 /* 会话菜单下拉框样式 */
 .session-menu-dropdown .ant-dropdown-menu {
   background: transparent !important;
