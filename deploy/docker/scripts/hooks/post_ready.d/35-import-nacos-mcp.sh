@@ -22,6 +22,12 @@ NACOS_PASSWORD="${NACOS_PASSWORD:-nacos}"
 # 固定配置
 NAMESPACE_ID="public"
 
+# 商业化 Nacos 配置
+USE_COMMERCIAL_NACOS="${USE_COMMERCIAL_NACOS:-false}"
+COMMERCIAL_NACOS_SERVER_URL="${COMMERCIAL_NACOS_SERVER_URL:-}"
+COMMERCIAL_NACOS_USERNAME="${COMMERCIAL_NACOS_USERNAME:-}"
+COMMERCIAL_NACOS_PASSWORD="${COMMERCIAL_NACOS_PASSWORD:-}"
+
 log() { echo "[import-mcp $(date +'%H:%M:%S')] $*"; }
 err() { echo "[ERROR] $*" >&2; }
 
@@ -45,8 +51,24 @@ fi
 ########################################
 # 2. Docker 环境使用 localhost
 ########################################
-HOST="localhost"
-log "Nacos Service 地址: ${HOST}:8848"
+IS_COMMERCIAL=false
+if [ "$USE_COMMERCIAL_NACOS" = "true" ] && [ -n "$COMMERCIAL_NACOS_SERVER_URL" ]; then
+  # 使用商业化 Nacos
+  HOST="$COMMERCIAL_NACOS_SERVER_URL"
+  IS_COMMERCIAL=true
+  log "使用商业化 Nacos 地址: ${HOST}"
+
+  # 商业化 Nacos 优先使用商业化配置的用户名密码
+  if [ -n "$COMMERCIAL_NACOS_USERNAME" ]; then
+    NACOS_USERNAME="$COMMERCIAL_NACOS_USERNAME"
+  fi
+  if [ -n "$COMMERCIAL_NACOS_PASSWORD" ]; then
+    NACOS_PASSWORD="$COMMERCIAL_NACOS_PASSWORD"
+  fi
+else
+  HOST="localhost"
+  log "Nacos Service 地址: ${HOST}:8848"
+fi
 
 ########################################
 # URL 编码函数
@@ -146,8 +168,15 @@ LOGIN_RESP=$(curl -sS -X POST "$LOGIN_URL" \
 ACCESS_TOKEN=$(echo "$LOGIN_RESP" | sed -n 's/.*"accessToken"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
 
 if [ -z "$ACCESS_TOKEN" ]; then
-  err "登录失败,未能从响应中解析 accessToken。原始响应:"
+  err "登录失败，未能从响应中解析 accessToken。原始响应："
   err "$LOGIN_RESP"
+  
+  # 如果是商业化 Nacos，登录失败则跳过
+  if [ "$IS_COMMERCIAL" = "true" ]; then
+    log "商业化 Nacos 登录失败，跳过 MCP 导入"
+    exit 0
+  fi
+  
   exit 1
 fi
 
@@ -204,6 +233,17 @@ if [ "$IS_ARRAY" = "true" ]; then
   log "=========================================="
   log "所有 MCP 创建请求已发送完成。"
   log "成功: $SUCCESS_COUNT, 失败: $FAIL_COUNT"
+  
+  # 如果是商业化 Nacos 且有失败，跳过错误
+  if [ "$IS_COMMERCIAL" = "true" ] && [ $FAIL_COUNT -gt 0 ]; then
+    log "商业化 Nacos 部分 MCP 创建失败，但继续执行后续流程"
+    exit 0
+  fi
+  
+  # 开源 Nacos 如果有失败则报错
+  if [ $FAIL_COUNT -gt 0 ]; then
+    exit 1
+  fi
 else
   # 单个对象格式
   SERVER_SPEC=$(jq -c ".serverSpecification" "$MCP_JSON_FILE")
@@ -224,7 +264,16 @@ else
 
   log ""
   log "创建 MCP..."
-
+  
   # 调用创建函数
-  create_single_mcp "$MCP_NAME" "$SERVER_SPEC" "$TOOL_SPEC" "$ENDPOINT_SPEC"
+  if create_single_mcp "$MCP_NAME" "$SERVER_SPEC" "$TOOL_SPEC" "$ENDPOINT_SPEC"; then
+    log "MCP 创建成功"
+  else
+    # 如果是商业化 Nacos 且创建失败，跳过错误
+    if [ "$IS_COMMERCIAL" = "true" ]; then
+      log "商业化 Nacos MCP 创建失败，但继续执行后续流程"
+      exit 0
+    fi
+    exit 1
+  fi
 fi

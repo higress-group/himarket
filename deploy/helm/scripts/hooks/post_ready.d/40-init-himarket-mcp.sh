@@ -25,6 +25,15 @@ ADMIN_USERNAME="${ADMIN_USERNAME:-admin}"
 ADMIN_PASSWORD="${ADMIN_PASSWORD:-admin}"
 HIGRESS_PASSWORD="${HIGRESS_PASSWORD:-admin}"
 
+# 商业化 Nacos 配置
+USE_COMMERCIAL_NACOS="${USE_COMMERCIAL_NACOS:-false}"
+COMMERCIAL_NACOS_NAME="${COMMERCIAL_NACOS_NAME:-}"
+COMMERCIAL_NACOS_SERVER_URL="${COMMERCIAL_NACOS_SERVER_URL:-}"
+COMMERCIAL_NACOS_USERNAME="${COMMERCIAL_NACOS_USERNAME:-}"
+COMMERCIAL_NACOS_PASSWORD="${COMMERCIAL_NACOS_PASSWORD:-}"
+COMMERCIAL_NACOS_ACCESS_KEY="${COMMERCIAL_NACOS_ACCESS_KEY:-}"
+COMMERCIAL_NACOS_SECRET_KEY="${COMMERCIAL_NACOS_SECRET_KEY:-}"
+
 # 最大重试次数
 MAX_RETRIES=3
 
@@ -151,6 +160,20 @@ call_api() {
 }
 
 ########################################
+# JSON 转义函数
+########################################
+json_escape() {
+  local input="$1"
+  # 使用 jq 进行 JSON 转义
+  if command -v jq >/dev/null 2>&1; then
+    echo -n "$input" | jq -R -s '.'
+  else
+    # 简单的转义处理（备用方案）
+    echo -n "$input" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\n/\\n/g; s/\r/\\r/g; s/\t/\\t/g'
+  fi
+}
+
+########################################
 # 从 JSON 响应中提取字段值
 ########################################
 extract_json_field() {
@@ -250,20 +273,55 @@ get_or_create_gateway() {
 # 获取或创建 Nacos ID
 ########################################
 get_or_create_nacos() {
-  # 尝试创建
-  local body='{"nacosName":"nacos-demo","serverUrl":"http://nacos:8848","username":"nacos","password":"nacos"}'
+  local nacos_name="nacos-demo"
+  local server_url="http://nacos:8848"
+  local username="nacos"
+  local password="nacos"
+  local access_key=""
+  local secret_key=""
+  local nacos_id=""
+  
+  # 如果使用商业化 Nacos，使用商业化配置查询
+  if [[ "$USE_COMMERCIAL_NACOS" == "true" ]]; then
+    log "查询商业化 Nacos 实例" >&2
+    
+    if [[ -z "$COMMERCIAL_NACOS_NAME" ]]; then
+      err "商业化 Nacos 配置不完整（缺少 COMMERCIAL_NACOS_NAME）"
+      return 1
+    fi
+    
+    nacos_name="$COMMERCIAL_NACOS_NAME"
+  else
+    # 开源 Nacos，先尝试创建
+    log "创建开源 Nacos 实例" >&2
+    
+    # 使用 jq 构建 JSON 请求体
+    local body=$(jq -n \
+      --arg nacosName "$nacos_name" \
+      --arg serverUrl "$server_url" \
+      --arg username "$username" \
+      --arg password "$password" \
+      '{
+        nacosName: $nacosName,
+        serverUrl: $serverUrl,
+        username: $username,
+        password: $password
+      }')
 
-  call_api "插入Nacos" "POST" "/api/v1/nacos" "$body" >/dev/null 2>&1 || true
+    # 尝试创建
+    call_api "插入Nacos" "POST" "/api/v1/nacos" "$body" >/dev/null 2>&1 || true
+  fi
 
-  # 查询获取 ID
+  # 查询获取 ID（开源和商业化通用）
   call_api "查询Nacos列表" "GET" "/api/v1/nacos" "" >/dev/null 2>&1
 
   # 从响应中提取 Nacos ID
-  local nacos_id
-  nacos_id=$(echo "$API_RESPONSE" | jq -r '.data.content[]? // .[]? | select(.nacosName=="nacos-demo") | .nacosId' 2>/dev/null | head -1 || echo "")
+  local result_nacos_id
+  result_nacos_id=$(echo "$API_RESPONSE" | jq -r '.data.content[]? // .[]? | select(.nacosName=="'"${nacos_name}"'") | .nacosId' 2>/dev/null | head -1 || echo "")
 
-  if [[ -n "$nacos_id" ]]; then
-    echo "$nacos_id"
+  if [[ -n "$result_nacos_id" ]]; then
+    log "获取到 Nacos ID: ${result_nacos_id} (名称: ${nacos_name})" >&2
+    echo "$result_nacos_id"
     return 0
   fi
 
@@ -314,8 +372,16 @@ get_or_create_product() {
   local description="$2"
   local type="$3"
 
-  # 尝试创建
-  local body="{\"name\":\"${product_name}\",\"description\":\"${description}\",\"type\":\"${type}\"}"
+  # 使用 jq 构建 JSON 以避免转义问题
+  local body=$(jq -n \
+    --arg name "$product_name" \
+    --arg description "$description" \
+    --arg type "$type" \
+    '{
+      name: $name,
+      description: $description,
+      type: $type
+    }')
 
   call_api "插入产品" "POST" "/api/v1/products" "$body" >/dev/null 2>&1 || true
 
@@ -346,7 +412,26 @@ link_product_to_nacos() {
   # 构造正确的 type 字段
   local ref_type="MCP Server (${namespace_id})"
 
-  local body="{\"nacosId\":\"${nacos_id}\",\"sourceType\":\"NACOS\",\"productId\":\"${product_id}\",\"nacosRefConfig\":{\"mcpServerName\":\"${mcp_name}\",\"fromGatewayType\":\"NACOS\",\"type\":\"${ref_type}\",\"namespaceId\":\"${namespace_id}\"}}"
+  # 使用 jq 构建 JSON 以避免转义问题
+  local body=$(jq -n \
+    --arg nacosId "$nacos_id" \
+    --arg sourceType "NACOS" \
+    --arg productId "$product_id" \
+    --arg mcpServerName "$mcp_name" \
+    --arg fromGatewayType "NACOS" \
+    --arg type "$ref_type" \
+    --arg namespaceId "$namespace_id" \
+    '{
+      nacosId: $nacosId,
+      sourceType: $sourceType,
+      productId: $productId,
+      nacosRefConfig: {
+        mcpServerName: $mcpServerName,
+        fromGatewayType: $fromGatewayType,
+        type: $type,
+        namespaceId: $namespaceId
+      }
+    }')
 
   if call_api "关联产品到Nacos" "POST" "/api/v1/products/${product_id}/ref" "$body"; then
     if [[ "$API_HTTP_CODE" =~ ^2[0-9]{2}$ ]]; then
@@ -377,7 +462,24 @@ link_product_to_gateway() {
 
   local ref_type="MCP Server"
 
-  local body="{\"gatewayId\":\"${gateway_id}\",\"sourceType\":\"GATEWAY\",\"productId\":\"${product_id}\",\"higressRefConfig\":{\"mcpServerName\":\"${mcp_name}\",\"fromGatewayType\":\"HIGRESS\",\"type\":\"${ref_type}\"}}"
+  # 使用 jq 构建 JSON 以避免转义问题
+  local body=$(jq -n \
+    --arg gatewayId "$gateway_id" \
+    --arg sourceType "GATEWAY" \
+    --arg productId "$product_id" \
+    --arg mcpServerName "$mcp_name" \
+    --arg fromGatewayType "HIGRESS" \
+    --arg type "$ref_type" \
+    '{
+      gatewayId: $gatewayId,
+      sourceType: $sourceType,
+      productId: $productId,
+      higressRefConfig: {
+        mcpServerName: $mcpServerName,
+        fromGatewayType: $fromGatewayType,
+        type: $type
+      }
+    }')
 
   if call_api "关联产品" "POST" "/api/v1/products/${product_id}/ref" "$body"; then
     log "[${mcp_name}] 产品关联成功"
@@ -641,14 +743,9 @@ main() {
   # 确保 Gateway 和 Nacos 存在
   log "初始化基础设施..."
 
-  # 根据配置决定是否注册开源 Nacos
-  local use_commercial_nacos="${USE_COMMERCIAL_NACOS:-false}"
-  if [[ "$use_commercial_nacos" != "true" ]]; then
-    log "使用开源 Nacos，注册到 Himarket..."
-    get_or_create_nacos >/dev/null 2>&1 || true
-  else
-    log "使用商业化 Nacos，跳过开源 Nacos 注册"
-  fi
+  # 注册 Nacos 到 Himarket（开源或商业化）
+  log "注册 Nacos 到 Himarket..."
+  get_or_create_nacos >/dev/null 2>&1 || true
 
   get_or_create_gateway >/dev/null 2>&1 || true
 

@@ -10,10 +10,10 @@ services:
     image: ${MYSQL_IMAGE:-opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/mysql:latest}
     container_name: himarket-mysql
     environment:
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
-      - MYSQL_DATABASE=${MYSQL_DATABASE}
-      - MYSQL_USER=${MYSQL_USER}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-123456}
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-portal_db}
+      - MYSQL_USER=${MYSQL_USER:-portal_user}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-portal_pass}
     ports:
       - "3306:3306"
     volumes:
@@ -21,7 +21,7 @@ services:
     networks:
       - himarket-network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-123456}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -36,9 +36,9 @@ services:
     environment:
       - PREFER_HOST_MODE=hostname
       - MODE=standalone
-      - NACOS_AUTH_IDENTITY_KEY=${NACOS_AUTH_IDENTITY_KEY}
-      - NACOS_AUTH_IDENTITY_VALUE=${NACOS_AUTH_IDENTITY_VALUE}
-      - NACOS_AUTH_TOKEN=${NACOS_AUTH_TOKEN}
+      - NACOS_AUTH_IDENTITY_KEY=${NACOS_AUTH_IDENTITY_KEY:-serverIdentity}
+      - NACOS_AUTH_IDENTITY_VALUE=${NACOS_AUTH_IDENTITY_VALUE:-security}
+      - NACOS_AUTH_TOKEN=${NACOS_AUTH_TOKEN:-VGhpc0lzTXlDdXN0b21TZWNyZXRLZXkwMTIzNDU2Nzg=}
     volumes:
       - ./standalone-logs/:/home/nacos/logs
     ports:
@@ -97,11 +97,11 @@ services:
     image: ${HIMARKET_SERVER_IMAGE:-opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-server:latest}
     container_name: himarket-server
     environment:
-      - DB_HOST=${DB_HOST}
-      - DB_PORT=${DB_PORT}
-      - DB_NAME=${DB_NAME}
-      - DB_USERNAME=${DB_USERNAME}
-      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_HOST=${DB_HOST:-mysql}
+      - DB_PORT=${DB_PORT:-3306}
+      - DB_NAME=${DB_NAME:-portal_db}
+      - DB_USERNAME=${DB_USERNAME:-portal_user}
+      - DB_PASSWORD=${DB_PASSWORD:-portal_pass}
     ports:
       - "8081:8080"
     networks:

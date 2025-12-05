@@ -201,18 +201,24 @@ init_commercial_nacos() {
   
   local api_url="http://${HIMARKET_HOST}/api/v1/nacos"
   
-  # 构建请求体
-  local request_body=$(cat <<EOF
-{
-  "nacosName": "${NACOS_NAME}",
-  "serverUrl": "${NACOS_SERVER_URL}",
-  "username": "${NACOS_USERNAME}",
-  "password": "${NACOS_PASSWORD}",
-  "accessKey": "${NACOS_ACCESS_KEY}",
-  "secretKey": "${NACOS_SECRET_KEY}"
-}
-EOF
-)
+  # 使用 jq 构建请求体（避免 JSON 转义问题）
+  local request_body
+  request_body=$(jq -n \
+    --arg nacosName "$NACOS_NAME" \
+    --arg serverUrl "$NACOS_SERVER_URL" \
+    --arg username "$NACOS_USERNAME" \
+    --arg password "$NACOS_PASSWORD" \
+    --arg accessKey "$NACOS_ACCESS_KEY" \
+    --arg secretKey "$NACOS_SECRET_KEY" \
+    '{
+      nacosName: $nacosName,
+      serverUrl: $serverUrl
+    }
+    | if $username != "" then . + {username: $username} else . end
+    | if $password != "" then . + {password: $password} else . end
+    | if $accessKey != "" then . + {accessKey: $accessKey} else . end
+    | if $secretKey != "" then . + {secretKey: $secretKey} else . end
+    ')
   
   local attempt=1
   while (( attempt <= MAX_RETRIES )); do
@@ -222,7 +228,7 @@ EOF
       -H "Accept: application/json, text/plain, */*" \
       -H "Content-Type: application/json" \
       -H "Authorization: Bearer ${AUTH_TOKEN}" \
-      --data-raw "${request_body}" \
+      -d "${request_body}" \
       --connect-timeout 10 --max-time 30 2>/dev/null || echo "HTTP_CODE:000")
     
     # 提取 HTTP 状态码和响应体

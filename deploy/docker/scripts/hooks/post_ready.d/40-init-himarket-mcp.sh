@@ -35,6 +35,7 @@ HIMARKET_HOST="localhost:5174"
 FRONTEND_HOST="localhost:5173"
 # 是否商业化 Nacos 配置
 USE_COMMERCIAL_NACOS="${USE_COMMERCIAL_NACOS:-false}"
+COMMERCIAL_NACOS_NAME="${COMMERCIAL_NACOS_NAME:-}"
 
 # 缓存 ID 映射 (使用普通变量兼容 Bash 3.2)
 # 格式: PORTAL_ID_MAP_<name>=<id>
@@ -212,19 +213,49 @@ get_or_create_gateway() {
 # 获取或创建 Nacos ID
 ########################################
 get_or_create_nacos() {
-  # 尝试创建（Docker 环境使用 localhost:8848）
-  local body='{"nacosName":"nacos-demo","serverUrl":"http://nacos:8848","username":"nacos","password":"nacos"}'
+  local nacos_name="nacos-demo"
+  local nacos_id=""
   
-  call_api "插入Nacos" "POST" "/api/v1/nacos" "$body" >/dev/null 2>&1 || true
-  
-  # 查询获取 ID
+  # 如果使用商业化 Nacos，使用商业化配置查询
+  if [[ "$USE_COMMERCIAL_NACOS" == "true" ]]; then
+    log "查询商业化 Nacos 实例" >&2
+    
+    if [[ -z "$COMMERCIAL_NACOS_NAME" ]]; then
+      err "商业化 Nacos 配置不完整（缺少 COMMERCIAL_NACOS_NAME）"
+      return 1
+    fi
+    
+    nacos_name="$COMMERCIAL_NACOS_NAME"
+  else
+    # 开源 Nacos，先尝试创建
+    log "创建开源 Nacos 实例" >&2
+    
+    # 使用 jq 构建 JSON 请求体
+    local body=$(jq -n \
+      --arg nacosName "$nacos_name" \
+      --arg serverUrl "http://nacos:8848" \
+      --arg username "nacos" \
+      --arg password "nacos" \
+      '{
+        nacosName: $nacosName,
+        serverUrl: $serverUrl,
+        username: $username,
+        password: $password
+      }')
+
+    # 尝试创建
+    call_api "插入Nacos" "POST" "/api/v1/nacos" "$body" >/dev/null 2>&1 || true
+  fi
+
+  # 查询获取 ID（开源和商业化通用）
   call_api "查询Nacos列表" "GET" "/api/v1/nacos" "" >/dev/null 2>&1
   
   # 从响应中提取 Nacos ID
-  local nacos_id=$(echo "$API_RESPONSE" | jq -r '.data.content[]? // .[]? | select(.nacosName=="nacos-demo") | .nacosId' 2>/dev/null | head -1 || echo "")
+  local result_nacos_id=$(echo "$API_RESPONSE" | jq -r '.data.content[]? // .[]? | select(.nacosName=="'"${nacos_name}"'") | .nacosId' 2>/dev/null | head -1 || echo "")
   
-  if [[ -n "$nacos_id" ]]; then
-    echo "$nacos_id"
+  if [[ -n "$result_nacos_id" ]]; then
+    log "获取到 Nacos ID: ${result_nacos_id} (名称: ${nacos_name})" >&2
+    echo "$result_nacos_id"
     return 0
   fi
   

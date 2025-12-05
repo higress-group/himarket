@@ -123,7 +123,7 @@ run_hooks() {
             # 根据商业化 Nacos 开关跳过特定脚本
       if [[ "${USE_COMMERCIAL_NACOS}" == "true" ]]; then
         # 使用商业化 Nacos 时，跳过开源 Nacos 相关脚本
-        if [[ "$hook_name" == "10-init-nacos-admin.sh" || "$hook_name" == "35-import-nacos-mcp.sh" ]]; then
+        if [[ "$hook_name" == "10-init-nacos-admin.sh" ]]; then
           log "跳过钩子: ${hook_name} (已启用商业化 Nacos)"
           continue
         fi
