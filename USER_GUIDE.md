@@ -430,5 +430,5 @@ You have successfully completed the Himarket platform setup! Now you can:
 - Enable developers to self-service browse, subscribe, and call AI capabilities
 - Experience the powerful features of Model + MCP in the AI Playground
 
-Thank you for choosing Himarket! We're excited to see what you build with it. 🌟
+Thank you for choosing Himarket! We're excited to see what you build with it.
 

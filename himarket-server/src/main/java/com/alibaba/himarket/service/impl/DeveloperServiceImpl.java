@@ -87,7 +87,7 @@ public class DeveloperServiceImpl implements DeveloperService {
 
         // Allocate default consumer
         createDefaultConsumer(developer.getDeveloperId());
-        // 检查是否自动审批
+        // Check if auto approve
         String portalId = contextHolder.getPortal();
         Portal portal = findPortal(portalId);
         boolean autoApprove = portal.getPortalSettingConfig() != null
@@ -104,7 +104,7 @@ public class DeveloperServiceImpl implements DeveloperService {
     public DeveloperResult createDeveloper(CreateDeveloperParam param) {
         String portalId = contextHolder.getPortal();
         developerRepository.findByPortalIdAndUsername(portalId, param.getUsername()).ifPresent(developer -> {
-            throw new BusinessException(ErrorCode.CONFLICT, StrUtil.format("{}:{}已存在", Resources.DEVELOPER, param.getUsername()));
+            throw new BusinessException(ErrorCode.CONFLICT, StrUtil.format("Developer with name `{}` already exists", developer.getUsername()));
         });
 
         Developer developer = param.convertTo();
@@ -129,11 +129,11 @@ public class DeveloperServiceImpl implements DeveloperService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, Resources.DEVELOPER, username));
 
         if (!DeveloperStatus.APPROVED.equals(developer.getStatus())) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "账号审批中");
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "Your account is pending approval");
         }
 
         if (!PasswordHasher.verify(password, developer.getPasswordHash())) {
-            throw new BusinessException(ErrorCode.UNAUTHORIZED, "用户名或密码错误");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, "The username or password you entered is incorrect");
         }
 
         String token = generateToken(developer.getDeveloperId());
@@ -156,7 +156,7 @@ public class DeveloperServiceImpl implements DeveloperService {
                 .portalId(contextHolder.getPortal())
                 .username(buildExternalName(param.getProvider(), param.getDisplayName()))
                 .email(param.getEmail())
-                // 默认APPROVED
+                // Default APPROVED
                 .status(DeveloperStatus.APPROVED)
                 .build();
 
@@ -170,6 +170,8 @@ public class DeveloperServiceImpl implements DeveloperService {
 
         developerRepository.save(developer);
         externalRepository.save(externalIdentity);
+        createDefaultConsumer(developer.getDeveloperId());
+
         return new DeveloperResult().convertFrom(developer);
     }
 
@@ -214,12 +216,11 @@ public class DeveloperServiceImpl implements DeveloperService {
     }
 
     @Override
-    @Transactional
     public boolean resetPassword(String developerId, String oldPassword, String newPassword) {
         Developer developer = findDeveloper(developerId);
 
         if (!PasswordHasher.verify(oldPassword, developer.getPasswordHash())) {
-            throw new BusinessException(ErrorCode.UNAUTHORIZED, "用户名或密码错误");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, "The username or password you entered is incorrect");
         }
 
         developer.setPasswordHash(PasswordHasher.hash(newPassword));
@@ -228,19 +229,18 @@ public class DeveloperServiceImpl implements DeveloperService {
     }
 
     @Override
-    public boolean updateProfile(UpdateDeveloperParam param) {
+    public void updateProfile(UpdateDeveloperParam param) {
         Developer developer = findDeveloper(contextHolder.getUser());
 
         String username = param.getUsername();
         if (username != null && !username.equals(developer.getUsername())) {
             if (developerRepository.findByPortalIdAndUsername(developer.getPortalId(), username).isPresent()) {
-                throw new BusinessException(ErrorCode.CONFLICT, StrUtil.format("{}:{}已存在", Resources.DEVELOPER, username));
+                throw new BusinessException(ErrorCode.CONFLICT, StrUtil.format("Developer with name `{}` already exists", username));
             }
         }
         param.update(developer);
 
         developerRepository.save(developer);
-        return true;
     }
 
     @EventListener
@@ -253,42 +253,6 @@ public class DeveloperServiceImpl implements DeveloperService {
 
     private String generateToken(String developerId) {
         return TokenUtil.generateDeveloperToken(developerId);
-    }
-
-    private Developer createExternalDeveloper(String providerName, String providerSubject, String email, String displayName, String rawInfoJson) {
-        String portalId = contextHolder.getPortal();
-        String username = generateUniqueUsername(portalId, displayName, providerName, providerSubject);
-
-        Developer developer = Developer.builder()
-                .developerId(generateDeveloperId())
-                .portalId(portalId)
-                .username(username)
-                .email(email)
-                .status(DeveloperStatus.APPROVED)
-                .authType(DeveloperAuthType.OIDC)
-                .build();
-        developer = developerRepository.save(developer);
-
-        DeveloperExternalIdentity ext = DeveloperExternalIdentity.builder()
-                .provider(providerName)
-                .subject(providerSubject)
-                .displayName(displayName)
-                .rawInfoJson(rawInfoJson)
-                .developer(developer)
-                .build();
-        externalRepository.save(ext);
-        return developer;
-    }
-
-    private String generateUniqueUsername(String portalId, String displayName, String providerName, String providerSubject) {
-        String username = displayName != null ? displayName : providerName + "_" + providerSubject;
-        String originalUsername = username;
-        int suffix = 1;
-        while (developerRepository.findByPortalIdAndUsername(portalId, username).isPresent()) {
-            username = originalUsername + "_" + suffix;
-            suffix++;
-        }
-        return username;
     }
 
     private String generateDeveloperId() {
@@ -326,8 +290,7 @@ public class DeveloperServiceImpl implements DeveloperService {
 
     @Override
     public void logout(HttpServletRequest request) {
-        // 使用TokenUtil处理登出逻辑
-        com.alibaba.himarket.core.utils.TokenUtil.revokeToken(request);
+        TokenUtil.revokeToken(request);
     }
 
     @Override
@@ -346,8 +309,8 @@ public class DeveloperServiceImpl implements DeveloperService {
     private void createDefaultConsumer(String developerId) {
         consumerService.createConsumerInner(
                 CreateConsumerParam.builder()
-                        .name("default-consumer")
-                        .description("Developer's default consumer")
+                        .name("primary-consumer")
+                        .description("Developer's primary consumer")
                         .build(),
                 developerId
         );

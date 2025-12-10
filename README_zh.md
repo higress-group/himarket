@@ -25,7 +25,17 @@
   </p>
 </div>
 
-## 💡 Himarket 是什么？
+## 目录
+
+- [Himarket 是什么？](#himarket-是什么)
+- [系统架构](#系统架构)
+- [快速开始](#快速开始)
+- [文档](#文档)
+- [社区](#社区)
+- [贡献者](#贡献者)
+- [Star History](#star-history)
+
+## Himarket 是什么？
 
 Himarket 是基于 Higress AI 网关构建的企业级 AI 开放平台，帮助企业构建私有 AI 能力市场，统一管理和分发 LLM、MCP Server、Agent 等 AI 资源。平台将分散的 AI 能力封装为标准化的 API 产品，支持多版本管理和灰度发布，提供自助式开发者门户，并具备安全管控、观测分析、计量计费等完整的企业级运营能力，让 AI 资源的共享和复用变得高效便捷。
 
@@ -35,7 +45,7 @@ Himarket 是基于 Higress AI 网关构建的企业级 AI 开放平台，帮助�
   <b>核心能力</b>
 </div>
 
-## 🏗️ 系统架构
+## 系统架构
 
 <div align="center">
   <img src="https://github.com/user-attachments/assets/4e01fa52-dfb3-41a4-a5b6-7a9cc79528e4" alt="Himarket 系统架构" width="700px" />
@@ -64,7 +74,7 @@ Himarket 系统架构分为三层：
   </tr>
 </table>
 
-## 🚀 快速开始
+## 快速开始
 
 <details open>
 <summary><b>方式一：本地搭建</b></summary>
@@ -136,12 +146,11 @@ cd himarket/deploy/docker
 # 后端 API 地址：http://localhost:8080
 ```
 
-> 📝 详细的 Docker 部署说明请参考 [Docker 部署文档](./deploy/docker/Docker部署脚本说明.md)
+> 详细的 Docker 部署说明请参考 [Docker 部署文档](./deploy/docker/Docker部署脚本说明.md)
 
 </details>
 
 <details>
-<parameter name="new_string"><details>
 <summary><b>方式三：Helm Chart</b></summary>
 
 <br/>
@@ -163,7 +172,7 @@ cd himarket/deploy/helm
 ./deploy.sh uninstall
 ```
 
-> 📝 详细的 Helm 部署说明请参考 [Helm 部署文档](./deploy/helm/Helm部署脚本说明.md)
+> 详细的 Helm 部署说明请参考 [Helm 部署文档](./deploy/helm/Helm部署脚本说明.md)
 
 </details>
 
@@ -178,13 +187,13 @@ cd himarket/deploy/helm
 
 </details>
 
-## 📖 文档
+## 文档
 
 详细的使用说明请参考：
 
-📘 [用户指南](./USER_GUIDE_zh.md)
+[用户指南](./USER_GUIDE_zh.md)
 
-## 🌐 社区
+## 社区
 
 ### 加入我们
 
@@ -203,7 +212,7 @@ cd himarket/deploy/helm
   </tr>
 </table>
 
-## 🏆 贡献者
+## 贡献者
 
 感谢所有为 Himarket 做出贡献的开发者！
 
@@ -211,7 +220,7 @@ cd himarket/deploy/helm
   <img alt="contributors" src="https://contrib.rocks/image?repo=higress-group/himarket"/>
 </a>
 
-## 📈 Star History
+## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=higress-group/himarket&type=Date)](https://star-history.com/#higress-group/himarket&Date)
 

@@ -88,9 +88,8 @@ public class DeveloperController {
     @Operation(summary = "开发者更新个人信息", description = "开发者功能：更新当前登录开发者的个人信息")
     @PutMapping("/profile")
     @DeveloperAuth
-    public String updateProfile(@Valid @RequestBody UpdateDeveloperParam param) {
+    public void updateProfile(@Valid @RequestBody UpdateDeveloperParam param) {
         developerService.updateProfile(param);
-        return "更新个人信息成功";
     }
 
     @Operation(summary = "设置开发者状态", description = "管理员审核开发者账号，status为APPROVED/PENDING")
@@ -100,14 +99,6 @@ public class DeveloperController {
                                    @RequestBody UpdateDeveloperStatusParam param) {
         developerService.setDeveloperStatus(developerId, param.getStatus());
     }
-
-//    @Operation(summary = "解绑第三方登录", description = "解绑当前登录用户的指定第三方账号")
-//    @DeleteMapping("/{developerId}/identity")
-//    @DeveloperAuth
-//    public void unbindExternalIdentity(@PathVariable("developerId") String developerId,
-//                                       @RequestBody UnbindExternalIdentityParam param) {
-//        developerService.unbindExternalIdentity(developerId, param.getProviderName(), param.getProviderSubject());
-//    }
 
     @Operation(summary = "删除Developer账号")
     @DeleteMapping("/{developerId}")

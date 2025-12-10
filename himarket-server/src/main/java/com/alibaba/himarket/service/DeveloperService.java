@@ -35,7 +35,7 @@ import jakarta.servlet.http.HttpServletRequest;
 public interface DeveloperService {
 
     /**
-     * 开发者注册
+     * Register a new developer
      *
      * @param param
      * @return
@@ -43,7 +43,7 @@ public interface DeveloperService {
     AuthResult registerDeveloper(CreateDeveloperParam param);
 
     /**
-     * 创建开发者
+     * Create a new developer
      *
      * @param param
      * @return
@@ -51,7 +51,7 @@ public interface DeveloperService {
     DeveloperResult createDeveloper(CreateDeveloperParam param);
 
     /**
-     * 开发者登录
+     * Login by username and password
      *
      * @param username
      * @param password
@@ -60,14 +60,14 @@ public interface DeveloperService {
     AuthResult login(String username, String password);
 
     /**
-     * 校验Developer
+     * If the developer exists
      *
      * @param developerId
      */
     void existsDeveloper(String developerId);
 
     /**
-     * 获取外部开发者详情
+     * Get external developer info
      *
      * @param provider
      * @param subject
@@ -76,7 +76,7 @@ public interface DeveloperService {
     DeveloperResult getExternalDeveloper(String provider, String subject);
 
     /**
-     * 外部账号创建开发者
+     * Create a new developer by external identity
      *
      * @param param
      * @return
@@ -84,14 +84,14 @@ public interface DeveloperService {
     DeveloperResult createExternalDeveloper(CreateExternalDeveloperParam param);
 
     /**
-     * 删除开发者账号（删除账号及所有外部身份）
+     * Delete a developer
      *
      * @param developerId
      */
     void deleteDeveloper(String developerId);
 
     /**
-     * 查询开发者详情
+     * Get a developer
      *
      * @param developerId
      * @return
@@ -99,7 +99,7 @@ public interface DeveloperService {
     DeveloperResult getDeveloper(String developerId);
 
     /**
-     * 查询门户下的开发者列表
+     * List developers in a portal
      *
      * @param param
      * @param pageable
@@ -108,7 +108,7 @@ public interface DeveloperService {
     PageResult<DeveloperResult> listDevelopers(QueryDeveloperParam param, Pageable pageable);
 
     /**
-     * 设置开发者状态
+     * Set a developer status
      *
      * @param developerId
      * @param status
@@ -117,7 +117,7 @@ public interface DeveloperService {
     void setDeveloperStatus(String developerId, DeveloperStatus status);
 
     /**
-     * 开发者修改密码
+     * Reset password of a developer
      *
      * @param developerId
      * @param oldPassword
@@ -127,31 +127,30 @@ public interface DeveloperService {
     boolean resetPassword(String developerId, String oldPassword, String newPassword);
 
     /**
-     * 开发者更新个人信息
+     * Update user info of a developer
      *
      * @param param
-     * @return
      */
-    boolean updateProfile(UpdateDeveloperParam param);
+    void updateProfile(UpdateDeveloperParam param);
 
     /**
-     * 清理门户资源
+     * Clean developer resources when portal is deleted
      *
      * @param event
      */
     void handlePortalDeletion(PortalDeletingEvent event);
 
     /**
-     * 开发者登出
+     * Logout
      *
-     * @param request HTTP请求
+     * @param request
      */
     void logout(HttpServletRequest request);
 
     /**
-     * 获取当前登录开发者信息
+     * Get current developer info
      *
-     * @return 开发者信息
+     * @return
      */
     DeveloperResult getCurrentDeveloperInfo();
 

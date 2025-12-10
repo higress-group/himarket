@@ -51,7 +51,7 @@ public interface ConsumerService {
     void createConsumerInner(CreateConsumerParam param, String developerId);
 
     /**
-     * 获取Consumer列表
+     * List consumers
      *
      * @param param
      * @param pageable
@@ -60,7 +60,7 @@ public interface ConsumerService {
     PageResult<ConsumerResult> listConsumers(QueryConsumerParam param, Pageable pageable);
 
     /**
-     * 查询Consumer
+     * Get a consumer
      *
      * @param consumerId
      * @return
@@ -68,14 +68,14 @@ public interface ConsumerService {
     ConsumerResult getConsumer(String consumerId);
 
     /**
-     * 删除Consumer
+     * Delete a consumer
      *
      * @param consumerId
      */
     void deleteConsumer(String consumerId);
 
     /**
-     * 创建Consumer凭证
+     * Add a credential to a consumer
      *
      * @param consumerId
      * @param param
@@ -83,7 +83,7 @@ public interface ConsumerService {
     void createCredential(String consumerId, CreateCredentialParam param);
 
     /**
-     * 获取Consumer凭证
+     * Get a consumer's credential
      *
      * @param consumerId
      * @return
@@ -91,7 +91,7 @@ public interface ConsumerService {
     ConsumerCredentialResult getCredential(String consumerId);
 
     /**
-     * 更新Consumer凭证
+     * Update a consumer's credential
      *
      * @param consumerId
      * @param param
@@ -99,14 +99,14 @@ public interface ConsumerService {
     void updateCredential(String consumerId, UpdateCredentialParam param);
 
     /**
-     * 删除Consumer凭证
+     * Delete a consumer's credential
      *
      * @param consumerId Consumer ID
      */
     void deleteCredential(String consumerId);
 
     /**
-     * 订阅API产品
+     * Subscribe a product by a consumer
      *
      * @param consumerId
      * @param param
@@ -115,7 +115,7 @@ public interface ConsumerService {
     SubscriptionResult subscribeProduct(String consumerId, CreateSubscriptionParam param);
 
     /**
-     * 取消订阅
+     * Unsubscribe a product
      *
      * @param consumerId
      * @param productId
@@ -123,7 +123,7 @@ public interface ConsumerService {
     void unsubscribeProduct(String consumerId, String productId);
 
     /**
-     * 获取Consumer的订阅列表
+     * List subscriptions of a consumer
      *
      * @param consumerId
      * @param param
@@ -133,15 +133,7 @@ public interface ConsumerService {
     PageResult<SubscriptionResult> listSubscriptions(String consumerId, QuerySubscriptionParam param, Pageable pageable);
 
     /**
-     * 取消订阅API产品
-     *
-     * @param consumerId
-     * @param productId
-     */
-    void deleteSubscription(String consumerId, String productId);
-
-    /**
-     * 审批订阅API产品
+     * Approve a subscription
      *
      * @param consumerId
      * @param productId

@@ -25,7 +25,17 @@
   </p>
 </div>
 
-## 💡 What is Himarket?
+## Table of Contents
+
+- [What is Himarket?](#what-is-himarket)
+- [System Architecture](#system-architecture)
+- [Quick Start](#quick-start)
+- [Documentation](#documentation)
+- [Community](#community)
+- [Contributors](#contributors)
+- [Star History](#star-history)
+
+## What is Himarket?
 
 Himarket is an enterprise-grade AI open platform built on Higress AI Gateway, helping enterprises build private AI capability marketplace to uniformly manage and distribute AI resources such as LLM, MCP Server, and Agent. The platform encapsulates distributed AI capabilities into standardized API products, supports multi-version management and gray-scale release, provides self-service developer portal, and features comprehensive enterprise-level operation capabilities including security control, observability analysis, metering and billing, making AI resource sharing and reuse efficient and convenient.
 
@@ -35,7 +45,7 @@ Himarket is an enterprise-grade AI open platform built on Higress AI Gateway, he
   <b>Capabilities</b>
 </div>
 
-## 🏗️ System Architecture
+## System Architecture
 
 <div align="center">
   <img src="https://github.com/user-attachments/assets/ecbb3d2e-138b-4192-992e-9cd4a20b3fc3" alt="Himarket System Architecture" width="700px" />
@@ -64,7 +74,7 @@ Himarket system architecture consists of three layers:
   </tr>
 </table>
 
-## 🚀 Quick Start
+## Quick Start
 
 <details open>
 <summary><b>Option 1: Local Setup</b></summary>
@@ -136,7 +146,7 @@ cd himarket/deploy/docker
 # Backend API: http://localhost:8080
 ```
 
-> 📝 For detailed Docker deployment instructions, please refer to [Docker Deployment Guide](./deploy/docker/Docker部署脚本说明.md)
+> For detailed Docker deployment instructions, please refer to [Docker Deployment Guide](./deploy/docker/Docker部署脚本说明.md)
 
 </details>
 
@@ -162,7 +172,7 @@ cd himarket/deploy/helm
 ./deploy.sh uninstall
 ```
 
-> 📝 For detailed Helm deployment instructions, please refer to [Helm Deployment Guide](./deploy/helm/Helm部署脚本说明.md)
+> For detailed Helm deployment instructions, please refer to [Helm Deployment Guide](./deploy/helm/Helm部署脚本说明.md)
 
 </details>
 
@@ -177,13 +187,13 @@ Alibaba Cloud ComputeNest supports out-of-the-box deployment of the community ed
 
 </details>
 
-## 📖 Documentation
+## Documentation
 
 For detailed usage instructions, please refer to:
 
-📘 [User Guide](./USER_GUIDE.md)
+[User Guide](./USER_GUIDE.md)
 
-## 🌐 Community
+## Community
 
 ### Join Us
 
@@ -202,7 +212,7 @@ For detailed usage instructions, please refer to:
   </tr>
 </table>
 
-## 🏆 Contributors
+## Contributors
 
 Thanks to all the developers who have contributed to Himarket!
 
@@ -210,6 +220,6 @@ Thanks to all the developers who have contributed to Himarket!
   <img alt="contributors" src="https://contrib.rocks/image?repo=higress-group/himarket"/>
 </a>
 
-## 📈 Star History
+## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=higress-group/himarket&type=Date)](https://star-history.com/#higress-group/himarket&Date)

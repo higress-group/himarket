@@ -148,11 +148,11 @@ public class ConsumerServiceImpl implements ConsumerService {
     public void deleteConsumer(String consumerId) {
         Consumer consumer = contextHolder.isDeveloper() ? findDevConsumer(consumerId) : findConsumer(consumerId);
 
-        // 1. 先解除所有产品的授权
+        // 1. Remove subscriptions
         List<ProductSubscription> subscriptions = subscriptionRepository.findAllByConsumerId(consumerId);
         for (ProductSubscription subscription : subscriptions) {
             try {
-                // 如果订阅有授权配置，需要先解除授权
+                // If there is an authorization configuration, we need to cancel the authorization
                 if (subscription.getConsumerAuthConfig() != null) {
                     ProductRefResult productRef = productService.getProductRef(subscription.getProductId());
                     if (productRef != null) {
@@ -173,13 +173,13 @@ public class ConsumerServiceImpl implements ConsumerService {
             }
         }
 
-        // 2. 删除订阅记录
+        // 2. Delete subscriptions
         subscriptionRepository.deleteAllByConsumerId(consumerId);
 
-        // 3. 删除凭证
+        // 3. Delete credential
         credentialRepository.deleteAllByConsumerId(consumerId);
 
-        // 4. 删除网关上的Consumer
+        // 4. Delete gateway consumer
         List<ConsumerRef> consumerRefs = consumerRefRepository.findAllByConsumerId(consumerId);
         for (ConsumerRef consumerRef : consumerRefs) {
             try {
@@ -189,20 +189,20 @@ public class ConsumerServiceImpl implements ConsumerService {
             }
         }
 
-        // 5. 删除ConsumerRef记录
+        // 5. Delete consumer reference
         consumerRefRepository.deleteAll(consumerRefs);
 
-        // 6. 最后删除Consumer本身
+        // 6. Delete consumer
         consumerRepository.delete(consumer);
     }
 
     @Override
     public void createCredential(String consumerId, CreateCredentialParam param) {
         existsConsumer(consumerId);
-        // Consumer仅一份Credential
+        // Consumer only has one credential
         credentialRepository.findByConsumerId(consumerId)
                 .ifPresent(c -> {
-                    throw new BusinessException(ErrorCode.CONFLICT, StrUtil.format("{}:{}已存在凭证", Resources.CONSUMER, consumerId));
+                    throw new BusinessException(ErrorCode.CONFLICT, StrUtil.format("Credential of consumer `{}` already exists", consumerId));
                 });
         ConsumerCredential credential = param.convertTo();
         credential.setConsumerId(consumerId);
@@ -245,7 +245,7 @@ public class ConsumerServiceImpl implements ConsumerService {
             try {
                 gatewayService.updateConsumer(consumerRef.getGwConsumerId(), credential, consumerRef.getGatewayConfig());
             } catch (Exception e) {
-                log.error("update gatewayConsumer error, gwConsumerId: {}", consumerRef.getGwConsumerId(), e);
+                log.error("Update gatewayConsumer error, gwConsumerId: {}", consumerRef.getGwConsumerId(), e);
             }
         }
 
@@ -263,20 +263,19 @@ public class ConsumerServiceImpl implements ConsumerService {
 
         Consumer consumer = contextHolder.isDeveloper() ?
                 findDevConsumer(consumerId) : findConsumer(consumerId);
-        // 勿重复订阅
         if (subscriptionRepository.findByConsumerIdAndProductId(consumerId, param.getProductId()).isPresent()) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "重复订阅");
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "Duplicate subscription");
         }
 
         ProductResult product = productService.getProduct(param.getProductId());
         ProductRefResult productRef = productService.getProductRef(param.getProductId());
         if (productRef == null) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "API产品未关联API");
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "API product is not associated with any API");
         }
 
-        // 非网关型不支持订阅
+        // Only gateway source type is supported
         if (productRef.getSourceType() != SourceType.GATEWAY) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "API产品不支持订阅");
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "API product does not support subscription");
         }
 
         ConsumerCredential credential = credentialRepository.findByConsumerId(consumerId)
@@ -285,30 +284,21 @@ public class ConsumerServiceImpl implements ConsumerService {
         ProductSubscription subscription = param.convertTo();
         subscription.setConsumerId(consumerId);
 
-        // 检查产品级别的自动审批设置
-        boolean autoApprove = false;
-
-        // 优先检查产品级别的autoApprove配置
+        boolean autoApprove;
         if (product.getAutoApprove() != null) {
-            // 如果产品配置了autoApprove，直接使用产品级别的配置
             autoApprove = product.getAutoApprove();
-            log.info("使用产品级别自动审批配置: productId={}, autoApprove={}", param.getProductId(), autoApprove);
         } else {
-            // 如果产品未配置autoApprove，则使用平台级别的配置
             PortalResult portal = portalService.getPortal(consumer.getPortalId());
-            log.info("portal: {}", JSONUtil.toJsonStr(portal));
             autoApprove = portal.getPortalSettingConfig() != null
                     && BooleanUtil.isTrue(portal.getPortalSettingConfig().getAutoApproveSubscriptions());
-            log.info("使用平台级别自动审批配置: portalId={}, autoApprove={}", consumer.getPortalId(), autoApprove);
         }
 
+        // If autoApprove is true, immediately authorize and set status to APPROVED
         if (autoApprove) {
-            // 如果autoApprove为true，立即授权并设置为APPROVED状态
             ConsumerAuthConfig consumerAuthConfig = authorizeConsumer(consumer, credential, productRef);
             subscription.setConsumerAuthConfig(consumerAuthConfig);
             subscription.setStatus(SubscriptionStatus.APPROVED);
         } else {
-            // 如果autoApprove为false，暂时不授权，设置为PENDING状态
             subscription.setStatus(SubscriptionStatus.PENDING);
         }
 
@@ -369,41 +359,31 @@ public class ConsumerServiceImpl implements ConsumerService {
     }
 
     @Override
-    public void deleteSubscription(String consumerId, String productId) {
-        existsConsumer(consumerId);
-
-        subscriptionRepository.findByConsumerIdAndProductId(consumerId, productId)
-                .ifPresent(subscriptionRepository::delete);
-    }
-
-    @Override
     public SubscriptionResult approveSubscription(String consumerId, String productId) {
         existsConsumer(consumerId);
 
         ProductSubscription subscription = subscriptionRepository.findByConsumerIdAndProductId(consumerId, productId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, Resources.SUBSCRIPTION, StrUtil.format("{}:{}", productId, consumerId)));
 
-        // 检查订阅状态，只有PENDING状态的订阅才能被审批
         if (subscription.getStatus() != SubscriptionStatus.PENDING) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "订阅已审批");
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "Subscription already approved");
         }
 
-        // 获取消费者和凭证信息
+        // Get consumer and credential information
         Consumer consumer = contextHolder.isDeveloper() ?
                 findDevConsumer(consumerId) : findConsumer(consumerId);
         ConsumerCredential credential = credentialRepository.findByConsumerId(consumerId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, Resources.CONSUMER_CREDENTIAL, consumerId));
 
-        // 获取产品引用信息
+        // Obtain product reference
         ProductRefResult productRef = productService.getProductRef(productId);
         if (productRef == null) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "API产品未关联API");
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "API product is not associated with any API");
         }
 
-        // 执行授权操作
+        // Authorize consumer in the gateway
         ConsumerAuthConfig consumerAuthConfig = authorizeConsumer(consumer, credential, productRef);
 
-        // 更新订阅状态和授权配置
         subscription.setConsumerAuthConfig(consumerAuthConfig);
         subscription.setStatus(SubscriptionStatus.APPROVED);
         subscriptionRepository.saveAndFlush(subscription);
@@ -467,7 +447,6 @@ public class ConsumerServiceImpl implements ConsumerService {
                 predicates.add(cb.equal(root.get("status"), param.getStatus()));
             }
             if (StrUtil.isNotBlank(param.getProductName())) {
-                // 使用子查询
                 Subquery<String> productSubquery = query.subquery(String.class);
                 Root<Product> productRoot = productSubquery.from(Product.class);
 
@@ -483,11 +462,6 @@ public class ConsumerServiceImpl implements ConsumerService {
         };
     }
 
-    /**
-     * 补充Credentials
-     *
-     * @param credential
-     */
     private void complementCredentials(ConsumerCredential credential) {
         if (credential == null) {
             return;
@@ -523,23 +497,21 @@ public class ConsumerServiceImpl implements ConsumerService {
     private ConsumerAuthConfig authorizeConsumer(Consumer consumer, ConsumerCredential credential, ProductRefResult productRef) {
         GatewayConfig gatewayConfig = gatewayService.getGatewayConfig(productRef.getGatewayId());
 
-        // 检查是否在网关上有对应的Consumer
+        // Check if consumer exists in gateway
         ConsumerRef existingConsumerRef = matchConsumerRef(consumer.getConsumerId(), gatewayConfig);
         String gwConsumerId;
 
         if (existingConsumerRef != null) {
-            // 如果存在ConsumerRef记录，需要检查实际网关中是否还存在该消费者
             gwConsumerId = existingConsumerRef.getGwConsumerId();
 
-            // 检查实际网关中是否还存在该消费者
             if (!isConsumerExistsInGateway(gwConsumerId, gatewayConfig)) {
-                log.warn("网关中的消费者已被删除，需要重新创建: gwConsumerId={}, gatewayType={}",
+                log.warn("Consumer in gateway was deleted, need to recreate consumer: gwConsumerId: {}, gatewayType: {}",
                         gwConsumerId, gatewayConfig.getGatewayType());
 
-                // 删除过期的ConsumerRef记录
+                // Delete expired ConsumerRef record
                 consumerRefRepository.delete(existingConsumerRef);
 
-                // 重新创建消费者
+                // Recreate consumer
                 gwConsumerId = gatewayService.createConsumer(consumer, credential, gatewayConfig);
                 consumerRefRepository.save(ConsumerRef.builder()
                         .consumerId(consumer.getConsumerId())
@@ -549,7 +521,7 @@ public class ConsumerServiceImpl implements ConsumerService {
                         .build());
             }
         } else {
-            // 如果不存在ConsumerRef记录，直接创建新的消费者
+            // If no ConsumerRef record exists, create new consumer directly
             gwConsumerId = gatewayService.createConsumer(consumer, credential, gatewayConfig);
             consumerRefRepository.save(ConsumerRef.builder()
                     .consumerId(consumer.getConsumerId())
@@ -559,20 +531,17 @@ public class ConsumerServiceImpl implements ConsumerService {
                     .build());
         }
 
-        // 授权
+        // Authorize consumer
         return gatewayService.authorizeConsumer(productRef.getGatewayId(), gwConsumerId, productRef);
     }
 
-    /**
-     * 检查消费者是否在实际网关中存在
-     */
+
     private boolean isConsumerExistsInGateway(String gwConsumerId, GatewayConfig gatewayConfig) {
         try {
             return gatewayService.isConsumerExists(gwConsumerId, gatewayConfig);
         } catch (Exception e) {
-            log.warn("检查网关消费者存在性失败: gwConsumerId={}, gatewayType={}",
+            log.warn("Failed to check consumer existence in gateway, gwConsumerId: {}, gatewayType: {}",
                     gwConsumerId, gatewayConfig.getGatewayType(), e);
-            // 如果检查失败，默认认为存在，避免无谓的重新创建
             return true;
         }
     }
@@ -619,7 +588,7 @@ public class ConsumerServiceImpl implements ConsumerService {
         }
 
         for (ConsumerRef ref : consumeRefs) {
-            // 网关配置相同
+            // Check if the gateway config matches
             if (StrUtil.equals(JSONUtil.toJsonStr(ref.getGatewayConfig()), JSONUtil.toJsonStr(gatewayConfig))) {
                 return ref;
             }
@@ -630,7 +599,6 @@ public class ConsumerServiceImpl implements ConsumerService {
     @Override
     public CredentialContext getDefaultCredential(String developerId) {
         try {
-            // 复用 getPrimaryConsumer 逻辑（会自动初始化 primary）
             ConsumerResult consumer = getPrimaryConsumer();
 
             return credentialRepository
