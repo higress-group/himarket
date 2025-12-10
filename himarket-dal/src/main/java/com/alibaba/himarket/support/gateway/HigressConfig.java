@@ -17,9 +17,11 @@
  * under the License.
  */
 
-package com.alibaba.apiopenplatform.support.gateway;
+package com.alibaba.himarket.support.gateway;
 
-import com.alibaba.apiopenplatform.support.common.Encrypted;
+import cn.hutool.core.util.StrUtil;
+import cn.hutool.core.util.URLUtil;
+import com.alibaba.himarket.support.common.Encrypted;
 import lombok.Data;
 
 @Data
@@ -32,7 +34,34 @@ public class HigressConfig {
     @Encrypted
     private String password;
 
+    /**
+     * Higress gateway address
+     */
+    private String gatewayAddress;
+
     public String buildUniqueKey() {
-        return String.format("%s:%s:%s", address, username, password);
+        return StrUtil.join(":", address, username, password, gatewayAddress);
+    }
+
+    public boolean validate() {
+        if (StrUtil.isBlank(address) || StrUtil.isBlank(username) || StrUtil.isBlank(password)) {
+            return false;
+        }
+
+        try {
+            // Normalize address and gatewayAddress
+            if (!URLUtil.url(address).getProtocol().contains("http")) {
+                address = "http://" + address;
+            }
+
+            if (StrUtil.isNotBlank(gatewayAddress) &&
+                    !URLUtil.url(gatewayAddress).getProtocol().contains("http")) {
+                gatewayAddress = "http://" + gatewayAddress;
+            }
+        } catch (Exception e) {
+            return false;
+        }
+
+        return true;
     }
 }

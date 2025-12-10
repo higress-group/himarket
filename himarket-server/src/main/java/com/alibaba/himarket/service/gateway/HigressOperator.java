@@ -17,35 +17,36 @@
  * under the License.
  */
 
-package com.alibaba.apiopenplatform.service.gateway;
+package com.alibaba.himarket.service.gateway;
 
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.map.MapBuilder;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.core.util.URLUtil;
 import cn.hutool.json.JSONUtil;
-import com.alibaba.apiopenplatform.dto.result.agent.AgentAPIResult;
-import com.alibaba.apiopenplatform.dto.result.httpapi.APIResult;
-import com.alibaba.apiopenplatform.dto.result.common.PageResult;
-import com.alibaba.apiopenplatform.dto.result.gateway.GatewayResult;
-import com.alibaba.apiopenplatform.dto.result.common.DomainResult;
-import com.alibaba.apiopenplatform.dto.result.httpapi.HttpRouteResult;
-import com.alibaba.apiopenplatform.dto.result.mcp.GatewayMCPServerResult;
-import com.alibaba.apiopenplatform.dto.result.mcp.HigressMCPServerResult;
-import com.alibaba.apiopenplatform.dto.result.mcp.MCPConfigResult;
-import com.alibaba.apiopenplatform.dto.result.model.GatewayModelAPIResult;
-import com.alibaba.apiopenplatform.dto.result.model.HigressModelResult;
-import com.alibaba.apiopenplatform.dto.result.model.ModelConfigResult;
-import com.alibaba.apiopenplatform.entity.Gateway;
-import com.alibaba.apiopenplatform.entity.Consumer;
-import com.alibaba.apiopenplatform.entity.ConsumerCredential;
-import com.alibaba.apiopenplatform.service.gateway.client.HigressClient;
-import com.alibaba.apiopenplatform.support.consumer.ApiKeyConfig;
-import com.alibaba.apiopenplatform.support.consumer.ConsumerAuthConfig;
-import com.alibaba.apiopenplatform.support.consumer.HigressAuthConfig;
-import com.alibaba.apiopenplatform.support.enums.GatewayType;
-import com.alibaba.apiopenplatform.support.gateway.GatewayConfig;
-import com.alibaba.apiopenplatform.support.gateway.HigressConfig;
-import com.alibaba.apiopenplatform.support.product.HigressRefConfig;
+import com.alibaba.himarket.dto.result.agent.AgentAPIResult;
+import com.alibaba.himarket.dto.result.httpapi.APIResult;
+import com.alibaba.himarket.dto.result.common.PageResult;
+import com.alibaba.himarket.dto.result.gateway.GatewayResult;
+import com.alibaba.himarket.dto.result.common.DomainResult;
+import com.alibaba.himarket.dto.result.httpapi.HttpRouteResult;
+import com.alibaba.himarket.dto.result.mcp.GatewayMCPServerResult;
+import com.alibaba.himarket.dto.result.mcp.HigressMCPServerResult;
+import com.alibaba.himarket.dto.result.mcp.MCPConfigResult;
+import com.alibaba.himarket.dto.result.model.GatewayModelAPIResult;
+import com.alibaba.himarket.dto.result.model.HigressModelResult;
+import com.alibaba.himarket.dto.result.model.ModelConfigResult;
+import com.alibaba.himarket.entity.Gateway;
+import com.alibaba.himarket.entity.Consumer;
+import com.alibaba.himarket.entity.ConsumerCredential;
+import com.alibaba.himarket.service.gateway.client.HigressClient;
+import com.alibaba.himarket.support.consumer.ApiKeyConfig;
+import com.alibaba.himarket.support.consumer.ConsumerAuthConfig;
+import com.alibaba.himarket.support.consumer.HigressAuthConfig;
+import com.alibaba.himarket.support.enums.GatewayType;
+import com.alibaba.himarket.support.gateway.GatewayConfig;
+import com.alibaba.himarket.support.gateway.HigressConfig;
+import com.alibaba.himarket.support.product.HigressRefConfig;
 
 import com.alibaba.higress.sdk.model.route.KeyedRoutePredicate;
 import com.alibaba.higress.sdk.model.route.RoutePredicate;
@@ -165,9 +166,11 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
         c.setPath(path);
         List<String> domains = higressMCPConfig.getDomains();
         if (CollUtil.isEmpty(domains)) {
+            List<String> gatewayIps = fetchGatewayIps(gateway);
+            String domain = CollUtil.isEmpty(gatewayIps) ? "<higress-gateway-ip>" : gatewayIps.get(0);
             c.setDomains(Collections.singletonList(
                     DomainResult.builder()
-                            .domain("<higress-gateway-ip>")
+                            .domain(domain)
                             .protocol("http")
                             .build()
             ));
@@ -221,20 +224,30 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
         HigressRefConfig higressRefConfig = (HigressRefConfig) conf;
         HigressAIRoute aiRoute = fetchAIRoute(gateway, higressRefConfig.getModelRouteName());
 
-        // Domains
-        List<DomainResult> domains = Optional.ofNullable(aiRoute.getDomains())
-                .map(domainList -> domainList.stream()
-                        .map(domain -> DomainResult.builder()
-                                .domain(domain)
-                                .protocol(Optional.ofNullable(fetchDomain(gateway, domain))
-                                        .map(HigressDomainConfig::getEnableHttps)
-                                        .map(String::toLowerCase)
-                                        .filter("off"::equals)
-                                        .map(s -> "http")
-                                        .orElse("https"))
-                                .build())
-                        .toList())
-                .orElse(Collections.emptyList());
+        List<DomainResult> domains;
+        if (CollUtil.isEmpty(aiRoute.getDomains())) {
+            // Use gateway IP as domain
+            List<String> gatewayIps = fetchGatewayIps(gateway);
+            String domain = CollUtil.isEmpty(gatewayIps) ? "<higress-gateway-ip>" : gatewayIps.get(0);
+            domains = Collections.singletonList(
+                    DomainResult.builder()
+                            .domain(domain)
+                            .protocol("http")
+                            .build()
+            );
+        } else {
+            domains = aiRoute.getDomains().stream()
+                    .map(domain -> DomainResult.builder()
+                            .domain(domain)
+                            .protocol(Optional.ofNullable(fetchDomain(gateway, domain))
+                                    .map(HigressDomainConfig::getEnableHttps)
+                                    .map(String::toLowerCase)
+                                    .filter("off"::equals)
+                                    .map(s -> "http")
+                                    .orElse("https"))
+                            .build())
+                    .toList();
+        }
 
         // AI route
         List<HttpRouteResult> routeResults = Collections.singletonList(new HttpRouteResult().convertFrom(aiRoute, domains));
@@ -425,8 +438,24 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
 
     @Override
     public List<String> fetchGatewayIps(Gateway gateway) {
-        return Collections.emptyList();
+        String gatewayIp = Optional.ofNullable(gateway.getHigressConfig())
+                .map(HigressConfig::getGatewayAddress)
+                .filter(StrUtil::isNotBlank)
+                .map(address -> {
+                    try {
+                        return URLUtil.url(address).getHost();
+                    } catch (Exception e) {
+                        log.warn("Invalid gateway address: {}", address, e);
+                        return address;
+                    }
+                })
+                .orElse(null);
+
+        return StrUtil.isNotBlank(gatewayIp)
+                ? Collections.singletonList(gatewayIp)
+                : CollUtil.empty(List.class);
     }
+
 
     @Data
     @Builder
