@@ -1,0 +1,198 @@
+name: PR Check
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+jobs:
+  pr-title-check:
+    name: PR Title Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check PR Title
+        uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # Allowed types
+          types: |
+            feat
+            fix
+            docs
+            style
+            refactor
+            perf
+            test
+            build
+            ci
+            chore
+            revert
+          # Scope is optional
+          requireScope: false
+          # Subject must start with lowercase letter
+          subjectPattern: ^(?![A-Z]).+$
+          subjectPatternError: |
+            PR title format is incorrect!
+            
+            ❌ Wrong examples:
+            - feat: Add new feature (first letter should be lowercase)
+            - add new feature (missing type prefix)
+            - featadd new feature (missing colon and space)
+            
+            ✅ Correct format:
+            type: brief description
+            or
+            type(scope): brief description
+            
+            Allowed types:
+            - feat: new feature
+            - fix: bug fix
+            - docs: documentation update
+            - style: code formatting
+            - refactor: code refactoring
+            - perf: performance improvement
+            - test: testing
+            - build: build system
+            - ci: CI/CD
+            - chore: other changes
+            - revert: revert previous commit
+            
+            Examples:
+            ✅ feat: add product feature configuration
+            ✅ fix: fix product list pagination
+            ✅ feat(product): add feature configuration
+            ✅ docs: update README deployment guide
+
+  pr-content-check:
+    name: PR Content Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Check PR Description
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const body = pr.body || '';
+            
+            console.log('PR Body:', body);
+            
+            // Required checks
+            const checks = {
+              hasDescription: {
+                test: () => {
+                  const descSection = body.match(/##\s*Description\s*([\s\S]*?)(?=##|$)/i);
+                  if (!descSection) return false;
+                  const content = descSection[1].replace(/<!--[\s\S]*?-->/g, '').trim();
+                  return content.length > 10;
+                },
+                message: '❌ Missing description or too short (at least 10 characters required)'
+              },
+              hasCodeFormatted: {
+                test: () => {
+                  const checklistSection = body.match(/##\s*Checklist\s*([\s\S]*?)(?=##|$)/i);
+                  if (!checklistSection) return false;
+                  // Check if "Code has been formatted" is checked
+                  return /- \[x\].*mvn spotless:apply/i.test(checklistSection[1]);
+                },
+                message: '❌ Please confirm code has been formatted with `mvn spotless:apply`'
+              }
+            };
+            
+            // Execute checks
+            const errors = [];
+            const warnings = [];
+            
+            for (const [key, check] of Object.entries(checks)) {
+              if (!check.test()) {
+                errors.push(check.message);
+              }
+            }
+            
+            // Optional checks (warnings only)
+            const hasIssueLink = /(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+#\d+/i.test(body);
+            if (!hasIssueLink) {
+              warnings.push('⚠️ Consider linking related issues (e.g., `Fix #123` or `Close #456`)');
+            }
+            
+            if (body.length < 50) {
+              warnings.push('⚠️ PR description is short. Consider adding more details.');
+            }
+            
+            // Generate report
+            let comment = '## PR Content Check Report\n\n';
+            
+            if (errors.length === 0) {
+              comment += '### ✅ All required checks passed\n\n';
+            } else {
+              comment += '### ❌ Required items need to be completed\n\n';
+              errors.forEach(error => {
+                comment += `${error}\n`;
+              });
+              comment += '\n';
+            }
+            
+            if (warnings.length > 0) {
+              comment += '### 💡 Suggestions\n\n';
+              warnings.forEach(warning => {
+                comment += `${warning}\n`;
+              });
+              comment += '\n';
+            }
+            
+            comment += '---\n\n';
+            comment += '**PR Content Requirements:**\n\n';
+            comment += '**Required:**\n';
+            comment += '- **Description**: Clear explanation of changes (minimum 10 characters)\n';
+            comment += '- **Code Formatting**: Check the box in Checklist (Note: Code format is automatically verified by CI)\n\n';
+            comment += '**Optional but recommended:**\n';
+            comment += '- **Related Issues**: Link issues using `Fix #123`, `Close #456`, or `Resolve #789`\n';
+            comment += '- **Other Checklist Items**: Self-review, tests, documentation, etc.\n\n';
+            comment += 'Example format:\n';
+            comment += '```markdown\n';
+            comment += '## Description\n\n';
+            comment += '- Refactor client initialization method\n';
+            comment += '- Optimize parameter handling\n\n';
+            comment += '## Related Issues\n\n';
+            comment += 'Fix #123\n\n';
+            comment += '## Checklist\n\n';
+            comment += '- [x] Code has been formatted with `mvn spotless:apply`\n';
+            comment += '- [x] Code is self-reviewed\n';
+            comment += '```\n';
+            
+            // Find and delete previous check comments
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number,
+            });
+            
+            const botComment = comments.find(comment => 
+              comment.user.type === 'Bot' && 
+              comment.body.includes('PR Content Check Report')
+            );
+            
+            if (botComment) {
+              await github.rest.issues.deleteComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+              });
+            }
+            
+            // Post new comment
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number,
+              body: comment
+            });
+            
+            // Fail if there are errors
+            if (errors.length > 0) {
+              core.setFailed(`PR content check failed: ${errors.length} required item(s) incomplete`);
+            }
+
+

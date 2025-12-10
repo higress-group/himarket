@@ -102,7 +102,6 @@ public abstract class AbstractLlmService implements LlmService {
         ChatContext chatContext = initChatContext(request);
         chatContext.start();
 
-        log.info("zhaoh-test-request: {}", JSONUtil.toJsonStr(request));
         Flux<ChatAnswerMessage> resp = chatContext.getChatClient()
                 .prompt(new Prompt(chatContext.getMessages(), chatContext.getChatOptions()))
                 .options(chatContext.getChatOptions())
