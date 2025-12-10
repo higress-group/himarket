@@ -39,9 +39,9 @@
     </licenses>
 
     <modules>
-        <module>portal-dal</module>
-        <module>portal-server</module>
-        <module>portal-bootstrap</module>
+        <module>himarket-dal</module>
+        <module>himarket-server</module>
+        <module>himarket-bootstrap</module>
     </modules>
 
     <properties>
@@ -61,6 +61,8 @@
         <flyway.version>10.15.0</flyway.version>
         <spring.ai.version>1.1.0-M4</spring.ai.version>
         <higressadminsdk.version>0.0.2</higressadminsdk.version>
+        <nacos.client.version>3.1.0</nacos.client.version>
+        <spring.ai.version>1.1.0-M4</spring.ai.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
     </properties>
@@ -145,7 +147,7 @@
             <dependency>
                 <groupId>com.alibaba.nacos</groupId>
                 <artifactId>nacos-maintainer-client</artifactId>
-                <version>3.1.0</version>
+                <version>${nacos.client.version}</version>
             </dependency>
 
             <!-- Bouncy Castle Provider -->
@@ -170,7 +172,7 @@
             <dependency>
                 <groupId>org.springframework.ai</groupId>
                 <artifactId>spring-ai-bom</artifactId>
-                <version>1.1.0-M4</version>
+                <version>${spring.ai.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -203,7 +205,45 @@
                         <parameters>true</parameters>
                     </configuration>
                 </plugin>
+
+                <!-- Checkstyle Plugin -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-checkstyle-plugin</artifactId>
+                    <version>3.3.1</version>
+                    <dependencies>
+                        <dependency>
+                            <groupId>com.puppycrawl.tools</groupId>
+                            <artifactId>checkstyle</artifactId>
+                            <version>10.12.5</version>
+                        </dependency>
+                    </dependencies>
+                    <configuration>
+                        <configLocation>checkstyle.xml</configLocation>
+                        <consoleOutput>true</consoleOutput>
+                        <violationSeverity>warning</violationSeverity>
+                        <failOnViolation>false</failOnViolation>
+                        <includeTestSourceDirectory>false</includeTestSourceDirectory>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <id>checkstyle-validation</id>
+                            <phase>validate</phase>
+                            <goals>
+                                <goal>check</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
             </plugins>
         </pluginManagement>
+
+        <plugins>
+            <!-- Enable Checkstyle for all modules -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+            </plugin>
+        </plugins>
     </build>
 </project>

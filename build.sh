@@ -9,7 +9,7 @@ echo "=== Building backend server ==="
 echo "Building with Maven..."
 mvn clean package -DskipTests
 
-cd portal-bootstrap
+cd himarket-bootstrap
 echo "Building backend Docker image..."
 docker buildx build \
     --platform linux/amd64 \
@@ -19,7 +19,7 @@ echo "Backend server build completed"
 cd ..
 
 # 构建 frontend
-cd portal-web/api-portal-frontend
+cd himarket-web/himarket-frontend
 echo "=== Building frontend ==="
 rm -rf ./dist
 npm install --force
@@ -30,7 +30,7 @@ docker buildx build \
     --load .
 
 # 构建 admin
-cd ../api-portal-admin
+cd ../himarket-admin
 echo "=== Building admin ==="
 rm -rf ./dist
 npm install --force

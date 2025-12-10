@@ -1,0 +1,127 @@
+name: Code Check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches:
+      - main
+      - develop
+
+jobs:
+  code-format-check:
+    name: Code Format Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Check Code Format
+        run: mvn spotless:check
+        continue-on-error: false
+
+      - name: Comment on PR if format check fails
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: '## ❌ Code Format Check Failed\n\n' +
+                    'Your code does not follow the project formatting standards.\n\n' +
+                    '**Please run the following command:**\n' +
+                    '```bash\n' +
+                    'mvn spotless:apply\n' +
+                    '```\n\n' +
+                    'Then commit the changes:\n' +
+                    '```bash\n' +
+                    'git add .\n' +
+                    'git commit -m "style: format code with spotless"\n' +
+                    'git push\n' +
+                    '```\n\n' +
+                    'The check will automatically re-run after you push.'
+            });
+
+  checkstyle-check:
+    name: Checkstyle Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Run Checkstyle
+        run: mvn checkstyle:check
+        continue-on-error: true
+
+      - name: Comment on PR with Checkstyle warnings
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: '## ⚠️ Checkstyle Warnings\n\n' +
+                    'Your code has some style issues that should be addressed.\n\n' +
+                    '**These are warnings and won\'t block your PR**, but please consider fixing them:\n\n' +
+                    '- Check variable and method naming conventions\n' +
+                    '- Review code complexity and method length\n' +
+                    '- Ensure proper Javadoc documentation\n' +
+                    '- Avoid empty catch blocks and magic numbers\n\n' +
+                    '**To check locally:**\n' +
+                    '```bash\n' +
+                    'mvn checkstyle:check\n' +
+                    '```\n\n' +
+                    '**View detailed report:**\n' +
+                    'Check the CI logs above for specific violations.\n\n' +
+                    '*Note: This check follows [Google Java Style Guide](https://google.github.io/styleguide/javaguide.html)*'
+            });
+
+  # unit-tests:
+  #   name: Unit Tests
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v3
+  #     - name: Set up JDK 17
+  #       uses: actions/setup-java@v3
+  #       with:
+  #         java-version: '17'
+  #         distribution: 'temurin'
+  #         cache: maven
+  #     - name: Run Tests
+  #       run: mvn test
+
+  # build-check:
+  #   name: Build Check
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v3
+  #     - name: Set up JDK 17
+  #       uses: actions/setup-java@v3
+  #       with:
+  #         java-version: '17'
+  #         distribution: 'temurin'
+  #         cache: maven
+  #     - name: Build Project
+  #       run: mvn clean package -DskipTests
+
+
