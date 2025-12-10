@@ -1,21 +1,16 @@
 package com.alibaba.himarket.dto.params.sls;
 
+import com.alibaba.himarket.service.gateway.factory.SlsPresetSqlRegistry;
 import java.util.List;
 import java.util.Map;
-
-import com.alibaba.himarket.service.gateway.factory.SlsPresetSqlRegistry;
-
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * 场景化查询统一响应封装
- * 保留丰富格式：
- * - LINE：使用已定义的 TimeSeriesChartResponse
- * - CARD：使用轻量 POJO 列表而非 Map，提高类型明确性
- * - TABLE：保留 List<Map<String, String>> 以支持动态列
+ * 场景化查询统一响应封装 保留丰富格式： - LINE：使用已定义的 TimeSeriesChartResponse - CARD：使用轻量 POJO 列表而非 Map，提高类型明确性 -
+ * TABLE：保留 List<Map<String, String>> 以支持动态列
  */
 @Data
 @Builder

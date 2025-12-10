@@ -20,17 +20,15 @@
 package com.alibaba.himarket.repository;
 
 import com.alibaba.himarket.entity.ProductRef;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
-import java.util.Optional;
-
-/**
- * API Reference Repository
- */
+/** API Reference Repository */
 @Repository
-public interface ProductRefRepository extends JpaRepository<ProductRef, Long>, JpaSpecificationExecutor<ProductRef> {
+public interface ProductRefRepository
+        extends JpaRepository<ProductRef, Long>, JpaSpecificationExecutor<ProductRef> {
 
     Optional<ProductRef> findByProductId(String productId);
 

@@ -17,20 +17,18 @@
  * under the License.
  */
 
-
 package com.alibaba.himarket.controller;
 
 import com.alibaba.himarket.dto.result.common.AuthResult;
 import com.alibaba.himarket.dto.result.idp.IdpResult;
 import com.alibaba.himarket.service.OidcService;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.web.bind.annotation.*;
-
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.bind.annotation.*;
 
 @Slf4j
 @RestController
@@ -41,10 +39,12 @@ public class OidcController {
     private final OidcService oidcService;
 
     @GetMapping("/authorize")
-    public void authorize(@RequestParam String provider,
-                          @RequestParam(defaultValue = "/api/v1") String apiPrefix,
-                          HttpServletRequest request,
-                          HttpServletResponse response) throws IOException {
+    public void authorize(
+            @RequestParam String provider,
+            @RequestParam(defaultValue = "/api/v1") String apiPrefix,
+            HttpServletRequest request,
+            HttpServletResponse response)
+            throws IOException {
         String authUrl = oidcService.buildAuthorizationUrl(provider, apiPrefix, request);
 
         log.info("Redirecting to OIDC authorization URL: {}", authUrl);
@@ -52,10 +52,11 @@ public class OidcController {
     }
 
     @GetMapping("/callback")
-    public AuthResult callback(@RequestParam String code,
-                               @RequestParam String state,
-                               HttpServletRequest request,
-                               HttpServletResponse response) {
+    public AuthResult callback(
+            @RequestParam String code,
+            @RequestParam String state,
+            HttpServletRequest request,
+            HttpServletResponse response) {
         return oidcService.handleCallback(code, state, request, response);
     }
 

@@ -20,20 +20,19 @@
 package com.alibaba.himarket.service;
 
 import com.alibaba.himarket.dto.params.gateway.*;
-import com.alibaba.himarket.dto.result.httpapi.APIResult;
+import com.alibaba.himarket.dto.result.agent.AgentAPIResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.gateway.GatewayResult;
+import com.alibaba.himarket.dto.result.httpapi.APIResult;
 import com.alibaba.himarket.dto.result.mcp.GatewayMCPServerResult;
-import com.alibaba.himarket.dto.result.agent.AgentAPIResult;
 import com.alibaba.himarket.dto.result.model.GatewayModelAPIResult;
 import com.alibaba.himarket.dto.result.product.ProductRefResult;
 import com.alibaba.himarket.entity.Consumer;
 import com.alibaba.himarket.entity.ConsumerCredential;
 import com.alibaba.himarket.support.consumer.ConsumerAuthConfig;
 import com.alibaba.himarket.support.gateway.GatewayConfig;
-import org.springframework.data.domain.Pageable;
-
 import java.util.List;
+import org.springframework.data.domain.Pageable;
 
 public interface GatewayService {
 
@@ -49,7 +48,8 @@ public interface GatewayService {
 
     PageResult<GatewayResult> fetchAdpGateways(QueryAdpAIGatewayParam param, int page, int size);
 
-    PageResult<GatewayResult> fetchApsaraGateways(QueryApsaraGatewayParam param, int page, int size);
+    PageResult<GatewayResult> fetchApsaraGateways(
+            QueryApsaraGatewayParam param, int page, int size);
 
     /**
      * 导入Gateway
@@ -123,9 +123,11 @@ public interface GatewayService {
 
     boolean isConsumerExists(String gwConsumerId, GatewayConfig config);
 
-    ConsumerAuthConfig authorizeConsumer(String gatewayId, String gwConsumerId, ProductRefResult productRef);
+    ConsumerAuthConfig authorizeConsumer(
+            String gatewayId, String gwConsumerId, ProductRefResult productRef);
 
-    void revokeConsumerAuthorization(String gatewayId, String gwConsumerId, ConsumerAuthConfig config);
+    void revokeConsumerAuthorization(
+            String gatewayId, String gwConsumerId, ConsumerAuthConfig config);
 
     GatewayConfig getGatewayConfig(String gatewayId);
 

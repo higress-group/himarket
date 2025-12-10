@@ -26,4 +26,3 @@ public class ProductFeature {
 
     private ModelFeature modelFeature;
 }
-

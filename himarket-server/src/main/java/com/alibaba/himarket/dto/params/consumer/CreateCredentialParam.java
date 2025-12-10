@@ -24,9 +24,8 @@ import com.alibaba.himarket.entity.ConsumerCredential;
 import com.alibaba.himarket.support.consumer.ApiKeyConfig;
 import com.alibaba.himarket.support.consumer.HmacConfig;
 import com.alibaba.himarket.support.consumer.JwtConfig;
-import lombok.Data;
-
 import jakarta.validation.constraints.AssertTrue;
+import lombok.Data;
 
 @Data
 public class CreateCredentialParam implements InputConverter<ConsumerCredential> {

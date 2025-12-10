@@ -19,15 +19,13 @@
 
 package com.alibaba.himarket.repository;
 
-import org.springframework.stereotype.Repository;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-
+import com.alibaba.himarket.entity.Product;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
-
-import com.alibaba.himarket.entity.Product;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Repository;
 
 @Repository
 public interface ProductRepository extends BaseRepository<Product, Long> {
@@ -43,6 +41,4 @@ public interface ProductRepository extends BaseRepository<Product, Long> {
     List<Product> findByProductIdIn(Collection<String> productIds);
 
     Page<Product> findByAdminId(String adminId, Pageable pageable);
-
-
 }

@@ -28,4 +28,4 @@ public class UpdateDeveloperStatusParam {
     private String portalId;
 
     private DeveloperStatus status;
-} 
+}

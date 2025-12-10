@@ -7,13 +7,11 @@ import lombok.Getter;
  */
 @Getter
 public enum ChatRole {
-
     USER("user"),
 
     ASSISTANT("assistant"),
 
     SYSTEM("system"),
-
     ;
 
     private final String role;

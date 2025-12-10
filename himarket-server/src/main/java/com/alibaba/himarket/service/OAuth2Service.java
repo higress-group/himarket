@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 package com.alibaba.himarket.service;
 
 import com.alibaba.himarket.dto.result.common.AuthResult;
@@ -35,5 +34,4 @@ public interface OAuth2Service {
      * @return
      */
     AuthResult authenticate(String grantType, String jwtToken);
-
 }

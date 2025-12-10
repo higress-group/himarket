@@ -23,9 +23,7 @@ import com.alibaba.himarket.dto.converter.OutputConverter;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-/**
- * Nacos 命名空间结果
- */
+/** Nacos 命名空间结果 */
 @EqualsAndHashCode(callSuper = false)
 @Data
 public class NacosNamespaceResult implements OutputConverter<NacosNamespaceResult, Object> {
@@ -43,7 +41,8 @@ public class NacosNamespaceResult implements OutputConverter<NacosNamespaceResul
         try {
             // 优先通过常见getter获取
             String id = invokeGetter(source, "getNamespaceId", "getNamespace", "getId");
-            String name = invokeGetter(source, "getNamespaceShowName", "getNamespaceName", "getName");
+            String name =
+                    invokeGetter(source, "getNamespaceShowName", "getNamespaceName", "getName");
             String desc = invokeGetter(source, "getNamespaceDesc", "getDescription", "getDesc");
             this.namespaceId = id != null ? id : this.namespaceId;
             this.namespaceName = name != null ? name : this.namespaceName;

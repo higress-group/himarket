@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 package com.alibaba.himarket.service.impl;
 
 import cn.hutool.core.codec.Base64;
@@ -40,14 +39,18 @@ import com.alibaba.himarket.dto.result.developer.DeveloperResult;
 import com.alibaba.himarket.dto.result.idp.IdpResult;
 import com.alibaba.himarket.dto.result.idp.IdpState;
 import com.alibaba.himarket.dto.result.idp.IdpTokenResult;
-import com.alibaba.himarket.service.OidcService;
 import com.alibaba.himarket.service.DeveloperService;
+import com.alibaba.himarket.service.OidcService;
 import com.alibaba.himarket.service.PortalService;
 import com.alibaba.himarket.support.enums.DeveloperAuthType;
 import com.alibaba.himarket.support.enums.GrantType;
 import com.alibaba.himarket.support.portal.AuthCodeConfig;
 import com.alibaba.himarket.support.portal.IdentityMapping;
 import com.alibaba.himarket.support.portal.OidcConfig;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.util.*;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpEntity;
@@ -59,11 +62,6 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
-
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import java.util.*;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -79,7 +77,8 @@ public class OidcServiceImpl implements OidcService {
     private final ContextHolder contextHolder;
 
     @Override
-    public String buildAuthorizationUrl(String provider, String apiPrefix, HttpServletRequest request) {
+    public String buildAuthorizationUrl(
+            String provider, String apiPrefix, HttpServletRequest request) {
         OidcConfig oidcConfig = findOidcConfig(provider);
         AuthCodeConfig authCodeConfig = oidcConfig.getAuthCodeConfig();
 
@@ -88,23 +87,24 @@ public class OidcServiceImpl implements OidcService {
         String redirectUri = buildRedirectUri(request);
 
         // 重定向URL
-        String authUrl = UriComponentsBuilder
-                .fromUriString(authCodeConfig.getAuthorizationEndpoint())
-                // 授权码模式
-                .queryParam(IdpConstants.RESPONSE_TYPE, IdpConstants.CODE)
-                .queryParam(IdpConstants.CLIENT_ID, authCodeConfig.getClientId())
-                .queryParam(IdpConstants.REDIRECT_URI, redirectUri)
-                .queryParam(IdpConstants.SCOPE, authCodeConfig.getScopes())
-                .queryParam(IdpConstants.STATE, state)
-                .build()
-                .toUriString();
+        String authUrl =
+                UriComponentsBuilder.fromUriString(authCodeConfig.getAuthorizationEndpoint())
+                        // 授权码模式
+                        .queryParam(IdpConstants.RESPONSE_TYPE, IdpConstants.CODE)
+                        .queryParam(IdpConstants.CLIENT_ID, authCodeConfig.getClientId())
+                        .queryParam(IdpConstants.REDIRECT_URI, redirectUri)
+                        .queryParam(IdpConstants.SCOPE, authCodeConfig.getScopes())
+                        .queryParam(IdpConstants.STATE, state)
+                        .build()
+                        .toUriString();
 
         log.info("Generated OIDC authorization URL: {}", authUrl);
         return authUrl;
     }
 
     @Override
-    public AuthResult handleCallback(String code, String state, HttpServletRequest request, HttpServletResponse response) {
+    public AuthResult handleCallback(
+            String code, String state, HttpServletRequest request, HttpServletResponse response) {
         log.info("Processing OIDC callback with code: {}, state: {}", code, state);
 
         // 解析state获取provider信息
@@ -138,20 +138,24 @@ public class OidcServiceImpl implements OidcService {
                 .filter(portal -> portal.getPortalSettingConfig().getOidcConfigs() != null)
                 .map(portal -> portal.getPortalSettingConfig().getOidcConfigs())
                 // 确定当前Portal下启用的OIDC配置，返回Idp信息
-                .map(configs -> configs.stream()
-                        .filter(OidcConfig::isEnabled)
-                        .map(config -> IdpResult.builder()
-                                .provider(config.getProvider())
-                                .displayName(config.getName())
-                                .build())
-                        .collect(Collectors.toList()))
+                .map(
+                        configs ->
+                                configs.stream()
+                                        .filter(OidcConfig::isEnabled)
+                                        .map(
+                                                config ->
+                                                        IdpResult.builder()
+                                                                .provider(config.getProvider())
+                                                                .displayName(config.getName())
+                                                                .build())
+                                        .collect(Collectors.toList()))
                 .orElse(Collections.emptyList());
     }
 
     private String buildRedirectUri(HttpServletRequest request) {
         String scheme = request.getScheme();
-//        String serverName = "localhost";
-//        int serverPort = 5173;
+        //        String serverName = "localhost";
+        //        int serverPort = 5173;
         String serverName = request.getServerName();
         int serverPort = request.getServerPort();
 
@@ -169,21 +173,28 @@ public class OidcServiceImpl implements OidcService {
                 .filter(portal -> portal.getPortalSettingConfig() != null)
                 .filter(portal -> portal.getPortalSettingConfig().getOidcConfigs() != null)
                 // 根据provider字段过滤
-                .flatMap(portal -> portal.getPortalSettingConfig()
-                        .getOidcConfigs()
-                        .stream()
-                        .filter(config -> provider.equals(config.getProvider()) && config.isEnabled())
-                        .findFirst())
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, Resources.OIDC_CONFIG, provider));
+                .flatMap(
+                        portal ->
+                                portal.getPortalSettingConfig().getOidcConfigs().stream()
+                                        .filter(
+                                                config ->
+                                                        provider.equals(config.getProvider())
+                                                                && config.isEnabled())
+                                        .findFirst())
+                .orElseThrow(
+                        () ->
+                                new BusinessException(
+                                        ErrorCode.NOT_FOUND, Resources.OIDC_CONFIG, provider));
     }
 
     private String buildState(String provider, String apiPrefix) {
-        IdpState state = IdpState.builder()
-                .provider(provider)
-                .timestamp(System.currentTimeMillis())
-                .nonce(IdUtil.fastSimpleUUID())
-                .apiPrefix(apiPrefix)
-                .build();
+        IdpState state =
+                IdpState.builder()
+                        .provider(provider)
+                        .timestamp(System.currentTimeMillis())
+                        .nonce(IdUtil.fastSimpleUUID())
+                        .apiPrefix(apiPrefix)
+                        .build();
         return Base64.encode(JSONUtil.toJsonStr(state));
     }
 
@@ -202,7 +213,8 @@ public class OidcServiceImpl implements OidcService {
         return idpState;
     }
 
-    private IdpTokenResult requestToken(String code, OidcConfig oidcConfig, HttpServletRequest request) {
+    private IdpTokenResult requestToken(
+            String code, OidcConfig oidcConfig, HttpServletRequest request) {
         AuthCodeConfig authCodeConfig = oidcConfig.getAuthCodeConfig();
         String redirectUri = buildRedirectUri(request);
 
@@ -214,7 +226,12 @@ public class OidcServiceImpl implements OidcService {
         params.add(IdpConstants.CLIENT_SECRET, authCodeConfig.getClientSecret());
 
         log.info("Request tokens at: {}, params: {}", authCodeConfig.getTokenEndpoint(), params);
-        return executeRequest(authCodeConfig.getTokenEndpoint(), HttpMethod.POST, null, params, IdpTokenResult.class);
+        return executeRequest(
+                authCodeConfig.getTokenEndpoint(),
+                HttpMethod.POST,
+                null,
+                params,
+                IdpTokenResult.class);
     }
 
     private Map<String, Object> getUserInfo(IdpTokenResult tokenResult, OidcConfig oidcConfig) {
@@ -259,18 +276,28 @@ public class OidcServiceImpl implements OidcService {
     }
 
     @SuppressWarnings("unchecked")
-    private Map<String, Object> requestUserInfo(String accessToken, AuthCodeConfig authCodeConfig, OidcConfig oidcConfig) {
+    private Map<String, Object> requestUserInfo(
+            String accessToken, AuthCodeConfig authCodeConfig, OidcConfig oidcConfig) {
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setBearerAuth(accessToken);
 
             log.info("Fetching user info from endpoint: {}", authCodeConfig.getUserInfoEndpoint());
-            Map<String, Object> userInfo = executeRequest(authCodeConfig.getUserInfoEndpoint(), HttpMethod.GET, headers, null, Map.class);
+            Map<String, Object> userInfo =
+                    executeRequest(
+                            authCodeConfig.getUserInfoEndpoint(),
+                            HttpMethod.GET,
+                            headers,
+                            null,
+                            Map.class);
 
             log.info("Successfully fetched user info from endpoint, sub: {}", userInfo);
             return userInfo;
         } catch (Exception e) {
-            log.error("Failed to fetch user info from endpoint: {}", authCodeConfig.getUserInfoEndpoint(), e);
+            log.error(
+                    "Failed to fetch user info from endpoint: {}",
+                    authCodeConfig.getUserInfoEndpoint(),
+                    e);
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, "获取用户信息失败");
         }
     }
@@ -278,12 +305,18 @@ public class OidcServiceImpl implements OidcService {
     private String createOrGetDeveloper(Map<String, Object> userInfo, OidcConfig config) {
         IdentityMapping identityMapping = config.getIdentityMapping();
         // userId & userName & email
-        String userIdField = StrUtil.isBlank(identityMapping.getUserIdField()) ?
-                IdpConstants.SUBJECT : identityMapping.getUserIdField();
-        String userNameField = StrUtil.isBlank(identityMapping.getUserNameField()) ?
-                IdpConstants.NAME : identityMapping.getUserNameField();
-        String emailField = StrUtil.isBlank(identityMapping.getEmailField()) ?
-                IdpConstants.EMAIL : identityMapping.getEmailField();
+        String userIdField =
+                StrUtil.isBlank(identityMapping.getUserIdField())
+                        ? IdpConstants.SUBJECT
+                        : identityMapping.getUserIdField();
+        String userNameField =
+                StrUtil.isBlank(identityMapping.getUserNameField())
+                        ? IdpConstants.NAME
+                        : identityMapping.getUserNameField();
+        String emailField =
+                StrUtil.isBlank(identityMapping.getEmailField())
+                        ? IdpConstants.EMAIL
+                        : identityMapping.getEmailField();
 
         Object userIdObj = userInfo.get(userIdField);
         Object userNameObj = userInfo.get(userNameField);
@@ -297,32 +330,40 @@ public class OidcServiceImpl implements OidcService {
         }
 
         // 复用已有的Developer，否则创建
-        return Optional.ofNullable(developerService.getExternalDeveloper(config.getProvider(), userId))
+        return Optional.ofNullable(
+                        developerService.getExternalDeveloper(config.getProvider(), userId))
                 .map(DeveloperResult::getDeveloperId)
-                .orElseGet(() -> {
-                    CreateExternalDeveloperParam param = CreateExternalDeveloperParam.builder()
-                            .provider(config.getProvider())
-                            .subject(userId)
-                            .displayName(userName)
-                            .email(email)
-                            .authType(DeveloperAuthType.OIDC)
-                            .build();
+                .orElseGet(
+                        () -> {
+                            CreateExternalDeveloperParam param =
+                                    CreateExternalDeveloperParam.builder()
+                                            .provider(config.getProvider())
+                                            .subject(userId)
+                                            .displayName(userName)
+                                            .email(email)
+                                            .authType(DeveloperAuthType.OIDC)
+                                            .build();
 
-                    return developerService.createExternalDeveloper(param).getDeveloperId();
-                });
+                            return developerService.createExternalDeveloper(param).getDeveloperId();
+                        });
     }
 
-    private <T> T executeRequest(String url, HttpMethod method, HttpHeaders headers, Object body, Class<T> responseType) {
+    private <T> T executeRequest(
+            String url,
+            HttpMethod method,
+            HttpHeaders headers,
+            Object body,
+            Class<T> responseType) {
         HttpEntity<?> requestEntity = new HttpEntity<>(body, headers);
         log.info("Executing HTTP request to: {}", url);
-        ResponseEntity<String> response = restTemplate.exchange(
-                url,
-                method,
-                requestEntity,
-                String.class
-        );
+        ResponseEntity<String> response =
+                restTemplate.exchange(url, method, requestEntity, String.class);
 
-        log.info("Received HTTP response from: {}, status: {}, body: {}", url, response.getStatusCode(), response.getBody());
+        log.info(
+                "Received HTTP response from: {}, status: {}, body: {}",
+                url,
+                response.getStatusCode(),
+                response.getBody());
 
         return JSONUtil.toBean(response.getBody(), responseType);
     }

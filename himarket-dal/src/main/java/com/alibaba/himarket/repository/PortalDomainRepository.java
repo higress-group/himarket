@@ -20,7 +20,6 @@
 package com.alibaba.himarket.repository;
 
 import com.alibaba.himarket.entity.PortalDomain;
-
 import java.util.List;
 import java.util.Optional;
 

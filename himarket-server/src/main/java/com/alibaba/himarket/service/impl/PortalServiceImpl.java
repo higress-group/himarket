@@ -38,13 +38,10 @@ import com.alibaba.himarket.entity.PortalDomain;
 import com.alibaba.himarket.entity.ProductSubscription;
 import com.alibaba.himarket.repository.PortalDomainRepository;
 import com.alibaba.himarket.repository.PortalRepository;
-import com.alibaba.himarket.repository.SubscriptionRepository;
 import com.alibaba.himarket.repository.ProductPublicationRepository;
 import com.alibaba.himarket.repository.ProductRefRepository;
+import com.alibaba.himarket.repository.SubscriptionRepository;
 import com.alibaba.himarket.service.GatewayService;
-import com.alibaba.himarket.entity.ProductPublication;
-import com.alibaba.himarket.entity.ProductRef;
-import org.springframework.data.domain.PageRequest;
 import com.alibaba.himarket.service.IdpService;
 import com.alibaba.himarket.service.PortalService;
 import com.alibaba.himarket.support.enums.DomainType;
@@ -53,14 +50,6 @@ import com.alibaba.himarket.support.portal.OidcConfig;
 import com.alibaba.himarket.support.portal.PortalSettingConfig;
 import com.alibaba.himarket.support.portal.PortalUiConfig;
 import com.alibaba.himarket.support.portal.SearchEngineConfig;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.domain.Specification;
-import org.springframework.stereotype.Service;
-
 import jakarta.persistence.criteria.Predicate;
 import jakarta.transaction.Transactional;
 import java.util.ArrayList;
@@ -68,6 +57,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.stereotype.Service;
 
 @Service
 @Slf4j
@@ -96,10 +92,14 @@ public class PortalServiceImpl implements PortalService {
     private final GatewayService gatewayService;
 
     public PortalResult createPortal(CreatePortalParam param) {
-        portalRepository.findByName(param.getName())
-                .ifPresent(portal -> {
-                    throw new BusinessException(ErrorCode.CONFLICT, StrUtil.format("{}:{}已存在", Resources.PORTAL, portal.getName()));
-                });
+        portalRepository
+                .findByName(param.getName())
+                .ifPresent(
+                        portal -> {
+                            throw new BusinessException(
+                                    ErrorCode.CONFLICT,
+                                    StrUtil.format("{}:{}已存在", Resources.PORTAL, portal.getName()));
+                        });
 
         String portalId = IdGenerator.genPortalId();
         Portal portal = param.convertTo();
@@ -132,8 +132,12 @@ public class PortalServiceImpl implements PortalService {
 
     @Override
     public void existsPortal(String portalId) {
-        portalRepository.findByPortalId(portalId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, Resources.PORTAL, portalId));
+        portalRepository
+                .findByPortalId(portalId)
+                .orElseThrow(
+                        () ->
+                                new BusinessException(
+                                        ErrorCode.NOT_FOUND, Resources.PORTAL, portalId));
     }
 
     @Override
@@ -142,21 +146,27 @@ public class PortalServiceImpl implements PortalService {
 
         // 填充Domain
         if (portals.hasContent()) {
-            List<String> portalIds = portals.getContent().stream()
-                    .map(Portal::getPortalId)
-                    .collect(Collectors.toList());
+            List<String> portalIds =
+                    portals.getContent().stream()
+                            .map(Portal::getPortalId)
+                            .collect(Collectors.toList());
 
             List<PortalDomain> allDomains = portalDomainRepository.findAllByPortalIdIn(portalIds);
-            Map<String, List<PortalDomain>> portalDomains = allDomains.stream()
-                    .collect(Collectors.groupingBy(PortalDomain::getPortalId));
+            Map<String, List<PortalDomain>> portalDomains =
+                    allDomains.stream().collect(Collectors.groupingBy(PortalDomain::getPortalId));
 
-            portals.getContent().forEach(portal -> {
-                List<PortalDomain> domains = portalDomains.getOrDefault(portal.getPortalId(), new ArrayList<>());
-                portal.setPortalDomains(domains);
-            });
+            portals.getContent()
+                    .forEach(
+                            portal -> {
+                                List<PortalDomain> domains =
+                                        portalDomains.getOrDefault(
+                                                portal.getPortalId(), new ArrayList<>());
+                                portal.setPortalDomains(domains);
+                            });
         }
 
-        return new PageResult<PortalResult>().convertFrom(portals, portal -> new PortalResult().convertFrom(portal));
+        return new PageResult<PortalResult>()
+                .convertFrom(portals, portal -> new PortalResult().convertFrom(portal));
     }
 
     @Override
@@ -166,15 +176,18 @@ public class PortalServiceImpl implements PortalService {
         Optional.ofNullable(param.getName())
                 .filter(name -> !name.equals(portal.getName()))
                 .flatMap(portalRepository::findByName)
-                .ifPresent(p -> {
-                    throw new BusinessException(ErrorCode.CONFLICT, StrUtil.format("{}:{}已存在", Resources.PORTAL, portal.getName()));
-                });
+                .ifPresent(
+                        p -> {
+                            throw new BusinessException(
+                                    ErrorCode.CONFLICT,
+                                    StrUtil.format("{}:{}已存在", Resources.PORTAL, portal.getName()));
+                        });
 
         param.update(portal);
-        
+
         // 验证配置
         PortalSettingConfig setting = portal.getPortalSettingConfig();
-        
+
         // 验证OIDC配置
         if (CollUtil.isNotEmpty(setting.getOidcConfigs())) {
             idpService.validateOidcConfigs(setting.getOidcConfigs());
@@ -192,10 +205,11 @@ public class PortalServiceImpl implements PortalService {
 
         // 至少保留一种认证方式
         if (BooleanUtil.isFalse(setting.getBuiltinAuthEnabled())) {
-            boolean enabledOidc = Optional.ofNullable(setting.getOidcConfigs())
-                    .filter(CollUtil::isNotEmpty)
-                    .map(configs -> configs.stream().anyMatch(OidcConfig::isEnabled))
-                    .orElse(false);
+            boolean enabledOidc =
+                    Optional.ofNullable(setting.getOidcConfigs())
+                            .filter(CollUtil::isNotEmpty)
+                            .map(configs -> configs.stream().anyMatch(OidcConfig::isEnabled))
+                            .orElse(false);
 
             if (!enabledOidc) {
                 throw new BusinessException(ErrorCode.INVALID_REQUEST, "至少配置一种认证方式");
@@ -220,7 +234,8 @@ public class PortalServiceImpl implements PortalService {
 
     @Override
     public String resolvePortal(String domain) {
-        return portalDomainRepository.findByDomain(domain)
+        return portalDomainRepository
+                .findByDomain(domain)
                 .map(PortalDomain::getPortalId)
                 .orElse(null);
     }
@@ -228,10 +243,17 @@ public class PortalServiceImpl implements PortalService {
     @Override
     public PortalResult bindDomain(String portalId, BindDomainParam param) {
         existsPortal(portalId);
-        portalDomainRepository.findByPortalIdAndDomain(portalId, param.getDomain())
-                .ifPresent(portalDomain -> {
-                    throw new BusinessException(ErrorCode.CONFLICT, StrUtil.format("{}:{}已存在", Resources.PORTAL_DOMAIN, portalDomain.getDomain()));
-                });
+        portalDomainRepository
+                .findByPortalIdAndDomain(portalId, param.getDomain())
+                .ifPresent(
+                        portalDomain -> {
+                            throw new BusinessException(
+                                    ErrorCode.CONFLICT,
+                                    StrUtil.format(
+                                            "{}:{}已存在",
+                                            Resources.PORTAL_DOMAIN,
+                                            portalDomain.getDomain()));
+                        });
 
         PortalDomain portalDomain = param.convertTo();
         portalDomain.setPortalId(portalId);
@@ -242,33 +264,38 @@ public class PortalServiceImpl implements PortalService {
 
     @Override
     public PortalResult unbindDomain(String portalId, String domain) {
-        portalDomainRepository.findByPortalIdAndDomain(portalId, domain)
-                .ifPresent(portalDomain -> {
-                    // 默认域名不允许解绑
-                    if (portalDomain.getType() == DomainType.DEFAULT) {
-                        throw new BusinessException(ErrorCode.INVALID_REQUEST, "默认域名不允许解绑");
-                    }
-                    portalDomainRepository.delete(portalDomain);
-                });
+        portalDomainRepository
+                .findByPortalIdAndDomain(portalId, domain)
+                .ifPresent(
+                        portalDomain -> {
+                            // 默认域名不允许解绑
+                            if (portalDomain.getType() == DomainType.DEFAULT) {
+                                throw new BusinessException(ErrorCode.INVALID_REQUEST, "默认域名不允许解绑");
+                            }
+                            portalDomainRepository.delete(portalDomain);
+                        });
         return getPortal(portalId);
     }
 
     @Override
-    public PageResult<SubscriptionResult> listSubscriptions(String portalId, QuerySubscriptionParam param, Pageable pageable) {
+    public PageResult<SubscriptionResult> listSubscriptions(
+            String portalId, QuerySubscriptionParam param, Pageable pageable) {
         // Ensure portal exists
         existsPortal(portalId);
 
-        Specification<ProductSubscription> spec = (root, query, cb) -> {
-            List<Predicate> predicates = new ArrayList<>();
-            predicates.add(cb.equal(root.get("portalId"), portalId));
-            if (param != null && param.getStatus() != null) {
-                predicates.add(cb.equal(root.get("status"), param.getStatus()));
-            }
-            return cb.and(predicates.toArray(new Predicate[0]));
-        };
+        Specification<ProductSubscription> spec =
+                (root, query, cb) -> {
+                    List<Predicate> predicates = new ArrayList<>();
+                    predicates.add(cb.equal(root.get("portalId"), portalId));
+                    if (param != null && param.getStatus() != null) {
+                        predicates.add(cb.equal(root.get("status"), param.getStatus()));
+                    }
+                    return cb.and(predicates.toArray(new Predicate[0]));
+                };
 
         Page<ProductSubscription> page = subscriptionRepository.findAll(spec, pageable);
-        return new PageResult<SubscriptionResult>().convertFrom(page, s -> new SubscriptionResult().convertFrom(s));
+        return new PageResult<SubscriptionResult>()
+                .convertFrom(page, s -> new SubscriptionResult().convertFrom(s));
     }
 
     @Override
@@ -281,39 +308,44 @@ public class PortalServiceImpl implements PortalService {
     }
 
     private Portal findPortal(String portalId) {
-        return portalRepository.findByPortalId(portalId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, Resources.PORTAL, portalId));
+        return portalRepository
+                .findByPortalId(portalId)
+                .orElseThrow(
+                        () ->
+                                new BusinessException(
+                                        ErrorCode.NOT_FOUND, Resources.PORTAL, portalId));
     }
 
     // ========== 搜索引擎配置查询实现 ==========
 
-    /**
-     * 核心方法：根据引擎类型获取 API Key
-     * 供 TalkSearchAbilityServiceGoogleImpl 等搜索能力调用
-     */
+    /** 核心方法：根据引擎类型获取 API Key 供 TalkSearchAbilityServiceGoogleImpl 等搜索能力调用 */
     @Override
     public String getSearchEngineApiKey(String portalId, SearchEngineType engineType) {
         Portal portal = findPortal(portalId);
         PortalSettingConfig settings = portal.getPortalSettingConfig();
 
         if (settings == null || settings.getSearchEngineConfig() == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND,
-                    StrUtil.format("Portal {} 未配置搜索引擎", portalId));
+            throw new BusinessException(
+                    ErrorCode.NOT_FOUND, StrUtil.format("Portal {} 未配置搜索引擎", portalId));
         }
 
         SearchEngineConfig config = settings.getSearchEngineConfig();
 
         // 检查引擎类型是否匹配
         if (config.getEngineType() != engineType) {
-            throw new BusinessException(ErrorCode.NOT_FOUND,
-                    StrUtil.format("Portal {} 配置的搜索引擎类型是 {}，不是 {}",
-                            portalId, config.getEngineType(), engineType));
+            throw new BusinessException(
+                    ErrorCode.NOT_FOUND,
+                    StrUtil.format(
+                            "Portal {} 配置的搜索引擎类型是 {}，不是 {}",
+                            portalId,
+                            config.getEngineType(),
+                            engineType));
         }
 
         // 检查是否启用
         if (!config.isEnabled()) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST,
-                    StrUtil.format("Portal {} 的搜索引擎已禁用", portalId));
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST, StrUtil.format("Portal {} 的搜索引擎已禁用", portalId));
         }
 
         return config.getApiKey(); // API Key 会自动解密（通过 @Encrypted 注解）
@@ -333,9 +365,7 @@ public class PortalServiceImpl implements PortalService {
 
     // ========== 私有辅助方法 ==========
 
-    /**
-     * 验证搜索引擎配置
-     */
+    /** 验证搜索引擎配置 */
     private void validateSearchEngineConfig(SearchEngineConfig config) {
         if (config == null) {
             return;
@@ -347,8 +377,10 @@ public class PortalServiceImpl implements PortalService {
         }
 
         if (!SearchEngineType.isSupported(config.getEngineType())) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST,
-                    StrUtil.format("不支持的搜索引擎类型: {}，当前仅支持: {}",
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST,
+                    StrUtil.format(
+                            "不支持的搜索引擎类型: {}，当前仅支持: {}",
                             config.getEngineType(),
                             SearchEngineType.getSupportedTypes()));
         }
@@ -362,7 +394,9 @@ public class PortalServiceImpl implements PortalService {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "API Key不能为空");
         }
 
-        log.info("Validated search engine config: type={}, name={}",
-                config.getEngineType(), config.getEngineName());
+        log.info(
+                "Validated search engine config: type={}, name={}",
+                config.getEngineType(),
+                config.getEngineName());
     }
 }

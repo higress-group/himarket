@@ -20,7 +20,6 @@
 package com.alibaba.himarket.converter;
 
 import com.alibaba.himarket.support.product.NacosRefConfig;
-
 import jakarta.persistence.Converter;
 
 @Converter
@@ -29,4 +28,4 @@ public class NacosRefConfigConverter extends JsonConverter<NacosRefConfig> {
     public NacosRefConfigConverter() {
         super(NacosRefConfig.class);
     }
-} 
+}

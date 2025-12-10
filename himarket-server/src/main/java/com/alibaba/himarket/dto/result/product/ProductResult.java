@@ -21,8 +21,8 @@ package com.alibaba.himarket.dto.result.product;
 
 import com.alibaba.himarket.dto.converter.OutputConverter;
 import com.alibaba.himarket.dto.result.ProductCategoryResult;
-import com.alibaba.himarket.dto.result.httpapi.APIConfigResult;
 import com.alibaba.himarket.dto.result.agent.AgentConfigResult;
+import com.alibaba.himarket.dto.result.httpapi.APIConfigResult;
 import com.alibaba.himarket.dto.result.mcp.MCPConfigResult;
 import com.alibaba.himarket.dto.result.model.ModelConfigResult;
 import com.alibaba.himarket.entity.Product;
@@ -30,10 +30,9 @@ import com.alibaba.himarket.support.enums.ProductStatus;
 import com.alibaba.himarket.support.enums.ProductType;
 import com.alibaba.himarket.support.product.Icon;
 import com.alibaba.himarket.support.product.ProductFeature;
-import lombok.Data;
-
 import java.time.LocalDateTime;
 import java.util.List;
+import lombok.Data;
 
 @Data
 public class ProductResult implements OutputConverter<ProductResult, Product> {

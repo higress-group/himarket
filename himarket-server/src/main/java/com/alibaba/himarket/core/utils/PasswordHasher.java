@@ -32,4 +32,4 @@ public class PasswordHasher {
     public static boolean verify(String plainPassword, String hashed) {
         return ENCODER.matches(plainPassword, hashed);
     }
-} 
+}

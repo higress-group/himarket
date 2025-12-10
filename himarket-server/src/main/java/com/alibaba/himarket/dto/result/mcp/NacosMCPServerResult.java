@@ -26,7 +26,8 @@ import lombok.EqualsAndHashCode;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
-public class NacosMCPServerResult extends MCPServerResult implements OutputConverter<NacosMCPServerResult, McpServerBasicInfo> {
+public class NacosMCPServerResult extends MCPServerResult
+        implements OutputConverter<NacosMCPServerResult, McpServerBasicInfo> {
 
     private String version;
 
@@ -37,4 +38,4 @@ public class NacosMCPServerResult extends MCPServerResult implements OutputConve
         setVersion(basicInfo.getVersion());
         return this;
     }
-} 
+}

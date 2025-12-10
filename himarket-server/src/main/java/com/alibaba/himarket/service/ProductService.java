@@ -27,10 +27,9 @@ import com.alibaba.himarket.dto.result.product.ProductPublicationResult;
 import com.alibaba.himarket.dto.result.product.ProductRefResult;
 import com.alibaba.himarket.dto.result.product.ProductResult;
 import com.alibaba.himarket.dto.result.product.SubscriptionResult;
-import org.springframework.data.domain.Pageable;
-
 import java.util.List;
 import java.util.Map;
+import org.springframework.data.domain.Pageable;
 
 public interface ProductService {
 
@@ -158,7 +157,8 @@ public interface ProductService {
      * @param pageable
      * @return
      */
-    PageResult<SubscriptionResult> listProductSubscriptions(String productId, QueryProductSubscriptionParam param, Pageable pageable);
+    PageResult<SubscriptionResult> listProductSubscriptions(
+            String productId, QueryProductSubscriptionParam param, Pageable pageable);
 
     /**
      * Check if API product exists

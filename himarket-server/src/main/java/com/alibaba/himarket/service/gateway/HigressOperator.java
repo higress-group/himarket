@@ -24,11 +24,13 @@ import cn.hutool.core.map.MapBuilder;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.core.util.URLUtil;
 import cn.hutool.json.JSONUtil;
+import com.alibaba.higress.sdk.model.route.KeyedRoutePredicate;
+import com.alibaba.higress.sdk.model.route.RoutePredicate;
 import com.alibaba.himarket.dto.result.agent.AgentAPIResult;
-import com.alibaba.himarket.dto.result.httpapi.APIResult;
+import com.alibaba.himarket.dto.result.common.DomainResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.gateway.GatewayResult;
-import com.alibaba.himarket.dto.result.common.DomainResult;
+import com.alibaba.himarket.dto.result.httpapi.APIResult;
 import com.alibaba.himarket.dto.result.httpapi.HttpRouteResult;
 import com.alibaba.himarket.dto.result.mcp.GatewayMCPServerResult;
 import com.alibaba.himarket.dto.result.mcp.HigressMCPServerResult;
@@ -36,9 +38,9 @@ import com.alibaba.himarket.dto.result.mcp.MCPConfigResult;
 import com.alibaba.himarket.dto.result.model.GatewayModelAPIResult;
 import com.alibaba.himarket.dto.result.model.HigressModelResult;
 import com.alibaba.himarket.dto.result.model.ModelConfigResult;
-import com.alibaba.himarket.entity.Gateway;
 import com.alibaba.himarket.entity.Consumer;
 import com.alibaba.himarket.entity.ConsumerCredential;
+import com.alibaba.himarket.entity.Gateway;
 import com.alibaba.himarket.service.gateway.client.HigressClient;
 import com.alibaba.himarket.support.consumer.ApiKeyConfig;
 import com.alibaba.himarket.support.consumer.ConsumerAuthConfig;
@@ -47,10 +49,9 @@ import com.alibaba.himarket.support.enums.GatewayType;
 import com.alibaba.himarket.support.gateway.GatewayConfig;
 import com.alibaba.himarket.support.gateway.HigressConfig;
 import com.alibaba.himarket.support.product.HigressRefConfig;
-
-import com.alibaba.higress.sdk.model.route.KeyedRoutePredicate;
-import com.alibaba.higress.sdk.model.route.RoutePredicate;
 import com.aliyun.sdk.service.apig20240327.models.HttpApiApiInfo;
+import java.util.*;
+import java.util.stream.Collectors;
 import lombok.Builder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -58,9 +59,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Service;
-
-import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -77,24 +75,28 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
     }
 
     @Override
-    public PageResult<? extends GatewayMCPServerResult> fetchMcpServers(Gateway gateway, int page, int size) {
+    public PageResult<? extends GatewayMCPServerResult> fetchMcpServers(
+            Gateway gateway, int page, int size) {
         HigressClient client = getClient(gateway);
 
-        Map<String, String> queryParams = MapBuilder.<String, String>create()
-                .put("pageNum", String.valueOf(page))
-                .put("pageSize", String.valueOf(size))
-                .build();
+        Map<String, String> queryParams =
+                MapBuilder.<String, String>create()
+                        .put("pageNum", String.valueOf(page))
+                        .put("pageSize", String.valueOf(size))
+                        .build();
 
-        HigressPageResponse<HigressMCPConfig> response = client.execute("/v1/mcpServer",
-                HttpMethod.GET,
-                queryParams,
-                null,
-                new ParameterizedTypeReference<HigressPageResponse<HigressMCPConfig>>() {
-                });
+        HigressPageResponse<HigressMCPConfig> response =
+                client.execute(
+                        "/v1/mcpServer",
+                        HttpMethod.GET,
+                        queryParams,
+                        null,
+                        new ParameterizedTypeReference<HigressPageResponse<HigressMCPConfig>>() {});
 
-        List<HigressMCPServerResult> mcpServers = response.getData().stream()
-                .map(s -> new HigressMCPServerResult().convertFrom(s))
-                .collect(Collectors.toList());
+        List<HigressMCPServerResult> mcpServers =
+                response.getData().stream()
+                        .map(s -> new HigressMCPServerResult().convertFrom(s))
+                        .collect(Collectors.toList());
 
         return PageResult.of(mcpServers, page, size, response.getTotal());
     }
@@ -105,27 +107,34 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
     }
 
     @Override
-    public PageResult<? extends GatewayModelAPIResult> fetchModelAPIs(Gateway gateway, int page, int size) {
+    public PageResult<? extends GatewayModelAPIResult> fetchModelAPIs(
+            Gateway gateway, int page, int size) {
         HigressClient client = getClient(gateway);
 
-        Map<String, String> queryParams = MapBuilder.<String, String>create()
-                .put("pageNum", String.valueOf(page))
-                .put("pageSize", String.valueOf(size))
-                .build();
+        Map<String, String> queryParams =
+                MapBuilder.<String, String>create()
+                        .put("pageNum", String.valueOf(page))
+                        .put("pageSize", String.valueOf(size))
+                        .build();
 
         try {
-            HigressPageResponse<HigressAIRoute> response = client.execute("/v1/ai/routes",
-                    HttpMethod.GET,
-                    queryParams,
-                    null,
-                    new ParameterizedTypeReference<HigressPageResponse<HigressAIRoute>>() {
-                    });
+            HigressPageResponse<HigressAIRoute> response =
+                    client.execute(
+                            "/v1/ai/routes",
+                            HttpMethod.GET,
+                            queryParams,
+                            null,
+                            new ParameterizedTypeReference<
+                                    HigressPageResponse<HigressAIRoute>>() {});
 
-            List<HigressModelResult> modelAPIs = response.getData().stream()
-                    .map(config -> HigressModelResult.builder()
-                            .modelRouteName(config.getName())
-                            .build())
-                    .collect(Collectors.toList());
+            List<HigressModelResult> modelAPIs =
+                    response.getData().stream()
+                            .map(
+                                    config ->
+                                            HigressModelResult.builder()
+                                                    .modelRouteName(config.getName())
+                                                    .build())
+                            .collect(Collectors.toList());
 
             return PageResult.of(modelAPIs, page, size, response.getTotal());
         } catch (Exception e) {
@@ -136,7 +145,8 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
 
     @Override
     public String fetchAPIConfig(Gateway gateway, Object config) {
-        throw new UnsupportedOperationException("Higress gateway does not support fetching API config");
+        throw new UnsupportedOperationException(
+                "Higress gateway does not support fetching API config");
     }
 
     @Override
@@ -144,12 +154,13 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
         HigressClient client = getClient(gateway);
         HigressRefConfig config = (HigressRefConfig) conf;
 
-        HigressResponse<HigressMCPConfig> response = client.execute("/v1/mcpServer/" + config.getMcpServerName(),
-                HttpMethod.GET,
-                null,
-                null,
-                new ParameterizedTypeReference<HigressResponse<HigressMCPConfig>>() {
-                });
+        HigressResponse<HigressMCPConfig> response =
+                client.execute(
+                        "/v1/mcpServer/" + config.getMcpServerName(),
+                        HttpMethod.GET,
+                        null,
+                        null,
+                        new ParameterizedTypeReference<HigressResponse<HigressMCPConfig>>() {});
 
         MCPConfigResult m = new MCPConfigResult();
         HigressMCPConfig higressMCPConfig = response.getData();
@@ -161,7 +172,8 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
         boolean isDirect = "direct_route".equalsIgnoreCase(higressMCPConfig.getType());
         DirectRouteConfig directRouteConfig = higressMCPConfig.getDirectRouteConfig();
         String transportType = isDirect ? directRouteConfig.getTransportType() : null;
-//        String path = isDirect ? directRouteConfig.getPath() : "/mcp-servers/" + higressMCPConfig.getName();
+        //        String path = isDirect ? directRouteConfig.getPath() : "/mcp-servers/" +
+        // higressMCPConfig.getName();
 
         // Standardized path format for Higress MCP servers: /mcp-servers/{name}
         c.setPath("/mcp-servers/" + higressMCPConfig.getName());
@@ -169,25 +181,32 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
         List<String> domains = higressMCPConfig.getDomains();
         if (CollUtil.isEmpty(domains)) {
             List<String> gatewayIps = fetchGatewayIps(gateway);
-            String domain = CollUtil.isEmpty(gatewayIps) ? "<higress-gateway-ip>" : gatewayIps.get(0);
-            c.setDomains(Collections.singletonList(
-                    DomainResult.builder()
-                            .domain(domain)
-                            .protocol("http")
-                            .build()
-            ));
+            String domain =
+                    CollUtil.isEmpty(gatewayIps) ? "<higress-gateway-ip>" : gatewayIps.get(0);
+            c.setDomains(
+                    Collections.singletonList(
+                            DomainResult.builder().domain(domain).protocol("http").build()));
         } else {
-            c.setDomains(domains.stream()
-                    .map(domain -> {
-                        HigressDomainConfig domainConfig = fetchDomain(gateway, domain);
-                        String protocol = (domainConfig == null || "off".equalsIgnoreCase(domainConfig.getEnableHttps()))
-                                ? "http" : "https";
-                        return DomainResult.builder()
-                                .domain(domain)
-                                .protocol(protocol)
-                                .build();
-                    })
-                    .collect(Collectors.toList()));
+            c.setDomains(
+                    domains.stream()
+                            .map(
+                                    domain -> {
+                                        HigressDomainConfig domainConfig =
+                                                fetchDomain(gateway, domain);
+                                        String protocol =
+                                                (domainConfig == null
+                                                                || "off"
+                                                                        .equalsIgnoreCase(
+                                                                                domainConfig
+                                                                                        .getEnableHttps()))
+                                                        ? "http"
+                                                        : "https";
+                                        return DomainResult.builder()
+                                                .domain(domain)
+                                                .protocol(protocol)
+                                                .build();
+                                    })
+                            .collect(Collectors.toList()));
         }
 
         m.setMcpServerConfig(c);
@@ -199,7 +218,10 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
         MCPConfigResult.McpMetadata meta = new MCPConfigResult.McpMetadata();
         meta.setSource(GatewayType.HIGRESS.name());
         meta.setCreateFromType(higressMCPConfig.getType());
-        meta.setProtocol((StrUtil.isBlank(transportType) || transportType.equalsIgnoreCase("SSE")) ? "SSE" : "HTTP");
+        meta.setProtocol(
+                (StrUtil.isBlank(transportType) || transportType.equalsIgnoreCase("SSE"))
+                        ? "SSE"
+                        : "HTTP");
         m.setMeta(meta);
 
         return JSONUtil.toJsonStr(m);
@@ -207,12 +229,13 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
 
     private HigressDomainConfig fetchDomain(Gateway gateway, String domain) {
         HigressClient client = getClient(gateway);
-        HigressResponse<HigressDomainConfig> response = client.execute("/v1/domains/" + domain,
-                HttpMethod.GET,
-                null,
-                null,
-                new ParameterizedTypeReference<HigressResponse<HigressDomainConfig>>() {
-                });
+        HigressResponse<HigressDomainConfig> response =
+                client.execute(
+                        "/v1/domains/" + domain,
+                        HttpMethod.GET,
+                        null,
+                        null,
+                        new ParameterizedTypeReference<HigressResponse<HigressDomainConfig>>() {});
         return response.getData();
     }
 
@@ -230,36 +253,45 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
         if (CollUtil.isEmpty(aiRoute.getDomains())) {
             // Use gateway IP as domain
             List<String> gatewayIps = fetchGatewayIps(gateway);
-            String domain = CollUtil.isEmpty(gatewayIps) ? "<higress-gateway-ip>" : gatewayIps.get(0);
-            domains = Collections.singletonList(
-                    DomainResult.builder()
-                            .domain(domain)
-                            .protocol("http")
-                            .build()
-            );
+            String domain =
+                    CollUtil.isEmpty(gatewayIps) ? "<higress-gateway-ip>" : gatewayIps.get(0);
+            domains =
+                    Collections.singletonList(
+                            DomainResult.builder().domain(domain).protocol("http").build());
         } else {
-            domains = aiRoute.getDomains().stream()
-                    .map(domain -> DomainResult.builder()
-                            .domain(domain)
-                            .protocol(Optional.ofNullable(fetchDomain(gateway, domain))
-                                    .map(HigressDomainConfig::getEnableHttps)
-                                    .map(String::toLowerCase)
-                                    .filter("off"::equals)
-                                    .map(s -> "http")
-                                    .orElse("https"))
-                            .build())
-                    .toList();
+            domains =
+                    aiRoute.getDomains().stream()
+                            .map(
+                                    domain ->
+                                            DomainResult.builder()
+                                                    .domain(domain)
+                                                    .protocol(
+                                                            Optional.ofNullable(
+                                                                            fetchDomain(
+                                                                                    gateway,
+                                                                                    domain))
+                                                                    .map(
+                                                                            HigressDomainConfig
+                                                                                    ::getEnableHttps)
+                                                                    .map(String::toLowerCase)
+                                                                    .filter("off"::equals)
+                                                                    .map(s -> "http")
+                                                                    .orElse("https"))
+                                                    .build())
+                            .toList();
         }
 
         // AI route
-        List<HttpRouteResult> routeResults = Collections.singletonList(new HttpRouteResult().convertFrom(aiRoute, domains));
+        List<HttpRouteResult> routeResults =
+                Collections.singletonList(new HttpRouteResult().convertFrom(aiRoute, domains));
 
-        ModelConfigResult.ModelAPIConfig config = ModelConfigResult.ModelAPIConfig.builder()
-                // Default value
-                .aiProtocols(List.of("OpenAI/V1"))
-                .modelCategory("Text")
-                .routes(routeResults)
-                .build();
+        ModelConfigResult.ModelAPIConfig config =
+                ModelConfigResult.ModelAPIConfig.builder()
+                        // Default value
+                        .aiProtocols(List.of("OpenAI/V1"))
+                        .modelCategory("Text")
+                        .routes(routeResults)
+                        .build();
 
         ModelConfigResult result = new ModelConfigResult();
         result.setModelAPIConfig(config);
@@ -269,15 +301,18 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
 
     @Override
     public PageResult<GatewayResult> fetchGateways(Object param, int page, int size) {
-        throw new UnsupportedOperationException("Higress gateway does not support fetching Gateways");
+        throw new UnsupportedOperationException(
+                "Higress gateway does not support fetching Gateways");
     }
 
     @Override
-    public String createConsumer(Consumer consumer, ConsumerCredential credential, GatewayConfig config) {
+    public String createConsumer(
+            Consumer consumer, ConsumerCredential credential, GatewayConfig config) {
         HigressConfig higressConfig = config.getHigressConfig();
         HigressClient client = new HigressClient(higressConfig);
 
-        client.execute("/v1/consumers",
+        client.execute(
+                "/v1/consumers",
                 HttpMethod.POST,
                 null,
                 buildHigressConsumer(consumer.getConsumerId(), credential.getApiKeyConfig()),
@@ -287,11 +322,13 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
     }
 
     @Override
-    public void updateConsumer(String consumerId, ConsumerCredential credential, GatewayConfig config) {
+    public void updateConsumer(
+            String consumerId, ConsumerCredential credential, GatewayConfig config) {
         HigressConfig higressConfig = config.getHigressConfig();
         HigressClient client = new HigressClient(higressConfig);
 
-        client.execute("/v1/consumers/" + consumerId,
+        client.execute(
+                "/v1/consumers/" + consumerId,
                 HttpMethod.PUT,
                 null,
                 buildHigressConsumer(consumerId, credential.getApiKeyConfig()),
@@ -303,11 +340,7 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
         HigressConfig higressConfig = config.getHigressConfig();
         HigressClient client = new HigressClient(higressConfig);
 
-        client.execute("/v1/consumers/" + consumerId,
-                HttpMethod.DELETE,
-                null,
-                null,
-                String.class);
+        client.execute("/v1/consumers/" + consumerId, HttpMethod.DELETE, null, null, String.class);
     }
 
     @Override
@@ -317,37 +350,41 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
     }
 
     @Override
-    public ConsumerAuthConfig authorizeConsumer(Gateway gateway, String consumerId, Object refConfig) {
+    public ConsumerAuthConfig authorizeConsumer(
+            Gateway gateway, String consumerId, Object refConfig) {
         HigressRefConfig config = (HigressRefConfig) refConfig;
 
         String mcpServerName = config.getMcpServerName();
         String modelRouteName = config.getModelRouteName();
 
         // MCP or AIRoute
-        return StrUtil.isNotBlank(mcpServerName) ?
-                authorizeMCPServer(gateway, consumerId, mcpServerName) : authorizeAIRoute(gateway, consumerId, modelRouteName);
+        return StrUtil.isNotBlank(mcpServerName)
+                ? authorizeMCPServer(gateway, consumerId, mcpServerName)
+                : authorizeAIRoute(gateway, consumerId, modelRouteName);
     }
 
-    private ConsumerAuthConfig authorizeMCPServer(Gateway gateway, String consumerId, String mcpServerName) {
+    private ConsumerAuthConfig authorizeMCPServer(
+            Gateway gateway, String consumerId, String mcpServerName) {
         HigressClient client = getClient(gateway);
 
-        client.execute("/v1/mcpServer/consumers/",
+        client.execute(
+                "/v1/mcpServer/consumers/",
                 HttpMethod.PUT,
                 null,
                 buildAuthHigressConsumer(mcpServerName, consumerId),
                 Void.class);
 
-        HigressAuthConfig higressAuthConfig = HigressAuthConfig.builder()
-                .resourceType("MCP_SERVER")
-                .resourceName(mcpServerName)
-                .build();
+        HigressAuthConfig higressAuthConfig =
+                HigressAuthConfig.builder()
+                        .resourceType("MCP_SERVER")
+                        .resourceName(mcpServerName)
+                        .build();
 
-        return ConsumerAuthConfig.builder()
-                .higressAuthConfig(higressAuthConfig)
-                .build();
+        return ConsumerAuthConfig.builder().higressAuthConfig(higressAuthConfig).build();
     }
 
-    private ConsumerAuthConfig authorizeAIRoute(Gateway gateway, String consumerId, String modelRouteName) {
+    private ConsumerAuthConfig authorizeAIRoute(
+            Gateway gateway, String consumerId, String modelRouteName) {
         HigressAIRoute aiRoute = fetchAIRoute(gateway, modelRouteName);
 
         if (aiRoute.getAuthConfig() == null) {
@@ -362,18 +399,18 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
             updateAIRoute(gateway, aiRoute);
         }
 
-        HigressAuthConfig higressAuthConfig = HigressAuthConfig.builder()
-                .resourceType("MODEL_API")
-                .resourceName(modelRouteName)
-                .build();
+        HigressAuthConfig higressAuthConfig =
+                HigressAuthConfig.builder()
+                        .resourceType("MODEL_API")
+                        .resourceName(modelRouteName)
+                        .build();
 
-        return ConsumerAuthConfig.builder()
-                .higressAuthConfig(higressAuthConfig)
-                .build();
+        return ConsumerAuthConfig.builder().higressAuthConfig(higressAuthConfig).build();
     }
 
     @Override
-    public void revokeConsumerAuthorization(Gateway gateway, String consumerId, ConsumerAuthConfig authConfig) {
+    public void revokeConsumerAuthorization(
+            Gateway gateway, String consumerId, ConsumerAuthConfig authConfig) {
         HigressClient client = getClient(gateway);
 
         HigressAuthConfig higressAuthConfig = authConfig.getHigressAuthConfig();
@@ -382,7 +419,8 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
         }
 
         if ("MCP_SERVER".equalsIgnoreCase(higressAuthConfig.getResourceType())) {
-            client.execute("/v1/mcpServer/consumers/",
+            client.execute(
+                    "/v1/mcpServer/consumers/",
                     HttpMethod.DELETE,
                     null,
                     buildAuthHigressConsumer(higressAuthConfig.getResourceName(), consumerId),
@@ -391,7 +429,8 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
             HigressAIRoute aiRoute = fetchAIRoute(gateway, higressAuthConfig.getResourceName());
             RouteAuthConfig aiRouteAuthConfig = aiRoute.getAuthConfig();
 
-            if (aiRouteAuthConfig == null || CollUtil.isEmpty(aiRouteAuthConfig.getAllowedConsumers())) {
+            if (aiRouteAuthConfig == null
+                    || CollUtil.isEmpty(aiRouteAuthConfig.getAllowedConsumers())) {
                 return;
             }
 
@@ -403,12 +442,13 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
     private HigressAIRoute fetchAIRoute(Gateway gateway, String modelRouteName) {
         HigressClient client = getClient(gateway);
 
-        HigressResponse<HigressAIRoute> response = client.execute("/v1/ai/routes/" + modelRouteName,
-                HttpMethod.GET,
-                null,
-                null,
-                new ParameterizedTypeReference<HigressResponse<HigressAIRoute>>() {
-                });
+        HigressResponse<HigressAIRoute> response =
+                client.execute(
+                        "/v1/ai/routes/" + modelRouteName,
+                        HttpMethod.GET,
+                        null,
+                        null,
+                        new ParameterizedTypeReference<HigressResponse<HigressAIRoute>>() {});
 
         return response.getData();
     }
@@ -416,11 +456,8 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
     private void updateAIRoute(Gateway gateway, HigressAIRoute aiRoute) {
         HigressClient client = getClient(gateway);
 
-        client.execute("/v1/ai/routes/" + aiRoute.getName(),
-                HttpMethod.PUT,
-                null,
-                aiRoute,
-                Void.class);
+        client.execute(
+                "/v1/ai/routes/" + aiRoute.getName(), HttpMethod.PUT, null, aiRoute, Void.class);
     }
 
     @Override
@@ -435,29 +472,31 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
 
     @Override
     public String getDashboard(Gateway gateway, String type) {
-        throw new UnsupportedOperationException("Higress gateway does not support getting dashboard");
+        throw new UnsupportedOperationException(
+                "Higress gateway does not support getting dashboard");
     }
 
     @Override
     public List<String> fetchGatewayIps(Gateway gateway) {
-        String gatewayIp = Optional.ofNullable(gateway.getHigressConfig())
-                .map(HigressConfig::getGatewayAddress)
-                .filter(StrUtil::isNotBlank)
-                .map(address -> {
-                    try {
-                        return URLUtil.url(address).getHost();
-                    } catch (Exception e) {
-                        log.warn("Invalid gateway address: {}", address, e);
-                        return address;
-                    }
-                })
-                .orElse(null);
+        String gatewayIp =
+                Optional.ofNullable(gateway.getHigressConfig())
+                        .map(HigressConfig::getGatewayAddress)
+                        .filter(StrUtil::isNotBlank)
+                        .map(
+                                address -> {
+                                    try {
+                                        return URLUtil.url(address).getHost();
+                                    } catch (Exception e) {
+                                        log.warn("Invalid gateway address: {}", address, e);
+                                        return address;
+                                    }
+                                })
+                        .orElse(null);
 
         return StrUtil.isNotBlank(gatewayIp)
                 ? Collections.singletonList(gatewayIp)
                 : CollUtil.empty(List.class);
     }
-
 
     @Data
     @Builder
@@ -475,24 +514,26 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
         private List<String> values;
     }
 
-    public HigressConsumerConfig buildHigressConsumer(String consumerId, ApiKeyConfig apiKeyConfig) {
+    public HigressConsumerConfig buildHigressConsumer(
+            String consumerId, ApiKeyConfig apiKeyConfig) {
 
         String source = mapSource(apiKeyConfig.getSource());
 
-        List<String> apiKeys = apiKeyConfig.getCredentials().stream()
-                .map(ApiKeyConfig.ApiKeyCredential::getApiKey)
-                .collect(Collectors.toList());
+        List<String> apiKeys =
+                apiKeyConfig.getCredentials().stream()
+                        .map(ApiKeyConfig.ApiKeyCredential::getApiKey)
+                        .collect(Collectors.toList());
 
         return HigressConsumerConfig.builder()
                 .name(consumerId)
-                .credentials(Collections.singletonList(
-                        HigressCredentialConfig.builder()
-                                .type("key-auth")
-                                .source(source)
-                                .key(apiKeyConfig.getKey())
-                                .values(apiKeys)
-                                .build())
-                )
+                .credentials(
+                        Collections.singletonList(
+                                HigressCredentialConfig.builder()
+                                        .type("key-auth")
+                                        .source(source)
+                                        .key(apiKeyConfig.getKey())
+                                        .values(apiKeys)
+                                        .build()))
                 .build();
     }
 
@@ -544,8 +585,7 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
         private AiRouteFallbackConfig fallbackConfig;
     }
 
-    public static class AiModelPredicate extends RoutePredicate {
-    }
+    public static class AiModelPredicate extends RoutePredicate {}
 
     @Data
     public static class AiUpstream {
@@ -571,7 +611,8 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
 
     // AI route definition end
 
-    public HigressAuthConsumerConfig buildAuthHigressConsumer(String gatewayName, String consumerId) {
+    public HigressAuthConsumerConfig buildAuthHigressConsumer(
+            String gatewayName, String consumerId) {
         return HigressAuthConsumerConfig.builder()
                 .mcpServerName(gatewayName)
                 .consumers(Collections.singletonList(consumerId))
@@ -592,5 +633,4 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
         if ("QueryString".equalsIgnoreCase(source)) return "QUERY";
         return source;
     }
-
 }

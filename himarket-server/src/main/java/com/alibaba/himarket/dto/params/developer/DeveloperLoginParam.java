@@ -19,8 +19,8 @@
 
 package com.alibaba.himarket.dto.params.developer;
 
-import lombok.Data;
 import jakarta.validation.constraints.NotBlank;
+import lombok.Data;
 
 @Data
 public class DeveloperLoginParam {

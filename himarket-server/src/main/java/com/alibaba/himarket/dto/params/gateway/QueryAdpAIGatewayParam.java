@@ -17,19 +17,15 @@
  * under the License.
  */
 
-
 package com.alibaba.himarket.dto.params.gateway;
 
 import com.alibaba.himarket.dto.converter.InputConverter;
 import com.alibaba.himarket.support.gateway.AdpAIGatewayConfig;
-import lombok.Data;
-
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import lombok.Data;
 
-/**
- * 查询 ADP 网关实例列表所需的连接参数
- */
+/** 查询 ADP 网关实例列表所需的连接参数 */
 @Data
 public class QueryAdpAIGatewayParam implements InputConverter<AdpAIGatewayConfig> {
 
@@ -40,11 +36,11 @@ public class QueryAdpAIGatewayParam implements InputConverter<AdpAIGatewayConfig
     private Integer port;
 
     private String authSeed;
-    
+
     private String authType;
-    
+
     private java.util.List<AuthHeader> authHeaders;
-    
+
     @Data
     public static class AuthHeader {
         private String key;

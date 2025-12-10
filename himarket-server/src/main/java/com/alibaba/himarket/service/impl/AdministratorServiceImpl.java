@@ -20,20 +20,20 @@
 package com.alibaba.himarket.service.impl;
 
 import com.alibaba.himarket.core.constant.Resources;
+import com.alibaba.himarket.core.exception.BusinessException;
+import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.core.security.ContextHolder;
+import com.alibaba.himarket.core.utils.IdGenerator;
+import com.alibaba.himarket.core.utils.PasswordHasher;
 import com.alibaba.himarket.core.utils.TokenUtil;
 import com.alibaba.himarket.dto.result.admin.AdminResult;
 import com.alibaba.himarket.dto.result.common.AuthResult;
 import com.alibaba.himarket.entity.Administrator;
 import com.alibaba.himarket.repository.AdministratorRepository;
 import com.alibaba.himarket.service.AdministratorService;
-import com.alibaba.himarket.core.utils.PasswordHasher;
-import com.alibaba.himarket.core.utils.IdGenerator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.alibaba.himarket.core.exception.BusinessException;
-import com.alibaba.himarket.core.exception.ErrorCode;
 
 @Service
 @RequiredArgsConstructor
@@ -46,8 +46,15 @@ public class AdministratorServiceImpl implements AdministratorService {
 
     @Override
     public AuthResult login(String username, String password) {
-        Administrator admin = administratorRepository.findByUsername(username)
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, Resources.ADMINISTRATOR, username));
+        Administrator admin =
+                administratorRepository
+                        .findByUsername(username)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                ErrorCode.NOT_FOUND,
+                                                Resources.ADMINISTRATOR,
+                                                username));
 
         if (!PasswordHasher.verify(password, admin.getPasswordHash())) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED, "用户名或密码错误");
@@ -64,11 +71,12 @@ public class AdministratorServiceImpl implements AdministratorService {
 
     @Override
     public AdminResult initAdmin(String username, String password) {
-        Administrator admin = Administrator.builder()
-                .adminId(generateAdminId())
-                .username(username)
-                .passwordHash(PasswordHasher.hash(password))
-                .build();
+        Administrator admin =
+                Administrator.builder()
+                        .adminId(generateAdminId())
+                        .username(username)
+                        .passwordHash(PasswordHasher.hash(password))
+                        .build();
         administratorRepository.save(admin);
         return new AdminResult().convertFrom(admin);
     }
@@ -97,7 +105,11 @@ public class AdministratorServiceImpl implements AdministratorService {
     }
 
     private Administrator findAdministrator(String adminId) {
-        return administratorRepository.findByAdminId(adminId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, Resources.ADMINISTRATOR, adminId));
+        return administratorRepository
+                .findByAdminId(adminId)
+                .orElseThrow(
+                        () ->
+                                new BusinessException(
+                                        ErrorCode.NOT_FOUND, Resources.ADMINISTRATOR, adminId));
     }
-} 
+}

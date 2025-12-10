@@ -22,12 +22,12 @@ package com.alibaba.himarket.dto.result.product;
 import com.alibaba.himarket.dto.converter.OutputConverter;
 import com.alibaba.himarket.entity.ProductSubscription;
 import com.alibaba.himarket.support.enums.ProductType;
+import java.time.LocalDateTime;
 import lombok.Data;
 
-import java.time.LocalDateTime;
-
 @Data
-public class SubscriptionResult implements OutputConverter<SubscriptionResult, ProductSubscription> {
+public class SubscriptionResult
+        implements OutputConverter<SubscriptionResult, ProductSubscription> {
 
     private String productId;
 

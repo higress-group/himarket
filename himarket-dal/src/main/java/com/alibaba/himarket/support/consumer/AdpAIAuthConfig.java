@@ -22,25 +22,17 @@ package com.alibaba.himarket.support.consumer;
 import lombok.Builder;
 import lombok.Data;
 
-/**
- * ADP AI网关授权配置
- */
+/** ADP AI网关授权配置 */
 @Data
 @Builder
 public class AdpAIAuthConfig {
 
-    /**
-     * MCP Server名称
-     */
+    /** MCP Server名称 */
     private String mcpServerName;
 
-    /**
-     * 消费者ID
-     */
+    /** 消费者ID */
     private String consumerId;
 
-    /**
-     * 网关实例ID
-     */
+    /** 网关实例ID */
     private String gwInstanceId;
 }

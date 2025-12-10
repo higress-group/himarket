@@ -36,5 +36,4 @@ public class CommonConstants {
     // HTTP
     public static final Integer HTTP_PORT = 80;
     public static final Integer HTTPS_PORT = 443;
-
 }

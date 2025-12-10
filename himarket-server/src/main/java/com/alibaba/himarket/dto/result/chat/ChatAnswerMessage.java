@@ -34,12 +34,12 @@ import org.springframework.ai.chat.messages.ToolResponseMessage;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ChatAnswerMessage {
-    private String      chatId;
+    private String chatId;
     private MessageType msgType;
-    private Object      content;
-    private ChatUsage   chatUsage;
-    private String      error;
-    private String      message;
+    private Object content;
+    private ChatUsage chatUsage;
+    private String error;
+    private String message;
 
     public enum MessageType {
         USER,
@@ -74,17 +74,16 @@ public class ChatAnswerMessage {
     @AllArgsConstructor
     public static class ToolCall {
         private McpToolMeta toolMeta;
-        private Object      inputSchema;
+        private Object inputSchema;
         // 根据ToolCall做json解析后的结果
-        private Object      input;
-        /**
-         * 以下字段来自:
-         * {@link org.springframework.ai.chat.messages.AssistantMessage.ToolCall}
-         */
-        private String      id;
-        private String      type;
-        private String      name;
-        private String      arguments;
+        private Object input;
+
+        /** 以下字段来自: {@link org.springframework.ai.chat.messages.AssistantMessage.ToolCall} */
+        private String id;
+
+        private String type;
+        private String name;
+        private String arguments;
 
         public AssistantMessage.ToolCall toToolCall() {
             return new AssistantMessage.ToolCall(id, type, name, arguments);
@@ -98,15 +97,14 @@ public class ChatAnswerMessage {
     public static class ToolResponse {
         private McpToolMeta toolMeta;
         // 根据ToolResponse的responseData做json解析后的结果
-        private Object      output;
-        private Long        costMillis;
-        /**
-         * 以下字段来自:
-         * {@link org.springframework.ai.chat.messages.ToolResponseMessage.ToolResponse}
-         */
-        private String      id;
-        private String      name;
-        private String      responseData;
+        private Object output;
+        private Long costMillis;
+
+        /** 以下字段来自: {@link org.springframework.ai.chat.messages.ToolResponseMessage.ToolResponse} */
+        private String id;
+
+        private String name;
+        private String responseData;
 
         public ToolResponseMessage.ToolResponse toolResponse() {
             return new ToolResponseMessage.ToolResponse(id, name, responseData);

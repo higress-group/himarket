@@ -22,15 +22,17 @@ package com.alibaba.himarket.entity;
 import com.alibaba.himarket.converter.ConsumerAuthConfigConverter;
 import com.alibaba.himarket.support.consumer.ConsumerAuthConfig;
 import com.alibaba.himarket.support.enums.SubscriptionStatus;
+import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-import jakarta.persistence.*;
-
 @Entity
-@Table(name = "product_subscription",
+@Table(
+        name = "product_subscription",
         uniqueConstraints = {
-                @UniqueConstraint(columnNames = {"product_id", "consumer_id"}, name = "uk_product_consumer")
+            @UniqueConstraint(
+                    columnNames = {"product_id", "consumer_id"},
+                    name = "uk_product_consumer")
         })
 @Data
 @EqualsAndHashCode(callSuper = true)

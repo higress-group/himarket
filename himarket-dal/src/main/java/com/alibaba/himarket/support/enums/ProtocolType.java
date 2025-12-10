@@ -20,10 +20,8 @@
 package com.alibaba.himarket.support.enums;
 
 public enum ProtocolType {
-
     HTTP,
 
     HTTPS,
-
     ;
 }

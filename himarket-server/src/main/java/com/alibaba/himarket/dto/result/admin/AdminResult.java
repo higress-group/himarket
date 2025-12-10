@@ -21,9 +21,8 @@ package com.alibaba.himarket.dto.result.admin;
 
 import com.alibaba.himarket.dto.converter.OutputConverter;
 import com.alibaba.himarket.entity.Administrator;
-import lombok.Data;
-
 import java.time.LocalDateTime;
+import lombok.Data;
 
 @Data
 public class AdminResult implements OutputConverter<AdminResult, Administrator> {

@@ -4,14 +4,12 @@ import com.alibaba.himarket.dto.converter.OutputConverter;
 import com.alibaba.himarket.entity.Chat;
 import com.alibaba.himarket.support.chat.attachment.ChatAttachmentConfig;
 import com.alibaba.himarket.support.enums.ChatStatus;
-import lombok.Data;
-
 import java.util.List;
+import lombok.Data;
 
 /**
  * @author zh
  */
-
 @Data
 public class ChatResult implements OutputConverter<ChatResult, Chat> {
 

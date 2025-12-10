@@ -3,7 +3,6 @@ package com.alibaba.himarket.service;
 import com.alibaba.himarket.core.event.ChatSessionDeletingEvent;
 import com.alibaba.himarket.dto.params.chat.CreateChatParam;
 import com.alibaba.himarket.dto.result.chat.ChatAnswerMessage;
-
 import jakarta.servlet.http.HttpServletResponse;
 import reactor.core.publisher.Flux;
 
@@ -23,6 +22,7 @@ public interface ChatService {
 
     /**
      * Handle session deletion event, such as cleaning up all related chat records
+     *
      * @param event
      */
     void handleSessionDeletion(ChatSessionDeletingEvent event);

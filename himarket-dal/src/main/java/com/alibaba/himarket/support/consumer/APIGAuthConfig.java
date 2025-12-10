@@ -17,13 +17,11 @@
  * under the License.
  */
 
-
 package com.alibaba.himarket.support.consumer;
 
+import java.util.List;
 import lombok.Builder;
 import lombok.Data;
-
-import java.util.List;
 
 /**
  * @author zh

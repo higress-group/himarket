@@ -1,22 +1,26 @@
 package com.alibaba.himarket.service.impl;
 
+import cn.hutool.core.collection.CollUtil;
 import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.event.ChatSessionDeletingEvent;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.core.security.ContextHolder;
 import com.alibaba.himarket.core.utils.IdGenerator;
-import com.alibaba.himarket.dto.result.common.PageResult;
-import com.alibaba.himarket.entity.ChatSession;
-import com.alibaba.himarket.service.ChatSessionService;
-import com.alibaba.himarket.service.ProductService;
-import com.alibaba.himarket.repository.ChatRepository;
-import com.alibaba.himarket.repository.ChatSessionRepository;
+import com.alibaba.himarket.dto.params.chat.CreateChatSessionParam;
+import com.alibaba.himarket.dto.params.chat.UpdateChatSessionParam;
 import com.alibaba.himarket.dto.result.chat.ChatSessionResult;
 import com.alibaba.himarket.dto.result.chat.ConversationResult_V1;
 import com.alibaba.himarket.dto.result.chat.ProductConversationResult;
-import com.alibaba.himarket.dto.params.chat.CreateChatSessionParam;
-import com.alibaba.himarket.dto.params.chat.UpdateChatSessionParam;
+import com.alibaba.himarket.dto.result.common.PageResult;
+import com.alibaba.himarket.entity.Chat;
+import com.alibaba.himarket.entity.ChatSession;
+import com.alibaba.himarket.repository.ChatRepository;
+import com.alibaba.himarket.repository.ChatSessionRepository;
+import com.alibaba.himarket.service.ChatSessionService;
+import com.alibaba.himarket.service.ProductService;
+import java.util.*;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -25,11 +29,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import cn.hutool.core.collection.CollUtil;
-import com.alibaba.himarket.entity.Chat;
-
-import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -47,9 +46,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 
     private final ApplicationEventPublisher eventPublisher;
 
-    /**
-     * Allowed number of sessions per user
-     */
+    /** Allowed number of sessions per user */
     private static final int MAX_SESSIONS_PER_USER = 20;
 
     @Override
@@ -78,32 +75,42 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 
     @Override
     public void existsSession(String sessionId) {
-        sessionRepository.findBySessionIdAndUserId(sessionId, contextHolder.getUser())
+        sessionRepository
+                .findBySessionIdAndUserId(sessionId, contextHolder.getUser())
                 .orElseThrow(
-                        () -> new BusinessException(ErrorCode.NOT_FOUND, Resources.CHAT_SESSION, sessionId)
-                );
+                        () ->
+                                new BusinessException(
+                                        ErrorCode.NOT_FOUND, Resources.CHAT_SESSION, sessionId));
     }
 
     private ChatSession findSession(String sessionId) {
-        return sessionRepository.findBySessionId(sessionId)
+        return sessionRepository
+                .findBySessionId(sessionId)
                 .orElseThrow(
-                        () -> new BusinessException(ErrorCode.NOT_FOUND, Resources.CHAT_SESSION, sessionId)
-                );
+                        () ->
+                                new BusinessException(
+                                        ErrorCode.NOT_FOUND, Resources.CHAT_SESSION, sessionId));
     }
 
     @Override
     public ChatSession findUserSession(String sessionId) {
-        return sessionRepository.findBySessionIdAndUserId(sessionId, contextHolder.getUser())
+        return sessionRepository
+                .findBySessionIdAndUserId(sessionId, contextHolder.getUser())
                 .orElseThrow(
-                        () -> new BusinessException(ErrorCode.NOT_FOUND, Resources.CHAT_SESSION, sessionId)
-                );
+                        () ->
+                                new BusinessException(
+                                        ErrorCode.NOT_FOUND, Resources.CHAT_SESSION, sessionId));
     }
 
     @Override
     public PageResult<ChatSessionResult> listSessions(Pageable pageable) {
-        Page<ChatSession> chatSessions = sessionRepository.findByUserId(contextHolder.getUser(), pageable);
+        Page<ChatSession> chatSessions =
+                sessionRepository.findByUserId(contextHolder.getUser(), pageable);
 
-        return new PageResult<ChatSessionResult>().convertFrom(chatSessions, chatSession -> new ChatSessionResult().convertFrom(chatSession));
+        return new PageResult<ChatSessionResult>()
+                .convertFrom(
+                        chatSessions,
+                        chatSession -> new ChatSessionResult().convertFrom(chatSession));
     }
 
     @Override
@@ -124,72 +131,80 @@ public class ChatSessionServiceImpl implements ChatSessionService {
         sessionRepository.delete(session);
     }
 
-//    public void updateStatus(String sessionId, ChatSessionStatus status) {
-//        ChatSession session = findUserSession(sessionId);
-//        session.setStatus(status);
-//        sessionRepository.saveAndFlush(session);
-//    }
+    //    public void updateStatus(String sessionId, ChatSessionStatus status) {
+    //        ChatSession session = findUserSession(sessionId);
+    //        session.setStatus(status);
+    //        sessionRepository.saveAndFlush(session);
+    //    }
 
-    /**
-     * Clean up extra sessions
-     */
+    /** Clean up extra sessions */
     private void cleanupExtraSessions() {
         long count = sessionRepository.countByUserId(contextHolder.getUser());
         if (count > MAX_SESSIONS_PER_USER) {
             // Delete the first session
-            sessionRepository.findFirstByUserId(contextHolder.getUser(), Sort.by(Sort.Direction.ASC, "createAt"))
+            sessionRepository
+                    .findFirstByUserId(
+                            contextHolder.getUser(), Sort.by(Sort.Direction.ASC, "createAt"))
                     .ifPresent(session -> deleteSession(session.getSessionId()));
         }
     }
 
     @Override
     public List<ConversationResult_V1> listConversations(String sessionId) {
-        List<Chat> chats = chatRepository.findAllBySessionIdAndUserId(
-                sessionId, contextHolder.getUser(),
-                Sort.by(Sort.Direction.ASC, "createAt")
-        );
+        List<Chat> chats =
+                chatRepository.findAllBySessionIdAndUserId(
+                        sessionId,
+                        contextHolder.getUser(),
+                        Sort.by(Sort.Direction.ASC, "createAt"));
         if (CollUtil.isEmpty(chats)) {
             return Collections.emptyList();
         }
 
         // Group by conversation ID
-        Map<String, List<Chat>> conversationMap = chats.stream()
-                .collect(Collectors.groupingBy(
-                        Chat::getConversationId,
-                        LinkedHashMap::new,
-                        Collectors.toList()
-                ));
+        Map<String, List<Chat>> conversationMap =
+                chats.stream()
+                        .collect(
+                                Collectors.groupingBy(
+                                        Chat::getConversationId,
+                                        LinkedHashMap::new,
+                                        Collectors.toList()));
 
         return conversationMap.entrySet().stream()
-                .map(entry -> ConversationResult_V1.builder()
-                        .conversationId(entry.getKey())
-                        .questions(buildQuestions(entry.getValue()))
-                        .build())
+                .map(
+                        entry ->
+                                ConversationResult_V1.builder()
+                                        .conversationId(entry.getKey())
+                                        .questions(buildQuestions(entry.getValue()))
+                                        .build())
                 .collect(Collectors.toList());
     }
 
-    private List<ConversationResult_V1.QuestionResult> buildQuestions(List<Chat> conversationChats) {
+    private List<ConversationResult_V1.QuestionResult> buildQuestions(
+            List<Chat> conversationChats) {
         // Group by question ID
-        Map<String, List<Chat>> questionGroups = conversationChats.stream()
-                .collect(Collectors.groupingBy(
-                        Chat::getQuestionId,
-                        LinkedHashMap::new,
-                        Collectors.toList()
-                ));
+        Map<String, List<Chat>> questionGroups =
+                conversationChats.stream()
+                        .collect(
+                                Collectors.groupingBy(
+                                        Chat::getQuestionId,
+                                        LinkedHashMap::new,
+                                        Collectors.toList()));
 
         // Build question results
         List<ConversationResult_V1.QuestionResult> questions = new ArrayList<>();
         for (Map.Entry<String, List<Chat>> e : questionGroups.entrySet()) {
             Chat firstChat = e.getValue().get(0);
 
-            ConversationResult_V1.QuestionResult question = ConversationResult_V1.QuestionResult.builder()
-                    .questionId(e.getKey())
-                    .content(firstChat.getQuestion())
-                    .createdAt(firstChat.getCreateAt())
-                    .attachments(Optional.ofNullable(firstChat.getAttachments())
-                            .orElse(Collections.emptyList()))
-                    .answers(buildAnswerGroups(e.getValue()))
-                    .build();
+            ConversationResult_V1.QuestionResult question =
+                    ConversationResult_V1.QuestionResult.builder()
+                            .questionId(e.getKey())
+                            .content(firstChat.getQuestion())
+                            .createdAt(firstChat.getCreateAt())
+                            .attachments(
+                                    Optional.ofNullable(firstChat.getAttachments())
+                                            .orElse(Collections.emptyList()))
+                            .answers(buildAnswerGroups(e.getValue()))
+                            .build();
 
             questions.add(question);
         }
@@ -197,110 +212,128 @@ public class ChatSessionServiceImpl implements ChatSessionService {
         return questions;
     }
 
-    private List<ConversationResult_V1.AnswerGroupResult> buildAnswerGroups(List<Chat> questionChats) {
+    private List<ConversationResult_V1.AnswerGroupResult> buildAnswerGroups(
+            List<Chat> questionChats) {
         // Group by sequence
-        Map<Integer, List<Chat>> sequenceGroups = questionChats.stream()
-                .filter(chat -> chat.getSequence() != null)
-                .collect(Collectors.groupingBy(
-                        Chat::getSequence,
-                        LinkedHashMap::new,
-                        Collectors.toList()
-                ));
+        Map<Integer, List<Chat>> sequenceGroups =
+                questionChats.stream()
+                        .filter(chat -> chat.getSequence() != null)
+                        .collect(
+                                Collectors.groupingBy(
+                                        Chat::getSequence,
+                                        LinkedHashMap::new,
+                                        Collectors.toList()));
 
         // Build answer groups sorted by sequence
         return sequenceGroups.keySet().stream()
                 .sorted()
-                .map(sequence -> {
-                    // Build answers for current sequence
-                    List<ConversationResult_V1.AnswerResult> answers = sequenceGroups.get(sequence).stream()
-                            .map(chat -> ConversationResult_V1.AnswerResult.builder()
-                                    .answerId(chat.getAnswerId())
-                                    .productId(chat.getProductId())
-                                    .content(chat.getAnswer())
-                                    .usage(chat.getChatUsage())
-                                    .build())
-                            .collect(Collectors.toList());
+                .map(
+                        sequence -> {
+                            // Build answers for current sequence
+                            List<ConversationResult_V1.AnswerResult> answers =
+                                    sequenceGroups.get(sequence).stream()
+                                            .map(
+                                                    chat ->
+                                                            ConversationResult_V1.AnswerResult
+                                                                    .builder()
+                                                                    .answerId(chat.getAnswerId())
+                                                                    .productId(chat.getProductId())
+                                                                    .content(chat.getAnswer())
+                                                                    .usage(chat.getChatUsage())
+                                                                    .build())
+                                            .collect(Collectors.toList());
 
-                    return ConversationResult_V1.AnswerGroupResult.builder()
-                            .sequence(sequence)
-                            .results(answers)
-                            .build();
-                })
+                            return ConversationResult_V1.AnswerGroupResult.builder()
+                                    .sequence(sequence)
+                                    .results(answers)
+                                    .build();
+                        })
                 .collect(Collectors.toList());
     }
 
     @Override
     public List<ProductConversationResult> listConversationsV2(String sessionId) {
         // 1. Query all chats for the session
-        List<Chat> chats = chatRepository.findAllBySessionIdAndUserId(
-                sessionId, contextHolder.getUser(),
-                Sort.by(Sort.Direction.ASC, "createAt")
-        );
-        
+        List<Chat> chats =
+                chatRepository.findAllBySessionIdAndUserId(
+                        sessionId,
+                        contextHolder.getUser(),
+                        Sort.by(Sort.Direction.ASC, "createAt"));
+
         if (CollUtil.isEmpty(chats)) {
             return Collections.emptyList();
         }
 
         // 2. Group by productId
-        Map<String, List<Chat>> productGroups = chats.stream()
-                .collect(Collectors.groupingBy(
-                        Chat::getProductId,
-                        LinkedHashMap::new,
-                        Collectors.toList()
-                ));
+        Map<String, List<Chat>> productGroups =
+                chats.stream()
+                        .collect(
+                                Collectors.groupingBy(
+                                        Chat::getProductId,
+                                        LinkedHashMap::new,
+                                        Collectors.toList()));
 
         // 3. Build result list for each product
         return productGroups.entrySet().stream()
-                .map(entry -> {
-                    String productId = entry.getKey();
-                    List<Chat> productChats = entry.getValue();
-                    
-                    return ProductConversationResult.builder()
-                            .productId(productId)
-                            .conversations(buildProductConversations(productChats))
-                            .build();
-                })
+                .map(
+                        entry -> {
+                            String productId = entry.getKey();
+                            List<Chat> productChats = entry.getValue();
+
+                            return ProductConversationResult.builder()
+                                    .productId(productId)
+                                    .conversations(buildProductConversations(productChats))
+                                    .build();
+                        })
                 .collect(Collectors.toList());
     }
 
-    private List<ProductConversationResult.ConversationResult> buildProductConversations(List<Chat> productChats) {
+    private List<ProductConversationResult.ConversationResult> buildProductConversations(
+            List<Chat> productChats) {
         // Group by conversationId
-        Map<String, List<Chat>> conversationGroups = productChats.stream()
-                .collect(Collectors.groupingBy(
-                        Chat::getConversationId,
-                        LinkedHashMap::new,
-                        Collectors.toList()
-                ));
+        Map<String, List<Chat>> conversationGroups =
+                productChats.stream()
+                        .collect(
+                                Collectors.groupingBy(
+                                        Chat::getConversationId,
+                                        LinkedHashMap::new,
+                                        Collectors.toList()));
 
         return conversationGroups.entrySet().stream()
-                .map(entry -> ProductConversationResult.ConversationResult.builder()
-                        .conversationId(entry.getKey())
-                        .questions(buildProductQuestions(entry.getValue()))
-                        .build())
+                .map(
+                        entry ->
+                                ProductConversationResult.ConversationResult.builder()
+                                        .conversationId(entry.getKey())
+                                        .questions(buildProductQuestions(entry.getValue()))
+                                        .build())
                 .collect(Collectors.toList());
     }
 
-    private List<ProductConversationResult.QuestionResult> buildProductQuestions(List<Chat> conversationChats) {
+    private List<ProductConversationResult.QuestionResult> buildProductQuestions(
+            List<Chat> conversationChats) {
         // Group by questionId
-        Map<String, List<Chat>> questionGroups = conversationChats.stream()
-                .collect(Collectors.groupingBy(
-                        Chat::getQuestionId,
-                        LinkedHashMap::new,
-                        Collectors.toList()
-                ));
+        Map<String, List<Chat>> questionGroups =
+                conversationChats.stream()
+                        .collect(
+                                Collectors.groupingBy(
+                                        Chat::getQuestionId,
+                                        LinkedHashMap::new,
+                                        Collectors.toList()));
 
         List<ProductConversationResult.QuestionResult> questions = new ArrayList<>();
         for (Map.Entry<String, List<Chat>> entry : questionGroups.entrySet()) {
             Chat firstChat = entry.getValue().get(0);
 
-            ProductConversationResult.QuestionResult question = ProductConversationResult.QuestionResult.builder()
-                    .questionId(entry.getKey())
-                    .content(firstChat.getQuestion())
-                    .createdAt(firstChat.getCreateAt())
-                    .attachments(Optional.ofNullable(firstChat.getAttachments())
-                            .orElse(Collections.emptyList()))
-                    .answers(buildProductAnswers(entry.getValue()))
-                    .build();
+            ProductConversationResult.QuestionResult question =
+                    ProductConversationResult.QuestionResult.builder()
+                            .questionId(entry.getKey())
+                            .content(firstChat.getQuestion())
+                            .createdAt(firstChat.getCreateAt())
+                            .attachments(
+                                    Optional.ofNullable(firstChat.getAttachments())
+                                            .orElse(Collections.emptyList()))
+                            .answers(buildProductAnswers(entry.getValue()))
+                            .build();
 
             questions.add(question);
         }
@@ -308,30 +341,34 @@ public class ChatSessionServiceImpl implements ChatSessionService {
         return questions;
     }
 
-    private List<ProductConversationResult.AnswerResult> buildProductAnswers(List<Chat> questionChats) {
+    private List<ProductConversationResult.AnswerResult> buildProductAnswers(
+            List<Chat> questionChats) {
         // Group by sequence
-        Map<Integer, List<Chat>> sequenceGroups = questionChats.stream()
-                .filter(chat -> chat.getSequence() != null)
-                .collect(Collectors.groupingBy(
-                        Chat::getSequence,
-                        LinkedHashMap::new,
-                        Collectors.toList()
-                ));
+        Map<Integer, List<Chat>> sequenceGroups =
+                questionChats.stream()
+                        .filter(chat -> chat.getSequence() != null)
+                        .collect(
+                                Collectors.groupingBy(
+                                        Chat::getSequence,
+                                        LinkedHashMap::new,
+                                        Collectors.toList()));
 
         // Build answers sorted by sequence
         return sequenceGroups.keySet().stream()
                 .sorted()
-                .map(sequence -> {
-                    // Since we're grouping by product already, there should be only one chat per sequence
-                    Chat chat = sequenceGroups.get(sequence).get(0);
-                    
-                    return ProductConversationResult.AnswerResult.builder()
-                            .sequence(sequence)
-                            .answerId(chat.getAnswerId())
-                            .content(chat.getAnswer())
-                            .usage(chat.getChatUsage())
-                            .build();
-                })
+                .map(
+                        sequence -> {
+                            // Since we're grouping by product already, there should be only one
+                            // chat per sequence
+                            Chat chat = sequenceGroups.get(sequence).get(0);
+
+                            return ProductConversationResult.AnswerResult.builder()
+                                    .sequence(sequence)
+                                    .answerId(chat.getAnswerId())
+                                    .content(chat.getAnswer())
+                                    .usage(chat.getChatUsage())
+                                    .build();
+                        })
                 .collect(Collectors.toList());
     }
 }

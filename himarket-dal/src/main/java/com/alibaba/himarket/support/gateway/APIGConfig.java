@@ -26,11 +26,9 @@ import lombok.Data;
 @Data
 public class APIGConfig {
 
-    @Encrypted
-    private String accessKey;
+    @Encrypted private String accessKey;
 
-    @Encrypted
-    private String secretKey;
+    @Encrypted private String secretKey;
 
     private String region;
 
@@ -39,6 +37,8 @@ public class APIGConfig {
     }
 
     public boolean validate() {
-        return StrUtil.isNotBlank(accessKey) && StrUtil.isNotBlank(secretKey) && StrUtil.isNotBlank(region);
+        return StrUtil.isNotBlank(accessKey)
+                && StrUtil.isNotBlank(secretKey)
+                && StrUtil.isNotBlank(region);
     }
 }

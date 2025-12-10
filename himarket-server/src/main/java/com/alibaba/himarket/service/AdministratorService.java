@@ -22,10 +22,7 @@ package com.alibaba.himarket.service;
 import com.alibaba.himarket.dto.result.admin.AdminResult;
 import com.alibaba.himarket.dto.result.common.AuthResult;
 
-/**
- * 管理员服务接口，定义管理员相关的核心操作方法
- *
- */
+/** 管理员服务接口，定义管理员相关的核心操作方法 */
 public interface AdministratorService {
 
     /**
@@ -63,7 +60,8 @@ public interface AdministratorService {
 
     /**
      * 获取当前登录管理员信息
+     *
      * @return
      */
     AdminResult getAdministrator();
-} 
+}

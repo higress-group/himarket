@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 package com.alibaba.himarket.dto.params.gateway;
 
 import com.alibaba.himarket.support.enums.GatewayType;

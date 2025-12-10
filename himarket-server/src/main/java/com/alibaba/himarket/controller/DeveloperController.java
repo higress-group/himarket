@@ -21,6 +21,7 @@ package com.alibaba.himarket.controller;
 
 import com.alibaba.himarket.core.annotation.AdminAuth;
 import com.alibaba.himarket.core.annotation.DeveloperAuth;
+import com.alibaba.himarket.dto.params.admin.ResetPasswordParam;
 import com.alibaba.himarket.dto.params.developer.*;
 import com.alibaba.himarket.dto.result.common.AuthResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
@@ -28,13 +29,12 @@ import com.alibaba.himarket.dto.result.developer.DeveloperResult;
 import com.alibaba.himarket.service.DeveloperService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import jakarta.validation.Valid;
-import jakarta.servlet.http.HttpServletRequest;
-import com.alibaba.himarket.dto.params.admin.ResetPasswordParam;
 
 @Tag(name = "开发者管理", description = "提供开发者认证、管理等功能")
 @RestController
@@ -66,7 +66,8 @@ public class DeveloperController {
 
     @Operation(summary = "获取门户的开发者列表", description = "管理员功能：获取当前门户下所有开发者的分页列表")
     @GetMapping
-    public PageResult<DeveloperResult> listDevelopers(QueryDeveloperParam param, Pageable pageable) {
+    public PageResult<DeveloperResult> listDevelopers(
+            QueryDeveloperParam param, Pageable pageable) {
         return developerService.listDevelopers(param, pageable);
     }
 
@@ -81,7 +82,8 @@ public class DeveloperController {
     @PatchMapping("/password")
     @DeveloperAuth
     public String changePassword(@RequestBody ResetPasswordParam param) {
-        developerService.changeCurrentDeveloperPassword(param.getOldPassword(), param.getNewPassword());
+        developerService.changeCurrentDeveloperPassword(
+                param.getOldPassword(), param.getNewPassword());
         return "修改密码成功";
     }
 
@@ -95,8 +97,9 @@ public class DeveloperController {
     @Operation(summary = "设置开发者状态", description = "管理员审核开发者账号，status为APPROVED/PENDING")
     @PatchMapping("/{developerId}/status")
     @AdminAuth
-    public void setDeveloperStatus(@PathVariable("developerId") String developerId,
-                                   @RequestBody UpdateDeveloperStatusParam param) {
+    public void setDeveloperStatus(
+            @PathVariable("developerId") String developerId,
+            @RequestBody UpdateDeveloperStatusParam param) {
         developerService.setDeveloperStatus(developerId, param.getStatus());
     }
 

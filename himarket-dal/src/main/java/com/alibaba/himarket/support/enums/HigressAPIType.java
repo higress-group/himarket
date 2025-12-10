@@ -25,11 +25,9 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 @Getter
 public enum HigressAPIType {
-
     ROUTE("Route"),
 
     MCP("MCP"),
-
     ;
 
     private final String type;

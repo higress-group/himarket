@@ -25,12 +25,11 @@ import com.alibaba.himarket.dto.params.developer.CreateExternalDeveloperParam;
 import com.alibaba.himarket.dto.params.developer.QueryDeveloperParam;
 import com.alibaba.himarket.dto.params.developer.UpdateDeveloperParam;
 import com.alibaba.himarket.dto.result.common.AuthResult;
-import com.alibaba.himarket.dto.result.developer.DeveloperResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
+import com.alibaba.himarket.dto.result.developer.DeveloperResult;
 import com.alibaba.himarket.support.enums.DeveloperStatus;
-import org.springframework.data.domain.Pageable;
-
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.data.domain.Pageable;
 
 public interface DeveloperService {
 

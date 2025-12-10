@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 package com.alibaba.himarket.support.portal;
 
 import lombok.Data;
@@ -28,44 +27,29 @@ import lombok.Data;
 @Data
 public class AuthCodeConfig {
 
-    /**
-     * 凭证
-     */
+    /** 凭证 */
     private String clientId;
+
     private String clientSecret;
 
-    /**
-     * 访问范围
-     */
+    /** 访问范围 */
     private String scopes;
 
-    /**
-     * Issuer
-     */
+    /** Issuer */
     private String issuer;
 
-    /**
-     * 授权端点
-     */
+    /** 授权端点 */
     private String authorizationEndpoint;
 
-    /**
-     * 令牌端点
-     */
+    /** 令牌端点 */
     private String tokenEndpoint;
 
-    /**
-     * 用户信息端点
-     */
+    /** 用户信息端点 */
     private String userInfoEndpoint;
 
-    /**
-     * JWK Set URI
-     */
+    /** JWK Set URI */
     private String jwkSetUri;
 
-    /**
-     * 重定向URI
-     */
+    /** 重定向URI */
     private String redirectUri;
 }

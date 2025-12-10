@@ -21,13 +21,10 @@ package com.alibaba.himarket.dto.params.admin;
 
 import com.alibaba.himarket.dto.converter.InputConverter;
 import com.alibaba.himarket.entity.Administrator;
-import lombok.Data;
 import jakarta.validation.constraints.NotBlank;
+import lombok.Data;
 
-/**
- * 管理员注册/创建参数DTO
- *
- */
+/** 管理员注册/创建参数DTO */
 @Data
 public class AdminCreateParam implements InputConverter<Administrator> {
 
@@ -36,4 +33,4 @@ public class AdminCreateParam implements InputConverter<Administrator> {
 
     @NotBlank(message = "密码不能为空")
     private String password;
-} 
+}

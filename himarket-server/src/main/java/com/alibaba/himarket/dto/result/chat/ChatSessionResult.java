@@ -3,10 +3,9 @@ package com.alibaba.himarket.dto.result.chat;
 import com.alibaba.himarket.dto.converter.OutputConverter;
 import com.alibaba.himarket.entity.ChatSession;
 import com.alibaba.himarket.support.enums.TalkType;
-import lombok.Data;
-
 import java.time.LocalDateTime;
 import java.util.List;
+import lombok.Data;
 
 /**
  * @author zh

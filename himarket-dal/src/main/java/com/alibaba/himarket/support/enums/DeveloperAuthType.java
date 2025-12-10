@@ -17,14 +17,12 @@
  * under the License.
  */
 
-
 package com.alibaba.himarket.support.enums;
 
 /**
  * @author zh
  */
 public enum DeveloperAuthType {
-
     @Deprecated
     LOCAL,
 
@@ -36,7 +34,6 @@ public enum DeveloperAuthType {
     OIDC,
 
     OAUTH2,
-
     ;
 
     public boolean isBuiltIn() {

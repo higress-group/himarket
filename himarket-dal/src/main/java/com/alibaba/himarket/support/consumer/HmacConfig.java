@@ -20,9 +20,8 @@
 package com.alibaba.himarket.support.consumer;
 
 import com.alibaba.himarket.support.enums.CredentialMode;
-import lombok.Data;
-
 import java.util.List;
+import lombok.Data;
 
 @Data
 public class HmacConfig {

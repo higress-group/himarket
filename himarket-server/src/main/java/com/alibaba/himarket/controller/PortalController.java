@@ -28,13 +28,12 @@ import com.alibaba.himarket.dto.result.product.SubscriptionResult;
 import com.alibaba.himarket.service.PortalService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-
-import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/portals")
@@ -67,7 +66,8 @@ public class PortalController {
 
     @Operation(summary = "更新门户信息")
     @PutMapping("/{portalId}")
-    public PortalResult updatePortal(@PathVariable String portalId, @Valid @RequestBody UpdatePortalParam param) {
+    public PortalResult updatePortal(
+            @PathVariable String portalId, @Valid @RequestBody UpdatePortalParam param) {
         return portalService.updatePortal(portalId, param);
     }
 
@@ -79,7 +79,8 @@ public class PortalController {
 
     @Operation(summary = "绑定域名")
     @PostMapping("/{portalId}/domains")
-    public PortalResult bindDomain(@PathVariable String portalId, @Valid @RequestBody BindDomainParam param) {
+    public PortalResult bindDomain(
+            @PathVariable String portalId, @Valid @RequestBody BindDomainParam param) {
         return portalService.bindDomain(portalId, param);
     }
 
@@ -91,9 +92,8 @@ public class PortalController {
 
     @Operation(summary = "获取门户上的API产品订阅列表")
     @GetMapping("/{portalId}/subscriptions")
-    public PageResult<SubscriptionResult> listSubscriptions(@PathVariable String portalId,
-                                                            QuerySubscriptionParam param,
-                                                            Pageable pageable) {
+    public PageResult<SubscriptionResult> listSubscriptions(
+            @PathVariable String portalId, QuerySubscriptionParam param, Pageable pageable) {
         return portalService.listSubscriptions(portalId, param, pageable);
     }
 }

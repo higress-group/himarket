@@ -4,7 +4,6 @@ package com.alibaba.himarket.support.enums;
  * @author zh
  */
 public enum ChatAttachmentType {
-
     IMAGE,
 
     VIDEO,
@@ -12,7 +11,5 @@ public enum ChatAttachmentType {
     AUDIO,
 
     TEXT,
-
     ;
-
 }

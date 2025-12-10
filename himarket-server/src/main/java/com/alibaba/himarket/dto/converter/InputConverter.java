@@ -21,14 +21,13 @@ package com.alibaba.himarket.dto.converter;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.bean.copier.CopyOptions;
-
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 
 /**
  * 一个通用的转换器，用于将DTO转换为领域对象
- * <p>
- * 例如：CreatePortalRequest -> Portal
+ *
+ * <p>例如：CreatePortalRequest -> Portal
  *
  * @param <D> 目标领域对象类型
  */

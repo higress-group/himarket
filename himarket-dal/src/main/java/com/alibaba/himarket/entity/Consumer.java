@@ -19,17 +19,20 @@
 
 package com.alibaba.himarket.entity;
 
+import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-import jakarta.persistence.*;
-
 @Entity
-@Table(name = "consumer",
+@Table(
+        name = "consumer",
         uniqueConstraints = {
-                @UniqueConstraint(columnNames = {"consumer_id"}, name = "uk_consumer_id"),
-                @UniqueConstraint(columnNames = {"name", "portal_id", "developer_id"},
-                        name = "uk_name_portal_developer")
+            @UniqueConstraint(
+                    columnNames = {"consumer_id"},
+                    name = "uk_consumer_id"),
+            @UniqueConstraint(
+                    columnNames = {"name", "portal_id", "developer_id"},
+                    name = "uk_name_portal_developer")
         })
 @Data
 @EqualsAndHashCode(callSuper = true)
@@ -48,9 +51,9 @@ public class Consumer extends BaseEntity {
     @Column(name = "description", length = 256)
     private String description;
 
-//    @Enumerated(EnumType.STRING)
-//    @Column(name = "status", length = 32, nullable = false)
-//    private ConsumerStatus status;
+    //    @Enumerated(EnumType.STRING)
+    //    @Column(name = "status", length = 32, nullable = false)
+    //    private ConsumerStatus status;
 
     @Column(name = "portal_id", length = 64, nullable = false)
     private String portalId;

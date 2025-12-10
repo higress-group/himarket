@@ -2,7 +2,7 @@
 
 This document describes the PR submission guidelines for the Himarket project.
 
-## 🎯 PR Title Format
+## PR Title Format
 
 ### Required Format
 
@@ -62,7 +62,7 @@ type(scope): brief description
 
 ---
 
-## 📝 PR Content Format
+## PR Content Format
 
 ### Required Sections
 
@@ -168,7 +168,7 @@ The checklist helps ensure code quality and completeness.
 
 ---
 
-## 🔍 Automated Checks
+## Automated Checks
 
 Every PR will automatically trigger two checks:
 
@@ -202,7 +202,7 @@ Every PR will automatically trigger two checks:
 
 ---
 
-## 📚 Complete Examples
+## Complete Examples
 
 ### Example 1: Feature PR ✅
 
@@ -310,7 +310,7 @@ None
 
 ---
 
-## ❌ Common Mistakes
+## Common Mistakes
 
 ### Mistake 1: Wrong Title Format
 
@@ -441,7 +441,7 @@ Add new feature
 
 ---
 
-## ❓ FAQ
+## FAQ
 
 ### Q: Do I need to fill in all sections?
 

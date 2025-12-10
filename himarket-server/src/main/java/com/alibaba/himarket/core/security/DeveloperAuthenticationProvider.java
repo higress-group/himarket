@@ -20,6 +20,7 @@
 package com.alibaba.himarket.core.security;
 
 import com.alibaba.himarket.service.DeveloperService;
+import java.util.Collections;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -30,8 +31,6 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
 
-import java.util.Collections;
-
 @Component
 @RequiredArgsConstructor
 public class DeveloperAuthenticationProvider implements AuthenticationProvider {
@@ -39,13 +38,15 @@ public class DeveloperAuthenticationProvider implements AuthenticationProvider {
     private final DeveloperService developerService;
 
     @Override
-    public Authentication authenticate(Authentication authentication) throws AuthenticationException {
+    public Authentication authenticate(Authentication authentication)
+            throws AuthenticationException {
         String username = authentication.getName();
         String password = authentication.getCredentials().toString();
         try {
             developerService.login(username, password);
             GrantedAuthority authority = new SimpleGrantedAuthority("ROLE_DEVELOPER");
-            return new UsernamePasswordAuthenticationToken(username, null, Collections.singletonList(authority));
+            return new UsernamePasswordAuthenticationToken(
+                    username, null, Collections.singletonList(authority));
         } catch (Exception e) {
             throw new BadCredentialsException("用户名或密码错误");
         }
@@ -55,4 +56,4 @@ public class DeveloperAuthenticationProvider implements AuthenticationProvider {
     public boolean supports(Class<?> authentication) {
         return UsernamePasswordAuthenticationToken.class.isAssignableFrom(authentication);
     }
-} 
+}

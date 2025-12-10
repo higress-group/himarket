@@ -21,14 +21,11 @@ package com.alibaba.himarket.dto.params.admin;
 
 import lombok.Data;
 
-/**
- * 修改密码参数
- *
- */
+/** 修改密码参数 */
 @Data
 public class ResetPasswordParam {
 
     private String oldPassword;
 
     private String newPassword;
-} 
+}

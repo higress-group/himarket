@@ -23,10 +23,9 @@ import com.alibaba.himarket.dto.converter.InputConverter;
 import com.alibaba.himarket.entity.PortalDomain;
 import com.alibaba.himarket.support.enums.DomainType;
 import com.alibaba.himarket.support.enums.ProtocolType;
-import lombok.Data;
-
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import lombok.Data;
 
 @Data
 public class BindDomainParam implements InputConverter<PortalDomain> {

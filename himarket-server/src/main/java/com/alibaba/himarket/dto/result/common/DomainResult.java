@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 package com.alibaba.himarket.dto.result.common;
 
 import lombok.Builder;
@@ -34,5 +33,5 @@ public class DomainResult {
 
     private String protocol;
 
-    private String networkType ;
+    private String networkType;
 }

@@ -19,6 +19,7 @@
 
 package com.alibaba.himarket.config;
 
+import java.util.List;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
@@ -31,27 +32,28 @@ import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.servlet.config.annotation.AsyncSupportConfigurer;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-import java.util.List;
-
 @Configuration
 public class WebMvcConfig {
 
     @Bean
     public PageableHandlerMethodArgumentResolver pageableResolver() {
-        PageableHandlerMethodArgumentResolver resolver = new PageableHandlerMethodArgumentResolver();
+        PageableHandlerMethodArgumentResolver resolver =
+                new PageableHandlerMethodArgumentResolver();
         // 默认分页和排序
-        resolver.setFallbackPageable(PageRequest.of(0, 100,
-                Sort.by(Sort.Direction.DESC, "createAt")));
+        resolver.setFallbackPageable(
+                PageRequest.of(0, 100, Sort.by(Sort.Direction.DESC, "createAt")));
         // 页码从1开始
         resolver.setOneIndexedParameters(true);
         return resolver;
     }
 
     @Bean
-    public WebMvcConfigurer webMvcConfigurer(@Qualifier("taskExecutor") AsyncTaskExecutor taskExecutor) {
+    public WebMvcConfigurer webMvcConfigurer(
+            @Qualifier("taskExecutor") AsyncTaskExecutor taskExecutor) {
         return new WebMvcConfigurer() {
             @Override
-            public void addArgumentResolvers(@NotNull List<HandlerMethodArgumentResolver> resolvers) {
+            public void addArgumentResolvers(
+                    @NotNull List<HandlerMethodArgumentResolver> resolvers) {
                 resolvers.add(pageableResolver());
             }
 

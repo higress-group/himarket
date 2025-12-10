@@ -21,17 +21,18 @@ package com.alibaba.himarket.entity;
 
 import com.alibaba.himarket.support.enums.DomainType;
 import com.alibaba.himarket.support.enums.ProtocolType;
+import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-import jakarta.persistence.*;
-
 @Entity
-@Table(name = "portal_domain",
+@Table(
+        name = "portal_domain",
         uniqueConstraints = {
-                @UniqueConstraint(columnNames = {"domain"}, name = "uk_domain")
-        }
-)
+            @UniqueConstraint(
+                    columnNames = {"domain"},
+                    name = "uk_domain")
+        })
 @Data
 @EqualsAndHashCode(callSuper = true)
 public class PortalDomain extends BaseEntity {

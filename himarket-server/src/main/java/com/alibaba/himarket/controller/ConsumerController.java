@@ -20,27 +20,26 @@
 package com.alibaba.himarket.controller;
 
 import com.alibaba.himarket.core.annotation.AdminAuth;
-import com.alibaba.himarket.core.annotation.DeveloperAuth;
 import com.alibaba.himarket.core.annotation.AdminOrDeveloperAuth;
-import com.alibaba.himarket.dto.params.consumer.CreateCredentialParam;
-import com.alibaba.himarket.dto.params.consumer.QueryConsumerParam;
+import com.alibaba.himarket.core.annotation.DeveloperAuth;
 import com.alibaba.himarket.dto.params.consumer.CreateConsumerParam;
-import com.alibaba.himarket.dto.params.consumer.UpdateCredentialParam;
+import com.alibaba.himarket.dto.params.consumer.CreateCredentialParam;
 import com.alibaba.himarket.dto.params.consumer.CreateSubscriptionParam;
+import com.alibaba.himarket.dto.params.consumer.QueryConsumerParam;
 import com.alibaba.himarket.dto.params.consumer.QuerySubscriptionParam;
+import com.alibaba.himarket.dto.params.consumer.UpdateCredentialParam;
+import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.consumer.ConsumerCredentialResult;
 import com.alibaba.himarket.dto.result.consumer.ConsumerResult;
-import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.product.SubscriptionResult;
 import com.alibaba.himarket.service.ConsumerService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-
-import jakarta.validation.Valid;
 
 @Tag(name = "Consumer管理", description = "提供Consumer注册、审批、产品订阅等管理功能")
 @RestController
@@ -53,8 +52,7 @@ public class ConsumerController {
 
     @Operation(summary = "获取Consumer列表")
     @GetMapping
-    public PageResult<ConsumerResult> listConsumers(QueryConsumerParam param,
-                                                    Pageable pageable) {
+    public PageResult<ConsumerResult> listConsumers(QueryConsumerParam param, Pageable pageable) {
         return consumerService.listConsumers(param, pageable);
     }
 
@@ -80,8 +78,8 @@ public class ConsumerController {
     @Operation(summary = "生成Consumer凭证")
     @PostMapping("/{consumerId}/credentials")
     @DeveloperAuth
-    public void createCredential(@PathVariable String consumerId,
-                                 @RequestBody @Valid CreateCredentialParam param) {
+    public void createCredential(
+            @PathVariable String consumerId, @RequestBody @Valid CreateCredentialParam param) {
         consumerService.createCredential(consumerId, param);
     }
 
@@ -95,8 +93,8 @@ public class ConsumerController {
     @Operation(summary = "更新Consumer凭证")
     @PutMapping("/{consumerId}/credentials")
     @DeveloperAuth
-    public void updateCredential(@PathVariable String consumerId,
-                                 @RequestBody @Valid UpdateCredentialParam param) {
+    public void updateCredential(
+            @PathVariable String consumerId, @RequestBody @Valid UpdateCredentialParam param) {
         consumerService.updateCredential(consumerId, param);
     }
 
@@ -110,30 +108,31 @@ public class ConsumerController {
     @Operation(summary = "订阅API产品")
     @PostMapping("/{consumerId}/subscriptions")
     @DeveloperAuth
-    public SubscriptionResult subscribeProduct(@PathVariable String consumerId,
-                                               @RequestBody @Valid CreateSubscriptionParam param) {
+    public SubscriptionResult subscribeProduct(
+            @PathVariable String consumerId, @RequestBody @Valid CreateSubscriptionParam param) {
         return consumerService.subscribeProduct(consumerId, param);
     }
 
     @Operation(summary = "获取Consumer的订阅列表")
     @GetMapping("/{consumerId}/subscriptions")
     @AdminOrDeveloperAuth
-    public PageResult<SubscriptionResult> listSubscriptions(@PathVariable String consumerId,
-                                                            QuerySubscriptionParam param,
-                                                            Pageable pageable) {
+    public PageResult<SubscriptionResult> listSubscriptions(
+            @PathVariable String consumerId, QuerySubscriptionParam param, Pageable pageable) {
         return consumerService.listSubscriptions(consumerId, param, pageable);
     }
 
     @Operation(summary = "取消订阅")
     @DeleteMapping("/{consumerId}/subscriptions/{productId}")
-    public void deleteSubscription(@PathVariable String consumerId, @PathVariable String productId) {
+    public void deleteSubscription(
+            @PathVariable String consumerId, @PathVariable String productId) {
         consumerService.unsubscribeProduct(consumerId, productId);
     }
 
     @Operation(summary = "审批订阅申请")
     @PatchMapping("/{consumerId}/subscriptions/{productId}")
     @AdminAuth
-    public SubscriptionResult approveSubscription(@PathVariable String consumerId, @PathVariable String productId) {
+    public SubscriptionResult approveSubscription(
+            @PathVariable String consumerId, @PathVariable String productId) {
         return consumerService.approveSubscription(consumerId, productId);
     }
 

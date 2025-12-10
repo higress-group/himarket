@@ -30,20 +30,20 @@ public class ApsaraGatewayConfig {
 
     private String accessKeyId;
 
-    @Encrypted
-    private String accessKeySecret;
+    @Encrypted private String accessKeySecret;
 
     /** 可选：STS 临时凭证 */
-    @Encrypted
-    private String securityToken;
+    @Encrypted private String securityToken;
 
     /** POP 路由相关 */
     private String domain;
+
     private String product;
     private String version;
 
     /** 业务头 */
     private String xAcsOrganizationId;
+
     private String xAcsCallerSdkSource;
     private String xAcsResourceGroupId;
     private String xAcsCallerType;
@@ -51,7 +51,8 @@ public class ApsaraGatewayConfig {
 
     public String buildUniqueKey() {
         // 包含所有影响身份识别和路由的字段，确保配置唯一性准确
-        return String.format("%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s",
+        return String.format(
+                "%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s",
                 accessKeyId,
                 accessKeySecret,
                 regionId,

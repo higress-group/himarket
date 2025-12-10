@@ -1,10 +1,10 @@
 # Contributing to Himarket
 
-Thank you for your interest in contributing to Himarket! 🎉
+Thank you for your interest in contributing to Himarket!
 
 We welcome contributions of all kinds: bug fixes, new features, documentation improvements, and more.
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Fork and Clone the Repository
 
@@ -26,7 +26,7 @@ git remote add upstream https://github.com/higress-group/himarket.git
 
 ---
 
-## 🔄 Development Workflow
+## Development Workflow
 
 ### 1. Sync and Create a Branch
 
@@ -106,7 +106,7 @@ git push origin feat/your-feature-name
 
 ---
 
-## 📝 Pull Request Guidelines
+## Pull Request Guidelines
 
 ### PR Title
 
@@ -173,11 +173,8 @@ Every PR will automatically trigger the following checks:
 
 1. **PR Check** - Validates your PR title and description format (Required ✅)
 2. **Code Format Check** - Runs `mvn spotless:check` to verify code formatting (Required ✅)
-3. **Checkstyle Check** - Checks code style and best practices (Warning ⚠️)
 
-**Required checks** must pass before your PR can be merged. **Warning checks** won't block your PR but provide suggestions for improvement.
-
-If a check fails, the bot will comment with instructions on how to fix it.
+**All checks must pass** before your PR can be merged. If a check fails, the bot will comment with instructions on how to fix it.
 
 **For more detailed PR guidelines, please see:**
 - [PR_GUIDE.md](.github/PR_GUIDE.md) - English version
@@ -185,7 +182,7 @@ If a check fails, the bot will comment with instructions on how to fix it.
 
 ---
 
-## 💻 Coding Standards
+## Coding Standards
 
 ### Java Code
 
@@ -194,17 +191,12 @@ If a check fails, the bot will comment with instructions on how to fix it.
 - This ensures consistent code style across the project
 - **CI will fail** if code is not formatted
 
-**Code Style (Recommended):**
-- We use Checkstyle to check for best practices and style issues
-- Run `mvn checkstyle:check` locally to see suggestions
-- **CI will warn** but not block if there are violations
-
 **Best Practices:**
-- Maximum 120 characters per line
 - Use clear, descriptive names for variables, methods, and classes
 - Add Javadoc comments for public APIs
 - Avoid magic numbers and empty catch blocks
 - Keep methods focused and reasonably sized
+- Remove unused imports
 
 ### TypeScript/React Code
 

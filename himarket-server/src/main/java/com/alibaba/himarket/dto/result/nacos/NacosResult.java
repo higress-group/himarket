@@ -21,8 +21,8 @@ package com.alibaba.himarket.dto.result.nacos;
 
 import com.alibaba.himarket.dto.converter.OutputConverter;
 import com.alibaba.himarket.entity.NacosInstance;
-import lombok.Data;
 import java.time.LocalDateTime;
+import lombok.Data;
 
 @Data
 public class NacosResult implements OutputConverter<NacosResult, NacosInstance> {
@@ -33,7 +33,6 @@ public class NacosResult implements OutputConverter<NacosResult, NacosInstance> 
 
     private String serverUrl;
 
-
     private String username;
 
     private String accessKey;
@@ -41,6 +40,6 @@ public class NacosResult implements OutputConverter<NacosResult, NacosInstance> 
     private String description;
 
     private String adminId;
-    
+
     private LocalDateTime createAt;
-} 
+}

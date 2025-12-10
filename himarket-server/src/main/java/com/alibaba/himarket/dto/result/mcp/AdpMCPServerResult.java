@@ -21,21 +21,20 @@ package com.alibaba.himarket.dto.result.mcp;
 
 import com.aliyun.apsarastack.csb220230206.models.ListMcpServersResponseBody;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-
 import java.util.List;
 import java.util.stream.Collectors;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 @EqualsAndHashCode(callSuper = true)
 @Data
 public class AdpMCPServerResult extends GatewayMCPServerResult {
 
     private String gwInstanceId;
-    
+
     @JsonProperty("name")
     private String name;
-    
+
     private String description;
     private List<String> domains;
     private List<Service> services;
@@ -46,23 +45,20 @@ public class AdpMCPServerResult extends GatewayMCPServerResult {
     private String dbType;
     private String upstreamPathPrefix;
 
-    /**
-     * 确保 mcpServerName 字段被正确设置
-     */
+    /** 确保 mcpServerName 字段被正确设置 */
     public void setName(String name) {
         this.name = name;
         // 同时设置父类的 mcpServerName 字段
         this.setMcpServerName(name);
     }
-    
-    /**
-     * 从SDK的ListMcpServersResponseBodyDataRecords创建AdpMCPServerResult
-     */
-    public static AdpMCPServerResult fromSdkRecord(ListMcpServersResponseBody.ListMcpServersResponseBodyDataRecords record) {
+
+    /** 从SDK的ListMcpServersResponseBodyDataRecords创建AdpMCPServerResult */
+    public static AdpMCPServerResult fromSdkRecord(
+            ListMcpServersResponseBody.ListMcpServersResponseBodyDataRecords record) {
         if (record == null) {
             return null;
         }
-        
+
         AdpMCPServerResult result = new AdpMCPServerResult();
         // 设置基础字段
         result.setGwInstanceId(record.getGwInstanceId());
@@ -72,22 +68,24 @@ public class AdpMCPServerResult extends GatewayMCPServerResult {
         result.setDbType(record.getDbType());
         result.setRawConfigurations(record.getRawConfigurations());
         result.setDomains(record.getDomains());
-        
+
         // 映射services列表
         if (record.getServices() != null) {
-            List<Service> services = record.getServices().stream()
-                .map(svc -> {
-                    Service service = new Service();
-                    service.setName(svc.getName());
-                    service.setPort(svc.getPort());
-                    service.setVersion(svc.getVersion());
-                    service.setWeight(svc.getWeight());
-                    return service;
-                })
-                .collect(Collectors.toList());
+            List<Service> services =
+                    record.getServices().stream()
+                            .map(
+                                    svc -> {
+                                        Service service = new Service();
+                                        service.setName(svc.getName());
+                                        service.setPort(svc.getPort());
+                                        service.setVersion(svc.getVersion());
+                                        service.setWeight(svc.getWeight());
+                                        return service;
+                                    })
+                            .collect(Collectors.toList());
             result.setServices(services);
         }
-        
+
         // 映射consumerAuthInfo
         if (record.getConsumerAuthInfo() != null) {
             ConsumerAuthInfo authInfo = new ConsumerAuthInfo();
@@ -96,7 +94,7 @@ public class AdpMCPServerResult extends GatewayMCPServerResult {
             authInfo.setAllowedConsumers(record.getConsumerAuthInfo().getAllowedConsumers());
             result.setConsumerAuthInfo(authInfo);
         }
-        
+
         return result;
     }
 
@@ -115,5 +113,3 @@ public class AdpMCPServerResult extends GatewayMCPServerResult {
         private List<String> allowedConsumers;
     }
 }
-
-

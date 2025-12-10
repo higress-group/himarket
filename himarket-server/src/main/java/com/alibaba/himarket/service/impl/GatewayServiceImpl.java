@@ -28,9 +28,9 @@ import com.alibaba.himarket.core.security.ContextHolder;
 import com.alibaba.himarket.core.utils.IdGenerator;
 import com.alibaba.himarket.dto.params.gateway.*;
 import com.alibaba.himarket.dto.result.agent.AgentAPIResult;
-import com.alibaba.himarket.dto.result.httpapi.APIResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.gateway.GatewayResult;
+import com.alibaba.himarket.dto.result.httpapi.APIResult;
 import com.alibaba.himarket.dto.result.mcp.GatewayMCPServerResult;
 import com.alibaba.himarket.dto.result.model.GatewayModelAPIResult;
 import com.alibaba.himarket.dto.result.product.ProductRefResult;
@@ -43,6 +43,11 @@ import com.alibaba.himarket.support.consumer.ConsumerAuthConfig;
 import com.alibaba.himarket.support.enums.APIGAPIType;
 import com.alibaba.himarket.support.enums.GatewayType;
 import com.alibaba.himarket.support.gateway.GatewayConfig;
+import jakarta.persistence.criteria.Predicate;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeansException;
@@ -52,12 +57,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
-
-import jakarta.persistence.criteria.Predicate;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -78,25 +77,37 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
     }
 
     @Override
-    public PageResult<GatewayResult> fetchAdpGateways(QueryAdpAIGatewayParam param, int page, int size) {
+    public PageResult<GatewayResult> fetchAdpGateways(
+            QueryAdpAIGatewayParam param, int page, int size) {
         return gatewayOperators.get(GatewayType.ADP_AI_GATEWAY).fetchGateways(param, page, size);
     }
 
     @Override
-    public PageResult<GatewayResult> fetchApsaraGateways(QueryApsaraGatewayParam param, int page, int size) {
+    public PageResult<GatewayResult> fetchApsaraGateways(
+            QueryApsaraGatewayParam param, int page, int size) {
         return gatewayOperators.get(GatewayType.APSARA_GATEWAY).fetchGateways(param, page, size);
     }
 
     public void importGateway(ImportGatewayParam param) {
-        gatewayRepository.findByGatewayId(param.getGatewayId())
-                .ifPresent(gateway -> {
-                    throw new BusinessException(ErrorCode.CONFLICT, StrUtil.format("{}:{}已存在", Resources.GATEWAY, param.getGatewayId()));
-                });
+        gatewayRepository
+                .findByGatewayId(param.getGatewayId())
+                .ifPresent(
+                        gateway -> {
+                            throw new BusinessException(
+                                    ErrorCode.CONFLICT,
+                                    StrUtil.format(
+                                            "{}:{}已存在", Resources.GATEWAY, param.getGatewayId()));
+                        });
 
-        gatewayRepository.findByGatewayName(param.getGatewayName())
-                .ifPresent(gateway -> {
-                    throw new BusinessException(ErrorCode.CONFLICT, StrUtil.format("{}:{}已存在", Resources.GATEWAY, param.getGatewayName()));
-                });
+        gatewayRepository
+                .findByGatewayName(param.getGatewayName())
+                .ifPresent(
+                        gateway -> {
+                            throw new BusinessException(
+                                    ErrorCode.CONFLICT,
+                                    StrUtil.format(
+                                            "{}:{}已存在", Resources.GATEWAY, param.getGatewayName()));
+                        });
 
         Gateway gateway = param.convertTo();
         if (gateway.getGatewayType().isHigress()) {
@@ -110,11 +121,16 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
     public void updateGateway(String gatewayId, UpdateGatewayParam param) {
         Gateway gateway = findGateway(gatewayId);
         if (!StrUtil.equals(gateway.getGatewayName(), param.getGatewayName())) {
-            gatewayRepository.findByGatewayName(param.getGatewayName())
-                    .ifPresent(g -> {
-                        throw new BusinessException(ErrorCode.CONFLICT,
-                                StrUtil.format("Gateway name '{}' already exists", param.getGatewayName()));
-                    });
+            gatewayRepository
+                    .findByGatewayName(param.getGatewayName())
+                    .ifPresent(
+                            g -> {
+                                throw new BusinessException(
+                                        ErrorCode.CONFLICT,
+                                        StrUtil.format(
+                                                "Gateway name '{}' already exists",
+                                                param.getGatewayName()));
+                            });
         }
 
         param.update(gateway);
@@ -132,7 +148,8 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
     public PageResult<GatewayResult> listGateways(QueryGatewayParam param, Pageable pageable) {
         Page<Gateway> gateways = gatewayRepository.findAll(buildGatewaySpec(param), pageable);
 
-        return new PageResult<GatewayResult>().convertFrom(gateways, gateway -> new GatewayResult().convertFrom(gateway));
+        return new PageResult<GatewayResult>()
+                .convertFrom(gateways, gateway -> new GatewayResult().convertFrom(gateway));
     }
 
     @Override
@@ -166,8 +183,10 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
             return fetchRoutes(gatewayId, page, size);
         }
 
-        throw new BusinessException(ErrorCode.INTERNAL_ERROR,
-                String.format("Gateway type %s does not support API type %s", gatewayType, apiType));
+        throw new BusinessException(
+                ErrorCode.INTERNAL_ERROR,
+                String.format(
+                        "Gateway type %s does not support API type %s", gatewayType, apiType));
     }
 
     @Override
@@ -188,7 +207,8 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
     }
 
     @Override
-    public PageResult<GatewayMCPServerResult> fetchMcpServers(String gatewayId, int page, int size) {
+    public PageResult<GatewayMCPServerResult> fetchMcpServers(
+            String gatewayId, int page, int size) {
         Gateway gateway = findGateway(gatewayId);
         return getOperator(gateway).fetchMcpServers(gateway, page, size);
     }
@@ -230,13 +250,19 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
     }
 
     @Override
-    public String createConsumer(Consumer consumer, ConsumerCredential credential, GatewayConfig config) {
-        return gatewayOperators.get(config.getGatewayType()).createConsumer(consumer, credential, config);
+    public String createConsumer(
+            Consumer consumer, ConsumerCredential credential, GatewayConfig config) {
+        return gatewayOperators
+                .get(config.getGatewayType())
+                .createConsumer(consumer, credential, config);
     }
 
     @Override
-    public void updateConsumer(String gwConsumerId, ConsumerCredential credential, GatewayConfig config) {
-        gatewayOperators.get(config.getGatewayType()).updateConsumer(gwConsumerId, credential, config);
+    public void updateConsumer(
+            String gwConsumerId, ConsumerCredential credential, GatewayConfig config) {
+        gatewayOperators
+                .get(config.getGatewayType())
+                .updateConsumer(gwConsumerId, credential, config);
     }
 
     @Override
@@ -250,7 +276,8 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
     }
 
     @Override
-    public ConsumerAuthConfig authorizeConsumer(String gatewayId, String gwConsumerId, ProductRefResult productRef) {
+    public ConsumerAuthConfig authorizeConsumer(
+            String gatewayId, String gwConsumerId, ProductRefResult productRef) {
         Gateway gateway = findGateway(gatewayId);
         Object refConfig;
         if (gateway.getGatewayType().isHigress()) {
@@ -266,7 +293,8 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
     }
 
     @Override
-    public void revokeConsumerAuthorization(String gatewayId, String gwConsumerId, ConsumerAuthConfig config) {
+    public void revokeConsumerAuthorization(
+            String gatewayId, String gwConsumerId, ConsumerAuthConfig config) {
         Gateway gateway = findGateway(gatewayId);
 
         getOperator(gateway).revokeConsumerAuthorization(gateway, gwConsumerId, config);
@@ -282,30 +310,38 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
                 .higressConfig(gateway.getHigressConfig())
                 .adpAIGatewayConfig(gateway.getAdpAIGatewayConfig())
                 .apsaraGatewayConfig(gateway.getApsaraGatewayConfig())
-                .gateway(gateway)  // 添加Gateway实体引用
+                .gateway(gateway) // 添加Gateway实体引用
                 .build();
     }
 
     @Override
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
-        Map<String, GatewayOperator> operators = applicationContext.getBeansOfType(GatewayOperator.class);
+        Map<String, GatewayOperator> operators =
+                applicationContext.getBeansOfType(GatewayOperator.class);
 
-        gatewayOperators = operators.values().stream()
-                .collect(Collectors.toMap(
-                        operator -> operator.getGatewayType(),
-                        operator -> operator,
-                        (existing, replacement) -> existing));
+        gatewayOperators =
+                operators.values().stream()
+                        .collect(
+                                Collectors.toMap(
+                                        operator -> operator.getGatewayType(),
+                                        operator -> operator,
+                                        (existing, replacement) -> existing));
     }
 
     private Gateway findGateway(String gatewayId) {
-        return gatewayRepository.findByGatewayId(gatewayId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, Resources.GATEWAY, gatewayId));
+        return gatewayRepository
+                .findByGatewayId(gatewayId)
+                .orElseThrow(
+                        () ->
+                                new BusinessException(
+                                        ErrorCode.NOT_FOUND, Resources.GATEWAY, gatewayId));
     }
 
     private GatewayOperator getOperator(Gateway gateway) {
         GatewayOperator gatewayOperator = gatewayOperators.get(gateway.getGatewayType());
         if (gatewayOperator == null) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR,
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR,
                     "No gateway operator found for gateway type: " + gateway.getGatewayType());
         }
         return gatewayOperator;
@@ -314,7 +350,7 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
     @Override
     public String getDashboard(String gatewayId, String type) {
         Gateway gateway = findGateway(gatewayId);
-        return getOperator(gateway).getDashboard(gateway, type); //type: Portal,MCP,API
+        return getOperator(gateway).getDashboard(gateway, type); // type: Portal,MCP,API
     }
 
     @Override

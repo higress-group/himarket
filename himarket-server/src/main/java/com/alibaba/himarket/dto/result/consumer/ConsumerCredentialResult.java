@@ -27,7 +27,8 @@ import com.alibaba.himarket.support.consumer.JwtConfig;
 import lombok.Data;
 
 @Data
-public class ConsumerCredentialResult implements OutputConverter<ConsumerCredentialResult, ConsumerCredential> {
+public class ConsumerCredentialResult
+        implements OutputConverter<ConsumerCredentialResult, ConsumerCredential> {
 
     private JwtConfig jwtConfig;
 

@@ -19,32 +19,28 @@
 
 package com.alibaba.himarket.controller;
 
-import java.util.List;
-
-import com.alibaba.himarket.dto.result.mcp.McpToolListResult;
-import jakarta.validation.Valid;
-
 import com.alibaba.himarket.core.annotation.AdminAuth;
 import com.alibaba.himarket.core.annotation.AdminOrDeveloperAuth;
 import com.alibaba.himarket.dto.params.product.CreateProductParam;
 import com.alibaba.himarket.dto.params.product.CreateProductRefParam;
+import com.alibaba.himarket.dto.params.product.QueryProductParam;
+import com.alibaba.himarket.dto.params.product.QueryProductSubscriptionParam;
+import com.alibaba.himarket.dto.params.product.UpdateProductParam;
 import com.alibaba.himarket.dto.result.ProductCategoryResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
+import com.alibaba.himarket.dto.result.mcp.McpToolListResult;
 import com.alibaba.himarket.dto.result.product.ProductPublicationResult;
 import com.alibaba.himarket.dto.result.product.ProductRefResult;
 import com.alibaba.himarket.dto.result.product.ProductResult;
 import com.alibaba.himarket.dto.result.product.SubscriptionResult;
-import com.alibaba.himarket.dto.params.product.QueryProductParam;
-import com.alibaba.himarket.dto.params.product.QueryProductSubscriptionParam;
-import com.alibaba.himarket.dto.params.product.UpdateProductParam;
-
 import com.alibaba.himarket.service.ProductCategoryService;
 import com.alibaba.himarket.service.ProductService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -75,8 +71,7 @@ public class ProductController {
 
     @Operation(summary = "获取API产品列表")
     @GetMapping
-    public PageResult<ProductResult> listProducts(QueryProductParam param,
-                                                  Pageable pageable) {
+    public PageResult<ProductResult> listProducts(QueryProductParam param, Pageable pageable) {
         return productService.listProducts(param, pageable);
     }
 
@@ -89,7 +84,8 @@ public class ProductController {
     @Operation(summary = "更新API产品")
     @PutMapping("/{productId}")
     @AdminAuth
-    public ProductResult updateProduct(@PathVariable String productId, @RequestBody @Valid UpdateProductParam param) {
+    public ProductResult updateProduct(
+            @PathVariable String productId, @RequestBody @Valid UpdateProductParam param) {
         return productService.updateProduct(productId, param);
     }
 
@@ -103,7 +99,8 @@ public class ProductController {
     @Operation(summary = "获取API产品的发布信息")
     @GetMapping("/{productId}/publications")
     @AdminAuth
-    public PageResult<ProductPublicationResult> getPublications(@PathVariable String productId, Pageable pageable) {
+    public PageResult<ProductPublicationResult> getPublications(
+            @PathVariable String productId, Pageable pageable) {
         return productService.getPublications(productId, pageable);
     }
 
@@ -124,7 +121,9 @@ public class ProductController {
     @Operation(summary = "API产品关联API或MCP Server")
     @PostMapping("/{productId}/ref")
     @AdminAuth
-    public void addProductRef(@PathVariable String productId, @RequestBody @Valid CreateProductRefParam param) throws Exception {
+    public void addProductRef(
+            @PathVariable String productId, @RequestBody @Valid CreateProductRefParam param)
+            throws Exception {
         productService.addProductRef(productId, param);
     }
 
@@ -169,7 +168,8 @@ public class ProductController {
     @Operation(summary = "设置产品类别")
     @PostMapping("/{productId}/categories")
     @AdminAuth
-    public void setProductCategories(@PathVariable String productId, @RequestBody List<String> categoryIds) {
+    public void setProductCategories(
+            @PathVariable String productId, @RequestBody List<String> categoryIds) {
         productService.setProductCategories(productId, categoryIds);
     }
 
@@ -183,8 +183,7 @@ public class ProductController {
     @Operation(summary = "获取MCP服务的工具详情")
     @GetMapping("/{productId}/tools")
     @AdminOrDeveloperAuth
-    public McpToolListResult listMcpTools(
-            @PathVariable String productId) {
+    public McpToolListResult listMcpTools(@PathVariable String productId) {
         return productService.listMcpTools(productId);
     }
 }

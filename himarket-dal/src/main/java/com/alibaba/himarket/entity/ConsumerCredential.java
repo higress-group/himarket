@@ -25,14 +25,16 @@ import com.alibaba.himarket.converter.JwtConfigConverter;
 import com.alibaba.himarket.support.consumer.ApiKeyConfig;
 import com.alibaba.himarket.support.consumer.HmacConfig;
 import com.alibaba.himarket.support.consumer.JwtConfig;
+import jakarta.persistence.*;
 import lombok.Data;
 
-import jakarta.persistence.*;
-
 @Entity
-@Table(name = "consumer_credential",
+@Table(
+        name = "consumer_credential",
         uniqueConstraints = {
-                @UniqueConstraint(columnNames = {"consumer_id"}, name = "uk_consumer_id")
+            @UniqueConstraint(
+                    columnNames = {"consumer_id"},
+                    name = "uk_consumer_id")
         })
 @Data
 public class ConsumerCredential extends BaseEntity {

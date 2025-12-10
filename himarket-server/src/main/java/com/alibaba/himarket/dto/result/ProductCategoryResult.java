@@ -22,12 +22,12 @@ package com.alibaba.himarket.dto.result;
 import com.alibaba.himarket.dto.converter.OutputConverter;
 import com.alibaba.himarket.entity.ProductCategory;
 import com.alibaba.himarket.support.product.Icon;
+import java.time.LocalDateTime;
 import lombok.Data;
 
-import java.time.LocalDateTime;
-
 @Data
-public class ProductCategoryResult implements OutputConverter<ProductCategoryResult, ProductCategory> {
+public class ProductCategoryResult
+        implements OutputConverter<ProductCategoryResult, ProductCategory> {
 
     private String categoryId;
 

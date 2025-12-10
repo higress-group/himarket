@@ -17,12 +17,10 @@
  * under the License.
  */
 
-
 package com.alibaba.himarket.support.portal;
 
-import lombok.Data;
-
 import java.util.List;
+import lombok.Data;
 
 /**
  * @author zh
@@ -30,8 +28,6 @@ import java.util.List;
 @Data
 public class JwtBearerConfig {
 
-    /**
-     * JWT公钥
-     */
+    /** JWT公钥 */
     private List<PublicKeyConfig> publicKeys;
 }

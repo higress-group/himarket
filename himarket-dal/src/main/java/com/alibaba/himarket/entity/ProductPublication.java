@@ -19,10 +19,9 @@
 
 package com.alibaba.himarket.entity;
 
+import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-
-import jakarta.persistence.*;
 
 @EqualsAndHashCode(callSuper = true)
 @Entity

@@ -20,7 +20,6 @@
 package com.alibaba.himarket.dto.result.nacos;
 
 import com.aliyun.mse20190531.models.ListClustersResponseBody.ListClustersResponseBodyData;
-
 import lombok.Data;
 
 @Data
@@ -35,7 +34,8 @@ public class MseNacosResult {
 
     private String version;
 
-    public static MseNacosResult fromListClustersResponseBodyData(ListClustersResponseBodyData cluster) {
+    public static MseNacosResult fromListClustersResponseBodyData(
+            ListClustersResponseBodyData cluster) {
         MseNacosResult nacosResult = new MseNacosResult();
         nacosResult.setName(cluster.getClusterAliasName());
         nacosResult.setVersion(cluster.getVersionCode());

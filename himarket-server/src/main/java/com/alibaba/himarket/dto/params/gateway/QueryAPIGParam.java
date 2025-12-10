@@ -22,10 +22,9 @@ package com.alibaba.himarket.dto.params.gateway;
 import com.alibaba.himarket.dto.converter.InputConverter;
 import com.alibaba.himarket.support.enums.GatewayType;
 import com.alibaba.himarket.support.gateway.APIGConfig;
-import lombok.Data;
-
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import lombok.Data;
 
 @Data
 public class QueryAPIGParam implements InputConverter<APIGConfig> {

@@ -19,33 +19,31 @@
 
 package com.alibaba.himarket.support.chat.search;
 
-
+import java.net.URI;
+import java.net.URISyntaxException;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
-
-import java.net.URI;
-import java.net.URISyntaxException;
 
 @Data
 @Accessors(chain = true)
 @NoArgsConstructor
 @AllArgsConstructor
 public class SearchContext {
-    
+
     private int id;
-    
+
     private String url;
-    
+
     private String title;
-    
+
     private String content;
-    
+
     private String siteName;
-    
+
     private String date;
-    
+
     public void postInit() {
         if ((siteName == null || siteName.isEmpty()) && url != null && !url.isEmpty()) {
             try {
@@ -57,9 +55,10 @@ public class SearchContext {
             }
         }
     }
-    
-    public String formatCitation() {
-        return String.format("[[citation:%d]] title:%s,content:%s (url: %s, date:%s)", id, title, content, url, date);
-    }
 
+    public String formatCitation() {
+        return String.format(
+                "[[citation:%d]] title:%s,content:%s (url: %s, date:%s)",
+                id, title, content, url, date);
+    }
 }

@@ -22,9 +22,8 @@ package com.alibaba.himarket.dto.params.category;
 import com.alibaba.himarket.dto.converter.InputConverter;
 import com.alibaba.himarket.entity.ProductCategory;
 import com.alibaba.himarket.support.product.Icon;
-import lombok.Data;
-
 import jakarta.validation.constraints.Size;
+import lombok.Data;
 
 @Data
 public class UpdateProductCategoryParam implements InputConverter<ProductCategory> {

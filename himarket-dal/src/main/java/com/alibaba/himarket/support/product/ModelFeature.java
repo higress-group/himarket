@@ -25,29 +25,18 @@ import lombok.Data;
 @Data
 @Builder
 public class ModelFeature {
-    /**
-     * Model name, e.g. "qwen-max", "gpt-4"
-     */
+    /** Model name, e.g. "qwen-max", "gpt-4" */
     private String model;
 
-    /**
-     * Max tokens for response
-     */
+    /** Max tokens for response */
     private Integer maxTokens;
 
-    /**
-     * Temperature for sampling (0.0 - 2.0)
-     */
+    /** Temperature for sampling (0.0 - 2.0) */
     private Double temperature;
 
-    /**
-     * Enable streaming response
-     */
+    /** Enable streaming response */
     private Boolean streaming;
 
-    /**
-     * Enable web search
-     */
+    /** Enable web search */
     private Boolean webSearch;
 }
-

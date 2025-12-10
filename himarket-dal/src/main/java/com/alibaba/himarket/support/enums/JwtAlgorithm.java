@@ -17,14 +17,12 @@
  * under the License.
  */
 
-
 package com.alibaba.himarket.support.enums;
 
 /**
  * @author zh
  */
 public enum JwtAlgorithm {
-
     RS256,
 
     RS384,
@@ -36,6 +34,5 @@ public enum JwtAlgorithm {
     ES384,
 
     ES512,
-
     ;
 }

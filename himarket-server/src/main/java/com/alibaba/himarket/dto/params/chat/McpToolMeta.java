@@ -31,20 +31,15 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 public class McpToolMeta {
-    /**
-     * 工具名称
-     */
+    /** 工具名称 */
     private String toolName;
-    /**
-     * 工具中文名称
-     */
+
+    /** 工具中文名称 */
     private String toolNameCn;
-    /**
-     * 对应的mcp server名称
-     */
+
+    /** 对应的mcp server名称 */
     private String mcpName;
-    /**
-     * 对应的mcp server中文名称
-     */
+
+    /** 对应的mcp server中文名称 */
     private String mcpNameCn;
 }

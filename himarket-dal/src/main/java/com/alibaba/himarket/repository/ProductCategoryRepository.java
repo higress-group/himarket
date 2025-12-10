@@ -20,10 +20,9 @@
 package com.alibaba.himarket.repository;
 
 import com.alibaba.himarket.entity.ProductCategory;
-import org.springframework.stereotype.Repository;
-
 import java.util.List;
 import java.util.Optional;
+import org.springframework.stereotype.Repository;
 
 @Repository
 public interface ProductCategoryRepository extends BaseRepository<ProductCategory, Long> {

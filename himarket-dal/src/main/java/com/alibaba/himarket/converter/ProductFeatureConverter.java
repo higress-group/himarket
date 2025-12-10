@@ -29,4 +29,3 @@ public class ProductFeatureConverter extends JsonConverter<ProductFeature> {
         super(ProductFeature.class);
     }
 }
-

@@ -20,7 +20,6 @@
 package com.alibaba.himarket.converter;
 
 import com.alibaba.himarket.support.product.APIGRefConfig;
-
 import jakarta.persistence.Converter;
 
 @Converter(autoApply = true)

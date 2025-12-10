@@ -20,13 +20,13 @@
 package com.alibaba.himarket.repository;
 
 import com.alibaba.himarket.entity.ProductCategoryRelation;
+import java.util.Collection;
+import java.util.List;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Collection;
-import java.util.List;
-
-public interface ProductCategoryRelationRepository extends BaseRepository<ProductCategoryRelation, Long> {
+public interface ProductCategoryRelationRepository
+        extends BaseRepository<ProductCategoryRelation, Long> {
 
     List<ProductCategoryRelation> findByProductId(String productId);
 
@@ -43,5 +43,4 @@ public interface ProductCategoryRelationRepository extends BaseRepository<Produc
     void deleteByProductIdInAndCategoryId(Collection<String> productIds, String categoryId);
 
     List<ProductCategoryRelation> findByCategoryIdIn(Collection<String> categoryId);
-
 }

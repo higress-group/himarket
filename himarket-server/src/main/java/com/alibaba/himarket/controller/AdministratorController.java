@@ -27,16 +27,13 @@ import com.alibaba.himarket.dto.params.admin.ResetPasswordParam;
 import com.alibaba.himarket.dto.result.admin.AdminResult;
 import com.alibaba.himarket.dto.result.common.AuthResult;
 import com.alibaba.himarket.service.AdministratorService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-
-import jakarta.validation.Valid;
-
-import io.swagger.v3.oas.annotations.tags.Tag;
-import io.swagger.v3.oas.annotations.Operation;
-
-import jakarta.servlet.http.HttpServletRequest;
 
 @Tag(name = "管理员管理", description = "管理员初始化、登录、修改密码等相关接口")
 @RestController
@@ -85,4 +82,4 @@ public class AdministratorController {
     public AdminResult getAdministrator() {
         return administratorService.getAdministrator();
     }
-} 
+}

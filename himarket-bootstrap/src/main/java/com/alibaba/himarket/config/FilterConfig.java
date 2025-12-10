@@ -38,7 +38,8 @@ public class FilterConfig {
 
     @Bean
     public FilterRegistrationBean<PortalResolvingFilter> portalResolvingFilter() {
-        FilterRegistrationBean<PortalResolvingFilter> registrationBean = new FilterRegistrationBean<>();
+        FilterRegistrationBean<PortalResolvingFilter> registrationBean =
+                new FilterRegistrationBean<>();
 
         PortalResolvingFilter filter = new PortalResolvingFilter(portalService, contextHolder);
         registrationBean.setFilter(filter);

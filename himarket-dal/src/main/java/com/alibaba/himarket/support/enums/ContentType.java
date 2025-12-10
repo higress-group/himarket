@@ -7,7 +7,6 @@ import lombok.Getter;
  */
 @Getter
 public enum ContentType {
-
     TEXT("text"),
 
     IMAGE_URL("image_url"),
@@ -15,7 +14,6 @@ public enum ContentType {
     AUDIO_URL("audio_url"),
 
     VIDEO_URL("video_url"),
-
     ;
 
     private final String type;

@@ -21,9 +21,8 @@ package com.alibaba.himarket.dto.params.product;
 
 import com.alibaba.himarket.support.enums.ProductStatus;
 import com.alibaba.himarket.support.enums.ProductType;
-import lombok.Data;
-
 import java.util.List;
+import lombok.Data;
 
 @Data
 public class QueryProductParam {
@@ -35,9 +34,9 @@ public class QueryProductParam {
     private String name;
 
     private ProductStatus status;
-    
+
     private List<String> categoryIds;
-    
+
     private String excludeCategoryId;
 
     private Boolean querySubscribeStatus;

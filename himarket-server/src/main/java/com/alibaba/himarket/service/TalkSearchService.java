@@ -21,10 +21,9 @@ package com.alibaba.himarket.service;
 
 import com.alibaba.himarket.dto.params.chat.CreateChatParam;
 import com.alibaba.himarket.support.chat.ChatMessage;
-
 import java.util.List;
 
 public interface TalkSearchService {
-    
+
     List<ChatMessage> buildSearchMessages(List<ChatMessage> chatMessages, CreateChatParam param);
 }

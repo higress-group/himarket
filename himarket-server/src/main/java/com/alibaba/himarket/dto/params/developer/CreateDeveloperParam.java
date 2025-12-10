@@ -21,11 +21,10 @@ package com.alibaba.himarket.dto.params.developer;
 
 import com.alibaba.himarket.dto.converter.InputConverter;
 import com.alibaba.himarket.entity.Developer;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
 @NoArgsConstructor
@@ -41,4 +40,4 @@ public class CreateDeveloperParam implements InputConverter<Developer> {
 
     @Size(max = 256, message = "头像url长度不能超过256个字符")
     private String avatarUrl;
-} 
+}

@@ -17,12 +17,10 @@
  * under the License.
  */
 
-
 package com.alibaba.himarket.service;
 
 import com.alibaba.himarket.dto.result.common.AuthResult;
 import com.alibaba.himarket.dto.result.idp.IdpResult;
-
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
@@ -48,7 +46,8 @@ public interface OidcService {
      * @param response
      * @return
      */
-    AuthResult handleCallback(String code, String state, HttpServletRequest request, HttpServletResponse response);
+    AuthResult handleCallback(
+            String code, String state, HttpServletRequest request, HttpServletResponse response);
 
     /**
      * 可用的OIDC认证列表
@@ -56,5 +55,4 @@ public interface OidcService {
      * @return
      */
     List<IdpResult> getAvailableProviders();
-
 }

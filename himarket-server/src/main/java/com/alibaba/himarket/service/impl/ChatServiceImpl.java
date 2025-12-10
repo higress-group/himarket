@@ -11,23 +11,23 @@ import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.core.security.ContextHolder;
 import com.alibaba.himarket.core.utils.CacheUtil;
 import com.alibaba.himarket.core.utils.IdGenerator;
+import com.alibaba.himarket.dto.params.chat.CreateChatParam;
+import com.alibaba.himarket.dto.params.chat.InvokeModelParam;
 import com.alibaba.himarket.dto.result.chat.ChatAnswerMessage;
+import com.alibaba.himarket.dto.result.chat.LlmInvokeResult;
 import com.alibaba.himarket.dto.result.consumer.CredentialContext;
 import com.alibaba.himarket.dto.result.product.ProductRefResult;
+import com.alibaba.himarket.dto.result.product.ProductResult;
 import com.alibaba.himarket.entity.Chat;
 import com.alibaba.himarket.entity.ChatAttachment;
 import com.alibaba.himarket.entity.ChatSession;
-import com.alibaba.himarket.dto.result.product.ProductResult;
 import com.alibaba.himarket.entity.ProductSubscription;
 import com.alibaba.himarket.repository.ChatAttachmentRepository;
+import com.alibaba.himarket.repository.ChatRepository;
 import com.alibaba.himarket.repository.SubscriptionRepository;
 import com.alibaba.himarket.service.*;
-import com.alibaba.himarket.repository.ChatRepository;
-import com.alibaba.himarket.dto.params.chat.CreateChatParam;
-import com.alibaba.himarket.dto.params.chat.InvokeModelParam;
-import com.alibaba.himarket.dto.result.chat.LlmInvokeResult;
-import com.alibaba.himarket.support.chat.attachment.ChatAttachmentConfig;
 import com.alibaba.himarket.support.chat.ChatMessage;
+import com.alibaba.himarket.support.chat.attachment.ChatAttachmentConfig;
 import com.alibaba.himarket.support.chat.content.*;
 import com.alibaba.himarket.support.chat.mcp.MCPTransportConfig;
 import com.alibaba.himarket.support.enums.ChatAttachmentType;
@@ -35,19 +35,17 @@ import com.alibaba.himarket.support.enums.ChatRole;
 import com.alibaba.himarket.support.enums.ChatStatus;
 import com.alibaba.himarket.support.enums.ProductType;
 import com.github.benmanes.caffeine.cache.Cache;
+import jakarta.servlet.http.HttpServletResponse;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
+import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Sort;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-
-import jakarta.servlet.http.HttpServletResponse;
 import reactor.core.publisher.Flux;
-
-import java.nio.charset.StandardCharsets;
-import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -76,7 +74,7 @@ public class ChatServiceImpl implements ChatService {
 
     public Flux<ChatAnswerMessage> chat(CreateChatParam param, HttpServletResponse response) {
         performAllChecks(param);
-//        sessionService.updateStatus(param.getSessionId(), ChatSessionStatus.PROCESSING);
+        //        sessionService.updateStatus(param.getSessionId(), ChatSessionStatus.PROCESSING);
 
         Chat chat = createChat(param);
 
@@ -91,7 +89,8 @@ public class ChatServiceImpl implements ChatService {
         InvokeModelParam invokeModelParam = buildInvokeModelParam(param, chatMessages, chat);
 
         // Invoke LLM
-        return llmService.invokeLLM(invokeModelParam, response, r -> updateChatResult(chat.getChatId(), r));
+        return llmService.invokeLLM(
+                invokeModelParam, response, r -> updateChatResult(chat.getChatId(), r));
     }
 
     private Chat createChat(CreateChatParam param) {
@@ -101,8 +100,12 @@ public class ChatServiceImpl implements ChatService {
         chat.setUserId(contextHolder.getUser());
 
         // Sequence represent the number of tries for this question
-        Integer sequence = chatRepository.findCurrentSequence(param.getSessionId(), param.getConversationId(),
-                param.getQuestionId(), param.getProductId());
+        Integer sequence =
+                chatRepository.findCurrentSequence(
+                        param.getSessionId(),
+                        param.getConversationId(),
+                        param.getQuestionId(),
+                        param.getProductId());
         chat.setSequence(sequence + 1);
 
         return chatRepository.save(chat);
@@ -112,25 +115,31 @@ public class ChatServiceImpl implements ChatService {
         ChatSession session = sessionService.findUserSession(param.getSessionId());
 
         if (!session.getProducts().contains(param.getProductId())) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "Product not in current session");
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST, "Product not in current session");
         }
 
         // check mcpServers count is less than 10, and all of them are subscribed
         List<String> mcpProducts = param.getMcpProducts();
         if (CollUtil.isNotEmpty(mcpProducts) && mcpProducts.size() > 10) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "MCP servers count is more than 10, currently max size is 10");
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST,
+                    "MCP servers count is more than 10, currently max size is 10");
         }
 
         String consumerId = consumerService.getPrimaryConsumer().getConsumerId();
         // 批量查询提高性能
-        List<ProductSubscription> subscriptions = subscriptionRepository.findAllByConsumerId(consumerId);
-        Set<String> subscribedProductIds = subscriptions.stream()
-                .map(ProductSubscription::getProductId)
-                .collect(Collectors.toSet());
+        List<ProductSubscription> subscriptions =
+                subscriptionRepository.findAllByConsumerId(consumerId);
+        Set<String> subscribedProductIds =
+                subscriptions.stream()
+                        .map(ProductSubscription::getProductId)
+                        .collect(Collectors.toSet());
 
         for (String productId : mcpProducts) {
             if (!subscribedProductIds.contains(productId)) {
-//                throw new BusinessException(ErrorCode.INVALID_PARAMETER, Resources.PRODUCT, productId + " mcp is not subscribed, not allowed to use");
+                //                throw new BusinessException(ErrorCode.INVALID_PARAMETER,
+                // Resources.PRODUCT, productId + " mcp is not subscribed, not allowed to use");
                 log.warn("mcp product {} is not subscribed, not allowed to use", productId);
             }
         }
@@ -144,47 +153,61 @@ public class ChatServiceImpl implements ChatService {
 
     private List<ChatMessage> buildHistoryMessages(CreateChatParam param) {
         // 1. Get successful chat records
-        List<Chat> chats = chatRepository.findBySessionIdAndStatus(
-                param.getSessionId(),
-                ChatStatus.SUCCESS,
-                Sort.by(Sort.Direction.ASC, "createAt")
-        );
+        List<Chat> chats =
+                chatRepository.findBySessionIdAndStatus(
+                        param.getSessionId(),
+                        ChatStatus.SUCCESS,
+                        Sort.by(Sort.Direction.ASC, "createAt"));
 
         if (CollUtil.isEmpty(chats)) {
             return CollUtil.empty(List.class);
         }
 
         // 2. Group by conversation and filter invalid chats and current conversation
-        Map<String, List<Chat>> chatGroups = chats.stream()
-                .filter(chat -> StrUtil.isNotBlank(chat.getQuestion()) && StrUtil.isNotBlank(chat.getAnswer()))
-                .filter(chat -> !param.getConversationId().equals(chat.getConversationId())) // Skip current conversation
-                // Ensure the same product
-                .filter(chat -> StrUtil.equals(chat.getProductId(), param.getProductId()))
-                .collect(Collectors.groupingBy(Chat::getConversationId));
-
+        Map<String, List<Chat>> chatGroups =
+                chats.stream()
+                        .filter(
+                                chat ->
+                                        StrUtil.isNotBlank(chat.getQuestion())
+                                                && StrUtil.isNotBlank(chat.getAnswer()))
+                        .filter(
+                                chat ->
+                                        !param.getConversationId()
+                                                .equals(chat.getConversationId())) // Skip
+                        // current
+                        // conversation
+                        // Ensure the same product
+                        .filter(chat -> StrUtil.equals(chat.getProductId(), param.getProductId()))
+                        .collect(Collectors.groupingBy(Chat::getConversationId));
 
         // 3. Get latest answer for each conversation
-        List<Chat> latestChats = chatGroups.values().stream()
-                .map(conversationChats -> {
-                    // 3.1 Find the latest question ID
-                    String latestQuestionId = conversationChats.stream()
-                            .max(Comparator.comparing(Chat::getCreateAt))
-                            .map(Chat::getQuestionId)
-                            .orElse(null);
+        List<Chat> latestChats =
+                chatGroups.values().stream()
+                        .map(
+                                conversationChats -> {
+                                    // 3.1 Find the latest question ID
+                                    String latestQuestionId =
+                                            conversationChats.stream()
+                                                    .max(Comparator.comparing(Chat::getCreateAt))
+                                                    .map(Chat::getQuestionId)
+                                                    .orElse(null);
 
-                    if (StrUtil.isBlank(latestQuestionId)) {
-                        return null;
-                    }
+                                    if (StrUtil.isBlank(latestQuestionId)) {
+                                        return null;
+                                    }
 
-                    // 3.2 Get the latest answer for this question
-                    return conversationChats.stream()
-                            .filter(chat -> latestQuestionId.equals(chat.getQuestionId()))
-                            .max(Comparator.comparing(Chat::getCreateAt))
-                            .orElse(null);
-                })
-                .filter(Objects::nonNull)
-                .sorted(Comparator.comparing(Chat::getCreateAt))
-                .toList();
+                                    // 3.2 Get the latest answer for this question
+                                    return conversationChats.stream()
+                                            .filter(
+                                                    chat ->
+                                                            latestQuestionId.equals(
+                                                                    chat.getQuestionId()))
+                                            .max(Comparator.comparing(Chat::getCreateAt))
+                                            .orElse(null);
+                                })
+                        .filter(Objects::nonNull)
+                        .sorted(Comparator.comparing(Chat::getCreateAt))
+                        .toList();
 
         // 4. Convert to chat messages
         List<ChatMessage> chatMessages = new ArrayList<>();
@@ -208,11 +231,11 @@ public class ChatServiceImpl implements ChatService {
         }
 
         // All attachments
-        List<ChatAttachment> attachments = chatAttachmentRepository.findByAttachmentIdIn(
-                attachmentConfigs.stream()
-                        .map(ChatAttachmentConfig::getAttachmentId)
-                        .collect(Collectors.toList())
-        );
+        List<ChatAttachment> attachments =
+                chatAttachmentRepository.findByAttachmentIdIn(
+                        attachmentConfigs.stream()
+                                .map(ChatAttachmentConfig::getAttachmentId)
+                                .collect(Collectors.toList()));
 
         // Traverse to determine file types
         boolean withTextContent = false, withMediaContent = false;
@@ -245,7 +268,8 @@ public class ChatServiceImpl implements ChatService {
             // Handle text files
             if (attachment.getType() == ChatAttachmentType.TEXT) {
                 String text = new String(attachment.getData(), StandardCharsets.UTF_8);
-                textContent.append("## ")
+                textContent
+                        .append("## ")
                         .append(attachment.getName())
                         .append("\n")
                         .append(text)
@@ -253,8 +277,12 @@ public class ChatServiceImpl implements ChatService {
             } else {
                 // Handle media files
                 String base64String = Base64.encode(attachment.getData());
-                String dataString = StrUtil.isBlank(attachment.getMimeType()) ?
-                        base64String : String.format("data:%s;base64,%s", attachment.getMimeType(), base64String);
+                String dataString =
+                        StrUtil.isBlank(attachment.getMimeType())
+                                ? base64String
+                                : String.format(
+                                        "data:%s;base64,%s",
+                                        attachment.getMimeType(), base64String);
 
                 MessageContent content = null;
                 switch (attachment.getType()) {
@@ -285,10 +313,7 @@ public class ChatServiceImpl implements ChatService {
             content = textContent.toString();
         }
 
-        return ChatMessage.builder()
-                .role(ChatRole.USER.getRole())
-                .content(content)
-                .build();
+        return ChatMessage.builder().role(ChatRole.USER.getRole()).content(content).build();
     }
 
     private ChatMessage buildAssistantMessage(Chat chat) {
@@ -299,7 +324,8 @@ public class ChatServiceImpl implements ChatService {
                 .build();
     }
 
-    private List<ChatMessage> mergeAndTruncateMessages(ChatMessage currentMessage, List<ChatMessage> historyMessages) {
+    private List<ChatMessage> mergeAndTruncateMessages(
+            ChatMessage currentMessage, List<ChatMessage> historyMessages) {
         List<ChatMessage> messages = new ArrayList<>();
 
         // Add truncated history messages first
@@ -315,7 +341,8 @@ public class ChatServiceImpl implements ChatService {
         return messages;
     }
 
-    private InvokeModelParam buildInvokeModelParam(CreateChatParam param, List<ChatMessage> chatMessages, Chat chat) {
+    private InvokeModelParam buildInvokeModelParam(
+            CreateChatParam param, List<ChatMessage> chatMessages, Chat chat) {
         // Get product config
         ProductResult productResult = productService.getProduct(param.getProductId());
 
@@ -325,7 +352,8 @@ public class ChatServiceImpl implements ChatService {
         List<String> gatewayIps = cache.get(gatewayId, gatewayService::fetchGatewayIps);
 
         // Get authentication info
-        CredentialContext credentialContext = consumerService.getDefaultCredential(contextHolder.getUser());
+        CredentialContext credentialContext =
+                consumerService.getDefaultCredential(contextHolder.getUser());
 
         return InvokeModelParam.builder()
                 .chatId(chat.getChatId())
@@ -340,12 +368,16 @@ public class ChatServiceImpl implements ChatService {
     }
 
     private void updateChatResult(String chatId, LlmInvokeResult result) {
-        chatRepository.findByChatId(chatId).ifPresent(chat -> {
-            chat.setAnswer(result.getAnswer());
-            chat.setStatus(result.isSuccess() ? ChatStatus.SUCCESS : ChatStatus.FAILED);
-            chat.setChatUsage(result.getUsage());
-            chatRepository.save(chat);
-        });
+        chatRepository
+                .findByChatId(chatId)
+                .ifPresent(
+                        chat -> {
+                            chat.setAnswer(result.getAnswer());
+                            chat.setStatus(
+                                    result.isSuccess() ? ChatStatus.SUCCESS : ChatStatus.FAILED);
+                            chat.setChatUsage(result.getUsage());
+                            chatRepository.save(chat);
+                        });
     }
 
     private List<MCPTransportConfig> buildMCPConfigs(CreateChatParam param) {
@@ -354,7 +386,10 @@ public class ChatServiceImpl implements ChatService {
         }
 
         return productService.getProducts(param.getMcpProducts(), true).values().stream()
-                .filter(product -> product.getType() == ProductType.MCP_SERVER || product.getMcpConfig() != null)
+                .filter(
+                        product ->
+                                product.getType() == ProductType.MCP_SERVER
+                                        || product.getMcpConfig() != null)
                 .map(product -> product.getMcpConfig().toTransportConfig())
                 .collect(Collectors.toList());
     }
@@ -369,7 +404,8 @@ public class ChatServiceImpl implements ChatService {
 
             log.info("Completed cleanup chat records for session {}", sessionId);
         } catch (Exception e) {
-            log.error("Failed to cleanup chat records for session {}: {}", sessionId, e.getMessage());
+            log.error(
+                    "Failed to cleanup chat records for session {}: {}", sessionId, e.getMessage());
         }
     }
 }

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 package com.alibaba.himarket.service.gateway.client;
 
 import cn.hutool.json.JSONObject;
@@ -31,14 +30,12 @@ import com.aliyuncs.exceptions.ClientException;
 import com.aliyuncs.http.MethodType;
 import com.aliyuncs.http.ProtocolType;
 import com.aliyuncs.profile.DefaultProfile;
-import lombok.extern.slf4j.Slf4j;
-
 import java.util.Map;
 import java.util.function.Function;
+import lombok.extern.slf4j.Slf4j;
 
 /**
- * @author zh
- * 通用SDK客户端，解决OpenAPI未开放问题
+ * @author zh 通用SDK客户端，解决OpenAPI未开放问题
  */
 @Slf4j
 public class PopGatewayClient extends GatewayClient {
@@ -53,10 +50,9 @@ public class PopGatewayClient extends GatewayClient {
     }
 
     private IAcsClient createClient(APIGConfig config) {
-        DefaultProfile profile = DefaultProfile.getProfile(
-                config.getRegion(),
-                config.getAccessKey(),
-                config.getSecretKey());
+        DefaultProfile profile =
+                DefaultProfile.getProfile(
+                        config.getRegion(), config.getAccessKey(), config.getSecretKey());
         return new DefaultAcsClient(profile);
     }
 
@@ -65,8 +61,11 @@ public class PopGatewayClient extends GatewayClient {
         client.shutdown();
     }
 
-    public <E> E execute(String uri, MethodType methodType, Map<String, String> queryParams,
-                         Function<JSONObject, E> converter) {
+    public <E> E execute(
+            String uri,
+            MethodType methodType,
+            Map<String, String> queryParams,
+            Function<JSONObject, E> converter) {
 
         // CommonRequest
         CommonRequest request = new CommonRequest();
@@ -85,8 +84,7 @@ public class PopGatewayClient extends GatewayClient {
 
         try {
             CommonResponse response = client.getCommonResponse(request);
-            JSONObject data = JSONUtil.parseObj(response.getData())
-                    .getJSONObject("data");
+            JSONObject data = JSONUtil.parseObj(response.getData()).getJSONObject("data");
 
             return converter.apply(data);
         } catch (ClientException e) {

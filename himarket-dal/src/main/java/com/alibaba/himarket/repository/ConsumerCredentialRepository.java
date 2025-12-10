@@ -20,7 +20,6 @@
 package com.alibaba.himarket.repository;
 
 import com.alibaba.himarket.entity.ConsumerCredential;
-
 import java.util.Optional;
 
 public interface ConsumerCredentialRepository extends BaseRepository<ConsumerCredential, Long> {

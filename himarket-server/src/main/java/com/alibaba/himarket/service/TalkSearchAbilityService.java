@@ -21,17 +21,15 @@ package com.alibaba.himarket.service;
 
 import com.alibaba.himarket.support.chat.search.SearchContext;
 import com.alibaba.himarket.support.chat.search.SearchInput;
-
 import java.util.List;
 
-public interface TalkSearchAbilityService<T, V>{
-    
-    List<SearchContext> search(SearchInput ideaTalkSearchInput);
-    
-    T buildSearchRequest(SearchInput ideaTalkSearchInput);
-    
-    String getSearchType();
-    
-    List<SearchContext> buildSearchResponse(V searchResponse);
+public interface TalkSearchAbilityService<T, V> {
 
+    List<SearchContext> search(SearchInput ideaTalkSearchInput);
+
+    T buildSearchRequest(SearchInput ideaTalkSearchInput);
+
+    String getSearchType();
+
+    List<SearchContext> buildSearchResponse(V searchResponse);
 }

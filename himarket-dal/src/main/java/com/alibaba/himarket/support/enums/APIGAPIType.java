@@ -25,7 +25,6 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum APIGAPIType {
-
     REST("Rest"),
 
     HTTP("Http"),
@@ -34,9 +33,7 @@ public enum APIGAPIType {
 
     AGENT("Agent"),
 
-    MODEL("LLM")
-
-    ;
+    MODEL("LLM");
 
     private final String type;
 }

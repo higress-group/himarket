@@ -1,5 +1,29 @@
 package com.alibaba.himarket.service.impl;
 
+import com.alibaba.himarket.config.SlsConfig;
+import com.alibaba.himarket.core.exception.BusinessException;
+import com.alibaba.himarket.core.exception.ErrorCode;
+import com.alibaba.himarket.dto.params.sls.GenericSlsQueryRequest;
+import com.alibaba.himarket.dto.params.sls.GenericSlsQueryResponse;
+import com.alibaba.himarket.dto.params.sls.SlsCheckLogstoreRequest;
+import com.alibaba.himarket.dto.params.sls.SlsCheckProjectRequest;
+import com.alibaba.himarket.dto.params.sls.SlsCommonQueryRequest;
+import com.alibaba.himarket.service.SlsLogService;
+import com.alibaba.himarket.service.gateway.factory.SlsClientFactory;
+import com.alibaba.himarket.support.enums.SlsAuthType;
+import com.aliyun.openservices.log.Client;
+import com.aliyun.openservices.log.common.Index;
+import com.aliyun.openservices.log.common.IndexJsonKey;
+import com.aliyun.openservices.log.common.IndexKey;
+import com.aliyun.openservices.log.common.IndexKeys;
+import com.aliyun.openservices.log.common.IndexLine;
+import com.aliyun.openservices.log.common.LogContent;
+import com.aliyun.openservices.log.common.QueriedLog;
+import com.aliyun.openservices.log.exception.LogException;
+import com.aliyun.openservices.log.response.GetIndexResponse;
+import com.aliyun.openservices.log.response.GetLogsResponse;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
@@ -16,103 +40,93 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-
-import com.alibaba.himarket.config.SlsConfig;
-import com.alibaba.himarket.core.exception.BusinessException;
-import com.alibaba.himarket.core.exception.ErrorCode;
-import com.alibaba.himarket.dto.params.sls.GenericSlsQueryRequest;
-import com.alibaba.himarket.dto.params.sls.GenericSlsQueryResponse;
-import com.alibaba.himarket.dto.params.sls.SlsCheckLogstoreRequest;
-import com.alibaba.himarket.dto.params.sls.SlsCheckProjectRequest;
-import com.alibaba.himarket.dto.params.sls.SlsCommonQueryRequest;
-import com.alibaba.himarket.service.SlsLogService;
-import com.alibaba.himarket.service.gateway.factory.SlsClientFactory;
-import com.alibaba.himarket.support.enums.SlsAuthType;
-
-import com.aliyun.openservices.log.Client;
-import com.aliyun.openservices.log.common.Index;
-import com.aliyun.openservices.log.common.IndexJsonKey;
-import com.aliyun.openservices.log.common.IndexKey;
-import com.aliyun.openservices.log.common.IndexKeys;
-import com.aliyun.openservices.log.common.IndexLine;
-import com.aliyun.openservices.log.common.LogContent;
-import com.aliyun.openservices.log.common.QueriedLog;
-import com.aliyun.openservices.log.exception.LogException;
-import com.aliyun.openservices.log.response.GetIndexResponse;
-import com.aliyun.openservices.log.response.GetLogsResponse;
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-/**
- * 通用SLS日志查询服务实现
- *
- */
+/** 通用SLS日志查询服务实现 */
 @Service
 @Slf4j
 @RequiredArgsConstructor
 public class SlsLogServiceImpl implements SlsLogService {
 
-    private static final String ALIYUN_LOG_CONFIG_CRD_NAME = "aliyunlogconfigs.log.alibabacloud.com";
+    private static final String ALIYUN_LOG_CONFIG_CRD_NAME =
+            "aliyunlogconfigs.log.alibabacloud.com";
 
     private final SlsClientFactory slsClientFactory;
 
     private final SlsConfig slsConfig;
 
-    /**
-     * Project存在性缓存，10分钟过期
-     */
-    private final Cache<String, Boolean> projectExistsCache = Caffeine.newBuilder()
-        .expireAfterWrite(10, TimeUnit.MINUTES)
-        .maximumSize(100)
-        .build();
+    /** Project存在性缓存，10分钟过期 */
+    private final Cache<String, Boolean> projectExistsCache =
+            Caffeine.newBuilder().expireAfterWrite(10, TimeUnit.MINUTES).maximumSize(100).build();
 
-    /**
-     * Logstore存在性缓存，10分钟过期
-     */
-    private final Cache<String, Boolean> logstoreExistsCache = Caffeine.newBuilder()
-        .expireAfterWrite(10, TimeUnit.MINUTES)
-        .maximumSize(200)
-        .build();
+    /** Logstore存在性缓存，10分钟过期 */
+    private final Cache<String, Boolean> logstoreExistsCache =
+            Caffeine.newBuilder().expireAfterWrite(10, TimeUnit.MINUTES).maximumSize(200).build();
 
-    /**
-     * 分词符常量 - 用于不同类型的字段索引
-     */
+    /** 分词符常量 - 用于不同类型的字段索引 */
     // 22个分词符（保守策略）：用于标识类字段（model、api、consumer、route_name等），保留完整标识，不拆分 -、_、.
-    private static final List<String> TOKENS_22 = Arrays.asList(
-        ",", "'", "\"", ";", "=", "(", ")", "[", "]", "{", "}",
-        "?", "@", "&", "<", ">", "/", ":", "\n", "\t", "\r", " "
-    );
+    private static final List<String> TOKENS_22 =
+            Arrays.asList(
+                    ",", "'", "\"", ";", "=", "(", ")", "[", "]", "{", "}", "?", "@", "&", "<", ">",
+                    "/", ":", "\n", "\t", "\r", " ");
 
     // 26个分词符（完整策略）：用于路径、网络地址等字段，更全面的分词
-    private static final List<String> TOKENS_26 = Arrays.asList(
-        ",", "'", "\"", ";", "\\", "$", "#", "|", "=", "\n", "\t", "\r",
-        "!", "%", "&", "*", "+", "-", ".", "/", ":", "<", ">", "?",
-        "@", "[", "]", "^", "_", "{", "}", " "
-    );
+    private static final List<String> TOKENS_26 =
+            Arrays.asList(
+                    ",", "'", "\"", ";", "\\", "$", "#", "|", "=", "\n", "\t", "\r", "!", "%", "&",
+                    "*", "+", "-", ".", "/", ":", "<", ">", "?", "@", "[", "]", "^", "_", "{", "}",
+                    " ");
 
-    /**
-     * 索引字段定义 - 集中管理所有需要建立索引的字段
-     */
+    /** 索引字段定义 - 集中管理所有需要建立索引的字段 */
     // 文本类型字段
     private static final String[] TEXT_FIELDS = {
-        "_time_", "answer", "authority", "cluster_id", "consumer",
-        "downstream_local_address", "downstream_remote_address", "downstream_transport_failure_reason",
-        "http_referer", "method", "original_path", "path", "protocol", "question",
-        "request_id", "requested_server_name", "response_code_details", "response_flags",
-        "route_name", "start_time", "trace_id", "upstream_cluster", "upstream_host",
-        "upstream_local_address", "upstream_protocol", "upstream_transport_failure_reason",
-        "user_agent", "x_forwarded_for", "request_body", "response_body", "__tag__:_cluster_id_"
+        "_time_",
+        "answer",
+        "authority",
+        "cluster_id",
+        "consumer",
+        "downstream_local_address",
+        "downstream_remote_address",
+        "downstream_transport_failure_reason",
+        "http_referer",
+        "method",
+        "original_path",
+        "path",
+        "protocol",
+        "question",
+        "request_id",
+        "requested_server_name",
+        "response_code_details",
+        "response_flags",
+        "route_name",
+        "start_time",
+        "trace_id",
+        "upstream_cluster",
+        "upstream_host",
+        "upstream_local_address",
+        "upstream_protocol",
+        "upstream_transport_failure_reason",
+        "user_agent",
+        "x_forwarded_for",
+        "request_body",
+        "response_body",
+        "__tag__:_cluster_id_"
     };
 
     // 数值类型字段
     private static final String[] LONG_FIELDS = {
-        "bytes_received", "bytes_sent", "duration", "ext_authz_duration",
-        "ext_authz_status_code", "request_duration", "response_code",
-        "response_tx_duration", "upstream_service_time"
+        "bytes_received",
+        "bytes_sent",
+        "duration",
+        "ext_authz_duration",
+        "ext_authz_status_code",
+        "request_duration",
+        "response_code",
+        "response_tx_duration",
+        "upstream_service_time"
     };
 
     @Override
@@ -131,7 +145,8 @@ public class SlsLogServiceImpl implements SlsLogService {
         // 构建SQL并应用过滤条件和interval替换
         String finalSql = buildSqlWithFilters(request);
         finalSql = replaceSqlInterval(finalSql, request.getInterval());
-        String scenario = StringUtils.hasText(request.getScenario()) ? request.getScenario() : "custom";
+        String scenario =
+                StringUtils.hasText(request.getScenario()) ? request.getScenario() : "custom";
 
         try {
             // 检查project和logstore是否存在
@@ -146,48 +161,62 @@ public class SlsLogServiceImpl implements SlsLogService {
             }
 
             // 执行查询
-            GetLogsResponse response = client.executeLogstoreSql(
-                project,
-                logstore,
-                request.getFromTime(),
-                request.getToTime(),
-                finalSql,
-                false
-            );
+            GetLogsResponse response =
+                    client.executeLogstoreSql(
+                            project,
+                            logstore,
+                            request.getFromTime(),
+                            request.getToTime(),
+                            finalSql,
+                            false);
 
             // 解析结果
             GenericSlsQueryResponse result = parseQueryResponse(response, request.getSql());
             result.setElapsedMillis(System.currentTimeMillis() - startTime);
 
             // 统一打印一次查询结果日志
-            log.info("\n========== SLS Query Result ==========\n" +
-                    "Scenario: {}\n" +
-                    "Project: {}\n" +
-                    "Logstore: {}\n" +
-                    "Time Range: {} ~ {}\n" +
-                    "Result Count: {}\n" +
-                    "Elapsed: {}ms\n" +
-                    "Original SQL: {}\n" +
-                    "Final SQL: {}\n" +
-                    "======================================",
-                scenario, project, logstore,
-                request.getFromTime(), request.getToTime(),
-                result.getCount(), result.getElapsedMillis(),
-                request.getSql(), finalSql);
+            log.info(
+                    "\n========== SLS Query Result ==========\n"
+                            + "Scenario: {}\n"
+                            + "Project: {}\n"
+                            + "Logstore: {}\n"
+                            + "Time Range: {} ~ {}\n"
+                            + "Result Count: {}\n"
+                            + "Elapsed: {}ms\n"
+                            + "Original SQL: {}\n"
+                            + "Final SQL: {}\n"
+                            + "======================================",
+                    scenario,
+                    project,
+                    logstore,
+                    request.getFromTime(),
+                    request.getToTime(),
+                    result.getCount(),
+                    result.getElapsedMillis(),
+                    request.getSql(),
+                    finalSql);
 
             return result;
 
         } catch (LogException e) {
-            log.error("\n========== SLS Query Failed ==========\n" +
-                    "Scenario: {}\n" +
-                    "Project: {}\n" +
-                    "Logstore: {}\n" +
-                    "Original SQL: {}\n" +
-                    "Final SQL: {}\n" +
-                    "Error: {}\n" +
-                    "======================================",
-                scenario, project, logstore, request.getSql(), finalSql, e.getMessage(), e);
-            return buildErrorResponse(request.getSql(), e.getMessage(), System.currentTimeMillis() - startTime);
+            log.error(
+                    "\n========== SLS Query Failed ==========\n"
+                            + "Scenario: {}\n"
+                            + "Project: {}\n"
+                            + "Logstore: {}\n"
+                            + "Original SQL: {}\n"
+                            + "Final SQL: {}\n"
+                            + "Error: {}\n"
+                            + "======================================",
+                    scenario,
+                    project,
+                    logstore,
+                    request.getSql(),
+                    finalSql,
+                    e.getMessage(),
+                    e);
+            return buildErrorResponse(
+                    request.getSql(), e.getMessage(), System.currentTimeMillis() - startTime);
         }
     }
 
@@ -209,9 +238,10 @@ public class SlsLogServiceImpl implements SlsLogService {
     public Boolean checkProjectExists(SlsCheckProjectRequest request) {
         Client client = slsClientFactory.createClient(request.getUserId());
         // 如果传入了project参数，则检查指定的project；否则检查默认project
-        String project = StringUtils.hasText(request.getProject())
-            ? request.getProject()
-            : slsConfig.getDefaultProject();
+        String project =
+                StringUtils.hasText(request.getProject())
+                        ? request.getProject()
+                        : slsConfig.getDefaultProject();
         return isProjectExists(client, project);
     }
 
@@ -219,48 +249,50 @@ public class SlsLogServiceImpl implements SlsLogService {
     public Boolean checkLogstoreExists(SlsCheckLogstoreRequest request) {
         Client client = slsClientFactory.createClient(request.getUserId());
         // 如果传入了project参数，则使用指定的project；否则使用默认project
-        String project = StringUtils.hasText(request.getProject())
-            ? request.getProject()
-            : slsConfig.getDefaultProject();
+        String project =
+                StringUtils.hasText(request.getProject())
+                        ? request.getProject()
+                        : slsConfig.getDefaultProject();
         // 如果传入了logstore参数，则检查指定的logstore；否则检查默认logstore
-        String logstore = StringUtils.hasText(request.getLogstore())
-            ? request.getLogstore()
-            : slsConfig.getDefaultLogstore();
+        String logstore =
+                StringUtils.hasText(request.getLogstore())
+                        ? request.getLogstore()
+                        : slsConfig.getDefaultLogstore();
         return isLogstoreExists(client, project, logstore);
     }
 
-    /**
-     * 检查Project是否存在
-     */
+    /** 检查Project是否存在 */
     private boolean isProjectExists(Client client, String project) {
-        return Boolean.TRUE.equals(projectExistsCache.get(project, key -> {
-            try {
-                client.GetProject(project);
-                return true;
-            } catch (LogException e) {
-                return false;
-            }
-        }));
+        return Boolean.TRUE.equals(
+                projectExistsCache.get(
+                        project,
+                        key -> {
+                            try {
+                                client.GetProject(project);
+                                return true;
+                            } catch (LogException e) {
+                                return false;
+                            }
+                        }));
     }
 
-    /**
-     * 检查Logstore是否存在
-     */
+    /** 检查Logstore是否存在 */
     private boolean isLogstoreExists(Client client, String project, String logstore) {
         String cacheKey = project + ":" + logstore;
-        return Boolean.TRUE.equals(logstoreExistsCache.get(cacheKey, key -> {
-            try {
-                client.GetLogStore(project, logstore);
-                return true;
-            } catch (LogException e) {
-                return false;
-            }
-        }));
+        return Boolean.TRUE.equals(
+                logstoreExistsCache.get(
+                        cacheKey,
+                        key -> {
+                            try {
+                                client.GetLogStore(project, logstore);
+                                return true;
+                            } catch (LogException e) {
+                                return false;
+                            }
+                        }));
     }
 
-    /**
-     * 解析查询响应
-     */
+    /** 解析查询响应 */
     private GenericSlsQueryResponse parseQueryResponse(GetLogsResponse response, String sql) {
         List<Map<String, String>> logs = new ArrayList<>();
         List<Map<String, String>> aggregations = new ArrayList<>();
@@ -288,45 +320,42 @@ public class SlsLogServiceImpl implements SlsLogService {
         }
 
         return GenericSlsQueryResponse.builder()
-            .success(true)
-            .processStatus(response.IsCompleted() ? "Complete" : "InComplete")
-            .count((long)response.GetCount())
-            .logs(logs.isEmpty() ? null : logs)
-            .aggregations(aggregations.isEmpty() ? null : aggregations)
-            .sql(sql)
-            .build();
+                .success(true)
+                .processStatus(response.IsCompleted() ? "Complete" : "InComplete")
+                .count((long) response.GetCount())
+                .logs(logs.isEmpty() ? null : logs)
+                .aggregations(aggregations.isEmpty() ? null : aggregations)
+                .sql(sql)
+                .build();
     }
 
-    /**
-     * 构建空响应
-     */
+    /** 构建空响应 */
     private GenericSlsQueryResponse buildEmptyResponse(String sql, String message) {
         return GenericSlsQueryResponse.builder()
-            .success(true)
-            .processStatus("Complete")
-            .count(0L)
-            .logs(Collections.emptyList())
-            .sql(sql)
-            .errorMessage(message)
-            .build();
+                .success(true)
+                .processStatus("Complete")
+                .count(0L)
+                .logs(Collections.emptyList())
+                .sql(sql)
+                .errorMessage(message)
+                .build();
     }
 
-    /**
-     * 构建错误响应
-     */
-    private GenericSlsQueryResponse buildErrorResponse(String sql, String errorMessage, long elapsed) {
+    /** 构建错误响应 */
+    private GenericSlsQueryResponse buildErrorResponse(
+            String sql, String errorMessage, long elapsed) {
         return GenericSlsQueryResponse.builder()
-            .success(false)
-            .sql(sql)
-            .errorMessage(errorMessage)
-            .elapsedMillis(elapsed)
-            .build();
+                .success(false)
+                .sql(sql)
+                .errorMessage(errorMessage)
+                .elapsedMillis(elapsed)
+                .build();
     }
 
     /**
      * 替换SQL中的interval占位符
      *
-     * @param sql      原始SQL
+     * @param sql 原始SQL
      * @param interval 时间间隔（秒），为null时默认15秒
      * @return 替换后的SQL
      */
@@ -339,15 +368,14 @@ public class SlsLogServiceImpl implements SlsLogService {
         return sql.replace("{interval}", String.valueOf(actualInterval));
     }
 
-    /**
-     * 验证查询请求参数
-     */
+    /** 验证查询请求参数 */
     private void validateQueryRequest(GenericSlsQueryRequest request) {
 
         // 验证认证参数（仅当配置为STS时需要userId）
         if (slsConfig.getAuthType() == SlsAuthType.STS) {
             if (!StringUtils.hasText(request.getUserId())) {
-                throw new BusinessException(ErrorCode.INVALID_REQUEST, "UserId is required when authType is STS");
+                throw new BusinessException(
+                        ErrorCode.INVALID_REQUEST, "UserId is required when authType is STS");
             }
         }
 
@@ -357,55 +385,57 @@ public class SlsLogServiceImpl implements SlsLogService {
 
         // 处理时间区间：优先使用 fromTime/toTime；若为空则解析 startTime/endTime（支持 ISO 8601）
         if (request.getFromTime() == null || request.getToTime() == null) {
-            if (StringUtils.hasText(request.getStartTime()) && StringUtils.hasText(request.getEndTime())) {
+            if (StringUtils.hasText(request.getStartTime())
+                    && StringUtils.hasText(request.getEndTime())) {
                 try {
                     int from = parseToEpochSeconds(request.getStartTime().trim());
                     int to = parseToEpochSeconds(request.getEndTime().trim());
                     request.setFromTime(from);
                     request.setToTime(to);
                 } catch (Exception e) {
-                    throw new BusinessException(ErrorCode.INVALID_REQUEST,
-                        "Invalid StartTime/EndTime format, expected ISO 8601 or yyyy-MM-dd HH:mm:ss");
+                    throw new BusinessException(
+                            ErrorCode.INVALID_REQUEST,
+                            "Invalid StartTime/EndTime format, expected ISO 8601 or yyyy-MM-dd HH:mm:ss");
                 }
             } else {
-                throw new BusinessException(ErrorCode.INVALID_REQUEST, "FromTime/ToTime or StartTime/EndTime is required");
+                throw new BusinessException(
+                        ErrorCode.INVALID_REQUEST,
+                        "FromTime/ToTime or StartTime/EndTime is required");
             }
         }
         if (request.getFromTime() >= request.getToTime()) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "FromTime must be less than ToTime");
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST, "FromTime must be less than ToTime");
         }
     }
 
     /**
-     * 解析字符串时间为 Unix 秒，支持：
-     * - ISO 8601（如：2025-11-08T17:18:08.762Z、2025-11-08T17:18:08+08:00）
-     * - 本地时间格式（yyyy-MM-dd HH:mm:ss，按系统时区解析）
+     * 解析字符串时间为 Unix 秒，支持： - ISO 8601（如：2025-11-08T17:18:08.762Z、2025-11-08T17:18:08+08:00） -
+     * 本地时间格式（yyyy-MM-dd HH:mm:ss，按系统时区解析）
      */
     private int parseToEpochSeconds(String timeStr) {
         // 优先尝试 ISO 8601（UTC Z）
         try {
             if (timeStr.endsWith("Z")) {
-                return (int)Instant.parse(timeStr).getEpochSecond();
+                return (int) Instant.parse(timeStr).getEpochSecond();
             }
         } catch (Exception ignored) {
         }
         // 尝试 ISO 8601（带偏移）
         try {
             if (timeStr.contains("T")) {
-                return (int)OffsetDateTime.parse(timeStr).toEpochSecond();
+                return (int) OffsetDateTime.parse(timeStr).toEpochSecond();
             }
         } catch (Exception ignored) {
         }
         // 回退到本地时间格式
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
         LocalDateTime ldt = LocalDateTime.parse(timeStr, formatter);
-        return (int)ldt.atZone(ZoneId.systemDefault()).toEpochSecond();
+        return (int) ldt.atZone(ZoneId.systemDefault()).toEpochSecond();
     }
 
     /**
-     * 将通用过滤参数合并到SQL的检索段,保持select部分不变
-     * 示例SQL结构:(<检索段>) | select <统计语句>
-     * 支持数组过滤条件,使用OR语句拼接,并添加字段存在性检查
+     * 将通用过滤参数合并到SQL的检索段,保持select部分不变 示例SQL结构:(<检索段>) | select <统计语句> 支持数组过滤条件,使用OR语句拼接,并添加字段存在性检查
      */
     private String buildSqlWithFilters(GenericSlsQueryRequest request) {
         String sql = request.getSql();
@@ -466,14 +496,15 @@ public class SlsLogServiceImpl implements SlsLogService {
         int maxLimit = 5000;
         Integer reqLimit = request.getPageSize();
         int limit = reqLimit == null ? defaultLimit : Math.min(Math.max(reqLimit, 1), maxLimit);
-        String finalSelect = lowerSelect.contains(" limit ") ? selectPart : (selectPart + " limit " + limit);
+        String finalSelect =
+                lowerSelect.contains(" limit ") ? selectPart : (selectPart + " limit " + limit);
         return merged + " | " + finalSelect;
     }
 
     /**
      * 构建OR过滤条件，并添加字段存在性检查
      *
-     * @param field  字段名
+     * @param field 字段名
      * @param values 值数组
      * @return OR过滤条件字符串，例如：((field: "value1" OR field: "value2") and field: *)
      */
@@ -494,17 +525,17 @@ public class SlsLogServiceImpl implements SlsLogService {
 
         // 单个值：(field: "value" and field: *)
         // 多个值：((field: "value1" OR field: "value2") and field: *)
-        String orCondition = conditions.size() == 1
-            ? conditions.get(0)
-            : "(" + String.join(" OR ", conditions) + ")";
+        String orCondition =
+                conditions.size() == 1
+                        ? conditions.get(0)
+                        : "(" + String.join(" OR ", conditions) + ")";
 
         // 添加字段存在性检查
         return "(" + orCondition + " and " + field + ": *)";
     }
 
     /**
-     * 为全局日志的 logstore 更新索引
-     * 使用配置中心的 project 和 logstore
+     * 为全局日志的 logstore 更新索引 使用配置中心的 project 和 logstore
      *
      * @param userId 用户ID（用于STS认证）
      */
@@ -528,24 +559,33 @@ public class SlsLogServiceImpl implements SlsLogService {
             }
 
             if (!isLogstoreExists(client, project, logstore)) {
-                log.warn("[Global Log Index] Logstore not found: {}/{}, skip index update", project, logstore);
+                log.warn(
+                        "[Global Log Index] Logstore not found: {}/{}, skip index update",
+                        project,
+                        logstore);
                 return;
             }
 
-            log.info("[Global Log Index] Updating index for project: {}, logstore: {}", project, logstore);
+            log.info(
+                    "[Global Log Index] Updating index for project: {}, logstore: {}",
+                    project,
+                    logstore);
             addGlobalLogIndex(client, project, logstore);
-            log.info("[Global Log Index] Successfully updated index for project: {}, logstore: {}", project, logstore);
+            log.info(
+                    "[Global Log Index] Successfully updated index for project: {}, logstore: {}",
+                    project,
+                    logstore);
 
         } catch (Exception e) {
-            log.error("[Global Log Index] Failed to update index for project: {}, logstore: {}",
-                project, logstore, e);
+            log.error(
+                    "[Global Log Index] Failed to update index for project: {}, logstore: {}",
+                    project,
+                    logstore,
+                    e);
         }
     }
 
-    /**
-     * 为全局日志 logstore 添加或更新索引
-     * 包含 ai_log（JSON显式子字段索引）以及其他必要字段的索引配置
-     */
+    /** 为全局日志 logstore 添加或更新索引 包含 ai_log（JSON显式子字段索引）以及其他必要字段的索引配置 */
     private void addGlobalLogIndex(Client client, String project, String logstore) {
         Index index;
         boolean indexExists = false;
@@ -560,8 +600,10 @@ public class SlsLogServiceImpl implements SlsLogService {
 
         // 如果索引已存在，检查所有必要字段是否都已配置
         if (indexExists && isAllRequiredIndexesConfigured(index)) {
-            log.info("[Global Log Index] All required indexes already configured for {}/{}, skip update", project,
-                logstore);
+            log.info(
+                    "[Global Log Index] All required indexes already configured for {}/{}, skip update",
+                    project,
+                    logstore);
             return;
         }
 
@@ -603,7 +645,10 @@ public class SlsLogServiceImpl implements SlsLogService {
                 log.info("[Global Log Index] Created new index for {}/{}", project, logstore);
             }
         } catch (LogException e) {
-            log.error("[Global Log Index] Failed to create or update index for logstore: {}", logstore, e);
+            log.error(
+                    "[Global Log Index] Failed to create or update index for logstore: {}",
+                    logstore,
+                    e);
             throw new RuntimeException("Failed to create or update index", e);
         }
     }
@@ -646,8 +691,7 @@ public class SlsLogServiceImpl implements SlsLogService {
     }
 
     /**
-     * 添加文本类型字段索引（如果不存在）
-     * 根据字段类型使用不同的分词符策略
+     * 添加文本类型字段索引（如果不存在） 根据字段类型使用不同的分词符策略
      *
      * @param indexKeys 索引键集合
      * @param fieldName 字段名称
@@ -671,18 +715,16 @@ public class SlsLogServiceImpl implements SlsLogService {
         indexKeys.AddKey(fieldName, key);
     }
 
-    /**
-     * 根据字段名称返回对应的分词符策略
-     */
+    /** 根据字段名称返回对应的分词符策略 */
     private List<String> getTokensForField(String fieldName) {
         // IP/网络地址类字段、路径类字段 - 使用26个分词符（完整策略）
-        if ("x_forwarded_for".equals(fieldName) ||
-            "downstream_local_address".equals(fieldName) ||
-            "downstream_remote_address".equals(fieldName) ||
-            "upstream_local_address".equals(fieldName) ||
-            "upstream_host".equals(fieldName) ||
-            "path".equals(fieldName) ||
-            "original_path".equals(fieldName)) {
+        if ("x_forwarded_for".equals(fieldName)
+                || "downstream_local_address".equals(fieldName)
+                || "downstream_remote_address".equals(fieldName)
+                || "upstream_local_address".equals(fieldName)
+                || "upstream_host".equals(fieldName)
+                || "path".equals(fieldName)
+                || "original_path".equals(fieldName)) {
             return TOKENS_26;
         }
 
@@ -752,8 +794,9 @@ public class SlsLogServiceImpl implements SlsLogService {
 
         jsonKey.setJsonKeys(subIndexKeys);
         indexKeys.AddKey("ai_log", jsonKey);
-        log.info("[Global Log Index] Added JSON index with {} explicit sub-fields for field: ai_log",
-            subIndexKeys.GetKeys().size());
+        log.info(
+                "[Global Log Index] Added JSON index with {} explicit sub-fields for field: ai_log",
+                subIndexKeys.GetKeys().size());
     }
 
     /**
@@ -761,7 +804,7 @@ public class SlsLogServiceImpl implements SlsLogService {
      *
      * @param indexKeys 索引键集合
      * @param fieldName 字段名称
-     * @param type      字段类型（text/long）
+     * @param type 字段类型（text/long）
      */
     private void addJsonSubField(IndexKeys indexKeys, String fieldName, String type) {
         IndexKey key = new IndexKey();
@@ -777,8 +820,7 @@ public class SlsLogServiceImpl implements SlsLogService {
     }
 
     /**
-     * 获取代码中定义的所有索引字段名称
-     * 这个列表应该与 addGlobalLogIndex() 方法中实际添加的字段保持一致
+     * 获取代码中定义的所有索引字段名称 这个列表应该与 addGlobalLogIndex() 方法中实际添加的字段保持一致
      *
      * @return 所有索引字段名称的集合
      */
@@ -796,5 +838,4 @@ public class SlsLogServiceImpl implements SlsLogService {
 
         return fields;
     }
-
 }

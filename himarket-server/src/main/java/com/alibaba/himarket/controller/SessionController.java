@@ -1,22 +1,21 @@
 package com.alibaba.himarket.controller;
 
 import com.alibaba.himarket.core.annotation.AdminOrDeveloperAuth;
-import com.alibaba.himarket.dto.result.common.PageResult;
-import com.alibaba.himarket.service.ChatSessionService;
+import com.alibaba.himarket.dto.params.chat.CreateChatSessionParam;
+import com.alibaba.himarket.dto.params.chat.UpdateChatSessionParam;
 import com.alibaba.himarket.dto.result.chat.ChatSessionResult;
 import com.alibaba.himarket.dto.result.chat.ConversationResult_V1;
 import com.alibaba.himarket.dto.result.chat.ProductConversationResult;
-import com.alibaba.himarket.dto.params.chat.CreateChatSessionParam;
-import com.alibaba.himarket.dto.params.chat.UpdateChatSessionParam;
+import com.alibaba.himarket.dto.result.common.PageResult;
+import com.alibaba.himarket.service.ChatSessionService;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
-import java.util.List;
 
 /**
  * @author zh
@@ -42,8 +41,8 @@ public class SessionController {
     }
 
     @PatchMapping("/{sessionId}")
-    public ChatSessionResult updateSession(@PathVariable String sessionId,
-                                           @Valid @RequestBody UpdateChatSessionParam param) {
+    public ChatSessionResult updateSession(
+            @PathVariable String sessionId, @Valid @RequestBody UpdateChatSessionParam param) {
         return sessionService.updateSession(sessionId, param);
     }
 
@@ -53,8 +52,7 @@ public class SessionController {
     }
 
     @GetMapping("/{sessionId}/conversations")
-    public List<ConversationResult_V1> listConversations(
-            @PathVariable @NotBlank String sessionId) {
+    public List<ConversationResult_V1> listConversations(@PathVariable @NotBlank String sessionId) {
         return sessionService.listConversations(sessionId);
     }
 

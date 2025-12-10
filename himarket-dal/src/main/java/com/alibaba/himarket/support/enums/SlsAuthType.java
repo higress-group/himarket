@@ -4,14 +4,10 @@ import lombok.Getter;
 
 @Getter
 public enum SlsAuthType {
-    /**
-     * 使用STS临时凭证
-     */
+    /** 使用STS临时凭证 */
     STS("sts", "STS authentication"),
 
-    /**
-     * 使用AK/SK
-     */
+    /** 使用AK/SK */
     AK_SK("ak_sk", "AK/SK authentication");
 
     private final String code;

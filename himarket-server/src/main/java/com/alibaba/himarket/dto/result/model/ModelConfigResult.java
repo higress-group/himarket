@@ -2,10 +2,9 @@ package com.alibaba.himarket.dto.result.model;
 
 import com.alibaba.himarket.dto.result.httpapi.HttpRouteResult;
 import com.alibaba.himarket.dto.result.httpapi.ServiceResult;
+import java.util.List;
 import lombok.Builder;
 import lombok.Data;
-
-import java.util.List;
 
 /**
  * @author zh

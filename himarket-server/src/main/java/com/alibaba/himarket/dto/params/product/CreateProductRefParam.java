@@ -25,9 +25,8 @@ import com.alibaba.himarket.support.enums.SourceType;
 import com.alibaba.himarket.support.product.APIGRefConfig;
 import com.alibaba.himarket.support.product.HigressRefConfig;
 import com.alibaba.himarket.support.product.NacosRefConfig;
-import lombok.Data;
-
 import jakarta.validation.constraints.NotNull;
+import lombok.Data;
 
 @Data
 public class CreateProductRefParam implements InputConverter<ProductRef> {
@@ -48,5 +47,4 @@ public class CreateProductRefParam implements InputConverter<ProductRef> {
     private HigressRefConfig higressRefConfig;
 
     private NacosRefConfig nacosRefConfig;
-
 }

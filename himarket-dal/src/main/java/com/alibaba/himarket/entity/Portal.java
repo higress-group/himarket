@@ -23,19 +23,23 @@ import com.alibaba.himarket.converter.PortalSettingConfigConverter;
 import com.alibaba.himarket.converter.PortalUiConfigConverter;
 import com.alibaba.himarket.support.portal.PortalSettingConfig;
 import com.alibaba.himarket.support.portal.PortalUiConfig;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-
 import jakarta.persistence.*;
 import java.util.ArrayList;
 import java.util.List;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 @EqualsAndHashCode(callSuper = true)
 @Entity
-@Table(name = "portal",
+@Table(
+        name = "portal",
         uniqueConstraints = {
-                @UniqueConstraint(columnNames = {"portal_id"}, name = "uk_portal_id"),
-                @UniqueConstraint(columnNames = {"name", "admin_id"}, name = "uk_name_admin_id")
+            @UniqueConstraint(
+                    columnNames = {"portal_id"},
+                    name = "uk_portal_id"),
+            @UniqueConstraint(
+                    columnNames = {"name", "admin_id"},
+                    name = "uk_name_admin_id")
         })
 @Data
 public class Portal extends BaseEntity {
@@ -63,6 +67,5 @@ public class Portal extends BaseEntity {
     @Convert(converter = PortalUiConfigConverter.class)
     private PortalUiConfig portalUiConfig;
 
-    @Transient
-    private List<PortalDomain> portalDomains = new ArrayList<>();
+    @Transient private List<PortalDomain> portalDomains = new ArrayList<>();
 }

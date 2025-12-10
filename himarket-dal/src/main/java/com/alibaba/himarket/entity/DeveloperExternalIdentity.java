@@ -19,22 +19,25 @@
 
 package com.alibaba.himarket.entity;
 
-import jakarta.persistence.*;
-
 import com.alibaba.himarket.support.enums.DeveloperAuthType;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 @Entity
-@Table(name = "developer_external_identity", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"provider", "subject"}, name = "unique_provider_subject")
-})
+@Table(
+        name = "developer_external_identity",
+        uniqueConstraints = {
+            @UniqueConstraint(
+                    columnNames = {"provider", "subject"},
+                    name = "unique_provider_subject")
+        })
 public class DeveloperExternalIdentity extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -59,4 +62,4 @@ public class DeveloperExternalIdentity extends BaseEntity {
 
     @Column(columnDefinition = "json")
     private String rawInfoJson;
-} 
+}

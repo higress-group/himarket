@@ -24,9 +24,7 @@ import java.net.Socket;
 
 public abstract class GatewayClient {
 
-    public void close() {
-
-    }
+    public void close() {}
 
     protected String getAPIGEndpoint(String region) {
         String internalEndpoint = String.format("apig-vpc.%s.aliyuncs.com", region);

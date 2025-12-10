@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 package com.alibaba.himarket.controller;
 
 import com.alibaba.himarket.dto.result.common.AuthResult;
@@ -39,8 +38,9 @@ public class OAuth2Controller {
     private final OAuth2Service oAuth2Service;
 
     @PostMapping("/token")
-    public AuthResult authenticate(@RequestParam("grant_type") String grantType,
-                                   @RequestParam("assertion") String assertion) {
+    public AuthResult authenticate(
+            @RequestParam("grant_type") String grantType,
+            @RequestParam("assertion") String assertion) {
         return oAuth2Service.authenticate(grantType, assertion);
     }
 }

@@ -44,12 +44,11 @@ import com.alibaba.himarket.support.enums.DeveloperAuthType;
 import com.alibaba.himarket.support.enums.GrantType;
 import com.alibaba.himarket.support.enums.JwtAlgorithm;
 import com.alibaba.himarket.support.portal.*;
+import java.security.PublicKey;
+import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-
-import java.security.PublicKey;
-import java.util.*;
 
 /**
  * @author zh
@@ -89,26 +88,46 @@ public class OAuth2ServiceImpl implements OAuth2Service {
 
         // 根据provider确定OAuth2配置
         PortalResult portal = portalService.getPortal(portalId);
-        List<OAuth2Config> oauth2Configs = Optional.ofNullable(portal.getPortalSettingConfig())
-                .map(PortalSettingConfig::getOauth2Configs)
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, Resources.OAUTH2_CONFIG, portalId));
+        List<OAuth2Config> oauth2Configs =
+                Optional.ofNullable(portal.getPortalSettingConfig())
+                        .map(PortalSettingConfig::getOauth2Configs)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                ErrorCode.NOT_FOUND,
+                                                Resources.OAUTH2_CONFIG,
+                                                portalId));
 
-        OAuth2Config oAuth2Config = oauth2Configs.stream()
-                // JWT Bearer模式
-                .filter(config -> config.getGrantType() == GrantType.JWT_BEARER)
-                .filter(config -> config.getJwtBearerConfig() != null
-                        && CollUtil.isNotEmpty(config.getJwtBearerConfig().getPublicKeys()))
-                // provider标识
-                .filter(config -> config.getProvider().equals(provider))
-                .findFirst()
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, Resources.OAUTH2_CONFIG, provider));
+        OAuth2Config oAuth2Config =
+                oauth2Configs.stream()
+                        // JWT Bearer模式
+                        .filter(config -> config.getGrantType() == GrantType.JWT_BEARER)
+                        .filter(
+                                config ->
+                                        config.getJwtBearerConfig() != null
+                                                && CollUtil.isNotEmpty(
+                                                        config.getJwtBearerConfig()
+                                                                .getPublicKeys()))
+                        // provider标识
+                        .filter(config -> config.getProvider().equals(provider))
+                        .findFirst()
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                ErrorCode.NOT_FOUND,
+                                                Resources.OAUTH2_CONFIG,
+                                                provider));
 
         // 根据kid找到对应公钥
         JwtBearerConfig jwtConfig = oAuth2Config.getJwtBearerConfig();
-        PublicKeyConfig publicKeyConfig = jwtConfig.getPublicKeys().stream()
-                .filter(key -> kid.equals(key.getKid()))
-                .findFirst()
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, Resources.PUBLIC_KEY, kid));
+        PublicKeyConfig publicKeyConfig =
+                jwtConfig.getPublicKeys().stream()
+                        .filter(key -> kid.equals(key.getKid()))
+                        .findFirst()
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                ErrorCode.NOT_FOUND, Resources.PUBLIC_KEY, kid));
 
         // 验签
         if (!verifySignature(jwt, publicKeyConfig)) {
@@ -123,7 +142,10 @@ public class OAuth2ServiceImpl implements OAuth2Service {
 
         // 生成Access Token
         String accessToken = TokenUtil.generateDeveloperToken(developerId);
-        log.info("JWT Bearer认证成功，provider: {}, developer: {}", oAuth2Config.getProvider(), developerId);
+        log.info(
+                "JWT Bearer认证成功，provider: {}, developer: {}",
+                oAuth2Config.getProvider(),
+                developerId);
         return AuthResult.of(accessToken, TokenUtil.getTokenExpiresIn());
     }
 
@@ -178,10 +200,14 @@ public class OAuth2ServiceImpl implements OAuth2Service {
     private String createOrGetDeveloper(JWT jwt, OAuth2Config config) {
         IdentityMapping identityMapping = config.getIdentityMapping();
         // userId & userName
-        String userIdField = StrUtil.isBlank(identityMapping.getUserIdField()) ?
-                JwtConstants.PAYLOAD_USER_ID : identityMapping.getUserIdField();
-        String userNameField = StrUtil.isBlank(identityMapping.getUserNameField()) ?
-                JwtConstants.PAYLOAD_USER_NAME : identityMapping.getUserNameField();
+        String userIdField =
+                StrUtil.isBlank(identityMapping.getUserIdField())
+                        ? JwtConstants.PAYLOAD_USER_ID
+                        : identityMapping.getUserIdField();
+        String userNameField =
+                StrUtil.isBlank(identityMapping.getUserNameField())
+                        ? JwtConstants.PAYLOAD_USER_NAME
+                        : identityMapping.getUserNameField();
         Object userIdObj = jwt.getPayload(userIdField);
         Object userNameObj = jwt.getPayload(userNameField);
 
@@ -192,18 +218,20 @@ public class OAuth2ServiceImpl implements OAuth2Service {
         }
 
         // 复用已有的Developer，否则创建
-        return Optional.ofNullable(developerService.getExternalDeveloper(config.getProvider(), userId))
+        return Optional.ofNullable(
+                        developerService.getExternalDeveloper(config.getProvider(), userId))
                 .map(DeveloperResult::getDeveloperId)
-                .orElseGet(() -> {
-                    CreateExternalDeveloperParam param = CreateExternalDeveloperParam.builder()
-                            .provider(config.getProvider())
-                            .subject(userId)
-                            .displayName(userName)
-                            .authType(DeveloperAuthType.OAUTH2)
-                            .build();
+                .orElseGet(
+                        () -> {
+                            CreateExternalDeveloperParam param =
+                                    CreateExternalDeveloperParam.builder()
+                                            .provider(config.getProvider())
+                                            .subject(userId)
+                                            .displayName(userName)
+                                            .authType(DeveloperAuthType.OAUTH2)
+                                            .build();
 
-                    return developerService.createExternalDeveloper(param).getDeveloperId();
-                });
+                            return developerService.createExternalDeveloper(param).getDeveloperId();
+                        });
     }
-
 }

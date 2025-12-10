@@ -21,9 +21,8 @@ package com.alibaba.himarket.dto.result.consumer;
 
 import com.alibaba.himarket.dto.converter.OutputConverter;
 import com.alibaba.himarket.entity.Consumer;
-import lombok.Data;
-
 import java.time.LocalDateTime;
+import lombok.Data;
 
 @Data
 public class ConsumerResult implements OutputConverter<ConsumerResult, Consumer> {

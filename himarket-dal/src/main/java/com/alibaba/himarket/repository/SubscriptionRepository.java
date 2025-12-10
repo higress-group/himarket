@@ -20,7 +20,6 @@
 package com.alibaba.himarket.repository;
 
 import com.alibaba.himarket.entity.ProductSubscription;
-
 import java.util.List;
 import java.util.Optional;
 

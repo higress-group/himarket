@@ -22,9 +22,8 @@ package com.alibaba.himarket.entity;
 import com.alibaba.himarket.converter.GatewayConfigConverter;
 import com.alibaba.himarket.support.enums.GatewayType;
 import com.alibaba.himarket.support.gateway.GatewayConfig;
-import lombok.*;
-
 import jakarta.persistence.*;
+import lombok.*;
 
 @Entity
 @Table(name = "consumer_ref")

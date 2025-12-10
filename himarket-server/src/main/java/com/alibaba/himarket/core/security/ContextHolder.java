@@ -79,7 +79,10 @@ public class ContextHolder {
                 .map(authority -> authority.substring(5))
                 .map(role -> EnumUtil.likeValueOf(UserType.class, role))
                 .findFirst()
-                .orElseThrow(() -> new AuthenticationCredentialsNotFoundException("User type not found in authentication"));
+                .orElseThrow(
+                        () ->
+                                new AuthenticationCredentialsNotFoundException(
+                                        "User type not found in authentication"));
     }
 
     public boolean isAdministrator() {
@@ -105,8 +108,9 @@ public class ContextHolder {
      */
     private Authentication getAuthenticationFromContext() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated() ||
-                authentication instanceof AnonymousAuthenticationToken) {
+        if (authentication == null
+                || !authentication.isAuthenticated()
+                || authentication instanceof AnonymousAuthenticationToken) {
             throw new AuthenticationCredentialsNotFoundException("No authenticated user found");
         }
         return authentication;

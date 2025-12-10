@@ -1,15 +1,14 @@
 package com.alibaba.himarket.service;
 
-import com.alibaba.himarket.dto.result.common.PageResult;
-import com.alibaba.himarket.entity.ChatSession;
+import com.alibaba.himarket.dto.params.chat.CreateChatSessionParam;
+import com.alibaba.himarket.dto.params.chat.UpdateChatSessionParam;
 import com.alibaba.himarket.dto.result.chat.ChatSessionResult;
 import com.alibaba.himarket.dto.result.chat.ConversationResult_V1;
 import com.alibaba.himarket.dto.result.chat.ProductConversationResult;
-import com.alibaba.himarket.dto.params.chat.CreateChatSessionParam;
-import com.alibaba.himarket.dto.params.chat.UpdateChatSessionParam;
-import org.springframework.data.domain.Pageable;
-
+import com.alibaba.himarket.dto.result.common.PageResult;
+import com.alibaba.himarket.entity.ChatSession;
 import java.util.*;
+import org.springframework.data.domain.Pageable;
 
 /**
  * @author zh
@@ -72,8 +71,8 @@ public interface ChatSessionService {
     List<ConversationResult_V1> listConversations(String sessionId);
 
     /**
-     * List conversations grouped by product for a chat session
-     * Structure: Product[] -> Conversations[] -> Questions[] -> Answers[]
+     * List conversations grouped by product for a chat session Structure: Product[] ->
+     * Conversations[] -> Questions[] -> Answers[]
      *
      * @param sessionId
      * @return List of ProductConversationResult

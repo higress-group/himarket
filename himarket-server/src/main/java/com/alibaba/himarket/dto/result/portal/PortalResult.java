@@ -27,10 +27,9 @@ import com.alibaba.himarket.support.enums.DomainType;
 import com.alibaba.himarket.support.enums.ProtocolType;
 import com.alibaba.himarket.support.portal.PortalSettingConfig;
 import com.alibaba.himarket.support.portal.PortalUiConfig;
-import lombok.Data;
-
 import java.util.List;
 import java.util.stream.Collectors;
+import lombok.Data;
 
 @Data
 public class PortalResult implements OutputConverter<PortalResult, Portal> {
@@ -53,14 +52,16 @@ public class PortalResult implements OutputConverter<PortalResult, Portal> {
     public PortalResult convertFrom(Portal source) {
         OutputConverter.super.convertFrom(source);
         if (CollUtil.isNotEmpty(source.getPortalDomains())) {
-            portalDomainConfig = source.getPortalDomains().stream().map(domain -> new PortalDomainConfig().convertFrom(domain)).collect(Collectors.toList());
+            portalDomainConfig =
+                    source.getPortalDomains().stream()
+                            .map(domain -> new PortalDomainConfig().convertFrom(domain))
+                            .collect(Collectors.toList());
         }
         return this;
     }
 
     @Data
-    static
-    class PortalDomainConfig implements OutputConverter<PortalDomainConfig, PortalDomain> {
+    static class PortalDomainConfig implements OutputConverter<PortalDomainConfig, PortalDomain> {
 
         private String domain;
 

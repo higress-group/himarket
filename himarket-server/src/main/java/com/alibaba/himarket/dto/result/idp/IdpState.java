@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 package com.alibaba.himarket.dto.result.idp;
 
 import lombok.Builder;
@@ -27,23 +26,15 @@ import lombok.Data;
 @Builder
 public class IdpState {
 
-    /**
-     * 提供商标识
-     */
+    /** 提供商标识 */
     private String provider;
 
-    /**
-     * 时间戳
-     */
+    /** 时间戳 */
     private Long timestamp;
 
-    /**
-     * 随机数（防重放）
-     */
+    /** 随机数（防重放） */
     private String nonce;
 
-    /**
-     * HiMarket-Frontend应用的API前缀
-     */
+    /** HiMarket-Frontend应用的API前缀 */
     private String apiPrefix;
 }

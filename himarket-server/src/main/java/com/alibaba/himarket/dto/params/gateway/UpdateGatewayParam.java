@@ -35,8 +35,10 @@ public class UpdateGatewayParam implements InputConverter<Gateway> {
     @AssertTrue(message = "Invalid gateway config")
     private boolean isGatewayConfigValid() {
         return gatewayType.isAPIG() && (apigConfig == null || apigConfig.validate())
-                || gatewayType.isAdpAIGateway() && (adpAIGatewayConfig == null || adpAIGatewayConfig.validate())
-                || gatewayType.isApsaraGateway() && (apsaraGatewayConfig == null || apsaraGatewayConfig.validate())
+                || gatewayType.isAdpAIGateway()
+                        && (adpAIGatewayConfig == null || adpAIGatewayConfig.validate())
+                || gatewayType.isApsaraGateway()
+                        && (apsaraGatewayConfig == null || apsaraGatewayConfig.validate())
                 || gatewayType.isHigress() && (higressConfig == null || higressConfig.validate());
     }
 }

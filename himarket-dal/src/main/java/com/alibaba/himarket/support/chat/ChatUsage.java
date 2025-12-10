@@ -6,8 +6,8 @@ import lombok.Builder;
 import lombok.Data;
 
 /**
-* @author zh
-*/
+ * @author zh
+ */
 @Data
 @Builder
 public class ChatUsage {

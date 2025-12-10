@@ -13,5 +13,4 @@ import org.springframework.stereotype.Service;
 public class ChatAttachmentServiceImpl implements ChatAttachmentService {
 
     private final ChatAttachmentRepository chatAttachmentRepository;
-
 }

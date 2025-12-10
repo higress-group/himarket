@@ -23,26 +23,26 @@ import cn.hutool.core.codec.Base64;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
+import com.alibaba.himarket.core.exception.BusinessException;
+import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.dto.params.gateway.QueryAPIGParam;
 import com.alibaba.himarket.dto.result.agent.AgentAPIResult;
-import com.alibaba.himarket.dto.result.httpapi.APIConfigResult;
-import com.alibaba.himarket.dto.result.httpapi.APIResult;
 import com.alibaba.himarket.dto.result.common.DomainResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.gateway.GatewayResult;
+import com.alibaba.himarket.dto.result.httpapi.APIConfigResult;
+import com.alibaba.himarket.dto.result.httpapi.APIResult;
 import com.alibaba.himarket.dto.result.mcp.GatewayMCPServerResult;
 import com.alibaba.himarket.dto.result.model.GatewayModelAPIResult;
+import com.alibaba.himarket.entity.Consumer;
+import com.alibaba.himarket.entity.ConsumerCredential;
+import com.alibaba.himarket.entity.Gateway;
+import com.alibaba.himarket.service.gateway.client.APIGClient;
 import com.alibaba.himarket.support.consumer.APIGAuthConfig;
 import com.alibaba.himarket.support.consumer.ApiKeyConfig;
 import com.alibaba.himarket.support.consumer.ConsumerAuthConfig;
 import com.alibaba.himarket.support.consumer.HmacConfig;
 import com.alibaba.himarket.support.enums.APIGAPIType;
-import com.alibaba.himarket.core.exception.BusinessException;
-import com.alibaba.himarket.core.exception.ErrorCode;
-import com.alibaba.himarket.entity.Gateway;
-import com.alibaba.himarket.entity.Consumer;
-import com.alibaba.himarket.entity.ConsumerCredential;
-import com.alibaba.himarket.service.gateway.client.APIGClient;
 import com.alibaba.himarket.support.enums.GatewayType;
 import com.alibaba.himarket.support.gateway.GatewayConfig;
 import com.alibaba.himarket.support.product.APIGRefConfig;
@@ -50,15 +50,14 @@ import com.aliyun.sdk.gateway.pop.exception.PopClientException;
 import com.aliyun.sdk.service.apig20240327.models.*;
 import com.aliyun.sdk.service.apig20240327.models.CreateConsumerAuthorizationRulesRequest.AuthorizationRules;
 import com.aliyun.sdk.service.apig20240327.models.CreateConsumerAuthorizationRulesRequest.ResourceIdentifier;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.annotation.Primary;
-import org.springframework.stereotype.Service;
-
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Primary;
+import org.springframework.stereotype.Service;
 
 @RequiredArgsConstructor
 @Service
@@ -77,7 +76,8 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
     }
 
     @Override
-    public PageResult<? extends GatewayMCPServerResult> fetchMcpServers(Gateway gateway, int page, int size) {
+    public PageResult<? extends GatewayMCPServerResult> fetchMcpServers(
+            Gateway gateway, int page, int size) {
         throw new UnsupportedOperationException("APIG does not support MCP Servers");
     }
 
@@ -87,7 +87,8 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
     }
 
     @Override
-    public PageResult<? extends GatewayModelAPIResult> fetchModelAPIs(Gateway gateway, int page, int size) {
+    public PageResult<? extends GatewayModelAPIResult> fetchModelAPIs(
+            Gateway gateway, int page, int size) {
         throw new UnsupportedOperationException("APIG does not support Model APIs");
     }
 
@@ -97,16 +98,20 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
 
         try {
             APIGRefConfig apigRefConfig = (APIGRefConfig) config;
-            CompletableFuture<ExportHttpApiResponse> f = client.execute(c -> {
-                ExportHttpApiRequest request = ExportHttpApiRequest.builder()
-                        .httpApiId(apigRefConfig.getApiId())
-                        .build();
-                return c.exportHttpApi(request);
-            });
+            CompletableFuture<ExportHttpApiResponse> f =
+                    client.execute(
+                            c -> {
+                                ExportHttpApiRequest request =
+                                        ExportHttpApiRequest.builder()
+                                                .httpApiId(apigRefConfig.getApiId())
+                                                .build();
+                                return c.exportHttpApi(request);
+                            });
 
             ExportHttpApiResponse response = f.join();
             if (response.getStatusCode() != 200) {
-                throw new BusinessException(ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
+                throw new BusinessException(
+                        ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
             }
 
             String contentBase64 = response.getBody().getData().getSpecContentBase64();
@@ -125,7 +130,8 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
             return JSONUtil.toJsonStr(configResult);
         } catch (Exception e) {
             log.error("Error fetching API Spec", e);
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Error fetching API Spec，Cause：" + e.getMessage());
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR, "Error fetching API Spec，Cause：" + e.getMessage());
         }
     }
 
@@ -154,55 +160,65 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
 
         List<GatewayResult> gateways = new ArrayList<>();
         try {
-            CompletableFuture<ListGatewaysResponse> f = client.execute(c -> {
-                ListGatewaysRequest request = ListGatewaysRequest.builder()
-                        .gatewayType(param.getGatewayType().getType())
-                        .pageNumber(page)
-                        .pageSize(size)
-                        .build();
+            CompletableFuture<ListGatewaysResponse> f =
+                    client.execute(
+                            c -> {
+                                ListGatewaysRequest request =
+                                        ListGatewaysRequest.builder()
+                                                .gatewayType(param.getGatewayType().getType())
+                                                .pageNumber(page)
+                                                .pageSize(size)
+                                                .build();
 
-                return c.listGateways(request);
-            });
+                                return c.listGateways(request);
+                            });
 
             ListGatewaysResponse response = f.join();
             if (response.getStatusCode() != 200) {
-                throw new BusinessException(ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
+                throw new BusinessException(
+                        ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
             }
 
             for (ListGatewaysResponseBody.Items item : response.getBody().getData().getItems()) {
-                gateways.add(GatewayResult.builder()
-                        .gatewayName(item.getName())
-                        .gatewayId(item.getGatewayId())
-                        .gatewayType(param.getGatewayType())
-                        .build());
+                gateways.add(
+                        GatewayResult.builder()
+                                .gatewayName(item.getName())
+                                .gatewayId(item.getGatewayId())
+                                .gatewayType(param.getGatewayType())
+                                .build());
             }
 
             int total = Math.toIntExact(response.getBody().getData().getTotalSize());
             return PageResult.of(gateways, page, size, total);
         } catch (Exception e) {
             log.error("Error fetching Gateways", e);
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Error fetching Gateways，Cause：" + e.getMessage());
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR, "Error fetching Gateways，Cause：" + e.getMessage());
         }
     }
 
     protected String fetchGatewayEnv(Gateway gateway) {
         APIGClient client = getClient(gateway);
         try {
-            CompletableFuture<GetGatewayResponse> f = client.execute(c -> {
-                GetGatewayRequest request = GetGatewayRequest.builder()
-                        .gatewayId(gateway.getGatewayId())
-                        .build();
+            CompletableFuture<GetGatewayResponse> f =
+                    client.execute(
+                            c -> {
+                                GetGatewayRequest request =
+                                        GetGatewayRequest.builder()
+                                                .gatewayId(gateway.getGatewayId())
+                                                .build();
 
-                return c.getGateway(request);
-
-            });
+                                return c.getGateway(request);
+                            });
 
             GetGatewayResponse response = f.join();
             if (response.getStatusCode() != 200) {
-                throw new BusinessException(ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
+                throw new BusinessException(
+                        ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
             }
 
-            List<GetGatewayResponseBody.Environments> environments = response.getBody().getData().getEnvironments();
+            List<GetGatewayResponseBody.Environments> environments =
+                    response.getBody().getData().getEnvironments();
             if (CollUtil.isEmpty(environments)) {
                 return null;
             }
@@ -210,28 +226,35 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
             return environments.get(0).getEnvironmentId();
         } catch (Exception e) {
             log.error("Error fetching Gateway", e);
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Error fetching Gateway，Cause：" + e.getMessage());
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR, "Error fetching Gateway，Cause：" + e.getMessage());
         }
     }
 
     @Override
-    public String createConsumer(Consumer consumer, ConsumerCredential credential, GatewayConfig config) {
+    public String createConsumer(
+            Consumer consumer, ConsumerCredential credential, GatewayConfig config) {
         APIGClient client = new APIGClient(config.getApigConfig());
 
-        String mark = consumer.getConsumerId().substring(Math.max(0, consumer.getConsumerId().length() - 8));
+        String mark =
+                consumer.getConsumerId()
+                        .substring(Math.max(0, consumer.getConsumerId().length() - 8));
         String gwConsumerName = StrUtil.format("{}-{}", consumer.getName(), mark);
         try {
             // ApiKey
-            ApiKeyIdentityConfig apikeyIdentityConfig = convertToApiKeyIdentityConfig(credential.getApiKeyConfig());
+            ApiKeyIdentityConfig apikeyIdentityConfig =
+                    convertToApiKeyIdentityConfig(credential.getApiKeyConfig());
 
             // Hmac
-            List<AkSkIdentityConfig> akSkIdentityConfigs = convertToAkSkIdentityConfigs(credential.getHmacConfig());
+            List<AkSkIdentityConfig> akSkIdentityConfigs =
+                    convertToAkSkIdentityConfigs(credential.getHmacConfig());
 
-            CreateConsumerRequest.Builder builder = CreateConsumerRequest.builder()
-                    .name(gwConsumerName)
-                    .description("Created by HiMarket")
-                    .gatewayType(config.getGatewayType().getType())
-                    .enable(true);
+            CreateConsumerRequest.Builder builder =
+                    CreateConsumerRequest.builder()
+                            .name(gwConsumerName)
+                            .description("Created by HiMarket")
+                            .gatewayType(config.getGatewayType().getType())
+                            .enable(true);
             if (apikeyIdentityConfig != null) {
                 builder.apikeyIdentityConfig(apikeyIdentityConfig);
             }
@@ -239,22 +262,27 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
                 builder.akSkIdentityConfigs(akSkIdentityConfigs);
             }
 
-            CompletableFuture<CreateConsumerResponse> f = client.execute(c -> c.createConsumer(builder.build()));
+            CompletableFuture<CreateConsumerResponse> f =
+                    client.execute(c -> c.createConsumer(builder.build()));
 
             CreateConsumerResponse response = f.join();
             if (response.getStatusCode() != 200) {
-                throw new BusinessException(ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
+                throw new BusinessException(
+                        ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
             }
 
             return response.getBody().getData().getConsumerId();
         } catch (Exception e) {
             Throwable cause = e.getCause();
             // Consumer已经存在
-            if (cause instanceof PopClientException && "Conflict.ConsumerNameDuplicate".equals(((PopClientException) cause).getErrCode())) {
+            if (cause instanceof PopClientException
+                    && "Conflict.ConsumerNameDuplicate"
+                            .equals(((PopClientException) cause).getErrCode())) {
                 return retrievalConsumer(gwConsumerName, config);
             }
             log.error("Error creating Consumer", e);
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Error creating Consumer，Cause：" + e.getMessage());
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR, "Error creating Consumer，Cause：" + e.getMessage());
         }
     }
 
@@ -262,19 +290,24 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
         APIGClient client = new APIGClient(gatewayConfig.getApigConfig());
 
         try {
-            CompletableFuture<ListConsumersResponse> f = client.execute(c -> {
-                ListConsumersRequest request = ListConsumersRequest.builder()
-                        .gatewayType(gatewayConfig.getGatewayType().getType())
-                        .nameLike(name)
-                        .pageNumber(1)
-                        .pageSize(10)
-                        .build();
+            CompletableFuture<ListConsumersResponse> f =
+                    client.execute(
+                            c -> {
+                                ListConsumersRequest request =
+                                        ListConsumersRequest.builder()
+                                                .gatewayType(
+                                                        gatewayConfig.getGatewayType().getType())
+                                                .nameLike(name)
+                                                .pageNumber(1)
+                                                .pageSize(10)
+                                                .build();
 
-                return c.listConsumers(request);
-            });
+                                return c.listConsumers(request);
+                            });
             ListConsumersResponse response = f.join();
             if (response.getStatusCode() != 200) {
-                throw new BusinessException(ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
+                throw new BusinessException(
+                        ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
             }
 
             for (ListConsumersResponseBody.Items item : response.getBody().getData().getItems()) {
@@ -284,24 +317,27 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
             }
         } catch (Exception e) {
             log.error("Error fetching Consumer", e);
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Error fetching Consumer，Cause：" + e.getMessage());
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR, "Error fetching Consumer，Cause：" + e.getMessage());
         }
         return null;
     }
 
     @Override
-    public void updateConsumer(String consumerId, ConsumerCredential credential, GatewayConfig config) {
+    public void updateConsumer(
+            String consumerId, ConsumerCredential credential, GatewayConfig config) {
         APIGClient client = new APIGClient(config.getApigConfig());
         try {
             // ApiKey
-            ApiKeyIdentityConfig apikeyIdentityConfig = convertToApiKeyIdentityConfig(credential.getApiKeyConfig());
+            ApiKeyIdentityConfig apikeyIdentityConfig =
+                    convertToApiKeyIdentityConfig(credential.getApiKeyConfig());
 
             // Hmac
-            List<AkSkIdentityConfig> akSkIdentityConfigs = convertToAkSkIdentityConfigs(credential.getHmacConfig());
+            List<AkSkIdentityConfig> akSkIdentityConfigs =
+                    convertToAkSkIdentityConfigs(credential.getHmacConfig());
 
-            UpdateConsumerRequest.Builder builder = UpdateConsumerRequest.builder()
-                    .enable(true)
-                    .consumerId(consumerId);
+            UpdateConsumerRequest.Builder builder =
+                    UpdateConsumerRequest.builder().enable(true).consumerId(consumerId);
 
             if (apikeyIdentityConfig != null) {
                 builder.apikeyIdentityConfig(apikeyIdentityConfig);
@@ -311,15 +347,18 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
                 builder.akSkIdentityConfigs(akSkIdentityConfigs);
             }
 
-            CompletableFuture<UpdateConsumerResponse> f = client.execute(c -> c.updateConsumer(builder.build()));
+            CompletableFuture<UpdateConsumerResponse> f =
+                    client.execute(c -> c.updateConsumer(builder.build()));
 
             UpdateConsumerResponse response = f.join();
             if (response.getStatusCode() != 200) {
-                throw new BusinessException(ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
+                throw new BusinessException(
+                        ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
             }
         } catch (Exception e) {
             log.error("Error creating Consumer", e);
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Error creating Consumer，Cause：" + e.getMessage());
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR, "Error creating Consumer，Cause：" + e.getMessage());
         }
     }
 
@@ -327,16 +366,17 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
     public void deleteConsumer(String consumerId, GatewayConfig config) {
         APIGClient client = new APIGClient(config.getApigConfig());
         try {
-            DeleteConsumerRequest request = DeleteConsumerRequest.builder()
-                    .consumerId(consumerId)
-                    .build();
-            client.execute(c -> {
-                c.deleteConsumer(request);
-                return null;
-            });
+            DeleteConsumerRequest request =
+                    DeleteConsumerRequest.builder().consumerId(consumerId).build();
+            client.execute(
+                    c -> {
+                        c.deleteConsumer(request);
+                        return null;
+                    });
         } catch (Exception e) {
             log.error("Error deleting Consumer", e);
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Error deleting Consumer，Cause：" + e.getMessage());
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR, "Error deleting Consumer，Cause：" + e.getMessage());
         }
     }
 
@@ -347,7 +387,8 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
     }
 
     @Override
-    public ConsumerAuthConfig authorizeConsumer(Gateway gateway, String consumerId, Object refConfig) {
+    public ConsumerAuthConfig authorizeConsumer(
+            Gateway gateway, String consumerId, Object refConfig) {
         APIGClient client = getClient(gateway);
 
         APIGRefConfig config = (APIGRefConfig) refConfig;
@@ -365,44 +406,59 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
 
             List<AuthorizationRules> rules = new ArrayList<>();
             for (HttpApiOperationInfo operation : operations) {
-                AuthorizationRules rule = AuthorizationRules.builder()
-                        .consumerId(consumerId)
-                        .expireMode("LongTerm")
-                        .resourceType("RestApiOperation")
-                        .resourceIdentifier(ResourceIdentifier.builder()
-                                .resourceId(operation.getOperationId())
-                                .environmentId(envId).build())
-                        .build();
+                AuthorizationRules rule =
+                        AuthorizationRules.builder()
+                                .consumerId(consumerId)
+                                .expireMode("LongTerm")
+                                .resourceType("RestApiOperation")
+                                .resourceIdentifier(
+                                        ResourceIdentifier.builder()
+                                                .resourceId(operation.getOperationId())
+                                                .environmentId(envId)
+                                                .build())
+                                .build();
                 rules.add(rule);
             }
 
-            CompletableFuture<CreateConsumerAuthorizationRulesResponse> f = client.execute(c -> {
-                CreateConsumerAuthorizationRulesRequest request = CreateConsumerAuthorizationRulesRequest.builder()
-                        .authorizationRules(rules)
-                        .build();
-                return c.createConsumerAuthorizationRules(request);
-            });
+            CompletableFuture<CreateConsumerAuthorizationRulesResponse> f =
+                    client.execute(
+                            c -> {
+                                CreateConsumerAuthorizationRulesRequest request =
+                                        CreateConsumerAuthorizationRulesRequest.builder()
+                                                .authorizationRules(rules)
+                                                .build();
+                                return c.createConsumerAuthorizationRules(request);
+                            });
 
             CreateConsumerAuthorizationRulesResponse response = f.join();
             if (200 != response.getStatusCode()) {
-                throw new BusinessException(ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
+                throw new BusinessException(
+                        ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
             }
 
-            APIGAuthConfig apigAuthConfig = APIGAuthConfig.builder()
-                    .authorizationRuleIds(response.getBody().getData().getConsumerAuthorizationRuleIds())
-                    .build();
+            APIGAuthConfig apigAuthConfig =
+                    APIGAuthConfig.builder()
+                            .authorizationRuleIds(
+                                    response.getBody().getData().getConsumerAuthorizationRuleIds())
+                            .build();
 
-            return ConsumerAuthConfig.builder()
-                    .apigAuthConfig(apigAuthConfig)
-                    .build();
+            return ConsumerAuthConfig.builder().apigAuthConfig(apigAuthConfig).build();
         } catch (Exception e) {
-            log.error("Error authorizing consumer {} to apiId {} in APIG gateway {}", consumerId, apiId, gateway.getGatewayId(), e);
-            throw new BusinessException(ErrorCode.GATEWAY_ERROR, "Failed to authorize consumer to apiId in APIG gateway: " + e.getMessage());
+            log.error(
+                    "Error authorizing consumer {} to apiId {} in APIG gateway {}",
+                    consumerId,
+                    apiId,
+                    gateway.getGatewayId(),
+                    e);
+            throw new BusinessException(
+                    ErrorCode.GATEWAY_ERROR,
+                    "Failed to authorize consumer to apiId in APIG gateway: " + e.getMessage());
         }
     }
 
     @Override
-    public void revokeConsumerAuthorization(Gateway gateway, String consumerId, ConsumerAuthConfig authConfig) {
+    public void revokeConsumerAuthorization(
+            Gateway gateway, String consumerId, ConsumerAuthConfig authConfig) {
         APIGAuthConfig apigAuthConfig = authConfig.getApigAuthConfig();
         if (apigAuthConfig == null) {
             return;
@@ -411,26 +467,35 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
         APIGClient client = getClient(gateway);
 
         try {
-            BatchDeleteConsumerAuthorizationRuleRequest request = BatchDeleteConsumerAuthorizationRuleRequest.builder()
-                    .consumerAuthorizationRuleIds(StrUtil.join(",", apigAuthConfig.getAuthorizationRuleIds()))
-                    .build();
+            BatchDeleteConsumerAuthorizationRuleRequest request =
+                    BatchDeleteConsumerAuthorizationRuleRequest.builder()
+                            .consumerAuthorizationRuleIds(
+                                    StrUtil.join(",", apigAuthConfig.getAuthorizationRuleIds()))
+                            .build();
 
-            CompletableFuture<BatchDeleteConsumerAuthorizationRuleResponse> f = client.execute(c -> c.batchDeleteConsumerAuthorizationRule(request));
+            CompletableFuture<BatchDeleteConsumerAuthorizationRuleResponse> f =
+                    client.execute(c -> c.batchDeleteConsumerAuthorizationRule(request));
 
             BatchDeleteConsumerAuthorizationRuleResponse response = f.join();
             if (response.getStatusCode() != 200) {
-                throw new BusinessException(ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
+                throw new BusinessException(
+                        ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
             }
         } catch (Exception e) {
             Throwable cause = e.getCause();
             if (cause instanceof PopClientException
-                    && "DatabaseError.RecordNotFound".equals(((PopClientException) cause).getErrCode())) {
-                log.warn("Consumer authorization rules[{}] not found, ignore", apigAuthConfig.getAuthorizationRuleIds());
+                    && "DatabaseError.RecordNotFound"
+                            .equals(((PopClientException) cause).getErrCode())) {
+                log.warn(
+                        "Consumer authorization rules[{}] not found, ignore",
+                        apigAuthConfig.getAuthorizationRuleIds());
                 return;
             }
 
             log.error("Error deleting Consumer Authorization", e);
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Error deleting Consumer Authorization，Cause：" + e.getMessage());
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR,
+                    "Error deleting Consumer Authorization，Cause：" + e.getMessage());
         }
     }
 
@@ -449,55 +514,65 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
 
         APIGClient client = getClient(gateway);
         try {
-            CompletableFuture<GetGatewayResponse> f = client.execute(c -> {
-                GetGatewayRequest request = GetGatewayRequest.builder()
-                        .gatewayId(gateway.getGatewayId())
-                        .build();
+            CompletableFuture<GetGatewayResponse> f =
+                    client.execute(
+                            c -> {
+                                GetGatewayRequest request =
+                                        GetGatewayRequest.builder()
+                                                .gatewayId(gateway.getGatewayId())
+                                                .build();
 
-                return c.getGateway(request);
-
-            });
+                                return c.getGateway(request);
+                            });
 
             GetGatewayResponse response = f.join();
             if (response.getStatusCode() != 200) {
-                throw new BusinessException(ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
+                throw new BusinessException(
+                        ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
             }
 
-            List<GetGatewayResponseBody.LoadBalancers> loadBalancers = response.getBody().getData().getLoadBalancers();
+            List<GetGatewayResponseBody.LoadBalancers> loadBalancers =
+                    response.getBody().getData().getLoadBalancers();
             return loadBalancers.stream()
                     // Only internet load balancer support
-                    .filter(loadBalancer -> StrUtil.equalsIgnoreCase(loadBalancer.getAddressType(), "internet"))
+                    .filter(
+                            loadBalancer ->
+                                    StrUtil.equalsIgnoreCase(
+                                            loadBalancer.getAddressType(), "internet"))
                     .map(GetGatewayResponseBody.LoadBalancers::getIpv4Addresses)
                     .filter(Objects::nonNull)
                     .flatMap(Collection::stream)
                     .collect(Collectors.toList());
         } catch (Exception e) {
             log.error("Error fetching API", e);
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Error fetching API，Cause：" + e.getMessage());
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR, "Error fetching API，Cause：" + e.getMessage());
         }
     }
 
     public HttpApiApiInfo fetchAPI(Gateway gateway, String apiId) {
         APIGClient client = getClient(gateway);
         try {
-            CompletableFuture<GetHttpApiResponse> f = client.execute(c -> {
-                GetHttpApiRequest request = GetHttpApiRequest.builder()
-                        .httpApiId(apiId)
-                        .build();
+            CompletableFuture<GetHttpApiResponse> f =
+                    client.execute(
+                            c -> {
+                                GetHttpApiRequest request =
+                                        GetHttpApiRequest.builder().httpApiId(apiId).build();
 
-                return c.getHttpApi(request);
-
-            });
+                                return c.getHttpApi(request);
+                            });
 
             GetHttpApiResponse response = f.join();
             if (response.getStatusCode() != 200) {
-                throw new BusinessException(ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
+                throw new BusinessException(
+                        ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
             }
 
             return response.getBody().getData();
         } catch (Exception e) {
             log.error("Error fetching API", e);
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Error fetching API，Cause：" + e.getMessage());
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR, "Error fetching API，Cause：" + e.getMessage());
         }
     }
 
@@ -505,48 +580,57 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
         APIGClient client = getClient(gateway);
 
         try {
-            CompletableFuture<GetHttpApiRouteResponse> f = client.execute(c -> {
-                GetHttpApiRouteRequest request = GetHttpApiRouteRequest.builder()
-                        .httpApiId(apiId)
-                        .routeId(routeId)
-                        .build();
+            CompletableFuture<GetHttpApiRouteResponse> f =
+                    client.execute(
+                            c -> {
+                                GetHttpApiRouteRequest request =
+                                        GetHttpApiRouteRequest.builder()
+                                                .httpApiId(apiId)
+                                                .routeId(routeId)
+                                                .build();
 
-                return c.getHttpApiRoute(request);
-
-            });
+                                return c.getHttpApiRoute(request);
+                            });
 
             GetHttpApiRouteResponse response = f.join();
             if (response.getStatusCode() != 200) {
-                throw new BusinessException(ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
+                throw new BusinessException(
+                        ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
             }
 
             return response.getBody().getData();
 
         } catch (Exception e) {
             log.error("Error fetching HTTP Route", e);
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Error fetching HTTP Route，Cause：" + e.getMessage());
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR, "Error fetching HTTP Route，Cause：" + e.getMessage());
         }
     }
 
-    protected PageResult<APIResult> fetchAPIs(Gateway gateway, APIGAPIType type, int page, int size) {
+    protected PageResult<APIResult> fetchAPIs(
+            Gateway gateway, APIGAPIType type, int page, int size) {
         APIGClient client = getClient(gateway);
         try {
             List<APIResult> apis = new ArrayList<>();
-            CompletableFuture<ListHttpApisResponse> f = client.execute(c -> {
-                ListHttpApisRequest request = ListHttpApisRequest.builder()
-                        .gatewayId(gateway.getGatewayId())
-                        .gatewayType(gateway.getGatewayType().getType())
-                        .types(type.getType())
-                        .pageNumber(page)
-                        .pageSize(size)
-                        .build();
+            CompletableFuture<ListHttpApisResponse> f =
+                    client.execute(
+                            c -> {
+                                ListHttpApisRequest request =
+                                        ListHttpApisRequest.builder()
+                                                .gatewayId(gateway.getGatewayId())
+                                                .gatewayType(gateway.getGatewayType().getType())
+                                                .types(type.getType())
+                                                .pageNumber(page)
+                                                .pageSize(size)
+                                                .build();
 
-                return c.listHttpApis(request);
-            });
+                                return c.listHttpApis(request);
+                            });
 
             ListHttpApisResponse response = f.join();
             if (response.getStatusCode() != 200) {
-                throw new BusinessException(ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
+                throw new BusinessException(
+                        ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
             }
 
             for (HttpApiInfoByName item : response.getBody().getData().getItems()) {
@@ -561,35 +645,41 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
             return PageResult.of(apis, page, size, total);
         } catch (Exception e) {
             log.error("Error fetching APIs", e);
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Error fetching APIs，Cause：" + e.getMessage());
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR, "Error fetching APIs，Cause：" + e.getMessage());
         }
     }
 
-    public PageResult<HttpRoute> fetchHttpRoutes(Gateway gateway, String apiId, int page, int size) {
+    public PageResult<HttpRoute> fetchHttpRoutes(
+            Gateway gateway, String apiId, int page, int size) {
         APIGClient client = getClient(gateway);
         try {
-            CompletableFuture<ListHttpApiRoutesResponse> f = client.execute(c -> {
-                ListHttpApiRoutesRequest request = ListHttpApiRoutesRequest.builder()
-                        .gatewayId(gateway.getGatewayId())
-                        .httpApiId(apiId)
-                        .pageNumber(page)
-                        .pageSize(size)
-                        .build();
+            CompletableFuture<ListHttpApiRoutesResponse> f =
+                    client.execute(
+                            c -> {
+                                ListHttpApiRoutesRequest request =
+                                        ListHttpApiRoutesRequest.builder()
+                                                .gatewayId(gateway.getGatewayId())
+                                                .httpApiId(apiId)
+                                                .pageNumber(page)
+                                                .pageSize(size)
+                                                .build();
 
-                return c.listHttpApiRoutes(request);
-
-            });
+                                return c.listHttpApiRoutes(request);
+                            });
 
             ListHttpApiRoutesResponse response = f.join();
             if (response.getStatusCode() != 200) {
-                throw new BusinessException(ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
+                throw new BusinessException(
+                        ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
             }
             List<HttpRoute> httpRoutes = response.getBody().getData().getItems();
             int total = response.getBody().getData().getTotalSize();
             return PageResult.of(httpRoutes, page, size, total);
         } catch (Exception e) {
             log.error("Error fetching HTTP Roues", e);
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Error fetching HTTP Roues，Cause：" + e.getMessage());
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR, "Error fetching HTTP Roues，Cause：" + e.getMessage());
         }
     }
 
@@ -597,27 +687,32 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
         APIGClient client = getClient(gateway);
 
         try {
-            CompletableFuture<ListHttpApiOperationsResponse> f = client.execute(c -> {
-                ListHttpApiOperationsRequest request = ListHttpApiOperationsRequest.builder()
-                        .gatewayId(gateway.getGatewayId())
-                        .httpApiId(apiId)
-                        .pageNumber(1)
-                        .pageSize(500)
-                        .build();
+            CompletableFuture<ListHttpApiOperationsResponse> f =
+                    client.execute(
+                            c -> {
+                                ListHttpApiOperationsRequest request =
+                                        ListHttpApiOperationsRequest.builder()
+                                                .gatewayId(gateway.getGatewayId())
+                                                .httpApiId(apiId)
+                                                .pageNumber(1)
+                                                .pageSize(500)
+                                                .build();
 
-                return c.listHttpApiOperations(request);
-
-            });
+                                return c.listHttpApiOperations(request);
+                            });
 
             ListHttpApiOperationsResponse response = f.join();
             if (response.getStatusCode() != 200) {
-                throw new BusinessException(ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
+                throw new BusinessException(
+                        ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
             }
 
             return response.getBody().getData().getItems();
         } catch (Exception e) {
             log.error("Error fetching REST operations", e);
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Error fetching REST operations，Cause：" + e.getMessage());
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR,
+                    "Error fetching REST operations，Cause：" + e.getMessage());
         }
     }
 
@@ -627,18 +722,22 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
         }
 
         // ApikeySource
-        ApiKeyIdentityConfig.ApikeySource apikeySource = ApiKeyIdentityConfig.ApikeySource.builder()
-                .source(config.getSource())
-                .value(config.getKey())
-                .build();
+        ApiKeyIdentityConfig.ApikeySource apikeySource =
+                ApiKeyIdentityConfig.ApikeySource.builder()
+                        .source(config.getSource())
+                        .value(config.getKey())
+                        .build();
 
         // credentials
-        List<ApiKeyIdentityConfig.Credentials> credentials = config.getCredentials().stream()
-                .map(cred -> ApiKeyIdentityConfig.Credentials.builder()
-                        .apikey(cred.getApiKey())
-                        .generateMode("Custom")
-                        .build())
-                .collect(Collectors.toList());
+        List<ApiKeyIdentityConfig.Credentials> credentials =
+                config.getCredentials().stream()
+                        .map(
+                                cred ->
+                                        ApiKeyIdentityConfig.Credentials.builder()
+                                                .apikey(cred.getApiKey())
+                                                .generateMode("Custom")
+                                                .build())
+                        .collect(Collectors.toList());
 
         return ApiKeyIdentityConfig.builder()
                 .apikeySource(apikeySource)
@@ -653,12 +752,14 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
         }
 
         return hmacConfig.getCredentials().stream()
-                .map(cred -> AkSkIdentityConfig.builder()
-                        .ak(cred.getAk())
-                        .sk(cred.getSk())
-                        .generateMode("Custom")
-                        .type("AkSk")
-                        .build())
+                .map(
+                        cred ->
+                                AkSkIdentityConfig.builder()
+                                        .ak(cred.getAk())
+                                        .sk(cred.getSk())
+                                        .generateMode("Custom")
+                                        .type("AkSk")
+                                        .build())
                 .collect(Collectors.toList());
     }
 
@@ -667,40 +768,46 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
             return Collections.emptyList();
         }
 
-        Stream<DomainResult> subDomains = apiInfo.getEnvironments()
-                .stream()
-                .map(HttpApiApiInfo.Environments::getSubDomains)
-                .filter(Objects::nonNull)
-                .flatMap(List::stream)
-                .map(subDomain -> DomainResult.builder()
-                        .domain(subDomain.getName())
-                        .protocol(subDomain.getProtocol())
-                        .networkType(subDomain.getNetworkType())
-                        .build())
-                .filter(result -> result.getDomain() != null);
+        Stream<DomainResult> subDomains =
+                apiInfo.getEnvironments().stream()
+                        .map(HttpApiApiInfo.Environments::getSubDomains)
+                        .filter(Objects::nonNull)
+                        .flatMap(List::stream)
+                        .map(
+                                subDomain ->
+                                        DomainResult.builder()
+                                                .domain(subDomain.getName())
+                                                .protocol(subDomain.getProtocol())
+                                                .networkType(subDomain.getNetworkType())
+                                                .build())
+                        .filter(result -> result.getDomain() != null);
 
-        Stream<DomainResult> customDomains = apiInfo.getEnvironments()
-                .stream()
-                .map(HttpApiApiInfo.Environments::getCustomDomains)
-                .filter(Objects::nonNull)
-                .flatMap(List::stream)
-                .map(customDomain -> DomainResult.builder()
-                        .domain(customDomain.getName())
-                        .protocol(customDomain.getProtocol())
-                        .build())
-                .filter(result -> result.getDomain() != null);
+        Stream<DomainResult> customDomains =
+                apiInfo.getEnvironments().stream()
+                        .map(HttpApiApiInfo.Environments::getCustomDomains)
+                        .filter(Objects::nonNull)
+                        .flatMap(List::stream)
+                        .map(
+                                customDomain ->
+                                        DomainResult.builder()
+                                                .domain(customDomain.getName())
+                                                .protocol(customDomain.getProtocol())
+                                                .build())
+                        .filter(result -> result.getDomain() != null);
 
-        return Stream.concat(customDomains, subDomains)
-                .collect(Collectors.toList());
+        return Stream.concat(customDomains, subDomains).collect(Collectors.toList());
     }
 
     protected List<DomainResult> fetchDefaultDomains(Gateway gateway) {
         APIGClient client = getClient(gateway);
-        CompletableFuture<ListEnvironmentsResponse> f = client.execute(c ->
-                c.listEnvironments(ListEnvironmentsRequest.builder()
-                        .gatewayId(gateway.getGatewayId())
-                        .gatewayType(gateway.getGatewayType().getType())
-                        .build()));
+        CompletableFuture<ListEnvironmentsResponse> f =
+                client.execute(
+                        c ->
+                                c.listEnvironments(
+                                        ListEnvironmentsRequest.builder()
+                                                .gatewayId(gateway.getGatewayId())
+                                                .gatewayType(gateway.getGatewayType().getType())
+                                                .build()));
 
         ListEnvironmentsResponse response = f.join();
         if (200 != response.getStatusCode()) {
@@ -715,17 +822,17 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
         // Default Environment
         EnvironmentInfo env = items.get(0);
 
-        return Optional.ofNullable(env.getSubDomainInfos())
-                .orElse(Collections.emptyList())
-                .stream()
-                .map(domain -> DomainResult.builder()
-                        .domain(domain.getName())
-                        .protocol(Optional.ofNullable(domain.getProtocol())
-                                .map(String::toLowerCase)
-                                .orElse(null))
-                        .networkType(domain.getNetworkType())
-                        .build())
+        return Optional.ofNullable(env.getSubDomainInfos()).orElse(Collections.emptyList()).stream()
+                .map(
+                        domain ->
+                                DomainResult.builder()
+                                        .domain(domain.getName())
+                                        .protocol(
+                                                Optional.ofNullable(domain.getProtocol())
+                                                        .map(String::toLowerCase)
+                                                        .orElse(null))
+                                        .networkType(domain.getNetworkType())
+                                        .build())
                 .collect(Collectors.toList());
     }
 }
-

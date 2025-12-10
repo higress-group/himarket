@@ -19,42 +19,27 @@
 
 package com.alibaba.himarket.support.portal;
 
-import lombok.Data;
-
 import java.util.List;
+import lombok.Data;
 
 @Data
 public class PortalSettingConfig {
 
-    /**
-     * 内置的账号密码认证，默认开启
-     */
+    /** 内置的账号密码认证，默认开启 */
     private Boolean builtinAuthEnabled = true;
 
-    /**
-     * OIDC配置
-     */
+    /** OIDC配置 */
     private List<OidcConfig> oidcConfigs;
 
-    /**
-     * 开启自动审批开发者注册
-     */
+    /** 开启自动审批开发者注册 */
     private Boolean autoApproveDevelopers = false;
 
-    /**
-     * 开启自动审批订阅申请
-     */
+    /** 开启自动审批订阅申请 */
     private Boolean autoApproveSubscriptions = true;
 
-    /**
-     * OAuth2配置
-     */
+    /** OAuth2配置 */
     private List<OAuth2Config> oauth2Configs;
-    
-    /**
-     * 搜索引擎配置（新增）
-     * 每个 Portal 只能配置一个搜索引擎
-     * null 表示未配置
-     */
+
+    /** 搜索引擎配置（新增） 每个 Portal 只能配置一个搜索引擎 null 表示未配置 */
     private SearchEngineConfig searchEngineConfig;
 }

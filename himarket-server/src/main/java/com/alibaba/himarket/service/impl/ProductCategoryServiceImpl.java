@@ -26,9 +26,9 @@ import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.core.security.ContextHolder;
 import com.alibaba.himarket.core.utils.IdGenerator;
+import com.alibaba.himarket.dto.params.category.CreateProductCategoryParam;
 import com.alibaba.himarket.dto.params.category.QueryProductCategoryParam;
 import com.alibaba.himarket.dto.params.category.UpdateProductCategoryParam;
-import com.alibaba.himarket.dto.params.category.CreateProductCategoryParam;
 import com.alibaba.himarket.dto.result.ProductCategoryResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.entity.Product;
@@ -38,13 +38,6 @@ import com.alibaba.himarket.repository.ProductCategoryRelationRepository;
 import com.alibaba.himarket.repository.ProductCategoryRepository;
 import com.alibaba.himarket.service.ProductCategoryService;
 import com.alibaba.himarket.support.enums.ProductType;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.domain.Specification;
-import org.springframework.stereotype.Service;
-
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
@@ -53,6 +46,12 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.stereotype.Service;
 
 @Service
 @Slf4j
@@ -67,11 +66,16 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
 
     @Override
     public ProductCategoryResult createProductCategory(CreateProductCategoryParam param) {
-        categoryRepository.findByName(param.getName())
-                .ifPresent(category -> {
-                    throw new BusinessException(ErrorCode.CONFLICT,
-                            StrUtil.format("Product category {} already exists", category.getName()));
-                });
+        categoryRepository
+                .findByName(param.getName())
+                .ifPresent(
+                        category -> {
+                            throw new BusinessException(
+                                    ErrorCode.CONFLICT,
+                                    StrUtil.format(
+                                            "Product category {} already exists",
+                                            category.getName()));
+                        });
 
         String categoryId = IdGenerator.genCategoryId();
 
@@ -85,10 +89,13 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
     }
 
     @Override
-    public PageResult<ProductCategoryResult> listProductCategories(QueryProductCategoryParam param, Pageable pageable) {
-        Page<ProductCategory> categories = categoryRepository.findAll(buildProductCategorySpec(param), pageable);
-        return new PageResult<ProductCategoryResult>().convertFrom(categories,
-                category -> new ProductCategoryResult().convertFrom(category));
+    public PageResult<ProductCategoryResult> listProductCategories(
+            QueryProductCategoryParam param, Pageable pageable) {
+        Page<ProductCategory> categories =
+                categoryRepository.findAll(buildProductCategorySpec(param), pageable);
+        return new PageResult<ProductCategoryResult>()
+                .convertFrom(
+                        categories, category -> new ProductCategoryResult().convertFrom(category));
     }
 
     @Override
@@ -98,16 +105,21 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
     }
 
     @Override
-    public ProductCategoryResult updateProductCategory(String categoryId, UpdateProductCategoryParam param) {
+    public ProductCategoryResult updateProductCategory(
+            String categoryId, UpdateProductCategoryParam param) {
         ProductCategory category = findCategory(categoryId);
 
         Optional.ofNullable(param.getName())
                 .filter(name -> !name.equals(category.getName()))
                 .flatMap(categoryRepository::findByName)
-                .ifPresent(p -> {
-                    throw new BusinessException(ErrorCode.CONFLICT,
-                            StrUtil.format("Product category {} already exists", category.getName()));
-                });
+                .ifPresent(
+                        p -> {
+                            throw new BusinessException(
+                                    ErrorCode.CONFLICT,
+                                    StrUtil.format(
+                                            "Product category {} already exists",
+                                            category.getName()));
+                        });
 
         param.update(category);
         categoryRepository.saveAndFlush(category);
@@ -119,7 +131,8 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
     public void deleteProductCategory(String categoryId) {
         ProductCategory category = findCategory(categoryId);
         if (categoryRelationRepository.existsByCategoryId(categoryId)) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST,
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST,
                     StrUtil.format("Product category '{}' is in use", category.getName()));
         }
 
@@ -128,14 +141,16 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
 
     @Override
     public List<ProductCategoryResult> listCategoriesForProduct(String productId) {
-        List<ProductCategoryRelation> relations = categoryRelationRepository.findByProductId(productId);
+        List<ProductCategoryRelation> relations =
+                categoryRelationRepository.findByProductId(productId);
         if (CollUtil.isEmpty(relations)) {
             return CollUtil.newArrayList();
         }
 
-        List<String> categoryIds = relations.stream()
-                .map(ProductCategoryRelation::getCategoryId)
-                .collect(Collectors.toList());
+        List<String> categoryIds =
+                relations.stream()
+                        .map(ProductCategoryRelation::getCategoryId)
+                        .collect(Collectors.toList());
 
         return categoryRepository.findByCategoryIdIn(categoryIds).stream()
                 .map(category -> new ProductCategoryResult().convertFrom(category))
@@ -148,24 +163,29 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
             return;
         }
 
-        categoryIds = categoryRepository.findByCategoryIdIn(categoryIds).stream()
-                .map(ProductCategory::getCategoryId)
-                .collect(Collectors.toList());
+        categoryIds =
+                categoryRepository.findByCategoryIdIn(categoryIds).stream()
+                        .map(ProductCategory::getCategoryId)
+                        .collect(Collectors.toList());
 
-        Set<String> existedRelations = categoryRelationRepository.findByProductId(productId).stream()
-                .map(ProductCategoryRelation::getCategoryId)
-                .collect(Collectors.toSet());
+        Set<String> existedRelations =
+                categoryRelationRepository.findByProductId(productId).stream()
+                        .map(ProductCategoryRelation::getCategoryId)
+                        .collect(Collectors.toSet());
 
-        List<ProductCategoryRelation> relations = categoryIds.stream()
-                // filter out existed relations
-                .filter(categoryId -> !existedRelations.contains(categoryId))
-                .map(categoryId -> {
-                    ProductCategoryRelation relation = new ProductCategoryRelation();
-                    relation.setProductId(productId);
-                    relation.setCategoryId(categoryId);
-                    return relation;
-                })
-                .collect(Collectors.toList());
+        List<ProductCategoryRelation> relations =
+                categoryIds.stream()
+                        // filter out existed relations
+                        .filter(categoryId -> !existedRelations.contains(categoryId))
+                        .map(
+                                categoryId -> {
+                                    ProductCategoryRelation relation =
+                                            new ProductCategoryRelation();
+                                    relation.setProductId(productId);
+                                    relation.setCategoryId(categoryId);
+                                    return relation;
+                                })
+                        .collect(Collectors.toList());
 
         if (CollUtil.isNotEmpty(relations)) {
             categoryRelationRepository.saveAll(relations);
@@ -182,7 +202,7 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
         if (CollUtil.isEmpty(productIds)) {
             return;
         }
-        
+
         // Delete the relationships between products and category
         categoryRelationRepository.deleteByProductIdInAndCategoryId(productIds, categoryId);
     }
@@ -192,38 +212,47 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
         if (CollUtil.isEmpty(productIds)) {
             return;
         }
-        
+
         // Get existing relationships to avoid duplicates
-        Set<String> existingProductIds = categoryRelationRepository
-                .findByCategoryId(categoryId)
-                .stream()
-                .map(ProductCategoryRelation::getProductId)
-                .collect(Collectors.toSet());
-        
+        Set<String> existingProductIds =
+                categoryRelationRepository.findByCategoryId(categoryId).stream()
+                        .map(ProductCategoryRelation::getProductId)
+                        .collect(Collectors.toSet());
+
         // Create new relationships
-        List<ProductCategoryRelation> newRelations = productIds.stream()
-                .filter(productId -> !existingProductIds.contains(productId))
-                .map(productId -> {
-                    ProductCategoryRelation relation = new ProductCategoryRelation();
-                    relation.setProductId(productId);
-                    relation.setCategoryId(categoryId);
-                    return relation;
-                })
-                .collect(Collectors.toList());
-        
+        List<ProductCategoryRelation> newRelations =
+                productIds.stream()
+                        .filter(productId -> !existingProductIds.contains(productId))
+                        .map(
+                                productId -> {
+                                    ProductCategoryRelation relation =
+                                            new ProductCategoryRelation();
+                                    relation.setProductId(productId);
+                                    relation.setCategoryId(categoryId);
+                                    return relation;
+                                })
+                        .collect(Collectors.toList());
+
         if (CollUtil.isNotEmpty(newRelations)) {
             categoryRelationRepository.saveAll(newRelations);
         }
-        
+
         log.info("Bound {} products to category {}", newRelations.size(), categoryId);
     }
 
     private ProductCategory findCategory(String categoryId) {
-        return categoryRepository.findByCategoryId(categoryId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, Resources.PRODUCT_CATEGORY, categoryId));
+        return categoryRepository
+                .findByCategoryId(categoryId)
+                .orElseThrow(
+                        () ->
+                                new BusinessException(
+                                        ErrorCode.NOT_FOUND,
+                                        Resources.PRODUCT_CATEGORY,
+                                        categoryId));
     }
 
-    private Specification<ProductCategory> buildProductCategorySpec(QueryProductCategoryParam param) {
+    private Specification<ProductCategory> buildProductCategorySpec(
+            QueryProductCategoryParam param) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
@@ -238,15 +267,20 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
 
                     // Use EXISTS clause to ensure proper handling of empty results
                     Subquery<Long> subquery = query.subquery(Long.class);
-                    Root<ProductCategoryRelation> relationRoot = subquery.from(ProductCategoryRelation.class);
+                    Root<ProductCategoryRelation> relationRoot =
+                            subquery.from(ProductCategoryRelation.class);
                     Root<Product> productRoot = subquery.from(Product.class);
 
                     subquery.select(cb.literal(1L))
-                            .where(cb.and(
-                                    cb.equal(relationRoot.get("categoryId"), root.get("categoryId")),
-                                    cb.equal(relationRoot.get("productId"), productRoot.get("productId")),
-                                    cb.equal(productRoot.get("type"), productType)
-                            ));
+                            .where(
+                                    cb.and(
+                                            cb.equal(
+                                                    relationRoot.get("categoryId"),
+                                                    root.get("categoryId")),
+                                            cb.equal(
+                                                    relationRoot.get("productId"),
+                                                    productRoot.get("productId")),
+                                            cb.equal(productRoot.get("type"), productType)));
 
                     predicates.add(cb.exists(subquery));
 

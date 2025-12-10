@@ -23,9 +23,8 @@ import com.alibaba.himarket.dto.converter.InputConverter;
 import com.alibaba.himarket.entity.Portal;
 import com.alibaba.himarket.support.portal.PortalSettingConfig;
 import com.alibaba.himarket.support.portal.PortalUiConfig;
-import lombok.Data;
-
 import jakarta.validation.constraints.Size;
+import lombok.Data;
 
 @Data
 public class UpdatePortalParam implements InputConverter<Portal> {

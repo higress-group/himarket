@@ -18,16 +18,15 @@
  */
 package com.alibaba.himarket.dto.params.chat;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.apache.commons.collections.MapUtils;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.definition.ToolDefinition;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 /**
  * @author shihan
@@ -36,9 +35,9 @@ import java.util.Map;
 @Getter
 @NoArgsConstructor
 public class ToolContext {
-    private final List<ToolCallback>          toolCallbacks     = new ArrayList<>();
+    private final List<ToolCallback> toolCallbacks = new ArrayList<>();
     private final Map<String, ToolDefinition> toolDefinitionMap = new HashMap<>();
-    private final Map<String, McpToolMeta>    toolMetaMap       = new HashMap<>();
+    private final Map<String, McpToolMeta> toolMetaMap = new HashMap<>();
 
     public static ToolContext of(Map<McpToolMeta, ToolCallback> toolsMap) {
         ToolContext toolContext = new ToolContext();
@@ -47,11 +46,12 @@ public class ToolContext {
         }
         toolContext.toolCallbacks.addAll(toolsMap.values());
 
-        toolsMap.forEach((meta, toolCallback) -> {
-            ToolDefinition toolDefinition = toolCallback.getToolDefinition();
-            toolContext.toolDefinitionMap.put(toolDefinition.name(), toolDefinition);
-            toolContext.toolMetaMap.put(toolDefinition.name(), meta);
-        });
+        toolsMap.forEach(
+                (meta, toolCallback) -> {
+                    ToolDefinition toolDefinition = toolCallback.getToolDefinition();
+                    toolContext.toolDefinitionMap.put(toolDefinition.name(), toolDefinition);
+                    toolContext.toolMetaMap.put(toolDefinition.name(), meta);
+                });
         return toolContext;
     }
 

@@ -6,11 +6,7 @@ import com.alibaba.himarket.dto.params.sls.SlsCheckLogstoreRequest;
 import com.alibaba.himarket.dto.params.sls.SlsCheckProjectRequest;
 import com.alibaba.himarket.dto.params.sls.SlsCommonQueryRequest;
 
-/**
- * 通用SLS日志查询服务
- * 支持多种认证方式和场景化查询
- *
- */
+/** 通用SLS日志查询服务 支持多种认证方式和场景化查询 */
 public interface SlsLogService {
 
     /**
@@ -29,7 +25,6 @@ public interface SlsLogService {
      */
     GenericSlsQueryResponse executeQuery(SlsCommonQueryRequest request);
 
-
     /**
      * 检查Project是否存在
      *
@@ -47,11 +42,9 @@ public interface SlsLogService {
     Boolean checkLogstoreExists(SlsCheckLogstoreRequest request);
 
     /**
-     * 为全局日志的 logstore 更新索引
-     * 使用配置中心的 project 和 logstore
+     * 为全局日志的 logstore 更新索引 使用配置中心的 project 和 logstore
      *
      * @param userId 用户ID（用于STS认证）
      */
     void updateLogIndex(String userId);
-
 }

@@ -25,17 +25,21 @@ import com.alibaba.himarket.support.enums.ProductStatus;
 import com.alibaba.himarket.support.enums.ProductType;
 import com.alibaba.himarket.support.product.Icon;
 import com.alibaba.himarket.support.product.ProductFeature;
+import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-import jakarta.persistence.*;
-
 @EqualsAndHashCode(callSuper = true)
 @Entity
-@Table(name = "product",
+@Table(
+        name = "product",
         uniqueConstraints = {
-                @UniqueConstraint(columnNames = {"product_id"}, name = "uk_product_id"),
-                @UniqueConstraint(columnNames = {"name"}, name = "uk_name")
+            @UniqueConstraint(
+                    columnNames = {"product_id"},
+                    name = "uk_product_id"),
+            @UniqueConstraint(
+                    columnNames = {"name"},
+                    name = "uk_name")
         })
 @Data
 public class Product extends BaseEntity {

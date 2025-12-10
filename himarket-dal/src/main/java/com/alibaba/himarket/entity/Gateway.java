@@ -21,23 +21,25 @@ package com.alibaba.himarket.entity;
 
 import com.alibaba.himarket.converter.APIGConfigConverter;
 import com.alibaba.himarket.converter.AdpAIGatewayConfigConverter;
-import com.alibaba.himarket.converter.HigressConfigConverter;
 import com.alibaba.himarket.converter.ApsaraGatewayConfigConverter;
+import com.alibaba.himarket.converter.HigressConfigConverter;
 import com.alibaba.himarket.support.enums.GatewayType;
 import com.alibaba.himarket.support.gateway.APIGConfig;
 import com.alibaba.himarket.support.gateway.AdpAIGatewayConfig;
-import com.alibaba.himarket.support.gateway.HigressConfig;
 import com.alibaba.himarket.support.gateway.ApsaraGatewayConfig;
+import com.alibaba.himarket.support.gateway.HigressConfig;
+import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-import jakarta.persistence.*;
-
 @EqualsAndHashCode(callSuper = true)
 @Entity
-@Table(name = "gateway",
+@Table(
+        name = "gateway",
         uniqueConstraints = {
-                @UniqueConstraint(columnNames = {"gateway_id"}, name = "uk_gateway_id"),
+            @UniqueConstraint(
+                    columnNames = {"gateway_id"},
+                    name = "uk_gateway_id"),
         })
 @Data
 public class Gateway extends BaseEntity {

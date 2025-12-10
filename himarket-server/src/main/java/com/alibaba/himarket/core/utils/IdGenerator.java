@@ -23,19 +23,13 @@ import cn.hutool.core.lang.ObjectId;
 
 /**
  * ID生成器
- * <p>
- * 格式为: prefix + 24位字符串
- * <p>
- * 支持的ID类型:
- * - 门户ID: portal-xxxxxx
- * - API产品ID: api-xxxxxx
- * - 开发者ID: dev-xxxxxx
- * - 管理员ID: admin-xxxxxx
- * - 产品类别ID: category-xxxxxx
- * <p>
- * 注意:
- * - API ID由网关同步，不在此生成
  *
+ * <p>格式为: prefix + 24位字符串
+ *
+ * <p>支持的ID类型: - 门户ID: portal-xxxxxx - API产品ID: api-xxxxxx - 开发者ID: dev-xxxxxx - 管理员ID: admin-xxxxxx
+ * - 产品类别ID: category-xxxxxx
+ *
+ * <p>注意: - API ID由网关同步，不在此生成
  */
 public class IdGenerator {
 

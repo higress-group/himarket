@@ -7,7 +7,6 @@ import lombok.Getter;
  */
 @Getter
 public enum MCPTransportMode {
-
     STDIO("stdio"),
 
     SSE("sse"),

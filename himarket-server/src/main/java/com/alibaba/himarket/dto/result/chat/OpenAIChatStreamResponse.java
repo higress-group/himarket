@@ -3,10 +3,9 @@ package com.alibaba.himarket.dto.result.chat;
 import cn.hutool.core.annotation.Alias;
 import com.alibaba.himarket.support.chat.ChatUsage;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.Data;
-
 import java.util.List;
 import java.util.Optional;
+import lombok.Data;
 
 /**
  * @author zh
@@ -14,58 +13,38 @@ import java.util.Optional;
 @Data
 public class OpenAIChatStreamResponse {
 
-    /**
-     * Response ID
-     */
+    /** Response ID */
     private String id;
 
-    /**
-     * Response type, currently always "chat.completion.chunk"
-     */
+    /** Response type, currently always "chat.completion.chunk" */
     private String object;
 
-    /**
-     * Timestamp
-     */
+    /** Timestamp */
     private Long created;
 
-    /**
-     * Usage
-     */
+    /** Usage */
     private Usage usage;
 
-    /**
-     * Model name
-     */
+    /** Model name */
     private String model;
 
-    /**
-     * System fingerprint
-     */
+    /** System fingerprint */
     @JsonProperty("system_fingerprint")
     @Alias("system_fingerprint")
     private String systemFingerprint;
 
-    /**
-     * Choices
-     */
+    /** Choices */
     private List<Choice> choices;
 
     @Data
     public static class Choice {
-        /**
-         * Delta
-         */
+        /** Delta */
         private Delta delta;
 
-        /**
-         * Index
-         */
+        /** Index */
         private Integer index;
 
-        /**
-         * Reason for completion
-         */
+        /** Reason for completion */
         @JsonProperty("finish_reason")
         @Alias("finish_reason")
         private String finishReason;
@@ -73,19 +52,13 @@ public class OpenAIChatStreamResponse {
 
     @Data
     public static class Delta {
-        /**
-         * Role
-         */
+        /** Role */
         private String role;
 
-        /**
-         * Content
-         */
+        /** Content */
         private String content;
 
-        /**
-         * Reasoning content, only returned when finish_reason is "reasoning"
-         */
+        /** Reasoning content, only returned when finish_reason is "reasoning" */
         @JsonProperty("reasoning_content")
         @Alias("reasoning_content")
         private String reasoningContent;
@@ -102,30 +75,22 @@ public class OpenAIChatStreamResponse {
         @Alias("elapsed_time")
         private Long elapsedTime;
 
-        /**
-         * Tokens used for prompt
-         */
+        /** Tokens used for prompt */
         @JsonProperty("prompt_tokens")
         @Alias("prompt_tokens")
         private Integer promptTokens;
 
-        /**
-         * Tokens used for completion
-         */
+        /** Tokens used for completion */
         @JsonProperty("completion_tokens")
         @Alias("completion_tokens")
         private Integer completionTokens;
 
-        /**
-         * Total tokens used, including prompt and completion
-         */
+        /** Total tokens used, including prompt and completion */
         @JsonProperty("total_tokens")
         @Alias("total_tokens")
         private Integer totalTokens;
 
-        /**
-         * Tokens used for prompt details
-         */
+        /** Tokens used for prompt details */
         @JsonProperty("prompt_tokens_details")
         @Alias("prompt_tokens_details")
         private PromptTokensDetails promptTokensDetails;
@@ -133,9 +98,7 @@ public class OpenAIChatStreamResponse {
 
     @Data
     public static class PromptTokensDetails {
-        /**
-         * Cached tokens
-         */
+        /** Cached tokens */
         @JsonProperty("cached_tokens")
         @Alias("cached_tokens")
         private Integer cachedTokens;
@@ -150,11 +113,14 @@ public class OpenAIChatStreamResponse {
                 .promptTokens(this.usage.getPromptTokens())
                 .completionTokens(this.usage.getCompletionTokens())
                 .totalTokens(this.usage.getTotalTokens())
-                .promptTokensDetails(Optional.ofNullable(this.usage.getPromptTokensDetails())
-                        .map(details -> ChatUsage.PromptTokensDetails.builder()
-                                .cachedTokens(details.getCachedTokens())
-                                .build())
-                        .orElse(null))
+                .promptTokensDetails(
+                        Optional.ofNullable(this.usage.getPromptTokensDetails())
+                                .map(
+                                        details ->
+                                                ChatUsage.PromptTokensDetails.builder()
+                                                        .cachedTokens(details.getCachedTokens())
+                                                        .build())
+                                .orElse(null))
                 .build();
     }
 }

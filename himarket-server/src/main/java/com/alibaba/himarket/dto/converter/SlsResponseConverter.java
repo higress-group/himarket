@@ -1,31 +1,25 @@
 package com.alibaba.himarket.dto.converter;
 
+import com.alibaba.himarket.dto.params.sls.GenericSlsQueryResponse;
+import com.alibaba.himarket.dto.params.sls.TimeSeriesChartResponse;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import com.alibaba.himarket.dto.params.sls.GenericSlsQueryResponse;
-import com.alibaba.himarket.dto.params.sls.TimeSeriesChartResponse;
-
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.StringUtils;
 
-/**
- * SLS查询响应转换工具类
- * 用于将通用查询结果转换为前端所需的各种格式
- *
- */
+/** SLS查询响应转换工具类 用于将通用查询结果转换为前端所需的各种格式 */
 @Slf4j
 public class SlsResponseConverter {
 
     /**
      * 转换为时序图表数据
      *
-     * @param response    通用查询响应
-     * @param timeField   时间字段名（如: time, __time__）
-     * @param valueField  数值字段名（如: count, total）
-     * @param interval    时间间隔（秒）
+     * @param response 通用查询响应
+     * @param timeField 时间字段名（如: time, __time__）
+     * @param valueField 数值字段名（如: count, total）
+     * @param interval 时间间隔（秒）
      * @return 时序图表响应
      */
     public static TimeSeriesChartResponse toTimeSeriesChart(
@@ -39,17 +33,19 @@ public class SlsResponseConverter {
             return null;
         }
 
-        List<Map<String, String>> data = response.getAggregations() != null
-                ? response.getAggregations()
-                : response.getLogs();
+        List<Map<String, String>> data =
+                response.getAggregations() != null
+                        ? response.getAggregations()
+                        : response.getLogs();
 
         if (data == null || data.isEmpty()) {
             return TimeSeriesChartResponse.builder()
                     .dataPoints(new ArrayList<>())
-                    .metadata(TimeSeriesChartResponse.ChartMetadata.builder()
-                            .totalCount(0L)
-                            .interval(interval)
-                            .build())
+                    .metadata(
+                            TimeSeriesChartResponse.ChartMetadata.builder()
+                                    .totalCount(0L)
+                                    .interval(interval)
+                                    .build())
                     .build();
         }
 
@@ -64,10 +60,11 @@ public class SlsResponseConverter {
             }
 
             try {
-                TimeSeriesChartResponse.TimeSeriesDataPoint point = TimeSeriesChartResponse.TimeSeriesDataPoint.builder()
-                        .timestamp(time)
-                        .value(Double.parseDouble(value))
-                        .build();
+                TimeSeriesChartResponse.TimeSeriesDataPoint point =
+                        TimeSeriesChartResponse.TimeSeriesDataPoint.builder()
+                                .timestamp(time)
+                                .value(Double.parseDouble(value))
+                                .build();
 
                 // 添加其他维度字段
                 Map<String, String> dimensions = new HashMap<>();
@@ -87,17 +84,15 @@ public class SlsResponseConverter {
             }
         }
 
-        TimeSeriesChartResponse.ChartMetadata metadata = TimeSeriesChartResponse.ChartMetadata.builder()
-                .totalCount((long) dataPoints.size())
-                .interval(interval)
-                .xAxisLabel("Time")
-                .yAxisLabel(valueField)
-                .build();
+        TimeSeriesChartResponse.ChartMetadata metadata =
+                TimeSeriesChartResponse.ChartMetadata.builder()
+                        .totalCount((long) dataPoints.size())
+                        .interval(interval)
+                        .xAxisLabel("Time")
+                        .yAxisLabel(valueField)
+                        .build();
 
-        return TimeSeriesChartResponse.builder()
-                .dataPoints(dataPoints)
-                .metadata(metadata)
-                .build();
+        return TimeSeriesChartResponse.builder().dataPoints(dataPoints).metadata(metadata).build();
     }
 
     /**
@@ -108,8 +103,7 @@ public class SlsResponseConverter {
      * @return 时序图表响应
      */
     public static TimeSeriesChartResponse toTimeSeriesChart(
-            GenericSlsQueryResponse response,
-            Integer interval) {
+            GenericSlsQueryResponse response, Integer interval) {
         return toTimeSeriesChart(response, "time", "count", interval);
     }
 
@@ -166,15 +160,13 @@ public class SlsResponseConverter {
     /**
      * 转换为饼图数据
      *
-     * @param response   通用查询响应
+     * @param response 通用查询响应
      * @param labelField 标签字段名
      * @param valueField 数值字段名
      * @return 饼图数据
      */
     public static List<Map<String, Object>> toPieChart(
-            GenericSlsQueryResponse response,
-            String labelField,
-            String valueField) {
+            GenericSlsQueryResponse response, String labelField, String valueField) {
 
         List<Map<String, Object>> pieData = new ArrayList<>();
 
@@ -182,9 +174,10 @@ public class SlsResponseConverter {
             return pieData;
         }
 
-        List<Map<String, String>> data = response.getAggregations() != null
-                ? response.getAggregations()
-                : response.getLogs();
+        List<Map<String, String>> data =
+                response.getAggregations() != null
+                        ? response.getAggregations()
+                        : response.getLogs();
 
         if (data == null) {
             return pieData;

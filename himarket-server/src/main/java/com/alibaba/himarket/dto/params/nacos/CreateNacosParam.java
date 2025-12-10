@@ -21,15 +21,10 @@ package com.alibaba.himarket.dto.params.nacos;
 
 import com.alibaba.himarket.dto.converter.InputConverter;
 import com.alibaba.himarket.entity.NacosInstance;
-
+import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
-import jakarta.validation.constraints.NotBlank;
-
-/**
- * 创建Nacos实例参数
- *
- */
+/** 创建Nacos实例参数 */
 @Data
 public class CreateNacosParam implements InputConverter<NacosInstance> {
 
@@ -39,9 +34,7 @@ public class CreateNacosParam implements InputConverter<NacosInstance> {
     @NotBlank(message = "服务器地址不能为空")
     private String serverUrl;
 
-    /**
-     * 可选：客户端指定的 nacosId，若为空则由服务端生成
-     */
+    /** 可选：客户端指定的 nacosId，若为空则由服务端生成 */
     private String nacosId;
 
     // namespace removed from create param as it's no longer stored on instance

@@ -19,18 +19,20 @@
 
 package com.alibaba.himarket.entity;
 
-import jakarta.persistence.*;
-
 import com.alibaba.himarket.converter.IconConverter;
 import com.alibaba.himarket.support.product.Icon;
+import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 @EqualsAndHashCode(callSuper = true)
 @Entity
-@Table(name = "product_category",
+@Table(
+        name = "product_category",
         uniqueConstraints = {
-                @UniqueConstraint(columnNames = {"category_id"}, name = "uk_category_id")
+            @UniqueConstraint(
+                    columnNames = {"category_id"},
+                    name = "uk_category_id")
         })
 @Data
 public class ProductCategory extends BaseEntity {

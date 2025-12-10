@@ -19,16 +19,11 @@
 
 package com.alibaba.himarket.dto.params.nacos;
 
+import com.aliyun.teaopenapi.models.Config;
+import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
-import jakarta.validation.constraints.NotBlank;
-
-import com.aliyun.teaopenapi.models.Config;
-
-/**
- * 查询Nacos集群参数
- *
- */
+/** 查询Nacos集群参数 */
 @Data
 public class QueryNacosParam {
 
@@ -42,10 +37,11 @@ public class QueryNacosParam {
     private String secretKey;
 
     public Config toClientConfig() {
-        Config config = new Config()
-                .setAccessKeyId(this.accessKey)
-                .setAccessKeySecret(this.secretKey)
-                .setRegionId(this.regionId);
+        Config config =
+                new Config()
+                        .setAccessKeyId(this.accessKey)
+                        .setAccessKeySecret(this.secretKey)
+                        .setRegionId(this.regionId);
         return config;
     }
 }

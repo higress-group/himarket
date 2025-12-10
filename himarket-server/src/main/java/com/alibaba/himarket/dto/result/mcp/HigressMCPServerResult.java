@@ -26,7 +26,8 @@ import lombok.EqualsAndHashCode;
 
 @EqualsAndHashCode(callSuper = true)
 @Data
-public class HigressMCPServerResult extends GatewayMCPServerResult implements OutputConverter<HigressMCPServerResult, HigressMCPConfig> {
+public class HigressMCPServerResult extends GatewayMCPServerResult
+        implements OutputConverter<HigressMCPServerResult, HigressMCPConfig> {
 
     @Override
     public HigressMCPServerResult convertFrom(HigressMCPConfig mcp) {

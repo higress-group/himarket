@@ -21,9 +21,8 @@ package com.alibaba.himarket.dto.params.product;
 
 import com.alibaba.himarket.dto.converter.InputConverter;
 import com.alibaba.himarket.entity.ProductPublication;
-import lombok.Data;
-
 import jakarta.validation.constraints.NotBlank;
+import lombok.Data;
 
 @Data
 public class PublishProductParam implements InputConverter<ProductPublication> {

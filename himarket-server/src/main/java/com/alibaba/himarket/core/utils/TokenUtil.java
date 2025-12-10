@@ -29,7 +29,6 @@ import cn.hutool.jwt.signers.JWTSignerUtil;
 import com.alibaba.himarket.core.constant.CommonConstants;
 import com.alibaba.himarket.support.common.User;
 import com.alibaba.himarket.support.enums.UserType;
-
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import java.nio.charset.StandardCharsets;
@@ -90,10 +89,11 @@ public class TokenUtil {
     private static String generateToken(UserType userType, String userId) {
         long now = System.currentTimeMillis();
 
-        Map<String, String> claims = MapUtil.<String, String>builder()
-                .put(CommonConstants.USER_TYPE, userType.name())
-                .put(CommonConstants.USER_ID, userId)
-                .build();
+        Map<String, String> claims =
+                MapUtil.<String, String>builder()
+                        .put(CommonConstants.USER_TYPE, userType.name())
+                        .put(CommonConstants.USER_ID, userId)
+                        .build();
 
         return JWT.create()
                 .addPayloads(claims)
@@ -113,7 +113,9 @@ public class TokenUtil {
         JWT jwt = JWTUtil.parseToken(token);
 
         // 验证签名
-        boolean isValid = jwt.setSigner(JWTSignerUtil.hs256(getJwtSecret().getBytes(StandardCharsets.UTF_8))).verify();
+        boolean isValid =
+                jwt.setSigner(JWTSignerUtil.hs256(getJwtSecret().getBytes(StandardCharsets.UTF_8)))
+                        .verify();
         if (!isValid) {
             throw new IllegalArgumentException("Invalid token signature");
         }
@@ -141,12 +143,21 @@ public class TokenUtil {
 
         // 从Cookie中获取token
         if (StrUtil.isBlank(token)) {
-            token = Optional.ofNullable(request.getCookies())
-                    .flatMap(cookies -> Arrays.stream(cookies)
-                            .filter(cookie -> CommonConstants.AUTH_TOKEN_COOKIE.equals(cookie.getName()))
-                            .map(Cookie::getValue)
-                            .findFirst())
-                    .orElse(null);
+            token =
+                    Optional.ofNullable(request.getCookies())
+                            .flatMap(
+                                    cookies ->
+                                            Arrays.stream(cookies)
+                                                    .filter(
+                                                            cookie ->
+                                                                    CommonConstants
+                                                                            .AUTH_TOKEN_COOKIE
+                                                                            .equals(
+                                                                                    cookie
+                                                                                            .getName()))
+                                                    .map(Cookie::getValue)
+                                                    .findFirst())
+                            .orElse(null);
         }
         if (StrUtil.isBlank(token) || isTokenRevoked(token)) {
             return null;

@@ -7,12 +7,10 @@ import lombok.Getter;
  */
 @Getter
 public enum ChatSessionStatus {
-
     READY,
 
     PROCESSING,
 
     CLOSED,
-
     ;
 }

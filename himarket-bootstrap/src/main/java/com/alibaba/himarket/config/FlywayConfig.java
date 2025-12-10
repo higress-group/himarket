@@ -1,5 +1,6 @@
 package com.alibaba.himarket.config;
 
+import javax.sql.DataSource;
 import lombok.extern.slf4j.Slf4j;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.FlywayException;
@@ -7,8 +8,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
-
-import javax.sql.DataSource;
 
 /**
  * Auto-repair checksum errors. Set app.flyway.auto-repair=false to disable.
@@ -25,15 +24,16 @@ public class FlywayConfig {
     @Bean
     @Primary
     public Flyway flyway(DataSource dataSource) {
-        Flyway flyway = Flyway.configure()
-                .dataSource(dataSource)
-                .locations("classpath:db/migration")
-                .baselineOnMigrate(true)
-                .validateOnMigrate(true)
-                .outOfOrder(false)
-                .baselineVersion("1")
-                .baselineDescription("Initial baseline")
-                .load();
+        Flyway flyway =
+                Flyway.configure()
+                        .dataSource(dataSource)
+                        .locations("classpath:db/migration")
+                        .baselineOnMigrate(true)
+                        .validateOnMigrate(true)
+                        .outOfOrder(false)
+                        .baselineVersion("1")
+                        .baselineDescription("Initial baseline")
+                        .load();
 
         log.info("Executing flyway migrate...");
         try {

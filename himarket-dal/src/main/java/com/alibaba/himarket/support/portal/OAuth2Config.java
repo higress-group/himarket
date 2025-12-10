@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 package com.alibaba.himarket.support.portal;
 
 import com.alibaba.himarket.support.enums.GrantType;
@@ -29,34 +28,21 @@ import lombok.Data;
 @Data
 public class OAuth2Config {
 
-    /**
-     * 提供商
-     */
+    /** 提供商 */
     private String provider;
 
-    /**
-     * 名称
-     */
+    /** 名称 */
     private String name;
 
-    /**
-     * 是否启用
-     */
+    /** 是否启用 */
     private boolean enabled = true;
 
-    /**
-     * 授权模式
-     */
+    /** 授权模式 */
     private GrantType grantType;
 
-    /**
-     * JWT断言配置
-     */
+    /** JWT断言配置 */
     private JwtBearerConfig jwtBearerConfig;
 
-    /**
-     * 身份映射
-     */
+    /** 身份映射 */
     private IdentityMapping identityMapping = new IdentityMapping();
-
 }

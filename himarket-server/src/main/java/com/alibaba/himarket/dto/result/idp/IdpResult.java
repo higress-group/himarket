@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 package com.alibaba.himarket.dto.result.idp;
 
 import lombok.Builder;
@@ -27,13 +26,9 @@ import lombok.Data;
 @Builder
 public class IdpResult {
 
-    /**
-     * 提供商标识
-     */
+    /** 提供商标识 */
     private String provider;
 
-    /**
-     * 提供商名称
-     */
+    /** 提供商名称 */
     private String displayName;
 }

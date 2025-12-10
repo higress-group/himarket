@@ -19,21 +19,20 @@
 
 package com.alibaba.himarket.dto.result.mcp;
 
-import lombok.Data;
-
 import java.util.List;
+import lombok.Data;
 
 @Data
 public class AdpMcpServerListResult {
 
     private Integer code;
-    
+
     private String message;
-    
+
     private String msg;
-    
+
     private AdpMcpServerListData data;
-    
+
     @Data
     public static class AdpMcpServerListData {
         private List<AdpMCPServerResult> records;

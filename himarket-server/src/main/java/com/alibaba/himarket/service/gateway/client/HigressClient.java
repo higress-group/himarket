@@ -23,14 +23,13 @@ import cn.hutool.core.map.MapBuilder;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.service.gateway.factory.HTTPClientFactory;
 import com.alibaba.himarket.support.gateway.HigressConfig;
+import java.util.List;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
-
-import java.util.List;
-import java.util.Map;
 
 @Slf4j
 public class HigressClient extends GatewayClient {
@@ -47,29 +46,32 @@ public class HigressClient extends GatewayClient {
         this.restTemplate = HTTPClientFactory.createRestTemplate();
     }
 
-    public <T, R> T execute(String path,
-                            HttpMethod method,
-                            Map<String, String> queryParams,
-                            R body,
-                            ParameterizedTypeReference<T> responseType) {
+    public <T, R> T execute(
+            String path,
+            HttpMethod method,
+            Map<String, String> queryParams,
+            R body,
+            ParameterizedTypeReference<T> responseType) {
         return execute(path, method, null, queryParams, body, responseType);
     }
 
-    public <T, R> T execute(String path,
-                            HttpMethod method,
-                            Map<String, String> queryParams,
-                            R body,
-                            Class<T> responseType) {
-        return execute(path, method, queryParams, body,
-                ParameterizedTypeReference.forType(responseType));
+    public <T, R> T execute(
+            String path,
+            HttpMethod method,
+            Map<String, String> queryParams,
+            R body,
+            Class<T> responseType) {
+        return execute(
+                path, method, queryParams, body, ParameterizedTypeReference.forType(responseType));
     }
 
-    public <T, R> T execute(String path,
-                            HttpMethod method,
-                            HttpHeaders headers,
-                            Map<String, String> queryParams,
-                            R body,
-                            ParameterizedTypeReference<T> responseType) {
+    public <T, R> T execute(
+            String path,
+            HttpMethod method,
+            HttpHeaders headers,
+            Map<String, String> queryParams,
+            R body,
+            ParameterizedTypeReference<T> responseType) {
         try {
             return doExecute(path, method, headers, queryParams, body, responseType);
         } finally {
@@ -77,12 +79,13 @@ public class HigressClient extends GatewayClient {
         }
     }
 
-    private <T, R> T doExecute(String path,
-                               HttpMethod method,
-                               HttpHeaders headers,
-                               Map<String, String> queryParams,
-                               R body,
-                               ParameterizedTypeReference<T> responseType) {
+    private <T, R> T doExecute(
+            String path,
+            HttpMethod method,
+            HttpHeaders headers,
+            Map<String, String> queryParams,
+            R body,
+            ParameterizedTypeReference<T> responseType) {
         try {
             ensureConsoleToken();
 
@@ -96,15 +99,14 @@ public class HigressClient extends GatewayClient {
             }
             mergedHeaders.add("Cookie", HIGRESS_COOKIE_NAME + "=" + higressToken);
 
-            ResponseEntity<T> response = restTemplate.exchange(
-                    url,
-                    method,
-                    new HttpEntity<>(body, mergedHeaders),
-                    responseType
-            );
+            ResponseEntity<T> response =
+                    restTemplate.exchange(
+                            url, method, new HttpEntity<>(body, mergedHeaders), responseType);
 
-            log.info("Higress response: status={}, body={}",
-                    response.getStatusCode(), JSONUtil.toJsonStr(response.getBody()));
+            log.info(
+                    "Higress response: status={}, body={}",
+                    response.getStatusCode(),
+                    JSONUtil.toJsonStr(response.getBody()));
 
             return response.getBody();
         } catch (HttpClientErrorException e) {
@@ -116,8 +118,10 @@ public class HigressClient extends GatewayClient {
                 isRetrying.set(true);
                 return doExecute(path, method, headers, queryParams, body, responseType);
             }
-            log.error("HTTP error executing Higress request: status={}, body={}",
-                    e.getStatusCode(), e.getResponseBodyAsString());
+            log.error(
+                    "HTTP error executing Higress request: status={}, body={}",
+                    e.getStatusCode(),
+                    e.getResponseBodyAsString());
             throw e;
         } catch (Exception e) {
             log.error("Error executing Higress request: {}", e.getMessage());
@@ -130,12 +134,13 @@ public class HigressClient extends GatewayClient {
 
         if (queryParams != null && !queryParams.isEmpty()) {
             url.append('?');
-            queryParams.forEach((key, value) -> {
-                if (url.charAt(url.length() - 1) != '?') {
-                    url.append('&');
-                }
-                url.append(key).append('=').append(value);
-            });
+            queryParams.forEach(
+                    (key, value) -> {
+                        if (url.charAt(url.length() - 1) != '?') {
+                            url.append('&');
+                        }
+                        url.append(key).append('=').append(value);
+                    });
         }
 
         return url.toString();
@@ -156,36 +161,41 @@ public class HigressClient extends GatewayClient {
     }
 
     private void login() {
-        Map<Object, Object> loginParam = MapBuilder.create()
-                .put("username", config.getUsername())
-                .put("password", config.getPassword())
-                .build();
+        Map<Object, Object> loginParam =
+                MapBuilder.create()
+                        .put("username", config.getUsername())
+                        .put("password", config.getPassword())
+                        .build();
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
 
-        ResponseEntity<String> response = restTemplate.exchange(
-                buildUrl("/session/login"),
-                HttpMethod.POST,
-                new HttpEntity<>(loginParam, headers),
-                String.class
-        );
+        ResponseEntity<String> response =
+                restTemplate.exchange(
+                        buildUrl("/session/login"),
+                        HttpMethod.POST,
+                        new HttpEntity<>(loginParam, headers),
+                        String.class);
 
         List<String> cookies = response.getHeaders().get("Set-Cookie");
         if (cookies == null || cookies.isEmpty()) {
             throw new RuntimeException("No cookies received from server");
         }
 
-        this.higressToken = cookies.stream()
-                .filter(cookie -> cookie.startsWith(HIGRESS_COOKIE_NAME + "="))
-                .findFirst()
-                .map(cookie -> {
-                    int endIndex = cookie.indexOf(';');
-                    return endIndex == -1
-                            ? cookie.substring(HIGRESS_COOKIE_NAME.length() + 1)
-                            : cookie.substring(HIGRESS_COOKIE_NAME.length() + 1, endIndex);
-                })
-                .orElseThrow(() -> new RuntimeException("Failed to get Higress session token"));
+        this.higressToken =
+                cookies.stream()
+                        .filter(cookie -> cookie.startsWith(HIGRESS_COOKIE_NAME + "="))
+                        .findFirst()
+                        .map(
+                                cookie -> {
+                                    int endIndex = cookie.indexOf(';');
+                                    return endIndex == -1
+                                            ? cookie.substring(HIGRESS_COOKIE_NAME.length() + 1)
+                                            : cookie.substring(
+                                                    HIGRESS_COOKIE_NAME.length() + 1, endIndex);
+                                })
+                        .orElseThrow(
+                                () -> new RuntimeException("Failed to get Higress session token"));
     }
 
     @Override

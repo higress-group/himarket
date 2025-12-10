@@ -22,17 +22,16 @@ package com.alibaba.himarket.filter;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.core.security.ContextHolder;
 import com.alibaba.himarket.service.PortalService;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.jetbrains.annotations.NotNull;
-import org.springframework.web.filter.OncePerRequestFilter;
-
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.net.URI;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.jetbrains.annotations.NotNull;
+import org.springframework.web.filter.OncePerRequestFilter;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -43,7 +42,10 @@ public class PortalResolvingFilter extends OncePerRequestFilter {
     private final ContextHolder contextHolder;
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, @NotNull HttpServletResponse response, @NotNull FilterChain chain)
+    protected void doFilterInternal(
+            HttpServletRequest request,
+            @NotNull HttpServletResponse response,
+            @NotNull FilterChain chain)
             throws ServletException, IOException {
         try {
             String origin = request.getHeader("Origin");
@@ -61,8 +63,14 @@ public class PortalResolvingFilter extends OncePerRequestFilter {
                 }
             }
 
-            log.debug("域名解析调试 - Origin: {}, Host: {}, X-Forwarded-Host: {}, ServerName: {}, X-Real-IP: {}, X-Forwarded-For: {}",
-                    origin, host, xForwardedHost, request.getServerName(), xRealIp, xForwardedFor);
+            log.debug(
+                    "域名解析调试 - Origin: {}, Host: {}, X-Forwarded-Host: {}, ServerName: {}, X-Real-IP: {}, X-Forwarded-For: {}",
+                    origin,
+                    host,
+                    xForwardedHost,
+                    request.getServerName(),
+                    xRealIp,
+                    xForwardedFor);
 
             if (domain == null) {
                 // 优先使用Host头，如果没有则使用ServerName

@@ -37,9 +37,7 @@ public class GatewayConfig {
     private ApsaraGatewayConfig apsaraGatewayConfig;
 
     private HigressConfig higressConfig;
-    
-    /**
-     * 网关实体引用，用于获取gatewayId等信息
-     */
+
+    /** 网关实体引用，用于获取gatewayId等信息 */
     private Gateway gateway;
 }

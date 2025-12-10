@@ -24,38 +24,24 @@ import lombok.Data;
 
 @Data
 public class OidcConfig {
-    /**
-     * 提供商
-     */
+    /** 提供商 */
     private String provider;
 
-    /**
-     * 对外的名称
-     */
+    /** 对外的名称 */
     private String name;
 
-    /**
-     * 登录按钮logo
-     */
+    /** 登录按钮logo */
     private String logoUrl;
 
-    /**
-     * 是否启用
-     */
+    /** 是否启用 */
     private boolean enabled = true;
 
-    /**
-     * 授权类型，默认授权码
-     */
+    /** 授权类型，默认授权码 */
     private GrantType grantType = GrantType.AUTHORIZATION_CODE;
 
-    /**
-     * 授权码模式配置
-     */
+    /** 授权码模式配置 */
     private AuthCodeConfig authCodeConfig;
 
-    /**
-     * 身份映射
-     */
+    /** 身份映射 */
     private IdentityMapping identityMapping = new IdentityMapping();
 }

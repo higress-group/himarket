@@ -17,17 +17,14 @@
  * under the License.
  */
 
-
 package com.alibaba.himarket.support.enums;
 
 /**
  * @author zh
  */
 public enum IconType {
-
     URL,
 
     BASE64,
-
     ;
 }

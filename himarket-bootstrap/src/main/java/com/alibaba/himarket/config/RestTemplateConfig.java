@@ -19,15 +19,13 @@
 
 package com.alibaba.himarket.config;
 
-import lombok.RequiredArgsConstructor;
+import java.util.concurrent.TimeUnit;
 import okhttp3.ConnectionPool;
 import okhttp3.OkHttpClient;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.OkHttp3ClientHttpRequestFactory;
 import org.springframework.web.client.RestTemplate;
-
-import java.util.concurrent.TimeUnit;
 
 @Configuration
 public class RestTemplateConfig {

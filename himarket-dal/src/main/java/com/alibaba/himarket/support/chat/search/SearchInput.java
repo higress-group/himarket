@@ -19,20 +19,15 @@
 
 package com.alibaba.himarket.support.chat.search;
 
+import java.util.List;
 import lombok.Data;
 import lombok.experimental.Accessors;
-
-import java.util.List;
 
 @Data
 @Accessors(chain = true)
 public class SearchInput {
     private String query;
-    
-    /**
-     * 时间范围，格式: ["2025-03-31", "2025-04-30"]
-     * 空列表或null表示不限制时间
-     * 两个元素分别表示开始日期和结束日期
-     */
+
+    /** 时间范围，格式: ["2025-03-31", "2025-04-30"] 空列表或null表示不限制时间 两个元素分别表示开始日期和结束日期 */
     private List<String> time;
 }

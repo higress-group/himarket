@@ -13,10 +13,9 @@ import com.aliyuncs.exceptions.ClientException;
 import com.aliyuncs.http.FormatType;
 import com.aliyuncs.http.MethodType;
 import com.aliyuncs.profile.DefaultProfile;
-import lombok.extern.slf4j.Slf4j;
-
 import java.nio.charset.StandardCharsets;
 import java.util.function.Function;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class ApsaraGatewayClient extends GatewayClient {
@@ -30,16 +29,16 @@ public class ApsaraGatewayClient extends GatewayClient {
     }
 
     private IAcsClient createClient(ApsaraGatewayConfig config) {
-        DefaultProfile profile = DefaultProfile.getProfile(
-                config.getRegionId(),
-                config.getAccessKeyId(),
-                config.getAccessKeySecret());
+        DefaultProfile profile =
+                DefaultProfile.getProfile(
+                        config.getRegionId(), config.getAccessKeyId(), config.getAccessKeySecret());
         if (config.getSecurityToken() != null && !config.getSecurityToken().isEmpty()) {
-            profile = DefaultProfile.getProfile(
-                    config.getRegionId(),
-                    config.getAccessKeyId(),
-                    config.getAccessKeySecret(),
-                    config.getSecurityToken());
+            profile =
+                    DefaultProfile.getProfile(
+                            config.getRegionId(),
+                            config.getAccessKeyId(),
+                            config.getAccessKeySecret(),
+                            config.getSecurityToken());
         }
         return new DefaultAcsClient(profile);
     }
@@ -49,7 +48,8 @@ public class ApsaraGatewayClient extends GatewayClient {
         client.shutdown();
     }
 
-    public <E> E execute(String uri, MethodType methodType, JSONObject body, Function<JSONObject, E> converter) {
+    public <E> E execute(
+            String uri, MethodType methodType, JSONObject body, Function<JSONObject, E> converter) {
         CommonRequest request = new CommonRequest();
         request.setSysDomain(config.getDomain());
         request.setSysProduct(config.getProduct());
@@ -83,8 +83,10 @@ public class ApsaraGatewayClient extends GatewayClient {
             return converter.apply(data);
         } catch (ClientException e) {
             log.error("Error executing Apsara request", e);
-            throw new BusinessException(ErrorCode.GATEWAY_ERROR, e, 
-                "Failed to communicate with Apsara gateway: " + e.getMessage());
+            throw new BusinessException(
+                    ErrorCode.GATEWAY_ERROR,
+                    e,
+                    "Failed to communicate with Apsara gateway: " + e.getMessage());
         }
     }
 }

@@ -25,12 +25,11 @@ import cn.hutool.core.util.ReflectUtil;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.support.common.Encrypted;
 import com.alibaba.himarket.support.common.Encryptor;
-import lombok.extern.slf4j.Slf4j;
-
 import jakarta.persistence.AttributeConverter;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public abstract class JsonConverter<T> implements AttributeConverter<T, String> {
@@ -71,10 +70,11 @@ public abstract class JsonConverter<T> implements AttributeConverter<T, String> 
     @SuppressWarnings("unchecked")
     private T cloneAndEncrypt(T original) {
         // Clone避免JPA更新数据
-//        T cloned = JSONUtil.toBean(JSONUtil.toJsonStr(original), type);
-        T cloned = original instanceof List ?
-                (T) new ArrayList<>((List<?>) original) :
-                JSONUtil.toBean(JSONUtil.toJsonStr(original), type);
+        //        T cloned = JSONUtil.toBean(JSONUtil.toJsonStr(original), type);
+        T cloned =
+                original instanceof List
+                        ? (T) new ArrayList<>((List<?>) original)
+                        : JSONUtil.toBean(JSONUtil.toJsonStr(original), type);
         handleEncryption(cloned, true);
         return cloned;
     }
@@ -88,26 +88,29 @@ public abstract class JsonConverter<T> implements AttributeConverter<T, String> 
             return;
         }
 
-        BeanUtil.descForEach(obj.getClass(), pd -> {
-            Field field = pd.getField();
-            if (field == null) {
-                return;
-            }
+        BeanUtil.descForEach(
+                obj.getClass(),
+                pd -> {
+                    Field field = pd.getField();
+                    if (field == null) {
+                        return;
+                    }
 
-            Object value = ReflectUtil.getFieldValue(obj, field);
-            if (value == null) {
-                return;
-            }
+                    Object value = ReflectUtil.getFieldValue(obj, field);
+                    if (value == null) {
+                        return;
+                    }
 
-            // 处理需要加密/解密的字段
-            if (field.isAnnotationPresent(Encrypted.class) && value instanceof String) {
-                String result = isEncrypt ?
-                        Encryptor.encrypt((String) value) :
-                        Encryptor.decrypt((String) value);
-                ReflectUtil.setFieldValue(obj, field, result);
-            } else if (!ClassUtil.isSimpleValueType(value.getClass())) {
-                handleEncryption(value, isEncrypt);
-            }
-        });
+                    // 处理需要加密/解密的字段
+                    if (field.isAnnotationPresent(Encrypted.class) && value instanceof String) {
+                        String result =
+                                isEncrypt
+                                        ? Encryptor.encrypt((String) value)
+                                        : Encryptor.decrypt((String) value);
+                        ReflectUtil.setFieldValue(obj, field, result);
+                    } else if (!ClassUtil.isSimpleValueType(value.getClass())) {
+                        handleEncryption(value, isEncrypt);
+                    }
+                });
     }
 }

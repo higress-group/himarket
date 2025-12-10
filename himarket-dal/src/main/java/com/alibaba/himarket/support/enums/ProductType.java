@@ -20,7 +20,6 @@
 package com.alibaba.himarket.support.enums;
 
 public enum ProductType {
-
     REST_API,
 
     HTTP_API,
@@ -30,6 +29,5 @@ public enum ProductType {
     AGENT_API,
 
     MODEL_API,
-
     ;
 }

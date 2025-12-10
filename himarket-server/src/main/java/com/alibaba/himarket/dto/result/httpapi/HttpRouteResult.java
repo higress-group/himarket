@@ -4,14 +4,13 @@ import cn.hutool.core.util.BooleanUtil;
 import com.alibaba.himarket.dto.converter.OutputConverter;
 import com.alibaba.himarket.dto.result.common.DomainResult;
 import com.alibaba.himarket.service.gateway.HigressOperator;
-import lombok.Builder;
-import lombok.Data;
 import com.aliyun.sdk.service.apig20240327.models.HttpRoute;
-
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import lombok.Builder;
+import lombok.Data;
 
 /**
  * @author zh
@@ -34,42 +33,56 @@ public class HttpRouteResult implements OutputConverter<HttpRouteResult, HttpRou
      */
     public HttpRouteResult convertFrom(HttpRoute route, List<DomainResult> domains) {
         // path
-        RouteMatchPath matchPath = Optional.ofNullable(route.getMatch().getPath())
-                .map(path -> RouteMatchPath.builder()
-                        .value(path.getValue())
-                        .type(path.getType())
-                        .build())
-                .orElse(null);
+        RouteMatchPath matchPath =
+                Optional.ofNullable(route.getMatch().getPath())
+                        .map(
+                                path ->
+                                        RouteMatchPath.builder()
+                                                .value(path.getValue())
+                                                .type(path.getType())
+                                                .build())
+                        .orElse(null);
 
         // headers
-        List<RouteMatchHeader> matchHeaders = Optional.ofNullable(route.getMatch().getHeaders())
-                .map(headers -> headers.stream()
-                        .map(header -> RouteMatchHeader.builder()
-                                .name(header.getName())
-                                .type(header.getType())
-                                .value(header.getValue())
-                                .build())
-                        .collect(Collectors.toList()))
-                .orElse(null);
+        List<RouteMatchHeader> matchHeaders =
+                Optional.ofNullable(route.getMatch().getHeaders())
+                        .map(
+                                headers ->
+                                        headers.stream()
+                                                .map(
+                                                        header ->
+                                                                RouteMatchHeader.builder()
+                                                                        .name(header.getName())
+                                                                        .type(header.getType())
+                                                                        .value(header.getValue())
+                                                                        .build())
+                                                .collect(Collectors.toList()))
+                        .orElse(null);
 
         // queryParams
-        List<RouteMatchQuery> matchQueries = Optional.ofNullable(route.getMatch().getQueryParams())
-                .map(params -> params.stream()
-                        .map(param -> RouteMatchQuery.builder()
-                                .name(param.getName())
-                                .type(param.getType())
-                                .value(param.getValue())
-                                .build())
-                        .collect(Collectors.toList()))
-                .orElse(null);
+        List<RouteMatchQuery> matchQueries =
+                Optional.ofNullable(route.getMatch().getQueryParams())
+                        .map(
+                                params ->
+                                        params.stream()
+                                                .map(
+                                                        param ->
+                                                                RouteMatchQuery.builder()
+                                                                        .name(param.getName())
+                                                                        .type(param.getType())
+                                                                        .value(param.getValue())
+                                                                        .build())
+                                                .collect(Collectors.toList()))
+                        .orElse(null);
 
         // build routeMatch
-        RouteMatchResult routeMatchResult = RouteMatchResult.builder()
-                .methods(route.getMatch().getMethods())
-                .path(matchPath)
-                .headers(matchHeaders)
-                .queryParams(matchQueries)
-                .build();
+        RouteMatchResult routeMatchResult =
+                RouteMatchResult.builder()
+                        .methods(route.getMatch().getMethods())
+                        .path(matchPath)
+                        .headers(matchHeaders)
+                        .queryParams(matchQueries)
+                        .build();
 
         // backend
         BackendResult backendResult = new BackendResult().convertFrom(route.getBackend());
@@ -89,63 +102,97 @@ public class HttpRouteResult implements OutputConverter<HttpRouteResult, HttpRou
      * @param aiRoute
      * @return
      */
-    public HttpRouteResult convertFrom(HigressOperator.HigressAIRoute aiRoute, List<DomainResult> domains) {
+    public HttpRouteResult convertFrom(
+            HigressOperator.HigressAIRoute aiRoute, List<DomainResult> domains) {
         // path
-        HttpRouteResult.RouteMatchPath matchPath = Optional.ofNullable(aiRoute.getPathPredicate())
-                .map(path -> HttpRouteResult.RouteMatchPath.builder()
-                        .value(path.getMatchValue())
-                        .type(path.getMatchType())
-                        .caseSensitive(path.getCaseSensitive())
-                        .build())
-                .orElse(null);
+        HttpRouteResult.RouteMatchPath matchPath =
+                Optional.ofNullable(aiRoute.getPathPredicate())
+                        .map(
+                                path ->
+                                        HttpRouteResult.RouteMatchPath.builder()
+                                                .value(path.getMatchValue())
+                                                .type(path.getMatchType())
+                                                .caseSensitive(path.getCaseSensitive())
+                                                .build())
+                        .orElse(null);
 
         // methods
         List<String> methods = Collections.singletonList("POST");
 
         // headers
-        List<HttpRouteResult.RouteMatchHeader> matchHeaders = Optional.ofNullable(aiRoute.getHeaderPredicates())
-                .map(headers -> headers.stream()
-                        .map(header -> HttpRouteResult.RouteMatchHeader.builder()
-                                .name(header.getKey())
-                                .type(header.getMatchType())
-                                .value(header.getMatchValue())
-                                .caseSensitive(header.getCaseSensitive())
-                                .build())
-                        .collect(Collectors.toList()))
-                .orElse(null);
+        List<HttpRouteResult.RouteMatchHeader> matchHeaders =
+                Optional.ofNullable(aiRoute.getHeaderPredicates())
+                        .map(
+                                headers ->
+                                        headers.stream()
+                                                .map(
+                                                        header ->
+                                                                HttpRouteResult.RouteMatchHeader
+                                                                        .builder()
+                                                                        .name(header.getKey())
+                                                                        .type(header.getMatchType())
+                                                                        .value(
+                                                                                header
+                                                                                        .getMatchValue())
+                                                                        .caseSensitive(
+                                                                                header
+                                                                                        .getCaseSensitive())
+                                                                        .build())
+                                                .collect(Collectors.toList()))
+                        .orElse(null);
 
         // queryParams
-        List<HttpRouteResult.RouteMatchQuery> matchQueries = Optional.ofNullable(aiRoute.getUrlParamPredicates())
-                .map(params -> params.stream()
-                        .map(param -> HttpRouteResult.RouteMatchQuery.builder()
-                                .name(param.getKey())
-                                .type(param.getMatchType())
-                                .value(param.getMatchValue())
-                                .caseSensitive(param.getCaseSensitive())
-                                .build())
-                        .collect(Collectors.toList()))
-                .orElse(null);
+        List<HttpRouteResult.RouteMatchQuery> matchQueries =
+                Optional.ofNullable(aiRoute.getUrlParamPredicates())
+                        .map(
+                                params ->
+                                        params.stream()
+                                                .map(
+                                                        param ->
+                                                                HttpRouteResult.RouteMatchQuery
+                                                                        .builder()
+                                                                        .name(param.getKey())
+                                                                        .type(param.getMatchType())
+                                                                        .value(
+                                                                                param
+                                                                                        .getMatchValue())
+                                                                        .caseSensitive(
+                                                                                param
+                                                                                        .getCaseSensitive())
+                                                                        .build())
+                                                .collect(Collectors.toList()))
+                        .orElse(null);
 
         // modelMatches
-        List<HttpRouteResult.ModelMatch> modelMatches = Optional.ofNullable(aiRoute.getModelPredicates())
-                .map(params -> params.stream()
-                        .map(param -> HttpRouteResult.ModelMatch.builder()
-                                .name("model")
-                                .type(param.getMatchType())
-                                .value(param.getMatchValue())
-                                .caseSensitive(param.getCaseSensitive())
-                                .build())
-                        .collect(Collectors.toList()))
-                .orElse(null);
+        List<HttpRouteResult.ModelMatch> modelMatches =
+                Optional.ofNullable(aiRoute.getModelPredicates())
+                        .map(
+                                params ->
+                                        params.stream()
+                                                .map(
+                                                        param ->
+                                                                HttpRouteResult.ModelMatch.builder()
+                                                                        .name("model")
+                                                                        .type(param.getMatchType())
+                                                                        .value(
+                                                                                param
+                                                                                        .getMatchValue())
+                                                                        .caseSensitive(
+                                                                                param
+                                                                                        .getCaseSensitive())
+                                                                        .build())
+                                                .collect(Collectors.toList()))
+                        .orElse(null);
 
         // routeMatch
-        HttpRouteResult.RouteMatchResult routeMatchResult = HttpRouteResult.RouteMatchResult.builder()
-                .methods(methods)
-                .path(matchPath)
-                .headers(matchHeaders)
-                .queryParams(matchQueries)
-                .modelMatches(modelMatches)
-                .build();
+        HttpRouteResult.RouteMatchResult routeMatchResult =
+                HttpRouteResult.RouteMatchResult.builder()
+                        .methods(methods)
+                        .path(matchPath)
+                        .headers(matchHeaders)
+                        .queryParams(matchQueries)
+                        .modelMatches(modelMatches)
+                        .build();
 
         setDomains(domains);
         setMatch(routeMatchResult);

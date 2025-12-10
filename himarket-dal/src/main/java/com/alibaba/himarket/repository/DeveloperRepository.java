@@ -20,11 +20,10 @@
 package com.alibaba.himarket.repository;
 
 import com.alibaba.himarket.entity.Developer;
+import java.util.List;
+import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-
-import java.util.Optional;
-import java.util.List;
 
 public interface DeveloperRepository extends BaseRepository<Developer, Long> {
 
@@ -41,4 +40,4 @@ public interface DeveloperRepository extends BaseRepository<Developer, Long> {
     Optional<Developer> findByDeveloperIdAndPortalId(String developerId, String portalId);
 
     Page<Developer> findByPortalId(String portalId, Pageable pageable);
-} 
+}

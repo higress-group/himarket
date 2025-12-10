@@ -20,10 +20,9 @@
 package com.alibaba.himarket.repository;
 
 import com.alibaba.himarket.entity.Portal;
+import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-
-import java.util.Optional;
 
 public interface PortalRepository extends BaseRepository<Portal, Long> {
 

@@ -42,9 +42,6 @@ public class AuthResult {
     private Long expiresIn;
 
     public static AuthResult of(String accessToken, Long expiresIn) {
-        return AuthResult.builder()
-                .accessToken(accessToken)
-                .expiresIn(expiresIn)
-                .build();
+        return AuthResult.builder().accessToken(accessToken).expiresIn(expiresIn).build();
     }
-} 
+}

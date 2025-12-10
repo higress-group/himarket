@@ -30,43 +30,27 @@ public enum ErrorCode {
 
     // 客户端错误 (400-499)
 
-    /**
-     * 参数无效
-     */
+    /** 参数无效 */
     INVALID_PARAMETER(HttpStatus.BAD_REQUEST, "无效的请求参数：{}"),
 
-    /**
-     * 非法请求
-     */
+    /** 非法请求 */
     INVALID_REQUEST(HttpStatus.BAD_REQUEST, "请求无效：{}"),
 
-    /**
-     * 认证失败
-     */
+    /** 认证失败 */
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "认证失败：{}"),
 
-    /**
-     * 资源不存在
-     */
+    /** 资源不存在 */
     NOT_FOUND(HttpStatus.NOT_FOUND, "资源不存在：{}:{}"),
 
-    /**
-     * 资源冲突
-     */
+    /** 资源冲突 */
     CONFLICT(HttpStatus.CONFLICT, "资源冲突：{}"),
 
-
     // 服务端错误 (500-599)
-    /**
-     * 非预期错误
-     */
+    /** 非预期错误 */
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "服务器内部错误：{}"),
 
-    /**
-     * 网关操作相关错误
-     */
+    /** 网关操作相关错误 */
     GATEWAY_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "网关错误：{}"),
-
     ;
 
     private final HttpStatus status;
@@ -81,4 +65,3 @@ public enum ErrorCode {
         }
     }
 }
-

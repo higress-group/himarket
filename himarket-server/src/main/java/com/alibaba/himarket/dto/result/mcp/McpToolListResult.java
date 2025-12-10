@@ -20,9 +20,8 @@
 package com.alibaba.himarket.dto.result.mcp;
 
 import io.modelcontextprotocol.spec.McpSchema;
-import lombok.Data;
-
 import java.util.List;
+import lombok.Data;
 
 @Data
 public class McpToolListResult {

@@ -19,9 +19,8 @@
 
 package com.alibaba.himarket.dto.params.product;
 
-import lombok.Data;
-
 import jakarta.validation.constraints.NotBlank;
+import lombok.Data;
 
 @Data
 public class UnPublishProductParam {

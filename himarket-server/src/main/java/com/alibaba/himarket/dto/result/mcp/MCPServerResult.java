@@ -25,13 +25,11 @@ import lombok.Data;
 @Data
 @Schema(
         oneOf = {
-                APIGMCPServerResult.class,
-                HigressMCPServerResult.class,
-                NacosMCPServerResult.class
+            APIGMCPServerResult.class,
+            HigressMCPServerResult.class,
+            NacosMCPServerResult.class
         },
-        discriminatorProperty = "type"
-)
-
+        discriminatorProperty = "type")
 public class MCPServerResult {
     protected String mcpServerName;
 }

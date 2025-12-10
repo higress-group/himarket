@@ -22,6 +22,4 @@ package com.alibaba.himarket.support.consumer;
 import lombok.Data;
 
 @Data
-public class JwtConfig {
-
-}
+public class JwtConfig {}

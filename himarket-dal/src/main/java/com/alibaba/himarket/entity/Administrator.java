@@ -20,22 +20,26 @@
 package com.alibaba.himarket.entity;
 
 import jakarta.persistence.*;
-
-import lombok.Data;
-import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 @Entity
-@Table(name = "administrator", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"adminId"}, name = "uk_admin_id"),
-        @UniqueConstraint(columnNames = {"username"}, name = "uk_username")
-})
+@Table(
+        name = "administrator",
+        uniqueConstraints = {
+            @UniqueConstraint(
+                    columnNames = {"adminId"},
+                    name = "uk_admin_id"),
+            @UniqueConstraint(
+                    columnNames = {"username"},
+                    name = "uk_username")
+        })
 public class Administrator extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -49,5 +53,4 @@ public class Administrator extends BaseEntity {
 
     @Column(nullable = false, length = 255)
     private String passwordHash;
-
-} 
+}

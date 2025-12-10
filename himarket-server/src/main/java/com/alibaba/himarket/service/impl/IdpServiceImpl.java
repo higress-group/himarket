@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 package com.alibaba.himarket.service.impl;
 
 import cn.hutool.core.collection.CollUtil;
@@ -31,12 +30,6 @@ import com.alibaba.himarket.service.IdpService;
 import com.alibaba.himarket.support.enums.GrantType;
 import com.alibaba.himarket.support.enums.PublicKeyFormat;
 import com.alibaba.himarket.support.portal.*;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpMethod;
-import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
-
 import java.math.BigInteger;
 import java.security.KeyFactory;
 import java.security.PublicKey;
@@ -44,6 +37,11 @@ import java.security.spec.RSAPublicKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.*;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpMethod;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
 /**
  * @author zh
@@ -62,62 +60,75 @@ public class IdpServiceImpl implements IdpService {
         }
 
         // provider唯一
-        Set<String> providers = oidcConfigs.stream()
-                .map(OidcConfig::getProvider)
-                .filter(StrUtil::isNotBlank)
-                .collect(Collectors.toSet());
+        Set<String> providers =
+                oidcConfigs.stream()
+                        .map(OidcConfig::getProvider)
+                        .filter(StrUtil::isNotBlank)
+                        .collect(Collectors.toSet());
         if (providers.size() != oidcConfigs.size()) {
             throw new BusinessException(ErrorCode.CONFLICT, "OIDC配置中存在空或重复的provider");
         }
 
-        oidcConfigs.forEach(config -> {
-            AuthCodeConfig authConfig = Optional.ofNullable(config.getAuthCodeConfig())
-                    .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_PARAMETER,
-                            StrUtil.format("OIDC配置{}缺少授权码配置", config.getProvider())));
-            // 基础参数
-            if (StrUtil.isBlank(authConfig.getClientId()) ||
-                    StrUtil.isBlank(authConfig.getClientSecret()) ||
-                    StrUtil.isBlank(authConfig.getScopes())) {
-                throw new BusinessException(ErrorCode.INVALID_PARAMETER,
-                        StrUtil.format("OIDC配置{}缺少必要参数: Client ID, Client Secret 或 Scopes", config.getProvider()));
-            }
+        oidcConfigs.forEach(
+                config -> {
+                    AuthCodeConfig authConfig =
+                            Optional.ofNullable(config.getAuthCodeConfig())
+                                    .orElseThrow(
+                                            () ->
+                                                    new BusinessException(
+                                                            ErrorCode.INVALID_PARAMETER,
+                                                            StrUtil.format(
+                                                                    "OIDC配置{}缺少授权码配置",
+                                                                    config.getProvider())));
+                    // 基础参数
+                    if (StrUtil.isBlank(authConfig.getClientId())
+                            || StrUtil.isBlank(authConfig.getClientSecret())
+                            || StrUtil.isBlank(authConfig.getScopes())) {
+                        throw new BusinessException(
+                                ErrorCode.INVALID_PARAMETER,
+                                StrUtil.format(
+                                        "OIDC配置{}缺少必要参数: Client ID, Client Secret 或 Scopes",
+                                        config.getProvider()));
+                    }
 
-            // 端点配置
-            if (StrUtil.isNotBlank(authConfig.getIssuer())) {
-                discoverAndSetEndpoints(config.getProvider(), authConfig);
-            } else {
-                if (StrUtil.isBlank(authConfig.getAuthorizationEndpoint()) ||
-                        StrUtil.isBlank(authConfig.getTokenEndpoint()) ||
-                        StrUtil.isBlank(authConfig.getUserInfoEndpoint())) {
-                    throw new BusinessException(ErrorCode.INVALID_PARAMETER,
-                            StrUtil.format("OIDC配置{}缺少必要端点配置", config.getProvider()));
-                }
-            }
-        });
+                    // 端点配置
+                    if (StrUtil.isNotBlank(authConfig.getIssuer())) {
+                        discoverAndSetEndpoints(config.getProvider(), authConfig);
+                    } else {
+                        if (StrUtil.isBlank(authConfig.getAuthorizationEndpoint())
+                                || StrUtil.isBlank(authConfig.getTokenEndpoint())
+                                || StrUtil.isBlank(authConfig.getUserInfoEndpoint())) {
+                            throw new BusinessException(
+                                    ErrorCode.INVALID_PARAMETER,
+                                    StrUtil.format("OIDC配置{}缺少必要端点配置", config.getProvider()));
+                        }
+                    }
+                });
     }
 
     @SuppressWarnings("unchecked")
     private void discoverAndSetEndpoints(String provider, AuthCodeConfig config) {
-        String discoveryUrl = config.getIssuer().replaceAll("/$", "") + "/.well-known/openid-configuration";
+        String discoveryUrl =
+                config.getIssuer().replaceAll("/$", "") + "/.well-known/openid-configuration";
         try {
-            Map<String, Object> discovery = restTemplate.exchange(
-                            discoveryUrl,
-                            HttpMethod.GET,
-                            null,
-                            Map.class)
-                    .getBody();
+            Map<String, Object> discovery =
+                    restTemplate.exchange(discoveryUrl, HttpMethod.GET, null, Map.class).getBody();
 
             // 验证并设置端点
-            String authEndpoint = getRequiredEndpoint(discovery, IdpConstants.AUTHORIZATION_ENDPOINT);
+            String authEndpoint =
+                    getRequiredEndpoint(discovery, IdpConstants.AUTHORIZATION_ENDPOINT);
             String tokenEndpoint = getRequiredEndpoint(discovery, IdpConstants.TOKEN_ENDPOINT);
-            String userInfoEndpoint = getRequiredEndpoint(discovery, IdpConstants.USERINFO_ENDPOINT);
+            String userInfoEndpoint =
+                    getRequiredEndpoint(discovery, IdpConstants.USERINFO_ENDPOINT);
 
             config.setAuthorizationEndpoint(authEndpoint);
             config.setTokenEndpoint(tokenEndpoint);
             config.setUserInfoEndpoint(userInfoEndpoint);
         } catch (Exception e) {
             log.error("Failed to discover OIDC endpoints from discovery URL: {}", discoveryUrl, e);
-            throw new BusinessException(ErrorCode.INVALID_PARAMETER, StrUtil.format("OIDC配置{}的Issuer无效或无法访问", provider));
+            throw new BusinessException(
+                    ErrorCode.INVALID_PARAMETER,
+                    StrUtil.format("OIDC配置{}的Issuer无效或无法访问", provider));
         }
     }
 
@@ -125,8 +136,11 @@ public class IdpServiceImpl implements IdpService {
         return Optional.ofNullable(discovery.get(name))
                 .map(Object::toString)
                 .filter(StrUtil::isNotBlank)
-                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_PARAMETER,
-                        "OIDC Discovery配置中缺少端点: " + name));
+                .orElseThrow(
+                        () ->
+                                new BusinessException(
+                                        ErrorCode.INVALID_PARAMETER,
+                                        "OIDC Discovery配置中缺少端点: " + name));
     }
 
     @Override
@@ -136,46 +150,53 @@ public class IdpServiceImpl implements IdpService {
         }
 
         // provider唯一
-        Set<String> providers = oauth2Configs.stream()
-                .map(OAuth2Config::getProvider)
-                .filter(StrUtil::isNotBlank)
-                .collect(Collectors.toSet());
+        Set<String> providers =
+                oauth2Configs.stream()
+                        .map(OAuth2Config::getProvider)
+                        .filter(StrUtil::isNotBlank)
+                        .collect(Collectors.toSet());
         if (providers.size() != oauth2Configs.size()) {
             throw new BusinessException(ErrorCode.CONFLICT, "OAuth2配置中存在空或重复的provider");
         }
 
-        oauth2Configs.forEach(config -> {
-            if (GrantType.JWT_BEARER.equals(config.getGrantType())) {
-                validateJwtBearerConfig(config);
-            }
-        });
+        oauth2Configs.forEach(
+                config -> {
+                    if (GrantType.JWT_BEARER.equals(config.getGrantType())) {
+                        validateJwtBearerConfig(config);
+                    }
+                });
     }
 
     private void validateJwtBearerConfig(OAuth2Config config) {
         JwtBearerConfig jwtBearerConfig = config.getJwtBearerConfig();
         if (jwtBearerConfig == null) {
-            throw new BusinessException(ErrorCode.INVALID_PARAMETER,
+            throw new BusinessException(
+                    ErrorCode.INVALID_PARAMETER,
                     StrUtil.format("OAuth2配置{}使用JWT断言模式但缺少JWT断言配置", config.getProvider()));
         }
 
         List<PublicKeyConfig> publicKeys = jwtBearerConfig.getPublicKeys();
         if (CollUtil.isEmpty(publicKeys)) {
-            throw new BusinessException(ErrorCode.INVALID_PARAMETER,
+            throw new BusinessException(
+                    ErrorCode.INVALID_PARAMETER,
                     StrUtil.format("OAuth2配置{}缺少公钥配置", config.getProvider()));
         }
 
         if (publicKeys.stream()
-                .map(key -> {
-                    // 加载公钥验证有效性
-                    loadPublicKey(key.getFormat(), key.getValue());
-                    return key.getKid();
-                })
-                .collect(Collectors.toSet()).size() != publicKeys.size()) {
-            throw new BusinessException(ErrorCode.CONFLICT,
+                        .map(
+                                key -> {
+                                    // 加载公钥验证有效性
+                                    loadPublicKey(key.getFormat(), key.getValue());
+                                    return key.getKid();
+                                })
+                        .collect(Collectors.toSet())
+                        .size()
+                != publicKeys.size()) {
+            throw new BusinessException(
+                    ErrorCode.CONFLICT,
                     StrUtil.format("OAuth2配置{}的公钥ID存在重复", config.getProvider()));
         }
     }
-
 
     @Override
     public PublicKey loadPublicKey(PublicKeyFormat format, String publicKey) {
@@ -191,12 +212,13 @@ public class IdpServiceImpl implements IdpService {
 
     private PublicKey loadPublicKeyFromPem(String pemContent) {
         // 清理PEM格式标记和空白字符
-        String publicKeyPEM = pemContent
-                .replace("-----BEGIN PUBLIC KEY-----", "")
-                .replace("-----END PUBLIC KEY-----", "")
-                .replace("-----BEGIN RSA PUBLIC KEY-----", "")
-                .replace("-----END RSA PUBLIC KEY-----", "")
-                .replaceAll("\\s", "");
+        String publicKeyPEM =
+                pemContent
+                        .replace("-----BEGIN PUBLIC KEY-----", "")
+                        .replace("-----END PUBLIC KEY-----", "")
+                        .replace("-----BEGIN RSA PUBLIC KEY-----", "")
+                        .replace("-----END RSA PUBLIC KEY-----", "")
+                        .replaceAll("\\s", "");
 
         if (StrUtil.isBlank(publicKeyPEM)) {
             throw new IllegalArgumentException("PEM内容为空");
@@ -247,7 +269,8 @@ public class IdpServiceImpl implements IdpService {
             return keyFactory.generatePublic(spec);
         } catch (Exception e) {
             log.error("JWK RSA参数解析失败", e);
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "JWK RSA参数解析失败: " + e.getMessage());
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR, "JWK RSA参数解析失败: " + e.getMessage());
         }
     }
 

@@ -19,17 +19,17 @@
 
 package com.alibaba.himarket.service;
 
-import com.alibaba.himarket.dto.params.consumer.QueryConsumerParam;
 import com.alibaba.himarket.dto.params.consumer.CreateConsumerParam;
-import com.alibaba.himarket.dto.result.consumer.ConsumerResult;
+import com.alibaba.himarket.dto.params.consumer.CreateCredentialParam;
+import com.alibaba.himarket.dto.params.consumer.CreateSubscriptionParam;
+import com.alibaba.himarket.dto.params.consumer.QueryConsumerParam;
+import com.alibaba.himarket.dto.params.consumer.QuerySubscriptionParam;
+import com.alibaba.himarket.dto.params.consumer.UpdateCredentialParam;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.consumer.ConsumerCredentialResult;
+import com.alibaba.himarket.dto.result.consumer.ConsumerResult;
 import com.alibaba.himarket.dto.result.consumer.CredentialContext;
-import com.alibaba.himarket.dto.params.consumer.CreateCredentialParam;
-import com.alibaba.himarket.dto.params.consumer.UpdateCredentialParam;
 import com.alibaba.himarket.dto.result.product.SubscriptionResult;
-import com.alibaba.himarket.dto.params.consumer.CreateSubscriptionParam;
-import com.alibaba.himarket.dto.params.consumer.QuerySubscriptionParam;
 import org.springframework.data.domain.Pageable;
 
 public interface ConsumerService {
@@ -45,7 +45,7 @@ public interface ConsumerService {
     /**
      * Create a default consumer for a developer
      *
-     * @param param       consumer creation parameters
+     * @param param consumer creation parameters
      * @param developerId developer ID
      */
     void createConsumerInner(CreateConsumerParam param, String developerId);
@@ -130,7 +130,8 @@ public interface ConsumerService {
      * @param pageable
      * @return
      */
-    PageResult<SubscriptionResult> listSubscriptions(String consumerId, QuerySubscriptionParam param, Pageable pageable);
+    PageResult<SubscriptionResult> listSubscriptions(
+            String consumerId, QuerySubscriptionParam param, Pageable pageable);
 
     /**
      * Approve a subscription
@@ -141,8 +142,8 @@ public interface ConsumerService {
     SubscriptionResult approveSubscription(String consumerId, String productId);
 
     /**
-     * Get default credential authentication info for developer
-     * Returns empty maps if consumer or credential not found
+     * Get default credential authentication info for developer Returns empty maps if consumer or
+     * credential not found
      *
      * @param developerId developer ID
      * @return credential authentication info (never null, but maps may be empty)

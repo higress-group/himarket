@@ -19,24 +19,29 @@
 
 package com.alibaba.himarket.entity;
 
-import jakarta.persistence.*;
-
 import com.alibaba.himarket.support.enums.DeveloperAuthType;
 import com.alibaba.himarket.support.enums.DeveloperStatus;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 @Entity
-@Table(name = "developer", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"developerId"}, name = "uk_developer_id"),
-        @UniqueConstraint(columnNames = {"portalId", "username"}, name = "uk_portal_username")
-})
+@Table(
+        name = "developer",
+        uniqueConstraints = {
+            @UniqueConstraint(
+                    columnNames = {"developerId"},
+                    name = "uk_developer_id"),
+            @UniqueConstraint(
+                    columnNames = {"portalId", "username"},
+                    name = "uk_portal_username")
+        })
 public class Developer extends BaseEntity {
 
     @Id
@@ -68,5 +73,4 @@ public class Developer extends BaseEntity {
     @Column(length = 16)
     @Enumerated(EnumType.STRING)
     private DeveloperAuthType authType;
-
-} 
+}

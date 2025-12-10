@@ -5,70 +5,49 @@ import com.alibaba.himarket.dto.result.consumer.CredentialContext;
 import com.alibaba.himarket.support.chat.ChatMessage;
 import com.alibaba.himarket.support.chat.mcp.MCPTransportConfig;
 import com.alibaba.himarket.support.product.ModelFeature;
-import lombok.Builder;
-import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.openai.api.OpenAiApi.ChatCompletionRequest.WebSearchOptions;
-
 import java.net.URL;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import lombok.Builder;
+import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.ai.openai.api.OpenAiApi.ChatCompletionRequest.WebSearchOptions;
 
 @Data
 @Builder
 @Slf4j
 public class LlmChatRequest {
 
-    /**
-     * The unique chatId
-     */
+    /** The unique chatId */
     private String chatId;
 
-    /**
-     * User question
-     */
+    /** User question */
     private String userQuestion;
 
-    /**
-     * Generic chat messages, convertible to specific SDK formats (e.g., Spring AI Alibaba).
-     */
+    /** Generic chat messages, convertible to specific SDK formats (e.g., Spring AI Alibaba). */
     private List<ChatMessage> chatMessages;
 
-    /**
-     * URL, contains protocol, host and path
-     */
+    /** URL, contains protocol, host and path */
     private URL url;
 
-    /**
-     * Custom headers
-     */
+    /** Custom headers */
     private Map<String, String> headers;
 
-    /**
-     * If not empty, use these IPs to resolve DNS
-     */
+    /** If not empty, use these IPs to resolve DNS */
     private List<String> gatewayIps;
 
-    /**
-     * Credential for invoking the Model and MCP
-     */
+    /** Credential for invoking the Model and MCP */
     private CredentialContext credentialContext;
 
-    /**
-     * MCP servers with transport config
-     */
+    /** MCP servers with transport config */
     private List<MCPTransportConfig> mcpConfigs;
 
-    /**
-     * Model feature
-     */
+    /** Model feature */
     private ModelFeature modelFeature;
 
-    /**
-     * Web search options
-     */
+    /** Web search options */
     private WebSearchOptions webSearchOptions;
 
     public void tryResolveDns() {

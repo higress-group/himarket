@@ -1,10 +1,10 @@
 # Himarket 贡献指南
 
-感谢你对 Himarket 项目的关注！🎉
+感谢你对 Himarket 项目的关注！
 
 我们欢迎各种形式的贡献：Bug 修复、新功能、文档改进等等。
 
-## 🚀 快速开始
+## 快速开始
 
 ### Fork 并 Clone 仓库
 
@@ -26,7 +26,7 @@ git remote add upstream https://github.com/higress-group/himarket.git
 
 ---
 
-## 🔄 开发流程
+## 开发流程
 
 ### 1. 同步并创建分支
 
@@ -106,7 +106,7 @@ git push origin feat/your-feature-name
 
 ---
 
-## 📝 Pull Request 规范
+## Pull Request 规范
 
 ### PR 标题
 
@@ -173,11 +173,8 @@ Close #456
 
 1. **PR Check** - 验证 PR 标题和描述格式（必需 ✅）
 2. **Code Format Check** - 运行 `mvn spotless:check` 验证代码格式（必需 ✅）
-3. **Checkstyle Check** - 检查代码风格和最佳实践（警告 ⚠️）
 
-**必需检查**必须通过才能合并 PR。**警告检查**不会阻止 PR 合并，但会提供改进建议。
-
-如果检查失败，机器人会评论并说明如何修复。
+**所有检查必须通过**才能合并 PR。如果检查失败，机器人会评论并说明如何修复。
 
 **更详细的 PR 指南，请参考：**
 - [PR_GUIDE.md](.github/PR_GUIDE.md) - English version
@@ -185,7 +182,7 @@ Close #456
 
 ---
 
-## 💻 代码规范
+## 代码规范
 
 ### Java 代码
 
@@ -194,17 +191,12 @@ Close #456
 - 确保项目代码风格一致
 - **CI 检查不通过**则无法合并
 
-**代码风格（建议）：**
-- 我们使用 Checkstyle 检查最佳实践和风格问题
-- 本地运行 `mvn checkstyle:check` 查看建议
-- **CI 会警告**但不会阻止合并
-
 **最佳实践：**
-- 每行最多 120 个字符
 - 为变量、方法和类使用清晰、描述性的名称
 - 为公共 API 添加 Javadoc 注释
 - 避免魔法数字和空 catch 块
 - 保持方法专注且长度合理
+- 移除未使用的 import
 
 ### TypeScript/React 代码
 

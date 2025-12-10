@@ -20,21 +20,21 @@
 package com.alibaba.himarket.service.impl;
 
 import com.alibaba.himarket.service.TalkSearchAbilityService;
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-
 @Slf4j
 @Service
 public class TalkSearchFactory {
-    
-    @Autowired
-    private List<TalkSearchAbilityService> talkSearchAbilityList;
-    
+
+    @Autowired private List<TalkSearchAbilityService> talkSearchAbilityList;
+
     public TalkSearchAbilityService getSearchAbility(String searchType) {
-        return talkSearchAbilityList.stream().filter(searchAbility -> searchAbility.getSearchType().equals(searchType))
-                .findFirst().orElse(null);
+        return talkSearchAbilityList.stream()
+                .filter(searchAbility -> searchAbility.getSearchType().equals(searchType))
+                .findFirst()
+                .orElse(null);
     }
 }

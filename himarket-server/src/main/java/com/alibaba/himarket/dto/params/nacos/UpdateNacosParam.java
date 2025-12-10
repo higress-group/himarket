@@ -21,15 +21,11 @@ package com.alibaba.himarket.dto.params.nacos;
 
 import com.alibaba.himarket.dto.converter.InputConverter;
 import com.alibaba.himarket.entity.NacosInstance;
-import lombok.Data;
-
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import lombok.Data;
 
-/**
- * 更新Nacos实例参数
- *
- */
+/** 更新Nacos实例参数 */
 @Data
 public class UpdateNacosParam implements InputConverter<NacosInstance> {
 
@@ -57,4 +53,4 @@ public class UpdateNacosParam implements InputConverter<NacosInstance> {
 
     @Size(max = 512, message = "描述长度不能超过512个字符")
     private String description;
-    }
+}

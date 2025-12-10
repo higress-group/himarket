@@ -25,12 +25,11 @@ import com.alibaba.himarket.support.enums.GatewayType;
 import com.alibaba.himarket.support.gateway.APIGConfig;
 import com.alibaba.himarket.support.gateway.AdpAIGatewayConfig;
 import com.alibaba.himarket.support.gateway.HigressConfig;
+import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.time.LocalDateTime;
 
 @Data
 @Builder
@@ -58,7 +57,8 @@ public class GatewayResult implements OutputConverter<GatewayResult, Gateway> {
         if (source.getGatewayType().isAPIG()) {
             setApigConfig(new APIGConfigResult().convertFrom(source.getApigConfig()));
         } else if (source.getGatewayType().isAdpAIGateway()) {
-            setAdpAIGatewayConfig(new AdpAIGatewayConfigResult().convertFrom(source.getAdpAIGatewayConfig()));
+            setAdpAIGatewayConfig(
+                    new AdpAIGatewayConfigResult().convertFrom(source.getAdpAIGatewayConfig()));
         } else {
             setHigressConfig(new HigressConfigResult().convertFrom(source.getHigressConfig()));
         }
@@ -71,14 +71,16 @@ public class GatewayResult implements OutputConverter<GatewayResult, Gateway> {
     }
 
     @Data
-    public static class AdpAIGatewayConfigResult implements OutputConverter<AdpAIGatewayConfigResult, AdpAIGatewayConfig> {
+    public static class AdpAIGatewayConfigResult
+            implements OutputConverter<AdpAIGatewayConfigResult, AdpAIGatewayConfig> {
         private String baseUrl;
         private Integer port;
         private String authSeed;
     }
 
     @Data
-    public static class HigressConfigResult implements OutputConverter<HigressConfigResult, HigressConfig> {
+    public static class HigressConfigResult
+            implements OutputConverter<HigressConfigResult, HigressConfig> {
         private String address;
         private String username;
         private String gatewayAddress;

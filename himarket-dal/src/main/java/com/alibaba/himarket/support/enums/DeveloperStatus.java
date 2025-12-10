@@ -21,15 +21,10 @@ package com.alibaba.himarket.support.enums;
 
 public enum DeveloperStatus {
 
-    /**
-     * 已激活
-     */
+    /** 已激活 */
     APPROVED,
 
-    /**
-     * 待审核
-     */
+    /** 待审核 */
     PENDING,
-
     ;
 }

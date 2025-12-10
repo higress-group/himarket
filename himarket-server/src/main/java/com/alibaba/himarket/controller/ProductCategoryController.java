@@ -29,13 +29,12 @@ import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.service.ProductCategoryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
-
-import jakarta.validation.Valid;
-import java.util.List;
 
 @Tag(name = "产品类别管理", description = "提供产品类别的创建、更新、删除、查询等管理功能")
 @RestController
@@ -49,22 +48,24 @@ public class ProductCategoryController {
     @Operation(summary = "创建产品类别")
     @PostMapping
     @AdminAuth
-    public ProductCategoryResult createProductCategory(@RequestBody @Valid CreateProductCategoryParam param) {
+    public ProductCategoryResult createProductCategory(
+            @RequestBody @Valid CreateProductCategoryParam param) {
         return productCategoryService.createProductCategory(param);
     }
 
     @Operation(summary = "获取产品类别列表")
     @GetMapping
     @AdminOrDeveloperAuth
-    public PageResult<ProductCategoryResult> listProductCategories(QueryProductCategoryParam param, Pageable pageable) {
+    public PageResult<ProductCategoryResult> listProductCategories(
+            QueryProductCategoryParam param, Pageable pageable) {
         return productCategoryService.listProductCategories(param, pageable);
     }
 
     @Operation(summary = "更新产品类别")
     @PutMapping("/{categoryId}")
     @AdminAuth
-    public ProductCategoryResult updateProductCategory(@PathVariable String categoryId,
-                                                       @RequestBody @Valid UpdateProductCategoryParam param) {
+    public ProductCategoryResult updateProductCategory(
+            @PathVariable String categoryId, @RequestBody @Valid UpdateProductCategoryParam param) {
         return productCategoryService.updateProductCategory(categoryId, param);
     }
 
@@ -85,16 +86,16 @@ public class ProductCategoryController {
     @Operation(summary = "从类别中移除产品")
     @DeleteMapping("/{categoryId}/products")
     @AdminAuth
-    public void unbindProductsFromCategory(@PathVariable String categoryId, 
-                                          @RequestBody List<String> productIds) {
+    public void unbindProductsFromCategory(
+            @PathVariable String categoryId, @RequestBody List<String> productIds) {
         productCategoryService.unbindProductsFromCategory(productIds, categoryId);
     }
-    
+
     @Operation(summary = "向类别中添加产品")
     @PostMapping("/{categoryId}/products")
     @AdminAuth
-    public void bindProductsToCategory(@PathVariable String categoryId, 
-                                      @RequestBody List<String> productIds) {
+    public void bindProductsToCategory(
+            @PathVariable String categoryId, @RequestBody List<String> productIds) {
         productCategoryService.bindProductsToCategory(categoryId, productIds);
     }
 }

@@ -20,12 +20,10 @@
 package com.alibaba.himarket.support.enums;
 
 public enum ConsumerAuthType {
-
     KEY_AUTH,
 
     HMAC,
 
     JWT,
-
     ;
 }

@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 package com.alibaba.himarket.support.consumer;
 
 import lombok.Builder;

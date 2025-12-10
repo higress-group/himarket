@@ -1,21 +1,21 @@
-//package com.alibaba.apiopenplatform.dto.result.higress;
+// package com.alibaba.apiopenplatform.dto.result.higress;
 //
-//import cn.hutool.core.collection.CollUtil;
-//import com.alibaba.apiopenplatform.dto.converter.OutputConverter;
-//import com.alibaba.apiopenplatform.dto.result.common.DomainResult;
-//import com.alibaba.apiopenplatform.service.gateway.HigressOperator;
-//import com.aliyun.sdk.service.apig20240327.models.HttpRoute;
-//import lombok.Builder;
-//import lombok.Data;
+// import cn.hutool.core.collection.CollUtil;
+// import com.alibaba.apiopenplatform.dto.converter.OutputConverter;
+// import com.alibaba.apiopenplatform.dto.result.common.DomainResult;
+// import com.alibaba.apiopenplatform.service.gateway.HigressOperator;
+// import com.aliyun.sdk.service.apig20240327.models.HttpRoute;
+// import lombok.Builder;
+// import lombok.Data;
 //
-//import java.util.*;
-//import java.util.stream.Collectors;
+// import java.util.*;
+// import java.util.stream.Collectors;
 //
-///**
+/// **
 // * @author zh
 // */
-//@Data
-//public class HigressRouteResult implements OutputConverter<HigressRouteResult, HttpRoute> {
+// @Data
+// public class HigressRouteResult implements OutputConverter<HigressRouteResult, HttpRoute> {
 //
 //    private List<DomainResult> domains;
 //    private RouteMatchResult match;
@@ -39,11 +39,13 @@
 //                .orElse(null);
 //
 //        // methods
-//        List<String> methods = CollUtil.isEmpty(higressRoute.getMethods()) ? Collections.singletonList("POST") : higressRoute.getMethods();
+//        List<String> methods = CollUtil.isEmpty(higressRoute.getMethods()) ?
+// Collections.singletonList("POST") : higressRoute.getMethods();
 //
 //
 //        // headers
-//        List<RouteMatchHeader> matchHeaders = Optional.ofNullable(higressRoute.getHeaderPredicates())
+//        List<RouteMatchHeader> matchHeaders =
+// Optional.ofNullable(higressRoute.getHeaderPredicates())
 //                .map(headers -> headers.stream()
 //                        .map(header -> RouteMatchHeader.builder()
 //                                .name(header.getKey())
@@ -55,7 +57,8 @@
 //                .orElse(null);
 //
 //        // queryParams
-//        List<RouteMatchQuery> matchQueries = Optional.ofNullable(higressRoute.getUrlParamPredicates())
+//        List<RouteMatchQuery> matchQueries =
+// Optional.ofNullable(higressRoute.getUrlParamPredicates())
 //                .map(params -> params.stream()
 //                        .map(param -> RouteMatchQuery.builder()
 //                                .name(param.getKey())
@@ -139,4 +142,4 @@
 //        private String value;
 //        private Boolean caseSensitive;
 //    }
-//}
+// }

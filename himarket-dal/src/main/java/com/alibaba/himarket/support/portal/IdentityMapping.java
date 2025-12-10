@@ -17,12 +17,10 @@
  * under the License.
  */
 
-
 package com.alibaba.himarket.support.portal;
 
-import lombok.Data;
-
 import java.util.Map;
+import lombok.Data;
 
 /**
  * @author zh
@@ -30,23 +28,15 @@ import java.util.Map;
 @Data
 public class IdentityMapping {
 
-    /**
-     * 映射DeveloperId
-     */
+    /** 映射DeveloperId */
     private String userIdField;
 
-    /**
-     * 映射Developer Name
-     */
+    /** 映射Developer Name */
     private String userNameField;
 
-    /**
-     * 映射Developer Email
-     */
+    /** 映射Developer Email */
     private String emailField;
 
-    /**
-     * 自定义字段映射（预留扩展）
-     */
+    /** 自定义字段映射（预留扩展） */
     private Map<String, String> customFields;
 }

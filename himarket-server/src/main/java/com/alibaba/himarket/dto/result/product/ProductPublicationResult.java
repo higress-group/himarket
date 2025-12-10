@@ -21,12 +21,12 @@ package com.alibaba.himarket.dto.result.product;
 
 import com.alibaba.himarket.dto.converter.OutputConverter;
 import com.alibaba.himarket.entity.ProductPublication;
+import java.time.LocalDateTime;
 import lombok.Data;
 
-import java.time.LocalDateTime;
-
 @Data
-public class ProductPublicationResult implements OutputConverter<ProductPublicationResult, ProductPublication> {
+public class ProductPublicationResult
+        implements OutputConverter<ProductPublicationResult, ProductPublication> {
 
     private String portalId;
 

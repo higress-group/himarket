@@ -3,9 +3,8 @@ package com.alibaba.himarket.dto.params.gateway;
 import com.alibaba.himarket.dto.converter.InputConverter;
 import com.alibaba.himarket.support.gateway.ApsaraGatewayConfig;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.Data;
-
 import jakarta.validation.constraints.NotBlank;
+import lombok.Data;
 
 @Data
 public class QueryApsaraGatewayParam implements InputConverter<ApsaraGatewayConfig> {
@@ -43,13 +42,13 @@ public class QueryApsaraGatewayParam implements InputConverter<ApsaraGatewayConf
 
     @JsonProperty("xAcsCallerSdkSource")
     private String xAcsCallerSdkSource;
+
     @JsonProperty("xAcsResourceGroupId")
     private String xAcsResourceGroupId;
+
     @JsonProperty("xAcsCallerType")
     private String xAcsCallerType;
 
     @JsonProperty("brokerEngineType")
     private String brokerEngineType;
 }
-
-

@@ -21,111 +21,111 @@ package com.alibaba.himarket.service.gateway;
 
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
-import com.alibaba.himarket.dto.result.httpapi.APIResult;
+import com.alibaba.himarket.dto.result.agent.AgentAPIResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.gateway.GatewayResult;
+import com.alibaba.himarket.dto.result.httpapi.APIResult;
 import com.alibaba.himarket.dto.result.mcp.GatewayMCPServerResult;
-import com.alibaba.himarket.dto.result.agent.AgentAPIResult;
 import com.alibaba.himarket.dto.result.model.GatewayModelAPIResult;
 import com.alibaba.himarket.entity.*;
 import com.alibaba.himarket.service.gateway.client.APIGClient;
+import com.alibaba.himarket.service.gateway.client.ApsaraStackGatewayClient;
 import com.alibaba.himarket.service.gateway.client.GatewayClient;
 import com.alibaba.himarket.service.gateway.client.HigressClient;
-import com.alibaba.himarket.service.gateway.client.ApsaraStackGatewayClient;
 import com.alibaba.himarket.support.consumer.ConsumerAuthConfig;
 import com.alibaba.himarket.support.enums.GatewayType;
 import com.alibaba.himarket.support.gateway.GatewayConfig;
 import com.aliyun.sdk.service.apig20240327.models.HttpApiApiInfo;
-import lombok.extern.slf4j.Slf4j;
-
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public abstract class GatewayOperator<T> {
 
     private final Map<String, GatewayClient> clientCache = new ConcurrentHashMap<>();
 
-    abstract public PageResult<APIResult> fetchHTTPAPIs(Gateway gateway, int page, int size);
+    public abstract PageResult<APIResult> fetchHTTPAPIs(Gateway gateway, int page, int size);
 
-    abstract public PageResult<APIResult> fetchRESTAPIs(Gateway gateway, int page, int size);
+    public abstract PageResult<APIResult> fetchRESTAPIs(Gateway gateway, int page, int size);
 
-    abstract public PageResult<? extends GatewayMCPServerResult> fetchMcpServers(Gateway gateway, int page, int size);
+    public abstract PageResult<? extends GatewayMCPServerResult> fetchMcpServers(
+            Gateway gateway, int page, int size);
 
-    abstract public PageResult<AgentAPIResult> fetchAgentAPIs(Gateway gateway, int page, int size);
+    public abstract PageResult<AgentAPIResult> fetchAgentAPIs(Gateway gateway, int page, int size);
 
-    abstract public PageResult<? extends GatewayModelAPIResult> fetchModelAPIs(Gateway gateway, int page, int size);
+    public abstract PageResult<? extends GatewayModelAPIResult> fetchModelAPIs(
+            Gateway gateway, int page, int size);
 
-    abstract public String fetchAPIConfig(Gateway gateway, Object config);
+    public abstract String fetchAPIConfig(Gateway gateway, Object config);
 
-    abstract public String fetchMcpConfig(Gateway gateway, Object conf);
+    public abstract String fetchMcpConfig(Gateway gateway, Object conf);
 
-    abstract public String fetchAgentConfig(Gateway gateway, Object conf);
+    public abstract String fetchAgentConfig(Gateway gateway, Object conf);
 
-    abstract public String fetchModelConfig(Gateway gateway, Object conf);
+    public abstract String fetchModelConfig(Gateway gateway, Object conf);
 
-    abstract public PageResult<GatewayResult> fetchGateways(Object param, int page, int size);
+    public abstract PageResult<GatewayResult> fetchGateways(Object param, int page, int size);
 
-    abstract public String createConsumer(Consumer consumer, ConsumerCredential credential, GatewayConfig config);
+    public abstract String createConsumer(
+            Consumer consumer, ConsumerCredential credential, GatewayConfig config);
 
-    abstract public void updateConsumer(String consumerId, ConsumerCredential credential, GatewayConfig config);
+    public abstract void updateConsumer(
+            String consumerId, ConsumerCredential credential, GatewayConfig config);
 
-    abstract public void deleteConsumer(String consumerId, GatewayConfig config);
+    public abstract void deleteConsumer(String consumerId, GatewayConfig config);
 
     /**
      * 检查消费者是否存在于网关中
      *
      * @param consumerId 消费者ID
-     * @param config     网关配置
+     * @param config 网关配置
      * @return 是否存在
      */
-    abstract public boolean isConsumerExists(String consumerId, GatewayConfig config);
+    public abstract boolean isConsumerExists(String consumerId, GatewayConfig config);
 
-    abstract public ConsumerAuthConfig authorizeConsumer(Gateway gateway, String consumerId, Object refConfig);
+    public abstract ConsumerAuthConfig authorizeConsumer(
+            Gateway gateway, String consumerId, Object refConfig);
 
-    abstract public void revokeConsumerAuthorization(Gateway gateway, String consumerId, ConsumerAuthConfig authConfig);
+    public abstract void revokeConsumerAuthorization(
+            Gateway gateway, String consumerId, ConsumerAuthConfig authConfig);
 
-    abstract public HttpApiApiInfo fetchAPI(Gateway gateway, String apiId);
+    public abstract HttpApiApiInfo fetchAPI(Gateway gateway, String apiId);
 
-    abstract public GatewayType getGatewayType();
+    public abstract GatewayType getGatewayType();
 
-    abstract public String getDashboard(Gateway gateway, String type);
+    public abstract String getDashboard(Gateway gateway, String type);
 
-    abstract public List<String> fetchGatewayIps(Gateway gateway);
+    public abstract List<String> fetchGatewayIps(Gateway gateway);
 
     @SuppressWarnings("unchecked")
     protected T getClient(Gateway gateway) {
-        String clientKey = gateway.getGatewayType().isAPIG() ?
-                gateway.getApigConfig().buildUniqueKey() : gateway.getHigressConfig().buildUniqueKey();
-        return (T) clientCache.computeIfAbsent(
-                clientKey,
-                key -> createClient(gateway)
-        );
+        String clientKey =
+                gateway.getGatewayType().isAPIG()
+                        ? gateway.getApigConfig().buildUniqueKey()
+                        : gateway.getHigressConfig().buildUniqueKey();
+        return (T) clientCache.computeIfAbsent(clientKey, key -> createClient(gateway));
     }
 
-    /**
-     * Create a gateway client for the given gateway.
-     */
+    /** Create a gateway client for the given gateway. */
     private GatewayClient createClient(Gateway gateway) {
         switch (gateway.getGatewayType()) {
             case APIG_API:
             case APIG_AI:
                 return new APIGClient(gateway.getApigConfig());
             case APSARA_GATEWAY:
-                return new ApsaraStackGatewayClient(
-                        gateway.getApsaraGatewayConfig());
+                return new ApsaraStackGatewayClient(gateway.getApsaraGatewayConfig());
             case HIGRESS:
                 return new HigressClient(gateway.getHigressConfig());
             default:
-                throw new BusinessException(ErrorCode.INTERNAL_ERROR,
+                throw new BusinessException(
+                        ErrorCode.INTERNAL_ERROR,
                         "No factory found for gateway type: " + gateway.getGatewayType());
         }
     }
 
-    /**
-     * Remove a gateway client for the given gateway.
-     */
+    /** Remove a gateway client for the given gateway. */
     public void removeClient(String instanceId) {
         GatewayClient client = clientCache.remove(instanceId);
         try {

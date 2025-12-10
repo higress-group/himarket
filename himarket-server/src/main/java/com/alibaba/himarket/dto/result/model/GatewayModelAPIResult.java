@@ -9,10 +9,8 @@ import lombok.Data;
 @Data
 @Schema(
         oneOf = {
-                HigressModelResult.class,
-                AIGWModelAPIResult.class,
+            HigressModelResult.class,
+            AIGWModelAPIResult.class,
         },
-        discriminatorProperty = "type"
-)
-public class GatewayModelAPIResult {
-}
+        discriminatorProperty = "type")
+public class GatewayModelAPIResult {}

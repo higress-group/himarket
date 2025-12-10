@@ -1,26 +1,21 @@
 package com.alibaba.himarket.service.gateway.factory;
 
-import java.util.concurrent.TimeUnit;
-
 import com.alibaba.himarket.config.SlsConfig;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.support.enums.SlsAuthType;
-
 import com.aliyun.openservices.log.Client;
 import com.aliyun.openservices.log.common.auth.Credentials;
 import com.aliyun.openservices.log.common.auth.DefaultCredentials;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
-/**
- * SLS客户端工厂，根据配置文件自动选择STS或AK/SK认证方式
- *
- */
+/** SLS客户端工厂，根据配置文件自动选择STS或AK/SK认证方式 */
 @Component
 @Slf4j
 @RequiredArgsConstructor
@@ -28,14 +23,9 @@ public class SlsClientFactory {
 
     private final SlsConfig slsConfig;
 
-    /**
-     * STS模式的Client缓存（按userId缓存，25分钟过期）
-     * Client创建成本较高，应该缓存复用
-     */
-    private final Cache<String, Client> stsClientCache = Caffeine.newBuilder()
-        .maximumSize(1000)
-        .expireAfterWrite(25, TimeUnit.MINUTES)
-        .build();
+    /** STS模式的Client缓存（按userId缓存，25分钟过期） Client创建成本较高，应该缓存复用 */
+    private final Cache<String, Client> stsClientCache =
+            Caffeine.newBuilder().maximumSize(1000).expireAfterWrite(25, TimeUnit.MINUTES).build();
 
     /**
      * 根据配置创建SLS客户端
@@ -72,8 +62,9 @@ public class SlsClientFactory {
         String accessKeySecret = slsConfig.getAccessKeySecret();
 
         if (!StringUtils.hasText(accessKeyId) || !StringUtils.hasText(accessKeySecret)) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR,
-                "AccessKeyId and AccessKeySecret must be configured in application.yaml when authType is AK_SK");
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR,
+                    "AccessKeyId and AccessKeySecret must be configured in application.yaml when authType is AK_SK");
         }
 
         String endpoint = getEffectiveEndpoint();
@@ -84,7 +75,8 @@ public class SlsClientFactory {
             return new Client(endpoint, credentials, null);
         } catch (Exception e) {
             log.error("Failed to create SLS client with AK/SK", e);
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Failed to create SLS client with AK/SK");
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR, "Failed to create SLS client with AK/SK");
         }
     }
 
@@ -96,9 +88,9 @@ public class SlsClientFactory {
     private String getEffectiveEndpoint() {
         String endpoint = slsConfig.getEndpoint();
         if (!StringUtils.hasText(endpoint)) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "SLS endpoint must be configured in application.yml");
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR, "SLS endpoint must be configured in application.yml");
         }
         return endpoint;
     }
-
 }

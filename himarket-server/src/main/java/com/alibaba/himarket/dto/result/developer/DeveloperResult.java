@@ -21,9 +21,8 @@ package com.alibaba.himarket.dto.result.developer;
 
 import com.alibaba.himarket.dto.converter.OutputConverter;
 import com.alibaba.himarket.entity.Developer;
-import lombok.Data;
-
 import java.time.LocalDateTime;
+import lombok.Data;
 
 @Data
 public class DeveloperResult implements OutputConverter<DeveloperResult, Developer> {

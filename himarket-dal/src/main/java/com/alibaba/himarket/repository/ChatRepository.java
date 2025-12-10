@@ -2,13 +2,12 @@ package com.alibaba.himarket.repository;
 
 import com.alibaba.himarket.entity.Chat;
 import com.alibaba.himarket.support.enums.ChatStatus;
+import java.util.List;
+import java.util.Optional;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-
-import java.util.List;
-import java.util.Optional;
 
 @Repository
 public interface ChatRepository extends BaseRepository<Chat, Long> {
@@ -48,14 +47,18 @@ public interface ChatRepository extends BaseRepository<Chat, Long> {
      * @param questionId
      * @return
      */
-    @Query("SELECT COALESCE(MAX(c.sequence), 0) " +
-            "FROM Chat c " +
-            "WHERE c.sessionId = :sessionId " +
-            "AND c.conversationId = :conversationId " +
-            "AND c.questionId = :questionId " +
-            "AND c.productId = :productId")
-    Integer findCurrentSequence(@Param("sessionId") String sessionId, @Param("conversationId") String conversationId,
-                                @Param("questionId") String questionId, @Param("productId") String productId);
+    @Query(
+            "SELECT COALESCE(MAX(c.sequence), 0) "
+                    + "FROM Chat c "
+                    + "WHERE c.sessionId = :sessionId "
+                    + "AND c.conversationId = :conversationId "
+                    + "AND c.questionId = :questionId "
+                    + "AND c.productId = :productId")
+    Integer findCurrentSequence(
+            @Param("sessionId") String sessionId,
+            @Param("conversationId") String conversationId,
+            @Param("questionId") String questionId,
+            @Param("productId") String productId);
 
     /**
      * Delete all chats for given sessionId

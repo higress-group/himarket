@@ -31,12 +31,9 @@ public class HigressConfig {
 
     private String username;
 
-    @Encrypted
-    private String password;
+    @Encrypted private String password;
 
-    /**
-     * Higress gateway address
-     */
+    /** Higress gateway address */
     private String gatewayAddress;
 
     public String buildUniqueKey() {
@@ -54,8 +51,8 @@ public class HigressConfig {
                 address = "http://" + address;
             }
 
-            if (StrUtil.isNotBlank(gatewayAddress) &&
-                    !URLUtil.url(gatewayAddress).getProtocol().contains("http")) {
+            if (StrUtil.isNotBlank(gatewayAddress)
+                    && !URLUtil.url(gatewayAddress).getProtocol().contains("http")) {
                 gatewayAddress = "http://" + gatewayAddress;
             }
         } catch (Exception e) {

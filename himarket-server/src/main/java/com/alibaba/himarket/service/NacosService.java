@@ -22,19 +22,16 @@ package com.alibaba.himarket.service;
 import com.alibaba.himarket.dto.params.nacos.CreateNacosParam;
 import com.alibaba.himarket.dto.params.nacos.QueryNacosParam;
 import com.alibaba.himarket.dto.params.nacos.UpdateNacosParam;
-import com.alibaba.himarket.dto.result.nacos.MseNacosResult;
-import com.alibaba.himarket.dto.result.mcp.NacosMCPServerResult;
-import com.alibaba.himarket.dto.result.nacos.NacosResult;
+import com.alibaba.himarket.dto.result.agent.NacosAgentResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
+import com.alibaba.himarket.dto.result.mcp.NacosMCPServerResult;
+import com.alibaba.himarket.dto.result.nacos.MseNacosResult;
+import com.alibaba.himarket.dto.result.nacos.NacosNamespaceResult;
+import com.alibaba.himarket.dto.result.nacos.NacosResult;
 import com.alibaba.himarket.support.product.NacosRefConfig;
 import org.springframework.data.domain.Pageable;
-import com.alibaba.himarket.dto.result.nacos.NacosNamespaceResult;
-import com.alibaba.himarket.dto.result.agent.NacosAgentResult;
 
-/**
- * Nacos服务接口，定义Nacos实例管理和MCP服务器配置相关操作
- *
- */
+/** Nacos服务接口，定义Nacos实例管理和MCP服务器配置相关操作 */
 public interface NacosService {
 
     /**
@@ -83,10 +80,9 @@ public interface NacosService {
      * @return 分页的MCP Server列表
      * @throws Exception 获取MCP Server列表时可能抛出的异常
      */
-    /**
-     * 获取MCP Server列表 (指定命名空间, 可为空表示全部)
-     */
-    PageResult<NacosMCPServerResult> fetchMcpServers(String nacosId, String namespaceId, Pageable pageable) throws Exception;
+    /** 获取MCP Server列表 (指定命名空间, 可为空表示全部) */
+    PageResult<NacosMCPServerResult> fetchMcpServers(
+            String nacosId, String namespaceId, Pageable pageable) throws Exception;
 
     /**
      * 获取MCP Server配置
@@ -114,10 +110,9 @@ public interface NacosService {
      * @return 命名空间分页
      * @throws Exception 连接或查询异常
      */
-    /**
-     * 获取指定 Nacos 实例的命名空间列表
-     */
-    PageResult<NacosNamespaceResult> fetchNamespaces(String nacosId, Pageable pageable) throws Exception;
+    /** 获取指定 Nacos 实例的命名空间列表 */
+    PageResult<NacosNamespaceResult> fetchNamespaces(String nacosId, Pageable pageable)
+            throws Exception;
 
     // ==================== Agent 相关 ====================
 
@@ -130,14 +125,11 @@ public interface NacosService {
      * @return 分页的 Agent 列表
      * @throws Exception 获取 Agent 列表时可能抛出的异常
      */
-    PageResult<NacosAgentResult> fetchAgents(
-            String nacosId,
-            String namespaceId,
-            Pageable pageable) throws Exception;
+    PageResult<NacosAgentResult> fetchAgents(String nacosId, String namespaceId, Pageable pageable)
+            throws Exception;
 
     /**
-     * 获取 Agent 配置（用于产品关联时同步配置，默认最新版本）
-     * 注意：此方法仅供内部使用，不对外暴露为 REST 接口
+     * 获取 Agent 配置（用于产品关联时同步配置，默认最新版本） 注意：此方法仅供内部使用，不对外暴露为 REST 接口
      *
      * @param nacosId Nacos 实例唯一标识
      * @param nacosRefConfig Nacos 引用配置（包含 agentName 和 namespaceId）

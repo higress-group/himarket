@@ -21,14 +21,9 @@ package com.alibaba.himarket.dto.params.nacos;
 
 import lombok.Data;
 
-/**
- * 查询Nacos命名空间参数
- *
- */
+/** 查询Nacos命名空间参数 */
 @Data
 public class QueryNacosNamespaceParam extends CreateNacosParam {
-	/**
-	 * runtime namespace to query on remote Nacos (not stored on instance)
-	 */
-	private String namespace;
+    /** runtime namespace to query on remote Nacos (not stored on instance) */
+    private String namespace;
 }

@@ -25,13 +25,12 @@ import com.alibaba.himarket.entity.Gateway;
 import com.alibaba.himarket.support.enums.GatewayType;
 import com.alibaba.himarket.support.gateway.APIGConfig;
 import com.alibaba.himarket.support.gateway.AdpAIGatewayConfig;
-import com.alibaba.himarket.support.gateway.HigressConfig;
 import com.alibaba.himarket.support.gateway.ApsaraGatewayConfig;
-import lombok.Data;
-
+import com.alibaba.himarket.support.gateway.HigressConfig;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import lombok.Data;
 
 @Data
 public class ImportGatewayParam implements InputConverter<Gateway> {
@@ -54,9 +53,18 @@ public class ImportGatewayParam implements InputConverter<Gateway> {
 
     @AssertTrue(message = "Invalid gateway config")
     private boolean isGatewayConfigValid() {
-        return gatewayType.isAPIG() && apigConfig != null && StrUtil.isNotBlank(gatewayId) && apigConfig.validate()
-                || gatewayType.isAdpAIGateway() && adpAIGatewayConfig != null && StrUtil.isNotBlank(gatewayId) && adpAIGatewayConfig.validate()
-                || gatewayType.isApsaraGateway() && apsaraGatewayConfig != null && StrUtil.isNotBlank(gatewayId) && apsaraGatewayConfig.validate()
+        return gatewayType.isAPIG()
+                        && apigConfig != null
+                        && StrUtil.isNotBlank(gatewayId)
+                        && apigConfig.validate()
+                || gatewayType.isAdpAIGateway()
+                        && adpAIGatewayConfig != null
+                        && StrUtil.isNotBlank(gatewayId)
+                        && adpAIGatewayConfig.validate()
+                || gatewayType.isApsaraGateway()
+                        && apsaraGatewayConfig != null
+                        && StrUtil.isNotBlank(gatewayId)
+                        && apsaraGatewayConfig.validate()
                 || gatewayType.isHigress() && higressConfig != null && higressConfig.validate();
     }
 }

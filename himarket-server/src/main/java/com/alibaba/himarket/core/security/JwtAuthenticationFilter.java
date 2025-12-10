@@ -22,49 +22,49 @@ package com.alibaba.himarket.core.security;
 import com.alibaba.himarket.core.constant.CommonConstants;
 import com.alibaba.himarket.core.utils.TokenUtil;
 import com.alibaba.himarket.support.common.User;
-import lombok.extern.slf4j.Slf4j;
-import org.jetbrains.annotations.NotNull;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.filter.OncePerRequestFilter;
-
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Collections;
+import lombok.extern.slf4j.Slf4j;
+import org.jetbrains.annotations.NotNull;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.filter.OncePerRequestFilter;
 
 @Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     // 白名单路径
     private static final String[] WHITELIST_PATHS = {
-            "/admins/init",
-            "/admins/need-init", 
-            "/admins/login",
-            "/developers",
-            "/developers/login",
-            "/developers/authorize",
-            "/developers/callback",
-            "/developers/providers",
-            "/developers/oidc/authorize",
-            "/developers/oidc/callback",
-            "/developers/oidc/providers",
-            "/developers/oauth2/token",
-            "/portal/swagger-ui.html",
-            "/portal/swagger-ui/**",
-            "/portal/v3/api-docs/**",
-            "/favicon.ico",
-            "/error"
+        "/admins/init",
+        "/admins/need-init",
+        "/admins/login",
+        "/developers",
+        "/developers/login",
+        "/developers/authorize",
+        "/developers/callback",
+        "/developers/providers",
+        "/developers/oidc/authorize",
+        "/developers/oidc/callback",
+        "/developers/oidc/providers",
+        "/developers/oauth2/token",
+        "/portal/swagger-ui.html",
+        "/portal/swagger-ui/**",
+        "/portal/v3/api-docs/**",
+        "/favicon.ico",
+        "/error"
     };
 
     @Override
-    protected void doFilterInternal(@NotNull HttpServletRequest request,
-                                    @NotNull HttpServletResponse response,
-                                    @NotNull FilterChain chain)
+    protected void doFilterInternal(
+            @NotNull HttpServletRequest request,
+            @NotNull HttpServletResponse response,
+            @NotNull FilterChain chain)
             throws IOException, ServletException {
 
         // 检查是否是白名单路径
@@ -115,11 +115,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         User user = TokenUtil.parseUser(token);
         // 设置认证信息
         String role = CommonConstants.ROLE_PREFIX + user.getUserType().name();
-        Authentication authentication = new UsernamePasswordAuthenticationToken(
-                user.getUserId(),
-                null,
-                Collections.singletonList(new SimpleGrantedAuthority(role))
-        );
+        Authentication authentication =
+                new UsernamePasswordAuthenticationToken(
+                        user.getUserId(),
+                        null,
+                        Collections.singletonList(new SimpleGrantedAuthority(role)));
         SecurityContextHolder.getContext().setAuthentication(authentication);
     }
-} 
+}

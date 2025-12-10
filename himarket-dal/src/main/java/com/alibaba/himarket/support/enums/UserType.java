@@ -20,15 +20,10 @@
 package com.alibaba.himarket.support.enums;
 
 public enum UserType {
-    /**
-     * 管理员用户
-     */
+    /** 管理员用户 */
     ADMIN,
 
-    /**
-     * 开发者用户
-     */
+    /** 开发者用户 */
     DEVELOPER,
-
     ;
 }

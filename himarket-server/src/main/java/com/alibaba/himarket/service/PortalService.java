@@ -19,10 +19,10 @@
 
 package com.alibaba.himarket.service;
 
+import com.alibaba.himarket.dto.params.consumer.QuerySubscriptionParam;
 import com.alibaba.himarket.dto.params.portal.*;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.portal.PortalResult;
-import com.alibaba.himarket.dto.params.consumer.QuerySubscriptionParam;
 import com.alibaba.himarket.dto.result.product.SubscriptionResult;
 import com.alibaba.himarket.support.enums.SearchEngineType;
 import com.alibaba.himarket.support.portal.SearchEngineConfig;
@@ -107,11 +107,12 @@ public interface PortalService {
      * 获取门户上的API产品订阅列表
      *
      * @param portalId 门户ID
-     * @param param    查询参数
+     * @param param 查询参数
      * @param pageable 分页参数
      * @return PageResult of SubscriptionResult
      */
-    PageResult<SubscriptionResult> listSubscriptions(String portalId, QuerySubscriptionParam param, Pageable pageable);
+    PageResult<SubscriptionResult> listSubscriptions(
+            String portalId, QuerySubscriptionParam param, Pageable pageable);
 
     /**
      * 获取默认门户
@@ -123,10 +124,9 @@ public interface PortalService {
     // ========== 搜索引擎配置查询 ==========
 
     /**
-     * 根据引擎类型获取 API Key（供搜索功能使用）
-     * 核心方法：TalkSearchAbilityServiceGoogleImpl 将调用此方法
+     * 根据引擎类型获取 API Key（供搜索功能使用） 核心方法：TalkSearchAbilityServiceGoogleImpl 将调用此方法
      *
-     * @param portalId   Portal ID
+     * @param portalId Portal ID
      * @param engineType 搜索引擎类型
      * @return API Key（自动解密）
      * @throws com.alibaba.himarket.core.exception.BusinessException 如果未配置搜索引擎或搜索引擎未启用

@@ -19,16 +19,18 @@
 
 package com.alibaba.himarket.entity;
 
+import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-import jakarta.persistence.*;
-
 @EqualsAndHashCode(callSuper = true)
 @Entity
-@Table(name = "nacos_instance",
+@Table(
+        name = "nacos_instance",
         uniqueConstraints = {
-                @UniqueConstraint(columnNames = {"nacos_id"}, name = "uk_nacos_id"),
+            @UniqueConstraint(
+                    columnNames = {"nacos_id"},
+                    name = "uk_nacos_id"),
         })
 @Data
 public class NacosInstance extends BaseEntity {
@@ -49,7 +51,6 @@ public class NacosInstance extends BaseEntity {
     @Column(name = "server_url", length = 256, nullable = false)
     private String serverUrl;
 
-
     @Column(name = "username", length = 64)
     private String username;
 
@@ -64,4 +65,4 @@ public class NacosInstance extends BaseEntity {
 
     @Column(name = "description", length = 512)
     private String description;
-} 
+}

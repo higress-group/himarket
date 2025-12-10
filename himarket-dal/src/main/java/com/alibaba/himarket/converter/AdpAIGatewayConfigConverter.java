@@ -17,11 +17,9 @@
  * under the License.
  */
 
-
 package com.alibaba.himarket.converter;
 
 import com.alibaba.himarket.support.gateway.AdpAIGatewayConfig;
-
 import jakarta.persistence.Converter;
 
 @Converter(autoApply = true)

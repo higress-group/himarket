@@ -17,13 +17,11 @@
  * under the License.
  */
 
-
 package com.alibaba.himarket.support.enums;
 
 public enum PublicKeyFormat {
     PEM,
 
     JWK,
-
     ;
 }

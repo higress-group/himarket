@@ -21,9 +21,8 @@ package com.alibaba.himarket.dto.params.consumer;
 
 import com.alibaba.himarket.dto.converter.InputConverter;
 import com.alibaba.himarket.entity.ProductSubscription;
-import lombok.Data;
-
 import jakarta.validation.constraints.NotBlank;
+import lombok.Data;
 
 @Data
 public class CreateSubscriptionParam implements InputConverter<ProductSubscription> {

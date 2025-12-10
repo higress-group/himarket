@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 package com.alibaba.himarket.dto.params.developer;
 
 import com.alibaba.himarket.dto.converter.InputConverter;

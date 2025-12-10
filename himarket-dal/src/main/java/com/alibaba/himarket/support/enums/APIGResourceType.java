@@ -7,7 +7,6 @@ import lombok.Getter;
  */
 @Getter
 public enum APIGResourceType {
-
     RestApiOperation("RestApiOperation"),
 
     MCP("MCP"),
@@ -15,7 +14,6 @@ public enum APIGResourceType {
     Agent("Agent"),
 
     LLM("LLM"),
-
     ;
 
     APIGResourceType(String type) {

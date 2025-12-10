@@ -40,4 +40,3 @@ public interface OutputConverter<Target extends OutputConverter<Target, Source>,
         return CopyOptions.create().ignoreNullValue().ignoreError();
     }
 }
-

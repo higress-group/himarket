@@ -2,11 +2,10 @@ package com.alibaba.himarket.dto.result.chat;
 
 import com.alibaba.himarket.support.chat.ChatUsage;
 import com.alibaba.himarket.support.chat.attachment.ChatAttachmentConfig;
-import lombok.Builder;
-import lombok.Data;
-
 import java.time.LocalDateTime;
 import java.util.List;
+import lombok.Builder;
+import lombok.Data;
 
 @Data
 @Builder

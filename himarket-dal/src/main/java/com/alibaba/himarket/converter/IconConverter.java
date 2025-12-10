@@ -1,7 +1,6 @@
 package com.alibaba.himarket.converter;
 
 import com.alibaba.himarket.support.product.Icon;
-
 import jakarta.persistence.Converter;
 
 /**
@@ -14,4 +13,3 @@ public class IconConverter extends JsonConverter<Icon> {
         super(Icon.class);
     }
 }
-

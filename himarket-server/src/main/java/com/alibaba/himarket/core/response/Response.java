@@ -19,10 +19,10 @@
 
 package com.alibaba.himarket.core.response;
 
-import lombok.Data;
-import lombok.experimental.Accessors;
-import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.experimental.Accessors;
 
 @Data
 @Accessors(chain = true)
@@ -34,15 +34,10 @@ public class Response<T> {
     private T data;
 
     public static <T> Response<T> ok(T data) {
-        return new Response<T>()
-                .setCode("SUCCESS")
-                .setData(data);
+        return new Response<T>().setCode("SUCCESS").setData(data);
     }
 
     public static <T> Response<T> fail(String code, String message) {
-        return new Response<T>()
-                .setCode(code)
-                .setMessage(message);
+        return new Response<T>().setCode(code).setMessage(message);
     }
 }
-

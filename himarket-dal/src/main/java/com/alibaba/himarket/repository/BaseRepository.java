@@ -19,14 +19,13 @@
 
 package com.alibaba.himarket.repository;
 
+import java.util.Collection;
+import java.util.List;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.repository.NoRepositoryBean;
 import org.springframework.lang.NonNull;
-
-import java.util.Collection;
-import java.util.List;
 
 /**
  * 基础数据访问接口，提供通用的数据库操作方法
@@ -46,4 +45,3 @@ public interface BaseRepository<D, I> extends JpaRepository<D, I>, JpaSpecificat
      */
     List<D> findAllByIdIn(@NonNull Collection<I> ids, @NonNull Sort sort);
 }
-

@@ -17,13 +17,11 @@
  * under the License.
  */
 
-
 package com.alibaba.himarket.service;
 
 import com.alibaba.himarket.support.enums.PublicKeyFormat;
 import com.alibaba.himarket.support.portal.OAuth2Config;
 import com.alibaba.himarket.support.portal.OidcConfig;
-
 import java.security.PublicKey;
 import java.util.List;
 

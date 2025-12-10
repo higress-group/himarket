@@ -20,23 +20,18 @@
 package com.alibaba.himarket.support.consumer;
 
 import com.alibaba.himarket.support.enums.CredentialMode;
-import lombok.Data;
-
 import java.util.List;
+import lombok.Data;
 
 @Data
 public class ApiKeyConfig {
 
     private List<ApiKeyCredential> credentials;
 
-    /**
-     * apikey的位置
-     */
+    /** apikey的位置 */
     private String source = "Default";
 
-    /**
-     * apikey参数名称
-     */
+    /** apikey参数名称 */
     private String key = "Authorization";
 
     @Data

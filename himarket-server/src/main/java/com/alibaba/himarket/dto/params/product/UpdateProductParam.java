@@ -19,17 +19,15 @@
 
 package com.alibaba.himarket.dto.params.product;
 
-import java.util.List;
-
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.dto.converter.InputConverter;
 import com.alibaba.himarket.entity.Product;
 import com.alibaba.himarket.support.enums.ProductType;
 import com.alibaba.himarket.support.product.Icon;
 import com.alibaba.himarket.support.product.ProductFeature;
-import lombok.Data;
-
 import jakarta.validation.constraints.AssertTrue;
+import java.util.List;
+import lombok.Data;
 
 @Data
 public class UpdateProductParam implements InputConverter<Product> {
@@ -47,7 +45,7 @@ public class UpdateProductParam implements InputConverter<Product> {
     private Icon icon;
 
     private Boolean autoApprove;
-    
+
     private List<String> categories;
 
     private ProductFeature feature;

@@ -19,11 +19,10 @@
 
 package com.alibaba.himarket.dto.result.consumer;
 
-import lombok.Builder;
-import lombok.Data;
-
 import java.util.HashMap;
 import java.util.Map;
+import lombok.Builder;
+import lombok.Data;
 
 @Data
 @Builder
@@ -31,11 +30,9 @@ public class CredentialContext {
 
     private String apiKey;
 
-    @Builder.Default
-    private Map<String, String> headers = new HashMap<>();
+    @Builder.Default private Map<String, String> headers = new HashMap<>();
 
-    @Builder.Default
-    private Map<String, String> queryParams = new HashMap<>();
+    @Builder.Default private Map<String, String> queryParams = new HashMap<>();
 
     /**
      * Returns a copy of headers to prevent modifications to the original map
@@ -56,4 +53,3 @@ public class CredentialContext {
         return new HashMap<>(queryParams);
     }
 }
-

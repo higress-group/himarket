@@ -4,7 +4,6 @@ package com.alibaba.himarket.support.enums;
  * @author zh
  */
 public enum ChatStatus {
-
     INIT,
 
     PROCESSING,
@@ -12,6 +11,5 @@ public enum ChatStatus {
     SUCCESS,
 
     FAILED,
-
     ;
 }

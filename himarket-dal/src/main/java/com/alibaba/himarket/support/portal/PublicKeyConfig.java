@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 package com.alibaba.himarket.support.portal;
 
 import com.alibaba.himarket.support.enums.PublicKeyFormat;
@@ -29,23 +28,15 @@ import lombok.Data;
 @Data
 public class PublicKeyConfig {
 
-    /**
-     * 公钥ID
-     */
+    /** 公钥ID */
     private String kid;
 
-    /**
-     * 公钥格式：PEM或JWK
-     */
+    /** 公钥格式：PEM或JWK */
     private PublicKeyFormat format;
 
-    /**
-     * 签名算法：RS256，ES256，PS256等
-     */
+    /** 签名算法：RS256，ES256，PS256等 */
     private String algorithm;
 
-    /**
-     * 公钥内容，PEM或JWK JSON字符串
-     */
+    /** 公钥内容，PEM或JWK JSON字符串 */
     private String value;
 }

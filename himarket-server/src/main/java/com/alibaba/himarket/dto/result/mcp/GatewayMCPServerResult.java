@@ -24,14 +24,9 @@ import lombok.Data;
 
 @Data
 @Schema(
-        oneOf = {
-                APIGMCPServerResult.class,
-                HigressMCPServerResult.class,
-                AdpMCPServerResult.class
-        },
-        discriminatorProperty = "type"
-)
+        oneOf = {APIGMCPServerResult.class, HigressMCPServerResult.class, AdpMCPServerResult.class},
+        discriminatorProperty = "type")
 public class GatewayMCPServerResult {
 
     protected String mcpServerName;
-} 
+}

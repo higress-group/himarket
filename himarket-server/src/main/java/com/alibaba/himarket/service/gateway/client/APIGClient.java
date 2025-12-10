@@ -26,9 +26,8 @@ import com.aliyun.auth.credentials.Credential;
 import com.aliyun.auth.credentials.provider.StaticCredentialProvider;
 import com.aliyun.sdk.service.apig20240327.AsyncClient;
 import darabonba.core.client.ClientOverrideConfiguration;
-import lombok.extern.slf4j.Slf4j;
-
 import java.util.function.Function;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class APIGClient extends GatewayClient {
@@ -57,17 +56,18 @@ public class APIGClient extends GatewayClient {
 
     private AsyncClient createClient(APIGConfig config) {
         // noinspection AklessInspection
-        StaticCredentialProvider provider = StaticCredentialProvider.create(Credential.builder()
-                .accessKeyId(config.getAccessKey())
-                .accessKeySecret(config.getSecretKey())
-                .build());
+        StaticCredentialProvider provider =
+                StaticCredentialProvider.create(
+                        Credential.builder()
+                                .accessKeyId(config.getAccessKey())
+                                .accessKeySecret(config.getSecretKey())
+                                .build());
 
         return AsyncClient.builder()
                 .credentialsProvider(provider)
                 .overrideConfiguration(
                         ClientOverrideConfiguration.create()
-                                .setEndpointOverride(getAPIGEndpoint(config.getRegion()))
-                ).build();
+                                .setEndpointOverride(getAPIGEndpoint(config.getRegion())))
+                .build();
     }
-
 }

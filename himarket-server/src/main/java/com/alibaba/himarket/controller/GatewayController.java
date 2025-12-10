@@ -21,20 +21,19 @@ package com.alibaba.himarket.controller;
 
 import com.alibaba.himarket.core.annotation.AdminAuth;
 import com.alibaba.himarket.dto.params.gateway.*;
-import com.alibaba.himarket.dto.result.httpapi.APIResult;
+import com.alibaba.himarket.dto.result.agent.AgentAPIResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.gateway.GatewayResult;
+import com.alibaba.himarket.dto.result.httpapi.APIResult;
 import com.alibaba.himarket.dto.result.mcp.GatewayMCPServerResult;
-import com.alibaba.himarket.dto.result.agent.AgentAPIResult;
 import com.alibaba.himarket.dto.result.model.GatewayModelAPIResult;
 import com.alibaba.himarket.service.GatewayService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
-
-import jakarta.validation.Valid;
 
 @Tag(name = "网关资源管理")
 @RestController
@@ -47,25 +46,28 @@ public class GatewayController {
 
     @Operation(summary = "获取APIG Gateway列表")
     @GetMapping("/apig")
-    public PageResult<GatewayResult> fetchGateways(@Valid QueryAPIGParam param,
-                                                   @RequestParam(defaultValue = "1") int page,
-                                                   @RequestParam(defaultValue = "500") int size) {
+    public PageResult<GatewayResult> fetchGateways(
+            @Valid QueryAPIGParam param,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "500") int size) {
         return gatewayService.fetchAPIGGateways(param, page, size);
     }
 
     @Operation(summary = "获取ADP AI Gateway列表")
     @PostMapping("/adp")
-    public PageResult<GatewayResult> fetchAdpGateways(@RequestBody @Valid QueryAdpAIGatewayParam param,
-                                                      @RequestParam(defaultValue = "1") int page,
-                                                      @RequestParam(defaultValue = "500") int size) {
+    public PageResult<GatewayResult> fetchAdpGateways(
+            @RequestBody @Valid QueryAdpAIGatewayParam param,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "500") int size) {
         return gatewayService.fetchAdpGateways(param, page, size);
     }
 
     @Operation(summary = "获取Apsara Gateway列表")
     @PostMapping("/apsara")
-    public PageResult<GatewayResult> fetchApsaraGateways(@RequestBody @Valid QueryApsaraGatewayParam param,
-                                                         @RequestParam(defaultValue = "1") int page,
-                                                         @RequestParam(defaultValue = "500") int size) {
+    public PageResult<GatewayResult> fetchApsaraGateways(
+            @RequestBody @Valid QueryApsaraGatewayParam param,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "500") int size) {
         return gatewayService.fetchApsaraGateways(param, page, size);
     }
 
@@ -83,7 +85,8 @@ public class GatewayController {
 
     @Operation(summary = "更新Gateway")
     @PutMapping("/{gatewayId}")
-    public void updateGateway(@PathVariable String gatewayId, @RequestBody @Valid UpdateGatewayParam param) {
+    public void updateGateway(
+            @PathVariable String gatewayId, @RequestBody @Valid UpdateGatewayParam param) {
         gatewayService.updateGateway(gatewayId, param);
     }
 
@@ -95,40 +98,45 @@ public class GatewayController {
 
     @Operation(summary = "获取REST API列表")
     @GetMapping("/{gatewayId}/rest-apis")
-    public PageResult<APIResult> fetchRESTAPIs(@PathVariable String gatewayId,
-                                               @RequestParam(defaultValue = "1") int page,
-                                               @RequestParam(defaultValue = "500") int size) {
+    public PageResult<APIResult> fetchRESTAPIs(
+            @PathVariable String gatewayId,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "500") int size) {
         return gatewayService.fetchRESTAPIs(gatewayId, page, size);
     }
 
     @Operation(summary = "获取MCP Server列表")
     @GetMapping("/{gatewayId}/mcp-servers")
-    public PageResult<GatewayMCPServerResult> fetchMcpServers(@PathVariable String gatewayId,
-                                                              @RequestParam(defaultValue = "1") int page,
-                                                              @RequestParam(defaultValue = "500") int size) {
+    public PageResult<GatewayMCPServerResult> fetchMcpServers(
+            @PathVariable String gatewayId,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "500") int size) {
         return gatewayService.fetchMcpServers(gatewayId, page, size);
     }
 
     @Operation(summary = "获取Agent API列表")
     @GetMapping("/{gatewayId}/agent-apis")
-    public PageResult<AgentAPIResult> fetchAgentAPIs(@PathVariable String gatewayId,
-                                                     @RequestParam(defaultValue = "1") int page,
-                                                     @RequestParam(defaultValue = "500") int size) {
+    public PageResult<AgentAPIResult> fetchAgentAPIs(
+            @PathVariable String gatewayId,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "500") int size) {
         return gatewayService.fetchAgentAPIs(gatewayId, page, size);
     }
 
     @Operation(summary = "获取Model API列表")
     @GetMapping("/{gatewayId}/model-apis")
-    public PageResult<GatewayModelAPIResult> fetchModelAPIs(@PathVariable String gatewayId,
-                                                            @RequestParam(defaultValue = "1") int page,
-                                                            @RequestParam(defaultValue = "500") int size) {
+    public PageResult<GatewayModelAPIResult> fetchModelAPIs(
+            @PathVariable String gatewayId,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "500") int size) {
         return gatewayService.fetchModelAPIs(gatewayId, page, size);
     }
 
     @Operation(summary = "获取仪表板URL")
     @GetMapping("/{gatewayId}/dashboard")
-    public String getDashboard(@PathVariable String gatewayId,
-                               @RequestParam(required = false, defaultValue = "API") String type) {
+    public String getDashboard(
+            @PathVariable String gatewayId,
+            @RequestParam(required = false, defaultValue = "API") String type) {
         return gatewayService.getDashboard(gatewayId, type);
     }
 }

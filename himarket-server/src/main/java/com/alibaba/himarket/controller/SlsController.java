@@ -1,9 +1,5 @@
 package com.alibaba.himarket.controller;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-
 import com.alibaba.himarket.config.SlsConfig;
 import com.alibaba.himarket.dto.converter.SlsResponseConverter;
 import com.alibaba.himarket.dto.params.sls.GenericSlsQueryRequest;
@@ -12,9 +8,11 @@ import com.alibaba.himarket.dto.params.sls.ScenarioQueryResponse;
 import com.alibaba.himarket.dto.params.sls.TimeSeriesChartResponse;
 import com.alibaba.himarket.service.SlsLogService;
 import com.alibaba.himarket.service.gateway.factory.SlsPresetSqlRegistry;
-
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.validation.annotation.Validated;
@@ -36,19 +34,23 @@ public class SlsController {
 
     private final SlsConfig slsConfig;
 
-
     @PostMapping("/statistics")
     @Operation(summary = "日志转指标聚合查询")
-    public ScenarioQueryResponse slsScenarioQuery(@RequestBody @Validated GenericSlsQueryRequest request) {
+    public ScenarioQueryResponse slsScenarioQuery(
+            @RequestBody @Validated GenericSlsQueryRequest request) {
         // SLS未配置时优雅降级,避免大量错误日志
         if (!slsConfig.isConfigured()) {
-            log.debug("SLS endpoint not configured, returning empty result for scenario: {}", request.getScenario());
+            log.debug(
+                    "SLS endpoint not configured, returning empty result for scenario: {}",
+                    request.getScenario());
             return buildEmptyResponse(request.getScenario());
         }
 
         SlsPresetSqlRegistry.Preset preset = presetRegistry.getPreset(request.getScenario());
         if (preset == null) {
-            log.warn("Scenario not found, returning empty result. scenario: {}", request.getScenario());
+            log.warn(
+                    "Scenario not found, returning empty result. scenario: {}",
+                    request.getScenario());
             return buildEmptyResponse(request.getScenario());
         }
         // 应用预置SQL
@@ -58,78 +60,84 @@ public class SlsController {
         ScenarioQueryResponse resp;
         switch (preset.getType()) {
             case LINE:
-                TimeSeriesChartResponse chart = SlsResponseConverter.toTimeSeriesChart(
-                    response,
-                    preset.getTimeField() != null ? preset.getTimeField() : "time",
-                    preset.getValueField() != null ? preset.getValueField() : "count",
-                    interval);
-                resp = ScenarioQueryResponse.builder()
-                    .type(SlsPresetSqlRegistry.DisplayType.LINE)
-                    .timeSeries(chart)
-                    .build();
+                TimeSeriesChartResponse chart =
+                        SlsResponseConverter.toTimeSeriesChart(
+                                response,
+                                preset.getTimeField() != null ? preset.getTimeField() : "time",
+                                preset.getValueField() != null ? preset.getValueField() : "count",
+                                interval);
+                resp =
+                        ScenarioQueryResponse.builder()
+                                .type(SlsPresetSqlRegistry.DisplayType.LINE)
+                                .timeSeries(chart)
+                                .build();
                 return resp;
             case CARD:
                 Map<String, Object> statistics = SlsResponseConverter.toStatistics(response);
                 List<ScenarioQueryResponse.StatisticItem> items = new java.util.ArrayList<>();
                 for (Map.Entry<String, Object> e : statistics.entrySet()) {
-                    items.add(ScenarioQueryResponse.StatisticItem.builder()
-                        .key(e.getKey())
-                        .value(String.valueOf(e.getValue()))
-                        .build());
+                    items.add(
+                            ScenarioQueryResponse.StatisticItem.builder()
+                                    .key(e.getKey())
+                                    .value(String.valueOf(e.getValue()))
+                                    .build());
                 }
-                resp = ScenarioQueryResponse.builder()
-                    .type(SlsPresetSqlRegistry.DisplayType.CARD)
-                    .stats(items)
-                    .build();
+                resp =
+                        ScenarioQueryResponse.builder()
+                                .type(SlsPresetSqlRegistry.DisplayType.CARD)
+                                .stats(items)
+                                .build();
                 return resp;
             case TABLE:
-                List<Map<String, String>> table = response.getAggregations() != null ? response.getAggregations() : response.getLogs();
-                resp = ScenarioQueryResponse.builder()
-                    .type(SlsPresetSqlRegistry.DisplayType.TABLE)
-                    .table(table)
-                    .build();
+                List<Map<String, String>> table =
+                        response.getAggregations() != null
+                                ? response.getAggregations()
+                                : response.getLogs();
+                resp =
+                        ScenarioQueryResponse.builder()
+                                .type(SlsPresetSqlRegistry.DisplayType.TABLE)
+                                .table(table)
+                                .build();
                 return resp;
             default:
                 return buildEmptyResponse(request.getScenario());
         }
     }
 
-    /**
-     * 构建空响应(用于SLS未配置或查询失败场景的优雅降级)
-     */
+    /** 构建空响应(用于SLS未配置或查询失败场景的优雅降级) */
     private ScenarioQueryResponse buildEmptyResponse(String scenario) {
         SlsPresetSqlRegistry.Preset preset = presetRegistry.getPreset(scenario);
         if (preset == null) {
             return ScenarioQueryResponse.builder()
-                .type(SlsPresetSqlRegistry.DisplayType.CARD)
-                .stats(Collections.emptyList())
-                .build();
+                    .type(SlsPresetSqlRegistry.DisplayType.CARD)
+                    .stats(Collections.emptyList())
+                    .build();
         }
 
         switch (preset.getType()) {
             case LINE:
                 return ScenarioQueryResponse.builder()
-                    .type(SlsPresetSqlRegistry.DisplayType.LINE)
-                    .timeSeries(TimeSeriesChartResponse.builder()
-                        .dataPoints(Collections.emptyList())
-                        .build())
-                    .build();
+                        .type(SlsPresetSqlRegistry.DisplayType.LINE)
+                        .timeSeries(
+                                TimeSeriesChartResponse.builder()
+                                        .dataPoints(Collections.emptyList())
+                                        .build())
+                        .build();
             case CARD:
                 return ScenarioQueryResponse.builder()
-                    .type(SlsPresetSqlRegistry.DisplayType.CARD)
-                    .stats(Collections.emptyList())
-                    .build();
+                        .type(SlsPresetSqlRegistry.DisplayType.CARD)
+                        .stats(Collections.emptyList())
+                        .build();
             case TABLE:
                 return ScenarioQueryResponse.builder()
-                    .type(SlsPresetSqlRegistry.DisplayType.TABLE)
-                    .table(Collections.emptyList())
-                    .build();
+                        .type(SlsPresetSqlRegistry.DisplayType.TABLE)
+                        .table(Collections.emptyList())
+                        .build();
             default:
                 return ScenarioQueryResponse.builder()
-                    .type(SlsPresetSqlRegistry.DisplayType.CARD)
-                    .stats(Collections.emptyList())
-                    .build();
+                        .type(SlsPresetSqlRegistry.DisplayType.CARD)
+                        .stats(Collections.emptyList())
+                        .build();
         }
     }
-
 }
