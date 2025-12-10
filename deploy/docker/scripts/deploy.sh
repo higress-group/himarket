@@ -27,6 +27,9 @@ fi
 # 商业化 Nacos 开关
 USE_COMMERCIAL_NACOS="${USE_COMMERCIAL_NACOS:-false}"
 
+# AI 网关开关
+USE_AI_GATEWAY="${USE_AI_GATEWAY:-false}"
+
 # 内置 MySQL 开关
 USE_BUILTIN_MYSQL="${USE_BUILTIN_MYSQL:-true}"
 
@@ -70,7 +73,7 @@ wait_service() {
   while (( elapsed < max_wait )); do
     # 获取容器ID
     local cid
-    cid=$(docker-compose ps -q "${service_name}" 2>/dev/null || true)
+    cid=$(cd "${DOCKER_DIR}" && docker-compose --env-file "${DATA_DIR}/.env" ps -q "${service_name}" 2>/dev/null || true)
     if [[ -n "$cid" ]]; then
       # 读取容器健康与状态
       local health status
@@ -93,13 +96,13 @@ wait_service() {
 
     if (( elapsed % 30 == 0 )); then
       local psline
-      psline=$(docker-compose ps "${service_name}" 2>/dev/null | sed -n '2p' || true)
+      psline=$(cd "${DOCKER_DIR}" && docker-compose --env-file "${DATA_DIR}/.env" ps "${service_name}" 2>/dev/null | sed -n '2p' || true)
       log "等待 ${service_name} 就绪... (${elapsed}s/${max_wait}s) 状态: ${psline}"
     fi
   done
 
   err "${service_name} 启动超时"
-  docker-compose logs "${service_name}" | tail -50
+  (cd "${DOCKER_DIR}" && docker-compose --env-file "${DATA_DIR}/.env" logs "${service_name}" | tail -50)
   return 1
 }
 
@@ -132,6 +135,21 @@ run_hooks() {
         # 使用开源 Nacos 时，跳过商业化 Nacos 脚本
         if [[ "$hook_name" == "25-init-commercial-nacos.sh" ]]; then
           log "跳过钩子: ${hook_name} (未启用商业化 Nacos)"
+          continue
+        fi
+      fi
+
+      # 根据 AI 网关开关跳过特定脚本
+      if [[ "${USE_AI_GATEWAY}" == "true" ]]; then
+        # 使用 AI 网关时，跳过 Higress 相关脚本
+        if [[ "$hook_name" == "15-init-higress-admin.sh" || "$hook_name" == "30-init-higress-mcp.sh" ]]; then
+          log "跳过钩子: ${hook_name} (已启用 AI 网关)"
+          continue
+        fi
+      else
+        # 使用 Higress 时，跳过 AI 网关脚本
+        if [[ "$hook_name" == "26-init-ai-gateway.sh" ]]; then
+          log "跳过钩子: ${hook_name} (未启用 AI 网关)"
           continue
         fi
       fi
@@ -231,13 +249,29 @@ deploy_all() {
   log "启动 Docker Compose 服务..."
   cd "${DOCKER_DIR}"  # 切换到 docker-compose.yml 所在目录
 
-  # 根据 USE_BUILTIN_MYSQL 开关决定是否启用内置 MySQL
+  # 根据配置动态构建 profiles
   local profiles="full-stack"
+
+  # 根据商业化 Nacos 开关决定是否启用开源 Nacos
+  if [[ "${USE_COMMERCIAL_NACOS}" != "true" ]]; then
+    profiles="${profiles},opensource-nacos"
+    log "启用开源 Nacos"
+  else
+    log "使用商业化 Nacos，跳过开源 Nacos 部署"
+  fi
+
+  # 根据 AI 网关开关决定是否启用 Higress
+  if [[ "${USE_AI_GATEWAY}" != "true" ]]; then
+    profiles="${profiles},higress-gateway"
+    log "启用 Higress 网关"
+  else
+    log "使用 AI 网关，跳过 Higress 部署"
+  fi
+
+  # 根据 USE_BUILTIN_MYSQL 开关决定是否启用内置 MySQL
   if [[ "${USE_BUILTIN_MYSQL}" == "true" ]]; then
     log "使用内置 MySQL"
-    profiles="full-stack,builtin-mysql"
-    export COMPOSE_PROFILES="${profiles}"
-    docker-compose --env-file "${DATA_DIR}/.env" up -d
+    profiles="${profiles},builtin-mysql"
   else
     log "使用外置 MySQL (DB_HOST=${DB_HOST})"
     # 验证外置 MySQL 配置
@@ -245,9 +279,11 @@ deploy_all() {
       err "使用外置 MySQL 时，必须配置 DB_HOST, DB_PORT, DB_NAME, DB_USERNAME, DB_PASSWORD"
       exit 1
     fi
-    export COMPOSE_PROFILES="${profiles}"
-    docker-compose --env-file "${DATA_DIR}/.env" up -d
   fi
+
+  export COMPOSE_PROFILES="${profiles}"
+  log "使用 profiles: ${profiles}"
+  docker-compose --env-file "${DATA_DIR}/.env" up -d
 
   # 等待核心服务就绪
   log "等待核心服务启动..."
@@ -259,12 +295,24 @@ deploy_all() {
     log "跳过内置 MySQL 等待（使用外置 MySQL）"
   fi
 
-  wait_service "nacos" 180
-  wait_service "redis-stack-server" 60
+  # 根据商业化 Nacos 开关决定是否等待 Nacos
+  if [[ "${USE_COMMERCIAL_NACOS}" != "true" ]]; then
+    wait_service "nacos" 180
+  else
+    log "跳过开源 Nacos 等待（使用商业化 Nacos）"
+  fi
+
+  # 根据 AI 网关开关决定是否等待 Redis 和 Higress
+  if [[ "${USE_AI_GATEWAY}" != "true" ]]; then
+    wait_service "redis-stack-server" 60
+    wait_service "higress" 180
+  else
+    log "跳过 Redis 和 Higress 等待（使用 AI 网关）"
+  fi
+
   wait_service "himarket-server" 180
   wait_service "himarket-admin" 120
   wait_service "himarket-frontend" 120
-  wait_service "higress" 180
 
   # 部署阶段完成后执行 post_ready 钩子（与 Helm 一致）
   run_hooks "post_ready" || log "警告：post_ready 钩子执行失败"

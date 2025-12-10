@@ -197,7 +197,7 @@ export function ChatArea(props: ChatAreaProps) {
   return (
     <div className="h-full flex flex-col flex-1">
 
-      <div className={`overflow-auto ${modelConversations.length === 0 ? "" : "h-full"} grid grid-rows-[auto] ${modelConversations.length === 0 ? "" : modelConversations.length === 1 ? "grid-cols-1 " : modelConversations.length === 2 ? "grid-cols-2" : "grid-cols-3"}`}>
+      <div className={`overflow-hidden ${modelConversations.length === 0 ? "" : "h-full"} grid grid-rows-[auto] ${modelConversations.length === 0 ? "" : modelConversations.length === 1 ? "grid-cols-1 " : modelConversations.length === 2 ? "grid-cols-2" : "grid-cols-3"}`}>
         {/* 主要内容区域 */}
         {
           modelConversations.map((model, index) => {

@@ -29,9 +29,9 @@ services:
     profiles:
       - builtin-mysql
 
-  # Nacos Server
+  # Nacos Server - 仅在未启用商业化 Nacos 时部署
   nacos:
-    image: ${NACOS_IMAGE:-nacos-registry.cn-hangzhou.cr.aliyuncs.com/nacos/nacos-server:v3.1.1-slim}
+    image: ${NACOS_IMAGE:-nacos-registry.cn-hangzhou.cr.aliyuncs.com/nacos/nacos-server:v3.1.1}
     container_name: nacos-standalone
     environment:
       - PREFER_HOST_MODE=hostname
@@ -49,9 +49,9 @@ services:
       - himarket-network
     restart: always
     profiles:
-      - full-stack
+      - opensource-nacos
 
-  # Redis Stack Server(for Higress MCP)
+  # Redis Stack Server(for Higress MCP) - 仅在未启用 AI 网关时部署
   redis-stack-server:
     image: ${REDIS_IMAGE:-higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/redis-stack-server:7.4.0-v3}
     container_name: redis-stack-server
@@ -66,9 +66,9 @@ services:
       retries: 5
     restart: always
     profiles:
-      - full-stack
+      - higress-gateway
 
-  # Higress All-in-One (Gateway + Console)
+  # Higress All-in-One (Gateway + Console) - 仅在未启用 AI 网关时部署
   higress:
     image: ${HIGRESS_IMAGE:-higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/all-in-one:latest}
     container_name: higress
@@ -78,7 +78,6 @@ services:
       - "8443:8443"  # Gateway HTTPS
     depends_on:
       - redis-stack-server
-      - nacos
     networks:
       - himarket-network
     volumes:
@@ -90,7 +89,7 @@ services:
       retries: 10
     restart: always
     profiles:
-      - full-stack
+      - higress-gateway
 
   # Himarket Server
   himarket-server:

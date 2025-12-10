@@ -668,7 +668,14 @@ main() {
     log "使用商业化 Nacos，跳过开源 Nacos 注册"
   fi
 
-  get_or_create_gateway >/dev/null 2>&1 || true
+  # 根据配置决定是否注册 Higress Gateway
+  local use_ai_gateway="${USE_AI_GATEWAY:-false}"
+  if [[ "$use_ai_gateway" != "true" ]]; then
+    log "使用 Higress 网关，注册到 Himarket..."
+    get_or_create_gateway >/dev/null 2>&1 || true
+  else
+    log "使用 AI 网关，跳过 Higress Gateway 注册"
+  fi
   
   # 读取 Higress MCP 配置列表
   local higress_mcp_count=0
@@ -688,8 +695,9 @@ main() {
   local failed_count=0
   local failed_list=""
   
-  # 遍历处理每个 Higress MCP
-  if [ "$higress_mcp_count" -gt 0 ]; then
+  # 遍历处理每个 Higress MCP（仅在未启用 AI 网关时处理）
+  if [[ "$use_ai_gateway" != "true" ]] && [ "$higress_mcp_count" -gt 0 ]; then
+    log "处理 Higress MCP 配置..."
     for i in $(seq 0 $((higress_mcp_count - 1))); do
       local mcp_config=$(jq ".[$i]" "$HIGRESS_MCP_CONFIG")
       local mcp_name=$(echo "$mcp_config" | jq -r '.name')
@@ -701,6 +709,8 @@ main() {
         failed_list="${failed_list}  - ${mcp_name} (Higress)\n"
       fi
     done
+  elif [[ "$use_ai_gateway" == "true" ]] && [ "$higress_mcp_count" -gt 0 ]; then
+    log "已启用 AI 网关，跳过 ${higress_mcp_count} 个 Higress MCP 配置"
   fi
   
   # 遍历处理每个 Nacos MCP

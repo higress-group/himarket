@@ -1,15 +1,41 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { Form, Input, Button, message } from "antd";
+import { Form, Input, Button, message, Divider } from "antd";
 import { UserOutlined, LockOutlined } from "@ant-design/icons";
-import api from "../lib/api";
+import api, { type IdpResult } from "../lib/api";
 import { AxiosError } from "axios";
 import { Layout } from "../components/Layout";
+import APIs from "../lib/apis";
+
+import aliyunIcon from "../assets/aliyun.png";
+import githubIcon from "../assets/github.png";
+import googleIcon from "../assets/google.png";
+
+
+const oidcIcons: Record<string, React.ReactNode> = {
+  google: <img src={googleIcon} alt="Google" className="w-5 h-5 mr-2" />,
+  github: <img src={githubIcon} alt="GitHub" className="w-6 h-6 mr-2" />,
+  aliyun: <img src={aliyunIcon} alt="Aliyun" className="w-6 h-6 mr-2" />,
+};
 
 const Login: React.FC = () => {
+  const [providers, setProviders] = useState<IdpResult[]>([]);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    // 使用OidcController的接口获取OIDC提供商
+    APIs.getOidcProviders()
+      .then(({data}) => {
+        console.log('OIDC providers response:', data);
+        setProviders(data);
+      })
+      .catch((error) => {
+        console.error('Failed to fetch OIDC providers:', error);
+        setProviders([]);
+      });
+  }, []);
 
   // 账号密码登录
   const handlePasswordLogin = async (values: { username: string; password: string }) => {
@@ -45,14 +71,25 @@ const Login: React.FC = () => {
     }
   };
 
+  // 跳转到 OIDC 授权 - 对接OidcController
+  const handleOidcLogin = (provider: string) => {
+    // 获取API前缀配置
+    const apiPrefix = api.defaults.baseURL || '/api/v1';
+
+    // 构建授权URL - 对接 /developers/oidc/authorize
+    const authUrl = new URL(`${window.location.origin}${apiPrefix}/developers/oidc/authorize`);
+    authUrl.searchParams.set('provider', provider);
+
+    console.log('Redirecting to OIDC authorization:', authUrl.toString());
+
+    // 跳转到OIDC授权服务器
+    window.location.href = authUrl.toString();
+  };
+
   return (
     <Layout>
       <div
         className="min-h-[calc(100vh-96px)] w-full flex items-center justify-center"
-        style={{
-          backdropFilter: 'blur(204px)',
-          WebkitBackdropFilter: 'blur(204px)',
-        }}
       >
         <div className="w-full max-w-md mx-4">
           {/* 登录卡片 */}
@@ -115,6 +152,30 @@ const Login: React.FC = () => {
                 </Button>
               </Form.Item>
             </Form>
+            {/* 分隔线 */}
+            {
+              providers.length > 0 && (
+                <Divider plain className="text-subTitle"><span className="text-subTitle">或</span></Divider>
+              )
+            }
+            {/* OIDC 登录按钮 */}
+            <div className="flex flex-col gap-2 mb-2">
+              {providers.length === 0 ? (
+                null
+              ) : (
+                providers.map((provider) => (
+                  <Button
+                    key={provider.provider}
+                    onClick={() => handleOidcLogin(provider.provider)}
+                    className="w-full flex items-center justify-center"
+                    size="large"
+                    icon={oidcIcons[provider.provider.toLowerCase()] || <span></span>}
+                  >
+                    使用 {provider.name || provider.provider} 登录
+                  </Button>
+                ))
+              )}
+            </div>
             <div className="text-center text-subTitle">
               没有账号？<Link to="/register" className="text-colorPrimary hover:text-colorPrimary hover:underline">注册</Link>
             </div>

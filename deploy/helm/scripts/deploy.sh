@@ -44,6 +44,9 @@ NS="${NAMESPACE:-himarket}"
 # 商业化 Nacos 开关
 USE_COMMERCIAL_NACOS="${USE_COMMERCIAL_NACOS:-false}"
 
+# AI 网关开关
+USE_AI_GATEWAY="${USE_AI_GATEWAY:-false}"
+
 # 仅部署 Himarket 开关
 HIMARKET_ONLY="${HIMARKET_ONLY:-false}"
 
@@ -275,6 +278,21 @@ run_hooks() {
         fi
       fi
       
+      # 根据 AI 网关开关跳过特定脚本
+      if [[ "${USE_AI_GATEWAY}" == "true" ]]; then
+        # 使用 AI 网关时，跳过 Higress MCP 初始化脚本
+        if [[ "$hook_name" == "30-init-higress-mcp.sh" ]]; then
+          log "跳过钩子: ${hook_name} (已启用 AI 网关)"
+          continue
+        fi
+      else
+        # 使用 Higress 时，跳过 AI 网关脚本
+        if [[ "$hook_name" == "26-init-ai-gateway.sh" ]]; then
+          log "跳过钩子: ${hook_name} (未启用 AI 网关)"
+          continue
+        fi
+      fi
+      
       hook_count=$((hook_count+1))
       log "运行钩子 [${hook_count}]: ${hook_name}"
 
@@ -383,17 +401,24 @@ deploy_all() {
     wait_rollout "$NS" "statefulset" "nacos" 900
   fi
 
-  # 3) 部署 Higress（官方 chart），直接设置参数
-  helm_upsert "higress" "$NS" "$HIGRESS_CHART_REF" \
-    --set "higress-core.global.enableRedis=true" \
-    --set "higress-console.service.type=LoadBalancer" \
-    --set "higress-console.admin.username=${HIGRESS_USERNAME}" \
-    --set "higress-console.admin.password=${HIGRESS_PASSWORD}"
-  wait_rollout "$NS" "deployment" "higress-gateway" 900
-  wait_rollout "$NS" "deployment" "higress-controller" 600
+  # 3) 部署 Higress（根据开关决定是否部署）
+  if [[ "${USE_AI_GATEWAY}" == "true" ]]; then
+    log "使用 AI 网关，跳过 Higress 部署"
+    log "AI 网关将在 post_ready 阶段进行初始化"
+  else
+    log "部署 Higress..."
+    # 部署 Higress（官方 chart），直接设置参数
+    helm_upsert "higress" "$NS" "$HIGRESS_CHART_REF" \
+      --set "higress-core.global.enableRedis=true" \
+      --set "higress-console.service.type=LoadBalancer" \
+      --set "higress-console.admin.username=${HIGRESS_USERNAME}" \
+      --set "higress-console.admin.password=${HIGRESS_PASSWORD}"
+    wait_rollout "$NS" "deployment" "higress-gateway" 900
+    wait_rollout "$NS" "deployment" "higress-controller" 600
 
-  # 配置 Higress MCP Redis 到 ConfigMap（安全合并，不覆盖其它字段）
-  update_higress_mcp_redis "$NS" || log "警告：mcpServer 配置更新失败，请手动检查"
+    # 配置 Higress MCP Redis 到 ConfigMap（安全合并，不覆盖其它字段）
+    update_higress_mcp_redis "$NS" || log "警告：mcpServer 配置更新失败，请手动检查"
+  fi
 
   # 4) 执行 post_ready 阶段钩子（数据初始化等）
   log "所有组件部署就绪，开始执行数据初始化钩子..."
