@@ -129,7 +129,7 @@ Use the `deploy.sh` script to deploy Himarket, Higress, and Nacos with data init
 ```bash
 # Clone repository
 git clone https://github.com/higress-group/himarket.git
-cd himarket/deploy/docker
+cd himarket/deploy/docker/scripts
 
 # Deploy full stack and initialize
 ./deploy.sh install
@@ -160,7 +160,7 @@ Use the `deploy.sh` script to deploy Himarket to Kubernetes cluster.
 ```bash
 # Clone repository
 git clone https://github.com/higress-group/himarket.git
-cd himarket/deploy/helm
+cd himarket/deploy/helm/scripts
 
 # Deploy full stack and initialize
 ./deploy.sh install
