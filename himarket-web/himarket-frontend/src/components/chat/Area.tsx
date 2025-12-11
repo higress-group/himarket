@@ -353,7 +353,7 @@ export function ChatArea(props: ChatAreaProps) {
                 <h1 className="text-2xl font-medium text-gray-900 mb-2">
                   您好，欢迎来到 <span className="text-colorPrimary">
                     <TextType
-                      text={["Himarket 体验中心"]}
+                      text={["HiMarket HiChat"]}
                       typingSpeed={100}
                       showCursor={true}
                       cursorCharacter="_"

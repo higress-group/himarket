@@ -159,7 +159,9 @@ export function UserInfo() {
         menu={{ items: menuItems }}
         placement="bottomRight"
         trigger={['hover']}
-        overlayClassName="user-dropdown"
+        classNames={{
+          root: "user-dropdown"
+        }}
       >
         <div className="flex items-center space-x-2 cursor-pointer hover:opacity-80 transition-opacity px-2 py-1 rounded-full">
           {userInfo.avatar ? (
@@ -185,4 +187,4 @@ export function UserInfo() {
       登录
     </Button>
   );
-} 
+}

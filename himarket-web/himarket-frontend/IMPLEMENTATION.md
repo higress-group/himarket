@@ -7,7 +7,7 @@
 - ✅ 更新开发环境代理配置（`vite.config.ts`）
 - ✅ API 请求拦截器自动添加 Authorization header
 
-### 2. Square 页面（体验中心）
+### 2. Square 页面（HiChat）
 - ✅ 从真实 API 获取模型列表（`GET /products?type=MODEL_API`）
 - ✅ 添加加载状态和错误处理
 - ✅ 点击"立即体验"跳转到 Chat 页面并传递产品信息

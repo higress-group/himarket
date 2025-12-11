@@ -1,7 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { UserInfo } from "./UserInfo";
-import { Himarket, Logo } from "./icon";
+import { HiMarket, Logo } from "./icon";
 
 
 export function Header() {
@@ -18,11 +18,11 @@ export function Header() {
   }, []);
 
   const tabs = [
-    { path: "/models", label: "模型" },
-    { path: "/mcp", label: "MCP" },
+    { path: "/chat", label: "HiChat" },
     { path: "/agents", label: "智能体" },
+    { path: "/mcp", label: "MCP" },
+    { path: "/models", label: "模型" },
     { path: "/apis", label: "API" },
-    { path: "/chat", label: "体验中心" },
   ];
 
   const isActiveTab = (path: string) => {
@@ -47,7 +47,7 @@ export function Header() {
                 {/* LOGO区域 */}
                 <Logo className="w-6 h-6" />
               </div>
-              <Himarket />
+              <HiMarket />
             </Link>
             <div className="h-6 w-[1px] bg-gray-200 mx-5"></div>
             {/* Tab 区域 */}

@@ -24,11 +24,11 @@ const Layout: React.FC = () => {
       const hasToken = isAuthenticated()
       setIsLoggedIn(hasToken)
     }
-    
+
     checkAuthStatus()
     // 监听 storage 变化（当其他标签页登录/登出时）
     window.addEventListener('storage', checkAuthStatus)
-    
+
     return () => {
       window.removeEventListener('storage', checkAuthStatus)
     }
@@ -47,10 +47,10 @@ const Layout: React.FC = () => {
     { name: 'Portal', cn: '门户', href: '/portals', icon: GlobalOutlined },
     { name: 'API Products', cn: 'API产品', href: '/api-products', icon: AppstoreOutlined },
     { name: 'Categories', cn: '产品类别', href: '/product-categories', icon: FolderOutlined },
-    { 
-      name: '实例管理', 
-      cn: '实例管理', 
-      href: '/consoles', 
+    {
+      name: '实例管理',
+      cn: '实例管理',
+      href: '/consoles',
       icon: SettingOutlined,
       children: [
         { name: 'Nacos实例', cn: 'Nacos实例', href: '/consoles/nacos', icon: DesktopOutlined },
@@ -134,7 +134,7 @@ const Layout: React.FC = () => {
                 className="hover:bg-gray-100"
               />
             </div>
-          <span className="text-2xl font-bold">Himarket</span>
+          <span className="text-2xl font-bold">HiMarket</span>
         </div>
         {/* 顶部右侧用户信息或登录按钮 */}
         {isLoggedIn ? (

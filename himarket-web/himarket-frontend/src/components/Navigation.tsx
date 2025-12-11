@@ -9,7 +9,7 @@ interface NavigationProps {
 
 export function Navigation({ loading = false }: NavigationProps) {
   const location = useLocation();
-  
+
   const isActive = (path: string) => {
     if (path === '/') {
       return location.pathname === '/';
@@ -18,29 +18,29 @@ export function Navigation({ loading = false }: NavigationProps) {
   };
 
   const navigationItems = [
-    { 
-      path: '/apis', 
-      icon: <ApiOutlined />, 
-      title: 'APIs', 
-      subtitle: 'REST接口' 
+    {
+      path: '/apis',
+      icon: <ApiOutlined />,
+      title: 'APIs',
+      subtitle: 'REST接口'
     },
-    { 
-      path: '/mcp', 
-      icon: <ToolOutlined />, 
-      title: 'MCP', 
-      subtitle: '工具集成' 
+    {
+      path: '/mcp',
+      icon: <ToolOutlined />,
+      title: 'MCP',
+      subtitle: '工具集成'
     },
-    { 
-      path: '/models', 
-      icon: <BulbOutlined />, 
-      title: 'Model', 
-      subtitle: 'AI模型' 
+    {
+      path: '/models',
+      icon: <BulbOutlined />,
+      title: 'Model',
+      subtitle: 'AI模型'
     },
-    { 
-      path: '/agents', 
-      icon: <RobotOutlined />, 
-      title: 'Agent', 
-      subtitle: '智能助手' 
+    {
+      path: '/agents',
+      icon: <RobotOutlined />,
+      title: 'Agent',
+      subtitle: '智能助手'
     }
   ];
 
@@ -65,11 +65,11 @@ export function Navigation({ loading = false }: NavigationProps) {
                   style={{ display: "block" }}
                 />
                 </div>
-                <span className="text-xl font-bold text-gray-900">Himarket</span>
+                <span className="text-xl font-bold text-gray-900">HiMarket</span>
               </Link>
             )}
           </div>
-          
+
           <div className="hidden md:flex items-center absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
             {loading ? (
               <div className="flex space-x-3">
@@ -81,12 +81,12 @@ export function Navigation({ loading = false }: NavigationProps) {
             ) : (
               <div className="flex space-x-3">
                 {navigationItems.map((item) => (
-                  <Link 
+                  <Link
                     key={item.path}
-                    to={item.path} 
+                    to={item.path}
                     className={`px-4 py-3 rounded-lg font-medium transition-all duration-200 flex flex-col items-center justify-center min-w-[100px] ${
-                      isActive(item.path) 
-                        ? 'bg-blue-50/80 text-blue-700 border border-blue-200/50 shadow-sm' 
+                      isActive(item.path)
+                        ? 'bg-blue-50/80 text-blue-700 border border-blue-200/50 shadow-sm'
                         : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50/50 border border-transparent'
                     }`}
                   >
@@ -106,7 +106,7 @@ export function Navigation({ loading = false }: NavigationProps) {
               </div>
             )}
           </div>
-          
+
           <div className="flex items-center space-x-4">
             {loading ? (
               <Skeleton.Avatar size={32} active />
@@ -118,4 +118,4 @@ export function Navigation({ loading = false }: NavigationProps) {
       </div>
     </nav>
   );
-} 
+}

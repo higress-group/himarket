@@ -7,5 +7,5 @@ fi
 sed -i "s|{{ HIMARKET_SERVER }}|${HIMARKET_SERVER}|g" /etc/nginx/default.d/proxy.conf
 
 nginx
-echo "Himarket Admin started successfully"
+echo "HiMarket Admin started successfully"
 tail -f /var/log/nginx/access.log

@@ -101,7 +101,7 @@ const Login: React.FC = () => {
                 </span>
                 您好
               </h2>
-              <p className="text-sm text-[#85888D]">欢迎来到 Himarket，登录以继续</p>
+              <p className="text-sm text-[#85888D]">欢迎来到 HiMarket，登录以继续</p>
             </div>
 
             {/* 账号密码登录表单 */}

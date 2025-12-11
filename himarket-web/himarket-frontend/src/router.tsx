@@ -1,5 +1,5 @@
-import { Routes, Route } from "react-router-dom";
-import Home from "./pages/Home";
+import { Routes, Route, Navigate } from "react-router-dom";
+// import Home from "./pages/Home";
 import ApiDetail from "./pages/ApiDetail";
 import Consumers from "./pages/Consumers";
 import ConsumerDetail from "./pages/ConsumerDetail";
@@ -19,7 +19,7 @@ import Chat from "./pages/Chat";
 export function Router() {
   return (
     <Routes>
-      <Route path="/" element={<Home />} />
+      <Route path="/" element={<Navigate to="/chat" />} />
       <Route path="/models" element={<Square activeType="MODEL_API" />} />
       <Route path="/mcp" element={<Square activeType="MCP_SERVER" />} />
       <Route path="/agents" element={<Square activeType="AGENT_API" />} />
@@ -42,4 +42,4 @@ export function Router() {
       {/* 其他页面可继续添加 */}
     </Routes>
   );
-} 
+}

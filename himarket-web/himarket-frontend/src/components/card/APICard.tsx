@@ -62,7 +62,7 @@ function HomeAPICard() {
             {
               [
                 <Type />,
-                <Image />,
+                <Image className="fill-[#0A0A0A] w-5 h-5" />,
                 <SquarePlay />,
                 <AudioLines />,
               ].map((icon, i) => (

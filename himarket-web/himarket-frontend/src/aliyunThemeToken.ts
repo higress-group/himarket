@@ -3,6 +3,7 @@ export const colors = {
   "colorPrimaryBg": "#EEF2FF",
   "colorPrimaryBgHover": "#E0E7FF",
   "colorPrimarySecondary": "#C7D2FE",
+  "colorPrimaryHoverLight": "#EFF4FF",
   "colorTextSecondaryCustom": "#A3A3A3",
   "colorPrimaryBorderHover": "#A5B4FC",
   "subTitle": "#737373",

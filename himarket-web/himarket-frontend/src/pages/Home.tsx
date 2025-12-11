@@ -34,7 +34,7 @@ function HomePage() {
                 backgroundClip: "text",
                 WebkitTextFillColor: "transparent",
               }}>
-                Himarket 企业级AI开放平台
+                HiMarket 企业级AI开放平台
               </span>
             </Title>
             <Paragraph className="text-xl text-subTitle">
@@ -71,4 +71,4 @@ function HomePage() {
   );
 }
 
-export default HomePage; 
+export default HomePage;

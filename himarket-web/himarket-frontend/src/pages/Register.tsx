@@ -43,7 +43,7 @@ const Register: React.FC = () => {
                 <span className="text-colorPrimary">嗨，</span>
                 您好
               </h2>
-              <p className="text-sm text-[#85888D]">欢迎来到 Himarket</p>
+              <p className="text-sm text-[#85888D]">欢迎来到 HiMarket</p>
             </div>
 
             <Form
@@ -129,4 +129,4 @@ const Register: React.FC = () => {
   )
 }
 
-export default Register 
+export default Register
