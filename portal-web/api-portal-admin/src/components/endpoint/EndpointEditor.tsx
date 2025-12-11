@@ -1,0 +1,385 @@
+import { useState } from 'react';
+import {
+  Table,
+  Button,
+  Modal,
+  Form,
+  Input,
+  Select,
+  message,
+  Space,
+  Tag,
+  Popconfirm
+} from 'antd';
+import type { ColumnsType } from 'antd/es/table';
+import {
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  DragOutlined
+} from '@ant-design/icons';
+import type { Endpoint, EndpointType } from '@/types/endpoint';
+import EndpointConfigForm from './EndpointConfigForm';
+
+const { TextArea } = Input;
+
+interface EndpointEditorProps {
+  value?: Endpoint[];
+  onChange?: (value: Endpoint[]) => void;
+  disabled?: boolean;
+  apiType?: string; // API Definition 的类型
+}
+
+// Endpoint 类型选项
+const ENDPOINT_TYPE_OPTIONS = [
+  { label: 'MCP Tool', value: 'MCP_TOOL' },
+  { label: 'REST Route', value: 'REST_ROUTE' },
+  { label: 'Agent', value: 'AGENT' },
+  { label: 'Model', value: 'MODEL' }
+];
+
+// Endpoint 类型颜色映射
+const ENDPOINT_TYPE_COLOR_MAP: Record<EndpointType, string> = {
+  MCP_TOOL: 'purple',
+  REST_ROUTE: 'blue',
+  AGENT: 'green',
+  MODEL: 'orange'
+};
+
+// API 类型到 Endpoint 类型的映射
+const API_TYPE_TO_ENDPOINT_TYPE: Record<string, EndpointType> = {
+  REST_API: 'REST_ROUTE',
+  MCP_SERVER: 'MCP_TOOL',
+  AGENT_API: 'AGENT',
+  MODEL_API: 'MODEL'
+};
+
+// 根据 API 类型获取术语
+const getTerminology = (apiType?: string) => {
+  if (apiType === 'MCP_SERVER') {
+    return {
+      singular: 'Tool',
+      plural: 'Tools',
+      singularLower: 'tool',
+      pluralLower: 'tools'
+    };
+  }
+  return {
+    singular: 'Endpoint',
+    plural: 'Endpoints',
+    singularLower: 'endpoint',
+    pluralLower: 'endpoints'
+  };
+};
+
+export default function EndpointEditor({
+  value = [],
+  onChange,
+  disabled = false,
+  apiType
+}: EndpointEditorProps) {
+  // 根据 API 类型推断 Endpoint 类型
+  const inferredEndpointType = apiType ? API_TYPE_TO_ENDPOINT_TYPE[apiType] : undefined;
+  // 获取显示术语
+  const terminology = getTerminology(apiType);
+  
+  const [modalVisible, setModalVisible] = useState(false);
+  const [editingEndpoint, setEditingEndpoint] = useState<Endpoint | null>(null);
+  const [selectedType, setSelectedType] = useState<EndpointType | undefined>();
+  const [currentConfig, setCurrentConfig] = useState<any>({});
+  const [form] = Form.useForm();
+
+  const handleAdd = () => {
+    setEditingEndpoint(null);
+    // 自动设置推断出的类型
+    setSelectedType(inferredEndpointType);
+    setCurrentConfig({});
+    form.resetFields();
+    // 如果有推断的类型，自动设置到表单
+    if (inferredEndpointType) {
+      form.setFieldsValue({ type: inferredEndpointType });
+    }
+    setModalVisible(true);
+  };
+
+  const handleEdit = (endpoint: Endpoint) => {
+    setEditingEndpoint(endpoint);
+    setSelectedType(endpoint.type);
+    setCurrentConfig(endpoint.config || {});
+    form.setFieldsValue({
+      name: endpoint.name,
+      description: endpoint.description,
+      type: endpoint.type
+    });
+    setModalVisible(true);
+  };
+
+  const handleDelete = (index: number) => {
+    const newEndpoints = [...value];
+    newEndpoints.splice(index, 1);
+    // 重新计算 sortOrder
+    newEndpoints.forEach((ep, idx) => {
+      ep.sortOrder = idx;
+    });
+    onChange?.(newEndpoints);
+    message.success(`${terminology.singular} 删除成功`);
+  };
+
+  const handleModalOk = async () => {
+    try {
+      const values = await form.validateFields();
+      
+      // 确定最终的 type 值：优先使用表单中的 type，如果没有则使用推断的类型或当前选中的类型
+      const finalType = values.type || inferredEndpointType || selectedType;
+
+      if (!finalType) {
+        message.error('Endpoint 类型不能为空');
+        return;
+      }
+
+      // 使用当前配置
+      const newEndpoint: Endpoint = {
+        ...values,
+        type: finalType,  // 确保 type 字段存在
+        config: currentConfig,
+        sortOrder: editingEndpoint ? editingEndpoint.sortOrder : value.length
+      };
+
+      let newEndpoints: Endpoint[];
+      if (editingEndpoint) {
+        // 编辑模式：查找并更新
+        const index = value.findIndex(
+          (ep) => ep.sortOrder === editingEndpoint.sortOrder
+        );
+        newEndpoints = [...value];
+        newEndpoints[index] = {
+          ...editingEndpoint,
+          ...newEndpoint
+        };
+      } else {
+        // 新增模式
+        newEndpoints = [...value, newEndpoint];
+      }
+
+      onChange?.(newEndpoints);
+      setModalVisible(false);
+      message.success(editingEndpoint ? `${terminology.singular} 更新成功` : `${terminology.singular} 添加成功`);
+    } catch (error) {
+      // 表单验证失败
+    }
+  };
+
+  const handleModalCancel = () => {
+    setModalVisible(false);
+  };
+
+  const handleMoveUp = (index: number) => {
+    if (index === 0) return;
+    const newEndpoints = [...value];
+    [newEndpoints[index - 1], newEndpoints[index]] = [
+      newEndpoints[index],
+      newEndpoints[index - 1]
+    ];
+    // 更新 sortOrder
+    newEndpoints.forEach((ep, idx) => {
+      ep.sortOrder = idx;
+    });
+    onChange?.(newEndpoints);
+  };
+
+  const handleMoveDown = (index: number) => {
+    if (index === value.length - 1) return;
+    const newEndpoints = [...value];
+    [newEndpoints[index], newEndpoints[index + 1]] = [
+      newEndpoints[index + 1],
+      newEndpoints[index]
+    ];
+    // 更新 sortOrder
+    newEndpoints.forEach((ep, idx) => {
+      ep.sortOrder = idx;
+    });
+    onChange?.(newEndpoints);
+  };
+
+  const columns: ColumnsType<Endpoint> = [
+    {
+      title: '排序',
+      key: 'sort',
+      width: 80,
+      render: (_, __, index) => (
+        <Space>
+          <Button
+            type="text"
+            size="small"
+            icon={<DragOutlined />}
+            onClick={() => handleMoveUp(index)}
+            disabled={index === 0 || disabled}
+          />
+          <span>{index + 1}</span>
+          <Button
+            type="text"
+            size="small"
+            icon={<DragOutlined rotate={180} />}
+            onClick={() => handleMoveDown(index)}
+            disabled={index === value.length - 1 || disabled}
+          />
+        </Space>
+      )
+    },
+    {
+      title: `${terminology.singular} 名称`,
+      dataIndex: 'name',
+      key: 'name',
+      ellipsis: true
+    },
+    {
+      title: '类型',
+      dataIndex: 'type',
+      key: 'type',
+      width: 120,
+      render: (type: EndpointType) => (
+        <Tag color={ENDPOINT_TYPE_COLOR_MAP[type]}>
+          {ENDPOINT_TYPE_OPTIONS.find((opt) => opt.value === type)?.label || type}
+        </Tag>
+      )
+    },
+    {
+      title: '描述',
+      dataIndex: 'description',
+      key: 'description',
+      ellipsis: true
+    },
+    {
+      title: '操作',
+      key: 'action',
+      width: 150,
+      render: (_, record, index) => (
+        <Space size="small">
+          <Button
+            type="link"
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => handleEdit(record)}
+            disabled={disabled}
+          >
+            编辑
+          </Button>
+          <Popconfirm
+            title="确认删除"
+            description={`确定要删除此 ${terminology.singular} 吗？`}
+            onConfirm={() => handleDelete(index)}
+            okText="确认"
+            cancelText="取消"
+            disabled={disabled}
+          >
+            <Button
+              type="link"
+              danger
+              size="small"
+              icon={<DeleteOutlined />}
+              disabled={disabled}
+            >
+              删除
+            </Button>
+          </Popconfirm>
+        </Space>
+      )
+    }
+  ];
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-4">
+        <div>
+          <h4 className="text-base font-semibold">{terminology.singular} 配置</h4>
+          <p className="text-sm text-gray-500">
+            {apiType === 'MCP_SERVER' 
+              ? '配置 MCP Server 的工具（Tools）' 
+              : '配置 API 的端点信息，包括 MCP Tool、REST Route 等'}
+          </p>
+        </div>
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={handleAdd}
+          disabled={disabled}
+        >
+          添加 {terminology.singular}
+        </Button>
+      </div>
+
+      <Table
+        columns={columns}
+        dataSource={value}
+        rowKey={(record, index) => `${record.name}-${index}`}
+        pagination={false}
+        locale={{
+          emptyText: `暂无 ${terminology.singular}，点击"添加 ${terminology.singular}"开始配置`
+        }}
+      />
+
+      <Modal
+        title={editingEndpoint ? `编辑 ${terminology.singular}` : `添加 ${terminology.singular}`}
+        open={modalVisible}
+        onOk={handleModalOk}
+        onCancel={handleModalCancel}
+        width={700}
+        okText="确定"
+        cancelText="取消"
+      >
+        <Form form={form} layout="vertical" className="mt-4">
+          <Form.Item
+            label={`${terminology.singular} 名称`}
+            name="name"
+            rules={[
+              { required: true, message: `请输入 ${terminology.singular} 名称` },
+              { max: 100, message: '名称不能超过100个字符' }
+            ]}
+          >
+            <Input placeholder={apiType === 'MCP_SERVER' ? '例如：get_user_info' : '例如：getUserInfo'} />
+          </Form.Item>
+
+          {!inferredEndpointType && (
+            <Form.Item
+              label="Endpoint 类型"
+              name="type"
+              rules={[{ required: true, message: '请选择 Endpoint 类型' }]}
+            >
+              <Select
+                options={ENDPOINT_TYPE_OPTIONS}
+                placeholder="选择 Endpoint 类型"
+                disabled={!!editingEndpoint}
+                onChange={(type: EndpointType) => {
+                  setSelectedType(type);
+                  setCurrentConfig({});
+                }}
+              />
+            </Form.Item>
+          )}
+
+          <Form.Item
+            label="描述"
+            name="description"
+            rules={[{ max: 500, message: '描述不能超过500个字符' }]}
+          >
+            <TextArea
+              rows={3}
+              placeholder={`详细描述这个 ${terminology.singular} 的功能`}
+            />
+          </Form.Item>
+
+          {selectedType && (
+            <div className="border-t pt-4 mt-4">
+              <h4 className="text-sm font-semibold mb-4">{terminology.singular} 配置</h4>
+              <EndpointConfigForm
+                type={selectedType}
+                value={currentConfig}
+                onChange={setCurrentConfig}
+              />
+            </div>
+          )}
+        </Form>
+      </Modal>
+    </div>
+  );
+}

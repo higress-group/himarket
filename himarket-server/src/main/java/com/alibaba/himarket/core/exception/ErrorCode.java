@@ -45,12 +45,80 @@ public enum ErrorCode {
     /** 资源冲突 */
     CONFLICT(HttpStatus.CONFLICT, "资源冲突：{}"),
 
+    // API 生命周期管理相关错误 (400-499)
+
+    /**
+     * API Definition 不存在
+     */
+    API_DEFINITION_NOT_FOUND(HttpStatus.NOT_FOUND, "API Definition 不存在：{}"),
+
+    /**
+     * Endpoint 不存在
+     */
+    ENDPOINT_NOT_FOUND(HttpStatus.NOT_FOUND, "Endpoint 不存在：{}"),
+
+    /**
+     * 网关不存在
+     */
+    GATEWAY_NOT_FOUND(HttpStatus.NOT_FOUND, "网关不存在：{}"),
+
+    /**
+     * Registry 不存在
+     */
+    REGISTRY_NOT_FOUND(HttpStatus.NOT_FOUND, "Registry 不存在：{}"),
+
+    /**
+     * 不支持的 API 类型
+     */
+    UNSUPPORTED_API_TYPE(HttpStatus.BAD_REQUEST, "不支持的 API 类型：{}"),
+
+    /**
+     * 发布目标不支持当前 API 类型
+     */
+    UNSUPPORTED_OPERATION(HttpStatus.BAD_REQUEST, "发布目标不支持当前 API 类型：{}"),
+
+    /**
+     * API Definition 当前状态不允许此操作
+     */
+    INVALID_API_STATUS(HttpStatus.CONFLICT, "API Definition 当前状态不允许此操作：{}"),
+
+    /**
+     * 存在活跃的发布记录，无法删除
+     */
+    ACTIVE_PUBLISH_EXISTS(HttpStatus.CONFLICT, "存在活跃的发布记录，无法删除"),
+
+    /**
+     * API 已发布到该目标
+     */
+    ALREADY_PUBLISHED(HttpStatus.CONFLICT, "API 已发布到该目标：{}"),
+
     // 服务端错误 (500-599)
     /** 非预期错误 */
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "服务器内部错误：{}"),
 
     /** 网关操作相关错误 */
     GATEWAY_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "网关错误：{}"),
+
+    /**
+     * Registry 调用失败
+     */
+    REGISTRY_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Registry 调用失败：{}"),
+
+    /**
+     * 配置转换失败
+     */
+    CONFIG_CONVERSION_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "配置转换失败：{}"),
+
+    /**
+     * 网关服务不可用
+     */
+    GATEWAY_SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "网关服务不可用：{}"),
+
+    /**
+     * Registry 服务不可用
+     */
+    REGISTRY_SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "Registry 服务不可用：{}"),
+
     ;
 
     private final HttpStatus status;

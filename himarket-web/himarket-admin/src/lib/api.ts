@@ -287,3 +287,73 @@ export const nacosApi = {
     return api.get(`/nacos/${nacosId}/namespaces`, { params })
   }
 }
+
+// API Definition 相关API
+export const apiDefinitionApi = {
+  // 获取 API Definition 列表
+  getApiDefinitions: (params?: {
+    page?: number;
+    size?: number;
+    type?: string;
+    status?: string;
+    keyword?: string;
+  }) => {
+    return api.get(`/api-definitions`, { params })
+  },
+  // 获取 API Definition 详情
+  getApiDefinitionDetail: (apiDefinitionId: string) => {
+    return api.get(`/api-definitions/${apiDefinitionId}`)
+  },
+  // 创建 API Definition
+  createApiDefinition: (data: any) => {
+    return api.post(`/api-definitions`, data)
+  },
+  // 更新 API Definition
+  updateApiDefinition: (apiDefinitionId: string, data: any) => {
+    return api.put(`/api-definitions/${apiDefinitionId}`, data)
+  },
+  // 删除 API Definition
+  deleteApiDefinition: (apiDefinitionId: string) => {
+    return api.delete(`/api-definitions/${apiDefinitionId}`)
+  },
+  // 获取 API Definition 的端点列表
+  getEndpoints: (apiDefinitionId: string) => {
+    return api.get(`/api-definitions/${apiDefinitionId}/endpoints`)
+  },
+  // 添加端点
+  addEndpoint: (apiDefinitionId: string, data: any) => {
+    return api.post(`/api-definitions/${apiDefinitionId}/endpoints`, data)
+  },
+  // 更新端点
+  updateEndpoint: (apiDefinitionId: string, endpointId: string, data: any) => {
+    return api.put(`/api-definitions/${apiDefinitionId}/endpoints/${endpointId}`, data)
+  },
+  // 删除端点
+  deleteEndpoint: (apiDefinitionId: string, endpointId: string) => {
+    return api.delete(`/api-definitions/${apiDefinitionId}/endpoints/${endpointId}`)
+  },
+  // 获取发布记录
+  getPublishRecords: (apiDefinitionId: string, params?: { page?: number; size?: number }) => {
+    return api.get(`/api-definitions/${apiDefinitionId}/publish-records`, { params })
+  },
+  // 发布 API
+  publishApi: (apiDefinitionId: string, data: any) => {
+    return api.post(`/api-definitions/${apiDefinitionId}/publish`, data)
+  },
+  // 取消发布
+  unpublishApi: (apiDefinitionId: string, recordId: string) => {
+    return api.delete(`/api-definitions/${apiDefinitionId}/publish-records/${recordId}`)
+  },
+  // 获取发布历史
+  getPublishHistory: (apiDefinitionId: string, params?: { page?: number; size?: number }) => {
+    return api.get(`/api-definitions/${apiDefinitionId}/publish-history`, { params })
+  },
+  // 导入 Swagger/OpenAPI
+  importSwagger: (data: any) => {
+    return api.post(`/api-definitions/import/swagger`, data)
+  },
+  // 获取可用网关能力
+  getGatewayCapabilities: (apiType: string) => {
+    return api.get(`/api-definitions/gateway-capabilities`, { params: { apiType } })
+  }
+}

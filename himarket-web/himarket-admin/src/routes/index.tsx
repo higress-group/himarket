@@ -11,6 +11,9 @@ import ApiProductDetail from '@/pages/ApiProductDetail';
 import Login from '@/pages/Login';
 import ModelDashboard from '@/pages/ModelDashboard';
 import McpMonitor from '@/pages/McpMonitor';
+import ApiDefinitions from '@/pages/ApiDefinitions';
+import ApiDefinitionDetail from '@/pages/ApiDefinitionDetail';
+import ApiDefinitionForm from '@/pages/ApiDefinitionForm';
 
 export const router = createBrowserRouter([
   {
@@ -48,6 +51,22 @@ export const router = createBrowserRouter([
       {
         path: 'product-categories/:categoryId',
         element: <ProductCategoryDetail />,
+      },
+      {
+        path: 'api-definitions',
+        element: <ApiDefinitions />,
+      },
+      {
+        path: 'api-definitions/create',
+        element: <ApiDefinitionForm />,
+      },
+      {
+        path: 'api-definitions/edit',
+        element: <ApiDefinitionForm />,
+      },
+      {
+        path: 'api-definitions/detail',
+        element: <ApiDefinitionDetail />,
       },
       {
         path: 'consoles',

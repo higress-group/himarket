@@ -614,6 +614,12 @@ public class ProductServiceImpl implements ProductService {
                             ErrorCode.INVALID_REQUEST,
                             "Nacos source does not support product type: " + product.getType());
             }
+        } else if (sourceType.isManaged()) {
+            // Handle MANAGED API Definition
+            // For MANAGED type, API configuration comes from API Definition
+            // No need to fetch from external sources
+            // Configuration sync will be implemented when publishing API Definition
+            log.debug("MANAGED API type detected for product {}, skipping external config sync", product.getProductId());
         }
     }
 

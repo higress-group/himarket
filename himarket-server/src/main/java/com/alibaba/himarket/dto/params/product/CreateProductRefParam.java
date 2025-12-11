@@ -47,4 +47,11 @@ public class CreateProductRefParam implements InputConverter<ProductRef> {
     private HigressRefConfig higressRefConfig;
 
     private NacosRefConfig nacosRefConfig;
+
+    /**
+     * API Definition IDs (for MANAGED source type)
+     * 当前版本：列表最多包含一个元素
+     */
+    private String apiDefinitionIds;
+
 }

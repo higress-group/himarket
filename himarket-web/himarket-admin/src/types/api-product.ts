@@ -177,12 +177,13 @@ export interface LinkedService {
   productId: string;
   gatewayId?: string;
   nacosId?: string;
-  sourceType: 'GATEWAY' | 'NACOS';
+  sourceType: 'GATEWAY' | 'NACOS' | 'MANAGED';
   apigRefConfig?: RestAPIItem | APIGAIMCPItem | AIGatewayAgentItem | AIGatewayModelItem;
   higressRefConfig?: HigressMCPItem;
   nacosRefConfig?: NacosMCPItem | NacosAgentItem;  // 扩展支持 Agent
   adpAIGatewayRefConfig?: APIGAIMCPItem;
   apsaraGatewayRefConfig?: APIGAIMCPItem;
+  apiDefinitionIds?: string;  // API Definition IDs (for MANAGED source type)
 }
 
 // Product Feature Types

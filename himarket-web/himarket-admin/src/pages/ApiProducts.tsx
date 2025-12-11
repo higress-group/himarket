@@ -344,7 +344,11 @@ export default function ApiProducts() {
             管理和配置您的API产品
           </p>
         </div>
-        <Button onClick={handleCreate} type="primary" icon={<PlusOutlined/>}>
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={handleCreate}
+        >
           创建 API Product
         </Button>
       </div>

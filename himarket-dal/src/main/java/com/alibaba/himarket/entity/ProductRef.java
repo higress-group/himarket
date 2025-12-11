@@ -87,4 +87,28 @@ public class ProductRef extends BaseEntity {
 
     @Column(name = "enabled")
     private Boolean enabled;
+
+    @Column(name = "api_definition_ids", columnDefinition = "json")
+    private String apiDefinitionIds;
+
+    /**
+     * 判断是否为托管的 API
+     */
+    public boolean isManaged() {
+        return sourceType == SourceType.MANAGED;
+    }
+
+    /**
+     * 判断是否为导入的 API
+     */
+    public boolean isImported() {
+        return sourceType != null && sourceType != SourceType.MANAGED;
+    }
+
+    /**
+     * 判断是否可编辑（仅托管 API 可编辑）
+     */
+    public boolean isEditable() {
+        return isManaged();
+    }
 }

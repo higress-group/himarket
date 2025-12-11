@@ -3,7 +3,7 @@ import { PlusOutlined, DeleteOutlined, ExclamationCircleOutlined, CopyOutlined }
 import { useState, useEffect } from 'react'
 import type { ApiProduct, LinkedService, RestAPIItem, NacosMCPItem, APIGAIMCPItem, AIGatewayAgentItem, AIGatewayModelItem, ApiItem } from '@/types/api-product'
 import type { Gateway, NacosInstance } from '@/types/gateway'
-import { apiProductApi, gatewayApi, nacosApi } from '@/lib/api'
+import { apiProductApi, gatewayApi, nacosApi, apiDefinitionApi } from '@/lib/api'
 import { getGatewayTypeLabel } from '@/lib/constant'
 import { copyToClipboard } from '@/lib/utils'
 import * as yaml from 'js-yaml'
@@ -30,7 +30,11 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
   const [selectedNamespace, setSelectedNamespace] = useState<string | null>(null)
   const [apiList, setApiList] = useState<ApiItem[] | NacosMCPItem[]>([])
   const [apiLoading, setApiLoading] = useState(false)
-  const [sourceType, setSourceType] = useState<'GATEWAY' | 'NACOS'>('GATEWAY')
+  const [sourceType, setSourceType] = useState<'GATEWAY' | 'NACOS' | 'MANAGED'>('GATEWAY')
+
+  // API Definition 相关状态
+  const [apiDefinitions, setApiDefinitions] = useState<any[]>([])
+  const [apiDefinitionsLoading, setApiDefinitionsLoading] = useState(false)
   const [parsedTools, setParsedTools] = useState<Array<{
     name: string;
     description: string;
@@ -315,7 +319,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
     }
   }
 
-  const handleSourceTypeChange = (value: 'GATEWAY' | 'NACOS') => {
+  const handleSourceTypeChange = (value: 'GATEWAY' | 'NACOS' | 'MANAGED') => {
     setSourceType(value)
     setSelectedGateway(null)
     setSelectedNacos(null)
@@ -325,8 +329,32 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
     form.setFieldsValue({
       gatewayId: undefined,
       nacosId: undefined,
-      apiId: undefined
+      apiId: undefined,
+      apiDefinitionId: undefined
     })
+
+    // 如果选择 MANAGED，加载 API Definition 列表
+    if (value === 'MANAGED') {
+      loadApiDefinitions()
+    }
+  }
+
+  // 加载 API Definition 列表
+  const loadApiDefinitions = async () => {
+    try {
+      setApiDefinitionsLoading(true)
+      const response = await apiDefinitionApi.getApiDefinitions({
+        page: 0,
+        size: 1000, // 获取所有 API Definition
+        status: 'PUBLISHED' // 只获取已发布的
+      })
+      setApiDefinitions(response.data.content || [])
+    } catch (error) {
+      console.error('Failed to load API definitions:', error)
+      message.error('加载 API Definition 列表失败')
+    } finally {
+      setApiDefinitionsLoading(false)
+    }
   }
 
   const handleGatewayChange = async (gatewayId: string) => {
@@ -519,7 +547,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
   // TODO
   const handleModalOk = () => {
     form.validateFields().then((values) => {
-      const { sourceType, gatewayId, nacosId, apiId } = values
+      const { sourceType, gatewayId, nacosId, apiId, apiDefinitionId } = values
       const selectedApi = apiList.find((item: any) => {
         if ('apiId' in item) {
           // REST API或MCP server 会返回apiId和mcpRouteId，此时mcpRouteId为唯一值，apiId不是
@@ -562,6 +590,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
         } : undefined,
         adpAIGatewayRefConfig: selectedApi && 'fromGatewayType' in selectedApi && selectedApi.fromGatewayType === 'ADP_AI_GATEWAY' ? selectedApi as APIGAIMCPItem : undefined,
         apsaraGatewayRefConfig: selectedApi && 'fromGatewayType' in selectedApi && selectedApi.fromGatewayType === 'APSARA_GATEWAY' ? selectedApi as APIGAIMCPItem : undefined,
+        apiDefinitionIds: sourceType === 'MANAGED' && apiDefinitionId ? JSON.stringify([apiDefinitionId]) : undefined,
       }
       apiProductApi.createApiProductRef(apiProduct.productId, newService).then(async () => {
         message.success('关联成功')
@@ -1671,6 +1700,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
             <Select placeholder="请选择来源类型" onChange={handleSourceTypeChange}>
               <Select.Option value="GATEWAY">网关</Select.Option>
               <Select.Option value="NACOS" disabled={apiProduct.type === 'REST_API' || apiProduct.type === 'MODEL_API'}>Nacos</Select.Option>
+              <Select.Option value="MANAGED">API Definition（托管API）</Select.Option>
             </Select>
           </Form.Item>
 
@@ -1771,6 +1801,39 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                     <div>
                       <div className="font-medium">{ns.namespaceName}</div>
                       <div className="text-sm text-gray-500">{ns.namespaceId}</div>
+                    </div>
+                  </Select.Option>
+                ))}
+              </Select>
+            </Form.Item>
+          )}
+
+          {sourceType === 'MANAGED' && (
+            <Form.Item
+              name="apiDefinitionId"
+              label="选择 API Definition"
+              rules={[{ required: true, message: '请选择 API Definition' }]}
+            >
+              <Select
+                placeholder="请选择 API Definition"
+                loading={apiDefinitionsLoading}
+                showSearch
+                filterOption={(input, option) =>
+                  (option?.label as string)?.toLowerCase().includes(input.toLowerCase())
+                }
+                optionLabelProp="label"
+              >
+                {apiDefinitions.map((apiDef: any) => (
+                  <Select.Option
+                    key={apiDef.id}
+                    value={apiDef.id}
+                    label={apiDef.name}
+                  >
+                    <div>
+                      <div className="font-medium">{apiDef.name}</div>
+                      <div className="text-sm text-gray-500">
+                        {apiDef.description || `Version: ${apiDef.version}`}
+                      </div>
                     </div>
                   </Select.Option>
                 ))}
