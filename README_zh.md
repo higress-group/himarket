@@ -129,7 +129,7 @@ npm run dev
 ```bash
 # 克隆项目
 git clone https://github.com/higress-group/himarket.git
-cd himarket/deploy/docker
+cd himarket/deploy/docker/scripts
 
 # 部署全栈服务并初始化
 ./deploy.sh install
@@ -143,7 +143,7 @@ cd himarket/deploy/docker
 # 服务地址
 # 管理后台地址：http://localhost:5174
 # 开发者门户地址：http://localhost:5173
-# 后端 API 地址：http://localhost:8080
+# 后端 API 地址：http://localhost:8081
 ```
 
 > 详细的 Docker 部署说明请参考 [Docker 部署文档](./deploy/docker/Docker部署脚本说明.md)
@@ -160,7 +160,7 @@ cd himarket/deploy/docker
 ```bash
 # 克隆项目
 git clone https://github.com/higress-group/himarket.git
-cd himarket/deploy/helm
+cd himarket/deploy/helm/scripts
 
 # 部署全栈服务并初始化
 ./deploy.sh install
