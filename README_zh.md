@@ -129,7 +129,7 @@ npm run dev
 ```bash
 # 克隆项目
 git clone https://github.com/higress-group/himarket.git
-cd himarket/deploy/docker
+cd himarket/deploy/docker/scripts
 
 # 部署全栈服务并初始化
 ./deploy.sh install
@@ -160,7 +160,7 @@ cd himarket/deploy/docker
 ```bash
 # 克隆项目
 git clone https://github.com/higress-group/himarket.git
-cd himarket/deploy/helm
+cd himarket/deploy/helm/scripts
 
 # 部署全栈服务并初始化
 ./deploy.sh install
