@@ -50,6 +50,8 @@ import com.aliyun.sdk.gateway.pop.exception.PopClientException;
 import com.aliyun.sdk.service.apig20240327.models.*;
 import com.aliyun.sdk.service.apig20240327.models.CreateConsumerAuthorizationRulesRequest.AuthorizationRules;
 import com.aliyun.sdk.service.apig20240327.models.CreateConsumerAuthorizationRulesRequest.ResourceIdentifier;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
@@ -505,13 +507,7 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
     }
 
     @Override
-    public String getDashboard(Gateway gateway, String type) {
-        throw new UnsupportedOperationException("Dashboard feature has been removed");
-    }
-
-    @Override
-    public List<String> fetchGatewayIps(Gateway gateway) {
-
+    public List<URI> fetchGatewayUris(Gateway gateway) {
         APIGClient client = getClient(gateway);
         try {
             CompletableFuture<GetGatewayResponse> f =
@@ -542,11 +538,23 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
                     .map(GetGatewayResponseBody.LoadBalancers::getIpv4Addresses)
                     .filter(Objects::nonNull)
                     .flatMap(Collection::stream)
+                    .map(
+                            ip -> {
+                                try {
+                                    // Build gateway URI with http scheme by default
+                                    return new URI("http://" + ip);
+                                } catch (URISyntaxException e) {
+                                    log.error("Error creating URI for IP: {}", ip, e);
+                                    return null;
+                                }
+                            })
+                    .filter(Objects::nonNull)
                     .collect(Collectors.toList());
         } catch (Exception e) {
-            log.error("Error fetching API", e);
+            log.error("Error fetching gateway uris", e);
             throw new BusinessException(
-                    ErrorCode.INTERNAL_ERROR, "Error fetching API，Cause：" + e.getMessage());
+                    ErrorCode.INTERNAL_ERROR,
+                    "Error fetching gateway uris，Cause：" + e.getMessage());
         }
     }
 

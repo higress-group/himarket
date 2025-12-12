@@ -372,34 +372,6 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public String getProductDashboard(String productId) {
-        // Get product associated gateway information
-        ProductRef productRef =
-                productRefRepository
-                        .findFirstByProductId(productId)
-                        .orElseThrow(
-                                () ->
-                                        new BusinessException(
-                                                ErrorCode.NOT_FOUND, Resources.PRODUCT, productId));
-
-        if (productRef.getGatewayId() == null) {
-            throw new BusinessException(
-                    ErrorCode.INVALID_REQUEST, "Product not linked to gateway service");
-        }
-        // Select dashboard type based on product type
-        Product product = findProduct(productId);
-        String dashboardType;
-        if (product.getType() == ProductType.MCP_SERVER) {
-            dashboardType = "MCP";
-        } else {
-            // REST_API, HTTP_API use unified API dashboard
-            dashboardType = "API";
-        }
-        // Get dashboard URL through gateway service
-        return gatewayService.getDashboard(productRef.getGatewayId(), dashboardType);
-    }
-
-    @Override
     public PageResult<SubscriptionResult> listProductSubscriptions(
             String productId, QueryProductSubscriptionParam param, Pageable pageable) {
         existsProduct(productId);
@@ -514,11 +486,6 @@ public class ProductServiceImpl implements ProductService {
 
         // get mcp server config, and replace domain with gateway ip
         MCPConfigResult mcpConfig = product.getMcpConfig();
-        // Get gateway IPs
-        ProductRefResult productRef = getProductRef(productId);
-        String gatewayId = productRef.getGatewayId();
-        List<String> gatewayIps = gatewayService.fetchGatewayIps(gatewayId);
-        mcpConfig.convertDomainToGatewayIp(gatewayIps);
 
         MCPTransportConfig mcpTransportConfig = mcpConfig.toTransportConfig();
 

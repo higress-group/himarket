@@ -31,6 +31,8 @@ public class DomainResult {
 
     private String domain;
 
+    private Integer port;
+
     private String protocol;
 
     private String networkType;

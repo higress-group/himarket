@@ -22,7 +22,6 @@ package com.alibaba.himarket.service.gateway;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.map.MapBuilder;
 import cn.hutool.core.util.StrUtil;
-import cn.hutool.core.util.URLUtil;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.higress.sdk.model.route.KeyedRoutePredicate;
 import com.alibaba.higress.sdk.model.route.RoutePredicate;
@@ -50,6 +49,8 @@ import com.alibaba.himarket.support.gateway.GatewayConfig;
 import com.alibaba.himarket.support.gateway.HigressConfig;
 import com.alibaba.himarket.support.product.HigressRefConfig;
 import com.aliyun.sdk.service.apig20240327.models.HttpApiApiInfo;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.Builder;
@@ -180,12 +181,9 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
 
         List<String> domains = higressMCPConfig.getDomains();
         if (CollUtil.isEmpty(domains)) {
-            List<String> gatewayIps = fetchGatewayIps(gateway);
-            String domain =
-                    CollUtil.isEmpty(gatewayIps) ? "<higress-gateway-ip>" : gatewayIps.get(0);
-            c.setDomains(
-                    Collections.singletonList(
-                            DomainResult.builder().domain(domain).protocol("http").build()));
+            // If no domain is specified, use the first gateway IP as the domain
+            List<DomainResult> domainResults = fetchDefaultDomains(gateway);
+            c.setDomains(domainResults);
         } else {
             c.setDomains(
                     domains.stream()
@@ -227,6 +225,27 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
         return JSONUtil.toJsonStr(m);
     }
 
+    private List<DomainResult> fetchDefaultDomains(Gateway gateway) {
+        List<URI> gatewayUris = fetchGatewayUris(gateway);
+        DomainResult domainResult =
+                Optional.ofNullable(gatewayUris)
+                        .filter(CollUtil::isNotEmpty)
+                        .map(uris -> uris.get(0))
+                        .map(
+                                uri ->
+                                        DomainResult.builder()
+                                                .domain(uri.getHost())
+                                                .protocol(uri.getScheme())
+                                                .port(uri.getPort() == -1 ? null : uri.getPort())
+                                                .build())
+                        .orElse(
+                                DomainResult.builder()
+                                        .domain("<higress-gateway-ip>")
+                                        .protocol("http")
+                                        .build());
+        return Collections.singletonList(domainResult);
+    }
+
     private HigressDomainConfig fetchDomain(Gateway gateway, String domain) {
         HigressClient client = getClient(gateway);
         HigressResponse<HigressDomainConfig> response =
@@ -252,12 +271,7 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
         List<DomainResult> domains;
         if (CollUtil.isEmpty(aiRoute.getDomains())) {
             // Use gateway IP as domain
-            List<String> gatewayIps = fetchGatewayIps(gateway);
-            String domain =
-                    CollUtil.isEmpty(gatewayIps) ? "<higress-gateway-ip>" : gatewayIps.get(0);
-            domains =
-                    Collections.singletonList(
-                            DomainResult.builder().domain(domain).protocol("http").build());
+            domains = fetchDefaultDomains(gateway);
         } else {
             domains =
                     aiRoute.getDomains().stream()
@@ -471,31 +485,30 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
     }
 
     @Override
-    public String getDashboard(Gateway gateway, String type) {
-        throw new UnsupportedOperationException(
-                "Higress gateway does not support getting dashboard");
-    }
-
-    @Override
-    public List<String> fetchGatewayIps(Gateway gateway) {
-        String gatewayIp =
+    public List<URI> fetchGatewayUris(Gateway gateway) {
+        String address =
                 Optional.ofNullable(gateway.getHigressConfig())
                         .map(HigressConfig::getGatewayAddress)
                         .filter(StrUtil::isNotBlank)
-                        .map(
-                                address -> {
-                                    try {
-                                        return URLUtil.url(address).getHost();
-                                    } catch (Exception e) {
-                                        log.warn("Invalid gateway address: {}", address, e);
-                                        return address;
-                                    }
-                                })
                         .orElse(null);
 
-        return StrUtil.isNotBlank(gatewayIp)
-                ? Collections.singletonList(gatewayIp)
-                : CollUtil.empty(List.class);
+        if (StrUtil.isBlank(address)) {
+            return Collections.emptyList();
+        }
+
+        try {
+            URI uri = new URI(address);
+
+            // If no scheme (protocol) specified, add default http://
+            if (uri.getScheme() == null) {
+                uri = new URI("http://" + address);
+            }
+
+            return Collections.singletonList(uri);
+        } catch (URISyntaxException e) {
+            log.warn("Invalid gateway address: {}, error: {}", address, e.getMessage());
+            return Collections.emptyList();
+        }
     }
 
     @Data

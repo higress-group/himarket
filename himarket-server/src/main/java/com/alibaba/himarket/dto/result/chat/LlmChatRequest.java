@@ -5,7 +5,7 @@ import com.alibaba.himarket.dto.result.consumer.CredentialContext;
 import com.alibaba.himarket.support.chat.ChatMessage;
 import com.alibaba.himarket.support.chat.mcp.MCPTransportConfig;
 import com.alibaba.himarket.support.product.ModelFeature;
-import java.net.URL;
+import java.net.URI;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,14 +29,14 @@ public class LlmChatRequest {
     /** Generic chat messages, convertible to specific SDK formats (e.g., Spring AI Alibaba). */
     private List<ChatMessage> chatMessages;
 
-    /** URL, contains protocol, host and path */
-    private URL url;
+    /** URI, use this uri to request model */
+    private URI uri;
 
     /** Custom headers */
     private Map<String, String> headers;
 
-    /** If not empty, use these IPs to resolve DNS */
-    private List<String> gatewayIps;
+    /** If not empty, use these URIs to resolve DNS */
+    private List<URI> gatewayUris;
 
     /** Credential for invoking the Model and MCP */
     private CredentialContext credentialContext;
@@ -51,30 +51,34 @@ public class LlmChatRequest {
     private WebSearchOptions webSearchOptions;
 
     public void tryResolveDns() {
-        if (CollUtil.isEmpty(gatewayIps) || !"http".equalsIgnoreCase(url.getProtocol())) {
+        if (CollUtil.isEmpty(gatewayUris) || !"http".equalsIgnoreCase(uri.getScheme())) {
             return;
         }
 
         try {
-            String originalHost = url.getHost();
+            // Randomly select a gateway URI
+            URI gatewayUri = gatewayUris.get(new Random().nextInt(gatewayUris.size()));
 
-            // Randomly select an IP
-            String randomIp = gatewayIps.get(new Random().nextInt(gatewayIps.size()));
-
-            // Build new URL by replacing domain with IP
-            String originalUrl = url.toString();
-            String newUrl = originalUrl.replace(originalHost, randomIp);
+            String originalHost = uri.getHost();
+            // Build new URI keeping original path and query but replacing scheme, host and port
+            this.uri =
+                    new URI(
+                            gatewayUri.getScheme(),
+                            uri.getUserInfo(),
+                            gatewayUri.getHost(),
+                            gatewayUri.getPort(),
+                            uri.getPath(),
+                            uri.getQuery(),
+                            uri.getFragment());
 
             if (this.headers == null) {
                 this.headers = new HashMap<>();
             }
-
             // Set Host header
             this.headers.put("Host", originalHost);
 
-            this.url = new URL(newUrl);
         } catch (Exception e) {
-            log.warn("Failed to resolve DNS for URL: {}", url, e);
+            log.warn("Failed to resolve DNS for URI: {}", uri, e);
         }
     }
 }

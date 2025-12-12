@@ -140,14 +140,6 @@ public class ProductController {
         productService.deleteProductRef(productId);
     }
 
-    // 暂时移除单个产品的监控大盘，大盘集中管理
-    @Deprecated
-    @Operation(summary = "获取API产品的Dashboard监控面板URL")
-    @GetMapping("/{productId}/dashboard")
-    public String getProductDashboard(@PathVariable String productId) {
-        return productService.getProductDashboard(productId);
-    }
-
     @Operation(summary = "获取产品的订阅列表")
     @GetMapping("/{productId}/subscriptions")
     @AdminOrDeveloperAuth

@@ -162,32 +162,27 @@ jobs:
             comment += '- [x] Code is self-reviewed\n';
             comment += '```\n';
             
-            // Find and delete previous check comments
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: pr.number,
+            // Output to Job Summary (visible in PR checks)
+            await core.summary
+              .addRaw(comment)
+              .write();
+            
+            // Output to console
+            console.log('\n' + comment);
+            
+            // Create annotations for errors and warnings
+            errors.forEach(error => {
+              core.error(error.replace(/❌\s*/, ''), {
+                title: 'PR Content Check Failed',
+                file: '.github/PULL_REQUEST_TEMPLATE.md'
+              });
             });
             
-            const botComment = comments.find(comment => 
-              comment.user.type === 'Bot' && 
-              comment.body.includes('PR Content Check Report')
-            );
-            
-            if (botComment) {
-              await github.rest.issues.deleteComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: botComment.id,
+            warnings.forEach(warning => {
+              core.warning(warning.replace(/⚠️\s*/, ''), {
+                title: 'PR Content Suggestion',
+                file: '.github/PULL_REQUEST_TEMPLATE.md'
               });
-            }
-            
-            // Post new comment
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: pr.number,
-              body: comment
             });
             
             // Fail if there are errors

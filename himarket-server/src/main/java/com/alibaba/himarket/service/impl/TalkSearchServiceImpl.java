@@ -40,7 +40,7 @@ public class TalkSearchServiceImpl implements TalkSearchService {
     public static String QUESTION_PROMPT = "# Question\n";
 
     public static String ideaTalkSearchPrompt =
-            "You are a large language AI assistant built by Himarket. You are given a user question, and please write clean, concise and accurate answer to the question.\n"
+            "You are a large language AI assistant built by HiMarket. You are given a user question, and please write clean, concise and accurate answer to the question.\n"
                     + "\n"
                     + "You will be given a set of related contexts to the question, each starting with a reference number like [[citation:x]], where x is a number. Please use the context and cite the context at the end of each sentence if applicable.\n"
                     + "\n"

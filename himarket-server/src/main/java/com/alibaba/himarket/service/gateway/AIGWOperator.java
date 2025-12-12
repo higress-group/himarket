@@ -441,11 +441,6 @@ public class AIGWOperator extends APIGOperator {
         return GatewayType.APIG_AI;
     }
 
-    @Override
-    public String getDashboard(Gateway gateway, String type) {
-        throw new UnsupportedOperationException("Dashboard feature has been removed");
-    }
-
     public String fetchMcpTools(Gateway gateway, String routeId) {
         APIGClient client = getClient(gateway);
 

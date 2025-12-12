@@ -31,6 +31,7 @@ import com.alibaba.himarket.entity.Consumer;
 import com.alibaba.himarket.entity.ConsumerCredential;
 import com.alibaba.himarket.support.consumer.ConsumerAuthConfig;
 import com.alibaba.himarket.support.gateway.GatewayConfig;
+import java.net.URI;
 import java.util.List;
 import org.springframework.data.domain.Pageable;
 
@@ -131,12 +132,5 @@ public interface GatewayService {
 
     GatewayConfig getGatewayConfig(String gatewayId);
 
-    /**
-     * 获取仪表板URL
-     *
-     * @return 仪表板URL
-     */
-    String getDashboard(String gatewayId, String type);
-
-    List<String> fetchGatewayIps(String gatewayId);
+    List<URI> fetchGatewayUris(String gatewayId);
 }

@@ -810,7 +810,7 @@ public class ConsumerServiceImpl implements ConsumerService {
         // Add to headers or queryParams based on source
         if ("DEFAULT".equalsIgnoreCase(source)) {
             headers.put("Authorization", "Bearer " + apiKey);
-        } else if ("Query".equalsIgnoreCase(source)) {
+        } else if ("QueryString".equalsIgnoreCase(source)) {
             queryParams.put(key, apiKey);
         } else {
             // Header or other values

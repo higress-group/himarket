@@ -1,6 +1,6 @@
-# Contributing to Himarket
+# Contributing to HiMarket
 
-Thank you for your interest in contributing to Himarket!
+Thank you for your interest in contributing to HiMarket!
 
 We welcome contributions of all kinds: bug fixes, new features, documentation improvements, and more.
 
@@ -8,7 +8,7 @@ We welcome contributions of all kinds: bug fixes, new features, documentation im
 
 ### Fork and Clone the Repository
 
-1. **Fork** the [Himarket repository](https://github.com/higress-group/himarket) to your GitHub account
+1. **Fork** the [HiMarket repository](https://github.com/higress-group/himarket) to your GitHub account
 2. **Clone** your fork to your local machine:
 
 ```bash

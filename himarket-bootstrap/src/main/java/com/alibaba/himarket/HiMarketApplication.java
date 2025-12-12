@@ -25,9 +25,9 @@ import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 
 @SpringBootApplication
 @EnableJpaAuditing
-public class HimarketApplication {
+public class HiMarketApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(HimarketApplication.class, args);
+        SpringApplication.run(HiMarketApplication.class, args);
     }
 }

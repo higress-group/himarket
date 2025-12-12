@@ -142,14 +142,6 @@ public interface ProductService {
     Map<String, ProductResult> getProducts(List<String> productIds, boolean withConfig);
 
     /**
-     * Get API product dashboard monitoring panel URL
-     *
-     * @param productId
-     * @return Dashboard URL
-     */
-    String getProductDashboard(String productId);
-
-    /**
      * Get API product subscription information
      *
      * @param productId

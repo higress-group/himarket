@@ -131,12 +131,4 @@ public class GatewayController {
             @RequestParam(defaultValue = "500") int size) {
         return gatewayService.fetchModelAPIs(gatewayId, page, size);
     }
-
-    @Operation(summary = "获取仪表板URL")
-    @GetMapping("/{gatewayId}/dashboard")
-    public String getDashboard(
-            @PathVariable String gatewayId,
-            @RequestParam(required = false, defaultValue = "API") String type) {
-        return gatewayService.getDashboard(gatewayId, type);
-    }
 }

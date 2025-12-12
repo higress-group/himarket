@@ -25,6 +25,7 @@ import com.alibaba.himarket.support.gateway.GatewayConfig;
 import com.alibaba.himarket.support.product.APIGRefConfig;
 import com.aliyun.apsarastack.csb220230206.models.*;
 import com.aliyun.sdk.service.apig20240327.models.HttpApiApiInfo;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -739,12 +740,7 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
     }
 
     @Override
-    public String getDashboard(Gateway gateway, String type) {
-        return null;
-    }
-
-    @Override
-    public List<String> fetchGatewayIps(Gateway gateway) {
+    public List<URI> fetchGatewayUris(Gateway gateway) {
         return Collections.emptyList();
     }
 }

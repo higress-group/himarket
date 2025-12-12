@@ -44,6 +44,7 @@ import com.alibaba.himarket.support.gateway.AdpAIGatewayConfig;
 import com.alibaba.himarket.support.gateway.GatewayConfig;
 import com.alibaba.himarket.support.product.APIGRefConfig;
 import com.aliyun.sdk.service.apig20240327.models.HttpApiApiInfo;
+import java.net.URI;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -855,12 +856,7 @@ public class AdpAIGatewayOperator extends GatewayOperator {
     }
 
     @Override
-    public String getDashboard(Gateway gateway, String type) {
-        return null;
-    }
-
-    @Override
-    public List<String> fetchGatewayIps(Gateway gateway) {
+    public List<URI> fetchGatewayUris(Gateway gateway) {
         return Collections.emptyList();
     }
 

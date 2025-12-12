@@ -24,15 +24,12 @@ import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
-import com.alibaba.himarket.core.security.ContextHolder;
 import com.alibaba.himarket.core.utils.CacheUtil;
 import com.alibaba.himarket.dto.params.chat.CreateChatParam;
 import com.alibaba.himarket.dto.params.chat.InvokeModelParam;
 import com.alibaba.himarket.dto.result.chat.LlmInvokeResult;
-import com.alibaba.himarket.dto.result.consumer.CredentialContext;
 import com.alibaba.himarket.dto.result.product.ProductRefResult;
 import com.alibaba.himarket.dto.result.product.ProductResult;
-import com.alibaba.himarket.service.ConsumerService;
 import com.alibaba.himarket.service.GatewayService;
 import com.alibaba.himarket.service.LlmService;
 import com.alibaba.himarket.service.ProductService;
@@ -47,6 +44,7 @@ import com.github.rholder.retry.Retryer;
 import com.github.rholder.retry.RetryerBuilder;
 import com.github.rholder.retry.StopStrategies;
 import com.google.common.base.Throwables;
+import java.net.URI;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -98,23 +96,13 @@ public class SearchRewirteServiceImpl implements SearchRewriteService {
 
     private final GatewayService gatewayService;
 
-    private final ContextHolder contextHolder;
-
-    private final ConsumerService consumerService;
-
-    private final Cache<String, List<String>> cache = CacheUtil.newCache(5);
+    private final Cache<String, List<URI>> cache = CacheUtil.newCache(5);
 
     public SearchRewirteServiceImpl(
-            LlmService llmService,
-            ProductService productService,
-            GatewayService gatewayService,
-            ContextHolder contextHolder,
-            ConsumerService consumerService) {
+            LlmService llmService, ProductService productService, GatewayService gatewayService) {
         this.llmService = llmService;
         this.productService = productService;
         this.gatewayService = gatewayService;
-        this.contextHolder = contextHolder;
-        this.consumerService = consumerService;
     }
 
     @Override
@@ -244,15 +232,12 @@ public class SearchRewirteServiceImpl implements SearchRewriteService {
         // Get gateway IPs
         ProductRefResult productRef = productService.getProductRef(param.getProductId());
         String gatewayId = productRef.getGatewayId();
-        List<String> gatewayIps = cache.get(gatewayId, gatewayService::fetchGatewayIps);
-
-        CredentialContext credentialContext =
-                consumerService.getDefaultCredential(contextHolder.getUser());
+        List<URI> gatewayUris = cache.get(gatewayId, gatewayService::fetchGatewayUris);
 
         return InvokeModelParam.builder()
                 .product(productResult)
                 .chatMessages(messages)
-                .gatewayIps(gatewayIps)
+                .gatewayUris(gatewayUris)
                 .build();
     }
 

@@ -29,7 +29,7 @@ import com.alibaba.himarket.support.product.ProductFeature;
 import com.google.common.base.Stopwatch;
 import io.modelcontextprotocol.spec.McpSchema;
 import jakarta.servlet.http.HttpServletResponse;
-import java.net.URL;
+import java.net.URI;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -257,7 +257,8 @@ public abstract class AbstractLlmService implements LlmService {
         ModelConfigResult modelConfig = product.getModelConfig();
         // Get request URL (with query params)
         CredentialContext credentialContext = param.getCredentialContext();
-        URL url = getUrl(modelConfig, credentialContext.copyQueryParams(), param.getGatewayIps());
+
+        URI uri = getUri(modelConfig, credentialContext.copyQueryParams(), param.getGatewayUris());
 
         // Model feature
         ModelFeature modelFeature = getOrDefaultModelFeature(product);
@@ -272,10 +273,10 @@ public abstract class AbstractLlmService implements LlmService {
         return LlmChatRequest.builder()
                 .chatId(param.getChatId())
                 .userQuestion(param.getUserQuestion())
-                .url(url)
+                .uri(uri)
                 .chatMessages(param.getChatMessages())
                 .headers(credentialContext.copyHeaders())
-                .gatewayIps(param.getGatewayIps())
+                .gatewayUris(param.getGatewayUris())
                 .credentialContext(param.getCredentialContext())
                 .mcpConfigs(param.getMcpConfigs())
                 .modelFeature(modelFeature)
@@ -754,17 +755,15 @@ public abstract class AbstractLlmService implements LlmService {
     }
 
     /**
-     * Constructs a URL based on the model configuration and query parameters.
+     * Constructs a URI based on the model configuration and query parameters.
      *
      * @param modelConfig
      * @param queryParams
-     * @param gatewayIps
+     * @param gatewayUris
      * @return
      */
-    protected abstract URL getUrl(
-            ModelConfigResult modelConfig,
-            Map<String, String> queryParams,
-            List<String> gatewayIps);
+    protected abstract URI getUri(
+            ModelConfigResult modelConfig, Map<String, String> queryParams, List<URI> gatewayUris);
 
     /**
      * Builds a ChatClient instance according to the specified protocol (e.g., OpenAI, etc.) based
