@@ -2,6 +2,7 @@ import { useState } from "react";
 import { DownOutlined, CheckOutlined, SearchOutlined } from "@ant-design/icons";
 import { Dropdown, Input, Tabs, Spin } from "antd";
 import { ProductIconRenderer } from "../icon/ProductIconRenderer";
+import EmptyData from "../../assets/empty-data.svg";
 import type { ICategory, IProductDetail } from "../../lib/apis";
 
 
@@ -29,7 +30,7 @@ export function ModelSelector({
   const currentModel = modelList.find(m => m.productId === selectedModelId) || modelList[0];
 
   // 根据分类和搜索过滤模型
-  const filteredModels = modelList.filter(model => {
+  const filteredModels =  modelList.filter(model => {
     // 分类过滤：如果选择"全部"或模型的 productCategories 包含当前选中的分类
     const matchesCategory = activeCategory === "all" ||
       model.categories.map(c => c.categoryId).includes(activeCategory);
@@ -113,8 +114,12 @@ export function ModelSelector({
               </div>
             ))}
             {!loading && filteredModels.length === 0 && (
-              <div className="text-center py-8 text-gray-400">
-                未找到匹配的模型
+              <div className="text-center flex gap-4 flex-col items-center justify-center py-14 text-gray-400">
+                <img src={EmptyData} />
+                <div className="text-[#333] text-[16px] font-medium">
+                  暂无模型
+                </div>
+                <div className="text-[#333]">您需要首先在 Admin 中配置模型，才能在 HiChat 中体验</div>
               </div>
             )}
           </div>
