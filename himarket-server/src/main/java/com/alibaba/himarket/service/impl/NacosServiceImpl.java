@@ -48,7 +48,6 @@ import com.alibaba.himarket.support.product.NacosRefConfig;
 import com.alibaba.nacos.api.PropertyKeyConst;
 import com.alibaba.nacos.api.ai.model.a2a.AgentCard;
 import com.alibaba.nacos.api.ai.model.a2a.AgentCardVersionInfo;
-import com.alibaba.nacos.api.ai.model.mcp.McpEndpointInfo;
 import com.alibaba.nacos.api.ai.model.mcp.McpServerBasicInfo;
 import com.alibaba.nacos.api.ai.model.mcp.McpServerDetailInfo;
 import com.alibaba.nacos.api.exception.NacosException;
@@ -62,7 +61,6 @@ import com.aliyun.mse20190531.models.ListClustersRequest;
 import com.aliyun.mse20190531.models.ListClustersResponse;
 import com.aliyun.mse20190531.models.ListClustersResponseBody;
 import com.aliyun.teautil.models.RuntimeOptions;
-import java.net.URI;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -361,10 +359,11 @@ public class NacosServiceImpl implements NacosService {
     }
 
     private Object buildRemoteConnectionConfig(McpServerDetailInfo detail) {
-        List<McpEndpointInfo> backendEndpoints = detail.getBackendEndpoints();
+        List<?> backendEndpoints = detail.getBackendEndpoints();
 
         if (backendEndpoints != null && !backendEndpoints.isEmpty()) {
-            McpEndpointInfo firstEndpoint = backendEndpoints.get(0);
+            Object firstEndpoint = backendEndpoints.get(0);
+
             Map<String, Object> connectionConfig = new HashMap<>();
             Map<String, Object> mcpServers = new HashMap<>();
             Map<String, Object> serverConfig = new HashMap<>();
@@ -387,117 +386,132 @@ public class NacosServiceImpl implements NacosService {
         return basicConfig;
     }
 
-    private String extractEndpointUrl(McpEndpointInfo endpoint) {
+    private String extractEndpointUrl(Object endpoint) {
         if (endpoint == null) {
             return null;
         }
 
-        String address = endpoint.getAddress();
-        if (StrUtil.isBlank(address)) {
-            return null;
+        if (endpoint instanceof String) {
+            return (String) endpoint;
         }
 
-        String protocol = StrUtil.blankToDefault(endpoint.getProtocol(), "http");
-        int endpointPort = endpoint.getPort() > 0 ? endpoint.getPort() : -1;
-        String normalizedPath = normalizeUrlPath(endpoint.getPath());
+        if (endpoint instanceof Map) {
+            Map<?, ?> endpointMap = (Map<?, ?>) endpoint;
 
-        // If address is already a full URL, prefer it and only fill missing port/path.
-        if (address.contains("://")) {
+            String url = getStringValue(endpointMap, "url");
+            if (url != null) return url;
+
+            String endpointUrl = getStringValue(endpointMap, "endpointUrl");
+            if (endpointUrl != null) return endpointUrl;
+
+            String host = getStringValue(endpointMap, "host");
+            String port = getStringValue(endpointMap, "port");
+            String path = getStringValue(endpointMap, "path");
+
+            if (host != null) {
+                StringBuilder urlBuilder = new StringBuilder();
+                String protocol = getStringValue(endpointMap, "protocol");
+                urlBuilder.append(protocol != null ? protocol : "http").append("://");
+                urlBuilder.append(host);
+
+                if (port != null && !port.isEmpty()) {
+                    urlBuilder.append(":").append(port);
+                }
+
+                if (path != null && !path.isEmpty()) {
+                    if (!path.startsWith("/")) {
+                        urlBuilder.append("/");
+                    }
+                    urlBuilder.append(path);
+                }
+
+                return urlBuilder.toString();
+            }
+        }
+
+        if (endpoint.getClass().getName().contains("McpEndpointInfo")) {
+            return extractUrlFromMcpEndpointInfo(endpoint);
+        }
+
+        return endpoint.toString();
+    }
+
+    private String getStringValue(Map<?, ?> map, String key) {
+        Object value = map.get(key);
+        return value != null ? value.toString() : null;
+    }
+
+    private String extractUrlFromMcpEndpointInfo(Object endpoint) {
+        String[] possibleFieldNames = {"url", "endpointUrl", "address", "host", "endpoint"};
+
+        for (String fieldName : possibleFieldNames) {
             try {
-                URI uri = URI.create(address);
-                String scheme = StrUtil.blankToDefault(uri.getScheme(), protocol);
-                String host = uri.getHost();
-                int port = uri.getPort() != -1 ? uri.getPort() : endpointPort;
-                String path = StrUtil.isBlank(uri.getPath()) ? normalizedPath : uri.getPath();
-                if (host != null) {
-                    return new URI(scheme, null, host, port, path, null, null).toString();
-                }
-            } catch (Exception ignored) {
-                // fall back to simple concatenation
-            }
-            return appendPath(address, normalizedPath);
-        }
-
-        // Address might be host or host:port (IPv4/hostname). Handle simple host:port.
-        String host = address;
-        int port = endpointPort;
-
-        // Handle bracketed IPv6 forms like "[::1]" or "[::1]:8848".
-        if (address.startsWith("[") && address.contains("]")) {
-            int endBracket = address.indexOf(']');
-            host = address.substring(1, endBracket);
-            if (port == -1) {
-                String rest = address.substring(endBracket + 1);
-                if (rest.startsWith(":")) {
-                    Integer parsedPort = tryParsePort(rest.substring(1));
-                    if (parsedPort != null) {
-                        port = parsedPort;
+                java.lang.reflect.Field field = endpoint.getClass().getDeclaredField(fieldName);
+                field.setAccessible(true);
+                Object value = field.get(endpoint);
+                if (value != null && !value.toString().trim().isEmpty()) {
+                    if (value.toString().contains("://") || value.toString().contains(":")) {
+                        return value.toString();
                     }
                 }
-            }
-        } else {
-            int lastColon = address.lastIndexOf(':');
-            if (lastColon > 0 && address.indexOf(':') == lastColon) {
-                Integer parsedPort = tryParsePort(address.substring(lastColon + 1));
-                if (parsedPort != null) {
-                    host = address.substring(0, lastColon);
-                    if (port == -1) {
-                        port = parsedPort;
-                    }
-                }
+            } catch (Exception e) {
+                continue;
             }
         }
 
-        try {
-            return new URI(protocol, null, host, port, normalizedPath, null, null).toString();
-        } catch (Exception e) {
+        java.lang.reflect.Field[] fields = endpoint.getClass().getDeclaredFields();
+
+        String host = null;
+        String port = null;
+        String path = null;
+        String protocol = null;
+
+        for (java.lang.reflect.Field field : fields) {
+            try {
+                field.setAccessible(true);
+                Object value = field.get(endpoint);
+                if (value != null && !value.toString().trim().isEmpty()) {
+                    String fieldName = field.getName().toLowerCase();
+
+                    if (fieldName.contains("host")
+                            || fieldName.contains("ip")
+                            || fieldName.contains("address")) {
+                        host = value.toString();
+                    } else if (fieldName.contains("port")) {
+                        port = value.toString();
+                    } else if (fieldName.contains("path")
+                            || fieldName.contains("endpoint")
+                            || fieldName.contains("uri")) {
+                        path = value.toString();
+                    } else if (fieldName.contains("protocol") || fieldName.contains("scheme")) {
+                        protocol = value.toString();
+                    }
+                }
+            } catch (Exception e) {
+                continue;
+            }
+        }
+
+        if (host != null) {
             StringBuilder urlBuilder = new StringBuilder();
-            urlBuilder.append(protocol).append("://").append(address);
-            if (port > 0 && !address.contains(":")) {
+            urlBuilder.append(protocol != null ? protocol : "http").append("://");
+            urlBuilder.append(host);
+
+            if (port != null && !port.isEmpty()) {
                 urlBuilder.append(":").append(port);
             }
-            if (normalizedPath != null) {
-                urlBuilder.append(normalizedPath);
+
+            if (path != null && !path.isEmpty()) {
+                if (!path.startsWith("/")) {
+                    urlBuilder.append("/");
+                }
+                urlBuilder.append(path);
             }
+
             return urlBuilder.toString();
         }
-    }
 
-    private String normalizeUrlPath(String path) {
-        if (StrUtil.isBlank(path)) {
-            return null;
-        }
-        return path.startsWith("/") ? path : "/" + path;
-    }
-
-    private Integer tryParsePort(String portStr) {
-        if (StrUtil.isBlank(portStr)) {
-            return null;
-        }
-        for (int i = 0; i < portStr.length(); i++) {
-            if (!Character.isDigit(portStr.charAt(i))) {
-                return null;
-            }
-        }
-        try {
-            int port = Integer.parseInt(portStr);
-            return port > 0 && port <= 65535 ? port : null;
-        } catch (NumberFormatException e) {
-            return null;
-        }
-    }
-
-    private String appendPath(String baseUrl, String normalizedPath) {
-        if (normalizedPath == null) {
-            return baseUrl;
-        }
-        if (baseUrl.endsWith("/") && normalizedPath.startsWith("/")) {
-            return baseUrl + normalizedPath.substring(1);
-        }
-        if (!baseUrl.endsWith("/") && !normalizedPath.startsWith("/")) {
-            return baseUrl + "/" + normalizedPath;
-        }
-        return baseUrl + normalizedPath;
+        return endpoint.toString();
     }
 
     private NacosInstance findNacosInstance(String nacosId) {
