@@ -32,16 +32,19 @@ import com.alibaba.himarket.dto.params.consumer.QuerySubscriptionParam;
 import com.alibaba.himarket.dto.params.portal.*;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.portal.PortalResult;
+import com.alibaba.himarket.dto.result.product.ProductPublicationResult;
 import com.alibaba.himarket.dto.result.product.SubscriptionResult;
 import com.alibaba.himarket.entity.Portal;
 import com.alibaba.himarket.entity.PortalDomain;
+import com.alibaba.himarket.entity.Product;
+import com.alibaba.himarket.entity.ProductPublication;
 import com.alibaba.himarket.entity.ProductSubscription;
 import com.alibaba.himarket.repository.PortalDomainRepository;
 import com.alibaba.himarket.repository.PortalRepository;
 import com.alibaba.himarket.repository.ProductPublicationRepository;
 import com.alibaba.himarket.repository.ProductRefRepository;
+import com.alibaba.himarket.repository.ProductRepository;
 import com.alibaba.himarket.repository.SubscriptionRepository;
-import com.alibaba.himarket.service.GatewayService;
 import com.alibaba.himarket.service.IdpService;
 import com.alibaba.himarket.service.PortalService;
 import com.alibaba.himarket.support.enums.DomainType;
@@ -89,7 +92,7 @@ public class PortalServiceImpl implements PortalService {
 
     private final ProductRefRepository productRefRepository;
 
-    private final GatewayService gatewayService;
+    private final ProductRepository productRepository;
 
     public PortalResult createPortal(CreatePortalParam param) {
         portalRepository
@@ -296,6 +299,53 @@ public class PortalServiceImpl implements PortalService {
         Page<ProductSubscription> page = subscriptionRepository.findAll(spec, pageable);
         return new PageResult<SubscriptionResult>()
                 .convertFrom(page, s -> new SubscriptionResult().convertFrom(s));
+    }
+
+    @Override
+    public PageResult<ProductPublicationResult> getPublications(
+            String portalId, Pageable pageable) {
+        existsPortal(portalId);
+
+        Page<ProductPublication> publications =
+                publicationRepository.findByPortalId(portalId, pageable);
+
+        return new PageResult<ProductPublicationResult>()
+                .convertFrom(
+                        publications,
+                        publication -> {
+                            ProductPublicationResult publicationResult =
+                                    new ProductPublicationResult().convertFrom(publication);
+
+                            // Fill portal information
+                            try {
+                                Portal portal = findPortal(publication.getPortalId());
+                                publicationResult.setPortalName(portal.getName());
+                                publicationResult.setAutoApproveSubscriptions(
+                                        portal.getPortalSettingConfig()
+                                                .getAutoApproveSubscriptions());
+                            } catch (Exception e) {
+                                log.error("Failed to get portal: {}", publication.getPortalId(), e);
+                            }
+
+                            // Fill product information
+                            try {
+                                Product product =
+                                        productRepository
+                                                .findByProductId(publication.getProductId())
+                                                .orElse(null);
+                                if (product != null) {
+                                    publicationResult.setProductId(product.getProductId());
+                                    publicationResult.setProductName(product.getName());
+                                    publicationResult.setProductType(product.getType().name());
+                                    publicationResult.setDescription(product.getDescription());
+                                }
+                            } catch (Exception e) {
+                                log.error(
+                                        "Failed to get product: {}", publication.getProductId(), e);
+                            }
+
+                            return publicationResult;
+                        });
     }
 
     @Override

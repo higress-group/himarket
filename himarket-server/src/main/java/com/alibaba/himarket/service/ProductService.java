@@ -89,10 +89,10 @@ public interface ProductService {
      * Unpublish API product
      *
      * @param productId
-     * @param portalId
+     * @param publicationId
      * @return
      */
-    void unpublishProduct(String productId, String portalId);
+    void unpublishProduct(String productId, String publicationId);
 
     /**
      * Delete API product

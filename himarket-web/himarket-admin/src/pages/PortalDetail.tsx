@@ -80,7 +80,6 @@ export default function PortalDetail() {
 
   // 从URL查询参数获取当前tab，默认为overview
   const currentTab = searchParams.get('tab') || 'overview'
-  const [activeTab, setActiveTab] = useState(currentTab)
 
   const fetchPortalData = async () => {
     try {
@@ -104,18 +103,12 @@ export default function PortalDetail() {
     fetchPortalData()
   }, [])
 
-  // 当URL中的tab参数变化时，更新activeTab
-  useEffect(() => {
-    setActiveTab(currentTab)
-  }, [currentTab])
-
   const handleBackToPortals = () => {
     navigate('/portals')
   }
 
   // 处理tab切换，同时更新URL查询参数
   const handleTabChange = (tabKey: string) => {
-    setActiveTab(tabKey)
     const newSearchParams = new URLSearchParams(searchParams)
     newSearchParams.set('tab', tabKey)
     setSearchParams(newSearchParams)
@@ -137,7 +130,7 @@ export default function PortalDetail() {
   const renderContent = () => {
     if (!portal) return null
     
-    switch (activeTab) {
+    switch (currentTab) {
       case "overview":
         return <PortalOverview portal={portal} onEdit={handleEdit} />
       case "published-apis":
@@ -231,7 +224,7 @@ export default function PortalDetail() {
                 key={item.key}
                 onClick={() => handleTabChange(item.key)}
                 className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left transition-colors ${
-                  activeTab === item.key
+                  currentTab === item.key
                     ? "bg-blue-50 text-blue-600 border border-blue-200"
                     : "hover:bg-gray-50 text-gray-700"
                 }`}

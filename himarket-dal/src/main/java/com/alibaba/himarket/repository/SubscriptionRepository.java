@@ -25,6 +25,8 @@ import java.util.Optional;
 
 public interface SubscriptionRepository extends BaseRepository<ProductSubscription, Long> {
 
+    Optional<ProductSubscription> findBySubscriptionId(String subscriptionId);
+
     Optional<ProductSubscription> findByConsumerIdAndProductId(String consumerId, String productId);
 
     List<ProductSubscription> findAllByConsumerId(String consumerId);

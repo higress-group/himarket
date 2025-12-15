@@ -21,6 +21,7 @@ package com.alibaba.himarket.service.gateway;
 
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.map.MapBuilder;
+import cn.hutool.core.util.BooleanUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.higress.sdk.model.route.KeyedRoutePredicate;
@@ -28,12 +29,14 @@ import com.alibaba.higress.sdk.model.route.RoutePredicate;
 import com.alibaba.himarket.dto.result.agent.AgentAPIResult;
 import com.alibaba.himarket.dto.result.common.DomainResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
+import com.alibaba.himarket.dto.result.consumer.CredentialContext;
 import com.alibaba.himarket.dto.result.gateway.GatewayResult;
 import com.alibaba.himarket.dto.result.httpapi.APIResult;
 import com.alibaba.himarket.dto.result.httpapi.HttpRouteResult;
 import com.alibaba.himarket.dto.result.mcp.GatewayMCPServerResult;
 import com.alibaba.himarket.dto.result.mcp.HigressMCPServerResult;
 import com.alibaba.himarket.dto.result.mcp.MCPConfigResult;
+import com.alibaba.himarket.dto.result.mcp.OpenAPIMCPConfig;
 import com.alibaba.himarket.dto.result.model.GatewayModelAPIResult;
 import com.alibaba.himarket.dto.result.model.HigressModelResult;
 import com.alibaba.himarket.dto.result.model.ModelConfigResult;
@@ -41,6 +44,8 @@ import com.alibaba.himarket.entity.Consumer;
 import com.alibaba.himarket.entity.ConsumerCredential;
 import com.alibaba.himarket.entity.Gateway;
 import com.alibaba.himarket.service.gateway.client.HigressClient;
+import com.alibaba.himarket.service.impl.McpClientFactory;
+import com.alibaba.himarket.service.impl.McpClientWrapper;
 import com.alibaba.himarket.support.consumer.ApiKeyConfig;
 import com.alibaba.himarket.support.consumer.ConsumerAuthConfig;
 import com.alibaba.himarket.support.consumer.HigressAuthConfig;
@@ -49,6 +54,8 @@ import com.alibaba.himarket.support.gateway.GatewayConfig;
 import com.alibaba.himarket.support.gateway.HigressConfig;
 import com.alibaba.himarket.support.product.HigressRefConfig;
 import com.aliyun.sdk.service.apig20240327.models.HttpApiApiInfo;
+import io.modelcontextprotocol.spec.McpSchema;
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.*;
@@ -314,6 +321,99 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
     }
 
     @Override
+    public String fetchMcpToolsForConfig(Gateway gateway, Object conf) {
+        HigressClient client = getClient(gateway);
+        MCPConfigResult config = (MCPConfigResult) conf;
+
+        // Fetch MCP server configuration
+        HigressMCPConfig higressMCPConfig =
+                client.execute(
+                                "/v1/mcpServer/" + config.getMcpServerName(),
+                                HttpMethod.GET,
+                                null,
+                                null,
+                                new ParameterizedTypeReference<
+                                        HigressResponse<HigressMCPConfig>>() {})
+                        .getData();
+
+        // Only 'direct_route' is supported
+        if (!"direct_route".equalsIgnoreCase(higressMCPConfig.getType())) {
+            return null;
+        }
+
+        // Build authentication context
+        CredentialContext credentialContext = CredentialContext.builder().build();
+        Optional.ofNullable(higressMCPConfig.getConsumerAuthInfo())
+                .filter(authInfo -> BooleanUtil.isTrue(authInfo.getEnable()))
+                .map(HigressConsumerAuthInfo::getAllowedConsumers)
+                .filter(CollUtil::isNotEmpty)
+                .map(CollUtil::getFirst)
+                .ifPresent(
+                        consumer -> {
+                            HigressConsumer higressConsumer =
+                                    client.execute(
+                                                    "/v1/consumers/" + consumer,
+                                                    HttpMethod.GET,
+                                                    null,
+                                                    null,
+                                                    new ParameterizedTypeReference<
+                                                            HigressResponse<HigressConsumer>>() {})
+                                            .getData();
+
+                            Optional.ofNullable(higressConsumer.getCredentials())
+                                    .filter(CollUtil::isNotEmpty)
+                                    .map(CollUtil::getFirst)
+                                    .ifPresent(
+                                            credential ->
+                                                    fillCredentialContext(
+                                                            credentialContext, credential));
+                        });
+
+        // Get and transform tool list
+        try (McpClientWrapper mcpClientWrapper =
+                McpClientFactory.newClient(config.toTransportConfig(), credentialContext)) {
+            if (mcpClientWrapper == null) {
+                return null;
+            }
+
+            List<McpSchema.Tool> tools = mcpClientWrapper.listTools();
+            OpenAPIMCPConfig openAPIMCPConfig =
+                    OpenAPIMCPConfig.convertFromToolList(config.getMcpServerName(), tools);
+
+            return JSONUtil.toJsonStr(openAPIMCPConfig);
+        } catch (IOException e) {
+            log.error("List mcp tools failed", e);
+            return null;
+        }
+    }
+
+    private void fillCredentialContext(CredentialContext context, HigressCredential credential) {
+        if (!(credential instanceof HigressKeyAuthCredential keyAuthCredential)) {
+            return;
+        }
+
+        String apiKey =
+                Optional.ofNullable(keyAuthCredential.getValues())
+                        .filter(CollUtil::isNotEmpty)
+                        .map(CollUtil::getFirst)
+                        .orElse(null);
+
+        if (apiKey == null) {
+            return;
+        }
+
+        String source = keyAuthCredential.getSource();
+        String key = keyAuthCredential.getKey();
+
+        switch (source.toUpperCase()) {
+            case "BEARER" -> context.getHeaders().put("Authorization", "Bearer " + apiKey);
+            case "QUERY" -> context.getQueryParams().put(key, apiKey);
+            // Header or other values
+            default -> context.getHeaders().put(key, apiKey);
+        }
+    }
+
+    @Override
     public PageResult<GatewayResult> fetchGateways(Object param, int page, int size) {
         throw new UnsupportedOperationException(
                 "Higress gateway does not support fetching Gateways");
@@ -462,7 +562,7 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
                         HttpMethod.GET,
                         null,
                         null,
-                        new ParameterizedTypeReference<HigressResponse<HigressAIRoute>>() {});
+                        new ParameterizedTypeReference<>() {});
 
         return response.getData();
     }
@@ -557,12 +657,39 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
         private List<String> domains;
         private String rawConfigurations;
         private DirectRouteConfig directRouteConfig;
+        private HigressConsumerAuthInfo consumerAuthInfo;
     }
 
     @Data
     public static class DirectRouteConfig {
         private String path;
         private String transportType;
+    }
+
+    @Data
+    public static class HigressConsumerAuthInfo {
+        private String type;
+        private Boolean enable;
+        private List<String> allowedConsumers;
+    }
+
+    @Data
+    public static class HigressConsumer {
+        private String name;
+        private List<HigressCredential> credentials;
+    }
+
+    @Data
+    public static class HigressCredential {
+        protected String type;
+        protected Map<String, Object> properties;
+    }
+
+    @Data
+    public static class HigressKeyAuthCredential extends HigressCredential {
+        private String source;
+        private String key;
+        private List<String> values;
     }
 
     @Data

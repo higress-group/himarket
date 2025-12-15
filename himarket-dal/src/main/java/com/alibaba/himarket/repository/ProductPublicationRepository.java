@@ -26,6 +26,8 @@ import org.springframework.data.domain.Pageable;
 
 public interface ProductPublicationRepository extends BaseRepository<ProductPublication, Long> {
 
+    Optional<ProductPublication> findByPublicationId(String publicationId);
+
     Page<ProductPublication> findByPortalId(String portalId, Pageable pageable);
 
     Optional<ProductPublication> findByPortalIdAndProductId(String portalId, String productId);

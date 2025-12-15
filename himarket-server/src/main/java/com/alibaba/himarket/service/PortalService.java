@@ -23,6 +23,7 @@ import com.alibaba.himarket.dto.params.consumer.QuerySubscriptionParam;
 import com.alibaba.himarket.dto.params.portal.*;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.portal.PortalResult;
+import com.alibaba.himarket.dto.result.product.ProductPublicationResult;
 import com.alibaba.himarket.dto.result.product.SubscriptionResult;
 import com.alibaba.himarket.support.enums.SearchEngineType;
 import com.alibaba.himarket.support.portal.SearchEngineConfig;
@@ -113,6 +114,15 @@ public interface PortalService {
      */
     PageResult<SubscriptionResult> listSubscriptions(
             String portalId, QuerySubscriptionParam param, Pageable pageable);
+
+    /**
+     * 获取门户已发布的产品列表
+     *
+     * @param portalId 门户ID
+     * @param pageable 分页参数
+     * @return PageResult of ProductPublicationResult
+     */
+    PageResult<ProductPublicationResult> getPublications(String portalId, Pageable pageable);
 
     /**
      * 获取默认门户

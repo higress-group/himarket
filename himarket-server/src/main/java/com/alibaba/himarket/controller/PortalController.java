@@ -24,6 +24,7 @@ import com.alibaba.himarket.dto.params.consumer.QuerySubscriptionParam;
 import com.alibaba.himarket.dto.params.portal.*;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.portal.PortalResult;
+import com.alibaba.himarket.dto.result.product.ProductPublicationResult;
 import com.alibaba.himarket.dto.result.product.SubscriptionResult;
 import com.alibaba.himarket.service.PortalService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -88,6 +89,14 @@ public class PortalController {
     @DeleteMapping("/{portalId}/domains/{domain}")
     public PortalResult unbindDomain(@PathVariable String portalId, @PathVariable String domain) {
         return portalService.unbindDomain(portalId, domain);
+    }
+
+    @Operation(summary = "获取门户已发布的产品列表")
+    @GetMapping("/{portalId}/publications")
+    @AdminAuth
+    public PageResult<ProductPublicationResult> getPortalPublications(
+            @PathVariable String portalId, Pageable pageable) {
+        return portalService.getPublications(portalId, pageable);
     }
 
     @Operation(summary = "获取门户上的API产品订阅列表")

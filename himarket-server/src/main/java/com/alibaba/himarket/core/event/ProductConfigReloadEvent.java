@@ -17,16 +17,13 @@
  * under the License.
  */
 
-package com.alibaba.himarket.dto.params.consumer;
+package com.alibaba.himarket.core.event;
 
-import com.alibaba.himarket.dto.converter.InputConverter;
-import com.alibaba.himarket.entity.ProductSubscription;
-import jakarta.validation.constraints.NotBlank;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 
 @Data
-public class CreateSubscriptionParam implements InputConverter<ProductSubscription> {
-
-    @NotBlank(message = "Product ID cannot be empty")
+@AllArgsConstructor
+public class ProductConfigReloadEvent {
     private String productId;
 }

@@ -161,6 +161,11 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
         return "";
     }
 
+    @Override
+    public String fetchMcpToolsForConfig(Gateway gateway, Object conf) {
+        return null;
+    }
+
     /** 将Apsara MCP Server详情转换为MCPConfigResult格式 */
     private String convertToMCPConfig(
             GetMcpServerResponseBody.GetMcpServerResponseBodyData data,

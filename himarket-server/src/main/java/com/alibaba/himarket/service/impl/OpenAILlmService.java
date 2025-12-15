@@ -27,9 +27,8 @@ import org.springframework.web.util.UriComponentsBuilder;
 @Slf4j
 public class OpenAILlmService extends AbstractLlmService {
 
-    public OpenAILlmService(
-            ToolCallingManager toolCallingManager, McpClientFactory mcpClientFactory) {
-        super(toolCallingManager, mcpClientFactory);
+    public OpenAILlmService(ToolCallingManager toolCallingManager) {
+        super(toolCallingManager);
     }
 
     @Override

@@ -239,6 +239,12 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
     }
 
     @Override
+    public String fetchMcpToolsForConfig(String gatewayId, Object conf) {
+        Gateway gateway = findGateway(gatewayId);
+        return getOperator(gateway).fetchMcpToolsForConfig(gateway, conf);
+    }
+
+    @Override
     public String fetchAgentConfig(String gatewayId, Object conf) {
         Gateway gateway = findGateway(gatewayId);
         return getOperator(gateway).fetchAgentConfig(gateway, conf);

@@ -16,18 +16,12 @@ import java.time.Duration;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections.MapUtils;
-import org.springframework.stereotype.Component;
 import org.springframework.web.util.UriComponentsBuilder;
 
-/**
- * @author shihan
- * @version : McpClientFactory, v0.1 2025年11月26日 21:12 shihan Exp $
- */
-@Component
 @Slf4j
 public class McpClientFactory {
 
-    public McpClientWrapper newClient(
+    public static McpClientWrapper newClient(
             MCPTransportConfig config, CredentialContext credentialContext) {
         URL url;
         try {
@@ -76,7 +70,7 @@ public class McpClientFactory {
         }
     }
 
-    private McpClientTransport buildTransport(
+    private static McpClientTransport buildTransport(
             MCPTransportMode mode, String baseUrl, String path, Map<String, String> headers) {
         if (mode == MCPTransportMode.STREAMABLE_HTTP) {
             return HttpClientStreamableHttpTransport.builder(baseUrl)

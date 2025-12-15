@@ -19,14 +19,12 @@
 
 package com.alibaba.himarket.dto.params.product;
 
-import com.alibaba.himarket.dto.converter.InputConverter;
-import com.alibaba.himarket.entity.ProductPublication;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 @Data
-public class PublishProductParam implements InputConverter<ProductPublication> {
+public class PublishProductParam {
 
-    @NotBlank(message = "门户ID不能为空")
+    @NotBlank(message = "Portal ID cannot be blank")
     private String portalId;
 }

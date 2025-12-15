@@ -67,6 +67,8 @@ public abstract class GatewayOperator<T> {
 
     public abstract String fetchModelConfig(Gateway gateway, Object conf);
 
+    public abstract String fetchMcpToolsForConfig(Gateway gateway, Object conf);
+
     public abstract PageResult<GatewayResult> fetchGateways(Object param, int page, int size);
 
     public abstract String createConsumer(

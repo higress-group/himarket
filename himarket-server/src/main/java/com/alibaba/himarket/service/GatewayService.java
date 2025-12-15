@@ -112,6 +112,8 @@ public interface GatewayService {
 
     String fetchMcpConfig(String gatewayId, Object conf);
 
+    String fetchMcpToolsForConfig(String gatewayId, Object conf);
+
     String fetchAgentConfig(String gatewayId, Object conf);
 
     String fetchModelConfig(String gatewayId, Object conf);

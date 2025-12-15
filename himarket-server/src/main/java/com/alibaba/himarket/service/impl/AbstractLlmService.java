@@ -58,8 +58,6 @@ public abstract class AbstractLlmService implements LlmService {
 
     protected final ToolCallingManager toolCallingManager;
 
-    protected final McpClientFactory mcpClientFactory;
-
     /** Maximum number of tool-calling rounds allowed in a single chat conversation */
     private static final int MAX_ROUNDS_PER_CHAT = 10;
 
@@ -181,7 +179,7 @@ public abstract class AbstractLlmService implements LlmService {
                 .forEach(
                         mcpConfig -> {
                             McpClientWrapper holder =
-                                    mcpClientFactory.newClient(
+                                    McpClientFactory.newClient(
                                             mcpConfig, request.getCredentialContext());
                             if (holder != null) {
                                 mcpClientWrappers.add(holder);

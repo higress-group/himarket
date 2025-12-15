@@ -153,6 +153,11 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
     }
 
     @Override
+    public String fetchMcpToolsForConfig(Gateway gateway, Object conf) {
+        throw new UnsupportedOperationException("APIG does not support MCP Servers");
+    }
+
+    @Override
     public PageResult<GatewayResult> fetchGateways(Object param, int page, int size) {
         return fetchGateways((QueryAPIGParam) param, page, size);
     }

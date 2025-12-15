@@ -207,6 +207,11 @@ public class AdpAIGatewayOperator extends GatewayOperator {
         return "";
     }
 
+    @Override
+    public String fetchMcpToolsForConfig(Gateway gateway, Object conf) {
+        return null;
+    }
+
     /** 将 ADP MCP Server 详情转换为 MCPConfigResult 格式 */
     private String convertToMCPConfig(
             AdpMcpServerDetailResult.AdpMcpServerDetail data, AdpAIGatewayConfig config) {
