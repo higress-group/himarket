@@ -17,40 +17,40 @@
  * under the License.
  */
 
-package com.alibaba.apiopenplatform.service.impl;
+package com.alibaba.himarket.service.impl;
 
 import cn.hutool.core.lang.Snowflake;
 import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
-import com.alibaba.apiopenplatform.core.exception.BusinessException;
-import com.alibaba.apiopenplatform.core.exception.ErrorCode;
-import com.alibaba.apiopenplatform.dto.params.api.CreateAPIDefinitionParam;
-import com.alibaba.apiopenplatform.dto.params.api.CreateEndpointParam;
-import com.alibaba.apiopenplatform.dto.params.api.PublishAPIParam;
-import com.alibaba.apiopenplatform.dto.params.api.QueryAPIDefinitionParam;
-import com.alibaba.apiopenplatform.dto.params.api.UpdateAPIDefinitionParam;
-import com.alibaba.apiopenplatform.dto.params.api.UpdateEndpointParam;
-import com.alibaba.apiopenplatform.dto.result.api.APIDefinitionVO;
-import com.alibaba.apiopenplatform.dto.result.api.APIEndpointVO;
-import com.alibaba.apiopenplatform.dto.result.api.APIPublishHistoryVO;
-import com.alibaba.apiopenplatform.dto.result.api.APIPublishRecordVO;
-import com.alibaba.apiopenplatform.dto.result.common.PageResult;
-import com.alibaba.apiopenplatform.entity.APIDefinition;
-import com.alibaba.apiopenplatform.entity.APIEndpoint;
-import com.alibaba.apiopenplatform.entity.APIPublishHistory;
-import com.alibaba.apiopenplatform.entity.APIPublishRecord;
-import com.alibaba.apiopenplatform.entity.Gateway;
-import com.alibaba.apiopenplatform.repository.APIDefinitionRepository;
-import com.alibaba.apiopenplatform.repository.APIEndpointRepository;
-import com.alibaba.apiopenplatform.repository.APIPublishHistoryRepository;
-import com.alibaba.apiopenplatform.repository.APIPublishRecordRepository;
-import com.alibaba.apiopenplatform.repository.GatewayRepository;
-import com.alibaba.apiopenplatform.service.api.GatewayCapabilityRegistry;
-import com.alibaba.apiopenplatform.service.api.GatewayPublisher;
-import com.alibaba.apiopenplatform.support.enums.PublishAction;
-import com.alibaba.apiopenplatform.service.APIDefinitionService;
-import com.alibaba.apiopenplatform.support.enums.APIStatus;
+import com.alibaba.himarket.core.exception.BusinessException;
+import com.alibaba.himarket.core.exception.ErrorCode;
+import com.alibaba.himarket.dto.params.api.CreateAPIDefinitionParam;
+import com.alibaba.himarket.dto.params.api.CreateEndpointParam;
+import com.alibaba.himarket.dto.params.api.PublishAPIParam;
+import com.alibaba.himarket.dto.params.api.QueryAPIDefinitionParam;
+import com.alibaba.himarket.dto.params.api.UpdateAPIDefinitionParam;
+import com.alibaba.himarket.dto.params.api.UpdateEndpointParam;
+import com.alibaba.himarket.dto.result.api.APIDefinitionVO;
+import com.alibaba.himarket.dto.result.api.APIEndpointVO;
+import com.alibaba.himarket.dto.result.api.APIPublishHistoryVO;
+import com.alibaba.himarket.dto.result.api.APIPublishRecordVO;
+import com.alibaba.himarket.dto.result.common.PageResult;
+import com.alibaba.himarket.entity.APIDefinition;
+import com.alibaba.himarket.entity.APIEndpoint;
+import com.alibaba.himarket.entity.APIPublishHistory;
+import com.alibaba.himarket.entity.APIPublishRecord;
+import com.alibaba.himarket.entity.Gateway;
+import com.alibaba.himarket.repository.APIDefinitionRepository;
+import com.alibaba.himarket.repository.APIEndpointRepository;
+import com.alibaba.himarket.repository.APIPublishHistoryRepository;
+import com.alibaba.himarket.repository.APIPublishRecordRepository;
+import com.alibaba.himarket.repository.GatewayRepository;
+import com.alibaba.himarket.service.api.GatewayCapabilityRegistry;
+import com.alibaba.himarket.service.api.GatewayPublisher;
+import com.alibaba.himarket.support.enums.PublishAction;
+import com.alibaba.himarket.service.APIDefinitionService;
+import com.alibaba.himarket.support.enums.APIStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -187,7 +187,7 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
         // 检查是否有活跃的发布记录
         boolean hasActivePublish = !apiPublishRecordRepository.findByApiDefinitionIdAndStatus(
                 apiDefinitionId,
-                com.alibaba.apiopenplatform.support.enums.PublishStatus.ACTIVE
+                com.alibaba.himarket.support.enums.PublishStatus.ACTIVE
         ).isEmpty();
 
         if (hasActivePublish) {
@@ -345,7 +345,7 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
         publishRecord.setGatewayId(param.getGatewayId());
         publishRecord.setGatewayName(gateway.getGatewayName());
         publishRecord.setGatewayType(gateway.getGatewayType().name());
-        publishRecord.setStatus(com.alibaba.apiopenplatform.support.enums.PublishStatus.ACTIVE);
+        publishRecord.setStatus(com.alibaba.himarket.support.enums.PublishStatus.ACTIVE);
         publishRecord.setPublishConfig(JSONUtil.toJsonStr(param.getPublishConfig()));
         publishRecord.setPublishedAt(java.time.LocalDateTime.now());
 
@@ -386,7 +386,7 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
         createPublishHistory(apiDefinitionId, publishRecord.getGatewayId(), recordId, PublishAction.UNPUBLISH, null);
 
         // 更新发布记录状态为 INACTIVE（当前仅更新数据库状态，实际网关下线操作由网关发布器处理）
-        publishRecord.setStatus(com.alibaba.apiopenplatform.support.enums.PublishStatus.INACTIVE);
+        publishRecord.setStatus(com.alibaba.himarket.support.enums.PublishStatus.INACTIVE);
         apiPublishRecordRepository.save(publishRecord);
 
         log.info("API unpublished successfully from gateway: {} (mock mode)", publishRecord.getGatewayId());

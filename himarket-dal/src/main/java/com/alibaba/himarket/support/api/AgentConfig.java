@@ -17,27 +17,28 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.enums;
+package com.alibaba.himarket.support.api;
+
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+
+import java.util.List;
+import java.util.Map;
 
 /**
- * 发布操作枚举
+ * Agent 配置
  */
-public enum PublishAction {
+@Data
+@EqualsAndHashCode(callSuper = true)
+public class AgentConfig extends EndpointConfig {
 
     /**
-     * 发布
+     * 支持的协议列表
      */
-    PUBLISH,
+    private List<String> protocols;
 
     /**
-     * 下线
+     * Agent 配置 Schema
      */
-    UNPUBLISH,
-
-    /**
-     * 更新
-     */
-    UPDATE,
-
-    ;
+    private Map<String, Object> configSchema;
 }

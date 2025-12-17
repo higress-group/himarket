@@ -17,10 +17,10 @@
  * under the License.
  */
 
-package com.alibaba.apiopenplatform.repository;
+package com.alibaba.himarket.repository;
 
-import com.alibaba.apiopenplatform.entity.APIEndpoint;
-import com.alibaba.apiopenplatform.support.enums.EndpointType;
+import com.alibaba.himarket.entity.APIEndpoint;
+import com.alibaba.himarket.support.enums.EndpointType;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;

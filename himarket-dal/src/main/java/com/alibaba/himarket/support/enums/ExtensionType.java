@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package com.alibaba.apiopenplatform.support.enums;
+package com.alibaba.himarket.support.enums;
 
 /**
  * 扩展类型枚举

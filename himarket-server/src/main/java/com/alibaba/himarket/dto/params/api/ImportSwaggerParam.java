@@ -17,27 +17,20 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.enums;
+package com.alibaba.himarket.dto.params.api;
 
-/**
- * 发布操作枚举
- */
-public enum PublishAction {
+import jakarta.validation.constraints.NotBlank;
+import lombok.Data;
 
-    /**
-     * 发布
-     */
-    PUBLISH,
+@Data
+public class ImportSwaggerParam {
 
-    /**
-     * 下线
-     */
-    UNPUBLISH,
+    @NotBlank(message = "Swagger内容不能为空")
+    private String swaggerContent;
 
-    /**
-     * 更新
-     */
-    UPDATE,
+    private String name;
 
-    ;
+    private String description;
+
+    private String version;
 }

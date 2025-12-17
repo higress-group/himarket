@@ -17,27 +17,36 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.enums;
+package com.alibaba.himarket.support.api;
+
+import lombok.Data;
+
+import java.io.Serializable;
+import java.util.List;
 
 /**
- * 发布操作枚举
+ * 发布配置
  */
-public enum PublishAction {
+@Data
+public class PublishConfig implements Serializable {
 
     /**
-     * 发布
+     * 服务配置
      */
-    PUBLISH,
+    private ServiceConfig serviceConfig;
 
     /**
-     * 下线
+     * 域名列表
      */
-    UNPUBLISH,
+    private List<String> domains;
 
     /**
-     * 更新
+     * 基础路径
      */
-    UPDATE,
+    private String basePath;
 
-    ;
+    /**
+     * 扩展配置列表
+     */
+    private List<ExtensionConfig> extensions;
 }

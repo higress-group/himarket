@@ -17,19 +17,19 @@
  * under the License.
  */
 
-package com.alibaba.apiopenplatform.service.api;
+package com.alibaba.himarket.service.api;
 
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
-import com.alibaba.apiopenplatform.core.exception.BusinessException;
-import com.alibaba.apiopenplatform.core.exception.ErrorCode;
-import com.alibaba.apiopenplatform.entity.APIDefinition;
-import com.alibaba.apiopenplatform.entity.APIEndpoint;
-import com.alibaba.apiopenplatform.support.api.RESTRouteConfig;
-import com.alibaba.apiopenplatform.support.enums.APIStatus;
-import com.alibaba.apiopenplatform.support.enums.APIType;
-import com.alibaba.apiopenplatform.support.enums.EndpointType;
+import com.alibaba.himarket.core.exception.BusinessException;
+import com.alibaba.himarket.core.exception.ErrorCode;
+import com.alibaba.himarket.entity.APIDefinition;
+import com.alibaba.himarket.entity.APIEndpoint;
+import com.alibaba.himarket.support.api.RESTRouteConfig;
+import com.alibaba.himarket.support.enums.APIStatus;
+import com.alibaba.himarket.support.enums.APIType;
+import com.alibaba.himarket.support.enums.EndpointType;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 

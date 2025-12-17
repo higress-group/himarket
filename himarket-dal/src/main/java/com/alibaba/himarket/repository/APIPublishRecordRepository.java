@@ -17,10 +17,10 @@
  * under the License.
  */
 
-package com.alibaba.apiopenplatform.repository;
+package com.alibaba.himarket.repository;
 
-import com.alibaba.apiopenplatform.entity.APIPublishRecord;
-import com.alibaba.apiopenplatform.support.enums.PublishStatus;
+import com.alibaba.himarket.entity.APIPublishRecord;
+import com.alibaba.himarket.support.enums.PublishStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;

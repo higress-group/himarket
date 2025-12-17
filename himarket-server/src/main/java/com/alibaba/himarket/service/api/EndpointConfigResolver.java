@@ -17,14 +17,14 @@
  * under the License.
  */
 
-package com.alibaba.apiopenplatform.service.api;
+package com.alibaba.himarket.service.api;
 
 import cn.hutool.json.JSONUtil;
-import com.alibaba.apiopenplatform.core.exception.BusinessException;
-import com.alibaba.apiopenplatform.core.exception.ErrorCode;
-import com.alibaba.apiopenplatform.entity.APIEndpoint;
-import com.alibaba.apiopenplatform.support.api.*;
-import com.alibaba.apiopenplatform.support.enums.EndpointType;
+import com.alibaba.himarket.core.exception.BusinessException;
+import com.alibaba.himarket.core.exception.ErrorCode;
+import com.alibaba.himarket.entity.APIEndpoint;
+import com.alibaba.himarket.support.api.*;
+import com.alibaba.himarket.support.enums.EndpointType;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;

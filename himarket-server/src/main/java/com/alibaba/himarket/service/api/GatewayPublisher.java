@@ -17,14 +17,14 @@
  * under the License.
  */
 
-package com.alibaba.apiopenplatform.service.api;
+package com.alibaba.himarket.service.api;
 
-import com.alibaba.apiopenplatform.entity.APIDefinition;
-import com.alibaba.apiopenplatform.entity.APIEndpoint;
-import com.alibaba.apiopenplatform.entity.Gateway;
-import com.alibaba.apiopenplatform.support.api.PublishConfig;
-import com.alibaba.apiopenplatform.support.enums.APIType;
-import com.alibaba.apiopenplatform.support.enums.GatewayType;
+import com.alibaba.himarket.entity.APIDefinition;
+import com.alibaba.himarket.entity.APIEndpoint;
+import com.alibaba.himarket.entity.Gateway;
+import com.alibaba.himarket.support.api.PublishConfig;
+import com.alibaba.himarket.support.enums.APIType;
+import com.alibaba.himarket.support.enums.GatewayType;
 
 import java.util.List;
 
@@ -107,7 +107,7 @@ public interface GatewayPublisher {
      * @param apiDefinition API Definition
      * @param endpoints     Endpoints 列表
      * @param publishConfig 发布配置
-     * @throws com.alibaba.apiopenplatform.core.exception.BusinessException 如果配置无效
+     * @throws com.alibaba.himarket.core.exception.BusinessException 如果配置无效
      */
     void validatePublishConfig(APIDefinition apiDefinition,
                                List<APIEndpoint> endpoints,

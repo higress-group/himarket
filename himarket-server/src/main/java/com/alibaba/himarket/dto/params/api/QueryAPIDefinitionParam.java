@@ -17,27 +17,30 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.enums;
+package com.alibaba.himarket.dto.params.api;
+
+import com.alibaba.himarket.support.enums.APIStatus;
+import com.alibaba.himarket.support.enums.APIType;
+import lombok.Data;
 
 /**
- * 发布操作枚举
+ * 查询 API Definition 参数
  */
-public enum PublishAction {
+@Data
+public class QueryAPIDefinitionParam {
 
     /**
-     * 发布
+     * API 类型
      */
-    PUBLISH,
+    private APIType type;
 
     /**
-     * 下线
+     * API 状态
      */
-    UNPUBLISH,
+    private APIStatus status;
 
     /**
-     * 更新
+     * 关键词（名称模糊搜索）
      */
-    UPDATE,
-
-    ;
+    private String keyword;
 }

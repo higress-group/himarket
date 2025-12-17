@@ -17,27 +17,29 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.enums;
+package com.alibaba.himarket.dto.params.api;
 
-/**
- * 发布操作枚举
- */
-public enum PublishAction {
+import com.alibaba.himarket.dto.converter.InputConverter;
+import com.alibaba.himarket.entity.APIDefinition;
+import com.alibaba.himarket.support.enums.APIStatus;
+import jakarta.validation.constraints.Size;
+import lombok.Data;
 
-    /**
-     * 发布
-     */
-    PUBLISH,
+import java.util.Map;
 
-    /**
-     * 下线
-     */
-    UNPUBLISH,
+@Data
+public class UpdateAPIDefinitionParam implements InputConverter<APIDefinition> {
 
-    /**
-     * 更新
-     */
-    UPDATE,
+    @Size(max = 100, message = "API名称长度不能超过100个字符")
+    private String name;
 
-    ;
+    @Size(max = 500, message = "API描述长度不能超过500个字符")
+    private String description;
+
+    private APIStatus status;
+
+    @Size(max = 50, message = "版本号长度不能超过50个字符")
+    private String version;
+
+    private Map<String, Object> metadata;
 }

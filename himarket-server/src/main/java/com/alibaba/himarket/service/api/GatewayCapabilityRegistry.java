@@ -17,15 +17,15 @@
  * under the License.
  */
 
-package com.alibaba.apiopenplatform.service.api;
+package com.alibaba.himarket.service.api;
 
-import com.alibaba.apiopenplatform.core.exception.BusinessException;
-import com.alibaba.apiopenplatform.core.exception.ErrorCode;
-import com.alibaba.apiopenplatform.dto.result.api.GatewayCapabilityVO;
-import com.alibaba.apiopenplatform.entity.Gateway;
-import com.alibaba.apiopenplatform.repository.GatewayRepository;
-import com.alibaba.apiopenplatform.support.enums.APIType;
-import com.alibaba.apiopenplatform.support.enums.GatewayType;
+import com.alibaba.himarket.core.exception.BusinessException;
+import com.alibaba.himarket.core.exception.ErrorCode;
+import com.alibaba.himarket.dto.result.api.GatewayCapabilityVO;
+import com.alibaba.himarket.entity.Gateway;
+import com.alibaba.himarket.repository.GatewayRepository;
+import com.alibaba.himarket.support.enums.APIType;
+import com.alibaba.himarket.support.enums.GatewayType;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 

@@ -17,9 +17,9 @@
  * under the License.
  */
 
-package com.alibaba.apiopenplatform.entity;
+package com.alibaba.himarket.entity;
 
-import com.alibaba.apiopenplatform.support.enums.PublishAction;
+import com.alibaba.himarket.support.enums.PublishAction;
 import lombok.Data;
 
 import jakarta.persistence.*;

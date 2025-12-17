@@ -17,27 +17,27 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.enums;
+package com.alibaba.himarket.support.api;
+
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+
+import java.io.Serializable;
 
 /**
- * 发布操作枚举
+ * Endpoint 配置基类
+ * 用于标记接口，实现类型安全
  */
-public enum PublishAction {
-
-    /**
-     * 发布
-     */
-    PUBLISH,
-
-    /**
-     * 下线
-     */
-    UNPUBLISH,
-
-    /**
-     * 更新
-     */
-    UPDATE,
-
-    ;
+@JsonTypeInfo(
+        use = JsonTypeInfo.Id.NAME,
+        include = JsonTypeInfo.As.PROPERTY,
+        property = "type"
+)
+@JsonSubTypes({
+        @JsonSubTypes.Type(value = MCPToolConfig.class, name = "MCP_TOOL"),
+        @JsonSubTypes.Type(value = RESTRouteConfig.class, name = "REST_ROUTE"),
+        @JsonSubTypes.Type(value = AgentConfig.class, name = "AGENT"),
+        @JsonSubTypes.Type(value = ModelConfig.class, name = "MODEL")
+})
+public abstract class EndpointConfig implements Serializable {
 }

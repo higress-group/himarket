@@ -17,27 +17,24 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.enums;
+package com.alibaba.himarket.dto.params.api;
 
-/**
- * 发布操作枚举
- */
-public enum PublishAction {
+import com.alibaba.himarket.support.api.PublishConfig;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import lombok.Data;
 
-    /**
-     * 发布
-     */
-    PUBLISH,
+@Data
+public class PublishAPIParam {
 
-    /**
-     * 下线
-     */
-    UNPUBLISH,
+    @NotBlank(message = "API定义ID不能为空")
+    private String apiDefinitionId;
 
-    /**
-     * 更新
-     */
-    UPDATE,
+    @NotBlank(message = "网关ID不能为空")
+    private String gatewayId;
 
-    ;
+    @NotNull(message = "发布配置不能为空")
+    private PublishConfig publishConfig;
+
+    private String comment;
 }

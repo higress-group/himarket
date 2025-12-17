@@ -17,27 +17,47 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.enums;
+package com.alibaba.himarket.support.api;
+
+import com.alibaba.himarket.support.enums.ProtocolType;
+import com.alibaba.himarket.support.enums.ServiceType;
+import lombok.Data;
+
+import java.io.Serializable;
 
 /**
- * 发布操作枚举
+ * 服务配置
  */
-public enum PublishAction {
+@Data
+public class ServiceConfig implements Serializable {
 
     /**
-     * 发布
+     * 服务类型
      */
-    PUBLISH,
+    private ServiceType serviceType;
 
     /**
-     * 下线
+     * 服务名称（Nacos 服务名）
      */
-    UNPUBLISH,
+    private String serviceName;
 
     /**
-     * 更新
+     * 命名空间
      */
-    UPDATE,
+    private String namespace;
 
-    ;
+    /**
+     * 服务地址（固定地址时使用）
+     */
+    private String address;
+
+    /**
+     * 端口
+     */
+    private Integer port;
+
+    /**
+     * 协议类型
+     */
+    private ProtocolType protocol;
 }

@@ -17,27 +17,36 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.enums;
+package com.alibaba.himarket.dto.result.api;
 
-/**
- * 发布操作枚举
- */
-public enum PublishAction {
+import com.alibaba.himarket.dto.converter.OutputConverter;
+import com.alibaba.himarket.entity.APIPublishRecord;
+import com.alibaba.himarket.support.api.PublishConfig;
+import com.alibaba.himarket.support.enums.PublishStatus;
+import lombok.Data;
 
-    /**
-     * 发布
-     */
-    PUBLISH,
+import java.time.LocalDateTime;
 
-    /**
-     * 下线
-     */
-    UNPUBLISH,
+@Data
+public class APIPublishRecordVO implements OutputConverter<APIPublishRecordVO, APIPublishRecord> {
 
-    /**
-     * 更新
-     */
-    UPDATE,
+    private String recordId;
 
-    ;
+    private String apiDefinitionId;
+
+    private String gatewayId;
+
+    private String gatewayName;
+
+    private PublishStatus status;
+
+    private PublishConfig publishConfig;
+
+    private String lastPublishVersion;
+
+    private LocalDateTime lastPublishedAt;
+
+    private LocalDateTime createdAt;
+
+    private LocalDateTime updatedAt;
 }

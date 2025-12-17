@@ -17,27 +17,28 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.enums;
+package com.alibaba.himarket.dto.result.api;
 
-/**
- * 发布操作枚举
- */
-public enum PublishAction {
+import com.alibaba.himarket.support.enums.APIType;
+import com.alibaba.himarket.support.enums.GatewayType;
+import lombok.Data;
 
-    /**
-     * 发布
-     */
-    PUBLISH,
+import java.util.List;
 
-    /**
-     * 下线
-     */
-    UNPUBLISH,
+@Data
+public class GatewayCapabilityVO {
 
-    /**
-     * 更新
-     */
-    UPDATE,
+    private String gatewayId;
 
-    ;
+    private String gatewayName;
+
+    private GatewayType gatewayType;
+
+    private List<APIType> supportedAPITypes;
+
+    private Boolean supportsNacosRegistry;
+
+    private Boolean supportsSwaggerImport;
+
+    private List<String> supportedExtensions;
 }

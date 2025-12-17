@@ -17,19 +17,19 @@
  * under the License.
  */
 
-package com.alibaba.apiopenplatform.service;
+package com.alibaba.himarket.service;
 
-import com.alibaba.apiopenplatform.dto.params.api.CreateAPIDefinitionParam;
-import com.alibaba.apiopenplatform.dto.params.api.CreateEndpointParam;
-import com.alibaba.apiopenplatform.dto.params.api.PublishAPIParam;
-import com.alibaba.apiopenplatform.dto.params.api.QueryAPIDefinitionParam;
-import com.alibaba.apiopenplatform.dto.params.api.UpdateAPIDefinitionParam;
-import com.alibaba.apiopenplatform.dto.params.api.UpdateEndpointParam;
-import com.alibaba.apiopenplatform.dto.result.api.APIDefinitionVO;
-import com.alibaba.apiopenplatform.dto.result.api.APIEndpointVO;
-import com.alibaba.apiopenplatform.dto.result.api.APIPublishHistoryVO;
-import com.alibaba.apiopenplatform.dto.result.api.APIPublishRecordVO;
-import com.alibaba.apiopenplatform.dto.result.common.PageResult;
+import com.alibaba.himarket.dto.params.api.CreateAPIDefinitionParam;
+import com.alibaba.himarket.dto.params.api.CreateEndpointParam;
+import com.alibaba.himarket.dto.params.api.PublishAPIParam;
+import com.alibaba.himarket.dto.params.api.QueryAPIDefinitionParam;
+import com.alibaba.himarket.dto.params.api.UpdateAPIDefinitionParam;
+import com.alibaba.himarket.dto.params.api.UpdateEndpointParam;
+import com.alibaba.himarket.dto.result.api.APIDefinitionVO;
+import com.alibaba.himarket.dto.result.api.APIEndpointVO;
+import com.alibaba.himarket.dto.result.api.APIPublishHistoryVO;
+import com.alibaba.himarket.dto.result.api.APIPublishRecordVO;
+import com.alibaba.himarket.dto.result.common.PageResult;
 import org.springframework.data.domain.Pageable;
 
 import java.util.List;

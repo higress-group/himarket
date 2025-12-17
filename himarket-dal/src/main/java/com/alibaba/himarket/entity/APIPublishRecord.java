@@ -17,9 +17,9 @@
  * under the License.
  */
 
-package com.alibaba.apiopenplatform.entity;
+package com.alibaba.himarket.entity;
 
-import com.alibaba.apiopenplatform.support.enums.PublishStatus;
+import com.alibaba.himarket.support.enums.PublishStatus;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 

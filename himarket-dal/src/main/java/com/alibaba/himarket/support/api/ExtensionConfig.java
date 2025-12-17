@@ -17,27 +17,48 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.enums;
+package com.alibaba.himarket.support.api;
+
+import com.alibaba.himarket.support.enums.ExtensionPhase;
+import com.alibaba.himarket.support.enums.ExtensionType;
+import lombok.Data;
+
+import java.io.Serializable;
+import java.util.Map;
 
 /**
- * 发布操作枚举
+ * 扩展配置基类
  */
-public enum PublishAction {
+@Data
+public class ExtensionConfig implements Serializable {
 
     /**
-     * 发布
+     * 扩展类型
      */
-    PUBLISH,
+    private ExtensionType type;
 
     /**
-     * 下线
+     * 扩展名称（唯一标识）
      */
-    UNPUBLISH,
+    private String name;
 
     /**
-     * 更新
+     * 执行阶段
      */
-    UPDATE,
+    private ExtensionPhase phase;
 
-    ;
+    /**
+     * 是否启用
+     */
+    private Boolean enabled;
+
+    /**
+     * 优先级（数字越小越先执行）
+     */
+    private Integer priority;
+
+    /**
+     * 扩展特定配置
+     */
+    private Map<String, Object> config;
 }

@@ -17,14 +17,14 @@
  * under the License.
  */
 
-package com.alibaba.apiopenplatform.controller;
+package com.alibaba.himarket.controller;
 
-import com.alibaba.apiopenplatform.core.response.Response;
-import com.alibaba.apiopenplatform.dto.params.api.ImportSwaggerParam;
-import com.alibaba.apiopenplatform.dto.result.api.APIDefinitionVO;
-import com.alibaba.apiopenplatform.entity.APIDefinition;
-import com.alibaba.apiopenplatform.entity.APIEndpoint;
-import com.alibaba.apiopenplatform.service.api.SwaggerConverter;
+import com.alibaba.himarket.core.response.Response;
+import com.alibaba.himarket.dto.params.api.ImportSwaggerParam;
+import com.alibaba.himarket.dto.result.api.APIDefinitionVO;
+import com.alibaba.himarket.entity.APIDefinition;
+import com.alibaba.himarket.entity.APIEndpoint;
+import com.alibaba.himarket.service.api.SwaggerConverter;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
