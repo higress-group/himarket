@@ -18,12 +18,12 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
   const [selectedApiIds, setSelectedApiIds] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [modalLoading, setModalLoading] = useState(false)
-  
+
   // 分页状态
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [total, setTotal] = useState(0)
-  
+
   useEffect(() => {
     if (portal.portalId) {
       fetchApiProducts()
@@ -107,10 +107,10 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
             查看
           </Button>
           
-          <Button 
-            type="link" 
-            danger 
-            icon={<DeleteOutlined />} 
+          <Button
+            type="link"
+            danger
+            icon={<DeleteOutlined />}
             onClick={() => handleDelete(record.publicationId, record.productId, record.productName)}
           >
             移除
@@ -213,8 +213,8 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
       </div>
 
       <Card>
-        <Table 
-          columns={columns} 
+        <Table
+          columns={columns}
           dataSource={apiProducts}
           rowKey="productId"
           loading={loading}
@@ -271,4 +271,4 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
       </Modal>
     </div>
   )
-} 
+}

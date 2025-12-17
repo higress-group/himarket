@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Button, Dropdown, MenuProps, Typography, Spin, Modal, message } from 'antd'
+import { Button, Dropdown, MenuProps, Spin, Modal, message } from 'antd'
 import {
   MoreOutlined,
   LeftOutlined,
@@ -20,10 +20,6 @@ import { PortalDomain } from '@/components/portal/PortalDomain'
 import PortalFormModal from '@/components/portal/PortalFormModal'
 import { portalApi } from '@/lib/api'
 import { Portal } from '@/types'
-
-const { Title } = Typography
-
-// 移除mockPortal，使用真实API数据
 
 const menuItems = [
   {
@@ -195,7 +191,7 @@ export default function PortalDetail() {
       <div className="w-64 border-r bg-white flex flex-col">
         {/* 返回按钮 */}
         <div className="pb-4 border-b">
-          <Button 
+          <Button
             type="text"
             // className="w-full justify-start text-gray-600 hover:text-gray-900"
             onClick={handleBackToPortals}
@@ -207,8 +203,8 @@ export default function PortalDetail() {
 
         {/* Portal 信息 */}
         <div className="p-4 border-b">
-          <div className="flex items-center justify-between mb-2">
-            <Title level={5} className="mb-0">{portal.name}</Title>
+          <div className="flex items-center justify-between">
+            <p className='font-medium text-sm mb-0'>{portal.name}</p>
             <Dropdown menu={{ items: dropdownItems }} trigger={['click']}>
               <Button type="text" icon={<MoreOutlined />} size="small" />
             </Dropdown>
@@ -255,4 +251,4 @@ export default function PortalDetail() {
       )}
     </div>
   )
-} 
+}

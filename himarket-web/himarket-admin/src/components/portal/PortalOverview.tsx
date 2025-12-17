@@ -26,7 +26,7 @@ export function PortalOverview({portal, onEdit}: PortalOverviewProps) {
 
     useEffect(() => {
         if (!portal.portalId) return;
-        
+
         portalApi.getDeveloperList(portal.portalId, {
             page: 1,
             size: 10
@@ -51,13 +51,13 @@ export function PortalOverview({portal, onEdit}: PortalOverviewProps) {
             </div>
 
             {/* 基本信息 */}
-            <Card 
+            <Card
                 title="基本信息"
                 extra={
                     onEdit && (
-                        <Button 
-                            type="primary" 
-                            icon={<EditOutlined />} 
+                        <Button
+                            type="primary"
+                            icon={<EditOutlined />}
                             onClick={onEdit}
                         >
                             编辑
@@ -72,8 +72,8 @@ export function PortalOverview({portal, onEdit}: PortalOverviewProps) {
                         <span className="text-xs text-gray-600">Portal ID:</span>
                         <div className="col-span-2 flex items-center gap-2">
                             <span className="text-xs text-gray-700">{portal.portalId}</span>
-                            <CopyOutlined 
-                                className="text-gray-400 hover:text-blue-600 cursor-pointer transition-colors ml-1" 
+                            <CopyOutlined
+                                className="text-gray-400 hover:text-colorPrimary cursor-pointer transition-colors ml-1"
                                 style={{ fontSize: '12px' }}
                                 onClick={async () => {
                                     try {
@@ -86,16 +86,16 @@ export function PortalOverview({portal, onEdit}: PortalOverviewProps) {
                             />
                         </div>
                     </div>
-                    
+
                     <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
                         <span className="text-xs text-gray-600">域名:</span>
                         <div className="col-span-2 flex items-center gap-2">
-                            <LinkOutlined className="text-blue-500" />
-                            <a 
-                                href={`http://${portal.portalDomainConfig?.[portal.portalDomainConfig.length - 1]?.domain}`} 
+                            <LinkOutlined className="text-colorPrimary" />
+                            <a
+                                href={`http://${portal.portalDomainConfig?.[portal.portalDomainConfig.length - 1]?.domain}`}
                                 target="_blank"
-                                rel="noopener noreferrer" 
-                                className="text-xs text-blue-600 hover:underline"
+                                rel="noopener noreferrer"
+                                className="text-xs text-colorPrimary hover:underline"
                             >
                                 {portal.portalDomainConfig?.[portal.portalDomainConfig.length - 1]?.domain}
                             </a>
@@ -112,7 +112,7 @@ export function PortalOverview({portal, onEdit}: PortalOverviewProps) {
                             </span>
                         </div>
                     </div>
-                    
+
                     <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
                         <span className="text-xs text-gray-600">开发者自动审批:</span>
                         <div className="col-span-2 flex items-center">
@@ -150,36 +150,38 @@ export function PortalOverview({portal, onEdit}: PortalOverviewProps) {
             {/* 统计数据 */}
             <Row gutter={[16, 16]}>
                 <Col xs={24} sm={12} lg={12}>
-                    <Card 
+                    <Card
                         className="cursor-pointer hover:shadow-md transition-shadow"
                         onClick={() => {
                             navigate(`/portals/detail?id=${portal.portalId}&tab=developers`)
                         }}
                     >
-                        <Statistic
-                            title="注册开发者"
-                            value={developerCount}
-                            prefix={<UserOutlined className="text-blue-500" />}
-                            valueStyle={{ color: '#1677ff', fontSize: '24px' }}
-                        />
+                      <div className='flex flex-col gap-2 text-subTitle'>
+                        <div>注册开发者</div>
+                        <div className='flex items-center gap-2'>
+                          <UserOutlined className="text-xl text-colorPrimary" />
+                          <div className='text-colorPrimary text-2xl'>{developerCount}</div>
+                        </div>
+                      </div>
                     </Card>
                 </Col>
                 <Col xs={24} sm={12} lg={12}>
-                    <Card 
+                    <Card
                         className="cursor-pointer hover:shadow-md transition-shadow"
                         onClick={() => {
                             navigate(`/portals/detail?id=${portal.portalId}&tab=published-apis`)
                         }}
                     >
-                        <Statistic
-                            title="已发布的API"
-                            value={apiCount}
-                            prefix={<ApiOutlined className="text-blue-500" />}
-                            valueStyle={{ color: '#1677ff', fontSize: '24px' }}
-                        />
+                      <div className='flex flex-col gap-2 text-subTitle'>
+                        <div>已发布的API</div>
+                        <div className='flex items-center gap-2'>
+                          <ApiOutlined className="text-xl text-colorPrimary" />
+                          <div className='text-colorPrimary text-2xl'>{apiCount}</div>
+                        </div>
+                      </div>
                     </Card>
                 </Col>
             </Row>
         </div>
     )
-} 
+}

@@ -284,13 +284,13 @@ export function PortalDevelopers({portal}: PortalDevelopersProps) {
             key: 'action',
             width: 120,
             render: (_: any, record: Consumer) => (
-                <Button
+                <div
+                  className='text-colorPrimary/80 text-colorPrimary flex items-center gap-2'
                     onClick={() => handleViewSubscriptions(record)}
-                    type="link"
-                    icon={<UnorderedListOutlined/>}
                 >
+                  <UnorderedListOutlined/>
                     订阅列表
-                </Button>
+                </div>
             ),
         },
     ]
@@ -358,4 +358,4 @@ export function PortalDevelopers({portal}: PortalDevelopersProps) {
 
         </div>
     )
-} 
+}

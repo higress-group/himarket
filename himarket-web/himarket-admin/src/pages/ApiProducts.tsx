@@ -9,6 +9,8 @@ import { apiProductApi } from '@/lib/api';
 import ApiProductFormModal from '@/components/api-product/ApiProductFormModal';
 import { getProductCategories } from '@/lib/productCategoryApi';
 import type { ProductCategory } from '@/types/product-category';
+import { ProductIconRenderer } from '@/components/icons/ProductIconRenderer';
+import { getIconString } from '@/lib/iconUtils';
 
 // 优化的产品卡片组件
 const ProductCard = memo(({ product, onNavigate, handleRefresh, onEdit }: {
@@ -103,22 +105,29 @@ const ProductCard = memo(({ product, onNavigate, handleRefresh, onEdit }: {
   };
 
   return (
-    <Card
-      className="hover:shadow-lg transition-shadow cursor-pointer rounded-xl border border-gray-200 shadow-sm hover:border-blue-300"
+    <div
+      className="
+      bg-white/60 backdrop-blur-sm rounded-2xl p-5
+        border cursor-pointer
+        transition-all duration-300 ease-in-out
+        hover:bg-white hover:shadow-md hover:scale-[1.02] hover:border-colorPrimary/50
+        border-colorPrimary/30 active:scale-[0.98]
+        relative overflow-hidden group
+        h-[168px]
+      "
       onClick={handleClick}
-      bodyStyle={{ padding: '16px' }}
     >
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100">
-            {getTypeIcon(product.icon, product.type)}
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-colorPrimary/10 to-colorPrimary/5 ">
+            <ProductIconRenderer  className="w-full h-full object-cover" iconType={getIconString(product.icon)} />
           </div>
           <div>
             <h3 className="text-lg font-semibold">{product.name}</h3>
             <div className="flex items-center gap-3 mt-1 flex-wrap">
               <div className="flex items-center">
                 {product.type === "REST_API" ? (
-                  <ApiOutlined className="text-blue-500 mr-1" style={{fontSize: '12px', width: '12px', height: '12px'}} />
+                  <ApiOutlined className="text-colorPrimary mr-1" style={{fontSize: '12px', width: '12px', height: '12px'}} />
                 ) : product.type === "AGENT_API" ? (
                   <RobotOutlined className="text-gray-600 mr-1" style={{fontSize: '12px', width: '12px', height: '12px'}} />
                 ) : product.type === "MODEL_API" ? (
@@ -134,7 +143,7 @@ const ProductCard = memo(({ product, onNavigate, handleRefresh, onEdit }: {
                 {product.status === "PENDING" ? (
                   <ExclamationCircleFilled className="text-yellow-500 mr-1" style={{fontSize: '12px', width: '12px', height: '12px'}} />
                 ) : product.status === "READY" ? (
-                  <ClockCircleFilled className="text-blue-500 mr-1" style={{fontSize: '12px', width: '12px', height: '12px'}} />
+                  <ClockCircleFilled className="text-colorPrimary/50 mr-1" style={{fontSize: '12px', width: '12px', height: '12px'}} />
                 ) : (
                   <CheckCircleFilled className="text-green-500 mr-1" style={{fontSize: '12px', width: '12px', height: '12px'}} />
                 )}
@@ -156,11 +165,10 @@ const ProductCard = memo(({ product, onNavigate, handleRefresh, onEdit }: {
 
       <div className="space-y-4">
         {product.description && (
-          <p className="text-sm text-gray-600">{product.description}</p>
+          <p className="max-h-17 text-sm line-clamp-3 leading-relaxed flex-1 text-[#a3a3a3]">{product.description}</p>
         )}
-
       </div>
-    </Card>
+    </div>
   )
 })
 
@@ -238,7 +246,7 @@ export default function ApiProducts() {
     if (searchValue.trim()) {
       let labelText = '';
       let filterValue = searchValue.trim();
-      
+
       if (searchType === 'name') {
         labelText = `产品名称：${searchValue.trim()}`;
       } else if (searchType === 'type') {
@@ -250,12 +258,12 @@ export default function ApiProducts() {
         // 对于类别搜索，使用 categoryIds 作为参数名
         filterValue = searchValue.trim();
       }
-      
+
       const newFilter = { type: searchType, value: filterValue, label: labelText };
       const updatedFilters = activeFilters.filter(f => f.type !== searchType);
       updatedFilters.push(newFilter);
       setActiveFilters(updatedFilters);
-      
+
       const filters: { type?: string, name?: string, categoryIds?: string } = {};
       updatedFilters.forEach(filter => {
         if (filter.type === 'type' || filter.type === 'name') {
@@ -265,7 +273,7 @@ export default function ApiProducts() {
           filters.categoryIds = filter.value;
         }
       });
-      
+
       setFilters(filters);
       fetchApiProducts(1, pagination.pageSize, filters);
       setSearchValue('');
@@ -276,7 +284,7 @@ export default function ApiProducts() {
   const removeFilter = (filterType: string) => {
     const updatedFilters = activeFilters.filter(f => f.type !== filterType);
     setActiveFilters(updatedFilters);
-    
+
     const newFilters: { type?: string, name?: string, categoryIds?: string } = {};
     updatedFilters.forEach(filter => {
       if (filter.type === 'type' || filter.type === 'name') {
@@ -286,7 +294,7 @@ export default function ApiProducts() {
         newFilters.categoryIds = filter.value;
       }
     });
-    
+
     setFilters(newFilters);
     fetchApiProducts(1, pagination.pageSize, newFilters);
   };
@@ -352,14 +360,13 @@ export default function ApiProducts() {
       {/* 搜索和筛选 */}
       <div className="space-y-4">
         {/* 搜索框 */}
-        <div className="flex max-w-xl border border-gray-300 rounded-md overflow-hidden hover:border-blue-500 focus-within:border-blue-500 focus-within:shadow-sm">
+        <div className="flex max-w-xl border border-gray-300 rounded-md overflow-hidden hover:border-colorPrimary focus-within:border-colorPrimary focus-within:shadow-sm">
           {/* 左侧：搜索类型选择器 */}
           <Select
             value={searchType}
             onChange={setSearchType}
-            style={{ 
+            style={{
               width: 120,
-              backgroundColor: '#f5f5f5',
             }}
             className="h-10 border-0 rounded-none"
             size="large"
@@ -390,7 +397,7 @@ export default function ApiProducts() {
                   const updatedFilters = activeFilters.filter(f => f.type !== 'type');
                   updatedFilters.push(newFilter);
                   setActiveFilters(updatedFilters);
-                  
+
                   const filters: { type?: string, name?: string, categoryIds?: string } = {};
                   updatedFilters.forEach(filter => {
                     if (filter.type === 'type' || filter.type === 'name') {
@@ -400,13 +407,13 @@ export default function ApiProducts() {
                       filters.categoryIds = filter.value;
                     }
                   });
-                  
+
                   setFilters(filters);
                   fetchApiProducts(1, pagination.pageSize, filters);
                   setSearchValue('');
                 }
               }}
-              style={{ 
+              style={{
                 flex: 1,
               }}
               allowClear
@@ -471,7 +478,7 @@ export default function ApiProducts() {
               placeholder="请输入要检索的产品名称"
               value={searchValue}
               onChange={(e) => setSearchValue(e.target.value)}
-              style={{ 
+              style={{
                 flex: 1,
               }}
               onPressEnter={handleSearch}
@@ -522,14 +529,12 @@ export default function ApiProducts() {
                 </Tag>
               ))}
             </Space>
-            <Button
-              type="link"
-              size="small"
+            <div
               onClick={clearAllFilters}
-              className="text-blue-500 hover:text-blue-600 text-sm"
+              className="text-colorPrimary/80 hover:text-colorPrimary cursor-pointer text-sm"
             >
               清除筛选条件
-            </Button>
+            </div>
           </div>
         )}
       </div>

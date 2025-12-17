@@ -212,7 +212,7 @@ export interface ApiProduct {
   agentConfig?: ApiProductAgentConfig;
   modelConfig?: ApiProductModelConfig;
   document?: string;
-  icon?: ProductIcon | null;
+  icon?: ProductIcon;
   categories?: ProductCategory[];
   feature?: ProductFeature;
 }
