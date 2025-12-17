@@ -200,7 +200,7 @@ For detailed usage instructions, please refer to:
 <table>
   <tr>
     <td align="center">
-      <img src="https://github.com/user-attachments/assets/2092b427-33bb-462d-a22a-7c369e81c572" width="200px"  alt="DingTalk Group"/>
+      <img src="https://github.com/user-attachments/assets/e74915bb-abf2-4415-99a3-dd7c61a94670" width="200px"  alt="DingTalk Group"/>
       <br />
       <b>DingTalk Group</b>
     </td>
