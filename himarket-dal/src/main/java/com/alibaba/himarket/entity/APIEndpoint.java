@@ -20,23 +20,23 @@
 package com.alibaba.himarket.entity;
 
 import com.alibaba.himarket.support.enums.EndpointType;
+import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-import jakarta.persistence.*;
-
-/**
- * API Endpoint 实体类
- */
+/** API Endpoint 实体类 */
 @EqualsAndHashCode(callSuper = true)
 @Entity
-@Table(name = "api_endpoint",
+@Table(
+        name = "api_endpoint",
         uniqueConstraints = {
-                @UniqueConstraint(columnNames = {"endpoint_id"}, name = "uk_endpoint_id")
+            @UniqueConstraint(
+                    columnNames = {"endpoint_id"},
+                    name = "uk_endpoint_id")
         },
         indexes = {
-                @Index(name = "idx_api_definition_id", columnList = "api_definition_id"),
-                @Index(name = "idx_type", columnList = "type")
+            @Index(name = "idx_api_definition_id", columnList = "api_definition_id"),
+            @Index(name = "idx_type", columnList = "type")
         })
 @Data
 public class APIEndpoint extends BaseEntity {

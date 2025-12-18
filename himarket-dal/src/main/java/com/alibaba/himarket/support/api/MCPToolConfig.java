@@ -19,95 +19,64 @@
 
 package com.alibaba.himarket.support.api;
 
+import java.util.List;
+import java.util.Map;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-import java.util.List;
-import java.util.Map;
-
-/**
- * MCP Tool 配置
- */
+/** MCP Tool 配置 */
 @Data
 @EqualsAndHashCode(callSuper = true)
 public class MCPToolConfig extends EndpointConfig {
 
-    /**
-     * 输入参数 JSON Schema
-     */
+    /** 输入参数 JSON Schema */
     private Map<String, Object> inputSchema;
 
-    /**
-     * 输出结果 JSON Schema
-     */
+    /** 输出结果 JSON Schema */
     private Map<String, Object> outputSchema;
 
-    /**
-     * HTTP 请求模板
-     */
+    /** HTTP 请求模板 */
     private RequestTemplate requestTemplate;
 
-    /**
-     * 响应处理模板
-     */
+    /** 响应处理模板 */
     private ResponseTemplate responseTemplate;
 
     @Data
     public static class RequestTemplate {
-        /**
-         * 请求 URL（支持变量替换）
-         */
+        /** 请求 URL（支持变量替换） */
         private String url;
 
-        /**
-         * HTTP 方法
-         */
+        /** HTTP 方法 */
         private String method;
 
-        /**
-         * 请求头
-         */
+        /** 请求头 */
         private List<Header> headers;
 
-        /**
-         * 请求体模板
-         */
+        /** 请求体模板 */
         private String body;
 
-        /**
-         * 查询参数
-         */
+        /** 查询参数 */
         private Map<String, String> queryParams;
     }
 
     @Data
     public static class ResponseTemplate {
-        /**
-         * 响应前缀
-         */
+        /** 响应前缀 */
         private String prependBody;
 
-        /**
-         * 响应后缀
-         */
+        /** 响应后缀 */
         private String appendBody;
 
-        /**
-         * 响应体模板
-         */
+        /** 响应体模板 */
         private String body;
     }
 
     @Data
     public static class Header {
-        /**
-         * 请求头名称
-         */
+        /** 请求头名称 */
         private String key;
 
-        /**
-         * 请求头值
-         */
+        /** 请求头值 */
         private String value;
     }
 }

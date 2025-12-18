@@ -19,30 +19,19 @@
 
 package com.alibaba.himarket.support.enums;
 
-/**
- * API Definition 类型枚举
- */
+/** API Definition 类型枚举 */
 public enum APIType {
 
-    /**
-     * MCP Server
-     */
+    /** MCP Server */
     MCP_SERVER,
 
-    /**
-     * REST API
-     */
+    /** REST API */
     REST_API,
 
-    /**
-     * Agent API
-     */
+    /** Agent API */
     AGENT_API,
 
-    /**
-     * Model API
-     */
+    /** Model API */
     MODEL_API,
-
     ;
 }

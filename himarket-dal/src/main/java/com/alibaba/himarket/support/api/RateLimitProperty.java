@@ -19,46 +19,24 @@
 
 package com.alibaba.himarket.support.api;
 
-import com.alibaba.himarket.support.enums.ExtensionPhase;
-import com.alibaba.himarket.support.enums.ExtensionType;
+import com.alibaba.himarket.support.enums.RateLimitScope;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
-import java.io.Serializable;
-import java.util.Map;
-
-/**
- * 扩展配置基类
- */
+/** 限流插件配置 */
 @Data
-public class ExtensionConfig implements Serializable {
+@EqualsAndHashCode(callSuper = true)
+public class RateLimitProperty extends BaseAPIProperty {
 
-    /**
-     * 扩展类型
-     */
-    private ExtensionType type;
+    /** 限流范围 */
+    private RateLimitScope scope;
 
-    /**
-     * 扩展名称（唯一标识）
-     */
-    private String name;
+    /** 限流阈值（每秒请求数） */
+    private Integer requestsPerSecond;
 
-    /**
-     * 执行阶段
-     */
-    private ExtensionPhase phase;
+    /** 突发容量（允许的突发流量） */
+    private Integer burstCapacity;
 
-    /**
-     * 是否启用
-     */
-    private Boolean enabled;
-
-    /**
-     * 优先级（数字越小越先执行）
-     */
-    private Integer priority;
-
-    /**
-     * 扩展特定配置
-     */
-    private Map<String, Object> config;
+    /** 是否启用令牌桶算法 */
+    private Boolean useTokenBucket;
 }

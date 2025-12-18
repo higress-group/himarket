@@ -17,21 +17,31 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.enums;
+package com.alibaba.himarket.support.api;
 
-/** 限流范围枚举 */
-public enum RateLimitScope {
+import lombok.Data;
+import lombok.EqualsAndHashCode;
 
-    /** 全局 */
-    GLOBAL,
+/** 熔断降级插件配置 */
+@Data
+@EqualsAndHashCode(callSuper = true)
+public class CircuitBreakerProperty extends BaseAPIProperty {
 
-    /** 消费者 */
-    CONSUMER,
+    /** 失败阈值（触发熔断的失败次数或比例） */
+    private Integer failureThreshold;
 
-    /** IP */
-    IP,
+    /** 成功阈值（从半开状态恢复到关闭状态的成功次数） */
+    private Integer successThreshold;
 
-    /** 自定义 */
-    CUSTOM,
-    ;
+    /** 超时时间（毫秒，判定为失败的超时时长） */
+    private Long timeout;
+
+    /** 熔断持续时间（毫秒，熔断后多久尝试恢复） */
+    private Long openDuration;
+
+    /** 半开状态允许的请求数 */
+    private Integer halfOpenRequests;
+
+    /** 降级响应内容 */
+    private String fallbackResponse;
 }

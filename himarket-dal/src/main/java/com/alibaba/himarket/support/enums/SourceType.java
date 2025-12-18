@@ -27,9 +27,7 @@ public enum SourceType {
 
     /** 来自Nacos注册中心 */
     NACOS,
-    /**
-     * Himarket 托管的 API Definition
-     */
+    /** Himarket 托管的 API Definition */
     MANAGED;
 
     public boolean isGateway() {
@@ -44,4 +42,3 @@ public enum SourceType {
         return this == MANAGED;
     }
 }
-

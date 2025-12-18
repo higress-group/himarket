@@ -21,10 +21,9 @@ package com.alibaba.himarket.repository;
 
 import com.alibaba.himarket.entity.APIEndpoint;
 import com.alibaba.himarket.support.enums.EndpointType;
-import org.springframework.stereotype.Repository;
-
 import java.util.List;
 import java.util.Optional;
+import org.springframework.stereotype.Repository;
 
 @Repository
 public interface APIEndpointRepository extends BaseRepository<APIEndpoint, Long> {
@@ -37,7 +36,8 @@ public interface APIEndpointRepository extends BaseRepository<APIEndpoint, Long>
 
     List<APIEndpoint> findByApiDefinitionIdAndType(String apiDefinitionId, EndpointType type);
 
-    Optional<APIEndpoint> findByEndpointIdAndApiDefinitionId(String endpointId, String apiDefinitionId);
+    Optional<APIEndpoint> findByEndpointIdAndApiDefinitionId(
+            String endpointId, String apiDefinitionId);
 
     void deleteByApiDefinitionId(String apiDefinitionId);
 }

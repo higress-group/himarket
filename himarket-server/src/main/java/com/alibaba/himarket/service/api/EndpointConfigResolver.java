@@ -25,22 +25,19 @@ import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.entity.APIEndpoint;
 import com.alibaba.himarket.support.api.*;
 import com.alibaba.himarket.support.enums.EndpointType;
+import java.util.Map;
 import org.springframework.stereotype.Component;
 
-import java.util.Map;
-
-/**
- * Endpoint 配置解析工具类
- */
+/** Endpoint 配置解析工具类 */
 @Component
 public class EndpointConfigResolver {
 
-    private static final Map<EndpointType, Class<? extends EndpointConfig>> CONFIG_TYPE_MAP = Map.of(
-            EndpointType.MCP_TOOL, MCPToolConfig.class,
-            EndpointType.REST_ROUTE, RESTRouteConfig.class,
-            EndpointType.AGENT, AgentConfig.class,
-            EndpointType.MODEL, ModelConfig.class
-    );
+    private static final Map<EndpointType, Class<? extends EndpointConfig>> CONFIG_TYPE_MAP =
+            Map.of(
+                    EndpointType.MCP_TOOL, MCPToolConfig.class,
+                    EndpointType.REST_ROUTE, RESTRouteConfig.class,
+                    EndpointType.AGENT, AgentConfig.class,
+                    EndpointType.MODEL, ModelConfig.class);
 
     /**
      * 解析 Endpoint 配置
@@ -51,8 +48,8 @@ public class EndpointConfigResolver {
     public EndpointConfig parseConfig(APIEndpoint endpoint) {
         Class<? extends EndpointConfig> configClass = CONFIG_TYPE_MAP.get(endpoint.getType());
         if (configClass == null) {
-            throw new BusinessException(ErrorCode.INVALID_PARAMETER,
-                    "Unknown endpoint type: " + endpoint.getType());
+            throw new BusinessException(
+                    ErrorCode.INVALID_PARAMETER, "Unknown endpoint type: " + endpoint.getType());
         }
         return parseConfig(endpoint, configClass);
     }
@@ -60,17 +57,17 @@ public class EndpointConfigResolver {
     /**
      * 解析为指定类型的配置
      *
-     * @param endpoint    Endpoint 实体
+     * @param endpoint Endpoint 实体
      * @param configClass 配置类类型
-     * @param <T>         配置类型
+     * @param <T> 配置类型
      * @return 解析后的配置对象
      */
     public <T extends EndpointConfig> T parseConfig(APIEndpoint endpoint, Class<T> configClass) {
         try {
             return JSONUtil.toBean(endpoint.getConfig(), configClass);
         } catch (Exception e) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR,
-                    "Failed to parse endpoint config: " + e.getMessage());
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR, "Failed to parse endpoint config: " + e.getMessage());
         }
     }
 
@@ -84,7 +81,8 @@ public class EndpointConfigResolver {
         try {
             return JSONUtil.toJsonStr(config);
         } catch (Exception e) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR,
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR,
                     "Failed to serialize endpoint config: " + e.getMessage());
         }
     }
@@ -114,45 +112,41 @@ public class EndpointConfigResolver {
 
     private void validateMCPToolConfig(MCPToolConfig config) {
         if (config.getRequestTemplate() == null) {
-            throw new BusinessException(ErrorCode.INVALID_PARAMETER,
-                    "MCP Tool must have requestTemplate");
+            throw new BusinessException(
+                    ErrorCode.INVALID_PARAMETER, "MCP Tool must have requestTemplate");
         }
         if (config.getRequestTemplate().getUrl() == null) {
-            throw new BusinessException(ErrorCode.INVALID_PARAMETER,
-                    "MCP Tool requestTemplate must have url");
+            throw new BusinessException(
+                    ErrorCode.INVALID_PARAMETER, "MCP Tool requestTemplate must have url");
         }
         if (config.getRequestTemplate().getMethod() == null) {
-            throw new BusinessException(ErrorCode.INVALID_PARAMETER,
-                    "MCP Tool requestTemplate must have method");
+            throw new BusinessException(
+                    ErrorCode.INVALID_PARAMETER, "MCP Tool requestTemplate must have method");
         }
     }
 
     private void validateRESTRouteConfig(RESTRouteConfig config) {
         if (config.getPath() == null || config.getPath().isEmpty()) {
-            throw new BusinessException(ErrorCode.INVALID_PARAMETER,
-                    "REST Route must have path");
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "REST Route must have path");
         }
         if (config.getMethod() == null || config.getMethod().isEmpty()) {
-            throw new BusinessException(ErrorCode.INVALID_PARAMETER,
-                    "REST Route must have method");
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "REST Route must have method");
         }
     }
 
     private void validateAgentConfig(AgentConfig config) {
         if (config.getProtocols() == null || config.getProtocols().isEmpty()) {
-            throw new BusinessException(ErrorCode.INVALID_PARAMETER,
-                    "Agent must have at least one protocol");
+            throw new BusinessException(
+                    ErrorCode.INVALID_PARAMETER, "Agent must have at least one protocol");
         }
     }
 
     private void validateModelConfig(ModelConfig config) {
         if (config.getModelName() == null || config.getModelName().isEmpty()) {
-            throw new BusinessException(ErrorCode.INVALID_PARAMETER,
-                    "Model must have modelName");
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "Model must have modelName");
         }
         if (config.getMatchConfig() == null) {
-            throw new BusinessException(ErrorCode.INVALID_PARAMETER,
-                    "Model must have matchConfig");
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "Model must have matchConfig");
         }
     }
 }

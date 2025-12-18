@@ -19,35 +19,22 @@
 
 package com.alibaba.himarket.support.enums;
 
-/**
- * API Definition 状态枚举
- */
+/** API Definition 状态枚举 */
 public enum APIStatus {
 
-    /**
-     * 草稿
-     */
+    /** 草稿 */
     DRAFT,
 
-    /**
-     * 发布中
-     */
+    /** 发布中 */
     PUBLISHING,
 
-    /**
-     * 已发布
-     */
+    /** 已发布 */
     PUBLISHED,
 
-    /**
-     * 已废弃
-     */
+    /** 已废弃 */
     DEPRECATED,
 
-    /**
-     * 已归档
-     */
+    /** 已归档 */
     ARCHIVED,
-
     ;
 }

@@ -28,6 +28,9 @@ import com.alibaba.himarket.service.api.SwaggerConverter;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -35,14 +38,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-/**
- * Swagger/OpenAPI 转换工具 Controller
- * 提供 Swagger 文档转换为 API Definition 的功能
- */
+/** Swagger/OpenAPI 转换工具 Controller 提供 Swagger 文档转换为 API Definition 的功能 */
 @RestController
 @RequestMapping("tools/swagger")
 @Tag(name = "Swagger 转换工具", description = "Swagger/OpenAPI 文档转换接口")
@@ -53,34 +49,33 @@ public class SwaggerConverterController {
     private final SwaggerConverter swaggerConverter;
 
     /**
-     * 转换 Swagger/OpenAPI 文档
-     * 将 Swagger 2.0 或 OpenAPI 3.0 文档转换为 API Definition 和 Endpoints
+     * 转换 Swagger/OpenAPI 文档 将 Swagger 2.0 或 OpenAPI 3.0 文档转换为 API Definition 和 Endpoints
      *
      * @param param 导入参数
      * @return 转换后的 API Definition 和 Endpoints 信息
      */
     @PostMapping("/convert")
     @Operation(summary = "转换 Swagger 文档", description = "将 Swagger/OpenAPI 文档转换为 API Definition")
-    public Response<Map<String, Object>> convertSwagger(@Valid @RequestBody ImportSwaggerParam param) {
+    public Response<Map<String, Object>> convertSwagger(
+            @Valid @RequestBody ImportSwaggerParam param) {
         log.info("Converting Swagger document, name: {}", param.getName());
 
         // 转换 API Definition
-        APIDefinition apiDefinition = swaggerConverter.convert(
-                param.getSwaggerContent(),
-                param.getName(),
-                param.getDescription(),
-                param.getVersion()
-        );
+        APIDefinition apiDefinition =
+                swaggerConverter.convert(
+                        param.getSwaggerContent(),
+                        param.getName(),
+                        param.getDescription(),
+                        param.getVersion());
 
         // 转换 Endpoints
-        List<APIEndpoint> endpoints = swaggerConverter.convertEndpoints(
-                param.getSwaggerContent(),
-                apiDefinition.getApiDefinitionId()
-        );
+        List<APIEndpoint> endpoints =
+                swaggerConverter.convertEndpoints(
+                        param.getSwaggerContent(), apiDefinition.getApiDefinitionId());
 
         // 构建返回结果
         Map<String, Object> result = new HashMap<>();
-        
+
         // 转换 APIDefinition 为 VO
         APIDefinitionVO apiDefinitionVO = new APIDefinitionVO().convertFrom(apiDefinition);
         result.put("apiDefinition", apiDefinitionVO);

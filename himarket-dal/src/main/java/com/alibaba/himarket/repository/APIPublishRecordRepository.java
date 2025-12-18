@@ -21,12 +21,11 @@ package com.alibaba.himarket.repository;
 
 import com.alibaba.himarket.entity.APIPublishRecord;
 import com.alibaba.himarket.support.enums.PublishStatus;
+import java.util.List;
+import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
-
-import java.util.List;
-import java.util.Optional;
 
 @Repository
 public interface APIPublishRecordRepository extends BaseRepository<APIPublishRecord, Long> {
@@ -37,9 +36,11 @@ public interface APIPublishRecordRepository extends BaseRepository<APIPublishRec
 
     Page<APIPublishRecord> findByApiDefinitionId(String apiDefinitionId, Pageable pageable);
 
-    List<APIPublishRecord> findByApiDefinitionIdAndStatus(String apiDefinitionId, PublishStatus status);
+    List<APIPublishRecord> findByApiDefinitionIdAndStatus(
+            String apiDefinitionId, PublishStatus status);
 
-    Optional<APIPublishRecord> findByApiDefinitionIdAndGatewayId(String apiDefinitionId, String gatewayId);
+    Optional<APIPublishRecord> findByApiDefinitionIdAndGatewayId(
+            String apiDefinitionId, String gatewayId);
 
     List<APIPublishRecord> findByGatewayId(String gatewayId);
 

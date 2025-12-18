@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS `api_definition` (
     `type` varchar(32) NOT NULL COMMENT 'API type: MCP_SERVER, REST_API, AGENT_API, MODEL_API',
     `status` varchar(32) NOT NULL DEFAULT 'DRAFT' COMMENT 'Status: DRAFT, PUBLISHING, PUBLISHED, DEPRECATED, ARCHIVED',
     `version` varchar(32) COMMENT 'API version',
+    `properties` json COMMENT 'API Properties (formerly extensions from PublishConfig)',
     `metadata` json COMMENT 'Metadata (tags, documentation, etc.)',
     `created_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updated_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),

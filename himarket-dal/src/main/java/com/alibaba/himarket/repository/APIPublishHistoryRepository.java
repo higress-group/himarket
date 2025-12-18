@@ -21,12 +21,11 @@ package com.alibaba.himarket.repository;
 
 import com.alibaba.himarket.entity.APIPublishHistory;
 import com.alibaba.himarket.support.enums.PublishAction;
+import java.util.List;
+import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
-
-import java.util.List;
-import java.util.Optional;
 
 @Repository
 public interface APIPublishHistoryRepository extends BaseRepository<APIPublishHistory, Long> {
@@ -37,7 +36,9 @@ public interface APIPublishHistoryRepository extends BaseRepository<APIPublishHi
 
     Page<APIPublishHistory> findByApiDefinitionId(String apiDefinitionId, Pageable pageable);
 
-    List<APIPublishHistory> findByApiDefinitionIdAndAction(String apiDefinitionId, PublishAction action);
+    List<APIPublishHistory> findByApiDefinitionIdAndAction(
+            String apiDefinitionId, PublishAction action);
 
-    Page<APIPublishHistory> findByApiDefinitionIdOrderByCreateAtDesc(String apiDefinitionId, Pageable pageable);
+    Page<APIPublishHistory> findByApiDefinitionIdOrderByCreateAtDesc(
+            String apiDefinitionId, Pageable pageable);
 }

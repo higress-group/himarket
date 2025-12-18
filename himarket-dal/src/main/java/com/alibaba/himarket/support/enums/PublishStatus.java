@@ -19,25 +19,16 @@
 
 package com.alibaba.himarket.support.enums;
 
-/**
- * API 发布状态枚举
- */
+/** API 发布状态枚举 */
 public enum PublishStatus {
 
-    /**
-     * 活跃
-     */
+    /** 活跃 */
     ACTIVE,
 
-    /**
-     * 非活跃
-     */
+    /** 非活跃 */
     INACTIVE,
 
-    /**
-     * 失败
-     */
+    /** 失败 */
     FAILED,
-
     ;
 }

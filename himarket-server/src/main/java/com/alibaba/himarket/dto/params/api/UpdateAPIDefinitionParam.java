@@ -19,13 +19,15 @@
 
 package com.alibaba.himarket.dto.params.api;
 
+import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.dto.converter.InputConverter;
 import com.alibaba.himarket.entity.APIDefinition;
+import com.alibaba.himarket.support.api.BaseAPIProperty;
 import com.alibaba.himarket.support.enums.APIStatus;
 import jakarta.validation.constraints.Size;
-import lombok.Data;
-
+import java.util.List;
 import java.util.Map;
+import lombok.Data;
 
 @Data
 public class UpdateAPIDefinitionParam implements InputConverter<APIDefinition> {
@@ -41,5 +43,30 @@ public class UpdateAPIDefinitionParam implements InputConverter<APIDefinition> {
     @Size(max = 50, message = "版本号长度不能超过50个字符")
     private String version;
 
+    private List<BaseAPIProperty> properties;
+
     private Map<String, Object> metadata;
+
+    @Override
+    public void update(APIDefinition domain) {
+        InputConverter.super.update(domain);
+
+        // 处理 properties JSON 序列化
+        if (properties != null) {
+            if (properties.isEmpty()) {
+                domain.setProperties(null);
+            } else {
+                domain.setProperties(JSONUtil.toJsonStr(properties));
+            }
+        }
+
+        // 处理 metadata JSON 序列化
+        if (metadata != null) {
+            if (metadata.isEmpty()) {
+                domain.setMetadata(null);
+            } else {
+                domain.setMetadata(JSONUtil.toJsonStr(metadata));
+            }
+        }
+    }
 }

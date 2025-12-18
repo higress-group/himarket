@@ -23,24 +23,16 @@ import com.alibaba.himarket.support.enums.APIStatus;
 import com.alibaba.himarket.support.enums.APIType;
 import lombok.Data;
 
-/**
- * 查询 API Definition 参数
- */
+/** 查询 API Definition 参数 */
 @Data
 public class QueryAPIDefinitionParam {
 
-    /**
-     * API 类型
-     */
+    /** API 类型 */
     private APIType type;
 
-    /**
-     * API 状态
-     */
+    /** API 状态 */
     private APIStatus status;
 
-    /**
-     * 关键词（名称模糊搜索）
-     */
+    /** 关键词（名称模糊搜索） */
     private String keyword;
 }

@@ -19,82 +19,55 @@
 
 package com.alibaba.himarket.support.api;
 
+import java.util.List;
+import java.util.Map;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-import java.util.List;
-import java.util.Map;
-
-/**
- * REST Route 配置
- */
+/** REST Route 配置 */
 @Data
 @EqualsAndHashCode(callSuper = true)
 public class RESTRouteConfig extends EndpointConfig {
 
-    /**
-     * 请求路径（支持路径参数）
-     */
+    /** 请求路径（支持路径参数） */
     private String path;
 
-    /**
-     * HTTP 方法
-     */
+    /** HTTP 方法 */
     private String method;
 
-    /**
-     * 请求参数列表
-     */
+    /** 请求参数列表 */
     private List<Parameter> parameters;
 
-    /**
-     * 请求体定义
-     */
+    /** 请求体定义 */
     private Map<String, Object> requestBody;
 
-    /**
-     * 响应定义（按状态码）
-     */
+    /** 响应定义（按状态码） */
     private Map<String, ResponseDef> responses;
 
     @Data
     public static class Parameter {
-        /**
-         * 参数名
-         */
+        /** 参数名 */
         private String name;
 
-        /**
-         * 参数位置：query, path, header, cookie
-         */
+        /** 参数位置：query, path, header, cookie */
         private String in;
 
-        /**
-         * 是否必填
-         */
+        /** 是否必填 */
         private Boolean required;
 
-        /**
-         * 参数 JSON Schema
-         */
+        /** 参数 JSON Schema */
         private Map<String, Object> schema;
 
-        /**
-         * 参数描述
-         */
+        /** 参数描述 */
         private String description;
     }
 
     @Data
     public static class ResponseDef {
-        /**
-         * 响应描述
-         */
+        /** 响应描述 */
         private String description;
 
-        /**
-         * 响应 Schema
-         */
+        /** 响应 Schema */
         private Map<String, Object> schema;
     }
 }

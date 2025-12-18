@@ -26,19 +26,15 @@ import com.alibaba.himarket.entity.Gateway;
 import com.alibaba.himarket.repository.GatewayRepository;
 import com.alibaba.himarket.support.enums.APIType;
 import com.alibaba.himarket.support.enums.GatewayType;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 
-/**
- * 网关能力注册中心
- * 管理所有可用的网关发布器，并提供能力发现功能
- */
+/** 网关能力注册中心 管理所有可用的网关发布器，并提供能力发现功能 */
 @Slf4j
 @Component
 public class GatewayCapabilityRegistry {
@@ -69,7 +65,8 @@ public class GatewayCapabilityRegistry {
     public GatewayPublisher getPublisher(GatewayType gatewayType) {
         GatewayPublisher publisher = publishers.get(gatewayType);
         if (publisher == null) {
-            throw new BusinessException(ErrorCode.INVALID_PARAMETER,
+            throw new BusinessException(
+                    ErrorCode.INVALID_PARAMETER,
                     "No publisher found for gateway type: " + gatewayType);
         }
         return publisher;
@@ -93,10 +90,11 @@ public class GatewayCapabilityRegistry {
      */
     public List<Gateway> findSupportedGateways(APIType apiType) {
         // 获取所有支持该 API 类型的网关类型
-        List<GatewayType> supportedTypes = publishers.values().stream()
-                .filter(publisher -> publisher.supportsAPIType(apiType))
-                .map(GatewayPublisher::getGatewayType)
-                .collect(Collectors.toList());
+        List<GatewayType> supportedTypes =
+                publishers.values().stream()
+                        .filter(publisher -> publisher.supportsAPIType(apiType))
+                        .map(GatewayPublisher::getGatewayType)
+                        .collect(Collectors.toList());
 
         if (supportedTypes.isEmpty()) {
             return new ArrayList<>();
@@ -135,9 +133,7 @@ public class GatewayCapabilityRegistry {
      */
     public List<GatewayCapabilityVO> getAllGatewayCapabilities() {
         List<Gateway> gateways = gatewayRepository.findAll();
-        return gateways.stream()
-                .map(this::getGatewayCapability)
-                .collect(Collectors.toList());
+        return gateways.stream().map(this::getGatewayCapability).collect(Collectors.toList());
     }
 
     /**

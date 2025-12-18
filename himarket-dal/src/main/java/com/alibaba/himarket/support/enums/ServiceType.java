@@ -19,25 +19,16 @@
 
 package com.alibaba.himarket.support.enums;
 
-/**
- * 服务类型枚举
- */
+/** 服务类型枚举 */
 public enum ServiceType {
 
-    /**
-     * Nacos 服务
-     */
+    /** Nacos 服务 */
     NACOS,
 
-    /**
-     * 固定地址
-     */
+    /** 固定地址 */
     FIXED_ADDRESS,
 
-    /**
-     * DNS
-     */
+    /** DNS */
     DNS,
-
     ;
 }

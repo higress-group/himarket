@@ -20,14 +20,11 @@
 package com.alibaba.himarket.repository;
 
 import com.alibaba.himarket.entity.Gateway;
-import java.util.Optional;
-import com.alibaba.himarket.entity.Gateway;
 import com.alibaba.himarket.support.enums.GatewayType;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 public interface GatewayRepository extends BaseRepository<Gateway, Long> {
 

@@ -19,65 +19,13 @@
 
 package com.alibaba.himarket.support.enums;
 
-/**
- * 扩展类型枚举
- */
-public enum ExtensionType {
+/** 属性执行阶段枚举 */
+public enum PropertyPhase {
 
-    /**
-     * 认证鉴权
-     */
-    AUTH,
+    /** 入站阶段 */
+    INBOUND,
 
-    /**
-     * 流量限制
-     */
-    RATE_LIMIT,
-
-    /**
-     * 跨域配置
-     */
-    CORS,
-
-    /**
-     * IP 黑白名单
-     */
-    IP_FILTER,
-
-    /**
-     * 请求转换
-     */
-    REQUEST_TRANSFORM,
-
-    /**
-     * 重试策略
-     */
-    RETRY,
-
-    /**
-     * 超时配置
-     */
-    TIMEOUT,
-
-    /**
-     * 熔断降级
-     */
-    CIRCUIT_BREAKER,
-
-    /**
-     * 响应转换
-     */
-    RESPONSE_TRANSFORM,
-
-    /**
-     * 日志记录
-     */
-    LOGGING,
-
-    /**
-     * 自定义
-     */
-    CUSTOM,
-
+    /** 出站阶段 */
+    OUTBOUND,
     ;
 }

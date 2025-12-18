@@ -19,15 +19,17 @@
 
 package com.alibaba.himarket.dto.result.api;
 
+import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.dto.converter.OutputConverter;
 import com.alibaba.himarket.entity.APIDefinition;
+import com.alibaba.himarket.support.api.BaseAPIProperty;
 import com.alibaba.himarket.support.enums.APIStatus;
 import com.alibaba.himarket.support.enums.APIType;
-import lombok.Data;
-
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import lombok.Data;
 
 @Data
 public class APIDefinitionVO implements OutputConverter<APIDefinitionVO, APIDefinition> {
@@ -44,6 +46,8 @@ public class APIDefinitionVO implements OutputConverter<APIDefinitionVO, APIDefi
 
     private String version;
 
+    private List<BaseAPIProperty> properties;
+
     private Map<String, Object> metadata;
 
     private List<APIEndpointVO> endpoints;
@@ -51,4 +55,29 @@ public class APIDefinitionVO implements OutputConverter<APIDefinitionVO, APIDefi
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
+
+    @Override
+    public APIDefinitionVO convertFrom(APIDefinition source) {
+        OutputConverter.super.convertFrom(source);
+
+        // 处理 properties JSON 字段 - 转换为 BaseAPIProperty 类型
+        if (StrUtil.isNotBlank(source.getProperties())) {
+            try {
+                this.properties = JSONUtil.toList(source.getProperties(), BaseAPIProperty.class);
+            } catch (Exception e) {
+                this.properties = null;
+            }
+        }
+
+        // 处理 metadata JSON 字段
+        if (StrUtil.isNotBlank(source.getMetadata())) {
+            try {
+                this.metadata = JSONUtil.toBean(source.getMetadata(), Map.class);
+            } catch (Exception e) {
+                this.metadata = null;
+            }
+        }
+
+        return this;
+    }
 }

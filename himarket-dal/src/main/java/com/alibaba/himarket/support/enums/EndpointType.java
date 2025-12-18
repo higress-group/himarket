@@ -19,30 +19,19 @@
 
 package com.alibaba.himarket.support.enums;
 
-/**
- * API Endpoint 类型枚举
- */
+/** API Endpoint 类型枚举 */
 public enum EndpointType {
 
-    /**
-     * MCP Tool
-     */
+    /** MCP Tool */
     MCP_TOOL,
 
-    /**
-     * REST Route
-     */
+    /** REST Route */
     REST_ROUTE,
 
-    /**
-     * Agent
-     */
+    /** Agent */
     AGENT,
 
-    /**
-     * Model
-     */
+    /** Model */
     MODEL,
-
     ;
 }

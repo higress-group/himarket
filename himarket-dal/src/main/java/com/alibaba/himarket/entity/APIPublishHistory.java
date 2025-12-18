@@ -20,21 +20,21 @@
 package com.alibaba.himarket.entity;
 
 import com.alibaba.himarket.support.enums.PublishAction;
+import jakarta.persistence.*;
 import lombok.Data;
 
-import jakarta.persistence.*;
-
-/**
- * API Publish History 实体类
- */
+/** API Publish History 实体类 */
 @Entity
-@Table(name = "api_publish_history",
+@Table(
+        name = "api_publish_history",
         uniqueConstraints = {
-                @UniqueConstraint(columnNames = {"history_id"}, name = "uk_history_id")
+            @UniqueConstraint(
+                    columnNames = {"history_id"},
+                    name = "uk_history_id")
         },
         indexes = {
-                @Index(name = "idx_api_definition_id", columnList = "api_definition_id"),
-                @Index(name = "idx_publish_record_id", columnList = "publish_record_id")
+            @Index(name = "idx_api_definition_id", columnList = "api_definition_id"),
+            @Index(name = "idx_publish_record_id", columnList = "publish_record_id")
         })
 @Data
 public class APIPublishHistory extends BaseEntity {

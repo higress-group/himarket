@@ -19,17 +19,38 @@
 
 package com.alibaba.himarket.support.enums;
 
-/** 限流范围枚举 */
-public enum RateLimitScope {
+/** 属性类型枚举 */
+public enum PropertyType {
 
-    /** 全局 */
-    GLOBAL,
+    /** 认证鉴权 */
+    AUTH,
 
-    /** 消费者 */
-    CONSUMER,
+    /** 流量限制 */
+    RATE_LIMIT,
 
-    /** IP */
-    IP,
+    /** 跨域配置 */
+    CORS,
+
+    /** IP 黑白名单 */
+    IP_FILTER,
+
+    /** 请求转换 */
+    REQUEST_TRANSFORM,
+
+    /** 重试策略 */
+    RETRY,
+
+    /** 超时配置 */
+    TIMEOUT,
+
+    /** 熔断降级 */
+    CIRCUIT_BREAKER,
+
+    /** 响应转换 */
+    RESPONSE_TRANSFORM,
+
+    /** 日志记录 */
+    LOGGING,
 
     /** 自定义 */
     CUSTOM,

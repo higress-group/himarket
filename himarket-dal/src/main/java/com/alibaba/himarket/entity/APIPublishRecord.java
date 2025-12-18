@@ -20,24 +20,24 @@
 package com.alibaba.himarket.entity;
 
 import com.alibaba.himarket.support.enums.PublishStatus;
+import jakarta.persistence.*;
+import java.time.LocalDateTime;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-import jakarta.persistence.*;
-import java.time.LocalDateTime;
-
-/**
- * API Publish Record 实体类
- */
+/** API Publish Record 实体类 */
 @EqualsAndHashCode(callSuper = true)
 @Entity
-@Table(name = "api_publish_record",
+@Table(
+        name = "api_publish_record",
         uniqueConstraints = {
-                @UniqueConstraint(columnNames = {"record_id"}, name = "uk_record_id")
+            @UniqueConstraint(
+                    columnNames = {"record_id"},
+                    name = "uk_record_id")
         },
         indexes = {
-                @Index(name = "idx_api_definition_id", columnList = "api_definition_id"),
-                @Index(name = "idx_gateway_id", columnList = "gateway_id")
+            @Index(name = "idx_api_definition_id", columnList = "api_definition_id"),
+            @Index(name = "idx_gateway_id", columnList = "gateway_id")
         })
 @Data
 public class APIPublishRecord extends BaseEntity {

@@ -21,9 +21,8 @@ package com.alibaba.himarket.dto.result.api;
 
 import com.alibaba.himarket.support.enums.APIType;
 import com.alibaba.himarket.support.enums.GatewayType;
-import lombok.Data;
-
 import java.util.List;
+import lombok.Data;
 
 @Data
 public class GatewayCapabilityVO {

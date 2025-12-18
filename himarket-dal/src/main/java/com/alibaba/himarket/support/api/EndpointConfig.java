@@ -21,23 +21,14 @@ package com.alibaba.himarket.support.api;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-
 import java.io.Serializable;
 
-/**
- * Endpoint 配置基类
- * 用于标记接口，实现类型安全
- */
-@JsonTypeInfo(
-        use = JsonTypeInfo.Id.NAME,
-        include = JsonTypeInfo.As.PROPERTY,
-        property = "type"
-)
+/** Endpoint 配置基类 用于标记接口，实现类型安全 */
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
 @JsonSubTypes({
-        @JsonSubTypes.Type(value = MCPToolConfig.class, name = "MCP_TOOL"),
-        @JsonSubTypes.Type(value = RESTRouteConfig.class, name = "REST_ROUTE"),
-        @JsonSubTypes.Type(value = AgentConfig.class, name = "AGENT"),
-        @JsonSubTypes.Type(value = ModelConfig.class, name = "MODEL")
+    @JsonSubTypes.Type(value = MCPToolConfig.class, name = "MCP_TOOL"),
+    @JsonSubTypes.Type(value = RESTRouteConfig.class, name = "REST_ROUTE"),
+    @JsonSubTypes.Type(value = AgentConfig.class, name = "AGENT"),
+    @JsonSubTypes.Type(value = ModelConfig.class, name = "MODEL")
 })
-public abstract class EndpointConfig implements Serializable {
-}
+public abstract class EndpointConfig implements Serializable {}

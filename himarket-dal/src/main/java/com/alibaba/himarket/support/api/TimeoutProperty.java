@@ -17,21 +17,25 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.enums;
+package com.alibaba.himarket.support.api;
 
-/** 限流范围枚举 */
-public enum RateLimitScope {
+import lombok.Data;
+import lombok.EqualsAndHashCode;
 
-    /** 全局 */
-    GLOBAL,
+/** 超时插件配置 */
+@Data
+@EqualsAndHashCode(callSuper = true)
+public class TimeoutProperty extends BaseAPIProperty {
 
-    /** 消费者 */
-    CONSUMER,
+    /** 连接超时时间（毫秒） */
+    private Long connectTimeout;
 
-    /** IP */
-    IP,
+    /** 读取超时时间（毫秒） */
+    private Long readTimeout;
 
-    /** 自定义 */
-    CUSTOM,
-    ;
+    /** 写入超时时间（毫秒） */
+    private Long writeTimeout;
+
+    /** 总体超时时间（毫秒） */
+    private Long totalTimeout;
 }

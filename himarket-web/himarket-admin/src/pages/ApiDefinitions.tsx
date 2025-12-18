@@ -55,6 +55,7 @@ interface ApiDefinition {
   type: keyof typeof API_TYPE_MAP;
   status: keyof typeof API_STATUS_MAP;
   version: string;
+  properties?: Array<Record<string, any>>;
   createdAt: string;
   updatedAt: string;
 }

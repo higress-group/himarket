@@ -23,9 +23,8 @@ import com.alibaba.himarket.dto.converter.OutputConverter;
 import com.alibaba.himarket.entity.APIEndpoint;
 import com.alibaba.himarket.support.api.EndpointConfig;
 import com.alibaba.himarket.support.enums.EndpointType;
-import lombok.Data;
-
 import java.time.LocalDateTime;
+import lombok.Data;
 
 @Data
 public class APIEndpointVO implements OutputConverter<APIEndpointVO, APIEndpoint> {

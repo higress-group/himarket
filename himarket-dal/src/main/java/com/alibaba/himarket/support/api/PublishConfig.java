@@ -19,34 +19,20 @@
 
 package com.alibaba.himarket.support.api;
 
-import lombok.Data;
-
 import java.io.Serializable;
 import java.util.List;
+import lombok.Data;
 
-/**
- * 发布配置
- */
+/** 发布配置 */
 @Data
 public class PublishConfig implements Serializable {
 
-    /**
-     * 服务配置
-     */
+    /** 服务配置 */
     private ServiceConfig serviceConfig;
 
-    /**
-     * 域名列表
-     */
+    /** 域名列表 */
     private List<String> domains;
 
-    /**
-     * 基础路径
-     */
+    /** 基础路径 */
     private String basePath;
-
-    /**
-     * 扩展配置列表
-     */
-    private List<ExtensionConfig> extensions;
 }

@@ -115,51 +115,23 @@ export default function ApiDefinitionForm() {
       setLoading(true);
 
       if (isEdit && apiDefinitionId) {
-        // 更新 API
-        await apiDefinitionApi.updateApiDefinition(apiDefinitionId, values);
-
-        // 保存 endpoints：删除所有旧的，创建新的
-        try {
-          // 获取现有 endpoints
-          const existingEndpointsResponse: any = await apiDefinitionApi.getEndpoints(apiDefinitionId);
-          const existingEndpoints = existingEndpointsResponse && existingEndpointsResponse.data
-            ? existingEndpointsResponse.data
-            : (Array.isArray(existingEndpointsResponse) ? existingEndpointsResponse : []);
-
-          // 删除所有现有 endpoints
-          for (const ep of existingEndpoints) {
-            if (ep.endpointId) {
-              await apiDefinitionApi.deleteEndpoint(apiDefinitionId, ep.endpointId);
-            }
+        // 准备 endpoints 数据
+        const endpointsData = endpoints.map(endpoint => ({
+          name: endpoint.name,
+          description: endpoint.description,
+          type: endpoint.type,
+          sortOrder: endpoint.sortOrder,
+          config: {
+            ...endpoint.config,
+            type: endpoint.type  // 添加 type 字段，用于 Jackson 多态反序列化
           }
+        }));
 
-          // 创建新的 endpoints
-          console.log('[ApiDefinitionForm-Edit] 开始创建 endpoints，数量:', endpoints.length);
-          for (const endpoint of endpoints) {
-            console.log('[ApiDefinitionForm-Edit] 原始 endpoint 数据:', endpoint);
-            console.log('[ApiDefinitionForm-Edit] endpoint.type:', endpoint.type);
-            console.log('[ApiDefinitionForm-Edit] endpoint.config:', endpoint.config);
-
-            const endpointData = {
-              name: endpoint.name,
-              description: endpoint.description,
-              type: endpoint.type,
-              sortOrder: endpoint.sortOrder,
-              config: {
-                ...endpoint.config,
-                type: endpoint.type  // 添加 type 字段，用于 Jackson 多态反序列化
-              }
-            };
-
-            console.log('[ApiDefinitionForm-Edit] 准备提交的 endpointData:', endpointData);
-            console.log('[ApiDefinitionForm-Edit] endpointData JSON:', JSON.stringify(endpointData, null, 2));
-
-            await apiDefinitionApi.addEndpoint(apiDefinitionId, endpointData);
-          }
-        } catch (error) {
-          console.error('保存 endpoints 失败:', error);
-          message.warning('API 更新成功，但 endpoints 保存可能失败');
-        }
+        // 更新 API，将 endpoints 一起提交
+        await apiDefinitionApi.updateApiDefinition(apiDefinitionId, {
+          ...values,
+          endpoints: endpointsData
+        });
 
         message.success('API 更新成功');
       } else {

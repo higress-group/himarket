@@ -19,35 +19,22 @@
 
 package com.alibaba.himarket.support.enums;
 
-/**
- * 认证类型枚举
- */
+/** 认证类型枚举 */
 public enum AuthType {
 
-    /**
-     * API Key
-     */
+    /** API Key */
     API_KEY,
 
-    /**
-     * JWT
-     */
+    /** JWT */
     JWT,
 
-    /**
-     * OAuth2
-     */
+    /** OAuth2 */
     OAUTH2,
 
-    /**
-     * Basic Auth
-     */
+    /** Basic Auth */
     BASIC,
 
-    /**
-     * 自定义
-     */
+    /** 自定义 */
     CUSTOM,
-
     ;
 }

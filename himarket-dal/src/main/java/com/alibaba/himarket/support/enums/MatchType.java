@@ -19,25 +19,16 @@
 
 package com.alibaba.himarket.support.enums;
 
-/**
- * 匹配类型枚举
- */
+/** 匹配类型枚举 */
 public enum MatchType {
 
-    /**
-     * 精确匹配
-     */
+    /** 精确匹配 */
     EXACT,
 
-    /**
-     * 前缀匹配
-     */
+    /** 前缀匹配 */
     PREFIX,
 
-    /**
-     * 正则匹配
-     */
+    /** 正则匹配 */
     REGEX,
-
     ;
 }

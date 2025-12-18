@@ -320,18 +320,6 @@ export const apiDefinitionApi = {
   getEndpoints: (apiDefinitionId: string) => {
     return api.get(`/api-definitions/${apiDefinitionId}/endpoints`)
   },
-  // 添加端点
-  addEndpoint: (apiDefinitionId: string, data: any) => {
-    return api.post(`/api-definitions/${apiDefinitionId}/endpoints`, data)
-  },
-  // 更新端点
-  updateEndpoint: (apiDefinitionId: string, endpointId: string, data: any) => {
-    return api.put(`/api-definitions/${apiDefinitionId}/endpoints/${endpointId}`, data)
-  },
-  // 删除端点
-  deleteEndpoint: (apiDefinitionId: string, endpointId: string) => {
-    return api.delete(`/api-definitions/${apiDefinitionId}/endpoints/${endpointId}`)
-  },
   // 获取发布记录
   getPublishRecords: (apiDefinitionId: string, params?: { page?: number; size?: number }) => {
     return api.get(`/api-definitions/${apiDefinitionId}/publish-records`, { params })

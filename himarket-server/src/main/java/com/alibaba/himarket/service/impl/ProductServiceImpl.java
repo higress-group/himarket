@@ -619,7 +619,9 @@ public class ProductServiceImpl implements ProductService {
             // For MANAGED type, API configuration comes from API Definition
             // No need to fetch from external sources
             // Configuration sync will be implemented when publishing API Definition
-            log.debug("MANAGED API type detected for product {}, skipping external config sync", product.getProductId());
+            log.debug(
+                    "MANAGED API type detected for product {}, skipping external config sync",
+                    product.getProductId());
         }
     }
 

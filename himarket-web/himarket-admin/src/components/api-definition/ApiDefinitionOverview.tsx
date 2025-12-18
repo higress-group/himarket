@@ -15,6 +15,7 @@ interface ApiDefinition {
   type: string;
   status: string;
   version: string;
+  properties?: Array<Record<string, any>>;
   createdAt: string;
   updatedAt: string;
 }

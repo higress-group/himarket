@@ -19,19 +19,15 @@
 
 package com.alibaba.himarket.service.api;
 
-import com.alibaba.himarket.entity.APIDefinition;
-import com.alibaba.himarket.entity.APIEndpoint;
+import com.alibaba.himarket.dto.result.api.APIDefinitionVO;
+import com.alibaba.himarket.dto.result.api.APIEndpointVO;
 import com.alibaba.himarket.entity.Gateway;
 import com.alibaba.himarket.support.api.PublishConfig;
 import com.alibaba.himarket.support.enums.APIType;
 import com.alibaba.himarket.support.enums.GatewayType;
-
 import java.util.List;
 
-/**
- * 网关发布器接口
- * 定义了将 API Definition 发布到网关的标准操作
- */
+/** 网关发布器接口 定义了将 API Definition 发布到网关的标准操作 */
 public interface GatewayPublisher {
 
     /**
@@ -61,55 +57,60 @@ public interface GatewayPublisher {
     /**
      * 发布 API Definition 到网关
      *
-     * @param gateway       目标网关
+     * @param gateway 目标网关
      * @param apiDefinition API Definition
-     * @param endpoints     Endpoints 列表
+     * @param endpoints Endpoints 列表
      * @param publishConfig 发布配置
      * @return 发布结果信息
      */
-    String publish(Gateway gateway, APIDefinition apiDefinition,
-                   List<APIEndpoint> endpoints, PublishConfig publishConfig);
+    String publish(
+            Gateway gateway,
+            APIDefinitionVO apiDefinition,
+            List<APIEndpointVO> endpoints,
+            PublishConfig publishConfig);
 
     /**
      * 更新已发布的 API
      *
-     * @param gateway       目标网关
+     * @param gateway 目标网关
      * @param apiDefinition API Definition
-     * @param endpoints     Endpoints 列表
+     * @param endpoints Endpoints 列表
      * @param publishConfig 发布配置
      * @return 更新结果信息
      */
-    String update(Gateway gateway, APIDefinition apiDefinition,
-                  List<APIEndpoint> endpoints, PublishConfig publishConfig);
+    String update(
+            Gateway gateway,
+            APIDefinitionVO apiDefinition,
+            List<APIEndpointVO> endpoints,
+            PublishConfig publishConfig);
 
     /**
      * 从网关下线 API
      *
-     * @param gateway       目标网关
+     * @param gateway 目标网关
      * @param apiDefinition API Definition
      * @param publishConfig 发布配置
      * @return 下线结果信息
      */
-    String unpublish(Gateway gateway, APIDefinition apiDefinition, PublishConfig publishConfig);
+    String unpublish(Gateway gateway, APIDefinitionVO apiDefinition, PublishConfig publishConfig);
 
     /**
      * 检查 API 是否已发布到网关
      *
-     * @param gateway       目标网关
+     * @param gateway 目标网关
      * @param apiDefinition API Definition
      * @return 是否已发布
      */
-    boolean isPublished(Gateway gateway, APIDefinition apiDefinition);
+    boolean isPublished(Gateway gateway, APIDefinitionVO apiDefinition);
 
     /**
      * 验证发布配置的有效性
      *
      * @param apiDefinition API Definition
-     * @param endpoints     Endpoints 列表
+     * @param endpoints Endpoints 列表
      * @param publishConfig 发布配置
      * @throws com.alibaba.himarket.core.exception.BusinessException 如果配置无效
      */
-    void validatePublishConfig(APIDefinition apiDefinition,
-                               List<APIEndpoint> endpoints,
-                               PublishConfig publishConfig);
+    void validatePublishConfig(
+            APIDefinitionVO apiDefinition, List<APIEndpointVO> endpoints, PublishConfig publishConfig);
 }

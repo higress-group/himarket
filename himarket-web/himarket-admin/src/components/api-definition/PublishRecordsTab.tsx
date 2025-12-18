@@ -1,6 +1,5 @@
 import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import {
-  Table,
   Button,
   Modal,
   Form,
@@ -10,13 +9,19 @@ import {
   Space,
   Tag,
   Popconfirm,
-  Card
+  Card,
+  Descriptions,
+  Empty,
+  Alert
 } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
 import {
   PlusOutlined,
   DeleteOutlined,
-  ReloadOutlined
+  ReloadOutlined,
+  CloudServerOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  ExclamationCircleOutlined
 } from '@ant-design/icons';
 import { apiDefinitionApi, gatewayApi } from '@/lib/api';
 
@@ -67,14 +72,14 @@ const STATUS_TEXT_MAP: Record<string, string> = {
 const PublishRecordsTab = forwardRef<{ handlePublish: () => void }, PublishRecordsTabProps>(
   function PublishRecordsTab({ apiDefinitionId, status }, ref) {
   const [loading, setLoading] = useState(false);
-  const [records, setRecords] = useState<PublishRecord[]>([]);
+  const [record, setRecord] = useState<PublishRecord | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
-
-  // 调试日志：查看接收到的 status 值
-  console.log('[PublishRecordsTab] status:', status, 'type:', typeof status, 'isDraft:', status === 'DRAFT');
   const [gateways, setGateways] = useState<Gateway[]>([]);
   const [loadingGateways, setLoadingGateways] = useState(false);
   const [form] = Form.useForm();
+
+  // 获取当前活跃的发布记录
+  const activeRecord = record?.status === 'ACTIVE' ? record : null;
 
   useEffect(() => {
     fetchRecords();
@@ -85,10 +90,13 @@ const PublishRecordsTab = forwardRef<{ handlePublish: () => void }, PublishRecor
     try {
       const response: any = await apiDefinitionApi.getPublishRecords(apiDefinitionId);
       const data = response?.data?.content || response?.content || response?.data || response || [];
-      setRecords(Array.isArray(data) ? data : []);
+      const recordList = Array.isArray(data) ? data : [];
+      // 只取第一条活跃记录（当前限制只能发布到一个网关）
+      const activeRecord = recordList.find(r => r.status === 'ACTIVE');
+      setRecord(activeRecord || recordList[0] || null);
     } catch (error) {
       message.error('获取发布记录失败');
-      setRecords([]);
+      setRecord(null);
     } finally {
       setLoading(false);
     }
@@ -156,102 +164,162 @@ const PublishRecordsTab = forwardRef<{ handlePublish: () => void }, PublishRecor
     setModalVisible(false);
   };
 
-  const columns: ColumnsType<PublishRecord> = [
-    {
-      title: '网关名称',
-      dataIndex: 'gatewayName',
-      key: 'gatewayName',
-      width: 200
-    },
-    {
-      title: '网关类型',
-      dataIndex: 'gatewayType',
-      key: 'gatewayType',
-      width: 120,
-      render: (type) => <Tag>{type}</Tag>
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      width: 100,
-      render: (status) => (
-        <Tag color={STATUS_COLOR_MAP[status] || 'default'}>
-          {STATUS_TEXT_MAP[status] || status}
-        </Tag>
-      )
-    },
-    {
-      title: '访问端点',
-      dataIndex: 'accessEndpoint',
-      key: 'accessEndpoint',
-      ellipsis: true,
-      render: (endpoint) => endpoint || '-'
-    },
-    {
-      title: '发布时间',
-      dataIndex: 'publishedAt',
-      key: 'publishedAt',
-      width: 180,
-      render: (time) => time ? new Date(time).toLocaleString('zh-CN') : '-'
-    },
-    {
-      title: '操作',
-      key: 'action',
-      width: 120,
-      render: (_, record) => (
-        <Space size="small">
-          {record.status === 'ACTIVE' && (
-            <Popconfirm
-              title="确认取消发布"
-              description="确定要取消发布到此网关吗？"
-              onConfirm={() => handleUnpublish(record.recordId)}
-              okText="确认"
-              cancelText="取消"
-            >
-              <Button
-                type="link"
-                danger
-                size="small"
-                icon={<DeleteOutlined />}
-              >
-                取消发布
-              </Button>
-            </Popconfirm>
-          )}
-        </Space>
-      )
-    }
-  ];
-
-  // 展开行显示详细信息
-  const expandedRowRender = (record: PublishRecord) => {
+  // 渲染发布状态标签
+  const renderStatusTag = (status: string) => {
+    const statusConfig = {
+      ACTIVE: { color: 'green', icon: <CheckCircleOutlined />, text: '已发布' },
+      INACTIVE: { color: 'default', icon: <CloseCircleOutlined />, text: '已下线' },
+      FAILED: { color: 'red', icon: <ExclamationCircleOutlined />, text: '发布失败' }
+    };
+    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.INACTIVE;
     return (
-      <div className="p-4 bg-gray-50">
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <span className="text-gray-500">记录 ID:</span>
-            <span className="ml-2">{record.recordId}</span>
-          </div>
-          <div>
-            <span className="text-gray-500">网关 ID:</span>
-            <span className="ml-2">{record.gatewayId}</span>
-          </div>
-          {record.gatewayResourceId && (
-            <div>
-              <span className="text-gray-500">网关资源 ID:</span>
-              <span className="ml-2">{record.gatewayResourceId}</span>
-            </div>
+      <Tag color={config.color} icon={config.icon}>
+        {config.text}
+      </Tag>
+    );
+  };
+
+  // 渲染发布记录详情
+  const renderPublishRecord = () => {
+    if (!record) {
+      return (
+        <Empty
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+          description={
+            <span className="text-gray-500">
+              暂无发布记录
+              <br />
+              <span className="text-sm">当前版本限制一个 API 只能发布到一个网关</span>
+            </span>
+          }
+        >
+          {status === 'DRAFT' && (
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={handlePublish}
+            >
+              发布到网关
+            </Button>
           )}
-          {record.errorMessage && (
-            <div className="col-span-2">
-              <span className="text-gray-500">错误信息:</span>
-              <div className="mt-1 p-2 bg-red-50 text-red-600 rounded">
-                {record.errorMessage}
-              </div>
-            </div>
-          )}
-        </div>
+        </Empty>
+      );
+    }
+
+    return (
+      <div className="space-y-4">
+        {/* 状态提示 */}
+        {record.status === 'ACTIVE' && (
+          <Alert
+            message="API 已成功发布到网关"
+            description="当前 API 正在网关上运行，可通过访问端点进行调用"
+            type="success"
+            showIcon
+          />
+        )}
+        {record.status === 'INACTIVE' && (
+          <Alert
+            message="API 已下线"
+            description="该 API 已从网关取消发布，当前不可访问"
+            type="warning"
+            showIcon
+          />
+        )}
+        {record.status === 'FAILED' && (
+          <Alert
+            message="发布失败"
+            description={record.errorMessage || '发布过程中出现错误'}
+            type="error"
+            showIcon
+          />
+        )}
+
+        {/* 发布详情 */}
+        <Card
+          title={
+            <Space>
+              <CloudServerOutlined />
+              <span>发布详情</span>
+            </Space>
+          }
+          extra={
+            record.status === 'ACTIVE' && (
+              <Popconfirm
+                title="确认取消发布"
+                description="确定要取消发布到此网关吗？取消后 API 将无法访问。"
+                onConfirm={() => handleUnpublish(record.recordId)}
+                okText="确认"
+                cancelText="取消"
+              >
+                <Button type="link" danger icon={<DeleteOutlined />}>
+                  取消发布
+                </Button>
+              </Popconfirm>
+            )
+          }
+        >
+          <Descriptions column={2} bordered>
+            <Descriptions.Item label="网关名称">
+              {record.gatewayName}
+            </Descriptions.Item>
+            <Descriptions.Item label="网关类型">
+              <Tag>{record.gatewayType}</Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="发布状态">
+              {renderStatusTag(record.status)}
+            </Descriptions.Item>
+            <Descriptions.Item label="发布时间">
+              {record.publishedAt ? new Date(record.publishedAt).toLocaleString('zh-CN') : '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="访问端点" span={2}>
+              {record.accessEndpoint ? (
+                <code className="px-2 py-1 bg-gray-100 rounded text-sm">
+                  {record.accessEndpoint}
+                </code>
+              ) : (
+                <span className="text-gray-400">-</span>
+              )}
+            </Descriptions.Item>
+            {record.gatewayResourceId && (
+              <Descriptions.Item label="网关资源 ID" span={2}>
+                <code className="px-2 py-1 bg-gray-100 rounded text-xs">
+                  {record.gatewayResourceId}
+                </code>
+              </Descriptions.Item>
+            )}
+            {record.publishConfig && (
+              <>
+                <Descriptions.Item label="基础路径">
+                  {record.publishConfig.basePath || '/'}
+                </Descriptions.Item>
+                <Descriptions.Item label="域名列表">
+                  {record.publishConfig.domains?.length > 0 ? (
+                    <Space wrap>
+                      {record.publishConfig.domains.map((domain: string, idx: number) => (
+                        <Tag key={idx}>{domain}</Tag>
+                      ))}
+                    </Space>
+                  ) : (
+                    <span className="text-gray-400">-</span>
+                  )}
+                </Descriptions.Item>
+              </>
+            )}
+          </Descriptions>
+        </Card>
+
+        {/* 如果已下线，显示重新发布按钮 */}
+        {record.status === 'INACTIVE' && status === 'DRAFT' && (
+          <div className="text-center pt-4">
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={handlePublish}
+            >
+              重新发布到网关
+            </Button>
+          </div>
+        )}
       </div>
     );
   };
@@ -259,45 +327,30 @@ const PublishRecordsTab = forwardRef<{ handlePublish: () => void }, PublishRecor
   return (
     <div className="p-6 space-y-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold mb-2">发布记录</h1>
-        <p className="text-gray-600">管理 API 在各个网关的发布状态</p>
+        <h1 className="text-2xl font-bold mb-2">发布状态</h1>
+        <p className="text-gray-600">查看 API 在网关的发布状态和配置信息</p>
       </div>
 
       <Card
+        loading={loading}
         extra={
           <Space>
-            <Button
-              icon={<ReloadOutlined />}
-              onClick={fetchRecords}
-            >
+            <Button icon={<ReloadOutlined />} onClick={fetchRecords}>
               刷新
             </Button>
-            {status === 'DRAFT' && (
+            {status === 'DRAFT' && activeRecord && (
               <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={handlePublish}
+                type="default"
+                disabled
+                title="当前版本限制只能发布到一个网关，请先取消现有发布后再发布到其他网关"
               >
-                发布到网关
+                已发布（如需更换网关请先取消发布）
               </Button>
             )}
           </Space>
         }
       >
-        <Table
-          columns={columns}
-          dataSource={records}
-          rowKey="recordId"
-          loading={loading}
-          expandable={{
-            expandedRowRender,
-            rowExpandable: (record) => !!record.errorMessage || !!record.gatewayResourceId
-          }}
-          pagination={false}
-          locale={{
-            emptyText: '暂无发布记录，点击"发布到网关"开始发布'
-          }}
-        />
+        {renderPublishRecord()}
       </Card>
 
       <Modal
@@ -342,14 +395,8 @@ const PublishRecordsTab = forwardRef<{ handlePublish: () => void }, PublishRecor
             <Input placeholder="例如：api.example.com,api2.example.com" />
           </Form.Item>
 
-          <Form.Item
-            label="备注"
-            name="comment"
-          >
-            <TextArea
-              rows={3}
-              placeholder="发布说明或备注信息"
-            />
+          <Form.Item label="备注" name="comment">
+            <TextArea rows={3} placeholder="发布说明或备注信息" />
           </Form.Item>
         </Form>
       </Modal>

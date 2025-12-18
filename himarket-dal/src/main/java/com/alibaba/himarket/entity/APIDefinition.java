@@ -21,25 +21,25 @@ package com.alibaba.himarket.entity;
 
 import com.alibaba.himarket.support.enums.APIStatus;
 import com.alibaba.himarket.support.enums.APIType;
+import jakarta.persistence.*;
+import java.time.LocalDateTime;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-import jakarta.persistence.*;
-import java.time.LocalDateTime;
-
-/**
- * API Definition 实体类
- */
+/** API Definition 实体类 */
 @EqualsAndHashCode(callSuper = true)
 @Entity
-@Table(name = "api_definition",
+@Table(
+        name = "api_definition",
         uniqueConstraints = {
-                @UniqueConstraint(columnNames = {"api_definition_id"}, name = "uk_api_definition_id")
+            @UniqueConstraint(
+                    columnNames = {"api_definition_id"},
+                    name = "uk_api_definition_id")
         },
         indexes = {
-                @Index(name = "idx_type", columnList = "type"),
-                @Index(name = "idx_status", columnList = "status"),
-                @Index(name = "idx_deleted_at", columnList = "deleted_at")
+            @Index(name = "idx_type", columnList = "type"),
+            @Index(name = "idx_status", columnList = "status"),
+            @Index(name = "idx_deleted_at", columnList = "deleted_at")
         })
 @Data
 public class APIDefinition extends BaseEntity {
@@ -67,6 +67,9 @@ public class APIDefinition extends BaseEntity {
 
     @Column(name = "version", length = 32)
     private String version;
+
+    @Column(name = "properties", columnDefinition = "json")
+    private String properties;
 
     @Column(name = "metadata", columnDefinition = "json")
     private String metadata;

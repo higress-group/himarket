@@ -20,23 +20,18 @@
 package com.alibaba.himarket.service;
 
 import com.alibaba.himarket.dto.params.api.CreateAPIDefinitionParam;
-import com.alibaba.himarket.dto.params.api.CreateEndpointParam;
 import com.alibaba.himarket.dto.params.api.PublishAPIParam;
 import com.alibaba.himarket.dto.params.api.QueryAPIDefinitionParam;
 import com.alibaba.himarket.dto.params.api.UpdateAPIDefinitionParam;
-import com.alibaba.himarket.dto.params.api.UpdateEndpointParam;
 import com.alibaba.himarket.dto.result.api.APIDefinitionVO;
 import com.alibaba.himarket.dto.result.api.APIEndpointVO;
 import com.alibaba.himarket.dto.result.api.APIPublishHistoryVO;
 import com.alibaba.himarket.dto.result.api.APIPublishRecordVO;
 import com.alibaba.himarket.dto.result.common.PageResult;
+import java.util.List;
 import org.springframework.data.domain.Pageable;
 
-import java.util.List;
-
-/**
- * API Definition 服务接口
- */
+/** API Definition 服务接口 */
 public interface APIDefinitionService {
 
     /**
@@ -58,17 +53,18 @@ public interface APIDefinitionService {
     /**
      * 查询 API Definition 列表
      *
-     * @param param    查询参数
+     * @param param 查询参数
      * @param pageable 分页参数
      * @return API Definition 列表
      */
-    PageResult<APIDefinitionVO> listAPIDefinitions(QueryAPIDefinitionParam param, Pageable pageable);
+    PageResult<APIDefinitionVO> listAPIDefinitions(
+            QueryAPIDefinitionParam param, Pageable pageable);
 
     /**
      * 更新 API Definition
      *
      * @param apiDefinitionId API Definition ID
-     * @param param           更新参数
+     * @param param 更新参数
      * @return 更新后的 API Definition
      */
     APIDefinitionVO updateAPIDefinition(String apiDefinitionId, UpdateAPIDefinitionParam param);
@@ -89,37 +85,10 @@ public interface APIDefinitionService {
     List<APIEndpointVO> listEndpoints(String apiDefinitionId);
 
     /**
-     * 创建端点
-     *
-     * @param apiDefinitionId API Definition ID
-     * @param param           创建参数
-     * @return 创建的端点
-     */
-    APIEndpointVO createEndpoint(String apiDefinitionId, CreateEndpointParam param);
-
-    /**
-     * 更新端点
-     *
-     * @param apiDefinitionId API Definition ID
-     * @param endpointId      端点 ID
-     * @param param           更新参数
-     * @return 更新后的端点
-     */
-    APIEndpointVO updateEndpoint(String apiDefinitionId, String endpointId, UpdateEndpointParam param);
-
-    /**
-     * 删除端点
-     *
-     * @param apiDefinitionId API Definition ID
-     * @param endpointId      端点 ID
-     */
-    void deleteEndpoint(String apiDefinitionId, String endpointId);
-
-    /**
      * 获取发布记录列表
      *
      * @param apiDefinitionId API Definition ID
-     * @param pageable        分页参数
+     * @param pageable 分页参数
      * @return 发布记录列表
      */
     PageResult<APIPublishRecordVO> listPublishRecords(String apiDefinitionId, Pageable pageable);
@@ -128,7 +97,7 @@ public interface APIDefinitionService {
      * 发布 API
      *
      * @param apiDefinitionId API Definition ID
-     * @param param           发布参数
+     * @param param 发布参数
      * @return 发布记录
      */
     APIPublishRecordVO publishAPI(String apiDefinitionId, PublishAPIParam param);
@@ -137,7 +106,7 @@ public interface APIDefinitionService {
      * 取消发布
      *
      * @param apiDefinitionId API Definition ID
-     * @param recordId        发布记录 ID
+     * @param recordId 发布记录 ID
      */
     void unpublishAPI(String apiDefinitionId, String recordId);
 
@@ -145,7 +114,7 @@ public interface APIDefinitionService {
      * 获取发布历史列表
      *
      * @param apiDefinitionId API Definition ID
-     * @param pageable        分页参数
+     * @param pageable 分页参数
      * @return 发布历史列表
      */
     PageResult<APIPublishHistoryVO> listPublishHistory(String apiDefinitionId, Pageable pageable);

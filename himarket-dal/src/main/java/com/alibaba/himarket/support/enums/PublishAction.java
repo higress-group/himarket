@@ -19,25 +19,16 @@
 
 package com.alibaba.himarket.support.enums;
 
-/**
- * 发布操作枚举
- */
+/** 发布操作枚举 */
 public enum PublishAction {
 
-    /**
-     * 发布
-     */
+    /** 发布 */
     PUBLISH,
 
-    /**
-     * 下线
-     */
+    /** 下线 */
     UNPUBLISH,
 
-    /**
-     * 更新
-     */
+    /** 更新 */
     UPDATE,
-
     ;
 }

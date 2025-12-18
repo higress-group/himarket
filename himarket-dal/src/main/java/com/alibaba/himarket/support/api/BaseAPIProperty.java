@@ -17,22 +17,29 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.enums;
+package com.alibaba.himarket.support.api;
 
-/**
- * 扩展执行阶段枚举
- */
-public enum ExtensionPhase {
+import com.alibaba.himarket.support.enums.PropertyPhase;
+import com.alibaba.himarket.support.enums.PropertyType;
+import java.io.Serializable;
+import lombok.Data;
 
-    /**
-     * 入站阶段
-     */
-    INBOUND,
+/** API 属性配置基类 用于定义 API 的扩展属性基础信息 */
+@Data
+public class BaseAPIProperty implements Serializable {
 
-    /**
-     * 出站阶段
-     */
-    OUTBOUND,
+    /** 属性类型 */
+    private PropertyType type;
 
-    ;
+    /** 扩展名称（唯一标识） */
+    private String name;
+
+    /** 执行阶段 */
+    private PropertyPhase phase;
+
+    /** 是否启用 */
+    private Boolean enabled;
+
+    /** 优先级（数字越小越先执行） */
+    private Integer priority;
 }
