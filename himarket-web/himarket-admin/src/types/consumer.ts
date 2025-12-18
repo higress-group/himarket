@@ -56,14 +56,6 @@ export interface ConsumerCredentialResult {
   };
 }
 
-export interface Subscription {
-  subscriptionId: string;
-  productId: string;
-  productName?: string;
-  status: string;
-  createdAt: string;
-}
-
 export interface CreateCredentialParam {
   credentialType: 'HMAC' | 'API_KEY';
   apiKey?: string;

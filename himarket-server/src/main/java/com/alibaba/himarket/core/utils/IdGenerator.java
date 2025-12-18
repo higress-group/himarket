@@ -44,6 +44,8 @@ public class IdGenerator {
 
     private static final String SESSION_PREFIX = "session-";
     private static final String CHAT_PREFIX = "chat-";
+    private static final String SUBSCRIPTION_PREFIX = "subscription-";
+    private static final String PUBLICATION_PREFIX = "publication-";
 
     public static String genHigressGatewayId() {
         return HIGRESS_PREFIX + ObjectId.next();
@@ -83,6 +85,14 @@ public class IdGenerator {
 
     public static String genChatId() {
         return CHAT_PREFIX + ObjectId.next();
+    }
+
+    public static String genSubscriptionId() {
+        return SUBSCRIPTION_PREFIX + ObjectId.next();
+    }
+
+    public static String genPublicationId() {
+        return PUBLICATION_PREFIX + ObjectId.next();
     }
 
     public static String genIdWithPrefix(String prefix) {

@@ -198,7 +198,6 @@ public class AIGWOperator extends APIGOperator {
         }
         serverConfig.setPath(path);
 
-        // domains
         // default domains in gateway
         List<DomainResult> defaultDomains = fetchDefaultDomains(gateway);
         List<DomainResult> mcpDomains =
@@ -212,7 +211,7 @@ public class AIGWOperator extends APIGOperator {
                                                                 .map(String::toLowerCase)
                                                                 .orElse(null))
                                                 .build())
-                        .collect(Collectors.toList());
+                        .toList();
 
         serverConfig.setDomains(
                 Stream.concat(mcpDomains.stream(), defaultDomains.stream())
@@ -235,116 +234,9 @@ public class AIGWOperator extends APIGOperator {
         return JSONUtil.toJsonStr(mcpConfig);
     }
 
-    //    @Override
-    //    public String fetchMcpConfig(Gateway gateway, Object conf) {
-    //        APIGRefConfig config = (APIGRefConfig) conf;
-    //        PopGatewayClient client = new PopGatewayClient(gateway.getApigConfig());
-    //        String mcpServerId = config.getMcpServerId();
-    //        MCPConfigResult mcpConfig = new MCPConfigResult();
-    //
-    //        return client.execute("/v1/mcp-servers/" + mcpServerId, MethodType.GET, null, data ->
-    // {
-    //            mcpConfig.setMcpServerName(data.getStr("name"));
-    //
-    //            // mcpServer config
-    //            MCPConfigResult.MCPServerConfig serverConfig = new
-    // MCPConfigResult.MCPServerConfig();
-    //            String path = data.getStr("mcpServerPath");
-    //            String exposedUriPath = data.getStr("exposedUriPath");
-    //            if (StrUtil.isNotBlank(exposedUriPath)) {
-    //                path += exposedUriPath;
-    //            }
-    //            serverConfig.setPath(path);
-    //
-    //            JSONArray domains = data.getJSONArray("domainInfos");
-    //            if (domains != null && !domains.isEmpty()) {
-    //                serverConfig.setDomains(domains.stream()
-    //                        .map(JSONObject.class::cast)
-    //                        .map(json -> MCPConfigResult.Domain.builder()
-    //                                .domain(json.getStr("name"))
-    //                                .protocol(Optional.ofNullable(json.getStr("protocol"))
-    //                                        .map(String::toLowerCase)
-    //                                        .orElse(null))
-    //                                .build())
-    //                        .collect(Collectors.toList()));
-    //            }
-    //            mcpConfig.setMcpServerConfig(serverConfig);
-    //
-    //            // meta
-    //            MCPConfigResult.McpMetadata meta = new MCPConfigResult.McpMetadata();
-    //            meta.setSource(GatewayType.APIG_AI.name());
-    //            meta.setProtocol(data.getStr("protocol"));
-    //            meta.setCreateFromType(data.getStr("createFromType"));
-    //            mcpConfig.setMeta(meta);
-    //
-    //            // tools
-    //            String tools = data.getStr("mcpServerConfig");
-    //            if (StrUtil.isNotBlank(tools)) {
-    //                mcpConfig.setTools(Base64.decodeStr(tools));
-    //            }
-    //
-    //            return JSONUtil.toJsonStr(mcpConfig);
-    //        });
-    //    }
-
-    public String fetchMcpConfig_V1(Gateway gateway, Object conf) {
-        APIGRefConfig config = (APIGRefConfig) conf;
-        HttpRoute httpRoute = fetchHTTPRoute(gateway, config.getApiId(), config.getMcpRouteId());
-
-        MCPConfigResult m = new MCPConfigResult();
-        m.setMcpServerName(httpRoute.getName());
-
-        // mcpServer config
-        MCPConfigResult.MCPServerConfig c = new MCPConfigResult.MCPServerConfig();
-        if (httpRoute.getMatch() != null) {
-            c.setPath(httpRoute.getMatch().getPath().getValue());
-        }
-        if (httpRoute.getDomainInfos() != null) {
-            c.setDomains(
-                    httpRoute.getDomainInfos().stream()
-                            .map(
-                                    domainInfo ->
-                                            DomainResult.builder()
-                                                    .domain(domainInfo.getName())
-                                                    .protocol(
-                                                            Optional.ofNullable(
-                                                                            domainInfo
-                                                                                    .getProtocol())
-                                                                    .map(String::toLowerCase)
-                                                                    .orElse(null))
-                                                    .build())
-                            .collect(Collectors.toList()));
-        }
-        m.setMcpServerConfig(c);
-
-        // meta
-        MCPConfigResult.McpMetadata meta = new MCPConfigResult.McpMetadata();
-        meta.setSource(GatewayType.APIG_AI.name());
-
-        // tools
-        HttpRoute.McpServerInfo mcpServerInfo = httpRoute.getMcpServerInfo();
-        boolean fetchTool = true;
-        if (mcpServerInfo.getMcpRouteConfig() != null) {
-            String protocol = mcpServerInfo.getMcpRouteConfig().getProtocol();
-            meta.setCreateFromType(protocol);
-
-            // HTTP转MCP需从插件获取tools配置
-            fetchTool = StrUtil.equalsIgnoreCase(protocol, "HTTP");
-        }
-
-        if (fetchTool) {
-            String toolSpec = fetchMcpTools(gateway, config.getMcpRouteId());
-            if (StrUtil.isNotBlank(toolSpec)) {
-                m.setTools(toolSpec);
-                // 默认为HTTP转MCP
-                if (StrUtil.isBlank(meta.getCreateFromType())) {
-                    meta.setCreateFromType("HTTP");
-                }
-            }
-        }
-
-        m.setMeta(meta);
-        return JSONUtil.toJsonStr(m);
+    @Override
+    public String fetchMcpToolsForConfig(Gateway gateway, Object conf) {
+        return null;
     }
 
     @Override
@@ -439,11 +331,6 @@ public class AIGWOperator extends APIGOperator {
     @Override
     public GatewayType getGatewayType() {
         return GatewayType.APIG_AI;
-    }
-
-    @Override
-    public String getDashboard(Gateway gateway, String type) {
-        throw new UnsupportedOperationException("Dashboard feature has been removed");
     }
 
     public String fetchMcpTools(Gateway gateway, String routeId) {

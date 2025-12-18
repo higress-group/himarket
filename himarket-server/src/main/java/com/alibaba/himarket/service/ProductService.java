@@ -89,10 +89,10 @@ public interface ProductService {
      * Unpublish API product
      *
      * @param productId
-     * @param portalId
+     * @param publicationId
      * @return
      */
-    void unpublishProduct(String productId, String portalId);
+    void unpublishProduct(String productId, String publicationId);
 
     /**
      * Delete API product
@@ -140,14 +140,6 @@ public interface ProductService {
      * @return
      */
     Map<String, ProductResult> getProducts(List<String> productIds, boolean withConfig);
-
-    /**
-     * Get API product dashboard monitoring panel URL
-     *
-     * @param productId
-     * @return Dashboard URL
-     */
-    String getProductDashboard(String productId);
 
     /**
      * Get API product subscription information

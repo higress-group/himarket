@@ -29,6 +29,8 @@ import lombok.Data;
 public class SubscriptionResult
         implements OutputConverter<SubscriptionResult, ProductSubscription> {
 
+    private String subscriptionId;
+
     private String productId;
 
     private String consumerId;

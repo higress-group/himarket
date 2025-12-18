@@ -33,6 +33,7 @@ import com.alibaba.himarket.dto.result.consumer.ConsumerCredentialResult;
 import com.alibaba.himarket.dto.result.consumer.ConsumerResult;
 import com.alibaba.himarket.dto.result.product.SubscriptionResult;
 import com.alibaba.himarket.service.ConsumerService;
+import com.alibaba.himarket.service.ProductService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -49,6 +50,8 @@ import org.springframework.web.bind.annotation.*;
 public class ConsumerController {
 
     private final ConsumerService consumerService;
+
+    private final ProductService productService;
 
     @Operation(summary = "获取Consumer列表")
     @GetMapping
@@ -122,18 +125,18 @@ public class ConsumerController {
     }
 
     @Operation(summary = "取消订阅")
-    @DeleteMapping("/{consumerId}/subscriptions/{productId}")
+    @DeleteMapping("/{consumerId}/subscriptions/{subscriptionId}")
     public void deleteSubscription(
-            @PathVariable String consumerId, @PathVariable String productId) {
-        consumerService.unsubscribeProduct(consumerId, productId);
+            @PathVariable String consumerId, @PathVariable String subscriptionId) {
+        consumerService.unsubscribeProduct(consumerId, subscriptionId);
     }
 
     @Operation(summary = "审批订阅申请")
-    @PatchMapping("/{consumerId}/subscriptions/{productId}")
+    @PatchMapping("/{consumerId}/subscriptions/{subscriptionId}")
     @AdminAuth
     public SubscriptionResult approveSubscription(
-            @PathVariable String consumerId, @PathVariable String productId) {
-        return consumerService.approveSubscription(consumerId, productId);
+            @PathVariable String consumerId, @PathVariable String subscriptionId) {
+        return consumerService.approveSubscription(consumerId, subscriptionId);
     }
 
     @Operation(summary = "设置Primary Consumer")

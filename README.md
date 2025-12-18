@@ -1,9 +1,9 @@
 <a name="readme-top"></a>
 
 <div align="center">
-  <img width="406" height="96" alt="Himarket Logo" src="https://github.com/user-attachments/assets/e0956234-1a97-42c6-852d-411fa02c3f01" />
+  <img width="406" height="96" alt="HiMarket Logo" src="https://github.com/user-attachments/assets/e0956234-1a97-42c6-852d-411fa02c3f01" />
 
-  <h1>Himarket AI Open Platform</h1>
+  <h1>HiMarket AI Open Platform</h1>
 
   <p align="center">
     <b>English</b> | <a href="README_zh.md">简体中文</a>
@@ -27,7 +27,7 @@
 
 ## Table of Contents
 
-- [What is Himarket?](#what-is-himarket)
+- [What is HiMarket?](#what-is-himarket)
 - [System Architecture](#system-architecture)
 - [Quick Start](#quick-start)
 - [Documentation](#documentation)
@@ -35,12 +35,12 @@
 - [Contributors](#contributors)
 - [Star History](#star-history)
 
-## What is Himarket?
+## What is HiMarket?
 
-Himarket is an enterprise-grade AI open platform built on Higress AI Gateway, helping enterprises build private AI capability marketplace to uniformly manage and distribute AI resources such as LLM, MCP Server, and Agent. The platform encapsulates distributed AI capabilities into standardized API products, supports multi-version management and gray-scale release, provides self-service developer portal, and features comprehensive enterprise-level operation capabilities including security control, observability analysis, metering and billing, making AI resource sharing and reuse efficient and convenient.
+HiMarket is an enterprise-grade AI open platform built on Higress AI Gateway, helping enterprises build private AI capability marketplace to uniformly manage and distribute AI resources such as LLM, MCP Server, and Agent. The platform encapsulates distributed AI capabilities into standardized API products, supports multi-version management and gray-scale release, provides self-service developer portal, and features comprehensive enterprise-level operation capabilities including security control, observability analysis, metering and billing, making AI resource sharing and reuse efficient and convenient.
 
 <div align="center">
-  <img src="https://github.com/user-attachments/assets/645a3962-2f0a-412e-b501-e8eb6fc50bb1" alt="Himarket 核心能力" width="700px" />
+  <img src="https://github.com/user-attachments/assets/645a3962-2f0a-412e-b501-e8eb6fc50bb1" alt="HiMarket 核心能力" width="700px" />
   <br/>
   <b>Capabilities</b>
 </div>
@@ -48,26 +48,26 @@ Himarket is an enterprise-grade AI open platform built on Higress AI Gateway, he
 ## System Architecture
 
 <div align="center">
-  <img src="https://github.com/user-attachments/assets/ecbb3d2e-138b-4192-992e-9cd4a20b3fc3" alt="Himarket System Architecture" width="700px" />
+  <img src="https://github.com/user-attachments/assets/ecbb3d2e-138b-4192-992e-9cd4a20b3fc3" alt="HiMarket System Architecture" width="700px" />
   <br/>
   <b>System Architecture</b>
 </div>
 
-Himarket system architecture consists of three layers:
+HiMarket system architecture consists of three layers:
 
-1. **Infrastructure**: Composed of AI Gateway, API Gateway, Higress and Nacos. Himarket abstracts and encapsulates underlying AI resources based on these components to form standard API products for external use.
+1. **Infrastructure**: Composed of AI Gateway, API Gateway, Higress and Nacos. HiMarket abstracts and encapsulates underlying AI resources based on these components to form standard API products for external use.
 2. **AI Open Platform Admin**: Management platform for administrators to create and customize portals, manage AI resources such as MCP Server, Model, and Agent, including setting authentication policies and subscription approval workflows. The admin portal also provides observability dashboard to help administrators monitor AI resource usage and operational status in real-time.
 3. **AI Open Platform Portal**: Developer-facing portal site, also known as AI Marketplace or AI Hub, providing one-stop self-service where developers can complete identity registration, credential application, product browsing and subscription, online debugging, and more.
 
 <table>
   <tr>
     <td align="center">
-      <img src="https://github.com/user-attachments/assets/e7a933ea-10bb-457e-a082-550e939a1b58" width="500px" height="200px" alt="Himarket Admin Portal"/>
+      <img src="https://github.com/user-attachments/assets/e7a933ea-10bb-457e-a082-550e939a1b58" width="500px" height="200px" alt="HiMarket Admin Portal"/>
       <br />
       <b>Admin Dashboard</b>
     </td>
     <td align="center">
-      <img src="https://github.com/user-attachments/assets/ba8eca62-92f8-42b7-b28e-58546e9e8821" width="500px" height="200px" alt="Himarket Developer Portal"/>
+      <img src="https://github.com/user-attachments/assets/ba8eca62-92f8-42b7-b28e-58546e9e8821" width="500px" height="200px" alt="HiMarket Developer Portal"/>
       <br />
       <b>Developer Portal</b>
     </td>
@@ -124,7 +124,7 @@ npm run dev
 
 <br/>
 
-Use the `deploy.sh` script to deploy Himarket, Higress, and Nacos with data initialization.
+Use the `deploy.sh` script to deploy HiMarket, Higress, and Nacos with data initialization.
 
 ```bash
 # Clone repository
@@ -134,7 +134,7 @@ cd himarket/deploy/docker/scripts
 # Deploy full stack and initialize
 ./deploy.sh install
 
-# Or deploy Himarket only (without Nacos/Higress)
+# Or deploy HiMarket only (without Nacos/Higress)
 ./deploy.sh himarket-only
 
 # Uninstall all services
@@ -155,7 +155,7 @@ cd himarket/deploy/docker/scripts
 
 <br/>
 
-Use the `deploy.sh` script to deploy Himarket to Kubernetes cluster.
+Use the `deploy.sh` script to deploy HiMarket to Kubernetes cluster.
 
 ```bash
 # Clone repository
@@ -165,7 +165,7 @@ cd himarket/deploy/helm/scripts
 # Deploy full stack and initialize
 ./deploy.sh install
 
-# Or deploy Himarket only (without Nacos/Higress)
+# Or deploy HiMarket only (without Nacos/Higress)
 ./deploy.sh himarket-only
 
 # Uninstall
@@ -214,7 +214,7 @@ For detailed usage instructions, please refer to:
 
 ## Contributors
 
-Thanks to all the developers who have contributed to Himarket!
+Thanks to all the developers who have contributed to HiMarket!
 
 <a href="https://github.com/higress-group/himarket/graphs/contributors">
   <img alt="contributors" src="https://contrib.rocks/image?repo=higress-group/himarket"/>

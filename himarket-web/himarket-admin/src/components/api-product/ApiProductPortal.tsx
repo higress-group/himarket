@@ -1,8 +1,8 @@
 import { useNavigate } from 'react-router-dom'
-import { Card, Button, Table, Tag, Space, Switch, Modal, Form, Input, Select, message } from 'antd'
-import { PlusOutlined, EyeOutlined, EditOutlined, DeleteOutlined, ExclamationCircleOutlined, GlobalOutlined, CheckCircleFilled, MinusCircleFilled } from '@ant-design/icons'
+import { Card, Button, Table, Space, Modal, message } from 'antd'
+import { PlusOutlined, EyeOutlined, DeleteOutlined, ExclamationCircleOutlined, GlobalOutlined, CheckCircleFilled, MinusCircleFilled } from '@ant-design/icons'
 import { useState, useEffect } from 'react'
-import type { ApiProduct } from '@/types/api-product';
+import type { ApiProduct, Publication } from '@/types/api-product';
 import { apiProductApi, portalApi } from '@/lib/api';
 
 interface ApiProductPortalProps {
@@ -13,15 +13,13 @@ interface Portal {
   portalId: string
   portalName: string
   autoApproveSubscription: boolean
-  createdAt: string
 }
 
 export function ApiProductPortal({ apiProduct }: ApiProductPortalProps) {
-  const [publishedPortals, setPublishedPortals] = useState<Portal[]>([])
+  const [publishedPortals, setPublishedPortals] = useState<Publication[]>([])
   const [allPortals, setAllPortals] = useState<Portal[]>([])
   const [isModalVisible, setIsModalVisible] = useState(false)
   const [selectedPortalIds, setSelectedPortalIds] = useState<string[]>([])
-  const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
   const [portalLoading, setPortalLoading] = useState(false)
   const [modalLoading, setModalLoading] = useState(false)
@@ -97,7 +95,7 @@ export function ApiProductPortal({ apiProduct }: ApiProductPortalProps) {
       title: '门户信息',
       key: 'portalInfo',
       width: 400,
-      render: (_: any, record: Portal) => (
+      render: (_: any, record: Publication) => (
         <div>
           <div className="text-sm font-medium text-gray-900 truncate">
             {record.portalName}
@@ -112,9 +110,9 @@ export function ApiProductPortal({ apiProduct }: ApiProductPortalProps) {
       title: '订阅自动审批',
       key: 'autoApprove',
       width: 160,
-      render: (_: any, record: Portal) => (
+      render: (_: any, record: Publication) => (
         <div className="flex items-center">
-          {record.autoApproveSubscription ? (
+          {record.autoApproveSubscriptions ? (
             <>
               <CheckCircleFilled className="text-green-500 mr-1" style={{fontSize: '10px'}} />
               <span className="text-xs text-gray-900">已开启</span>
@@ -132,7 +130,7 @@ export function ApiProductPortal({ apiProduct }: ApiProductPortalProps) {
       title: '操作',
       key: 'action',
       width: 180,
-      render: (_: any, record: Portal) => (
+      render: (_: any, record: Publication) => (
         <Space size="middle">
           <Button onClick={() => {
             navigate(`/portals/detail?id=${record.portalId}`)
@@ -144,7 +142,7 @@ export function ApiProductPortal({ apiProduct }: ApiProductPortalProps) {
             type="link" 
             danger 
             icon={<DeleteOutlined />}
-            onClick={() => handleDelete(record.portalId, record.portalName)}
+            onClick={() => handleDelete(record.publicationId, record.portalName)}
           >
             移除
           </Button>
@@ -194,7 +192,7 @@ export function ApiProductPortal({ apiProduct }: ApiProductPortalProps) {
     setIsModalVisible(true)
   }
 
-  const handleDelete = (portalId: string, portalName: string) => {
+  const handleDelete = (publicationId: string, portalName: string) => {
     Modal.confirm({
       title: '确认移除',
       icon: <ExclamationCircleOutlined />,
@@ -203,7 +201,7 @@ export function ApiProductPortal({ apiProduct }: ApiProductPortalProps) {
       okType: 'danger',
       cancelText: '取消',
       onOk() {
-        apiProductApi.cancelPublishToPortal(apiProduct.productId, portalId).then((res) => {
+        apiProductApi.cancelPublishToPortal(apiProduct.productId, publicationId).then(() => {
           message.success('移除成功')
           fetchPublishedPortals()
         }).catch((error) => {

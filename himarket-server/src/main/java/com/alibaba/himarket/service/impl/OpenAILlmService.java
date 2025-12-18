@@ -9,8 +9,7 @@ import com.alibaba.himarket.dto.result.consumer.CredentialContext;
 import com.alibaba.himarket.dto.result.httpapi.HttpRouteResult;
 import com.alibaba.himarket.dto.result.model.ModelConfigResult;
 import com.alibaba.himarket.support.enums.AIProtocol;
-import java.net.MalformedURLException;
-import java.net.URL;
+import java.net.URI;
 import java.util.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
@@ -28,9 +27,8 @@ import org.springframework.web.util.UriComponentsBuilder;
 @Slf4j
 public class OpenAILlmService extends AbstractLlmService {
 
-    public OpenAILlmService(
-            ToolCallingManager toolCallingManager, McpClientFactory mcpClientFactory) {
-        super(toolCallingManager, mcpClientFactory);
+    public OpenAILlmService(ToolCallingManager toolCallingManager) {
+        super(toolCallingManager);
     }
 
     @Override
@@ -40,12 +38,17 @@ public class OpenAILlmService extends AbstractLlmService {
                 .ifPresent(headerMap -> headerMap.forEach(headers::add));
 
         // Build base URL
-        URL url = request.getUrl();
+        URI uri = request.getUri();
         String baseUrl =
-                url.getProtocol()
+                uri.getScheme()
                         + "://"
-                        + url.getHost()
-                        + (url.getPort() > 0 ? ":" + url.getPort() : "");
+                        + uri.getHost()
+                        + (uri.getPort() == -1 ? "" : ":" + uri.getPort());
+
+        String pathWithQuery = uri.getPath();
+        if (StrUtil.isNotBlank(uri.getRawQuery())) {
+            pathWithQuery += "?" + uri.getRawQuery();
+        }
 
         WebClient.Builder webClientBuilder =
                 WebClient.builder()
@@ -59,7 +62,7 @@ public class OpenAILlmService extends AbstractLlmService {
         OpenAiApi openAiApi =
                 OpenAiApi.builder()
                         .baseUrl(baseUrl)
-                        .completionsPath(url.getPath())
+                        .completionsPath(pathWithQuery)
                         .headers(headers)
                         .apiKey(
                                 Optional.ofNullable(request.getCredentialContext())
@@ -79,10 +82,8 @@ public class OpenAILlmService extends AbstractLlmService {
     }
 
     @Override
-    public URL getUrl(
-            ModelConfigResult modelConfig,
-            Map<String, String> queryParams,
-            List<String> gatewayIps) {
+    public URI getUri(
+            ModelConfigResult modelConfig, Map<String, String> queryParams, List<URI> gatewayUris) {
         ModelConfigResult.ModelAPIConfig modelAPIConfig = modelConfig.getModelAPIConfig();
         if (modelAPIConfig == null || CollUtil.isEmpty(modelAPIConfig.getRoutes())) {
             log.error("Invalid model config - modelAPIConfig is null or routes is empty");
@@ -109,45 +110,46 @@ public class OpenAILlmService extends AbstractLlmService {
                         .map(HttpRouteResult.RouteMatchPath::getValue)
                         .orElse("");
 
-        try {
-            UriComponentsBuilder builder = UriComponentsBuilder.newInstance();
+        UriComponentsBuilder builder = UriComponentsBuilder.newInstance();
 
-            // Find domain or use gateway IP
-            DomainResult domain =
-                    route.getDomains().stream()
-                            .filter(d -> !StrUtil.equalsIgnoreCase(d.getNetworkType(), "intranet"))
-                            .findFirst()
-                            .orElseGet(
-                                    () ->
-                                            CollUtil.isNotEmpty(route.getDomains())
-                                                    ? route.getDomains().get(0)
-                                                    : null);
+        // Find domain or use gateway IP
+        DomainResult domain =
+                route.getDomains().stream()
+                        .filter(d -> !StrUtil.equalsIgnoreCase(d.getNetworkType(), "intranet"))
+                        .findFirst()
+                        .orElseGet(
+                                () ->
+                                        CollUtil.isNotEmpty(route.getDomains())
+                                                ? route.getDomains().get(0)
+                                                : null);
 
-            if (domain != null) {
-                String protocol =
-                        StrUtil.isNotBlank(domain.getProtocol())
-                                ? domain.getProtocol().toLowerCase()
-                                : "http";
-                builder.scheme(protocol).host(domain.getDomain());
-            } else if (CollUtil.isNotEmpty(gatewayIps)) {
-                builder.scheme("http")
-                        .host(gatewayIps.get(RandomUtil.randomInt(gatewayIps.size())));
-            } else {
-                log.error(
-                        "Failed to build URL - no valid domain found and no gateway IPs available");
-                return null;
+        if (domain != null) {
+            String protocol =
+                    StrUtil.isNotBlank(domain.getProtocol())
+                            ? domain.getProtocol().toLowerCase()
+                            : "http";
+
+            builder.scheme(protocol).host(domain.getDomain());
+            if (domain.getPort() != null && domain.getPort() > 0) {
+                builder.port(domain.getPort());
             }
+        } else if (CollUtil.isNotEmpty(gatewayUris)) {
+            URI uri = gatewayUris.get(RandomUtil.randomInt(gatewayUris.size()));
+            builder.scheme(uri.getScheme() != null ? uri.getScheme() : "http").host(uri.getHost());
 
-            // Add path and query params
-            builder.path(path);
-            Optional.ofNullable(queryParams)
-                    .ifPresent(params -> params.forEach(builder::queryParam));
-
-            return new URL(builder.build().toUriString());
-        } catch (MalformedURLException e) {
-            log.error("Failed to build URL due to malformed URL", e);
-            throw new RuntimeException(e);
+            if (uri.getPort() != -1) {
+                builder.port(uri.getPort());
+            }
+        } else {
+            log.error("Failed to build URI - no valid domain found and no gateway URIs available");
+            return null;
         }
+
+        // Add path and query params
+        builder.path(path);
+        Optional.ofNullable(queryParams).ifPresent(params -> params.forEach(builder::queryParam));
+
+        return builder.build().toUri();
     }
 
     @Override

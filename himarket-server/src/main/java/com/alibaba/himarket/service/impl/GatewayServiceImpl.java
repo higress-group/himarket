@@ -44,6 +44,7 @@ import com.alibaba.himarket.support.enums.APIGAPIType;
 import com.alibaba.himarket.support.enums.GatewayType;
 import com.alibaba.himarket.support.gateway.GatewayConfig;
 import jakarta.persistence.criteria.Predicate;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -238,6 +239,12 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
     }
 
     @Override
+    public String fetchMcpToolsForConfig(String gatewayId, Object conf) {
+        Gateway gateway = findGateway(gatewayId);
+        return getOperator(gateway).fetchMcpToolsForConfig(gateway, conf);
+    }
+
+    @Override
     public String fetchAgentConfig(String gatewayId, Object conf) {
         Gateway gateway = findGateway(gatewayId);
         return getOperator(gateway).fetchAgentConfig(gateway, conf);
@@ -348,15 +355,9 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
     }
 
     @Override
-    public String getDashboard(String gatewayId, String type) {
+    public List<URI> fetchGatewayUris(String gatewayId) {
         Gateway gateway = findGateway(gatewayId);
-        return getOperator(gateway).getDashboard(gateway, type); // type: Portal,MCP,API
-    }
-
-    @Override
-    public List<String> fetchGatewayIps(String gatewayId) {
-        Gateway gateway = findGateway(gatewayId);
-        return getOperator(gateway).fetchGatewayIps(gateway);
+        return getOperator(gateway).fetchGatewayUris(gateway);
     }
 
     private Specification<Gateway> buildGatewaySpec(QueryGatewayParam param) {

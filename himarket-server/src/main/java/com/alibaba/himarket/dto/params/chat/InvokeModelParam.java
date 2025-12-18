@@ -4,6 +4,7 @@ import com.alibaba.himarket.dto.result.consumer.CredentialContext;
 import com.alibaba.himarket.dto.result.product.ProductResult;
 import com.alibaba.himarket.support.chat.ChatMessage;
 import com.alibaba.himarket.support.chat.mcp.MCPTransportConfig;
+import java.net.URI;
 import java.util.List;
 import lombok.Builder;
 import lombok.Data;
@@ -30,8 +31,8 @@ public class InvokeModelParam {
     /** If need web search */
     private Boolean enableWebSearch;
 
-    /** Gateway Ips, used to request gatewy */
-    private List<String> gatewayIps;
+    /** Gateway uris, used to request gateway */
+    private List<URI> gatewayUris;
 
     /** MCP servers with transport config */
     private List<MCPTransportConfig> mcpConfigs;

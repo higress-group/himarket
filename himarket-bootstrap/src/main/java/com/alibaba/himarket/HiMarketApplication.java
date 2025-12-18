@@ -17,23 +17,17 @@
  * under the License.
  */
 
-package com.alibaba.himarket.dto.result.common;
+package com.alibaba.himarket;
 
-import lombok.Builder;
-import lombok.Data;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 
-/**
- * @author zh
- */
-@Data
-@Builder
-public class DomainResult {
+@SpringBootApplication
+@EnableJpaAuditing
+public class HiMarketApplication {
 
-    private String domain;
-
-    private Integer port;
-
-    private String protocol;
-
-    private String networkType;
+    public static void main(String[] args) {
+        SpringApplication.run(HiMarketApplication.class, args);
+    }
 }

@@ -117,10 +117,10 @@ public interface ConsumerService {
     /**
      * Unsubscribe a product
      *
-     * @param consumerId
-     * @param productId
+     * @param consumerId Consumer ID
+     * @param subscriptionId Subscription ID (supports productId for backward compatibility)
      */
-    void unsubscribeProduct(String consumerId, String productId);
+    void unsubscribeProduct(String consumerId, String subscriptionId);
 
     /**
      * List subscriptions of a consumer
@@ -136,10 +136,10 @@ public interface ConsumerService {
     /**
      * Approve a subscription
      *
-     * @param consumerId
-     * @param productId
+     * @param consumerId Consumer ID
+     * @param subscriptionId Subscription ID (supports productId for backward compatibility)
      */
-    SubscriptionResult approveSubscription(String consumerId, String productId);
+    SubscriptionResult approveSubscription(String consumerId, String subscriptionId);
 
     /**
      * Get default credential authentication info for developer Returns empty maps if consumer or
