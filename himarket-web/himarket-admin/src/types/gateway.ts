@@ -8,6 +8,7 @@ export interface Gateway {
   higressConfig?: HigressConfig
   adpAIGatewayConfig?: AdpAIGatewayConfig
   apsaraGatewayConfig?: ApsaraGatewayConfig
+  sofaHigressConfig?: SofaHigressConfig
 }
 
 export interface ApigConfig {
@@ -45,6 +46,10 @@ export interface ApsaraGatewayConfig {
   xAcsCallerType?: string
 }
 
+export interface SofaHigressConfig {
+  address: string
+}
+
 export interface NacosInstance {
   nacosId: string
   nacosName: string
@@ -58,4 +63,4 @@ export interface NacosInstance {
   createAt?: string | number
 }
 
-export type GatewayType = 'APIG_API' | 'APIG_AI' | 'HIGRESS' | 'ADP_AI_GATEWAY' | 'APSARA_GATEWAY'
+export type GatewayType = 'APIG_API' | 'APIG_AI' | 'HIGRESS' | 'ADP_AI_GATEWAY' | 'APSARA_GATEWAY' | 'SOFA_HIGRESS'

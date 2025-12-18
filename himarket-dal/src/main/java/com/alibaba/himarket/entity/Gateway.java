@@ -23,11 +23,13 @@ import com.alibaba.himarket.converter.APIGConfigConverter;
 import com.alibaba.himarket.converter.AdpAIGatewayConfigConverter;
 import com.alibaba.himarket.converter.ApsaraGatewayConfigConverter;
 import com.alibaba.himarket.converter.HigressConfigConverter;
+import com.alibaba.himarket.converter.SofaHigressConfigConverter;
 import com.alibaba.himarket.support.enums.GatewayType;
 import com.alibaba.himarket.support.gateway.APIGConfig;
 import com.alibaba.himarket.support.gateway.AdpAIGatewayConfig;
 import com.alibaba.himarket.support.gateway.ApsaraGatewayConfig;
 import com.alibaba.himarket.support.gateway.HigressConfig;
+import com.alibaba.himarket.support.gateway.SofaHigressConfig;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -76,4 +78,8 @@ public class Gateway extends BaseEntity {
     @Convert(converter = ApsaraGatewayConfigConverter.class)
     @Column(name = "apsara_gateway_config", columnDefinition = "json")
     private ApsaraGatewayConfig apsaraGatewayConfig;
+
+    @Convert(converter = SofaHigressConfigConverter.class)
+    @Column(name = "sofa_higress_config", columnDefinition = "json")
+    private SofaHigressConfig sofaHigressConfig;
 }

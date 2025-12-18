@@ -4,6 +4,7 @@ import { PlusOutlined } from '@ant-design/icons'
 import { gatewayApi } from '@/lib/api'
 import ImportGatewayModal from '@/components/console/ImportGatewayModal'
 import ImportHigressModal from '@/components/console/ImportHigressModal'
+import ImportSofaHigressModal from '@/components/console/ImportSofaHigressModal'
 import GatewayTypeSelector from '@/components/console/GatewayTypeSelector'
 import EditGatewayModal from '@/components/console/EditGatewayModal'
 import { formatDateTime } from '@/lib/utils'
@@ -14,6 +15,7 @@ export default function Consoles() {
   const [typeSelectorVisible, setTypeSelectorVisible] = useState(false)
   const [importVisible, setImportVisible] = useState(false)
   const [higressImportVisible, setHigressImportVisible] = useState(false)
+  const [sofaHigressImportVisible, setSofaHigressImportVisible] = useState(false)
   const [selectedGatewayType, setSelectedGatewayType] = useState<GatewayType>('APIG_API')
   const [loading, setLoading] = useState(false)
   const [activeTab, setActiveTab] = useState<GatewayType>('HIGRESS')
@@ -57,6 +59,8 @@ export default function Consoles() {
     setTypeSelectorVisible(false)
     if (type === 'HIGRESS') {
       setHigressImportVisible(true)
+    } else if (type === 'SOFA_HIGRESS') {
+      setSofaHigressImportVisible(true)
     } else {
       setImportVisible(true)
     }
@@ -276,6 +280,46 @@ export default function Consoles() {
     },
   ]
 
+  //SOFA AI 网关的列定义
+  const sofaHigressColumns = [
+    {
+      title: '网关名称/ID',
+      key: 'nameAndId',
+      width: 280,
+      render: (_: any, record: Gateway) => (
+        <div>
+          <div className="text-sm font-medium text-gray-900 truncate">
+            {record.gatewayName}
+          </div>
+          <div className="text-xs text-gray-500 truncate">
+            {record.gatewayId}
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: '服务地址',
+      dataIndex: 'address',
+      key: 'address',
+      render: (_: any, record: Gateway) => {
+        return record.sofaHigressConfig?.address || '-'
+      }
+    },
+    {
+      title: '创建时间',
+      dataIndex: 'createAt',
+      key: 'createAt',
+      render: (date: string) => formatDateTime(date)
+    },
+    {
+      title: '操作',
+      key: 'action',
+      render: (_: any, record: Gateway) => (
+        <Button type="link" danger onClick={() => handleDeleteGateway(record.gatewayId)}>删除</Button>
+      ),
+    },
+  ]
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -434,6 +478,34 @@ export default function Consoles() {
               </div>
             ),
           },
+          {
+            key: 'SOFA_HIGRESS',
+            label: 'SOFA AI 网关',
+            children: (
+              <div className="bg-white rounded-lg">
+                <div className="py-4 pl-4 border-b border-gray-200">
+                  <h3 className="text-lg font-medium text-gray-900">SOFA AI 网关</h3>
+                  <p className="text-sm text-gray-500 mt-1">蚂蚁数科 SOFA AI 网关</p>
+                </div>
+                <Table
+                  columns={sofaHigressColumns}
+                  dataSource={gateways}
+                  rowKey="gatewayId"
+                  loading={loading}
+                  pagination={{
+                    current: pagination.current,
+                    pageSize: pagination.pageSize,
+                    total: pagination.total,
+                    showSizeChanger: true,
+                    showQuickJumper: true,
+                    showTotal: (total) => `共 ${total} 条`,
+                    onChange: handlePaginationChange,
+                    onShowSizeChange: handlePaginationChange,
+                  }}
+                />
+              </div>
+            ),
+          },
         ]}
       />
 
@@ -447,6 +519,12 @@ export default function Consoles() {
       <ImportHigressModal
         visible={higressImportVisible}
         onCancel={() => setHigressImportVisible(false)}
+        onSuccess={handleImportSuccess}
+      />
+
+      <ImportSofaHigressModal
+        visible={sofaHigressImportVisible}
+        onCancel={() => setSofaHigressImportVisible(false)}
         onSuccess={handleImportSuccess}
       />
 

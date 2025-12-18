@@ -23,10 +23,7 @@ import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.dto.converter.InputConverter;
 import com.alibaba.himarket.entity.Gateway;
 import com.alibaba.himarket.support.enums.GatewayType;
-import com.alibaba.himarket.support.gateway.APIGConfig;
-import com.alibaba.himarket.support.gateway.AdpAIGatewayConfig;
-import com.alibaba.himarket.support.gateway.ApsaraGatewayConfig;
-import com.alibaba.himarket.support.gateway.HigressConfig;
+import com.alibaba.himarket.support.gateway.*;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -51,6 +48,8 @@ public class ImportGatewayParam implements InputConverter<Gateway> {
 
     private HigressConfig higressConfig;
 
+    private SofaHigressConfig sofaHigressConfig;
+
     @AssertTrue(message = "Invalid gateway config")
     private boolean isGatewayConfigValid() {
         return gatewayType.isAPIG()
@@ -65,6 +64,8 @@ public class ImportGatewayParam implements InputConverter<Gateway> {
                         && apsaraGatewayConfig != null
                         && StrUtil.isNotBlank(gatewayId)
                         && apsaraGatewayConfig.validate()
-                || gatewayType.isHigress() && higressConfig != null && higressConfig.validate();
+                || gatewayType.isHigress() && higressConfig != null && higressConfig.validate()
+                || gatewayType.isSofaHigress() && sofaHigressConfig != null && sofaHigressConfig.validate()
+                ;
     }
 }
