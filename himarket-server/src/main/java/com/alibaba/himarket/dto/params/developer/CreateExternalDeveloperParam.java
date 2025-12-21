@@ -25,9 +25,6 @@ import com.alibaba.himarket.support.enums.DeveloperAuthType;
 import lombok.Builder;
 import lombok.Data;
 
-/**
- * @author zh
- */
 @Data
 @Builder
 public class CreateExternalDeveloperParam implements InputConverter<DeveloperExternalIdentity> {

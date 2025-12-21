@@ -22,9 +22,6 @@ package com.alibaba.himarket.support.portal;
 import java.util.Map;
 import lombok.Data;
 
-/**
- * @author zh
- */
 @Data
 public class IdentityMapping {
 

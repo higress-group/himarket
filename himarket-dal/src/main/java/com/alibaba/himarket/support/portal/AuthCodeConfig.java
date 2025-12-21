@@ -21,9 +21,6 @@ package com.alibaba.himarket.support.portal;
 
 import lombok.Data;
 
-/**
- * @author zh
- */
 @Data
 public class AuthCodeConfig {
 

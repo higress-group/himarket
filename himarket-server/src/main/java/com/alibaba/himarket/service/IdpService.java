@@ -25,9 +25,6 @@ import com.alibaba.himarket.support.portal.OidcConfig;
 import java.security.PublicKey;
 import java.util.List;
 
-/**
- * @author zh
- */
 public interface IdpService {
 
     /**

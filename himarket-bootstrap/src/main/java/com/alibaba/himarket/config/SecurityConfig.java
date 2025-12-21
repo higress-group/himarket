@@ -21,10 +21,12 @@ package com.alibaba.himarket.config;
 
 import com.alibaba.himarket.core.security.DeveloperAuthenticationProvider;
 import com.alibaba.himarket.core.security.JwtAuthenticationFilter;
+
 import jakarta.servlet.DispatcherType;
-import java.util.*;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -39,6 +41,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.Collections;
 
 /** Spring Security安全配置，集成JWT认证与接口权限控制，支持管理员和开发者多用户体系 */
 @Configuration

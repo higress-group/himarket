@@ -22,9 +22,6 @@ package com.alibaba.himarket.dto.result.common;
 import lombok.Builder;
 import lombok.Data;
 
-/**
- * @author zh
- */
 @Data
 @Builder
 public class DomainResult {

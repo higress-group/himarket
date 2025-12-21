@@ -389,8 +389,33 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
 
     @Override
     public boolean isConsumerExists(String consumerId, GatewayConfig config) {
-        // TODO: 实现APIG网关消费者存在性检查
-        return true;
+        APIGClient client = new APIGClient(config.getApigConfig());
+
+        try {
+            CompletableFuture<GetConsumerResponse> f =
+                    client.execute(
+                            c -> {
+                                GetConsumerRequest request =
+                                        GetConsumerRequest.builder().consumerId(consumerId).build();
+                                return c.getConsumer(request);
+                            });
+            f.get();
+
+            return true;
+        } catch (Exception e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof PopClientException
+                    && "DatabaseError.RecordNotFound"
+                            .equals(((PopClientException) cause).getErrCode())) {
+                return false;
+            }
+
+            log.error("Error fetching Consumer", e);
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR, "Error fetching Consumer，Cause：" + e.getMessage());
+        } finally {
+            client.close();
+        }
     }
 
     @Override

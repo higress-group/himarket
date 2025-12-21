@@ -19,9 +19,6 @@
 
 package com.alibaba.himarket.core.constant;
 
-/**
- * @author zh
- */
 public class IdpConstants {
 
     /** 授权类型 */

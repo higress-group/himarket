@@ -816,7 +816,8 @@ public class AdpAIGatewayOperator extends GatewayOperator {
                                 || message.contains("NotFound")
                                 || code == 404)) {
                     log.warn(
-                            "Consumer authorization already removed or not found: consumerId={}, mcpServer={}, message={}",
+                            "Consumer authorization already removed or not found: consumerId={},"
+                                    + " mcpServer={}, message={}",
                             consumerId,
                             adpAIAuthConfig.getMcpServerName(),
                             message);

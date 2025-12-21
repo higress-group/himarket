@@ -22,9 +22,6 @@ package com.alibaba.himarket.dto.params.gateway;
 import com.alibaba.himarket.support.enums.GatewayType;
 import lombok.Data;
 
-/**
- * @author zh
- */
 @Data
 public class QueryGatewayParam {
 

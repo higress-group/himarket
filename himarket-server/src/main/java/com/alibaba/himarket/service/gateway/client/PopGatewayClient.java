@@ -34,9 +34,6 @@ import java.util.Map;
 import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * @author zh 通用SDK客户端，解决OpenAPI未开放问题
- */
 @Slf4j
 public class PopGatewayClient extends GatewayClient {
 

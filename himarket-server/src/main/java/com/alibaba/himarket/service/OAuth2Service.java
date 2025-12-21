@@ -21,9 +21,6 @@ package com.alibaba.himarket.service;
 
 import com.alibaba.himarket.dto.result.common.AuthResult;
 
-/**
- * @author zh
- */
 public interface OAuth2Service {
 
     /**

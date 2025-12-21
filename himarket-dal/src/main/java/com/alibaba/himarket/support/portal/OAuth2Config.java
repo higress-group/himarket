@@ -22,9 +22,6 @@ package com.alibaba.himarket.support.portal;
 import com.alibaba.himarket.support.enums.GrantType;
 import lombok.Data;
 
-/**
- * @author zh
- */
 @Data
 public class OAuth2Config {
 

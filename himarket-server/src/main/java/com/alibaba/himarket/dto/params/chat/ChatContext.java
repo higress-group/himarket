@@ -31,10 +31,6 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.prompt.ChatOptions;
 
-/**
- * @author shihan
- * @version : ChatContext, v0.1 2025年11月26日 15:49 shihan Exp $
- */
 @Data
 @Builder
 @Slf4j

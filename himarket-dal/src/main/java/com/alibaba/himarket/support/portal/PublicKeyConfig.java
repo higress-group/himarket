@@ -22,9 +22,6 @@ package com.alibaba.himarket.support.portal;
 import com.alibaba.himarket.support.enums.PublicKeyFormat;
 import lombok.Data;
 
-/**
- * @author zh
- */
 @Data
 public class PublicKeyConfig {
 
