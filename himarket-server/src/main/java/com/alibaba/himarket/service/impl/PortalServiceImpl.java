@@ -87,7 +87,7 @@ public class PortalServiceImpl implements PortalService {
 
     private final IdpService idpService;
 
-    private final String domainFormat = "%s.api.portal.local";
+    private final String domainFormat = "%s.himarket.local";
 
     private final ProductPublicationRepository publicationRepository;
 
