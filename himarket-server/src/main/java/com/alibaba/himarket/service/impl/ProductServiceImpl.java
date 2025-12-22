@@ -103,7 +103,7 @@ public class ProductServiceImpl implements ProductService {
 
     private final ProductCategoryService productCategoryService;
 
-    // Cache to prevent duplicate sync within interval (5 minutes default)
+    /** Cache to prevent duplicate sync within interval (5 minutes default) */
     private final Cache<String, Boolean> productSyncCache = CacheUtil.newCache(5);
 
     @Override
@@ -374,6 +374,7 @@ public class ProductServiceImpl implements ProductService {
 
         productRefRepository.delete(productRef);
         productRepository.save(product);
+        productSyncCache.invalidate(productId);
     }
 
     @EventListener

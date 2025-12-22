@@ -67,7 +67,7 @@ HiMarket system architecture consists of three layers:
       <b>Admin Dashboard</b>
     </td>
     <td align="center">
-      <img src="https://github.com/user-attachments/assets/ba8eca62-92f8-42b7-b28e-58546e9e8821" width="500px" height="200px" alt="HiMarket Developer Portal"/>
+      <img src="https://github.com/user-attachments/assets/41382502-12fe-45c4-9708-8dd7a103cb73" width="500px" height="200px" alt="HiMarket Developer Portal"/>
       <br />
       <b>Developer Portal</b>
     </td>
@@ -200,7 +200,7 @@ For detailed usage instructions, please refer to:
 <table>
   <tr>
     <td align="center">
-      <img src="https://github.com/user-attachments/assets/2092b427-33bb-462d-a22a-7c369e81c572" width="200px"  alt="DingTalk Group"/>
+      <img src="https://github.com/user-attachments/assets/e74915bb-abf2-4415-99a3-dd7c61a94670" width="200px"  alt="DingTalk Group"/>
       <br />
       <b>DingTalk Group</b>
     </td>
