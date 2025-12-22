@@ -19,8 +19,9 @@
 
 package com.alibaba.himarket.service;
 
-import com.alibaba.himarket.dto.params.category.*;
 import com.alibaba.himarket.dto.params.category.CreateProductCategoryParam;
+import com.alibaba.himarket.dto.params.category.QueryProductCategoryParam;
+import com.alibaba.himarket.dto.params.category.UpdateProductCategoryParam;
 import com.alibaba.himarket.dto.result.ProductCategoryResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import java.util.List;

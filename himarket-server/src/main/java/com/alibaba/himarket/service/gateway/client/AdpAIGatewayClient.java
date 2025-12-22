@@ -26,7 +26,9 @@ import com.alibaba.himarket.support.gateway.AdpAIGatewayConfig;
 import java.util.Base64;
 import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.*;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.web.client.RestTemplate;
 
 /** ADP AI网关客户端 支持两种模式： 1. SDK模式：使用阿里云SDK调用APIG服务 2. HTTP模式：直接HTTP调用网关API */

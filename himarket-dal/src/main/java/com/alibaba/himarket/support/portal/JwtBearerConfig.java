@@ -22,9 +22,6 @@ package com.alibaba.himarket.support.portal;
 import java.util.List;
 import lombok.Data;
 
-/**
- * @author zh
- */
 @Data
 public class JwtBearerConfig {
 

@@ -28,10 +28,6 @@ import org.apache.commons.collections.MapUtils;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.definition.ToolDefinition;
 
-/**
- * @author shihan
- * @version : ToolContext, v0.1 2025年11月26日 16:22 shihan Exp $
- */
 @Getter
 @NoArgsConstructor
 public class ToolContext {

@@ -19,9 +19,6 @@
 
 package com.alibaba.himarket.support.enums;
 
-/**
- * @author zh
- */
 public enum DeveloperAuthType {
     @Deprecated
     LOCAL,

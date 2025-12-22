@@ -64,7 +64,8 @@ public class PortalResolvingFilter extends OncePerRequestFilter {
             }
 
             log.debug(
-                    "域名解析调试 - Origin: {}, Host: {}, X-Forwarded-Host: {}, ServerName: {}, X-Real-IP: {}, X-Forwarded-For: {}",
+                    "域名解析调试 - Origin: {}, Host: {}, X-Forwarded-Host: {}, ServerName: {},"
+                            + " X-Real-IP: {}, X-Forwarded-For: {}",
                     origin,
                     host,
                     xForwardedHost,

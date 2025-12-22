@@ -39,7 +39,6 @@
 
 HiMarket is an enterprise-grade AI open platform built on Higress AI Gateway, helping enterprises build private AI capability marketplace to uniformly manage and distribute AI resources such as LLM, MCP Server, and Agent. The platform encapsulates distributed AI capabilities into standardized API products, supports multi-version management and gray-scale release, provides self-service developer portal, and features comprehensive enterprise-level operation capabilities including security control, observability analysis, metering and billing, making AI resource sharing and reuse efficient and convenient.
 
-
 <div align="center">
   <img src="https://github.com/user-attachments/assets/645a3962-2f0a-412e-b501-e8eb6fc50bb1" alt="HiMarket 核心能力" width="700px" />
   <br/>
@@ -59,7 +58,6 @@ HiMarket system architecture consists of three layers:
 1. **Infrastructure**: Composed of AI Gateway, API Gateway, Higress and Nacos. HiMarket abstracts and encapsulates underlying AI resources based on these components to form standard API products for external use.
 2. **AI Open Platform Admin**: Management platform for administrators to create and customize portals, manage AI resources such as MCP Server, Model, and Agent, including setting authentication policies and subscription approval workflows. The admin portal also provides observability dashboard to help administrators monitor AI resource usage and operational status in real-time.
 3. **AI Open Platform Portal**: Developer-facing portal site, also known as AI Marketplace or AI Hub, providing one-stop self-service where developers can complete identity registration, credential application, product browsing and subscription, online debugging, and more.
-
 
 <table>
   <tr>

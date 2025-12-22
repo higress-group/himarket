@@ -22,9 +22,6 @@ package com.alibaba.himarket.dto.params.product;
 import com.alibaba.himarket.support.enums.SubscriptionStatus;
 import lombok.Data;
 
-/**
- * @author zh
- */
 @Data
 public class QueryProductSubscriptionParam {
 

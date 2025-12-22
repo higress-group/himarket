@@ -22,7 +22,7 @@ package com.alibaba.himarket.config;
 import com.alibaba.himarket.core.security.DeveloperAuthenticationProvider;
 import com.alibaba.himarket.core.security.JwtAuthenticationFilter;
 import jakarta.servlet.DispatcherType;
-import java.util.*;
+import java.util.Collections;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;

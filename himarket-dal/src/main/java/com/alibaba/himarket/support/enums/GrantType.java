@@ -21,9 +21,6 @@ package com.alibaba.himarket.support.enums;
 
 import lombok.Getter;
 
-/**
- * @author zh
- */
 @Getter
 public enum GrantType {
 

@@ -103,7 +103,7 @@ public class ProductServiceImpl implements ProductService {
 
     private final ProductCategoryService productCategoryService;
 
-    // Cache to prevent duplicate sync within interval (5 minutes default)
+    /** Cache to prevent duplicate sync within interval (5 minutes default) */
     private final Cache<String, Boolean> productSyncCache = CacheUtil.newCache(5);
 
     @Override
@@ -142,8 +142,14 @@ public class ProductServiceImpl implements ProductService {
 
         // Trigger async sync if not synced recently (cache miss)
         if (productSyncCache.getIfPresent(productId) == null) {
-            productSyncCache.put(productId, Boolean.TRUE);
-            eventPublisher.publishEvent(new ProductConfigReloadEvent(productId));
+            productRefRepository
+                    .findByProductId(productId)
+                    .ifPresent(
+                            o -> {
+                                productSyncCache.put(productId, Boolean.TRUE);
+                                eventPublisher.publishEvent(
+                                        new ProductConfigReloadEvent(productId));
+                            });
         }
 
         ProductResult result = new ProductResult().convertFrom(product);
@@ -368,6 +374,7 @@ public class ProductServiceImpl implements ProductService {
 
         productRefRepository.delete(productRef);
         productRepository.save(product);
+        productSyncCache.invalidate(productId);
     }
 
     @EventListener
@@ -476,9 +483,6 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public void reloadProductConfig(String productId) {
-        // Update cache to prevent immediate re-sync
-        productSyncCache.put(productId, Boolean.TRUE);
-
         Product product = findProduct(productId);
         ProductRef productRef =
                 productRefRepository
@@ -488,6 +492,9 @@ public class ProductServiceImpl implements ProductService {
                                         new BusinessException(
                                                 ErrorCode.INVALID_REQUEST,
                                                 "API product not linked to API"));
+
+        // Update cache to prevent immediate re-sync
+        productSyncCache.put(productId, Boolean.TRUE);
 
         syncConfig(product, productRef);
         syncMcpTools(product, productRef);

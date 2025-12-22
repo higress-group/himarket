@@ -44,8 +44,14 @@ import com.alibaba.himarket.dto.result.product.ProductRefResult;
 import com.alibaba.himarket.dto.result.product.ProductResult;
 import com.alibaba.himarket.dto.result.product.SubscriptionResult;
 import com.alibaba.himarket.entity.*;
-import com.alibaba.himarket.repository.*;
-import com.alibaba.himarket.service.*;
+import com.alibaba.himarket.repository.ConsumerCredentialRepository;
+import com.alibaba.himarket.repository.ConsumerRefRepository;
+import com.alibaba.himarket.repository.ConsumerRepository;
+import com.alibaba.himarket.repository.SubscriptionRepository;
+import com.alibaba.himarket.service.ConsumerService;
+import com.alibaba.himarket.service.GatewayService;
+import com.alibaba.himarket.service.PortalService;
+import com.alibaba.himarket.service.ProductService;
 import com.alibaba.himarket.support.consumer.ApiKeyConfig;
 import com.alibaba.himarket.support.consumer.ConsumerAuthConfig;
 import com.alibaba.himarket.support.consumer.HmacConfig;
@@ -591,7 +597,8 @@ public class ConsumerServiceImpl implements ConsumerService {
 
             if (!isConsumerExistsInGateway(gwConsumerId, gatewayConfig)) {
                 log.warn(
-                        "Consumer in gateway was deleted, need to recreate consumer: gwConsumerId: {}, gatewayType: {}",
+                        "Consumer in gateway was deleted, need to recreate consumer: gwConsumerId:"
+                                + " {}, gatewayType: {}",
                         gwConsumerId,
                         gatewayConfig.getGatewayType());
 
@@ -630,7 +637,8 @@ public class ConsumerServiceImpl implements ConsumerService {
             return gatewayService.isConsumerExists(gwConsumerId, gatewayConfig);
         } catch (Exception e) {
             log.warn(
-                    "Failed to check consumer existence in gateway, gwConsumerId: {}, gatewayType: {}",
+                    "Failed to check consumer existence in gateway, gwConsumerId: {}, gatewayType:"
+                            + " {}",
                     gwConsumerId,
                     gatewayConfig.getGatewayType(),
                     e);
@@ -747,7 +755,8 @@ public class ConsumerServiceImpl implements ConsumerService {
                 .map(
                         consumer -> {
                             log.debug(
-                                    "Found existing primary consumer: developerId={}, consumerId={}",
+                                    "Found existing primary consumer: developerId={},"
+                                            + " consumerId={}",
                                     developerId,
                                     consumer.getConsumerId());
                             return new ConsumerResult().convertFrom(consumer);
@@ -764,7 +773,8 @@ public class ConsumerServiceImpl implements ConsumerService {
                                                     () ->
                                                             new BusinessException(
                                                                     ErrorCode.INVALID_REQUEST,
-                                                                    "No consumer found for developer: "
+                                                                    "No consumer found for"
+                                                                            + " developer: "
                                                                             + developerId));
 
                             firstConsumer.setIsPrimary(true);

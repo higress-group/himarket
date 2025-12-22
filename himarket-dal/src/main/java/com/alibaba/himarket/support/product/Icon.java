@@ -22,9 +22,6 @@ package com.alibaba.himarket.support.product;
 import com.alibaba.himarket.support.enums.IconType;
 import lombok.Data;
 
-/**
- * @author zh
- */
 @Data
 public class Icon {
 

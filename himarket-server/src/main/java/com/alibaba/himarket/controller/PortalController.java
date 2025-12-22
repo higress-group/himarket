@@ -21,7 +21,9 @@ package com.alibaba.himarket.controller;
 
 import com.alibaba.himarket.core.annotation.AdminAuth;
 import com.alibaba.himarket.dto.params.consumer.QuerySubscriptionParam;
-import com.alibaba.himarket.dto.params.portal.*;
+import com.alibaba.himarket.dto.params.portal.BindDomainParam;
+import com.alibaba.himarket.dto.params.portal.CreatePortalParam;
+import com.alibaba.himarket.dto.params.portal.UpdatePortalParam;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.portal.PortalResult;
 import com.alibaba.himarket.dto.result.product.ProductPublicationResult;

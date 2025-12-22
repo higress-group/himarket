@@ -48,7 +48,10 @@
         <java.version>17</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+
+        <!-- Dependencies Versions -->
         <spring-boot.version>3.2.5</spring-boot.version>
+        <spring.ai.version>1.1.0-M4</spring.ai.version>
         <mariadb.version>3.4.1</mariadb.version>
         <mysql.version>8.0.33</mysql.version>
         <hutool.version>5.8.33</hutool.version>
@@ -57,12 +60,22 @@
         <apigsdk.version>5.0.6</apigsdk.version>
         <msesdk.version>7.21.0</msesdk.version>
         <aliyunsdk.version>4.4.6</aliyunsdk.version>
+        <aliyun-sts.version>3.1.3</aliyun-sts.version>
+        <aliyun-log.version>0.6.142</aliyun-log.version>
         <okhttp.version>4.12.0</okhttp.version>
         <flyway.version>10.15.0</flyway.version>
-        <spring.ai.version>1.1.0-M4</spring.ai.version>
         <higressadminsdk.version>0.0.2</higressadminsdk.version>
         <nacos.client.version>3.1.0</nacos.client.version>
-        <spring.ai.version>1.1.0-M4</spring.ai.version>
+        <caffeine.version>3.2.3</caffeine.version>
+        <guava-retrying.version>2.0.0</guava-retrying.version>
+        <snakeyaml.version>2.0</snakeyaml.version>
+        <jackson-databind.version>2.14.0-rc1</jackson-databind.version>
+
+        <!-- Plugins Versions -->
+        <maven-compiler-plugin.version>3.11.0</maven-compiler-plugin.version>
+        <spotless-maven-plugin.version>2.46.1</spotless-maven-plugin.version>
+        <google-java-format.version>1.28.0</google-java-format.version>
+
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
     </properties>
@@ -182,6 +195,48 @@
                 <artifactId>higress-admin-sdk</artifactId>
                 <version>${higressadminsdk.version}</version>
             </dependency>
+
+            <!-- Caffeine Cache -->
+            <dependency>
+                <groupId>com.github.ben-manes.caffeine</groupId>
+                <artifactId>caffeine</artifactId>
+                <version>${caffeine.version}</version>
+            </dependency>
+
+            <!-- Guava Retrying -->
+            <dependency>
+                <groupId>com.github.rholder</groupId>
+                <artifactId>guava-retrying</artifactId>
+                <version>${guava-retrying.version}</version>
+            </dependency>
+
+            <!-- SnakeYAML -->
+            <dependency>
+                <groupId>org.yaml</groupId>
+                <artifactId>snakeyaml</artifactId>
+                <version>${snakeyaml.version}</version>
+            </dependency>
+
+            <!-- Aliyun Log Service -->
+            <dependency>
+                <groupId>com.aliyun.openservices</groupId>
+                <artifactId>aliyun-log</artifactId>
+                <version>${aliyun-log.version}</version>
+            </dependency>
+
+            <!-- Aliyun STS SDK -->
+            <dependency>
+                <groupId>com.aliyun</groupId>
+                <artifactId>aliyun-java-sdk-sts</artifactId>
+                <version>${aliyun-sts.version}</version>
+            </dependency>
+
+            <!-- Jackson Databind -->
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-databind</artifactId>
+                <version>${jackson-databind.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -197,7 +252,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-compiler-plugin</artifactId>
-                    <version>3.11.0</version>
+                    <version>${maven-compiler-plugin.version}</version>
                     <configuration>
                         <source>${java.version}</source>
                         <target>${java.version}</target>
@@ -210,16 +265,19 @@
                 <plugin>
                     <groupId>com.diffplug.spotless</groupId>
                     <artifactId>spotless-maven-plugin</artifactId>
-                    <version>2.43.0</version>
+                    <version>${spotless-maven-plugin.version}</version>
                     <configuration>
                         <java>
+                            <removeUnusedImports/>
+                            <importOrder/>
+                            <trimTrailingWhitespace/>
+                            <endWithNewline/>
                             <googleJavaFormat>
-                                <version>1.28.0</version>
+                                <version>${google-java-format.version}</version>
                                 <style>AOSP</style>
+                                <reflowLongStrings>true</reflowLongStrings>
+                                <formatJavadoc>false</formatJavadoc>
                             </googleJavaFormat>
-                            <removeUnusedImports />
-                            <trimTrailingWhitespace />
-                            <endWithNewline />
                         </java>
                     </configuration>
                     <executions>

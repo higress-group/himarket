@@ -43,9 +43,6 @@ import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-/**
- * @author zh
- */
 @Service
 @RequiredArgsConstructor
 @Slf4j
