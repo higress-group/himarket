@@ -9,6 +9,7 @@ export interface IAgentConfig {
     routes?: {
       domains: {
         domain: string;
+        port?: number;
         protocol: string;
         networkType: string;
       }[],
@@ -116,6 +117,7 @@ export interface IRoute {
 
 export interface IDomain {
   domain: string;
+  port?: number;
   protocol: string;
   networkType: string;
 }

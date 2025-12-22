@@ -32,12 +32,13 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 /**
  * Global exception handler
  *
- * <p>Handles three types of exceptions: 1. {@link BusinessException}: Business errors 2. {@link
- * MethodArgumentNotValidException}: Request validation errors 3. {@link Exception}: Unexpected
- * system errors
+ * <p>Handles three types of exceptions:
+ * 1. {@link BusinessException}: Business errors
+ * 2. {@link MethodArgumentNotValidException}: Request validation errors
+ * 3. {@link Exception}: Unexpected system errors
  *
- * <p>All exceptions are converted to unified response: { "code": "error_code", "message":
- * "error_message", "data": null }
+ * <p>All exceptions are converted to unified response:
+ * { "code": "error_code", "message": "error_message", "data": null }
  */
 @Slf4j
 @RestControllerAdvice

@@ -21,45 +21,73 @@ package com.alibaba.himarket.core.constant;
 
 public class IdpConstants {
 
-    /** Grant type */
+    /**
+     * Grant type
+     */
     public static final String GRANT_TYPE = "grant_type";
 
-    /** Authorization code */
+    /**
+     * Authorization code
+     */
     public static final String CODE = "code";
 
-    /** Redirect URI */
+    /**
+     * Redirect URI
+     */
     public static final String REDIRECT_URI = "redirect_uri";
 
-    /** Client ID */
+    /**
+     * Client ID
+     */
     public static final String CLIENT_ID = "client_id";
 
-    /** Client secret */
+    /**
+     * Client secret
+     */
     public static final String CLIENT_SECRET = "client_secret";
 
-    /** Response type */
+    /**
+     * Response type
+     */
     public static final String RESPONSE_TYPE = "response_type";
 
-    /** Scope */
+    /**
+     * Scope
+     */
     public static final String SCOPE = "scope";
 
-    /** State */
+    /**
+     * State
+     */
     public static final String STATE = "state";
 
-    /** Subject */
+    /**
+     * Subject
+     */
     public static final String SUBJECT = "sub";
 
-    /** Name */
+    /**
+     * Name
+     */
     public static final String NAME = "name";
 
-    /** Email */
+    /**
+     * Email
+     */
     public static final String EMAIL = "email";
 
-    /** Authorization endpoint */
+    /**
+     * Authorization endpoint
+     */
     public static final String AUTHORIZATION_ENDPOINT = "authorization_endpoint";
 
-    /** Token endpoint */
+    /**
+     * Token endpoint
+     */
     public static final String TOKEN_ENDPOINT = "token_endpoint";
 
-    /** User info endpoint */
+    /**
+     * User info endpoint
+     */
     public static final String USERINFO_ENDPOINT = "userinfo_endpoint";
 }

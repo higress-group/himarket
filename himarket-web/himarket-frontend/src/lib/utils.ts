@@ -134,3 +134,26 @@ export function copyToClipboard(text: string) {
     }
   });
 }
+
+/**
+ * 格式化域名和端口为完整的 host 字符串
+ * @param domain - 域名
+ * @param port - 端口号（可选）
+ * @param protocol - 协议（http/https）
+ * @returns 格式化后的 host 字符串
+ * 
+ * 规则：
+ * - 如果 port 为 null/undefined，只返回 domain
+ * - 如果 port 是默认端口（http:80, https:443），只返回 domain
+ * - 其他情况返回 domain:port
+ */
+export function formatDomainWithPort(
+  domain: string, 
+  port: number | null | undefined, 
+  protocol: string
+): string {
+  if (!port) return domain;
+  if (protocol === 'http' && port === 80) return domain;
+  if (protocol === 'https' && port === 443) return domain;
+  return `${domain}:${port}`;
+}

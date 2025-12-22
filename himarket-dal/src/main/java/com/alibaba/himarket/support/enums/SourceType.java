@@ -19,13 +19,16 @@
 
 package com.alibaba.himarket.support.enums;
 
-/** 数据来源类型枚举 */
 public enum SourceType {
 
-    /** 来自Gateway (Higress, APIG等) */
+    /**
+     * From gateway, Higress/APIG
+     */
     GATEWAY,
 
-    /** 来自Nacos注册中心 */
+    /**
+     * From Nacos
+     */
     NACOS;
 
     public boolean isGateway() {

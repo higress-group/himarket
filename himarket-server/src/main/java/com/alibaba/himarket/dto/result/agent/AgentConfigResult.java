@@ -32,32 +32,46 @@ public class AgentConfigResult {
 
     private AgentAPIConfig agentAPIConfig;
 
-    /** 元数据信息（与 agentAPIConfig 同级） */
+    /**
+     * 元数据信息（与 agentAPIConfig 同级）
+     */
     private AgentMetadata meta;
 
-    /** Agent API 配置 支持 Gateway 和 Nacos 两种来源 */
+    /**
+     * Agent API 配置 支持 Gateway 和 Nacos 两种来源
+     */
     @Data
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
     public static class AgentAPIConfig {
-        /** Agent 协议列表（用于判断显示逻辑） 如果包含 "a2a"，则展示 agentCard 字段 for AI gateway */
+        /**
+         * Agent 协议列表（用于判断显示逻辑） 如果包含 "a2a"，则展示 agentCard 字段 for AI gateway
+         */
         private List<String> agentProtocols;
 
-        /** HTTP 路由配置 */
+        /**
+         * HTTP 路由配置
+         */
         private List<HttpRouteResult> routes;
 
-        /** Agent Card 信息（可选，仅当 agentProtocols 包含 "a2a" 时存在） 遵循标准 A2A 协议定义 */
+        /**
+         * Agent Card 信息（可选，仅当 agentProtocols 包含 "a2a" 时存在） 遵循标准 A2A 协议定义
+         */
         private AgentCard agentCard;
     }
 
-    /** Agent 元数据 */
+    /**
+     * Agent 元数据
+     */
     @Data
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
     public static class AgentMetadata {
-        /** 来源 AI网关/Higress/Nacos */
+        /**
+         * 来源 AI网关/Higress/Nacos
+         */
         private String source;
     }
 }

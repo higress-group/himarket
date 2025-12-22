@@ -17,7 +17,7 @@ import type { IProductDetail } from "../lib/apis";
 import type { IModelConfig, IRoute } from "../lib/apis/typing";
 import APIs from "../lib/apis";
 import MarkdownRender from "../components/MarkdownRender";
-import { copyToClipboard } from "../lib/utils";
+import { copyToClipboard, formatDomainWithPort } from "../lib/utils";
 
 const { Panel } = Collapse;
 
@@ -73,12 +73,13 @@ function ModelDetail() {
   const getAllUniqueDomains = () => {
     if (!modelConfig?.modelAPIConfig?.routes) return []
 
-    const domainsMap = new Map<string, { domain: string; protocol: string }>()
+    const domainsMap = new Map<string, { domain: string; port?: number; protocol: string }>()
 
     modelConfig.modelAPIConfig.routes.forEach(route => {
       if (route.domains && route.domains.length > 0) {
         route.domains.forEach((domain) => {
-          const key = `${domain.protocol}://${domain.domain}`
+          const formattedDomain = formatDomainWithPort(domain.domain, domain.port, domain.protocol);
+          const key = `${domain.protocol}://${formattedDomain}`
           domainsMap.set(key, domain)
         })
       }
@@ -90,10 +91,13 @@ function ModelDetail() {
   const allUniqueDomains = getAllUniqueDomains()
 
   // 生成域名选择器选项
-  const modelDomainOptions = allUniqueDomains.map((domain, index) => ({
-    value: index,
-    label: `${domain.protocol.toLowerCase()}://${domain.domain}`
-  }))
+  const modelDomainOptions = allUniqueDomains.map((domain, index) => {
+    const formattedDomain = formatDomainWithPort(domain.domain, domain.port, domain.protocol);
+    return {
+      value: index,
+      label: `${domain.protocol.toLowerCase()}://${formattedDomain}`
+    };
+  })
 
   // Helper functions for route display
   const getMatchTypePrefix = (type: string) => {
@@ -119,11 +123,13 @@ function ModelDetail() {
     let domainInfo = ''
     if (allUniqueDomains.length > 0 && allUniqueDomains.length > domainIndex) {
       const selectedDomain = allUniqueDomains[domainIndex]
-      domainInfo = `${selectedDomain.protocol.toLowerCase()}://${selectedDomain.domain}`
+      const formattedDomain = formatDomainWithPort(selectedDomain.domain, selectedDomain.port, selectedDomain.protocol);
+      domainInfo = `${selectedDomain.protocol.toLowerCase()}://${formattedDomain}`
     } else if (route.domains && route.domains.length > 0) {
       // 回退到路由的第一个域名
       const domain = route.domains[0]
-      domainInfo = `${domain.protocol.toLowerCase()}://${domain.domain}`
+      const formattedDomain = formatDomainWithPort(domain.domain, domain.port, domain.protocol);
+      domainInfo = `${domain.protocol.toLowerCase()}://${formattedDomain}`
     }
 
     // 构建基本路由信息（匹配符号直接加到path后面）
@@ -190,7 +196,8 @@ function ModelDetail() {
 
     // 使用选择的域名
     const selectedDomain = allUniqueDomains[selectedModelDomainIndex] || allUniqueDomains[0];
-    const baseUrl = `${selectedDomain.protocol.toLowerCase()}://${selectedDomain.domain}`;
+    const formattedDomain = formatDomainWithPort(selectedDomain.domain, selectedDomain.port, selectedDomain.protocol);
+    const baseUrl = `${selectedDomain.protocol.toLowerCase()}://${formattedDomain}`;
     const fullUrl = `${baseUrl}${firstRoute.match.path.value}`;
 
     return `curl --location '${fullUrl}' \\
@@ -366,12 +373,14 @@ function ModelDetail() {
                                           if (allUniqueDomains.length > 0 && allUniqueDomains.length > selectedModelDomainIndex) {
                                             const selectedDomain = allUniqueDomains[selectedModelDomainIndex]
                                             const path = route.match?.path?.value || '/'
-                                            const fullUrl = `${selectedDomain.protocol.toLowerCase()}://${selectedDomain.domain}${path}`
+                                            const formattedDomain = formatDomainWithPort(selectedDomain.domain, selectedDomain.port, selectedDomain.protocol);
+                                            const fullUrl = `${selectedDomain.protocol.toLowerCase()}://${formattedDomain}${path}`
                                             copyToClipboard(fullUrl).then(() => message.success("链接已复制到剪贴板"))
                                           } else if (route.domains && route.domains.length > 0) {
                                             const domain = route.domains[0]
                                             const path = route.match?.path?.value || '/'
-                                            const fullUrl = `${domain.protocol.toLowerCase()}://${domain.domain}${path}`
+                                            const formattedDomain = formatDomainWithPort(domain.domain, domain.port, domain.protocol);
+                                            const fullUrl = `${domain.protocol.toLowerCase()}://${formattedDomain}${path}`
                                             copyToClipboard(fullUrl).then(() => message.success("链接已复制到剪贴板"))
                                           }
                                         }}
@@ -384,11 +393,14 @@ function ModelDetail() {
                                     {/* 域名信息 */}
                                     <div>
                                       <div className="text-xs text-gray-500 mb-2">域名:</div>
-                                      {route.domains?.map((domain, domainIndex: number) => (
-                                        <div key={domainIndex} className="text-sm font-mono bg-gray-50 px-3 py-2 rounded-lg mb-1">
-                                          {domain.protocol.toLowerCase()}://{domain.domain}
-                                        </div>
-                                      ))}
+                                      {route.domains?.map((domain, domainIndex: number) => {
+                                        const formattedDomain = formatDomainWithPort(domain.domain, domain.port, domain.protocol);
+                                        return (
+                                          <div key={domainIndex} className="text-sm font-mono bg-gray-50 px-3 py-2 rounded-lg mb-1">
+                                            {domain.protocol.toLowerCase()}://{formattedDomain}
+                                          </div>
+                                        );
+                                      })}
                                     </div>
 
                                     {/* 匹配规则 */}

@@ -24,7 +24,9 @@ import com.alibaba.himarket.support.enums.ContentType;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
+@EqualsAndHashCode(callSuper = true)
 @Data
 public class VideoUrlContent extends MessageContent {
 

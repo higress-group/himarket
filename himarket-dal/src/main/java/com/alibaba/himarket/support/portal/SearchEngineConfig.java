@@ -25,25 +25,35 @@ import java.util.HashMap;
 import java.util.Map;
 import lombok.Data;
 
-/**
- * 搜索引擎配置（POJO） 完全参考 OidcConfig 的设计模式 作为 Portal 配置的一部分，存储在 portal_setting_config JSON 字段中 一个 Portal
- * 只能配置一个搜索引擎
- */
 @Data
 public class SearchEngineConfig {
 
-    /** 搜索引擎类型 当前仅支持 GOOGLE */
+    /**
+     * Search engine type
+     * Currently only supports GOOGLE
+     */
     private SearchEngineType engineType;
 
-    /** 搜索引擎名称（展示用） */
+    /**
+     * Search engine name (for display)
+     */
     private String engineName;
 
-    /** API Key 标记 @Encrypted 注解后，系统会自动加密/解密 */
+    /**
+     * API Key
+     * With @Encrypted annotation, system will automatically encrypt/decrypt
+     */
     @Encrypted private String apiKey;
 
-    /** 是否启用，默认启用 */
+    /**
+     * Enable status, enabled by default
+     */
     private boolean enabled = true;
 
-    /** 额外配置 使用 Map 灵活存储扩展配置 例如：{"timeout": 30, "domain": "google.com"} */
+    /**
+     * Additional configurations
+     * Using Map for flexible extension storage
+     * Example: {"timeout": 30, "domain": "google.com"}
+     */
     private Map<String, Object> extraConfig = new HashMap<>();
 }
