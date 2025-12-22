@@ -43,18 +43,14 @@ public class ContextHolder {
         portalContext.set(portalId);
     }
 
-    public void saveTemporaryUser(String userId) {
-        portalContext.set(userId);
-    }
-
     public void clearPortal() {
         portalContext.remove();
     }
 
     /**
-     * 获取当前认证用户ID
+     * Get current authenticated user ID
      *
-     * @return
+     * @return user ID
      */
     public String getUser() {
         Authentication authentication = getAuthenticationFromContext();
@@ -66,10 +62,10 @@ public class ContextHolder {
     }
 
     /**
-     * 获取当前认证用户类型
+     * Get current user type
      *
-     * @return 用户类型
-     * @throws AuthenticationException 如果用户未认证或类型无效
+     * @return user type
+     * @throws AuthenticationException if user is not authenticated or type is invalid
      */
     private UserType getCurrentUserType() {
         Authentication authentication = getAuthenticationFromContext();
@@ -102,9 +98,9 @@ public class ContextHolder {
     }
 
     /**
-     * 获取当前认证信息
+     * Get current authentication
      *
-     * @return
+     * @return authentication
      */
     private Authentication getAuthenticationFromContext() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();

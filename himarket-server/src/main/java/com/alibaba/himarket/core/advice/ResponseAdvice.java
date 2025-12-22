@@ -35,12 +35,13 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /**
- * 统一响应处理
+ * Unified response wrapper
  *
- * <p>用于封装接口响应数据为统一格式： { "code": "Success", "message": "操作成功", "data": T }
+ * <p>Wraps API responses into standard format: { "code": "Success", "message": "Operation
+ * successful", "data": T }
  *
- * <p>以下情况不会被包装: 1. 返回值已经是 {@link ResponseEntity} 2. 返回值已经是 {@link Response} 3. ExceptionAdvice
- * 已经处理的异常响应（避免二次包装）
+ * <p>Skips wrapping for: 1. {@link ResponseEntity} 2. {@link Response} 3. Exception responses
+ * handled by ExceptionAdvice (avoid double wrapping)
  */
 @RestControllerAdvice
 @Slf4j
@@ -49,7 +50,7 @@ public class ResponseAdvice implements ResponseBodyAdvice<Object> {
     @Override
     public boolean supports(
             MethodParameter returnType, Class<? extends HttpMessageConverter<?>> converterType) {
-        // 排除Swagger相关路径
+        // Exclude Swagger endpoints
         Class<?> declaringClass = returnType.getDeclaringClass();
         if (declaringClass.getName().contains("org.springdoc")
                 || declaringClass.getName().contains("springfox.documentation")) {
@@ -74,12 +75,12 @@ public class ResponseAdvice implements ResponseBodyAdvice<Object> {
             Class<? extends HttpMessageConverter<?>> selectedConverterType,
             ServerHttpRequest request,
             ServerHttpResponse response) {
-        // 如果body已经是Response对象，说明是ExceptionAdvice处理过的异常响应，直接返回，避免二次包装
+        // Skip wrapping if already wrapped by ExceptionAdvice
         if (body instanceof Response) {
             return body;
         }
 
-        // 设置成功响应码
+        // Set success status
         response.setStatusCode(HttpStatus.OK);
 
         if (body instanceof String) {

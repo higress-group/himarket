@@ -57,7 +57,7 @@ public class AdministratorServiceImpl implements AdministratorService {
                                                 username));
 
         if (!PasswordHasher.verify(password, admin.getPasswordHash())) {
-            throw new BusinessException(ErrorCode.UNAUTHORIZED, "用户名或密码错误");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, "Invalid username or password");
         }
 
         String token = TokenUtil.generateAdminToken(admin.getAdminId());
@@ -93,7 +93,7 @@ public class AdministratorServiceImpl implements AdministratorService {
         Administrator admin = findAdministrator(contextHolder.getUser());
 
         if (!PasswordHasher.verify(oldPassword, admin.getPasswordHash())) {
-            throw new BusinessException(ErrorCode.UNAUTHORIZED, "用户名或密码错误");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, "Invalid username or password");
         }
 
         admin.setPasswordHash(PasswordHasher.hash(newPassword));
