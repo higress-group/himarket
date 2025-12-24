@@ -30,6 +30,10 @@ COMMERCIAL_NACOS_PASSWORD="${COMMERCIAL_NACOS_PASSWORD:-}"
 # 固定配置
 NAMESPACE_ID="public"
 
+# 重试配置
+MAX_RETRIES=3
+RETRY_DELAY=5
+
 log() { echo "[import-mcp $(date +'%H:%M:%S')] $*"; }
 err() { echo "[ERROR] $*" >&2; }
 
@@ -99,7 +103,7 @@ url_encode() {
 }
 
 ########################################
-# 创建单个 MCP 的函数
+# 创建单个 MCP 的函数（带重试）
 ########################################
 create_single_mcp() {
   local mcp_name="$1"
@@ -130,65 +134,132 @@ create_single_mcp() {
   local body_file="$TMP_DIR/body_$$"
   echo "$form_body" > "$body_file"
 
-  log "调用 MCP 创建接口..."
   local create_url="http://${HOST}:8848/nacos/v3/admin/ai/mcp"
 
-  local resp=$(curl -sS -w "\nHTTP_STATUS:%{http_code}\n" -X POST "$create_url" \
-    -H "accessToken: $ACCESS_TOKEN" \
-    -H "Content-Type: application/x-www-form-urlencoded; charset=UTF-8" \
-    --data @"$body_file")
+  # 带重试的 API 调用
+  local attempt=1
+  while (( attempt <= MAX_RETRIES )); do
+    log "调用 MCP 创建接口 (第 ${attempt}/${MAX_RETRIES} 次)..."
 
-  local http_status=$(echo "$resp" | sed -n 's/^HTTP_STATUS:\(.*\)$/\1/p')
-  local body=$(echo "$resp" | sed '/HTTP_STATUS:/d')
+    local resp=$(curl -sS -w "\nHTTP_STATUS:%{http_code}\n" -X POST "$create_url" \
+      -H "accessToken: $ACCESS_TOKEN" \
+      -H "Content-Type: application/x-www-form-urlencoded; charset=UTF-8" \
+      --connect-timeout 10 \
+      --max-time 30 \
+      --data @"$body_file" 2>&1 || echo "HTTP_STATUS:000")
 
-  log "接口返回："
-  log "$body"
-  log ""
-  log "HTTP 状态码: $http_status"
+    local http_status=$(echo "$resp" | sed -n 's/^HTTP_STATUS:\(.*\)$/\1/p' | tr -d '[:space:]')
+    local body=$(echo "$resp" | sed '/HTTP_STATUS:/d')
 
-  # 检查是否已存在（根据用户偏好，已存在视为成功）
-  # 409 状态码表示资源冲突（已存在）
-  if [ "$http_status" = "409" ] || echo "$body" | grep -q "has existed\|already exists"; then
-    log "MCP '$mcp_name' 已存在，跳过创建"
-    return 0
-  fi
+    # 处理空状态码或无效状态码
+    if [[ -z "$http_status" ]] || [[ ! "$http_status" =~ ^[0-9]{3}$ ]]; then
+      http_status="000"
+    fi
 
-  if [ "$http_status" != "200" ]; then
-    err "创建 MCP '$mcp_name' 失败（HTTP $http_status）"
-    return 1
-  fi
+    log "HTTP 状态码: $http_status"
+    if [[ -n "$body" ]] && [[ "$body" != "000" ]]; then
+      log "响应内容: $body"
+    fi
 
-  log "MCP '$mcp_name' 创建成功"
-  return 0
+    # 检查是否已存在（根据用户偏好，已存在视为成功）
+    if [ "$http_status" = "409" ] || echo "$body" | grep -q "has existed\|already exists"; then
+      log "MCP '$mcp_name' 已存在，跳过创建"
+      return 0
+    fi
+
+    # 成功
+    if [ "$http_status" = "200" ] || [ "$http_status" = "201" ]; then
+      log "MCP '$mcp_name' 创建成功"
+      return 0
+    fi
+
+    # 如果是连接错误且还有重试次数，继续重试
+    if [ "$http_status" = "000" ] && (( attempt < MAX_RETRIES )); then
+      log "连接失败，${RETRY_DELAY}秒后重试..."
+      sleep $RETRY_DELAY
+      attempt=$((attempt + 1))
+      continue
+    fi
+
+    # 其他错误，最后一次尝试才报错
+    if (( attempt >= MAX_RETRIES )); then
+      err "创建 MCP '$mcp_name' 失败（HTTP $http_status），已重试 ${MAX_RETRIES} 次"
+      return 1
+    fi
+
+    sleep $RETRY_DELAY
+    attempt=$((attempt + 1))
+  done
+
+  err "创建 MCP '$mcp_name' 失败"
+  return 1
 }
 
 ########################################
-# 3. 登录 Nacos
+# 3. 登录 Nacos（带重试）
 ########################################
 log "登录 Nacos 获取 accessToken..."
 
 LOGIN_URL="http://${HOST}:8848/nacos/v1/auth/login"
 
-LOGIN_RESP=$(curl -sS -X POST "$LOGIN_URL" \
-  -d "username=${NACOS_USERNAME}" \
-  -d "password=${NACOS_PASSWORD}")
+ACCESS_TOKEN=""
+attempt=1
 
-ACCESS_TOKEN=$(echo "$LOGIN_RESP" | sed -n 's/.*"accessToken"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+while (( attempt <= MAX_RETRIES )); do
+  log "尝试登录 Nacos (第 ${attempt}/${MAX_RETRIES} 次)..."
 
-if [ -z "$ACCESS_TOKEN" ]; then
-  err "登录失败，未能从响应中解析 accessToken。原始响应："
-  err "$LOGIN_RESP"
-  
-  # 如果是商业化 Nacos，登录失败则跳过
-  if [ "$IS_COMMERCIAL" = "true" ]; then
-    log "商业化 Nacos 登录失败，跳过 MCP 导入"
-    exit 0
+  LOGIN_RESP=$(curl -sS -X POST "$LOGIN_URL" \
+    --connect-timeout 10 \
+    --max-time 30 \
+    -d "username=${NACOS_USERNAME}" \
+    -d "password=${NACOS_PASSWORD}" 2>&1 || echo "curl_error")
+
+  # 检查是否为 curl 错误
+  if echo "$LOGIN_RESP" | grep -q "curl.*error\|Failed to connect\|Couldn't connect"; then
+    if (( attempt < MAX_RETRIES )); then
+      log "连接失败，${RETRY_DELAY}秒后重试..."
+      sleep $RETRY_DELAY
+      attempt=$((attempt + 1))
+      continue
+    else
+      err "登录失败，连接 Nacos 失败（已重试 ${MAX_RETRIES} 次）"
+      err "响应: $LOGIN_RESP"
+      
+      # 如果是商业化 Nacos，登录失败则跳过
+      if [ "$IS_COMMERCIAL" = "true" ]; then
+        log "商业化 Nacos 登录失败，跳过 MCP 导入"
+        exit 0
+      fi
+      
+      exit 1
+    fi
   fi
-  
-  exit 1
-fi
 
-log "登录成功，accessToken = $ACCESS_TOKEN"
+  ACCESS_TOKEN=$(echo "$LOGIN_RESP" | sed -n 's/.*"accessToken"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+
+  if [ -n "$ACCESS_TOKEN" ]; then
+    log "登录成功，accessToken = $ACCESS_TOKEN"
+    break
+  fi
+
+  if (( attempt < MAX_RETRIES )); then
+    log "未获取到 accessToken，${RETRY_DELAY}秒后重试..."
+    sleep $RETRY_DELAY
+  else
+    err "登录失败，未能从响应中解析 accessToken（已重试 ${MAX_RETRIES} 次）"
+    err "原始响应: $LOGIN_RESP"
+    
+    # 如果是商业化 Nacos，登录失败则跳过
+    if [ "$IS_COMMERCIAL" = "true" ]; then
+      log "商业化 Nacos 登录失败，跳过 MCP 导入"
+      exit 0
+    fi
+    
+    exit 1
+  fi
+
+  attempt=$((attempt + 1))
+done
 
 ########################################
 # 4. 解析并创建 MCP

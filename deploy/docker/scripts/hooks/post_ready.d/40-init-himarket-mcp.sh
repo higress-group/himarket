@@ -176,6 +176,35 @@ login_admin() {
 }
 
 ########################################
+# 获取 Higress Gateway 公网 IP 地址
+########################################
+get_higress_gateway_address() {
+  log "获取 Higress Gateway 公网 IP 地址..." >&2
+
+  local gateway_ip=""
+  
+  # 尝试多个公网 IP 检测服务
+  for service in "ifconfig.me" "icanhazip.com" "ipecho.net/plain" "api.ipify.org"; do
+    gateway_ip=$(curl -s --connect-timeout 3 --max-time 5 "http://${service}" 2>/dev/null | tr -d '[:space:]')
+    
+    # 验证是否为有效的 IPv4 地址(排除内网地址)
+    if [[ "$gateway_ip" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+      if [[ ! "$gateway_ip" =~ ^10\. ]] && \
+         [[ ! "$gateway_ip" =~ ^172\.(1[6-9]|2[0-9]|3[0-1])\. ]] && \
+         [[ ! "$gateway_ip" =~ ^192\.168\. ]] && \
+         [[ ! "$gateway_ip" =~ ^127\. ]]; then
+        log "检测到公网 IP: ${gateway_ip}" >&2
+        echo "${gateway_ip}"
+        return 0
+      fi
+    fi
+  done
+  
+  err "无法获取公网 IP 地址"
+  return 1
+}
+
+########################################
 # 获取或创建 Gateway ID
 ########################################
 get_or_create_gateway() {
@@ -189,8 +218,32 @@ get_or_create_gateway() {
     return 0
   fi
 
-  # 尝试创建（Docker 环境使用 higress:8001）
-  local body="{\"gatewayName\":\"${gateway_name}\",\"gatewayType\":\"HIGRESS\",\"higressConfig\":{\"address\":\"http://higress:8001\",\"username\":\"admin\",\"password\":\"${HIGRESS_PASSWORD}\"}}"
+  # 获取 Higress Gateway 公网 IP
+  local gateway_ip
+  gateway_ip=$(get_higress_gateway_address)
+  if [[ -z "$gateway_ip" ]]; then
+    err "无法获取 Higress Gateway 公网 IP，无法创建网关"
+    return 1
+  fi
+
+  # 使用 jq 构建 JSON 请求体
+  local body=$(jq -n \
+    --arg gatewayName "$gateway_name" \
+    --arg gatewayType "HIGRESS" \
+    --arg address "http://higress:8001" \
+    --arg username "admin" \
+    --arg password "$HIGRESS_PASSWORD" \
+    --arg gatewayAddress "http://$gateway_ip:8082" \
+    '{
+      gatewayName: $gatewayName,
+      gatewayType: $gatewayType,
+      higressConfig: {
+        address: $address,
+        username: $username,
+        password: $password,
+        gatewayAddress: $gatewayAddress
+      }
+    }')
   
   call_api "插入网关" "POST" "/api/v1/gateways" "$body" >/dev/null 2>&1 || true
   
@@ -385,9 +438,20 @@ publish_to_portal() {
   local portal_id="$2"
   local mcp_name="$3"
   
-  if call_api "发布到门户" "POST" "/api/v1/products/${product_id}/publications/${portal_id}" ""; then
-    log "[${mcp_name}] 发布到门户成功"
-    return 0
+  # 构建请求体
+  local body="{\"portalId\":\"${portal_id}\"}"
+
+  if call_api "发布到门户" "POST" "/api/v1/products/${product_id}/publications" "$body"; then
+    if [[ "$API_HTTP_CODE" =~ ^2[0-9]{2}$ ]]; then
+      log "[${mcp_name}] 发布到门户成功"
+      return 0
+    elif [[ "$API_HTTP_CODE" == "409" ]]; then
+      log "[${mcp_name}] 产品已发布到门户（跳过）"
+      return 0
+    else
+      log "[${mcp_name}] 发布到门户失败（HTTP ${API_HTTP_CODE}）"
+      return 0  # 允许失败，继续执行
+    fi
   else
     log "[${mcp_name}] 发布到门户失败（可能已发布）"
     return 0  # 允许失败，继续执行

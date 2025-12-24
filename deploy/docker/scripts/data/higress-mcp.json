@@ -4,8 +4,6 @@
     "description": "出行小助手",
     "type": "OPEN_API",
     "higress": {
-      "domains": ["travel.assistant.io"],
-      "enableHttps": false,
       "serviceSources": [
         {
           "type": "dns",
@@ -45,8 +43,6 @@
     "description": "基金诊断助手",
     "type": "DIRECT_ROUTE",
     "higress": {
-      "domains": ["fund.assistant.io"],
-      "enableHttps": false,
       "serviceSources": [
         {
           "type": "dns",
