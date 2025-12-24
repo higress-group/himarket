@@ -1,0 +1,132 @@
+name: Frontend Lint
+
+# Trigger: PR to main/develop branches
+# 🚧 TEMPORARY: paths filter disabled for testing
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+    # paths:
+    #   - 'himarket-web/himarket-frontend/**'
+    #   - 'himarket-web/himarket-admin/**'
+    #   - '.github/workflows/frontend-lint.yml'
+
+# Avoid duplicate runs: new commits to the same PR will cancel previous runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Limit workflow permissions (security best practice)
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  # Detect which parts of the codebase changed
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+      admin: ${{ steps.filter.outputs.admin }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Check for file changes
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            frontend:
+              - 'himarket-web/himarket-frontend/**'
+            admin:
+              - 'himarket-web/himarket-admin/**'
+
+  # Frontend Lint
+  himarket-frontend-lint:
+    name: Frontend - Lint & Type Check
+    runs-on: ubuntu-latest
+    needs: changes
+    # 🚧 TEMPORARY: condition disabled for testing
+    # if: needs.changes.outputs.frontend == 'true'
+    
+    defaults:
+      run:
+        working-directory: himarket-web/himarket-frontend
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          # cache: 'npm'  # Disabled: no package-lock.json in repo
+          # cache-dependency-path: himarket-web/himarket-frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps  # Using legacy-peer-deps to handle React 19 compatibility
+
+      - name: Run ESLint
+        run: npm run lint
+        # No continue-on-error - let it fail naturally
+
+      - name: Run TypeScript type check
+        run: npm run type-check
+        # No continue-on-error - let it fail naturally
+
+      - name: Create check summary
+        if: always()
+        run: |
+          echo "## 🔍 Frontend Lint & Type Check" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Checked ESLint rules and TypeScript types for frontend code." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Note:** This check is optional and won't block PR merging." >> $GITHUB_STEP_SUMMARY
+          echo "However, it's recommended to fix any issues found." >> $GITHUB_STEP_SUMMARY
+
+  # Admin Lint
+  himarket-admin-lint:
+    name: Admin - Lint Check
+    runs-on: ubuntu-latest
+    needs: changes
+    # 🚧 TEMPORARY: condition disabled for testing
+    # if: needs.changes.outputs.admin == 'true'
+    
+    defaults:
+      run:
+        working-directory: himarket-web/himarket-admin
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          # cache: 'npm'  # Disabled: no package-lock.json in repo
+          # cache-dependency-path: himarket-web/himarket-admin/package-lock.json
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps  # Using legacy-peer-deps to handle React 19 compatibility
+
+      - name: Run ESLint
+        run: npm run lint
+        # No continue-on-error - let it fail naturally
+
+      - name: Create check summary
+        if: always()
+        run: |
+          echo "## 🔍 Admin Lint Check" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Checked ESLint rules for admin console code." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Note:** This check is optional and won't block PR merging." >> $GITHUB_STEP_SUMMARY
+          echo "However, it's recommended to fix any issues found." >> $GITHUB_STEP_SUMMARY
+
