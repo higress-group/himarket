@@ -75,18 +75,18 @@ jobs:
 
       - name: Run ESLint
         id: eslint
-        run: npm run lint
+        run: npm run lint || echo "ESLINT_FAILED=true" >> $GITHUB_ENV
         continue-on-error: true  # ⚠️ TEMPORARY: Allow lint errors for now
 
       - name: Run TypeScript type check
         id: typecheck
-        run: npm run type-check
+        run: npm run type-check || echo "TYPECHECK_FAILED=true" >> $GITHUB_ENV
         continue-on-error: true  # ⚠️ TEMPORARY: Allow type errors for now
 
       - name: Create check summary
         if: always()
         run: |
-          if [ "${{ steps.eslint.outcome }}" != "success" ] || [ "${{ steps.typecheck.outcome }}" != "success" ]; then
+          if [ "${ESLINT_FAILED}" == "true" ] || [ "${TYPECHECK_FAILED}" == "true" ]; then
             echo "## ⚠️ Frontend Lint Check Has Issues" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "> **Note:** Lint errors are currently allowed to pass (temporary setting)" >> $GITHUB_STEP_SUMMARY
@@ -194,13 +194,13 @@ jobs:
 
       - name: Run ESLint
         id: eslint
-        run: npm run lint
+        run: npm run lint || echo "ADMIN_ESLINT_FAILED=true" >> $GITHUB_ENV
         continue-on-error: true  # ⚠️ TEMPORARY: Allow lint errors for now
 
       - name: Create check summary
         if: always()
         run: |
-          if [ "${{ steps.eslint.outcome }}" != "success" ]; then
+          if [ "${ADMIN_ESLINT_FAILED}" == "true" ]; then
             echo "## ⚠️ Admin Lint Check Has Issues" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "> **Note:** Lint errors are currently allowed to pass (temporary setting)" >> $GITHUB_STEP_SUMMARY
