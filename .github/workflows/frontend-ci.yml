@@ -71,7 +71,7 @@ jobs:
           # cache-dependency-path: himarket-web/himarket-frontend/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install  # Using 'npm install' instead of 'npm ci' (no package-lock.json)
 
       - name: Run ESLint
         id: eslint
@@ -135,7 +135,7 @@ jobs:
           # cache-dependency-path: himarket-web/himarket-frontend/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install  # Using 'npm install' instead of 'npm ci' (no package-lock.json)
 
       - name: Build project
         run: npm run build
@@ -188,7 +188,7 @@ jobs:
           # cache-dependency-path: himarket-web/himarket-admin/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install  # Using 'npm install' instead of 'npm ci' (no package-lock.json)
 
       - name: Run ESLint
         id: eslint
@@ -246,7 +246,7 @@ jobs:
           # cache-dependency-path: himarket-web/himarket-admin/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install  # Using 'npm install' instead of 'npm ci' (no package-lock.json)
 
       - name: Build project
         run: npm run build
