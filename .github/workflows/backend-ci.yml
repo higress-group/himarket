@@ -1,17 +1,18 @@
 name: Backend CI
 
 # Trigger: PR to main/develop branches, only when backend files change
+# 🚧 TEMPORARY: paths filter disabled for testing
 on:
   pull_request:
     branches:
       - main
       - develop
-    paths:
-      - 'himarket-dal/**'
-      - 'himarket-server/**'
-      - 'himarket-bootstrap/**'
-      - 'pom.xml'
-      - '.github/workflows/backend-ci.yml'
+    # paths:
+    #   - 'himarket-dal/**'
+    #   - 'himarket-server/**'
+    #   - 'himarket-bootstrap/**'
+    #   - 'pom.xml'
+    #   - '.github/workflows/backend-ci.yml'
 
 # Avoid duplicate runs: new commits to the same PR will cancel previous runs
 concurrency:

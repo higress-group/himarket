@@ -1,15 +1,16 @@
 name: Frontend CI
 
 # Trigger: PR to main/develop branches, only when frontend files change
+# 🚧 TEMPORARY: paths filter disabled for testing
 on:
   pull_request:
     branches:
       - main
       - develop
-    paths:
-      - 'himarket-web/himarket-frontend/**'
-      - 'himarket-web/himarket-admin/**'
-      - '.github/workflows/frontend-ci.yml'
+    # paths:
+    #   - 'himarket-web/himarket-frontend/**'
+    #   - 'himarket-web/himarket-admin/**'
+    #   - '.github/workflows/frontend-ci.yml'
 
 # Avoid duplicate runs: new commits to the same PR will cancel previous runs
 concurrency:
@@ -51,7 +52,8 @@ jobs:
     name: Frontend - Lint Check
     runs-on: ubuntu-latest
     needs: changes
-    if: needs.changes.outputs.frontend == 'true'
+    # 🚧 TEMPORARY: condition disabled for testing
+    # if: needs.changes.outputs.frontend == 'true'
     
     defaults:
       run:
@@ -108,7 +110,8 @@ jobs:
     name: Frontend - Build Check
     runs-on: ubuntu-latest
     needs: [changes, himarket-frontend-lint]
-    if: needs.changes.outputs.frontend == 'true'
+    # 🚧 TEMPORARY: condition disabled for testing
+    # if: needs.changes.outputs.frontend == 'true'
     
     defaults:
       run:
@@ -160,7 +163,8 @@ jobs:
     name: Admin - Lint Check
     runs-on: ubuntu-latest
     needs: changes
-    if: needs.changes.outputs.admin == 'true'
+    # 🚧 TEMPORARY: condition disabled for testing
+    # if: needs.changes.outputs.admin == 'true'
     
     defaults:
       run:
@@ -212,7 +216,8 @@ jobs:
     name: Admin - Build Check
     runs-on: ubuntu-latest
     needs: [changes, himarket-admin-lint]
-    if: needs.changes.outputs.admin == 'true'
+    # 🚧 TEMPORARY: condition disabled for testing
+    # if: needs.changes.outputs.admin == 'true'
     
     defaults:
       run:
