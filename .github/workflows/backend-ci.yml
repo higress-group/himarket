@@ -119,9 +119,22 @@ jobs:
 
       - name: Run unit tests
         run: mvn test -B
+        continue-on-error: false
+
+      - name: Check if test reports exist
+        id: check-reports
+        if: always()
+        run: |
+          if [ -d "target" ] && find . -path "*/target/surefire-reports/*.xml" -type f | grep -q .; then
+            echo "reports_exist=true" >> $GITHUB_OUTPUT
+            echo "✅ Found test reports"
+          else
+            echo "reports_exist=false" >> $GITHUB_OUTPUT
+            echo "⚠️ No test reports found (no tests in project yet)"
+          fi
 
       - name: Generate test report
-        if: always()
+        if: always() && steps.check-reports.outputs.reports_exist == 'true'
         uses: dorny/test-reporter@v1
         with:
           name: Backend Test Report
@@ -129,7 +142,7 @@ jobs:
           reporter: java-junit
 
       - name: Upload test results
-        if: always()
+        if: always() && steps.check-reports.outputs.reports_exist == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: backend-test-results
@@ -137,6 +150,11 @@ jobs:
             **/target/surefire-reports/
             **/target/test-results/
           retention-days: 7
+      
+      - name: No tests warning
+        if: always() && steps.check-reports.outputs.reports_exist == 'false'
+        run: |
+          echo "::notice title=No Unit Tests::No unit tests found in the project. Consider adding tests to improve code quality."
 
   # Summary of all check results
   backend-ci-summary:
@@ -160,11 +178,21 @@ jobs:
             let allPassed = true;
             
             jobs.forEach(job => {
-              const icon = job.status === 'success' ? '✅' : '❌';
-              summary += `${icon} **${job.name}**: ${job.status}\n`;
-              if (job.status !== 'success') {
+              let icon = '✅';
+              if (job.status === 'failure') {
+                icon = '❌';
+                allPassed = false;
+              } else if (job.status === 'cancelled') {
+                icon = '🚫';
+                allPassed = false;
+              } else if (job.status === 'skipped') {
+                icon = '⏭️';
+                allPassed = false;
+              } else if (job.status !== 'success') {
+                icon = '⚠️';
                 allPassed = false;
               }
+              summary += `${icon} **${job.name}**: ${job.status}\n`;
             });
             
             summary += '\n---\n\n';

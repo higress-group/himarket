@@ -23,15 +23,35 @@ permissions:
   checks: write
 
 jobs:
+  # Detect which parts of the codebase changed
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+      admin: ${{ steps.filter.outputs.admin }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Check for file changes
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            frontend:
+              - 'himarket-web/himarket-frontend/**'
+            admin:
+              - 'himarket-web/himarket-admin/**'
+
   # Job 1: HiMarket Frontend - Lint Check
   himarket-frontend-lint:
     name: Frontend - Lint Check
     runs-on: ubuntu-latest
-    
-    # Only run when frontend directory has changes
-    if: |
-      contains(github.event.pull_request.changed_files, 'himarket-web/himarket-frontend/') ||
-      contains(github.event.*.*.*, 'himarket-web/himarket-frontend/')
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     
     defaults:
       run:
@@ -87,12 +107,8 @@ jobs:
   himarket-frontend-build:
     name: Frontend - Build Check
     runs-on: ubuntu-latest
-    needs: himarket-frontend-lint
-    
-    # Only run when frontend directory has changes
-    if: |
-      contains(github.event.pull_request.changed_files, 'himarket-web/himarket-frontend/') ||
-      contains(github.event.*.*.*, 'himarket-web/himarket-frontend/')
+    needs: [changes, himarket-frontend-lint]
+    if: needs.changes.outputs.frontend == 'true'
     
     defaults:
       run:
@@ -143,11 +159,8 @@ jobs:
   himarket-admin-lint:
     name: Admin - Lint Check
     runs-on: ubuntu-latest
-    
-    # Only run when admin directory has changes
-    if: |
-      contains(github.event.pull_request.changed_files, 'himarket-web/himarket-admin/') ||
-      contains(github.event.*.*.*, 'himarket-web/himarket-admin/')
+    needs: changes
+    if: needs.changes.outputs.admin == 'true'
     
     defaults:
       run:
@@ -198,12 +211,8 @@ jobs:
   himarket-admin-build:
     name: Admin - Build Check
     runs-on: ubuntu-latest
-    needs: himarket-admin-lint
-    
-    # Only run when admin directory has changes
-    if: |
-      contains(github.event.pull_request.changed_files, 'himarket-web/himarket-admin/') ||
-      contains(github.event.*.*.*, 'himarket-web/himarket-admin/')
+    needs: [changes, himarket-admin-lint]
+    if: needs.changes.outputs.admin == 'true'
     
     defaults:
       run:
@@ -254,7 +263,7 @@ jobs:
   frontend-ci-summary:
     name: Frontend CI Summary
     runs-on: ubuntu-latest
-    needs: [himarket-frontend-lint, himarket-frontend-build, himarket-admin-lint, himarket-admin-build]
+    needs: [changes, himarket-frontend-lint, himarket-frontend-build, himarket-admin-lint, himarket-admin-build]
     if: always()
     
     steps:
@@ -292,10 +301,11 @@ jobs:
             
             if (allPassed) {
               summary += '🎉 **All checks passed!** Your PR is ready for review.\n';
-            } else if (hasSkipped) {
-              summary += '📝 **Some checks were skipped** (no changes in directory), other checks passed.\n';
             } else {
               summary += '⚠️ **Some checks failed**. Please review the failed tasks above and fix the issues.\n';
+              if (hasSkipped) {
+                summary += '\n📝 _Note: Some checks were skipped because no related files were changed._\n';
+              }
             }
             
             await core.summary
@@ -304,7 +314,8 @@ jobs:
             
             console.log(summary);
             
-            if (!allPassed && !hasSkipped) {
+            // Fail the workflow if any check failed, regardless of skipped jobs
+            if (!allPassed) {
               core.setFailed('Some frontend CI checks failed');
             }
 

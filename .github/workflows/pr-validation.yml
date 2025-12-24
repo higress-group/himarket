@@ -388,15 +388,30 @@ jobs:
             let allPassed = true;
             
             jobs.forEach(job => {
+              let icon = '✅';
+              let statusText = job.status;
+              
               if (job.status === 'success') {
-                summary += `✅ **${job.name}**: Passed\n`;
+                icon = '✅';
+                statusText = 'Passed';
               } else if (job.status === 'failure') {
-                summary += `❌ **${job.name}**: Failed\n`;
+                icon = '❌';
+                statusText = 'Failed';
+                allPassed = false;
+              } else if (job.status === 'cancelled') {
+                icon = '🚫';
+                statusText = 'Cancelled';
+                allPassed = false;
+              } else if (job.status === 'skipped') {
+                icon = '⏭️';
+                statusText = 'Skipped';
                 allPassed = false;
               } else {
-                summary += `⚠️ **${job.name}**: ${job.status}\n`;
+                icon = '⚠️';
                 allPassed = false;
               }
+              
+              summary += `${icon} **${job.name}**: ${statusText}\n`;
             });
             
             summary += '\n---\n\n';
