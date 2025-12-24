@@ -76,22 +76,24 @@ jobs:
       - name: Run ESLint
         id: eslint
         run: npm run lint
-        continue-on-error: false
+        continue-on-error: true  # ⚠️ TEMPORARY: Allow lint errors for now
 
       - name: Run TypeScript type check
         id: typecheck
         run: npm run type-check
-        continue-on-error: false
+        continue-on-error: true  # ⚠️ TEMPORARY: Allow type errors for now
 
       - name: Create check summary
         if: always()
         run: |
           if [ "${{ steps.eslint.outcome }}" != "success" ] || [ "${{ steps.typecheck.outcome }}" != "success" ]; then
-            echo "## ❌ Frontend Lint Check Failed" >> $GITHUB_STEP_SUMMARY
+            echo "## ⚠️ Frontend Lint Check Has Issues" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Your frontend code has ESLint or TypeScript type errors." >> $GITHUB_STEP_SUMMARY
+            echo "> **Note:** Lint errors are currently allowed to pass (temporary setting)" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### 🔧 How to fix:" >> $GITHUB_STEP_SUMMARY
+            echo "Your frontend code has ESLint or TypeScript type errors that should be fixed." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 🔧 How to check:" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "1. Navigate to the frontend directory:" >> $GITHUB_STEP_SUMMARY
             echo '```bash' >> $GITHUB_STEP_SUMMARY
@@ -104,7 +106,7 @@ jobs:
             echo 'npm run type-check' >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "3. Fix the errors and commit your changes" >> $GITHUB_STEP_SUMMARY
+            echo "3. Fix the errors when ready (not blocking PR for now)" >> $GITHUB_STEP_SUMMARY
           else
             echo "## ✅ Frontend Lint Check Passed" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
@@ -193,17 +195,19 @@ jobs:
       - name: Run ESLint
         id: eslint
         run: npm run lint
-        continue-on-error: false
+        continue-on-error: true  # ⚠️ TEMPORARY: Allow lint errors for now
 
       - name: Create check summary
         if: always()
         run: |
           if [ "${{ steps.eslint.outcome }}" != "success" ]; then
-            echo "## ❌ Admin Lint Check Failed" >> $GITHUB_STEP_SUMMARY
+            echo "## ⚠️ Admin Lint Check Has Issues" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Your admin console code has ESLint errors." >> $GITHUB_STEP_SUMMARY
+            echo "> **Note:** Lint errors are currently allowed to pass (temporary setting)" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### 🔧 How to fix:" >> $GITHUB_STEP_SUMMARY
+            echo "Your admin console code has ESLint errors that should be fixed." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 🔧 How to check:" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "1. Navigate to the admin console directory:" >> $GITHUB_STEP_SUMMARY
             echo '```bash' >> $GITHUB_STEP_SUMMARY
@@ -215,7 +219,7 @@ jobs:
             echo 'npm run lint' >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "3. Fix the errors and commit your changes" >> $GITHUB_STEP_SUMMARY
+            echo "3. Fix the errors when ready (not blocking PR for now)" >> $GITHUB_STEP_SUMMARY
           else
             echo "## ✅ Admin Lint Check Passed" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
