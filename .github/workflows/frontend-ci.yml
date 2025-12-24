@@ -1,0 +1,310 @@
+name: Frontend CI
+
+# Trigger: PR to main/develop branches, only when frontend files change
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'himarket-web/himarket-frontend/**'
+      - 'himarket-web/himarket-admin/**'
+      - '.github/workflows/frontend-ci.yml'
+
+# Avoid duplicate runs: new commits to the same PR will cancel previous runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Limit workflow permissions (security best practice)
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+jobs:
+  # Job 1: HiMarket Frontend - Lint Check
+  himarket-frontend-lint:
+    name: Frontend - Lint Check
+    runs-on: ubuntu-latest
+    
+    # Only run when frontend directory has changes
+    if: |
+      contains(github.event.pull_request.changed_files, 'himarket-web/himarket-frontend/') ||
+      contains(github.event.*.*.*, 'himarket-web/himarket-frontend/')
+    
+    defaults:
+      run:
+        working-directory: himarket-web/himarket-frontend
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: himarket-web/himarket-frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+        continue-on-error: false
+
+      - name: Run TypeScript type check
+        run: npm run type-check
+        continue-on-error: false
+
+      - name: PR Comment - Lint check failed
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: '## ❌ HiMarket Frontend - Lint Check Failed\n\n' +
+                    'Your frontend code has ESLint or TypeScript type errors.\n\n' +
+                    '**Please fix the following issues:**\n' +
+                    '1. Navigate to the frontend directory:\n' +
+                    '```bash\n' +
+                    'cd himarket-web/himarket-frontend\n' +
+                    '```\n\n' +
+                    '2. Run lint check to see specific errors:\n' +
+                    '```bash\n' +
+                    'npm run lint\n' +
+                    'npm run type-check\n' +
+                    '```\n\n' +
+                    '3. Fix the errors and commit your changes.'
+            });
+
+  # Job 2: HiMarket Frontend - Build Check
+  himarket-frontend-build:
+    name: Frontend - Build Check
+    runs-on: ubuntu-latest
+    needs: himarket-frontend-lint
+    
+    # Only run when frontend directory has changes
+    if: |
+      contains(github.event.pull_request.changed_files, 'himarket-web/himarket-frontend/') ||
+      contains(github.event.*.*.*, 'himarket-web/himarket-frontend/')
+    
+    defaults:
+      run:
+        working-directory: himarket-web/himarket-frontend
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: himarket-web/himarket-frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build project
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Verify build artifacts
+        run: |
+          if [ ! -d "dist" ]; then
+            echo "❌ Build failed: dist directory does not exist"
+            exit 1
+          fi
+          
+          if [ ! -f "dist/index.html" ]; then
+            echo "❌ Build failed: dist/index.html does not exist"
+            exit 1
+          fi
+          
+          echo "✅ Build artifacts verified"
+
+      - name: Upload build artifacts
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: himarket-frontend-build
+          path: himarket-web/himarket-frontend/dist/
+          retention-days: 7
+
+  # Job 3: HiMarket Admin - Lint Check
+  himarket-admin-lint:
+    name: Admin - Lint Check
+    runs-on: ubuntu-latest
+    
+    # Only run when admin directory has changes
+    if: |
+      contains(github.event.pull_request.changed_files, 'himarket-web/himarket-admin/') ||
+      contains(github.event.*.*.*, 'himarket-web/himarket-admin/')
+    
+    defaults:
+      run:
+        working-directory: himarket-web/himarket-admin
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: himarket-web/himarket-admin/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+        continue-on-error: false
+
+      - name: PR Comment - Lint check failed
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: '## ❌ HiMarket Admin - Lint Check Failed\n\n' +
+                    'Your admin console code has ESLint errors.\n\n' +
+                    '**Please fix the following issues:**\n' +
+                    '1. Navigate to the admin console directory:\n' +
+                    '```bash\n' +
+                    'cd himarket-web/himarket-admin\n' +
+                    '```\n\n' +
+                    '2. Run lint check to see specific errors:\n' +
+                    '```bash\n' +
+                    'npm run lint\n' +
+                    '```\n\n' +
+                    '3. Fix the errors and commit your changes.'
+            });
+
+  # Job 4: HiMarket Admin - Build Check
+  himarket-admin-build:
+    name: Admin - Build Check
+    runs-on: ubuntu-latest
+    needs: himarket-admin-lint
+    
+    # Only run when admin directory has changes
+    if: |
+      contains(github.event.pull_request.changed_files, 'himarket-web/himarket-admin/') ||
+      contains(github.event.*.*.*, 'himarket-web/himarket-admin/')
+    
+    defaults:
+      run:
+        working-directory: himarket-web/himarket-admin
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: himarket-web/himarket-admin/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build project
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Verify build artifacts
+        run: |
+          if [ ! -d "dist" ]; then
+            echo "❌ Build failed: dist directory does not exist"
+            exit 1
+          fi
+          
+          if [ ! -f "dist/index.html" ]; then
+            echo "❌ Build failed: dist/index.html does not exist"
+            exit 1
+          fi
+          
+          echo "✅ Build artifacts verified"
+
+      - name: Upload build artifacts
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: himarket-admin-build
+          path: himarket-web/himarket-admin/dist/
+          retention-days: 7
+
+  # Summary of all check results
+  frontend-ci-summary:
+    name: Frontend CI Summary
+    runs-on: ubuntu-latest
+    needs: [himarket-frontend-lint, himarket-frontend-build, himarket-admin-lint, himarket-admin-build]
+    if: always()
+    
+    steps:
+      - name: Check all task status
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const jobs = [
+              { name: 'Frontend - Lint Check', status: '${{ needs.himarket-frontend-lint.result }}' },
+              { name: 'Frontend - Build Check', status: '${{ needs.himarket-frontend-build.result }}' },
+              { name: 'Admin - Lint Check', status: '${{ needs.himarket-admin-lint.result }}' },
+              { name: 'Admin - Build Check', status: '${{ needs.himarket-admin-build.result }}' }
+            ];
+            
+            let summary = '## 🎨 Frontend CI Check Summary\n\n';
+            let allPassed = true;
+            let hasSkipped = false;
+            
+            jobs.forEach(job => {
+              if (job.status === 'success') {
+                summary += `✅ **${job.name}**: Passed\n`;
+              } else if (job.status === 'skipped') {
+                summary += `⏭️ **${job.name}**: Skipped (no related changes)\n`;
+                hasSkipped = true;
+              } else if (job.status === 'failure') {
+                summary += `❌ **${job.name}**: Failed\n`;
+                allPassed = false;
+              } else {
+                summary += `⚠️ **${job.name}**: ${job.status}\n`;
+                allPassed = false;
+              }
+            });
+            
+            summary += '\n---\n\n';
+            
+            if (allPassed) {
+              summary += '🎉 **All checks passed!** Your PR is ready for review.\n';
+            } else if (hasSkipped) {
+              summary += '📝 **Some checks were skipped** (no changes in directory), other checks passed.\n';
+            } else {
+              summary += '⚠️ **Some checks failed**. Please review the failed tasks above and fix the issues.\n';
+            }
+            
+            await core.summary
+              .addRaw(summary)
+              .write();
+            
+            console.log(summary);
+            
+            if (!allPassed && !hasSkipped) {
+              core.setFailed('Some frontend CI checks failed');
+            }
+
