@@ -43,32 +43,38 @@ jobs:
           cache: 'maven'
 
       - name: Run Spotless format check
+        id: spotless
         run: mvn spotless:check
         continue-on-error: false
 
-      - name: PR Comment - Format check failed
-        if: failure() && github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: '## ❌ Code Format Check Failed\n\n' +
-                    'Your code does not follow the project formatting standards.\n\n' +
-                    '**Please run the following command to fix formatting issues:**\n' +
-                    '```bash\n' +
-                    'mvn spotless:apply\n' +
-                    '```\n\n' +
-                    '**Then commit the changes:**\n' +
-                    '```bash\n' +
-                    'git add .\n' +
-                    'git commit -m "style: format code with spotless"\n' +
-                    'git push\n' +
-                    '```\n\n' +
-                    'The format check will automatically re-run after you push.'
-            });
+      - name: Create check summary
+        if: always()
+        run: |
+          if [ "${{ steps.spotless.outcome }}" != "success" ]; then
+            echo "## ❌ Code Format Check Failed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Your code does not follow the project formatting standards." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 🔧 How to fix:" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Run the following command to fix formatting issues:" >> $GITHUB_STEP_SUMMARY
+            echo '```bash' >> $GITHUB_STEP_SUMMARY
+            echo 'mvn spotless:apply' >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Then commit the changes:" >> $GITHUB_STEP_SUMMARY
+            echo '```bash' >> $GITHUB_STEP_SUMMARY
+            echo 'git add .' >> $GITHUB_STEP_SUMMARY
+            echo 'git commit -m "style: format code with spotless"' >> $GITHUB_STEP_SUMMARY
+            echo 'git push' >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "The format check will automatically re-run after you push." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## ✅ Code Format Check Passed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Code formatting follows project standards!" >> $GITHUB_STEP_SUMMARY
+          fi
 
   # Job 2: Maven Build Check (skip tests)
   build-check:

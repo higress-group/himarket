@@ -67,43 +67,49 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: himarket-web/himarket-frontend/package-lock.json
+          # cache: 'npm'  # Disabled: no package-lock.json in repo
+          # cache-dependency-path: himarket-web/himarket-frontend/package-lock.json
 
       - name: Install dependencies
         run: npm ci
 
       - name: Run ESLint
+        id: eslint
         run: npm run lint
         continue-on-error: false
 
       - name: Run TypeScript type check
+        id: typecheck
         run: npm run type-check
         continue-on-error: false
 
-      - name: PR Comment - Lint check failed
-        if: failure() && github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: '## ❌ HiMarket Frontend - Lint Check Failed\n\n' +
-                    'Your frontend code has ESLint or TypeScript type errors.\n\n' +
-                    '**Please fix the following issues:**\n' +
-                    '1. Navigate to the frontend directory:\n' +
-                    '```bash\n' +
-                    'cd himarket-web/himarket-frontend\n' +
-                    '```\n\n' +
-                    '2. Run lint check to see specific errors:\n' +
-                    '```bash\n' +
-                    'npm run lint\n' +
-                    'npm run type-check\n' +
-                    '```\n\n' +
-                    '3. Fix the errors and commit your changes.'
-            });
+      - name: Create check summary
+        if: always()
+        run: |
+          if [ "${{ steps.eslint.outcome }}" != "success" ] || [ "${{ steps.typecheck.outcome }}" != "success" ]; then
+            echo "## ❌ Frontend Lint Check Failed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Your frontend code has ESLint or TypeScript type errors." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 🔧 How to fix:" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "1. Navigate to the frontend directory:" >> $GITHUB_STEP_SUMMARY
+            echo '```bash' >> $GITHUB_STEP_SUMMARY
+            echo 'cd himarket-web/himarket-frontend' >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "2. Run lint check to see specific errors:" >> $GITHUB_STEP_SUMMARY
+            echo '```bash' >> $GITHUB_STEP_SUMMARY
+            echo 'npm run lint' >> $GITHUB_STEP_SUMMARY
+            echo 'npm run type-check' >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "3. Fix the errors and commit your changes" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## ✅ Frontend Lint Check Passed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "ESLint and TypeScript checks completed successfully!" >> $GITHUB_STEP_SUMMARY
+          fi
 
   # Job 2: HiMarket Frontend - Build Check
   himarket-frontend-build:
@@ -125,8 +131,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: himarket-web/himarket-frontend/package-lock.json
+          # cache: 'npm'  # Disabled: no package-lock.json in repo
+          # cache-dependency-path: himarket-web/himarket-frontend/package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -178,38 +184,43 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: himarket-web/himarket-admin/package-lock.json
+          # cache: 'npm'  # Disabled: no package-lock.json in repo
+          # cache-dependency-path: himarket-web/himarket-admin/package-lock.json
 
       - name: Install dependencies
         run: npm ci
 
       - name: Run ESLint
+        id: eslint
         run: npm run lint
         continue-on-error: false
 
-      - name: PR Comment - Lint check failed
-        if: failure() && github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: '## ❌ HiMarket Admin - Lint Check Failed\n\n' +
-                    'Your admin console code has ESLint errors.\n\n' +
-                    '**Please fix the following issues:**\n' +
-                    '1. Navigate to the admin console directory:\n' +
-                    '```bash\n' +
-                    'cd himarket-web/himarket-admin\n' +
-                    '```\n\n' +
-                    '2. Run lint check to see specific errors:\n' +
-                    '```bash\n' +
-                    'npm run lint\n' +
-                    '```\n\n' +
-                    '3. Fix the errors and commit your changes.'
-            });
+      - name: Create check summary
+        if: always()
+        run: |
+          if [ "${{ steps.eslint.outcome }}" != "success" ]; then
+            echo "## ❌ Admin Lint Check Failed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Your admin console code has ESLint errors." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 🔧 How to fix:" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "1. Navigate to the admin console directory:" >> $GITHUB_STEP_SUMMARY
+            echo '```bash' >> $GITHUB_STEP_SUMMARY
+            echo 'cd himarket-web/himarket-admin' >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "2. Run lint check to see specific errors:" >> $GITHUB_STEP_SUMMARY
+            echo '```bash' >> $GITHUB_STEP_SUMMARY
+            echo 'npm run lint' >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "3. Fix the errors and commit your changes" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## ✅ Admin Lint Check Passed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "ESLint check completed successfully!" >> $GITHUB_STEP_SUMMARY
+          fi
 
   # Job 4: HiMarket Admin - Build Check
   himarket-admin-build:
@@ -231,8 +242,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: himarket-web/himarket-admin/package-lock.json
+          # cache: 'npm'  # Disabled: no package-lock.json in repo
+          # cache-dependency-path: himarket-web/himarket-admin/package-lock.json
 
       - name: Install dependencies
         run: npm ci
