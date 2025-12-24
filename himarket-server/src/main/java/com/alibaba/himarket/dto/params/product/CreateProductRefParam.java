@@ -31,7 +31,7 @@ import lombok.Data;
 @Data
 public class CreateProductRefParam implements InputConverter<ProductRef> {
 
-    @NotNull(message = "数据源类型不能为空")
+    @NotNull(message = "Source type cannot be null")
     private SourceType sourceType;
 
     private String gatewayId;

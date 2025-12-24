@@ -24,20 +24,19 @@ import com.alibaba.himarket.entity.NacosInstance;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
-/** 创建Nacos实例参数 */
 @Data
 public class CreateNacosParam implements InputConverter<NacosInstance> {
 
-    @NotBlank(message = "Nacos名称不能为空")
+    @NotBlank(message = "Nacos name cannot be blank")
     private String nacosName;
 
-    @NotBlank(message = "服务器地址不能为空")
+    @NotBlank(message = "Nacos server URL cannot be blank")
     private String serverUrl;
 
-    /** 可选：客户端指定的 nacosId，若为空则由服务端生成 */
+    /**
+     * Optional, if not specified, will be generated automatically
+     */
     private String nacosId;
-
-    // namespace removed from create param as it's no longer stored on instance
 
     private String username;
 

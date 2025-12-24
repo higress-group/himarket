@@ -50,7 +50,7 @@ public class UpdateProductParam implements InputConverter<Product> {
 
     private ProductFeature feature;
 
-    @AssertTrue(message = "Icon大小不能超过16KB")
+    @AssertTrue(message = "Icon size cannot exceed 16KB")
     public boolean checkIcon() {
         if (icon == null || StrUtil.isBlank(icon.getValue())) {
             return true;

@@ -22,7 +22,6 @@ package com.alibaba.himarket.dto.result.gateway;
 import java.util.List;
 import lombok.Data;
 
-/** ADP网关实例列表响应结果 */
 @Data
 public class AdpGatewayInstanceResult {
 

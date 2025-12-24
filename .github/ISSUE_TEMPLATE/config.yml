@@ -1,0 +1,12 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Discussion Forum
+    url: https://github.com/higress-group/himarket/discussions
+    about: For questions and general discussions about HiMarket
+  - name: 📖 Documentation
+    url: https://github.com/higress-group/himarket
+    about: Check our documentation and README for guides and tutorials
+  - name: 🐛 Security Issue
+    url: https://github.com/higress-group/himarket/security/advisories/new
+    about: Report security vulnerabilities privately
+

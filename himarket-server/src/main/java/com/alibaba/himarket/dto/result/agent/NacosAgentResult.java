@@ -30,12 +30,9 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class NacosAgentResult {
 
-    /** Agent 名称（唯一标识） */
     private String agentName;
 
-    /** Agent 描述 */
     private String description;
 
-    /** 命名空间 ID */
     private String namespaceId;
 }

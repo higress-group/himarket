@@ -66,13 +66,13 @@ type(scope): brief description
 
 ### Required Sections
 
-#### 1. Description (Required)
+#### 1. Description (Required) 📝
 
-Must include a `## Description` section with at least 10 characters of meaningful content.
+Must include a `## 📝 Description` section with at least 10 characters of meaningful content.
 
 **Format:**
 ```markdown
-## Description
+## 📝 Description
 
 [Your changes - minimum 10 characters]
 ```
@@ -86,7 +86,7 @@ Must include a `## Description` section with at least 10 characters of meaningfu
 
 **Style 1: Bullet Points (Recommended)**
 ```markdown
-## Description
+## 📝 Description
 
 - Add feature field to product DTO
 - Create ModelFeatureForm component
@@ -96,7 +96,7 @@ Must include a `## Description` section with at least 10 characters of meaningfu
 
 **Style 2: Paragraphs**
 ```markdown
-## Description
+## 📝 Description
 
 This PR adds product feature configuration functionality for MODEL_API 
 products. Users can now configure model parameters directly from the 
@@ -105,7 +105,7 @@ admin panel.
 
 **Style 3: Detailed**
 ```markdown
-## Description
+## 📝 Description
 
 ### Changes
 - Refactored ClientFactory class
@@ -118,13 +118,41 @@ admin panel.
 - 20% faster initialization
 ```
 
-#### 2. Related Issues (Optional but Recommended)
+#### 2. Type of Change (Required) ✅
+
+Must select at least one type of change by checking a checkbox.
+
+**Format:**
+```markdown
+## ✅ Type of Change
+
+- [x] Bug fix (non-breaking change)
+- [ ] New feature (non-breaking change)
+- [ ] Breaking change
+- [ ] Documentation update
+- [ ] Code refactoring
+- [ ] Performance improvement
+```
+
+**Available Options:**
+- **Bug fix** - Fixes an issue without breaking existing functionality
+- **New feature** - Adds new functionality without breaking changes
+- **Breaking change** - Changes that would cause existing functionality to not work as expected
+- **Documentation update** - Changes to documentation only
+- **Code refactoring** - Code changes without functional impact
+- **Performance improvement** - Optimizations that improve performance
+- **Build/CI configuration change** - Changes to build or CI/CD configuration
+- **Other** - Any other type (please describe)
+
+**Important:** You must check at least one box. This helps reviewers quickly understand the nature of your changes.
+
+#### 3. Related Issues (Optional but Recommended) 🔗
 
 Link related issues to help track what's being fixed.
 
 **Format:**
 ```markdown
-## Related Issues
+## 🔗 Related Issues
 
 Fix #123
 Close #456
@@ -137,40 +165,97 @@ Close #456
 
 When the PR is merged, linked issues will be automatically closed.
 
-#### 3. Checklist (Required: Code Formatting)
+#### 4. Testing (Optional but Recommended) 🧪
+
+Describe how you tested your changes to ensure quality and reliability.
+
+**Format:**
+```markdown
+## 🧪 Testing
+
+- [x] Unit tests added/updated
+- [x] Integration tests added/updated
+- [x] Manual testing completed
+- [x] All tests pass locally
+```
+
+**Testing Guidelines:**
+- Describe what testing was performed
+- Include test results or verification steps
+- Note any edge cases tested
+- Confirm all tests pass locally
+
+**Example:**
+```markdown
+## 🧪 Testing
+
+- Added unit tests for new feature configuration logic
+- Manually tested with various product types
+- Verified backward compatibility with existing products
+- All 127 tests pass locally
+```
+
+#### 5. Checklist (Required Items) 📋
 
 The checklist helps ensure code quality and completeness.
 
 **Format:**
 ```markdown
-## Checklist
+## 📋 Checklist
 
-- [x] Code has been formatted with `mvn spotless:apply`
+- [x] Code has been formatted (`mvn spotless:apply` for backend, `npm run lint:fix` for frontend)
 - [x] Code is self-reviewed
-- [ ] Tests added/updated (if applicable)
-- [ ] Documentation updated (if applicable)
-- [ ] No breaking changes (or migration guide provided)
+- [x] Comments added for complex code
+- [x] Documentation updated (if applicable)
+- [x] No breaking changes (or migration guide provided)
+- [x] All CI checks pass
 ```
 
-**Required Item:**
-- ✅ **Code has been formatted with `mvn spotless:apply`** - This item MUST be checked
-
-**Optional Items:**
-- Code is self-reviewed
-- Tests added/updated (if applicable)
+**Recommended Items:**
+- ✅ **Code has been formatted** - Run format commands before submitting
+- ✅ **Code is self-reviewed** - Review your own changes first
+- Comments added for complex code
 - Documentation updated (if applicable)
 - No breaking changes (or migration guide provided)
+- All CI checks pass
 
-**Important:** Before submitting your PR, you must:
-1. Run `mvn spotless:apply` in your project root
-2. Check the "Code has been formatted" box in the Checklist
-3. Commit any formatting changes
+**Important:** Before submitting your PR:
+1. **Backend:** Run `mvn spotless:apply` in your project root
+2. **Frontend:** Run `npm run lint:fix` in frontend directory
+3. Review your own code changes
+4. Commit any formatting changes
+
+#### 6. Test Coverage (Optional) 📊
+
+If you modified code, indicate whether test coverage was maintained or improved.
+
+**Format:**
+```markdown
+## 📊 Test Coverage
+
+- Added 15 new unit tests
+- Overall coverage increased from 65% to 68%
+- All critical paths are covered
+```
+
+#### 7. Additional Notes (Optional) 📚
+
+Any additional context or information reviewers should know.
+
+**Format:**
+```markdown
+## 📚 Additional Notes
+
+- This change requires database migration
+- Performance testing shows 20% improvement
+- Breaking change: API endpoint path changed
+```
 
 ---
 
 ## Automated Checks
 
-Every PR will automatically trigger two checks:
+Every PR will automatically trigger three types of checks:
 
 ### 1. PR Title Check
 
@@ -185,20 +270,39 @@ Every PR will automatically trigger two checks:
 
 ### 2. PR Content Check
 
-**Validates:**
-- ✅ `## Description` section exists
+**Required Items (must pass):**
+- ✅ `## 📝 Description` section exists
 - ✅ Description content is at least 10 characters
-- ✅ `## Checklist` section exists
-- ✅ "Code has been formatted with `mvn spotless:apply`" is checked
+- ✅ `## ✅ Type of Change` section exists
+- ✅ At least one type is checked (e.g., `- [x] Bug fix`)
 
-**Optional Checks (warnings only):**
-- 💡 Suggests linking issues if not present
-- 💡 Suggests adding more details if description is very short (< 50 chars)
+**Optional Checks (recommendations only):**
+- 💡 Suggests linking issues if not present (`Fix #123`)
+- 💡 Suggests adding testing information
+- 💡 Warns if PR is very large (> 500 or > 1000 lines)
 
 **Result:**
-- ✅ Pass: All required sections present and code formatting confirmed
-- ❌ Fail: Missing description, too short, or code formatting not confirmed
+- ✅ Pass: All required sections present with valid content
+- ❌ Fail: Missing description, too short, or no type selected
 - 💡 Suggestion: Recommendations for improvement
+
+### 3. PR Size Check
+
+**Evaluates:**
+- 📊 Total lines changed (additions + deletions)
+- 📁 Number of files changed
+
+**Size Categories:**
+- 🟢 **XS** (< 100 lines): Excellent - easy to review
+- 🟢 **S** (100-300 lines): Good - reasonable size
+- 🟡 **M** (300-600 lines): Medium - ensure focused scope
+- 🟠 **L** (600-1000 lines): Large - consider splitting
+- 🔴 **XL** (> 1000 lines): Very large - strongly recommend splitting
+
+**Result:**
+- Always passes (informational only)
+- Provides recommendations for large PRs
+- Does not block PR submission
 
 ---
 
@@ -213,23 +317,34 @@ feat: add product feature configuration
 
 **Content:**
 ```markdown
-## Description
+## 📝 Description
 
 - Add feature field to product DTO and database schema
 - Create ModelFeatureForm component for configuration UI
 - Update product service to persist feature configurations
 - Add database migration script for the new column
 
-## Related Issues
+## 🔗 Related Issues
 
 Fix #123
 Close #456
 
-## Checklist
+## ✅ Type of Change
 
-- [x] Code has been formatted with `mvn spotless:apply`
+- [x] New feature (non-breaking change)
+- [ ] Bug fix (non-breaking change)
+
+## 🧪 Testing
+
+- [x] Unit tests added/updated
+- [x] Manual testing completed
+- Tested with 100+ products, all configurations saved correctly
+
+## 📋 Checklist
+
+- [x] Code has been formatted (`mvn spotless:apply` for backend)
 - [x] Code is self-reviewed
-- [x] Tests added/updated (if applicable)
+- [x] Comments added for complex code
 - [x] Documentation updated (if applicable)
 ```
 
@@ -237,6 +352,7 @@ Close #456
 ```
 ✅ pr-title-check: Passed
 ✅ pr-content-check: Passed
+✅ pr-size-check: Passed (250 lines - Size: S)
 ```
 
 ---
@@ -250,28 +366,39 @@ fix: resolve pagination issue in product list
 
 **Content:**
 ```markdown
-## Description
+## 📝 Description
 
 Fixed SQL injection vulnerability in product list pagination by 
 replacing string concatenation with parameterized queries.
 
-Testing: Verified with 10,000+ records.
-
-## Related Issues
+## 🔗 Related Issues
 
 Fix #789
 
-## Checklist
+## ✅ Type of Change
 
-- [x] Code has been formatted with `mvn spotless:apply`
+- [x] Bug fix (non-breaking change)
+- [ ] New feature (non-breaking change)
+
+## 🧪 Testing
+
+- [x] Unit tests added/updated
+- [x] Manual testing completed
+- Verified with 10,000+ records - no performance degradation
+- Security scan shows vulnerability is resolved
+
+## 📋 Checklist
+
+- [x] Code has been formatted (`mvn spotless:apply` for backend)
 - [x] Code is self-reviewed
-- [x] Tests added/updated (if applicable)
+- [x] All CI checks pass
 ```
 
 **Check Result:**
 ```
 ✅ pr-title-check: Passed
 ✅ pr-content-check: Passed
+✅ pr-size-check: Passed (85 lines - Size: XS)
 ```
 
 ---
@@ -285,26 +412,40 @@ refactor: simplify client initialization
 
 **Content:**
 ```markdown
-## Description
+## 📝 Description
 
 - Extract initialization logic to separate method
 - Remove duplicate code
 - Add inline documentation
 
-## Related Issues
+## 🔗 Related Issues
 
 None
 
-## Checklist
+## ✅ Type of Change
 
-- [x] Code has been formatted with `mvn spotless:apply`
+- [ ] Bug fix (non-breaking change)
+- [ ] New feature (non-breaking change)
+- [x] Code refactoring (no functional changes)
+
+## 🧪 Testing
+
+- [x] All tests pass locally
+- No new tests needed - refactoring only
+- Verified existing functionality unchanged
+
+## 📋 Checklist
+
+- [x] Code has been formatted (`mvn spotless:apply` for backend)
 - [x] Code is self-reviewed
+- [x] No breaking changes
 ```
 
 **Check Result:**
 ```
 ✅ pr-title-check: Passed
 ✅ pr-content-check: Passed
+✅ pr-size-check: Passed (120 lines - Size: S)
 💡 Suggestion: Consider linking related issues
 ```
 
@@ -383,7 +524,7 @@ Fix #123
 
 **Wrong:**
 ```markdown
-## Description
+## 📝 Description
 
 Fix bug
 ```
@@ -391,7 +532,7 @@ Fix bug
 
 **Correct:**
 ```markdown
-## Description
+## 📝 Description
 
 Fix pagination bug in product list
 ```
@@ -403,15 +544,53 @@ Fix pagination bug in product list
 
 ---
 
-### Mistake 5: Code Formatting Not Confirmed
+### Mistake 5: No Type of Change Selected
 
 **Wrong:**
 ```markdown
-## Description
+## 📝 Description
 
 Add new feature
 
-## Checklist
+## ✅ Type of Change
+
+- [ ] Bug fix (non-breaking change)
+- [ ] New feature (non-breaking change)
+- [ ] Breaking change
+```
+
+**Correct:**
+```markdown
+## 📝 Description
+
+Add new feature
+
+## ✅ Type of Change
+
+- [ ] Bug fix (non-breaking change)
+- [x] New feature (non-breaking change)
+- [ ] Breaking change
+```
+
+**Error Message:**
+```
+❌ 未选择变更类型
+Please select at least one Type of Change checkbox
+```
+
+**Note:** You must check at least one box to indicate what kind of change your PR introduces.
+
+---
+
+### Mistake 6: Code Formatting Not Confirmed
+
+**Wrong:**
+```markdown
+## 📝 Description
+
+Add new feature
+
+## 📋 Checklist
 
 - [ ] Code has been formatted with `mvn spotless:apply`  <!-- Not checked -->
 - [x] Code is self-reviewed
@@ -419,25 +598,21 @@ Add new feature
 
 **Correct:**
 ```markdown
-## Description
+## 📝 Description
 
 Add new feature
 
-## Checklist
+## 📋 Checklist
 
-- [x] Code has been formatted with `mvn spotless:apply`  <!-- Must be checked -->
+- [x] Code has been formatted (`mvn spotless:apply` for backend)  <!-- Must check -->
 - [x] Code is self-reviewed
 ```
 
-**Error Message:**
-```
-❌ Please confirm code has been formatted with `mvn spotless:apply`
-```
-
-**Note:** You must:
-1. Run `mvn spotless:apply` in your terminal
-2. Commit any formatting changes
-3. Check the box in the Checklist
+**Note:** Before submitting:
+1. **Backend:** Run `mvn spotless:apply` in your terminal
+2. **Frontend:** Run `npm run lint:fix` in frontend directory
+3. Commit any formatting changes
+4. Verify the checklist items apply to your changes
 
 ---
 
@@ -445,7 +620,16 @@ Add new feature
 
 ### Q: Do I need to fill in all sections?
 
-**A:** Only the `## Description` section is required. `## Related Issues` is optional but recommended.
+**A:** Required sections:
+- ✅ `## 📝 Description` (at least 10 characters)
+- ✅ `## ✅ Type of Change` (check at least one box)
+
+Optional but recommended:
+- 💡 `## 🔗 Related Issues` (link to related issues)
+- 💡 `## 🧪 Testing` (describe testing performed)
+- 💡 `## 📋 Checklist` (self-review items)
+- 💡 `## 📊 Test Coverage` (coverage information)
+- 💡 `## 📚 Additional Notes` (extra context)
 
 ---
 

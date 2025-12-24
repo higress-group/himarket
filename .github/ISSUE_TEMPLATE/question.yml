@@ -1,0 +1,121 @@
+name: ❓ Question
+description: Ask a question about using or developing HiMarket
+title: "[Question]: "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have a question? We're here to help!
+        
+        **Before asking:**
+        - Check the [Documentation](https://github.com/higress-group/himarket)
+        - Search [Existing Issues](https://github.com/higress-group/himarket/issues?q=label%3Aquestion)
+        - Browse [Discussions](https://github.com/higress-group/himarket/discussions)
+        
+        💡 **Tip:** For complex discussions, consider using [GitHub Discussions](https://github.com/higress-group/himarket/discussions) instead!
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Your Question
+      description: What would you like to know?
+      placeholder: How do I...? / What is the best way to...? / Can HiMarket...?
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context and Goal
+      description: What are you trying to accomplish? Why do you need to know this?
+      placeholder: I'm trying to build/configure/understand...
+    validations:
+      required: true
+
+  - type: textarea
+    id: tried
+    attributes:
+      label: What Have You Tried?
+      description: What have you already attempted or researched?
+      placeholder: |
+        I've tried:
+        - Reading the documentation at...
+        - Searching for...
+        - Attempting to...
+    validations:
+      required: false
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Topic Area
+      description: Which area is your question about?
+      options:
+        - Installation/Setup
+        - Configuration
+        - API Usage
+        - Frontend Development
+        - Backend Development
+        - Database/DAL
+        - Admin Console
+        - Authentication/Security
+        - Deployment
+        - Performance/Optimization
+        - Troubleshooting
+        - Best Practices
+        - Contributing to HiMarket
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: urgency
+    attributes:
+      label: Urgency
+      description: How urgent is your question?
+      options:
+        - Blocking my work (urgent)
+        - Important but not blocking
+        - General curiosity (not urgent)
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment (if relevant)
+      description: Your environment details (only if relevant to your question)
+      placeholder: |
+        - OS: [e.g. macOS 13.0, Ubuntu 22.04]
+        - HiMarket Version: [e.g. v1.0.0]
+        - Java/Node.js Version: [e.g. OpenJDK 17, Node 20]
+      render: markdown
+    validations:
+      required: false
+
+  - type: textarea
+    id: code
+    attributes:
+      label: Relevant Code/Configuration (if applicable)
+      description: Share any relevant code snippets or configuration
+      placeholder: |
+        ```java
+        // Your code here
+        ```
+      render: markdown
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I have read the documentation
+          required: true
+        - label: I have searched existing issues and discussions
+          required: true
+        - label: This is a question, not a bug report or feature request
+          required: true
+

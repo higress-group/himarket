@@ -32,10 +32,14 @@ public class LlmInvokeResult {
 
     private boolean success;
 
-    /** Completed answer */
+    /**
+     * Completed answer
+     */
     private String answer;
 
-    /** Usage, exists only when success */
+    /**
+     * Usage, exists only when success
+     */
     private ChatUsage usage;
 
     public static LlmInvokeResult of(ChatContext chatContext) {

@@ -17,20 +17,16 @@
  * under the License.
  */
 
-package com.alibaba.himarket.dto.params.admin;
+package com.alibaba.himarket.dto.params.login;
 
-import com.alibaba.himarket.dto.converter.InputConverter;
-import com.alibaba.himarket.entity.Administrator;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
-/** 管理员注册/创建参数DTO */
 @Data
-public class AdminCreateParam implements InputConverter<Administrator> {
-
-    @NotBlank(message = "用户名不能为空")
+public class LoginParam {
+    @NotBlank(message = "Username cannot be blank")
     private String username;
 
-    @NotBlank(message = "密码不能为空")
+    @NotBlank(message = "Password cannot be blank")
     private String password;
 }

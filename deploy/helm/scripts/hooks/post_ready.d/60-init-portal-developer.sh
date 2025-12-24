@@ -576,15 +576,15 @@ step_7_subscribe_products() {
         fi
       else
         # 检查是否是不支持订阅的产品（HTTP 400 且包含特定错误消息）
-        if [[ "$API_HTTP_CODE" == "400" ]] && echo "$API_RESPONSE" | grep -q "不支持订阅"; then
+        if [[ "$API_HTTP_CODE" == "400" ]] && (echo "$API_RESPONSE" | grep -qi "does not support subscription\|不支持订阅"); then
           log "产品 ${product_id} 不支持订阅，跳过"
           skipped_count=$((skipped_count + 1))
           skipped_products+=("$product_id")
           break
         fi
 
-        # 检查是否是重复订阅（HTTP 400 且包含"重复订阅"），视为成功（幂等性）
-        if [[ "$API_HTTP_CODE" == "400" ]] && echo "$API_RESPONSE" | grep -q "重复订阅"; then
+        # 检查是否是重复订阅（HTTP 400 且包含“重复订阅”），视为成功（幂等性）
+        if [[ "$API_HTTP_CODE" == "400" ]] && (echo "$API_RESPONSE" | grep -qi "duplicate subscription\|重复订阅"); then
           log "产品 ${product_id} 已订阅（重复订阅，幂等）"
           subscribed=true
           break

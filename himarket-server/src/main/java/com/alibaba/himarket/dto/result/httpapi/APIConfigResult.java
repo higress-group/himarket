@@ -31,10 +31,14 @@ public class APIConfigResult {
     @Data
     public static class APIMetadata {
 
-        /** 来源 API网关/Higress */
+        /**
+         * Source, e.g. APIG_API, HIGRESS
+         */
         private String source;
 
-        /** 类型 API网关：HTTP/REST Higress：Route */
+        /**
+         * Type, e.g. HTTP/REST/Route
+         */
         private String type;
     }
 }

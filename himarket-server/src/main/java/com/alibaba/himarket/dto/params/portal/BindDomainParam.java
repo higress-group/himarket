@@ -30,10 +30,10 @@ import lombok.Data;
 @Data
 public class BindDomainParam implements InputConverter<PortalDomain> {
 
-    @NotBlank(message = "门户域名不能为空")
+    @NotBlank(message = "Portal domain cannot be blank")
     private String domain;
 
-    @NotNull(message = "域名协议不能为空")
+    @NotNull(message = "Domain protocol cannot be null")
     private ProtocolType protocol;
 
     private DomainType type = DomainType.CUSTOM;
