@@ -1,0 +1,211 @@
+name: Frontend CI
+
+# Trigger: PR to main/develop branches, only when frontend files change
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'himarket-web/himarket-frontend/**'
+      - 'himarket-web/himarket-admin/**'
+      - '.github/workflows/frontend-ci.yml'
+
+# Avoid duplicate runs: new commits to the same PR will cancel previous runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Limit workflow permissions (security best practice)
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+jobs:
+  # Detect which parts of the codebase changed
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+      admin: ${{ steps.filter.outputs.admin }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Check for file changes
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            frontend:
+              - 'himarket-web/himarket-frontend/**'
+            admin:
+              - 'himarket-web/himarket-admin/**'
+
+  # Frontend Build Check
+  himarket-frontend-build:
+    name: Frontend - Build Check
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    
+    defaults:
+      run:
+        working-directory: himarket-web/himarket-frontend
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          # cache: 'npm'  # Disabled: no package-lock.json in repo
+          # cache-dependency-path: himarket-web/himarket-frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps  # Using legacy-peer-deps to handle React 19 compatibility
+
+      - name: Build project
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Verify build artifacts
+        run: |
+          if [ ! -d "dist" ]; then
+            echo "❌ Build failed: dist directory does not exist"
+            exit 1
+          fi
+          
+          if [ ! -f "dist/index.html" ]; then
+            echo "❌ Build failed: dist/index.html does not exist"
+            exit 1
+          fi
+          
+          echo "✅ Build artifacts verified"
+
+      - name: Upload build artifacts
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: himarket-frontend-build
+          path: himarket-web/himarket-frontend/dist/
+          retention-days: 7
+
+  # Admin Build Check
+  himarket-admin-build:
+    name: Admin - Build Check
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.admin == 'true'
+    
+    defaults:
+      run:
+        working-directory: himarket-web/himarket-admin
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          # cache: 'npm'  # Disabled: no package-lock.json in repo
+          # cache-dependency-path: himarket-web/himarket-admin/package-lock.json
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps  # Using legacy-peer-deps to handle React 19 compatibility
+
+      - name: Build project
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Verify build artifacts
+        run: |
+          if [ ! -d "dist" ]; then
+            echo "❌ Build failed: dist directory does not exist"
+            exit 1
+          fi
+          
+          if [ ! -f "dist/index.html" ]; then
+            echo "❌ Build failed: dist/index.html does not exist"
+            exit 1
+          fi
+          
+          echo "✅ Build artifacts verified"
+
+      - name: Upload build artifacts
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: himarket-admin-build
+          path: himarket-web/himarket-admin/dist/
+          retention-days: 7
+
+  # Summary of all check results
+  frontend-ci-summary:
+    name: Frontend CI Summary
+    runs-on: ubuntu-latest
+    needs: [changes, himarket-frontend-build, himarket-admin-build]
+    if: always()
+    
+    steps:
+      - name: Check all task status
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const jobs = [
+              { name: 'Frontend - Build Check', status: '${{ needs.himarket-frontend-build.result }}' },
+              { name: 'Admin - Build Check', status: '${{ needs.himarket-admin-build.result }}' }
+            ];
+            
+            let summary = '## 🏗️ Frontend CI Check Summary\n\n';
+            let allPassed = true;
+            let hasSkipped = false;
+            
+            jobs.forEach(job => {
+              if (job.status === 'success') {
+                summary += `✅ **${job.name}**: Passed\n`;
+              } else if (job.status === 'skipped') {
+                summary += `⏭️ **${job.name}**: Skipped (no related changes)\n`;
+                hasSkipped = true;
+              } else if (job.status === 'failure') {
+                summary += `❌ **${job.name}**: Failed\n`;
+                allPassed = false;
+              } else {
+                summary += `⚠️ **${job.name}**: ${job.status}\n`;
+                allPassed = false;
+              }
+            });
+            
+            summary += '\n---\n\n';
+            
+            if (allPassed) {
+              summary += '🎉 **All required checks passed!** Your PR builds successfully.\n\n';
+              summary += '💡 **Note:** Code quality checks (ESLint, TypeScript) run in a separate workflow.\n';
+            } else {
+              summary += '⚠️ **Some required checks failed**. Please fix the build errors.\n';
+              if (hasSkipped) {
+                summary += '\n📝 _Note: Some checks were skipped because no related files were changed._\n';
+              }
+            }
+            
+            await core.summary
+              .addRaw(summary)
+              .write();
+            
+            console.log(summary);
+            
+            // Fail the workflow if any check failed, regardless of skipped jobs
+            if (!allPassed) {
+              core.setFailed('Some frontend CI checks failed');
+            }
+

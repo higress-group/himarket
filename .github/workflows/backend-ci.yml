@@ -1,0 +1,243 @@
+name: Backend CI
+
+# Trigger: PR to main/develop branches, only when backend files change
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'himarket-dal/**'
+      - 'himarket-server/**'
+      - 'himarket-bootstrap/**'
+      - 'pom.xml'
+      - '.github/workflows/backend-ci.yml'
+
+# Avoid duplicate runs: new commits to the same PR will cancel previous runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Limit workflow permissions (security best practice)
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+jobs:
+  # Job 1: Code Format Check
+  code-format-check:
+    name: Code Format Check (Spotless)
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Run Spotless format check
+        id: spotless
+        run: mvn spotless:check
+        continue-on-error: false
+
+      - name: Create check summary
+        if: always()
+        run: |
+          if [ "${{ steps.spotless.outcome }}" != "success" ]; then
+            echo "## ❌ Code Format Check Failed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Your code does not follow the project formatting standards." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 🔧 How to fix:" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Run the following command to fix formatting issues:" >> $GITHUB_STEP_SUMMARY
+            echo '```bash' >> $GITHUB_STEP_SUMMARY
+            echo 'mvn spotless:apply' >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Then commit the changes:" >> $GITHUB_STEP_SUMMARY
+            echo '```bash' >> $GITHUB_STEP_SUMMARY
+            echo 'git add .' >> $GITHUB_STEP_SUMMARY
+            echo 'git commit -m "style: format code with spotless"' >> $GITHUB_STEP_SUMMARY
+            echo 'git push' >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "The format check will automatically re-run after you push." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## ✅ Code Format Check Passed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Code formatting follows project standards!" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # Job 2: Maven Build Check (skip tests)
+  build-check:
+    name: Maven Build Check
+    runs-on: ubuntu-latest
+    needs: code-format-check  # Ensure format check passes before building
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Maven build (skip tests)
+        run: mvn clean package -DskipTests -B
+
+      - name: Upload build artifacts
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-build-artifacts
+          path: |
+            himarket-bootstrap/target/*.jar
+            !himarket-bootstrap/target/*-sources.jar
+            !himarket-bootstrap/target/*-javadoc.jar
+          retention-days: 7
+
+  # Job 3: Unit Tests
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    needs: build-check
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Run unit tests
+        run: mvn test -B
+        continue-on-error: false
+
+      - name: Check if test reports exist
+        id: check-reports
+        if: always()
+        run: |
+          # Search for surefire reports in all submodule target directories
+          if find . -path "*/target/surefire-reports/*.xml" -type f 2>/dev/null | grep -q .; then
+            echo "reports_exist=true" >> $GITHUB_OUTPUT
+            echo "✅ Found test reports in submodules"
+            find . -path "*/target/surefire-reports/*.xml" -type f | head -5
+          else
+            echo "reports_exist=false" >> $GITHUB_OUTPUT
+            echo "⚠️ No test reports found (no tests in project yet)"
+          fi
+
+      - name: Generate test report
+        if: always() && steps.check-reports.outputs.reports_exist == 'true'
+        uses: dorny/test-reporter@v1
+        with:
+          name: Backend Test Report
+          path: |
+            himarket-dal/target/surefire-reports/*.xml
+            himarket-server/target/surefire-reports/*.xml
+            himarket-bootstrap/target/surefire-reports/*.xml
+          reporter: java-junit
+
+      - name: Upload test results
+        if: always() && steps.check-reports.outputs.reports_exist == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results
+          path: |
+            himarket-dal/target/surefire-reports/
+            himarket-dal/target/test-results/
+            himarket-server/target/surefire-reports/
+            himarket-server/target/test-results/
+            himarket-bootstrap/target/surefire-reports/
+            himarket-bootstrap/target/test-results/
+          retention-days: 7
+      
+      - name: No tests warning
+        if: always() && steps.check-reports.outputs.reports_exist == 'false'
+        run: |
+          echo "::notice title=No Unit Tests::No unit tests found in the project. Consider adding tests to improve code quality."
+
+  # Summary of all check results
+  backend-ci-summary:
+    name: Backend CI Summary
+    runs-on: ubuntu-latest
+    needs: [code-format-check, build-check, unit-tests]
+    if: always()
+    
+    steps:
+      - name: Check all task status
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const jobs = [
+              { name: 'Code Format Check', status: '${{ needs.code-format-check.result }}' },
+              { name: 'Maven Build Check', status: '${{ needs.build-check.result }}' },
+              { name: 'Unit Tests', status: '${{ needs.unit-tests.result }}' }
+            ];
+            
+            let summary = '## 🔍 Backend CI Check Summary\n\n';
+            let allPassed = true;
+            let hasSkipped = false;
+            
+            jobs.forEach(job => {
+              let icon = '✅';
+              let statusText = job.status;
+              
+              if (job.status === 'success') {
+                icon = '✅';
+                statusText = 'Passed';
+              } else if (job.status === 'failure') {
+                icon = '❌';
+                statusText = 'Failed';
+                allPassed = false;
+              } else if (job.status === 'cancelled') {
+                icon = '🚫';
+                statusText = 'Cancelled';
+                allPassed = false;
+              } else if (job.status === 'skipped') {
+                icon = '⏭️';
+                statusText = 'Skipped';
+                hasSkipped = true;  // Only track, don't fail
+              } else {
+                icon = '⚠️';
+                allPassed = false;
+              }
+              summary += `${icon} **${job.name}**: ${statusText}\n`;
+            });
+            
+            summary += '\n---\n\n';
+            
+            if (allPassed) {
+              summary += '🎉 **All checks passed!** Your PR is ready for review.\n';
+              if (hasSkipped) {
+                summary += '\n📝 _Note: Some checks were skipped (e.g., no tests found)._\n';
+              }
+            } else {
+              summary += '⚠️ **Some checks failed**. Please review the failed tasks above and fix the issues.\n';
+            }
+            
+            await core.summary
+              .addRaw(summary)
+              .write();
+            
+            console.log(summary);
+            
+            // Fail the workflow if any check failed, regardless of skipped jobs
+            if (!allPassed) {
+              core.setFailed('Some backend CI checks failed');
+            }
+
