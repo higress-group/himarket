@@ -35,7 +35,8 @@ COMMERCIAL_NACOS_ACCESS_KEY="${COMMERCIAL_NACOS_ACCESS_KEY:-}"
 COMMERCIAL_NACOS_SECRET_KEY="${COMMERCIAL_NACOS_SECRET_KEY:-}"
 
 # 最大重试次数
-MAX_RETRIES=3
+MAX_RETRIES=5
+RETRY_DELAY=10
 
 log() { echo "[init-himarket-mcp $(date +'%H:%M:%S')] $*"; }
 err() { echo "[ERROR] $*" >&2; }
@@ -110,53 +111,86 @@ call_api() {
   local method="$2"
   local path="$3"
   local body="${4:-}"
+  local max_attempts="${5:-$MAX_RETRIES}"  # 允许自定义重试次数
 
   local url="http://${HIMARKET_HOST}${path}"
 
-  log "调用接口 [${api_name}]: ${method} ${url}"
+  local attempt=1
+  while (( attempt <= max_attempts )); do
+    if (( max_attempts > 1 )); then
+      log "调用接口 [${api_name}]: ${method} ${url} (第 ${attempt}/${max_attempts} 次)"
+    else
+      log "调用接口 [${api_name}]: ${method} ${url}"
+    fi
 
-  local curl_cmd="curl -sS -w '\nHTTP_CODE:%{http_code}' -X ${method} '${url}'"
-  curl_cmd="${curl_cmd} -H 'Content-Type: application/json'"
-  curl_cmd="${curl_cmd} -H 'Accept: application/json, text/plain, */*'"
+    local curl_cmd="curl -sS -w '\nHTTP_CODE:%{http_code}' -X ${method} '${url}'"
+    curl_cmd="${curl_cmd} -H 'Content-Type: application/json'"
+    curl_cmd="${curl_cmd} -H 'Accept: application/json, text/plain, */*'"
 
-  if [[ -n "$AUTH_TOKEN" ]]; then
-    curl_cmd="${curl_cmd} -H 'Authorization: Bearer ${AUTH_TOKEN}'"
-  fi
+    if [[ -n "$AUTH_TOKEN" ]]; then
+      curl_cmd="${curl_cmd} -H 'Authorization: Bearer ${AUTH_TOKEN}'"
+    fi
 
-  if [[ -n "$body" ]]; then
-    curl_cmd="${curl_cmd} -d '${body}'"
-  fi
+    if [[ -n "$body" ]]; then
+      curl_cmd="${curl_cmd} -d '${body}'"
+    fi
 
-  curl_cmd="${curl_cmd} --connect-timeout 10 --max-time 30"
+    curl_cmd="${curl_cmd} --connect-timeout 10 --max-time 30"
 
-  local result
-  result=$(eval "$curl_cmd" 2>&1 || echo "HTTP_CODE:000")
+    local result
+    result=$(eval "$curl_cmd" 2>&1 || echo "HTTP_CODE:000")
 
-  local http_code=""
-  local response=""
+    local http_code=""
+    local response=""
 
-  if [[ "$result" =~ HTTP_CODE:([0-9]{3}) ]]; then
-    http_code="${BASH_REMATCH[1]}"
-    response=$(echo "$result" | sed '/HTTP_CODE:/d')
-  else
-    http_code="000"
-    response="$result"
-  fi
+    if [[ "$result" =~ HTTP_CODE:([0-9]{3}) ]]; then
+      http_code="${BASH_REMATCH[1]}"
+      response=$(echo "$result" | sed '/HTTP_CODE:/d')
+    else
+      # 检查是否是连接错误
+      if echo "$result" | grep -q "Failed to connect\|Couldn't connect\|Connection refused"; then
+        http_code="000"
+        response="$result"
+      else
+        http_code="000"
+        response="$result"
+      fi
+    fi
 
-  log "接口 [${api_name}] 返回: HTTP ${http_code}"
+    if (( max_attempts > 1 )); then
+      log "接口 [${api_name}] 返回: HTTP ${http_code}"
+    fi
 
-  if [[ -n "$response" && "$response" != "000" ]]; then
-    log "响应内容: ${response}"
-  fi
+    if [[ -n "$response" ]] && [[ "$response" != "000" ]] && [[ ${#response} -lt 500 ]]; then
+      log "响应内容: ${response}"
+    fi
 
-  export API_RESPONSE="$response"
-  export API_HTTP_CODE="$http_code"
+    export API_RESPONSE="$response"
+    export API_HTTP_CODE="$http_code"
 
-  if [[ "$http_code" =~ ^2[0-9]{2}$ ]] || [[ "$http_code" == "409" ]]; then
-    return 0
-  else
-    return 1
-  fi
+    # 成功的状态码
+    if [[ "$http_code" =~ ^2[0-9]{2}$ ]] || [[ "$http_code" == "409" ]]; then
+      return 0
+    fi
+
+    # 如果是连接错误且还有重试次数
+    if [[ "$http_code" == "000" ]] && (( attempt < max_attempts )); then
+      log "连接失败，${RETRY_DELAY}秒后重试..."
+      sleep $RETRY_DELAY
+      attempt=$((attempt + 1))
+      continue
+    fi
+
+    # 其他错误，直接返回失败
+    if (( attempt >= max_attempts )); then
+      return 1
+    fi
+
+    sleep $RETRY_DELAY
+    attempt=$((attempt + 1))
+  done
+
+  return 1
 }
 
 ########################################
@@ -188,7 +222,7 @@ extract_json_field() {
 }
 
 ########################################
-# 登录获取 Token
+# 登录获取 Token（增加重试次数）
 ########################################
 login_admin() {
   local body="{\"username\":\"${ADMIN_USERNAME}\",\"password\":\"${ADMIN_PASSWORD}\"}"
@@ -197,7 +231,7 @@ login_admin() {
   while (( attempt <= MAX_RETRIES )); do
     log "执行登录 (第 ${attempt}/${MAX_RETRIES} 次)..."
 
-    if call_api "管理员登录" "POST" "/api/v1/admins/login" "$body"; then
+    if call_api "管理员登录" "POST" "/api/v1/admins/login" "$body" 1; then
       # 从响应体中提取 token，尝试多种可能的字段名
       AUTH_TOKEN=$(echo "$API_RESPONSE" | grep -o '"access_token":"[^"]*"' | head -1 | sed 's/"access_token":"//' | sed 's/"//' || echo "")
 
@@ -216,6 +250,12 @@ login_admin() {
       if [[ -z "$AUTH_TOKEN" ]]; then
         err "无法从登录响应中提取 token"
         err "响应内容: $API_RESPONSE"
+        
+        if (( attempt < MAX_RETRIES )); then
+          sleep $RETRY_DELAY
+          attempt=$((attempt + 1))
+          continue
+        fi
         return 1
       fi
 
@@ -224,13 +264,37 @@ login_admin() {
     fi
 
     if (( attempt < MAX_RETRIES )); then
-      sleep 5
+      log "登录失败，${RETRY_DELAY}秒后重试..."
+      sleep $RETRY_DELAY
     fi
-    attempt=$((attempt+1))
+    attempt=$((attempt + 1))
   done
 
-  err "登录失败"
+  err "登录失败（已重试 ${MAX_RETRIES} 次）"
   return 1
+}
+
+########################################
+# 获取 Higress Gateway LoadBalancer IP
+########################################
+get_higress_gateway_address() {
+  log "获取 Higress Gateway LoadBalancer IP..." >&2
+
+  local gateway_ip
+  gateway_ip=$(kubectl get svc higress-gateway -n "${NS}" -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
+
+  if [[ -z "$gateway_ip" ]]; then
+    log "未检测到 LoadBalancer IP，尝试获取 ClusterIP" >&2
+    gateway_ip=$(kubectl get svc higress-gateway -n "${NS}" -o jsonpath='{.spec.clusterIP}' 2>/dev/null || echo "")
+  fi
+
+  if [[ -z "$gateway_ip" ]]; then
+    err "无法获取 Higress Gateway 地址"
+    return 1
+  fi
+
+  log "Higress Gateway 地址: ${gateway_ip}" >&2
+  echo "$gateway_ip"
 }
 
 ########################################
@@ -248,23 +312,55 @@ get_or_create_gateway() {
     return 0
   fi
 
-  # 尝试创建
-  local body="{\"gatewayName\":\"${gateway_name}\",\"gatewayType\":\"HIGRESS\",\"higressConfig\":{\"address\":\"http://higress-console:8080\",\"username\":\"admin\",\"password\":\"${HIGRESS_PASSWORD}\"}}"
+  # 获取 Higress Gateway LoadBalancer IP
+  local gateway_address
+  gateway_address=$(get_higress_gateway_address)
+  if [[ -z "$gateway_address" ]]; then
+    err "无法获取 Higress Gateway 地址，无法创建网关"
+    return 1
+  fi
+
+  # 使用 jq 构建 JSON 请求体
+  local body=$(jq -n \
+    --arg gatewayName "$gateway_name" \
+    --arg gatewayType "HIGRESS" \
+    --arg address "http://higress-console:8080" \
+    --arg username "admin" \
+    --arg password "$HIGRESS_PASSWORD" \
+    --arg gatewayAddress "http://$gateway_address:80" \
+    '{
+      gatewayName: $gatewayName,
+      gatewayType: $gatewayType,
+      higressConfig: {
+        address: $address,
+        username: $username,
+        password: $password,
+        gatewayAddress: $gatewayAddress
+      }
+    }')
 
   call_api "插入网关" "POST" "/api/v1/gateways" "$body" >/dev/null 2>&1 || true
 
-  # 查询获取 ID（重定向日志输出）
-  call_api "查询网关列表" "GET" "/api/v1/gateways" "" >/dev/null 2>&1
-
-  # 从响应中提取 Gateway ID
-  local gw_id
-  gw_id=$(echo "$API_RESPONSE" | jq -r '.data.content[]? // .[]? | select(.gatewayName=="'"${gateway_name}"'") | .gatewayId' 2>/dev/null | head -1 || echo "")
-
-  if [[ -n "$gw_id" ]]; then
-    eval "${cache_var}='$gw_id'"
-    echo "$gw_id"
-    return 0
-  fi
+  # 查询获取 ID（带重试）
+  local attempt=1
+  local gw_id=""
+  while (( attempt <= 3 )); do
+    call_api "查询网关列表" "GET" "/api/v1/gateways" "" >/dev/null 2>&1
+    
+    # 从响应中提取 Gateway ID
+    gw_id=$(echo "$API_RESPONSE" | jq -r '.data.content[]? // .[]? | select(.gatewayName=="'"${gateway_name}"'") | .gatewayId' 2>/dev/null | head -1 || echo "")
+    
+    if [[ -n "$gw_id" ]]; then
+      eval "${cache_var}='$gw_id'"
+      echo "$gw_id"
+      return 0
+    fi
+    
+    if (( attempt < 3 )); then
+      sleep 3
+    fi
+    attempt=$((attempt + 1))
+  done
 
   return 1
 }
@@ -312,18 +408,27 @@ get_or_create_nacos() {
     call_api "插入Nacos" "POST" "/api/v1/nacos" "$body" >/dev/null 2>&1 || true
   fi
 
-  # 查询获取 ID（开源和商业化通用）
-  call_api "查询Nacos列表" "GET" "/api/v1/nacos" "" >/dev/null 2>&1
-
-  # 从响应中提取 Nacos ID
-  local result_nacos_id
-  result_nacos_id=$(echo "$API_RESPONSE" | jq -r '.data.content[]? // .[]? | select(.nacosName=="'"${nacos_name}"'") | .nacosId' 2>/dev/null | head -1 || echo "")
-
-  if [[ -n "$result_nacos_id" ]]; then
-    log "获取到 Nacos ID: ${result_nacos_id} (名称: ${nacos_name})" >&2
-    echo "$result_nacos_id"
-    return 0
-  fi
+  # 查询获取 ID（带重试）
+  local attempt=1
+  local result_nacos_id=""
+  while (( attempt <= 3 )); do
+    call_api "查询Nacos列表" "GET" "/api/v1/nacos" "" >/dev/null 2>&1
+    
+    # 从响应中提取 Nacos ID
+    result_nacos_id=$(echo "$API_RESPONSE" | jq -r '.data.content[]? // .[]? | select(.nacosName=="'"${nacos_name}"'") | .nacosId' 2>/dev/null | head -1 || echo "")
+    
+    if [[ -n "$result_nacos_id" ]]; then
+      log "获取到 Nacos ID: ${result_nacos_id} (名称: ${nacos_name})" >&2
+      echo "$result_nacos_id"
+      return 0
+    fi
+    
+    if (( attempt < 3 )); then
+      log "未获取到 Nacos ID，3秒后重试..." >&2
+      sleep 3
+    fi
+    attempt=$((attempt + 1))
+  done
 
   return 1
 }
@@ -348,18 +453,26 @@ get_or_create_portal() {
 
   call_api "插入Portal" "POST" "/api/v1/portals" "$body" >/dev/null 2>&1 || true
 
-  # 查询获取 ID（重定向日志输出）
-  call_api "查询Portal列表" "GET" "/api/v1/portals" "" >/dev/null 2>&1
-
-  # 从响应中提取 Portal ID（支持新的数据结构）
-  local p_id
-  p_id=$(echo "$API_RESPONSE" | jq -r '.data.content[]? // .[]? | select(.name=="'"${portal_name}"'") | .portalId' 2>/dev/null | head -1 || echo "")
-
-  if [[ -n "$p_id" ]]; then
-    eval "${cache_var}='$p_id'"
-    echo "$p_id"
-    return 0
-  fi
+  # 查询获取 ID（带重试）
+  local attempt=1
+  local p_id=""
+  while (( attempt <= 3 )); do
+    call_api "查询Portal列表" "GET" "/api/v1/portals" "" >/dev/null 2>&1
+    
+    # 从响应中提取 Portal ID
+    p_id=$(echo "$API_RESPONSE" | jq -r '.data.content[]? // .[]? | select(.name=="'"${portal_name}"'") | .portalId' 2>/dev/null | head -1 || echo "")
+    
+    if [[ -n "$p_id" ]]; then
+      eval "${cache_var}='$p_id'"
+      echo "$p_id"
+      return 0
+    fi
+    
+    if (( attempt < 3 )); then
+      sleep 3
+    fi
+    attempt=$((attempt + 1))
+  done
 
   return 1
 }
@@ -385,17 +498,25 @@ get_or_create_product() {
 
   call_api "插入产品" "POST" "/api/v1/products" "$body" >/dev/null 2>&1 || true
 
-  # 查询获取 ID（重定向日志输出）
-  call_api "查询产品列表" "GET" "/api/v1/products" "" >/dev/null 2>&1
-
-  # 从响应中提取 Product ID
-  local prod_id
-  prod_id=$(echo "$API_RESPONSE" | jq -r '.data.content[]? // .[]? | select(.name=="'"${product_name}"'") | .productId' 2>/dev/null | head -1 || echo "")
-
-  if [[ -n "$prod_id" ]]; then
-    echo "$prod_id"
-    return 0
-  fi
+  # 查询获取 ID（带重试）
+  local attempt=1
+  local prod_id=""
+  while (( attempt <= 3 )); do
+    call_api "查询产品列表" "GET" "/api/v1/products" "" >/dev/null 2>&1
+    
+    # 从响应中提取 Product ID
+    prod_id=$(echo "$API_RESPONSE" | jq -r '.data.content[]? // .[]? | select(.name=="'"${product_name}"'") | .productId' 2>/dev/null | head -1 || echo "")
+    
+    if [[ -n "$prod_id" ]]; then
+      echo "$prod_id"
+      return 0
+    fi
+    
+    if (( attempt < 3 )); then
+      sleep 3
+    fi
+    attempt=$((attempt + 1))
+  done
 
   return 1
 }
@@ -498,9 +619,20 @@ publish_to_portal() {
   local portal_id="$2"
   local mcp_name="$3"
 
-  if call_api "发布到门户" "POST" "/api/v1/products/${product_id}/publications/${portal_id}" ""; then
-    log "[${mcp_name}] 发布到门户成功"
-    return 0
+  # 构建请求体
+  local body="{\"portalId\":\"${portal_id}\"}"
+
+  if call_api "发布到门户" "POST" "/api/v1/products/${product_id}/publications" "$body"; then
+    if [[ "$API_HTTP_CODE" =~ ^2[0-9]{2}$ ]]; then
+      log "[${mcp_name}] 发布到门户成功"
+      return 0
+    elif [[ "$API_HTTP_CODE" == "409" ]]; then
+      log "[${mcp_name}] 产品已发布到门户（跳过）"
+      return 0
+    else
+      log "[${mcp_name}] 发布到门户失败（HTTP ${API_HTTP_CODE}）"
+      return 0  # 允许失败，继续执行
+    fi
   else
     log "[${mcp_name}] 发布到门户失败（可能已发布）"
     return 0  # 允许失败，继续执行
