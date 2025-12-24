@@ -132,9 +132,11 @@ jobs:
         id: check-reports
         if: always()
         run: |
-          if [ -d "target" ] && find . -path "*/target/surefire-reports/*.xml" -type f | grep -q .; then
+          # Search for surefire reports in all submodule target directories
+          if find . -path "*/target/surefire-reports/*.xml" -type f 2>/dev/null | grep -q .; then
             echo "reports_exist=true" >> $GITHUB_OUTPUT
-            echo "✅ Found test reports"
+            echo "✅ Found test reports in submodules"
+            find . -path "*/target/surefire-reports/*.xml" -type f | head -5
           else
             echo "reports_exist=false" >> $GITHUB_OUTPUT
             echo "⚠️ No test reports found (no tests in project yet)"
@@ -145,7 +147,10 @@ jobs:
         uses: dorny/test-reporter@v1
         with:
           name: Backend Test Report
-          path: '**/target/surefire-reports/*.xml'
+          path: |
+            himarket-dal/target/surefire-reports/*.xml
+            himarket-server/target/surefire-reports/*.xml
+            himarket-bootstrap/target/surefire-reports/*.xml
           reporter: java-junit
 
       - name: Upload test results
@@ -154,8 +159,12 @@ jobs:
         with:
           name: backend-test-results
           path: |
-            **/target/surefire-reports/
-            **/target/test-results/
+            himarket-dal/target/surefire-reports/
+            himarket-dal/target/test-results/
+            himarket-server/target/surefire-reports/
+            himarket-server/target/test-results/
+            himarket-bootstrap/target/surefire-reports/
+            himarket-bootstrap/target/test-results/
           retention-days: 7
       
       - name: No tests warning
@@ -183,29 +192,41 @@ jobs:
             
             let summary = '## 🔍 Backend CI Check Summary\n\n';
             let allPassed = true;
+            let hasSkipped = false;
             
             jobs.forEach(job => {
               let icon = '✅';
-              if (job.status === 'failure') {
+              let statusText = job.status;
+              
+              if (job.status === 'success') {
+                icon = '✅';
+                statusText = 'Passed';
+              } else if (job.status === 'failure') {
                 icon = '❌';
+                statusText = 'Failed';
                 allPassed = false;
               } else if (job.status === 'cancelled') {
                 icon = '🚫';
+                statusText = 'Cancelled';
                 allPassed = false;
               } else if (job.status === 'skipped') {
                 icon = '⏭️';
-                allPassed = false;
-              } else if (job.status !== 'success') {
+                statusText = 'Skipped';
+                hasSkipped = true;  // Only track, don't fail
+              } else {
                 icon = '⚠️';
                 allPassed = false;
               }
-              summary += `${icon} **${job.name}**: ${job.status}\n`;
+              summary += `${icon} **${job.name}**: ${statusText}\n`;
             });
             
             summary += '\n---\n\n';
             
             if (allPassed) {
               summary += '🎉 **All checks passed!** Your PR is ready for review.\n';
+              if (hasSkipped) {
+                summary += '\n📝 _Note: Some checks were skipped (e.g., no tests found)._\n';
+              }
             } else {
               summary += '⚠️ **Some checks failed**. Please review the failed tasks above and fix the issues.\n';
             }
@@ -216,6 +237,7 @@ jobs:
             
             console.log(summary);
             
+            // Fail the workflow if any check failed, regardless of skipped jobs
             if (!allPassed) {
               core.setFailed('Some backend CI checks failed');
             }

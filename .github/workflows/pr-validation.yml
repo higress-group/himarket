@@ -107,8 +107,9 @@ jobs:
             const checks = {
               hasDescription: {
                 test: () => {
-                  // Find Description section
-                  const descSection = body.match(/##\s*📝?\s*Description\s*([\s\S]*?)(?=##|$)/i);
+                  // Find Description section (with optional emoji)
+                  // Matches until next ## heading (not ###) or end of string
+                  const descSection = body.match(/##\s*📝?\s*Description\s*([\s\S]*?)(?=\n##[^#]|$)/iu);
                   if (!descSection) return false;
                   
                   // Remove HTML comments and whitespace
@@ -124,8 +125,9 @@ jobs:
               },
               hasTypeOfChange: {
                 test: () => {
-                  // Find Type of Change section and check if at least one is selected
-                  const typeSection = body.match(/##\s*✅?\s*Type of Change\s*([\s\S]*?)(?=##|$)/i);
+                  // Find Type of Change section (with optional emoji) and check if at least one is selected
+                  // Matches until next ## heading (not ###) or end of string
+                  const typeSection = body.match(/##\s*✅?\s*Type of Change\s*([\s\S]*?)(?=\n##[^#]|$)/iu);
                   if (!typeSection) return false;
                   
                   return /- \[x\]/i.test(typeSection[1]);
@@ -146,16 +148,19 @@ jobs:
               },
               hasTestingInfo: {
                 test: () => {
-                  // Check if Testing section is filled
-                  const testSection = body.match(/##\s*🧪?\s*Testing\s*([\s\S]*?)(?=##|$)/i);
+                  // Check if Testing section is filled (with optional emoji)
+                  // Matches until next ## heading (not ###) or end of string
+                  const testSection = body.match(/##\s*🧪?\s*Testing\s*([\s\S]*?)(?=\n##[^#]|$)/iu);
                   if (!testSection) return false;
                   
                   const content = testSection[1]
-                    .replace(/<!--[\s\S]*?-->/g, '')
-                    .replace(/\s+/g, ' ')
+                    .replace(/<!--[\s\S]*?-->/g, '')      // Remove HTML comments
+                    .replace(/^- \[ \].*$/gm, '')         // Remove unchecked checkboxes
+                    .replace(/\s+/g, ' ')                 // Normalize whitespace
                     .trim();
                   
-                  return content.length > 10;
+                  // Check if there's actual content (checked boxes or descriptions)
+                  return content.length > 10 && /[a-zA-Z0-9]/.test(content);
                 },
                 message: '💡 Consider describing how you tested these changes'
               }
@@ -386,6 +391,7 @@ jobs:
             
             let summary = '## ✅ PR Validation Summary\n\n';
             let allPassed = true;
+            let hasSkipped = false;
             
             jobs.forEach(job => {
               let icon = '✅';
@@ -405,7 +411,7 @@ jobs:
               } else if (job.status === 'skipped') {
                 icon = '⏭️';
                 statusText = 'Skipped';
-                allPassed = false;
+                hasSkipped = true;  // Only track, don't fail
               } else {
                 icon = '⚠️';
                 allPassed = false;
@@ -419,12 +425,15 @@ jobs:
             if (allPassed) {
               summary += '🎉 **All validations passed!**\n\n';
               summary += 'Your PR meets all format and content requirements and is ready for review.\n';
+              if (hasSkipped) {
+                summary += '\n📝 _Note: Some checks were skipped (this is normal)._\n';
+              }
             } else {
               summary += '⚠️ **Some validations failed**\n\n';
               summary += 'Please review the failed checks above and fix the issues. The checks will automatically re-run after you fix them.\n\n';
               summary += '### 📚 Resources\n\n';
               summary += '- [Contributing Guide](CONTRIBUTING.md)\n';
-              summary += '- [PR Guide](PR_GUIDE.md)\n';
+              summary += '- [PR Guide](.github/PR_GUIDE.md)\n';
             }
             
             await core.summary
@@ -433,6 +442,7 @@ jobs:
             
             console.log(summary);
             
+            // Fail the workflow if any check failed, regardless of skipped jobs
             if (!allPassed) {
               core.setFailed('Some PR validations failed');
             }
