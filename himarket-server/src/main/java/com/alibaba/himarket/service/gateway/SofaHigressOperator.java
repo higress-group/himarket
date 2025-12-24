@@ -559,6 +559,10 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
         return source;
     }
 
+    public SofaHigressClient getClient(Gateway gateway) {
+        return super.getClient(gateway);
+    }
+
     @Data
     @SuperBuilder
     @NoArgsConstructor
