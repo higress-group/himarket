@@ -204,6 +204,12 @@
             <optional>true</optional>
         </dependency>
 
+        <dependency>
+            <groupId>cn.com.antcloud.api</groupId>
+            <artifactId>antcloud-api-sdk</artifactId>
+            <version>4.0.8</version>
+        </dependency>
+
     </dependencies>
 
 </project>

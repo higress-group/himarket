@@ -22,6 +22,8 @@ export default function ImportSofaHigressModal({ visible, onCancel, onSuccess }:
         gatewayType: 'SOFA_HIGRESS',
         sofaHigressConfig: {
           address: values.address,
+          accessKey: values.accessKey,
+          secretKey: values.secretKey,
         }
       }
 
@@ -76,6 +78,22 @@ export default function ImportSofaHigressModal({ visible, onCancel, onSuccess }:
           rules={[{ required: true, message: '请输入服务地址' }]}
         >
           <Input placeholder="例如：higress.example.com" />
+        </Form.Item>
+
+        <Form.Item
+            label="网关accessKey"
+            name="accessKey"
+            rules={[{ required: true, message: '请输入网关的accessKey' }]}
+        >
+          <Input placeholder="aktest" />
+        </Form.Item>
+
+        <Form.Item
+            label="网关secretKey"
+            name="secretKey"
+            rules={[{ required: true, message: '请输入网关的secretKey' }]}
+        >
+          <Input placeholder="sktest" />
         </Form.Item>
 
         <div className="flex justify-end space-x-2 pt-4">

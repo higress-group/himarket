@@ -17,30 +17,16 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.consumer;
+package com.alibaba.himarket.converter;
 
-import lombok.Builder;
-import lombok.Data;
 
-@Data
-@Builder
-public class ConsumerAuthConfig {
+import com.alibaba.himarket.support.product.SofaHigressRefConfig;
+import jakarta.persistence.Converter;
 
-    /**
-     * For APIG
-     */
-    private APIGAuthConfig apigAuthConfig;
+@Converter(autoApply = true)
+public class SofaHigressRefConfigConverter extends JsonConverter<SofaHigressRefConfig> {
 
-    /**
-     * For Higress
-     */
-    private HigressAuthConfig higressAuthConfig;
-
-    /**
-     * For ADP AI Gateway
-     */
-    private AdpAIAuthConfig adpAIAuthConfig;
-
-    /** for Sofa Higress */
-    private SofaHigressAuthConfig sofaHigressAuthConfig;
+    protected SofaHigressRefConfigConverter() {
+        super(SofaHigressRefConfig.class);
+    }
 }

@@ -22,10 +22,12 @@ package com.alibaba.himarket.entity;
 import com.alibaba.himarket.converter.APIGRefConfigConverter;
 import com.alibaba.himarket.converter.HigressRefConfigConverter;
 import com.alibaba.himarket.converter.NacosRefConfigConverter;
+import com.alibaba.himarket.converter.SofaHigressRefConfigConverter;
 import com.alibaba.himarket.support.enums.SourceType;
 import com.alibaba.himarket.support.product.APIGRefConfig;
 import com.alibaba.himarket.support.product.HigressRefConfig;
 import com.alibaba.himarket.support.product.NacosRefConfig;
+import com.alibaba.himarket.support.product.SofaHigressRefConfig;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -61,6 +63,10 @@ public class ProductRef extends BaseEntity {
     @Column(name = "higress_ref_config", columnDefinition = "json")
     @Convert(converter = HigressRefConfigConverter.class)
     private HigressRefConfig higressRefConfig;
+
+    @Column(name = "sofa_higress_ref_config", columnDefinition = "json")
+    @Convert(converter = SofaHigressRefConfigConverter.class)
+    private SofaHigressRefConfig sofaHigressRefConfig;
 
     @Column(name = "nacos_id", length = 64)
     private String nacosId;

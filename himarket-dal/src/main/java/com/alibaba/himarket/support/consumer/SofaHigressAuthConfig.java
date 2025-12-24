@@ -24,23 +24,9 @@ import lombok.Data;
 
 @Data
 @Builder
-public class ConsumerAuthConfig {
+public class SofaHigressAuthConfig {
 
-    /**
-     * For APIG
-     */
-    private APIGAuthConfig apigAuthConfig;
+    private String resourceType;
 
-    /**
-     * For Higress
-     */
-    private HigressAuthConfig higressAuthConfig;
-
-    /**
-     * For ADP AI Gateway
-     */
-    private AdpAIAuthConfig adpAIAuthConfig;
-
-    /** for Sofa Higress */
-    private SofaHigressAuthConfig sofaHigressAuthConfig;
+    private String resourceId;
 }

@@ -17,30 +17,23 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.consumer;
+package com.alibaba.himarket.support.product;
 
-import lombok.Builder;
 import lombok.Data;
 
 @Data
-@Builder
-public class ConsumerAuthConfig {
+public class SofaHigressRefConfig {
 
-    /**
-     * For APIG
-     */
-    private APIGAuthConfig apigAuthConfig;
+    /** Route Identify Info */
+    // apiId -> routeId, apiName -> routeName
+    private String apiId;
+    private String apiName;
 
-    /**
-     * For Higress
-     */
-    private HigressAuthConfig higressAuthConfig;
+    /** MCP Server Identify Info */
+    private String serverId;
+    private String mcpServerName;
 
-    /**
-     * For ADP AI Gateway
-     */
-    private AdpAIAuthConfig adpAIAuthConfig;
-
-    /** for Sofa Higress */
-    private SofaHigressAuthConfig sofaHigressAuthConfig;
+    /** Model Identify Info */
+    private String modelApiId;
+    private String modelApiName;
 }

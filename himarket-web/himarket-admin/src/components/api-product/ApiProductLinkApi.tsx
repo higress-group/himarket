@@ -2,7 +2,7 @@ import { Card, Button, Modal, Form, Select, message, Collapse, Tabs, Row, Col } 
 import { PlusOutlined, DeleteOutlined, ExclamationCircleOutlined, CopyOutlined, EditOutlined, CloudUploadOutlined } from '@ant-design/icons'
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import type { ApiProduct, LinkedService, RestAPIItem, NacosMCPItem, APIGAIMCPItem, AIGatewayAgentItem, AIGatewayModelItem, ApiItem } from '@/types/api-product'
+import type { ApiProduct, LinkedService, RestAPIItem, NacosMCPItem, APIGAIMCPItem, AIGatewayAgentItem, AIGatewayModelItem, ApiItem, SofaHigressMCPItem } from '@/types/api-product'
 import type { Gateway, NacosInstance } from '@/types/gateway'
 import { apiProductApi, gatewayApi, nacosApi, apiDefinitionApi } from '@/lib/api'
 import { getGatewayTypeLabel } from '@/lib/constant'
@@ -118,6 +118,8 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
           mcpServerName = linkedService.adpAIGatewayRefConfig.mcpServerName || apiProduct.name
         } else if (linkedService.sourceType === 'NACOS' && linkedService.nacosRefConfig && 'mcpServerName' in linkedService.nacosRefConfig) {
           mcpServerName = linkedService.nacosRefConfig.mcpServerName || apiProduct.name
+        } else if (linkedService.sourceType === 'GATEWAY' && linkedService.sofaHigressRefConfig && 'mcpServerName' in linkedService.sofaHigressRefConfig) {
+          mcpServerName = linkedService.sofaHigressRefConfig.mcpServerName || apiProduct.name
         }
       }
 
@@ -290,17 +292,17 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
       })
       let result;
       if (apiProduct.type === 'REST_API') {
-        // REST API 只支持 APIG_API 网关
-        result = res.data?.content?.filter?.((item: Gateway) => item.gatewayType === 'APIG_API');
+        // REST API 只支持 APIG_API 和 SOFA_HIGRESS 网关
+        result = res.data?.content?.filter?.((item: Gateway) => item.gatewayType === 'APIG_API' || item.gatewayType === 'SOFA_HIGRESS');
       } else if (apiProduct.type === 'AGENT_API') {
         // Agent API 只支持 APIG_AI 网关
         result = res.data?.content?.filter?.((item: Gateway) => item.gatewayType === 'APIG_AI');
       } else if (apiProduct.type === 'MODEL_API') {
-        // Model API 支持 APIG_AI 和 HIGRESS 网关
-        result = res.data?.content?.filter?.((item: Gateway) => item.gatewayType === 'APIG_AI' || item.gatewayType === 'HIGRESS');
+        // Model API 支持 APIG_AI、HIGRESS 和 SOFA_HIGRESS 网关
+        result = res.data?.content?.filter?.((item: Gateway) => item.gatewayType === 'APIG_AI' || item.gatewayType === 'HIGRESS' || item.gatewayType === 'SOFA_HIGRESS');
       } else {
-        // MCP Server 支持 HIGRESS、APIG_AI、ADP_AI_GATEWAY
-        result = res.data?.content?.filter?.((item: Gateway) => item.gatewayType === 'HIGRESS' || item.gatewayType === 'APIG_AI' || item.gatewayType === 'ADP_AI_GATEWAY' || item.gatewayType === 'APSARA_GATEWAY');
+        // MCP Server 支持 HIGRESS、APIG_AI、ADP_AI_GATEWAY、SOFA_HIGRESS
+        result = res.data?.content?.filter?.((item: Gateway) => item.gatewayType === 'HIGRESS' || item.gatewayType === 'APIG_AI' || item.gatewayType === 'ADP_AI_GATEWAY' || item.gatewayType === 'APSARA_GATEWAY' || item.gatewayType === 'SOFA_HIGRESS');
       }
       setGateways(result || [])
     } catch (error) {
@@ -455,6 +457,47 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
           type: 'MCP Server'
         }))
         setApiList(mcpServers)
+      } else if (gateway.gatewayType === 'SOFA_HIGRESS') {
+        if (apiProduct.type === 'REST_API') {
+          // SOFA_HIGRESS类型 + REST API产品：获取REST API列表
+          const res = await gatewayApi.getGatewayRestApis(gatewayId, {
+            page: 1,
+            size: 1000 // 获取所有REST API
+          })
+          const restApis = (res.data?.content || []).map((api: any) => ({
+            apiId: api.apiId,
+            apiName: api.apiName,
+            fromGatewayType: 'SOFA_HIGRESS' as const,
+            type: 'REST API'
+          }))
+          setApiList(restApis)
+        } else if (apiProduct.type === 'MODEL_API') {
+          // SOFA_HIGRESS类型 + Model API产品：获取Model API列表
+          const res = await gatewayApi.getGatewayModelApis(gatewayId, {
+            page: 1,
+            size: 1000 // 获取所有Model API
+          })
+          const modelApis = (res.data?.content || []).map((api: any) => ({
+            modelApiId: api.modelApiId,
+            modelApiName: api.modelApiName,
+            fromGatewayType: 'SOFA_HIGRESS' as const,
+            type: 'Model API'
+          }))
+          setApiList(modelApis)
+        } else if (apiProduct.type === 'MCP_SERVER') {
+          // SOFA_HIGRESS类型：获取MCP Server列表
+          const res = await gatewayApi.getGatewayMcpServers(gatewayId, {
+            page: 1,
+            size: 1000 // 获取所有MCP Server
+          })
+          const mcpServers = (res.data?.content || []).map((api: any) => ({
+            serverId: api.serverId,
+            mcpServerName: api.mcpServerName,
+            fromGatewayType: 'SOFA_HIGRESS' as const,
+            type: 'MCP Server'
+          }))
+          setApiList(mcpServers)
+        }
       }
     } catch (error) {
     } finally {
@@ -573,6 +616,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
         } : undefined,
         adpAIGatewayRefConfig: selectedApi && 'fromGatewayType' in selectedApi && selectedApi.fromGatewayType === 'ADP_AI_GATEWAY' ? selectedApi as APIGAIMCPItem : undefined,
         apsaraGatewayRefConfig: selectedApi && 'fromGatewayType' in selectedApi && selectedApi.fromGatewayType === 'APSARA_GATEWAY' ? selectedApi as APIGAIMCPItem : undefined,
+        sofaHigressRefConfig: selectedApi && 'fromGatewayType' in selectedApi && selectedApi.fromGatewayType === 'SOFA_HIGRESS' ? selectedApi as RestAPIItem | SofaHigressMCPItem : undefined,
         apiDefinitionIds: undefined,
       }
       apiProductApi.createApiProductRef(apiProduct.productId, newService).then(async () => {
@@ -669,6 +713,11 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
         apiType = 'REST API'
         sourceInfo = 'API网关'
         gatewayInfo = linkedService.gatewayId || '未知'
+      } else if (linkedService.sourceType === 'GATEWAY' && linkedService.sofaHigressRefConfig && 'apiName' in linkedService.sofaHigressRefConfig) {
+        apiName = linkedService.sofaHigressRefConfig.apiName || '未命名'
+        apiType = 'REST API'
+        sourceInfo = '蚂蚁数科SOFA AI网关'
+        gatewayInfo = linkedService.gatewayId || '未知'
       }
     } else if (apiProduct.type === 'MCP_SERVER') {
       // MCP Server 类型产品 - 可以关联多种平台上的 MCP Server
@@ -699,6 +748,11 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
         apiName = linkedService.nacosRefConfig.mcpServerName || '未命名'
         sourceInfo = 'Nacos服务发现'
         gatewayInfo = linkedService.nacosId || '未知'
+      } else if (linkedService.sourceType === 'GATEWAY' && linkedService.sofaHigressRefConfig && 'mcpServerName' in linkedService.sofaHigressRefConfig) {
+        // SOFA Higress网关上的MCP Server
+        apiName = linkedService.sofaHigressRefConfig.mcpServerName || '未命名'
+        sourceInfo = '蚂蚁数科SOFA AI网关'
+        gatewayInfo = linkedService.gatewayId || '未知'
       }
     } else if (apiProduct.type === 'AGENT_API') {
       // Agent API 类型产品 - 可以关联 AI 网关或 Nacos 上的 Agent API
@@ -729,6 +783,11 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
         // Higress网关上的Model API（AI路由）
         apiName = linkedService.higressRefConfig.modelRouteName || '未命名'
         sourceInfo = 'Higress网关'
+        gatewayInfo = linkedService.gatewayId || '未知'
+      } else if (linkedService.sourceType === 'GATEWAY' && linkedService.sofaHigressRefConfig && 'modelApiName' in linkedService.sofaHigressRefConfig) {
+        // Higress网关上的Model API（AI路由）
+        apiName = linkedService.sofaHigressRefConfig.modelApiName || '未命名'
+        sourceInfo = '蚂蚁数科SOFA AI网关'
         gatewayInfo = linkedService.gatewayId || '未知'
       }
     }
@@ -836,7 +895,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
     // Check if we have tools from Managed API
     const hasManagedTools = isMcp && linkedService?.sourceType === 'MANAGED' && parsedTools.length > 0;
 
-    // MCP Server类型：无论是否有linkedService都显示tools和连接点配置  
+    // MCP Server类型：无论是否有linkedService都显示tools和连接点配置
     if (isMcp && (apiProduct.mcpConfig || hasManagedTools)) {
       return (
         <Card title="配置详情">
@@ -1762,9 +1821,9 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                   if (apiProduct.type === 'AGENT_API') {
                     return gateway.gatewayType === 'APIG_AI';
                   }
-                  // 如果是Model API类型，只显示AI网关（APIG_AI）和Higress网关
+                  // 如果是Model API类型，只显示AI网关（APIG_AI）和Higress、蚂蚁数科AI网关（SOFA_HIGRESS）网关
                   if (apiProduct.type === 'MODEL_API') {
-                    return gateway.gatewayType === 'APIG_AI' || gateway.gatewayType === 'HIGRESS';
+                    return gateway.gatewayType === 'APIG_AI' || gateway.gatewayType === 'HIGRESS' || gateway.gatewayType === 'SOFA_HIGRESS';
                   }
                   return true;
                 }).map(gateway => (

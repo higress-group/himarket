@@ -17,30 +17,25 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.consumer;
+package com.alibaba.himarket.dto.result.mcp;
 
-import lombok.Builder;
+import com.alibaba.himarket.dto.converter.OutputConverter;
+import com.alibaba.himarket.service.gateway.SofaHigressOperator.SofaHigressMCPConfig;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
+@EqualsAndHashCode(callSuper = true)
 @Data
-@Builder
-public class ConsumerAuthConfig {
+public class SofaHigressMCPServerResult extends GatewayMCPServerResult
+        implements OutputConverter<SofaHigressMCPServerResult, SofaHigressMCPConfig> {
 
-    /**
-     * For APIG
-     */
-    private APIGAuthConfig apigAuthConfig;
+    protected String serverId;
 
-    /**
-     * For Higress
-     */
-    private HigressAuthConfig higressAuthConfig;
-
-    /**
-     * For ADP AI Gateway
-     */
-    private AdpAIAuthConfig adpAIAuthConfig;
-
-    /** for Sofa Higress */
-    private SofaHigressAuthConfig sofaHigressAuthConfig;
+    @Override
+    public SofaHigressMCPServerResult convertFrom(SofaHigressMCPConfig mcp) {
+        SofaHigressMCPServerResult r = OutputConverter.super.convertFrom(mcp);
+        r.setMcpServerName(mcp.getName());
+        r.setServerId(mcp.getServerId());
+        return r;
+    }
 }

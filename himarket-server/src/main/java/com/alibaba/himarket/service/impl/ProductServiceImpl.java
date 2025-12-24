@@ -635,6 +635,8 @@ public class ProductServiceImpl implements ProductService {
                 config = productRef.getAdpAIGatewayRefConfig();
             } else if (gateway.getGatewayType().isApsaraGateway()) {
                 config = productRef.getApsaraGatewayRefConfig();
+            } else if (gateway.getGatewayType().isSofaHigress()) {
+                config = productRef.getSofaHigressRefConfig();
             } else {
                 config = productRef.getApigRefConfig();
             }

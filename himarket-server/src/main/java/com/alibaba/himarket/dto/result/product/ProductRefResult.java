@@ -29,6 +29,7 @@ import com.alibaba.himarket.support.enums.SourceType;
 import com.alibaba.himarket.support.product.APIGRefConfig;
 import com.alibaba.himarket.support.product.HigressRefConfig;
 import com.alibaba.himarket.support.product.NacosRefConfig;
+import com.alibaba.himarket.support.product.SofaHigressRefConfig;
 import java.util.List;
 import lombok.Data;
 
@@ -48,6 +49,8 @@ public class ProductRefResult implements OutputConverter<ProductRefResult, Produ
     private APIGRefConfig apsaraGatewayRefConfig;
 
     private HigressRefConfig higressRefConfig;
+
+    private SofaHigressRefConfig sofaHigressRefConfig;
 
     private String nacosId;
 

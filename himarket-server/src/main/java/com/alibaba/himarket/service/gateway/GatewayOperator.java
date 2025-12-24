@@ -103,7 +103,9 @@ public abstract class GatewayOperator<T> {
         String clientKey =
                 gateway.getGatewayType().isAPIG()
                         ? gateway.getApigConfig().buildUniqueKey()
-                        : gateway.getHigressConfig().buildUniqueKey();
+                        : gateway.getGatewayType().isSofaHigress()
+                            ? gateway.getSofaHigressConfig().buildUniqueKey()
+                            : gateway.getHigressConfig().buildUniqueKey();
         return (T) clientCache.computeIfAbsent(clientKey, key -> createClient(gateway));
     }
 
@@ -117,6 +119,8 @@ public abstract class GatewayOperator<T> {
                 return new ApsaraStackGatewayClient(gateway.getApsaraGatewayConfig());
             case HIGRESS:
                 return new HigressClient(gateway.getHigressConfig());
+            case SOFA_HIGRESS:
+                return new SofaHigressClient(gateway.getSofaHigressConfig());
             default:
                 throw new BusinessException(
                         ErrorCode.INTERNAL_ERROR,

@@ -38,6 +38,8 @@ public class GatewayConfig {
 
     private HigressConfig higressConfig;
 
+    private SofaHigressConfig sofaHigressConfig;
+
     /** 网关实体引用，用于获取gatewayId等信息 */
     private Gateway gateway;
 }
