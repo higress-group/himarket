@@ -26,19 +26,29 @@ import lombok.RequiredArgsConstructor;
 @Getter
 public enum GatewayType {
 
-    /** 云原生API网关 */
+    /**
+     * Native API Gateway
+     */
     APIG_API("API"),
 
-    /** AI网关 */
+    /**
+     * AI Gateway
+     */
     APIG_AI("AI"),
 
-    /** ADP AI网关 */
+    /**
+     * ADP AI Gateway
+     */
     ADP_AI_GATEWAY("ADP_AI_GATEWAY"),
 
-    /** Apsara AI 网关 */
+    /**
+     * Apsara AI Gateway
+     */
     APSARA_GATEWAY("APSARA_GATEWAY"),
 
-    /** Higress */
+    /**
+     * Higress
+     */
     HIGRESS("Higress"),
     ;
 

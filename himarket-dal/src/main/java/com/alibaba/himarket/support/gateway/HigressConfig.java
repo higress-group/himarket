@@ -33,7 +33,9 @@ public class HigressConfig {
 
     @Encrypted private String password;
 
-    /** Higress gateway address */
+    /**
+     * Higress gateway address
+     */
     private String gatewayAddress;
 
     public String buildUniqueKey() {

@@ -28,10 +28,14 @@ public class ApiKeyConfig {
 
     private List<ApiKeyCredential> credentials;
 
-    /** apikey的位置 */
+    /**
+     * Location of apikey
+     */
     private String source = "Default";
 
-    /** apikey参数名称 */
+    /**
+     * Name of apikey
+     */
     private String key = "Authorization";
 
     @Data

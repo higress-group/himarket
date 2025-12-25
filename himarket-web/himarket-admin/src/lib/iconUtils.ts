@@ -15,7 +15,7 @@ export function getIconString(icon?: IProductIcon): string {
   }
 
   if (icon.type === "BASE64") {
-    return `data:image/png;base64,${icon.value}`;
+    return icon.value.startsWith('data:') ? icon.value : `data:image/png;base64,${icon.value}`;
   }
 
   return "default";

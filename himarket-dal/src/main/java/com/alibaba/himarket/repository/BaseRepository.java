@@ -28,20 +28,20 @@ import org.springframework.data.repository.NoRepositoryBean;
 import org.springframework.lang.NonNull;
 
 /**
- * 基础数据访问接口，提供通用的数据库操作方法
+ * Base data access interface that provides common database operations
  *
- * @param <D> 实体类型(Domain/Entity)
- * @param <I> 主键类型(ID)
+ * @param <D> Domain/Entity type
+ * @param <I> ID type (Primary key)
  */
 @NoRepositoryBean
 public interface BaseRepository<D, I> extends JpaRepository<D, I>, JpaSpecificationExecutor<D> {
 
     /**
-     * 根据ID集合批量查询实体列表
+     * Batch query entities by collection of IDs
      *
-     * @param ids
-     * @param sort
-     * @return
+     * @param ids  Collection of entity IDs
+     * @param sort Sort criteria
+     * @return List of entities
      */
     List<D> findAllByIdIn(@NonNull Collection<I> ids, @NonNull Sort sort);
 }

@@ -41,19 +41,27 @@ public class ChatSession extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /** Session ID */
+    /**
+     * Session ID
+     */
     @Column(name = "session_id", nullable = false, unique = true, length = 64)
     private String sessionId;
 
-    /** User ID */
+    /**
+     * User ID
+     */
     @Column(name = "user_id", nullable = false, length = 64)
     private String userId;
 
-    /** Session name */
+    /**
+     * Session name
+     */
     @Column(name = "name", length = 255)
     private String name;
 
-    /** Product IDs, support multiple products */
+    /**
+     * Product IDs, support multiple products
+     */
     @Column(name = "products", length = 255)
     @Convert(converter = ListJsonConverter.class)
     private List<String> products;

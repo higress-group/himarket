@@ -25,17 +25,16 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
-/** 开发者更新个人信息请求参数 */
 @Data
 public class UpdateDeveloperParam implements InputConverter<Developer> {
 
-    @Size(max = 64, message = "用户名长度不能超过64个字符")
+    @Size(max = 64, message = "Username cannot exceed 64 characters")
     private String username;
 
-    @Email(message = "邮箱格式不正确")
-    @Size(max = 128, message = "邮箱长度不能超过128个字符")
+    @Email(message = "Invalid email format")
+    @Size(max = 128, message = "Email cannot exceed 128 characters")
     private String email;
 
-    @Size(max = 256, message = "头像URL长度不能超过256个字符")
+    @Size(max = 256, message = "Avatar URL cannot exceed 256 characters")
     private String avatarUrl;
 }

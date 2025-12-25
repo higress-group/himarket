@@ -19,7 +19,6 @@
 
 package com.alibaba.himarket.config;
 
-import com.alibaba.himarket.core.security.DeveloperAuthenticationProvider;
 import com.alibaba.himarket.core.security.JwtAuthenticationFilter;
 import jakarta.servlet.DispatcherType;
 import java.util.Collections;
@@ -33,6 +32,7 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -40,16 +40,13 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-/** Spring Security安全配置，集成JWT认证与接口权限控制，支持管理员和开发者多用户体系 */
 @Configuration
 @RequiredArgsConstructor
 @Slf4j
 @EnableMethodSecurity
 public class SecurityConfig {
 
-    private final DeveloperAuthenticationProvider developerAuthenticationProvider;
-
-    // Auth相关
+    // Auth endpoints
     private static final String[] AUTH_WHITELIST = {
         "/admins/init",
         "/admins/need-init",
@@ -65,43 +62,42 @@ public class SecurityConfig {
         "/developers/oauth2/token"
     };
 
-    // Swagger API文档相关
+    // Swagger endpoints
     private static final String[] SWAGGER_WHITELIST = {
         "/portal/swagger-ui.html", "/portal/swagger-ui/**", "/portal/v3/api-docs/**"
     };
 
-    // 系统路径白名单
+    // System endpoints
     private static final String[] SYSTEM_WHITELIST = {"/favicon.ico", "/error"};
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http.cors(Customizer.withDefaults())
-                .csrf(csrf -> csrf.disable())
+                .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(
                         session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(
                         auth ->
                                 auth
-                                        // 异步分发不进行权限检查（解决SSE等流式响应完成后的AccessDenied问题）
+                                        // Permit async dispatch for SSE/streaming
                                         .dispatcherTypeMatchers(DispatcherType.ASYNC)
                                         .permitAll()
-                                        // OPTIONS请求放行
+                                        // Permit OPTIONS
                                         .requestMatchers(HttpMethod.OPTIONS, "/**")
                                         .permitAll()
-                                        // 认证相关接口放行
+                                        // Permit auth endpoints
                                         .requestMatchers(AUTH_WHITELIST)
                                         .permitAll()
-                                        // Swagger相关接口放行
+                                        // Permit Swagger endpoints
                                         .requestMatchers(SWAGGER_WHITELIST)
                                         .permitAll()
-                                        // 系统路径放行
+                                        // Permit system endpoints
                                         .requestMatchers(SYSTEM_WHITELIST)
                                         .permitAll()
                                         .anyRequest()
                                         .authenticated())
                 .addFilterBefore(
-                        new JwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
-                .authenticationProvider(developerAuthenticationProvider);
+                        new JwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 

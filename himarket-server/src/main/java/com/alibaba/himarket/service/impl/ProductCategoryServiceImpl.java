@@ -73,7 +73,7 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
                             throw new BusinessException(
                                     ErrorCode.CONFLICT,
                                     StrUtil.format(
-                                            "Product category {} already exists",
+                                            "Product category with name `{}` already exists",
                                             category.getName()));
                         });
 
@@ -117,7 +117,7 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
                             throw new BusinessException(
                                     ErrorCode.CONFLICT,
                                     StrUtil.format(
-                                            "Product category {} already exists",
+                                            "Product category with name `{}` already exists",
                                             category.getName()));
                         });
 
@@ -133,7 +133,8 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
         if (categoryRelationRepository.existsByCategoryId(categoryId)) {
             throw new BusinessException(
                     ErrorCode.INVALID_REQUEST,
-                    StrUtil.format("Product category '{}' is in use", category.getName()));
+                    StrUtil.format(
+                            "Product category with name '{}' is in use", category.getName()));
         }
 
         categoryRepository.delete(category);

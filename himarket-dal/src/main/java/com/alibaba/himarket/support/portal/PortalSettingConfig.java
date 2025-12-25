@@ -25,21 +25,35 @@ import lombok.Data;
 @Data
 public class PortalSettingConfig {
 
-    /** 内置的账号密码认证，默认开启 */
+    /**
+     * Built-in username/password authentication, enabled by default
+     */
     private Boolean builtinAuthEnabled = true;
 
-    /** OIDC配置 */
+    /**
+     * OIDC configurations
+     */
     private List<OidcConfig> oidcConfigs;
 
-    /** 开启自动审批开发者注册 */
+    /**
+     * Enable auto-approval for developer registrations
+     */
     private Boolean autoApproveDevelopers = false;
 
-    /** 开启自动审批订阅申请 */
+    /**
+     * Enable auto-approval for subscription requests
+     */
     private Boolean autoApproveSubscriptions = true;
 
-    /** OAuth2配置 */
+    /**
+     * OAuth2 configurations
+     */
     private List<OAuth2Config> oauth2Configs;
 
-    /** 搜索引擎配置（新增） 每个 Portal 只能配置一个搜索引擎 null 表示未配置 */
+    /**
+     * Search engine configuration (New)
+     * Each Portal can only configure one search engine
+     * null means not configured
+     */
     private SearchEngineConfig searchEngineConfig;
 }

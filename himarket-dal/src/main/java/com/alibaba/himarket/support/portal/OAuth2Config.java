@@ -25,21 +25,33 @@ import lombok.Data;
 @Data
 public class OAuth2Config {
 
-    /** 提供商 */
+    /**
+     * Provider
+     */
     private String provider;
 
-    /** 名称 */
+    /**
+     * Name, must be unique
+     */
     private String name;
 
-    /** 是否启用 */
+    /**
+     * If true, this provider is enabled
+     */
     private boolean enabled = true;
 
-    /** 授权模式 */
+    /**
+     * Grant type
+     */
     private GrantType grantType;
 
-    /** JWT断言配置 */
+    /**
+     * JWT Bearer config
+     */
     private JwtBearerConfig jwtBearerConfig;
 
-    /** 身份映射 */
+    /**
+     * Identity mapping
+     */
     private IdentityMapping identityMapping = new IdentityMapping();
 }

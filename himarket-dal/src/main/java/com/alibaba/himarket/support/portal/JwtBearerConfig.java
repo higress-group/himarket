@@ -25,6 +25,8 @@ import lombok.Data;
 @Data
 public class JwtBearerConfig {
 
-    /** JWT公钥 */
+    /**
+     * JWT public keys
+     */
     private List<PublicKeyConfig> publicKeys;
 }

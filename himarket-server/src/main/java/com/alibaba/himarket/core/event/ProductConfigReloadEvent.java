@@ -19,11 +19,16 @@
 
 package com.alibaba.himarket.core.event;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.Getter;
+import org.springframework.context.ApplicationEvent;
 
-@Data
-@AllArgsConstructor
-public class ProductConfigReloadEvent {
-    private String productId;
+@Getter
+public class ProductConfigReloadEvent extends ApplicationEvent {
+
+    private final String productId;
+
+    public ProductConfigReloadEvent(String productId) {
+        super(productId);
+        this.productId = productId;
+    }
 }

@@ -17,17 +17,16 @@
  * under the License.
  */
 
-package com.alibaba.himarket.dto.params.developer;
+package com.alibaba.himarket.dto.params.login;
 
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 @Data
-public class DeveloperLoginParam {
-
-    @NotBlank(message = "用户名不能为空")
+public class LoginParam {
+    @NotBlank(message = "Username cannot be blank")
     private String username;
 
-    @NotBlank(message = "密码不能为空")
+    @NotBlank(message = "Password cannot be blank")
     private String password;
 }

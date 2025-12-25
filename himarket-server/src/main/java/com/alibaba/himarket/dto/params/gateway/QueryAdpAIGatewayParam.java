@@ -25,14 +25,13 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
-/** 查询 ADP 网关实例列表所需的连接参数 */
 @Data
 public class QueryAdpAIGatewayParam implements InputConverter<AdpAIGatewayConfig> {
 
-    @NotBlank(message = "ADP网关baseUrl不能为空")
+    @NotBlank(message = "ADP gateway base URL cannot be blank")
     private String baseUrl;
 
-    @NotNull(message = "ADP网关端口不能为空")
+    @NotNull(message = "ADP gateway port cannot be null")
     private Integer port;
 
     private String authSeed;

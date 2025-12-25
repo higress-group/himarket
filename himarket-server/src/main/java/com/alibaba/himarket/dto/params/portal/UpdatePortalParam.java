@@ -29,10 +29,10 @@ import lombok.Data;
 @Data
 public class UpdatePortalParam implements InputConverter<Portal> {
 
-    @Size(max = 50, message = "门户名称长度不能超过50个字符")
+    @Size(max = 50, message = "Portal name cannot exceed 50 characters")
     private String name;
 
-    @Size(max = 1024, message = "门户描述长度不能超过1024个字符")
+    @Size(max = 1024, message = "Portal description cannot exceed 1024 characters")
     private String description;
 
     private PortalSettingConfig portalSettingConfig;

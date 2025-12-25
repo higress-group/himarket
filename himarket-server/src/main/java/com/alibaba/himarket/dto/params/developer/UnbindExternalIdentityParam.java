@@ -21,7 +21,6 @@ package com.alibaba.himarket.dto.params.developer;
 
 import lombok.Data;
 
-/** 解绑外部身份参数 */
 @Data
 public class UnbindExternalIdentityParam {
 

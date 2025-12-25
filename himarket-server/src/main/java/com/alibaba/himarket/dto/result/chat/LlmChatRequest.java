@@ -39,34 +39,54 @@ import org.springframework.ai.openai.api.OpenAiApi.ChatCompletionRequest.WebSear
 @Slf4j
 public class LlmChatRequest {
 
-    /** The unique chatId */
+    /**
+     * The unique chatId
+     */
     private String chatId;
 
-    /** User question */
+    /**
+     * User question
+     */
     private String userQuestion;
 
-    /** Generic chat messages, convertible to specific SDK formats (e.g., Spring AI Alibaba). */
+    /**
+     * Generic chat messages, convertible to specific SDK formats (e.g., Spring AI).
+     */
     private List<ChatMessage> chatMessages;
 
-    /** URI, use this uri to request model */
+    /**
+     * URI, use this uri to request model
+     */
     private URI uri;
 
-    /** Custom headers */
+    /**
+     * Custom headers
+     */
     private Map<String, String> headers;
 
-    /** If not empty, use these URIs to resolve DNS */
+    /**
+     * If not empty, use these URIs to resolve DNS
+     */
     private List<URI> gatewayUris;
 
-    /** Credential for invoking the Model and MCP */
+    /**
+     * Credential for invoking the Model and MCP
+     */
     private CredentialContext credentialContext;
 
-    /** MCP servers with transport config */
+    /**
+     * MCP servers with transport config
+     */
     private List<MCPTransportConfig> mcpConfigs;
 
-    /** Model feature */
+    /**
+     * Model feature
+     */
     private ModelFeature modelFeature;
 
-    /** Web search options */
+    /**
+     * Web search options
+     */
     private WebSearchOptions webSearchOptions;
 
     public void tryResolveDns() {

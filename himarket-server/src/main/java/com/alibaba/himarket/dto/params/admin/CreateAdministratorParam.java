@@ -17,17 +17,19 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.enums;
+package com.alibaba.himarket.dto.params.admin;
 
-public enum ConsumerStatus {
+import com.alibaba.himarket.dto.converter.InputConverter;
+import com.alibaba.himarket.entity.Administrator;
+import jakarta.validation.constraints.NotBlank;
+import lombok.Data;
 
-    /** 待审核 */
-    PENDING,
+@Data
+public class CreateAdministratorParam implements InputConverter<Administrator> {
 
-    /** 已审核 */
-    APPROVED,
+    @NotBlank(message = "Username cannot be blank")
+    private String username;
 
-    /** 不可用，对应的网关资源已删除 */
-    DISABLED,
-    ;
+    @NotBlank(message = "Password cannot be blank")
+    private String password;
 }

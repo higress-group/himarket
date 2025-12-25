@@ -26,15 +26,23 @@ import lombok.Data;
 @Builder
 public class IdpState {
 
-    /** 提供商标识 */
+    /**
+     * Provider
+     */
     private String provider;
 
-    /** 时间戳 */
+    /**
+     * Timestamp
+     */
     private Long timestamp;
 
-    /** 随机数（防重放） */
+    /**
+     * Nonce, used to prevent replay attack
+     */
     private String nonce;
 
-    /** HiMarket-Frontend应用的API前缀 */
+    /**
+     * Request prefix for himarket-frontend
+     */
     private String apiPrefix;
 }

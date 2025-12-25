@@ -21,9 +21,9 @@ package com.alibaba.himarket.controller;
 
 import com.alibaba.himarket.core.annotation.AdminAuth;
 import com.alibaba.himarket.core.utils.TokenUtil;
-import com.alibaba.himarket.dto.params.admin.AdminCreateParam;
-import com.alibaba.himarket.dto.params.admin.AdminLoginParam;
+import com.alibaba.himarket.dto.params.admin.CreateAdministratorParam;
 import com.alibaba.himarket.dto.params.admin.ResetPasswordParam;
+import com.alibaba.himarket.dto.params.login.LoginParam;
 import com.alibaba.himarket.dto.result.admin.AdminResult;
 import com.alibaba.himarket.dto.result.common.AuthResult;
 import com.alibaba.himarket.service.AdministratorService;
@@ -46,7 +46,7 @@ public class AdministratorController {
 
     @Operation(summary = "管理员登录", description = "管理员登录，只需用户名和密码")
     @PostMapping("/login")
-    public AuthResult login(@Valid @RequestBody AdminLoginParam param) {
+    public AuthResult login(@Valid @RequestBody LoginParam param) {
         return administratorService.login(param.getUsername(), param.getPassword());
     }
 
@@ -65,7 +65,7 @@ public class AdministratorController {
 
     @Operation(summary = "初始化管理员", description = "仅允许首次调用，前端需传username和password")
     @PostMapping("/init")
-    public AdminResult initAdmin(@Valid @RequestBody AdminCreateParam param) {
+    public AdminResult initAdmin(@Valid @RequestBody CreateAdministratorParam param) {
         return administratorService.initAdmin(param.getUsername(), param.getPassword());
     }
 

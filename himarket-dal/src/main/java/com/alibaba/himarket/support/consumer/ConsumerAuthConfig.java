@@ -26,12 +26,18 @@ import lombok.Data;
 @Builder
 public class ConsumerAuthConfig {
 
-    /** for APIG */
+    /**
+     * For APIG
+     */
     private APIGAuthConfig apigAuthConfig;
 
-    /** for Higress */
+    /**
+     * For Higress
+     */
     private HigressAuthConfig higressAuthConfig;
 
-    /** for ADP AI Gateway */
+    /**
+     * For ADP AI Gateway
+     */
     private AdpAIAuthConfig adpAIAuthConfig;
 }

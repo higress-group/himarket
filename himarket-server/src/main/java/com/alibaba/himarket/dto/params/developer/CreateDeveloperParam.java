@@ -30,14 +30,14 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class CreateDeveloperParam implements InputConverter<Developer> {
 
-    @NotBlank(message = "用户名不能为空")
-    @Size(max = 64, message = "用户名长度不能超过64个字符")
+    @NotBlank(message = "Username cannot be blank")
+    @Size(max = 64, message = "Username cannot exceed 64 characters")
     private String username;
 
-    @NotBlank(message = "密码不能为空")
-    @Size(min = 6, max = 32, message = "密码长度应为6-32位")
+    @NotBlank(message = "Password cannot be blank")
+    @Size(min = 6, max = 32, message = "Password must be between 6 and 32 characters")
     private String password;
 
-    @Size(max = 256, message = "头像url长度不能超过256个字符")
+    @Size(max = 256, message = "Avatar URL cannot exceed 256 characters")
     private String avatarUrl;
 }

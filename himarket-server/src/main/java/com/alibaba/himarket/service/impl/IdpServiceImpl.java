@@ -56,14 +56,15 @@ public class IdpServiceImpl implements IdpService {
             return;
         }
 
-        // provider唯一
+        // Provider must be unique
         Set<String> providers =
                 oidcConfigs.stream()
                         .map(OidcConfig::getProvider)
                         .filter(StrUtil::isNotBlank)
                         .collect(Collectors.toSet());
         if (providers.size() != oidcConfigs.size()) {
-            throw new BusinessException(ErrorCode.CONFLICT, "OIDC配置中存在空或重复的provider");
+            throw new BusinessException(
+                    ErrorCode.CONFLICT, "Empty or duplicate provider in OIDC config");
         }
 
         oidcConfigs.forEach(
@@ -75,20 +76,22 @@ public class IdpServiceImpl implements IdpService {
                                                     new BusinessException(
                                                             ErrorCode.INVALID_PARAMETER,
                                                             StrUtil.format(
-                                                                    "OIDC配置{}缺少授权码配置",
+                                                                    "OIDC config {} missing auth"
+                                                                            + " code config",
                                                                     config.getProvider())));
-                    // 基础参数
+                    // Basic parameters
                     if (StrUtil.isBlank(authConfig.getClientId())
                             || StrUtil.isBlank(authConfig.getClientSecret())
                             || StrUtil.isBlank(authConfig.getScopes())) {
                         throw new BusinessException(
                                 ErrorCode.INVALID_PARAMETER,
                                 StrUtil.format(
-                                        "OIDC配置{}缺少必要参数: Client ID, Client Secret 或 Scopes",
+                                        "OIDC config {} missing required params: Client ID, Client"
+                                                + " Secret or Scopes",
                                         config.getProvider()));
                     }
 
-                    // 端点配置
+                    // Endpoint configuration
                     if (StrUtil.isNotBlank(authConfig.getIssuer())) {
                         discoverAndSetEndpoints(config.getProvider(), authConfig);
                     } else {
@@ -97,7 +100,9 @@ public class IdpServiceImpl implements IdpService {
                                 || StrUtil.isBlank(authConfig.getUserInfoEndpoint())) {
                             throw new BusinessException(
                                     ErrorCode.INVALID_PARAMETER,
-                                    StrUtil.format("OIDC配置{}缺少必要端点配置", config.getProvider()));
+                                    StrUtil.format(
+                                            "OIDC config {} missing required endpoint config",
+                                            config.getProvider()));
                         }
                     }
                 });
@@ -111,7 +116,7 @@ public class IdpServiceImpl implements IdpService {
             Map<String, Object> discovery =
                     restTemplate.exchange(discoveryUrl, HttpMethod.GET, null, Map.class).getBody();
 
-            // 验证并设置端点
+            // Validate and set endpoints
             String authEndpoint =
                     getRequiredEndpoint(discovery, IdpConstants.AUTHORIZATION_ENDPOINT);
             String tokenEndpoint = getRequiredEndpoint(discovery, IdpConstants.TOKEN_ENDPOINT);
@@ -125,7 +130,7 @@ public class IdpServiceImpl implements IdpService {
             log.error("Failed to discover OIDC endpoints from discovery URL: {}", discoveryUrl, e);
             throw new BusinessException(
                     ErrorCode.INVALID_PARAMETER,
-                    StrUtil.format("OIDC配置{}的Issuer无效或无法访问", provider));
+                    StrUtil.format("OIDC config {} issuer is invalid or unreachable", provider));
         }
     }
 
@@ -137,7 +142,7 @@ public class IdpServiceImpl implements IdpService {
                         () ->
                                 new BusinessException(
                                         ErrorCode.INVALID_PARAMETER,
-                                        "OIDC Discovery配置中缺少端点: " + name));
+                                        "Missing endpoint in OIDC discovery config: " + name));
     }
 
     @Override
@@ -146,14 +151,15 @@ public class IdpServiceImpl implements IdpService {
             return;
         }
 
-        // provider唯一
+        // Provider must be unique
         Set<String> providers =
                 oauth2Configs.stream()
                         .map(OAuth2Config::getProvider)
                         .filter(StrUtil::isNotBlank)
                         .collect(Collectors.toSet());
         if (providers.size() != oauth2Configs.size()) {
-            throw new BusinessException(ErrorCode.CONFLICT, "OAuth2配置中存在空或重复的provider");
+            throw new BusinessException(
+                    ErrorCode.CONFLICT, "Empty or duplicate provider in OAuth2 config");
         }
 
         oauth2Configs.forEach(
@@ -169,20 +175,23 @@ public class IdpServiceImpl implements IdpService {
         if (jwtBearerConfig == null) {
             throw new BusinessException(
                     ErrorCode.INVALID_PARAMETER,
-                    StrUtil.format("OAuth2配置{}使用JWT断言模式但缺少JWT断言配置", config.getProvider()));
+                    StrUtil.format(
+                            "OAuth2 config {} uses JWT bearer but missing JWT bearer config",
+                            config.getProvider()));
         }
 
         List<PublicKeyConfig> publicKeys = jwtBearerConfig.getPublicKeys();
         if (CollUtil.isEmpty(publicKeys)) {
             throw new BusinessException(
                     ErrorCode.INVALID_PARAMETER,
-                    StrUtil.format("OAuth2配置{}缺少公钥配置", config.getProvider()));
+                    StrUtil.format(
+                            "OAuth2 config {} missing public key config", config.getProvider()));
         }
 
         if (publicKeys.stream()
                         .map(
                                 key -> {
-                                    // 加载公钥验证有效性
+                                    // Load public key to validate
                                     loadPublicKey(key.getFormat(), key.getValue());
                                     return key.getKid();
                                 })
@@ -191,7 +200,8 @@ public class IdpServiceImpl implements IdpService {
                 != publicKeys.size()) {
             throw new BusinessException(
                     ErrorCode.CONFLICT,
-                    StrUtil.format("OAuth2配置{}的公钥ID存在重复", config.getProvider()));
+                    StrUtil.format(
+                            "OAuth2 config {} has duplicate public key IDs", config.getProvider()));
         }
     }
 
@@ -203,12 +213,13 @@ public class IdpServiceImpl implements IdpService {
             case JWK:
                 return loadPublicKeyFromJwk(publicKey);
             default:
-                throw new BusinessException(ErrorCode.INVALID_PARAMETER, "公钥格式不支持");
+                throw new BusinessException(
+                        ErrorCode.INVALID_PARAMETER, "Unsupported public key format");
         }
     }
 
     private PublicKey loadPublicKeyFromPem(String pemContent) {
-        // 清理PEM格式标记和空白字符
+        // Clean PEM format markers and whitespace
         String publicKeyPEM =
                 pemContent
                         .replace("-----BEGIN PUBLIC KEY-----", "")
@@ -218,46 +229,47 @@ public class IdpServiceImpl implements IdpService {
                         .replaceAll("\\s", "");
 
         if (StrUtil.isBlank(publicKeyPEM)) {
-            throw new IllegalArgumentException("PEM内容为空");
+            throw new IllegalArgumentException("PEM content is empty");
         }
 
         try {
-            // Base64解码
+            // Base64 decode
             byte[] decoded = Base64.getDecoder().decode(publicKeyPEM);
 
-            // 公钥对象
+            // Public key object
             X509EncodedKeySpec spec = new X509EncodedKeySpec(decoded);
             KeyFactory keyFactory = KeyFactory.getInstance("RSA");
             return keyFactory.generatePublic(spec);
         } catch (Exception e) {
-            log.error("PEM公钥解析失败", e);
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "PEM公钥解析失败: " + e.getMessage());
+            log.error("Failed to parse PEM public key", e);
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR, "Failed to parse PEM public key: " + e.getMessage());
         }
     }
 
     private PublicKey loadPublicKeyFromJwk(String jwkContent) {
         JSONObject jwk = JSONUtil.parseObj(jwkContent);
 
-        // 验证必需字段
+        // Validate required fields
         String kty = getRequiredField(jwk, "kty");
         if (!"RSA".equals(kty)) {
-            throw new IllegalArgumentException("当前仅支持RSA类型的JWK");
+            throw new IllegalArgumentException("Only RSA type JWK is supported");
         }
 
         return loadRSAPublicKeyFromJwk(jwk);
     }
 
     private PublicKey loadRSAPublicKeyFromJwk(JSONObject jwk) {
-        // 获取必需的RSA参数
+        // Get required RSA parameters
         String nStr = getRequiredField(jwk, "n");
         String eStr = getRequiredField(jwk, "e");
 
         try {
-            // Base64解码参数
+            // Base64 decode parameters
             byte[] nBytes = Base64.getUrlDecoder().decode(nStr);
             byte[] eBytes = Base64.getUrlDecoder().decode(eStr);
 
-            // 构建RSA公钥
+            // Build RSA public key
             BigInteger modulus = new BigInteger(1, nBytes);
             BigInteger exponent = new BigInteger(1, eBytes);
 
@@ -265,16 +277,18 @@ public class IdpServiceImpl implements IdpService {
             KeyFactory keyFactory = KeyFactory.getInstance("RSA");
             return keyFactory.generatePublic(spec);
         } catch (Exception e) {
-            log.error("JWK RSA参数解析失败", e);
+            log.error("Failed to parse JWK RSA parameters", e);
             throw new BusinessException(
-                    ErrorCode.INTERNAL_ERROR, "JWK RSA参数解析失败: " + e.getMessage());
+                    ErrorCode.INTERNAL_ERROR,
+                    "Failed to parse JWK RSA parameters: " + e.getMessage());
         }
     }
 
     private String getRequiredField(JSONObject jwk, String fieldName) {
         String value = jwk.getStr(fieldName);
         if (StrUtil.isBlank(value)) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "JWK中缺少字段: " + fieldName);
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST, "Missing field in JWK: " + fieldName);
         }
         return value;
     }

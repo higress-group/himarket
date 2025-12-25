@@ -14,7 +14,7 @@ import type { IMCPConfig } from "../lib/apis/typing";
 import type { IProductDetail } from "../lib/apis";
 import APIs from "../lib/apis";
 import MarkdownRender from "../components/MarkdownRender";
-import { copyToClipboard } from "../lib/utils";
+import { copyToClipboard, formatDomainWithPort } from "../lib/utils";
 
 function McpDetail() {
   const { mcpProductId } = useParams();
@@ -85,22 +85,9 @@ function McpDetail() {
     }
   };
 
-  // 格式化域名端口
-  const formatDomainWithPort = (domainStr: string, protocol: string) => {
-    const [host, port] = domainStr.split(':');
-    if (!port) return domainStr;
-
-    // 隐藏 HTTP 默认端口 80
-    if (protocol === 'http' && port === '80') return host;
-    // 隐藏 HTTPS 默认端口 443
-    if (protocol === 'https' && port === '443') return host;
-
-    return domainStr;
-  };
-
   // 生成连接配置的函数
   const generateConnectionConfig = useCallback((
-    domains: Array<{ domain: string; protocol: string }> | null | undefined,
+    domains: Array<{ domain: string; port?: number; protocol: string }> | null | undefined,
     path: string | null | undefined,
     serverName: string,
     localConfig?: unknown,
@@ -119,7 +106,7 @@ function McpDetail() {
     // HTTP/SSE 模式
     if (domains && domains.length > 0 && path && domainIndex < domains.length) {
       const domain = domains[domainIndex];
-      const formattedDomain = formatDomainWithPort(domain.domain, domain.protocol);
+      const formattedDomain = formatDomainWithPort(domain.domain, domain.port, domain.protocol);
       const baseUrl = `${domain.protocol}://${formattedDomain}`;
       let endpoint = `${baseUrl}${path}`;
 
@@ -244,11 +231,12 @@ function McpDetail() {
   }, [mcpConfig, generateConnectionConfig, selectedDomainIndex, data]);
 
   // 生成域名选项的函数
-  const getDomainOptions = (domains: Array<{ domain: string; protocol: string; networkType?: string }>) => {
+  const getDomainOptions = (domains: Array<{ domain: string; port?: number; protocol: string; networkType?: string }>) => {
     return domains.map((domain, index) => {
+      const formattedDomain = formatDomainWithPort(domain.domain, domain.port, domain.protocol);
       return {
         value: index,
-        label: `${domain.protocol}://${domain.domain}`,
+        label: `${domain.protocol}://${formattedDomain}`,
         domain: domain
       }
     })

@@ -30,21 +30,33 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface ChatSessionRepository extends BaseRepository<ChatSession, Long> {
 
-    /** Find a session by session ID */
+    /**
+     * Find a session by session ID
+     */
     Optional<ChatSession> findBySessionId(String sessionId);
 
-    /** Find sessions by user ID */
+    /**
+     * Find sessions by user ID
+     */
     Page<ChatSession> findByUserId(String userId, Pageable pageable);
 
-    /** Calculate the number of sessions for a user */
+    /**
+     * Calculate the number of sessions for a user
+     */
     int countByUserId(String userId);
 
-    /** Find a session by session ID and user ID */
+    /**
+     * Find a session by session ID and user ID
+     */
     Optional<ChatSession> findBySessionIdAndUserId(String sessionId, String userId);
 
-    /** Find all sessions for a user */
+    /**
+     * Find all sessions for a user
+     */
     List<ChatSession> findAllByUserId(String userId);
 
-    /** Find the first session for a user */
+    /**
+     * Find the first session for a user
+     */
     Optional<ChatSession> findFirstByUserId(String userId, Sort sort);
 }

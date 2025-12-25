@@ -21,19 +21,17 @@ package com.alibaba.himarket.dto.params.portal;
 
 import com.alibaba.himarket.dto.converter.InputConverter;
 import com.alibaba.himarket.entity.Portal;
-import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
-@Schema(description = "创建门户参数")
 @Data
 public class CreatePortalParam implements InputConverter<Portal> {
 
-    @NotBlank(message = "门户名称不能为空")
-    @Size(max = 50, message = "门户名称长度不能超过50个字符")
+    @NotBlank(message = "Portal name cannot be blank")
+    @Size(max = 50, message = "Portal name cannot exceed 50 characters")
     private String name;
 
-    @Size(max = 1024, message = "门户描述长度不能超过1024个字符")
+    @Size(max = 1024, message = "Portal description cannot exceed 1024 characters")
     private String description;
 }

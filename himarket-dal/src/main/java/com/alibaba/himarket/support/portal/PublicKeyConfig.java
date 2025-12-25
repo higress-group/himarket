@@ -25,15 +25,23 @@ import lombok.Data;
 @Data
 public class PublicKeyConfig {
 
-    /** 公钥ID */
+    /**
+     * Public key ID
+     */
     private String kid;
 
-    /** 公钥格式：PEM或JWK */
+    /**
+     * Public key format: PEM or JWK
+     */
     private PublicKeyFormat format;
 
-    /** 签名算法：RS256，ES256，PS256等 */
+    /**
+     * Signature algorithm: RS256, ES256, PS256, etc.
+     */
     private String algorithm;
 
-    /** 公钥内容，PEM或JWK JSON字符串 */
+    /**
+     * Public key content, in PEM or JWK JSON string format
+     */
     private String value;
 }

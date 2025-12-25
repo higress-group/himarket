@@ -23,13 +23,13 @@ public class JwtConstants {
 
     // region JWT Header
 
-    /** 算法字段 */
+    /** Algorithm */
     public static final String HEADER_ALG = "alg";
 
-    /** 类型字段 */
+    /** Type */
     public static final String HEADER_TYP = "typ";
 
-    /** 密钥ID字段 */
+    /** Key ID */
     public static final String HEADER_KID = "kid";
 
     // endregion
@@ -38,55 +38,55 @@ public class JwtConstants {
 
     public static final String PAYLOAD_PROVIDER = "provider";
 
-    /** 过期时间 */
+    /** Expiration */
     public static final String PAYLOAD_EXP = "exp";
 
-    /** 签发时间 */
+    /** Issued at */
     public static final String PAYLOAD_IAT = "iat";
 
-    /** JWT唯一标识 */
+    /** JWT ID */
     public static final String PAYLOAD_JTI = "jti";
 
-    /** 签发者 */
+    /** Issuer */
     public static final String PAYLOAD_ISS = "iss";
 
-    /** 主题 */
+    /** Subject */
     public static final String PAYLOAD_SUB = "sub";
 
-    /** 受众 */
+    /** Audience */
     public static final String PAYLOAD_AUD = "aud";
 
-    /** 门户ID */
+    /** Portal ID */
     public static final String PAYLOAD_PORTAL = "portal";
 
     // endregion
 
-    // region 自定义Payload
+    // region Custom Payload
 
-    /** 用户ID（默认身份映射字段） */
+    /** User ID (default identity mapping) */
     public static final String PAYLOAD_USER_ID = "userId";
 
-    /** 用户名（默认身份映射字段） */
+    /** User name (default identity mapping) */
     public static final String PAYLOAD_USER_NAME = "name";
 
-    /** 邮箱（默认身份映射字段） */
+    /** Email (default identity mapping) */
     public static final String PAYLOAD_EMAIL = "email";
 
     // endregion
 
-    // region OAuth2相关常量
+    // region OAuth2 Constants
 
-    /** JWT Bearer Grant类型 */
+    /** JWT Bearer grant type */
     public static final String JWT_BEARER_GRANT_TYPE =
             "urn:ietf:params:oauth:grant-type:jwt-bearer";
 
-    /** Token类型 */
+    /** Token type */
     public static final String TOKEN_TYPE_BEARER = "Bearer";
 
-    /** 默认Token过期时间（秒） */
+    /** Default token expiration (seconds) */
     public static final int DEFAULT_TOKEN_EXPIRES_IN = 3600;
 
-    /** JWT Token类型 */
+    /** JWT token type */
     public static final String JWT_TOKEN_TYPE = "JWT";
 
     // endregion

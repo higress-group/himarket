@@ -41,33 +41,47 @@ public class ChatAttachment extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /** Attachment ID */
+    /**
+     * Attachment ID
+     */
     @Column(name = "attachment_id", nullable = false, unique = true, length = 64)
     private String attachmentId;
 
-    /** User ID */
+    /**
+     * User ID
+     */
     @Column(name = "user_id", nullable = false, length = 64)
     private String userId;
 
-    /** Attachment name */
+    /**
+     * Attachment name
+     */
     @Column(name = "name", length = 255)
     private String name;
 
-    /** Attachment type, IMAGE/VIDEO/DOCUMENT */
+    /**
+     * Attachment type, IMAGE/VIDEO/DOCUMENT
+     */
     @Column(name = "type", nullable = false, length = 32)
     @Enumerated(EnumType.STRING)
     private ChatAttachmentType type;
 
-    /** MIME type */
+    /**
+     * MIME type
+     */
     @Column(name = "mime_type", length = 64)
     private String mimeType;
 
-    /** Size */
+    /**
+     * Size
+     */
     @Column(name = "size", columnDefinition = "bigint")
     @ColumnDefault("0")
     private Long size;
 
-    /** Raw data */
+    /**
+     * Raw data
+     */
     @Column(name = "data", columnDefinition = "mediumblob")
     private byte[] data;
 }

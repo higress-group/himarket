@@ -24,15 +24,18 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/** 可用搜索引擎结果 供开发者查询当前 Portal 有哪些可用的搜索引擎 不包含敏感信息（如 API Key） */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class AvailableSearchEngineResult {
 
-    /** 搜索引擎类型 例如: GOOGLE */
+    /**
+     * Search engine type (e.g., GOOGLE)
+     */
     private SearchEngineType engineType;
 
-    /** 搜索引擎名称（展示用） 例如: "Google搜索" */
+    /**
+     * Search engine display name (e.g., "Google Search")
+     */
     private String engineName;
 }

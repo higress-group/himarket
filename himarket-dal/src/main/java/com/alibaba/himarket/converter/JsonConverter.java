@@ -69,8 +69,7 @@ public abstract class JsonConverter<T> implements AttributeConverter<T, String> 
 
     @SuppressWarnings("unchecked")
     private T cloneAndEncrypt(T original) {
-        // Clone避免JPA更新数据
-        //        T cloned = JSONUtil.toBean(JSONUtil.toJsonStr(original), type);
+        // Clone to avoid automatic database updates through JPA persistence
         T cloned =
                 original instanceof List
                         ? (T) new ArrayList<>((List<?>) original)
@@ -101,7 +100,7 @@ public abstract class JsonConverter<T> implements AttributeConverter<T, String> 
                         return;
                     }
 
-                    // 处理需要加密/解密的字段
+                    // Process fields that require encryption/decryption
                     if (field.isAnnotationPresent(Encrypted.class) && value instanceof String) {
                         String result =
                                 isEncrypt

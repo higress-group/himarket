@@ -21,7 +21,9 @@ package com.alibaba.himarket.support.chat.content;
 
 import com.alibaba.himarket.support.enums.ContentType;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
+@EqualsAndHashCode(callSuper = true)
 @Data
 public class TextContent extends MessageContent {
 

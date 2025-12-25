@@ -35,14 +35,14 @@ import lombok.Data;
 @Data
 public class CreateProductParam implements InputConverter<Product> {
 
-    @NotBlank(message = "API产品名称不能为空")
-    @Size(max = 50, message = "API产品名称长度不能超过50个字符")
+    @NotBlank(message = "API product name cannot be blank")
+    @Size(max = 50, message = "API product name cannot exceed 50 characters")
     private String name;
 
-    @Size(max = 256, message = "API产品描述长度不能超过256个字符")
+    @Size(max = 256, message = "API product description cannot exceed 256 characters")
     private String description;
 
-    @NotNull(message = "API产品类型不能为空")
+    @NotNull(message = "API product type cannot be null")
     private ProductType type;
 
     private String document;
@@ -55,7 +55,7 @@ public class CreateProductParam implements InputConverter<Product> {
 
     private ProductFeature feature;
 
-    @AssertTrue(message = "Icon大小不能超过16KB")
+    @AssertTrue(message = "Icon size cannot exceed 16KB")
     public boolean checkIcon() {
         if (icon == null || StrUtil.isBlank(icon.getValue())) {
             return true;

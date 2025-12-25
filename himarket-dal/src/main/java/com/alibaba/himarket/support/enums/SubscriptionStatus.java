@@ -20,10 +20,14 @@
 package com.alibaba.himarket.support.enums;
 
 public enum SubscriptionStatus {
-    /** Pending approval */
+    /**
+     * Pending approval
+     */
     PENDING,
 
-    /** Approved and active */
+    /**
+     * Approved and active
+     */
     APPROVED,
     ;
 }

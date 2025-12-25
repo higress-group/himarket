@@ -89,27 +89,36 @@ public class MCPConfigResult {
     @Data
     public static class McpMetadata {
 
-        /** 来源 AI网关/Higress/Nacos */
+        /**
+         * Source, e.g. APIG_AI, HIGRESS, NACOS
+         */
         private String source;
 
         /**
-         * 服务类型 AI网关：HTTP（HTTP转MCP）/MCP（MCP直接代理）
-         * Higress：OPEN_API（OpenAPI转MCP）/DIRECT_ROUTE（直接路由）/DATABASE（数据库）
+         * Service type
+         * For AI Gateway: HTTP (HTTP to MCP conversion) / MCP (Direct MCP proxy)
+         * For Higress: OPEN_API (OpenAPI to MCP conversion) / DIRECT_ROUTE (Direct routing) / DATABASE (Database)
          */
         private String createFromType;
 
-        /** HTTP/SSE */
+        /**
+         * HTTP/SSE
+         */
         private String protocol;
     }
 
     @Data
     public static class MCPServerConfig {
-        /** for gateway */
+        /**
+         * For gateway
+         */
         private String path;
 
         private List<DomainResult> domains;
 
-        /** for nacos */
+        /**
+         * For nacos
+         */
         private Object rawConfig;
     }
 }

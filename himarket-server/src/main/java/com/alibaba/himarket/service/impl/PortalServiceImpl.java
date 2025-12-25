@@ -44,7 +44,6 @@ import com.alibaba.himarket.entity.ProductSubscription;
 import com.alibaba.himarket.repository.PortalDomainRepository;
 import com.alibaba.himarket.repository.PortalRepository;
 import com.alibaba.himarket.repository.ProductPublicationRepository;
-import com.alibaba.himarket.repository.ProductRefRepository;
 import com.alibaba.himarket.repository.ProductRepository;
 import com.alibaba.himarket.repository.SubscriptionRepository;
 import com.alibaba.himarket.service.IdpService;
@@ -88,11 +87,9 @@ public class PortalServiceImpl implements PortalService {
 
     private final IdpService idpService;
 
-    private final String domainFormat = "%s.api.portal.local";
+    private final String domainFormat = "%s.himarket.local";
 
     private final ProductPublicationRepository publicationRepository;
-
-    private final ProductRefRepository productRefRepository;
 
     private final ProductRepository productRepository;
 

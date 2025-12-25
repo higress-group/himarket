@@ -36,10 +36,10 @@ public class WebMvcConfig {
     public PageableHandlerMethodArgumentResolver pageableResolver() {
         PageableHandlerMethodArgumentResolver resolver =
                 new PageableHandlerMethodArgumentResolver();
-        // 默认分页和排序
+        // Default page size is 100
         resolver.setFallbackPageable(
                 PageRequest.of(0, 100, Sort.by(Sort.Direction.DESC, "createAt")));
-        // 页码从1开始
+        // Page index starts from 1
         resolver.setOneIndexedParameters(true);
         return resolver;
     }

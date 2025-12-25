@@ -65,26 +65,28 @@ public class OAuth2ServiceImpl implements OAuth2Service {
     @Override
     public AuthResult authenticate(String grantType, String jwtToken) {
         if (!GrantType.JWT_BEARER.getType().equals(grantType)) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "不支持的授权模式");
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "Unsupported grant type");
         }
 
-        // 解析JWT
+        // Parse JWT
         JWT jwt = JWTUtil.parseToken(jwtToken);
         String kid = (String) jwt.getHeader(JwtConstants.HEADER_KID);
         if (StrUtil.isBlank(kid)) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "JWT header缺少字段kid");
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "JWT header missing field kid");
         }
         String provider = (String) jwt.getPayload(JwtConstants.PAYLOAD_PROVIDER);
         if (StrUtil.isBlank(provider)) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "JWT payload缺少字段provider");
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST, "JWT payload missing field provider");
         }
 
         String portalId = (String) jwt.getPayload(JwtConstants.PAYLOAD_PORTAL);
         if (StrUtil.isBlank(portalId)) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "JWT payload缺少字段portal");
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST, "JWT payload missing field portal");
         }
 
-        // 根据provider确定OAuth2配置
+        // Get OAuth2 config by provider
         PortalResult portal = portalService.getPortal(portalId);
         List<OAuth2Config> oauth2Configs =
                 Optional.ofNullable(portal.getPortalSettingConfig())
@@ -98,7 +100,7 @@ public class OAuth2ServiceImpl implements OAuth2Service {
 
         OAuth2Config oAuth2Config =
                 oauth2Configs.stream()
-                        // JWT Bearer模式
+                        // JWT Bearer mode
                         .filter(config -> config.getGrantType() == GrantType.JWT_BEARER)
                         .filter(
                                 config ->
@@ -106,7 +108,7 @@ public class OAuth2ServiceImpl implements OAuth2Service {
                                                 && CollUtil.isNotEmpty(
                                                         config.getJwtBearerConfig()
                                                                 .getPublicKeys()))
-                        // provider标识
+                        // Provider identifier
                         .filter(config -> config.getProvider().equals(provider))
                         .findFirst()
                         .orElseThrow(
@@ -116,7 +118,7 @@ public class OAuth2ServiceImpl implements OAuth2Service {
                                                 Resources.OAUTH2_CONFIG,
                                                 provider));
 
-        // 根据kid找到对应公钥
+        // Find public key by kid
         JwtBearerConfig jwtConfig = oAuth2Config.getJwtBearerConfig();
         PublicKeyConfig publicKeyConfig =
                 jwtConfig.getPublicKeys().stream()
@@ -127,31 +129,32 @@ public class OAuth2ServiceImpl implements OAuth2Service {
                                         new BusinessException(
                                                 ErrorCode.NOT_FOUND, Resources.PUBLIC_KEY, kid));
 
-        // 验签
+        // Verify signature
         if (!verifySignature(jwt, publicKeyConfig)) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "JWT签名验证失败");
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST, "JWT signature verification failed");
         }
 
-        // 验证Claims
+        // Validate claims
         validateJwtClaims(jwt);
 
         // Developer
         String developerId = createOrGetDeveloper(jwt, oAuth2Config);
 
-        // 生成Access Token
+        // Generate access token
         String accessToken = TokenUtil.generateDeveloperToken(developerId);
         log.info(
-                "JWT Bearer认证成功，provider: {}, developer: {}",
+                "JWT Bearer authentication successful, provider: {}, developer: {}",
                 oAuth2Config.getProvider(),
                 developerId);
         return AuthResult.of(accessToken, TokenUtil.getTokenExpiresIn());
     }
 
     private boolean verifySignature(JWT jwt, PublicKeyConfig keyConfig) {
-        // 加载公钥
+        // Load public key
         PublicKey publicKey = idpService.loadPublicKey(keyConfig.getFormat(), keyConfig.getValue());
 
-        // 验证JWT
+        // Verify JWT
         JWTSigner signer = createJWTSigner(keyConfig.getAlgorithm(), publicKey);
         return jwt.setSigner(signer).verify();
     }
@@ -173,25 +176,27 @@ public class OAuth2ServiceImpl implements OAuth2Service {
             case ES512:
                 return JWTSignerUtil.es512(publicKey);
             default:
-                throw new BusinessException(ErrorCode.INVALID_PARAMETER, "不支持的JWT签名算法");
+                throw new BusinessException(
+                        ErrorCode.INVALID_PARAMETER, "Unsupported JWT signature algorithm");
         }
     }
 
     private void validateJwtClaims(JWT jwt) {
-        // 过期时间
+        // Expiration
         Object expObj = jwt.getPayload(JwtConstants.PAYLOAD_EXP);
         Long exp = Convert.toLong(expObj);
-        // 签发时间
+        // Issued at
         Object iatObj = jwt.getPayload(JwtConstants.PAYLOAD_IAT);
         Long iat = Convert.toLong(iatObj);
 
         if (iat == null || exp == null || iat > exp) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "JWT payload中exp或iat不合法");
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST, "Invalid exp or iat in JWT payload");
         }
 
         long currentTime = System.currentTimeMillis() / 1000;
         if (exp <= currentTime) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "JWT已过期");
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "JWT has expired");
         }
     }
 
@@ -212,10 +217,11 @@ public class OAuth2ServiceImpl implements OAuth2Service {
         String userId = Convert.toStr(userIdObj);
         String userName = Convert.toStr(userNameObj);
         if (StrUtil.isBlank(userId) || StrUtil.isBlank(userName)) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "JWT payload中缺少用户ID字段或用户名称");
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST, "Missing user ID or user name in JWT payload");
         }
 
-        // 复用已有的Developer，否则创建
+        // Reuse existing developer or create new
         return Optional.ofNullable(
                         developerService.getExternalDeveloper(config.getProvider(), userId))
                 .map(DeveloperResult::getDeveloperId)

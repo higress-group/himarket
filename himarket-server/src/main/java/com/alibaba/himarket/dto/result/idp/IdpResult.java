@@ -26,9 +26,13 @@ import lombok.Data;
 @Builder
 public class IdpResult {
 
-    /** 提供商标识 */
+    /**
+     * Provider
+     */
     private String provider;
 
-    /** 提供商名称 */
+    /**
+     * Provider display name
+     */
     private String displayName;
 }
