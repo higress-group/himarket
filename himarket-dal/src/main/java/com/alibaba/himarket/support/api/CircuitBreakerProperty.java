@@ -19,6 +19,7 @@
 
 package com.alibaba.himarket.support.api;
 
+import com.alibaba.himarket.support.annotation.APIField;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -28,15 +29,19 @@ import lombok.EqualsAndHashCode;
 public class CircuitBreakerProperty extends BaseAPIProperty {
 
     /** 失败阈值（触发熔断的失败次数或比例） */
+    @APIField(label = "失败阈值", description = "触发熔断的失败次数或比例", required = true)
     private Integer failureThreshold;
 
     /** 成功阈值（从半开状态恢复到关闭状态的成功次数） */
+    @APIField(label = "成功阈值", description = "从半开状态恢复到关闭状态的成功次数", required = true)
     private Integer successThreshold;
 
     /** 超时时间（毫秒，判定为失败的超时时长） */
+    @APIField(label = "超时时间", description = "判定为失败的超时时长（毫秒）")
     private Long timeout;
 
     /** 熔断持续时间（毫秒，熔断后多久尝试恢复） */
+    @APIField(label = "熔断持续时间", description = "熔断后多久尝试恢复（毫秒）", required = true)
     private Long openDuration;
 
     /** 半开状态允许的请求数 */

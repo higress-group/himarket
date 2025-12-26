@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
-import { GlobalOutlined, AppstoreOutlined, ApiOutlined, DesktopOutlined, UserOutlined, MenuOutlined, SettingOutlined, FolderOutlined, BarChartOutlined, DashboardOutlined, MonitorOutlined } from '@ant-design/icons'
+import { GlobalOutlined, AppstoreOutlined, DesktopOutlined, UserOutlined, MenuOutlined, SettingOutlined, FolderOutlined, BarChartOutlined, DashboardOutlined, MonitorOutlined } from '@ant-design/icons'
 import { Button } from 'antd'
 import { isAuthenticated, removeToken } from '../lib/utils'
 
@@ -46,7 +46,6 @@ const Layout: React.FC = () => {
   const navigation: NavigationItem[] = [
     { name: 'Portal', cn: '门户', href: '/portals', icon: GlobalOutlined },
     { name: 'API Products', cn: 'API产品', href: '/api-products', icon: AppstoreOutlined },
-    { name: 'API Management', cn: 'API管理', href: '/api-definitions', icon: ApiOutlined },
     { name: 'Categories', cn: '产品类别', href: '/product-categories', icon: FolderOutlined },
     {
       name: '实例管理',

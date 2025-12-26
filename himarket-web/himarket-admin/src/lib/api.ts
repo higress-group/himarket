@@ -304,6 +304,10 @@ export const apiDefinitionApi = {
   getApiDefinitionDetail: (apiDefinitionId: string) => {
     return api.get(`/api-definitions/${apiDefinitionId}`)
   },
+  // 获取支持的属性配置列表
+  getSupportedProperties: () => {
+    return api.get(`/api-definitions/supported-properties`)
+  },
   // 创建 API Definition
   createApiDefinition: (data: any) => {
     return api.post(`/api-definitions`, data)
@@ -339,6 +343,10 @@ export const apiDefinitionApi = {
   // 导入 Swagger/OpenAPI
   importSwagger: (data: any) => {
     return api.post(`/api-definitions/import/swagger`, data)
+  },
+  // 转换 Swagger/OpenAPI
+  convertSwagger: (data: any) => {
+    return api.post(`/tools/swagger/convert`, data)
   },
   // 获取可用网关能力
   getGatewayCapabilities: (apiType: string) => {

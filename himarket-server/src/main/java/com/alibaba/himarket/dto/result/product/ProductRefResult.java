@@ -19,12 +19,17 @@
 
 package com.alibaba.himarket.dto.result.product;
 
+import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.dto.converter.OutputConverter;
+import com.alibaba.himarket.dto.result.api.APIDefinitionVO;
 import com.alibaba.himarket.entity.ProductRef;
 import com.alibaba.himarket.support.enums.SourceType;
 import com.alibaba.himarket.support.product.APIGRefConfig;
 import com.alibaba.himarket.support.product.HigressRefConfig;
 import com.alibaba.himarket.support.product.NacosRefConfig;
+import java.util.List;
 import lombok.Data;
 
 @Data
@@ -49,4 +54,17 @@ public class ProductRefResult implements OutputConverter<ProductRefResult, Produ
     private String nacosId;
 
     private NacosRefConfig nacosRefConfig;
+
+    private List<String> apiDefinitionIds;
+
+    private List<APIDefinitionVO> apiDefinitions;
+
+    @Override
+    public ProductRefResult convertFrom(ProductRef productRef) {
+        BeanUtil.copyProperties(productRef, this, configOptions());
+        if (StrUtil.isNotBlank(productRef.getApiDefinitionIds())) {
+            this.apiDefinitionIds = JSONUtil.toList(productRef.getApiDefinitionIds(), String.class);
+        }
+        return this;
+    }
 }

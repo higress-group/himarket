@@ -112,5 +112,7 @@ public interface GatewayPublisher {
      * @throws com.alibaba.himarket.core.exception.BusinessException 如果配置无效
      */
     void validatePublishConfig(
-            APIDefinitionVO apiDefinition, List<APIEndpointVO> endpoints, PublishConfig publishConfig);
+            APIDefinitionVO apiDefinition,
+            List<APIEndpointVO> endpoints,
+            PublishConfig publishConfig);
 }

@@ -28,6 +28,7 @@ import com.alibaba.himarket.dto.result.api.APIDefinitionVO;
 import com.alibaba.himarket.dto.result.api.APIEndpointVO;
 import com.alibaba.himarket.dto.result.api.APIPublishHistoryVO;
 import com.alibaba.himarket.dto.result.api.APIPublishRecordVO;
+import com.alibaba.himarket.dto.result.api.PropertySchemaVO;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.service.APIDefinitionService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -48,6 +49,12 @@ import org.springframework.web.bind.annotation.*;
 public class APIDefinitionController {
 
     private final APIDefinitionService apiDefinitionService;
+
+    @Operation(summary = "获取支持的属性配置列表")
+    @GetMapping("/supported-properties")
+    public List<PropertySchemaVO> listSupportedProperties() {
+        return apiDefinitionService.listSupportedProperties();
+    }
 
     @Operation(summary = "创建 API Definition")
     @PostMapping

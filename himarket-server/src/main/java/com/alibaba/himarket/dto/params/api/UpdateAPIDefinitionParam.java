@@ -19,14 +19,16 @@
 
 package com.alibaba.himarket.dto.params.api;
 
-import cn.hutool.json.JSONUtil;
+import java.util.List;
+import java.util.Map;
+
 import com.alibaba.himarket.dto.converter.InputConverter;
 import com.alibaba.himarket.entity.APIDefinition;
 import com.alibaba.himarket.support.api.BaseAPIProperty;
 import com.alibaba.himarket.support.enums.APIStatus;
+
+import cn.hutool.json.JSONUtil;
 import jakarta.validation.constraints.Size;
-import java.util.List;
-import java.util.Map;
 import lombok.Data;
 
 @Data
@@ -46,6 +48,9 @@ public class UpdateAPIDefinitionParam implements InputConverter<APIDefinition> {
     private List<BaseAPIProperty> properties;
 
     private Map<String, Object> metadata;
+
+    /** 端点配置列表，更新 API 时可以同时更新多个端点 */
+    @jakarta.validation.Valid private List<CreateEndpointParam> endpoints;
 
     @Override
     public void update(APIDefinition domain) {

@@ -19,40 +19,48 @@
 
 package com.alibaba.himarket.support.enums;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+
 /** 属性类型枚举 */
+@Getter
+@AllArgsConstructor
 public enum PropertyType {
 
     /** 认证鉴权 */
-    AUTH,
+    AUTH("认证鉴权", "配置 API 的认证和鉴权方式"),
 
     /** 流量限制 */
-    RATE_LIMIT,
+    RATE_LIMIT("流量限制", "限制 API 的调用频率"),
 
     /** 跨域配置 */
-    CORS,
+    CORS("跨域配置", "配置 API 的跨域访问规则"),
 
     /** IP 黑白名单 */
-    IP_FILTER,
+    IP_FILTER("IP 黑白名单", "限制 API 的访问 IP"),
 
     /** 请求转换 */
-    REQUEST_TRANSFORM,
+    REQUEST_TRANSFORM("请求转换", "转换 API 的请求参数"),
 
     /** 重试策略 */
-    RETRY,
+    RETRY("重试策略", "配置 API 的重试机制"),
 
     /** 超时配置 */
-    TIMEOUT,
+    TIMEOUT("超时配置", "配置 API 的超时时间"),
 
     /** 熔断降级 */
-    CIRCUIT_BREAKER,
+    CIRCUIT_BREAKER("熔断降级", "配置 API 的熔断策略"),
 
     /** 响应转换 */
-    RESPONSE_TRANSFORM,
+    RESPONSE_TRANSFORM("响应转换", "转换 API 的响应结果"),
 
     /** 日志记录 */
-    LOGGING,
+    LOGGING("日志记录", "配置 API 的日志记录策略"),
 
     /** 自定义 */
-    CUSTOM,
+    CUSTOM("自定义", "自定义 API 属性"),
     ;
+
+    private final String label;
+    private final String description;
 }

@@ -172,6 +172,16 @@ export interface NacosAgentItem {
 
 export type ApiItem = RestAPIItem | HigressMCPItem | APIGAIMCPItem | NacosMCPItem | AIGatewayAgentItem | AIGatewayModelItem | NacosAgentItem;
 
+export interface ApiDefinition {
+  apiDefinitionId: string;
+  name: string;
+  description: string;
+  type: string;
+  status: string;
+  version: string;
+  endpoints?: any[];
+}
+
 // 关联服务配置
 export interface LinkedService {
   productId: string;
@@ -183,7 +193,8 @@ export interface LinkedService {
   nacosRefConfig?: NacosMCPItem | NacosAgentItem;  // 扩展支持 Agent
   adpAIGatewayRefConfig?: APIGAIMCPItem;
   apsaraGatewayRefConfig?: APIGAIMCPItem;
-  apiDefinitionIds?: string;  // API Definition IDs (for MANAGED source type)
+  apiDefinitionIds?: string[];  // API Definition IDs (for MANAGED source type)
+  apiDefinitions?: ApiDefinition[];
 }
 
 // Product Feature Types

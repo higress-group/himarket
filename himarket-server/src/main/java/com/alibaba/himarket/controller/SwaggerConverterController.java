@@ -66,12 +66,15 @@ public class SwaggerConverterController {
                         param.getSwaggerContent(),
                         param.getName(),
                         param.getDescription(),
-                        param.getVersion());
+                        param.getVersion(),
+                        param.getType());
 
         // 转换 Endpoints
         List<APIEndpoint> endpoints =
                 swaggerConverter.convertEndpoints(
-                        param.getSwaggerContent(), apiDefinition.getApiDefinitionId());
+                        param.getSwaggerContent(),
+                        apiDefinition.getApiDefinitionId(),
+                        apiDefinition.getType());
 
         // 构建返回结果
         Map<String, Object> result = new HashMap<>();
@@ -79,6 +82,7 @@ public class SwaggerConverterController {
         // 转换 APIDefinition 为 VO
         APIDefinitionVO apiDefinitionVO = new APIDefinitionVO().convertFrom(apiDefinition);
         result.put("apiDefinition", apiDefinitionVO);
+        result.put("endpoints", endpoints);
         result.put("endpointsCount", endpoints.size());
         result.put("message", String.format("成功转换 %d 个 Endpoints", endpoints.size()));
 

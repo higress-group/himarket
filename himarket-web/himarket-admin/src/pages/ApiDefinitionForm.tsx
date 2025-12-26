@@ -1,16 +1,18 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   Card,
   Form,
   Input,
+  InputNumber,
   Select,
   Button,
   message,
   Steps,
   Divider,
   Upload,
-  Radio
+  Radio,
+  Switch
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -18,11 +20,28 @@ import {
   UploadOutlined
 } from '@ant-design/icons';
 import type { UploadProps } from 'antd';
-import { apiDefinitionApi } from '@/lib/api';
+import { apiDefinitionApi, apiProductApi } from '@/lib/api';
 import EndpointEditor from '@/components/endpoint/EndpointEditor';
 import type { Endpoint } from '@/types/endpoint';
 
 const { TextArea } = Input;
+
+interface PropertyField {
+  name: string;
+  label: string;
+  type: string;
+  description: string;
+  required: boolean;
+  options?: string[];
+  defaultValue?: any;
+}
+
+interface PropertySchema {
+  type: string;
+  name: string;
+  description: string;
+  fields: PropertyField[];
+}
 
 // API 类型选项
 const API_TYPE_OPTIONS = [
@@ -32,29 +51,37 @@ const API_TYPE_OPTIONS = [
   { label: 'Model API', value: 'MODEL_API' }
 ];
 
-// 创建方式
-const CREATE_METHOD_OPTIONS = [
-  { label: '导入 Swagger/OpenAPI', value: 'SWAGGER' },
-  { label: '手动创建', value: 'MANUAL' }
-];
-
 export default function ApiDefinitionForm() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { productName, productType } = location.state || {};
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
-  const [createMethod, setCreateMethod] = useState('MANUAL');
-  const [swaggerContent, setSwaggerContent] = useState('');
   const [endpoints, setEndpoints] = useState<Endpoint[]>([]);
+  const [supportedProperties, setSupportedProperties] = useState<PropertySchema[]>([]);
   const isEdit = searchParams.get('id') !== null;
   const apiDefinitionId = searchParams.get('id');
 
   useEffect(() => {
+    fetchSupportedProperties();
     if (isEdit && apiDefinitionId) {
       fetchApiDefinition(apiDefinitionId);
     }
   }, [isEdit, apiDefinitionId]);
+
+  const fetchSupportedProperties = async () => {
+    try {
+      const response: any = await apiDefinitionApi.getSupportedProperties();
+      const data = response && response.data ? response.data : response;
+      if (Array.isArray(data)) {
+        setSupportedProperties(data);
+      }
+    } catch (error) {
+      console.error('获取支持的属性配置失败:', error);
+    }
+  };
 
   const fetchApiDefinition = async (id: string) => {
     setLoading(true);
@@ -63,12 +90,20 @@ export default function ApiDefinitionForm() {
       // 处理后端返回的数据格式
       const apiData = response && response.data ? response.data : response;
 
+      const propertiesObj: Record<string, any> = {};
+      if (apiData.properties && Array.isArray(apiData.properties)) {
+        apiData.properties.forEach((p: any) => {
+          propertiesObj[p.type] = { ...p, enabled: p.enabled !== false };
+        });
+      }
+
       form.setFieldsValue({
         name: apiData.name,
         description: apiData.description,
         type: apiData.type,
         status: apiData.status,
-        version: apiData.version
+        version: apiData.version,
+        properties: propertiesObj
       });
 
       // 加载 endpoints
@@ -114,60 +149,72 @@ export default function ApiDefinitionForm() {
 
       setLoading(true);
 
-      if (isEdit && apiDefinitionId) {
-        // 准备 endpoints 数据
-        const endpointsData = endpoints.map(endpoint => ({
-          name: endpoint.name,
-          description: endpoint.description,
-          type: endpoint.type,
-          sortOrder: endpoint.sortOrder,
-          config: {
-            ...endpoint.config,
-            type: endpoint.type  // 添加 type 字段，用于 Jackson 多态反序列化
-          }
-        }));
+      // 准备 endpoints 数据
+      const endpointsData = endpoints.map(endpoint => ({
+        name: endpoint.name,
+        description: endpoint.description,
+        type: endpoint.type,
+        sortOrder: endpoint.sortOrder,
+        config: {
+          ...endpoint.config,
+          type: endpoint.type  // 添加 type 字段，用于 Jackson 多态反序列化
+        }
+      }));
 
+      // 转换 properties 对象为列表
+      const propertiesList: any[] = [];
+      if (values.properties) {
+        for (const [type, props] of Object.entries(values.properties)) {
+          // 只有当属性开启时才提交
+          if (props && typeof props === 'object' && (props as any).enabled === true) {
+            propertiesList.push({
+              type: type,
+              ...(props as object)
+            });
+          }
+        }
+      }
+
+      const payload = {
+        ...values,
+        properties: propertiesList,
+        endpoints: endpointsData
+      };
+
+      if (isEdit && apiDefinitionId) {
         // 更新 API，将 endpoints 一起提交
-        await apiDefinitionApi.updateApiDefinition(apiDefinitionId, {
-          ...values,
-          endpoints: endpointsData
-        });
+        await apiDefinitionApi.updateApiDefinition(apiDefinitionId, payload);
 
         message.success('API 更新成功');
       } else {
         // 创建 API
-        if (createMethod === 'SWAGGER' && swaggerContent) {
-          // 通过 Swagger 导入创建
-          await apiDefinitionApi.importSwagger({
-            swaggerContent,
-            name: values.name,
-            description: values.description,
-            version: values.version
-          });
-        } else {
-          // 准备 endpoints 数据
-          const endpointsData = endpoints.map(endpoint => ({
-            name: endpoint.name,
-            description: endpoint.description,
-            type: endpoint.type,
-            sortOrder: endpoint.sortOrder,
-            config: {
-              ...endpoint.config,
-              type: endpoint.type  // 添加 type 字段，用于 Jackson 多态反序列化
-            }
-          }));
+        let newApiId: string | undefined;
 
-          // 手动创建，将 endpoints 作为参数一起传入
-          await apiDefinitionApi.createApiDefinition({
-            ...values,
-            endpoints: endpointsData
-          });
-        }
+        // 手动创建，将 endpoints 作为参数一起传入
+        const res: any = await apiDefinitionApi.createApiDefinition(payload);
+        const data = res && res.data ? res.data : res;
+        newApiId = data?.apiDefinitionId;
 
         message.success('API 创建成功');
+
+        // 如果是从 Product 页面跳转过来的，自动关联
+        const { productId } = location.state || {};
+        if (productId && newApiId) {
+          try {
+            await apiProductApi.createApiProductRef(productId, {
+              productId: productId,
+              sourceType: 'MANAGED',
+              apiDefinitionIds: JSON.stringify([newApiId])
+            });
+            message.success('已自动关联到当前产品');
+          } catch (linkError) {
+            console.error('自动关联失败', linkError);
+            message.warning('API创建成功，但自动关联失败，请手动关联');
+          }
+        }
       }
 
-      navigate('/api-definitions');
+      navigate(-1);
     } catch (error: any) {
       if (error.errorFields) {
         message.error('请完善表单信息');
@@ -179,110 +226,15 @@ export default function ApiDefinitionForm() {
     }
   };
 
-  const uploadProps: UploadProps = {
-    beforeUpload: (file) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const content = e.target?.result as string;
-        setSwaggerContent(content);
-        message.success(`${file.name} 文件上传成功`);
-      };
-      reader.readAsText(file);
-      return false;
-    },
-    maxCount: 1
-  };
-
   const renderStepContent = () => {
     switch (currentStep) {
       case 0:
-        // 第一步：选择创建方式（仅在创建时显示）
-        if (isEdit) {
-          const apiType = form.getFieldValue('type');
-          return (
-            <div>
-              {renderBasicInfoForm()}
-              <Divider className="my-6" />
-              <div className="py-4">
-                <h3 className="text-lg font-semibold mb-4">端点配置</h3>
-                <EndpointEditor
-                  value={endpoints}
-                  onChange={setEndpoints}
-                  apiType={apiType}
-                />
-              </div>
-            </div>
-          );
-        }
-        return (
-          <div className="py-8">
-            <div className="text-center mb-6">
-              <h3 className="text-lg font-semibold mb-2">选择创建方式</h3>
-              <p className="text-gray-500">选择如何创建你的 API Definition</p>
-            </div>
-            <Radio.Group
-              value={createMethod}
-              onChange={(e) => setCreateMethod(e.target.value)}
-              className="w-full"
-            >
-              <div className="flex w-full gap-4">
-                {CREATE_METHOD_OPTIONS.map((option) => (
-                  <Card
-                    key={option.value}
-                    hoverable
-                    className={`flex-1 cursor-pointer ${
-                      createMethod === option.value ? 'border-blue-500 border-2' : ''
-                    }`}
-                    onClick={() => setCreateMethod(option.value)}
-                  >
-                    <Radio value={option.value}>
-                      <div>
-                        <div className="font-semibold">{option.label}</div>
-                        <div className="text-sm text-gray-500">
-                          {option.value === 'MANUAL'
-                            ? '从头开始创建一个新的 API Definition'
-                            : '通过导入 Swagger/OpenAPI 文档快速创建'}
-                        </div>
-                      </div>
-                    </Radio>
-                  </Card>
-                ))}
-              </div>
-            </Radio.Group>
-          </div>
-        );
+        // 第一步：基本信息
+        return renderBasicInfoForm();
 
       case 1:
-        // 第二步：基本信息
-        if (!isEdit && createMethod === 'SWAGGER') {
-          return (
-            <div className="py-4">
-              <h3 className="text-lg font-semibold mb-4">上传 Swagger/OpenAPI 文档</h3>
-              <Form.Item
-                label="Swagger/OpenAPI 文档"
-                required
-                help="支持 Swagger 2.0 和 OpenAPI 3.0 格式的 JSON 或 YAML 文件"
-              >
-                <Upload {...uploadProps}>
-                  <Button icon={<UploadOutlined />}>选择文件</Button>
-                </Upload>
-              </Form.Item>
-              {swaggerContent && (
-                <Form.Item label="文档内容预览">
-                  <TextArea
-                    value={swaggerContent}
-                    rows={10}
-                    readOnly
-                    style={{ fontFamily: 'monospace' }}
-                  />
-                </Form.Item>
-              )}
-              <Divider />
-              {renderBasicInfoForm()}
-            </div>
-          );
-        }
-        return renderBasicInfoForm();
+        // 第二步：配置属性
+        return renderPropertiesForm();
 
       case 2:
         // 第三步：配置 Endpoints
@@ -302,6 +254,82 @@ export default function ApiDefinitionForm() {
     }
   };
 
+  const renderFieldInput = (field: PropertyField) => {
+    switch (field.type) {
+      case 'integer':
+        return <InputNumber style={{ width: '100%' }} />;
+      case 'boolean':
+        return <Select options={[{ label: '是', value: true }, { label: '否', value: false }]} />;
+      case 'select':
+        return <Select options={field.options?.map(opt => ({ label: opt, value: opt }))} />;
+      default:
+        return <Input />;
+    }
+  };
+
+  const renderPropertiesForm = () => {
+    return (
+      <div className="py-4">
+        <h3 className="text-lg font-semibold mb-4">
+          {isEdit ? 'API 属性配置' : '配置 API 属性'}
+        </h3>
+        <Form
+          form={form}
+          layout="vertical"
+        >
+          {supportedProperties.map((schema) => (
+            <Card
+              key={schema.type}
+              title={schema.name}
+              className="mb-4"
+              size="small"
+              extra={
+                <Form.Item
+                  name={['properties', schema.type, 'enabled']}
+                  valuePropName="checked"
+                  initialValue={false}
+                  style={{ marginBottom: 0 }}
+                >
+                  <Switch checkedChildren="开启" unCheckedChildren="关闭" />
+                </Form.Item>
+              }
+            >
+              <p className="text-gray-500 mb-4">{schema.description}</p>
+              <Form.Item
+                noStyle
+                shouldUpdate={(prev, curr) => {
+                  return prev.properties?.[schema.type]?.enabled !== curr.properties?.[schema.type]?.enabled;
+                }}
+              >
+                {({ getFieldValue }) => {
+                  const enabled = getFieldValue(['properties', schema.type, 'enabled']);
+                  if (!enabled) return null;
+
+                  return (
+                    <div className="grid grid-cols-2 gap-4">
+                      {schema.fields.map((field) => (
+                        <Form.Item
+                          key={field.name}
+                          label={field.label}
+                          name={['properties', schema.type, field.name]}
+                          rules={[{ required: field.required, message: `请输入${field.label}` }]}
+                          help={field.description}
+                          initialValue={field.defaultValue}
+                        >
+                          {renderFieldInput(field)}
+                        </Form.Item>
+                      ))}
+                    </div>
+                  );
+                }}
+              </Form.Item>
+            </Card>
+          ))}
+        </Form>
+      </div>
+    );
+  };
+
   const renderBasicInfoForm = () => {
     return (
       <div className="py-4">
@@ -312,7 +340,8 @@ export default function ApiDefinitionForm() {
           form={form}
           layout="vertical"
           initialValues={{
-            type: 'REST_API',
+            name: productName || '',
+            type: productType || 'REST_API',
             status: 'DRAFT',
             version: '1.0.0'
           }}
@@ -325,7 +354,7 @@ export default function ApiDefinitionForm() {
               { max: 100, message: '名称不能超过100个字符' }
             ]}
           >
-            <Input placeholder="例如：用户管理 API" />
+            <Input placeholder="例如：用户管理 API" disabled={!!productName} />
           </Form.Item>
 
           <Form.Item
@@ -347,7 +376,7 @@ export default function ApiDefinitionForm() {
             <Select
               options={API_TYPE_OPTIONS}
               placeholder="选择 API 类型"
-              disabled={isEdit}
+              disabled={isEdit || !!productType}
             />
           </Form.Item>
 
@@ -370,10 +399,8 @@ export default function ApiDefinitionForm() {
   };
 
   const steps = isEdit
-    ? ['编辑信息', '配置 Endpoints']
-    : createMethod === 'SWAGGER'
-    ? ['选择方式', '导入文档', '配置 Endpoints']
-    : ['选择方式', '基本信息', '配置 Endpoints'];
+    ? ['编辑信息', '配置属性', '配置 Endpoints']
+    : ['基本信息', '配置属性', '配置 Endpoints'];
 
   return (
     <div>
@@ -393,17 +420,15 @@ export default function ApiDefinitionForm() {
       </div>
 
       {/* 步骤指示器 */}
-      {!isEdit && (
-        <Card className="mb-6">
-          <Steps
-            current={currentStep}
-            items={steps.map((step, index) => ({
-              key: index.toString(),
-              title: step
-            }))}
-          />
-        </Card>
-      )}
+      <Card className="mb-6">
+        <Steps
+          current={currentStep}
+          items={steps.map((step, index) => ({
+            key: index.toString(),
+            title: step
+          }))}
+        />
+      </Card>
 
       {/* 表单内容 */}
       <Card>
@@ -411,11 +436,11 @@ export default function ApiDefinitionForm() {
 
         {/* 操作按钮 */}
         <div className="flex justify-end space-x-4 mt-6 pt-6 border-t">
-          {currentStep > 0 && !isEdit && (
+          {currentStep > 0 && (
             <Button onClick={handlePrev}>上一步</Button>
           )}
           <Button onClick={handleBack}>取消</Button>
-          {(isEdit || currentStep === steps.length - 1) ? (
+          {currentStep === steps.length - 1 ? (
             <Button
               type="primary"
               icon={<SaveOutlined />}

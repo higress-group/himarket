@@ -19,6 +19,7 @@
 
 package com.alibaba.himarket.support.api;
 
+import com.alibaba.himarket.support.annotation.APIField;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -28,14 +29,18 @@ import lombok.EqualsAndHashCode;
 public class TimeoutProperty extends BaseAPIProperty {
 
     /** 连接超时时间（毫秒） */
+    @APIField(label = "连接超时", description = "连接超时时间（毫秒）")
     private Long connectTimeout;
 
     /** 读取超时时间（毫秒） */
+    @APIField(label = "读取超时", description = "读取超时时间（毫秒）")
     private Long readTimeout;
 
     /** 写入超时时间（毫秒） */
+    @APIField(label = "写入超时", description = "写入超时时间（毫秒）")
     private Long writeTimeout;
 
     /** 总体超时时间（毫秒） */
+    @APIField(label = "总体超时", description = "总体超时时间（毫秒）")
     private Long totalTimeout;
 }

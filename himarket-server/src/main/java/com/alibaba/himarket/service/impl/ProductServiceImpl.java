@@ -31,6 +31,7 @@ import com.alibaba.himarket.core.security.ContextHolder;
 import com.alibaba.himarket.core.utils.IdGenerator;
 import com.alibaba.himarket.dto.params.product.*;
 import com.alibaba.himarket.dto.result.agent.AgentConfigResult;
+import com.alibaba.himarket.dto.result.api.APIDefinitionVO;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.consumer.CredentialContext;
 import com.alibaba.himarket.dto.result.gateway.GatewayResult;
@@ -96,6 +97,8 @@ public class ProductServiceImpl implements ProductService {
     private final ConsumerRepository consumerRepository;
 
     private final NacosService nacosService;
+
+    private final APIDefinitionService apiDefinitionService;
 
     private final ApplicationEventPublisher eventPublisher;
 
@@ -270,6 +273,32 @@ public class ProductServiceImpl implements ProductService {
         // Clear product category relationships
         clearProductCategoryRelations(productId);
 
+        // Delete managed API definitions if exists
+        productRefRepository
+                .findByProductId(productId)
+                .ifPresent(
+                        productRef -> {
+                            if (productRef.isManaged()
+                                    && StrUtil.isNotBlank(productRef.getApiDefinitionIds())) {
+                                List<String> apiDefinitionIds =
+                                        JSONUtil.toList(
+                                                productRef.getApiDefinitionIds(), String.class);
+                                if (CollUtil.isNotEmpty(apiDefinitionIds)) {
+                                    for (String apiDefinitionId : apiDefinitionIds) {
+                                        try {
+                                            apiDefinitionService.deleteAPIDefinition(
+                                                    apiDefinitionId);
+                                        } catch (Exception e) {
+                                            log.warn(
+                                                    "Failed to delete managed API definition: {}",
+                                                    apiDefinitionId,
+                                                    e);
+                                        }
+                                    }
+                                }
+                            }
+                        });
+
         productRepository.delete(product);
         productRefRepository.deleteByProductId(productId);
 
@@ -314,7 +343,18 @@ public class ProductServiceImpl implements ProductService {
     public ProductRefResult getProductRef(String productId) {
         return productRefRepository
                 .findFirstByProductId(productId)
-                .map(productRef -> new ProductRefResult().convertFrom(productRef))
+                .map(
+                        productRef -> {
+                            ProductRefResult result = new ProductRefResult().convertFrom(productRef);
+                            if (CollUtil.isNotEmpty(result.getApiDefinitionIds())) {
+                                List<APIDefinitionVO> apiDefinitions =
+                                        result.getApiDefinitionIds().stream()
+                                                .map(apiDefinitionService::getAPIDefinition)
+                                                .collect(Collectors.toList());
+                                result.setApiDefinitions(apiDefinitions);
+                            }
+                            return result;
+                        })
                 .orElse(null);
     }
 
@@ -335,6 +375,20 @@ public class ProductServiceImpl implements ProductService {
         // Published products cannot be unbound
         if (publicationRepository.existsByProductId(productId)) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "API product already published");
+        }
+
+        if (productRef.isManaged() && StrUtil.isNotBlank(productRef.getApiDefinitionIds())) {
+            List<String> apiDefinitionIds =
+                    JSONUtil.toList(productRef.getApiDefinitionIds(), String.class);
+            if (CollUtil.isNotEmpty(apiDefinitionIds)) {
+                for (String apiDefinitionId : apiDefinitionIds) {
+                    try {
+                        apiDefinitionService.deleteAPIDefinition(apiDefinitionId);
+                    } catch (Exception e) {
+                        log.warn("Failed to delete managed API definition: {}", apiDefinitionId, e);
+                    }
+                }
+            }
         }
 
         productRefRepository.delete(productRef);

@@ -23,10 +23,14 @@ import com.alibaba.himarket.dto.converter.OutputConverter;
 import com.alibaba.himarket.entity.APIEndpoint;
 import com.alibaba.himarket.support.api.EndpointConfig;
 import com.alibaba.himarket.support.enums.EndpointType;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.LocalDateTime;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 
 @Data
+@Slf4j
 public class APIEndpointVO implements OutputConverter<APIEndpointVO, APIEndpoint> {
 
     private String endpointId;
@@ -46,4 +50,22 @@ public class APIEndpointVO implements OutputConverter<APIEndpointVO, APIEndpoint
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
+
+    @Override
+    public APIEndpointVO convertFrom(APIEndpoint domain) {
+        OutputConverter.super.convertFrom(domain);
+
+        // 手动处理 config 字段：将 JSON 字符串反序列化为 EndpointConfig 对象
+        if (domain.getConfig() != null) {
+            try {
+                ObjectMapper objectMapper = new ObjectMapper();
+                this.config = objectMapper.readValue(domain.getConfig(), EndpointConfig.class);
+            } catch (JsonProcessingException e) {
+                log.error("Failed to deserialize endpoint config from JSON", e);
+                this.config = null;
+            }
+        }
+
+        return this;
+    }
 }

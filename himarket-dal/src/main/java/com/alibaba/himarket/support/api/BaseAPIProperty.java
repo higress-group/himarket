@@ -21,11 +21,23 @@ package com.alibaba.himarket.support.api;
 
 import com.alibaba.himarket.support.enums.PropertyPhase;
 import com.alibaba.himarket.support.enums.PropertyType;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import java.io.Serializable;
 import lombok.Data;
 
 /** API 属性配置基类 用于定义 API 的扩展属性基础信息 */
 @Data
+@JsonTypeInfo(
+        use = JsonTypeInfo.Id.NAME,
+        include = JsonTypeInfo.As.EXISTING_PROPERTY,
+        property = "type",
+        visible = true)
+@JsonSubTypes({
+    @JsonSubTypes.Type(value = RateLimitProperty.class, name = "RATE_LIMIT"),
+    @JsonSubTypes.Type(value = TimeoutProperty.class, name = "TIMEOUT"),
+    @JsonSubTypes.Type(value = CircuitBreakerProperty.class, name = "CIRCUIT_BREAKER")
+})
 public class BaseAPIProperty implements Serializable {
 
     /** 属性类型 */

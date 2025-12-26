@@ -1,9 +1,11 @@
 import { Card, Button, Modal, Form, Select, message, Collapse, Tabs, Row, Col } from 'antd'
-import { PlusOutlined, DeleteOutlined, ExclamationCircleOutlined, CopyOutlined } from '@ant-design/icons'
+import { PlusOutlined, DeleteOutlined, ExclamationCircleOutlined, CopyOutlined, EditOutlined, CloudUploadOutlined } from '@ant-design/icons'
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import type { ApiProduct, LinkedService, RestAPIItem, NacosMCPItem, APIGAIMCPItem, AIGatewayAgentItem, AIGatewayModelItem, ApiItem } from '@/types/api-product'
+import type { Endpoint } from '@/types/endpoint'
 import type { Gateway, NacosInstance } from '@/types/gateway'
-import { apiProductApi, gatewayApi, nacosApi, apiDefinitionApi } from '@/lib/api'
+import { apiProductApi, gatewayApi, nacosApi } from '@/lib/api'
 import { getGatewayTypeLabel } from '@/lib/constant'
 import { copyToClipboard } from '@/lib/utils'
 import * as yaml from 'js-yaml'
@@ -17,6 +19,7 @@ interface ApiProductLinkApiProps {
 }
 
 export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUpdate, handleRefresh }: ApiProductLinkApiProps) {
+  const navigate = useNavigate()
   // 移除了内部的 linkedService 状态，现在从 props 接收
   const [isModalVisible, setIsModalVisible] = useState(false)
   const [form] = Form.useForm()
@@ -30,11 +33,8 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
   const [selectedNamespace, setSelectedNamespace] = useState<string | null>(null)
   const [apiList, setApiList] = useState<ApiItem[] | NacosMCPItem[]>([])
   const [apiLoading, setApiLoading] = useState(false)
-  const [sourceType, setSourceType] = useState<'GATEWAY' | 'NACOS' | 'MANAGED'>('GATEWAY')
+  const [sourceType, setSourceType] = useState<'GATEWAY' | 'NACOS'>('GATEWAY')
 
-  // API Definition 相关状态
-  const [apiDefinitions, setApiDefinitions] = useState<any[]>([])
-  const [apiDefinitionsLoading, setApiDefinitionsLoading] = useState(false)
   const [parsedTools, setParsedTools] = useState<Array<{
     name: string;
     description: string;
@@ -60,20 +60,56 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
     fetchNacosInstances()
   }, [])
 
+  const convertEndpointToTool = (endpoint: Endpoint) => {
+    const config = endpoint.config || {};
+    const inputSchema = config.inputSchema || {};
+    const properties = inputSchema.properties || {};
+    const required = inputSchema.required || [];
+
+    const args = Object.keys(properties).map(key => {
+      const prop = properties[key];
+      return {
+        name: key,
+        description: prop.description || '',
+        type: prop.type || 'string',
+        required: required.includes(key),
+        position: 'body',
+        default: prop.default,
+        enum: prop.enum
+      };
+    });
+
+    return {
+      name: endpoint.name,
+      description: endpoint.description || '',
+      args: args
+    };
+  }
+
   // 解析MCP tools配置
   useEffect(() => {
-    if (apiProduct.type === 'MCP_SERVER' && apiProduct.mcpConfig?.tools) {
-      const parsedConfig = parseYamlConfig(apiProduct.mcpConfig.tools)
-      if (parsedConfig && parsedConfig.tools && Array.isArray(parsedConfig.tools)) {
-        setParsedTools(parsedConfig.tools)
+    if (apiProduct.type === 'MCP_SERVER') {
+      if (linkedService?.sourceType === 'MANAGED' && linkedService.apiDefinitions?.[0]?.endpoints) {
+        // 处理 Managed API 的 endpoints
+        const tools = linkedService.apiDefinitions[0].endpoints
+          .filter((ep: Endpoint) => ep.type === 'MCP_TOOL')
+          .map((ep: Endpoint) => convertEndpointToTool(ep));
+        setParsedTools(tools);
+      } else if (apiProduct.mcpConfig?.tools) {
+        const parsedConfig = parseYamlConfig(apiProduct.mcpConfig.tools)
+        if (parsedConfig && parsedConfig.tools && Array.isArray(parsedConfig.tools)) {
+          setParsedTools(parsedConfig.tools)
+        } else {
+          // 如果tools字段存在但是空数组，也设置为空数组
+          setParsedTools([])
+        }
       } else {
-        // 如果tools字段存在但是空数组，也设置为空数组
         setParsedTools([])
       }
     } else {
       setParsedTools([])
     }
-  }, [apiProduct])
+  }, [apiProduct, linkedService])
 
   // 生成连接配置
   // 当产品切换时重置域名选择索引
@@ -319,7 +355,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
     }
   }
 
-  const handleSourceTypeChange = (value: 'GATEWAY' | 'NACOS' | 'MANAGED') => {
+  const handleSourceTypeChange = (value: 'GATEWAY' | 'NACOS') => {
     setSourceType(value)
     setSelectedGateway(null)
     setSelectedNacos(null)
@@ -332,29 +368,6 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
       apiId: undefined,
       apiDefinitionId: undefined
     })
-
-    // 如果选择 MANAGED，加载 API Definition 列表
-    if (value === 'MANAGED') {
-      loadApiDefinitions()
-    }
-  }
-
-  // 加载 API Definition 列表
-  const loadApiDefinitions = async () => {
-    try {
-      setApiDefinitionsLoading(true)
-      const response = await apiDefinitionApi.getApiDefinitions({
-        page: 0,
-        size: 1000, // 获取所有 API Definition
-        status: 'PUBLISHED' // 只获取已发布的
-      })
-      setApiDefinitions(response.data.content || [])
-    } catch (error) {
-      console.error('Failed to load API definitions:', error)
-      message.error('加载 API Definition 列表失败')
-    } finally {
-      setApiDefinitionsLoading(false)
-    }
   }
 
   const handleGatewayChange = async (gatewayId: string) => {
@@ -590,7 +603,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
         } : undefined,
         adpAIGatewayRefConfig: selectedApi && 'fromGatewayType' in selectedApi && selectedApi.fromGatewayType === 'ADP_AI_GATEWAY' ? selectedApi as APIGAIMCPItem : undefined,
         apsaraGatewayRefConfig: selectedApi && 'fromGatewayType' in selectedApi && selectedApi.fromGatewayType === 'APSARA_GATEWAY' ? selectedApi as APIGAIMCPItem : undefined,
-        apiDefinitionIds: sourceType === 'MANAGED' && apiDefinitionId ? JSON.stringify([apiDefinitionId]) : undefined,
+        apiDefinitionIds: undefined,
       }
       apiProductApi.createApiProductRef(apiProduct.productId, newService).then(async () => {
         message.success('关联成功')
@@ -656,6 +669,27 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
     let apiType = ''
     let sourceInfo = ''
     let gatewayInfo = ''
+
+    if (linkedService.sourceType === 'MANAGED') {
+      if (linkedService.apiDefinitions && linkedService.apiDefinitions.length > 0) {
+        const apiDef = linkedService.apiDefinitions[0];
+        apiName = apiDef.name;
+        apiType = apiDef.type;
+        sourceInfo = 'Managed API';
+        gatewayInfo = apiDef.apiDefinitionId;
+      } else {
+        apiName = 'Managed API';
+        apiType = apiProduct.type;
+        sourceInfo = 'Managed API';
+        gatewayInfo = linkedService.apiDefinitionIds?.[0] || 'Unknown';
+      }
+      return {
+        apiName,
+        apiType,
+        sourceInfo,
+        gatewayInfo
+      }
+    }
 
     // 首先根据 Product 的 type 确定基本类型
     if (apiProduct.type === 'REST_API') {
@@ -746,9 +780,14 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
         <Card className="mb-6">
           <div className="text-center py-8">
             <div className="text-gray-500 mb-4">暂未关联任何API</div>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalVisible(true)}>
-              关联API
-            </Button>
+            <div className="space-x-4">
+              <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/api-definitions/create', { state: { productName: apiProduct.name, productId: apiProduct.productId, productType: apiProduct.type } })}>
+                创建 API
+              </Button>
+              <Button icon={<PlusOutlined />} onClick={() => setIsModalVisible(true)}>
+                关联已有的 API
+              </Button>
+            </div>
           </div>
         </Card>
       )
@@ -759,9 +798,37 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
         className="mb-6"
         title="关联详情"
         extra={
-          <Button type="primary" danger icon={<DeleteOutlined />} onClick={handleDelete}>
-            解除关联
-          </Button>
+          <div className="space-x-2">
+            {linkedService.sourceType === 'MANAGED' && (
+              <>
+                <Button
+                  icon={<EditOutlined />}
+                  onClick={() => {
+                    const apiId = linkedService.apiDefinitions?.[0]?.apiDefinitionId || linkedService.apiDefinitionIds?.[0];
+                    if (apiId) {
+                      navigate(`/api-definitions/edit?id=${apiId}`, { state: { productName: apiProduct.name, productId: apiProduct.productId, productType: apiProduct.type } });
+                    }
+                  }}
+                >
+                  编辑 API
+                </Button>
+                <Button
+                  icon={<CloudUploadOutlined />}
+                  onClick={() => {
+                    const apiId = linkedService.apiDefinitions?.[0]?.apiDefinitionId || linkedService.apiDefinitionIds?.[0];
+                    if (apiId) {
+                      navigate(`/api-definitions/publish?id=${apiId}`, { state: { productName: apiProduct.name, productId: apiProduct.productId, productType: apiProduct.type } });
+                    }
+                  }}
+                >
+                  发布 API
+                </Button>
+              </>
+            )}
+            <Button type="primary" danger icon={<DeleteOutlined />} onClick={handleDelete}>
+              解除关联
+            </Button>
+          </div>
         }
       >
         <div>
@@ -778,7 +845,8 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
             <span className="text-xs text-gray-600">来源:</span>
             <span className="col-span-2 text-xs text-gray-900">{serviceInfo.sourceInfo}</span>
             <span className="text-xs text-gray-600">
-              {linkedService?.sourceType === 'NACOS' ? 'Nacos ID:' : '网关ID:'}
+              {linkedService?.sourceType === 'NACOS' ? 'Nacos ID:' : 
+               linkedService?.sourceType === 'MANAGED' ? 'API ID:' : '网关ID:'}
             </span>
             <span className="col-span-2 text-xs text-gray-700">{serviceInfo.gatewayInfo}</span>
           </div>
@@ -793,8 +861,11 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
     const isAgent = apiProduct.type === 'AGENT_API'
     const isModel = apiProduct.type === 'MODEL_API'
 
+    // Check if we have tools from Managed API
+    const hasManagedTools = isMcp && linkedService?.sourceType === 'MANAGED' && parsedTools.length > 0;
+
     // MCP Server类型：无论是否有linkedService都显示tools和连接点配置  
-    if (isMcp && apiProduct.mcpConfig) {
+    if (isMcp && (apiProduct.mcpConfig || hasManagedTools)) {
       return (
         <Card title="配置详情">
           <Row gutter={24}>
@@ -875,6 +946,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
 
             {/* 右侧：连接点配置 */}
             <Col span={9}>
+              {apiProduct.mcpConfig ? (
               <Card>
                 <div className="mb-4">
                   <h3 className="text-sm font-semibold mb-3">连接点配置</h3>
@@ -986,6 +1058,13 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                   />
                 </div>
               </Card>
+              ) : (
+                <Card>
+                  <div className="text-gray-500 text-center py-8">
+                    暂无连接配置信息
+                  </div>
+                </Card>
+              )}
             </Col>
           </Row>
         </Card>
@@ -1700,7 +1779,6 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
             <Select placeholder="请选择来源类型" onChange={handleSourceTypeChange}>
               <Select.Option value="GATEWAY">网关</Select.Option>
               <Select.Option value="NACOS" disabled={apiProduct.type === 'REST_API' || apiProduct.type === 'MODEL_API'}>Nacos</Select.Option>
-              <Select.Option value="MANAGED">API Definition（托管API）</Select.Option>
             </Select>
           </Form.Item>
 
@@ -1801,39 +1879,6 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                     <div>
                       <div className="font-medium">{ns.namespaceName}</div>
                       <div className="text-sm text-gray-500">{ns.namespaceId}</div>
-                    </div>
-                  </Select.Option>
-                ))}
-              </Select>
-            </Form.Item>
-          )}
-
-          {sourceType === 'MANAGED' && (
-            <Form.Item
-              name="apiDefinitionId"
-              label="选择 API Definition"
-              rules={[{ required: true, message: '请选择 API Definition' }]}
-            >
-              <Select
-                placeholder="请选择 API Definition"
-                loading={apiDefinitionsLoading}
-                showSearch
-                filterOption={(input, option) =>
-                  (option?.label as string)?.toLowerCase().includes(input.toLowerCase())
-                }
-                optionLabelProp="label"
-              >
-                {apiDefinitions.map((apiDef: any) => (
-                  <Select.Option
-                    key={apiDef.id}
-                    value={apiDef.id}
-                    label={apiDef.name}
-                  >
-                    <div>
-                      <div className="font-medium">{apiDef.name}</div>
-                      <div className="text-sm text-gray-500">
-                        {apiDef.description || `Version: ${apiDef.version}`}
-                      </div>
                     </div>
                   </Select.Option>
                 ))}

@@ -19,6 +19,7 @@
 
 package com.alibaba.himarket.support.api;
 
+import com.alibaba.himarket.support.annotation.APIField;
 import com.alibaba.himarket.support.enums.RateLimitScope;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -29,14 +30,18 @@ import lombok.EqualsAndHashCode;
 public class RateLimitProperty extends BaseAPIProperty {
 
     /** 限流范围 */
+    @APIField(label = "限流范围", description = "限流的作用范围", required = true, defaultValue = "GLOBAL")
     private RateLimitScope scope;
 
     /** 限流阈值（每秒请求数） */
+    @APIField(label = "每秒请求数", description = "每秒允许的最大请求数", required = true)
     private Integer requestsPerSecond;
 
     /** 突发容量（允许的突发流量） */
+    @APIField(label = "突发容量", description = "允许的突发流量")
     private Integer burstCapacity;
 
     /** 是否启用令牌桶算法 */
+    @APIField(label = "启用令牌桶", description = "是否启用令牌桶算法", defaultValue = "true")
     private Boolean useTokenBucket;
 }

@@ -1,5 +1,6 @@
 import { Form, Input, Select, Button, Space, Collapse } from 'antd';
 import { PlusOutlined, MinusCircleOutlined } from '@ant-design/icons';
+import { useEffect } from 'react';
 import type { EndpointType, EndpointConfig } from '@/types/endpoint';
 
 const { TextArea } = Input;
@@ -40,6 +41,29 @@ const PARAMETER_IN_OPTIONS = [
 export default function EndpointConfigForm({ type, value, onChange }: EndpointConfigFormProps) {
   const [form] = Form.useForm();
 
+  // 监听 value 变化，更新表单
+  useEffect(() => {
+    if (value) {
+      const formValues = { ...value };
+      
+      // 处理 JSON Schema 字段，如果是对象则转换为字符串显示
+      const jsonFields = ['inputSchema', 'outputSchema', 'requestBody', 'configSchema'];
+      jsonFields.forEach(field => {
+        if (formValues[field] && typeof formValues[field] === 'object') {
+          try {
+            formValues[field] = JSON.stringify(formValues[field], null, 2);
+          } catch (e) {
+            console.error(`Failed to stringify ${field}:`, e);
+          }
+        }
+      });
+
+      form.setFieldsValue(formValues);
+    } else {
+      form.resetFields();
+    }
+  }, [value, form]);
+
   // 当配置变化时触发 onChange
   const handleValuesChange = () => {
     const values = form.getFieldsValue();
@@ -50,7 +74,7 @@ export default function EndpointConfigForm({ type, value, onChange }: EndpointCo
   const renderMCPToolConfig = () => {
     return (
       <>
-        <Collapse defaultActiveKey={['schema', 'request']} className="mb-4">
+        <Collapse defaultActiveKey={['schema']} className="mb-4">
           <Panel header="Schema 定义" key="schema">
             <Form.Item
               label="输入 Schema (Input Schema)"
@@ -75,11 +99,10 @@ export default function EndpointConfigForm({ type, value, onChange }: EndpointCo
             </Form.Item>
           </Panel>
 
-          <Panel header="请求模板 (Request Template)" key="request">
+          <Panel header="请求模板 (Request Template) - 高级设置" key="request">
             <Form.Item
               label="请求 URL"
               name={['requestTemplate', 'url']}
-              rules={[{ required: true, message: '请输入请求 URL' }]}
             >
               <Input placeholder="https://api.example.com/endpoint" />
             </Form.Item>
@@ -87,7 +110,6 @@ export default function EndpointConfigForm({ type, value, onChange }: EndpointCo
             <Form.Item
               label="HTTP 方法"
               name={['requestTemplate', 'method']}
-              rules={[{ required: true, message: '请选择 HTTP 方法' }]}
             >
               <Select options={HTTP_METHODS} placeholder="选择方法" />
             </Form.Item>
@@ -128,7 +150,7 @@ export default function EndpointConfigForm({ type, value, onChange }: EndpointCo
             </Form.Item>
           </Panel>
 
-          <Panel header="响应模板 (Response Template)" key="response">
+          <Panel header="响应模板 (Response Template) - 高级设置" key="response">
             <Form.Item label="响应体模板" name={['responseTemplate', 'body']}>
               <TextArea rows={4} placeholder="响应处理逻辑" />
             </Form.Item>
@@ -358,7 +380,6 @@ export default function EndpointConfigForm({ type, value, onChange }: EndpointCo
     <Form
       form={form}
       layout="vertical"
-      initialValues={value}
       onValuesChange={handleValuesChange}
     >
       {renderConfigForm()}

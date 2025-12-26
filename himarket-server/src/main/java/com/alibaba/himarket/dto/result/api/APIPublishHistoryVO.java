@@ -23,10 +23,14 @@ import com.alibaba.himarket.dto.converter.OutputConverter;
 import com.alibaba.himarket.entity.APIPublishHistory;
 import com.alibaba.himarket.support.api.PublishConfig;
 import com.alibaba.himarket.support.enums.PublishAction;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.LocalDateTime;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 
 @Data
+@Slf4j
 public class APIPublishHistoryVO
         implements OutputConverter<APIPublishHistoryVO, APIPublishHistory> {
 
@@ -48,7 +52,26 @@ public class APIPublishHistoryVO
 
     private String comment;
 
+    private Object snapshot;
+
     private String operatorId;
 
     private LocalDateTime createdAt;
+
+    @Override
+    public APIPublishHistoryVO convertFrom(APIPublishHistory domain) {
+        OutputConverter.super.convertFrom(domain);
+
+        if (domain.getSnapshot() != null) {
+            try {
+                ObjectMapper objectMapper = new ObjectMapper();
+                this.snapshot = objectMapper.readValue(domain.getSnapshot(), Object.class);
+            } catch (JsonProcessingException e) {
+                log.error("Failed to deserialize snapshot from JSON", e);
+                this.snapshot = null;
+            }
+        }
+
+        return this;
+    }
 }

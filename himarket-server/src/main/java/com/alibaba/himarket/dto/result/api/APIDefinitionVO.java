@@ -26,6 +26,8 @@ import com.alibaba.himarket.entity.APIDefinition;
 import com.alibaba.himarket.support.api.BaseAPIProperty;
 import com.alibaba.himarket.support.enums.APIStatus;
 import com.alibaba.himarket.support.enums.APIType;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +35,8 @@ import lombok.Data;
 
 @Data
 public class APIDefinitionVO implements OutputConverter<APIDefinitionVO, APIDefinition> {
+
+    private static final ObjectMapper objectMapper = new ObjectMapper();
 
     private String apiDefinitionId;
 
@@ -60,10 +64,12 @@ public class APIDefinitionVO implements OutputConverter<APIDefinitionVO, APIDefi
     public APIDefinitionVO convertFrom(APIDefinition source) {
         OutputConverter.super.convertFrom(source);
 
-        // 处理 properties JSON 字段 - 转换为 BaseAPIProperty 类型
+        // 处理 properties JSON 字段 - 转换为 APIProperties 类型
         if (StrUtil.isNotBlank(source.getProperties())) {
             try {
-                this.properties = JSONUtil.toList(source.getProperties(), BaseAPIProperty.class);
+                this.properties =
+                        objectMapper.readValue(
+                                source.getProperties(), new TypeReference<List<BaseAPIProperty>>() {});
             } catch (Exception e) {
                 this.properties = null;
             }

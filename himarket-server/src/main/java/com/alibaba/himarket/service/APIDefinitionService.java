@@ -20,19 +20,29 @@
 package com.alibaba.himarket.service;
 
 import com.alibaba.himarket.dto.params.api.CreateAPIDefinitionParam;
+import com.alibaba.himarket.dto.params.api.CreateEndpointParam;
 import com.alibaba.himarket.dto.params.api.PublishAPIParam;
 import com.alibaba.himarket.dto.params.api.QueryAPIDefinitionParam;
 import com.alibaba.himarket.dto.params.api.UpdateAPIDefinitionParam;
+import com.alibaba.himarket.dto.params.api.UpdateEndpointParam;
 import com.alibaba.himarket.dto.result.api.APIDefinitionVO;
 import com.alibaba.himarket.dto.result.api.APIEndpointVO;
 import com.alibaba.himarket.dto.result.api.APIPublishHistoryVO;
 import com.alibaba.himarket.dto.result.api.APIPublishRecordVO;
+import com.alibaba.himarket.dto.result.api.PropertySchemaVO;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import java.util.List;
 import org.springframework.data.domain.Pageable;
 
 /** API Definition 服务接口 */
 public interface APIDefinitionService {
+
+    /**
+     * 获取支持的属性配置列表
+     *
+     * @return 属性配置列表
+     */
+    List<PropertySchemaVO> listSupportedProperties();
 
     /**
      * 创建 API Definition
@@ -83,6 +93,34 @@ public interface APIDefinitionService {
      * @return 端点列表
      */
     List<APIEndpointVO> listEndpoints(String apiDefinitionId);
+
+    /**
+     * 创建端点
+     *
+     * @param apiDefinitionId API Definition ID
+     * @param param 创建参数
+     * @return 端点详情
+     */
+    APIEndpointVO createEndpoint(String apiDefinitionId, CreateEndpointParam param);
+
+    /**
+     * 更新端点
+     *
+     * @param apiDefinitionId API Definition ID
+     * @param endpointId 端点 ID
+     * @param param 更新参数
+     * @return 更新后的端点详情
+     */
+    APIEndpointVO updateEndpoint(
+            String apiDefinitionId, String endpointId, UpdateEndpointParam param);
+
+    /**
+     * 删除端点
+     *
+     * @param apiDefinitionId API Definition ID
+     * @param endpointId 端点 ID
+     */
+    void deleteEndpoint(String apiDefinitionId, String endpointId);
 
     /**
      * 获取发布记录列表

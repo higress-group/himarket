@@ -33,4 +33,9 @@ public class ImportSwaggerParam {
     private String description;
 
     private String version;
+
+    /**
+     * 导入类型: REST, MCP
+     */
+    private String type;
 }

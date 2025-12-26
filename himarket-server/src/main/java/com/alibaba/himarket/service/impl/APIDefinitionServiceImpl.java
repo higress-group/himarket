@@ -26,13 +26,17 @@ import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.dto.params.api.CreateAPIDefinitionParam;
+import com.alibaba.himarket.dto.params.api.CreateEndpointParam;
 import com.alibaba.himarket.dto.params.api.PublishAPIParam;
 import com.alibaba.himarket.dto.params.api.QueryAPIDefinitionParam;
 import com.alibaba.himarket.dto.params.api.UpdateAPIDefinitionParam;
+import com.alibaba.himarket.dto.params.api.UpdateEndpointParam;
 import com.alibaba.himarket.dto.result.api.APIDefinitionVO;
 import com.alibaba.himarket.dto.result.api.APIEndpointVO;
 import com.alibaba.himarket.dto.result.api.APIPublishHistoryVO;
 import com.alibaba.himarket.dto.result.api.APIPublishRecordVO;
+import com.alibaba.himarket.dto.result.api.PropertyFieldVO;
+import com.alibaba.himarket.dto.result.api.PropertySchemaVO;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.entity.APIDefinition;
 import com.alibaba.himarket.entity.APIEndpoint;
@@ -46,10 +50,18 @@ import com.alibaba.himarket.repository.APIPublishRecordRepository;
 import com.alibaba.himarket.repository.GatewayRepository;
 import com.alibaba.himarket.service.APIDefinitionService;
 import com.alibaba.himarket.service.api.GatewayCapabilityRegistry;
-import com.alibaba.himarket.support.api.PublishConfig;
+import com.alibaba.himarket.support.annotation.APIField;
+import com.alibaba.himarket.support.api.BaseAPIProperty;
 import com.alibaba.himarket.support.enums.APIStatus;
+import com.alibaba.himarket.support.enums.PropertyType;
 import com.alibaba.himarket.support.enums.PublishAction;
+import com.alibaba.himarket.support.enums.RateLimitScope;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -75,6 +87,102 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
     private static final Snowflake SNOWFLAKE = IdUtil.getSnowflake(1, 1);
 
     @Override
+    public List<PropertySchemaVO> listSupportedProperties() {
+        List<PropertySchemaVO> schemas = new ArrayList<>();
+
+        // Get the mapping from BaseAPIProperty
+        JsonSubTypes jsonSubTypes = BaseAPIProperty.class.getAnnotation(JsonSubTypes.class);
+        Map<String, Class<?>> typeMap = new HashMap<>();
+        if (jsonSubTypes != null) {
+            for (JsonSubTypes.Type type : jsonSubTypes.value()) {
+                typeMap.put(type.name(), type.value());
+            }
+        }
+
+        for (PropertyType type : PropertyType.values()) {
+            // Skip if no class mapping found
+            Class<?> clazz = typeMap.get(type.name());
+            if (clazz == null) {
+                continue;
+            }
+
+            List<PropertyFieldVO> fields = new ArrayList<>();
+            // Iterate all fields of the subclass
+            for (java.lang.reflect.Field field : clazz.getDeclaredFields()) {
+                APIField annotation = field.getAnnotation(APIField.class);
+                if (annotation != null) {
+                    fields.add(buildFieldVO(field, annotation));
+                }
+            }
+
+            if (!fields.isEmpty()) {
+                schemas.add(
+                        PropertySchemaVO.builder()
+                                .type(type)
+                                .name(type.getLabel())
+                                .description(type.getDescription())
+                                .fields(fields)
+                                .build());
+            }
+        }
+
+        return schemas;
+    }
+
+    private PropertyFieldVO buildFieldVO(java.lang.reflect.Field field, APIField annotation) {
+        String type = annotation.type();
+        List<String> options = Arrays.asList(annotation.options());
+
+        if (StrUtil.isBlank(type)) {
+            Class<?> fieldType = field.getType();
+            if (fieldType == Integer.class
+                    || fieldType == int.class
+                    || fieldType == Long.class
+                    || fieldType == long.class) {
+                type = "integer";
+            } else if (fieldType == Boolean.class || fieldType == boolean.class) {
+                type = "boolean";
+            } else if (fieldType.isEnum()) {
+                type = "select";
+                if (options.isEmpty()) {
+                    options =
+                            Arrays.stream(fieldType.getEnumConstants())
+                                    .map(Object::toString)
+                                    .collect(Collectors.toList());
+                }
+            } else {
+                type = "string";
+            }
+        }
+
+        Object defaultValue = null;
+        if (StrUtil.isNotBlank(annotation.defaultValue())) {
+            // Simple conversion for default value
+            if ("boolean".equals(type)) {
+                defaultValue = Boolean.parseBoolean(annotation.defaultValue());
+            } else if ("integer".equals(type)) {
+                try {
+                    defaultValue = Long.parseLong(annotation.defaultValue());
+                } catch (NumberFormatException e) {
+                    // ignore
+                }
+            } else {
+                defaultValue = annotation.defaultValue();
+            }
+        }
+
+        return PropertyFieldVO.builder()
+                .name(field.getName())
+                .label(annotation.label())
+                .type(type)
+                .description(annotation.description())
+                .required(annotation.required())
+                .options(options.isEmpty() ? null : options)
+                .defaultValue(defaultValue)
+                .build();
+    }
+
+    @Override
     public APIDefinitionVO createAPIDefinition(CreateAPIDefinitionParam param) {
         log.info("Creating API Definition: {}", param.getName());
 
@@ -95,29 +203,8 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
                     "Creating {} endpoints for API Definition: {}",
                     param.getEndpoints().size(),
                     apiDefinitionId);
-            for (var endpointParam : param.getEndpoints()) {
-                // 生成 Endpoint ID
-                String endpointId = "endpoint-" + SNOWFLAKE.nextIdStr();
-
-                // 转换为实体
-                APIEndpoint endpoint = endpointParam.convertTo();
-                endpoint.setEndpointId(endpointId);
-                endpoint.setApiDefinitionId(apiDefinitionId);
-
-                // 如果未指定 sortOrder，设置为当前最大值 + 1
-                if (endpoint.getSortOrder() == null) {
-                    int maxSortOrder =
-                            apiEndpointRepository
-                                    .findByApiDefinitionIdOrderBySortOrderAsc(apiDefinitionId)
-                                    .stream()
-                                    .mapToInt(e -> e.getSortOrder() != null ? e.getSortOrder() : 0)
-                                    .max()
-                                    .orElse(-1);
-                    endpoint.setSortOrder(maxSortOrder + 1);
-                }
-
-                // 保存
-                apiEndpointRepository.save(endpoint);
+            for (CreateEndpointParam endpointParam : param.getEndpoints()) {
+                createEndpoint(apiDefinitionId, endpointParam);
             }
         }
 
@@ -212,6 +299,20 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
         // 保存
         apiDefinition = apiDefinitionRepository.save(apiDefinition);
 
+        // 更新 Endpoints
+        if (param.getEndpoints() != null) {
+            log.info("Updating endpoints for API Definition: {}", apiDefinitionId);
+            // 删除旧的 endpoints
+            apiEndpointRepository.deleteByApiDefinitionId(apiDefinitionId);
+
+            // 创建新的 endpoints
+            if (!param.getEndpoints().isEmpty()) {
+                for (CreateEndpointParam endpointParam : param.getEndpoints()) {
+                    createEndpoint(apiDefinitionId, endpointParam);
+                }
+            }
+        }
+
         log.info("API Definition updated successfully: {}", apiDefinitionId);
 
         return new APIDefinitionVO().convertFrom(apiDefinition);
@@ -266,6 +367,98 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
                 .stream()
                 .map(endpoint -> new APIEndpointVO().convertFrom(endpoint))
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public APIEndpointVO createEndpoint(String apiDefinitionId, CreateEndpointParam param) {
+        log.info("Creating endpoint for API Definition: {}", apiDefinitionId);
+
+        // 验证 API Definition 是否存在
+        if (!apiDefinitionRepository.existsByApiDefinitionId(apiDefinitionId)) {
+            throw new BusinessException(ErrorCode.API_DEFINITION_NOT_FOUND, apiDefinitionId);
+        }
+
+        // 生成 Endpoint ID
+        String endpointId = "endpoint-" + SNOWFLAKE.nextIdStr();
+
+        // 转换为实体
+        APIEndpoint endpoint = param.convertTo();
+        endpoint.setEndpointId(endpointId);
+        endpoint.setApiDefinitionId(apiDefinitionId);
+
+        // 如果未指定 sortOrder，设置为当前最大值 + 1
+        if (endpoint.getSortOrder() == null) {
+            int maxSortOrder =
+                    apiEndpointRepository
+                            .findByApiDefinitionIdOrderBySortOrderAsc(apiDefinitionId)
+                            .stream()
+                            .mapToInt(e -> e.getSortOrder() != null ? e.getSortOrder() : 0)
+                            .max()
+                            .orElse(-1);
+            endpoint.setSortOrder(maxSortOrder + 1);
+        }
+
+        // 保存
+        endpoint = apiEndpointRepository.save(endpoint);
+
+        log.info("Endpoint created successfully: {}", endpointId);
+
+        // 转换为 VO
+        return new APIEndpointVO().convertFrom(endpoint);
+    }
+
+    @Override
+    public APIEndpointVO updateEndpoint(
+            String apiDefinitionId, String endpointId, UpdateEndpointParam param) {
+        log.info("Updating endpoint: {} for API Definition: {}", endpointId, apiDefinitionId);
+
+        // 验证 API Definition 是否存在
+        if (!apiDefinitionRepository.existsByApiDefinitionId(apiDefinitionId)) {
+            throw new BusinessException(ErrorCode.API_DEFINITION_NOT_FOUND, apiDefinitionId);
+        }
+
+        // 查询 Endpoint
+        APIEndpoint endpoint =
+                apiEndpointRepository
+                        .findByEndpointIdAndApiDefinitionId(endpointId, apiDefinitionId)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                ErrorCode.ENDPOINT_NOT_FOUND, endpointId));
+
+        // 更新字段
+        param.update(endpoint);
+
+        // 保存
+        endpoint = apiEndpointRepository.save(endpoint);
+
+        log.info("Endpoint updated successfully: {}", endpointId);
+
+        return new APIEndpointVO().convertFrom(endpoint);
+    }
+
+    @Override
+    public void deleteEndpoint(String apiDefinitionId, String endpointId) {
+        log.info("Deleting endpoint: {} for API Definition: {}", endpointId, apiDefinitionId);
+
+        // 验证 API Definition 是否存在
+        if (!apiDefinitionRepository.existsByApiDefinitionId(apiDefinitionId)) {
+            throw new BusinessException(ErrorCode.API_DEFINITION_NOT_FOUND, apiDefinitionId);
+        }
+
+        // 查询 Endpoint
+        APIEndpoint endpoint =
+                apiEndpointRepository
+                        .findByEndpointIdAndApiDefinitionId(endpointId, apiDefinitionId)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                ErrorCode.ENDPOINT_NOT_FOUND, endpointId));
+
+        // 删除
+        apiEndpointRepository.delete(endpoint);
+
+        log.info("Endpoint deleted successfully: {}", endpointId);
     }
 
     @Override
@@ -332,68 +525,8 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
                     ErrorCode.API_ALREADY_PUBLISHED_TO_GATEWAY, existingRecord.getGatewayName());
         }
 
-        // 查询 API 的所有 endpoints
-        List<APIEndpoint> endpoints =
-                apiEndpointRepository.findByApiDefinitionIdOrderBySortOrderAsc(apiDefinitionId);
-
-        if (endpoints.isEmpty()) {
-            throw new BusinessException(
-                    ErrorCode.INVALID_PARAMETER, "API Definition 没有配置任何 Endpoint，无法发布");
-        }
-
         // 生成发布记录 ID
         String recordId = "record-" + SNOWFLAKE.nextIdStr();
-
-        // 通过 GatewayCapabilityRegistry 获取对应网关的发布器
-        var publisher = gatewayCapabilityRegistry.getPublisher(gateway);
-        if (publisher == null) {
-            throw new BusinessException(
-                    ErrorCode.UNSUPPORTED_OPERATION,
-                    "网关 " + gateway.getGatewayName() + " 不支持发布，未找到对应的发布器");
-        }
-
-        // 验证网关是否支持该 API 类型
-        if (!publisher.supportsAPIType(apiDefinition.getType())) {
-            throw new BusinessException(
-                    ErrorCode.INVALID_PARAMETER,
-                    String.format(
-                            "网关 %s 不支持 %s 类型的 API",
-                            gateway.getGatewayName(), apiDefinition.getType()));
-        }
-
-        // 将 Entity 转换为 VO 供发布器使用
-        APIDefinitionVO apiDefinitionVO = new APIDefinitionVO().convertFrom(apiDefinition);
-        List<APIEndpointVO> endpointVOs =
-                endpoints.stream()
-                        .map(endpoint -> new APIEndpointVO().convertFrom(endpoint))
-                        .collect(Collectors.toList());
-
-        // 验证发布配置
-        publisher.validatePublishConfig(apiDefinitionVO, endpointVOs, param.getPublishConfig());
-
-        String gatewayResourceId;
-        try {
-            // 调用发布器的 publish 方法，将 API 发布到网关
-            log.info(
-                    "Calling publisher.publish() for gateway type: {}",
-                    gateway.getGatewayType());
-            gatewayResourceId =
-                    publisher.publish(gateway, apiDefinitionVO, endpointVOs, param.getPublishConfig());
-            log.info("Gateway resource ID returned: {}", gatewayResourceId);
-        } catch (Exception e) {
-            log.error("Failed to publish API to gateway", e);
-            // 创建失败的发布历史记录
-            createPublishHistoryWithFailure(
-                    apiDefinitionId,
-                    param.getGatewayId(),
-                    recordId,
-                    PublishAction.PUBLISH,
-                    param.getComment(),
-                    e.getMessage());
-            throw new BusinessException(
-                    ErrorCode.GATEWAY_ERROR,
-                    gateway.getGatewayName() + ": " + e.getMessage());
-        }
 
         // 创建发布记录
         APIPublishRecord publishRecord = new APIPublishRecord();
@@ -405,7 +538,9 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
         publishRecord.setStatus(com.alibaba.himarket.support.enums.PublishStatus.ACTIVE);
         publishRecord.setPublishConfig(JSONUtil.toJsonStr(param.getPublishConfig()));
         publishRecord.setPublishedAt(java.time.LocalDateTime.now());
-        publishRecord.setGatewayResourceId(gatewayResourceId);
+
+        // 设置网关资源ID（当前为模拟ID，实际网关发布时会更新为真实ID）
+        publishRecord.setGatewayResourceId("mock-resource-" + SNOWFLAKE.nextIdStr());
 
         // 保存发布记录
         publishRecord = apiPublishRecordRepository.save(publishRecord);
@@ -418,10 +553,7 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
                 PublishAction.PUBLISH,
                 param.getComment());
 
-        log.info(
-                "API published successfully to gateway: {}, resource ID: {}",
-                param.getGatewayId(),
-                gatewayResourceId);
+        log.info("API published successfully to gateway: {} (mock mode)", param.getGatewayId());
 
         // 转换为 VO
         return new APIPublishRecordVO().convertFrom(publishRecord);
@@ -431,15 +563,10 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
     public void unpublishAPI(String apiDefinitionId, String recordId) {
         log.info("Unpublishing API Definition: {}, recordId: {}", apiDefinitionId, recordId);
 
-        // 验证并获取 API Definition
-        APIDefinition apiDefinition =
-                apiDefinitionRepository
-                        .findByApiDefinitionId(apiDefinitionId)
-                        .orElseThrow(
-                                () ->
-                                        new BusinessException(
-                                                ErrorCode.API_DEFINITION_NOT_FOUND,
-                                                apiDefinitionId));
+        // 验证 API Definition 是否存在
+        if (!apiDefinitionRepository.existsByApiDefinitionId(apiDefinitionId)) {
+            throw new BusinessException(ErrorCode.API_DEFINITION_NOT_FOUND, apiDefinitionId);
+        }
 
         // 查询发布记录
         APIPublishRecord publishRecord =
@@ -453,58 +580,6 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
             throw new BusinessException(ErrorCode.INVALID_PARAMETER, "发布记录不属于该 API Definition");
         }
 
-        // 验证发布记录状态
-        if (publishRecord.getStatus() != com.alibaba.himarket.support.enums.PublishStatus.ACTIVE) {
-            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "发布记录状态不是 ACTIVE，无法取消发布");
-        }
-
-        // 获取网关信息
-        Gateway gateway =
-                gatewayRepository
-                        .findByGatewayId(publishRecord.getGatewayId())
-                        .orElseThrow(
-                                () ->
-                                        new BusinessException(
-                                                ErrorCode.GATEWAY_NOT_FOUND,
-                                                publishRecord.getGatewayId()));
-
-        // 通过 GatewayCapabilityRegistry 获取对应网关的发布器
-        var publisher = gatewayCapabilityRegistry.getPublisher(gateway);
-        if (publisher == null) {
-            throw new BusinessException(
-                    ErrorCode.UNSUPPORTED_OPERATION,
-                    "网关 " + gateway.getGatewayName() + " 不支持发布，未找到对应的发布器");
-        }
-
-        // 将 Entity 转换为 VO 供发布器使用
-        APIDefinitionVO apiDefinitionVO = new APIDefinitionVO().convertFrom(apiDefinition);
-
-        // 从发布记录中获取发布配置
-        PublishConfig publishConfig =
-                JSONUtil.toBean(publishRecord.getPublishConfig(), PublishConfig.class);
-
-        try {
-            // 调用发布器的 unpublish 方法，从网关下线 API
-            log.info(
-                    "Calling publisher.unpublish() for gateway type: {}",
-                    gateway.getGatewayType());
-            String result = publisher.unpublish(gateway, apiDefinitionVO, publishConfig);
-            log.info("Unpublish result: {}", result);
-        } catch (Exception e) {
-            log.error("Failed to unpublish API from gateway", e);
-            // 创建失败的取消发布历史记录
-            createPublishHistoryWithFailure(
-                    apiDefinitionId,
-                    publishRecord.getGatewayId(),
-                    recordId,
-                    PublishAction.UNPUBLISH,
-                    null,
-                    e.getMessage());
-            throw new BusinessException(
-                    ErrorCode.GATEWAY_ERROR,
-                    gateway.getGatewayName() + ": " + e.getMessage());
-        }
-
         // 创建取消发布历史记录
         createPublishHistory(
                 apiDefinitionId,
@@ -513,12 +588,13 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
                 PublishAction.UNPUBLISH,
                 null);
 
-        // 更新发布记录状态为 INACTIVE
+        // 更新发布记录状态为 INACTIVE（当前仅更新数据库状态，实际网关下线操作由网关发布器处理）
         publishRecord.setStatus(com.alibaba.himarket.support.enums.PublishStatus.INACTIVE);
         apiPublishRecordRepository.save(publishRecord);
 
         log.info(
-                "API unpublished successfully from gateway: {}", publishRecord.getGatewayId());
+                "API unpublished successfully from gateway: {} (mock mode)",
+                publishRecord.getGatewayId());
     }
 
     @Override
@@ -558,27 +634,15 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
         history.setAction(action);
         history.setPublishNote(comment);
 
-        apiPublishHistoryRepository.save(history);
-    }
-
-    /** 创建失败的发布历史记录 */
-    private void createPublishHistoryWithFailure(
-            String apiDefinitionId,
-            String gatewayId,
-            String recordId,
-            PublishAction action,
-            String comment,
-            String errorMessage) {
-        String historyId = "history-" + SNOWFLAKE.nextIdStr();
-
-        APIPublishHistory history = new APIPublishHistory();
-        history.setHistoryId(historyId);
-        history.setApiDefinitionId(apiDefinitionId);
-        history.setPublishRecordId(recordId);
-        history.setGatewayId(gatewayId);
-        history.setAction(action);
-        history.setPublishNote(comment);
-        history.setReason(errorMessage);
+        // 如果是发布操作，保存当前 API Definition 的快照
+        if (action == PublishAction.PUBLISH) {
+            try {
+                APIDefinitionVO apiDefinitionVO = getAPIDefinition(apiDefinitionId);
+                history.setSnapshot(JSONUtil.toJsonStr(apiDefinitionVO));
+            } catch (Exception e) {
+                log.error("Failed to create snapshot for API Definition: {}", apiDefinitionId, e);
+            }
+        }
 
         apiPublishHistoryRepository.save(history);
     }
