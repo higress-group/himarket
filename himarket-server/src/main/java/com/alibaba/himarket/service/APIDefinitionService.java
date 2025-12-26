@@ -95,34 +95,6 @@ public interface APIDefinitionService {
     List<APIEndpointVO> listEndpoints(String apiDefinitionId);
 
     /**
-     * 创建端点
-     *
-     * @param apiDefinitionId API Definition ID
-     * @param param 创建参数
-     * @return 端点详情
-     */
-    APIEndpointVO createEndpoint(String apiDefinitionId, CreateEndpointParam param);
-
-    /**
-     * 更新端点
-     *
-     * @param apiDefinitionId API Definition ID
-     * @param endpointId 端点 ID
-     * @param param 更新参数
-     * @return 更新后的端点详情
-     */
-    APIEndpointVO updateEndpoint(
-            String apiDefinitionId, String endpointId, UpdateEndpointParam param);
-
-    /**
-     * 删除端点
-     *
-     * @param apiDefinitionId API Definition ID
-     * @param endpointId 端点 ID
-     */
-    void deleteEndpoint(String apiDefinitionId, String endpointId);
-
-    /**
      * 获取发布记录列表
      *
      * @param apiDefinitionId API Definition ID

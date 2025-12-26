@@ -19,29 +19,23 @@
 
 package com.alibaba.himarket.support.api;
 
-import com.alibaba.himarket.support.enums.ServiceType;
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import java.io.Serializable;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
-/** 服务配置 */
+/** Nacos 服务配置 */
 @Data
-@JsonTypeInfo(
-        use = JsonTypeInfo.Id.NAME,
-        include = JsonTypeInfo.As.EXISTING_PROPERTY,
-        property = "serviceType",
-        visible = true)
-@JsonSubTypes({
-    @JsonSubTypes.Type(value = NacosServiceConfig.class, name = "NACOS"),
-    @JsonSubTypes.Type(value = FixedAddressServiceConfig.class, name = "FIXED_ADDRESS"),
-    @JsonSubTypes.Type(value = DnsServiceConfig.class, name = "DNS")
-})
-public abstract class ServiceConfig implements Serializable {
+@EqualsAndHashCode(callSuper = true)
+public class NacosServiceConfig extends ServiceConfig {
 
-    /** 服务类型 */
-    private ServiceType serviceType;
+    /** Nacos 实例 ID */
+    private String nacosId;
 
-    /** 是否开启 TLS */
-    private boolean tlsEnabled;
+    /** 命名空间 */
+    private String namespace;
+
+    /** 分组 */
+    private String group;
+
+    /** 服务名称 */
+    private String serviceName;
 }

@@ -14,7 +14,9 @@ import {
   Tabs,
   Descriptions,
   Badge,
-  Alert
+  Alert,
+  Radio,
+  Checkbox
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -27,7 +29,7 @@ import {
   StopOutlined,
   EyeOutlined
 } from '@ant-design/icons';
-import { apiDefinitionApi, gatewayApi } from '@/lib/api';
+import { apiDefinitionApi, gatewayApi, nacosApi } from '@/lib/api';
 import type { Gateway } from '@/types/gateway';
 import dayjs from 'dayjs';
 
@@ -44,12 +46,15 @@ export default function ApiPublishManagement() {
   const [publishRecords, setPublishRecords] = useState<any[]>([]);
   const [publishHistory, setPublishHistory] = useState<any[]>([]);
   const [gateways, setGateways] = useState<Gateway[]>([]);
+  const [nacosInstances, setNacosInstances] = useState<any[]>([]);
+  const [namespaces, setNamespaces] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [publishModalVisible, setPublishModalVisible] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [snapshotModalVisible, setSnapshotModalVisible] = useState(false);
   const [currentSnapshot, setCurrentSnapshot] = useState<any>(null);
   const [form] = Form.useForm();
+  const serviceType = Form.useWatch('serviceType', form);
 
   useEffect(() => {
     if (apiDefinitionId) {
@@ -60,16 +65,18 @@ export default function ApiPublishManagement() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [apiRes, recordsRes, historyRes, gatewaysRes] = await Promise.all([
+      const [apiRes, recordsRes, historyRes, gatewaysRes, nacosRes] = await Promise.all([
         apiDefinitionApi.getApiDefinitionDetail(apiDefinitionId!),
         apiDefinitionApi.getPublishRecords(apiDefinitionId!, { page: 1, size: 100 }),
         apiDefinitionApi.getPublishHistory(apiDefinitionId!, { page: 1, size: 100 }),
-        gatewayApi.getGateways({ page: 1, size: 100 })
+        gatewayApi.getGateways({ page: 1, size: 100 }),
+        nacosApi.getNacosInstances({ page: 1, size: 100 })
       ]);
 
       setApiDefinition(apiRes.data || apiRes);
       setPublishRecords(recordsRes.data?.content || recordsRes.content || []);
       setPublishHistory(historyRes.data?.content || historyRes.content || []);
+      setNacosInstances(nacosRes.data?.content || nacosRes.content || []);
       
       // Filter gateways based on API type if needed
       const allGateways = gatewaysRes.data?.content || gatewaysRes.content || [];
@@ -82,22 +89,53 @@ export default function ApiPublishManagement() {
     }
   };
 
+  const handleNacosChange = async (nacosId: string) => {
+    try {
+      const res = await nacosApi.getNamespaces(nacosId, { page: 1, size: 100 });
+      setNamespaces(res.data?.content || res.content || []);
+      form.setFieldValue('namespace', undefined); // Reset namespace selection
+    } catch (error) {
+      console.error('Failed to fetch namespaces:', error);
+      message.error('获取命名空间失败');
+    }
+  };
+
   const handlePublish = async () => {
     try {
       const values = await form.validateFields();
       setPublishing(true);
+
+      let serviceConfig: any = {
+        serviceType: values.serviceType,
+        tlsEnabled: values.tlsEnabled || false,
+      };
+
+      if (values.serviceType === 'NACOS') {
+        serviceConfig = {
+          ...serviceConfig,
+          nacosId: values.nacosId,
+          namespace: values.namespace,
+          group: values.group,
+          serviceName: values.serviceName,
+        };
+      } else if (values.serviceType === 'FIXED_ADDRESS') {
+        serviceConfig = {
+          ...serviceConfig,
+          address: values.address,
+        };
+      } else if (values.serviceType === 'DNS') {
+        serviceConfig = {
+          ...serviceConfig,
+          domain: values.domain,
+        };
+      }
 
       const publishData = {
         apiDefinitionId,
         gatewayId: values.gatewayId,
         comment: values.comment,
         publishConfig: {
-          serviceConfig: {
-            serviceType: 'FIXED', // Currently simplified
-            address: '127.0.0.1', // Mock address for now
-            port: 8080,
-            protocol: 'HTTP'
-          },
+          serviceConfig,
           domains: [], // Optional
           basePath: '/'
         }
@@ -309,15 +347,8 @@ export default function ApiPublishManagement() {
         confirmLoading={publishing}
         width={600}
       >
-        <Alert
-          message="发布说明"
-          description="发布操作会将当前 API 定义同步到选定的网关。目前仅支持发布到单个网关。"
-          type="info"
-          showIcon
-          className="mb-6"
-        />
         
-        <Form form={form} layout="vertical">
+        <Form form={form} layout="vertical" initialValues={{ serviceType: 'NACOS', tlsEnabled: false }}>
           <Form.Item
             name="gatewayId"
             label="选择网关"
@@ -333,6 +364,62 @@ export default function ApiPublishManagement() {
                 </Select.Option>
               ))}
             </Select>
+          </Form.Item>
+
+          <Form.Item name="serviceType" label="服务类型" rules={[{ required: true }]}>
+            <Radio.Group>
+              <Radio value="NACOS">Nacos</Radio>
+              <Radio value="FIXED_ADDRESS">固定地址</Radio>
+              <Radio value="DNS">DNS</Radio>
+            </Radio.Group>
+          </Form.Item>
+
+          {serviceType === 'NACOS' && (
+            <>
+              <Form.Item name="nacosId" label="Nacos 实例" rules={[{ required: true }]}>
+                <Select 
+                  placeholder="请选择 Nacos 实例"
+                  onChange={handleNacosChange}
+                >
+                  {nacosInstances.map(nacos => (
+                    <Select.Option key={nacos.nacosId} value={nacos.nacosId}>
+                      {nacos.nacosName} ({nacos.serverUrl})
+                    </Select.Option>
+                  ))}
+                </Select>
+              </Form.Item>
+              <Form.Item name="namespace" label="命名空间" rules={[{ required: true }]}>
+                <Select placeholder="请选择命名空间">
+                  {namespaces.map(ns => (
+                    <Select.Option key={ns.namespaceId} value={ns.namespaceId}>
+                      {ns.namespaceName} ({ns.namespaceId})
+                    </Select.Option>
+                  ))}
+                </Select>
+              </Form.Item>
+              <Form.Item name="group" label="分组" rules={[{ required: true }]}>
+                <Input placeholder="请输入分组" />
+              </Form.Item>
+              <Form.Item name="serviceName" label="服务名称" rules={[{ required: true }]}>
+                <Input placeholder="请输入服务名称" />
+              </Form.Item>
+            </>
+          )}
+
+          {serviceType === 'FIXED_ADDRESS' && (
+            <Form.Item name="address" label="服务地址" rules={[{ required: true }]} help="多个地址用逗号分隔，例如: 127.0.0.1:8080,127.0.0.2:8080">
+              <Input placeholder="请输入服务地址" />
+            </Form.Item>
+          )}
+
+          {serviceType === 'DNS' && (
+            <Form.Item name="domain" label="域名" rules={[{ required: true }]}>
+              <Input placeholder="请输入域名" />
+            </Form.Item>
+          )}
+
+          <Form.Item name="tlsEnabled" valuePropName="checked">
+            <Checkbox>开启 TLS</Checkbox>
           </Form.Item>
 
           <Form.Item

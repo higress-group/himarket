@@ -253,8 +253,14 @@ export const gatewayApi = {
 } 
 
 export const nacosApi = {
+  getNacosInstances: (params?: any) => {
+    return api.get(`/nacos`, { params })
+  },
   getNacos: (params?: any) => {
     return api.get(`/nacos`, { params })
+  },
+  getNamespaces: (nacosId: string, params?: { page?: number; size?: number }) => {
+    return api.get(`/nacos/${nacosId}/namespaces`, { params })
   },
   // 从阿里云 MSE 获取 Nacos 集群列表
   getMseNacos: (params: { regionId: string; accessKey: string; secretKey: string; page?: number; size?: number }) => {

@@ -50,7 +50,9 @@ import com.alibaba.himarket.repository.APIPublishRecordRepository;
 import com.alibaba.himarket.repository.GatewayRepository;
 import com.alibaba.himarket.service.APIDefinitionService;
 import com.alibaba.himarket.service.api.GatewayCapabilityRegistry;
+import com.alibaba.himarket.service.api.GatewayPublisher;
 import com.alibaba.himarket.support.annotation.APIField;
+import com.alibaba.himarket.support.api.PublishConfig;
 import com.alibaba.himarket.support.api.BaseAPIProperty;
 import com.alibaba.himarket.support.enums.APIStatus;
 import com.alibaba.himarket.support.enums.PropertyType;
@@ -369,8 +371,7 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
                 .collect(Collectors.toList());
     }
 
-    @Override
-    public APIEndpointVO createEndpoint(String apiDefinitionId, CreateEndpointParam param) {
+    private APIEndpointVO createEndpoint(String apiDefinitionId, CreateEndpointParam param) {
         log.info("Creating endpoint for API Definition: {}", apiDefinitionId);
 
         // 验证 API Definition 是否存在
@@ -405,60 +406,6 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
 
         // 转换为 VO
         return new APIEndpointVO().convertFrom(endpoint);
-    }
-
-    @Override
-    public APIEndpointVO updateEndpoint(
-            String apiDefinitionId, String endpointId, UpdateEndpointParam param) {
-        log.info("Updating endpoint: {} for API Definition: {}", endpointId, apiDefinitionId);
-
-        // 验证 API Definition 是否存在
-        if (!apiDefinitionRepository.existsByApiDefinitionId(apiDefinitionId)) {
-            throw new BusinessException(ErrorCode.API_DEFINITION_NOT_FOUND, apiDefinitionId);
-        }
-
-        // 查询 Endpoint
-        APIEndpoint endpoint =
-                apiEndpointRepository
-                        .findByEndpointIdAndApiDefinitionId(endpointId, apiDefinitionId)
-                        .orElseThrow(
-                                () ->
-                                        new BusinessException(
-                                                ErrorCode.ENDPOINT_NOT_FOUND, endpointId));
-
-        // 更新字段
-        param.update(endpoint);
-
-        // 保存
-        endpoint = apiEndpointRepository.save(endpoint);
-
-        log.info("Endpoint updated successfully: {}", endpointId);
-
-        return new APIEndpointVO().convertFrom(endpoint);
-    }
-
-    @Override
-    public void deleteEndpoint(String apiDefinitionId, String endpointId) {
-        log.info("Deleting endpoint: {} for API Definition: {}", endpointId, apiDefinitionId);
-
-        // 验证 API Definition 是否存在
-        if (!apiDefinitionRepository.existsByApiDefinitionId(apiDefinitionId)) {
-            throw new BusinessException(ErrorCode.API_DEFINITION_NOT_FOUND, apiDefinitionId);
-        }
-
-        // 查询 Endpoint
-        APIEndpoint endpoint =
-                apiEndpointRepository
-                        .findByEndpointIdAndApiDefinitionId(endpointId, apiDefinitionId)
-                        .orElseThrow(
-                                () ->
-                                        new BusinessException(
-                                                ErrorCode.ENDPOINT_NOT_FOUND, endpointId));
-
-        // 删除
-        apiEndpointRepository.delete(endpoint);
-
-        log.info("Endpoint deleted successfully: {}", endpointId);
     }
 
     @Override
@@ -525,6 +472,27 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
                     ErrorCode.API_ALREADY_PUBLISHED_TO_GATEWAY, existingRecord.getGatewayName());
         }
 
+        // 准备数据
+        List<APIEndpoint> endpoints =
+                apiEndpointRepository.findByApiDefinitionIdOrderBySortOrderAsc(apiDefinitionId);
+        List<APIEndpointVO> endpointVOs =
+                endpoints.stream()
+                        .map(endpoint -> new APIEndpointVO().convertFrom(endpoint))
+                        .collect(Collectors.toList());
+
+        APIDefinitionVO apiDefinitionVO = new APIDefinitionVO().convertFrom(apiDefinition);
+        apiDefinitionVO.setEndpoints(endpointVOs);
+
+        // 获取发布器
+        GatewayPublisher publisher = gatewayCapabilityRegistry.getPublisher(gateway);
+
+        // 验证配置
+        publisher.validatePublishConfig(apiDefinitionVO, endpointVOs, param.getPublishConfig());
+
+        // 执行发布
+        String gatewayResourceId =
+                publisher.publish(gateway, apiDefinitionVO, param.getPublishConfig());
+
         // 生成发布记录 ID
         String recordId = "record-" + SNOWFLAKE.nextIdStr();
 
@@ -539,8 +507,8 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
         publishRecord.setPublishConfig(JSONUtil.toJsonStr(param.getPublishConfig()));
         publishRecord.setPublishedAt(java.time.LocalDateTime.now());
 
-        // 设置网关资源ID（当前为模拟ID，实际网关发布时会更新为真实ID）
-        publishRecord.setGatewayResourceId("mock-resource-" + SNOWFLAKE.nextIdStr());
+        // 设置网关资源ID
+        publishRecord.setGatewayResourceId(gatewayResourceId);
 
         // 保存发布记录
         publishRecord = apiPublishRecordRepository.save(publishRecord);
@@ -553,7 +521,7 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
                 PublishAction.PUBLISH,
                 param.getComment());
 
-        log.info("API published successfully to gateway: {} (mock mode)", param.getGatewayId());
+        log.info("API published successfully to gateway: {}", param.getGatewayId());
 
         // 转换为 VO
         return new APIPublishRecordVO().convertFrom(publishRecord);
@@ -564,9 +532,14 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
         log.info("Unpublishing API Definition: {}, recordId: {}", apiDefinitionId, recordId);
 
         // 验证 API Definition 是否存在
-        if (!apiDefinitionRepository.existsByApiDefinitionId(apiDefinitionId)) {
-            throw new BusinessException(ErrorCode.API_DEFINITION_NOT_FOUND, apiDefinitionId);
-        }
+        APIDefinition apiDefinition =
+                apiDefinitionRepository
+                        .findByApiDefinitionId(apiDefinitionId)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                ErrorCode.API_DEFINITION_NOT_FOUND,
+                                                apiDefinitionId));
 
         // 查询发布记录
         APIPublishRecord publishRecord =
@@ -580,6 +553,35 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
             throw new BusinessException(ErrorCode.INVALID_PARAMETER, "发布记录不属于该 API Definition");
         }
 
+        // 获取 Gateway
+        Gateway gateway =
+                gatewayRepository
+                        .findByGatewayId(publishRecord.getGatewayId())
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                ErrorCode.GATEWAY_NOT_FOUND,
+                                                publishRecord.getGatewayId()));
+
+        // 准备数据
+        List<APIEndpoint> endpoints =
+                apiEndpointRepository.findByApiDefinitionIdOrderBySortOrderAsc(apiDefinitionId);
+        List<APIEndpointVO> endpointVOs =
+                endpoints.stream()
+                        .map(endpoint -> new APIEndpointVO().convertFrom(endpoint))
+                        .collect(Collectors.toList());
+
+        APIDefinitionVO apiDefinitionVO = new APIDefinitionVO().convertFrom(apiDefinition);
+        apiDefinitionVO.setEndpoints(endpointVOs);
+
+        // 获取发布配置
+        PublishConfig publishConfig =
+                JSONUtil.toBean(publishRecord.getPublishConfig(), PublishConfig.class);
+
+        // 获取发布器并执行下线
+        GatewayPublisher publisher = gatewayCapabilityRegistry.getPublisher(gateway);
+        publisher.unpublish(gateway, apiDefinitionVO, publishConfig);
+
         // 创建取消发布历史记录
         createPublishHistory(
                 apiDefinitionId,
@@ -588,13 +590,11 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
                 PublishAction.UNPUBLISH,
                 null);
 
-        // 更新发布记录状态为 INACTIVE（当前仅更新数据库状态，实际网关下线操作由网关发布器处理）
+        // 更新发布记录状态为 INACTIVE
         publishRecord.setStatus(com.alibaba.himarket.support.enums.PublishStatus.INACTIVE);
         apiPublishRecordRepository.save(publishRecord);
 
-        log.info(
-                "API unpublished successfully from gateway: {} (mock mode)",
-                publishRecord.getGatewayId());
+        log.info("API unpublished successfully from gateway: {}", publishRecord.getGatewayId());
     }
 
     @Override

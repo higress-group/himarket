@@ -59,30 +59,15 @@ public interface GatewayPublisher {
      *
      * @param gateway 目标网关
      * @param apiDefinition API Definition
-     * @param endpoints Endpoints 列表
      * @param publishConfig 发布配置
      * @return 发布结果信息
      */
     String publish(
             Gateway gateway,
             APIDefinitionVO apiDefinition,
-            List<APIEndpointVO> endpoints,
             PublishConfig publishConfig);
 
-    /**
-     * 更新已发布的 API
-     *
-     * @param gateway 目标网关
-     * @param apiDefinition API Definition
-     * @param endpoints Endpoints 列表
-     * @param publishConfig 发布配置
-     * @return 更新结果信息
-     */
-    String update(
-            Gateway gateway,
-            APIDefinitionVO apiDefinition,
-            List<APIEndpointVO> endpoints,
-            PublishConfig publishConfig);
+
 
     /**
      * 从网关下线 API
