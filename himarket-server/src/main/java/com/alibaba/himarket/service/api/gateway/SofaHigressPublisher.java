@@ -74,7 +74,6 @@ public class SofaHigressPublisher implements GatewayPublisher {
     public String publish(Gateway gateway, APIDefinitionVO apiDefinition, List<APIEndpointVO> endpoints, PublishConfig publishConfig) {
         apiDefinition.setEndpoints(endpoints);
         SofaHigressClient client = getClient(gateway);
-        apiDefinition.setStatus(APIStatus.PUBLISHING);
 
         SofaHigressAPIDefinitionResponse response = client.execute(
                 "/apiDefinition/pub",
@@ -150,9 +149,10 @@ public class SofaHigressPublisher implements GatewayPublisher {
     @Data
     @SuperBuilder
     @NoArgsConstructor
-    public static class SofaHigressAPIDefinitionParam extends SofaHigressOperator.BaseRequest {
+    public static class SofaHigressAPIDefinitionParam extends SofaHigressOperator.BaseRequest<Object> {
         APIDefinitionVO apiDefinitionVO;
         PublishConfig publishConfig;
+        String serviceAddress;
     }
 
     @Data
