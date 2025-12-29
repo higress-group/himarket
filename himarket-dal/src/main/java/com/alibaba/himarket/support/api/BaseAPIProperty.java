@@ -21,6 +21,7 @@ package com.alibaba.himarket.support.api;
 
 import com.alibaba.himarket.support.enums.PropertyPhase;
 import com.alibaba.himarket.support.enums.PropertyType;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import java.io.Serializable;
@@ -28,6 +29,7 @@ import lombok.Data;
 
 /** API 属性配置基类 用于定义 API 的扩展属性基础信息 */
 @Data
+@JsonIgnoreProperties(ignoreUnknown = true)
 @JsonTypeInfo(
         use = JsonTypeInfo.Id.NAME,
         include = JsonTypeInfo.As.EXISTING_PROPERTY,
@@ -36,7 +38,8 @@ import lombok.Data;
 @JsonSubTypes({
     @JsonSubTypes.Type(value = RateLimitProperty.class, name = "RATE_LIMIT"),
     @JsonSubTypes.Type(value = TimeoutProperty.class, name = "TIMEOUT"),
-    @JsonSubTypes.Type(value = CircuitBreakerProperty.class, name = "CIRCUIT_BREAKER")
+    @JsonSubTypes.Type(value = CircuitBreakerProperty.class, name = "CIRCUIT_BREAKER"),
+    @JsonSubTypes.Type(value = ObservabilityProperty.class, name = "OBSERVABILITY")
 })
 public class BaseAPIProperty implements Serializable {
 

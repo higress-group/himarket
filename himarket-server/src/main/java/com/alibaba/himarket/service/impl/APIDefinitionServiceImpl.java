@@ -116,15 +116,13 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
                 }
             }
 
-            if (!fields.isEmpty()) {
-                schemas.add(
-                        PropertySchemaVO.builder()
-                                .type(type)
-                                .name(type.getLabel())
-                                .description(type.getDescription())
-                                .fields(fields)
-                                .build());
-            }
+            schemas.add(
+                    PropertySchemaVO.builder()
+                            .type(type)
+                            .name(type.getLabel())
+                            .description(type.getDescription())
+                            .fields(fields)
+                            .build());
         }
 
         return schemas;

@@ -47,7 +47,8 @@ public enum PropertyType {
 
     /** 超时配置 */
     TIMEOUT("超时配置", "配置 API 的超时时间"),
-
+    /** 可观测性 */
+    OBSERVABILITY("可观测性", "配置 API 的可观测性"),
     /** 熔断降级 */
     CIRCUIT_BREAKER("熔断降级", "配置 API 的熔断策略"),
 
