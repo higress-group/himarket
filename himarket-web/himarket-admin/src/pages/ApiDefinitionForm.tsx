@@ -450,13 +450,7 @@ export default function ApiDefinitionForm() {
             version: '1.0.0'
           }}
           onValuesChange={(changedValues) => {
-            // 监听协议变化，自动填充 Dify 模板
-            if (changedValues.metadata?.protocol === 'Dify') {
-              if (endpoints.length === 0) {
-                setEndpoints(DIFY_ENDPOINTS);
-                message.info('已自动填充 Dify API 模板');
-              }
-            }
+            // 监听协议变化
           }}
         >
           <Form.Item

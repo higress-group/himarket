@@ -12,7 +12,8 @@ import {
   Popconfirm,
   Dropdown,
   Upload,
-  Radio
+  Radio,
+  Checkbox
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { MenuProps, UploadProps } from 'antd';
@@ -31,6 +32,94 @@ import EndpointConfigForm from './EndpointConfigForm';
 import { apiDefinitionApi, nacosApi } from '@/lib/api';
 
 const { TextArea } = Input;
+
+const DIFY_ENDPOINTS: Endpoint[] = [
+  {
+    name: 'chat-messages',
+    description: '发送对话消息',
+    type: 'REST_ROUTE',
+    config: {
+      path: '/chat-messages',
+      method: 'POST',
+      headers: [
+        {
+          name: 'Authorization',
+          description: 'Bearer {api_key}',
+          required: true
+        }
+      ],
+      requestBody: JSON.stringify({
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: '用户输入/提问内容' },
+          inputs: { type: 'object', description: '允许传入 App 定义的各变量值', default: {} },
+          response_mode: { type: 'string', enum: ['streaming', 'blocking'], description: '响应模式' },
+          user: { type: 'string', description: '用户标识' },
+          conversation_id: { type: 'string', description: '会话 ID' },
+          files: { type: 'array', items: { type: 'object' }, description: '文件列表' },
+          auto_generate_name: { type: 'boolean', default: true, description: '自动生成标题' },
+          workflow_id: { type: 'string', description: '工作流ID' }
+        },
+        required: ['query', 'user']
+      }, null, 2),
+      responses: {
+        '200': {
+          description: '成功响应',
+          schema: {
+            type: 'object',
+            properties: {
+              event: { type: 'string', description: '事件类型' },
+              task_id: { type: 'string', description: '任务 ID' },
+              id: { type: 'string', description: '消息 ID' },
+              answer: { type: 'string', description: '回答内容' },
+              created_at: { type: 'integer', description: '创建时间' }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    name: 'run-workflow',
+    description: '执行工作流',
+    type: 'REST_ROUTE',
+    config: {
+      path: '/workflows/run',
+      method: 'POST',
+      headers: [
+        {
+          name: 'Authorization',
+          description: 'Bearer {api_key}',
+          required: true
+        }
+      ],
+      requestBody: JSON.stringify({
+        type: 'object',
+        properties: {
+          inputs: { type: 'object', description: '工作流变量输入', default: {} },
+          response_mode: { type: 'string', enum: ['streaming', 'blocking'], description: '响应模式' },
+          user: { type: 'string', description: '用户标识' },
+          files: { type: 'array', items: { type: 'object' }, description: '文件列表' }
+        },
+        required: ['inputs', 'response_mode', 'user']
+      }, null, 2),
+      responses: {
+        '200': {
+          description: '成功响应',
+          schema: {
+            type: 'object',
+            properties: {
+              workflow_run_id: { type: 'string', description: '工作流运行 ID' },
+              task_id: { type: 'string', description: '任务 ID' },
+              data: { type: 'object', description: '输出数据' },
+              status: { type: 'string', description: '运行状态' }
+            }
+          }
+        }
+      }
+    }
+  }
+];
 
 interface EndpointEditorProps {
   value?: Endpoint[];
@@ -104,7 +193,10 @@ export default function EndpointEditor({
   const [importLoading, setImportLoading] = useState(false);
 
   // Creation Method Selection State
-  const [creationMethod, setCreationMethod] = useState<'MANUAL' | 'SWAGGER' | 'NACOS' | 'MCP_SERVER'>('MANUAL');
+  const [creationMethod, setCreationMethod] = useState<'MANUAL' | 'SWAGGER' | 'NACOS' | 'MCP_SERVER' | 'TEMPLATE'>('MANUAL');
+
+  // Template Import State
+  const [selectedTemplateEndpoints, setSelectedTemplateEndpoints] = useState<string[]>([]);
 
   // Nacos Import State
   const [nacosInstances, setNacosInstances] = useState<any[]>([]);
@@ -179,6 +271,7 @@ export default function EndpointEditor({
   const handleAddClick = () => {
     setEditingEndpoint(null);
     setCreationMethod('MANUAL');
+    setSelectedTemplateEndpoints([]);
     // 自动设置推断出的类型
     setSelectedType(inferredEndpointType);
     setCurrentConfig({});
@@ -215,6 +308,32 @@ export default function EndpointEditor({
   };
 
   const handleModalOk = async () => {
+    if (creationMethod === 'TEMPLATE') {
+      const endpointsToAdd = DIFY_ENDPOINTS.filter(ep => selectedTemplateEndpoints.includes(ep.name));
+      if (endpointsToAdd.length === 0) {
+        message.warning('请至少选择一个 Endpoint');
+        return;
+      }
+      
+      const newEndpointsToAdd = endpointsToAdd.map(ep => {
+        const newEp = JSON.parse(JSON.stringify(ep));
+        if (newEp.config && newEp.config.requestBody && typeof newEp.config.requestBody === 'string') {
+             try {
+                 newEp.config.requestBody = JSON.parse(newEp.config.requestBody);
+             } catch (e) {
+                 console.error('Failed to parse requestBody', e);
+             }
+        }
+        return newEp;
+      });
+
+      const updatedValue = [...value, ...newEndpointsToAdd];
+      onChange?.(updatedValue);
+      setModalVisible(false);
+      message.success(`成功添加 ${newEndpointsToAdd.length} 个 Endpoints`);
+      return;
+    }
+
     if (creationMethod === 'NACOS' && !editingEndpoint) {
       if (!selectedNacosId || !selectedNamespaceId || !selectedMcpService) {
         message.warning('请完整选择 Nacos 配置');
@@ -618,35 +737,69 @@ export default function EndpointEditor({
         onCancel={handleModalCancel}
         width={700}
         okText={
-          (creationMethod === 'SWAGGER' || creationMethod === 'NACOS' || creationMethod === 'MCP_SERVER') && !editingEndpoint 
+          (creationMethod === 'SWAGGER' || creationMethod === 'NACOS' || creationMethod === 'MCP_SERVER' || creationMethod === 'TEMPLATE') && !editingEndpoint 
             ? "导入" 
             : "确定"
         }
         cancelText="取消"
         confirmLoading={importLoading}
       >
-        {/* 创建方式选择 - 仅在新增且为 MCP Server 时显示 */}
-        {!editingEndpoint && apiType === 'MCP_SERVER' && (
+        {/* 创建方式选择 - 仅在新增且为 MCP Server 或 Agent API 时显示 */}
+        {!editingEndpoint && (apiType === 'MCP_SERVER' || apiType === 'AGENT_API') && (
           <div className="mb-6">
             <div className="mb-2 font-medium">创建方式</div>
-            <Select
+            <Radio.Group
               value={creationMethod}
-              onChange={(value) => {
+              onChange={(e) => {
+                const value = e.target.value;
                 setCreationMethod(value);
                 // 切换时清空 Swagger 内容
                 if (value === 'MANUAL') {
                   setSwaggerContent('');
                 }
               }}
-              className="w-full"
-              options={[
-                { label: '手动创建', value: 'MANUAL' },
-                { label: 'Swagger 导入', value: 'SWAGGER' },
-                { label: 'Nacos 导入', value: 'NACOS' },
-                { label: 'MCP Server 导入', value: 'MCP_SERVER' }
-              ]}
-            />
+              optionType="button"
+              buttonStyle="solid"
+              className="w-full flex"
+            >
+              <Radio.Button value="MANUAL" className="flex-1 text-center">手动创建</Radio.Button>
+              {apiType === 'MCP_SERVER' && (
+                <>
+                  <Radio.Button value="SWAGGER" className="flex-1 text-center">Swagger 导入</Radio.Button>
+                  <Radio.Button value="NACOS" className="flex-1 text-center">Nacos 导入</Radio.Button>
+                  <Radio.Button value="MCP_SERVER" className="flex-1 text-center">MCP Server 导入</Radio.Button>
+                </>
+              )}
+              {apiType === 'AGENT_API' && (
+                <Radio.Button value="TEMPLATE" className="flex-1 text-center">从模板添加</Radio.Button>
+              )}
+            </Radio.Group>
           </div>
+        )}
+
+        {/* 模板选择界面 */}
+        {creationMethod === 'TEMPLATE' && !editingEndpoint && (
+             <div className="mb-4">
+                 <div className="mb-2 font-medium">选择模板 (Dify)</div>
+                 <div className="border rounded p-4 max-h-60 overflow-y-auto">
+                     <Checkbox.Group 
+                        className="flex flex-col gap-2"
+                        value={selectedTemplateEndpoints}
+                        onChange={(checkedValues) => setSelectedTemplateEndpoints(checkedValues as string[])}
+                     >
+                         {DIFY_ENDPOINTS.map(ep => {
+                             const isExist = value.some(existingEp => existingEp.name === ep.name);
+                             return (
+                                 <Checkbox key={ep.name} value={ep.name} disabled={isExist}>
+                                     <span className="font-medium">{ep.name}</span>
+                                     <span className="text-gray-500 ml-2">- {ep.description}</span>
+                                     {isExist && <span className="text-orange-500 ml-2">(已存在)</span>}
+                                 </Checkbox>
+                             );
+                         })}
+                     </Checkbox.Group>
+                 </div>
+             </div>
         )}
 
         {/* Nacos 导入界面 */}
