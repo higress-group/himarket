@@ -288,6 +288,8 @@ public class ProductServiceImpl implements ProductService {
                                         try {
                                             apiDefinitionService.deleteAPIDefinition(
                                                     apiDefinitionId);
+                                        } catch (BusinessException e) {
+                                            throw e;
                                         } catch (Exception e) {
                                             log.warn(
                                                     "Failed to delete managed API definition: {}",
@@ -345,7 +347,8 @@ public class ProductServiceImpl implements ProductService {
                 .findFirstByProductId(productId)
                 .map(
                         productRef -> {
-                            ProductRefResult result = new ProductRefResult().convertFrom(productRef);
+                            ProductRefResult result =
+                                    new ProductRefResult().convertFrom(productRef);
                             if (CollUtil.isNotEmpty(result.getApiDefinitionIds())) {
                                 List<APIDefinitionVO> apiDefinitions =
                                         result.getApiDefinitionIds().stream()
@@ -384,6 +387,8 @@ public class ProductServiceImpl implements ProductService {
                 for (String apiDefinitionId : apiDefinitionIds) {
                     try {
                         apiDefinitionService.deleteAPIDefinition(apiDefinitionId);
+                    } catch (BusinessException e) {
+                        throw e;
                     } catch (Exception e) {
                         log.warn("Failed to delete managed API definition: {}", apiDefinitionId, e);
                     }

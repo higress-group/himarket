@@ -112,8 +112,7 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
         Gateway gateway = param.convertTo();
         if (gateway.getGatewayType().isHigress()) {
             gateway.setGatewayId(IdGenerator.genHigressGatewayId());
-        }
-        else if (gateway.getGatewayType().isSofaHigress()) {
+        } else if (gateway.getGatewayType().isSofaHigress()) {
             gateway.setGatewayId(IdGenerator.genSofaHigressGatewayId());
         }
         gateway.setAdminId(contextHolder.getUser());

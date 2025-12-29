@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Table,
   Button,
@@ -28,7 +28,7 @@ import {
 } from '@ant-design/icons';
 import type { Endpoint, EndpointType } from '@/types/endpoint';
 import EndpointConfigForm from './EndpointConfigForm';
-import { apiDefinitionApi } from '@/lib/api';
+import { apiDefinitionApi, nacosApi } from '@/lib/api';
 
 const { TextArea } = Input;
 
@@ -59,7 +59,7 @@ const ENDPOINT_TYPE_COLOR_MAP: Record<EndpointType, string> = {
 const API_TYPE_TO_ENDPOINT_TYPE: Record<string, EndpointType> = {
   REST_API: 'REST_ROUTE',
   MCP_SERVER: 'MCP_TOOL',
-  AGENT_API: 'AGENT',
+  AGENT_API: 'REST_ROUTE',
   MODEL_API: 'MODEL'
 };
 
@@ -96,6 +96,7 @@ export default function EndpointEditor({
   const [editingEndpoint, setEditingEndpoint] = useState<Endpoint | null>(null);
   const [selectedType, setSelectedType] = useState<EndpointType | undefined>();
   const [currentConfig, setCurrentConfig] = useState<any>({});
+  const [mcpProtocol, setMcpProtocol] = useState<'sse' | 'http'>('sse');
   const [form] = Form.useForm();
 
   // Swagger Import State
@@ -103,7 +104,77 @@ export default function EndpointEditor({
   const [importLoading, setImportLoading] = useState(false);
 
   // Creation Method Selection State
-  const [creationMethod, setCreationMethod] = useState<'MANUAL' | 'SWAGGER'>('MANUAL');
+  const [creationMethod, setCreationMethod] = useState<'MANUAL' | 'SWAGGER' | 'NACOS' | 'MCP_SERVER'>('MANUAL');
+
+  // Nacos Import State
+  const [nacosInstances, setNacosInstances] = useState<any[]>([]);
+  const [nacosNamespaces, setNacosNamespaces] = useState<any[]>([]);
+  const [nacosServices, setNacosServices] = useState<any[]>([]);
+  const [selectedNacosId, setSelectedNacosId] = useState<string>();
+  const [selectedNamespaceId, setSelectedNamespaceId] = useState<string>();
+  const [selectedMcpService, setSelectedMcpService] = useState<string>();
+
+  // MCP Server Import State
+  const [mcpEndpoint, setMcpEndpoint] = useState('');
+  const [mcpToken, setMcpToken] = useState('');
+
+  useEffect(() => {
+    if (creationMethod === 'NACOS') {
+      fetchNacosInstances();
+    }
+  }, [creationMethod]);
+
+  const fetchNacosInstances = async () => {
+    try {
+      const res = await nacosApi.getNacos({ page: 1, size: 1000 });
+      setNacosInstances((res.data?.content || []).map((n: any) => ({
+        value: n.nacosId,
+        label: n.nacosName
+      })));
+    } catch (error) {
+      console.error('Failed to fetch Nacos instances:', error);
+    }
+  };
+
+  const handleNacosChange = async (nacosId: string) => {
+    setSelectedNacosId(nacosId);
+    setSelectedNamespaceId(undefined);
+    setSelectedMcpService(undefined);
+    setNacosNamespaces([]);
+    setNacosServices([]);
+    
+    try {
+      const res = await nacosApi.getNamespaces(nacosId, { page: 1, size: 1000 });
+      setNacosNamespaces((res.data?.content || []).map((ns: any) => ({
+        value: ns.namespaceId,
+        label: ns.namespaceName || ns.namespaceId
+      })));
+    } catch (error) {
+      console.error('Failed to fetch namespaces:', error);
+    }
+  };
+
+  const handleNamespaceChange = async (namespaceId: string) => {
+    setSelectedNamespaceId(namespaceId);
+    setSelectedMcpService(undefined);
+    setNacosServices([]);
+
+    if (!selectedNacosId) return;
+
+    try {
+      const res = await nacosApi.getNacosMcpServers(selectedNacosId, {
+        page: 1,
+        size: 1000,
+        namespaceId
+      });
+      setNacosServices((res.data?.content || []).map((srv: any) => ({
+        value: srv.mcpServerName,
+        label: srv.mcpServerName
+      })));
+    } catch (error) {
+      console.error('Failed to fetch MCP services:', error);
+    }
+  };
 
   const handleAddClick = () => {
     setEditingEndpoint(null);
@@ -144,6 +215,94 @@ export default function EndpointEditor({
   };
 
   const handleModalOk = async () => {
+    if (creationMethod === 'NACOS' && !editingEndpoint) {
+      if (!selectedNacosId || !selectedNamespaceId || !selectedMcpService) {
+        message.warning('请完整选择 Nacos 配置');
+        return;
+      }
+      setImportLoading(true);
+      try {
+        const res: any = await apiDefinitionApi.importFromNacos({
+          nacosId: selectedNacosId,
+          namespaceId: selectedNamespaceId,
+          mcpServerName: selectedMcpService
+        });
+        
+        const data = res && res.data ? res.data : res;
+        
+        if (data && data.endpoints && Array.isArray(data.endpoints)) {
+          const newEndpoints = data.endpoints.map((ep: any) => {
+            if (ep.config && typeof ep.config === 'string') {
+              try {
+                ep.config = JSON.parse(ep.config);
+              } catch (e) {
+                console.error('Failed to parse endpoint config:', e);
+              }
+            }
+            return ep;
+          });
+          
+          const updatedValue = [...value, ...newEndpoints];
+          onChange?.(updatedValue);
+          
+          message.success(`成功导入 ${newEndpoints.length} 个 ${terminology.pluralLower}`);
+          setModalVisible(false);
+        } else {
+          message.warning('未解析到任何 Endpoints');
+        }
+      } catch (error) {
+        console.error('Nacos 导入失败', error);
+        message.error('导入失败');
+      } finally {
+        setImportLoading(false);
+      }
+      return;
+    }
+
+    if (creationMethod === 'MCP_SERVER' && !editingEndpoint) {
+      if (!mcpEndpoint) {
+        message.warning('请输入 MCP Server Endpoint');
+        return;
+      }
+      setImportLoading(true);
+      try {
+        const res: any = await apiDefinitionApi.importFromMcpServer({
+          endpoint: mcpEndpoint,
+          token: mcpToken,
+          type: mcpProtocol
+        });
+        
+        const data = res && res.data ? res.data : res;
+        
+        if (data && data.endpoints && Array.isArray(data.endpoints)) {
+          const newEndpoints = data.endpoints.map((ep: any) => {
+            if (ep.config && typeof ep.config === 'string') {
+              try {
+                ep.config = JSON.parse(ep.config);
+              } catch (e) {
+                console.error('Failed to parse endpoint config:', e);
+              }
+            }
+            return ep;
+          });
+          
+          const updatedValue = [...value, ...newEndpoints];
+          onChange?.(updatedValue);
+          
+          message.success(`成功导入 ${newEndpoints.length} 个 ${terminology.pluralLower}`);
+          setModalVisible(false);
+        } else {
+          message.warning('未解析到任何 Endpoints');
+        }
+      } catch (error) {
+        console.error('MCP Server 导入失败', error);
+        message.error('导入失败');
+      } finally {
+        setImportLoading(false);
+      }
+      return;
+    }
+
     if (creationMethod === 'SWAGGER' && !editingEndpoint) {
       // Swagger 导入逻辑
       if (!swaggerContent) {
@@ -157,7 +316,7 @@ export default function EndpointEditor({
           swaggerContent,
           name: 'temp',
           version: '1.0.0',
-          type: apiType === 'MCP_SERVER' ? 'MCP' : 'REST'
+          type: apiType === 'MCP_SERVER' ? 'MCP_SERVER' : 'REST_API'
         });
         
         const data = res && res.data ? res.data : res;
@@ -424,11 +583,11 @@ export default function EndpointEditor({
       <div className="flex justify-between items-center mb-4">
         <div>
           <h4 className="text-base font-semibold">{terminology.singular} 配置</h4>
-          <p className="text-sm text-gray-500">
-            {apiType === 'MCP_SERVER' 
-              ? '配置 MCP Server 的工具（Tools）' 
-              : '配置 API 的端点信息，包括 MCP Tool、REST Route 等'}
-          </p>
+          {apiType === 'MCP_SERVER' && (
+            <p className="text-sm text-gray-500">
+              配置 MCP Server 的工具（Tools）
+            </p>
+          )}
         </div>
         <Space>
           <Button
@@ -458,7 +617,11 @@ export default function EndpointEditor({
         onOk={handleModalOk}
         onCancel={handleModalCancel}
         width={700}
-        okText={creationMethod === 'SWAGGER' && !editingEndpoint ? "解析并导入" : "确定"}
+        okText={
+          (creationMethod === 'SWAGGER' || creationMethod === 'NACOS' || creationMethod === 'MCP_SERVER') && !editingEndpoint 
+            ? "导入" 
+            : "确定"
+        }
         cancelText="取消"
         confirmLoading={importLoading}
       >
@@ -466,27 +629,91 @@ export default function EndpointEditor({
         {!editingEndpoint && apiType === 'MCP_SERVER' && (
           <div className="mb-6">
             <div className="mb-2 font-medium">创建方式</div>
-            <Radio.Group 
-              value={creationMethod} 
-              onChange={(e) => {
-                setCreationMethod(e.target.value);
+            <Select
+              value={creationMethod}
+              onChange={(value) => {
+                setCreationMethod(value);
                 // 切换时清空 Swagger 内容
-                if (e.target.value === 'MANUAL') {
+                if (value === 'MANUAL') {
                   setSwaggerContent('');
                 }
               }}
-              optionType="button"
-              buttonStyle="solid"
-              className="w-full flex"
-            >
-              <Radio.Button value="MANUAL" className="flex-1 text-center">手动创建</Radio.Button>
-              <Radio.Button value="SWAGGER" className="flex-1 text-center">从 Swagger/OpenAPI 导入</Radio.Button>
-            </Radio.Group>
+              className="w-full"
+              options={[
+                { label: '手动创建', value: 'MANUAL' },
+                { label: 'Swagger 导入', value: 'SWAGGER' },
+                { label: 'Nacos 导入', value: 'NACOS' },
+                { label: 'MCP Server 导入', value: 'MCP_SERVER' }
+              ]}
+            />
+          </div>
+        )}
+
+        {/* Nacos 导入界面 */}
+        {creationMethod === 'NACOS' && !editingEndpoint && (
+          <div className="mb-4">
+            <Form layout="vertical">
+              <Form.Item label="Nacos 实例" required>
+                <Select
+                  placeholder="请选择 Nacos 实例"
+                  options={nacosInstances}
+                  value={selectedNacosId}
+                  onChange={handleNacosChange}
+                />
+              </Form.Item>
+              <Form.Item label="命名空间" required>
+                <Select
+                  placeholder="请选择命名空间"
+                  options={nacosNamespaces}
+                  value={selectedNamespaceId}
+                  onChange={handleNamespaceChange}
+                  disabled={!selectedNacosId}
+                />
+              </Form.Item>
+              <Form.Item label="MCP 服务" required>
+                <Select
+                  placeholder="请选择 MCP 服务"
+                  options={nacosServices}
+                  value={selectedMcpService}
+                  onChange={setSelectedMcpService}
+                  disabled={!selectedNamespaceId}
+                  showSearch
+                />
+              </Form.Item>
+            </Form>
+          </div>
+        )}
+
+        {/* MCP Server 导入界面 */}
+        {creationMethod === 'MCP_SERVER' && !editingEndpoint && (
+          <div className="mb-4">
+            <Form layout="vertical">
+              <Form.Item label="协议类型" required>
+                <Radio.Group value={mcpProtocol} onChange={(e) => setMcpProtocol(e.target.value)}>
+                  <Radio value="sse">SSE</Radio>
+                  <Radio value="http">HTTP</Radio>
+                </Radio.Group>
+              </Form.Item>
+              <Form.Item label="MCP Server Endpoint" required help="例如: http://localhost:8080/mcp">
+                <Input
+                  placeholder="请输入 MCP Server Endpoint"
+                  value={mcpEndpoint}
+                  onChange={(e) => setMcpEndpoint(e.target.value)}
+                />
+              </Form.Item>
+              <Form.Item label="Token (可选)">
+                <Input.Password
+                  placeholder="请输入访问 Token"
+                  value={mcpToken}
+                  onChange={(e) => setMcpToken(e.target.value)}
+                />
+              </Form.Item>
+            </Form>
           </div>
         )}
 
         {/* Swagger 导入界面 */}
-        {creationMethod === 'SWAGGER' && !editingEndpoint ? (
+        {creationMethod === 'SWAGGER' && !editingEndpoint && (
           <div className="mt-4">
             <div className="mb-4 p-4 bg-gray-50 rounded border border-dashed border-gray-300 text-center">
               <div className="mb-4">
@@ -505,8 +732,10 @@ export default function EndpointEditor({
               )}
             </div>
           </div>
-        ) : (
-          /* 手动创建/编辑界面 */
+        )}
+
+        {/* 手动创建/编辑界面 */}
+        {(creationMethod === 'MANUAL' || editingEndpoint) && (
           <Form form={form} layout="vertical" className="mt-4">
             <Form.Item
               label={`${terminology.singular} 名称`}

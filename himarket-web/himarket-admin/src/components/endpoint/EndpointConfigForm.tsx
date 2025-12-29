@@ -181,7 +181,7 @@ export default function EndpointConfigForm({ type, value, onChange }: EndpointCo
         </Form.Item>
 
         <Collapse defaultActiveKey={['params']} className="mb-4">
-          <Panel header="请求参数 (Parameters)" key="params">
+          <Panel header="请求参数 (Query Parameters)" key="params">
             <Form.List name="parameters">
               {(fields, { add, remove }) => (
                 <>
@@ -195,18 +195,6 @@ export default function EndpointConfigForm({ type, value, onChange }: EndpointCo
                           noStyle
                         >
                           <Input placeholder="参数名" style={{ width: 150 }} />
-                        </Form.Item>
-                        <Form.Item
-                          {...field}
-                          name={[field.name, 'in']}
-                          label="位置"
-                          noStyle
-                        >
-                          <Select
-                            options={PARAMETER_IN_OPTIONS}
-                            placeholder="位置"
-                            style={{ width: 120 }}
-                          />
                         </Form.Item>
                         <Form.Item
                           {...field}
@@ -235,7 +223,105 @@ export default function EndpointConfigForm({ type, value, onChange }: EndpointCo
                     </div>
                   ))}
                   <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
-                    添加参数
+                    添加 Query 参数
+                  </Button>
+                </>
+              )}
+            </Form.List>
+          </Panel>
+
+          <Panel header="请求头 (Headers)" key="headers">
+            <Form.List name="headers">
+              {(fields, { add, remove }) => (
+                <>
+                  {fields.map((field) => (
+                    <div key={field.key} className="border p-4 mb-4 rounded">
+                      <Space style={{ display: 'flex', marginBottom: 8 }}>
+                        <Form.Item
+                          {...field}
+                          name={[field.name, 'name']}
+                          label="Header 名"
+                          noStyle
+                        >
+                          <Input placeholder="Header 名" style={{ width: 150 }} />
+                        </Form.Item>
+                        <Form.Item
+                          {...field}
+                          name={[field.name, 'required']}
+                          valuePropName="checked"
+                          noStyle
+                        >
+                          <Select
+                            options={[
+                              { label: '必填', value: true },
+                              { label: '可选', value: false }
+                            ]}
+                            placeholder="是否必填"
+                            style={{ width: 100 }}
+                          />
+                        </Form.Item>
+                        <MinusCircleOutlined onClick={() => remove(field.name)} />
+                      </Space>
+                      <Form.Item
+                        {...field}
+                        name={[field.name, 'description']}
+                        label="描述"
+                      >
+                        <Input placeholder="Header 描述" />
+                      </Form.Item>
+                    </div>
+                  ))}
+                  <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
+                    添加 Header
+                  </Button>
+                </>
+              )}
+            </Form.List>
+          </Panel>
+
+          <Panel header="路径参数 (Path Parameters)" key="pathParams">
+            <Form.List name="pathParams">
+              {(fields, { add, remove }) => (
+                <>
+                  {fields.map((field) => (
+                    <div key={field.key} className="border p-4 mb-4 rounded">
+                      <Space style={{ display: 'flex', marginBottom: 8 }}>
+                        <Form.Item
+                          {...field}
+                          name={[field.name, 'name']}
+                          label="参数名"
+                          noStyle
+                        >
+                          <Input placeholder="参数名" style={{ width: 150 }} />
+                        </Form.Item>
+                        <Form.Item
+                          {...field}
+                          name={[field.name, 'required']}
+                          valuePropName="checked"
+                          noStyle
+                        >
+                          <Select
+                            options={[
+                              { label: '必填', value: true },
+                              { label: '可选', value: false }
+                            ]}
+                            placeholder="是否必填"
+                            style={{ width: 100 }}
+                          />
+                        </Form.Item>
+                        <MinusCircleOutlined onClick={() => remove(field.name)} />
+                      </Space>
+                      <Form.Item
+                        {...field}
+                        name={[field.name, 'description']}
+                        label="描述"
+                      >
+                        <Input placeholder="参数描述" />
+                      </Form.Item>
+                    </div>
+                  ))}
+                  <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
+                    添加 Path 参数
                   </Button>
                 </>
               )}

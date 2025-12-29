@@ -42,8 +42,10 @@ public class GatewayCapabilityRegistry {
     private final Map<GatewayType, GatewayPublisher> publishers = new ConcurrentHashMap<>();
     private final GatewayRepository gatewayRepository;
 
-    public GatewayCapabilityRegistry(GatewayRepository gatewayRepository) {
+    public GatewayCapabilityRegistry(
+            GatewayRepository gatewayRepository, List<GatewayPublisher> publisherList) {
         this.gatewayRepository = gatewayRepository;
+        publisherList.forEach(this::registerPublisher);
     }
 
     /**

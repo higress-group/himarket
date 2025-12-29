@@ -26,6 +26,94 @@ import type { Endpoint } from '@/types/endpoint';
 
 const { TextArea } = Input;
 
+const DIFY_ENDPOINTS: Endpoint[] = [
+  {
+    name: 'chat-messages',
+    description: '发送对话消息',
+    type: 'REST_ROUTE',
+    config: {
+      path: '/chat-messages',
+      method: 'POST',
+      headers: [
+        {
+          name: 'Authorization',
+          description: 'Bearer {api_key}',
+          required: true
+        }
+      ],
+      requestBody: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: '用户输入/提问内容' },
+          inputs: { type: 'object', description: '允许传入 App 定义的各变量值', default: {} },
+          response_mode: { type: 'string', enum: ['streaming', 'blocking'], description: '响应模式' },
+          user: { type: 'string', description: '用户标识' },
+          conversation_id: { type: 'string', description: '会话 ID' },
+          files: { type: 'array', items: { type: 'object' }, description: '文件列表' },
+          auto_generate_name: { type: 'boolean', default: true, description: '自动生成标题' },
+          workflow_id: { type: 'string', description: '工作流ID' }
+        },
+        required: ['query', 'user']
+      },
+      responses: {
+        '200': {
+          description: '成功响应',
+          schema: {
+            type: 'object',
+            properties: {
+              event: { type: 'string', description: '事件类型' },
+              task_id: { type: 'string', description: '任务 ID' },
+              id: { type: 'string', description: '消息 ID' },
+              answer: { type: 'string', description: '回答内容' },
+              created_at: { type: 'integer', description: '创建时间' }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    name: 'run-workflow',
+    description: '执行工作流',
+    type: 'REST_ROUTE',
+    config: {
+      path: '/workflows/run',
+      method: 'POST',
+      headers: [
+        {
+          name: 'Authorization',
+          description: 'Bearer {api_key}',
+          required: true
+        }
+      ],
+      requestBody: {
+        type: 'object',
+        properties: {
+          inputs: { type: 'object', description: '工作流变量输入', default: {} },
+          response_mode: { type: 'string', enum: ['streaming', 'blocking'], description: '响应模式' },
+          user: { type: 'string', description: '用户标识' },
+          files: { type: 'array', items: { type: 'object' }, description: '文件列表' }
+        },
+        required: ['inputs', 'response_mode', 'user']
+      },
+      responses: {
+        '200': {
+          description: '成功响应',
+          schema: {
+            type: 'object',
+            properties: {
+              workflow_run_id: { type: 'string', description: '工作流运行 ID' },
+              task_id: { type: 'string', description: '任务 ID' },
+              data: { type: 'object', description: '输出数据' },
+              status: { type: 'string', description: '运行状态' }
+            }
+          }
+        }
+      }
+    }
+  }
+];
+
 interface PropertyField {
   name: string;
   label: string;
@@ -103,6 +191,7 @@ export default function ApiDefinitionForm() {
         type: apiData.type,
         status: apiData.status,
         version: apiData.version,
+        metadata: apiData.metadata,
         properties: propertiesObj
       });
 
@@ -150,16 +239,31 @@ export default function ApiDefinitionForm() {
       setLoading(true);
 
       // 准备 endpoints 数据
-      const endpointsData = endpoints.map(endpoint => ({
-        name: endpoint.name,
-        description: endpoint.description,
-        type: endpoint.type,
-        sortOrder: endpoint.sortOrder,
-        config: {
-          ...endpoint.config,
-          type: endpoint.type  // 添加 type 字段，用于 Jackson 多态反序列化
-        }
-      }));
+      const endpointsData = endpoints.map(endpoint => {
+        const config = { ...endpoint.config };
+        // Ensure JSON fields are objects
+        const jsonFields = ['inputSchema', 'outputSchema', 'requestBody', 'configSchema'];
+        jsonFields.forEach(field => {
+          if (config[field] && typeof config[field] === 'string') {
+            try {
+              config[field] = JSON.parse(config[field]);
+            } catch (e) {
+              console.warn(`Failed to parse ${field} for endpoint ${endpoint.name}`, e);
+            }
+          }
+        });
+
+        return {
+          name: endpoint.name,
+          description: endpoint.description,
+          type: endpoint.type,
+          sortOrder: endpoint.sortOrder,
+          config: {
+            ...config,
+            type: endpoint.type  // 添加 type 字段，用于 Jackson 多态反序列化
+          }
+        };
+      });
 
       // 转换 properties 对象为列表
       const propertiesList: any[] = [];
@@ -334,7 +438,7 @@ export default function ApiDefinitionForm() {
     return (
       <div className="py-4">
         <h3 className="text-lg font-semibold mb-4">
-          {isEdit ? '编辑 API Definition' : 'API 基本信息'}
+          {isEdit ? '基本信息配置' : 'API 基本信息'}
         </h3>
         <Form
           form={form}
@@ -344,6 +448,15 @@ export default function ApiDefinitionForm() {
             type: productType || 'REST_API',
             status: 'DRAFT',
             version: '1.0.0'
+          }}
+          onValuesChange={(changedValues) => {
+            // 监听协议变化，自动填充 Dify 模板
+            if (changedValues.metadata?.protocol === 'Dify') {
+              if (endpoints.length === 0) {
+                setEndpoints(DIFY_ENDPOINTS);
+                message.info('已自动填充 Dify API 模板');
+              }
+            }
           }}
         >
           <Form.Item
@@ -378,6 +491,30 @@ export default function ApiDefinitionForm() {
               placeholder="选择 API 类型"
               disabled={isEdit || !!productType}
             />
+          </Form.Item>
+
+          <Form.Item
+            noStyle
+            shouldUpdate={(prev, curr) => prev.type !== curr.type}
+          >
+            {({ getFieldValue }) => {
+              const type = getFieldValue('type');
+              return type === 'AGENT_API' ? (
+                <Form.Item
+                  label="协议"
+                  name={['metadata', 'protocol']}
+                  rules={[{ required: true, message: '请选择协议' }]}
+                >
+                  <Select
+                    placeholder="选择协议"
+                    options={[
+                      { label: 'Dify', value: 'Dify' },
+                      { label: '百炼', value: 'Bailian' }
+                    ]}
+                  />
+                </Form.Item>
+              ) : null;
+            }}
           </Form.Item>
 
           <Form.Item

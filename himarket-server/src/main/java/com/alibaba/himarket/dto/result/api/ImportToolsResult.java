@@ -17,24 +17,21 @@
  * under the License.
  */
 
-package com.alibaba.himarket.dto.params.api;
+package com.alibaba.himarket.dto.result.api;
 
-import com.alibaba.himarket.support.enums.APIType;
-import jakarta.validation.constraints.NotBlank;
+import java.util.List;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
-public class ImportSwaggerParam {
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class ImportToolsResult {
+    private List<APIEndpointVO> endpoints;
 
-    @NotBlank(message = "Swagger内容不能为空")
-    private String swaggerContent;
-
-    private String name;
-
-    private String description;
-
-    private String version;
-
-    /** 导入类型: REST_API, MCP_SERVER */
-    private APIType type;
+    /** 导入结果消息 */
+    private String message;
 }

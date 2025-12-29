@@ -19,16 +19,14 @@
 
 package com.alibaba.himarket.dto.params.api;
 
-import java.util.List;
-import java.util.Map;
-
+import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.dto.converter.InputConverter;
 import com.alibaba.himarket.entity.APIDefinition;
 import com.alibaba.himarket.support.api.BaseAPIProperty;
 import com.alibaba.himarket.support.enums.APIStatus;
-
-import cn.hutool.json.JSONUtil;
 import jakarta.validation.constraints.Size;
+import java.util.List;
+import java.util.Map;
 import lombok.Data;
 
 @Data

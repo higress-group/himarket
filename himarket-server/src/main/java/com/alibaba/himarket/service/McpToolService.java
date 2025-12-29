@@ -17,24 +17,21 @@
  * under the License.
  */
 
-package com.alibaba.himarket.dto.params.api;
+package com.alibaba.himarket.service;
 
-import com.alibaba.himarket.support.enums.APIType;
-import jakarta.validation.constraints.NotBlank;
-import lombok.Data;
+import com.alibaba.himarket.entity.APIEndpoint;
+import java.util.List;
 
-@Data
-public class ImportSwaggerParam {
+/** MCP Tool 服务接口 */
+public interface McpToolService {
 
-    @NotBlank(message = "Swagger内容不能为空")
-    private String swaggerContent;
-
-    private String name;
-
-    private String description;
-
-    private String version;
-
-    /** 导入类型: REST_API, MCP_SERVER */
-    private APIType type;
+    /**
+     * 从 MCP Server 导入 Tool
+     *
+     * @param endpoint MCP Server Endpoint
+     * @param token 访问 Token
+     * @param type 协议类型 (sse/http)
+     * @return Endpoint 列表
+     */
+    List<APIEndpoint> importFromMcpServer(String endpoint, String token, String type);
 }

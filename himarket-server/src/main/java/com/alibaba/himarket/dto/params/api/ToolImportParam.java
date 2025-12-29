@@ -19,22 +19,38 @@
 
 package com.alibaba.himarket.dto.params.api;
 
-import com.alibaba.himarket.support.enums.APIType;
-import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 @Data
-public class ImportSwaggerParam {
+public class ToolImportParam {
 
-    @NotBlank(message = "Swagger内容不能为空")
+    /** Nacos实例ID */
+    private String nacosId;
+
+    /** 命名空间 */
+    private String namespaceId;
+
+    /** MCP服务名称 */
+    private String mcpServerName;
+
+    /** MCP Server Endpoint */
+    private String endpoint;
+
+    /** MCP Server Token */
+    private String token;
+
+    /** 协议类型(MCP Server): sse, http 导入类型(Swagger): REST_API, MCP_SERVER */
+    private String type;
+
+    /** Swagger内容 */
     private String swaggerContent;
 
+    /** Swagger名称 */
     private String name;
 
+    /** Swagger描述 */
     private String description;
 
+    /** Swagger版本 */
     private String version;
-
-    /** 导入类型: REST_API, MCP_SERVER */
-    private APIType type;
 }

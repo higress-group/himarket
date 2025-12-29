@@ -19,22 +19,18 @@
 
 package com.alibaba.himarket.dto.params.api;
 
-import com.alibaba.himarket.support.enums.APIType;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 @Data
-public class ImportSwaggerParam {
+public class ImportFromNacosParam {
 
-    @NotBlank(message = "Swagger内容不能为空")
-    private String swaggerContent;
+    @NotBlank(message = "Nacos实例ID不能为空")
+    private String nacosId;
 
-    private String name;
+    @NotBlank(message = "命名空间不能为空")
+    private String namespaceId;
 
-    private String description;
-
-    private String version;
-
-    /** 导入类型: REST_API, MCP_SERVER */
-    private APIType type;
+    @NotBlank(message = "MCP服务名称不能为空")
+    private String mcpServerName;
 }

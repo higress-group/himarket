@@ -22,7 +22,6 @@ package com.alibaba.himarket.service.impl;
 import cn.hutool.core.lang.Snowflake;
 import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.StrUtil;
-import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.dto.params.api.CreateAPIDefinitionParam;
@@ -30,7 +29,6 @@ import com.alibaba.himarket.dto.params.api.CreateEndpointParam;
 import com.alibaba.himarket.dto.params.api.PublishAPIParam;
 import com.alibaba.himarket.dto.params.api.QueryAPIDefinitionParam;
 import com.alibaba.himarket.dto.params.api.UpdateAPIDefinitionParam;
-import com.alibaba.himarket.dto.params.api.UpdateEndpointParam;
 import com.alibaba.himarket.dto.result.api.APIDefinitionVO;
 import com.alibaba.himarket.dto.result.api.APIEndpointVO;
 import com.alibaba.himarket.dto.result.api.APIPublishHistoryVO;
@@ -52,13 +50,13 @@ import com.alibaba.himarket.service.APIDefinitionService;
 import com.alibaba.himarket.service.api.GatewayCapabilityRegistry;
 import com.alibaba.himarket.service.api.GatewayPublisher;
 import com.alibaba.himarket.support.annotation.APIField;
-import com.alibaba.himarket.support.api.PublishConfig;
 import com.alibaba.himarket.support.api.BaseAPIProperty;
+import com.alibaba.himarket.support.api.PublishConfig;
 import com.alibaba.himarket.support.enums.APIStatus;
 import com.alibaba.himarket.support.enums.PropertyType;
 import com.alibaba.himarket.support.enums.PublishAction;
-import com.alibaba.himarket.support.enums.RateLimitScope;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -85,6 +83,7 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
     private final APIPublishHistoryRepository apiPublishHistoryRepository;
     private final GatewayRepository gatewayRepository;
     private final GatewayCapabilityRegistry gatewayCapabilityRegistry;
+    private final ObjectMapper objectMapper;
 
     private static final Snowflake SNOWFLAKE = IdUtil.getSnowflake(1, 1);
 
@@ -453,23 +452,22 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
                                         new BusinessException(
                                                 ErrorCode.GATEWAY_NOT_FOUND, param.getGatewayId()));
 
-        // 检查是否已发布到该网关
-        apiPublishRecordRepository
-                .findByApiDefinitionIdAndGatewayId(apiDefinitionId, param.getGatewayId())
-                .ifPresent(
-                        record -> {
-                            throw new BusinessException(
-                                    ErrorCode.ALREADY_PUBLISHED, gateway.getGatewayName());
-                        });
-
-        // 【限制】检查是否已发布到其他网关（当前版本限制只能发布到一个网关）
+        // 检查发布目标：允许对同一网关重复发布（即更新），但不允许同时发布到不同的网关
         List<APIPublishRecord> activeRecords =
                 apiPublishRecordRepository.findByApiDefinitionIdAndStatus(
                         apiDefinitionId, com.alibaba.himarket.support.enums.PublishStatus.ACTIVE);
+        // 如果存在已发布记录，且已发布记录中有不同于当前目标网关的记录，则阻止发布
         if (!activeRecords.isEmpty()) {
-            APIPublishRecord existingRecord = activeRecords.get(0);
-            throw new BusinessException(
-                    ErrorCode.API_ALREADY_PUBLISHED_TO_GATEWAY, existingRecord.getGatewayName());
+            boolean hasOtherGateway =
+                    activeRecords.stream()
+                            .anyMatch(
+                                    record -> !record.getGatewayId().equals(param.getGatewayId()));
+            if (hasOtherGateway) {
+                APIPublishRecord existingRecord = activeRecords.get(0);
+                throw new BusinessException(
+                        ErrorCode.API_ALREADY_PUBLISHED_TO_GATEWAY,
+                        existingRecord.getGatewayName());
+            }
         }
 
         // 准备数据
@@ -487,7 +485,7 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
         GatewayPublisher publisher = gatewayCapabilityRegistry.getPublisher(gateway);
 
         // 验证配置
-        publisher.validatePublishConfig(apiDefinitionVO, endpointVOs, param.getPublishConfig());
+        publisher.validatePublishConfig(apiDefinitionVO, param.getPublishConfig());
 
         // 执行发布
         String gatewayResourceId =
@@ -504,7 +502,11 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
         publishRecord.setGatewayName(gateway.getGatewayName());
         publishRecord.setGatewayType(gateway.getGatewayType().name());
         publishRecord.setStatus(com.alibaba.himarket.support.enums.PublishStatus.ACTIVE);
-        publishRecord.setPublishConfig(JSONUtil.toJsonStr(param.getPublishConfig()));
+        try {
+            publishRecord.setPublishConfig(objectMapper.writeValueAsString(param.getPublishConfig()));
+        } catch (Exception e) {
+            throw new BusinessException(ErrorCode.CONFIG_CONVERSION_ERROR, e, "Failed to serialize publish config");
+        }
         publishRecord.setPublishedAt(java.time.LocalDateTime.now());
 
         // 设置网关资源ID
@@ -575,8 +577,12 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
         apiDefinitionVO.setEndpoints(endpointVOs);
 
         // 获取发布配置
-        PublishConfig publishConfig =
-                JSONUtil.toBean(publishRecord.getPublishConfig(), PublishConfig.class);
+        PublishConfig publishConfig;
+        try {
+            publishConfig = objectMapper.readValue(publishRecord.getPublishConfig(), PublishConfig.class);
+        } catch (Exception e) {
+            throw new BusinessException(ErrorCode.CONFIG_CONVERSION_ERROR, e, "Failed to parse publish config");
+        }
 
         // 获取发布器并执行下线
         GatewayPublisher publisher = gatewayCapabilityRegistry.getPublisher(gateway);
@@ -638,7 +644,7 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
         if (action == PublishAction.PUBLISH) {
             try {
                 APIDefinitionVO apiDefinitionVO = getAPIDefinition(apiDefinitionId);
-                history.setSnapshot(JSONUtil.toJsonStr(apiDefinitionVO));
+                history.setSnapshot(objectMapper.writeValueAsString(apiDefinitionVO));
             } catch (Exception e) {
                 log.error("Failed to create snapshot for API Definition: {}", apiDefinitionId, e);
             }

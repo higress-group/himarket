@@ -20,11 +20,9 @@
 package com.alibaba.himarket.service;
 
 import com.alibaba.himarket.dto.params.api.CreateAPIDefinitionParam;
-import com.alibaba.himarket.dto.params.api.CreateEndpointParam;
 import com.alibaba.himarket.dto.params.api.PublishAPIParam;
 import com.alibaba.himarket.dto.params.api.QueryAPIDefinitionParam;
 import com.alibaba.himarket.dto.params.api.UpdateAPIDefinitionParam;
-import com.alibaba.himarket.dto.params.api.UpdateEndpointParam;
 import com.alibaba.himarket.dto.result.api.APIDefinitionVO;
 import com.alibaba.himarket.dto.result.api.APIEndpointVO;
 import com.alibaba.himarket.dto.result.api.APIPublishHistoryVO;

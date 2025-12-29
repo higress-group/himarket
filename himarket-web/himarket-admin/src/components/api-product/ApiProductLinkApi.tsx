@@ -855,6 +855,105 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
     )
   }
 
+  const convertEndpointsToOpenApiSpec = (endpoints: Endpoint[]) => {
+    const paths: any = {};
+
+    endpoints.forEach(endpoint => {
+      if (endpoint.type !== 'REST_ROUTE') return;
+
+      const config = endpoint.config || {};
+      const path = config.path;
+      const method = (config.method || 'get').toLowerCase();
+
+      if (!path) return;
+
+      if (!paths[path]) {
+        paths[path] = {};
+      }
+
+      const parameters: any[] = [];
+
+      // Path parameters
+      if (config.pathParams) {
+        config.pathParams.forEach((p: any) => {
+          parameters.push({
+            name: p.name,
+            in: 'path',
+            required: p.required !== false, // Default to true for path params usually
+            description: p.description,
+            schema: { type: 'string' } // Simplified
+          });
+        });
+      }
+
+      // Query parameters
+      if (config.parameters) {
+        config.parameters.forEach((p: any) => {
+          parameters.push({
+            name: p.name,
+            in: 'query',
+            required: p.required === true,
+            description: p.description,
+            schema: { type: 'string' } // Simplified
+          });
+        });
+      }
+
+      // Headers
+      if (config.headers) {
+        config.headers.forEach((h: any) => {
+          parameters.push({
+            name: h.name,
+            in: 'header',
+            required: h.required === true,
+            description: h.description,
+            schema: { type: 'string' }
+          });
+        });
+      }
+
+      const operation: any = {
+        summary: endpoint.name,
+        description: endpoint.description,
+        parameters: parameters,
+        responses: {
+          '200': {
+            description: 'Successful response'
+          }
+        }
+      };
+
+      // Request Body
+      if (config.requestBody) {
+        try {
+          const schema = JSON.parse(config.requestBody);
+          operation.requestBody = {
+            content: {
+              'application/json': {
+                schema: schema
+              }
+            }
+          };
+        } catch (e) {
+          console.warn('Failed to parse request body schema', e);
+        }
+      }
+
+      paths[path][method] = operation;
+    });
+
+    const spec = {
+      openapi: '3.0.0',
+      info: {
+        title: apiProduct.name,
+        version: '1.0.0'
+      },
+      paths: paths
+    };
+
+    return JSON.stringify(spec, null, 2);
+  }
+
   const renderApiConfig = () => {
     const isMcp = apiProduct.type === 'MCP_SERVER'
     const isOpenApi = apiProduct.type === 'REST_API'
@@ -1072,8 +1171,30 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
     }
 
     // Agent API类型：显示协议支持和路由配置或 AgentCard
-    if (isAgent && apiProduct.agentConfig?.agentAPIConfig) {
-      const agentAPIConfig = apiProduct.agentConfig.agentAPIConfig
+    if (isAgent && (apiProduct.agentConfig?.agentAPIConfig || (linkedService?.sourceType === 'MANAGED' && linkedService?.apiDefinitions?.[0]))) {
+      // Check if it is Managed Agent API with REST_ROUTE endpoints
+      if (linkedService?.sourceType === 'MANAGED' && linkedService.apiDefinitions?.[0]?.endpoints) {
+        const endpoints = linkedService.apiDefinitions[0].endpoints;
+        const hasRestRoutes = endpoints.some((ep: Endpoint) => ep.type === 'REST_ROUTE');
+
+        if (hasRestRoutes) {
+          const spec = convertEndpointsToOpenApiSpec(endpoints);
+          const protocol = (linkedService.apiDefinitions[0] as any).metadata?.protocol;
+          return (
+            <Card title="配置详情">
+              {protocol && (
+                <div className="mb-4">
+                  <div className="text-sm text-gray-600">支持协议</div>
+                  <div className="font-medium">{protocol}</div>
+                </div>
+              )}
+              <SwaggerUIWrapper apiSpec={spec} />
+            </Card>
+          )
+        }
+      }
+
+      const agentAPIConfig = apiProduct.agentConfig?.agentAPIConfig || {} as any
       const routes = agentAPIConfig.routes || []
       const protocols = agentAPIConfig.agentProtocols || []
       const isA2A = protocols.includes('a2a')
@@ -1173,10 +1294,12 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
         <Card title="配置详情">
           <div className="space-y-6">
             {/* 协议信息 */}
-            {protocols.length > 0 && (
+            {(linkedService?.apiDefinitions?.[0]?.metadata?.protocol || protocols.length > 0) && (
               <div>
                 <div className="text-sm text-gray-600">支持协议</div>
-                <div className="font-medium">{protocols.join(', ')}</div>
+                <div className="font-medium">
+                  {linkedService?.apiDefinitions?.[0]?.metadata?.protocol || protocols.join(', ')}
+                </div>
               </div>
             )}
 

@@ -94,6 +94,17 @@ public interface NacosService {
     String fetchMcpConfig(String nacosId, NacosRefConfig nacosRefConfig);
 
     /**
+     * 从 Nacos 导入 MCP Tools
+     *
+     * @param nacosId Nacos实例唯一标识
+     * @param namespaceId 命名空间ID
+     * @param mcpServerName MCP服务名称
+     * @return APIEndpoint 列表
+     */
+    java.util.List<com.alibaba.himarket.entity.APIEndpoint> importMcpTools(
+            String nacosId, String namespaceId, String mcpServerName);
+
+    /**
      * 从阿里云MSE获取Nacos集群列表
      *
      * @param param

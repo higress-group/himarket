@@ -218,6 +218,14 @@ export const gatewayApi = {
   importGateway: (data: any) => {
     return api.post(`/gateways`, { ...data })
   },
+  // 获取网关可选域名
+  getGatewayDomains: (gatewayId: string) => {
+    return api.get(`/gateways/${gatewayId}/domains`)
+  },
+  // 获取网关支持的服务类型
+  getGatewayServiceTypes: (gatewayId: string) => {
+    return api.get(`/gateways/${gatewayId}/service-types`)
+  },
   // 更新网关
   updateGateway: (gatewayId: string, data: any) => {
     return api.put(`/gateways/${gatewayId}`, data)
@@ -287,10 +295,6 @@ export const nacosApi = {
     namespaceId?: string 
   }) => {
     return api.get(`/nacos/${nacosId}/agents`, { params })
-  },
-  // 获取指定 Nacos 实例的命名空间列表
-  getNamespaces: (nacosId: string, params?: { page?: number; size?: number }) => {
-    return api.get(`/nacos/${nacosId}/namespaces`, { params })
   }
 }
 
@@ -352,7 +356,15 @@ export const apiDefinitionApi = {
   },
   // 转换 Swagger/OpenAPI
   convertSwagger: (data: any) => {
-    return api.post(`/tools/swagger/convert`, data)
+    return api.post(`/tools/import/swagger`, data)
+  },
+  // 从 Nacos 导入 MCP Tool
+  importFromNacos: (data: any) => {
+    return api.post(`/tools/import/nacos`, data)
+  },
+  // 从 MCP Server 导入 MCP Tool
+  importFromMcpServer: (data: any) => {
+    return api.post(`/tools/import/mcp-server`, data)
   },
   // 获取可用网关能力
   getGatewayCapabilities: (apiType: string) => {

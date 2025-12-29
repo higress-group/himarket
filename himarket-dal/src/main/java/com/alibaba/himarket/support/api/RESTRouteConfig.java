@@ -38,6 +38,12 @@ public class RESTRouteConfig extends EndpointConfig {
     /** 请求参数列表 */
     private List<Parameter> parameters;
 
+    /** 请求头列表 */
+    private List<Parameter> headers;
+
+    /** 路径参数列表 */
+    private List<Parameter> pathParams;
+
     /** 请求体定义 */
     private Map<String, Object> requestBody;
 

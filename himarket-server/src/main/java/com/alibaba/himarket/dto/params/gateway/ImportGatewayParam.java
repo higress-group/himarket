@@ -65,7 +65,8 @@ public class ImportGatewayParam implements InputConverter<Gateway> {
                         && StrUtil.isNotBlank(gatewayId)
                         && apsaraGatewayConfig.validate()
                 || gatewayType.isHigress() && higressConfig != null && higressConfig.validate()
-                || gatewayType.isSofaHigress() && sofaHigressConfig != null && sofaHigressConfig.validate()
-                ;
+                || gatewayType.isSofaHigress()
+                        && sofaHigressConfig != null
+                        && sofaHigressConfig.validate();
     }
 }

@@ -69,7 +69,8 @@ public class APIDefinitionVO implements OutputConverter<APIDefinitionVO, APIDefi
             try {
                 this.properties =
                         objectMapper.readValue(
-                                source.getProperties(), new TypeReference<List<BaseAPIProperty>>() {});
+                                source.getProperties(),
+                                new TypeReference<List<BaseAPIProperty>>() {});
             } catch (Exception e) {
                 this.properties = null;
             }

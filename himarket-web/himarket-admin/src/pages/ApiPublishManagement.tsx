@@ -46,6 +46,8 @@ export default function ApiPublishManagement() {
   const [publishRecords, setPublishRecords] = useState<any[]>([]);
   const [publishHistory, setPublishHistory] = useState<any[]>([]);
   const [gateways, setGateways] = useState<Gateway[]>([]);
+  const [ingressDomains, setIngressDomains] = useState<string[]>([]);
+  const [serviceTypes, setServiceTypes] = useState<string[]>(['NACOS', 'FIXED_ADDRESS', 'DNS']);
   const [nacosInstances, setNacosInstances] = useState<any[]>([]);
   const [namespaces, setNamespaces] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -55,6 +57,8 @@ export default function ApiPublishManagement() {
   const [currentSnapshot, setCurrentSnapshot] = useState<any>(null);
   const [form] = Form.useForm();
   const serviceType = Form.useWatch('serviceType', form);
+  const nacosId = Form.useWatch('nacosId', form);
+  const namespace = Form.useWatch('namespace', form);
 
   useEffect(() => {
     if (apiDefinitionId) {
@@ -86,6 +90,37 @@ export default function ApiPublishManagement() {
       message.error('获取数据失败');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGatewayChange = async (gatewayId: string) => {
+    try {
+      const [domainsRes, serviceTypesRes] = await Promise.all([
+        gatewayApi.getGatewayDomains(gatewayId),
+        gatewayApi.getGatewayServiceTypes(gatewayId)
+      ]);
+      
+      const domains = domainsRes.data || domainsRes;
+      setIngressDomains(Array.isArray(domains) ? domains : []);
+      
+      const types = serviceTypesRes.data || serviceTypesRes;
+      if (Array.isArray(types) && types.length > 0) {
+        setServiceTypes(types);
+      }
+      
+      form.setFieldValue('ingressDomain', undefined); // Reset domain selection
+      // Don't reset serviceType if it's still valid, or maybe we should? 
+      // User request implies they want to see options early. 
+      // If we reset, they lose selection. Let's keep it if valid, or reset if not in new list.
+      const currentServiceType = form.getFieldValue('serviceType');
+      if (currentServiceType && Array.isArray(types) && !types.includes(currentServiceType)) {
+          form.setFieldValue('serviceType', undefined);
+      }
+    } catch (error) {
+      console.error('Failed to fetch gateway info:', error);
+      message.error('获取网关信息失败');
+      setIngressDomains([]);
+      // Don't clear serviceTypes on error, keep defaults
     }
   };
 
@@ -136,7 +171,7 @@ export default function ApiPublishManagement() {
         comment: values.comment,
         publishConfig: {
           serviceConfig,
-          domains: [], // Optional
+          domains: Array.isArray(values.ingressDomain) ? values.ingressDomain : (values.ingressDomain ? [values.ingressDomain] : []),
           basePath: '/'
         }
       };
@@ -357,6 +392,7 @@ export default function ApiPublishManagement() {
             <Select
               placeholder="请选择网关"
               loading={loading}
+              onChange={handleGatewayChange}
             >
               {gateways.map(gateway => (
                 <Select.Option key={gateway.gatewayId} value={gateway.gatewayId}>
@@ -366,11 +402,29 @@ export default function ApiPublishManagement() {
             </Select>
           </Form.Item>
 
+          <Form.Item
+            name="ingressDomain"
+            label="域名"
+            rules={[{ required: true, message: '请选择域名' }]}
+          >
+            <Select placeholder="请选择域名" mode="multiple">
+              {ingressDomains.map(domain => (
+                <Select.Option key={domain} value={domain}>
+                  {domain}
+                </Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
+
           <Form.Item name="serviceType" label="服务类型" rules={[{ required: true }]}>
             <Radio.Group>
-              <Radio value="NACOS">Nacos</Radio>
-              <Radio value="FIXED_ADDRESS">固定地址</Radio>
-              <Radio value="DNS">DNS</Radio>
+              {serviceTypes.map(type => (
+                <Radio key={type} value={type}>
+                  {type === 'NACOS' ? 'Nacos' : 
+                   type === 'FIXED_ADDRESS' ? '固定地址' : 
+                   type === 'DNS' ? 'DNS' : type}
+                </Radio>
+              ))}
             </Radio.Group>
           </Form.Item>
 
@@ -388,21 +442,29 @@ export default function ApiPublishManagement() {
                   ))}
                 </Select>
               </Form.Item>
-              <Form.Item name="namespace" label="命名空间" rules={[{ required: true }]}>
-                <Select placeholder="请选择命名空间">
-                  {namespaces.map(ns => (
-                    <Select.Option key={ns.namespaceId} value={ns.namespaceId}>
-                      {ns.namespaceName} ({ns.namespaceId})
-                    </Select.Option>
-                  ))}
-                </Select>
-              </Form.Item>
-              <Form.Item name="group" label="分组" rules={[{ required: true }]}>
-                <Input placeholder="请输入分组" />
-              </Form.Item>
-              <Form.Item name="serviceName" label="服务名称" rules={[{ required: true }]}>
-                <Input placeholder="请输入服务名称" />
-              </Form.Item>
+              
+              {nacosId && (
+                <Form.Item name="namespace" label="命名空间" rules={[{ required: true }]}>
+                  <Select placeholder="请选择命名空间">
+                    {namespaces.map(ns => (
+                      <Select.Option key={ns.namespaceId} value={ns.namespaceId}>
+                        {ns.namespaceName} ({ns.namespaceId})
+                      </Select.Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+              )}
+
+              {nacosId && namespace && (
+                <>
+                  <Form.Item name="group" label="分组" rules={[{ required: true }]}>
+                    <Input placeholder="请输入分组" />
+                  </Form.Item>
+                  <Form.Item name="serviceName" label="服务名称" rules={[{ required: true }]}>
+                    <Input placeholder="请输入服务名称" />
+                  </Form.Item>
+                </>
+              )}
             </>
           )}
 

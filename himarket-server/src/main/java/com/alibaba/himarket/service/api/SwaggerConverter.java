@@ -24,155 +24,38 @@ import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
-import com.alibaba.himarket.entity.APIDefinition;
 import com.alibaba.himarket.entity.APIEndpoint;
 import com.alibaba.himarket.support.api.MCPToolConfig;
 import com.alibaba.himarket.support.api.RESTRouteConfig;
-import com.alibaba.himarket.support.enums.APIStatus;
 import com.alibaba.himarket.support.enums.APIType;
 import com.alibaba.himarket.support.enums.EndpointType;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 /** Swagger/OpenAPI 转换器 支持 Swagger 2.0 和 OpenAPI 3.0 规范 */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class SwaggerConverter {
 
-    /**
-     * 将 Swagger 文档转换为 API Definition
-     *
-     * @param swaggerContent Swagger JSON 内容
-     * @param name API 名称（可选）
-     * @param description API 描述（可选）
-     * @param version API 版本（可选）
-     * @param type 导入类型（REST 或 MCP）
-     * @return API Definition
-     */
-    public APIDefinition convert(
-            String swaggerContent,
-            String name,
-            String description,
-            String version,
-            String type) {
-        try {
-            JSONObject swagger = JSONUtil.parseObj(swaggerContent);
-
-            APIType apiType = APIType.REST_API;
-            if ("MCP".equalsIgnoreCase(type)) {
-                apiType = APIType.MCP_SERVER;
-            }
-
-            // 判断是 Swagger 2.0 还是 OpenAPI 3.0
-            String swaggerVersion = swagger.getStr("swagger");
-            String openApiVersion = swagger.getStr("openapi");
-
-            if (StrUtil.isNotBlank(swaggerVersion)) {
-                return convertSwagger2(swagger, name, description, version, apiType);
-            } else if (StrUtil.isNotBlank(openApiVersion)) {
-                return convertOpenApi3(swagger, name, description, version, apiType);
-            } else {
-                throw new BusinessException(
-                        ErrorCode.INVALID_PARAMETER,
-                        "Invalid Swagger/OpenAPI document: missing version field");
-            }
-        } catch (Exception e) {
-            log.error("Failed to convert Swagger document", e);
-            throw new BusinessException(
-                    ErrorCode.INTERNAL_ERROR,
-                    "Failed to parse Swagger document: " + e.getMessage());
-        }
-    }
-
-    /** 转换 Swagger 2.0 文档 */
-    private APIDefinition convertSwagger2(
-            JSONObject swagger,
-            String name,
-            String description,
-            String version,
-            APIType type) {
-        APIDefinition apiDefinition = new APIDefinition();
-        apiDefinition.setApiDefinitionId(UUID.randomUUID().toString());
-        apiDefinition.setType(type);
-        apiDefinition.setStatus(APIStatus.DRAFT);
-
-        // 提取基本信息
-        JSONObject info = swagger.getJSONObject("info");
-        if (info != null) {
-            apiDefinition.setName(
-                    StrUtil.isNotBlank(name) ? name : info.getStr("title", "Imported API"));
-            apiDefinition.setDescription(
-                    StrUtil.isNotBlank(description) ? description : info.getStr("description"));
-            apiDefinition.setVersion(
-                    StrUtil.isNotBlank(version) ? version : info.getStr("version", "1.0.0"));
-        } else {
-            apiDefinition.setName(StrUtil.isNotBlank(name) ? name : "Imported API");
-            apiDefinition.setDescription(description);
-            apiDefinition.setVersion(StrUtil.isNotBlank(version) ? version : "1.0.0");
-        }
-
-        // 提取元数据
-        Map<String, Object> metadata = new HashMap<>();
-        metadata.put("swagger", "2.0");
-        metadata.put("basePath", swagger.getStr("basePath", ""));
-        metadata.put("host", swagger.getStr("host", ""));
-        metadata.put("schemes", swagger.getJSONArray("schemes"));
-        apiDefinition.setMetadata(JSONUtil.toJsonStr(metadata));
-
-        return apiDefinition;
-    }
-
-    /** 转换 OpenAPI 3.0 文档 */
-    private APIDefinition convertOpenApi3(
-            JSONObject openApi,
-            String name,
-            String description,
-            String version,
-            APIType type) {
-        APIDefinition apiDefinition = new APIDefinition();
-        apiDefinition.setApiDefinitionId(UUID.randomUUID().toString());
-        apiDefinition.setType(type);
-        apiDefinition.setStatus(APIStatus.DRAFT);
-
-        // 提取基本信息
-        JSONObject info = openApi.getJSONObject("info");
-        if (info != null) {
-            apiDefinition.setName(
-                    StrUtil.isNotBlank(name) ? name : info.getStr("title", "Imported API"));
-            apiDefinition.setDescription(
-                    StrUtil.isNotBlank(description) ? description : info.getStr("description"));
-            apiDefinition.setVersion(
-                    StrUtil.isNotBlank(version) ? version : info.getStr("version", "1.0.0"));
-        } else {
-            apiDefinition.setName(StrUtil.isNotBlank(name) ? name : "Imported API");
-            apiDefinition.setDescription(description);
-            apiDefinition.setVersion(StrUtil.isNotBlank(version) ? version : "1.0.0");
-        }
-
-        // 提取元数据
-        Map<String, Object> metadata = new HashMap<>();
-        metadata.put("openapi", openApi.getStr("openapi"));
-        metadata.put("servers", openApi.getJSONArray("servers"));
-        apiDefinition.setMetadata(JSONUtil.toJsonStr(metadata));
-
-        return apiDefinition;
-    }
+    private final ObjectMapper objectMapper;
 
     /**
      * 转换 Swagger 文档中的 paths 为 Endpoints
      *
      * @param swaggerContent Swagger JSON 内容
-     * @param apiDefinitionId API Definition ID
      * @param type API 类型
      * @return Endpoints 列表
      */
-    public List<APIEndpoint> convertEndpoints(
-            String swaggerContent, String apiDefinitionId, APIType type) {
+    public List<APIEndpoint> convertEndpoints(String swaggerContent, APIType type) {
         try {
             JSONObject swagger = JSONUtil.parseObj(swaggerContent);
             JSONObject paths = swagger.getJSONObject("paths");
@@ -193,13 +76,7 @@ public class SwaggerConverter {
                         JSONObject operation = pathItem.getJSONObject(method);
                         APIEndpoint endpoint =
                                 convertOperation(
-                                        path,
-                                        method,
-                                        operation,
-                                        apiDefinitionId,
-                                        sortOrder++,
-                                        type,
-                                        swagger);
+                                        path, method, operation, sortOrder++, type, swagger);
                         endpoints.add(endpoint);
                     }
                 }
@@ -219,13 +96,12 @@ public class SwaggerConverter {
             String path,
             String method,
             JSONObject operation,
-            String apiDefinitionId,
             int sortOrder,
             APIType type,
-            JSONObject swagger) {
+            JSONObject swagger) throws JsonProcessingException {
         APIEndpoint endpoint = new APIEndpoint();
         endpoint.setEndpointId(UUID.randomUUID().toString());
-        endpoint.setApiDefinitionId(apiDefinitionId);
+        endpoint.setApiDefinitionId("temp-id");
         endpoint.setSortOrder(sortOrder);
 
         if (type == APIType.MCP_SERVER) {
@@ -247,7 +123,7 @@ public class SwaggerConverter {
             config.setOutputSchema(createOutputSchema(operation, swagger));
 
             // 保存配置
-            endpoint.setConfig(JSONUtil.toJsonStr(config));
+            endpoint.setConfig(objectMapper.writeValueAsString(config));
         } else {
             endpoint.setType(EndpointType.REST_ROUTE);
             // 提取基本信息
@@ -298,7 +174,7 @@ public class SwaggerConverter {
             config.setResponses(responses);
 
             // 保存配置
-            endpoint.setConfig(JSONUtil.toJsonStr(config));
+            endpoint.setConfig(objectMapper.writeValueAsString(config));
         }
 
         return endpoint;
@@ -397,8 +273,7 @@ public class SwaggerConverter {
                         // 如果 body 是 object，将其属性合并到 properties
                         if ("object".equals(bodySchema.get("type"))) {
                             if (bodySchema.containsKey("properties")) {
-                                JSONObject bodyProps =
-                                        (JSONObject) bodySchema.get("properties");
+                                JSONObject bodyProps = (JSONObject) bodySchema.get("properties");
                                 bodyProps.forEach((k, v) -> properties.put(k, v));
                             }
                             if (bodySchema.containsKey("required")) {
@@ -467,7 +342,7 @@ public class SwaggerConverter {
     /** 解析 Schema 中的引用 */
     private JSONObject resolveSchema(JSONObject schema, JSONObject swagger) {
         if (schema == null) return null;
-        
+
         // 如果是引用，解析引用
         if (schema.containsKey("$ref")) {
             JSONObject resolved = resolveRef(schema.getStr("$ref"), swagger);
@@ -482,13 +357,14 @@ public class SwaggerConverter {
         if (schema.containsKey("properties")) {
             JSONObject properties = schema.getJSONObject("properties");
             JSONObject newProperties = new JSONObject();
-            properties.forEach((k, v) -> {
-                if (v instanceof JSONObject) {
-                    newProperties.put(k, resolveSchema((JSONObject) v, swagger));
-                } else {
-                    newProperties.put(k, v);
-                }
-            });
+            properties.forEach(
+                    (k, v) -> {
+                        if (v instanceof JSONObject) {
+                            newProperties.put(k, resolveSchema((JSONObject) v, swagger));
+                        } else {
+                            newProperties.put(k, v);
+                        }
+                    });
             schema.put("properties", newProperties);
         }
 
@@ -497,7 +373,7 @@ public class SwaggerConverter {
             JSONObject items = schema.getJSONObject("items");
             schema.put("items", resolveSchema(items, swagger));
         }
-        
+
         // 递归处理 allOf, anyOf, oneOf
         String[] combinators = {"allOf", "anyOf", "oneOf"};
         for (String combinator : combinators) {

@@ -19,19 +19,10 @@
 
 package com.alibaba.himarket.support.api;
 
-import java.util.List;
-import java.util.Map;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 /** Agent 配置 */
 @Data
 @EqualsAndHashCode(callSuper = true)
-public class AgentConfig extends EndpointConfig {
-
-    /** 支持的协议列表 */
-    private List<String> protocols;
-
-    /** Agent 配置 Schema */
-    private Map<String, Object> configSchema;
-}
+public class AgentConfig extends RESTRouteConfig {}

@@ -19,22 +19,17 @@
 
 package com.alibaba.himarket.dto.params.api;
 
-import com.alibaba.himarket.support.enums.APIType;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 @Data
-public class ImportSwaggerParam {
+public class ImportFromMcpServerParam {
 
-    @NotBlank(message = "Swagger内容不能为空")
-    private String swaggerContent;
+    @NotBlank(message = "MCP Server Endpoint不能为空")
+    private String endpoint;
 
-    private String name;
+    private String token;
 
-    private String description;
-
-    private String version;
-
-    /** 导入类型: REST_API, MCP_SERVER */
-    private APIType type;
+    /** 协议类型: sse, http */
+    private String type = "sse";
 }

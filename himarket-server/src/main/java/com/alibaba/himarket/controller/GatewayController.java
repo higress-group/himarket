@@ -31,6 +31,7 @@ import com.alibaba.himarket.service.GatewayService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
@@ -94,6 +95,20 @@ public class GatewayController {
     @DeleteMapping("/{gatewayId}")
     public void deleteGateway(@PathVariable String gatewayId) {
         gatewayService.deleteGateway(gatewayId);
+    }
+
+    @Operation(summary = "获取Gateway可选域名列表")
+    @GetMapping("/{gatewayId}/domains")
+    public List<String> getGatewayDomains(@PathVariable String gatewayId) {
+        // Mock implementation
+        return List.of("api.example.com", "gateway.test.com", "dev-api.internal.net");
+    }
+
+    @Operation(summary = "获取Gateway支持的服务类型")
+    @GetMapping("/{gatewayId}/service-types")
+    public List<String> getGatewayServiceTypes(@PathVariable String gatewayId) {
+        // Mock implementation
+        return List.of("NACOS", "FIXED_ADDRESS", "DNS");
     }
 
     @Operation(summary = "获取REST API列表")

@@ -20,7 +20,6 @@
 package com.alibaba.himarket.service.api;
 
 import com.alibaba.himarket.dto.result.api.APIDefinitionVO;
-import com.alibaba.himarket.dto.result.api.APIEndpointVO;
 import com.alibaba.himarket.entity.Gateway;
 import com.alibaba.himarket.support.api.PublishConfig;
 import com.alibaba.himarket.support.enums.APIType;
@@ -62,12 +61,7 @@ public interface GatewayPublisher {
      * @param publishConfig 发布配置
      * @return 发布结果信息
      */
-    String publish(
-            Gateway gateway,
-            APIDefinitionVO apiDefinition,
-            PublishConfig publishConfig);
-
-
+    String publish(Gateway gateway, APIDefinitionVO apiDefinition, PublishConfig publishConfig);
 
     /**
      * 从网关下线 API
@@ -92,12 +86,8 @@ public interface GatewayPublisher {
      * 验证发布配置的有效性
      *
      * @param apiDefinition API Definition
-     * @param endpoints Endpoints 列表
      * @param publishConfig 发布配置
      * @throws com.alibaba.himarket.core.exception.BusinessException 如果配置无效
      */
-    void validatePublishConfig(
-            APIDefinitionVO apiDefinition,
-            List<APIEndpointVO> endpoints,
-            PublishConfig publishConfig);
+    void validatePublishConfig(APIDefinitionVO apiDefinition, PublishConfig publishConfig);
 }
