@@ -135,16 +135,12 @@ public class EndpointConfigResolver {
     }
 
     private void validateAgentConfig(AgentConfig config) {
-        if (config.getProtocols() == null || config.getProtocols().isEmpty()) {
-            throw new BusinessException(
-                    ErrorCode.INVALID_PARAMETER, "Agent must have at least one protocol");
+        if (config.getMatchConfig() == null) {
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "Model must have matchConfig");
         }
     }
 
     private void validateModelConfig(ModelConfig config) {
-        if (config.getModelName() == null || config.getModelName().isEmpty()) {
-            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "Model must have modelName");
-        }
         if (config.getMatchConfig() == null) {
             throw new BusinessException(ErrorCode.INVALID_PARAMETER, "Model must have matchConfig");
         }

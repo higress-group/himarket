@@ -22,15 +22,18 @@ package com.alibaba.himarket.service.impl;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
+import com.alibaba.himarket.dto.result.consumer.CredentialContext;
 import com.alibaba.himarket.entity.APIEndpoint;
 import com.alibaba.himarket.service.McpToolService;
 import com.alibaba.himarket.support.api.MCPToolConfig;
+import com.alibaba.himarket.support.chat.mcp.MCPTransportConfig;
 import com.alibaba.himarket.support.enums.EndpointType;
+import com.alibaba.himarket.support.enums.MCPTransportMode;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.spec.McpSchema;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -45,7 +48,6 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class McpToolServiceImpl implements McpToolService {
 
-    private final McpClientFactory mcpClientFactory;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -55,8 +57,26 @@ public class McpToolServiceImpl implements McpToolService {
             headers.put("Authorization", "Bearer " + token);
         }
 
+        MCPTransportMode transportMode =
+                Arrays.stream(MCPTransportMode.values())
+                        .filter(
+                                m ->
+                                        m.name().equalsIgnoreCase(type)
+                                                || m.getMode().equalsIgnoreCase(type))
+                        .findFirst()
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                ErrorCode.INVALID_PARAMETER,
+                                                "Invalid transport type: " + type));
+
+        MCPTransportConfig transportConfig =
+                MCPTransportConfig.builder().url(endpoint).transportMode(transportMode).build();
+
+        CredentialContext credentialContext = CredentialContext.builder().headers(headers).build();
+
         try (McpClientWrapper client =
-                mcpClientFactory.initClient(type, endpoint, headers, Collections.emptyMap())) {
+                McpClientFactory.newClient(transportConfig, credentialContext)) {
             if (client == null) {
                 throw new BusinessException(
                         ErrorCode.INTERNAL_ERROR, "Failed to connect to MCP Server");

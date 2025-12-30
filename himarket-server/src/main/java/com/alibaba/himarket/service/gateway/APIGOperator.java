@@ -537,11 +537,6 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
     }
 
     @Override
-    public String getDashboard(Gateway gateway, String type) {
-        throw new UnsupportedOperationException("Dashboard feature has been removed");
-    }
-
-    @Override
     public List<String> getGatewayDomains(Gateway gateway) {
         String queryGatewayType = null;
         if (gateway.getGatewayType().equals(GatewayType.APIG_API)) {

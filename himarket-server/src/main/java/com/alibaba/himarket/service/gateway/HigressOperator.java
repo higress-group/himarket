@@ -585,12 +585,6 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
     }
 
     @Override
-    public String getDashboard(Gateway gateway, String type) {
-        throw new UnsupportedOperationException(
-                "Higress gateway does not support getting dashboard");
-    }
-
-    @Override
     public List<String> getGatewayDomains(Gateway gateway) {
         return List.of();
     }

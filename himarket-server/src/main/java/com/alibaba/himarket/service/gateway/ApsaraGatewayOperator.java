@@ -766,11 +766,6 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
     }
 
     @Override
-    public String getDashboard(Gateway gateway, String type) {
-        return null;
-    }
-
-    @Override
     public List<String> getGatewayDomains(Gateway gateway) {
         return List.of();
     }
