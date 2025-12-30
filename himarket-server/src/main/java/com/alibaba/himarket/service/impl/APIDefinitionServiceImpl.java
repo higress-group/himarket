@@ -61,6 +61,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -505,6 +510,9 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
         String gatewayResourceId =
                 publisher.publish(gateway, apiDefinitionVO, param.getPublishConfig());
 
+        apiDefinition.setStatus(APIStatus.PUBLISHED);
+        apiDefinitionRepository.save(apiDefinition);
+
         // 生成发布记录 ID
         String recordId = "record-" + SNOWFLAKE.nextIdStr();
 
@@ -591,6 +599,9 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
         APIDefinitionVO apiDefinitionVO = new APIDefinitionVO().convertFrom(apiDefinition);
         apiDefinitionVO.setEndpoints(endpointVOs);
 
+        ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.registerModule(new JavaTimeModule());
+        objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         // 获取发布配置
         PublishConfig publishConfig;
         try {
@@ -604,6 +615,9 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
         // 获取发布器并执行下线
         GatewayPublisher publisher = gatewayCapabilityRegistry.getPublisher(gateway);
         publisher.unpublish(gateway, apiDefinitionVO, publishConfig);
+
+        apiDefinition.setStatus(APIStatus.DRAFT);
+        apiDefinitionRepository.save(apiDefinition);
 
         // Create NEW record for UNPUBLISH action
         String newRecordId = "record-" + SNOWFLAKE.nextIdStr();

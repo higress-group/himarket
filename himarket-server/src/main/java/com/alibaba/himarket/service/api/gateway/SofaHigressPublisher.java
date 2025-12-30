@@ -33,7 +33,9 @@ import com.alibaba.himarket.support.api.PublishConfig;
 import com.alibaba.himarket.support.enums.APIStatus;
 import com.alibaba.himarket.support.enums.APIType;
 import com.alibaba.himarket.support.enums.GatewayType;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -71,8 +73,7 @@ public class SofaHigressPublisher implements GatewayPublisher {
     }
 
     @Override
-    public String publish(Gateway gateway, APIDefinitionVO apiDefinition, List<APIEndpointVO> endpoints, PublishConfig publishConfig) {
-        apiDefinition.setEndpoints(endpoints);
+    public String publish(Gateway gateway, APIDefinitionVO apiDefinition, PublishConfig publishConfig) {
         SofaHigressClient client = getClient(gateway);
 
         SofaHigressAPIDefinitionResponse response = client.execute(
@@ -83,16 +84,11 @@ public class SofaHigressPublisher implements GatewayPublisher {
                         .publishConfig(publishConfig)
                         .build()
                         .autoFillTenantInfo(),
-                new TypeReference<>(){});
+                new TypeReference<>(){},
+                new ObjectMapper());
 
         // rest API返回routeId，model API返回apiId，mcp server返回serverId
-        apiDefinition.setStatus(APIStatus.PUBLISHED);
         return response.getResourceId();
-    }
-
-    @Override
-    public String update(Gateway gateway, APIDefinitionVO apiDefinition, List<APIEndpointVO> endpoints, PublishConfig publishConfig) {
-        throw new UnsupportedOperationException("Sofa Higress gateway does not support APIDefinition update");
     }
 
     @Override
@@ -107,10 +103,10 @@ public class SofaHigressPublisher implements GatewayPublisher {
                         .publishConfig(publishConfig)
                         .build()
                         .autoFillTenantInfo(),
-                new TypeReference<>(){});
+                new TypeReference<>(){},
+                new ObjectMapper());
 
         // rest API返回routeId，model API返回apiId，mcp server返回serverId
-        apiDefinition.setStatus(APIStatus.DRAFT);
         return response.getResourceId();
     }
 
@@ -157,6 +153,8 @@ public class SofaHigressPublisher implements GatewayPublisher {
 
     @Data
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class SofaHigressAPIDefinitionResponse {
         String resourceId;
         String type;

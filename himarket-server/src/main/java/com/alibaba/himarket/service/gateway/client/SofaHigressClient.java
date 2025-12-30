@@ -28,6 +28,10 @@ import com.alibaba.fastjson.JSONObject;
 import com.alibaba.fastjson.TypeReference;
 import com.alibaba.himarket.support.gateway.SofaHigressConfig;
 import cn.com.antcloud.api.antcloud.AntCloudClient;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpMethod;
@@ -76,9 +80,10 @@ public class SofaHigressClient extends GatewayClient {
     public <T, R> T execute(String path,
                             HttpMethod method,
                             R requestParam,
-                            TypeReference<T> typeReference) {
+                            TypeReference<T> typeReference,
+                            ObjectMapper objectMapper) {
 
-        String data = execute(path, method, requestParam);
+        String data = execute(path, method, requestParam, objectMapper);
         return JSONObject.parseObject(data, typeReference);
     }
 
@@ -88,11 +93,44 @@ public class SofaHigressClient extends GatewayClient {
      * @param method
      * @param requestParam
      * @return
+     * @param <T> 返回类型
+     * @param <R> 请求参数
+     */
+    public <T, R> T execute(String path,
+                            HttpMethod method,
+                            R requestParam,
+                            TypeReference<T> typeReference) {
+
+        String data = execute(path, method, requestParam);
+        return JSONObject.parseObject(data, typeReference);
+    }
+
+    /**
+     * 执行sofa higress console openapi请求，R为请求类型
+     * @param path
+     * @param method
+     * @param requestParam
+     * @return
+     * @param <R>
+     */
+    public <R> String execute(String path,
+                              HttpMethod method,
+                              R requestParam) {
+        return execute(path, method, requestParam, (ObjectMapper) null);
+    }
+
+    /**
+     * 执行sofa higress console openapi请求，R为请求类型，T为返回类型
+     * @param path
+     * @param method
+     * @param requestParam
+     * @param objectMapper
+     * @return
      * @param <R> 请求参数
      */
     public <R> String execute(String path,
                             HttpMethod method,
-                            R requestParam) {
+                            R requestParam, ObjectMapper objectMapper) {
 
         path = PATH_PREFIX + path + PATH_SUFFIX;
         Map<String, Object> request = new HashMap<>();
@@ -101,7 +139,17 @@ public class SofaHigressClient extends GatewayClient {
         JSONObject payload = new JSONObject();
         // 请求参数params
         payload.put("params", requestParam);
-        request.put("payload", JSON.toJSONString(payload));
+        if (objectMapper != null) {
+            try {
+                objectMapper.registerModule(new JavaTimeModule());
+                objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+                request.put("payload", objectMapper.writeValueAsString(payload));
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException(e);
+            }
+        } else {
+            request.put("payload", JSON.toJSONString(payload));
+        }
         AntCloudClientRequest clientRequest = new AntCloudClientRequest();
         clientRequest.putParametersFromObject(request);
         clientRequest.setMethod(method.name());

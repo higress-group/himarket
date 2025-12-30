@@ -572,8 +572,8 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
         protected T param;
 
         public BaseRequest<T> autoFillTenantInfo() {
-            this.tenantId = "alipay";
-            this.workspaceId = "sofa-higress";
+            this.tenantId = "0000000001";
+            this.workspaceId = "workspace-250624BXDK8Bdr3i6pPz4SXEtiSn";
             return this;
         }
     }
@@ -587,8 +587,8 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
         private String      queryType;
 
         public SofaHigressPageRequest<T> autoFillTenantInfo() {
-            this.tenantId = "alipay";
-            this.workspaceId = "sofa-higress";
+            this.tenantId = "0000000001";
+            this.workspaceId = "workspace-250624BXDK8Bdr3i6pPz4SXEtiSn";
             return this;
         }
     }
@@ -601,8 +601,8 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
         private String consumerId;
 
         public SubOrUnSubRequest autoFillTenantInfo() {
-            this.tenantId = "alipay";
-            this.workspaceId = "sofa-higress";
+            this.tenantId = "0000000001";
+            this.workspaceId = "workspace-250624BXDK8Bdr3i6pPz4SXEtiSn";
             return this;
         }
     }
