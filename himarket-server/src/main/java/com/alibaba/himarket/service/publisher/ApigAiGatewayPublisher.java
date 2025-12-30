@@ -44,4 +44,22 @@ public class ApigAiGatewayPublisher implements GatewayPublisher {
     public void validatePublishConfig(APIDefinitionVO apiDefinition, PublishConfig publishConfig) {
         // Mock validation
     }
+
+    private void publishMcpServer(
+            Gateway gateway, PublishConfig publishConfig, APIDefinitionVO apiDefinition) {}
+
+    private void publishModelAPI(
+            Gateway gateway, PublishConfig publishConfig, APIDefinitionVO apiDefinition) {}
+
+    private void publishAgentAPI(
+            Gateway gateway, PublishConfig publishConfig, APIDefinitionVO apiDefinition) {}
+
+    private void unpublishMcpServer(
+            Gateway gateway, PublishConfig publishConfig, APIDefinitionVO apiDefinition) {}
+
+    private void unpublishModelAPI(
+            Gateway gateway, PublishConfig publishConfig, APIDefinitionVO apiDefinition) {}
+
+    private void unpublishAgentAPI(
+            Gateway gateway, PublishConfig publishConfig, APIDefinitionVO apiDefinition) {}
 }

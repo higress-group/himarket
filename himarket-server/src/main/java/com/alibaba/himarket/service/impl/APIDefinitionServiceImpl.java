@@ -523,7 +523,9 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
         try {
             publishRecord.setPublishConfig(
                     objectMapper.writeValueAsString(param.getPublishConfig()));
-            publishRecord.setSnapshot(objectMapper.writeValueAsString(apiDefinitionVO));
+            Map<String, Object> snapshotMap = objectMapper.convertValue(apiDefinitionVO, Map.class);
+            snapshotMap.put("publishConfig", param.getPublishConfig());
+            publishRecord.setSnapshot(objectMapper.writeValueAsString(snapshotMap));
         } catch (Exception e) {
             throw new BusinessException(
                     ErrorCode.CONFIG_CONVERSION_ERROR,

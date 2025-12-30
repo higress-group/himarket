@@ -1074,6 +1074,17 @@ export default function ApiPublishManagement() {
                 </div>
               </div>
             )}
+
+            {currentSnapshot.publishConfig && (
+              <div className="mt-4">
+                <h3 className="text-base font-medium mb-2">发布配置</h3>
+                <div className="bg-gray-50 p-2 rounded border border-gray-200">
+                  <pre className="text-xs overflow-x-auto whitespace-pre-wrap m-0">
+                    {JSON.stringify(currentSnapshot.publishConfig, null, 2)}
+                  </pre>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="text-center text-gray-500 py-8">暂无快照信息</div>

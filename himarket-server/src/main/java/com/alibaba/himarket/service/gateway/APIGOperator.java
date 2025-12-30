@@ -918,4 +918,23 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
                                         .build())
                 .collect(Collectors.toList());
     }
+
+    public void createMcpServer(Gateway gateway) {
+        APIGClient client = getClient(gateway);
+        try {
+            CreateMcpServerRequest request =
+                    CreateMcpServerRequest.builder().gatewayId(gateway.getGatewayId()).build();
+            CompletableFuture<CreateMcpServerResponse> f =
+                    client.execute(c -> c.createMcpServer(request));
+            CreateMcpServerResponse response = f.join();
+            if (response.getStatusCode() != 200) {
+                throw new BusinessException(
+                        ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
+            }
+        } catch (Exception e) {
+            log.error("Error creating MCP server", e);
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR, "Error creating MCP server，Cause：" + e.getMessage());
+        }
+    }
 }
