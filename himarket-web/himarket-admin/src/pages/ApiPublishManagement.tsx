@@ -69,17 +69,27 @@ export default function ApiPublishManagement() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [apiRes, recordsRes, historyRes, gatewaysRes, nacosRes] = await Promise.all([
+      const [apiRes, recordsRes, gatewaysRes, nacosRes] = await Promise.all([
         apiDefinitionApi.getApiDefinitionDetail(apiDefinitionId!),
         apiDefinitionApi.getPublishRecords(apiDefinitionId!, { page: 1, size: 100 }),
-        apiDefinitionApi.getPublishHistory(apiDefinitionId!, { page: 1, size: 100 }),
         gatewayApi.getGateways({ page: 1, size: 100 }),
         nacosApi.getNacosInstances({ page: 1, size: 100 })
       ]);
 
       setApiDefinition(apiRes.data || apiRes);
-      setPublishRecords(recordsRes.data?.content || recordsRes.content || []);
-      setPublishHistory(historyRes.data?.content || historyRes.content || []);
+      
+      const allRecords = recordsRes.data?.content || recordsRes.content || [];
+      // Filter active records for the status view (if needed, or just use the latest per gateway)
+      // For now, we can just use the list as is, or filter for ACTIVE ones if the UI expects only active ones in publishRecords
+      // But the UI seems to just take the first one [0] to show status.
+      // If we want to show "Current Status", we should probably find the latest record for each gateway.
+      // However, to minimize changes, let's just set both to allRecords.
+      // But wait, publishRecords was likely used for "Active Deployments".
+      // If I set it to all history, publishRecords[0] will be the latest history item.
+      // If the latest item is UNPUBLISH, status is INACTIVE. This is correct.
+      
+      setPublishRecords(allRecords);
+      setPublishHistory(allRecords);
       setNacosInstances(nacosRes.data?.content || nacosRes.content || []);
       
       // Filter gateways based on API type if needed
@@ -225,6 +235,52 @@ export default function ApiPublishManagement() {
     }
   };
 
+  const renderServiceConfig = (config: any) => {
+    if (!config) return '-';
+    
+    const itemStyle = { marginBottom: '4px', display: 'flex', alignItems: 'center' };
+    const labelStyle = { color: '#8c8c8c', marginRight: '8px', minWidth: '60px' };
+
+    switch (config.serviceType) {
+      case 'NACOS':
+        return (
+          <div className="text-sm">
+            <div style={{ marginBottom: '8px' }}>
+              <Tag color="blue">Nacos 服务</Tag>
+            </div>
+            <div style={itemStyle}>
+              <span style={labelStyle}>服务名:</span>
+              <span className="font-medium">{config.serviceName}</span>
+            </div>
+            <div style={itemStyle}>
+              <span style={labelStyle}>分组:</span>
+              <span>{config.group}</span>
+            </div>
+            <div style={itemStyle}>
+              <span style={labelStyle}>命名空间:</span>
+              <span>{config.namespace}</span>
+            </div>
+          </div>
+        );
+      case 'FIXED_ADDRESS':
+        return (
+          <div className="text-sm flex items-center">
+            <Tag color="cyan">固定地址</Tag>
+            <span className="font-mono bg-gray-50 px-1 rounded ml-2">{config.address}</span>
+          </div>
+        );
+      case 'DNS':
+        return (
+          <div className="text-sm flex items-center">
+            <Tag color="purple">DNS 域名</Tag>
+            <span className="font-mono bg-gray-50 px-1 rounded ml-2">{config.domain}</span>
+          </div>
+        );
+      default:
+        return config.serviceType || '-';
+    }
+  };
+
   const historyColumns = [
     {
       title: '操作',
@@ -241,15 +297,15 @@ export default function ApiPublishManagement() {
     },
     {
       title: '操作时间',
-      dataIndex: 'createAt',
-      key: 'createAt',
+      dataIndex: 'createdAt',
+      key: 'createdAt',
       render: (text: string) => dayjs(text).format('YYYY-MM-DD HH:mm:ss')
     },
     {
       title: '结果',
-      dataIndex: 'reason',
-      key: 'reason',
-      render: (reason: string) => reason ? <span className="text-red-500">{reason}</span> : <span className="text-green-500">成功</span>
+      dataIndex: 'errorMessage',
+      key: 'errorMessage',
+      render: (errorMessage: string) => errorMessage ? <span className="text-red-500">{errorMessage}</span> : <span className="text-green-500">成功</span>
     },
     {
       title: '快照',
@@ -299,7 +355,7 @@ export default function ApiPublishManagement() {
             <Descriptions.Item label="API 名称">{apiDefinition.name}</Descriptions.Item>
             <Descriptions.Item label="API ID">{apiDefinition.apiDefinitionId}</Descriptions.Item>
             <Descriptions.Item label="类型">{apiDefinition.type}</Descriptions.Item>
-            <Descriptions.Item label="更新时间">
+            <Descriptions.Item label="更新时间" span={3}>
               {dayjs(apiDefinition.updatedAt).format('YYYY-MM-DD HH:mm:ss')}
             </Descriptions.Item>
             <Descriptions.Item label="描述" span={3}>
@@ -330,7 +386,13 @@ export default function ApiPublishManagement() {
                 <Descriptions.Item label="发布版本">
                   {record.version}
                 </Descriptions.Item>
-                <Descriptions.Item label="当前状态">
+                <Descriptions.Item label="发布域名">
+                  {record.publishConfig?.domains?.map((d: string) => <Tag key={d}>{d}</Tag>) || '-'}
+                </Descriptions.Item>
+                <Descriptions.Item label="后端服务">
+                  {renderServiceConfig(record.publishConfig?.serviceConfig)}
+                </Descriptions.Item>
+                <Descriptions.Item label="当前状态" span={2}>
                   <Space>
                     {getStatusTag(record.status)}
                     {record.status === 'ACTIVE' && (
@@ -368,7 +430,7 @@ export default function ApiPublishManagement() {
         <Table
           columns={historyColumns}
           dataSource={publishHistory}
-          rowKey="historyId"
+          rowKey="recordId"
           pagination={{ pageSize: 10 }}
           loading={loading}
         />
@@ -506,7 +568,7 @@ export default function ApiPublishManagement() {
             <Descriptions title="基本信息" bordered column={2} size="small" className="mb-4">
               <Descriptions.Item label="名称">{currentSnapshot.name}</Descriptions.Item>
               <Descriptions.Item label="版本">{currentSnapshot.version}</Descriptions.Item>
-              <Descriptions.Item label="类型">{currentSnapshot.type}</Descriptions.Item>
+              <Descriptions.Item label="类型" span={2}>{currentSnapshot.type}</Descriptions.Item>
               <Descriptions.Item label="描述" span={2}>{currentSnapshot.description || '-'}</Descriptions.Item>
             </Descriptions>
 
@@ -533,6 +595,47 @@ export default function ApiPublishManagement() {
                           </pre>
                         </div>
                       )}
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {currentSnapshot.properties && currentSnapshot.properties.length > 0 && (
+              <div className="mt-4">
+                <h3 className="text-base font-medium mb-2">API 属性</h3>
+                <div className="space-y-4">
+                  {currentSnapshot.properties.map((property: any, index: number) => (
+                    <Card 
+                      key={index} 
+                      size="small" 
+                      title={
+                        <div className="flex items-center justify-between">
+                          <span>{property.name || property.type}</span>
+                          <Space>
+                            <Tag>{property.type}</Tag>
+                            {property.enabled !== undefined && (
+                              <Tag color={property.enabled ? 'success' : 'default'}>
+                                {property.enabled ? '已启用' : '已禁用'}
+                              </Tag>
+                            )}
+                          </Space>
+                        </div>
+                      }
+                    >
+                      <div className="bg-gray-50 p-2 rounded border border-gray-200">
+                        <pre className="text-xs overflow-x-auto whitespace-pre-wrap m-0">
+                          {JSON.stringify(
+                            Object.fromEntries(
+                              Object.entries(property).filter(([key]) => 
+                                !['type', 'name', 'enabled', 'priority', 'phase'].includes(key)
+                              )
+                            ), 
+                            null, 
+                            2
+                          )}
+                        </pre>
+                      </div>
                     </Card>
                   ))}
                 </div>

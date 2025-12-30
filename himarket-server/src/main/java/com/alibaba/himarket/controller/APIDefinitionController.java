@@ -26,7 +26,6 @@ import com.alibaba.himarket.dto.params.api.QueryAPIDefinitionParam;
 import com.alibaba.himarket.dto.params.api.UpdateAPIDefinitionParam;
 import com.alibaba.himarket.dto.result.api.APIDefinitionVO;
 import com.alibaba.himarket.dto.result.api.APIEndpointVO;
-import com.alibaba.himarket.dto.result.api.APIPublishHistoryVO;
 import com.alibaba.himarket.dto.result.api.APIPublishRecordVO;
 import com.alibaba.himarket.dto.result.api.PropertySchemaVO;
 import com.alibaba.himarket.dto.result.common.PageResult;
@@ -118,12 +117,5 @@ public class APIDefinitionController {
     @AdminAuth
     public void unpublishAPI(@PathVariable String apiDefinitionId, @PathVariable String recordId) {
         apiDefinitionService.unpublishAPI(apiDefinitionId, recordId);
-    }
-
-    @Operation(summary = "获取发布历史列表")
-    @GetMapping("/{apiDefinitionId}/publish-history")
-    public PageResult<APIPublishHistoryVO> listPublishHistory(
-            @PathVariable String apiDefinitionId, Pageable pageable) {
-        return apiDefinitionService.listPublishHistory(apiDefinitionId, pageable);
     }
 }

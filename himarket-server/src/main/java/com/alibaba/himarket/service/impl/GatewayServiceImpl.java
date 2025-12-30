@@ -361,6 +361,12 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
         return getOperator(gateway).fetchGatewayIps(gateway);
     }
 
+    @Override
+    public List<String> getGatewayDomains(String gatewayId) {
+        Gateway gateway = findGateway(gatewayId);
+        return getOperator(gateway).getGatewayDomains(gateway);
+    }
+
     private Specification<Gateway> buildGatewaySpec(QueryGatewayParam param) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();

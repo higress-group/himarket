@@ -58,11 +58,16 @@ CREATE TABLE IF NOT EXISTS `api_publish_record` (
     `gateway_id` varchar(64) NOT NULL COMMENT 'Gateway ID',
     `gateway_name` varchar(255) COMMENT 'Gateway name',
     `gateway_type` varchar(32) NOT NULL COMMENT 'Gateway type',
+    `version` varchar(32) COMMENT 'Published API version',
     `status` varchar(32) NOT NULL COMMENT 'Status: ACTIVE, INACTIVE, FAILED',
+    `action` varchar(32) COMMENT 'Action: PUBLISH, UNPUBLISH, UPDATE',
     `publish_config` json COMMENT 'Publish configuration including serviceConfig, extensions, etc.',
     `gateway_resource_id` varchar(255) COMMENT 'Gateway-side resource ID',
     `access_endpoint` varchar(512) COMMENT 'Access endpoint URL',
     `error_message` text COMMENT 'Error message if failed',
+    `publish_note` text COMMENT 'Publish note',
+    `operator` varchar(64) COMMENT 'Operator user ID',
+    `snapshot` json COMMENT 'API Definition snapshot',
     `published_at` datetime(3) COMMENT 'Published timestamp',
     `last_sync_at` datetime(3) COMMENT 'Last synchronization timestamp',
     `created_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
@@ -74,31 +79,7 @@ CREATE TABLE IF NOT EXISTS `api_publish_record` (
     CONSTRAINT `fk_publish_record_api_definition` FOREIGN KEY (`api_definition_id`) REFERENCES `api_definition` (`api_definition_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='API Publish Record table';
 
--- ========================================
--- API Publish History table
--- ========================================
-CREATE TABLE IF NOT EXISTS `api_publish_history` (
-    `id` bigint NOT NULL AUTO_INCREMENT,
-    `history_id` varchar(64) NOT NULL COMMENT 'History unique identifier',
-    `api_definition_id` varchar(64) NOT NULL COMMENT 'Associated API Definition ID',
-    `publish_record_id` varchar(64) COMMENT 'Associated Publish Record ID',
-    `action` varchar(32) NOT NULL COMMENT 'Action: PUBLISH, UNPUBLISH, UPDATE',
-    `gateway_id` varchar(64) NOT NULL COMMENT 'Gateway ID',
-    `gateway_name` varchar(255) COMMENT 'Gateway name',
-    `gateway_type` varchar(32) COMMENT 'Gateway type',
-    `version` varchar(32) COMMENT 'API version at time of action',
-    `publish_note` text COMMENT 'Publish note',
-    `reason` text COMMENT 'Reason for action (especially for unpublish)',
-    `operator` varchar(64) COMMENT 'Operator user ID',
-    `snapshot` json COMMENT 'API Definition snapshot',
-    `created_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    `updated_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_history_id` (`history_id`),
-    KEY `idx_api_definition_id` (`api_definition_id`),
-    KEY `idx_publish_record_id` (`publish_record_id`),
-    CONSTRAINT `fk_publish_history_api_definition` FOREIGN KEY (`api_definition_id`) REFERENCES `api_definition` (`api_definition_id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='API Publish History table';
+
 
 -- ========================================
 -- Add api_definition_ids column to product_ref table

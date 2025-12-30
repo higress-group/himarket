@@ -99,6 +99,8 @@ public interface GatewayService {
 
     PageResult<APIResult> fetchRESTAPIs(String gatewayId, int page, int size);
 
+    List<String> getGatewayDomains(String gatewayId);
+
     PageResult<APIResult> fetchRoutes(String gatewayId, int page, int size);
 
     PageResult<GatewayMCPServerResult> fetchMcpServers(String gatewayId, int page, int size);

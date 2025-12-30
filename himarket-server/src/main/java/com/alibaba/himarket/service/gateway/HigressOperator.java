@@ -477,6 +477,11 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
     }
 
     @Override
+    public List<String> getGatewayDomains(Gateway gateway) {
+        return List.of();
+    }
+
+    @Override
     public List<String> fetchGatewayIps(Gateway gateway) {
         String gatewayIp =
                 Optional.ofNullable(gateway.getHigressConfig())

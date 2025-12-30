@@ -242,7 +242,7 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
               title="发布的门户"
               value={portalCount}
               prefix={<GlobalOutlined className="text-blue-500" />}
-              valueStyle={{ color: '#1677ff', fontSize: '24px' }}
+              styles={{ content: { color: '#1677ff', fontSize: '24px' } }}
             />
           </Card>
         </Col>
@@ -257,7 +257,7 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
               title="关联API"
               value={getServiceName(linkedService) || '未关联'}
               prefix={<ApiOutlined className="text-blue-500" />}
-              valueStyle={{ color: '#1677ff', fontSize: '24px' }}
+              styles={{ content: { color: '#1677ff', fontSize: '24px' } }}
             />
           </Card>
         </Col>
@@ -267,7 +267,7 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
               title="订阅用户"
               value={subscriberCount}
               prefix={<TeamOutlined className="text-blue-500" />}
-              valueStyle={{ color: '#1677ff', fontSize: '24px' }}
+              styles={{ content: { color: '#1677ff', fontSize: '24px' } }}
             />
           </Card>
         </Col>

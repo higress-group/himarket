@@ -106,7 +106,7 @@ const ProductCard = memo(({ product, onNavigate, handleRefresh, onEdit }: {
     <Card
       className="hover:shadow-lg transition-shadow cursor-pointer rounded-xl border border-gray-200 shadow-sm hover:border-blue-300"
       onClick={handleClick}
-      bodyStyle={{ padding: '16px' }}
+      styles={{ body: { padding: '16px' } }}
     >
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-3">

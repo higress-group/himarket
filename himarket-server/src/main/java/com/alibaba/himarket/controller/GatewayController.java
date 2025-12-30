@@ -100,8 +100,7 @@ public class GatewayController {
     @Operation(summary = "获取Gateway可选域名列表")
     @GetMapping("/{gatewayId}/domains")
     public List<String> getGatewayDomains(@PathVariable String gatewayId) {
-        // Mock implementation
-        return List.of("api.example.com", "gateway.test.com", "dev-api.internal.net");
+        return gatewayService.getGatewayDomains(gatewayId);
     }
 
     @Operation(summary = "获取Gateway支持的服务类型")

@@ -34,12 +34,13 @@ public interface APIPublishRecordRepository extends BaseRepository<APIPublishRec
 
     List<APIPublishRecord> findByApiDefinitionId(String apiDefinitionId);
 
-    Page<APIPublishRecord> findByApiDefinitionId(String apiDefinitionId, Pageable pageable);
+    Page<APIPublishRecord> findByApiDefinitionIdOrderByCreateAtDesc(
+            String apiDefinitionId, Pageable pageable);
 
     List<APIPublishRecord> findByApiDefinitionIdAndStatus(
             String apiDefinitionId, PublishStatus status);
 
-    Optional<APIPublishRecord> findByApiDefinitionIdAndGatewayId(
+    Optional<APIPublishRecord> findFirstByApiDefinitionIdAndGatewayIdOrderByCreateAtDesc(
             String apiDefinitionId, String gatewayId);
 
     List<APIPublishRecord> findByGatewayId(String gatewayId);

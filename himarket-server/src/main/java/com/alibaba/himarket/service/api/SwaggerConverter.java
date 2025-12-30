@@ -98,7 +98,8 @@ public class SwaggerConverter {
             JSONObject operation,
             int sortOrder,
             APIType type,
-            JSONObject swagger) throws JsonProcessingException {
+            JSONObject swagger)
+            throws JsonProcessingException {
         APIEndpoint endpoint = new APIEndpoint();
         endpoint.setEndpointId(UUID.randomUUID().toString());
         endpoint.setApiDefinitionId("temp-id");

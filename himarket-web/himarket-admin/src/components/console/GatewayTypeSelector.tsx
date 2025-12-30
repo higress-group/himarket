@@ -42,7 +42,7 @@ export default function GatewayTypeSelector({ visible, onCancel, onSelect }: Gat
           onChange={(e) => setSelectedType(e.target.value)}
           className="w-full"
         >
-          <Space direction="vertical" className="w-full">
+          <Space orientation="vertical" className="w-full">
             <Radio value="APIG_API" className="w-full p-3 border rounded-lg hover:bg-gray-50">
               <div className="ml-2">
                 <div className="font-medium">{GATEWAY_TYPE_LABELS.APIG_API}</div>

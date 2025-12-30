@@ -20,7 +20,6 @@
 package com.alibaba.himarket.service.impl;
 
 import cn.hutool.core.util.StrUtil;
-import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.entity.APIEndpoint;
@@ -57,8 +56,7 @@ public class McpToolServiceImpl implements McpToolService {
         }
 
         try (McpClientWrapper client =
-                mcpClientFactory.initClient(
-                        type, endpoint, headers, Collections.emptyMap())) {
+                mcpClientFactory.initClient(type, endpoint, headers, Collections.emptyMap())) {
             if (client == null) {
                 throw new BusinessException(
                         ErrorCode.INTERNAL_ERROR, "Failed to connect to MCP Server");
@@ -84,7 +82,10 @@ public class McpToolServiceImpl implements McpToolService {
                                 try {
                                     apiEndpoint.setConfig(objectMapper.writeValueAsString(config));
                                 } catch (JsonProcessingException e) {
-                                    throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Failed to serialize config", e);
+                                    throw new BusinessException(
+                                            ErrorCode.INTERNAL_ERROR,
+                                            "Failed to serialize config",
+                                            e);
                                 }
 
                                 return apiEndpoint;

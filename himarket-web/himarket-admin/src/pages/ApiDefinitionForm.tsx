@@ -131,6 +131,44 @@ interface PropertySchema {
   fields: PropertyField[];
 }
 
+const SCENARIO_OPTIONS = [
+  { label: '文本生成', value: 'text-generation', description: '根据输入提示或指令，自动创作各类文本内容，如文章、故事、邮件或代码，满足多样化内容需求。' }
+];
+
+const TEXT_GENERATION_PROTOCOLS = [
+  { label: 'OpenAI', value: 'openai' },
+  { label: 'Anthropic', value: 'anthropic' },
+  { label: '豆包', value: 'doubao' }
+];
+
+const IMAGE_GENERATION_PROTOCOLS = [
+  { label: '阿里云百炼', value: 'bailian' },
+  { label: 'OpenAI', value: 'openai' },
+  { label: '豆包', value: 'doubao' },
+  { label: 'ComfyUI', value: 'comfyui' }
+];
+
+const VIDEO_GENERATION_PROTOCOLS = [
+  { label: '阿里云百炼', value: 'bailian' },
+  { label: 'OpenAI', value: 'openai' },
+  { label: '豆包', value: 'doubao' }
+];
+
+const SPEECH_SYNTHESIS_PROTOCOLS = [
+  { label: '阿里云百炼', value: 'bailian' },
+  { label: 'OpenAI', value: 'openai' }
+];
+
+const EMBEDDING_PROTOCOLS = [
+  { label: 'OpenAI', value: 'openai' }
+];
+
+const DEFAULT_MODEL_PROTOCOLS = [
+  { label: 'OpenAI', value: 'openai' },
+  { label: 'Anthropic', value: 'anthropic' },
+  { label: '豆包', value: 'doubao' }
+];
+
 // API 类型选项
 const API_TYPE_OPTIONS = [
   { label: 'REST API', value: 'REST_API' },
@@ -145,6 +183,7 @@ export default function ApiDefinitionForm() {
   const location = useLocation();
   const { productName, productType } = location.state || {};
   const [form] = Form.useForm();
+  const apiName = Form.useWatch('name', form);
   const [loading, setLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [endpoints, setEndpoints] = useState<Endpoint[]>([]);
@@ -254,7 +293,7 @@ export default function ApiDefinitionForm() {
         });
 
         return {
-          name: endpoint.name,
+          name: values.type === 'MODEL_API' ? values.name : endpoint.name,
           description: endpoint.description,
           type: endpoint.type,
           sortOrder: endpoint.sortOrder,
@@ -343,12 +382,15 @@ export default function ApiDefinitionForm() {
       case 2:
         // 第三步：配置 Endpoints
         const apiType = form.getFieldValue('type');
+        const protocol = form.getFieldValue(['metadata', 'protocol']);
         return (
           <div className="py-4">
             <EndpointEditor
               value={endpoints}
               onChange={setEndpoints}
               apiType={apiType}
+              apiName={form.getFieldValue('name')}
+              protocol={protocol}
             />
           </div>
         );
@@ -493,21 +535,87 @@ export default function ApiDefinitionForm() {
           >
             {({ getFieldValue }) => {
               const type = getFieldValue('type');
-              return type === 'AGENT_API' ? (
-                <Form.Item
-                  label="协议"
-                  name={['metadata', 'protocol']}
-                  rules={[{ required: true, message: '请选择协议' }]}
-                >
-                  <Select
-                    placeholder="选择协议"
-                    options={[
-                      { label: 'Dify', value: 'Dify' },
-                      { label: '百炼', value: 'Bailian' }
-                    ]}
-                  />
-                </Form.Item>
-              ) : null;
+              if (type === 'AGENT_API') {
+                return (
+                  <Form.Item
+                    label="协议"
+                    name={['metadata', 'protocol']}
+                    rules={[{ required: true, message: '请选择协议' }]}
+                  >
+                    <Select
+                      placeholder="选择协议"
+                      options={[
+                        { label: 'Dify', value: 'Dify' },
+                        { label: '百炼', value: 'Bailian' }
+                      ]}
+                    />
+                  </Form.Item>
+                );
+              }
+              if (type === 'MODEL_API') {
+                return (
+                  <>
+                    <Form.Item
+                      label="场景"
+                      name={['metadata', 'scenario']}
+                      rules={[{ required: true, message: '请选择场景' }]}
+                    >
+                      <Select
+                        placeholder="选择场景"
+                        options={SCENARIO_OPTIONS.map(opt => ({
+                          label: (
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                              <span>{opt.label}</span>
+                              <span style={{ fontSize: '12px', color: '#888' }}>{opt.description}</span>
+                            </div>
+                          ),
+                          value: opt.value,
+                          title: opt.label
+                        }))}
+                        optionLabelProp="title"
+                        onChange={() => {
+                          form.setFieldValue(['metadata', 'protocol'], undefined);
+                        }}
+                      />
+                    </Form.Item>
+                    <Form.Item
+                      noStyle
+                      shouldUpdate={(prev, curr) => prev.metadata?.scenario !== curr.metadata?.scenario}
+                    >
+                      {({ getFieldValue }) => {
+                        const scenario = getFieldValue(['metadata', 'scenario']);
+                        let protocolOptions = DEFAULT_MODEL_PROTOCOLS;
+                        
+                        if (scenario === 'text-generation') {
+                          protocolOptions = TEXT_GENERATION_PROTOCOLS;
+                        } else if (scenario === 'image-generation') {
+                          protocolOptions = IMAGE_GENERATION_PROTOCOLS;
+                        } else if (scenario === 'video-generation') {
+                          protocolOptions = VIDEO_GENERATION_PROTOCOLS;
+                        } else if (scenario === 'speech-synthesis') {
+                          protocolOptions = SPEECH_SYNTHESIS_PROTOCOLS;
+                        } else if (scenario === 'embedding') {
+                          protocolOptions = EMBEDDING_PROTOCOLS;
+                        }
+
+                        return (
+                          <Form.Item
+                            label="协议"
+                            name={['metadata', 'protocol']}
+                            rules={[{ required: true, message: '请选择协议' }]}
+                          >
+                            <Select
+                              placeholder="选择协议"
+                              options={protocolOptions}
+                            />
+                          </Form.Item>
+                        );
+                      }}
+                    </Form.Item>
+                  </>
+                );
+              }
+              return null;
             }}
           </Form.Item>
 

@@ -22,11 +22,16 @@ package com.alibaba.himarket.dto.result.api;
 import com.alibaba.himarket.dto.converter.OutputConverter;
 import com.alibaba.himarket.entity.APIPublishRecord;
 import com.alibaba.himarket.support.api.PublishConfig;
+import com.alibaba.himarket.support.enums.PublishAction;
 import com.alibaba.himarket.support.enums.PublishStatus;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.LocalDateTime;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 
 @Data
+@Slf4j
 public class APIPublishRecordVO implements OutputConverter<APIPublishRecordVO, APIPublishRecord> {
 
     private String recordId;
@@ -37,9 +42,21 @@ public class APIPublishRecordVO implements OutputConverter<APIPublishRecordVO, A
 
     private String gatewayName;
 
+    private String version;
+
     private PublishStatus status;
 
+    private PublishAction action;
+
     private PublishConfig publishConfig;
+
+    private String publishNote;
+
+    private String operator;
+
+    private Object snapshot;
+
+    private String errorMessage;
 
     private String lastPublishVersion;
 
@@ -48,4 +65,33 @@ public class APIPublishRecordVO implements OutputConverter<APIPublishRecordVO, A
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
+
+    @Override
+    public APIPublishRecordVO convertFrom(APIPublishRecord domain) {
+        OutputConverter.super.convertFrom(domain);
+        
+        // Manual mapping for fields with different names
+        this.createdAt = domain.getCreateAt();
+
+        if (domain.getPublishConfig() != null) {
+            try {
+                ObjectMapper objectMapper = new ObjectMapper();
+                this.publishConfig = objectMapper.readValue(domain.getPublishConfig(), PublishConfig.class);
+            } catch (JsonProcessingException e) {
+                log.error("Failed to deserialize publish config", e);
+            }
+        }
+
+        if (domain.getSnapshot() != null) {
+            try {
+                ObjectMapper objectMapper = new ObjectMapper();
+                this.snapshot = objectMapper.readValue(domain.getSnapshot(), Object.class);
+            } catch (JsonProcessingException e) {
+                log.error("Failed to deserialize snapshot from JSON", e);
+                this.snapshot = null;
+            }
+        }
+
+        return this;
+    }
 }

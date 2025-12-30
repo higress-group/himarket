@@ -121,11 +121,31 @@ const DIFY_ENDPOINTS: Endpoint[] = [
   }
 ];
 
+const OPENAI_TEMPLATES = [
+  { label: 'Chat Completions', value: '/v1/chat/completions', method: 'POST' },
+  { label: 'Completions', value: '/v1/completions', method: 'POST' },
+  { label: 'Responses', value: '/v1/responses', method: 'POST' },
+];
+
+const ANTHROPIC_TEMPLATES = [
+  { label: 'Messages', value: '/v1/messages', method: 'POST' },
+];
+
+const DOUBAO_TEMPLATES = [
+  { label: 'Chat Completions', value: '/api/v3/chat/completions', method: 'POST' },
+  { label: 'Create Response', value: '/api/v3/responses', method: 'POST' },
+  { label: 'Get Response', value: '/api/v3/responses/{response_id}', method: 'GET' },
+  { label: 'Get Response Input Items', value: '/api/v3/responses/{response_id}/input_items', method: 'GET' },
+  { label: 'Delete Response', value: '/api/v3/responses/{response_id}', method: 'DELETE' },
+];
+
 interface EndpointEditorProps {
   value?: Endpoint[];
   onChange?: (value: Endpoint[]) => void;
   disabled?: boolean;
   apiType?: string; // API Definition 的类型
+  apiName?: string; // API Definition 的名称
+  protocol?: string; // API 协议
 }
 
 // Endpoint 类型选项
@@ -162,6 +182,14 @@ const getTerminology = (apiType?: string) => {
       pluralLower: 'tools'
     };
   }
+  if (apiType === 'MODEL_API') {
+    return {
+      singular: 'Model Route',
+      plural: 'Model Routes',
+      singularLower: 'model route',
+      pluralLower: 'model routes'
+    };
+  }
   return {
     singular: 'Endpoint',
     plural: 'Endpoints',
@@ -174,7 +202,9 @@ export default function EndpointEditor({
   value = [],
   onChange,
   disabled = false,
-  apiType
+  apiType,
+  apiName,
+  protocol
 }: EndpointEditorProps) {
   // 根据 API 类型推断 Endpoint 类型
   const inferredEndpointType = apiType ? API_TYPE_TO_ENDPOINT_TYPE[apiType] : undefined;
@@ -209,6 +239,12 @@ export default function EndpointEditor({
   // MCP Server Import State
   const [mcpEndpoint, setMcpEndpoint] = useState('');
   const [mcpToken, setMcpToken] = useState('');
+
+  useEffect(() => {
+    if (modalVisible && apiType === 'MODEL_API') {
+      form.setFieldValue('name', apiName);
+    }
+  }, [apiName, modalVisible, apiType, form]);
 
   useEffect(() => {
     if (creationMethod === 'NACOS') {
@@ -270,15 +306,22 @@ export default function EndpointEditor({
 
   const handleAddClick = () => {
     setEditingEndpoint(null);
-    setCreationMethod('MANUAL');
+    const initialMethod = apiType === 'MCP_SERVER' ? 'SWAGGER' : 'MANUAL';
+    setCreationMethod(initialMethod);
     setSelectedTemplateEndpoints([]);
     // 自动设置推断出的类型
     setSelectedType(inferredEndpointType);
     setCurrentConfig({});
-    form.resetFields();
-    // 如果有推断的类型，自动设置到表单
-    if (inferredEndpointType) {
-      form.setFieldsValue({ type: inferredEndpointType });
+    
+    if (initialMethod === 'MANUAL') {
+      form.resetFields();
+      // 如果有推断的类型，自动设置到表单
+      if (inferredEndpointType) {
+        form.setFieldsValue({ 
+          type: inferredEndpointType,
+          name: apiType === 'MODEL_API' ? apiName : undefined
+        });
+      }
     }
     setModalVisible(true);
   };
@@ -289,7 +332,7 @@ export default function EndpointEditor({
     setSelectedType(endpoint.type);
     setCurrentConfig(endpoint.config || {});
     form.setFieldsValue({
-      name: endpoint.name,
+      name: apiType === 'MODEL_API' ? apiName : endpoint.name,
       description: endpoint.description,
       type: endpoint.type
     });
@@ -309,7 +352,30 @@ export default function EndpointEditor({
 
   const handleModalOk = async () => {
     if (creationMethod === 'TEMPLATE') {
-      const endpointsToAdd = DIFY_ENDPOINTS.filter(ep => selectedTemplateEndpoints.includes(ep.name));
+      let endpointsToAdd: Endpoint[] = [];
+      
+      if (apiType === 'AGENT_API') {
+        endpointsToAdd = DIFY_ENDPOINTS.filter(ep => selectedTemplateEndpoints.includes(ep.name));
+      } else if (apiType === 'MODEL_API') {
+        const templates = protocol === 'openai' ? OPENAI_TEMPLATES :
+                          protocol === 'anthropic' ? ANTHROPIC_TEMPLATES :
+                          protocol === 'doubao' ? DOUBAO_TEMPLATES : [];
+        
+        endpointsToAdd = templates
+          .filter(t => selectedTemplateEndpoints.includes(t.label))
+          .map(t => ({
+            name: t.label,
+            description: t.value,
+            type: 'MODEL',
+            config: {
+              matchConfig: {
+                path: { type: 'Exact', value: t.value },
+                methods: [t.method]
+              }
+            }
+          }));
+      }
+
       if (endpointsToAdd.length === 0) {
         message.warning('请至少选择一个 Endpoint');
         return;
@@ -723,7 +789,7 @@ export default function EndpointEditor({
       <Table
         columns={columns}
         dataSource={value}
-        rowKey={(record, index) => `${record.name}-${index}`}
+        rowKey={(record) => `${record.name}-${record.sortOrder}`}
         pagination={false}
         locale={{
           emptyText: `暂无 ${terminology.singular}，点击"添加 ${terminology.singular}"开始配置`
@@ -744,50 +810,73 @@ export default function EndpointEditor({
         cancelText="取消"
         confirmLoading={importLoading}
       >
-        {/* 创建方式选择 - 仅在新增且为 MCP Server 或 Agent API 时显示 */}
-        {!editingEndpoint && (apiType === 'MCP_SERVER' || apiType === 'AGENT_API') && (
+        {/* 创建方式选择 - 仅在新增且为 MCP Server 或 Agent API 或 Model API 时显示 */}
+        {!editingEndpoint && (apiType === 'MCP_SERVER' || apiType === 'AGENT_API' || apiType === 'MODEL_API') && (
           <div className="mb-6">
             <div className="mb-2 font-medium">创建方式</div>
-            <Radio.Group
-              value={creationMethod}
-              onChange={(e) => {
-                const value = e.target.value;
-                setCreationMethod(value);
-                // 切换时清空 Swagger 内容
-                if (value === 'MANUAL') {
-                  setSwaggerContent('');
-                }
-              }}
-              optionType="button"
-              buttonStyle="solid"
-              className="w-full flex"
-            >
-              <Radio.Button value="MANUAL" className="flex-1 text-center">手动创建</Radio.Button>
-              {apiType === 'MCP_SERVER' && (
-                <>
-                  <Radio.Button value="SWAGGER" className="flex-1 text-center">Swagger 导入</Radio.Button>
-                  <Radio.Button value="NACOS" className="flex-1 text-center">Nacos 导入</Radio.Button>
-                  <Radio.Button value="MCP_SERVER" className="flex-1 text-center">MCP Server 导入</Radio.Button>
-                </>
-              )}
-              {apiType === 'AGENT_API' && (
-                <Radio.Button value="TEMPLATE" className="flex-1 text-center">从模板添加</Radio.Button>
-              )}
-            </Radio.Group>
+            {apiType === 'MCP_SERVER' ? (
+              <Select
+                value={creationMethod}
+                onChange={(value) => {
+                  setCreationMethod(value);
+                  // 切换时清空 Swagger 内容
+                  if (value === 'MANUAL') {
+                    setSwaggerContent('');
+                  }
+                }}
+                className="w-full"
+                options={[
+                  { label: 'Swagger 导入', value: 'SWAGGER' },
+                  { label: 'Nacos 导入', value: 'NACOS' },
+                  { label: 'MCP Server 导入', value: 'MCP_SERVER' },
+                  { label: '手动创建', value: 'MANUAL' },
+                ]}
+              />
+            ) : (
+              <Radio.Group
+                value={creationMethod}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setCreationMethod(value);
+                  // 切换时清空 Swagger 内容
+                  if (value === 'MANUAL') {
+                    setSwaggerContent('');
+                  }
+                }}
+                optionType="button"
+                buttonStyle="solid"
+                className="w-full flex"
+              >
+                {apiType === 'AGENT_API' && (
+                  <Radio.Button value="TEMPLATE" className="flex-1 text-center">从模板添加</Radio.Button>
+                )}
+                {apiType === 'MODEL_API' && (
+                  <Radio.Button value="TEMPLATE" className="flex-1 text-center">从模板添加</Radio.Button>
+                )}
+                <Radio.Button value="MANUAL" className="flex-1 text-center">手动创建</Radio.Button>
+              </Radio.Group>
+            )}
           </div>
         )}
 
         {/* 模板选择界面 */}
         {creationMethod === 'TEMPLATE' && !editingEndpoint && (
              <div className="mb-4">
-                 <div className="mb-2 font-medium">选择模板 (Dify)</div>
+                 <div className="mb-2 font-medium">选择模板 ({apiType === 'AGENT_API' ? 'Dify' : protocol})</div>
                  <div className="border rounded p-4 max-h-60 overflow-y-auto">
                      <Checkbox.Group 
                         className="flex flex-col gap-2"
                         value={selectedTemplateEndpoints}
                         onChange={(checkedValues) => setSelectedTemplateEndpoints(checkedValues as string[])}
                      >
-                         {DIFY_ENDPOINTS.map(ep => {
+                         {(apiType === 'AGENT_API' ? DIFY_ENDPOINTS : (
+                            protocol === 'openai' ? OPENAI_TEMPLATES :
+                            protocol === 'anthropic' ? ANTHROPIC_TEMPLATES :
+                            protocol === 'doubao' ? DOUBAO_TEMPLATES : []
+                         ).map(t => ({
+                            name: 'label' in t ? t.label : t.name,
+                            description: 'value' in t ? t.value : t.description
+                         }))).map(ep => {
                              const isExist = value.some(existingEp => existingEp.name === ep.name);
                              return (
                                  <Checkbox key={ep.name} value={ep.name} disabled={isExist}>
@@ -888,60 +977,67 @@ export default function EndpointEditor({
         )}
 
         {/* 手动创建/编辑界面 */}
-        {(creationMethod === 'MANUAL' || editingEndpoint) && (
-          <Form form={form} layout="vertical" className="mt-4">
-            <Form.Item
-              label={`${terminology.singular} 名称`}
-              name="name"
-              rules={[
-                { required: true, message: `请输入 ${terminology.singular} 名称` },
-                { max: 100, message: '名称不能超过100个字符' }
-              ]}
-            >
-              <Input placeholder={apiType === 'MCP_SERVER' ? '例如：get_user_info' : '例如：getUserInfo'} />
-            </Form.Item>
+        <Form 
+          form={form} 
+          layout="vertical" 
+          className="mt-4"
+          style={{ display: (creationMethod === 'MANUAL' || editingEndpoint) ? 'block' : 'none' }}
+        >
+          <Form.Item
+            label={`${terminology.singular} 名称`}
+            name="name"
+            rules={[
+              { required: true, message: `请输入 ${terminology.singular} 名称` },
+              { max: 100, message: '名称不能超过100个字符' }
+            ]}
+          >
+            <Input 
+              placeholder={apiType === 'MCP_SERVER' ? '例如：get_user_info' : '例如：getUserInfo'} 
+            />
+          </Form.Item>
 
-            {!inferredEndpointType && (
-              <Form.Item
-                label="Endpoint 类型"
-                name="type"
-                rules={[{ required: true, message: '请选择 Endpoint 类型' }]}
-              >
-                <Select
-                  options={ENDPOINT_TYPE_OPTIONS}
-                  placeholder="选择 Endpoint 类型"
-                  disabled={!!editingEndpoint}
-                  onChange={(type: EndpointType) => {
-                    setSelectedType(type);
-                    setCurrentConfig({});
-                  }}
-                />
-              </Form.Item>
-            )}
-
+          {!inferredEndpointType && (
             <Form.Item
-              label="描述"
-              name="description"
-              rules={[{ max: 500, message: '描述不能超过500个字符' }]}
+              label="Endpoint 类型"
+              name="type"
+              rules={[{ required: true, message: '请选择 Endpoint 类型' }]}
             >
-              <TextArea
-                rows={3}
-                placeholder={`详细描述这个 ${terminology.singular} 的功能`}
+              <Select
+                options={ENDPOINT_TYPE_OPTIONS}
+                placeholder="选择 Endpoint 类型"
+                disabled={!!editingEndpoint}
+                onChange={(type: EndpointType) => {
+                  setSelectedType(type);
+                  setCurrentConfig({});
+                }}
               />
             </Form.Item>
+          )}
 
-            {selectedType && (
-              <div className="border-t pt-4 mt-4">
-                <h4 className="text-sm font-semibold mb-4">{terminology.singular} 配置</h4>
-                <EndpointConfigForm
-                  type={selectedType}
-                  value={currentConfig}
-                  onChange={setCurrentConfig}
-                />
-              </div>
-            )}
-          </Form>
-        )}
+          <Form.Item
+            label="描述"
+            name="description"
+            rules={[{ max: 500, message: '描述不能超过500个字符' }]}
+          >
+            <TextArea
+              rows={3}
+              placeholder={`详细描述这个 ${terminology.singular} 的功能`}
+            />
+          </Form.Item>
+
+          {selectedType && (
+            <div className="border-t pt-4 mt-4">
+              <h4 className="text-sm font-semibold mb-4">{terminology.singular} 配置</h4>
+              <EndpointConfigForm
+                type={selectedType}
+                value={currentConfig}
+                onChange={setCurrentConfig}
+                protocol={protocol}
+                creationMode={creationMethod === 'TEMPLATE' ? 'TEMPLATE' : 'MANUAL'}
+              />
+            </div>
+          )}
+        </Form>
       </Modal>
     </div>
   );

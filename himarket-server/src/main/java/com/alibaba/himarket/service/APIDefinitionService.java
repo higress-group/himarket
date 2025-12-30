@@ -25,7 +25,6 @@ import com.alibaba.himarket.dto.params.api.QueryAPIDefinitionParam;
 import com.alibaba.himarket.dto.params.api.UpdateAPIDefinitionParam;
 import com.alibaba.himarket.dto.result.api.APIDefinitionVO;
 import com.alibaba.himarket.dto.result.api.APIEndpointVO;
-import com.alibaba.himarket.dto.result.api.APIPublishHistoryVO;
 import com.alibaba.himarket.dto.result.api.APIPublishRecordVO;
 import com.alibaba.himarket.dto.result.api.PropertySchemaVO;
 import com.alibaba.himarket.dto.result.common.PageResult;
@@ -117,13 +116,4 @@ public interface APIDefinitionService {
      * @param recordId 发布记录 ID
      */
     void unpublishAPI(String apiDefinitionId, String recordId);
-
-    /**
-     * 获取发布历史列表
-     *
-     * @param apiDefinitionId API Definition ID
-     * @param pageable 分页参数
-     * @return 发布历史列表
-     */
-    PageResult<APIPublishHistoryVO> listPublishHistory(String apiDefinitionId, Pageable pageable);
 }

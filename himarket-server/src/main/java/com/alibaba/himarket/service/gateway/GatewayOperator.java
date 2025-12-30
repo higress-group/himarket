@@ -99,6 +99,8 @@ public abstract class GatewayOperator<T> {
 
     public abstract List<String> fetchGatewayIps(Gateway gateway);
 
+    public abstract List<String> getGatewayDomains(Gateway gateway);
+
     @SuppressWarnings("unchecked")
     protected T getClient(Gateway gateway) {
         String clientKey =

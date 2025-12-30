@@ -25,6 +25,7 @@ public class ApigAiGatewayPublisher implements GatewayPublisher {
     @Override
     public String publish(
             Gateway gateway, APIDefinitionVO apiDefinition, PublishConfig publishConfig) {
+
         return "Mock publish success";
     }
 

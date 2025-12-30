@@ -31,19 +31,16 @@ import com.alibaba.himarket.dto.params.api.QueryAPIDefinitionParam;
 import com.alibaba.himarket.dto.params.api.UpdateAPIDefinitionParam;
 import com.alibaba.himarket.dto.result.api.APIDefinitionVO;
 import com.alibaba.himarket.dto.result.api.APIEndpointVO;
-import com.alibaba.himarket.dto.result.api.APIPublishHistoryVO;
 import com.alibaba.himarket.dto.result.api.APIPublishRecordVO;
 import com.alibaba.himarket.dto.result.api.PropertyFieldVO;
 import com.alibaba.himarket.dto.result.api.PropertySchemaVO;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.entity.APIDefinition;
 import com.alibaba.himarket.entity.APIEndpoint;
-import com.alibaba.himarket.entity.APIPublishHistory;
 import com.alibaba.himarket.entity.APIPublishRecord;
 import com.alibaba.himarket.entity.Gateway;
 import com.alibaba.himarket.repository.APIDefinitionRepository;
 import com.alibaba.himarket.repository.APIEndpointRepository;
-import com.alibaba.himarket.repository.APIPublishHistoryRepository;
 import com.alibaba.himarket.repository.APIPublishRecordRepository;
 import com.alibaba.himarket.repository.GatewayRepository;
 import com.alibaba.himarket.service.APIDefinitionService;
@@ -55,6 +52,7 @@ import com.alibaba.himarket.support.api.PublishConfig;
 import com.alibaba.himarket.support.enums.APIStatus;
 import com.alibaba.himarket.support.enums.PropertyType;
 import com.alibaba.himarket.support.enums.PublishAction;
+import com.alibaba.himarket.support.enums.PublishStatus;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
@@ -62,6 +60,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -80,7 +79,6 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
     private final APIDefinitionRepository apiDefinitionRepository;
     private final APIEndpointRepository apiEndpointRepository;
     private final APIPublishRecordRepository apiPublishRecordRepository;
-    private final APIPublishHistoryRepository apiPublishHistoryRepository;
     private final GatewayRepository gatewayRepository;
     private final GatewayCapabilityRegistry gatewayCapabilityRegistry;
     private final ObjectMapper objectMapper;
@@ -331,14 +329,7 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
                                                 apiDefinitionId));
 
         // 检查是否有活跃的发布记录
-        boolean hasActivePublish =
-                !apiPublishRecordRepository
-                        .findByApiDefinitionIdAndStatus(
-                                apiDefinitionId,
-                                com.alibaba.himarket.support.enums.PublishStatus.ACTIVE)
-                        .isEmpty();
-
-        if (hasActivePublish) {
+        if (isPublished(apiDefinitionId)) {
             throw new BusinessException(ErrorCode.ACTIVE_PUBLISH_EXISTS);
         }
 
@@ -349,6 +340,20 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
         apiDefinitionRepository.delete(apiDefinition);
 
         log.info("API Definition deleted successfully: {}", apiDefinitionId);
+    }
+
+    private boolean isPublished(String apiDefinitionId) {
+        List<APIPublishRecord> allRecords = apiPublishRecordRepository.findByApiDefinitionId(apiDefinitionId);
+        Map<String, APIPublishRecord> latestByGateway = new HashMap<>();
+        for (APIPublishRecord record : allRecords) {
+            String gatewayId = record.getGatewayId();
+            // Use createAt or publishedAt. Assuming publishedAt is set.
+            if (!latestByGateway.containsKey(gatewayId) 
+                    || (record.getPublishedAt() != null && latestByGateway.get(gatewayId).getPublishedAt() != null && record.getPublishedAt().isAfter(latestByGateway.get(gatewayId).getPublishedAt()))) {
+                latestByGateway.put(gatewayId, record);
+            }
+        }
+        return latestByGateway.values().stream().anyMatch(r -> r.getStatus() == PublishStatus.ACTIVE);
     }
 
     @Override
@@ -417,7 +422,7 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
 
         // 查询发布记录
         Page<APIPublishRecord> page =
-                apiPublishRecordRepository.findByApiDefinitionId(apiDefinitionId, pageable);
+                apiPublishRecordRepository.findByApiDefinitionIdOrderByCreateAtDesc(apiDefinitionId, pageable);
 
         // 转换为 VO
         return new PageResult<APIPublishRecordVO>()
@@ -450,21 +455,22 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
                                         new BusinessException(
                                                 ErrorCode.GATEWAY_NOT_FOUND, param.getGatewayId()));
 
-        // 检查发布目标：允许对同一网关重复发布（即更新），但不允许同时发布到不同的网关
-        List<APIPublishRecord> activeRecords =
-                apiPublishRecordRepository.findByApiDefinitionIdAndStatus(
-                        apiDefinitionId, com.alibaba.himarket.support.enums.PublishStatus.ACTIVE);
-        // 如果存在已发布记录，且已发布记录中有不同于当前目标网关的记录，则阻止发布
-        if (!activeRecords.isEmpty()) {
-            boolean hasOtherGateway =
-                    activeRecords.stream()
-                            .anyMatch(
-                                    record -> !record.getGatewayId().equals(param.getGatewayId()));
-            if (hasOtherGateway) {
-                APIPublishRecord existingRecord = activeRecords.get(0);
-                throw new BusinessException(
+        // Check if published on OTHER gateway
+        List<APIPublishRecord> allRecords = apiPublishRecordRepository.findByApiDefinitionId(apiDefinitionId);
+        Map<String, APIPublishRecord> latestByGateway = new HashMap<>();
+        for (APIPublishRecord record : allRecords) {
+            String gwId = record.getGatewayId();
+             if (!latestByGateway.containsKey(gwId) 
+                    || (record.getPublishedAt() != null && latestByGateway.get(gwId).getPublishedAt() != null && record.getPublishedAt().isAfter(latestByGateway.get(gwId).getPublishedAt()))) {
+                latestByGateway.put(gwId, record);
+            }
+        }
+        
+        for (Map.Entry<String, APIPublishRecord> entry : latestByGateway.entrySet()) {
+            if (!entry.getKey().equals(param.getGatewayId()) && entry.getValue().getStatus() == PublishStatus.ACTIVE) {
+                 throw new BusinessException(
                         ErrorCode.API_ALREADY_PUBLISHED_TO_GATEWAY,
-                        existingRecord.getGatewayName());
+                        entry.getValue().getGatewayName());
             }
         }
 
@@ -499,11 +505,18 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
         publishRecord.setGatewayId(param.getGatewayId());
         publishRecord.setGatewayName(gateway.getGatewayName());
         publishRecord.setGatewayType(gateway.getGatewayType().name());
-        publishRecord.setStatus(com.alibaba.himarket.support.enums.PublishStatus.ACTIVE);
+        publishRecord.setVersion(apiDefinition.getVersion());
+        publishRecord.setStatus(PublishStatus.ACTIVE);
+        publishRecord.setAction(PublishAction.PUBLISH);
+        publishRecord.setPublishNote(param.getComment());
+        
         try {
-            publishRecord.setPublishConfig(objectMapper.writeValueAsString(param.getPublishConfig()));
+            publishRecord.setPublishConfig(
+                    objectMapper.writeValueAsString(param.getPublishConfig()));
+            publishRecord.setSnapshot(objectMapper.writeValueAsString(apiDefinitionVO));
         } catch (Exception e) {
-            throw new BusinessException(ErrorCode.CONFIG_CONVERSION_ERROR, e, "Failed to serialize publish config");
+            throw new BusinessException(
+                    ErrorCode.CONFIG_CONVERSION_ERROR, e, "Failed to serialize publish config or snapshot");
         }
         publishRecord.setPublishedAt(java.time.LocalDateTime.now());
 
@@ -512,14 +525,6 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
 
         // 保存发布记录
         publishRecord = apiPublishRecordRepository.save(publishRecord);
-
-        // 创建发布历史记录
-        createPublishHistory(
-                apiDefinitionId,
-                param.getGatewayId(),
-                recordId,
-                PublishAction.PUBLISH,
-                param.getComment());
 
         log.info("API published successfully to gateway: {}", param.getGatewayId());
 
@@ -577,89 +582,34 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
         // 获取发布配置
         PublishConfig publishConfig;
         try {
-            publishConfig = objectMapper.readValue(publishRecord.getPublishConfig(), PublishConfig.class);
+            publishConfig =
+                    objectMapper.readValue(publishRecord.getPublishConfig(), PublishConfig.class);
         } catch (Exception e) {
-            throw new BusinessException(ErrorCode.CONFIG_CONVERSION_ERROR, e, "Failed to parse publish config");
+            throw new BusinessException(
+                    ErrorCode.CONFIG_CONVERSION_ERROR, e, "Failed to parse publish config");
         }
 
         // 获取发布器并执行下线
         GatewayPublisher publisher = gatewayCapabilityRegistry.getPublisher(gateway);
         publisher.unpublish(gateway, apiDefinitionVO, publishConfig);
 
-        // 创建取消发布历史记录
-        createPublishHistory(
-                apiDefinitionId,
-                publishRecord.getGatewayId(),
-                recordId,
-                PublishAction.UNPUBLISH,
-                null);
-
-        // 更新发布记录状态为 INACTIVE
-        publishRecord.setStatus(com.alibaba.himarket.support.enums.PublishStatus.INACTIVE);
-        apiPublishRecordRepository.save(publishRecord);
+        // Create NEW record for UNPUBLISH action
+        String newRecordId = "record-" + SNOWFLAKE.nextIdStr();
+        APIPublishRecord unpublishRecord = new APIPublishRecord();
+        unpublishRecord.setRecordId(newRecordId);
+        unpublishRecord.setApiDefinitionId(apiDefinitionId);
+        unpublishRecord.setGatewayId(publishRecord.getGatewayId());
+        unpublishRecord.setGatewayName(publishRecord.getGatewayName());
+        unpublishRecord.setGatewayType(publishRecord.getGatewayType());
+        unpublishRecord.setVersion(publishRecord.getVersion());
+        unpublishRecord.setStatus(PublishStatus.INACTIVE);
+        unpublishRecord.setAction(PublishAction.UNPUBLISH);
+        unpublishRecord.setPublishConfig(publishRecord.getPublishConfig());
+        unpublishRecord.setGatewayResourceId(publishRecord.getGatewayResourceId());
+        unpublishRecord.setPublishedAt(java.time.LocalDateTime.now());
+        
+        apiPublishRecordRepository.save(unpublishRecord);
 
         log.info("API unpublished successfully from gateway: {}", publishRecord.getGatewayId());
-    }
-
-    @Override
-    public PageResult<APIPublishHistoryVO> listPublishHistory(
-            String apiDefinitionId, Pageable pageable) {
-        log.info("Listing publish history for API Definition: {}", apiDefinitionId);
-
-        // 验证 API Definition 是否存在
-        if (!apiDefinitionRepository.existsByApiDefinitionId(apiDefinitionId)) {
-            throw new BusinessException(ErrorCode.API_DEFINITION_NOT_FOUND, apiDefinitionId);
-        }
-
-        // 查询发布历史（按时间倒序）
-        Page<APIPublishHistory> page =
-                apiPublishHistoryRepository.findByApiDefinitionIdOrderByCreateAtDesc(
-                        apiDefinitionId, pageable);
-
-        // 转换为 VO
-        return new PageResult<APIPublishHistoryVO>()
-                .convertFrom(page, history -> new APIPublishHistoryVO().convertFrom(history));
-    }
-
-    /** 创建发布历史记录 */
-    private void createPublishHistory(
-            String apiDefinitionId,
-            String gatewayId,
-            String recordId,
-            PublishAction action,
-            String comment) {
-        String historyId = "history-" + SNOWFLAKE.nextIdStr();
-
-        APIPublishHistory history = new APIPublishHistory();
-        history.setHistoryId(historyId);
-        history.setApiDefinitionId(apiDefinitionId);
-        history.setPublishRecordId(recordId);
-        history.setGatewayId(gatewayId);
-        history.setAction(action);
-        history.setPublishNote(comment);
-
-        // 如果是发布操作，保存当前 API Definition 的快照
-        if (action == PublishAction.PUBLISH) {
-            try {
-                APIDefinitionVO apiDefinitionVO = getAPIDefinition(apiDefinitionId);
-                history.setSnapshot(objectMapper.writeValueAsString(apiDefinitionVO));
-            } catch (Exception e) {
-                log.error("Failed to create snapshot for API Definition: {}", apiDefinitionId, e);
-            }
-        }
-
-        apiPublishHistoryRepository.save(history);
-    }
-
-    /** 更新发布历史为失败状态 */
-    private void updatePublishHistoryFailure(String recordId, String errorMessage) {
-        apiPublishHistoryRepository.findByApiDefinitionId(recordId).stream()
-                .filter(h -> h.getPublishRecordId().equals(recordId))
-                .findFirst()
-                .ifPresent(
-                        history -> {
-                            history.setReason(errorMessage);
-                            apiPublishHistoryRepository.save(history);
-                        });
     }
 }

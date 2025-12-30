@@ -25,5 +25,4 @@ import lombok.EqualsAndHashCode;
 /** 可观测性配置 */
 @Data
 @EqualsAndHashCode(callSuper = true)
-public class ObservabilityProperty extends BaseAPIProperty {
-}
+public class ObservabilityProperty extends BaseAPIProperty {}

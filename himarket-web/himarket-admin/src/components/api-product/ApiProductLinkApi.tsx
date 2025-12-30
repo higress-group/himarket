@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import type { ApiProduct, LinkedService, RestAPIItem, NacosMCPItem, APIGAIMCPItem, AIGatewayAgentItem, AIGatewayModelItem, ApiItem } from '@/types/api-product'
 import type { Endpoint } from '@/types/endpoint'
 import type { Gateway, NacosInstance } from '@/types/gateway'
-import { apiProductApi, gatewayApi, nacosApi } from '@/lib/api'
+import { apiProductApi, gatewayApi, nacosApi, apiDefinitionApi } from '@/lib/api'
 import { getGatewayTypeLabel } from '@/lib/constant'
 import { copyToClipboard } from '@/lib/utils'
 import * as yaml from 'js-yaml'
@@ -34,6 +34,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
   const [apiList, setApiList] = useState<ApiItem[] | NacosMCPItem[]>([])
   const [apiLoading, setApiLoading] = useState(false)
   const [sourceType, setSourceType] = useState<'GATEWAY' | 'NACOS'>('GATEWAY')
+  const [publishRecords, setPublishRecords] = useState<any[]>([])
 
   const [parsedTools, setParsedTools] = useState<Array<{
     name: string;
@@ -62,7 +63,17 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
 
   const convertEndpointToTool = (endpoint: Endpoint) => {
     const config = endpoint.config || {};
-    const inputSchema = config.inputSchema || {};
+    let inputSchema = config.inputSchema || {};
+    
+    if (typeof inputSchema === 'string') {
+      try {
+        inputSchema = JSON.parse(inputSchema);
+      } catch (e) {
+        console.warn('Failed to parse input schema', e);
+        inputSchema = {};
+      }
+    }
+
     const properties = inputSchema.properties || {};
     const required = inputSchema.required || [];
 
@@ -110,6 +121,22 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
       setParsedTools([])
     }
   }, [apiProduct, linkedService])
+
+  // 获取 Publish Records
+  useEffect(() => {
+    if (linkedService?.sourceType === 'MANAGED' && linkedService.apiDefinitions?.[0]?.apiDefinitionId) {
+      const apiDefId = linkedService.apiDefinitions[0].apiDefinitionId;
+      apiDefinitionApi.getPublishRecords(apiDefId).then((res: any) => {
+         const records = res.data?.content || res.data || [];
+         setPublishRecords(records);
+      }).catch(e => {
+        console.error('Failed to fetch publish records', e);
+        setPublishRecords([]);
+      });
+    } else {
+      setPublishRecords([]);
+    }
+  }, [linkedService]);
 
   // 生成连接配置
   // 当产品切换时重置域名选择索引
@@ -926,7 +953,9 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
       // Request Body
       if (config.requestBody) {
         try {
-          const schema = JSON.parse(config.requestBody);
+          const schema = typeof config.requestBody === 'string' 
+            ? JSON.parse(config.requestBody) 
+            : config.requestBody;
           operation.requestBody = {
             content: {
               'application/json': {
@@ -952,6 +981,68 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
     };
 
     return JSON.stringify(spec, null, 2);
+  }
+
+  const convertEndpointsToModelAPIConfig = (endpoints: Endpoint[], metadata?: any, publishRecords?: any[]) => {
+    // Extract domains from publish records
+    const domains: Array<{ domain: string; protocol: string }> = [];
+    
+    if (publishRecords) {
+      publishRecords.forEach(record => {
+        // Check for ACTIVE or PUBLISHED status
+        if ((record.status === 'PUBLISHED' || record.status === 'ACTIVE') && record.publishConfig?.domains) {
+           // publishConfig.domains is string[]
+           const recordDomains = record.publishConfig.domains;
+           if (Array.isArray(recordDomains)) {
+             recordDomains.forEach((d: string) => {
+               // Simple heuristic for protocol, or default to HTTPS
+               // If domain starts with http:// or https://, strip it and set protocol
+               let protocol = 'HTTPS';
+               let domain = d;
+               if (d.startsWith('http://')) {
+                 protocol = 'HTTP';
+                 domain = d.substring(7);
+               } else if (d.startsWith('https://')) {
+                 protocol = 'HTTPS';
+                 domain = d.substring(8);
+               }
+               
+               // Avoid duplicates
+               if (!domains.some(existing => existing.domain === domain && existing.protocol === protocol)) {
+                 domains.push({ domain, protocol });
+               }
+             });
+           }
+        }
+      });
+    }
+
+    const routes = endpoints
+      .filter(ep => ep.type === 'MODEL')
+      .map(ep => {
+        const config = ep.config || {};
+        const matchConfig = config.matchConfig || {};
+        
+        return {
+          domains: domains, 
+          description: ep.description || '',
+          match: {
+            methods: matchConfig.methods || [],
+            path: {
+              value: matchConfig.path?.value || '/',
+              type: matchConfig.path?.type || 'Exact'
+            },
+            headers: [],
+            queryParams: []
+          }
+        };
+      });
+
+    return {
+      modelCategory: metadata?.modelCategory,
+      aiProtocols: metadata?.protocol ? [metadata.protocol] : [],
+      routes
+    };
   }
 
   const renderApiConfig = () => {
@@ -983,7 +1074,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                             <div key={idx} className={idx < parsedTools.length - 1 ? "border-b border-gray-200" : ""}>
                               <Collapse
                                 ghost
-                                expandIconPosition="end"
+                                expandIconPlacement="end"
                                 items={[{
                                   key: idx.toString(),
                                   label: tool.name,
@@ -1461,7 +1552,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
 
                 <div className="border border-gray-200 rounded-lg overflow-hidden">
                   <Collapse
-                    ghost expandIconPosition="end"
+                    ghost expandIconPlacement="end"
                   >
                     {routes.map((route, index) => (
                       <Collapse.Panel
@@ -1570,8 +1661,15 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
     }
 
     // Model API类型：显示协议支持和路由配置
-    if (isModel && apiProduct.modelConfig?.modelAPIConfig) {
-      const modelAPIConfig = apiProduct.modelConfig.modelAPIConfig
+    let modelAPIConfig = apiProduct.modelConfig?.modelAPIConfig;
+
+    if (isModel && !modelAPIConfig && linkedService?.sourceType === 'MANAGED' && linkedService.apiDefinitions?.[0]?.endpoints) {
+      const endpoints = linkedService.apiDefinitions[0].endpoints;
+      const metadata = (linkedService.apiDefinitions[0] as any).metadata;
+      modelAPIConfig = convertEndpointsToModelAPIConfig(endpoints, metadata, publishRecords);
+    }
+
+    if (isModel && modelAPIConfig) {
       const routes = modelAPIConfig.routes || []
       const protocols = modelAPIConfig.aiProtocols || []
 
@@ -1750,7 +1848,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                 )}
 
                 <div className="border border-gray-200 rounded-lg overflow-hidden">
-                  <Collapse ghost expandIconPosition="end">
+                  <Collapse ghost expandIconPlacement="end">
                     {routes.map((route, index) => (
                       <Collapse.Panel
                         key={index}

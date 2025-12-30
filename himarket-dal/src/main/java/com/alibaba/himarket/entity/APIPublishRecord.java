@@ -19,6 +19,7 @@
 
 package com.alibaba.himarket.entity;
 
+import com.alibaba.himarket.support.enums.PublishAction;
 import com.alibaba.himarket.support.enums.PublishStatus;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
@@ -61,9 +62,16 @@ public class APIPublishRecord extends BaseEntity {
     @Column(name = "gateway_type", length = 32, nullable = false)
     private String gatewayType;
 
+    @Column(name = "version", length = 32)
+    private String version;
+
     @Column(name = "status", length = 32, nullable = false)
     @Enumerated(EnumType.STRING)
     private PublishStatus status;
+
+    @Column(name = "action", length = 32)
+    @Enumerated(EnumType.STRING)
+    private PublishAction action;
 
     @Column(name = "publish_config", columnDefinition = "json")
     private String publishConfig;
@@ -76,6 +84,15 @@ public class APIPublishRecord extends BaseEntity {
 
     @Column(name = "error_message", columnDefinition = "text")
     private String errorMessage;
+
+    @Column(name = "publish_note", columnDefinition = "text")
+    private String publishNote;
+
+    @Column(name = "operator", length = 64)
+    private String operator;
+
+    @Column(name = "snapshot", columnDefinition = "json")
+    private String snapshot;
 
     @Column(name = "published_at", columnDefinition = "datetime(3)")
     private LocalDateTime publishedAt;

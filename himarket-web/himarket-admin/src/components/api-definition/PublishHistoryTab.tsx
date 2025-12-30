@@ -15,17 +15,18 @@ import {
 import { apiDefinitionApi } from '@/lib/api';
 
 interface PublishHistory {
-  historyId: string;
+  recordId: string;
   apiDefinitionId: string;
   gatewayId: string;
   action: string;
-  apiVersion?: string;
+  version?: string;
   publishConfig?: any;
-  success?: boolean;
+  status?: string;
   errorMessage?: string;
-  comment?: string;
-  operatorId?: string;
+  publishNote?: string;
+  operator?: string;
   createdAt?: string;
+  snapshot?: any;
 }
 
 interface PublishHistoryTabProps {
@@ -62,7 +63,7 @@ export default function PublishHistoryTab({ apiDefinitionId }: PublishHistoryTab
   const fetchHistory = async (page: number, size: number) => {
     setLoading(true);
     try {
-      const response: any = await apiDefinitionApi.getPublishHistory(apiDefinitionId, {
+      const response: any = await apiDefinitionApi.getPublishRecords(apiDefinitionId, {
         page: page - 1, // 后端分页从 0 开始
         size
       });
@@ -102,18 +103,13 @@ export default function PublishHistoryTab({ apiDefinitionId }: PublishHistoryTab
     },
     {
       title: '状态',
-      dataIndex: 'success',
-      key: 'success',
+      key: 'status',
       width: 80,
-      render: (success) => {
-        if (success === undefined || success === null) {
-          return <Tag>进行中</Tag>;
+      render: (_, record) => {
+        if (record.status === 'FAILED' || record.errorMessage) {
+          return <Tag color="error" icon={<CloseCircleOutlined />}>失败</Tag>;
         }
-        return success ? (
-          <Tag color="success" icon={<CheckCircleOutlined />}>成功</Tag>
-        ) : (
-          <Tag color="error" icon={<CloseCircleOutlined />}>失败</Tag>
-        );
+        return <Tag color="success" icon={<CheckCircleOutlined />}>成功</Tag>;
       }
     },
     {
@@ -125,17 +121,17 @@ export default function PublishHistoryTab({ apiDefinitionId }: PublishHistoryTab
     },
     {
       title: 'API 版本',
-      dataIndex: 'apiVersion',
-      key: 'apiVersion',
+      dataIndex: 'version',
+      key: 'version',
       width: 120,
       render: (version) => version || '-'
     },
     {
       title: '备注',
-      dataIndex: 'comment',
-      key: 'comment',
+      dataIndex: 'publishNote',
+      key: 'publishNote',
       ellipsis: true,
-      render: (comment) => comment || '-'
+      render: (note) => note || '-'
     },
     {
       title: '操作时间',
@@ -152,13 +148,13 @@ export default function PublishHistoryTab({ apiDefinitionId }: PublishHistoryTab
       <div className="p-4 bg-gray-50">
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <span className="text-gray-500">历史记录 ID:</span>
-            <span className="ml-2">{record.historyId}</span>
+            <span className="text-gray-500">记录 ID:</span>
+            <span className="ml-2">{record.recordId}</span>
           </div>
-          {record.operatorId && (
+          {record.operator && (
             <div>
               <span className="text-gray-500">操作人:</span>
-              <span className="ml-2">{record.operatorId}</span>
+              <span className="ml-2">{record.operator}</span>
             </div>
           )}
           {record.errorMessage && (
@@ -202,11 +198,11 @@ export default function PublishHistoryTab({ apiDefinitionId }: PublishHistoryTab
         <Table
           columns={columns}
           dataSource={history}
-          rowKey="historyId"
+          rowKey="recordId"
           loading={loading}
           expandable={{
             expandedRowRender,
-            rowExpandable: (record) => !!record.errorMessage || !!record.publishConfig || !!record.operatorId
+            rowExpandable: (record) => !!record.errorMessage || !!record.publishConfig || !!record.operator
           }}
           pagination={{
             ...pagination,

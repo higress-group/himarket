@@ -510,6 +510,46 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
     }
 
     @Override
+    public List<String> getGatewayDomains(Gateway gateway) {
+        String queryGatewayType = null;
+        if (gateway.getGatewayType().equals(GatewayType.APIG_API)) {
+            queryGatewayType = "APIG";
+        } else if (gateway.getGatewayType().equals(GatewayType.APIG_AI)) {
+            queryGatewayType = "AI";
+        } else {
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR,
+                    "Unsupported gateway type for fetching domains: "
+                            + gateway.getGatewayType());
+        }
+
+        ListDomainsRequest request =
+                ListDomainsRequest.builder()
+                        .gatewayId(gateway.getGatewayId())
+                        .gatewayType(queryGatewayType)
+                        .pageNumber(1)
+                        .pageSize(100)
+                        .build();
+
+        APIGClient client = getClient(gateway);
+        try {
+            CompletableFuture<ListDomainsResponse> f = client.execute(c -> c.listDomains(request));
+            ListDomainsResponse response = f.join();
+            if (response.getStatusCode() != 200) {
+                throw new BusinessException(
+                        ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
+            }
+            return response.getBody().getData().getItems().stream()
+                    .map(DomainInfo::getName)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            log.error("Error fetching Gateway Domains", e);
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR, "Error fetching Gateway Domains，Cause：" + e.getMessage());
+        }
+    }
+
+    @Override
     public List<String> fetchGatewayIps(Gateway gateway) {
 
         APIGClient client = getClient(gateway);
