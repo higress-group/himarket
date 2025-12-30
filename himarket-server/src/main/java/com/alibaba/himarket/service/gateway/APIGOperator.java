@@ -519,8 +519,7 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
         } else {
             throw new BusinessException(
                     ErrorCode.INTERNAL_ERROR,
-                    "Unsupported gateway type for fetching domains: "
-                            + gateway.getGatewayType());
+                    "Unsupported gateway type for fetching domains: " + gateway.getGatewayType());
         }
 
         ListDomainsRequest request =
@@ -545,7 +544,8 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
         } catch (Exception e) {
             log.error("Error fetching Gateway Domains", e);
             throw new BusinessException(
-                    ErrorCode.INTERNAL_ERROR, "Error fetching Gateway Domains，Cause：" + e.getMessage());
+                    ErrorCode.INTERNAL_ERROR,
+                    "Error fetching Gateway Domains，Cause：" + e.getMessage());
         }
     }
 

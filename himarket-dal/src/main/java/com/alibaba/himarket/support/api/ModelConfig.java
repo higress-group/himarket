@@ -19,14 +19,10 @@
 
 package com.alibaba.himarket.support.api;
 
-import java.util.List;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 /** Model 配置 */
 @Data
 @EqualsAndHashCode(callSuper = true)
-public class ModelConfig extends HttpEndpointConfig {
-}
-
-
+public class ModelConfig extends HttpEndpointConfig {}

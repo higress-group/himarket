@@ -69,14 +69,15 @@ public class APIPublishRecordVO implements OutputConverter<APIPublishRecordVO, A
     @Override
     public APIPublishRecordVO convertFrom(APIPublishRecord domain) {
         OutputConverter.super.convertFrom(domain);
-        
+
         // Manual mapping for fields with different names
         this.createdAt = domain.getCreateAt();
 
         if (domain.getPublishConfig() != null) {
             try {
                 ObjectMapper objectMapper = new ObjectMapper();
-                this.publishConfig = objectMapper.readValue(domain.getPublishConfig(), PublishConfig.class);
+                this.publishConfig =
+                        objectMapper.readValue(domain.getPublishConfig(), PublishConfig.class);
             } catch (JsonProcessingException e) {
                 log.error("Failed to deserialize publish config", e);
             }

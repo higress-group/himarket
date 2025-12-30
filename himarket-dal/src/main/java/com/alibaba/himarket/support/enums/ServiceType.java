@@ -30,5 +30,8 @@ public enum ServiceType {
 
     /** DNS */
     DNS,
+
+    /** AI 服务 */
+    AI_SERVICE,
     ;
 }

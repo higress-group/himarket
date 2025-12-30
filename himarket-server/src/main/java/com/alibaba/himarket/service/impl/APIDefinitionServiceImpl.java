@@ -60,7 +60,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -343,17 +342,22 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
     }
 
     private boolean isPublished(String apiDefinitionId) {
-        List<APIPublishRecord> allRecords = apiPublishRecordRepository.findByApiDefinitionId(apiDefinitionId);
+        List<APIPublishRecord> allRecords =
+                apiPublishRecordRepository.findByApiDefinitionId(apiDefinitionId);
         Map<String, APIPublishRecord> latestByGateway = new HashMap<>();
         for (APIPublishRecord record : allRecords) {
             String gatewayId = record.getGatewayId();
             // Use createAt or publishedAt. Assuming publishedAt is set.
-            if (!latestByGateway.containsKey(gatewayId) 
-                    || (record.getPublishedAt() != null && latestByGateway.get(gatewayId).getPublishedAt() != null && record.getPublishedAt().isAfter(latestByGateway.get(gatewayId).getPublishedAt()))) {
+            if (!latestByGateway.containsKey(gatewayId)
+                    || (record.getPublishedAt() != null
+                            && latestByGateway.get(gatewayId).getPublishedAt() != null
+                            && record.getPublishedAt()
+                                    .isAfter(latestByGateway.get(gatewayId).getPublishedAt()))) {
                 latestByGateway.put(gatewayId, record);
             }
         }
-        return latestByGateway.values().stream().anyMatch(r -> r.getStatus() == PublishStatus.ACTIVE);
+        return latestByGateway.values().stream()
+                .anyMatch(r -> r.getStatus() == PublishStatus.ACTIVE);
     }
 
     @Override
@@ -422,7 +426,8 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
 
         // 查询发布记录
         Page<APIPublishRecord> page =
-                apiPublishRecordRepository.findByApiDefinitionIdOrderByCreateAtDesc(apiDefinitionId, pageable);
+                apiPublishRecordRepository.findByApiDefinitionIdOrderByCreateAtDesc(
+                        apiDefinitionId, pageable);
 
         // 转换为 VO
         return new PageResult<APIPublishRecordVO>()
@@ -456,19 +461,24 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
                                                 ErrorCode.GATEWAY_NOT_FOUND, param.getGatewayId()));
 
         // Check if published on OTHER gateway
-        List<APIPublishRecord> allRecords = apiPublishRecordRepository.findByApiDefinitionId(apiDefinitionId);
+        List<APIPublishRecord> allRecords =
+                apiPublishRecordRepository.findByApiDefinitionId(apiDefinitionId);
         Map<String, APIPublishRecord> latestByGateway = new HashMap<>();
         for (APIPublishRecord record : allRecords) {
             String gwId = record.getGatewayId();
-             if (!latestByGateway.containsKey(gwId) 
-                    || (record.getPublishedAt() != null && latestByGateway.get(gwId).getPublishedAt() != null && record.getPublishedAt().isAfter(latestByGateway.get(gwId).getPublishedAt()))) {
+            if (!latestByGateway.containsKey(gwId)
+                    || (record.getPublishedAt() != null
+                            && latestByGateway.get(gwId).getPublishedAt() != null
+                            && record.getPublishedAt()
+                                    .isAfter(latestByGateway.get(gwId).getPublishedAt()))) {
                 latestByGateway.put(gwId, record);
             }
         }
-        
+
         for (Map.Entry<String, APIPublishRecord> entry : latestByGateway.entrySet()) {
-            if (!entry.getKey().equals(param.getGatewayId()) && entry.getValue().getStatus() == PublishStatus.ACTIVE) {
-                 throw new BusinessException(
+            if (!entry.getKey().equals(param.getGatewayId())
+                    && entry.getValue().getStatus() == PublishStatus.ACTIVE) {
+                throw new BusinessException(
                         ErrorCode.API_ALREADY_PUBLISHED_TO_GATEWAY,
                         entry.getValue().getGatewayName());
             }
@@ -509,14 +519,16 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
         publishRecord.setStatus(PublishStatus.ACTIVE);
         publishRecord.setAction(PublishAction.PUBLISH);
         publishRecord.setPublishNote(param.getComment());
-        
+
         try {
             publishRecord.setPublishConfig(
                     objectMapper.writeValueAsString(param.getPublishConfig()));
             publishRecord.setSnapshot(objectMapper.writeValueAsString(apiDefinitionVO));
         } catch (Exception e) {
             throw new BusinessException(
-                    ErrorCode.CONFIG_CONVERSION_ERROR, e, "Failed to serialize publish config or snapshot");
+                    ErrorCode.CONFIG_CONVERSION_ERROR,
+                    e,
+                    "Failed to serialize publish config or snapshot");
         }
         publishRecord.setPublishedAt(java.time.LocalDateTime.now());
 
@@ -607,7 +619,7 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
         unpublishRecord.setPublishConfig(publishRecord.getPublishConfig());
         unpublishRecord.setGatewayResourceId(publishRecord.getGatewayResourceId());
         unpublishRecord.setPublishedAt(java.time.LocalDateTime.now());
-        
+
         apiPublishRecordRepository.save(unpublishRecord);
 
         log.info("API unpublished successfully from gateway: {}", publishRecord.getGatewayId());

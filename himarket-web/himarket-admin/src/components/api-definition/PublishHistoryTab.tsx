@@ -4,7 +4,8 @@ import {
   Button,
   Tag,
   Card,
-  message
+  message,
+  Modal
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
@@ -13,6 +14,7 @@ import {
   CloseCircleOutlined
 } from '@ant-design/icons';
 import { apiDefinitionApi } from '@/lib/api';
+import MonacoEditor, { MonacoDiffEditor } from 'react-monaco-editor';
 
 interface PublishHistory {
   recordId: string;
@@ -56,9 +58,51 @@ export default function PublishHistoryTab({ apiDefinitionId }: PublishHistoryTab
     total: 0
   });
 
+  const [viewModalVisible, setViewModalVisible] = useState(false);
+  const [diffModalVisible, setDiffModalVisible] = useState(false);
+  const [currentViewSnapshot, setCurrentViewSnapshot] = useState('');
+  const [diffOriginal, setDiffOriginal] = useState('');
+  const [diffModified, setDiffModified] = useState('');
+  const [latestSnapshot, setLatestSnapshot] = useState<string>('');
+
   useEffect(() => {
     fetchHistory(1, 10);
+    fetchLatestSnapshot();
   }, [apiDefinitionId]);
+
+  const fetchLatestSnapshot = async () => {
+    try {
+      const response: any = await apiDefinitionApi.getPublishRecords(apiDefinitionId, {
+        page: 0,
+        size: 50
+      });
+      const data = response?.data?.content || response?.content || response?.data || response || [];
+      if (Array.isArray(data)) {
+        const latest = data.find((item: PublishHistory) => item.action === 'PUBLISH' && item.status === 'SUCCESS');
+        if (latest) {
+          const content = latest.snapshot || latest.publishConfig;
+          setLatestSnapshot(typeof content === 'string' ? content : JSON.stringify(content, null, 2));
+        }
+      }
+    } catch (error) {
+      console.error('获取最新发布配置失败', error);
+    }
+  };
+
+  const handleViewSnapshot = (record: PublishHistory) => {
+    const content = record.snapshot || record.publishConfig;
+    setCurrentViewSnapshot(typeof content === 'string' ? content : JSON.stringify(content, null, 2));
+    setViewModalVisible(true);
+  };
+
+  const handleDiffSnapshot = (record: PublishHistory) => {
+    const content = record.snapshot || record.publishConfig;
+    const recordSnapshot = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
+    
+    setDiffOriginal(latestSnapshot);
+    setDiffModified(recordSnapshot);
+    setDiffModalVisible(true);
+  };
 
   const fetchHistory = async (page: number, size: number) => {
     setLoading(true);
@@ -132,6 +176,17 @@ export default function PublishHistoryTab({ apiDefinitionId }: PublishHistoryTab
       key: 'publishNote',
       ellipsis: true,
       render: (note) => note || '-'
+    },
+    {
+      title: '快照',
+      key: 'snapshot',
+      width: 150,
+      render: (_, record) => (
+        <div className="space-x-2">
+          <Button size="small" onClick={() => handleViewSnapshot(record)}>查看</Button>
+          <Button size="small" onClick={() => handleDiffSnapshot(record)}>对比</Button>
+        </div>
+      )
     },
     {
       title: '操作时间',
@@ -215,6 +270,49 @@ export default function PublishHistoryTab({ apiDefinitionId }: PublishHistoryTab
           }}
         />
       </Card>
+
+      <Modal
+        title="配置快照"
+        open={viewModalVisible}
+        onCancel={() => setViewModalVisible(false)}
+        footer={null}
+        width={800}
+      >
+        <div className="h-[500px]">
+          <MonacoEditor
+            language="json"
+            theme="vs-light"
+            value={currentViewSnapshot}
+            options={{
+              readOnly: true,
+              minimap: { enabled: false },
+              scrollBeyondLastLine: false
+            }}
+          />
+        </div>
+      </Modal>
+
+      <Modal
+        title="配置对比 (左: 当前发布配置, 右: 选定记录配置)"
+        open={diffModalVisible}
+        onCancel={() => setDiffModalVisible(false)}
+        footer={null}
+        width={1000}
+      >
+        <div className="h-[600px]">
+          <MonacoDiffEditor
+            language="json"
+            theme="vs-light"
+            original={diffOriginal}
+            value={diffModified}
+            options={{
+              readOnly: true,
+              minimap: { enabled: false },
+              scrollBeyondLastLine: false
+            }}
+          />
+        </div>
+      </Modal>
     </div>
   );
 }
