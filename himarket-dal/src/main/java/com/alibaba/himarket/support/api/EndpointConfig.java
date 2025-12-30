@@ -29,6 +29,7 @@ import java.io.Serializable;
     @JsonSubTypes.Type(value = MCPToolConfig.class, name = "MCP_TOOL"),
     @JsonSubTypes.Type(value = RESTRouteConfig.class, name = "REST_ROUTE"),
     @JsonSubTypes.Type(value = AgentConfig.class, name = "AGENT"),
-    @JsonSubTypes.Type(value = ModelConfig.class, name = "MODEL")
+    @JsonSubTypes.Type(value = ModelConfig.class, name = "MODEL"),
+    @JsonSubTypes.Type(value = HttpEndpointConfig.class, name = "HTTP")
 })
 public abstract class EndpointConfig implements Serializable {}

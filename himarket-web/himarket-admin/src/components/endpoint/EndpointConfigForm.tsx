@@ -443,38 +443,143 @@ export default function EndpointConfigForm({ type, value, onChange, protocol, cr
     );
   };
 
+  // 渲染通用的 Match Config 字段
+  const renderMatchConfigFields = () => (
+    <>
+      <Form.Item
+        label="路径匹配类型"
+        name={['matchConfig', 'path', 'type']}
+      >
+        <Select options={MATCH_TYPES} placeholder="选择匹配类型" />
+      </Form.Item>
+
+      <Form.Item
+        label="路径匹配值"
+        name={['matchConfig', 'path', 'value']}
+      >
+        <Input placeholder="/v1/chat/completions" />
+      </Form.Item>
+
+      <Form.Item
+        label="HTTP 方法"
+        name={['matchConfig', 'methods']}
+      >
+        <Select
+          mode="multiple"
+          options={HTTP_METHODS}
+          placeholder="选择方法（可多选）"
+        />
+      </Form.Item>
+
+      <Form.List name={['matchConfig', 'headers']}>
+        {(fields, { add, remove }) => (
+          <div className="mt-4">
+            <div className="mb-2 font-medium">Header 匹配</div>
+            {fields.map(({ key, name, ...restField }) => (
+              <Space key={key} style={{ display: 'flex', marginBottom: 8 }} align="baseline">
+                <Form.Item
+                  {...restField}
+                  name={[name, 'name']}
+                  rules={[{ required: true, message: '请输入 Header 名称' }]}
+                >
+                  <Input placeholder="Header 名称" />
+                </Form.Item>
+                <Form.Item
+                  {...restField}
+                  name={[name, 'type']}
+                  initialValue="Exact"
+                >
+                  <Select options={MATCH_TYPES} style={{ width: 120 }} />
+                </Form.Item>
+                <Form.Item
+                  {...restField}
+                  name={[name, 'value']}
+                  rules={[{ required: true, message: '请输入匹配值' }]}
+                >
+                  <Input placeholder="匹配值" />
+                </Form.Item>
+                <MinusCircleOutlined onClick={() => remove(name)} />
+              </Space>
+            ))}
+            <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
+              添加 Header 匹配规则
+            </Button>
+          </div>
+        )}
+      </Form.List>
+
+      <Form.List name={['matchConfig', 'queryParams']}>
+        {(fields, { add, remove }) => (
+          <div className="mt-4">
+            <div className="mb-2 font-medium">Query 参数匹配</div>
+            {fields.map(({ key, name, ...restField }) => (
+              <Space key={key} style={{ display: 'flex', marginBottom: 8 }} align="baseline">
+                <Form.Item
+                  {...restField}
+                  name={[name, 'name']}
+                  rules={[{ required: true, message: '请输入参数名称' }]}
+                >
+                  <Input placeholder="参数名称" />
+                </Form.Item>
+                <Form.Item
+                  {...restField}
+                  name={[name, 'type']}
+                  initialValue="Exact"
+                >
+                  <Select options={MATCH_TYPES} style={{ width: 120 }} />
+                </Form.Item>
+                <Form.Item
+                  {...restField}
+                  name={[name, 'value']}
+                  rules={[{ required: true, message: '请输入匹配值' }]}
+                >
+                  <Input placeholder="匹配值" />
+                </Form.Item>
+                <MinusCircleOutlined onClick={() => remove(name)} />
+              </Space>
+            ))}
+            <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
+              添加 Query 参数匹配规则
+            </Button>
+          </div>
+        )}
+      </Form.List>
+    </>
+  );
+
   // 渲染 Agent 配置表单
   const renderAgentConfig = () => {
     return (
       <>
-        <Form.Item
-          label="支持的协议"
-          name="protocols"
-          rules={[{ required: true, message: '请选择至少一个协议' }]}
-        >
-          <Select
-            mode="tags"
-            placeholder="输入协议名称，如: a2a, http, grpc"
-            options={[
-              { label: 'A2A', value: 'a2a' },
-              { label: 'HTTP', value: 'http' },
-              { label: 'gRPC', value: 'grpc' },
-              { label: 'WebSocket', value: 'websocket' }
-            ]}
-          />
-        </Form.Item>
-
-        <Form.Item
-          label="配置 Schema"
-          name="configSchema"
-          help="JSON 格式的 Agent 配置 Schema"
-        >
-          <TextArea
-            rows={8}
-            placeholder='{"type": "object", "properties": {...}}'
-          />
-        </Form.Item>
+        <Collapse 
+          defaultActiveKey={['match']} 
+          className="mt-4"
+          items={[
+            {
+              key: 'match',
+              label: '路由匹配配置 (Match Config)',
+              children: renderMatchConfigFields()
+            }
+          ]}
+        />
       </>
+    );
+  };
+
+  // 渲染 HTTP 配置表单
+  const renderHttpConfig = () => {
+    return (
+      <Collapse 
+        defaultActiveKey={['match']} 
+        className="mt-4"
+        items={[
+          {
+            key: 'match',
+            label: '路由匹配配置 (Match Config)',
+            children: renderMatchConfigFields()
+          }
+        ]}
+      />
     );
   };
 
@@ -503,108 +608,7 @@ export default function EndpointConfigForm({ type, value, onChange, protocol, cr
             {
               key: 'match',
               label: '路由匹配配置 (Match Config)',
-              children: (
-                <>
-                  <Form.Item
-                    label="路径匹配类型"
-                    name={['matchConfig', 'path', 'type']}
-                  >
-                    <Select options={MATCH_TYPES} placeholder="选择匹配类型" />
-                  </Form.Item>
-
-                  <Form.Item
-                    label="路径匹配值"
-                    name={['matchConfig', 'path', 'value']}
-                  >
-                    <Input placeholder="/v1/chat/completions" />
-                  </Form.Item>
-
-                  <Form.Item
-                    label="HTTP 方法"
-                    name={['matchConfig', 'methods']}
-                  >
-                    <Select
-                      mode="multiple"
-                      options={HTTP_METHODS}
-                      placeholder="选择方法（可多选）"
-                    />
-                  </Form.Item>
-
-                  <Form.List name={['matchConfig', 'headers']}>
-                    {(fields, { add, remove }) => (
-                      <div className="mt-4">
-                        <div className="mb-2 font-medium">Header 匹配</div>
-                        {fields.map(({ key, name, ...restField }) => (
-                          <Space key={key} style={{ display: 'flex', marginBottom: 8 }} align="baseline">
-                            <Form.Item
-                              {...restField}
-                              name={[name, 'name']}
-                              rules={[{ required: true, message: '请输入 Header 名称' }]}
-                            >
-                              <Input placeholder="Header 名称" />
-                            </Form.Item>
-                            <Form.Item
-                              {...restField}
-                              name={[name, 'type']}
-                              initialValue="Exact"
-                            >
-                              <Select options={MATCH_TYPES} style={{ width: 120 }} />
-                            </Form.Item>
-                            <Form.Item
-                              {...restField}
-                              name={[name, 'value']}
-                              rules={[{ required: true, message: '请输入匹配值' }]}
-                            >
-                              <Input placeholder="匹配值" />
-                            </Form.Item>
-                            <MinusCircleOutlined onClick={() => remove(name)} />
-                          </Space>
-                        ))}
-                        <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
-                          添加 Header 匹配规则
-                        </Button>
-                      </div>
-                    )}
-                  </Form.List>
-
-                  <Form.List name={['matchConfig', 'queryParams']}>
-                    {(fields, { add, remove }) => (
-                      <div className="mt-4">
-                        <div className="mb-2 font-medium">Query 参数匹配</div>
-                        {fields.map(({ key, name, ...restField }) => (
-                          <Space key={key} style={{ display: 'flex', marginBottom: 8 }} align="baseline">
-                            <Form.Item
-                              {...restField}
-                              name={[name, 'name']}
-                              rules={[{ required: true, message: '请输入参数名称' }]}
-                            >
-                              <Input placeholder="参数名称" />
-                            </Form.Item>
-                            <Form.Item
-                              {...restField}
-                              name={[name, 'type']}
-                              initialValue="Exact"
-                            >
-                              <Select options={MATCH_TYPES} style={{ width: 120 }} />
-                            </Form.Item>
-                            <Form.Item
-                              {...restField}
-                              name={[name, 'value']}
-                              rules={[{ required: true, message: '请输入匹配值' }]}
-                            >
-                              <Input placeholder="匹配值" />
-                            </Form.Item>
-                            <MinusCircleOutlined onClick={() => remove(name)} />
-                          </Space>
-                        ))}
-                        <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
-                          添加 Query 参数匹配规则
-                        </Button>
-                      </div>
-                    )}
-                  </Form.List>
-                </>
-              )
+              children: renderMatchConfigFields()
             }
           ]}
         />
@@ -623,6 +627,8 @@ export default function EndpointConfigForm({ type, value, onChange, protocol, cr
         return renderAgentConfig();
       case 'MODEL':
         return renderModelConfig();
+      case 'HTTP':
+        return renderHttpConfig();
       default:
         return (
           <Form.Item label="配置">

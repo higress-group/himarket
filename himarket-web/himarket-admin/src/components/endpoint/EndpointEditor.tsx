@@ -37,10 +37,12 @@ const DIFY_ENDPOINTS: Endpoint[] = [
   {
     name: 'chat-messages',
     description: '发送对话消息',
-    type: 'REST_ROUTE',
+    type: 'AGENT',
     config: {
-      path: '/chat-messages',
-      method: 'POST',
+      matchConfig: {
+        path: { type: 'Exact', value: '/chat-messages' },
+        methods: ['POST']
+      },
       headers: [
         {
           name: 'Authorization',
@@ -82,10 +84,12 @@ const DIFY_ENDPOINTS: Endpoint[] = [
   {
     name: 'run-workflow',
     description: '执行工作流',
-    type: 'REST_ROUTE',
+    type: 'AGENT',
     config: {
-      path: '/workflows/run',
-      method: 'POST',
+      matchConfig: {
+        path: { type: 'Exact', value: '/workflows/run' },
+        methods: ['POST']
+      },
       headers: [
         {
           name: 'Authorization',
@@ -161,14 +165,15 @@ const ENDPOINT_TYPE_COLOR_MAP: Record<EndpointType, string> = {
   MCP_TOOL: 'purple',
   REST_ROUTE: 'blue',
   AGENT: 'green',
-  MODEL: 'orange'
+  MODEL: 'orange',
+  HTTP: 'cyan'
 };
 
 // API 类型到 Endpoint 类型的映射
 const API_TYPE_TO_ENDPOINT_TYPE: Record<string, EndpointType> = {
   REST_API: 'REST_ROUTE',
   MCP_SERVER: 'MCP_TOOL',
-  AGENT_API: 'REST_ROUTE',
+  AGENT_API: 'AGENT',
   MODEL_API: 'MODEL'
 };
 

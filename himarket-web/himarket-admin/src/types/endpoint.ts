@@ -1,10 +1,40 @@
 // API Endpoint 类型定义
 
-export type EndpointType = 'MCP_TOOL' | 'REST_ROUTE' | 'AGENT' | 'MODEL';
+export type EndpointType = 'MCP_TOOL' | 'REST_ROUTE' | 'AGENT' | 'MODEL' | 'HTTP';
 
-export interface EndpointConfig {
+export type MatchType = 'Exact' | 'Prefix' | 'Regex';
+
+export interface HttpMatchConfig {
+  path?: {
+    type: MatchType;
+    value: string;
+  };
+  methods?: string[];
+  headers?: Array<{
+    name: string;
+    type: MatchType;
+    value: string;
+  }>;
+  queryParams?: Array<{
+    name: string;
+    type: MatchType;
+    value: string;
+  }>;
+}
+
+export interface HttpEndpointConfig {
+  matchConfig?: HttpMatchConfig;
+  description?: string;
   [key: string]: any;
 }
+
+export interface ModelEndpointConfig extends HttpEndpointConfig {
+}
+
+export interface AgentEndpointConfig extends HttpEndpointConfig {
+}
+
+export type EndpointConfig = HttpEndpointConfig | ModelEndpointConfig | AgentEndpointConfig | { [key: string]: any };
 
 export interface Endpoint {
   endpointId?: string;

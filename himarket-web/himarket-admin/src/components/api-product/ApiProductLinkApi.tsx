@@ -1039,8 +1039,61 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
       });
 
     return {
-      modelCategory: metadata?.modelCategory,
-      aiProtocols: metadata?.protocol ? [metadata.protocol] : [],
+      routes
+    };
+  }
+
+  const convertEndpointsToAgentAPIConfig = (endpoints: Endpoint[], metadata?: any, publishRecords?: any[]) => {
+    // Extract domains from publish records
+    const domains: Array<{ domain: string; protocol: string }> = [];
+    
+    if (publishRecords) {
+      publishRecords.forEach(record => {
+        if ((record.status === 'PUBLISHED' || record.status === 'ACTIVE') && record.publishConfig?.domains) {
+           const recordDomains = record.publishConfig.domains;
+           if (Array.isArray(recordDomains)) {
+             recordDomains.forEach((d: string) => {
+               let protocol = 'HTTPS';
+               let domain = d;
+               if (d.startsWith('http://')) {
+                 protocol = 'HTTP';
+                 domain = d.substring(7);
+               } else if (d.startsWith('https://')) {
+                 protocol = 'HTTPS';
+                 domain = d.substring(8);
+               }
+               
+               if (!domains.some(existing => existing.domain === domain && existing.protocol === protocol)) {
+                 domains.push({ domain, protocol });
+               }
+             });
+           }
+        }
+      });
+    }
+
+    const routes = endpoints
+      .filter(ep => ep.type === 'AGENT')
+      .map(ep => {
+        const config = ep.config || {};
+        const matchConfig = config.matchConfig || {};
+        
+        return {
+          domains: domains, 
+          description: ep.description || '',
+          match: {
+            methods: matchConfig.methods || [],
+            path: {
+              value: matchConfig.path?.value || '/',
+              type: matchConfig.path?.type || 'Exact'
+            },
+            headers: matchConfig.headers || [],
+            queryParams: matchConfig.queryParams || []
+          }
+        };
+      });
+
+    return {
       routes
     };
   }
@@ -1263,10 +1316,13 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
 
     // Agent API类型：显示协议支持和路由配置或 AgentCard
     if (isAgent && (apiProduct.agentConfig?.agentAPIConfig || (linkedService?.sourceType === 'MANAGED' && linkedService?.apiDefinitions?.[0]))) {
-      // Check if it is Managed Agent API with REST_ROUTE endpoints
-      if (linkedService?.sourceType === 'MANAGED' && linkedService.apiDefinitions?.[0]?.endpoints) {
+      let agentAPIConfig = apiProduct.agentConfig?.agentAPIConfig;
+
+      // Check if it is Managed Agent API
+      if (!agentAPIConfig && linkedService?.sourceType === 'MANAGED' && linkedService.apiDefinitions?.[0]?.endpoints) {
         const endpoints = linkedService.apiDefinitions[0].endpoints;
         const hasRestRoutes = endpoints.some((ep: Endpoint) => ep.type === 'REST_ROUTE');
+        const hasAgentRoutes = endpoints.some((ep: Endpoint) => ep.type === 'AGENT');
 
         if (hasRestRoutes) {
           const spec = convertEndpointsToOpenApiSpec(endpoints);
@@ -1282,10 +1338,13 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
               <SwaggerUIWrapper apiSpec={spec} />
             </Card>
           )
+        } else if (hasAgentRoutes) {
+           const metadata = (linkedService.apiDefinitions[0] as any).metadata;
+           agentAPIConfig = convertEndpointsToAgentAPIConfig(endpoints, metadata, publishRecords);
         }
       }
 
-      const agentAPIConfig = apiProduct.agentConfig?.agentAPIConfig || {} as any
+      agentAPIConfig = agentAPIConfig || {} as any
       const routes = agentAPIConfig.routes || []
       const protocols = agentAPIConfig.agentProtocols || []
       const isA2A = protocols.includes('a2a')
@@ -1671,7 +1730,6 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
 
     if (isModel && modelAPIConfig) {
       const routes = modelAPIConfig.routes || []
-      const protocols = modelAPIConfig.aiProtocols || []
 
       // 获取所有唯一域名的简化版本
       const getAllModelUniqueDomains = () => {
@@ -1770,45 +1828,9 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
         return null
       }
 
-      // 获取适用场景中文翻译
-      const getModelCategoryText = (category: string) => {
-        switch (category) {
-          case 'Text':
-            return '文本生成'
-          case 'Image':
-            return '图片生成'
-          case 'Video':
-            return '视频生成'
-          case 'Audio':
-            return '语音合成'
-          case 'Embedding':
-            return '向量化（Embedding）'
-          case 'Rerank':
-            return '文本排序（Rerank）'
-          case 'Others':
-            return '其他'
-          default:
-            return category || '未知'
-        }
-      }
-
       return (
         <Card title="配置详情">
           <div className="space-y-4">
-            {/* 适用场景信息 */}
-            {modelAPIConfig.modelCategory && (
-              <div className="text-sm">
-                <span className="text-gray-700">适用场景: </span>
-                <span className="font-medium">{getModelCategoryText(modelAPIConfig.modelCategory)}</span>
-              </div>
-            )}
-
-            {/* 协议信息 */}
-            <div className="text-sm">
-              <span className="text-gray-700">协议: </span>
-              <span className="font-medium">{protocols.join(', ')}</span>
-            </div>
-
             {/* 路由配置表格 */}
             {routes.length > 0 && (
               <div>
