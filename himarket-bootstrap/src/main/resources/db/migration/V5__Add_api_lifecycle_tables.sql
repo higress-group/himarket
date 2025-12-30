@@ -123,4 +123,25 @@ PREPARE alterIfNotExists FROM @preparedStatement;
 EXECUTE alterIfNotExists;
 DEALLOCATE PREPARE alterIfNotExists;
 
+-- ========================================
+-- Add sofa_higress_ref_config column to product_ref table
+-- ========================================
+SET @dbname = DATABASE();
+SET @tablename = 'product_ref';
+SET @columnname = 'sofa_higress_ref_config';
+SET @preparedStatement = (SELECT IF(
+  (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE
+      (TABLE_SCHEMA = @dbname)
+      AND (TABLE_NAME = @tablename)
+      AND (COLUMN_NAME = @columnname)
+  ) > 0,
+  'SELECT 1',
+  'ALTER TABLE `product_ref` ADD COLUMN `sofa_higress_ref_config` json DEFAULT NULL'
+));
+PREPARE alterIfNotExists FROM @preparedStatement;
+EXECUTE alterIfNotExists;
+DEALLOCATE PREPARE alterIfNotExists;
+
 COMMIT;
