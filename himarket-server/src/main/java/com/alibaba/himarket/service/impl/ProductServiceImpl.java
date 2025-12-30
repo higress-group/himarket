@@ -23,6 +23,7 @@ import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.BooleanUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.event.PortalDeletingEvent;
 import com.alibaba.himarket.core.event.ProductConfigReloadEvent;
@@ -35,10 +36,13 @@ import com.alibaba.himarket.core.utils.IdGenerator;
 import com.alibaba.himarket.dto.params.product.*;
 import com.alibaba.himarket.dto.result.agent.AgentConfigResult;
 import com.alibaba.himarket.dto.result.api.APIDefinitionVO;
+import com.alibaba.himarket.dto.result.api.APIEndpointVO;
+import com.alibaba.himarket.dto.result.common.DomainResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.consumer.CredentialContext;
 import com.alibaba.himarket.dto.result.gateway.GatewayResult;
 import com.alibaba.himarket.dto.result.httpapi.APIConfigResult;
+import com.alibaba.himarket.dto.result.httpapi.HttpRouteResult;
 import com.alibaba.himarket.dto.result.mcp.MCPConfigResult;
 import com.alibaba.himarket.dto.result.mcp.McpToolListResult;
 import com.alibaba.himarket.dto.result.model.ModelConfigResult;
@@ -50,7 +54,13 @@ import com.alibaba.himarket.dto.result.product.SubscriptionResult;
 import com.alibaba.himarket.entity.*;
 import com.alibaba.himarket.repository.*;
 import com.alibaba.himarket.service.*;
+import com.alibaba.himarket.support.api.HttpEndpointConfig;
+import com.alibaba.himarket.support.api.MCPToolConfig;
+import com.alibaba.himarket.support.api.ModelConfig;
+import com.alibaba.himarket.support.api.RESTRouteConfig;
+import com.alibaba.himarket.support.api.PublishConfig;
 import com.alibaba.himarket.support.chat.mcp.MCPTransportConfig;
+import com.alibaba.himarket.support.enums.EndpointType;
 import com.alibaba.himarket.support.enums.ProductStatus;
 import com.alibaba.himarket.support.enums.ProductType;
 import com.alibaba.himarket.support.enums.SourceType;
@@ -62,6 +72,8 @@ import jakarta.persistence.criteria.Subquery;
 import jakarta.transaction.Transactional;
 import java.io.IOException;
 import java.util.*;
+import java.util.Collections;
+import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -69,7 +81,9 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -83,6 +97,8 @@ public class ProductServiceImpl implements ProductService {
     private final ApplicationContext applicationContext;
 
     private final ContextHolder contextHolder;
+
+    private final ObjectMapper objectMapper;
 
     private final PortalService portalService;
 
@@ -105,6 +121,8 @@ public class ProductServiceImpl implements ProductService {
     private final ApplicationEventPublisher eventPublisher;
 
     private final ProductCategoryService productCategoryService;
+
+    private final APIPublishRecordRepository apiPublishRecordRepository;
 
     /** Cache to prevent duplicate sync within interval (5 minutes default) */
     private final Cache<String, Boolean> productSyncCache = CacheUtil.newCache(5);
@@ -741,7 +759,226 @@ public class ProductServiceImpl implements ProductService {
                                                 productRef.getModelConfig(),
                                                 ModelConfigResult.class));
                             }
+
+                            if (productRef.isManaged()
+                                    && StrUtil.isNotBlank(productRef.getApiDefinitionIds())) {
+                                fillManagedProductConfig(product, productRef);
+                            }
                         });
+    }
+
+    private void fillManagedProductConfig(ProductResult product, ProductRef productRef) {
+        List<String> apiDefinitionIds =
+                JSONUtil.toList(productRef.getApiDefinitionIds(), String.class);
+        if (CollUtil.isEmpty(apiDefinitionIds)) {
+            return;
+        }
+
+        List<DomainResult> allDomains = new ArrayList<>();
+        for (String apiDefinitionId : apiDefinitionIds) {
+            Page<APIPublishRecord> records =
+                    apiPublishRecordRepository.findByApiDefinitionIdOrderByCreateAtDesc(
+                            apiDefinitionId, PageRequest.of(0, 1));
+            if (records.hasContent()) {
+                APIPublishRecord record = records.getContent().get(0);
+                if (StrUtil.isNotBlank(record.getPublishConfig())) {
+                    try {
+                        PublishConfig publishConfig =
+                                objectMapper.readValue(
+                                        record.getPublishConfig(), PublishConfig.class);
+                        if (CollUtil.isNotEmpty(publishConfig.getDomains())) {
+                            List<DomainResult> domains =
+                                    publishConfig.getDomains().stream()
+                                            .map(
+                                                    d ->
+                                                            DomainResult.builder()
+                                                                    .domain(d)
+                                                                    .protocol("http")
+                                                                    .networkType("internet")
+                                                                    .build())
+                                            .collect(Collectors.toList());
+                            allDomains.addAll(domains);
+                        }
+                    } catch (Exception e) {
+                        log.warn(
+                                "Failed to parse publish config for api definition: {}",
+                                apiDefinitionId,
+                                e);
+                    }
+                }
+            }
+        }
+
+        List<APIEndpointVO> allEndpoints = new ArrayList<>();
+        for (String apiDefId : apiDefinitionIds) {
+            allEndpoints.addAll(apiDefinitionService.listEndpoints(apiDefId));
+        }
+
+        if (CollUtil.isEmpty(allEndpoints) && product.getType() != ProductType.MCP_SERVER) {
+            return;
+        }
+
+        Map<EndpointType, List<APIEndpointVO>> endpointsByType =
+                allEndpoints.stream().collect(Collectors.groupingBy(APIEndpointVO::getType));
+
+        // Fill API Config (REST_ROUTE)
+        if (product.getApiConfig() == null
+                && endpointsByType.containsKey(EndpointType.REST_ROUTE)) {
+            List<RESTRouteConfig> routes =
+                    endpointsByType.get(EndpointType.REST_ROUTE).stream()
+                            .map(e -> (RESTRouteConfig) e.getConfig())
+                            .collect(Collectors.toList());
+
+            APIConfigResult apiConfig = new APIConfigResult();
+            APIConfigResult.APIMetadata meta = new APIConfigResult.APIMetadata();
+            meta.setSource("MANAGED");
+            meta.setType("HTTP");
+            apiConfig.setMeta(meta);
+            apiConfig.setSpec(JSONUtil.toJsonStr(routes));
+            product.setApiConfig(apiConfig);
+        }
+
+        // Fill MCP Config (MCP_TOOL)
+        if (product.getMcpConfig() == null
+                && (endpointsByType.containsKey(EndpointType.MCP_TOOL)
+                        || product.getType() == ProductType.MCP_SERVER)) {
+            MCPConfigResult mcpConfig = new MCPConfigResult();
+
+            if (endpointsByType.containsKey(EndpointType.MCP_TOOL)) {
+                List<cn.hutool.json.JSONObject> tools =
+                        endpointsByType.get(EndpointType.MCP_TOOL).stream()
+                                .map(
+                                        e -> {
+                                            MCPToolConfig config = (MCPToolConfig) e.getConfig();
+                                            cn.hutool.json.JSONObject toolJson =
+                                                    JSONUtil.parseObj(config);
+                                            toolJson.set("name", e.getName());
+                                            if (StrUtil.isNotBlank(e.getDescription())) {
+                                                toolJson.set("description", e.getDescription());
+                                            }
+                                            toolJson.set(
+                                                    "args",
+                                                    convertInputSchemaToArgs(
+                                                            config.getInputSchema()));
+                                            toolJson.remove("inputSchema");
+                                            return toolJson;
+                                        })
+                                .collect(Collectors.toList());
+                Map<String, Object> toolsMap = Collections.singletonMap("tools", tools);
+                mcpConfig.setTools(JSONUtil.toJsonStr(toolsMap));
+            }
+
+            MCPConfigResult.MCPServerConfig serverConfig = new MCPConfigResult.MCPServerConfig();
+            mcpConfig.setMcpServerName(product.getName());
+            serverConfig.setPath("/mcp-servers/" + product.getName());
+
+            if (CollUtil.isNotEmpty(allDomains)) {
+                serverConfig.setDomains(allDomains);
+            }
+            mcpConfig.setMcpServerConfig(serverConfig);
+
+            MCPConfigResult.McpMetadata meta = new MCPConfigResult.McpMetadata();
+            meta.setSource("MANAGED");
+            mcpConfig.setMeta(meta);
+
+            product.setMcpConfig(mcpConfig);
+        }
+
+        // Fill Agent Config (AGENT)
+        if (product.getAgentConfig() == null && endpointsByType.containsKey(EndpointType.AGENT)) {
+            AgentConfigResult agentConfig = new AgentConfigResult();
+            AgentConfigResult.AgentMetadata meta = new AgentConfigResult.AgentMetadata();
+            agentConfig.setMeta(meta);
+
+            AgentConfigResult.AgentAPIConfig apiConfig = new AgentConfigResult.AgentAPIConfig();
+            agentConfig.setAgentAPIConfig(apiConfig);
+
+            product.setAgentConfig(agentConfig);
+        }
+
+        // Fill Model Config (MODEL)
+        if (product.getModelConfig() == null && endpointsByType.containsKey(EndpointType.MODEL)) {
+            List<HttpRouteResult> routes =
+                    endpointsByType.get(EndpointType.MODEL).stream()
+                            .map(
+                                    e -> {
+                                        ModelConfig config = (ModelConfig) e.getConfig();
+                                        HttpRouteResult route = new HttpRouteResult();
+                                        if (CollUtil.isNotEmpty(allDomains)) {
+                                            route.setDomains(allDomains);
+                                        }
+                                        if (config.getMatchConfig() != null) {
+                                            HttpEndpointConfig.MatchConfig match =
+                                                    config.getMatchConfig();
+                                            HttpRouteResult.RouteMatchResult.RouteMatchResultBuilder
+                                                    builder =
+                                                            HttpRouteResult.RouteMatchResult
+                                                                    .builder();
+
+                                            if (match.getPath() != null) {
+                                                builder.path(
+                                                        HttpRouteResult.RouteMatchPath.builder()
+                                                                .value(match.getPath().getValue())
+                                                                .type(match.getPath().getType())
+                                                                .build());
+                                            }
+
+                                            builder.methods(match.getMethods());
+
+                                            if (match.getHeaders() != null) {
+                                                builder.headers(
+                                                        match.getHeaders().stream()
+                                                                .map(
+                                                                        h ->
+                                                                                HttpRouteResult
+                                                                                        .RouteMatchHeader
+                                                                                        .builder()
+                                                                                        .name(
+                                                                                                h
+                                                                                                        .getName())
+                                                                                        .type(
+                                                                                                h
+                                                                                                        .getType())
+                                                                                        .value(
+                                                                                                h
+                                                                                                        .getValue())
+                                                                                        .build())
+                                                                .collect(Collectors.toList()));
+                                            }
+
+                                            if (match.getQueryParams() != null) {
+                                                builder.queryParams(
+                                                        match.getQueryParams().stream()
+                                                                .map(
+                                                                        q ->
+                                                                                HttpRouteResult
+                                                                                        .RouteMatchQuery
+                                                                                        .builder()
+                                                                                        .name(
+                                                                                                q
+                                                                                                        .getName())
+                                                                                        .type(
+                                                                                                q
+                                                                                                        .getType())
+                                                                                        .value(
+                                                                                                q
+                                                                                                        .getValue())
+                                                                                        .build())
+                                                                .collect(Collectors.toList()));
+                                            }
+
+                                            route.setMatch(builder.build());
+                                        }
+                                        return route;
+                                    })
+                            .collect(Collectors.toList());
+
+            ModelConfigResult modelConfig = new ModelConfigResult();
+            ModelConfigResult.ModelAPIConfig apiConfig =
+                    ModelConfigResult.ModelAPIConfig.builder().routes(routes).build();
+            modelConfig.setModelAPIConfig(apiConfig);
+            product.setModelConfig(modelConfig);
+        }
     }
 
     private Product findPublishedProduct(String portalId, String productId) {
@@ -893,5 +1130,33 @@ public class ProductServiceImpl implements ProductService {
         } catch (Exception e) {
             log.warn("Failed to auto-sync product ref: {}", productId, e);
         }
+    }
+
+    private List<Map<String, Object>> convertInputSchemaToArgs(Map<String, Object> inputSchema) {
+        if (inputSchema == null || !inputSchema.containsKey("properties")) {
+            return Collections.emptyList();
+        }
+
+        Map<String, Object> properties = (Map<String, Object>) inputSchema.get("properties");
+        List<String> required =
+                (List<String>) inputSchema.getOrDefault("required", Collections.emptyList());
+
+        List<Map<String, Object>> args = new ArrayList<>();
+        for (Map.Entry<String, Object> entry : properties.entrySet()) {
+            String name = entry.getKey();
+            Map<String, Object> prop = (Map<String, Object>) entry.getValue();
+
+            Map<String, Object> arg = new HashMap<>();
+            arg.put("name", name);
+            arg.put("description", prop.get("description"));
+            arg.put("type", prop.get("type"));
+            arg.put("required", required.contains(name));
+            arg.put("defaultValue", prop.get("default"));
+            arg.put("enumValues", prop.get("enum"));
+            arg.put("position", "query");
+
+            args.add(arg);
+        }
+        return args;
     }
 }

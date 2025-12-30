@@ -3,7 +3,6 @@ import { PlusOutlined, DeleteOutlined, ExclamationCircleOutlined, CopyOutlined, 
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { ApiProduct, LinkedService, RestAPIItem, NacosMCPItem, APIGAIMCPItem, AIGatewayAgentItem, AIGatewayModelItem, ApiItem } from '@/types/api-product'
-import type { Endpoint } from '@/types/endpoint'
 import type { Gateway, NacosInstance } from '@/types/gateway'
 import { apiProductApi, gatewayApi, nacosApi, apiDefinitionApi } from '@/lib/api'
 import { getGatewayTypeLabel } from '@/lib/constant'
@@ -61,52 +60,10 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
     fetchNacosInstances()
   }, [])
 
-  const convertEndpointToTool = (endpoint: Endpoint) => {
-    const config = endpoint.config || {};
-    let inputSchema = config.inputSchema || {};
-    
-    if (typeof inputSchema === 'string') {
-      try {
-        inputSchema = JSON.parse(inputSchema);
-      } catch (e) {
-        console.warn('Failed to parse input schema', e);
-        inputSchema = {};
-      }
-    }
-
-    const properties = inputSchema.properties || {};
-    const required = inputSchema.required || [];
-
-    const args = Object.keys(properties).map(key => {
-      const prop = properties[key];
-      return {
-        name: key,
-        description: prop.description || '',
-        type: prop.type || 'string',
-        required: required.includes(key),
-        position: 'body',
-        default: prop.default,
-        enum: prop.enum
-      };
-    });
-
-    return {
-      name: endpoint.name,
-      description: endpoint.description || '',
-      args: args
-    };
-  }
-
   // 解析MCP tools配置
   useEffect(() => {
     if (apiProduct.type === 'MCP_SERVER') {
-      if (linkedService?.sourceType === 'MANAGED' && linkedService.apiDefinitions?.[0]?.endpoints) {
-        // 处理 Managed API 的 endpoints
-        const tools = linkedService.apiDefinitions[0].endpoints
-          .filter((ep: Endpoint) => ep.type === 'MCP_TOOL')
-          .map((ep: Endpoint) => convertEndpointToTool(ep));
-        setParsedTools(tools);
-      } else if (apiProduct.mcpConfig?.tools) {
+      if (apiProduct.mcpConfig?.tools) {
         const parsedConfig = parseYamlConfig(apiProduct.mcpConfig.tools)
         if (parsedConfig && parsedConfig.tools && Array.isArray(parsedConfig.tools)) {
           setParsedTools(parsedConfig.tools)
@@ -868,221 +825,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
     )
   }
 
-  const convertEndpointsToOpenApiSpec = (endpoints: Endpoint[]) => {
-    const paths: any = {};
 
-    endpoints.forEach(endpoint => {
-      if (endpoint.type !== 'REST_ROUTE') return;
-
-      const config = endpoint.config || {};
-      const path = config.path;
-      const method = (config.method || 'get').toLowerCase();
-
-      if (!path) return;
-
-      if (!paths[path]) {
-        paths[path] = {};
-      }
-
-      const parameters: any[] = [];
-
-      // Path parameters
-      if (config.pathParams) {
-        config.pathParams.forEach((p: any) => {
-          parameters.push({
-            name: p.name,
-            in: 'path',
-            required: p.required !== false, // Default to true for path params usually
-            description: p.description,
-            schema: { type: 'string' } // Simplified
-          });
-        });
-      }
-
-      // Query parameters
-      if (config.parameters) {
-        config.parameters.forEach((p: any) => {
-          parameters.push({
-            name: p.name,
-            in: 'query',
-            required: p.required === true,
-            description: p.description,
-            schema: { type: 'string' } // Simplified
-          });
-        });
-      }
-
-      // Headers
-      if (config.headers) {
-        config.headers.forEach((h: any) => {
-          parameters.push({
-            name: h.name,
-            in: 'header',
-            required: h.required === true,
-            description: h.description,
-            schema: { type: 'string' }
-          });
-        });
-      }
-
-      const operation: any = {
-        summary: endpoint.name,
-        description: endpoint.description,
-        parameters: parameters,
-        responses: {
-          '200': {
-            description: 'Successful response'
-          }
-        }
-      };
-
-      // Request Body
-      if (config.requestBody) {
-        try {
-          const schema = typeof config.requestBody === 'string' 
-            ? JSON.parse(config.requestBody) 
-            : config.requestBody;
-          operation.requestBody = {
-            content: {
-              'application/json': {
-                schema: schema
-              }
-            }
-          };
-        } catch (e) {
-          console.warn('Failed to parse request body schema', e);
-        }
-      }
-
-      paths[path][method] = operation;
-    });
-
-    const spec = {
-      openapi: '3.0.0',
-      info: {
-        title: apiProduct.name,
-        version: '1.0.0'
-      },
-      paths: paths
-    };
-
-    return JSON.stringify(spec, null, 2);
-  }
-
-  const convertEndpointsToModelAPIConfig = (endpoints: Endpoint[], metadata?: any, publishRecords?: any[]) => {
-    // Extract domains from publish records
-    const domains: Array<{ domain: string; protocol: string }> = [];
-    
-    if (publishRecords) {
-      publishRecords.forEach(record => {
-        // Check for ACTIVE or PUBLISHED status
-        if ((record.status === 'PUBLISHED' || record.status === 'ACTIVE') && record.publishConfig?.domains) {
-           // publishConfig.domains is string[]
-           const recordDomains = record.publishConfig.domains;
-           if (Array.isArray(recordDomains)) {
-             recordDomains.forEach((d: string) => {
-               // Simple heuristic for protocol, or default to HTTPS
-               // If domain starts with http:// or https://, strip it and set protocol
-               let protocol = 'HTTPS';
-               let domain = d;
-               if (d.startsWith('http://')) {
-                 protocol = 'HTTP';
-                 domain = d.substring(7);
-               } else if (d.startsWith('https://')) {
-                 protocol = 'HTTPS';
-                 domain = d.substring(8);
-               }
-               
-               // Avoid duplicates
-               if (!domains.some(existing => existing.domain === domain && existing.protocol === protocol)) {
-                 domains.push({ domain, protocol });
-               }
-             });
-           }
-        }
-      });
-    }
-
-    const routes = endpoints
-      .filter(ep => ep.type === 'MODEL')
-      .map(ep => {
-        const config = ep.config || {};
-        const matchConfig = config.matchConfig || {};
-        
-        return {
-          domains: domains, 
-          description: ep.description || '',
-          match: {
-            methods: matchConfig.methods || [],
-            path: {
-              value: matchConfig.path?.value || '/',
-              type: matchConfig.path?.type || 'Exact'
-            },
-            headers: [],
-            queryParams: []
-          }
-        };
-      });
-
-    return {
-      routes
-    };
-  }
-
-  const convertEndpointsToAgentAPIConfig = (endpoints: Endpoint[], metadata?: any, publishRecords?: any[]) => {
-    // Extract domains from publish records
-    const domains: Array<{ domain: string; protocol: string }> = [];
-    
-    if (publishRecords) {
-      publishRecords.forEach(record => {
-        if ((record.status === 'PUBLISHED' || record.status === 'ACTIVE') && record.publishConfig?.domains) {
-           const recordDomains = record.publishConfig.domains;
-           if (Array.isArray(recordDomains)) {
-             recordDomains.forEach((d: string) => {
-               let protocol = 'HTTPS';
-               let domain = d;
-               if (d.startsWith('http://')) {
-                 protocol = 'HTTP';
-                 domain = d.substring(7);
-               } else if (d.startsWith('https://')) {
-                 protocol = 'HTTPS';
-                 domain = d.substring(8);
-               }
-               
-               if (!domains.some(existing => existing.domain === domain && existing.protocol === protocol)) {
-                 domains.push({ domain, protocol });
-               }
-             });
-           }
-        }
-      });
-    }
-
-    const routes = endpoints
-      .filter(ep => ep.type === 'AGENT')
-      .map(ep => {
-        const config = ep.config || {};
-        const matchConfig = config.matchConfig || {};
-        
-        return {
-          domains: domains, 
-          description: ep.description || '',
-          match: {
-            methods: matchConfig.methods || [],
-            path: {
-              value: matchConfig.path?.value || '/',
-              type: matchConfig.path?.type || 'Exact'
-            },
-            headers: matchConfig.headers || [],
-            queryParams: matchConfig.queryParams || []
-          }
-        };
-      });
-
-    return {
-      routes
-    };
-  }
 
   const renderApiConfig = () => {
     const isMcp = apiProduct.type === 'MCP_SERVER'
@@ -1301,36 +1044,9 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
     }
 
     // Agent API类型：显示协议支持和路由配置或 AgentCard
-    if (isAgent && (apiProduct.agentConfig?.agentAPIConfig || (linkedService?.sourceType === 'MANAGED' && linkedService?.apiDefinitions?.[0]))) {
-      let agentAPIConfig = apiProduct.agentConfig?.agentAPIConfig;
+    if (isAgent && apiProduct.agentConfig?.agentAPIConfig) {
+      let agentAPIConfig = apiProduct.agentConfig.agentAPIConfig;
 
-      // Check if it is Managed Agent API
-      if (!agentAPIConfig && linkedService?.sourceType === 'MANAGED' && linkedService.apiDefinitions?.[0]?.endpoints) {
-        const endpoints = linkedService.apiDefinitions[0].endpoints;
-        const hasRestRoutes = endpoints.some((ep: Endpoint) => ep.type === 'REST_ROUTE');
-        const hasAgentRoutes = endpoints.some((ep: Endpoint) => ep.type === 'AGENT');
-
-        if (hasRestRoutes) {
-          const spec = convertEndpointsToOpenApiSpec(endpoints);
-          const protocol = (linkedService.apiDefinitions[0] as any).metadata?.protocol;
-          return (
-            <Card title="配置详情">
-              {protocol && (
-                <div className="mb-4">
-                  <div className="text-sm text-gray-600">支持协议</div>
-                  <div className="font-medium">{protocol}</div>
-                </div>
-              )}
-              <SwaggerUIWrapper apiSpec={spec} />
-            </Card>
-          )
-        } else if (hasAgentRoutes) {
-           const metadata = (linkedService.apiDefinitions[0] as any).metadata;
-           agentAPIConfig = convertEndpointsToAgentAPIConfig(endpoints, metadata, publishRecords);
-        }
-      }
-
-      agentAPIConfig = agentAPIConfig || {} as any
       const routes = agentAPIConfig.routes || []
       const protocols = agentAPIConfig.agentProtocols || []
       const isA2A = protocols.includes('a2a')
@@ -1717,12 +1433,6 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
 
     // Model API类型：显示协议支持和路由配置
     let modelAPIConfig = apiProduct.modelConfig?.modelAPIConfig;
-
-    if (isModel && !modelAPIConfig && linkedService?.sourceType === 'MANAGED' && linkedService.apiDefinitions?.[0]?.endpoints) {
-      const endpoints = linkedService.apiDefinitions[0].endpoints;
-      const metadata = (linkedService.apiDefinitions[0] as any).metadata;
-      modelAPIConfig = convertEndpointsToModelAPIConfig(endpoints, metadata, publishRecords);
-    }
 
     if (isModel && modelAPIConfig) {
       const routes = modelAPIConfig.routes || []
