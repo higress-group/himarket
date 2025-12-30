@@ -862,8 +862,13 @@ public class AdpAIGatewayOperator extends GatewayOperator {
     }
 
     @Override
-    public List<String> getGatewayDomains(Gateway gateway) {
-        return List.of();
+    public List<DomainResult> getGatewayDomains(Gateway gateway) {
+        AdpAIGatewayConfig config = gateway.getAdpAIGatewayConfig();
+        if (config == null) {
+            return Collections.emptyList();
+        }
+        List<DomainResult> domains = getGatewayAccessDomains(gateway.getGatewayId(), config);
+        return domains != null ? domains : Collections.emptyList();
     }
 
     @Override

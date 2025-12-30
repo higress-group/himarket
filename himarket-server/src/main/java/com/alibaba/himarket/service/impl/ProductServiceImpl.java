@@ -58,6 +58,7 @@ import com.alibaba.himarket.support.api.HttpEndpointConfig;
 import com.alibaba.himarket.support.api.MCPToolConfig;
 import com.alibaba.himarket.support.api.ModelConfig;
 import com.alibaba.himarket.support.api.RESTRouteConfig;
+import com.alibaba.himarket.support.api.DomainConfig;
 import com.alibaba.himarket.support.api.PublishConfig;
 import com.alibaba.himarket.support.chat.mcp.MCPTransportConfig;
 import com.alibaba.himarket.support.enums.EndpointType;
@@ -792,9 +793,10 @@ public class ProductServiceImpl implements ProductService {
                                             .map(
                                                     d ->
                                                             DomainResult.builder()
-                                                                    .domain(d)
-                                                                    .protocol("http")
-                                                                    .networkType("internet")
+                                                                    .domain(d.getDomain())
+                                                                    .port(d.getPort())
+                                                                    .protocol(d.getProtocol())
+                                                                    .networkType(d.getNetworkType())
                                                                     .build())
                                             .collect(Collectors.toList());
                             allDomains.addAll(domains);

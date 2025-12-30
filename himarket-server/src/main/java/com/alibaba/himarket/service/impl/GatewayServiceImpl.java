@@ -28,6 +28,7 @@ import com.alibaba.himarket.core.security.ContextHolder;
 import com.alibaba.himarket.core.utils.IdGenerator;
 import com.alibaba.himarket.dto.params.gateway.*;
 import com.alibaba.himarket.dto.result.agent.AgentAPIResult;
+import com.alibaba.himarket.dto.result.common.DomainResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.gateway.GatewayResult;
 import com.alibaba.himarket.dto.result.httpapi.APIResult;
@@ -365,7 +366,7 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
     }
 
     @Override
-    public List<String> getGatewayDomains(String gatewayId) {
+    public List<DomainResult> getGatewayDomains(String gatewayId) {
         Gateway gateway = findGateway(gatewayId);
         return getOperator(gateway).getGatewayDomains(gateway);
     }

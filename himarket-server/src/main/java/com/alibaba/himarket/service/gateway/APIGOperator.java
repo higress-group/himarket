@@ -537,7 +537,7 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
     }
 
     @Override
-    public List<String> getGatewayDomains(Gateway gateway) {
+    public List<DomainResult> getGatewayDomains(Gateway gateway) {
         String queryGatewayType = null;
         if (gateway.getGatewayType().equals(GatewayType.APIG_API)) {
             queryGatewayType = "APIG";
@@ -566,7 +566,12 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
                         ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
             }
             return response.getBody().getData().getItems().stream()
-                    .map(DomainInfo::getName)
+                    .map(
+                            item ->
+                                    DomainResult.builder()
+                                            .domain(item.getName())
+                                            .protocol(item.getProtocol().toLowerCase())
+                                            .build())
                     .collect(Collectors.toList());
         } catch (Exception e) {
             log.error("Error fetching Gateway Domains", e);

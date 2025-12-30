@@ -22,6 +22,7 @@ package com.alibaba.himarket.controller;
 import com.alibaba.himarket.core.annotation.AdminAuth;
 import com.alibaba.himarket.dto.params.gateway.*;
 import com.alibaba.himarket.dto.result.agent.AgentAPIResult;
+import com.alibaba.himarket.dto.result.common.DomainResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.gateway.GatewayResult;
 import com.alibaba.himarket.dto.result.httpapi.APIResult;
@@ -99,7 +100,7 @@ public class GatewayController {
 
     @Operation(summary = "获取Gateway可选域名列表")
     @GetMapping("/{gatewayId}/domains")
-    public List<String> getGatewayDomains(@PathVariable String gatewayId) {
+    public List<DomainResult> getGatewayDomains(@PathVariable String gatewayId) {
         return gatewayService.getGatewayDomains(gatewayId);
     }
 

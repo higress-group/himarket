@@ -64,3 +64,10 @@ export interface NacosInstance {
 }
 
 export type GatewayType = 'APIG_API' | 'APIG_AI' | 'HIGRESS' | 'ADP_AI_GATEWAY' | 'APSARA_GATEWAY' | 'SOFA_HIGRESS'
+
+export interface DomainResult {
+  domain: string
+  port?: number
+  protocol?: string
+  networkType?: string
+}

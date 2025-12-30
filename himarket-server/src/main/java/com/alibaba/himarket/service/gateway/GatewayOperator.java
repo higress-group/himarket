@@ -22,6 +22,7 @@ package com.alibaba.himarket.service.gateway;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.dto.result.agent.AgentAPIResult;
+import com.alibaba.himarket.dto.result.common.DomainResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.gateway.GatewayResult;
 import com.alibaba.himarket.dto.result.httpapi.APIResult;
@@ -95,7 +96,7 @@ public abstract class GatewayOperator<T> {
 
     public abstract List<URI> fetchGatewayUris(Gateway gateway);
 
-    public abstract List<String> getGatewayDomains(Gateway gateway);
+    public abstract List<DomainResult> getGatewayDomains(Gateway gateway);
 
     @SuppressWarnings("unchecked")
     protected T getClient(Gateway gateway) {

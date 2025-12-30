@@ -19,20 +19,21 @@
 
 package com.alibaba.himarket.support.api;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import java.io.Serializable;
-import java.util.List;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
-/** 发布配置 */
 @Data
-public class PublishConfig implements Serializable {
-
-    /** 服务配置 */
-    private ServiceConfig serviceConfig;
-
-    /** 域名列表 */
-    private List<DomainConfig> domains;
-
-    /** 基础路径 */
-    private String basePath;
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@JsonDeserialize(using = DomainConfigDeserializer.class)
+public class DomainConfig implements Serializable {
+    private String domain;
+    private Integer port;
+    private String protocol;
+    private String networkType;
 }

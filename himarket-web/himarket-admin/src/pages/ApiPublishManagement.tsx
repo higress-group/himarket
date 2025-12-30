@@ -32,7 +32,7 @@ import {
   EyeOutlined
 } from '@ant-design/icons';
 import { apiDefinitionApi, gatewayApi, nacosApi } from '@/lib/api';
-import type { Gateway } from '@/types/gateway';
+import type { Gateway, DomainResult } from '@/types/gateway';
 import dayjs from 'dayjs';
 import { MonacoDiffEditor } from 'react-monaco-editor';
 
@@ -49,7 +49,7 @@ export default function ApiPublishManagement() {
   const [publishRecords, setPublishRecords] = useState<any[]>([]);
   const [publishHistory, setPublishHistory] = useState<any[]>([]);
   const [gateways, setGateways] = useState<Gateway[]>([]);
-  const [ingressDomains, setIngressDomains] = useState<string[]>([]);
+  const [ingressDomains, setIngressDomains] = useState<DomainResult[]>([]);
   const [serviceTypes, setServiceTypes] = useState<string[]>(['NACOS', 'FIXED_ADDRESS', 'DNS']);
   const [nacosInstances, setNacosInstances] = useState<any[]>([]);
   const [namespaces, setNamespaces] = useState<any[]>([]);
@@ -273,13 +273,24 @@ export default function ApiPublishManagement() {
         Object.keys(serviceConfig).forEach(key => serviceConfig[key] === undefined && delete serviceConfig[key]);
       }
 
+      const selectedDomains = Array.isArray(values.ingressDomain) ? values.ingressDomain : (values.ingressDomain ? [values.ingressDomain] : []);
+      const domainObjects = selectedDomains.map((domainStr: string) => {
+          const found = ingressDomains.find(d => d.domain === domainStr);
+          return found ? {
+              domain: found.domain,
+              port: found.port,
+              protocol: found.protocol,
+              networkType: found.networkType
+          } : { domain: domainStr };
+      });
+
       const publishData = {
         apiDefinitionId,
         gatewayId: values.gatewayId,
         comment: values.comment,
         publishConfig: {
           serviceConfig,
-          domains: Array.isArray(values.ingressDomain) ? values.ingressDomain : (values.ingressDomain ? [values.ingressDomain] : []),
+          domains: domainObjects,
           basePath: '/'
         }
       };
@@ -520,7 +531,10 @@ export default function ApiPublishManagement() {
                   {record.version}
                 </Descriptions.Item>
                 <Descriptions.Item label="发布域名">
-                  {record.publishConfig?.domains?.map((d: string) => <Tag key={d}>{d}</Tag>) || '-'}
+                  {record.publishConfig?.domains?.map((d: any) => {
+                    const domainStr = typeof d === 'string' ? d : d.domain;
+                    return <Tag key={domainStr}>{domainStr}</Tag>;
+                  }) || '-'}
                 </Descriptions.Item>
                 <Descriptions.Item label="后端服务">
                   {renderServiceConfig(record.publishConfig?.serviceConfig)}
@@ -604,9 +618,9 @@ export default function ApiPublishManagement() {
             rules={[{ required: true, message: '请选择域名' }]}
           >
             <Select placeholder="请选择域名" mode="multiple">
-              {ingressDomains.map(domain => (
-                <Select.Option key={domain} value={domain}>
-                  {domain}
+              {ingressDomains.map(item => (
+                <Select.Option key={item.domain} value={item.domain}>
+                  {item.protocol ? `${item.protocol}://${item.domain}` : item.domain}
                 </Select.Option>
               ))}
             </Select>
