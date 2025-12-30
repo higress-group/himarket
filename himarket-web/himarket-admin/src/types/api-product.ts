@@ -224,7 +224,20 @@ export interface ApiProduct {
   agentConfig?: ApiProductAgentConfig;
   modelConfig?: ApiProductModelConfig;
   document?: string;
-  icon?: ProductIcon | null;
+  icon?: ProductIcon;
   categories?: ProductCategory[];
   feature?: ProductFeature;
+}
+
+// Publication 类型定义（Product 和 Portal 的发布关系）
+export interface Publication {
+  publicationId: string;           // 发布ID
+  portalId: string;                // 门户ID
+  portalName: string;              // 门户名称
+  productId: string;               // 产品ID
+  productName: string;             // 产品名称
+  productType: string;             // 产品类型
+  description: string;             // 产品描述
+  autoApproveSubscriptions: boolean;  // 是否自动审批订阅
+  createAt: string;                // 创建时间
 }

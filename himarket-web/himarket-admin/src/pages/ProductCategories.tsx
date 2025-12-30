@@ -1,40 +1,42 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Button, 
-  Card, 
-  message, 
-  Input, 
+import {
+  Button,
+  Card,
+  message,
+  Input,
   Empty,
   Skeleton,
   Pagination,
   Dropdown,
   Modal
 } from 'antd';
-import { 
-  PlusOutlined, 
-  EditOutlined, 
-  DeleteOutlined, 
+import {
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
   FolderOutlined,
   MoreOutlined,
   SearchOutlined,
   ExclamationCircleOutlined
 } from '@ant-design/icons';
-import { 
-  getProductCategoriesByPage, 
-  deleteProductCategory 
+import {
+  getProductCategoriesByPage,
+  deleteProductCategory
 } from '@/lib/productCategoryApi';
-import type { 
-  ProductCategory, 
-  ProductCategoryPage, 
-  QueryProductCategoryParam 
+import type {
+  ProductCategory,
+  ProductCategoryPage,
+  QueryProductCategoryParam
 } from '@/types/product-category';
 import CategoryFormModal from '@/components/product-category/CategoryFormModal';
+import { ProductIconRenderer } from '@/components/icons/ProductIconRenderer';
+import { getIconString } from '@/lib/iconUtils';
 
 
 export default function ProductCategories() {
   const navigate = useNavigate();
-  
+
   const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
@@ -51,7 +53,7 @@ export default function ProductCategories() {
 
   // 获取产品类别列表
   const fetchCategories = useCallback(async (
-    page: number = 0, 
+    page: number = 0,
     pageSize: number = 12,
     searchParams?: QueryProductCategoryParam
   ) => {
@@ -157,7 +159,7 @@ export default function ProductCategories() {
 
     if (category.icon.type === 'URL') {
       return (
-        <img 
+        <img
           src={category.icon.value}
           alt={category.name}
           className="w-6 h-6 rounded object-cover"
@@ -175,8 +177,8 @@ export default function ProductCategories() {
       } else {
         // 是base64图片
         return (
-          <img 
-            src={category.icon.value} 
+          <img
+            src={category.icon.value}
             alt={category.name}
             className="w-6 h-6 rounded object-cover"
           />
@@ -218,18 +220,24 @@ export default function ProductCategories() {
     ];
 
     return (
-      <Card
-        className="hover:shadow-lg transition-shadow cursor-pointer rounded-xl border border-gray-200 shadow-sm hover:border-blue-300"
+      <div
+        className="
+        bg-white/60 backdrop-blur-sm rounded-2xl p-5
+          border  cursor-pointer
+          transition-all duration-300 ease-in-out
+          hover:bg-white hover:shadow-md hover:scale-[1.02] hover:border-colorPrimary/50
+          border-colorPrimary/30 active:scale-[0.98]
+          relative overflow-hidden group h-[150px]
+        "
         onClick={() => handleNavigateToCategory(category.categoryId)}
-        bodyStyle={{ padding: '16px' }}
       >
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-3">
             {/* 类别图标 */}
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100">
-              {renderCategoryIcon(category)}
+            <div className="flex h-12 w-12 p-2 items-center justify-center rounded-xl bg-gradient-to-br from-colorPrimary/10 to-colorPrimary/5">
+              <ProductIconRenderer className="w-full h-full object-cover" iconType={getIconString(category.icon)} />
             </div>
-            
+
             {/* 类别信息 */}
             <div>
               <h3 className="text-lg font-semibold">{category.name}</h3>
@@ -249,10 +257,10 @@ export default function ProductCategories() {
         {/* 描述区域 */}
         <div className="space-y-4">
           {category.description && (
-            <p className="text-sm text-gray-600">{category.description}</p>
+            <p title={category.description} className="max-h-14 text-sm line-clamp-2 leading-relaxed flex-1 text-[#a3a3a3]">{category.description}</p>
           )}
         </div>
-      </Card>
+      </div>
     );
   };
 
@@ -266,8 +274,8 @@ export default function ProductCategories() {
             管理产品分类，帮助用户更好地发现和组织API产品
           </p>
         </div>
-        <Button 
-          type="primary" 
+        <Button
+          type="primary"
           icon={<PlusOutlined />}
           onClick={handleOpenCreateModal}
         >
@@ -281,7 +289,7 @@ export default function ProductCategories() {
           <Input
             placeholder="搜索类别名称"
             allowClear
-            style={{ 
+            style={{
               flex: 1,
             }}
             size="large"
@@ -296,10 +304,10 @@ export default function ProductCategories() {
             }}
             onPressEnter={() => handleSearch(searchValue)}
           />
-          
+
           {/* 分隔线 */}
           <div className="w-px bg-gray-300 self-stretch"></div>
-          
+
           <Button
             icon={<SearchOutlined />}
             onClick={() => handleSearch(searchValue)}
@@ -335,7 +343,7 @@ export default function ProductCategories() {
               <CategoryCard key={category.categoryId} category={category} />
             ))}
           </div>
-          
+
           {/* 分页 */}
           {pagination.total > 0 && (
             <div className="flex justify-center mt-6">

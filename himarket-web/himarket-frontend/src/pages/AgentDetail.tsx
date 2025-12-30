@@ -16,7 +16,7 @@ import { ProductType } from "../types";
 import type { IAgentConfig } from "../lib/apis/typing";
 import APIs, { type IProductDetail } from "../lib/apis";
 import MarkdownRender from "../components/MarkdownRender";
-import { copyToClipboard } from "../lib/utils";
+import { copyToClipboard, formatDomainWithPort } from "../lib/utils";
 
 const { Panel } = Collapse;
 
@@ -92,12 +92,13 @@ function AgentDetail() {
   const getAllUniqueDomains = () => {
     if (!agentConfig?.agentAPIConfig?.routes) return []
 
-    const domainsMap = new Map<string, { domain: string; protocol: string }>()
+    const domainsMap = new Map<string, { domain: string; port?: number; protocol: string }>()
 
     agentConfig.agentAPIConfig.routes.forEach(route => {
       if (route.domains && route.domains.length > 0) {
         route.domains.forEach((domain) => {
-          const key = `${domain.protocol}://${domain.domain}`
+          const formattedDomain = formatDomainWithPort(domain.domain, domain.port, domain.protocol);
+          const key = `${domain.protocol}://${formattedDomain}`
           domainsMap.set(key, domain)
         })
       }
@@ -109,10 +110,13 @@ function AgentDetail() {
   const allUniqueDomains = getAllUniqueDomains()
 
   // 生成域名选择器选项
-  const agentDomainOptions = allUniqueDomains.map((domain, index) => ({
-    value: index,
-    label: `${domain.protocol.toLowerCase()}://${domain.domain}`
-  }))
+  const agentDomainOptions = allUniqueDomains.map((domain, index) => {
+    const formattedDomain = formatDomainWithPort(domain.domain, domain.port, domain.protocol);
+    return {
+      value: index,
+      label: `${domain.protocol.toLowerCase()}://${formattedDomain}`
+    };
+  })
 
   // Helper functions for route display - moved to component level
   const getMatchTypePrefix = (matchType: string) => {
@@ -134,11 +138,13 @@ function AgentDetail() {
     let domainInfo = ''
     if (allUniqueDomains.length > 0 && allUniqueDomains.length > domainIndex) {
       const selectedDomain = allUniqueDomains[domainIndex]
-      domainInfo = `${selectedDomain.protocol.toLowerCase()}://${selectedDomain.domain}`
+      const formattedDomain = formatDomainWithPort(selectedDomain.domain, selectedDomain.port, selectedDomain.protocol);
+      domainInfo = `${selectedDomain.protocol.toLowerCase()}://${formattedDomain}`
     } else if (route.domains && route.domains.length > 0) {
       // 回退到路由的第一个域名
       const domain = route.domains[0]
-      domainInfo = `${domain.protocol.toLowerCase()}://${domain.domain}`
+      const formattedDomain = formatDomainWithPort(domain.domain, domain.port, domain.protocol);
+      domainInfo = `${domain.protocol.toLowerCase()}://${formattedDomain}`
     }
 
     // 构建基本路由信息（匹配符号直接加到path后面）
@@ -408,14 +414,16 @@ function AgentDetail() {
                                           if (allUniqueDomains.length > 0 && allUniqueDomains.length > selectedAgentDomainIndex) {
                                             const selectedDomain = allUniqueDomains[selectedAgentDomainIndex]
                                             const path = route.match?.path?.value || '/'
-                                            const fullUrl = `${selectedDomain.protocol.toLowerCase()}://${selectedDomain.domain}${path}`
+                                            const formattedDomain = formatDomainWithPort(selectedDomain.domain, selectedDomain.port, selectedDomain.protocol);
+                                            const fullUrl = `${selectedDomain.protocol.toLowerCase()}://${formattedDomain}${path}`
                                             copyToClipboard(fullUrl).then(() => {
                                               message.success(`链接已复制到剪贴板`);
                                             })
                                           } else if (route.domains && route.domains.length > 0) {
                                             const domain = route.domains[0]
                                             const path = route.match?.path?.value || '/'
-                                            const fullUrl = `${domain.protocol.toLowerCase()}://${domain.domain}${path}`
+                                            const formattedDomain = formatDomainWithPort(domain.domain, domain.port, domain.protocol);
+                                            const fullUrl = `${domain.protocol.toLowerCase()}://${formattedDomain}${path}`
                                             copyToClipboard(fullUrl).then(() => {
                                               message.success(`链接已复制到剪贴板`);
                                             })
@@ -433,11 +441,14 @@ function AgentDetail() {
                                     <div>
                                       <div className="text-xs text-gray-500 mb-2">域名:</div>
                                       <div className="space-y-1">
-                                        {route.domains?.map((domain, domainIndex: number) => (
-                                          <div key={domainIndex} className="text-sm font-mono text-gray-700 bg-gray-50 px-3 py-2 rounded-lg">
-                                            {domain.protocol.toLowerCase()}://{domain.domain}
-                                          </div>
-                                        ))}
+                                        {route.domains?.map((domain, domainIndex: number) => {
+                                          const formattedDomain = formatDomainWithPort(domain.domain, domain.port, domain.protocol);
+                                          return (
+                                            <div key={domainIndex} className="text-sm font-mono text-gray-700 bg-gray-50 px-3 py-2 rounded-lg">
+                                              {domain.protocol.toLowerCase()}://{formattedDomain}
+                                            </div>
+                                          );
+                                        })}
                                       </div>
                                     </div>
 

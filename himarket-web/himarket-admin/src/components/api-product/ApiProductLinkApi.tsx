@@ -7,7 +7,7 @@ import type { Endpoint } from '@/types/endpoint'
 import type { Gateway, NacosInstance } from '@/types/gateway'
 import { apiProductApi, gatewayApi, nacosApi, apiDefinitionApi } from '@/lib/api'
 import { getGatewayTypeLabel } from '@/lib/constant'
-import { copyToClipboard } from '@/lib/utils'
+import { copyToClipboard, formatDomainWithPort } from '@/lib/utils'
 import * as yaml from 'js-yaml'
 import { SwaggerUIWrapper } from './SwaggerUIWrapper'
 
@@ -176,11 +176,12 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
   }, [apiProduct, linkedService, selectedDomainIndex])
 
   // 生成域名选项的函数
-  const getDomainOptions = (domains: Array<{ domain: string; protocol: string; networkType?: string }>) => {
+  const getDomainOptions = (domains: Array<{ domain: string; port?: number; protocol: string; networkType?: string }>) => {
     return domains.map((domain, index) => {
+      const formattedDomain = formatDomainWithPort(domain.domain, domain.port, domain.protocol);
       return {
         value: index,
-        label: `${domain.protocol}://${domain.domain}`,
+        label: `${domain.protocol}://${formattedDomain}`,
         domain: domain
       }
     })
@@ -227,7 +228,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
 
   // 生成连接配置
   const generateConnectionConfig = (
-    domains: Array<{ domain: string; protocol: string }> | null | undefined,
+    domains: Array<{ domain: string; port?: number; protocol: string }> | null | undefined,
     path: string | null | undefined,
     serverName: string,
     localConfig?: unknown,
@@ -246,22 +247,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
     // HTTP/SSE 模式
     if (domains && domains.length > 0 && path && domainIndex < domains.length) {
       const domain = domains[domainIndex]
-      // 处理域名和端口，隐藏默认端口（80/443）
-      const formatDomainWithPort = (domainStr: string, protocol: string) => {
-        const [host, port] = domainStr.split(':');
-        // 如果没有端口，直接返回域名
-        if (!port) return domainStr;
-
-        // 隐藏 HTTP 默认端口 80
-        if (protocol === 'http' && port === '80') return host;
-        // 隐藏 HTTPS 默认端口 443
-        if (protocol === 'https' && port === '443') return host;
-
-        // 其他情况保留端口
-        return domainStr;
-      };
-
-      const formattedDomain = formatDomainWithPort(domain.domain, domain.protocol);
+      const formattedDomain = formatDomainWithPort(domain.domain, domain.port, domain.protocol);
       const baseUrl = `${domain.protocol}://${formattedDomain}`;
       let fullUrl = `${baseUrl}${path || '/'}`;
 
@@ -1367,12 +1353,12 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
 
       // 获取所有唯一域名的简化版本
       const getAllUniqueDomains = () => {
-        const domainsMap = new Map<string, { domain: string; protocol: string }>()
+        const domainsMap = new Map<string, { domain: string; port?: number; protocol: string }>()
 
         routes.forEach(route => {
           if (route.domains && route.domains.length > 0) {
             route.domains.forEach((domain: any) => {
-              const key = `${domain.protocol}://${domain.domain}`
+              const key = `${domain.protocol}://${domain.domain}${domain.port ? `:${domain.port}` : ''}`
               domainsMap.set(key, domain)
             })
           }
@@ -1384,10 +1370,13 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
       const allUniqueDomains = getAllUniqueDomains()
 
       // 生成域名选择器选项
-      const agentDomainOptions = allUniqueDomains.map((domain, index) => ({
-        value: index,
-        label: `${domain.protocol.toLowerCase()}://${domain.domain}`
-      }))
+      const agentDomainOptions = allUniqueDomains.map((domain, index) => {
+        const formattedDomain = formatDomainWithPort(domain.domain, domain.port, domain.protocol);
+        return {
+          value: index,
+          label: `${domain.protocol.toLowerCase()}://${formattedDomain}`
+        }
+      })
 
       // 生成路由显示文本（优化方法显示）
       const getRouteDisplayText = (route: any, domainIndex: number = 0) => {
@@ -1400,11 +1389,13 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
         let domainInfo = ''
         if (allUniqueDomains.length > 0 && allUniqueDomains.length > domainIndex) {
           const selectedDomain = allUniqueDomains[domainIndex]
-          domainInfo = `${selectedDomain.protocol.toLowerCase()}://${selectedDomain.domain}`
+          const formattedDomain = formatDomainWithPort(selectedDomain.domain, selectedDomain.port, selectedDomain.protocol);
+          domainInfo = `${selectedDomain.protocol.toLowerCase()}://${formattedDomain}`
         } else if (route.domains && route.domains.length > 0) {
           // 回退到路由的第一个域名
           const domain = route.domains[0]
-          domainInfo = `${domain.protocol.toLowerCase()}://${domain.domain}`
+          const formattedDomain = formatDomainWithPort(domain.domain, domain.port, domain.protocol);
+          domainInfo = `${domain.protocol.toLowerCase()}://${formattedDomain}`
         }
 
         // 构建基本路由信息（匹配符号直接加到path后面）
@@ -1430,12 +1421,14 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
       const getFullUrl = (route: any, domainIndex: number = 0) => {
         if (allUniqueDomains.length > 0 && allUniqueDomains.length > domainIndex) {
           const selectedDomain = allUniqueDomains[domainIndex]
+          const formattedDomain = formatDomainWithPort(selectedDomain.domain, selectedDomain.port, selectedDomain.protocol);
           const path = route.match?.path?.value || '/'
-          return `${selectedDomain.protocol.toLowerCase()}://${selectedDomain.domain}${path}`
+          return `${selectedDomain.protocol.toLowerCase()}://${formattedDomain}${path}`
         } else if (route.domains && route.domains.length > 0) {
           const domain = route.domains[0]
+          const formattedDomain = formatDomainWithPort(domain.domain, domain.port, domain.protocol);
           const path = route.match?.path?.value || '/'
-          return `${domain.protocol.toLowerCase()}://${domain.domain}${path}`
+          return `${domain.protocol.toLowerCase()}://${formattedDomain}${path}`
         }
         return ''
       }
@@ -1651,11 +1644,14 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                           {/* 域名信息 */}
                           <div>
                             <div className="text-xs text-gray-500 mb-1">域名:</div>
-                            {route.domains?.map((domain: any, domainIndex: number) => (
-                              <div key={domainIndex} className="text-sm">
-                                <span className="font-mono">{domain.protocol.toLowerCase()}://{domain.domain}</span>
-                              </div>
-                            ))}
+                            {route.domains?.map((domain: any, domainIndex: number) => {
+                              const formattedDomain = formatDomainWithPort(domain.domain, domain.port, domain.protocol);
+                              return (
+                                <div key={domainIndex} className="text-sm">
+                                  <span className="font-mono">{domain.protocol.toLowerCase()}://{formattedDomain}</span>
+                                </div>
+                              )
+                            })}
                           </div>
 
                           {/* 匹配规则 */}
@@ -1733,12 +1729,12 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
 
       // 获取所有唯一域名的简化版本
       const getAllModelUniqueDomains = () => {
-        const domainsMap = new Map<string, { domain: string; protocol: string }>()
+        const domainsMap = new Map<string, { domain: string; port?: number; protocol: string }>()
 
         routes.forEach(route => {
           if (route.domains && route.domains.length > 0) {
             route.domains.forEach((domain: any) => {
-              const key = `${domain.protocol}://${domain.domain}`
+              const key = `${domain.protocol}://${domain.domain}${domain.port ? `:${domain.port}` : ''}`
               domainsMap.set(key, domain)
             })
           }
@@ -1750,10 +1746,13 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
       const allModelUniqueDomains = getAllModelUniqueDomains()
 
       // 生成域名选择器选项
-      const modelDomainOptions = allModelUniqueDomains.map((domain, index) => ({
-        value: index,
-        label: `${domain.protocol.toLowerCase()}://${domain.domain}`
-      }))
+      const modelDomainOptions = allModelUniqueDomains.map((domain, index) => {
+        const formattedDomain = formatDomainWithPort(domain.domain, domain.port, domain.protocol);
+        return {
+          value: index,
+          label: `${domain.protocol.toLowerCase()}://${formattedDomain}`
+        }
+      })
 
       // 生成匹配类型前缀文字
       const getMatchTypePrefix = (matchType: string) => {
@@ -1780,11 +1779,13 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
         let domainInfo = ''
         if (allModelUniqueDomains.length > 0 && allModelUniqueDomains.length > domainIndex) {
           const selectedDomain = allModelUniqueDomains[domainIndex]
-          domainInfo = `${selectedDomain.protocol.toLowerCase()}://${selectedDomain.domain}`
+          const formattedDomain = formatDomainWithPort(selectedDomain.domain, selectedDomain.port, selectedDomain.protocol);
+          domainInfo = `${selectedDomain.protocol.toLowerCase()}://${formattedDomain}`
         } else if (route.domains && route.domains.length > 0) {
           // 回退到路由的第一个域名
           const domain = route.domains[0]
-          domainInfo = `${domain.protocol.toLowerCase()}://${domain.domain}`
+          const formattedDomain = formatDomainWithPort(domain.domain, domain.port, domain.protocol);
+          domainInfo = `${domain.protocol.toLowerCase()}://${formattedDomain}`
         }
 
         // 构建基本路由信息（匹配符号直接加到path后面）
@@ -1818,12 +1819,14 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
       const getFullUrl = (route: any, domainIndex: number = 0) => {
         if (allModelUniqueDomains.length > 0 && allModelUniqueDomains.length > domainIndex) {
           const selectedDomain = allModelUniqueDomains[domainIndex]
+          const formattedDomain = formatDomainWithPort(selectedDomain.domain, selectedDomain.port, selectedDomain.protocol);
           const path = route.match?.path?.value || '/'
-          return `${selectedDomain.protocol.toLowerCase()}://${selectedDomain.domain}${path}`
+          return `${selectedDomain.protocol.toLowerCase()}://${formattedDomain}${path}`
         } else if (route.domains && route.domains.length > 0) {
           const domain = route.domains[0]
+          const formattedDomain = formatDomainWithPort(domain.domain, domain.port, domain.protocol);
           const path = route.match?.path?.value || '/'
-          return `${domain.protocol.toLowerCase()}://${domain.domain}${path}`
+          return `${domain.protocol.toLowerCase()}://${formattedDomain}${path}`
         }
         return null
       }
@@ -1915,11 +1918,14 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                           {/* 域名信息 */}
                           <div>
                             <div className="text-xs text-gray-500 mb-1">域名:</div>
-                            {route.domains?.map((domain: any, domainIndex: number) => (
-                              <div key={domainIndex} className="text-sm">
-                                <span className="font-mono">{domain.protocol.toLowerCase()}://{domain.domain}</span>
-                              </div>
-                            ))}
+                            {route.domains?.map((domain: any, domainIndex: number) => {
+                              const formattedDomain = formatDomainWithPort(domain.domain, domain.port, domain.protocol);
+                              return (
+                                <div key={domainIndex} className="text-sm">
+                                  <span className="font-mono">{domain.protocol.toLowerCase()}://{formattedDomain}</span>
+                                </div>
+                              )
+                            })}
                           </div>
 
                           {/* 匹配规则 */}

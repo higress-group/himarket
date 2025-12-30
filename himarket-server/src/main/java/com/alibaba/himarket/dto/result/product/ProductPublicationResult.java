@@ -28,9 +28,19 @@ import lombok.Data;
 public class ProductPublicationResult
         implements OutputConverter<ProductPublicationResult, ProductPublication> {
 
+    private String publicationId;
+
     private String portalId;
 
     private String portalName;
+
+    private String productId;
+
+    private String productName;
+
+    private String productType;
+
+    private String description;
 
     private Boolean autoApproveSubscriptions = false;
 

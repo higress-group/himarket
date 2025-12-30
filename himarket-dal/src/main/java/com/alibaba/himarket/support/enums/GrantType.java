@@ -21,16 +21,17 @@ package com.alibaba.himarket.support.enums;
 
 import lombok.Getter;
 
-/**
- * @author zh
- */
 @Getter
 public enum GrantType {
 
-    /** 授权码模式 */
+    /**
+     * Authorization Code
+     */
     AUTHORIZATION_CODE("authorization_code"),
 
-    /** JWT断言，OAuth2.0标准拓展 */
+    /**
+     * JWT BEARER, OAuth2.0 extension
+     */
     JWT_BEARER("urn:ietf:params:oauth:grant-type:jwt-bearer"),
     ;
 

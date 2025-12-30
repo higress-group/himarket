@@ -37,7 +37,8 @@ public interface ConsumerRefRepository
     List<ConsumerRef> findAllByConsumerId(String consumerId);
 
     @Query(
-            "SELECT c FROM ConsumerRef c WHERE c.consumerId = :consumerId AND c.gatewayType = :gatewayType AND c.gatewayConfig = :gatewayConfig")
+            "SELECT c FROM ConsumerRef c WHERE c.consumerId = :consumerId AND c.gatewayType ="
+                    + " :gatewayType AND c.gatewayConfig = :gatewayConfig")
     @Deprecated
     Optional<ConsumerRef> findConsumerRef(
             @Param("consumerId") String consumerId,

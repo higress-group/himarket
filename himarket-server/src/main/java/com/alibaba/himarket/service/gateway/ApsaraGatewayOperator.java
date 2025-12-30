@@ -1,3 +1,22 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package com.alibaba.himarket.service.gateway;
 
 import cn.hutool.json.JSONUtil;
@@ -25,6 +44,7 @@ import com.alibaba.himarket.support.gateway.GatewayConfig;
 import com.alibaba.himarket.support.product.APIGRefConfig;
 import com.aliyun.apsarastack.csb220230206.models.*;
 import com.aliyun.sdk.service.apig20240327.models.HttpApiApiInfo;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -158,6 +178,11 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
     @Override
     public String fetchModelConfig(Gateway gateway, Object conf) {
         return "";
+    }
+
+    @Override
+    public String fetchMcpToolsForConfig(Gateway gateway, Object conf) {
+        return null;
     }
 
     /** 将Apsara MCP Server详情转换为MCPConfigResult格式 */
@@ -394,7 +419,8 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
             }
 
             log.info(
-                    "Creating consumer in Apsara gateway: gatewayId={}, consumerName={}, hasApiKey={}",
+                    "Creating consumer in Apsara gateway: gatewayId={}, consumerName={},"
+                            + " hasApiKey={}",
                     gateway.getGatewayId(),
                     consumer.getName(),
                     key != null);
@@ -706,7 +732,8 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
                             || message.contains("不存在")
                             || message.contains("NotFound"))) {
                 log.warn(
-                        "Consumer authorization already removed or not found: consumerId={}, mcpServer={}, message={}",
+                        "Consumer authorization already removed or not found: consumerId={},"
+                                + " mcpServer={}, message={}",
                         consumerId,
                         adpAIAuthConfig.getMcpServerName(),
                         message);
@@ -749,7 +776,7 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
     }
 
     @Override
-    public List<String> fetchGatewayIps(Gateway gateway) {
+    public List<URI> fetchGatewayUris(Gateway gateway) {
         return Collections.emptyList();
     }
 }

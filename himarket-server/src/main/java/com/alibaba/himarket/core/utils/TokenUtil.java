@@ -33,7 +33,10 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class TokenUtil {
@@ -80,11 +83,11 @@ public class TokenUtil {
     }
 
     /**
-     * 生成令牌
+     * Generate token
      *
-     * @param userType
-     * @param userId
-     * @return
+     * @param userType user type
+     * @param userId user ID
+     * @return JWT token
      */
     private static String generateToken(UserType userType, String userId) {
         long now = System.currentTimeMillis();
@@ -104,15 +107,15 @@ public class TokenUtil {
     }
 
     /**
-     * 解析Token
+     * Parse token
      *
-     * @param token
-     * @return
+     * @param token JWT token
+     * @return user info
      */
     public static User parseUser(String token) {
         JWT jwt = JWTUtil.parseToken(token);
 
-        // 验证签名
+        // Verify signature
         boolean isValid =
                 jwt.setSigner(JWTSignerUtil.hs256(getJwtSecret().getBytes(StandardCharsets.UTF_8)))
                         .verify();
@@ -120,7 +123,7 @@ public class TokenUtil {
             throw new IllegalArgumentException("Invalid token signature");
         }
 
-        // 验证过期时间
+        // Verify expiration
         Object expObj = jwt.getPayloads().get(JWT.EXPIRES_AT);
         if (ObjectUtil.isNotNull(expObj)) {
             long expireAt = Long.parseLong(expObj.toString());
@@ -133,7 +136,7 @@ public class TokenUtil {
     }
 
     public static String getTokenFromRequest(HttpServletRequest request) {
-        // 从Header中获取token
+        // Get token from header
         String authHeader = request.getHeader(CommonConstants.AUTHORIZATION_HEADER);
 
         String token = null;
@@ -141,7 +144,7 @@ public class TokenUtil {
             token = authHeader.substring(CommonConstants.BEARER_PREFIX.length());
         }
 
-        // 从Cookie中获取token
+        // Get token from cookie
         if (StrUtil.isBlank(token)) {
             token =
                     Optional.ofNullable(request.getCookies())
@@ -179,9 +182,9 @@ public class TokenUtil {
         JWT jwt = JWTUtil.parseToken(token);
         Object expObj = jwt.getPayloads().get(JWT.EXPIRES_AT);
         if (ObjectUtil.isNotNull(expObj)) {
-            return Long.parseLong(expObj.toString()) * 1000; // JWT过期时间是秒，转换为毫秒
+            return Long.parseLong(expObj.toString()) * 1000; // JWT expiration is in seconds
         }
-        return System.currentTimeMillis() + getJwtExpireMillis(); // 默认过期时间
+        return System.currentTimeMillis() + getJwtExpireMillis(); // Default expiration
     }
 
     public static void revokeToken(HttpServletRequest request) {

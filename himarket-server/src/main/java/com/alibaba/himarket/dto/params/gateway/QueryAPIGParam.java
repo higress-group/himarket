@@ -29,15 +29,15 @@ import lombok.Data;
 @Data
 public class QueryAPIGParam implements InputConverter<APIGConfig> {
 
-    @NotBlank(message = "网关region不能为空")
+    @NotBlank(message = "Gateway region cannot be blank")
     private String region;
 
-    @NotNull(message = "网关类型不能为空")
+    @NotNull(message = "Gateway type cannot be null")
     private GatewayType gatewayType;
 
-    @NotBlank(message = "accessKey不能为空")
+    @NotBlank(message = "Access key cannot be blank")
     private String accessKey;
 
-    @NotBlank(message = "secretKey不能为空")
+    @NotBlank(message = "Secret key cannot be blank")
     private String secretKey;
 }

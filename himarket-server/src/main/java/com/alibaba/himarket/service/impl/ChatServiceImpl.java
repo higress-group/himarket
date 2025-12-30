@@ -1,3 +1,22 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package com.alibaba.himarket.service.impl;
 
 import cn.hutool.core.codec.Base64;
@@ -36,6 +55,7 @@ import com.alibaba.himarket.support.enums.ChatStatus;
 import com.alibaba.himarket.support.enums.ProductType;
 import com.github.benmanes.caffeine.cache.Cache;
 import jakarta.servlet.http.HttpServletResponse;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -70,7 +90,7 @@ public class ChatServiceImpl implements ChatService {
 
     private final ConsumerService consumerService;
 
-    private final Cache<String, List<String>> cache = CacheUtil.newCache(5);
+    private final Cache<String, List<URI>> cache = CacheUtil.newCache(5);
 
     public Flux<ChatAnswerMessage> chat(CreateChatParam param, HttpServletResponse response) {
         performAllChecks(param);
@@ -140,7 +160,7 @@ public class ChatServiceImpl implements ChatService {
             if (!subscribedProductIds.contains(productId)) {
                 //                throw new BusinessException(ErrorCode.INVALID_PARAMETER,
                 // Resources.PRODUCT, productId + " mcp is not subscribed, not allowed to use");
-                log.warn("mcp product {} is not subscribed, not allowed to use", productId);
+                log.warn("Mcp product {} is not subscribed, not allowed to use", productId);
             }
         }
 
@@ -170,12 +190,7 @@ public class ChatServiceImpl implements ChatService {
                                 chat ->
                                         StrUtil.isNotBlank(chat.getQuestion())
                                                 && StrUtil.isNotBlank(chat.getAnswer()))
-                        .filter(
-                                chat ->
-                                        !param.getConversationId()
-                                                .equals(chat.getConversationId())) // Skip
-                        // current
-                        // conversation
+                        .filter(chat -> !param.getConversationId().equals(chat.getConversationId()))
                         // Ensure the same product
                         .filter(chat -> StrUtil.equals(chat.getProductId(), param.getProductId()))
                         .collect(Collectors.groupingBy(Chat::getConversationId));
@@ -346,10 +361,10 @@ public class ChatServiceImpl implements ChatService {
         // Get product config
         ProductResult productResult = productService.getProduct(param.getProductId());
 
-        // Get gateway IPs
+        // Get gateway uris
         ProductRefResult productRef = productService.getProductRef(param.getProductId());
         String gatewayId = productRef.getGatewayId();
-        List<String> gatewayIps = cache.get(gatewayId, gatewayService::fetchGatewayIps);
+        List<URI> gatewayUris = cache.get(gatewayId, gatewayService::fetchGatewayUris);
 
         // Get authentication info
         CredentialContext credentialContext =
@@ -361,7 +376,7 @@ public class ChatServiceImpl implements ChatService {
                 .product(productResult)
                 .chatMessages(chatMessages)
                 .enableWebSearch(param.getEnableWebSearch())
-                .gatewayIps(gatewayIps)
+                .gatewayUris(gatewayUris)
                 .mcpConfigs(buildMCPConfigs(param))
                 .credentialContext(credentialContext)
                 .build();

@@ -28,21 +28,21 @@ import org.springframework.http.HttpStatus;
 @AllArgsConstructor
 public enum ErrorCode {
 
-    // 客户端错误 (400-499)
+    // Client errors (400-499)
 
-    /** 参数无效 */
+    /** Invalid parameter */
     INVALID_PARAMETER(HttpStatus.BAD_REQUEST, "无效的请求参数：{}"),
 
-    /** 非法请求 */
+    /** Invalid request */
     INVALID_REQUEST(HttpStatus.BAD_REQUEST, "请求无效：{}"),
 
-    /** 认证失败 */
+    /** Unauthorized */
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "认证失败：{}"),
 
-    /** 资源不存在 */
+    /** Resource not found */
     NOT_FOUND(HttpStatus.NOT_FOUND, "资源不存在：{}:{}"),
 
-    /** 资源冲突 */
+    /** Resource conflict */
     CONFLICT(HttpStatus.CONFLICT, "资源冲突：{}"),
 
     // API 生命周期管理相关错误 (400-499)
@@ -81,7 +81,7 @@ public enum ErrorCode {
     /** 非预期错误 */
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "服务器内部错误：{}"),
 
-    /** 网关操作相关错误 */
+    /** Gateway error */
     GATEWAY_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "网关错误：{}"),
 
     /** Registry 调用失败 */
@@ -104,7 +104,7 @@ public enum ErrorCode {
         try {
             return StrUtil.format(messagePattern, args);
         } catch (Exception e) {
-            // 参数不匹配时，直接返回原始messagePattern，避免抛出异常
+            // Return original pattern if args mismatch
             return messagePattern;
         }
     }

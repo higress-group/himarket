@@ -21,14 +21,13 @@ package com.alibaba.himarket.dto.result.chat;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.dto.params.chat.McpToolMeta;
 import com.alibaba.himarket.support.chat.ChatUsage;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.ToolResponseMessage;
 
-/**
- * @author shihan
- * @version : ChatAnswerMessage, v0.1 2025年11月26日 17:30 shihan Exp $
- */
 @Data
 @Builder
 @NoArgsConstructor

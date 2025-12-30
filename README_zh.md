@@ -1,9 +1,9 @@
 <a name="readme-top"></a>
 
 <div align="center">
-  <img width="406" height="96" alt="Himarket Logo" src="https://github.com/user-attachments/assets/e0956234-1a97-42c6-852d-411fa02c3f01" />
+  <img width="406" height="96" alt="HiMarket Logo" src="https://github.com/user-attachments/assets/e0956234-1a97-42c6-852d-411fa02c3f01" />
 
-  <h1>Himarket AI 开放平台</h1>
+  <h1>HiMarket AI 开放平台</h1>
 
   <p align="center">
     <a href="README.md">English</a> | <b>简体中文</b>
@@ -27,7 +27,7 @@
 
 ## 目录
 
-- [Himarket 是什么？](#himarket-是什么)
+- [HiMarket 是什么？](#himarket-是什么)
 - [系统架构](#系统架构)
 - [快速开始](#快速开始)
 - [文档](#文档)
@@ -35,12 +35,12 @@
 - [贡献者](#贡献者)
 - [Star History](#star-history)
 
-## Himarket 是什么？
+## HiMarket 是什么？
 
-Himarket 是基于 Higress AI 网关构建的企业级 AI 开放平台，帮助企业构建私有 AI 能力市场，统一管理和分发 LLM、MCP Server、Agent 等 AI 资源。平台将分散的 AI 能力封装为标准化的 API 产品，支持多版本管理和灰度发布，提供自助式开发者门户，并具备安全管控、观测分析、计量计费等完整的企业级运营能力，让 AI 资源的共享和复用变得高效便捷。
+HiMarket 是基于 Higress AI 网关构建的企业级 AI 开放平台，帮助企业构建私有 AI 能力市场，统一管理和分发 LLM、MCP Server、Agent 等 AI 资源。平台将分散的 AI 能力封装为标准化的 API 产品，支持多版本管理和灰度发布，提供自助式开发者门户，并具备安全管控、观测分析、计量计费等完整的企业级运营能力，让 AI 资源的共享和复用变得高效便捷。
 
 <div align="center">
-  <img src="https://github.com/user-attachments/assets/db49ea33-c914-424d-8e3b-4ba75ec7a746" alt="Himarket 核心能力" width="700px" />
+  <img src="https://github.com/user-attachments/assets/db49ea33-c914-424d-8e3b-4ba75ec7a746" alt="HiMarket 核心能力" width="700px" />
   <br/>
   <b>核心能力</b>
 </div>
@@ -48,26 +48,26 @@ Himarket 是基于 Higress AI 网关构建的企业级 AI 开放平台，帮助�
 ## 系统架构
 
 <div align="center">
-  <img src="https://github.com/user-attachments/assets/4e01fa52-dfb3-41a4-a5b6-7a9cc79528e4" alt="Himarket 系统架构" width="700px" />
+  <img src="https://github.com/user-attachments/assets/4e01fa52-dfb3-41a4-a5b6-7a9cc79528e4" alt="HiMarket 系统架构" width="700px" />
   <br/>
   <b>系统架构</b>
 </div>
 
-Himarket 系统架构分为三层：
+HiMarket 系统架构分为三层：
 
-1. **基础设施**：由 AI 网关、API 网关、Higress 和 Nacos 组成。Himarket 基于这些组件对底层 AI 资源进行抽象封装，形成可对外开放的标准 API 产品。
+1. **基础设施**：由 AI 网关、API 网关、Higress 和 Nacos 组成。HiMarket 基于这些组件对底层 AI 资源进行抽象封装，形成可对外开放的标准 API 产品。
 2. **AI 开放平台后台**：面向管理员的管理平台，管理员可以创建和定制门户，管理 MCP Server、Model、Agent 等 AI 资源，例如设置鉴权策略、订阅审批流程等。后台还提供可观测大盘，帮助管理员实时了解 AI 资源的使用和运行状态。
 3. **AI 开放平台前台**：面向外部开发者的门户站点，也称为 AI 市场或 AI 中台，提供一站式自助服务，开发者可以完成身份注册、凭证申请、浏览订阅产品、在线调试等操作。
 
 <table>
   <tr>
     <td align="center">
-      <img src="https://github.com/user-attachments/assets/e7a933ea-10bb-457e-a082-550e939a1b58" width="500px" height="200px" alt="Himarket 管理后台"/>
+      <img src="https://github.com/user-attachments/assets/e7a933ea-10bb-457e-a082-550e939a1b58" width="500px" height="200px" alt="HiMarket 管理后台"/>
       <br />
       <b>管理后台</b>
     </td>
     <td align="center">
-      <img src="https://github.com/user-attachments/assets/ba8eca62-92f8-42b7-b28e-58546e9e8821" width="500px" height="200px" alt="Himarket 开发者门户"/>
+      <img src="https://github.com/user-attachments/assets/41382502-12fe-45c4-9708-8dd7a103cb73" width="500px" height="200px" alt="HiMarket 开发者门户"/>
       <br />
       <b>开发者门户</b>
     </td>
@@ -124,7 +124,7 @@ npm run dev
 
 <br/>
 
-使用 `deploy.sh` 脚本完成 Himarket、Higress、Nacos 全栈部署和数据初始化。
+使用 `deploy.sh` 脚本完成 HiMarket、Higress、Nacos 全栈部署和数据初始化。
 
 ```bash
 # 克隆项目
@@ -134,7 +134,7 @@ cd himarket/deploy/docker/scripts
 # 部署全栈服务并初始化
 ./deploy.sh install
 
-# 或仅部署 Himarket 服务（不含 Nacos/Higress）
+# 或仅部署 HiMarket 服务（不含 Nacos/Higress）
 ./deploy.sh himarket-only
 
 # 卸载所有服务
@@ -155,7 +155,7 @@ cd himarket/deploy/docker/scripts
 
 <br/>
 
-使用 `deploy.sh` 脚本将 Himarket 部署到 Kubernetes 集群。
+使用 `deploy.sh` 脚本将 HiMarket 部署到 Kubernetes 集群。
 
 ```bash
 # 克隆项目
@@ -165,7 +165,7 @@ cd himarket/deploy/helm/scripts
 # 部署全栈服务并初始化
 ./deploy.sh install
 
-# 或仅部署 Himarket 服务（不含 Nacos/Higress）
+# 或仅部署 HiMarket 服务（不含 Nacos/Higress）
 ./deploy.sh himarket-only
 
 # 卸载
@@ -200,7 +200,7 @@ cd himarket/deploy/helm/scripts
 <table>
   <tr>
     <td align="center">
-      <img src="https://github.com/user-attachments/assets/2092b427-33bb-462d-a22a-7c369e81c572" width="200px"  alt="钉钉交流群"/>
+      <img src="https://github.com/user-attachments/assets/e74915bb-abf2-4415-99a3-dd7c61a94670" width="200px"  alt="DingTalk Group"/>
       <br />
       <b>钉钉交流群</b>
     </td>
@@ -214,7 +214,7 @@ cd himarket/deploy/helm/scripts
 
 ## 贡献者
 
-感谢所有为 Himarket 做出贡献的开发者！
+感谢所有为 HiMarket 做出贡献的开发者！
 
 <a href="https://github.com/higress-group/himarket/graphs/contributors">
   <img alt="contributors" src="https://contrib.rocks/image?repo=higress-group/himarket"/>

@@ -27,10 +27,6 @@ import java.util.List;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * @author shihan
- * @version : McpClientHolder, v0.1 2025年11月26日 21:25 shihan Exp $
- */
 @Data
 @Slf4j
 public class McpClientWrapper implements Closeable {

@@ -27,6 +27,6 @@ import lombok.Data;
 @Data
 public class CreateSubscriptionParam implements InputConverter<ProductSubscription> {
 
-    @NotBlank(message = "Product ID不能为空")
+    @NotBlank(message = "Product ID cannot be empty")
     private String productId;
 }

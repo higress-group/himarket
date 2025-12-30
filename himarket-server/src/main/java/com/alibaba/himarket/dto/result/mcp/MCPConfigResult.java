@@ -20,16 +20,13 @@
 package com.alibaba.himarket.dto.result.mcp;
 
 import cn.hutool.core.util.StrUtil;
-import com.alibaba.himarket.core.constant.Resources;
-import com.alibaba.himarket.core.exception.BusinessException;
-import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.dto.result.common.DomainResult;
 import com.alibaba.himarket.support.chat.mcp.MCPTransportConfig;
 import com.alibaba.himarket.support.enums.MCPTransportMode;
 import java.util.List;
-import java.util.Random;
+import java.util.Optional;
 import lombok.Data;
-import org.apache.commons.lang3.StringUtils;
+import org.springframework.web.util.UriComponentsBuilder;
 
 @Data
 public class MCPConfigResult {
@@ -42,50 +39,44 @@ public class MCPConfigResult {
 
     protected McpMetadata meta;
 
-    public void convertDomainToGatewayIp(List<String> gatewayIps) {
-
-        List<DomainResult> domains = this.mcpServerConfig.getDomains();
-        for (DomainResult domain : domains) {
-            if (StringUtils.equals(domain.getDomain(), "<higress-gateway-ip>")) {
-                if (gatewayIps.isEmpty()) {
-                    throw new BusinessException(
-                            ErrorCode.GATEWAY_ERROR,
-                            Resources.GATEWAY,
-                            "no available ip to replace <higress-gateway-ip>");
-                }
-                String randomGatewayIp = gatewayIps.get(new Random().nextInt(gatewayIps.size()));
-                domain.setDomain(randomGatewayIp);
-            }
-        }
-    }
-
     public MCPTransportConfig toTransportConfig() {
-        List<DomainResult> domains = mcpServerConfig.getDomains();
         DomainResult domain =
-                domains.stream()
+                mcpServerConfig.getDomains().stream()
                         .filter(d -> !StrUtil.equalsIgnoreCase(d.getNetworkType(), "intranet"))
                         .findFirst()
                         .orElse(null);
+
         if (domain == null) {
             return null;
         }
 
-        String url = StrUtil.format("{}://{}", domain.getProtocol(), domain.getDomain());
+        String baseUrl =
+                UriComponentsBuilder.newInstance()
+                        .scheme(StrUtil.blankToDefault(domain.getProtocol(), "http"))
+                        .host(domain.getDomain())
+                        .port(
+                                Optional.ofNullable(domain.getPort())
+                                        .filter(port -> port > 0)
+                                        .map(String::valueOf)
+                                        .orElse(null))
+                        .build()
+                        .toUriString();
 
-        String path = mcpServerConfig.getPath();
-        if (StrUtil.isNotBlank(path)) {
-            url = path.startsWith("/") ? url + path : url + "/" + path;
-        }
+        String url =
+                Optional.ofNullable(mcpServerConfig.getPath())
+                        .filter(StrUtil::isNotBlank)
+                        .map(path -> path.startsWith("/") ? path : "/" + path)
+                        .map(path -> baseUrl + path)
+                        .orElse(baseUrl);
+
         // Default: StreamableHTTP
         MCPTransportMode transportMode =
                 "sse".equalsIgnoreCase(meta.getProtocol())
                         ? MCPTransportMode.SSE
                         : MCPTransportMode.STREAMABLE_HTTP;
 
-        if (transportMode == MCPTransportMode.SSE) {
-            if (!url.endsWith("/sse")) {
-                url = url.endsWith("/") ? url + "sse" : url + "/sse";
-            }
+        if (transportMode == MCPTransportMode.SSE && !url.endsWith("/sse")) {
+            url = url.endsWith("/") ? url + "sse" : url + "/sse";
         }
 
         return MCPTransportConfig.builder()
@@ -98,27 +89,36 @@ public class MCPConfigResult {
     @Data
     public static class McpMetadata {
 
-        /** 来源 AI网关/Higress/Nacos */
+        /**
+         * Source, e.g. APIG_AI, HIGRESS, NACOS
+         */
         private String source;
 
         /**
-         * 服务类型 AI网关：HTTP（HTTP转MCP）/MCP（MCP直接代理）
-         * Higress：OPEN_API（OpenAPI转MCP）/DIRECT_ROUTE（直接路由）/DATABASE（数据库）
+         * Service type
+         * For AI Gateway: HTTP (HTTP to MCP conversion) / MCP (Direct MCP proxy)
+         * For Higress: OPEN_API (OpenAPI to MCP conversion) / DIRECT_ROUTE (Direct routing) / DATABASE (Database)
          */
         private String createFromType;
 
-        /** HTTP/SSE */
+        /**
+         * HTTP/SSE
+         */
         private String protocol;
     }
 
     @Data
     public static class MCPServerConfig {
-        /** for gateway */
+        /**
+         * For gateway
+         */
         private String path;
 
         private List<DomainResult> domains;
 
-        /** for nacos */
+        /**
+         * For nacos
+         */
         private Object rawConfig;
     }
 }

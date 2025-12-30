@@ -30,12 +30,15 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 /**
- * 全局异常处理
+ * Global exception handler
  *
- * <p>处理三类异常: 1. 业务异常 {@link BusinessException}: 业务异常 2. 参数校验异常 {@link
- * MethodArgumentNotValidException}: 请求参数校验不通过 3. 系统异常 {@link Exception}: 非预期的系统异常
+ * <p>Handles three types of exceptions:
+ * 1. {@link BusinessException}: Business errors
+ * 2. {@link MethodArgumentNotValidException}: Request validation errors
+ * 3. {@link Exception}: Unexpected system errors
  *
- * <p>所有异常都会被转换为统一的响应格式: { "code": "错误码", "message": "错误信息", "data": null }
+ * <p>All exceptions are converted to unified response:
+ * { "code": "error_code", "message": "error_message", "data": null }
  */
 @Slf4j
 @RestControllerAdvice
@@ -59,7 +62,7 @@ public class ExceptionAdvice {
                                                 + ": "
                                                 + fieldError.getDefaultMessage())
                         .collect(Collectors.joining("; "));
-        // 参数校验失败属于用户行为，不打印堆栈
+        // Validation error is user behavior, no stack trace needed
         log.warn("[Validation Exception] invalid parameters: {}", message);
         return ResponseEntity.status(ErrorCode.INVALID_PARAMETER.getStatus())
                 .body(Response.fail(ErrorCode.INVALID_PARAMETER.name(), message));
@@ -67,7 +70,7 @@ public class ExceptionAdvice {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Response<Void>> handleSystemException(Exception e) {
-        // 完整打印异常堆栈信息，包括异常类型、消息和堆栈跟踪
+        // Log full stack trace for system errors
         log.error(
                 "[System Exception] type: {}, message: {}",
                 e.getClass().getSimpleName(),

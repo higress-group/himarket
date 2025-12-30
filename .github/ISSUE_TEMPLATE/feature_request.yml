@@ -1,0 +1,129 @@
+name: ✨ Feature Request
+description: Suggest a new feature or enhancement for HiMarket
+title: "[Feature]: "
+labels: ["enhancement", "needs-review"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for suggesting a feature! Your ideas help make HiMarket better.
+        
+        **Before submitting:**
+        - Search existing feature requests to avoid duplicates
+        - Check the roadmap to see if this is already planned
+        - Make sure your feature aligns with the project's goals
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: What problem does this feature solve? Is your feature request related to a problem?
+      placeholder: I'm frustrated when... / It would be helpful if...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe the solution you'd like to see
+      placeholder: I would like to have...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Describe alternative solutions or features you've considered
+      placeholder: Another approach could be...
+    validations:
+      required: false
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected Component
+      description: Which part of HiMarket would this feature affect?
+      options:
+        - Frontend (User Interface)
+        - Admin Console
+        - Backend API
+        - Database/Storage
+        - Authentication/Authorization
+        - Configuration/Setup
+        - Documentation
+        - CI/CD Pipeline
+        - Developer Experience
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this feature to you?
+      options:
+        - Critical (blocking my work)
+        - High (significantly improves workflow)
+        - Medium (nice to have)
+        - Low (minor improvement)
+    validations:
+      required: true
+
+  - type: textarea
+    id: use-cases
+    attributes:
+      label: Use Cases
+      description: Describe specific use cases or scenarios where this feature would be useful
+      placeholder: |
+        1. As a [user type], I want to [action] so that [benefit]
+        2. When [scenario], users could [action]
+    validations:
+      required: false
+
+  - type: textarea
+    id: mockups
+    attributes:
+      label: Mockups/Examples
+      description: Add mockups, screenshots, or links to similar implementations
+      placeholder: Drag and drop images or paste URLs here
+    validations:
+      required: false
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: What would make this feature complete? How would we know it's done?
+      placeholder: |
+        - [ ] Users can...
+        - [ ] The system should...
+        - [ ] Documentation includes...
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other context, references, or information
+      placeholder: Similar features in other projects...
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched existing issues and feature requests
+          required: true
+        - label: This feature aligns with the project's goals
+          required: false
+        - label: I'm willing to contribute to this feature
+          required: false
+        - label: I have provided enough detail for the team to understand the request
+          required: true
+

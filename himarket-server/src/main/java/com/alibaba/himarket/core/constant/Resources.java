@@ -43,6 +43,8 @@ public class Resources {
 
     public static final String PRODUCT_SETTING = "ProductSetting";
 
+    public static final String PUBLICATION = "Publication";
+
     public static final String DEVELOPER = "Developer";
 
     public static final String CONSUMER = "Consumer";

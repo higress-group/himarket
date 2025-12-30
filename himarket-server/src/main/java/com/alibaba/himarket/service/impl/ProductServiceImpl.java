@@ -20,14 +20,17 @@
 package com.alibaba.himarket.service.impl;
 
 import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.util.BooleanUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.event.PortalDeletingEvent;
+import com.alibaba.himarket.core.event.ProductConfigReloadEvent;
 import com.alibaba.himarket.core.event.ProductDeletingEvent;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.core.security.ContextHolder;
+import com.alibaba.himarket.core.utils.CacheUtil;
 import com.alibaba.himarket.core.utils.IdGenerator;
 import com.alibaba.himarket.dto.params.product.*;
 import com.alibaba.himarket.dto.result.agent.AgentConfigResult;
@@ -52,7 +55,7 @@ import com.alibaba.himarket.support.enums.ProductStatus;
 import com.alibaba.himarket.support.enums.ProductType;
 import com.alibaba.himarket.support.enums.SourceType;
 import com.alibaba.himarket.support.product.NacosRefConfig;
-import io.modelcontextprotocol.spec.McpSchema;
+import com.github.benmanes.caffeine.cache.Cache;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
@@ -62,7 +65,6 @@ import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.BooleanUtils;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
@@ -78,7 +80,7 @@ import org.springframework.stereotype.Service;
 @Transactional
 public class ProductServiceImpl implements ProductService {
 
-    private final ApplicationContext ctx;
+    private final ApplicationContext applicationContext;
 
     private final ContextHolder contextHolder;
 
@@ -103,6 +105,9 @@ public class ProductServiceImpl implements ProductService {
     private final ApplicationEventPublisher eventPublisher;
 
     private final ProductCategoryService productCategoryService;
+
+    /** Cache to prevent duplicate sync within interval (5 minutes default) */
+    private final Cache<String, Boolean> productSyncCache = CacheUtil.newCache(5);
 
     @Override
     public ProductResult createProduct(CreateProductParam param) {
@@ -137,6 +142,18 @@ public class ProductServiceImpl implements ProductService {
                 contextHolder.isAdministrator()
                         ? findProduct(productId)
                         : findPublishedProduct(contextHolder.getPortal(), productId);
+
+        // Trigger async sync if not synced recently (cache miss)
+        if (productSyncCache.getIfPresent(productId) == null) {
+            productRefRepository
+                    .findByProductId(productId)
+                    .ifPresent(
+                            o -> {
+                                productSyncCache.put(productId, Boolean.TRUE);
+                                eventPublisher.publishEvent(
+                                        new ProductConfigReloadEvent(productId));
+                            });
+        }
 
         ProductResult result = new ProductResult().convertFrom(product);
 
@@ -206,6 +223,7 @@ public class ProductServiceImpl implements ProductService {
         }
 
         ProductPublication productPublication = new ProductPublication();
+        productPublication.setPublicationId(IdGenerator.genPublicationId());
         productPublication.setPortalId(portalId);
         productPublication.setProductId(productId);
 
@@ -242,9 +260,28 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public void unpublishProduct(String productId, String portalId) {
-        portalService.existsPortal(portalId);
+    public void unpublishProduct(String productId, String publicationId) {
         Product product = findProduct(productId);
+
+        // Find publication by publicationId
+        ProductPublication publication =
+                publicationRepository
+                        .findByPublicationId(publicationId)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                ErrorCode.NOT_FOUND,
+                                                Resources.PUBLICATION,
+                                                publicationId));
+
+        // Verify: ensure publication belongs to this product
+        if (!publication.getProductId().equals(productId)) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST, "Publication does not belong to this product");
+        }
+
+        String portalId = publication.getPortalId();
+        portalService.existsPortal(portalId);
 
         /*
          * Update product status:
@@ -257,9 +294,7 @@ public class ProductServiceImpl implements ProductService {
                         : ProductStatus.READY;
         product.setStatus(toStatus);
 
-        publicationRepository
-                .findByPortalIdAndProductId(portalId, productId)
-                .ifPresent(publicationRepository::delete);
+        publicationRepository.delete(publication);
         productRepository.save(product);
     }
 
@@ -398,6 +433,7 @@ public class ProductServiceImpl implements ProductService {
 
         productRefRepository.delete(productRef);
         productRepository.save(product);
+        productSyncCache.invalidate(productId);
     }
 
     @EventListener
@@ -428,34 +464,6 @@ public class ProductServiceImpl implements ProductService {
                                     }
                                     return result;
                                 }));
-    }
-
-    @Override
-    public String getProductDashboard(String productId) {
-        // Get product associated gateway information
-        ProductRef productRef =
-                productRefRepository
-                        .findFirstByProductId(productId)
-                        .orElseThrow(
-                                () ->
-                                        new BusinessException(
-                                                ErrorCode.NOT_FOUND, Resources.PRODUCT, productId));
-
-        if (productRef.getGatewayId() == null) {
-            throw new BusinessException(
-                    ErrorCode.INVALID_REQUEST, "Product not linked to gateway service");
-        }
-        // Select dashboard type based on product type
-        Product product = findProduct(productId);
-        String dashboardType;
-        if (product.getType() == ProductType.MCP_SERVER) {
-            dashboardType = "MCP";
-        } else {
-            // REST_API, HTTP_API use unified API dashboard
-            dashboardType = "API";
-        }
-        // Get dashboard URL through gateway service
-        return gatewayService.getDashboard(productRef.getGatewayId(), dashboardType);
     }
 
     @Override
@@ -544,23 +552,25 @@ public class ProductServiceImpl implements ProductService {
                                                 ErrorCode.INVALID_REQUEST,
                                                 "API product not linked to API"));
 
-        syncConfig(product, productRef);
+        // Update cache to prevent immediate re-sync
+        productSyncCache.put(productId, Boolean.TRUE);
 
+        syncConfig(product, productRef);
+        syncMcpTools(product, productRef);
         productRefRepository.saveAndFlush(productRef);
     }
 
     @Override
     public McpToolListResult listMcpTools(String productId) {
-        // check product exists and check whether it is a mcp server type
         ProductResult product = getProduct(productId);
         if (product.getType() != ProductType.MCP_SERVER) {
             throw new BusinessException(
                     ErrorCode.INVALID_REQUEST, "API product is not a mcp server");
         }
-        ConsumerService consumerService = ctx.getBean(ConsumerService.class);
+
+        ConsumerService consumerService = applicationContext.getBean(ConsumerService.class);
         String consumerId = consumerService.getPrimaryConsumer().getConsumerId();
 
-        // check if product is subscribed by consumer
         boolean subscribed =
                 subscriptionRepository
                         .findByConsumerIdAndProductId(consumerId, productId)
@@ -571,41 +581,25 @@ public class ProductServiceImpl implements ProductService {
                     "API product is not subscribed, not allowed to list tools");
         }
 
-        // get mcp server config, and replace domain with gateway ip
-        MCPConfigResult mcpConfig = product.getMcpConfig();
-        // Get gateway IPs
-        ProductRefResult productRef = getProductRef(productId);
-        String gatewayId = productRef.getGatewayId();
-        List<String> gatewayIps = gatewayService.fetchGatewayIps(gatewayId);
-        mcpConfig.convertDomainToGatewayIp(gatewayIps);
-
-        MCPTransportConfig mcpTransportConfig = mcpConfig.toTransportConfig();
-
-        // Get authentication info (use applicationContext to get bean to avoid circular dependency)
+        // Initialize client and fetch tools
+        MCPTransportConfig transportConfig = product.getMcpConfig().toTransportConfig();
         CredentialContext credentialContext =
                 consumerService.getDefaultCredential(contextHolder.getUser());
-
-        // get mcp tools info
-        McpToolListResult mcpToolListResult = new McpToolListResult();
-        McpClientFactory mcpClientFactory = new McpClientFactory();
+        McpToolListResult result = new McpToolListResult();
 
         try (McpClientWrapper mcpClientWrapper =
-                mcpClientFactory.newClient(mcpTransportConfig, credentialContext)) {
+                McpClientFactory.newClient(transportConfig, credentialContext)) {
             if (mcpClientWrapper == null) {
-                log.error("initClient returned null");
                 throw new BusinessException(
-                        ErrorCode.INTERNAL_ERROR,
-                        Resources.PRODUCT,
-                        productId,
-                        "initClient returned null");
+                        ErrorCode.INTERNAL_ERROR, "Failed to initialize MCP client");
             }
-            List<McpSchema.Tool> tools = mcpClientWrapper.listTools();
-            mcpToolListResult.setTools(tools);
+
+            result.setTools(mcpClientWrapper.listTools());
+            return result;
         } catch (IOException e) {
-            log.error("mcp client close error {}", e.getMessage());
-            return mcpToolListResult;
+            log.error("List mcp tools failed", e);
+            return result;
         }
-        return mcpToolListResult;
     }
 
     private void syncConfig(Product product, ProductRef productRef) {
@@ -682,6 +676,31 @@ public class ProductServiceImpl implements ProductService {
                     "MANAGED API type detected for product {}, skipping external config sync",
                     product.getProductId());
         }
+    }
+
+    private void syncMcpTools(Product product, ProductRef productRef) {
+        if (product.getType() != ProductType.MCP_SERVER
+                || !productRef.getSourceType().isGateway()) {
+            return;
+        }
+
+        MCPConfigResult mcpConfig =
+                Optional.ofNullable(productRef.getMcpConfig())
+                        .map(config -> JSONUtil.toBean(config, MCPConfigResult.class))
+                        .orElse(null);
+
+        if (mcpConfig == null) {
+            return;
+        }
+
+        Optional.ofNullable(
+                        gatewayService.fetchMcpToolsForConfig(productRef.getGatewayId(), mcpConfig))
+                .filter(StrUtil::isNotBlank)
+                .ifPresent(
+                        tools -> {
+                            mcpConfig.setTools(tools);
+                            productRef.setMcpConfig(JSONUtil.toJsonStr(mcpConfig));
+                        });
     }
 
     private void fillProduct(ProductResult product) {
@@ -827,20 +846,52 @@ public class ProductServiceImpl implements ProductService {
     }
 
     private void fillProductSubscribeInfo(ProductResult product, QueryProductParam param) {
-        // if null or false, then skip
-        if (!BooleanUtils.isTrue(param.getQuerySubscribeStatus())) {
+        if (!BooleanUtil.isTrue(param.getQuerySubscribeStatus())) {
             return;
         }
 
-        // get default consumer id (use applicationContext to get bean to avoid circular dependency)
-        ConsumerService consumerService = ctx.getBean(ConsumerService.class);
+        // Get default consumer id (use applicationContext to get bean to avoid circular dependency)
+        ConsumerService consumerService = applicationContext.getBean(ConsumerService.class);
         String consumerId = consumerService.getPrimaryConsumer().getConsumerId();
 
-        // check if product is subscribed by consumer
+        // Check if product is subscribed by consumer
         boolean exists =
                 subscriptionRepository
                         .findByConsumerIdAndProductId(consumerId, product.getProductId())
                         .isPresent();
         product.setIsSubscribed(exists);
+    }
+
+    @EventListener
+    @Async("taskExecutor")
+    public void handleProductRefSync(ProductConfigReloadEvent event) {
+        String productId = event.getProductId();
+
+        try {
+            // Double-check cache to prevent concurrent duplicate syncs
+            if (productSyncCache.getIfPresent(productId) == null) {
+                return;
+            }
+
+            ProductRef productRef =
+                    productRefRepository.findFirstByProductId(productId).orElse(null);
+            if (productRef == null) {
+                return;
+            }
+
+            Product product = productRepository.findByProductId(productId).orElse(null);
+            if (product == null) {
+                return;
+            }
+
+            syncConfig(product, productRef);
+            syncMcpTools(product, productRef);
+
+            productRefRepository.save(productRef);
+
+            log.info("Auto-sync product ref: {} successfully completed", productId);
+        } catch (Exception e) {
+            log.warn("Failed to auto-sync product ref: {}", productId, e);
+        }
     }
 }

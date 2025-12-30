@@ -31,6 +31,10 @@ build/
 ### VS Code ###
 .vscode/
 
+### AI Coding Assistants ###
+.cursor/
+.qoder/
+
 ### Mac OS ###
 .DS_Store
 

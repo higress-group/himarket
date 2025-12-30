@@ -25,26 +25,38 @@ import lombok.Data;
 @Data
 public class IdpTokenResult {
 
-    /** 访问令牌 */
+    /**
+     * Access token
+     */
     @Alias("access_token")
     private String accessToken;
 
-    /** ID令牌 */
+    /**
+     * ID token
+     */
     @Alias("id_token")
     private String idToken;
 
-    /** 刷新令牌 */
+    /**
+     * Refresh token
+     */
     @Alias("refresh_token")
     private String refreshToken;
 
-    /** 令牌类型 */
+    /**
+     * Token type
+     */
     @Alias("token_type")
     private String tokenType;
 
-    /** 过期时间（秒） */
+    /**
+     * Expiration time in seconds
+     */
     @Alias("expires_in")
     private Integer expiresIn;
 
-    /** 范围 */
+    /**
+     * Scope
+     */
     private String scope;
 }

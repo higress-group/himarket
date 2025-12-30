@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Card, Table, Modal, Button, Space, message, Empty } from 'antd'
 import { EyeOutlined, DeleteOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
-import { Portal, ApiProduct } from '@/types'
-import { apiProductApi } from '@/lib/api'
+import { Portal, ApiProduct, Publication } from '@/types'
+import { apiProductApi, portalApi } from '@/lib/api'
 import { useNavigate } from 'react-router-dom'
 import { ProductTypeMap } from '@/lib/utils'
 
@@ -12,18 +12,18 @@ interface PortalApiProductsProps {
 
 export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
   const navigate = useNavigate()
-  const [apiProducts, setApiProducts] = useState<ApiProduct[]>([])
+  const [apiProducts, setApiProducts] = useState<Publication[]>([])
   const [apiProductsOptions, setApiProductsOptions] = useState<ApiProduct[]>([])
   const [isModalVisible, setIsModalVisible] = useState(false)
   const [selectedApiIds, setSelectedApiIds] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [modalLoading, setModalLoading] = useState(false)
-  
+
   // 分页状态
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [total, setTotal] = useState(0)
-  
+
   useEffect(() => {
     if (portal.portalId) {
       fetchApiProducts()
@@ -32,8 +32,7 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
 
   const fetchApiProducts = () => {
     setLoading(true)
-    apiProductApi.getApiProducts({
-      portalId: portal.portalId,
+    portalApi.getPortalPublications(portal.portalId, {
       page: currentPage,
       size: pageSize
     }).then((res) => {
@@ -54,7 +53,7 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
       }).then((res) => {
         // 过滤掉已发布在该门户里的api
         setApiProductsOptions(res.data.content.filter((api: ApiProduct) => 
-          !apiProducts.some((a: ApiProduct) => a.productId === api.productId)
+          !apiProducts.some((publication: Publication) => publication.productId === api.productId)
         ))
       }).finally(() => {
         setModalLoading(false)
@@ -74,17 +73,17 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
       title: '名称/ID',
       key: 'nameAndId',
       width: 280,
-      render: (_: any, record: ApiProduct) => (
+      render: (_: any, record: Publication) => (
         <div>
-          <div className="text-sm font-medium text-gray-900 truncate">{record.name}</div>
+          <div className="text-sm font-medium text-gray-900 truncate">{record.productName}</div>
           <div className="text-xs text-gray-500 truncate">{record.productId}</div>
         </div>
       ),
     },
     {
       title: '类型',
-      dataIndex: 'type',
-      key: 'type',
+      dataIndex: 'productType',
+      key: 'productType',
       width: 120,
       render: (text: string) => ProductTypeMap[text] || text
     },
@@ -94,16 +93,11 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
       key: 'description',
       width: 400,
     },
-    // {
-    //   title: '分类',
-    //   dataIndex: 'category',
-    //   key: 'category',
-    // },
     {
       title: '操作',
       key: 'action',
       width: 180,
-      render: (_: any, record: ApiProduct) => (
+      render: (_: any, record: Publication) => (
         <Space size="middle">
           <Button
             onClick={() => {
@@ -113,7 +107,12 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
             查看
           </Button>
           
-          <Button type="link" danger icon={<DeleteOutlined />} onClick={() => handleDelete(record.productId, record.name)}>
+          <Button
+            type="link"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={() => handleDelete(record.publicationId, record.productId, record.productName)}
+          >
             移除
           </Button>
         </Space>
@@ -153,7 +152,7 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
     },
   ]
 
-  const handleDelete = (productId: string, productName: string) => {
+  const handleDelete = (publicationId: string, productId: string, productName: string) => {
     Modal.confirm({
       title: '确认移除',
       icon: <ExclamationCircleOutlined />,
@@ -162,7 +161,7 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
       okType: 'danger',
       cancelText: '取消',
       onOk() {
-        apiProductApi.cancelPublishToPortal(productId, portal.portalId).then(() => {
+        apiProductApi.cancelPublishToPortal(productId, publicationId).then(() => {
           message.success('移除成功')
           fetchApiProducts()
           setIsModalVisible(false)
@@ -214,8 +213,8 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
       </div>
 
       <Card>
-        <Table 
-          columns={columns} 
+        <Table
+          columns={columns}
           dataSource={apiProducts}
           rowKey="productId"
           loading={loading}
@@ -272,4 +271,4 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
       </Modal>
     </div>
   )
-} 
+}

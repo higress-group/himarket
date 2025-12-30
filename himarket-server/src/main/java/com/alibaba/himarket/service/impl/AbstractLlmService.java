@@ -1,3 +1,22 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package com.alibaba.himarket.service.impl;
 
 import static com.alibaba.himarket.dto.result.chat.ChatAnswerMessage.MessageType;
@@ -29,7 +48,7 @@ import com.alibaba.himarket.support.product.ProductFeature;
 import com.google.common.base.Stopwatch;
 import io.modelcontextprotocol.spec.McpSchema;
 import jakarta.servlet.http.HttpServletResponse;
-import java.net.URL;
+import java.net.URI;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -57,8 +76,6 @@ import reactor.core.publisher.Flux;
 public abstract class AbstractLlmService implements LlmService {
 
     protected final ToolCallingManager toolCallingManager;
-
-    protected final McpClientFactory mcpClientFactory;
 
     /** Maximum number of tool-calling rounds allowed in a single chat conversation */
     private static final int MAX_ROUNDS_PER_CHAT = 10;
@@ -181,7 +198,7 @@ public abstract class AbstractLlmService implements LlmService {
                 .forEach(
                         mcpConfig -> {
                             McpClientWrapper holder =
-                                    mcpClientFactory.newClient(
+                                    McpClientFactory.newClient(
                                             mcpConfig, request.getCredentialContext());
                             if (holder != null) {
                                 mcpClientWrappers.add(holder);
@@ -257,7 +274,8 @@ public abstract class AbstractLlmService implements LlmService {
         ModelConfigResult modelConfig = product.getModelConfig();
         // Get request URL (with query params)
         CredentialContext credentialContext = param.getCredentialContext();
-        URL url = getUrl(modelConfig, credentialContext.copyQueryParams(), param.getGatewayIps());
+
+        URI uri = getUri(modelConfig, credentialContext.copyQueryParams(), param.getGatewayUris());
 
         // Model feature
         ModelFeature modelFeature = getOrDefaultModelFeature(product);
@@ -272,10 +290,10 @@ public abstract class AbstractLlmService implements LlmService {
         return LlmChatRequest.builder()
                 .chatId(param.getChatId())
                 .userQuestion(param.getUserQuestion())
-                .url(url)
+                .uri(uri)
                 .chatMessages(param.getChatMessages())
                 .headers(credentialContext.copyHeaders())
-                .gatewayIps(param.getGatewayIps())
+                .gatewayUris(param.getGatewayUris())
                 .credentialContext(param.getCredentialContext())
                 .mcpConfigs(param.getMcpConfigs())
                 .modelFeature(modelFeature)
@@ -330,7 +348,8 @@ public abstract class AbstractLlmService implements LlmService {
                             if (!assistantMessage.hasToolCalls()) {
                                 chatContext.getMessages().add(assistantMessage);
                                 log.warn(
-                                        "Unexpected: chatResponse.hasToolCalls is true but AssistantMessage has no toolCalls");
+                                        "Unexpected: chatResponse.hasToolCalls is true but"
+                                                + " AssistantMessage has no toolCalls");
                                 return Flux.just(
                                         newChatAnswerMessage(
                                                 usage,
@@ -500,7 +519,8 @@ public abstract class AbstractLlmService implements LlmService {
                                         nextChatResponse -> {
                                             if (nextChatResponse.getResult() == null) {
                                                 log.warn(
-                                                        "Unexpected: chatResponse.generation is null");
+                                                        "Unexpected: chatResponse.generation is"
+                                                                + " null");
                                                 return Flux.empty();
                                             }
 
@@ -754,17 +774,15 @@ public abstract class AbstractLlmService implements LlmService {
     }
 
     /**
-     * Constructs a URL based on the model configuration and query parameters.
+     * Constructs a URI based on the model configuration and query parameters.
      *
      * @param modelConfig
      * @param queryParams
-     * @param gatewayIps
+     * @param gatewayUris
      * @return
      */
-    protected abstract URL getUrl(
-            ModelConfigResult modelConfig,
-            Map<String, String> queryParams,
-            List<String> gatewayIps);
+    protected abstract URI getUri(
+            ModelConfigResult modelConfig, Map<String, String> queryParams, List<URI> gatewayUris);
 
     /**
      * Builds a ChatClient instance according to the specified protocol (e.g., OpenAI, etc.) based

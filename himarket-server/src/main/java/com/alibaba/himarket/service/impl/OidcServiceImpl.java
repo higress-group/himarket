@@ -49,7 +49,10 @@ import com.alibaba.himarket.support.portal.IdentityMapping;
 import com.alibaba.himarket.support.portal.OidcConfig;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import java.util.*;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -82,14 +85,14 @@ public class OidcServiceImpl implements OidcService {
         OidcConfig oidcConfig = findOidcConfig(provider);
         AuthCodeConfig authCodeConfig = oidcConfig.getAuthCodeConfig();
 
-        // state保存上下文信息
+        // State saves context info
         String state = buildState(provider, apiPrefix);
         String redirectUri = buildRedirectUri(request);
 
-        // 重定向URL
+        // Redirect URL
         String authUrl =
                 UriComponentsBuilder.fromUriString(authCodeConfig.getAuthorizationEndpoint())
-                        // 授权码模式
+                        // Authorization code mode
                         .queryParam(IdpConstants.RESPONSE_TYPE, IdpConstants.CODE)
                         .queryParam(IdpConstants.CLIENT_ID, authCodeConfig.getClientId())
                         .queryParam(IdpConstants.REDIRECT_URI, redirectUri)
@@ -107,24 +110,24 @@ public class OidcServiceImpl implements OidcService {
             String code, String state, HttpServletRequest request, HttpServletResponse response) {
         log.info("Processing OIDC callback with code: {}, state: {}", code, state);
 
-        // 解析state获取provider信息
+        // Parse state to get provider info
         IdpState idpState = parseState(state);
         String provider = idpState.getProvider();
 
         if (StrUtil.isBlank(provider)) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "缺少OIDC provider");
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "Missing OIDC provider");
         }
 
         OidcConfig oidcConfig = findOidcConfig(provider);
 
-        // 使用授权码获取Token
+        // Request token with authorization code
         IdpTokenResult tokenResult = requestToken(code, oidcConfig, request);
 
-        // 获取用户信息，优先使用ID Token，降级到UserInfo端点
+        // Get user info, prefer ID Token, fallback to UserInfo endpoint
         Map<String, Object> userInfo = getUserInfo(tokenResult, oidcConfig);
         log.info("Get OIDC user info: {}", userInfo);
 
-        // 处理用户认证逻辑
+        // Handle user authentication
         String developerId = createOrGetDeveloper(userInfo, oidcConfig);
         String accessToken = TokenUtil.generateDeveloperToken(developerId);
 
@@ -137,7 +140,7 @@ public class OidcServiceImpl implements OidcService {
                 .filter(portal -> portal.getPortalSettingConfig() != null)
                 .filter(portal -> portal.getPortalSettingConfig().getOidcConfigs() != null)
                 .map(portal -> portal.getPortalSettingConfig().getOidcConfigs())
-                // 确定当前Portal下启用的OIDC配置，返回Idp信息
+                // Get enabled OIDC configs for current portal
                 .map(
                         configs ->
                                 configs.stream()
@@ -164,7 +167,7 @@ public class OidcServiceImpl implements OidcService {
             baseUrl += ":" + serverPort;
         }
 
-        // 重定向到前端的Callback接口
+        // Redirect to frontend callback
         return baseUrl + "/oidc/callback";
     }
 
@@ -172,7 +175,7 @@ public class OidcServiceImpl implements OidcService {
         return Optional.ofNullable(portalService.getPortal(contextHolder.getPortal()))
                 .filter(portal -> portal.getPortalSettingConfig() != null)
                 .filter(portal -> portal.getPortalSettingConfig().getOidcConfigs() != null)
-                // 根据provider字段过滤
+                // Filter by provider
                 .flatMap(
                         portal ->
                                 portal.getPortalSettingConfig().getOidcConfigs().stream()
@@ -202,11 +205,11 @@ public class OidcServiceImpl implements OidcService {
         String stateJson = Base64.decodeStr(encodedState);
         IdpState idpState = JSONUtil.toBean(stateJson, IdpState.class);
 
-        // 验证时间戳，10分钟有效期
+        // Validate timestamp, 10 minutes validity
         if (idpState.getTimestamp() != null) {
             long currentTime = System.currentTimeMillis();
             if (currentTime - idpState.getTimestamp() > 10 * 60 * 1000) {
-                throw new BusinessException(ErrorCode.INVALID_REQUEST, "请求已过期");
+                throw new BusinessException(ErrorCode.INVALID_REQUEST, "Request has expired");
             }
         }
 
@@ -235,21 +238,22 @@ public class OidcServiceImpl implements OidcService {
     }
 
     private Map<String, Object> getUserInfo(IdpTokenResult tokenResult, OidcConfig oidcConfig) {
-        // 优先使用ID Token
+        // Prefer ID Token
         if (StrUtil.isNotBlank(tokenResult.getIdToken())) {
             log.info("Get user info form id token: {}", tokenResult.getIdToken());
             return parseUserInfo(tokenResult.getIdToken(), oidcConfig);
         }
 
-        // 降级策略：使用UserInfo端点
+        // Fallback: use UserInfo endpoint
         log.warn("ID Token not available, falling back to UserInfo endpoint");
         if (StrUtil.isBlank(tokenResult.getAccessToken())) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "OIDC获取用户信息失败");
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Failed to get OIDC user info");
         }
 
         AuthCodeConfig authCodeConfig = oidcConfig.getAuthCodeConfig();
         if (StrUtil.isBlank(authCodeConfig.getUserInfoEndpoint())) {
-            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "OIDC配置缺少用户信息端点");
+            throw new BusinessException(
+                    ErrorCode.INVALID_PARAMETER, "OIDC config missing user info endpoint");
         }
 
         return requestUserInfo(tokenResult.getAccessToken(), authCodeConfig, oidcConfig);
@@ -258,16 +262,16 @@ public class OidcServiceImpl implements OidcService {
     private Map<String, Object> parseUserInfo(String idToken, OidcConfig oidcConfig) {
         JWT jwt = JWTUtil.parseToken(idToken);
 
-        // 验证过期时间
+        // Validate expiration
         Object exp = jwt.getPayload("exp");
         if (exp != null) {
             long expTime = Convert.toLong(exp);
             long currentTime = System.currentTimeMillis() / 1000;
             if (expTime <= currentTime) {
-                throw new BusinessException(ErrorCode.INVALID_REQUEST, "ID Token已过期");
+                throw new BusinessException(ErrorCode.INVALID_REQUEST, "ID Token has expired");
             }
         }
-        // TODO 验签
+        // TODO Verify signature
 
         Map<String, Object> userInfo = jwt.getPayload().getClaimsJson();
 
@@ -298,7 +302,7 @@ public class OidcServiceImpl implements OidcService {
                     "Failed to fetch user info from endpoint: {}",
                     authCodeConfig.getUserInfoEndpoint(),
                     e);
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "获取用户信息失败");
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Failed to get user info");
         }
     }
 
@@ -326,10 +330,11 @@ public class OidcServiceImpl implements OidcService {
         String userName = Convert.toStr(userNameObj);
         String email = Convert.toStr(emailObj);
         if (StrUtil.isBlank(userId) || StrUtil.isBlank(userName)) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "Id Token中缺少用户ID字段或用户名称");
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST, "Missing user ID or user name in ID Token");
         }
 
-        // 复用已有的Developer，否则创建
+        // Reuse existing developer or create new
         return Optional.ofNullable(
                         developerService.getExternalDeveloper(config.getProvider(), userId))
                 .map(DeveloperResult::getDeveloperId)

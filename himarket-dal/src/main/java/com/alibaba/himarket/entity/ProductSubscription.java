@@ -42,6 +42,9 @@ public class ProductSubscription extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "subscription_id", length = 64, unique = true)
+    private String subscriptionId;
+
     @Column(name = "product_id", length = 64, nullable = false)
     private String productId;
 

@@ -34,7 +34,9 @@ import com.alibaba.himarket.dto.result.httpapi.APIResult;
 import com.alibaba.himarket.dto.result.mcp.GatewayMCPServerResult;
 import com.alibaba.himarket.dto.result.model.GatewayModelAPIResult;
 import com.alibaba.himarket.dto.result.product.ProductRefResult;
-import com.alibaba.himarket.entity.*;
+import com.alibaba.himarket.entity.Consumer;
+import com.alibaba.himarket.entity.ConsumerCredential;
+import com.alibaba.himarket.entity.Gateway;
 import com.alibaba.himarket.repository.GatewayRepository;
 import com.alibaba.himarket.repository.ProductRefRepository;
 import com.alibaba.himarket.service.GatewayService;
@@ -44,6 +46,7 @@ import com.alibaba.himarket.support.enums.APIGAPIType;
 import com.alibaba.himarket.support.enums.GatewayType;
 import com.alibaba.himarket.support.gateway.GatewayConfig;
 import jakarta.persistence.criteria.Predicate;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -240,6 +243,12 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
     }
 
     @Override
+    public String fetchMcpToolsForConfig(String gatewayId, Object conf) {
+        Gateway gateway = findGateway(gatewayId);
+        return getOperator(gateway).fetchMcpToolsForConfig(gateway, conf);
+    }
+
+    @Override
     public String fetchAgentConfig(String gatewayId, Object conf) {
         Gateway gateway = findGateway(gatewayId);
         return getOperator(gateway).fetchAgentConfig(gateway, conf);
@@ -350,15 +359,9 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
     }
 
     @Override
-    public String getDashboard(String gatewayId, String type) {
+    public List<URI> fetchGatewayUris(String gatewayId) {
         Gateway gateway = findGateway(gatewayId);
-        return getOperator(gateway).getDashboard(gateway, type); // type: Portal,MCP,API
-    }
-
-    @Override
-    public List<String> fetchGatewayIps(String gatewayId) {
-        Gateway gateway = findGateway(gatewayId);
-        return getOperator(gateway).fetchGatewayIps(gateway);
+        return getOperator(gateway).fetchGatewayUris(gateway);
     }
 
     @Override

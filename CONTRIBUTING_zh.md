@@ -1,6 +1,6 @@
-# Himarket 贡献指南
+# HiMarket 贡献指南
 
-感谢你对 Himarket 项目的关注！
+感谢你对 HiMarket 项目的关注！
 
 我们欢迎各种形式的贡献：Bug 修复、新功能、文档改进等等。
 
@@ -8,7 +8,7 @@
 
 ### Fork 并 Clone 仓库
 
-1. **Fork** [Himarket 仓库](https://github.com/higress-group/himarket) 到你的 GitHub 账号
+1. **Fork** [HiMarket 仓库](https://github.com/higress-group/himarket) 到你的 GitHub 账号
 2. **Clone** 你的 Fork 到本地：
 
 ```bash

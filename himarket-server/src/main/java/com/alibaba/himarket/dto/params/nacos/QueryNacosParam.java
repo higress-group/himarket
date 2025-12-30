@@ -23,17 +23,16 @@ import com.aliyun.teaopenapi.models.Config;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
-/** 查询Nacos集群参数 */
 @Data
 public class QueryNacosParam {
 
-    @NotBlank(message = "地域不能为空")
+    @NotBlank(message = "Region ID cannot be blank")
     private String regionId;
 
-    @NotBlank(message = "accessKey不能为空")
+    @NotBlank(message = "Access key cannot be blank")
     private String accessKey;
 
-    @NotBlank(message = "secretKey不能为空")
+    @NotBlank(message = "Secret key cannot be blank")
     private String secretKey;
 
     public Config toClientConfig() {

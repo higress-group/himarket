@@ -24,11 +24,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.Getter;
 
-/** 搜索引擎类型枚举 当前仅支持 GOOGLE，未来可扩展 BING、知识库搜索等 */
 @Getter
 public enum SearchEngineType {
-
-    /** Google搜索（通过SerpAPI） 当前唯一支持的搜索引擎 */
     GOOGLE("Google", "Google搜索引擎", true);
 
     // 未来可扩展的类型（示例，暂不启用）
@@ -45,14 +42,12 @@ public enum SearchEngineType {
         this.supported = supported;
     }
 
-    /** 获取所有当前支持的搜索引擎类型 */
     public static Set<SearchEngineType> getSupportedTypes() {
         return Arrays.stream(values())
                 .filter(type -> type.isSupported())
                 .collect(Collectors.toSet());
     }
 
-    /** 检查指定类型是否支持 */
     public static boolean isSupported(SearchEngineType type) {
         return type != null && type.isSupported();
     }

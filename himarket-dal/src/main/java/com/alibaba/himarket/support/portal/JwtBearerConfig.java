@@ -22,12 +22,11 @@ package com.alibaba.himarket.support.portal;
 import java.util.List;
 import lombok.Data;
 
-/**
- * @author zh
- */
 @Data
 public class JwtBearerConfig {
 
-    /** JWT公钥 */
+    /**
+     * JWT public keys
+     */
     private List<PublicKeyConfig> publicKeys;
 }

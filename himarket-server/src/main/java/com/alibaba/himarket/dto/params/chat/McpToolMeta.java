@@ -20,10 +20,6 @@ package com.alibaba.himarket.dto.params.chat;
 
 import lombok.*;
 
-/**
- * @author shihan
- * @version : McpToolMeta, v0.1 2025年11月26日 19:05 shihan Exp $
- */
 @Data
 @EqualsAndHashCode
 @ToString

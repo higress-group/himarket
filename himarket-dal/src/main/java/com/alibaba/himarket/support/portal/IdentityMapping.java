@@ -22,21 +22,26 @@ package com.alibaba.himarket.support.portal;
 import java.util.Map;
 import lombok.Data;
 
-/**
- * @author zh
- */
 @Data
 public class IdentityMapping {
 
-    /** 映射DeveloperId */
+    /**
+     * Field mapping for Developer ID
+     */
     private String userIdField;
 
-    /** 映射Developer Name */
+    /**
+     * Field mapping for Developer Name
+     */
     private String userNameField;
 
-    /** 映射Developer Email */
+    /**
+     * Field mapping for Developer Email
+     */
     private String emailField;
 
-    /** 自定义字段映射（预留扩展） */
+    /**
+     * Custom field mappings (reserved for extension)
+     */
     private Map<String, String> customFields;
 }

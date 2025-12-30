@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Button, Dropdown, MenuProps, Typography, Spin, Modal, message } from 'antd'
+import { Button, Dropdown, MenuProps, Spin, Modal, message } from 'antd'
 import {
   MoreOutlined,
   LeftOutlined,
@@ -20,10 +20,6 @@ import { PortalDomain } from '@/components/portal/PortalDomain'
 import PortalFormModal from '@/components/portal/PortalFormModal'
 import { portalApi } from '@/lib/api'
 import { Portal } from '@/types'
-
-const { Title } = Typography
-
-// 移除mockPortal，使用真实API数据
 
 const menuItems = [
   {
@@ -80,7 +76,6 @@ export default function PortalDetail() {
 
   // 从URL查询参数获取当前tab，默认为overview
   const currentTab = searchParams.get('tab') || 'overview'
-  const [activeTab, setActiveTab] = useState(currentTab)
 
   const fetchPortalData = async () => {
     try {
@@ -104,18 +99,12 @@ export default function PortalDetail() {
     fetchPortalData()
   }, [])
 
-  // 当URL中的tab参数变化时，更新activeTab
-  useEffect(() => {
-    setActiveTab(currentTab)
-  }, [currentTab])
-
   const handleBackToPortals = () => {
     navigate('/portals')
   }
 
   // 处理tab切换，同时更新URL查询参数
   const handleTabChange = (tabKey: string) => {
-    setActiveTab(tabKey)
     const newSearchParams = new URLSearchParams(searchParams)
     newSearchParams.set('tab', tabKey)
     setSearchParams(newSearchParams)
@@ -137,7 +126,7 @@ export default function PortalDetail() {
   const renderContent = () => {
     if (!portal) return null
     
-    switch (activeTab) {
+    switch (currentTab) {
       case "overview":
         return <PortalOverview portal={portal} onEdit={handleEdit} />
       case "published-apis":
@@ -202,7 +191,7 @@ export default function PortalDetail() {
       <div className="w-64 border-r bg-white flex flex-col">
         {/* 返回按钮 */}
         <div className="pb-4 border-b">
-          <Button 
+          <Button
             type="text"
             // className="w-full justify-start text-gray-600 hover:text-gray-900"
             onClick={handleBackToPortals}
@@ -214,8 +203,8 @@ export default function PortalDetail() {
 
         {/* Portal 信息 */}
         <div className="p-4 border-b">
-          <div className="flex items-center justify-between mb-2">
-            <Title level={5} className="mb-0">{portal.name}</Title>
+          <div className="flex items-center justify-between">
+            <p className='font-medium text-sm mb-0'>{portal.name}</p>
             <Dropdown menu={{ items: dropdownItems }} trigger={['click']}>
               <Button type="text" icon={<MoreOutlined />} size="small" />
             </Dropdown>
@@ -231,7 +220,7 @@ export default function PortalDetail() {
                 key={item.key}
                 onClick={() => handleTabChange(item.key)}
                 className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left transition-colors ${
-                  activeTab === item.key
+                  currentTab === item.key
                     ? "bg-blue-50 text-blue-600 border border-blue-200"
                     : "hover:bg-gray-50 text-gray-700"
                 }`}
@@ -262,4 +251,4 @@ export default function PortalDetail() {
       )}
     </div>
   )
-} 
+}

@@ -21,35 +21,48 @@ package com.alibaba.himarket.support.portal;
 
 import lombok.Data;
 
-/**
- * @author zh
- */
 @Data
 public class AuthCodeConfig {
 
-    /** 凭证 */
+    /**
+     * Client credential
+     */
     private String clientId;
 
     private String clientSecret;
 
-    /** 访问范围 */
+    /**
+     * Scopes
+     */
     private String scopes;
 
-    /** Issuer */
+    /**
+     * Issuer
+     */
     private String issuer;
 
-    /** 授权端点 */
+    /**
+     * Endpoint of authorization
+     */
     private String authorizationEndpoint;
 
-    /** 令牌端点 */
+    /**
+     * Endpoint of fetching access token
+     */
     private String tokenEndpoint;
 
-    /** 用户信息端点 */
+    /**
+     * Endpoint of fetching user info
+     */
     private String userInfoEndpoint;
 
-    /** JWK Set URI */
+    /**
+     * JWK Set URI
+     */
     private String jwkSetUri;
 
-    /** 重定向URI */
+    /**
+     * Redirect URI
+     */
     private String redirectUri;
 }

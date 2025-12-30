@@ -128,6 +128,10 @@ export const portalApi = {
   approveSubscription: (consumerId: string, productId: string) => {
     return api.patch(`/consumers/${consumerId}/subscriptions/${productId}`)
   },
+  // 获取Portal已发布的产品列表
+  getPortalPublications: (portalId: string, params?: { page?: number; size?: number }) => {
+    return api.get(`/portals/${portalId}/publications`, { params })
+  },
   // 删除订阅
   deleteSubscription: (consumerId: string, productId: string) => {
     return api.delete(`/consumers/${consumerId}/subscriptions/${productId}`)
@@ -174,11 +178,11 @@ export const apiProductApi = {
   },
   // 发布API产品到门户
   publishToPortal: (productId: string, portalId: string) => {
-    return api.post(`/products/${productId}/publications/${portalId}`)
+    return api.post(`/products/${productId}/publications`, { portalId })
   },
   // 取消发布API产品到门户
-  cancelPublishToPortal: (productId: string, portalId: string) => {
-    return api.delete(`/products/${productId}/publications/${portalId}`)
+  cancelPublishToPortal: (productId: string, publicationId: string) => {
+    return api.delete(`/products/${productId}/publications/${publicationId}`)
   },
   // 获取API产品的Dashboard监控面板URL
   getProductDashboard: (productId: string) => {

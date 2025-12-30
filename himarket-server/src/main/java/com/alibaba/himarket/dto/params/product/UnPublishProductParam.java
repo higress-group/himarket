@@ -25,6 +25,6 @@ import lombok.Data;
 @Data
 public class UnPublishProductParam {
 
-    @NotBlank(message = "门户ID不能为空")
+    @NotBlank(message = "Portal ID cannot be blank")
     private String portalId;
 }

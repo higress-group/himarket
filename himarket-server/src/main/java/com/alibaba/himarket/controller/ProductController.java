@@ -23,6 +23,7 @@ import com.alibaba.himarket.core.annotation.AdminAuth;
 import com.alibaba.himarket.core.annotation.AdminOrDeveloperAuth;
 import com.alibaba.himarket.dto.params.product.CreateProductParam;
 import com.alibaba.himarket.dto.params.product.CreateProductRefParam;
+import com.alibaba.himarket.dto.params.product.PublishProductParam;
 import com.alibaba.himarket.dto.params.product.QueryProductParam;
 import com.alibaba.himarket.dto.params.product.QueryProductSubscriptionParam;
 import com.alibaba.himarket.dto.params.product.UpdateProductParam;
@@ -42,14 +43,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "API产品管理", description = "提供API产品的创建、更新、删除、查询、订阅等管理功能")
 @RestController
@@ -90,10 +84,11 @@ public class ProductController {
     }
 
     @Operation(summary = "发布API产品")
-    @PostMapping("/{productId}/publications/{portalId}")
+    @PostMapping("/{productId}/publications")
     @AdminAuth
-    public void publishProduct(@PathVariable String productId, @PathVariable String portalId) {
-        productService.publishProduct(productId, portalId);
+    public void publishProduct(
+            @PathVariable String productId, @RequestBody @Valid PublishProductParam param) {
+        productService.publishProduct(productId, param.getPortalId());
     }
 
     @Operation(summary = "获取API产品的发布信息")
@@ -105,10 +100,11 @@ public class ProductController {
     }
 
     @Operation(summary = "下线API产品")
-    @DeleteMapping("/{productId}/publications/{portalId}")
+    @DeleteMapping("/{productId}/publications/{publicationId}")
     @AdminAuth
-    public void unpublishProduct(@PathVariable String productId, @PathVariable String portalId) {
-        productService.unpublishProduct(productId, portalId);
+    public void unpublishProduct(
+            @PathVariable String productId, @PathVariable String publicationId) {
+        productService.unpublishProduct(productId, publicationId);
     }
 
     @Operation(summary = "删除API产品")
@@ -122,8 +118,7 @@ public class ProductController {
     @PostMapping("/{productId}/ref")
     @AdminAuth
     public void addProductRef(
-            @PathVariable String productId, @RequestBody @Valid CreateProductRefParam param)
-            throws Exception {
+            @PathVariable String productId, @RequestBody @Valid CreateProductRefParam param) {
         productService.addProductRef(productId, param);
     }
 
@@ -138,14 +133,6 @@ public class ProductController {
     @AdminAuth
     public void deleteProductRef(@PathVariable String productId) {
         productService.deleteProductRef(productId);
-    }
-
-    // 暂时移除单个产品的监控大盘，大盘集中管理
-    @Deprecated
-    @Operation(summary = "获取API产品的Dashboard监控面板URL")
-    @GetMapping("/{productId}/dashboard")
-    public String getProductDashboard(@PathVariable String productId) {
-        return productService.getProductDashboard(productId);
     }
 
     @Operation(summary = "获取产品的订阅列表")
@@ -174,7 +161,7 @@ public class ProductController {
     }
 
     @Operation(summary = "重新加载API产品配置")
-    @PostMapping("/{productId}/reload")
+    @PutMapping("/{productId}/configurations")
     @AdminAuth
     public void reloadProductConfig(@PathVariable String productId) {
         productService.reloadProductConfig(productId);

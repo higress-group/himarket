@@ -190,30 +190,6 @@ EOF
 }
 
 ########################################
-# 创建域名
-########################################
-create_domain() {
-  local domain="$1"
-  local enable_https="$2"
-  local mcp_name="$3"
-  
-  local https_value="off"
-  if [[ "$enable_https" == "true" ]]; then
-    https_value="on"
-  fi
-  
-  local data=$(cat <<EOF
-{
-  "name": "${domain}",
-  "enableHttps": "${https_value}"
-}
-EOF
-)
-  
-  call_higress_api "POST" "/v1/domains" "$data" "[${mcp_name}] 创建域名 (${domain})"
-}
-
-########################################
 # 处理 OpenAPI 类型的 MCP
 ########################################
 process_openapi_mcp() {
@@ -247,7 +223,6 @@ process_openapi_mcp() {
   fi
   
   # 构建请求数据
-  local domains=$(echo "$mcp_config" | jq -c '.higress.domains')
   local services=$(echo "$mcp_config" | jq -c '.higress.services')
   local consumer_auth=$(echo "$mcp_config" | jq -c '.higress.consumerAuth')
   
@@ -256,7 +231,7 @@ process_openapi_mcp() {
   "id": null,
   "name": "${mcp_name}",
   "description": "${description}",
-  "domains": ${domains},
+  "domains": [],
   "services": ${services},
   "type": "OPEN_API",
   "consumerAuthInfo": ${consumer_auth},
@@ -285,7 +260,6 @@ process_direct_route_mcp() {
   log "处理 DIRECT_ROUTE MCP: ${mcp_name}"
   
   # 构建请求数据
-  local domains=$(echo "$mcp_config" | jq -c '.higress.domains')
   local services=$(echo "$mcp_config" | jq -c '.higress.services')
   local consumer_auth=$(echo "$mcp_config" | jq -c '.higress.consumerAuth')
   
@@ -294,7 +268,7 @@ process_direct_route_mcp() {
   "id": null,
   "name": "${mcp_name}",
   "description": "${description}",
-  "domains": ${domains},
+  "domains": [],
   "services": ${services},
   "type": "DIRECT_ROUTE",
   "consumerAuthInfo": ${consumer_auth},
@@ -334,18 +308,7 @@ process_single_mcp() {
       return 1
     fi
   done <<< "$sources"
-  
-  # 2. 创建所有域名
-  local enable_https=$(echo "$mcp_config" | jq -r '.higress.enableHttps')
-  local domains=$(echo "$mcp_config" | jq -r '.higress.domains[]')
-  while IFS= read -r domain; do
-    if ! create_domain "$domain" "$enable_https" "$mcp_name"; then
-      err "[${mcp_name}] 创建域名失败"
-      return 1
-    fi
-  done <<< "$domains"
-  
-  # 3. 根据类型创建 MCP 服务器配置
+  # 2. 根据类型创建 MCP 服务器配置
   if [[ "$mcp_type" == "OPEN_API" ]]; then
     if ! process_openapi_mcp "$mcp_config"; then
       err "[${mcp_name}] 创建 OpenAPI MCP 失败"

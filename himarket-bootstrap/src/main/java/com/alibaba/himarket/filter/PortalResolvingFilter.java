@@ -64,7 +64,8 @@ public class PortalResolvingFilter extends OncePerRequestFilter {
             }
 
             log.debug(
-                    "域名解析调试 - Origin: {}, Host: {}, X-Forwarded-Host: {}, ServerName: {}, X-Real-IP: {}, X-Forwarded-For: {}",
+                    "Domain resolution - Origin: {}, Host: {}, X-Forwarded-Host: {}, ServerName:"
+                            + " {}, X-Real-IP: {}, X-Forwarded-For: {}",
                     origin,
                     host,
                     xForwardedHost,
@@ -73,9 +74,11 @@ public class PortalResolvingFilter extends OncePerRequestFilter {
                     xForwardedFor);
 
             if (domain == null) {
-                // 优先使用Host头，如果没有则使用ServerName
+                // Priority:
+                // 1. Use Host header if available
+                // 2. Fallback to ServerName if Host header is missing
                 if (host != null && !host.isEmpty()) {
-                    domain = host.split(":")[0]; // 去掉端口号
+                    domain = host.split(":")[0];
                 } else {
                     domain = request.getServerName();
                 }

@@ -21,16 +21,16 @@ package com.alibaba.himarket.core.constant;
 
 public class CommonConstants {
 
-    // Token相关
+    // Token
     public static final String AUTHORIZATION_HEADER = "Authorization";
     public static final String BEARER_PREFIX = "Bearer ";
 
-    // 角色前缀
+    // Role
     public static final String ROLE_PREFIX = "ROLE_";
     public static final String USER_TYPE = "userType";
     public static final String USER_ID = "userId";
 
-    // Cookie相关
+    // Cookie
     public static final String AUTH_TOKEN_COOKIE = "auth_token";
 
     // HTTP

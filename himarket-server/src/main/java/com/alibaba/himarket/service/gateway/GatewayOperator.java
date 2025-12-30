@@ -27,7 +27,9 @@ import com.alibaba.himarket.dto.result.gateway.GatewayResult;
 import com.alibaba.himarket.dto.result.httpapi.APIResult;
 import com.alibaba.himarket.dto.result.mcp.GatewayMCPServerResult;
 import com.alibaba.himarket.dto.result.model.GatewayModelAPIResult;
-import com.alibaba.himarket.entity.*;
+import com.alibaba.himarket.entity.Consumer;
+import com.alibaba.himarket.entity.ConsumerCredential;
+import com.alibaba.himarket.entity.Gateway;
 import com.alibaba.himarket.service.gateway.client.APIGClient;
 import com.alibaba.himarket.service.gateway.client.ApsaraStackGatewayClient;
 import com.alibaba.himarket.service.gateway.client.GatewayClient;
@@ -36,6 +38,7 @@ import com.alibaba.himarket.support.consumer.ConsumerAuthConfig;
 import com.alibaba.himarket.support.enums.GatewayType;
 import com.alibaba.himarket.support.gateway.GatewayConfig;
 import com.aliyun.sdk.service.apig20240327.models.HttpApiApiInfo;
+import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -66,6 +69,8 @@ public abstract class GatewayOperator<T> {
 
     public abstract String fetchModelConfig(Gateway gateway, Object conf);
 
+    public abstract String fetchMcpToolsForConfig(Gateway gateway, Object conf);
+
     public abstract PageResult<GatewayResult> fetchGateways(Object param, int page, int size);
 
     public abstract String createConsumer(
@@ -76,13 +81,6 @@ public abstract class GatewayOperator<T> {
 
     public abstract void deleteConsumer(String consumerId, GatewayConfig config);
 
-    /**
-     * 检查消费者是否存在于网关中
-     *
-     * @param consumerId 消费者ID
-     * @param config 网关配置
-     * @return 是否存在
-     */
     public abstract boolean isConsumerExists(String consumerId, GatewayConfig config);
 
     public abstract ConsumerAuthConfig authorizeConsumer(
@@ -95,9 +93,7 @@ public abstract class GatewayOperator<T> {
 
     public abstract GatewayType getGatewayType();
 
-    public abstract String getDashboard(Gateway gateway, String type);
-
-    public abstract List<String> fetchGatewayIps(Gateway gateway);
+    public abstract List<URI> fetchGatewayUris(Gateway gateway);
 
     public abstract List<String> getGatewayDomains(Gateway gateway);
 

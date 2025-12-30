@@ -21,16 +21,21 @@ package com.alibaba.himarket.support.product;
 
 import lombok.Data;
 
-/** Nacos 引用配置 支持 MCP Server 和 Agent API 两种类型 */
 @Data
 public class NacosRefConfig {
 
-    /** MCP Server 名称（用于 MCP Server 类型） */
+    /**
+     * MCP server name, for mcp server
+     */
     private String mcpServerName;
 
-    /** Agent 名称（用于 Agent API 类型） */
+    /**
+     * Agent name, for agent
+     */
     private String agentName;
 
-    /** 命名空间 ID（MCP Server 和 Agent API 共用） */
+    /**
+     * Namespace ID, for both agent and MCP server
+     */
     private String namespaceId;
 }

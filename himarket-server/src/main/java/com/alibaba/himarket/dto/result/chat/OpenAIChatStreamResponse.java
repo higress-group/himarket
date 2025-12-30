@@ -1,3 +1,22 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package com.alibaba.himarket.dto.result.chat;
 
 import cn.hutool.core.annotation.Alias;
@@ -7,44 +26,61 @@ import java.util.List;
 import java.util.Optional;
 import lombok.Data;
 
-/**
- * @author zh
- */
 @Data
 public class OpenAIChatStreamResponse {
 
-    /** Response ID */
+    /**
+     * Response ID
+     */
     private String id;
 
-    /** Response type, currently always "chat.completion.chunk" */
+    /**
+     * Response type, currently always "chat.completion.chunk"
+     */
     private String object;
 
-    /** Timestamp */
+    /**
+     * Timestamp
+     */
     private Long created;
 
-    /** Usage */
+    /**
+     * Usage
+     */
     private Usage usage;
 
-    /** Model name */
+    /**
+     * Model name
+     */
     private String model;
 
-    /** System fingerprint */
+    /**
+     * System fingerprint
+     */
     @JsonProperty("system_fingerprint")
     @Alias("system_fingerprint")
     private String systemFingerprint;
 
-    /** Choices */
+    /**
+     * Choices
+     */
     private List<Choice> choices;
 
     @Data
     public static class Choice {
-        /** Delta */
+        /**
+         * Delta
+         */
         private Delta delta;
 
-        /** Index */
+        /**
+         * Index
+         */
         private Integer index;
 
-        /** Reason for completion */
+        /**
+         * Reason for completion
+         */
         @JsonProperty("finish_reason")
         @Alias("finish_reason")
         private String finishReason;
@@ -52,13 +88,19 @@ public class OpenAIChatStreamResponse {
 
     @Data
     public static class Delta {
-        /** Role */
+        /**
+         * Role
+         */
         private String role;
 
-        /** Content */
+        /**
+         * Content
+         */
         private String content;
 
-        /** Reasoning content, only returned when finish_reason is "reasoning" */
+        /**
+         * Reasoning content, only returned when finish_reason is "reasoning"
+         */
         @JsonProperty("reasoning_content")
         @Alias("reasoning_content")
         private String reasoningContent;
@@ -75,22 +117,30 @@ public class OpenAIChatStreamResponse {
         @Alias("elapsed_time")
         private Long elapsedTime;
 
-        /** Tokens used for prompt */
+        /**
+         * Tokens used for prompt
+         */
         @JsonProperty("prompt_tokens")
         @Alias("prompt_tokens")
         private Integer promptTokens;
 
-        /** Tokens used for completion */
+        /**
+         * Tokens used for completion
+         */
         @JsonProperty("completion_tokens")
         @Alias("completion_tokens")
         private Integer completionTokens;
 
-        /** Total tokens used, including prompt and completion */
+        /**
+         * Total tokens used, including prompt and completion
+         */
         @JsonProperty("total_tokens")
         @Alias("total_tokens")
         private Integer totalTokens;
 
-        /** Tokens used for prompt details */
+        /**
+         * Tokens used for prompt details
+         */
         @JsonProperty("prompt_tokens_details")
         @Alias("prompt_tokens_details")
         private PromptTokensDetails promptTokensDetails;
@@ -98,7 +148,9 @@ public class OpenAIChatStreamResponse {
 
     @Data
     public static class PromptTokensDetails {
-        /** Cached tokens */
+        /**
+         * Cached tokens
+         */
         @JsonProperty("cached_tokens")
         @Alias("cached_tokens")
         private Integer cachedTokens;

@@ -24,15 +24,12 @@ import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
-import com.alibaba.himarket.core.security.ContextHolder;
 import com.alibaba.himarket.core.utils.CacheUtil;
 import com.alibaba.himarket.dto.params.chat.CreateChatParam;
 import com.alibaba.himarket.dto.params.chat.InvokeModelParam;
 import com.alibaba.himarket.dto.result.chat.LlmInvokeResult;
-import com.alibaba.himarket.dto.result.consumer.CredentialContext;
 import com.alibaba.himarket.dto.result.product.ProductRefResult;
 import com.alibaba.himarket.dto.result.product.ProductResult;
-import com.alibaba.himarket.service.ConsumerService;
 import com.alibaba.himarket.service.GatewayService;
 import com.alibaba.himarket.service.LlmService;
 import com.alibaba.himarket.service.ProductService;
@@ -47,6 +44,7 @@ import com.github.rholder.retry.Retryer;
 import com.github.rholder.retry.RetryerBuilder;
 import com.github.rholder.retry.StopStrategies;
 import com.google.common.base.Throwables;
+import java.net.URI;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -66,31 +64,32 @@ public class SearchRewirteServiceImpl implements SearchRewriteService {
 
     public static String queryRewritePrompt =
             "### 任务:\n"
-                    + "分析聊天记录，以确定是否需要生成搜索查询，使用给定的语言。**生成1-3个宽泛且相关的搜索关键词**，除非能够完全确定不需要额外信息。\n"
-                    + "同时，根据聊天记录生成需要搜索的时间范围\n"
-                    + "目标是在存在最小不确定性的情况下，依然能够获取全面、最新且有价值的信息。如果完全确定不需要搜索，则返回一个空列表。\n"
-                    + "\n"
-                    + "### 指南:\n"
-                    + "- 必须**仅以 JSON 对象回答**。严禁任何形式的额外评论、解释或其他文本。\n"
-                    + "- 生成搜索查询时，请使用如下格式回答：{ \"query\": \"query_key_word1,query_key_word2\", \"time\": [\"2025-01-01\", \"2025-03-06\"] }，确保每个查询都是独特的、简洁的，并与主题相关。\n"
-                    + "- 可以确定搜索的时间范围时，在JSON对象中加入\"time\"字段，指定搜索范围的开始和结束时间，不要在搜索关键词中加入时间范围。\n"
-                    + "- 仅当完全确定通过搜索无法获得任何有用信息时，返回：{ \"query\": \"\" }。\n"
-                    + "- 如果存在**任何可能**提供有用或更新信息的机会，应倾向于建议生成搜索查询。\n"
-                    + "- 请保持简洁，专注于构造高质量的搜索查询，避免不必要的展开、评论或假设。\n"
-                    + "- 今天的日期为：%s。\n"
-                    + "- 始终优先提供既可操作又覆盖面广的查询，以最大化信息覆盖。\n"
-                    + "\n"
-                    + "### 输出:\n"
-                    + "严格以 JSON 格式返回，不要包含任何其他内容：\n"
-                    + "{\n"
-                    + "    \"query\":\"query_key_word1,query_key_word2\",\n"
-                    + "    \"time\": [\"2025-01-01\", \"2025-03-06\"]\n"
-                    + "}\n"
-                    + "\n"
-                    + "### 聊天记录:\n"
-                    + "<chat_history>\n"
-                    + "%s\n"
-                    + "</chat_history>";
+                + "分析聊天记录，以确定是否需要生成搜索查询，使用给定的语言。**生成1-3个宽泛且相关的搜索关键词**，除非能够完全确定不需要额外信息。\n"
+                + "同时，根据聊天记录生成需要搜索的时间范围\n"
+                + "目标是在存在最小不确定性的情况下，依然能够获取全面、最新且有价值的信息。如果完全确定不需要搜索，则返回一个空列表。\n"
+                + "\n"
+                + "### 指南:\n"
+                + "- 必须**仅以 JSON 对象回答**。严禁任何形式的额外评论、解释或其他文本。\n"
+                + "- 生成搜索查询时，请使用如下格式回答：{ \"query\": \"query_key_word1,query_key_word2\", \"time\":"
+                + " [\"2025-01-01\", \"2025-03-06\"] }，确保每个查询都是独特的、简洁的，并与主题相关。\n"
+                + "- 可以确定搜索的时间范围时，在JSON对象中加入\"time\"字段，指定搜索范围的开始和结束时间，不要在搜索关键词中加入时间范围。\n"
+                + "- 仅当完全确定通过搜索无法获得任何有用信息时，返回：{ \"query\": \"\" }。\n"
+                + "- 如果存在**任何可能**提供有用或更新信息的机会，应倾向于建议生成搜索查询。\n"
+                + "- 请保持简洁，专注于构造高质量的搜索查询，避免不必要的展开、评论或假设。\n"
+                + "- 今天的日期为：%s。\n"
+                + "- 始终优先提供既可操作又覆盖面广的查询，以最大化信息覆盖。\n"
+                + "\n"
+                + "### 输出:\n"
+                + "严格以 JSON 格式返回，不要包含任何其他内容：\n"
+                + "{\n"
+                + "    \"query\":\"query_key_word1,query_key_word2\",\n"
+                + "    \"time\": [\"2025-01-01\", \"2025-03-06\"]\n"
+                + "}\n"
+                + "\n"
+                + "### 聊天记录:\n"
+                + "<chat_history>\n"
+                + "%s\n"
+                + "</chat_history>";
 
     private final LlmService llmService;
 
@@ -98,23 +97,13 @@ public class SearchRewirteServiceImpl implements SearchRewriteService {
 
     private final GatewayService gatewayService;
 
-    private final ContextHolder contextHolder;
-
-    private final ConsumerService consumerService;
-
-    private final Cache<String, List<String>> cache = CacheUtil.newCache(5);
+    private final Cache<String, List<URI>> cache = CacheUtil.newCache(5);
 
     public SearchRewirteServiceImpl(
-            LlmService llmService,
-            ProductService productService,
-            GatewayService gatewayService,
-            ContextHolder contextHolder,
-            ConsumerService consumerService) {
+            LlmService llmService, ProductService productService, GatewayService gatewayService) {
         this.llmService = llmService;
         this.productService = productService;
         this.gatewayService = gatewayService;
-        this.contextHolder = contextHolder;
-        this.consumerService = consumerService;
     }
 
     @Override
@@ -244,15 +233,12 @@ public class SearchRewirteServiceImpl implements SearchRewriteService {
         // Get gateway IPs
         ProductRefResult productRef = productService.getProductRef(param.getProductId());
         String gatewayId = productRef.getGatewayId();
-        List<String> gatewayIps = cache.get(gatewayId, gatewayService::fetchGatewayIps);
-
-        CredentialContext credentialContext =
-                consumerService.getDefaultCredential(contextHolder.getUser());
+        List<URI> gatewayUris = cache.get(gatewayId, gatewayService::fetchGatewayUris);
 
         return InvokeModelParam.builder()
                 .product(productResult)
                 .chatMessages(messages)
-                .gatewayIps(gatewayIps)
+                .gatewayUris(gatewayUris)
                 .build();
     }
 

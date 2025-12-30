@@ -39,7 +39,7 @@ const PortalCard = memo(
     }, []);
 
     const dropdownItems: MenuProps["items"] = [
-     
+
       {
         key: "delete",
         label: "删除",
@@ -69,17 +69,23 @@ const PortalCard = memo(
 
     return (
       <Card
-        className="cursor-pointer hover:shadow-xl transition-all duration-300 hover:scale-[1.02] border border-gray-100 hover:border-blue-300 bg-gradient-to-br from-white to-gray-50/30"
+        hoverable
+        className="
+          bg-white/60 backdrop-blur-sm rounded-2xl
+          border cursor-pointer
+          transition-all duration-300 ease-in-out
+          hover:bg-white hover:shadow-md hover:scale-[1.02] hover:border-colorPrimary/50
+          border-colorPrimary/30 active:scale-[0.98]
+          relative overflow-hidden group
+        "
         onClick={handleCardClick}
-        bodyStyle={{ padding: "20px" }}
       >
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-4">
             <div className="relative">
               <Avatar
                 size={48}
-                className="bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg"
-                style={{ fontSize: "18px", fontWeight: "600" }}
+                className="bg-gradient-to-br from-colorPrimary to-colorPrimaryHover text-lg font-semibold border-none"
               >
                 {portal.title.charAt(0).toUpperCase()}
               </Avatar>
@@ -104,7 +110,7 @@ const PortalCard = memo(
 
         <div className="space-y-6">
           <div className="flex items-center space-x-3 p-3 bg-blue-50 rounded-lg border border-blue-100">
-            <LinkOutlined className="h-4 w-4 text-blue-500" />
+            <LinkOutlined className="h-4 w-4 text-colorPrimary" />
             <Tooltip
               title={portal.portalDomainConfig?.[portal.portalDomainConfig.length - 1]?.domain}
               placement="top"
@@ -114,7 +120,7 @@ const PortalCard = memo(
                 href={`http://${portal.portalDomainConfig?.[portal.portalDomainConfig.length - 1]?.domain}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-blue-600 hover:text-blue-700 font-medium text-sm"
+                className="text-colorPrimary hover:text-colorPrimary font-medium text-sm"
                 onClick={handleLinkClick}
                 style={{
                   display: "inline-block",
@@ -199,24 +205,6 @@ const PortalCard = memo(
             </div>
           </div>
 
-          <div className="text-center pt-4 border-t border-gray-100">
-            <div className="inline-flex items-center space-x-2 text-sm text-gray-500 hover:text-blue-600 transition-colors">
-              <span onClick={handleCardClick}>点击查看详情</span>
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
-            </div>
-          </div>
         </div>
       </Card>
     );
@@ -331,7 +319,7 @@ export default function Portals() {
         </Button>
       </div>
       {error && <div className="text-red-500">{error}</div>}
-      
+
       {loading ? (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: pagination.pageSize || 12 }).map((_, index) => (

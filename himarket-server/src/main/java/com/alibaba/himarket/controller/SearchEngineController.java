@@ -32,7 +32,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** 搜索引擎控制器 提供开发者可用的搜索引擎查询功能 */
 @Tag(name = "搜索引擎", description = "开发者可用的搜索引擎查询")
 @RestController
 @RequestMapping("/search-engines")

@@ -32,6 +32,9 @@ public class ProductPublication extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "publication_id", length = 64, unique = true)
+    private String publicationId;
+
     @Column(name = "portal_id", length = 64, nullable = false)
     private String portalId;
 

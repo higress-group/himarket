@@ -48,7 +48,10 @@ import com.alibaba.himarket.repository.ConsumerCredentialRepository;
 import com.alibaba.himarket.repository.ConsumerRefRepository;
 import com.alibaba.himarket.repository.ConsumerRepository;
 import com.alibaba.himarket.repository.SubscriptionRepository;
-import com.alibaba.himarket.service.*;
+import com.alibaba.himarket.service.ConsumerService;
+import com.alibaba.himarket.service.GatewayService;
+import com.alibaba.himarket.service.PortalService;
+import com.alibaba.himarket.service.ProductService;
 import com.alibaba.himarket.support.consumer.ApiKeyConfig;
 import com.alibaba.himarket.support.consumer.ConsumerAuthConfig;
 import com.alibaba.himarket.support.consumer.HmacConfig;
@@ -252,15 +255,7 @@ public class ConsumerServiceImpl implements ConsumerService {
 
     @Override
     public void updateCredential(String consumerId, UpdateCredentialParam param) {
-        ConsumerCredential credential =
-                credentialRepository
-                        .findByConsumerId(consumerId)
-                        .orElseThrow(
-                                () ->
-                                        new BusinessException(
-                                                ErrorCode.NOT_FOUND,
-                                                Resources.CONSUMER_CREDENTIAL,
-                                                consumerId));
+        ConsumerCredential credential = findCredential(consumerId);
 
         param.update(credential);
 
@@ -312,17 +307,10 @@ public class ConsumerServiceImpl implements ConsumerService {
                     ErrorCode.INVALID_REQUEST, "API product does not support subscription");
         }
 
-        ConsumerCredential credential =
-                credentialRepository
-                        .findByConsumerId(consumerId)
-                        .orElseThrow(
-                                () ->
-                                        new BusinessException(
-                                                ErrorCode.NOT_FOUND,
-                                                Resources.CONSUMER_CREDENTIAL,
-                                                consumerId));
+        ConsumerCredential credential = findCredential(consumerId);
 
         ProductSubscription subscription = param.convertTo();
+        subscription.setSubscriptionId(IdGenerator.genSubscriptionId());
         subscription.setConsumerId(consumerId);
 
         boolean autoApprove;
@@ -356,19 +344,17 @@ public class ConsumerServiceImpl implements ConsumerService {
     }
 
     @Override
-    public void unsubscribeProduct(String consumerId, String productId) {
+    public void unsubscribeProduct(String consumerId, String subscriptionId) {
         existsConsumer(consumerId);
 
         ProductSubscription subscription =
-                subscriptionRepository
-                        .findByConsumerIdAndProductId(consumerId, productId)
-                        .orElse(null);
+                findBySubscriptionIdOrProductId(consumerId, subscriptionId);
         if (subscription == null) {
             return;
         }
 
         if (subscription.getConsumerAuthConfig() != null) {
-            ProductRefResult productRef = productService.getProductRef(productId);
+            ProductRefResult productRef = productService.getProductRef(subscription.getProductId());
             if (productRef != null) {
                 GatewayConfig gatewayConfig =
                         gatewayService.getGatewayConfig(productRef.getGatewayId());
@@ -383,7 +369,22 @@ public class ConsumerServiceImpl implements ConsumerService {
             }
         }
 
-        subscriptionRepository.deleteByConsumerIdAndProductId(consumerId, productId);
+        subscriptionRepository.deleteByConsumerIdAndProductId(
+                consumerId, subscription.getProductId());
+    }
+
+    private ProductSubscription findBySubscriptionIdOrProductId(
+            String consumerId, String subscriptionIdOrProductId) {
+
+        // Compatible with productId
+        return subscriptionRepository
+                .findBySubscriptionId(subscriptionIdOrProductId)
+                .orElseGet(
+                        () ->
+                                subscriptionRepository
+                                        .findByConsumerIdAndProductId(
+                                                consumerId, subscriptionIdOrProductId)
+                                        .orElse(null));
     }
 
     @Override
@@ -414,18 +415,15 @@ public class ConsumerServiceImpl implements ConsumerService {
     }
 
     @Override
-    public SubscriptionResult approveSubscription(String consumerId, String productId) {
+    public SubscriptionResult approveSubscription(String consumerId, String subscriptionId) {
         existsConsumer(consumerId);
 
         ProductSubscription subscription =
-                subscriptionRepository
-                        .findByConsumerIdAndProductId(consumerId, productId)
-                        .orElseThrow(
-                                () ->
-                                        new BusinessException(
-                                                ErrorCode.NOT_FOUND,
-                                                Resources.SUBSCRIPTION,
-                                                StrUtil.format("{}:{}", productId, consumerId)));
+                findBySubscriptionIdOrProductId(consumerId, subscriptionId);
+        if (subscription == null) {
+            throw new BusinessException(
+                    ErrorCode.NOT_FOUND, Resources.SUBSCRIPTION, subscriptionId);
+        }
 
         if (subscription.getStatus() != SubscriptionStatus.PENDING) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "Subscription already approved");
@@ -436,18 +434,10 @@ public class ConsumerServiceImpl implements ConsumerService {
                 contextHolder.isDeveloper()
                         ? findDevConsumer(consumerId)
                         : findConsumer(consumerId);
-        ConsumerCredential credential =
-                credentialRepository
-                        .findByConsumerId(consumerId)
-                        .orElseThrow(
-                                () ->
-                                        new BusinessException(
-                                                ErrorCode.NOT_FOUND,
-                                                Resources.CONSUMER_CREDENTIAL,
-                                                consumerId));
+        ConsumerCredential credential = findCredential(consumerId);
 
         // Obtain product reference
-        ProductRefResult productRef = productService.getProductRef(productId);
+        ProductRefResult productRef = productService.getProductRef(subscription.getProductId());
         if (productRef == null) {
             throw new BusinessException(
                     ErrorCode.INTERNAL_ERROR, "API product is not associated with any API");
@@ -460,7 +450,7 @@ public class ConsumerServiceImpl implements ConsumerService {
         subscription.setStatus(SubscriptionStatus.APPROVED);
         subscriptionRepository.saveAndFlush(subscription);
 
-        ProductResult product = productService.getProduct(productId);
+        ProductResult product = productService.getProduct(subscription.getProductId());
         SubscriptionResult result = new SubscriptionResult().convertFrom(subscription);
         if (product != null) {
             result.setProductName(product.getName());
@@ -496,6 +486,17 @@ public class ConsumerServiceImpl implements ConsumerService {
                         () ->
                                 new BusinessException(
                                         ErrorCode.NOT_FOUND, Resources.CONSUMER, consumerId));
+    }
+
+    private ConsumerCredential findCredential(String consumerId) {
+        return credentialRepository
+                .findByConsumerId(consumerId)
+                .orElseThrow(
+                        () ->
+                                new BusinessException(
+                                        ErrorCode.NOT_FOUND,
+                                        Resources.CONSUMER_CREDENTIAL,
+                                        consumerId));
     }
 
     private Specification<Consumer> buildConsumerSpec(QueryConsumerParam param) {
@@ -596,7 +597,8 @@ public class ConsumerServiceImpl implements ConsumerService {
 
             if (!isConsumerExistsInGateway(gwConsumerId, gatewayConfig)) {
                 log.warn(
-                        "Consumer in gateway was deleted, need to recreate consumer: gwConsumerId: {}, gatewayType: {}",
+                        "Consumer in gateway was deleted, need to recreate consumer: gwConsumerId:"
+                                + " {}, gatewayType: {}",
                         gwConsumerId,
                         gatewayConfig.getGatewayType());
 
@@ -635,7 +637,8 @@ public class ConsumerServiceImpl implements ConsumerService {
             return gatewayService.isConsumerExists(gwConsumerId, gatewayConfig);
         } catch (Exception e) {
             log.warn(
-                    "Failed to check consumer existence in gateway, gwConsumerId: {}, gatewayType: {}",
+                    "Failed to check consumer existence in gateway, gwConsumerId: {}, gatewayType:"
+                            + " {}",
                     gwConsumerId,
                     gatewayConfig.getGatewayType(),
                     e);
@@ -752,7 +755,8 @@ public class ConsumerServiceImpl implements ConsumerService {
                 .map(
                         consumer -> {
                             log.debug(
-                                    "Found existing primary consumer: developerId={}, consumerId={}",
+                                    "Found existing primary consumer: developerId={},"
+                                            + " consumerId={}",
                                     developerId,
                                     consumer.getConsumerId());
                             return new ConsumerResult().convertFrom(consumer);
@@ -769,7 +773,8 @@ public class ConsumerServiceImpl implements ConsumerService {
                                                     () ->
                                                             new BusinessException(
                                                                     ErrorCode.INVALID_REQUEST,
-                                                                    "No consumer found for developer: "
+                                                                    "No consumer found for"
+                                                                            + " developer: "
                                                                             + developerId));
 
                             firstConsumer.setIsPrimary(true);
@@ -810,7 +815,7 @@ public class ConsumerServiceImpl implements ConsumerService {
         // Add to headers or queryParams based on source
         if ("DEFAULT".equalsIgnoreCase(source)) {
             headers.put("Authorization", "Bearer " + apiKey);
-        } else if ("Query".equalsIgnoreCase(source)) {
+        } else if ("QueryString".equalsIgnoreCase(source)) {
             queryParams.put(key, apiKey);
         } else {
             // Header or other values
