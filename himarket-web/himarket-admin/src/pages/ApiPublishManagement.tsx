@@ -227,6 +227,7 @@ export default function ApiPublishManagement() {
           provider: values.provider,
           protocol: values.protocol,
           apiKey: values.apiKey,
+          modelName: values.modelName,
           // Provider specific configs
           openaiCustomUrl: values.openaiCustomUrl,
           responseJsonSchema: values.responseJsonSchema ? JSON.parse(values.responseJsonSchema) : undefined,
@@ -407,6 +408,10 @@ export default function ApiPublishManagement() {
             <div style={itemStyle}>
               <span style={labelStyle}>提供商:</span>
               <span>{config.provider}</span>
+            </div>
+            <div style={itemStyle}>
+              <span style={labelStyle}>模型名称:</span>
+              <span>{config.modelName}</span>
             </div>
           </div>
         );
@@ -615,7 +620,7 @@ export default function ApiPublishManagement() {
           <Form.Item
             name="ingressDomain"
             label="域名"
-            rules={[{ required: true, message: '请选择域名' }]}
+            rules={[{ message: '请选择域名' }]}
           >
             <Select placeholder="请选择域名" mode="multiple">
               {ingressDomains.map(item => (
@@ -897,6 +902,10 @@ export default function ApiPublishManagement() {
 
               <Form.Item name="apiKey" label="API Key" rules={[{ required: !['ollama', 'vertex', 'bedrock'].includes(provider) }]}>
                 <Input.Password placeholder="请输入 API Key" />
+              </Form.Item>
+
+              <Form.Item name="modelName" label="模型名称" rules={[{ required: true }]}>
+                <TextArea rows={1} placeholder="请输入模型名称" />
               </Form.Item>
 
               <Collapse ghost>

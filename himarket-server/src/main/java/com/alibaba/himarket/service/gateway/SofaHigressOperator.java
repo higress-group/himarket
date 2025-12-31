@@ -20,6 +20,7 @@
 package com.alibaba.himarket.service.gateway;
 
 import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.util.BooleanUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.fastjson.JSON;
@@ -29,12 +30,14 @@ import com.alibaba.higress.sdk.model.route.RoutePredicate;
 import com.alibaba.himarket.dto.result.agent.AgentAPIResult;
 import com.alibaba.himarket.dto.result.common.DomainResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
+import com.alibaba.himarket.dto.result.consumer.CredentialContext;
 import com.alibaba.himarket.dto.result.gateway.GatewayResult;
 import com.alibaba.himarket.dto.result.httpapi.APIConfigResult;
 import com.alibaba.himarket.dto.result.httpapi.APIResult;
 import com.alibaba.himarket.dto.result.httpapi.HttpRouteResult;
 import com.alibaba.himarket.dto.result.mcp.GatewayMCPServerResult;
 import com.alibaba.himarket.dto.result.mcp.MCPConfigResult;
+import com.alibaba.himarket.dto.result.mcp.OpenAPIMCPConfig;
 import com.alibaba.himarket.dto.result.mcp.SofaHigressMCPServerResult;
 import com.alibaba.himarket.dto.result.model.GatewayModelAPIResult;
 import com.alibaba.himarket.dto.result.model.ModelConfigResult;
@@ -43,6 +46,8 @@ import com.alibaba.himarket.entity.Consumer;
 import com.alibaba.himarket.entity.ConsumerCredential;
 import com.alibaba.himarket.entity.Gateway;
 import com.alibaba.himarket.service.gateway.client.SofaHigressClient;
+import com.alibaba.himarket.service.impl.McpClientFactory;
+import com.alibaba.himarket.service.impl.McpClientWrapper;
 import com.alibaba.himarket.support.consumer.ApiKeyConfig;
 import com.alibaba.himarket.support.consumer.ConsumerAuthConfig;
 import com.alibaba.himarket.support.consumer.SofaHigressAuthConfig;
@@ -51,6 +56,8 @@ import com.alibaba.himarket.support.gateway.GatewayConfig;
 import com.alibaba.himarket.support.gateway.SofaHigressConfig;
 import com.alibaba.himarket.support.product.SofaHigressRefConfig;
 import com.aliyun.sdk.service.apig20240327.models.HttpApiApiInfo;
+import io.modelcontextprotocol.spec.McpSchema;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -61,8 +68,13 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -249,6 +261,21 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
                 new TypeReference<>(){});
     }
 
+    private SofaHigressMCPConfig fetchSofaHigressMCPConfigByName(Gateway gateway, String serverName) {
+        SofaHigressClient client = getClient(gateway);
+        // 通过 serverName 查询 Mcp 详情
+        return client.execute(
+                "/mcpServer/detailByName",
+                HttpMethod.POST,
+                BaseRequest.<SofaHigressMCPConfig>builder()
+                        .param(SofaHigressMCPConfig.builder()
+                                .name(serverName)
+                                .build())
+                        .build()
+                        .autoFillTenantInfo(),
+                new TypeReference<>(){});
+    }
+
     private SofaHigressDomainConfig fetchDomain(Gateway gateway, String domain) {
         SofaHigressClient client = getClient(gateway);
         SofaHigressDomainConfig response = client.execute(
@@ -266,9 +293,20 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
 
     private List<DomainResult> domainConvert(Gateway gateway, List<String> domains) {
         if (CollUtil.isEmpty(domains)) {
-            List<String> gatewayIps = fetchGatewayIps(gateway);
-            String domain = CollUtil.isEmpty(gatewayIps) ? "<sofa-higress-gateway-ip>" : gatewayIps.get(0);
-            return Collections.singletonList(DomainResult.builder().domain(domain).protocol("http").build());
+            List<URI> uris = fetchGatewayUris(gateway);
+            if (CollUtil.isEmpty(uris)) {
+                return Collections.singletonList(DomainResult.builder()
+                        .domain("<sofa-higress-gateway-ip>")
+                        .protocol("http")
+                        .build());
+            } else {
+                URI uri = uris.get(0);
+                return Collections.singletonList(DomainResult.builder()
+                        .domain(uri.getHost())
+                        .protocol(uri.getScheme())
+                        .port(uri.getPort() == -1 ? null : uri.getPort())
+                        .build());
+            }
         }
         return domains.stream().map(domain -> {
                     SofaHigressDomainConfig domainConfig = fetchDomain(gateway, domain);
@@ -311,6 +349,79 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
         result.setModelAPIConfig(config);
 
         return JSONUtil.toJsonStr(result);
+    }
+
+    @Override
+    public String fetchMcpToolsForConfig(Gateway gateway, Object conf) {
+        SofaHigressClient client = getClient(gateway);
+        MCPConfigResult config = (MCPConfigResult) conf;
+        SofaHigressMCPConfig response = fetchSofaHigressMCPConfigByName(gateway, config.getMcpServerName());
+
+        // only 'MCPSERVER' type is supported
+        if (!"MCPSERVER".equals(response.getType())) {
+            return null;
+        }
+
+        // Build authentication context
+        CredentialContext credentialContext = CredentialContext.builder().build();
+        Optional.ofNullable(response.getAuthConfig())
+                .filter(authInfo -> BooleanUtil.isTrue(authInfo.getEnabled()))
+                .map(AiRouteAuthConfig::getAllowedConsumers)
+                .filter(CollUtil::isNotEmpty)
+                .map(CollUtil::getFirst)
+                .ifPresent(
+                        consumerName -> {
+                            SofaHigressConsumerConfig consumerConfig = client.execute(
+                                    "/consumer/detailByName",
+                                    HttpMethod.POST,
+                                    BaseRequest.<SofaHigressConsumerConfig>builder()
+                                            .param(SofaHigressConsumerConfig.builder()
+                                                    .name(consumerName)
+                                                    .build())
+                                            .build()
+                                            .autoFillTenantInfo(),
+                                    new TypeReference<>(){});
+
+                            Optional.ofNullable(consumerConfig.getKeyAuthConfig())
+                                    .ifPresent(
+                                            credential ->
+                                                    fillCredentialContext(
+                                                            credentialContext, credential));
+                        }
+                );
+
+        // Get and transform tool list
+        try (McpClientWrapper mcpClientWrapper =
+                     McpClientFactory.newClient(config.toTransportConfig(), credentialContext)) {
+            if (mcpClientWrapper == null) {
+                return null;
+            }
+
+            List<McpSchema.Tool> tools = mcpClientWrapper.listTools();
+            OpenAPIMCPConfig openAPIMCPConfig =
+                    OpenAPIMCPConfig.convertFromToolList(config.getMcpServerName(), tools);
+
+            return JSONUtil.toJsonStr(openAPIMCPConfig);
+        } catch (IOException e) {
+            log.error("List mcp tools failed", e);
+            return null;
+        }
+    }
+
+    private void fillCredentialContext(CredentialContext context, KeyAuthConfig keyAuthConfig) {
+        String apiKey = keyAuthConfig.getValue();
+        if (apiKey == null) {
+            return;
+        }
+        String source = keyAuthConfig.getSource();
+        String key = keyAuthConfig.getKey();
+
+        switch (source.toUpperCase()) {
+            case "BEARER" -> context.getHeaders().put("Authorization", "Bearer " + apiKey);
+            case "QUERY" -> context.getQueryParams().put(key, apiKey);
+            // Header or other values
+            default -> context.getHeaders().put(key, apiKey);
+        }
     }
 
     private SofaHigressApiConfig fetchSofaHigressApiConfig(Gateway gateway, String apiId) {
@@ -499,23 +610,51 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
     }
 
     @Override
-    public String getDashboard(Gateway gateway, String type) {
-        throw new UnsupportedOperationException(
-                "Sofa Higress gateway does not support getting dashboard");
-    }
+    public List<URI> fetchGatewayUris(Gateway gateway) {
 
-    @Override
-    public List<String> fetchGatewayIps(Gateway gateway) {
         SofaHigressClient client = getClient(gateway);
         String gatewayUrl = client.execute(
                 "/gatewayUrl",
                 HttpMethod.POST,
                 new BaseRequest().autoFillTenantInfo());
-        String gatewayIp = StrUtil.subAfter(gatewayUrl, "://", true).trim();
 
-        return StrUtil.isNotBlank(gatewayIp)
-                ? Collections.singletonList(gatewayIp)
-                : CollUtil.empty(List.class);
+        try {
+            URI uri = new URI(gatewayUrl);
+            // If no scheme (protocol) specified, add default http://
+            if (uri.getScheme() == null) {
+                uri = new URI("http://" + gatewayUrl);
+            }
+
+            return Collections.singletonList(uri);
+        } catch (URISyntaxException e) {
+            log.warn("Invalid gateway address: {}, error: {}", gatewayUrl, e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+
+    @Override
+    public List<DomainResult> getGatewayDomains(Gateway gateway) {
+        SofaHigressClient client = getClient(gateway);
+        List<SofaHigressDomainConfig> response = client.execute(
+                "/domain/all",
+                HttpMethod.POST,
+                BaseRequest.<SofaHigressDomainConfig>builder()
+                        .param(SofaHigressDomainConfig.builder()
+                                .build())
+                        .build()
+                        .autoFillTenantInfo(),
+                new TypeReference<>(){});
+        return response.stream().filter(Objects::nonNull)
+                .map(domainConfig -> {
+                    String protocol =
+                            domainConfig.getEnableHttps().equalsIgnoreCase("off")
+                                    ? "http" : "https";
+                    return DomainResult.builder()
+                            .domain(domainConfig.getDomainName())
+                            .protocol(protocol)
+                            .build();
+                })
+                .toList();
     }
 
     public BaseRequest<SofaHigressConsumerConfig> buildSofaHigressConsumer(
@@ -636,7 +775,7 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
         private String               upstreamPrefix;
         // private QueryRateLimitConfig queryRateLimitConfig;
         // private UpstreamTokenModel   upstreamToken;
-        // private AiRouteAuthConfig    authConfig;
+        private AiRouteAuthConfig    authConfig;
         private String               sseUrl;
         private String               sseUrlExample;
         private String               queryType;
@@ -772,5 +911,24 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
         private String key;
         private String source;
         private String value;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Schema(description = "AI Route auth configuration")
+    public static class AiRouteAuthConfig {
+
+        @Schema(description = "Whether auth is enabled")
+        private Boolean enabled;
+        @Schema(description = "Allowed consumer names")
+        private List<String> allowedConsumers;
+
+        public void validate() {
+            if (enabled == null) {
+                throw new IllegalArgumentException("enabled is null");
+            }
+        }
     }
 }
