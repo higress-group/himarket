@@ -22,6 +22,7 @@ package com.alibaba.himarket.service.impl;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.BooleanUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.extra.spring.SpringUtil;
 import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.event.PortalDeletingEvent;
 import com.alibaba.himarket.core.exception.BusinessException;
@@ -63,7 +64,6 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -78,8 +78,6 @@ public class PortalServiceImpl implements PortalService {
     private final PortalRepository portalRepository;
 
     private final PortalDomainRepository portalDomainRepository;
-
-    private final ApplicationEventPublisher eventPublisher;
 
     private final SubscriptionRepository subscriptionRepository;
 
@@ -100,7 +98,9 @@ public class PortalServiceImpl implements PortalService {
                         portal -> {
                             throw new BusinessException(
                                     ErrorCode.CONFLICT,
-                                    StrUtil.format("{}:{}已存在", Resources.PORTAL, portal.getName()));
+                                    StrUtil.format(
+                                            "Portal with name `{}` already exists",
+                                            portal.getName()));
                         });
 
         String portalId = IdGenerator.genPortalId();
@@ -146,7 +146,7 @@ public class PortalServiceImpl implements PortalService {
     public PageResult<PortalResult> listPortals(Pageable pageable) {
         Page<Portal> portals = portalRepository.findAll(pageable);
 
-        // 填充Domain
+        // Fill domain
         if (portals.hasContent()) {
             List<String> portalIds =
                     portals.getContent().stream()
@@ -182,30 +182,31 @@ public class PortalServiceImpl implements PortalService {
                         p -> {
                             throw new BusinessException(
                                     ErrorCode.CONFLICT,
-                                    StrUtil.format("{}:{}已存在", Resources.PORTAL, portal.getName()));
+                                    StrUtil.format(
+                                            "Portal with name `{}` already exists",
+                                            portal.getName()));
                         });
 
         param.update(portal);
 
-        // 验证配置
         PortalSettingConfig setting = portal.getPortalSettingConfig();
 
-        // 验证OIDC配置
+        // Verify OIDC configs
         if (CollUtil.isNotEmpty(setting.getOidcConfigs())) {
             idpService.validateOidcConfigs(setting.getOidcConfigs());
         }
 
-        // 验证OAuth2配置
+        // Verify OAuth2 configs
         if (CollUtil.isNotEmpty(setting.getOauth2Configs())) {
             idpService.validateOAuth2Configs(setting.getOauth2Configs());
         }
 
-        // 验证搜索引擎配置（新增）
+        // Verify search engine config
         if (setting.getSearchEngineConfig() != null) {
             validateSearchEngineConfig(setting.getSearchEngineConfig());
         }
 
-        // 至少保留一种认证方式
+        // At least keep one authentication method
         if (BooleanUtil.isFalse(setting.getBuiltinAuthEnabled())) {
             boolean enabledOidc =
                     Optional.ofNullable(setting.getOidcConfigs())
@@ -214,7 +215,9 @@ public class PortalServiceImpl implements PortalService {
                             .orElse(false);
 
             if (!enabledOidc) {
-                throw new BusinessException(ErrorCode.INVALID_REQUEST, "至少配置一种认证方式");
+                throw new BusinessException(
+                        ErrorCode.INVALID_REQUEST,
+                        "At least one authentication method must be configured");
             }
         }
         portalRepository.saveAndFlush(portal);
@@ -226,11 +229,11 @@ public class PortalServiceImpl implements PortalService {
     public void deletePortal(String portalId) {
         Portal portal = findPortal(portalId);
 
-        // 清理Domain
+        // Clean up domains
         portalDomainRepository.deleteAllByPortalId(portalId);
 
-        // 异步清理门户资源
-        eventPublisher.publishEvent(new PortalDeletingEvent(portalId));
+        // Asynchronously clean up portal resources
+        SpringUtil.getApplicationContext().publishEvent(new PortalDeletingEvent(portalId));
         portalRepository.delete(portal);
     }
 
@@ -252,9 +255,8 @@ public class PortalServiceImpl implements PortalService {
                             throw new BusinessException(
                                     ErrorCode.CONFLICT,
                                     StrUtil.format(
-                                            "{}:{}已存在",
-                                            Resources.PORTAL_DOMAIN,
-                                            portalDomain.getDomain()));
+                                            "Portal domain `{}` already exists",
+                                            param.getDomain()));
                         });
 
         PortalDomain portalDomain = param.convertTo();
@@ -270,9 +272,11 @@ public class PortalServiceImpl implements PortalService {
                 .findByPortalIdAndDomain(portalId, domain)
                 .ifPresent(
                         portalDomain -> {
-                            // 默认域名不允许解绑
+                            // Default domain cannot be unbound
                             if (portalDomain.getType() == DomainType.DEFAULT) {
-                                throw new BusinessException(ErrorCode.INVALID_REQUEST, "默认域名不允许解绑");
+                                throw new BusinessException(
+                                        ErrorCode.INVALID_REQUEST,
+                                        "Default domain cannot be unbound");
                             }
                             portalDomainRepository.delete(portalDomain);
                         });
@@ -365,9 +369,10 @@ public class PortalServiceImpl implements PortalService {
                                         ErrorCode.NOT_FOUND, Resources.PORTAL, portalId));
     }
 
-    // ========== 搜索引擎配置查询实现 ==========
-
-    /** 核心方法：根据引擎类型获取 API Key 供 TalkSearchAbilityServiceGoogleImpl 等搜索能力调用 */
+    /**
+     * Core method: Get API Key based on engine type for search ability calls
+     * (e.g. TalkSearchAbilityServiceGoogleImpl)
+     */
     @Override
     public String getSearchEngineApiKey(String portalId, SearchEngineType engineType) {
         Portal portal = findPortal(portalId);
@@ -375,29 +380,32 @@ public class PortalServiceImpl implements PortalService {
 
         if (settings == null || settings.getSearchEngineConfig() == null) {
             throw new BusinessException(
-                    ErrorCode.NOT_FOUND, StrUtil.format("Portal {} 未配置搜索引擎", portalId));
+                    ErrorCode.NOT_FOUND,
+                    StrUtil.format("Portal {} has not configured search engine", portalId));
         }
 
         SearchEngineConfig config = settings.getSearchEngineConfig();
 
-        // 检查引擎类型是否匹配
+        // Check if engine type matches
         if (config.getEngineType() != engineType) {
             throw new BusinessException(
                     ErrorCode.NOT_FOUND,
                     StrUtil.format(
-                            "Portal {} 配置的搜索引擎类型是 {}，不是 {}",
+                            "Portal {} configured search engine type is {}, not {}",
                             portalId,
                             config.getEngineType(),
                             engineType));
         }
 
-        // 检查是否启用
+        // Check if enabled
         if (!config.isEnabled()) {
             throw new BusinessException(
-                    ErrorCode.INVALID_REQUEST, StrUtil.format("Portal {} 的搜索引擎已禁用", portalId));
+                    ErrorCode.INVALID_REQUEST,
+                    StrUtil.format("Search engine for Portal {} is disabled", portalId));
         }
 
-        return config.getApiKey(); // API Key 会自动解密（通过 @Encrypted 注解）
+        return config
+                .getApiKey(); // API Key will be automatically decrypted (via @Encrypted annotation)
     }
 
     @Override
@@ -412,35 +420,34 @@ public class PortalServiceImpl implements PortalService {
         return settings.getSearchEngineConfig();
     }
 
-    // ========== 私有辅助方法 ==========
-
-    /** 验证搜索引擎配置 */
     private void validateSearchEngineConfig(SearchEngineConfig config) {
         if (config == null) {
             return;
         }
 
-        // 验证引擎类型是否支持
+        // Validate if engine type is supported
         if (config.getEngineType() == null) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "搜索引擎类型不能为空");
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST, "Search engine type cannot be empty");
         }
 
         if (!SearchEngineType.isSupported(config.getEngineType())) {
             throw new BusinessException(
                     ErrorCode.INVALID_REQUEST,
                     StrUtil.format(
-                            "不支持的搜索引擎类型: {}，当前仅支持: {}",
+                            "Unsupported search engine type: {}, currently only supports: {}",
                             config.getEngineType(),
                             SearchEngineType.getSupportedTypes()));
         }
 
-        // 验证必填字段
+        // Validate required fields
         if (StrUtil.isBlank(config.getEngineName())) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "搜索引擎名称不能为空");
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST, "Search engine name cannot be empty");
         }
 
         if (StrUtil.isBlank(config.getApiKey())) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "API Key不能为空");
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "API Key cannot be empty");
         }
 
         log.info(

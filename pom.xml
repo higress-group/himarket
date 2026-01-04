@@ -50,7 +50,7 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
         <!-- Dependencies Versions -->
-        <spring-boot.version>3.2.5</spring-boot.version>
+        <spring-boot.version>3.2.11</spring-boot.version>
         <spring.ai.version>1.1.0-M4</spring.ai.version>
         <mariadb.version>3.4.1</mariadb.version>
         <mysql.version>8.0.33</mysql.version>
@@ -69,7 +69,10 @@
         <caffeine.version>3.2.3</caffeine.version>
         <guava-retrying.version>2.0.0</guava-retrying.version>
         <snakeyaml.version>2.0</snakeyaml.version>
-        <jackson-databind.version>2.14.0-rc1</jackson-databind.version>
+        <agentscope.version>1.0.4</agentscope.version>
+        <jackson-databind.version>2.17.2</jackson-databind.version>
+        <openai.java.version>4.6.1</openai.java.version>
+        <dashscope.java.version>2.22.4</dashscope.java.version>
 
         <!-- Plugins Versions -->
         <maven-compiler-plugin.version>3.11.0</maven-compiler-plugin.version>
@@ -83,6 +86,15 @@
     <!-- Dependency Management -->
     <dependencyManagement>
         <dependencies>
+            <!-- Jackson BOM -->
+            <dependency>
+                <groupId>com.fasterxml.jackson</groupId>
+                <artifactId>jackson-bom</artifactId>
+                <version>${jackson-databind.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
             <!-- Spring Boot Dependencies -->
             <dependency>
                 <groupId>org.springframework.boot</groupId>
@@ -231,11 +243,25 @@
                 <version>${aliyun-sts.version}</version>
             </dependency>
 
-            <!-- Jackson Databind -->
+            <!-- AgentScope SDK -->
             <dependency>
-                <groupId>com.fasterxml.jackson.core</groupId>
-                <artifactId>jackson-databind</artifactId>
-                <version>${jackson-databind.version}</version>
+                <groupId>io.agentscope</groupId>
+                <artifactId>agentscope</artifactId>
+                <version>${agentscope.version}</version>
+            </dependency>
+
+            <!-- OpenAI Java SDK -->
+            <dependency>
+                <groupId>com.openai</groupId>
+                <artifactId>openai-java</artifactId>
+                <version>${openai.java.version}</version>
+            </dependency>
+
+            <!-- DashScope Java SDK -->
+            <dependency>
+                <groupId>com.alibaba</groupId>
+                <artifactId>dashscope-sdk-java</artifactId>
+                <version>${dashscope.java.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

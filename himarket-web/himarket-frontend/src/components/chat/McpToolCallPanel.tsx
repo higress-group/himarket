@@ -25,23 +25,23 @@ export function McpToolCallPanel({ toolCalls = [], toolResponses = [] }: McpTool
     <div>
       {toolItems.map(({ toolCall, toolResponse }, index) => {
         const panelKey = `mcp-tool-${index}`;
-        const mcpServerName = toolCall.toolMeta.mcpNameCn || toolCall.toolMeta.mcpName;
-        const toolName = toolCall.toolMeta.toolNameCn || toolCall.toolMeta.toolName;
+        // @chat-legacy: Legacy fallback logic removed
+        const mcpServerName = toolCall.mcpServerName; // || toolCall.toolMeta?.mcpNameCn || toolCall.toolMeta?.mcpName;
+        const toolName = toolCall.name; // || toolCall.toolMeta?.toolNameCn || toolCall.toolMeta?.toolName;
 
-        // 解析 JSON 字符串
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let parsedInput: any = null;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let parsedResponse: any = null;
         try {
-          parsedInput = JSON.parse(toolCall.input || toolCall.arguments || "{}");
+          parsedInput = JSON.parse(toolCall.arguments || "{}"); // @chat-legacy: || toolCall.input
         } catch {
-          parsedInput = toolCall.input || toolCall.arguments;
+          parsedInput = toolCall.arguments; // @chat-legacy: || toolCall.input;
         }
         try {
-          parsedResponse = JSON.parse(toolResponse?.responseData || toolResponse?.output || "{}");
+          parsedResponse = JSON.parse(toolResponse?.result || "{}"); // @chat-legacy: || toolResponse?.responseData || toolResponse?.output
         } catch {
-          parsedResponse = toolResponse?.responseData || toolResponse?.output;
+          parsedResponse = toolResponse?.result; // @chat-legacy: || toolResponse?.responseData || toolResponse?.output;
         }
 
         return (

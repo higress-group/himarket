@@ -415,6 +415,15 @@ public class ConsumerServiceImpl implements ConsumerService {
     }
 
     @Override
+    public List<SubscriptionResult> listConsumerSubscriptions(String consumerId) {
+        List<ProductSubscription> subscriptions =
+                subscriptionRepository.findAllByConsumerId(consumerId);
+        return subscriptions.stream()
+                .map(subscription -> new SubscriptionResult().convertFrom(subscription))
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public SubscriptionResult approveSubscription(String consumerId, String subscriptionId) {
         existsConsumer(consumerId);
 

@@ -19,7 +19,7 @@
 
 package com.alibaba.himarket.dto.result.chat;
 
-import com.alibaba.himarket.dto.params.chat.ChatContext;
+import com.alibaba.himarket.service.legacy.ChatContextLegacy;
 import com.alibaba.himarket.support.chat.ChatUsage;
 import lombok.Builder;
 import lombok.Data;
@@ -42,7 +42,8 @@ public class LlmInvokeResult {
      */
     private ChatUsage usage;
 
-    public static LlmInvokeResult of(ChatContext chatContext) {
+    @Deprecated
+    public static LlmInvokeResult of(ChatContextLegacy chatContext) {
         return LlmInvokeResult.builder()
                 .success(chatContext.getSuccess())
                 .answer(chatContext.getAnswerContent().toString())

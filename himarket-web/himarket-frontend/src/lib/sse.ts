@@ -1,31 +1,55 @@
-// SSE 流式响应处理
+// SSE stream response handler
 
 import type { IToolCall, IToolResponse, IChatUsage } from './apis/chat';
 
-// 旧格式消息（保留兼容）
+// @chat-legacy: Legacy type definitions, can be removed after full migration
+/*
+// Legacy message format (for backward compatibility)
 export interface SSEMessage {
   status: 'start' | 'chunk' | 'complete' | 'error';
   chatId?: string;
   content?: string;
   fullContent?: string;
-  message?: string; // 错误消息
+  message?: string; // Error message
   code?: string;
 }
 
-// 新格式消息类型
+// Legacy message type, use ChatEventType instead
 export type SSEMsgType = 'USER' | 'TOOL_CALL' | 'TOOL_RESPONSE' | 'ANSWER' | 'STOP' | 'ERROR';
 
-// 新格式统一消息结构
+// Legacy message structure, use ChatEvent instead
 export interface SSENewMessage {
   chatId: string;
   msgType: SSEMsgType;
   content: string | IToolCall | IToolResponse | null;
   chatUsage: IChatUsage | null;
-  error?: string;      // 错误类型
-  message?: string;    // 错误消息
+  error?: string;      // Error type
+  message?: string;    // Error message
+}
+*/
+
+// Chat Event Type
+export type ChatEventType = 
+  | 'START'        // Stream started
+  | 'ASSISTANT'    // Assistant response
+  | 'THINKING'     // Thinking process
+  | 'TOOL_CALL'    // Tool call request
+  | 'TOOL_RESULT'  // Tool execution result
+  | 'DONE'         // Stream completed
+  | 'ERROR';       // Error occurred
+
+// Chat Event Structure
+export interface ChatEvent {
+  chatId: string;
+  type: ChatEventType;
+  content?: string | IToolCall | IToolResponse | null;
+  usage?: IChatUsage;
+  error?: string;
+  message?: string;
 }
 
-// OpenAI 格式消息
+// @chat-legacy: OpenAI format type definition, can be removed if not using OpenAI API directly
+/*
 export interface OpenAIChunk {
   id: string;
   object: string;
@@ -47,13 +71,14 @@ export interface OpenAIChunk {
     };
   };
 }
+*/
 
 export interface SSEUsage {
-  first_byte_timeout?: number; // 首字符时间（毫秒）
+  first_byte_timeout?: number;
   prompt_tokens: number;
   completion_tokens: number;
   total_tokens: number;
-  elapsed_time?: number; // 服务端计算的总耗时（毫秒）
+  elapsed_time?: number;
 }
 
 export interface SSEOptions {
@@ -81,7 +106,7 @@ export async function handleSSEStream(
   if (!response.ok) {
     const status = response.status;
 
-    // 处理 403 错误：清除 token 并跳转登录
+    // Handle 403 error: clear token and redirect to login
     if (status === 403) {
       localStorage.removeItem('access_token');
       if (window.location.pathname !== '/login') {
@@ -90,7 +115,7 @@ export async function handleSSEStream(
       return;
     }
 
-    // 其他 HTTP 错误，通过 onError 回调处理
+    // Handle other HTTP errors via onError callback
     const errorMessage = `HTTP error! status: ${status}`;
     callbacks.onError?.(errorMessage, undefined, status);
     return;
@@ -123,9 +148,9 @@ export async function handleSSEStream(
         if (line.startsWith('data:')) {
           const data = line.slice(5).trim();
 
-          // 检查是否是结束标志
+          // Check if it's the end marker
           if (data === '[DONE]') {
-            // 流结束，调用 onComplete
+            // Stream ended, call onComplete
             if (fullContent && chatId) {
               callbacks.onComplete?.(fullContent, chatId, usage);
             }
@@ -135,25 +160,99 @@ export async function handleSSEStream(
           try {
             const message = JSON.parse(data);
 
-            // 检查是否是新格式（带 msgType 字段）
-            if ('msgType' in message) {
+            // Check if it's the new format (has type field, not msgType)
+            if ('type' in message && !('msgType' in message)) {
+              const event = message as ChatEvent;
+
+              // Update chatId
+              if (event.chatId && !chatId) {
+                chatId = event.chatId;
+              }
+
+              switch (event.type) {
+                case 'START':
+                  // Corresponds to legacy USER
+                  callbacks.onStart?.(event.chatId);
+                  break;
+
+                case 'ASSISTANT':
+                  // Corresponds to legacy ANSWER
+                  if (typeof event.content === 'string' && event.chatId) {
+                    fullContent += event.content;
+                    callbacks.onChunk?.(event.content, event.chatId);
+                  }
+                  break;
+
+                case 'THINKING':
+                  // Thinking process - temporarily ignored
+                  break;
+
+                case 'TOOL_CALL':
+                  // Tool call
+                  if (event.content && typeof event.content === 'object') {
+                    callbacks.onToolCall?.(
+                      event.content as IToolCall,
+                      event.chatId,
+                      event.usage || undefined
+                    );
+                  }
+                  break;
+
+                case 'TOOL_RESULT':
+                  // Corresponds to legacy TOOL_RESPONSE
+                  if (event.content && typeof event.content === 'object') {
+                    callbacks.onToolResponse?.(
+                      event.content as IToolResponse,
+                      event.chatId,
+                      event.usage || undefined
+                    );
+                  }
+                  break;
+
+                case 'DONE':
+                  // Corresponds to legacy STOP
+                  if (event.chatId) {
+                    // Convert usage fields (use camelCase)
+                    const sseUsage: SSEUsage | undefined = event.usage ? {
+                      first_byte_timeout: event.usage.firstByteTimeout ?? event.usage.first_byte_timeout ?? undefined,
+                      prompt_tokens: event.usage.inputTokens ?? event.usage.prompt_tokens ?? 0,
+                      completion_tokens: event.usage.outputTokens ?? event.usage.completion_tokens ?? 0,
+                      total_tokens: event.usage.totalTokens ?? event.usage.total_tokens ?? 0,
+                      elapsed_time: event.usage.elapsedTime ?? event.usage.elapsed_time ?? undefined,
+                    } : undefined;
+                    callbacks.onComplete?.(fullContent, event.chatId, sseUsage);
+                  }
+                  break;
+
+                case 'ERROR':
+                  // Error event
+                  callbacks.onError?.(
+                    event.message || "Network error, please retry",
+                    event.error
+                  );
+                  break;
+              }
+            }
+            // @chat-legacy: Legacy format handler (msgType field), can be removed after backend fully migrates
+            /* 
+            else if ('msgType' in message) {
               const newMessage = message as SSENewMessage;
 
-              // 更新 chatId
+              // Update chatId
               if (newMessage.chatId && !chatId) {
                 chatId = newMessage.chatId;
               }
 
               switch (newMessage.msgType) {
                 case 'USER':
-                  // 用户消息开始
+                  // User message start
                   if (newMessage.chatId) {
                     callbacks.onStart?.(newMessage.chatId);
                   }
                   break;
 
                 case 'TOOL_CALL':
-                  // MCP 工具调用
+                  // MCP tool call
                   if (newMessage.content && typeof newMessage.content === 'object') {
                     callbacks.onToolCall?.(
                       newMessage.content as IToolCall,
@@ -164,7 +263,7 @@ export async function handleSSEStream(
                   break;
 
                 case 'TOOL_RESPONSE':
-                  // MCP 工具返回
+                  // MCP tool result
                   if (newMessage.content && typeof newMessage.content === 'object') {
                     callbacks.onToolResponse?.(
                       newMessage.content as IToolResponse,
@@ -175,7 +274,7 @@ export async function handleSSEStream(
                   break;
 
                 case 'ANSWER':
-                  // 模型回答内容流
+                  // Model answer content stream
                   if (typeof newMessage.content === 'string' && newMessage.chatId) {
                     fullContent += newMessage.content;
                     callbacks.onChunk?.(newMessage.content, newMessage.chatId);
@@ -183,9 +282,9 @@ export async function handleSSEStream(
                   break;
 
                 case 'STOP':
-                  // 流式响应完成
+                  // Stream response completed
                   if (newMessage.chatId) {
-                    // 转换 chatUsage 到 SSEUsage 格式
+                    // Convert chatUsage to SSEUsage format
                     const sseUsage: SSEUsage | undefined = newMessage.chatUsage ? {
                       first_byte_timeout: newMessage.chatUsage.first_byte_timeout ?? undefined,
                       prompt_tokens: newMessage.chatUsage.prompt_tokens || 0,
@@ -198,15 +297,17 @@ export async function handleSSEStream(
                   break;
 
                 case 'ERROR':
-                  // 错误事件
+                  // Error event
                   callbacks.onError?.(
-                    newMessage.message || "网络错误，请重试",
+                    newMessage.message || "Network error, please retry",
                     newMessage.error
                   );
                   break;
               }
             }
-            // 检查是否是旧格式（带 status 字段）
+            */
+            // @chat-legacy: Legacy format handler (status field), can be removed after backend fully migrates
+            /*
             else if ('status' in message) {
               const oldMessage = message as SSEMessage;
 
@@ -236,17 +337,19 @@ export async function handleSSEStream(
                   break;
               }
             }
-            // OpenAI 格式
+            */
+            // @chat-legacy: OpenAI format handler, can be removed if not using OpenAI API directly
+            /*
             else if ('object' in message && message.object === 'chat.completion.chunk') {
               const chunk = message as OpenAIChunk;
 
-              // 首次收到时，保存 chatId
+              // Save chatId on first receipt
               if (!chatId && chunk.id) {
                 chatId = chunk.id;
                 callbacks.onStart?.(chunk.id);
               }
 
-              // 处理内容块
+              // Process content chunk
               if (chunk.choices && chunk.choices.length > 0) {
                 const choice = chunk.choices[0];
                 if (choice.delta?.content) {
@@ -255,11 +358,12 @@ export async function handleSSEStream(
                 }
               }
 
-              // 提取 usage 信息（通常在最后一个 chunk 中）
+              // Extract usage info (usually in the last chunk)
               if (chunk.usage) {
                 usage = chunk.usage;
               }
             }
+            */
           } catch (error) {
             console.error('Failed to parse SSE message:', error, 'Data:', data);
           }

@@ -26,6 +26,7 @@ import lombok.*;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Deprecated
 public class McpToolMeta {
     /** 工具名称 */
     private String toolName;

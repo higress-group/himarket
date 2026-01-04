@@ -44,8 +44,8 @@ import com.alibaba.himarket.entity.Consumer;
 import com.alibaba.himarket.entity.ConsumerCredential;
 import com.alibaba.himarket.entity.Gateway;
 import com.alibaba.himarket.service.gateway.client.HigressClient;
-import com.alibaba.himarket.service.impl.McpClientFactory;
-import com.alibaba.himarket.service.impl.McpClientWrapper;
+import com.alibaba.himarket.service.hichat.manager.ToolManager;
+import com.alibaba.himarket.support.chat.mcp.MCPTransportConfig;
 import com.alibaba.himarket.support.consumer.ApiKeyConfig;
 import com.alibaba.himarket.support.consumer.ConsumerAuthConfig;
 import com.alibaba.himarket.support.consumer.HigressAuthConfig;
@@ -54,14 +54,15 @@ import com.alibaba.himarket.support.gateway.GatewayConfig;
 import com.alibaba.himarket.support.gateway.HigressConfig;
 import com.alibaba.himarket.support.product.HigressRefConfig;
 import com.aliyun.sdk.service.apig20240327.models.HttpApiApiInfo;
+import io.agentscope.core.tool.mcp.McpClientWrapper;
 import io.modelcontextprotocol.spec.McpSchema;
-import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.Builder;
 import lombok.Data;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.core.ParameterizedTypeReference;
@@ -70,7 +71,10 @@ import org.springframework.stereotype.Service;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class HigressOperator extends GatewayOperator<HigressClient> {
+
+    private final ToolManager toolManager;
 
     @Override
     public PageResult<APIResult> fetchHTTPAPIs(Gateway gateway, int page, int size) {
@@ -369,22 +373,22 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
                                                             credentialContext, credential));
                         });
 
-        // Get and transform tool list
-        try (McpClientWrapper mcpClientWrapper =
-                McpClientFactory.newClient(config.toTransportConfig(), credentialContext)) {
-            if (mcpClientWrapper == null) {
-                return null;
-            }
+        MCPTransportConfig transportConfig = config.toTransportConfig();
+        transportConfig.setHeaders(credentialContext.copyHeaders());
+        transportConfig.setQueryParams(credentialContext.copyQueryParams());
 
-            List<McpSchema.Tool> tools = mcpClientWrapper.listTools();
-            OpenAPIMCPConfig openAPIMCPConfig =
-                    OpenAPIMCPConfig.convertFromToolList(config.getMcpServerName(), tools);
-
-            return JSONUtil.toJsonStr(openAPIMCPConfig);
-        } catch (IOException e) {
-            log.error("List mcp tools failed", e);
+        McpClientWrapper mcpClientWrapper =
+                toolManager.getOrCreateClient(config.toTransportConfig());
+        if (mcpClientWrapper == null) {
             return null;
         }
+
+        // Get and transform tool list
+        List<McpSchema.Tool> tools = mcpClientWrapper.listTools().block();
+        OpenAPIMCPConfig openAPIMCPConfig =
+                OpenAPIMCPConfig.convertFromToolList(config.getMcpServerName(), tools);
+
+        return JSONUtil.toJsonStr(openAPIMCPConfig);
     }
 
     private void fillCredentialContext(CredentialContext context, HigressCredential credential) {

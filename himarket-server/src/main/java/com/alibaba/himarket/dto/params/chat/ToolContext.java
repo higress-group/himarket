@@ -30,6 +30,7 @@ import org.springframework.ai.tool.definition.ToolDefinition;
 
 @Getter
 @NoArgsConstructor
+@Deprecated
 public class ToolContext {
     private final List<ToolCallback> toolCallbacks = new ArrayList<>();
     private final Map<String, ToolDefinition> toolDefinitionMap = new HashMap<>();

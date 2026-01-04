@@ -24,6 +24,7 @@ import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.core.security.ContextHolder;
 import com.alibaba.himarket.service.PortalService;
 import com.alibaba.himarket.service.TalkSearchAbilityService;
+import com.alibaba.himarket.service.gateway.factory.HTTPClientFactory;
 import com.alibaba.himarket.support.chat.search.SearchContext;
 import com.alibaba.himarket.support.chat.search.SearchInput;
 import com.alibaba.himarket.support.enums.SearchEngineType;
@@ -36,6 +37,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -48,10 +50,11 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class TalkSearchAbilityServiceGoogleImpl
         implements TalkSearchAbilityService<Map<String, Object>, ResponseEntity<String>> {
 
-    private final RestTemplate restTemplate;
+    private final RestTemplate restTemplate = HTTPClientFactory.createRestTemplate();
     private final PortalService portalService;
     private final ContextHolder contextHolder;
 
@@ -80,13 +83,6 @@ public class TalkSearchAbilityServiceGoogleImpl
                     "knowledge_graph_search_link",
                     "serpapi_knowledge_graph_search_link",
                     "website");
-
-    public TalkSearchAbilityServiceGoogleImpl(
-            RestTemplate restTemplate, PortalService portalService, ContextHolder contextHolder) {
-        this.restTemplate = restTemplate;
-        this.portalService = portalService;
-        this.contextHolder = contextHolder;
-    }
 
     /**
      * 获取 Google 搜索 API Key 从当前 Portal 的配置中动态获取（自动解密）

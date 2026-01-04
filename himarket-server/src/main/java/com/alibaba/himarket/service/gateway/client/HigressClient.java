@@ -197,9 +197,4 @@ public class HigressClient extends GatewayClient {
                         .orElseThrow(
                                 () -> new RuntimeException("Failed to get Higress session token"));
     }
-
-    @Override
-    public void close() {
-        HTTPClientFactory.closeClient(restTemplate);
-    }
 }
