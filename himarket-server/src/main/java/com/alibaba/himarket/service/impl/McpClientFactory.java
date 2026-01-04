@@ -61,6 +61,7 @@ public class McpClientFactory {
             path = builder.build().toString();
         }
 
+        McpSyncClient client = null;
         try {
             // Build MCP transport by mode
             McpClientTransport transport =
@@ -74,9 +75,10 @@ public class McpClientFactory {
             }
 
             // Create MCP client
-            McpSyncClient client =
+            client =
                     McpClient.sync(transport)
                             .requestTimeout(Duration.ofSeconds(30))
+                            .initializationTimeout(Duration.ofSeconds(30))
                             .capabilities(
                                     McpSchema.ClientCapabilities.builder().roots(true).build())
                             .build();
@@ -85,6 +87,9 @@ public class McpClientFactory {
             return new McpClientWrapper(client);
         } catch (Exception e) {
             log.error("Failed to initialize MCP client for URL: {}", config.getUrl(), e);
+            if (client != null) {
+                client.closeGracefully();
+            }
             return null;
         }
     }
