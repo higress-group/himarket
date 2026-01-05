@@ -37,7 +37,10 @@ export interface IProductDetail {
     modelFeature: {
       webSearch: boolean;
     }
-  }
+  };
+  subscriptionCount?: number;
+  usageCount?: number;
+  likesCount?: number;
 }
 
 interface GetProductsResp {
@@ -53,14 +56,16 @@ export function getProducts(params: {
   name?: string;
   page?: number;
   size?: number;
+  sort?: string;
 }) {
-  return request.get<RespI<GetProductsResp>, RespI<GetProductsResp>>('/products', {
+  return request.get<RespI<GetProductsResp>, RespI<GetProductsResp>>('/product-summary', {
     params: {
       name: params.name,
       type: params.type,
       categoryIds: params.categoryIds,
       page: params.page || 0,
       size: params.size || 100,
+      sort: params.sort,
     },
   });
 }
@@ -68,6 +73,16 @@ export function getProducts(params: {
 
 export function getProduct(params: { id: string }) {
   return request.get<RespI<IProductDetail>, RespI<IProductDetail>>('/products/' + params.id)
+}
+
+export interface ToggleLikeParams {
+  productId: string;
+}
+
+export function toggleProductLike(params: ToggleLikeParams) {
+  return request.post<RespI<any>, RespI<any>>('/product-like', {
+    productId: params.productId,
+  });
 }
 
 // MCP 工具列表相关类型

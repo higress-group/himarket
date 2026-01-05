@@ -27,6 +27,7 @@ import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.event.PortalDeletingEvent;
 import com.alibaba.himarket.core.event.ProductConfigReloadEvent;
 import com.alibaba.himarket.core.event.ProductDeletingEvent;
+import com.alibaba.himarket.core.event.ProductUpdateEvent;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.core.security.ContextHolder;
@@ -200,6 +201,7 @@ public class ProductServiceImpl implements ProductService {
 
         // Set product categories
         setProductCategories(product.getProductId(), param.getCategories());
+        eventPublisher.publishEvent(new ProductUpdateEvent(productId));
 
         return getProduct(product.getProductId());
     }
@@ -226,6 +228,7 @@ public class ProductServiceImpl implements ProductService {
 
         publicationRepository.save(productPublication);
         productRepository.save(product);
+        eventPublisher.publishEvent(new ProductUpdateEvent(productId));
     }
 
     @Override

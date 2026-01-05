@@ -65,6 +65,7 @@ const Layout: React.FC = () => {
       children: [
         { name: '模型监控', cn: '模型监控', href: '/observability/model-dashboard', icon: DashboardOutlined },
         { name: 'MCP监控', cn: 'MCP监控', href: '/observability/mcp-monitor', icon: MonitorOutlined },
+        { name: '产品统计', cn: '产品统计', href: '/product-summary', icon: BarChartOutlined },
       ]
     },
   ]
