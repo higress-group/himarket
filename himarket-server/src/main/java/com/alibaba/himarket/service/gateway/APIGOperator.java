@@ -30,6 +30,7 @@ import com.alibaba.himarket.dto.result.agent.AgentAPIResult;
 import com.alibaba.himarket.dto.result.common.DomainResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.gateway.GatewayResult;
+import com.alibaba.himarket.dto.result.gateway.GatewayServiceResult;
 import com.alibaba.himarket.dto.result.httpapi.APIConfigResult;
 import com.alibaba.himarket.dto.result.httpapi.APIResult;
 import com.alibaba.himarket.dto.result.mcp.GatewayMCPServerResult;
@@ -58,6 +59,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.commons.collections4.bag.CollectionBag;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 
@@ -571,6 +574,7 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
                                     DomainResult.builder()
                                             .domain(item.getName())
                                             .protocol(item.getProtocol().toLowerCase())
+                                            .meta(Collections.singletonMap("domainId", item.getDomainId()))
                                             .build())
                     .collect(Collectors.toList());
         } catch (Exception e) {
@@ -630,6 +634,39 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
             throw new BusinessException(
                     ErrorCode.INTERNAL_ERROR,
                     "Error fetching gateway uris，Cause：" + e.getMessage());
+        }
+    }
+
+    @Override
+    public List<GatewayServiceResult> fetchGatewayServices(Gateway gateway) {
+        ListServicesRequest request =
+                ListServicesRequest.builder()
+                        .gatewayId(gateway.getGatewayId())
+                        .pageNumber(1)
+                        .pageSize(100)
+                        .build();
+        APIGClient client = getClient(gateway);
+        try {
+            CompletableFuture<ListServicesResponse> f = client.execute(c -> c.listServices(request));
+            ListServicesResponse response = f.join();
+            if (response.getStatusCode() != 200) {
+                throw new BusinessException(
+                        ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
+            }
+            return response.getBody().getData().getItems()
+            .stream()
+            .map(   item ->
+                            GatewayServiceResult.builder()
+                                    .serviceId(item.getServiceId())
+                                    .serviceName(item.getName())
+                                    .tlsEnabled(item.getProtocol() != null && item.getProtocol().toLowerCase().equals("https"))
+                                    .build())
+            .collect(Collectors.toList());
+        } catch (Exception e) {
+            log.error("Error fetching gateway services", e);
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR,
+                    "Error fetching gateway services，Cause：" + e.getMessage());
         }
     }
 

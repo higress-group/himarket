@@ -17,24 +17,22 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.enums;
+package com.alibaba.himarket.support.api;
 
-/** 服务类型枚举 */
-public enum ServiceType {
+import lombok.Data;
+import lombok.EqualsAndHashCode;
 
-    /** Nacos 服务 */
-    NACOS,
+/** Gateway 服务配置 */
+@Data
+@EqualsAndHashCode(callSuper = true)
+public class GatewayServiceConfig extends ServiceConfig {
 
-    /** 固定地址 */
-    FIXED_ADDRESS,
+    /** Gateway ID */
+    private String gatewayId;
 
-    /** DNS */
-    DNS,
+    /** 服务 ID */
+    private String serviceId;
 
-    /** AI 服务 */
-    AI_SERVICE,
-
-    /** Gateway 服务 */
-    GATEWAY,
-    ;
+    /** 服务名称 */
+    private String serviceName;
 }

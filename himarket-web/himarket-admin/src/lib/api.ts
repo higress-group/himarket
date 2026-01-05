@@ -230,6 +230,10 @@ export const gatewayApi = {
   getGatewayServiceTypes: (gatewayId: string) => {
     return api.get(`/gateways/${gatewayId}/service-types`)
   },
+  // 获取网关服务列表
+  getGatewayServices: (gatewayId: string) => {
+    return api.get(`/gateways/${gatewayId}/services`)
+  },
   // 更新网关
   updateGateway: (gatewayId: string, data: any) => {
     return api.put(`/gateways/${gatewayId}`, data)

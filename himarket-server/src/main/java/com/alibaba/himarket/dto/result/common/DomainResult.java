@@ -19,6 +19,8 @@
 
 package com.alibaba.himarket.dto.result.common;
 
+import java.util.Map;
+
 import lombok.Builder;
 import lombok.Data;
 
@@ -33,4 +35,6 @@ public class DomainResult {
     private String protocol;
 
     private String networkType;
+
+    private Map<String, String> meta;
 }

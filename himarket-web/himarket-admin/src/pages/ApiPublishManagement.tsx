@@ -50,9 +50,11 @@ export default function ApiPublishManagement() {
   const [publishHistory, setPublishHistory] = useState<any[]>([]);
   const [gateways, setGateways] = useState<Gateway[]>([]);
   const [ingressDomains, setIngressDomains] = useState<DomainResult[]>([]);
-  const [serviceTypes, setServiceTypes] = useState<string[]>(['NACOS', 'FIXED_ADDRESS', 'DNS']);
+  const [serviceTypes, setServiceTypes] = useState<string[]>(['NACOS', 'FIXED_ADDRESS', 'DNS', 'GATEWAY']);
   const [nacosInstances, setNacosInstances] = useState<any[]>([]);
   const [namespaces, setNamespaces] = useState<any[]>([]);
+  const [gatewayServices, setGatewayServices] = useState<any[]>([]);
+  const [loadingGatewayServices, setLoadingGatewayServices] = useState(false);
   const [loading, setLoading] = useState(false);
   const [publishModalVisible, setPublishModalVisible] = useState(false);
   const [publishing, setPublishing] = useState(false);
@@ -69,6 +71,8 @@ export default function ApiPublishManagement() {
   const provider = Form.useWatch('provider', form);
   const nacosId = Form.useWatch('nacosId', form);
   const namespace = Form.useWatch('namespace', form);
+  const selectedGatewayId = Form.useWatch('gatewayId', form);
+  const selectedServiceId = Form.useWatch('serviceId', form);
 
   useEffect(() => {
     if (apiDefinitionId) {
@@ -154,9 +158,13 @@ export default function ApiPublishManagement() {
         form.setFieldValue('serviceType', 'AI_SERVICE');
       }
 
+      // Update service types only if backend returns them, otherwise keep defaults
       if (availableTypes.length > 0) {
         setServiceTypes(availableTypes);
       }
+      
+      // Clear gateway services - will be fetched on dropdown open
+      setGatewayServices([]);
       
       form.setFieldValue('ingressDomain', undefined); // Reset domain selection
       // Don't reset serviceType if it's still valid, or maybe we should? 
@@ -170,7 +178,8 @@ export default function ApiPublishManagement() {
       console.error('Failed to fetch gateway info:', error);
       message.error('获取网关信息失败');
       setIngressDomains([]);
-      // Don't clear serviceTypes on error, keep defaults
+      // Keep default service types on error
+      setServiceTypes(['NACOS', 'FIXED_ADDRESS', 'DNS', 'GATEWAY']);
     }
   };
 
@@ -182,6 +191,28 @@ export default function ApiPublishManagement() {
     } catch (error) {
       console.error('Failed to fetch namespaces:', error);
       message.error('获取命名空间失败');
+    }
+  };
+
+  const handleGatewayServiceDropdownOpen = async () => {
+    // Fetch gateway services when dropdown is opened
+    const gatewayId = form.getFieldValue('gatewayId');
+    if (!gatewayId) return;
+    
+    // Only fetch if not already loaded
+    if (gatewayServices.length > 0) return;
+    
+    setLoadingGatewayServices(true);
+    try {
+      const servicesRes = await gatewayApi.getGatewayServices(gatewayId);
+      const services = servicesRes.data || servicesRes;
+      setGatewayServices(Array.isArray(services) ? services : []);
+    } catch (error) {
+      console.error('Failed to fetch gateway services:', error);
+      message.error('获取网关服务列表失败');
+      setGatewayServices([]);
+    } finally {
+      setLoadingGatewayServices(false);
     }
   };
 
@@ -220,6 +251,13 @@ export default function ApiPublishManagement() {
         serviceConfig = {
           ...serviceConfig,
           domain: values.domain,
+        };
+      } else if (values.serviceType === 'GATEWAY') {
+        serviceConfig = {
+          ...serviceConfig,
+          gatewayId: values.gatewayId,
+          serviceId: values.serviceId,
+          serviceName: values.serviceName,
         };
       } else if (values.serviceType === 'AI_SERVICE') {
         serviceConfig = {
@@ -392,6 +430,22 @@ export default function ApiPublishManagement() {
           <div className="text-sm flex items-center">
             <Tag color="purple">DNS 域名</Tag>
             <span className="font-mono bg-gray-50 px-1 rounded ml-2">{config.domain}</span>
+          </div>
+        );
+      case 'GATEWAY':
+        return (
+          <div className="text-sm">
+            <div style={{ marginBottom: '8px' }}>
+              <Tag color="green">网关服务</Tag>
+            </div>
+            <div style={itemStyle}>
+              <span style={labelStyle}>服务名:</span>
+              <span className="font-medium">{config.serviceName}</span>
+            </div>
+            <div style={itemStyle}>
+              <span style={labelStyle}>服务ID:</span>
+              <span>{config.serviceId}</span>
+            </div>
           </div>
         );
       case 'AI_SERVICE':
@@ -633,6 +687,7 @@ export default function ApiPublishManagement() {
                   {type === 'NACOS' ? 'Nacos' : 
                    type === 'FIXED_ADDRESS' ? '固定地址' : 
                    type === 'DNS' ? 'DNS' : 
+                   type === 'GATEWAY' ? '网关' :
                    type === 'AI_SERVICE' ? 'AI 服务' : type}
                 </Radio>
               ))}
@@ -973,9 +1028,39 @@ export default function ApiPublishManagement() {
             </Form.Item>
           )}
 
+          {serviceType === 'GATEWAY' && selectedGatewayId && (
+            <Form.Item name="serviceId" label="网关服务" rules={[{ required: true }]}>
+              <Select 
+                placeholder="请选择网关服务"
+                onFocus={handleGatewayServiceDropdownOpen}
+                loading={loadingGatewayServices}
+                onChange={(value) => {
+                  const selected = gatewayServices.find(s => s.serviceId === value);
+                  if (selected) {
+                    form.setFieldValue('serviceName', selected.serviceName);
+                    // Set TLS enabled based on the service's tlsEnabled property
+                    form.setFieldValue('tlsEnabled', selected.tlsEnabled || false);
+                  }
+                }}
+              >
+                {gatewayServices.map(service => (
+                  <Select.Option key={service.serviceId} value={service.serviceId}>
+                    {service.serviceName} ({service.serviceId})
+                  </Select.Option>
+                ))}
+              </Select>
+            </Form.Item>
+          )}
+
+          {serviceType === 'GATEWAY' && (
+            <Form.Item name="serviceName" hidden>
+              <Input />
+            </Form.Item>
+          )}
+
           {apiDefinition?.type !== 'MODEL_API' && (
             <Form.Item name="tlsEnabled" valuePropName="checked">
-              <Checkbox>开启 TLS</Checkbox>
+              <Checkbox disabled={serviceType === 'GATEWAY' && !!selectedServiceId}>开启 TLS</Checkbox>
             </Form.Item>
           )}
 

@@ -17,24 +17,27 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.enums;
+package com.alibaba.himarket.dto.result.gateway;
 
-/** 服务类型枚举 */
-public enum ServiceType {
+import lombok.Builder;
+import lombok.Data;
 
-    /** Nacos 服务 */
-    NACOS,
+@Data
+@Builder
+public class GatewayServiceResult {
 
-    /** 固定地址 */
-    FIXED_ADDRESS,
+    /**
+     * Service ID
+     */
+    private String serviceId;
 
-    /** DNS */
-    DNS,
+    /**
+     * Service name
+     */
+    private String serviceName;
 
-    /** AI 服务 */
-    AI_SERVICE,
-
-    /** Gateway 服务 */
-    GATEWAY,
-    ;
+    /**
+     * Whether TLS is enabled for this service
+     */
+    private Boolean tlsEnabled;
 }
