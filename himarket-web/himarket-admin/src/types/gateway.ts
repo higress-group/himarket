@@ -50,6 +50,8 @@ export interface SofaHigressConfig {
   address: string
   accessKey: string
   secretKey: string
+  tenantId: string
+  workspaceId: string
 }
 
 export interface NacosInstance {

@@ -93,17 +93,14 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
     public PageResult<APIResult> fetchHTTPorRestAPIs(Gateway gateway, int page, int size) {
         SofaHigressClient client = getClient(gateway);
 
-        SofaHigressPageRequest<SofaHigressApiConfig> request = SofaHigressPageRequest.<SofaHigressApiConfig>builder()
+        SofaHigressRoutePageRequest request = SofaHigressRoutePageRequest.builder()
                 .pageInfo(PageInfo.builder()
                         .pageIndex((long) page)
                         .pageSize((long) size)
                         .build())
                 .fuzzySearch(true)
-                .param(SofaHigressApiConfig.builder()
-                        .type("HTTP")
-                        .build())
-                .build()
-                .autoFillTenantInfo();
+                .type("HTTP")
+                .build();
 
         SofaHigressPageResponse<SofaHigressRouteConfig> response = client.execute(
                 "/route/list",
@@ -137,8 +134,7 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
                 .param(SofaHigressMCPConfig.builder()
                         .status("ONSHELF")
                         .build())
-                .build()
-                .autoFillTenantInfo();
+                .build();
 
         SofaHigressPageResponse<SofaHigressMCPConfig> response = client.execute(
                 "/mcpServer/list",
@@ -162,17 +158,13 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
     public PageResult<? extends GatewayModelAPIResult> fetchModelAPIs(Gateway gateway, int page, int size) {
         SofaHigressClient client = getClient(gateway);
 
-        SofaHigressPageRequest<SofaHigressApiConfig> request = SofaHigressPageRequest.<SofaHigressApiConfig>builder()
+        SofaHigressApiPageRequest request = SofaHigressApiPageRequest.builder()
                 .pageInfo(PageInfo.builder()
                         .pageIndex((long) page)
                         .pageSize((long) size)
                         .build())
-                .fuzzySearch(true)
-                .param(SofaHigressApiConfig.builder()
-                        .type("AI")
-                        .build())
-                .build()
-                .autoFillTenantInfo();
+                .type("AI")
+                .build();
 
         SofaHigressPageResponse<SofaHigressApiConfig> response = client.execute(
                 "/api/list",
@@ -200,12 +192,9 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
         SofaHigressRouteConfig response = client.execute(
                 "/route/detail",
                 HttpMethod.POST,
-                BaseRequest.<SofaHigressRouteConfig>builder()
-                        .param(SofaHigressRouteConfig.builder()
-                                .routeId(refConfig.getApiId())
-                                .build())
-                        .build()
-                        .autoFillTenantInfo(),
+                SofaHigressGetRouteRequest.builder()
+                        .routeId(refConfig.getApiId())
+                        .build(),
                 new TypeReference<>(){});
 
         APIConfigResult configResult = new APIConfigResult();
@@ -231,7 +220,7 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
         mcpConfigResult.setMcpServerName(response.getName());
         // mcpServerConfig需要path和domain信息
         MCPConfigResult.MCPServerConfig mcpServerConfig = new MCPConfigResult.MCPServerConfig();
-        mcpServerConfig.setPath(response.getPath());
+        mcpServerConfig.setPath(response.getPath()+"/sse");
         List<String> domains = response.getDomains();
         mcpServerConfig.setDomains(domainConvert(gateway, domains));
         mcpConfigResult.setMcpServerConfig(mcpServerConfig);
@@ -256,8 +245,7 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
                         .param(SofaHigressMCPConfig.builder()
                                 .serverId(serverId)
                                 .build())
-                        .build()
-                        .autoFillTenantInfo(),
+                        .build(),
                 new TypeReference<>(){});
     }
 
@@ -271,8 +259,7 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
                         .param(SofaHigressMCPConfig.builder()
                                 .name(serverName)
                                 .build())
-                        .build()
-                        .autoFillTenantInfo(),
+                        .build(),
                 new TypeReference<>(){});
     }
 
@@ -285,8 +272,7 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
                         .param(SofaHigressDomainConfig.builder()
                                 .domainName(domain)
                                 .build())
-                        .build()
-                        .autoFillTenantInfo(),
+                        .build(),
                 new TypeReference<>(){});
         return response;
     }
@@ -357,11 +343,6 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
         MCPConfigResult config = (MCPConfigResult) conf;
         SofaHigressMCPConfig response = fetchSofaHigressMCPConfigByName(gateway, config.getMcpServerName());
 
-        // only 'MCPSERVER' type is supported
-        if (!"MCPSERVER".equals(response.getType())) {
-            return null;
-        }
-
         // Build authentication context
         CredentialContext credentialContext = CredentialContext.builder().build();
         Optional.ofNullable(response.getAuthConfig())
@@ -378,8 +359,7 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
                                             .param(SofaHigressConsumerConfig.builder()
                                                     .name(consumerName)
                                                     .build())
-                                            .build()
-                                            .autoFillTenantInfo(),
+                                            .build(),
                                     new TypeReference<>(){});
 
                             Optional.ofNullable(consumerConfig.getKeyAuthConfig())
@@ -430,12 +410,9 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
         return client.execute(
                 "/api/detail",
                 HttpMethod.POST,
-                BaseRequest.<SofaHigressApiConfig>builder()
-                        .param(SofaHigressApiConfig.builder()
-                                .apiId(apiId)
-                                .build())
-                        .build()
-                        .autoFillTenantInfo(),
+                SofaHigressGetApiRequest.builder()
+                        .apiId(apiId)
+                        .build(),
                 new TypeReference<>(){});
     }
 
@@ -488,20 +465,47 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
                 HttpMethod.POST,
                 buildSofaHigressConsumer(consumerId),
                 new TypeReference<>(){});
-        return consumerConfig == null;
+        return consumerConfig != null;
     }
 
     @Override
     public ConsumerAuthConfig authorizeConsumer(Gateway gateway, String consumerId, Object refConfig) {
         SofaHigressRefConfig sofaHigressRefConfig = (SofaHigressRefConfig) refConfig;
 
+        String apiId = sofaHigressRefConfig.getApiId();
         String serverId = sofaHigressRefConfig.getServerId();
         String modelApiId = sofaHigressRefConfig.getModelApiId();
 
-        // MCP or AIRoute
-        return StrUtil.isNotBlank(serverId)
-                ? authorizeMCPServer(gateway, consumerId, serverId)
-                : authorizeAIRoute(gateway, consumerId, modelApiId);
+        // MCP or AIRoute or RestRoute
+        if (StrUtil.isNotBlank(apiId)) {
+            return authorizeRestRoute(gateway, consumerId, apiId);
+        } else if (StrUtil.isNotBlank(serverId)) {
+            return authorizeMCPServer(gateway, consumerId, serverId);
+        } else {
+            return authorizeAIRoute(gateway, consumerId, modelApiId);
+        }
+    }
+
+    private ConsumerAuthConfig authorizeRestRoute(Gateway gateway, String consumerId, String routeId) {
+        SofaHigressClient client = getClient(gateway);
+
+        client.execute(
+                "/route/sub",
+                HttpMethod.POST,
+                SubOrUnSubRequest.builder()
+                        .consumerId(consumerId)
+                        .routerId(routeId)
+                        .build(),
+                new TypeReference<>(){});
+
+        SofaHigressAuthConfig sofaHigressAuthConfig = SofaHigressAuthConfig.builder()
+                .resourceType("REST_API")
+                .resourceId(routeId)
+                .build();
+
+        return ConsumerAuthConfig.builder()
+                .sofaHigressAuthConfig(sofaHigressAuthConfig)
+                .build();
     }
 
     private ConsumerAuthConfig authorizeMCPServer(Gateway gateway, String consumerId, String serverId) {
@@ -515,8 +519,7 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
                 SubOrUnSubRequest.builder()
                         .consumerId(consumerId)
                         .routerId(response.getRouteId())
-                        .build()
-                        .autoFillTenantInfo(),
+                        .build(),
                 new TypeReference<>(){});
 
         SofaHigressAuthConfig sofaHigressAuthConfig = SofaHigressAuthConfig.builder()
@@ -539,8 +542,7 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
                 SubOrUnSubRequest.builder()
                         .consumerId(consumerId)
                         .routerId(response.getRouteInfo().getRouteId())
-                        .build()
-                        .autoFillTenantInfo(),
+                        .build(),
                 new TypeReference<>(){});
 
         SofaHigressAuthConfig sofaHigressAuthConfig = SofaHigressAuthConfig.builder()
@@ -560,12 +562,27 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
             return;
         }
 
-        if (sofaHigressAuthConfig.getResourceType().equalsIgnoreCase("MCP_SERVER")) {
+        if (sofaHigressAuthConfig.getResourceType().equalsIgnoreCase("REST_API")) {
+            revokeAuthorizeRestRoute(gateway, consumerId, sofaHigressAuthConfig.getResourceId());
+        } else if (sofaHigressAuthConfig.getResourceType().equalsIgnoreCase("MCP_SERVER")) {
             revokeAuthorizeMCPServer(gateway, consumerId, sofaHigressAuthConfig.getResourceId());
         } else {
             revokeAuthorizeAIRoute(gateway, consumerId, sofaHigressAuthConfig.getResourceId());
         }
 
+    }
+
+    private void revokeAuthorizeRestRoute(Gateway gateway, String consumerId, String routeId) {
+        SofaHigressClient client = getClient(gateway);
+
+        client.execute(
+                "/route/unsub",
+                HttpMethod.POST,
+                SubOrUnSubRequest.builder()
+                        .consumerId(consumerId)
+                        .routerId(routeId)
+                        .build(),
+                new TypeReference<>(){});
     }
 
     private void revokeAuthorizeMCPServer(Gateway gateway, String consumerId, String serverId) {
@@ -579,8 +596,7 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
                 SubOrUnSubRequest.builder()
                         .consumerId(consumerId)
                         .routerId(response.getRouteId())
-                        .build()
-                        .autoFillTenantInfo(),
+                        .build(),
                 new TypeReference<>(){});
     }
 
@@ -594,8 +610,7 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
                 SubOrUnSubRequest.builder()
                         .consumerId(consumerId)
                         .routerId(response.getRouteInfo().getRouteId())
-                        .build()
-                        .autoFillTenantInfo(),
+                        .build(),
                 new TypeReference<>(){});
     }
 
@@ -616,7 +631,7 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
         String gatewayUrl = client.execute(
                 "/gatewayUrl",
                 HttpMethod.POST,
-                new BaseRequest().autoFillTenantInfo());
+                new BaseRequest());
 
         try {
             URI uri = new URI(gatewayUrl);
@@ -641,8 +656,7 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
                 BaseRequest.<SofaHigressDomainConfig>builder()
                         .param(SofaHigressDomainConfig.builder()
                                 .build())
-                        .build()
-                        .autoFillTenantInfo(),
+                        .build(),
                 new TypeReference<>(){});
         return response.stream().filter(Objects::nonNull)
                 .map(domainConfig -> {
@@ -667,8 +681,10 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
                 .consumerId(consumerId)
                 .name(consumerName)
                 .description("consumer from Himarket")
+                .status(true)
                 .keyAuthConfig(
                         KeyAuthConfig.builder()
+                                .enabled(true)
                                 .source(source)
                                 .key(apiKeyConfig.getKey())
                                 .value(value)
@@ -676,8 +692,7 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
                 .build();
         return BaseRequest.<SofaHigressConsumerConfig>builder()
                 .param(consumerConfig)
-                .build()
-                .autoFillTenantInfo();
+                .build();
     }
 
     public BaseRequest<SofaHigressConsumerConfig> buildSofaHigressConsumer(String consumerId) {
@@ -686,8 +701,7 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
                 .build();
         return BaseRequest.<SofaHigressConsumerConfig>builder()
                 .param(consumerConfig)
-                .build()
-                .autoFillTenantInfo();
+                .build();
     }
 
     private String mapSource(String source) {
@@ -709,12 +723,6 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
         protected String tenantId;
         protected String workspaceId;
         protected T param;
-
-        public BaseRequest<T> autoFillTenantInfo() {
-            this.tenantId = "0000000001";
-            this.workspaceId = "workspace-250624BXDK8Bdr3i6pPz4SXEtiSn";
-            return this;
-        }
     }
 
     @Data
@@ -724,12 +732,35 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
         private PageInfo    pageInfo;
         private Boolean     fuzzySearch;
         private String      queryType;
+    }
 
-        public SofaHigressPageRequest<T> autoFillTenantInfo() {
-            this.tenantId = "0000000001";
-            this.workspaceId = "workspace-250624BXDK8Bdr3i6pPz4SXEtiSn";
-            return this;
-        }
+    @Data
+    @SuperBuilder
+    @NoArgsConstructor
+    public static class SofaHigressRoutePageRequest extends SofaHigressPageRequest<Object> {
+        private String type;
+    }
+
+    @Data
+    @SuperBuilder
+    @NoArgsConstructor
+    public static class SofaHigressApiPageRequest extends SofaHigressPageRequest<Object> {
+        private String type;
+    }
+
+    @Data
+    @SuperBuilder
+    @NoArgsConstructor
+    public static class SofaHigressGetRouteRequest extends BaseRequest<Object> {
+        private String routeId;
+        private String routeName;
+    }
+
+    @Data
+    @SuperBuilder
+    @NoArgsConstructor
+    public static class SofaHigressGetApiRequest extends BaseRequest<Object> {
+        private String apiId;
     }
 
     @Data
@@ -738,12 +769,6 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
     public static class SubOrUnSubRequest extends BaseRequest<Object> {
         private String routerId;
         private String consumerId;
-
-        public SubOrUnSubRequest autoFillTenantInfo() {
-            this.tenantId = "0000000001";
-            this.workspaceId = "workspace-250624BXDK8Bdr3i6pPz4SXEtiSn";
-            return this;
-        }
     }
 
     @Data
@@ -900,6 +925,7 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
         private String            consumerId;
         private String            name;
         private String            description;
+        private Boolean           status;
         private KeyAuthConfig     keyAuthConfig;
     }
 
@@ -908,6 +934,7 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class KeyAuthConfig {
+        private Boolean enabled;
         private String key;
         private String source;
         private String value;

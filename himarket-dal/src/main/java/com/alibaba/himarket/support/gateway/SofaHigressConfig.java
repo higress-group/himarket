@@ -44,12 +44,24 @@ public class SofaHigressConfig {
     @Encrypted
     private String secretKey;
 
+    /**
+     * sofa higress tenantId
+     */
+    @Encrypted
+    private String tenantId;
+
+    /**
+     * sofa higress workspaceId
+     */
+    @Encrypted
+    private String workspaceId;
+
     public String buildUniqueKey() {
-        return StrUtil.join(":", address, accessKey, secretKey);
+        return StrUtil.join(":", address, accessKey, secretKey, tenantId, workspaceId);
     }
 
     public boolean validate() {
-        if (StrUtil.isBlank(address) || StrUtil.isBlank(accessKey) || StrUtil.isBlank(secretKey)) {
+        if (StrUtil.isBlank(address) || StrUtil.isBlank(accessKey) || StrUtil.isBlank(secretKey) || StrUtil.isBlank(tenantId) || StrUtil.isBlank(workspaceId)) {
             return false;
         }
 

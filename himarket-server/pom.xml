@@ -210,6 +210,13 @@
             <version>4.0.8</version>
         </dependency>
 
+
+        <dependency>
+            <groupId>com.github.mifmif</groupId>
+            <artifactId>generex</artifactId>
+            <version>1.0.2</version>
+        </dependency>
+
     </dependencies>
 
 </project>

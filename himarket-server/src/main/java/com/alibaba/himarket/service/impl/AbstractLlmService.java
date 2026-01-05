@@ -276,6 +276,7 @@ public abstract class AbstractLlmService implements LlmService {
         CredentialContext credentialContext = param.getCredentialContext();
 
         URI uri = getUri(modelConfig, credentialContext.copyQueryParams(), param.getGatewayUris());
+        Map<String, String> headers = getMatchHeader(modelConfig);
 
         // Model feature
         ModelFeature modelFeature = getOrDefaultModelFeature(product);
@@ -287,12 +288,15 @@ public abstract class AbstractLlmService implements LlmService {
                         ? new WebSearchOptions(WebSearchOptions.SearchContextSize.MEDIUM, null)
                         : null;
 
+        // add additional header match
+        headers.putAll(credentialContext.copyHeaders());
+
         return LlmChatRequest.builder()
                 .chatId(param.getChatId())
                 .userQuestion(param.getUserQuestion())
                 .uri(uri)
                 .chatMessages(param.getChatMessages())
-                .headers(credentialContext.copyHeaders())
+                .headers(headers)
                 .gatewayUris(param.getGatewayUris())
                 .credentialContext(param.getCredentialContext())
                 .mcpConfigs(param.getMcpConfigs())
@@ -783,6 +787,14 @@ public abstract class AbstractLlmService implements LlmService {
      */
     protected abstract URI getUri(
             ModelConfigResult modelConfig, Map<String, String> queryParams, List<URI> gatewayUris);
+
+    /**
+     * Get route match headers.
+     *
+     * @param modelConfig
+     * @return
+     */
+    protected abstract Map<String, String> getMatchHeader(ModelConfigResult modelConfig);
 
     /**
      * Builds a ChatClient instance according to the specified protocol (e.g., OpenAI, etc.) based

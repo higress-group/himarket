@@ -29,6 +29,7 @@ import com.alibaba.himarket.dto.result.httpapi.HttpRouteResult;
 import com.alibaba.himarket.dto.result.model.ModelConfigResult;
 import com.alibaba.himarket.support.enums.AIProtocol;
 import java.net.URI;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -134,7 +135,7 @@ public class OpenAILlmService extends AbstractLlmService {
         UriComponentsBuilder builder = UriComponentsBuilder.newInstance();
 
         // Find domain or use gateway IP
-        DomainResult domain =
+        DomainResult domain = route.getDomains() == null ? null :
                 route.getDomains().stream()
                         .filter(d -> !StrUtil.equalsIgnoreCase(d.getNetworkType(), "intranet"))
                         .findFirst()
@@ -170,7 +171,53 @@ public class OpenAILlmService extends AbstractLlmService {
         builder.path(path);
         Optional.ofNullable(queryParams).ifPresent(params -> params.forEach(builder::queryParam));
 
+        List<HttpRouteResult.RouteMatchQuery> matchQueryParams = route.getMatch().getQueryParams();
+        Optional.ofNullable(matchQueryParams).ifPresent(
+                params ->
+                        params.forEach(query -> {
+                                    String key = query.getName();
+                                    String value = HttpRouteResult.GetMatchedValue(query.getType(), query.getValue());
+                                    builder.queryParam(key, value);
+                                })
+        );
+
         return builder.build().toUri();
+    }
+
+    @Override
+    protected Map<String, String> getMatchHeader(ModelConfigResult modelConfig) {
+        ModelConfigResult.ModelAPIConfig modelAPIConfig = modelConfig.getModelAPIConfig();
+        if (modelAPIConfig == null || CollUtil.isEmpty(modelAPIConfig.getRoutes())) {
+            log.error("Invalid model config - modelAPIConfig is null or routes is empty");
+            return null;
+        }
+
+        // Find preferred route
+        HttpRouteResult route =
+                modelAPIConfig.getRoutes().stream()
+                        .filter(
+                                r ->
+                                        Optional.ofNullable(r.getMatch())
+                                                .map(HttpRouteResult.RouteMatchResult::getPath)
+                                                .map(HttpRouteResult.RouteMatchPath::getValue)
+                                                // Find path that ends with /chat/completions
+                                                .filter(path -> path.endsWith("/chat/completions"))
+                                                .isPresent())
+                        .findFirst()
+                        .orElseGet(() -> modelAPIConfig.getRoutes().get(0));
+
+        Map<String, String> headerMap = new HashMap<>();
+        List<HttpRouteResult.RouteMatchHeader> headers = route.getMatch().getHeaders();
+        Optional.ofNullable(headers).ifPresent(
+                params ->
+                        params.forEach(query -> {
+                            String key = query.getName();
+                            String value = HttpRouteResult.GetMatchedValue(query.getType(), query.getValue());
+                            headerMap.put(key, value);
+                        })
+        );
+
+        return headerMap;
     }
 
     @Override

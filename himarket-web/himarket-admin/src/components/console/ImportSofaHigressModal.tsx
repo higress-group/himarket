@@ -24,6 +24,8 @@ export default function ImportSofaHigressModal({ visible, onCancel, onSuccess }:
           address: values.address,
           accessKey: values.accessKey,
           secretKey: values.secretKey,
+          tenantId: values.tenantId,
+          workspaceId: values.workspaceId,
         }
       }
 
@@ -94,6 +96,22 @@ export default function ImportSofaHigressModal({ visible, onCancel, onSuccess }:
             rules={[{ required: true, message: '请输入网关的secretKey' }]}
         >
           <Input placeholder="sktest" />
+        </Form.Item>
+
+        <Form.Item
+            label="租户ID"
+            name="tenantId"
+            rules={[{ required: true, message: '请输入租户ID' }]}
+        >
+          <Input placeholder="tenantId" />
+        </Form.Item>
+
+        <Form.Item
+            label="工作空间ID"
+            name="workspaceId"
+            rules={[{ required: true, message: '请输入工作空间ID' }]}
+        >
+          <Input placeholder="workspaceId" />
         </Form.Item>
 
         <div className="flex justify-end space-x-2 pt-4">

@@ -52,8 +52,7 @@ public class SofaHigressGatewayPublisher implements GatewayPublisher {
                 SofaHigressAPIDefinitionParam.builder()
                         .apiDefinitionVO(apiDefinition)
                         .publishConfig(publishConfig)
-                        .build()
-                        .autoFillTenantInfo(),
+                        .build(),
                 new TypeReference<>(){},
                 new ObjectMapper());
 
@@ -71,8 +70,7 @@ public class SofaHigressGatewayPublisher implements GatewayPublisher {
                 SofaHigressAPIDefinitionParam.builder()
                         .apiDefinitionVO(apiDefinition)
                         .publishConfig(publishConfig)
-                        .build()
-                        .autoFillTenantInfo(),
+                        .build(),
                 new TypeReference<>(){},
                 new ObjectMapper());
 
@@ -89,8 +87,7 @@ public class SofaHigressGatewayPublisher implements GatewayPublisher {
                 HttpMethod.POST,
                 SofaHigressAPIDefinitionParam.builder()
                         .apiDefinitionVO(apiDefinition)
-                        .build()
-                        .autoFillTenantInfo());
+                        .build());
 
         return Boolean.parseBoolean(response);
     }

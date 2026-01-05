@@ -35,8 +35,10 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpMethod;
+import org.springframework.util.ReflectionUtils;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -133,6 +135,7 @@ public class SofaHigressClient extends GatewayClient {
                             R requestParam, ObjectMapper objectMapper) {
 
         path = PATH_PREFIX + path + PATH_SUFFIX;
+        autoSetTenantAndWorkspace(requestParam);
         Map<String, Object> request = new HashMap<>();
         // 请求路径path
         request.put("path", path);
@@ -171,6 +174,35 @@ public class SofaHigressClient extends GatewayClient {
         String data = clientResponse.getData();
         HigressResult<String> result = JSONObject.parseObject(data, new TypeReference<>() {});
         return result.getData();
+    }
+
+    /**
+     * auto set tenantId and workspaceId if present
+     */
+    private <R> void autoSetTenantAndWorkspace(R requestParam) {
+        if (requestParam == null) {
+            return;
+        }
+        String tenantId = config.getTenantId();
+        String workspaceId = config.getWorkspaceId();
+        if (tenantId == null && workspaceId == null) {
+            return;
+        }
+        Class<?> clazz = requestParam.getClass();
+        Field tenantIdField = ReflectionUtils.findField(clazz, "tenantId");
+        Field workspaceIdField = ReflectionUtils.findField(clazz, "workspaceId");
+        if (tenantIdField != null) {
+            ReflectionUtils.makeAccessible(tenantIdField);
+            if (tenantId != null) {
+                ReflectionUtils.setField(tenantIdField, requestParam, tenantId);
+            }
+        }
+        if (workspaceIdField != null) {
+            ReflectionUtils.makeAccessible(workspaceIdField);
+            if (workspaceId != null) {
+                ReflectionUtils.setField(workspaceIdField, requestParam, workspaceId);
+            }
+        }
     }
 
     private AntCloudHttpClient createHttpClient() {
