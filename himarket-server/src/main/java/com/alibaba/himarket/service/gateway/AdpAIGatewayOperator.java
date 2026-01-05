@@ -32,7 +32,9 @@ import com.alibaba.himarket.dto.result.httpapi.APIResult;
 import com.alibaba.himarket.dto.result.mcp.AdpMcpServerListResult;
 import com.alibaba.himarket.dto.result.mcp.GatewayMCPServerResult;
 import com.alibaba.himarket.dto.result.mcp.MCPConfigResult;
+import com.alibaba.himarket.dto.result.model.AIGWModelAPIResult;
 import com.alibaba.himarket.dto.result.model.GatewayModelAPIResult;
+import com.alibaba.himarket.dto.result.model.ModelConfigResult;
 import com.alibaba.himarket.entity.Consumer;
 import com.alibaba.himarket.entity.ConsumerCredential;
 import com.alibaba.himarket.entity.Gateway;
@@ -133,7 +135,58 @@ public class AdpAIGatewayOperator extends GatewayOperator {
     @Override
     public PageResult<? extends GatewayModelAPIResult> fetchModelAPIs(
             Gateway gateway, int page, int size) {
-        return null;
+        AdpAIGatewayConfig config = gateway.getAdpAIGatewayConfig();
+        if (config == null) {
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "ADP AI Gateway 配置缺失");
+        }
+
+        AdpAIGatewayClient client = new AdpAIGatewayClient(config);
+        try {
+            String url = client.getFullUrl("/api/gateway/modelapi/listModelApis");
+            // 构建请求体
+            String requestBody =
+                    String.format(
+                            "{\"size\": %d, \"currentPage\": %d, \"gwInstanceId\": \"%s\"}",
+                            size, page, gateway.getGatewayId());
+            HttpEntity<String> requestEntity = client.createRequestEntity(requestBody);
+
+            // 发起 HTTP 请求
+            ResponseEntity<AdpAiServiceListResult> response =
+                    client.getRestTemplate()
+                            .exchange(
+                                    url,
+                                    HttpMethod.POST,
+                                    requestEntity,
+                                    AdpAiServiceListResult.class);
+
+            // 处理响应
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                AdpAiServiceListResult result = response.getBody();
+                if (result.getCode() != null
+                        && result.getCode() == 200
+                        && result.getData() != null) {
+                    
+                    List<GatewayModelAPIResult> items = new ArrayList<>();
+                    if (result.getData().getRecords() != null) {
+                        items = result.getData().getRecords().stream()
+                                .map(this::convertToModelAPIResult)
+                                .collect(Collectors.toList());
+                    }
+                    
+                    int total = result.getData().getTotal() != null ? result.getData().getTotal() : 0;
+                    return PageResult.of(items, page, size, total);
+                }
+                String msg = result.getMessage() != null ? result.getMessage() : result.getMsg();
+                throw new BusinessException(ErrorCode.GATEWAY_ERROR, msg);
+            }
+            throw new BusinessException(
+                    ErrorCode.GATEWAY_ERROR, "调用 ADP /api/gateway/modelapi/listModelApis 失败");
+        } catch (Exception e) {
+            log.error("Error fetching ADP model APIs", e);
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, e.getMessage());
+        } finally {
+            client.close();
+        }
     }
 
     @Override
@@ -204,7 +257,54 @@ public class AdpAIGatewayOperator extends GatewayOperator {
 
     @Override
     public String fetchModelConfig(Gateway gateway, Object conf) {
-        return "";
+        AdpAIGatewayConfig config = gateway.getAdpAIGatewayConfig();
+        if (config == null) {
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "ADP AI Gateway 配置缺失");
+        }
+
+        // 入参 conf 通常为 APIGRefConfig，包含选中的 apiId
+        APIGRefConfig refConfig = (APIGRefConfig) conf;
+        if (refConfig == null || refConfig.getModelApiId() == null) {
+             throw new BusinessException(ErrorCode.INVALID_PARAMETER, "Model API ID 缺失");
+        }
+
+        AdpAIGatewayClient client = new AdpAIGatewayClient(config);
+        try {
+            String url = client.getFullUrl("/api/gateway/modelapi/getModelApi");
+            
+            // 构建请求体
+            String requestBody =
+                    String.format(
+                            "{\"gwInstanceId\": \"%s\", \"id\": \"%s\"}",
+                            gateway.getGatewayId(), refConfig.getModelApiId());
+
+            HttpEntity<String> requestEntity = client.createRequestEntity(requestBody);
+
+            ResponseEntity<AdpAiServiceDetailResult> response =
+                    client.getRestTemplate()
+                            .exchange(
+                                    url,
+                                    HttpMethod.POST,
+                                    requestEntity,
+                                    AdpAiServiceDetailResult.class);
+            
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                 AdpAiServiceDetailResult result = response.getBody();
+                 if (result.getCode() != null && result.getCode() == 200 && result.getData() != null) {
+                     return convertToModelConfigJson(result.getData(), gateway, config);
+                 }
+                 String msg = result.getMessage() != null ? result.getMessage() : result.getMsg();
+                 throw new BusinessException(ErrorCode.GATEWAY_ERROR, msg);
+            }
+             throw new BusinessException(
+                    ErrorCode.GATEWAY_ERROR, "调用 ADP /api/gateway/modelapi/getModelApi 失败");
+
+        } catch (Exception e) {
+            log.error("Error fetching ADP model config", e);
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, e.getMessage());
+        } finally {
+            client.close();
+        }
     }
 
     @Override
@@ -382,6 +482,50 @@ public class AdpAIGatewayOperator extends GatewayOperator {
         }
 
         return domains;
+    }
+
+    /** 将 ADP 模型对象转换为系统通用模型对象 */
+    private GatewayModelAPIResult convertToModelAPIResult(AdpAiServiceListResult.AdpAiServiceItem item) {
+        // 使用 AIGWModelAPIResult
+        return AIGWModelAPIResult.builder()
+                .modelApiId(item.getId())
+                .modelApiName(item.getApiName())
+                .build();
+    }
+
+    /** 将 ADP 模型详情转换为 ModelConfigResult JSON 字符串 */
+    private String convertToModelConfigJson(
+            AdpAiServiceDetailResult.AdpAiServiceDetail data, 
+            Gateway gateway, 
+            AdpAIGatewayConfig config) {
+        
+        // 设置访问域名/地址
+        // 优先复用 getGatewayAccessDomains 方法获取网关入口地址
+        List<DomainResult> domains = getGatewayAccessDomains(gateway.getGatewayId(), config);
+        if (domains == null || domains.isEmpty()) {
+            // 降级方案：如果没有网关入口信息，可能需要直接使用模型服务返回的域名
+            if (data.getDomainNameList() != null && !data.getDomainNameList().isEmpty()) {
+                domains = data.getDomainNameList().stream()
+                    .map(domain -> DomainResult.builder()
+                        .domain(domain)
+                        .protocol("http") // 默认使用http协议
+                        .build())
+                    .collect(Collectors.toList());
+            }
+        }
+
+        // 构建ModelAPIConfig
+        ModelConfigResult.ModelAPIConfig apiConfig = ModelConfigResult.ModelAPIConfig.builder()
+                .aiProtocols(Collections.singletonList(data.getProtocol())) // 使用协议信息
+                .modelCategory(data.getSceneType()) // 使用场景类型作为模型类别
+                .routes(null) // routes需要从其他地方获取，这里暂时为null
+                .services(null) // services需要从其他地方获取，这里暂时为null
+                .build();
+
+        ModelConfigResult modelConfig = new ModelConfigResult();
+        modelConfig.setModelAPIConfig(apiConfig);
+
+        return JSONUtil.toJsonStr(modelConfig);
     }
 
     @Override
@@ -961,6 +1105,58 @@ public class AdpAIGatewayOperator extends GatewayOperator {
             }
         }
         return PageResult.of(gateways, page, size, data.getTotal() != null ? data.getTotal() : 0);
+    }
+
+    // ==================== ADP AI 服务响应 DTO ====================
+
+    @Data
+    public static class AdpAiServiceListResult {
+        private Integer code;
+        private String msg;
+        private String message;
+        private AdpAiServiceData data;
+
+        @Data
+        public static class AdpAiServiceData {
+            private Integer total;
+            private Integer current;
+            private Integer size;
+            private List<AdpAiServiceItem> records;
+        }
+
+        @Data
+        public static class AdpAiServiceItem {
+            private String id;        // 服务ID
+            private String apiName;   // 服务名称
+            private String description; // 描述
+            private String basePath;  // 基础路径
+            private List<String> pathList; // 路径列表
+            private List<String> domainNameList; // 域名列表
+            private String protocol;  // 协议
+            private String sceneType; // 场景类型
+            // 根据实际接口补充其他字段
+        }
+    }
+
+    @Data
+    public static class AdpAiServiceDetailResult {
+        private Integer code;
+        private String msg;
+        private String message;
+        private AdpAiServiceDetail data;
+
+        @Data
+        public static class AdpAiServiceDetail {
+            private String id;
+            private String apiName;
+            private String description;
+            private String basePath;     // 服务地址
+            private List<String> pathList; // 路径列表
+            private List<String> domainNameList; // 域名列表
+            private String protocol;     // 协议类型
+            private String sceneType;    // 场景类型
+            // 根据实际接口补充其他字段
+        }
     }
 
     @Data

@@ -42,9 +42,22 @@ public class AdpAIGatewayConfig {
     public static class AuthHeader {
         private String key;
         private String value;
+        
+        public AuthHeader() {}
+        
+        public AuthHeader(String key, String value) {
+            this.key = key;
+            this.value = value;
+        }
     }
 
     public boolean validate() {
-        return StrUtil.isNotBlank(baseUrl) && port != null && StrUtil.isNotBlank(authSeed);
+        if (StrUtil.isBlank(baseUrl) || port == null) {
+            return false;
+        }
+        
+        // 验证认证配置，支持两种认证方式：Seed 或 Header
+        return (StrUtil.isNotBlank(authSeed) && (authHeaders == null || authHeaders.isEmpty())) // Seed 方式
+                || (authSeed == null && authHeaders != null && !authHeaders.isEmpty()); // Header 方式
     }
 }
