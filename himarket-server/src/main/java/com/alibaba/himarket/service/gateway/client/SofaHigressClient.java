@@ -159,13 +159,15 @@ public class SofaHigressClient extends GatewayClient {
         clientRequest.setVersion(OPENAPI_VERSION);
         AntCloudClientResponse clientResponse;
         try {
-            log.debug("call sofa higress console request: {}", JSON.toJSONString(request));
+            log.info("call sofa higress console path: {}, requestParam: {}",
+                    path, JSON.toJSONString(requestParam));
             clientResponse = antCloudClient.execute(clientRequest);
             if (!clientResponse.isSuccess()) {
-                log.error("failed to call sofa higress console: {}", clientResponse.getData());
+                log.error("failed to call sofa higress console path: {}, response: {}, resultCode: {}, resultMsg: {}",
+                        path, clientResponse.getData(), clientResponse.getResultCode(), clientResponse.getResultMsg());
                 throw new RuntimeException("return response is null or not success");
             }
-            log.debug("call sofa higress console {} response:{}", path, clientResponse.getData());
+            log.info("call sofa higress console {} response:{}", path, clientResponse.getData());
         } catch (Exception e) {
             log.error("call OpenApi error", e);
             throw new RuntimeException("Failed to execute sofa higress request", e);
