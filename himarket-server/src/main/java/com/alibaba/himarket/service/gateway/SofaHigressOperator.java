@@ -19,6 +19,7 @@
 
 package com.alibaba.himarket.service.gateway;
 
+import cn.com.antcloud.api.common.BaseRequest;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.BooleanUtil;
 import cn.hutool.core.util.StrUtil;
@@ -71,10 +72,7 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -337,38 +335,71 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
         return JSONUtil.toJsonStr(result);
     }
 
+    public SofaHigressConsumerConfig getSofaHigressConsumerConfigByName(Gateway gateway, String consumerName) {
+        SofaHigressClient client = getClient(gateway);
+        return client.execute(
+                "/consumer/detailByName",
+                HttpMethod.POST,
+                BaseRequest.<SofaHigressConsumerConfig>builder()
+                        .param(SofaHigressConsumerConfig.builder()
+                                .name(consumerName)
+                                .build())
+                        .build(),
+                new TypeReference<>(){});
+    }
+
+    public List<SofaHigressConsumerConfig> getAllSofaHigressConsumerConfig(Gateway gateway) {
+        SofaHigressClient client = getClient(gateway);
+        return client.execute(
+                "/consumer/all",
+                HttpMethod.POST,
+                BaseRequest.<SofaHigressConsumerConfig>builder()
+                        .build(),
+                new TypeReference<>(){});
+    }
+
     @Override
     public String fetchMcpToolsForConfig(Gateway gateway, Object conf) {
-        SofaHigressClient client = getClient(gateway);
         MCPConfigResult config = (MCPConfigResult) conf;
         SofaHigressMCPConfig response = fetchSofaHigressMCPConfigByName(gateway, config.getMcpServerName());
 
+        List<SofaHigressConsumerConfig> consumersList = getAllSofaHigressConsumerConfig(gateway);
+
         // Build authentication context
         CredentialContext credentialContext = CredentialContext.builder().build();
-        Optional.ofNullable(response.getAuthConfig())
+        Optional<String> consumerOptional = Optional.ofNullable(response.getAuthConfig())
                 .filter(authInfo -> BooleanUtil.isTrue(authInfo.getEnabled()))
                 .map(AiRouteAuthConfig::getAllowedConsumers)
                 .filter(CollUtil::isNotEmpty)
-                .map(CollUtil::getFirst)
-                .ifPresent(
-                        consumerName -> {
-                            SofaHigressConsumerConfig consumerConfig = client.execute(
-                                    "/consumer/detailByName",
-                                    HttpMethod.POST,
-                                    BaseRequest.<SofaHigressConsumerConfig>builder()
-                                            .param(SofaHigressConsumerConfig.builder()
-                                                    .name(consumerName)
-                                                    .build())
-                                            .build(),
-                                    new TypeReference<>(){});
+                .map(consumerNames -> {
+                    Set<String> consumerNameSet = new HashSet<>();
+                    consumersList.forEach(consumer ->
+                            consumerNameSet.add(consumer.getName()));
 
-                            Optional.ofNullable(consumerConfig.getKeyAuthConfig())
-                                    .ifPresent(
-                                            credential ->
-                                                    fillCredentialContext(
-                                                            credentialContext, credential));
+                    for (String consumerName : consumerNames) {
+                        if (consumerNameSet.contains(consumerName)) {
+                            return consumerName;
                         }
-                );
+                    }
+                    return null;
+                });
+        // If authentication is enabled, but no consumer found for current workspace and tenant, return null
+        if (response.getAuthConfig() != null && response.getAuthConfig().getEnabled()
+                && consumerOptional.isEmpty()) {
+            log.warn("No consumer found in the allowed consumers list");
+            return null;
+        }
+        consumerOptional.ifPresent(
+                consumerName -> {
+                    SofaHigressConsumerConfig consumerConfig = getSofaHigressConsumerConfigByName(gateway, consumerName);
+
+                    Optional.ofNullable(consumerConfig.getKeyAuthConfig())
+                            .ifPresent(
+                                    credential ->
+                                            fillCredentialContext(
+                                                    credentialContext, credential));
+                }
+        );
 
         // Get and transform tool list
         try (McpClientWrapper mcpClientWrapper =

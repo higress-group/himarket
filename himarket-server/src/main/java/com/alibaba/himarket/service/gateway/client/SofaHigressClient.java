@@ -185,9 +185,6 @@ public class SofaHigressClient extends GatewayClient {
         }
         String tenantId = config.getTenantId();
         String workspaceId = config.getWorkspaceId();
-        if (tenantId == null && workspaceId == null) {
-            return;
-        }
         Class<?> clazz = requestParam.getClass();
         Field tenantIdField = ReflectionUtils.findField(clazz, "tenantId");
         Field workspaceIdField = ReflectionUtils.findField(clazz, "workspaceId");
