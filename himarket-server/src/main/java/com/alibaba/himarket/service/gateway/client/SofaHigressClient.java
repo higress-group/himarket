@@ -210,7 +210,7 @@ public class SofaHigressClient extends GatewayClient {
     }
 
     private AntCloudClient createClient() {
-        AntCloudClient antCloudClient = AntCloudClient.newBuilder()
+        return AntCloudClient.newBuilder()
                 //cop-operation地址
                 .setEndpoint(config.getAddress()+"/open/api.json")
                 //用户在iam租户下的aksk
@@ -220,7 +220,6 @@ public class SofaHigressClient extends GatewayClient {
                 //如果不需要自定义超时时间的话可以不设置
                 .setHttpClient(antCloudHttpClient)
                 .build();
-        return antCloudClient;
     }
 
     @Data
