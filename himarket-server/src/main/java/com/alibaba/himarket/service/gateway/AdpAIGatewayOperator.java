@@ -29,6 +29,8 @@ import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.gateway.AdpGatewayInstanceResult;
 import com.alibaba.himarket.dto.result.gateway.GatewayResult;
 import com.alibaba.himarket.dto.result.httpapi.APIResult;
+import com.alibaba.himarket.dto.result.httpapi.HttpRouteResult;
+import com.alibaba.himarket.dto.result.httpapi.ServiceResult;
 import com.alibaba.himarket.dto.result.mcp.AdpMcpServerListResult;
 import com.alibaba.himarket.dto.result.mcp.GatewayMCPServerResult;
 import com.alibaba.himarket.dto.result.mcp.MCPConfigResult;
@@ -500,32 +502,95 @@ public class AdpAIGatewayOperator extends GatewayOperator {
             AdpAIGatewayConfig config) {
         
         // 设置访问域名/地址
-        // 优先复用 getGatewayAccessDomains 方法获取网关入口地址
-        List<DomainResult> domains = getGatewayAccessDomains(gateway.getGatewayId(), config);
-        if (domains == null || domains.isEmpty()) {
-            // 降级方案：如果没有网关入口信息，可能需要直接使用模型服务返回的域名
-            if (data.getDomainNameList() != null && !data.getDomainNameList().isEmpty()) {
-                domains = data.getDomainNameList().stream()
-                    .map(domain -> DomainResult.builder()
-                        .domain(domain)
-                        .protocol("http") // 默认使用http协议
-                        .build())
-                    .collect(Collectors.toList());
-            }
+        // 优先使用 getModelApi 返回的 domainNameList
+        List<DomainResult> domains = null;
+        if (data.getDomainNameList() != null && !data.getDomainNameList().isEmpty()) {
+            domains = data.getDomainNameList().stream()
+                .map(domain -> DomainResult.builder()
+                    .domain(domain)
+                    .protocol("http") // 默认使用http协议
+                    .build())
+                .collect(Collectors.toList());
+        } else {
+            // 降级方案：使用网关入口信息
+            domains = getGatewayAccessDomains(gateway.getGatewayId(), config);
         }
 
         // 构建ModelAPIConfig
         ModelConfigResult.ModelAPIConfig apiConfig = ModelConfigResult.ModelAPIConfig.builder()
                 .aiProtocols(Collections.singletonList(data.getProtocol())) // 使用协议信息
                 .modelCategory(data.getSceneType()) // 使用场景类型作为模型类别
-                .routes(null) // routes需要从其他地方获取，这里暂时为null
-                .services(null) // services需要从其他地方获取，这里暂时为null
+                .routes(buildRoutesFromAdpService(data, domains)) // 从ADP服务数据构建routes
+                .services(buildServicesFromAdpService(data)) // 从ADP服务数据构建services
                 .build();
 
         ModelConfigResult modelConfig = new ModelConfigResult();
         modelConfig.setModelAPIConfig(apiConfig);
 
         return JSONUtil.toJsonStr(modelConfig);
+    }
+
+    /** 从ADP服务数据构建路由列表 */
+    private List<HttpRouteResult> buildRoutesFromAdpService(
+            AdpAiServiceDetailResult.AdpAiServiceDetail data, List<DomainResult> domains) {
+        if (data.getPathList() == null || data.getPathList().isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<HttpRouteResult> routes = new ArrayList<>();
+        for (String path : data.getPathList()) {
+            HttpRouteResult route = new HttpRouteResult();
+            
+            // 设置域名
+            route.setDomains(domains);
+            
+            // 设置匹配规则，路径前面加上basePath
+            String fullPath = data.getBasePath() != null ? data.getBasePath() + path : path;
+            HttpRouteResult.RouteMatchResult matchResult = HttpRouteResult.RouteMatchResult.builder()
+                    .methods(Collections.singletonList("POST")) // 默认使用POST方法
+                    .path(HttpRouteResult.RouteMatchPath.builder()
+                            .value(fullPath)
+                            .type("Exact") // 使用完全匹配
+                            .build())
+                    .build();
+            route.setMatch(matchResult);
+            
+            // 设置描述
+            route.setDescription(data.getDescription());
+            
+            // 设置为非内置路由
+            route.setBuiltin(false);
+            
+            routes.add(route);
+        }
+        
+        return routes;
+    }
+
+    /** 从ADP服务数据构建服务列表 */
+    private List<ServiceResult> buildServicesFromAdpService(
+            AdpAiServiceDetailResult.AdpAiServiceDetail data) {
+        if (data.getDomainNameList() == null || data.getDomainNameList().isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<ServiceResult> services = new ArrayList<>();
+        for (String domainName : data.getDomainNameList()) {
+            // 解析域名和端口
+            String[] parts = domainName.split(":");
+            String host = parts[0];
+            Integer port = parts.length > 1 ? Integer.parseInt(parts[1]) : 80;
+            
+            ServiceResult service = new ServiceResult();
+            service.setName(host);
+            service.setPort(port);
+            service.setProtocol(data.getProtocol() != null ? data.getProtocol() : "http");
+            service.setWeight(100); // 默认权重
+            
+            services.add(service);
+        }
+        
+        return services;
     }
 
     @Override
