@@ -19,11 +19,9 @@
 
 package com.alibaba.himarket.repository;
 
+import com.alibaba.himarket.entity.ProductLike;
 import java.util.List;
 import java.util.Optional;
-
-import com.alibaba.himarket.entity.ProductLike;
-
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -56,17 +54,18 @@ public interface ProductLikeRepository extends JpaRepository<ProductLike, Long> 
      * @param productId the product identifier
      * @return count of likes for the product
      */
-    @Query("SELECT COUNT(pl) FROM ProductLike pl WHERE pl.productId = :productId AND pl.status ="
+    @Query(
+            "SELECT COUNT(pl) FROM ProductLike pl WHERE pl.productId = :productId AND pl.status ="
                     + " com.alibaba.himarket.support.enums.LikeStatus.LIKED")
     Long countByProductIdAndStatus(@Param("productId") String productId);
-
 
     /**
      * Counts likes grouped by product ID
      *
      * @return List of Object[] where index 0 is productId and index 1 is like count
      */
-    @Query("SELECT pl.productId, COUNT(pl) FROM ProductLike pl WHERE pl.status ="
+    @Query(
+            "SELECT pl.productId, COUNT(pl) FROM ProductLike pl WHERE pl.status ="
                     + " com.alibaba.himarket.support.enums.LikeStatus.LIKED GROUP BY pl.productId")
     List<Object[]> countLikesGroupedByProductId();
 }

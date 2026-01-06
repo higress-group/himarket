@@ -19,12 +19,10 @@
 
 package com.alibaba.himarket.repository;
 
-import java.util.List;
-import java.util.Optional;
-
 import com.alibaba.himarket.entity.Chat;
 import com.alibaba.himarket.support.enums.ChatStatus;
-
+import java.util.List;
+import java.util.Optional;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -93,7 +91,9 @@ public interface ChatRepository extends BaseRepository<Chat, Long> {
      *
      * @return List of Object[] where index 0 is productId and index 1 is count
      */
-    @Query("SELECT c.productId, COUNT(c) FROM Chat c WHERE c.productId IS NOT NULL GROUP BY c.productId")
+    @Query(
+            "SELECT c.productId, COUNT(c) FROM Chat c WHERE c.productId IS NOT NULL GROUP BY"
+                    + " c.productId")
     List<Object[]> countChatsGroupedByProductId();
 
     /**

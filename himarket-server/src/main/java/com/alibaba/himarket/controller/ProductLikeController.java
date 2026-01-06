@@ -23,7 +23,6 @@ import com.alibaba.himarket.dto.params.product.CreateProductLikeParam;
 import com.alibaba.himarket.dto.result.product.ProductLikeResult;
 import com.alibaba.himarket.service.ProductLikeService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -39,8 +38,8 @@ public class ProductLikeController {
      * Like/unlike a product
      */
     @PostMapping
-    public ResponseEntity<ProductLikeResult> toggleLike(@RequestBody CreateProductLikeParam param) {
+    public ProductLikeResult toggleLike(@RequestBody CreateProductLikeParam param) {
         ProductLikeResult result = productLikeService.toggleLike(param.getProductId());
-        return ResponseEntity.ok(result);
+        return result;
     }
 }

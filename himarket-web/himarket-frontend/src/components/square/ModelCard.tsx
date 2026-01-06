@@ -33,14 +33,19 @@ export function ModelCard({ icon, name, description, company, releaseDate, subsc
       const response = await toggleProductLike({
         productId: productId
       });
-      if (response.status === 'UNLIKED') {
-        // 取消点赞
-        setCurrentLikesCount(prev => prev - 1);
-        message.success('已取消点赞');
+      if (response.code === 'SUCCESS') {
+        const isLiked = response.data?.isLiked; // 根据实际后端响应结构调整
+        if (isLiked === false || response.data?.status === 'UNLIKED') {
+          // 取消点赞
+          setCurrentLikesCount(prev => Math.max(0, prev - 1));
+          message.success('已取消点赞');
+        } else {
+          // 点赞
+          setCurrentLikesCount(prev => prev + 1);
+          message.success('点赞成功');
+        }
       } else {
-        // 点赞
-        setCurrentLikesCount(prev => prev + 1);
-        message.success('点赞成功');
+        message.error(response.message || '操作失败');
       }
     } catch (error) {
       message.error('点赞操作失败，请重试');
