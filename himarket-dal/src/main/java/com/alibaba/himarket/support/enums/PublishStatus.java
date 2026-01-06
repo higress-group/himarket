@@ -28,6 +28,12 @@ public enum PublishStatus {
     /** 非活跃 */
     INACTIVE,
 
+    /** 发布中 */
+    PUBLISHING,
+
+    /** 取消发布中 */
+    UNPUBLISHING,
+
     /** 失败 */
     FAILED,
     ;

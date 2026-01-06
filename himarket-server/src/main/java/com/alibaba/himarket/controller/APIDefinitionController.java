@@ -118,4 +118,11 @@ public class APIDefinitionController {
     public void unpublishAPI(@PathVariable String apiDefinitionId, @PathVariable String recordId) {
         apiDefinitionService.unpublishAPI(apiDefinitionId, recordId);
     }
+
+    @Operation(summary = "查询发布记录状态")
+    @GetMapping("/{apiDefinitionId}/publish-records/{recordId}/status")
+    public APIPublishRecordVO getPublishRecordStatus(
+            @PathVariable String apiDefinitionId, @PathVariable String recordId) {
+        return apiDefinitionService.getPublishRecordStatus(apiDefinitionId, recordId);
+    }
 }

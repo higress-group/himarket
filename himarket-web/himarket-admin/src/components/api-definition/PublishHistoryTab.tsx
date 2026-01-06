@@ -11,7 +11,11 @@ import type { ColumnsType } from 'antd/es/table';
 import {
   ReloadOutlined,
   CheckCircleOutlined,
-  CloseCircleOutlined
+  CloseCircleOutlined,
+  SyncOutlined,
+  StopOutlined,
+  DownOutlined,
+  UpOutlined
 } from '@ant-design/icons';
 import { apiDefinitionApi } from '@/lib/api';
 import MonacoEditor, { MonacoDiffEditor } from 'react-monaco-editor';
@@ -47,6 +51,41 @@ const ACTION_TEXT_MAP: Record<string, string> = {
   PUBLISH: '发布',
   UNPUBLISH: '取消发布',
   UPDATE: '更新'
+};
+
+// 可展开文本组件
+interface ExpandableTextProps {
+  text: string;
+  maxLength?: number;
+}
+
+const ExpandableText = ({ text, maxLength = 100 }: ExpandableTextProps) => {
+  const [expanded, setExpanded] = useState(false);
+  
+  if (!text) {
+    return <span>-</span>;
+  }
+  
+  if (text.length <= maxLength) {
+    return <span>{text}</span>;
+  }
+  
+  return (
+    <div style={{ maxWidth: '100%' }}>
+      <div style={{ wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
+        {expanded ? text : `${text.substring(0, maxLength)}...`}
+      </div>
+      <Button
+        type="link"
+        size="small"
+        icon={expanded ? <UpOutlined /> : <DownOutlined />}
+        onClick={() => setExpanded(!expanded)}
+        style={{ padding: 0, height: 'auto', marginTop: 4 }}
+      >
+        {expanded ? '收起' : '展开'}
+      </Button>
+    </div>
+  );
 };
 
 export default function PublishHistoryTab({ apiDefinitionId }: PublishHistoryTabProps) {
@@ -148,12 +187,25 @@ export default function PublishHistoryTab({ apiDefinitionId }: PublishHistoryTab
     {
       title: '状态',
       key: 'status',
-      width: 80,
+      width: 100,
       render: (_, record) => {
-        if (record.status === 'FAILED' || record.errorMessage) {
-          return <Tag color="error" icon={<CloseCircleOutlined />}>失败</Tag>;
+        switch (record.status) {
+          case 'PUBLISHING':
+            return <Tag color="processing" icon={<SyncOutlined spin />}>发布中</Tag>;
+          case 'UNPUBLISHING':
+            return <Tag color="processing" icon={<SyncOutlined spin />}>下线中</Tag>;
+          case 'ACTIVE':
+            return <Tag color="success" icon={<CheckCircleOutlined />}>已发布</Tag>;
+          case 'INACTIVE':
+            return <Tag color="default" icon={<StopOutlined />}>已下线</Tag>;
+          case 'FAILED':
+            return <Tag color="error" icon={<CloseCircleOutlined />}>失败</Tag>;
+          default:
+            if (record.errorMessage) {
+              return <Tag color="error" icon={<CloseCircleOutlined />}>失败</Tag>;
+            }
+            return <Tag color="success" icon={<CheckCircleOutlined />}>成功</Tag>;
         }
-        return <Tag color="success" icon={<CheckCircleOutlined />}>成功</Tag>;
       }
     },
     {
@@ -174,11 +226,11 @@ export default function PublishHistoryTab({ apiDefinitionId }: PublishHistoryTab
       title: '备注',
       dataIndex: 'publishNote',
       key: 'publishNote',
-      ellipsis: true,
-      render: (note) => note || '-'
+      width: 200,
+      render: (note) => <ExpandableText text={note} maxLength={50} />
     },
     {
-      title: '快照',
+      title: '操作',
       key: 'snapshot',
       width: 150,
       render: (_, record) => (
@@ -216,7 +268,7 @@ export default function PublishHistoryTab({ apiDefinitionId }: PublishHistoryTab
             <div className="col-span-2">
               <span className="text-gray-500">错误信息:</span>
               <div className="mt-1 p-2 bg-red-50 text-red-600 rounded">
-                {record.errorMessage}
+                <ExpandableText text={record.errorMessage} maxLength={200} />
               </div>
             </div>
           )}

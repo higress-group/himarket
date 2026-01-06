@@ -29,7 +29,9 @@ import {
   CloseCircleOutlined,
   SyncOutlined,
   StopOutlined,
-  EyeOutlined
+  EyeOutlined,
+  DownOutlined,
+  UpOutlined
 } from '@ant-design/icons';
 import { apiDefinitionApi, gatewayApi, nacosApi } from '@/lib/api';
 import type { Gateway, DomainResult } from '@/types/gateway';
@@ -37,6 +39,42 @@ import dayjs from 'dayjs';
 import { MonacoDiffEditor } from 'react-monaco-editor';
 
 const { TextArea } = Input;
+
+// 可展开文本组件
+interface ExpandableTextProps {
+  text: string;
+  maxLength?: number;
+  isError?: boolean;
+}
+
+const ExpandableText = ({ text, maxLength = 100, isError = false }: ExpandableTextProps) => {
+  const [expanded, setExpanded] = useState(false);
+  
+  if (!text || text.length <= maxLength) {
+    return (
+      <span className={isError ? 'text-red-500' : 'text-green-500'}>
+        {text || (isError ? '' : '成功')}
+      </span>
+    );
+  }
+  
+  return (
+    <div style={{ maxWidth: '100%' }}>
+      <div className={isError ? 'text-red-500' : 'text-green-500'} style={{ wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
+        {expanded ? text : `${text.substring(0, maxLength)}...`}
+      </div>
+      <Button
+        type="link"
+        size="small"
+        icon={expanded ? <UpOutlined /> : <DownOutlined />}
+        onClick={() => setExpanded(!expanded)}
+        style={{ padding: 0, height: 'auto', marginTop: 4 }}
+      >
+        {expanded ? '收起' : '展开'}
+      </Button>
+    </div>
+  );
+};
 
 export default function ApiPublishManagement() {
   const [searchParams] = useSearchParams();
@@ -66,6 +104,8 @@ export default function ApiPublishManagement() {
   const [latestSnapshot, setLatestSnapshot] = useState<string>('');
   const [latestSnapshotRecordId, setLatestSnapshotRecordId] = useState<string>('');
   const [activeGatewayId, setActiveGatewayId] = useState<string | null>(null);
+  const [pollingRecordId, setPollingRecordId] = useState<string | null>(null);
+  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
   const [form] = Form.useForm();
   const serviceType = Form.useWatch('serviceType', form);
   const provider = Form.useWatch('provider', form);
@@ -79,6 +119,61 @@ export default function ApiPublishManagement() {
       fetchData();
     }
   }, [apiDefinitionId]);
+
+  // Cleanup polling interval on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+      }
+    };
+  }, [pollingInterval]);
+
+  // Start polling for record status
+  const startPolling = (recordId: string) => {
+    setPollingRecordId(recordId);
+    
+    const interval = setInterval(async () => {
+      try {
+        const response = await apiDefinitionApi.getPublishRecordStatus(apiDefinitionId!, recordId);
+        const record = response.data || response;
+        
+        // Check if operation completed (not in progress states)
+        if (record.status !== 'PUBLISHING' && record.status !== 'UNPUBLISHING') {
+          // Stop polling
+          clearInterval(interval);
+          setPollingInterval(null);
+          setPollingRecordId(null);
+          
+          // Refresh data to show updated status
+          await fetchData();
+          
+          // Show success or error message
+          if (record.status === 'ACTIVE') {
+            message.success('发布成功');
+          } else if (record.status === 'INACTIVE') {
+            message.success('下线成功');
+          } else if (record.status === 'FAILED') {
+            message.error(`操作失败: ${record.errorMessage || '未知错误'}`);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to poll record status:', error);
+        // Continue polling even on error
+      }
+    }, 2000); // Poll every 2 seconds
+    
+    setPollingInterval(interval);
+  };
+
+  // Stop polling
+  const stopPolling = () => {
+    if (pollingInterval) {
+      clearInterval(pollingInterval);
+      setPollingInterval(null);
+      setPollingRecordId(null);
+    }
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -333,11 +428,20 @@ export default function ApiPublishManagement() {
         }
       };
 
-      await apiDefinitionApi.publishApi(apiDefinitionId!, publishData);
-      message.success('发布成功');
+      const response = await apiDefinitionApi.publishApi(apiDefinitionId!, publishData);
+      const publishRecord = response.data || response;
+      
+      message.success('发布请求已提交，正在处理中...');
       setPublishModalVisible(false);
       form.resetFields();
-      fetchData(); // Refresh data
+      
+      // Start polling for status
+      if (publishRecord.recordId) {
+        startPolling(publishRecord.recordId);
+      }
+      
+      // Immediately refresh data to show PUBLISHING status
+      await fetchData();
     } catch (error: any) {
       message.error(error.message || '发布失败');
     } finally {
@@ -354,9 +458,23 @@ export default function ApiPublishManagement() {
       cancelText: '取消',
       onOk: async () => {
         try {
-          await apiDefinitionApi.unpublishApi(apiDefinitionId!, recordId);
-          message.success('下线成功');
-          fetchData();
+          const response = await apiDefinitionApi.unpublishApi(apiDefinitionId!, recordId);
+          message.success('下线请求已提交，正在处理中...');
+          
+          // Immediately refresh data to show UNPUBLISHING status
+          await fetchData();
+          
+          // The unpublish API returns the new unpublish record
+          // We need to poll for that record's status
+          // However, the backend doesn't return the new recordId in unpublish response
+          // So we'll fetch data and find the UNPUBLISHING record
+          const recordsRes = await apiDefinitionApi.getPublishRecords(apiDefinitionId!, { page: 1, size: 100 });
+          const allRecords = recordsRes.data?.content || recordsRes.content || [];
+          const unpublishingRecord = allRecords.find((r: any) => r.status === 'UNPUBLISHING');
+          
+          if (unpublishingRecord?.recordId) {
+            startPolling(unpublishingRecord.recordId);
+          }
         } catch (error: any) {
           message.error(error.message || '下线失败');
         }
@@ -384,6 +502,10 @@ export default function ApiPublishManagement() {
         return <Tag icon={<CheckCircleOutlined />} color="success">已发布</Tag>;
       case 'INACTIVE':
         return <Tag icon={<StopOutlined />} color="default">已下线</Tag>;
+      case 'PUBLISHING':
+        return <Tag icon={<SyncOutlined spin />} color="processing">发布中</Tag>;
+      case 'UNPUBLISHING':
+        return <Tag icon={<SyncOutlined spin />} color="processing">下线中</Tag>;
       case 'FAILED':
         return <Tag icon={<CloseCircleOutlined />} color="error">发布失败</Tag>;
       default:
@@ -482,6 +604,7 @@ export default function ApiPublishManagement() {
       title: '备注',
       dataIndex: 'publishNote',
       key: 'publishNote',
+      render: (note: string) => note ? <ExpandableText text={note} maxLength={50} /> : '-'
     },
     {
       title: '操作时间',
@@ -493,10 +616,11 @@ export default function ApiPublishManagement() {
       title: '结果',
       dataIndex: 'errorMessage',
       key: 'errorMessage',
-      render: (errorMessage: string) => errorMessage ? <span className="text-red-500">{errorMessage}</span> : <span className="text-green-500">成功</span>
+      width: 400,
+      render: (errorMessage: string) => <ExpandableText text={errorMessage} maxLength={50} isError={!!errorMessage} />
     },
     {
-      title: '快照',
+      title: '操作',
       key: 'snapshot',
       render: (_: any, record: any) => (
         record.snapshot ? (

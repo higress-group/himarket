@@ -354,6 +354,10 @@ export const apiDefinitionApi = {
   unpublishApi: (apiDefinitionId: string, recordId: string) => {
     return api.delete(`/api-definitions/${apiDefinitionId}/publish-records/${recordId}`)
   },
+  // 查询发布记录状态
+  getPublishRecordStatus: (apiDefinitionId: string, recordId: string) => {
+    return api.get(`/api-definitions/${apiDefinitionId}/publish-records/${recordId}/status`)
+  },
   // 导入 Swagger/OpenAPI
   importSwagger: (data: any) => {
     return api.post(`/api-definitions/import/swagger`, data)

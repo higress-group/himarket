@@ -32,6 +32,7 @@ import com.alibaba.himarket.support.enums.EndpointType;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -82,6 +83,9 @@ public class SwaggerConverter {
                 }
             }
 
+            // Sort endpoints by name to ensure consistent order (Higress compatibility)
+            endpoints.sort(Comparator.comparing(APIEndpoint::getName));
+
             return endpoints;
         } catch (Exception e) {
             log.error("Failed to convert Swagger endpoints", e);
@@ -113,7 +117,10 @@ public class SwaggerConverter {
             MCPToolConfig config = new MCPToolConfig();
 
             MCPToolConfig.RequestTemplate requestTemplate = new MCPToolConfig.RequestTemplate();
-            requestTemplate.setUrl(path);
+            // Build complete URL from servers + path
+            String baseUrl = getBaseUrl(swagger);
+            String fullUrl = baseUrl != null ? baseUrl + path : path;
+            requestTemplate.setUrl(fullUrl);
             requestTemplate.setMethod(method.toUpperCase());
             config.setRequestTemplate(requestTemplate);
 
@@ -222,6 +229,8 @@ public class SwaggerConverter {
         schema.put("type", "object");
         Map<String, Object> properties = new HashMap<>();
         List<String> required = new ArrayList<>();
+        // Track parameter positions for MCP args generation
+        Map<String, String> parameterPositions = new HashMap<>();
 
         // 处理参数
         if (operation.containsKey("parameters")) {
@@ -237,17 +246,29 @@ public class SwaggerConverter {
                                 if (paramObj == null) return;
 
                                 String name = paramObj.getStr("name");
+                                String position = paramObj.getStr("in", "query");
+
                                 JSONObject paramSchema = paramObj.getJSONObject("schema");
+                                Map<String, Object> propSchema;
                                 if (paramSchema != null) {
                                     // 复制 schema 属性
-                                    properties.put(name, resolveSchema(paramSchema, swagger));
+                                    propSchema = resolveSchema(paramSchema, swagger);
                                 } else {
                                     // 如果没有 schema，尝试直接从参数定义中获取类型信息 (Swagger 2.0)
-                                    Map<String, Object> prop = new HashMap<>();
-                                    prop.put("type", paramObj.getStr("type", "string"));
-                                    prop.put("description", paramObj.getStr("description"));
-                                    properties.put(name, prop);
+                                    propSchema = new HashMap<>();
+                                    propSchema.put("type", paramObj.getStr("type", "string"));
                                 }
+
+                                // Add description if present
+                                if (paramObj.containsKey("description")) {
+                                    propSchema.put("description", paramObj.getStr("description"));
+                                }
+
+                                // Store position metadata
+                                propSchema.put("x-position", position);
+                                parameterPositions.put(name, position);
+
+                                properties.put(name, propSchema);
 
                                 if (paramObj.getBool("required", false)) {
                                     required.add(name);
@@ -275,7 +296,18 @@ public class SwaggerConverter {
                         if ("object".equals(bodySchema.get("type"))) {
                             if (bodySchema.containsKey("properties")) {
                                 JSONObject bodyProps = (JSONObject) bodySchema.get("properties");
-                                bodyProps.forEach((k, v) -> properties.put(k, v));
+                                bodyProps.forEach(
+                                        (k, v) -> {
+                                            // Mark body parameters with position
+                                            if (v instanceof Map) {
+                                                @SuppressWarnings("unchecked")
+                                                Map<String, Object> propMap =
+                                                        (Map<String, Object>) v;
+                                                propMap.put("x-position", "body");
+                                            }
+                                            properties.put(k, v);
+                                            parameterPositions.put(k, "body");
+                                        });
                             }
                             if (bodySchema.containsKey("required")) {
                                 ((List<?>) bodySchema.get("required"))
@@ -283,7 +315,9 @@ public class SwaggerConverter {
                             }
                         } else {
                             // 如果 body 不是 object (例如 array)，作为一个名为 body 的参数
+                            bodySchema.put("x-position", "body");
                             properties.put("body", bodySchema);
+                            parameterPositions.put("body", "body");
                             if (requestBody.getBool("required", false)) {
                                 required.add("body");
                             }
@@ -297,6 +331,8 @@ public class SwaggerConverter {
         if (!required.isEmpty()) {
             schema.put("required", required);
         }
+        // Store position metadata at schema level
+        schema.put("x-parameter-positions", parameterPositions);
         return schema;
     }
 
@@ -354,6 +390,66 @@ public class SwaggerConverter {
             return schema; // 无法解析，返回原样
         }
 
+        // 处理 allOf: 合并所有 schema 到当前 schema
+        if (schema.containsKey("allOf")) {
+            List<Object> allOfList = schema.getJSONArray("allOf");
+            JSONObject merged = new JSONObject();
+
+            // 先复制当前 schema 的其他属性
+            schema.forEach(
+                    (k, v) -> {
+                        if (!"allOf".equals(k)) {
+                            merged.put(k, v);
+                        }
+                    });
+
+            // 合并所有 allOf 中的 schema
+            for (Object item : allOfList) {
+                if (item instanceof JSONObject) {
+                    JSONObject resolvedItem = resolveSchema((JSONObject) item, swagger);
+                    if (resolvedItem != null) {
+                        // 合并类型
+                        if (resolvedItem.containsKey("type") && !merged.containsKey("type")) {
+                            merged.put("type", resolvedItem.get("type"));
+                        }
+                        // 合并 properties
+                        if (resolvedItem.containsKey("properties")) {
+                            if (!merged.containsKey("properties")) {
+                                merged.put("properties", new JSONObject());
+                            }
+                            JSONObject mergedProps = merged.getJSONObject("properties");
+                            JSONObject itemProps = resolvedItem.getJSONObject("properties");
+                            itemProps.forEach((k, v) -> mergedProps.put(k, v));
+                        }
+                        // 合并 required
+                        if (resolvedItem.containsKey("required")) {
+                            List<Object> mergedRequired = merged.getJSONArray("required");
+                            if (mergedRequired == null) {
+                                mergedRequired = new ArrayList<>();
+                                merged.put("required", mergedRequired);
+                            }
+                            List<Object> itemRequired = resolvedItem.getJSONArray("required");
+                            for (Object req : itemRequired) {
+                                if (!mergedRequired.contains(req)) {
+                                    mergedRequired.add(req);
+                                }
+                            }
+                        }
+                        // 合并其他字段 (description, etc)
+                        for (String key : resolvedItem.keySet()) {
+                            if (!merged.containsKey(key)
+                                    && !"type".equals(key)
+                                    && !"properties".equals(key)
+                                    && !"required".equals(key)) {
+                                merged.put(key, resolvedItem.get(key));
+                            }
+                        }
+                    }
+                }
+            }
+            schema = merged;
+        }
+
         // 递归处理 properties
         if (schema.containsKey("properties")) {
             JSONObject properties = schema.getJSONObject("properties");
@@ -375,8 +471,8 @@ public class SwaggerConverter {
             schema.put("items", resolveSchema(items, swagger));
         }
 
-        // 递归处理 allOf, anyOf, oneOf
-        String[] combinators = {"allOf", "anyOf", "oneOf"};
+        // 递归处理 anyOf, oneOf (保留原样，不合并)
+        String[] combinators = {"anyOf", "oneOf"};
         for (String combinator : combinators) {
             if (schema.containsKey(combinator)) {
                 List<Object> list = schema.getJSONArray(combinator);
@@ -435,5 +531,56 @@ public class SwaggerConverter {
                 || "patch".equalsIgnoreCase(method)
                 || "options".equalsIgnoreCase(method)
                 || "head".equalsIgnoreCase(method);
+    }
+
+    /**
+     * 从 Swagger/OpenAPI 文档中提取 base URL
+     *
+     * @param swagger Swagger/OpenAPI 文档
+     * @return base URL，如果没有定义则返回 null
+     */
+    private String getBaseUrl(JSONObject swagger) {
+        // OpenAPI 3.0: servers[0].url
+        if (swagger.containsKey("servers")) {
+            Object serversObj = swagger.get("servers");
+            if (serversObj instanceof List) {
+                List<?> servers = (List<?>) serversObj;
+                if (!servers.isEmpty() && servers.get(0) instanceof Map) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> firstServer = (Map<String, Object>) servers.get(0);
+                    Object url = firstServer.get("url");
+                    if (url != null) {
+                        String urlStr = url.toString();
+                        // Remove trailing slash
+                        return urlStr.endsWith("/")
+                                ? urlStr.substring(0, urlStr.length() - 1)
+                                : urlStr;
+                    }
+                }
+            }
+        }
+
+        // Swagger 2.0: schemes[0] + host + basePath
+        if (swagger.containsKey("host")) {
+            String scheme = "http"; // default
+            if (swagger.containsKey("schemes")) {
+                Object schemesObj = swagger.get("schemes");
+                if (schemesObj instanceof List) {
+                    List<?> schemes = (List<?>) schemesObj;
+                    if (!schemes.isEmpty()) {
+                        scheme = schemes.get(0).toString();
+                    }
+                }
+            }
+            String host = swagger.getStr("host");
+            String basePath = swagger.getStr("basePath", "");
+            // Remove trailing slash from basePath
+            if (basePath.endsWith("/")) {
+                basePath = basePath.substring(0, basePath.length() - 1);
+            }
+            return scheme + "://" + host + basePath;
+        }
+
+        return null;
     }
 }
