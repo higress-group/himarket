@@ -28,6 +28,8 @@ import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.TypeReference;
 import com.alibaba.higress.sdk.model.route.KeyedRoutePredicate;
 import com.alibaba.higress.sdk.model.route.RoutePredicate;
+import com.alibaba.himarket.core.exception.BusinessException;
+import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.dto.result.agent.AgentAPIResult;
 import com.alibaba.himarket.dto.result.common.DomainResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
@@ -46,7 +48,7 @@ import com.alibaba.himarket.dto.result.model.SofaHigressModelResult;
 import com.alibaba.himarket.entity.Consumer;
 import com.alibaba.himarket.entity.ConsumerCredential;
 import com.alibaba.himarket.entity.Gateway;
-import com.alibaba.himarket.service.gateway.client.SofaHigressClient;
+import com.alibaba.himarket.service.gateway.client.*;
 import com.alibaba.himarket.service.impl.McpClientFactory;
 import com.alibaba.himarket.service.impl.McpClientWrapper;
 import com.alibaba.himarket.support.consumer.ApiKeyConfig;
@@ -68,8 +70,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Service;
+import org.springframework.util.ReflectionUtils;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.*;
@@ -456,7 +460,7 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
     @Override
     public String createConsumer(Consumer consumer, ConsumerCredential credential, GatewayConfig config) {
         SofaHigressConfig sofaHigressConfig = config.getSofaHigressConfig();
-        SofaHigressClient client = new SofaHigressClient(sofaHigressConfig);
+        SofaHigressClient client = getClient(sofaHigressConfig);
         SofaHigressConsumerConfig createdConsumer = client.execute(
                 "/consumer/create",
                 HttpMethod.POST,
@@ -468,7 +472,7 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
     @Override
     public void updateConsumer(String consumerId, ConsumerCredential credential, GatewayConfig config) {
         SofaHigressConfig sofaHigressConfig = config.getSofaHigressConfig();
-        SofaHigressClient client = new SofaHigressClient(sofaHigressConfig);
+        SofaHigressClient client = getClient(sofaHigressConfig);
         client.execute(
                 "/consumer/update",
                 HttpMethod.POST,
@@ -479,7 +483,7 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
     @Override
     public void deleteConsumer(String consumerId, GatewayConfig config) {
         SofaHigressConfig sofaHigressConfig = config.getSofaHigressConfig();
-        SofaHigressClient client = new SofaHigressClient(sofaHigressConfig);
+        SofaHigressClient client = getClient(sofaHigressConfig);
         client.execute(
                 "/consumer/delete",
                 HttpMethod.POST,
@@ -490,7 +494,7 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
     @Override
     public boolean isConsumerExists(String consumerId, GatewayConfig config) {
         SofaHigressConfig sofaHigressConfig = config.getSofaHigressConfig();
-        SofaHigressClient client = new SofaHigressClient(sofaHigressConfig);
+        SofaHigressClient client = getClient(sofaHigressConfig);
         SofaHigressConsumerConfig consumerConfig = client.execute(
                 "/consumer/detail",
                 HttpMethod.POST,
@@ -745,6 +749,23 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
 
     public SofaHigressClient getClient(Gateway gateway) {
         return super.getClient(gateway);
+    }
+
+
+    /** reuse client when there is only config param exists (no gateway param exists) */
+    @SuppressWarnings("unchecked")
+    public SofaHigressClient getClient(SofaHigressConfig sofaHigressConfig) {
+        String clientKey = sofaHigressConfig.buildUniqueKey();
+        Field clientCacheField = ReflectionUtils.findField(getClass(), "clientCache");
+        if (clientCacheField == null) {
+            throw new RuntimeException("clientCache field not found in GatewayOperator which is not expected");
+        }
+        ReflectionUtils.makeAccessible(clientCacheField);
+        Map<String, GatewayClient> clientCache = (Map<String, GatewayClient>) ReflectionUtils.getField(clientCacheField, this);
+        if (clientCache == null) {
+            throw new RuntimeException("clientCache is null in SofaHigressOperator which is not expected");
+        }
+        return (SofaHigressClient) clientCache.computeIfAbsent(clientKey, key -> new SofaHigressClient(sofaHigressConfig));
     }
 
     @Data
