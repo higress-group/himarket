@@ -891,12 +891,44 @@ public class AdpAIGatewayOperator extends GatewayOperator {
             throw new BusinessException(ErrorCode.INVALID_PARAMETER, "ADP AI Gateway配置缺失");
         }
 
-        // 解析MCP Server配置
         APIGRefConfig apigRefConfig = (APIGRefConfig) refConfig;
-        if (apigRefConfig == null || apigRefConfig.getMcpServerName() == null) {
-            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "MCP Server名称缺失");
+        if (apigRefConfig == null) {
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "APIGRefConfig配置缺失");
         }
 
+        ConsumerAuthConfig result = null;
+        
+        // 如果是MCP Server配置
+        if (apigRefConfig.getMcpServerName() != null) {
+            result = authorizeMcpServerConsumer(gateway, consumerId, apigRefConfig);
+        }
+        
+        // 如果是Model API配置
+        if (apigRefConfig.getModelApiId() != null) {
+            authorizeModelApiConsumer(gateway, consumerId, apigRefConfig);
+            // Model API授权不需要返回特定的auth config
+        }
+        
+        // 如果result为null，说明是Model API的情况，返回通用配置
+        if (result == null) {
+            result = ConsumerAuthConfig.builder()
+                    .adpAIAuthConfig(AdpAIAuthConfig.builder()
+                            .modelApiId(apigRefConfig.getModelApiId())
+                            .consumerId(consumerId)
+                            .gwInstanceId(gateway.getGatewayId())
+                            .build())
+                    .build();
+        }
+        
+        return result;
+    }
+    
+    /**
+     * 授权消费者访问MCP Server
+     */
+    private ConsumerAuthConfig authorizeMcpServerConsumer(
+            Gateway gateway, String consumerId, APIGRefConfig apigRefConfig) {
+        AdpAIGatewayConfig adpConfig = gateway.getAdpAIGatewayConfig();
         AdpAIGatewayClient client = new AdpAIGatewayClient(adpConfig);
         try {
             // 构建授权请求参数
@@ -964,6 +996,69 @@ public class AdpAIGatewayOperator extends GatewayOperator {
             client.close();
         }
     }
+    
+    /**
+     * 授权消费者访问Model API
+     */
+    private void authorizeModelApiConsumer(
+            Gateway gateway, String consumerId, APIGRefConfig apigRefConfig) {
+        AdpAIGatewayConfig adpConfig = gateway.getAdpAIGatewayConfig();
+        AdpAIGatewayClient client = new AdpAIGatewayClient(adpConfig);
+        try {
+            // 构建Model API授权请求参数
+            cn.hutool.json.JSONObject requestData = JSONUtil.createObj();
+            requestData.set("gwInstanceId", gateway.getGatewayId());
+            requestData.set("modelApiId", apigRefConfig.getModelApiId());
+            requestData.set("consumerIds", Collections.singletonList(consumerId));
+
+            String url = client.getFullUrl("/modelapi/batchGrantModelApi");
+            String requestBody = requestData.toString();
+            HttpEntity<String> requestEntity = client.createRequestEntity(requestBody);
+
+            log.info(
+                    "Authorizing consumer to Model API: url={}, requestBody={}", url, requestBody);
+
+            ResponseEntity<String> response =
+                    client.getRestTemplate()
+                            .exchange(url, HttpMethod.POST, requestEntity, String.class);
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                cn.hutool.json.JSONObject responseJson = JSONUtil.parseObj(response.getBody());
+                Integer code = responseJson.getInt("code", 0);
+
+                if (code == 200) {
+                    log.info(
+                            "Successfully authorized consumer {} to Model API {}",
+                            consumerId,
+                            apigRefConfig.getModelApiId());
+                    return;
+                } else {
+                    String message =
+                            responseJson.getStr(
+                                    "message", responseJson.getStr("msg", "Unknown error"));
+                    throw new BusinessException(
+                            ErrorCode.GATEWAY_ERROR,
+                            "Failed to authorize consumer to Model API: " + message);
+                }
+            }
+            throw new BusinessException(
+                    ErrorCode.GATEWAY_ERROR, "Failed to authorize consumer to Model API");
+        } catch (BusinessException e) {
+            log.error("Business error authorizing consumer to Model API", e);
+            throw e;
+        } catch (Exception e) {
+            log.error(
+                    "Error authorizing consumer {} to Model API {}",
+                    consumerId,
+                    apigRefConfig.getModelApiId(),
+                    e);
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR,
+                    "Error authorizing consumer to Model API: " + e.getMessage());
+        } finally {
+            client.close();
+        }
+    }
 
     @Override
     public void revokeConsumerAuthorization(
@@ -979,6 +1074,23 @@ public class AdpAIGatewayOperator extends GatewayOperator {
             throw new BusinessException(ErrorCode.INVALID_PARAMETER, "ADP AI Gateway配置缺失");
         }
 
+        // 如果是MCP Server授权，使用原有逻辑
+        if (adpAIAuthConfig.getMcpServerName() != null) {
+            revokeMcpServerConsumerAuthorization(gateway, consumerId, adpAIAuthConfig);
+        }
+        
+        // 如果是Model API授权，使用新逻辑
+        if (adpAIAuthConfig.getModelApiId() != null) {
+            revokeModelApiConsumerAuthorization(gateway, consumerId, adpAIAuthConfig);
+        }
+    }
+    
+    /**
+     * 撤销MCP Server的消费者授权
+     */
+    private void revokeMcpServerConsumerAuthorization(
+            Gateway gateway, String consumerId, AdpAIAuthConfig adpAIAuthConfig) {
+        AdpAIGatewayConfig adpConfig = gateway.getAdpAIGatewayConfig();
         AdpAIGatewayClient client = new AdpAIGatewayClient(adpConfig);
         try {
             // 构建撤销授权请求参数
@@ -1055,6 +1167,168 @@ public class AdpAIGatewayOperator extends GatewayOperator {
             throw new BusinessException(
                     ErrorCode.INTERNAL_ERROR,
                     "Error revoking consumer authorization: " + e.getMessage());
+        } finally {
+            client.close();
+        }
+    }
+    
+    /**
+     * 撤销Model API的消费者授权
+     */
+    private void revokeModelApiConsumerAuthorization(
+            Gateway gateway, String consumerId, AdpAIAuthConfig adpAIAuthConfig) {
+        AdpAIGatewayConfig adpConfig = gateway.getAdpAIGatewayConfig();
+        AdpAIGatewayClient client = new AdpAIGatewayClient(adpConfig);
+        try {
+            // 首先需要获取Model API的授权信息，以确定authId
+            String authId = getAuthIdForModelApi(gateway, adpAIAuthConfig.getModelApiId(), consumerId, adpConfig);
+            
+            if (authId == null) {
+                log.warn(
+                        "No authId found for consumer {} and model API {}, skipping revocation",
+                        consumerId,
+                        adpAIAuthConfig.getModelApiId());
+                return;
+            }
+            
+            // 构建撤销Model API授权请求参数
+            cn.hutool.json.JSONObject requestData = JSONUtil.createObj();
+            requestData.set("gwInstanceId", gateway.getGatewayId());
+            requestData.set("authId", authId);
+
+            String url = client.getFullUrl("/modelapi/revokeModelApiGrant");
+            String requestBody = requestData.toString();
+            HttpEntity<String> requestEntity = client.createRequestEntity(requestBody);
+
+            log.info(
+                    "Revoking consumer authorization from Model API: url={}, requestBody={}",
+                    url,
+                    requestBody);
+
+            ResponseEntity<String> response =
+                    client.getRestTemplate()
+                            .exchange(url, HttpMethod.POST, requestEntity, String.class);
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                cn.hutool.json.JSONObject responseJson = JSONUtil.parseObj(response.getBody());
+                Integer code = responseJson.getInt("code", 0);
+
+                if (code == 200) {
+                    log.info(
+                            "Successfully revoked consumer {} authorization from Model API {}",
+                            consumerId,
+                            adpAIAuthConfig.getModelApiId());
+                    return;
+                }
+
+                // 获取错误信息
+                String message =
+                        responseJson.getStr("message", responseJson.getStr("msg", "Unknown error"));
+
+                // 如果是资源不存在（已被删除），只记录警告，不抛异常
+                if (message != null
+                        && (message.contains("not found")
+                                || message.contains("不存在")
+                                || message.contains("NotFound")
+                                || code == 404)) {
+                    log.warn(
+                            "Consumer authorization already removed or not found: consumerId={},"
+                                    + " modelApiId={}, message={}",
+                            consumerId,
+                            adpAIAuthConfig.getModelApiId(),
+                            message);
+                    return;
+                }
+
+                // 其他错误抛出异常
+                String errorMsg =
+                        "Failed to revoke consumer authorization from Model API: " + message;
+                log.error(errorMsg);
+                throw new BusinessException(ErrorCode.GATEWAY_ERROR, errorMsg);
+            }
+
+            throw new BusinessException(
+                    ErrorCode.GATEWAY_ERROR,
+                    "Failed to revoke consumer authorization from Model API, HTTP status: "
+                            + response.getStatusCode());
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error(
+                    "Error revoking consumer {} authorization from Model API {}",
+                    consumerId,
+                    adpAIAuthConfig.getModelApiId(),
+                    e);
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR,
+                    "Error revoking consumer authorization from Model API: " + e.getMessage());
+        } finally {
+            client.close();
+        }
+    }
+    
+    /**
+     * 获取Model API授权的authId
+     * 使用 /modelapi/listModelApiConsumers 接口查询授权信息
+     */
+    private String getAuthIdForModelApi(Gateway gateway, String modelApiId, String consumerId, AdpAIGatewayConfig config) {
+        AdpAIGatewayClient client = new AdpAIGatewayClient(config);
+        try {
+            // 使用正确的API来查询Model API的消费者授权信息
+            String url = client.getFullUrl("/modelapi/listModelApiConsumers");
+            
+            // 构建请求体，根据您提供的API格式
+            String requestBody =
+                    String.format(
+                            "{\"gwInstanceId\": \"%s\", \"modelApiId\": \"%s\", \"engineType\": \"higress\", \"current\": 1, \"size\": 10}",
+                            gateway.getGatewayId(), modelApiId);
+            
+            HttpEntity<String> requestEntity = client.createRequestEntity(requestBody);
+
+            ResponseEntity<String> response =
+                    client.getRestTemplate()
+                            .exchange(
+                                    url,
+                                    HttpMethod.POST,
+                                    requestEntity,
+                                    String.class);
+            
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                cn.hutool.json.JSONObject responseJson = JSONUtil.parseObj(response.getBody());
+                Integer code = responseJson.getInt("code", 0);
+                
+                if (code != null && code == 200) {
+                    // 解析返回的授权信息，查找匹配的consumerId对应的authId
+                    cn.hutool.json.JSONObject data = responseJson.getJSONObject("data");
+                    if (data != null && data.containsKey("records")) {
+                        cn.hutool.json.JSONArray records = data.getJSONArray("records");
+                        if (records != null) {
+                            for (int i = 0; i < records.size(); i++) {
+                                cn.hutool.json.JSONObject record = records.getJSONObject(i);
+                                String recordConsumerId = record.getStr("appId");
+                                String authId = record.getStr("authId"); // 根据实际API返回结构，授权ID字段可能是id
+                                
+                                if (consumerId.equals(recordConsumerId)) {
+                                    return authId; // 找到匹配的authId
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                String msg = responseJson.getStr("message", responseJson.getStr("msg", "Unknown error"));
+                log.warn("Failed to get model API consumers for authId lookup: {}", msg);
+            }
+            
+            log.warn("Failed to call /modelapi/listModelApiConsumers for authId lookup");
+            
+            // 如果上述方法失败，返回null
+            return null;
+            
+        } catch (Exception e) {
+            log.error("Error getting authId for model API", e);
+            // 如果API调用失败，返回null
+            return null;
         } finally {
             client.close();
         }
