@@ -187,6 +187,10 @@ public abstract class AbstractLlmService implements LlmService {
      * @return
      */
     private ChatContext initChatContext(LlmChatRequest request) {
+        if (request.getUri() == null) {
+            throw new IllegalArgumentException("LlmChatRequest URI cannot be null");
+        }
+        
         Map<McpToolMeta, ToolCallback> toolsMap = new HashMap<>();
         List<McpClientWrapper> mcpClientWrappers = new ArrayList<>();
 
@@ -276,6 +280,9 @@ public abstract class AbstractLlmService implements LlmService {
         CredentialContext credentialContext = param.getCredentialContext();
 
         URI uri = getUri(modelConfig, credentialContext.copyQueryParams(), param.getGatewayUris());
+        if (uri == null) {
+            throw new IllegalArgumentException("Failed to build URI for model API - URI is null");
+        }
 
         // Model feature
         ModelFeature modelFeature = getOrDefaultModelFeature(product);

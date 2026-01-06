@@ -142,7 +142,7 @@ public class AdpAIGatewayOperator extends GatewayOperator {
 
         AdpAIGatewayClient client = new AdpAIGatewayClient(config);
         try {
-            String url = client.getFullUrl("/api/gateway/modelapi/listModelApis");
+            String url = client.getFullUrl("/modelapi/listModelApis");
             // 构建请求体
             String requestBody =
                     String.format(
@@ -180,7 +180,7 @@ public class AdpAIGatewayOperator extends GatewayOperator {
                 throw new BusinessException(ErrorCode.GATEWAY_ERROR, msg);
             }
             throw new BusinessException(
-                    ErrorCode.GATEWAY_ERROR, "调用 ADP /api/gateway/modelapi/listModelApis 失败");
+                    ErrorCode.GATEWAY_ERROR, "调用 ADP /modelapi/listModelApis 失败");
         } catch (Exception e) {
             log.error("Error fetching ADP model APIs", e);
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, e.getMessage());
@@ -270,7 +270,7 @@ public class AdpAIGatewayOperator extends GatewayOperator {
 
         AdpAIGatewayClient client = new AdpAIGatewayClient(config);
         try {
-            String url = client.getFullUrl("/api/gateway/modelapi/getModelApi");
+            String url = client.getFullUrl("/modelapi/getModelApi");
             
             // 构建请求体
             String requestBody =
@@ -297,7 +297,7 @@ public class AdpAIGatewayOperator extends GatewayOperator {
                  throw new BusinessException(ErrorCode.GATEWAY_ERROR, msg);
             }
              throw new BusinessException(
-                    ErrorCode.GATEWAY_ERROR, "调用 ADP /api/gateway/modelapi/getModelApi 失败");
+                    ErrorCode.GATEWAY_ERROR, "调用 ADP /modelapi/getModelApi 失败");
 
         } catch (Exception e) {
             log.error("Error fetching ADP model config", e);

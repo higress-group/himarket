@@ -90,7 +90,7 @@ public class LlmChatRequest {
     private WebSearchOptions webSearchOptions;
 
     public void tryResolveDns() {
-        if (CollUtil.isEmpty(gatewayUris) || !"http".equalsIgnoreCase(uri.getScheme())) {
+        if (CollUtil.isEmpty(gatewayUris) || uri == null || !"http".equalsIgnoreCase(uri.getScheme())) {
             return;
         }
 
