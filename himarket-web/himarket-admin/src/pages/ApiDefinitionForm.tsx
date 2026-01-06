@@ -535,6 +535,21 @@ export default function ApiDefinitionForm() {
           >
             {({ getFieldValue }) => {
               const type = getFieldValue('type');
+              if (type === 'MCP_SERVER') {
+                return (
+                  <Form.Item
+                    label="桥接方式"
+                    name={['metadata', 'mcpBridgeType']}
+                    rules={[{ required: true, message: '请选择桥接方式' }]}
+                    initialValue="HTTP_TO_MCP"
+                  >
+                    <Radio.Group>
+                      <Radio value="HTTP_TO_MCP">HTTP 转 MCP</Radio>
+                      <Radio value="DIRECT">直接代理</Radio>
+                    </Radio.Group>
+                  </Form.Item>
+                );
+              }
               if (type === 'AGENT_API') {
                 return (
                   <Form.Item

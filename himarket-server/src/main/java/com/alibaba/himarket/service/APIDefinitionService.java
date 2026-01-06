@@ -116,4 +116,13 @@ public interface APIDefinitionService {
      * @param recordId 发布记录 ID
      */
     void unpublishAPI(String apiDefinitionId, String recordId);
+
+    /**
+     * 查询发布记录状态
+     *
+     * @param apiDefinitionId API Definition ID
+     * @param recordId 发布记录 ID
+     * @return 发布记录
+     */
+    APIPublishRecordVO getPublishRecordStatus(String apiDefinitionId, String recordId);
 }

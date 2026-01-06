@@ -230,6 +230,10 @@ export const gatewayApi = {
   getGatewayServiceTypes: (gatewayId: string) => {
     return api.get(`/gateways/${gatewayId}/service-types`)
   },
+  // 获取网关服务列表
+  getGatewayServices: (gatewayId: string) => {
+    return api.get(`/gateways/${gatewayId}/services`)
+  },
   // 更新网关
   updateGateway: (gatewayId: string, data: any) => {
     return api.put(`/gateways/${gatewayId}`, data)
@@ -349,6 +353,10 @@ export const apiDefinitionApi = {
   // 取消发布
   unpublishApi: (apiDefinitionId: string, recordId: string) => {
     return api.delete(`/api-definitions/${apiDefinitionId}/publish-records/${recordId}`)
+  },
+  // 查询发布记录状态
+  getPublishRecordStatus: (apiDefinitionId: string, recordId: string) => {
+    return api.get(`/api-definitions/${apiDefinitionId}/publish-records/${recordId}/status`)
   },
   // 导入 Swagger/OpenAPI
   importSwagger: (data: any) => {

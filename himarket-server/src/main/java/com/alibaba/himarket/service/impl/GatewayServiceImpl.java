@@ -31,6 +31,7 @@ import com.alibaba.himarket.dto.result.agent.AgentAPIResult;
 import com.alibaba.himarket.dto.result.common.DomainResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.gateway.GatewayResult;
+import com.alibaba.himarket.dto.result.gateway.GatewayServiceResult;
 import com.alibaba.himarket.dto.result.httpapi.APIResult;
 import com.alibaba.himarket.dto.result.mcp.GatewayMCPServerResult;
 import com.alibaba.himarket.dto.result.model.GatewayModelAPIResult;
@@ -372,6 +373,12 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
     public List<DomainResult> getGatewayDomains(String gatewayId) {
         Gateway gateway = findGateway(gatewayId);
         return getOperator(gateway).getGatewayDomains(gateway);
+    }
+
+    @Override
+    public List<GatewayServiceResult> fetchGatewayServices(String gatewayId) {
+        Gateway gateway = findGateway(gatewayId);
+        return getOperator(gateway).fetchGatewayServices(gateway);
     }
 
     private Specification<Gateway> buildGatewaySpec(QueryGatewayParam param) {

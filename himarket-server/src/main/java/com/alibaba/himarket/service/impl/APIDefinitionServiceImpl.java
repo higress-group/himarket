@@ -61,9 +61,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -84,6 +81,7 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
     private final GatewayRepository gatewayRepository;
     private final GatewayCapabilityRegistry gatewayCapabilityRegistry;
     private final ObjectMapper objectMapper;
+    private final AsyncAPIPublishService asyncAPIPublishService;
 
     private static final Snowflake SNOWFLAKE = IdUtil.getSnowflake(1, 1);
 
@@ -487,6 +485,17 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
             }
         }
 
+        // Check for ongoing publish/unpublish operations on the same API and gateway
+        List<APIPublishRecord> ongoingRecords =
+                apiPublishRecordRepository.findByApiDefinitionIdAndGatewayIdAndStatusIn(
+                        apiDefinitionId,
+                        param.getGatewayId(),
+                        Arrays.asList(PublishStatus.PUBLISHING, PublishStatus.UNPUBLISHING));
+
+        if (!ongoingRecords.isEmpty()) {
+            throw new BusinessException(ErrorCode.PUBLISH_OPERATION_IN_PROGRESS);
+        }
+
         // 准备数据
         List<APIEndpoint> endpoints =
                 apiEndpointRepository.findByApiDefinitionIdOrderBySortOrderAsc(apiDefinitionId);
@@ -504,17 +513,10 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
         // 验证配置
         publisher.validatePublishConfig(apiDefinitionVO, param.getPublishConfig());
 
-        // 执行发布
-        String gatewayResourceId =
-                publisher.publish(gateway, apiDefinitionVO, param.getPublishConfig());
-
-        apiDefinition.setStatus(APIStatus.PUBLISHED);
-        apiDefinitionRepository.save(apiDefinition);
-
         // 生成发布记录 ID
         String recordId = "record-" + SNOWFLAKE.nextIdStr();
 
-        // 创建发布记录
+        // 创建发布记录（初始状态为 PUBLISHING）
         APIPublishRecord publishRecord = new APIPublishRecord();
         publishRecord.setRecordId(recordId);
         publishRecord.setApiDefinitionId(apiDefinitionId);
@@ -522,14 +524,16 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
         publishRecord.setGatewayName(gateway.getGatewayName());
         publishRecord.setGatewayType(gateway.getGatewayType().name());
         publishRecord.setVersion(apiDefinition.getVersion());
-        publishRecord.setStatus(PublishStatus.ACTIVE);
+        publishRecord.setStatus(PublishStatus.PUBLISHING); // 初始状态为 PUBLISHING
         publishRecord.setAction(PublishAction.PUBLISH);
         publishRecord.setPublishNote(param.getComment());
 
         try {
             publishRecord.setPublishConfig(
                     objectMapper.writeValueAsString(param.getPublishConfig()));
-            publishRecord.setSnapshot(objectMapper.writeValueAsString(apiDefinitionVO));
+            Map<String, Object> snapshotMap = objectMapper.convertValue(apiDefinitionVO, Map.class);
+            snapshotMap.put("publishConfig", param.getPublishConfig());
+            publishRecord.setSnapshot(objectMapper.writeValueAsString(snapshotMap));
         } catch (Exception e) {
             throw new BusinessException(
                     ErrorCode.CONFIG_CONVERSION_ERROR,
@@ -538,13 +542,17 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
         }
         publishRecord.setPublishedAt(java.time.LocalDateTime.now());
 
-        // 设置网关资源ID
-        publishRecord.setGatewayResourceId(gatewayResourceId);
-
         // 保存发布记录
         publishRecord = apiPublishRecordRepository.save(publishRecord);
 
-        log.info("API published successfully to gateway: {}", param.getGatewayId());
+        // 异步执行发布
+        asyncAPIPublishService.asyncPublish(
+                recordId, gateway, apiDefinitionVO, param.getPublishConfig());
+
+        log.info(
+                "API publish initiated for gateway: {}, recordId: {}",
+                param.getGatewayId(),
+                recordId);
 
         // 转换为 VO
         return new APIPublishRecordVO().convertFrom(publishRecord);
@@ -576,6 +584,17 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
             throw new BusinessException(ErrorCode.INVALID_PARAMETER, "发布记录不属于该 API Definition");
         }
 
+        // Check for ongoing publish/unpublish operations on the same API and gateway
+        List<APIPublishRecord> ongoingRecords =
+                apiPublishRecordRepository.findByApiDefinitionIdAndGatewayIdAndStatusIn(
+                        apiDefinitionId,
+                        publishRecord.getGatewayId(),
+                        Arrays.asList(PublishStatus.PUBLISHING, PublishStatus.UNPUBLISHING));
+
+        if (!ongoingRecords.isEmpty()) {
+            throw new BusinessException(ErrorCode.PUBLISH_OPERATION_IN_PROGRESS);
+        }
+
         // 获取 Gateway
         Gateway gateway =
                 gatewayRepository
@@ -597,9 +616,6 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
         APIDefinitionVO apiDefinitionVO = new APIDefinitionVO().convertFrom(apiDefinition);
         apiDefinitionVO.setEndpoints(endpointVOs);
 
-        ObjectMapper objectMapper = new ObjectMapper();
-        objectMapper.registerModule(new JavaTimeModule());
-        objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         // 获取发布配置
         PublishConfig publishConfig;
         try {
@@ -610,14 +626,7 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
                     ErrorCode.CONFIG_CONVERSION_ERROR, e, "Failed to parse publish config");
         }
 
-        // 获取发布器并执行下线
-        GatewayPublisher publisher = gatewayCapabilityRegistry.getPublisher(gateway);
-        publisher.unpublish(gateway, apiDefinitionVO, publishConfig);
-
-        apiDefinition.setStatus(APIStatus.DRAFT);
-        apiDefinitionRepository.save(apiDefinition);
-
-        // Create NEW record for UNPUBLISH action
+        // 创建 UNPUBLISHING 状态的记录
         String newRecordId = "record-" + SNOWFLAKE.nextIdStr();
         APIPublishRecord unpublishRecord = new APIPublishRecord();
         unpublishRecord.setRecordId(newRecordId);
@@ -626,7 +635,7 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
         unpublishRecord.setGatewayName(publishRecord.getGatewayName());
         unpublishRecord.setGatewayType(publishRecord.getGatewayType());
         unpublishRecord.setVersion(publishRecord.getVersion());
-        unpublishRecord.setStatus(PublishStatus.INACTIVE);
+        unpublishRecord.setStatus(PublishStatus.UNPUBLISHING); // 初始状态为 UNPUBLISHING
         unpublishRecord.setAction(PublishAction.UNPUBLISH);
         unpublishRecord.setPublishConfig(publishRecord.getPublishConfig());
         unpublishRecord.setGatewayResourceId(publishRecord.getGatewayResourceId());
@@ -634,6 +643,39 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
 
         apiPublishRecordRepository.save(unpublishRecord);
 
-        log.info("API unpublished successfully from gateway: {}", publishRecord.getGatewayId());
+        // 异步执行取消发布
+        asyncAPIPublishService.asyncUnpublish(newRecordId, gateway, apiDefinitionVO, publishConfig);
+
+        log.info(
+                "API unpublish initiated for gateway: {}, recordId: {}",
+                publishRecord.getGatewayId(),
+                newRecordId);
+    }
+
+    @Override
+    public APIPublishRecordVO getPublishRecordStatus(String apiDefinitionId, String recordId) {
+        log.info(
+                "Getting publish record status: apiDefinitionId={}, recordId={}",
+                apiDefinitionId,
+                recordId);
+
+        // 验证 API Definition 是否存在
+        if (!apiDefinitionRepository.existsByApiDefinitionId(apiDefinitionId)) {
+            throw new BusinessException(ErrorCode.API_DEFINITION_NOT_FOUND, apiDefinitionId);
+        }
+
+        // 查询发布记录
+        APIPublishRecord publishRecord =
+                apiPublishRecordRepository
+                        .findByRecordId(recordId)
+                        .orElseThrow(
+                                () -> new BusinessException(ErrorCode.NOT_FOUND, "发布记录", recordId));
+
+        // 验证发布记录属于该 API Definition
+        if (!publishRecord.getApiDefinitionId().equals(apiDefinitionId)) {
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "发布记录不属于该 API Definition");
+        }
+
+        return new APIPublishRecordVO().convertFrom(publishRecord);
     }
 }

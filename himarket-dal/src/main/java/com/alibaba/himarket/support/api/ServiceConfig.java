@@ -36,7 +36,8 @@ import lombok.Data;
     @JsonSubTypes.Type(value = NacosServiceConfig.class, name = "NACOS"),
     @JsonSubTypes.Type(value = FixedAddressServiceConfig.class, name = "FIXED_ADDRESS"),
     @JsonSubTypes.Type(value = DnsServiceConfig.class, name = "DNS"),
-    @JsonSubTypes.Type(value = AiServiceConfig.class, name = "AI_SERVICE")
+    @JsonSubTypes.Type(value = AiServiceConfig.class, name = "AI_SERVICE"),
+    @JsonSubTypes.Type(value = GatewayServiceConfig.class, name = "GATEWAY")
 })
 public abstract class ServiceConfig implements Serializable {
 

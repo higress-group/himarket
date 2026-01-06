@@ -30,6 +30,7 @@ import com.alibaba.himarket.dto.result.agent.AgentAPIResult;
 import com.alibaba.himarket.dto.result.common.DomainResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.gateway.GatewayResult;
+import com.alibaba.himarket.dto.result.gateway.GatewayServiceResult;
 import com.alibaba.himarket.dto.result.httpapi.APIConfigResult;
 import com.alibaba.himarket.dto.result.httpapi.APIResult;
 import com.alibaba.himarket.dto.result.mcp.GatewayMCPServerResult;
@@ -571,6 +572,9 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
                                     DomainResult.builder()
                                             .domain(item.getName())
                                             .protocol(item.getProtocol().toLowerCase())
+                                            .meta(
+                                                    Collections.singletonMap(
+                                                            "domainId", item.getDomainId()))
                                             .build())
                     .collect(Collectors.toList());
         } catch (Exception e) {
@@ -630,6 +634,44 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
             throw new BusinessException(
                     ErrorCode.INTERNAL_ERROR,
                     "Error fetching gateway uris，Cause：" + e.getMessage());
+        }
+    }
+
+    @Override
+    public List<GatewayServiceResult> fetchGatewayServices(Gateway gateway) {
+        ListServicesRequest request =
+                ListServicesRequest.builder()
+                        .gatewayId(gateway.getGatewayId())
+                        .pageNumber(1)
+                        .pageSize(100)
+                        .build();
+        APIGClient client = getClient(gateway);
+        try {
+            CompletableFuture<ListServicesResponse> f =
+                    client.execute(c -> c.listServices(request));
+            ListServicesResponse response = f.join();
+            if (response.getStatusCode() != 200) {
+                throw new BusinessException(
+                        ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
+            }
+            return response.getBody().getData().getItems().stream()
+                    .map(
+                            item ->
+                                    GatewayServiceResult.builder()
+                                            .serviceId(item.getServiceId())
+                                            .serviceName(item.getName())
+                                            .tlsEnabled(
+                                                    item.getProtocol() != null
+                                                            && item.getProtocol()
+                                                                    .toLowerCase()
+                                                                    .equals("https"))
+                                            .build())
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            log.error("Error fetching gateway services", e);
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR,
+                    "Error fetching gateway services，Cause：" + e.getMessage());
         }
     }
 
@@ -917,5 +959,191 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
                                         .networkType(domain.getNetworkType())
                                         .build())
                 .collect(Collectors.toList());
+    }
+
+    public String createMcpServer(Gateway gateway, CreateMcpServerRequest request) {
+        APIGClient client = getClient(gateway);
+        try {
+            CompletableFuture<CreateMcpServerResponse> f =
+                    client.execute(c -> c.createMcpServer(request));
+            CreateMcpServerResponse response = f.join();
+            if (response.getStatusCode() != 200) {
+                throw new BusinessException(
+                        ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
+            }
+            return response.getBody().getData().getMcpServerId();
+        } catch (Exception e) {
+            log.error("Error creating MCP server", e);
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR, "Error creating MCP server，Cause：" + e.getMessage());
+        }
+    }
+
+    public void updateMcpServer(
+            Gateway gateway, String mcpServerId, UpdateMcpServerRequest request) {
+        APIGClient client = getClient(gateway);
+        try {
+            CompletableFuture<UpdateMcpServerResponse> f =
+                    client.execute(c -> c.updateMcpServer(request));
+            UpdateMcpServerResponse response = f.join();
+            if (response.getStatusCode() != 200) {
+                throw new BusinessException(
+                        ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
+            }
+            log.info("Updated MCP Server with ID: {}", mcpServerId);
+        } catch (Exception e) {
+            log.error("Error updating MCP server: {}", mcpServerId, e);
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR, "Error updating MCP server，Cause：" + e.getMessage());
+        }
+    }
+
+    /**
+     * Find the MCP server ID by name
+     *
+     * @param gateway The gateway to search
+     * @param mcpServerName The MCP server name to find
+     * @return Optional containing the MCP server ID if found, empty otherwise
+     */
+    public Optional<String> findMcpServerIdByName(Gateway gateway, String mcpServerName) {
+        APIGClient client = getClient(gateway);
+        try {
+            // Fetch all MCP servers and find the one matching the name
+            CompletableFuture<ListMcpServersResponse> f =
+                    client.execute(
+                            c -> {
+                                ListMcpServersRequest request =
+                                        ListMcpServersRequest.builder()
+                                                .gatewayId(gateway.getGatewayId())
+                                                .pageNumber(1)
+                                                .pageSize(100)
+                                                .build();
+                                return c.listMcpServers(request);
+                            });
+
+            ListMcpServersResponse response = f.join();
+            if (200 != response.getStatusCode()) {
+                log.warn("Failed to find MCP server by name: {}", response.getBody().getMessage());
+                return Optional.empty();
+            }
+
+            // Return the first matching server's ID
+            return Optional.ofNullable(response.getBody().getData().getItems())
+                    .flatMap(
+                            items ->
+                                    items.stream()
+                                            .filter(item -> mcpServerName.equals(item.getName()))
+                                            .findFirst())
+                    .map(item -> item.getMcpServerId());
+        } catch (Exception e) {
+            log.warn("Error finding MCP server ID by name: {}", mcpServerName, e);
+            return Optional.empty();
+        }
+    }
+
+    public void createPluginAttachment(
+            Gateway gateway,
+            String pluginId,
+            List<String> attachResourceIds,
+            String attachResourceType,
+            boolean enable,
+            String pluginConfig) {
+        APIGClient client = getClient(gateway);
+        try {
+            CreatePluginAttachmentRequest request =
+                    CreatePluginAttachmentRequest.builder()
+                            .pluginId(pluginId)
+                            .gatewayId(gateway.getGatewayId())
+                            .attachResourceIds(attachResourceIds)
+                            .attachResourceType(attachResourceType)
+                            .enable(enable)
+                            .pluginConfig(pluginConfig)
+                            .build();
+
+            log.info(
+                    "Creating plugin attachment with request parameters: pluginId={}, gatewayId={},"
+                            + " attachResourceIds={}, attachResourceType={}, enable={},"
+                            + " pluginConfig={}",
+                    pluginId,
+                    gateway.getGatewayId(),
+                    attachResourceIds,
+                    attachResourceType,
+                    enable,
+                    pluginConfig);
+
+            CompletableFuture<CreatePluginAttachmentResponse> f =
+                    client.execute(c -> c.createPluginAttachment(request));
+            CreatePluginAttachmentResponse response = f.join();
+
+            log.info(
+                    "CreatePluginAttachment response: statusCode={}, code={}, message={},"
+                            + " requestId={}, pluginAttachmentId={}",
+                    response.getStatusCode(),
+                    response.getBody() != null ? response.getBody().getCode() : null,
+                    response.getBody() != null ? response.getBody().getMessage() : null,
+                    response.getBody() != null ? response.getBody().getRequestId() : null,
+                    response.getBody() != null && response.getBody().getData() != null
+                            ? response.getBody().getData().getPluginAttachmentId()
+                            : null);
+
+            if (response.getStatusCode() != 200) {
+                throw new BusinessException(
+                        ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
+            }
+        } catch (Exception e) {
+            log.error("Error creating plugin attachment", e);
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR,
+                    "Error creating plugin attachment，Cause：" + e.getMessage());
+        }
+    }
+
+    public void updatePluginAttachment(
+            Gateway gateway,
+            String pluginAttachmentId,
+            List<String> attachResourceIds,
+            boolean enable,
+            String pluginConfig) {
+        APIGClient client = getClient(gateway);
+        try {
+            UpdatePluginAttachmentRequest request =
+                    UpdatePluginAttachmentRequest.builder()
+                            .pluginAttachmentId(pluginAttachmentId)
+                            .attachResourceIds(attachResourceIds)
+                            .enable(enable)
+                            .pluginConfig(pluginConfig)
+                            .build();
+
+            log.info(
+                    "Updating plugin attachment with request parameters:"
+                            + " pluginAttachmentId={}, attachResourceIds={}, enable={},"
+                            + " pluginConfig={}",
+                    pluginAttachmentId,
+                    attachResourceIds,
+                    enable,
+                    pluginConfig);
+
+            CompletableFuture<UpdatePluginAttachmentResponse> f =
+                    client.execute(c -> c.updatePluginAttachment(request));
+            UpdatePluginAttachmentResponse response = f.join();
+
+            log.info(
+                    "UpdatePluginAttachment response: statusCode={}, code={}, message={},"
+                            + " requestId={}",
+                    response.getStatusCode(),
+                    response.getBody() != null ? response.getBody().getCode() : null,
+                    response.getBody() != null ? response.getBody().getMessage() : null,
+                    response.getBody() != null ? response.getBody().getRequestId() : null);
+
+            if (response.getStatusCode() != 200) {
+                throw new BusinessException(
+                        ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
+            }
+        } catch (Exception e) {
+            log.error("Error updating plugin attachment: {}", pluginAttachmentId, e);
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR,
+                    "Error updating plugin attachment，Cause：" + e.getMessage());
+        }
     }
 }

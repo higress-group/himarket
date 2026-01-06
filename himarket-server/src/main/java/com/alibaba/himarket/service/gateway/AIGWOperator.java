@@ -33,6 +33,7 @@ import com.alibaba.himarket.dto.result.httpapi.HttpRouteResult;
 import com.alibaba.himarket.dto.result.mcp.APIGMCPServerResult;
 import com.alibaba.himarket.dto.result.mcp.GatewayMCPServerResult;
 import com.alibaba.himarket.dto.result.mcp.MCPConfigResult;
+import com.alibaba.himarket.dto.result.mcp.McpServerInfo;
 import com.alibaba.himarket.dto.result.model.AIGWModelAPIResult;
 import com.alibaba.himarket.dto.result.model.GatewayModelAPIResult;
 import com.alibaba.himarket.dto.result.model.ModelConfigResult;
@@ -59,6 +60,16 @@ import org.springframework.stereotype.Service;
 @Service
 @Slf4j
 public class AIGWOperator extends APIGOperator {
+
+    /**
+     * Fetch gateway environment ID
+     *
+     * @param gateway The gateway
+     * @return The environment ID
+     */
+    public String getGatewayEnvironmentId(Gateway gateway) {
+        return fetchGatewayEnv(gateway);
+    }
 
     @Override
     public PageResult<? extends GatewayMCPServerResult> fetchMcpServers(
@@ -170,24 +181,9 @@ public class AIGWOperator extends APIGOperator {
     @Override
     public String fetchMcpConfig(Gateway gateway, Object conf) {
         APIGRefConfig config = (APIGRefConfig) conf;
-        APIGClient client = getClient(gateway);
         MCPConfigResult mcpConfig = new MCPConfigResult();
 
-        CompletableFuture<GetMcpServerResponse> f =
-                client.execute(
-                        c -> {
-                            GetMcpServerRequest request =
-                                    GetMcpServerRequest.builder()
-                                            .mcpServerId(config.getMcpServerId())
-                                            .build();
-                            return c.getMcpServer(request);
-                        });
-
-        GetMcpServerResponse response = f.join();
-        if (200 != response.getStatusCode()) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, response.getBody().getMessage());
-        }
-        GetMcpServerResponseBody.Data resp = response.getBody().getData();
+        McpServerInfo resp = fetchRawMcpServerInfo(gateway, config.getMcpServerId());
 
         // mcpServer name
         mcpConfig.setMcpServerName(resp.getName());
@@ -235,6 +231,179 @@ public class AIGWOperator extends APIGOperator {
         }
 
         return JSONUtil.toJsonStr(mcpConfig);
+    }
+
+    public McpServerInfo fetchRawMcpServerInfo(Gateway gateway, String mcpServerId) {
+        APIGClient client = getClient(gateway);
+        CompletableFuture<GetMcpServerResponse> f =
+                client.execute(
+                        c -> {
+                            GetMcpServerRequest request =
+                                    GetMcpServerRequest.builder().mcpServerId(mcpServerId).build();
+                            return c.getMcpServer(request);
+                        });
+
+        GetMcpServerResponse response = f.join();
+        if (200 != response.getStatusCode()) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, response.getBody().getMessage());
+        }
+
+        GetMcpServerResponseBody.Data data = response.getBody().getData();
+        return McpServerInfo.builder()
+                .mcpServerId(data.getMcpServerId())
+                .name(data.getName())
+                .description(data.getDescription())
+                .mcpServerPath(data.getMcpServerPath())
+                .exposedUriPath(data.getExposedUriPath())
+                .domainInfos(
+                        Optional.ofNullable(data.getDomainInfos())
+                                .map(
+                                        list ->
+                                                list.stream()
+                                                        .map(
+                                                                d ->
+                                                                        McpServerInfo.DomainInfo
+                                                                                .builder()
+                                                                                .name(d.getName())
+                                                                                .protocol(
+                                                                                        d
+                                                                                                .getProtocol())
+                                                                                .build())
+                                                        .collect(Collectors.toList()))
+                                .orElse(null))
+                .protocol(data.getProtocol())
+                .createFromType(data.getCreateFromType())
+                .mcpServerConfig(data.getMcpServerConfig())
+                .mcpServerConfigPluginAttachmentId(data.getMcpServerConfigPluginAttachmentId())
+                .gatewayId(data.getGatewayId())
+                .environmentId(data.getEnvironmentId())
+                .deployStatus(data.getDeployStatus())
+                .routeId(data.getRouteId())
+                .type(data.getType())
+                .build();
+    }
+
+    /**
+     * Deploy MCP Server
+     *
+     * @param gateway The gateway
+     * @param mcpServerId The MCP server ID to deploy
+     */
+    public void deployMcpServer(Gateway gateway, String mcpServerId) {
+        APIGClient client = getClient(gateway);
+        try {
+            CompletableFuture<DeployMcpServerResponse> f =
+                    client.execute(
+                            c -> {
+                                DeployMcpServerRequest request =
+                                        DeployMcpServerRequest.builder()
+                                                .mcpServerId(mcpServerId)
+                                                .build();
+                                return c.deployMcpServer(request);
+                            });
+
+            DeployMcpServerResponse response = f.join();
+            if (200 != response.getStatusCode()) {
+                throw new BusinessException(
+                        ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
+            }
+            log.info("Successfully deployed MCP server: {}", mcpServerId);
+        } catch (Exception e) {
+            log.error("Error deploying MCP server: {}", mcpServerId, e);
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR, "Error deploying MCP server，Cause：" + e.getMessage());
+        }
+    }
+
+    /**
+     * Undeploy MCP Server
+     *
+     * @param gateway The gateway
+     * @param mcpServerId The MCP server ID to undeploy
+     */
+    public void undeployMcpServer(Gateway gateway, String mcpServerId) {
+        APIGClient client = getClient(gateway);
+        try {
+            CompletableFuture<UnDeployMcpServerResponse> f =
+                    client.execute(
+                            c -> {
+                                UnDeployMcpServerRequest request =
+                                        UnDeployMcpServerRequest.builder()
+                                                .mcpServerId(mcpServerId)
+                                                .build();
+                                return c.unDeployMcpServer(request);
+                            });
+
+            UnDeployMcpServerResponse response = f.join();
+            if (200 != response.getStatusCode()) {
+                throw new BusinessException(
+                        ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
+            }
+            log.info("Successfully undeployed MCP server: {}", mcpServerId);
+        } catch (Exception e) {
+            log.error("Error undeploying MCP server: {}", mcpServerId, e);
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR, "Error undeploying MCP server，Cause：" + e.getMessage());
+        }
+    }
+
+    public String findMcpServerPlugin(Gateway gateway) {
+        APIGClient client = getClient(gateway);
+        CompletableFuture<ListPluginClassesResponse> f =
+                client.execute(
+                        c -> {
+                            ListPluginClassesRequest request =
+                                    ListPluginClassesRequest.builder()
+                                            .gatewayId(gateway.getGatewayId())
+                                            .nameLike("mcp-server")
+                                            .source("HigressOfficial")
+                                            .gatewayType("AI")
+                                            .pageSize(100)
+                                            .pageNumber(1)
+                                            .build();
+                            return c.listPluginClasses(request);
+                        });
+
+        ListPluginClassesResponse response = f.join();
+        if (200 != response.getStatusCode()) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, response.getBody().getMessage());
+        }
+
+        return Optional.ofNullable(response.getBody().getData().getItems())
+                .flatMap(
+                        items ->
+                                items.stream()
+                                        .filter(
+                                                item ->
+                                                        "mcp-server"
+                                                                .equalsIgnoreCase(item.getName()))
+                                        .findFirst()
+                                        .map(item -> item.getPluginId()))
+                .orElse(null);
+    }
+
+    public void listPluginClasses(Gateway gateway) {
+        APIGClient client = getClient(gateway);
+        CompletableFuture<ListPluginClassesResponse> f =
+                client.execute(
+                        c -> {
+                            ListPluginClassesRequest request =
+                                    ListPluginClassesRequest.builder()
+                                            .gatewayId(gateway.getGatewayId())
+                                            .nameLike("mcp-server")
+                                            .source("HigressOfficial")
+                                            .gatewayType("AI")
+                                            .pageSize(100)
+                                            .pageNumber(1)
+                                            .build();
+                            return c.listPluginClasses(request);
+                        });
+
+        ListPluginClassesResponse response = f.join();
+        if (200 != response.getStatusCode()) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, response.getBody().getMessage());
+        }
+        response.getBody().getData().getItems();
     }
 
     @Override

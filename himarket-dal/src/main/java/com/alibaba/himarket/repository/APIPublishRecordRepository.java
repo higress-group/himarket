@@ -46,4 +46,16 @@ public interface APIPublishRecordRepository extends BaseRepository<APIPublishRec
     List<APIPublishRecord> findByGatewayId(String gatewayId);
 
     void deleteByApiDefinitionId(String apiDefinitionId);
+
+    /**
+     * Find records by API Definition ID, Gateway ID and status in the given list
+     * Used to check for ongoing publish/unpublish operations
+     *
+     * @param apiDefinitionId API Definition ID
+     * @param gatewayId Gateway ID
+     * @param statuses List of statuses to check
+     * @return List of matching records
+     */
+    List<APIPublishRecord> findByApiDefinitionIdAndGatewayIdAndStatusIn(
+            String apiDefinitionId, String gatewayId, List<PublishStatus> statuses);
 }

@@ -17,23 +17,52 @@
  * under the License.
  */
 
-package com.alibaba.himarket.dto.result.common;
+package com.alibaba.himarket.dto.result.mcp;
 
-import java.util.Map;
+import java.util.List;
 import lombok.Builder;
 import lombok.Data;
 
 @Data
 @Builder
-public class DomainResult {
+public class McpServerInfo {
 
-    private String domain;
+    private String mcpServerId;
 
-    private Integer port;
+    private String name;
+
+    private String description;
+
+    private String mcpServerPath;
+
+    private String exposedUriPath;
+
+    private List<DomainInfo> domainInfos;
 
     private String protocol;
 
-    private String networkType;
+    private String createFromType;
 
-    private Map<String, String> meta;
+    private String mcpServerConfig;
+
+    private String mcpServerConfigPluginAttachmentId;
+
+    private String apiId;
+
+    private String routeId;
+
+    private String gatewayId;
+
+    private String environmentId;
+
+    private String deployStatus;
+
+    private String type;
+
+    @Data
+    @Builder
+    public static class DomainInfo {
+        private String name;
+        private String protocol;
+    }
 }

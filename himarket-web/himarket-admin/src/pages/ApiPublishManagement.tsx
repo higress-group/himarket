@@ -29,7 +29,9 @@ import {
   CloseCircleOutlined,
   SyncOutlined,
   StopOutlined,
-  EyeOutlined
+  EyeOutlined,
+  DownOutlined,
+  UpOutlined
 } from '@ant-design/icons';
 import { apiDefinitionApi, gatewayApi, nacosApi } from '@/lib/api';
 import type { Gateway, DomainResult } from '@/types/gateway';
@@ -37,6 +39,42 @@ import dayjs from 'dayjs';
 import { MonacoDiffEditor } from 'react-monaco-editor';
 
 const { TextArea } = Input;
+
+// 可展开文本组件
+interface ExpandableTextProps {
+  text: string;
+  maxLength?: number;
+  isError?: boolean;
+}
+
+const ExpandableText = ({ text, maxLength = 100, isError = false }: ExpandableTextProps) => {
+  const [expanded, setExpanded] = useState(false);
+  
+  if (!text || text.length <= maxLength) {
+    return (
+      <span className={isError ? 'text-red-500' : 'text-green-500'}>
+        {text || (isError ? '' : '成功')}
+      </span>
+    );
+  }
+  
+  return (
+    <div style={{ maxWidth: '100%' }}>
+      <div className={isError ? 'text-red-500' : 'text-green-500'} style={{ wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
+        {expanded ? text : `${text.substring(0, maxLength)}...`}
+      </div>
+      <Button
+        type="link"
+        size="small"
+        icon={expanded ? <UpOutlined /> : <DownOutlined />}
+        onClick={() => setExpanded(!expanded)}
+        style={{ padding: 0, height: 'auto', marginTop: 4 }}
+      >
+        {expanded ? '收起' : '展开'}
+      </Button>
+    </div>
+  );
+};
 
 export default function ApiPublishManagement() {
   const [searchParams] = useSearchParams();
@@ -50,9 +88,11 @@ export default function ApiPublishManagement() {
   const [publishHistory, setPublishHistory] = useState<any[]>([]);
   const [gateways, setGateways] = useState<Gateway[]>([]);
   const [ingressDomains, setIngressDomains] = useState<DomainResult[]>([]);
-  const [serviceTypes, setServiceTypes] = useState<string[]>(['NACOS', 'FIXED_ADDRESS', 'DNS']);
+  const [serviceTypes, setServiceTypes] = useState<string[]>(['NACOS', 'FIXED_ADDRESS', 'DNS', 'GATEWAY']);
   const [nacosInstances, setNacosInstances] = useState<any[]>([]);
   const [namespaces, setNamespaces] = useState<any[]>([]);
+  const [gatewayServices, setGatewayServices] = useState<any[]>([]);
+  const [loadingGatewayServices, setLoadingGatewayServices] = useState(false);
   const [loading, setLoading] = useState(false);
   const [publishModalVisible, setPublishModalVisible] = useState(false);
   const [publishing, setPublishing] = useState(false);
@@ -64,17 +104,76 @@ export default function ApiPublishManagement() {
   const [latestSnapshot, setLatestSnapshot] = useState<string>('');
   const [latestSnapshotRecordId, setLatestSnapshotRecordId] = useState<string>('');
   const [activeGatewayId, setActiveGatewayId] = useState<string | null>(null);
+  const [pollingRecordId, setPollingRecordId] = useState<string | null>(null);
+  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
   const [form] = Form.useForm();
   const serviceType = Form.useWatch('serviceType', form);
   const provider = Form.useWatch('provider', form);
   const nacosId = Form.useWatch('nacosId', form);
   const namespace = Form.useWatch('namespace', form);
+  const selectedGatewayId = Form.useWatch('gatewayId', form);
+  const selectedServiceId = Form.useWatch('serviceId', form);
 
   useEffect(() => {
     if (apiDefinitionId) {
       fetchData();
     }
   }, [apiDefinitionId]);
+
+  // Cleanup polling interval on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+      }
+    };
+  }, [pollingInterval]);
+
+  // Start polling for record status
+  const startPolling = (recordId: string) => {
+    setPollingRecordId(recordId);
+    
+    const interval = setInterval(async () => {
+      try {
+        const response = await apiDefinitionApi.getPublishRecordStatus(apiDefinitionId!, recordId);
+        const record = response.data || response;
+        
+        // Check if operation completed (not in progress states)
+        if (record.status !== 'PUBLISHING' && record.status !== 'UNPUBLISHING') {
+          // Stop polling
+          clearInterval(interval);
+          setPollingInterval(null);
+          setPollingRecordId(null);
+          
+          // Refresh data to show updated status
+          await fetchData();
+          
+          // Show success or error message
+          if (record.status === 'ACTIVE') {
+            message.success('发布成功');
+          } else if (record.status === 'INACTIVE') {
+            message.success('下线成功');
+          } else if (record.status === 'FAILED') {
+            message.error(`操作失败: ${record.errorMessage || '未知错误'}`);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to poll record status:', error);
+        // Continue polling even on error
+      }
+    }, 2000); // Poll every 2 seconds
+    
+    setPollingInterval(interval);
+  };
+
+  // Stop polling
+  const stopPolling = () => {
+    if (pollingInterval) {
+      clearInterval(pollingInterval);
+      setPollingInterval(null);
+      setPollingRecordId(null);
+    }
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -154,9 +253,13 @@ export default function ApiPublishManagement() {
         form.setFieldValue('serviceType', 'AI_SERVICE');
       }
 
+      // Update service types only if backend returns them, otherwise keep defaults
       if (availableTypes.length > 0) {
         setServiceTypes(availableTypes);
       }
+      
+      // Clear gateway services - will be fetched on dropdown open
+      setGatewayServices([]);
       
       form.setFieldValue('ingressDomain', undefined); // Reset domain selection
       // Don't reset serviceType if it's still valid, or maybe we should? 
@@ -170,7 +273,8 @@ export default function ApiPublishManagement() {
       console.error('Failed to fetch gateway info:', error);
       message.error('获取网关信息失败');
       setIngressDomains([]);
-      // Don't clear serviceTypes on error, keep defaults
+      // Keep default service types on error
+      setServiceTypes(['NACOS', 'FIXED_ADDRESS', 'DNS', 'GATEWAY']);
     }
   };
 
@@ -182,6 +286,28 @@ export default function ApiPublishManagement() {
     } catch (error) {
       console.error('Failed to fetch namespaces:', error);
       message.error('获取命名空间失败');
+    }
+  };
+
+  const handleGatewayServiceDropdownOpen = async () => {
+    // Fetch gateway services when dropdown is opened
+    const gatewayId = form.getFieldValue('gatewayId');
+    if (!gatewayId) return;
+    
+    // Only fetch if not already loaded
+    if (gatewayServices.length > 0) return;
+    
+    setLoadingGatewayServices(true);
+    try {
+      const servicesRes = await gatewayApi.getGatewayServices(gatewayId);
+      const services = servicesRes.data || servicesRes;
+      setGatewayServices(Array.isArray(services) ? services : []);
+    } catch (error) {
+      console.error('Failed to fetch gateway services:', error);
+      message.error('获取网关服务列表失败');
+      setGatewayServices([]);
+    } finally {
+      setLoadingGatewayServices(false);
     }
   };
 
@@ -220,6 +346,13 @@ export default function ApiPublishManagement() {
         serviceConfig = {
           ...serviceConfig,
           domain: values.domain,
+        };
+      } else if (values.serviceType === 'GATEWAY') {
+        serviceConfig = {
+          ...serviceConfig,
+          gatewayId: values.gatewayId,
+          serviceId: values.serviceId,
+          serviceName: values.serviceName,
         };
       } else if (values.serviceType === 'AI_SERVICE') {
         serviceConfig = {
@@ -296,11 +429,20 @@ export default function ApiPublishManagement() {
         }
       };
 
-      await apiDefinitionApi.publishApi(apiDefinitionId!, publishData);
-      message.success('发布成功');
+      const response = await apiDefinitionApi.publishApi(apiDefinitionId!, publishData);
+      const publishRecord = response.data || response;
+      
+      message.success('发布请求已提交，正在处理中...');
       setPublishModalVisible(false);
       form.resetFields();
-      fetchData(); // Refresh data
+      
+      // Start polling for status
+      if (publishRecord.recordId) {
+        startPolling(publishRecord.recordId);
+      }
+      
+      // Immediately refresh data to show PUBLISHING status
+      await fetchData();
     } catch (error: any) {
       message.error(error.message || '发布失败');
     } finally {
@@ -317,9 +459,23 @@ export default function ApiPublishManagement() {
       cancelText: '取消',
       onOk: async () => {
         try {
-          await apiDefinitionApi.unpublishApi(apiDefinitionId!, recordId);
-          message.success('下线成功');
-          fetchData();
+          const response = await apiDefinitionApi.unpublishApi(apiDefinitionId!, recordId);
+          message.success('下线请求已提交，正在处理中...');
+          
+          // Immediately refresh data to show UNPUBLISHING status
+          await fetchData();
+          
+          // The unpublish API returns the new unpublish record
+          // We need to poll for that record's status
+          // However, the backend doesn't return the new recordId in unpublish response
+          // So we'll fetch data and find the UNPUBLISHING record
+          const recordsRes = await apiDefinitionApi.getPublishRecords(apiDefinitionId!, { page: 1, size: 100 });
+          const allRecords = recordsRes.data?.content || recordsRes.content || [];
+          const unpublishingRecord = allRecords.find((r: any) => r.status === 'UNPUBLISHING');
+          
+          if (unpublishingRecord?.recordId) {
+            startPolling(unpublishingRecord.recordId);
+          }
         } catch (error: any) {
           message.error(error.message || '下线失败');
         }
@@ -347,6 +503,10 @@ export default function ApiPublishManagement() {
         return <Tag icon={<CheckCircleOutlined />} color="success">已发布</Tag>;
       case 'INACTIVE':
         return <Tag icon={<StopOutlined />} color="default">已下线</Tag>;
+      case 'PUBLISHING':
+        return <Tag icon={<SyncOutlined spin />} color="processing">发布中</Tag>;
+      case 'UNPUBLISHING':
+        return <Tag icon={<SyncOutlined spin />} color="processing">下线中</Tag>;
       case 'FAILED':
         return <Tag icon={<CloseCircleOutlined />} color="error">发布失败</Tag>;
       default:
@@ -395,6 +555,22 @@ export default function ApiPublishManagement() {
             <span className="font-mono bg-gray-50 px-1 rounded ml-2">{config.domain}</span>
           </div>
         );
+      case 'GATEWAY':
+        return (
+          <div className="text-sm">
+            <div style={{ marginBottom: '8px' }}>
+              <Tag color="green">网关服务</Tag>
+            </div>
+            <div style={itemStyle}>
+              <span style={labelStyle}>服务名:</span>
+              <span className="font-medium">{config.serviceName}</span>
+            </div>
+            <div style={itemStyle}>
+              <span style={labelStyle}>服务ID:</span>
+              <span>{config.serviceId}</span>
+            </div>
+          </div>
+        );
       case 'AI_SERVICE':
         return (
           <div className="text-sm">
@@ -433,6 +609,7 @@ export default function ApiPublishManagement() {
       title: '备注',
       dataIndex: 'publishNote',
       key: 'publishNote',
+      render: (note: string) => note ? <ExpandableText text={note} maxLength={50} /> : '-'
     },
     {
       title: '操作时间',
@@ -444,10 +621,11 @@ export default function ApiPublishManagement() {
       title: '结果',
       dataIndex: 'errorMessage',
       key: 'errorMessage',
-      render: (errorMessage: string) => errorMessage ? <span className="text-red-500">{errorMessage}</span> : <span className="text-green-500">成功</span>
+      width: 400,
+      render: (errorMessage: string) => <ExpandableText text={errorMessage} maxLength={50} isError={!!errorMessage} />
     },
     {
-      title: '快照',
+      title: '操作',
       key: 'snapshot',
       render: (_: any, record: any) => (
         record.snapshot ? (
@@ -638,6 +816,7 @@ export default function ApiPublishManagement() {
                   {type === 'NACOS' ? 'Nacos' : 
                    type === 'FIXED_ADDRESS' ? '固定地址' : 
                    type === 'DNS' ? 'DNS' : 
+                   type === 'GATEWAY' ? '网关' :
                    type === 'AI_SERVICE' ? 'AI 服务' : type}
                 </Radio>
               ))}
@@ -982,9 +1161,39 @@ export default function ApiPublishManagement() {
             </Form.Item>
           )}
 
+          {serviceType === 'GATEWAY' && selectedGatewayId && (
+            <Form.Item name="serviceId" label="网关服务" rules={[{ required: true }]}>
+              <Select 
+                placeholder="请选择网关服务"
+                onFocus={handleGatewayServiceDropdownOpen}
+                loading={loadingGatewayServices}
+                onChange={(value) => {
+                  const selected = gatewayServices.find(s => s.serviceId === value);
+                  if (selected) {
+                    form.setFieldValue('serviceName', selected.serviceName);
+                    // Set TLS enabled based on the service's tlsEnabled property
+                    form.setFieldValue('tlsEnabled', selected.tlsEnabled || false);
+                  }
+                }}
+              >
+                {gatewayServices.map(service => (
+                  <Select.Option key={service.serviceId} value={service.serviceId}>
+                    {service.serviceName} ({service.serviceId})
+                  </Select.Option>
+                ))}
+              </Select>
+            </Form.Item>
+          )}
+
+          {serviceType === 'GATEWAY' && (
+            <Form.Item name="serviceName" hidden>
+              <Input />
+            </Form.Item>
+          )}
+
           {apiDefinition?.type !== 'MODEL_API' && (
             <Form.Item name="tlsEnabled" valuePropName="checked">
-              <Checkbox>开启 TLS</Checkbox>
+              <Checkbox disabled={serviceType === 'GATEWAY' && !!selectedServiceId}>开启 TLS</Checkbox>
             </Form.Item>
           )}
 
@@ -1080,6 +1289,17 @@ export default function ApiPublishManagement() {
                       </div>
                     </Card>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {currentSnapshot.publishConfig && (
+              <div className="mt-4">
+                <h3 className="text-base font-medium mb-2">发布配置</h3>
+                <div className="bg-gray-50 p-2 rounded border border-gray-200">
+                  <pre className="text-xs overflow-x-auto whitespace-pre-wrap m-0">
+                    {JSON.stringify(currentSnapshot.publishConfig, null, 2)}
+                  </pre>
                 </div>
               </div>
             )}

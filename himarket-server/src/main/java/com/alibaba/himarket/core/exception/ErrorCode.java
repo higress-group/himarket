@@ -77,6 +77,9 @@ public enum ErrorCode {
     /** API 已发布到其他网关（当前限制只能发布到一个网关） */
     API_ALREADY_PUBLISHED_TO_GATEWAY(HttpStatus.CONFLICT, "API 已发布到网关【{}】，请先取消发布后再发布到其他网关"),
 
+    /** 发布或下线操作正在进行中 */
+    PUBLISH_OPERATION_IN_PROGRESS(HttpStatus.CONFLICT, "该 API 在选定网关上的发布或下线操作正在进行中，请稍后再试"),
+
     // 服务端错误 (500-599)
     /** 非预期错误 */
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "服务器内部错误：{}"),
