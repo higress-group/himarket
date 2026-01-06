@@ -180,11 +180,13 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
         boolean isDirect = "direct_route".equalsIgnoreCase(higressMCPConfig.getType());
         DirectRouteConfig directRouteConfig = higressMCPConfig.getDirectRouteConfig();
         String transportType = isDirect ? directRouteConfig.getTransportType() : null;
-        //        String path = isDirect ? directRouteConfig.getPath() : "/mcp-servers/" +
-        // higressMCPConfig.getName();
 
         // Standardized path format for Higress MCP servers: /mcp-servers/{name}
-        c.setPath("/mcp-servers/" + higressMCPConfig.getName());
+        String path = "/mcp-servers/" + higressMCPConfig.getName();
+        if ("SSE".equalsIgnoreCase(transportType)) {
+            path += "/sse";
+        }
+        c.setPath(path);
 
         List<String> domains = higressMCPConfig.getDomains();
         if (CollUtil.isEmpty(domains)) {
@@ -387,13 +389,10 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
         }
     }
 
-    private void fillCredentialContext(CredentialContext context, HigressCredential credential) {
-        if (!(credential instanceof HigressKeyAuthCredential keyAuthCredential)) {
-            return;
-        }
-
+    private void fillCredentialContext(
+            CredentialContext context, HigressKeyAuthCredential credential) {
         String apiKey =
-                Optional.ofNullable(keyAuthCredential.getValues())
+                Optional.ofNullable(credential.getValues())
                         .filter(CollUtil::isNotEmpty)
                         .map(CollUtil::getFirst)
                         .orElse(null);
@@ -402,8 +401,8 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
             return;
         }
 
-        String source = keyAuthCredential.getSource();
-        String key = keyAuthCredential.getKey();
+        String source = credential.getSource();
+        String key = credential.getKey();
 
         switch (source.toUpperCase()) {
             case "BEARER" -> context.getHeaders().put("Authorization", "Bearer " + apiKey);
@@ -676,7 +675,7 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
     @Data
     public static class HigressConsumer {
         private String name;
-        private List<HigressCredential> credentials;
+        private List<HigressKeyAuthCredential> credentials;
     }
 
     @Data
