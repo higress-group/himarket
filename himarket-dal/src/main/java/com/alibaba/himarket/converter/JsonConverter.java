@@ -62,17 +62,6 @@ public abstract class JsonConverter<T> implements AttributeConverter<T, String> 
             return attribute;
         }
 
-        // 检查类型是否为枚举，如果是则直接处理
-        if (type.isEnum()) {
-            // 对于枚举类型，直接通过valueOf方法解析
-            try {
-                return (T) Enum.valueOf((Class<? extends Enum>) type, dbData);
-            } catch (IllegalArgumentException e) {
-                log.warn("Failed to parse enum value: {} for type: {}", dbData, type.getName(), e);
-                return null;
-            }
-        }
-        
         T attribute = JSONUtil.toBean(dbData, type);
         decrypt(attribute);
         return attribute;
@@ -81,15 +70,10 @@ public abstract class JsonConverter<T> implements AttributeConverter<T, String> 
     @SuppressWarnings("unchecked")
     private T cloneAndEncrypt(T original) {
         // Clone to avoid automatic database updates through JPA persistence
-        T cloned;
-        if (original != null && original.getClass().isEnum()) {
-            // 避免对枚举类型进行克隆，直接返回原始值
-            cloned = original;
-        } else if (original instanceof List) {
-            cloned = (T) new ArrayList<>((List<?>) original);
-        } else {
-            cloned = JSONUtil.toBean(JSONUtil.toJsonStr(original), type);
-        }
+        T cloned =
+                original instanceof List
+                        ? (T) new ArrayList<>((List<?>) original)
+                        : JSONUtil.toBean(JSONUtil.toJsonStr(original), type);
         handleEncryption(cloned, true);
         return cloned;
     }
@@ -100,22 +84,6 @@ public abstract class JsonConverter<T> implements AttributeConverter<T, String> 
 
     private void handleEncryption(Object obj, boolean isEncrypt) {
         if (obj == null) {
-            return;
-        }
-        
-        // 避免对集合类型进行递归处理，防止访问内部字段
-        if (obj instanceof List) {
-            List<?> list = (List<?>) obj;
-            for (Object item : list) {
-                if (item != null && !ClassUtil.isSimpleValueType(item.getClass()) && !item.getClass().isEnum()) {
-                    handleEncryption(item, isEncrypt);
-                }
-            }
-            return;
-        }
-
-        // 避免对枚举类型进行反射处理，防止访问java.lang.Enum的私有字段
-        if (obj.getClass().isEnum()) {
             return;
         }
 
@@ -139,8 +107,7 @@ public abstract class JsonConverter<T> implements AttributeConverter<T, String> 
                                         ? Encryptor.encrypt((String) value)
                                         : Encryptor.decrypt((String) value);
                         ReflectUtil.setFieldValue(obj, field, result);
-                    } else if (!ClassUtil.isSimpleValueType(value.getClass()) && !(value instanceof List) && !value.getClass().isEnum()) {
-                        // 避免再次处理List和Enum类型，防止访问内部字段
+                    } else if (!ClassUtil.isSimpleValueType(value.getClass())) {
                         handleEncryption(value, isEncrypt);
                     }
                 });

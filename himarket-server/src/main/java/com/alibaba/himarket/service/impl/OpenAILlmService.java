@@ -60,10 +60,6 @@ public class OpenAILlmService extends AbstractLlmService {
 
         // Build base URL
         URI uri = request.getUri();
-        if (uri == null) {
-            throw new IllegalArgumentException("URI cannot be null in LlmChatRequest");
-        }
-        
         String baseUrl =
                 uri.getScheme()
                         + "://"
@@ -112,7 +108,7 @@ public class OpenAILlmService extends AbstractLlmService {
         ModelConfigResult.ModelAPIConfig modelAPIConfig = modelConfig.getModelAPIConfig();
         if (modelAPIConfig == null || CollUtil.isEmpty(modelAPIConfig.getRoutes())) {
             log.error("Invalid model config - modelAPIConfig is null or routes is empty");
-            throw new IllegalArgumentException("Model configuration is invalid - missing API configuration or routes");
+            return null;
         }
 
         // Find preferred route
@@ -167,7 +163,7 @@ public class OpenAILlmService extends AbstractLlmService {
             }
         } else {
             log.error("Failed to build URI - no valid domain found and no gateway URIs available");
-            throw new IllegalArgumentException("Failed to build URI - no valid domain found and no gateway URIs available");
+            return null;
         }
 
         // Add path and query params

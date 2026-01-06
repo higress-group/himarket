@@ -19,7 +19,7 @@
 
 package com.alibaba.himarket.core.security;
 
-
+import cn.hutool.core.util.EnumUtil;
 import com.alibaba.himarket.core.constant.CommonConstants;
 import com.alibaba.himarket.support.enums.UserType;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
@@ -73,27 +73,12 @@ public class ContextHolder {
                 .map(GrantedAuthority::getAuthority)
                 .filter(authority -> authority.startsWith(CommonConstants.ROLE_PREFIX))
                 .map(authority -> authority.substring(5))
-                .map(this::safeValueOfUserType)
+                .map(role -> EnumUtil.likeValueOf(UserType.class, role))
                 .findFirst()
                 .orElseThrow(
                         () ->
                                 new AuthenticationCredentialsNotFoundException(
                                         "User type not found in authentication"));
-    }
-
-    private UserType safeValueOfUserType(String role) {
-        try {
-            return UserType.valueOf(role.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            // 如果直接匹配失败，尝试不区分大小写的匹配
-            for (UserType userType : UserType.values()) {
-                if (userType.name().equalsIgnoreCase(role)) {
-                    return userType;
-                }
-            }
-            throw new AuthenticationCredentialsNotFoundException(
-                    "Invalid user type: " + role);
-        }
     }
 
     public boolean isAdministrator() {
