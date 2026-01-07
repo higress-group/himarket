@@ -162,6 +162,13 @@ export interface AIGatewayModelItem {
   fromGatewayType: 'APIG_AI'; // Model API 只支持 APIG_AI 网关
 }
 
+// ADP AI Gateway Model API 类型
+export interface AdpAIGatewayModelItem {
+  modelApiId: string;
+  modelApiName: string;
+  fromGatewayType: 'ADP_AI_GATEWAY';
+}
+
 // Nacos Agent 列表项
 export interface NacosAgentItem {
   agentName: string;          // Agent 名称（唯一标识）
@@ -181,7 +188,7 @@ export interface LinkedService {
   apigRefConfig?: RestAPIItem | APIGAIMCPItem | AIGatewayAgentItem | AIGatewayModelItem;
   higressRefConfig?: HigressMCPItem;
   nacosRefConfig?: NacosMCPItem | NacosAgentItem;  // 扩展支持 Agent
-  adpAIGatewayRefConfig?: APIGAIMCPItem;
+  adpAIGatewayRefConfig?: APIGAIMCPItem | AdpAIGatewayModelItem;
   apsaraGatewayRefConfig?: APIGAIMCPItem;
 }
 

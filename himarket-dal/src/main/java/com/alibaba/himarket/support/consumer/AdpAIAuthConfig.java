@@ -30,6 +30,9 @@ public class AdpAIAuthConfig {
     /** MCP Server名称 */
     private String mcpServerName;
 
+    /** Model API ID */
+    private String modelApiId;
+
     /** 消费者ID */
     private String consumerId;
 
