@@ -167,15 +167,17 @@ public class AdpAIGatewayOperator extends GatewayOperator {
                 if (result.getCode() != null
                         && result.getCode() == 200
                         && result.getData() != null) {
-                    
+
                     List<GatewayModelAPIResult> items = new ArrayList<>();
                     if (result.getData().getRecords() != null) {
-                        items = result.getData().getRecords().stream()
-                                .map(this::convertToModelAPIResult)
-                                .collect(Collectors.toList());
+                        items =
+                                result.getData().getRecords().stream()
+                                        .map(this::convertToModelAPIResult)
+                                        .collect(Collectors.toList());
                     }
-                    
-                    int total = result.getData().getTotal() != null ? result.getData().getTotal() : 0;
+
+                    int total =
+                            result.getData().getTotal() != null ? result.getData().getTotal() : 0;
                     return PageResult.of(items, page, size, total);
                 }
                 String msg = result.getMessage() != null ? result.getMessage() : result.getMsg();
@@ -267,13 +269,13 @@ public class AdpAIGatewayOperator extends GatewayOperator {
         // 入参 conf 通常为 APIGRefConfig，包含选中的 apiId
         APIGRefConfig refConfig = (APIGRefConfig) conf;
         if (refConfig == null || refConfig.getModelApiId() == null) {
-             throw new BusinessException(ErrorCode.INVALID_PARAMETER, "Model API ID 缺失");
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "Model API ID 缺失");
         }
 
         AdpAIGatewayClient client = new AdpAIGatewayClient(config);
         try {
             String url = client.getFullUrl("/modelapi/getModelApi");
-            
+
             // 构建请求体
             String requestBody =
                     String.format(
@@ -289,17 +291,18 @@ public class AdpAIGatewayOperator extends GatewayOperator {
                                     HttpMethod.POST,
                                     requestEntity,
                                     AdpAiServiceDetailResult.class);
-            
+
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                 AdpAiServiceDetailResult result = response.getBody();
-                 if (result.getCode() != null && result.getCode() == 200 && result.getData() != null) {
-                     return convertToModelConfigJson(result.getData(), gateway, config);
-                 }
-                 String msg = result.getMessage() != null ? result.getMessage() : result.getMsg();
-                 throw new BusinessException(ErrorCode.GATEWAY_ERROR, msg);
+                AdpAiServiceDetailResult result = response.getBody();
+                if (result.getCode() != null
+                        && result.getCode() == 200
+                        && result.getData() != null) {
+                    return convertToModelConfigJson(result.getData(), gateway, config);
+                }
+                String msg = result.getMessage() != null ? result.getMessage() : result.getMsg();
+                throw new BusinessException(ErrorCode.GATEWAY_ERROR, msg);
             }
-             throw new BusinessException(
-                    ErrorCode.GATEWAY_ERROR, "调用 ADP /modelapi/getModelApi 失败");
+            throw new BusinessException(ErrorCode.GATEWAY_ERROR, "调用 ADP /modelapi/getModelApi 失败");
 
         } catch (Exception e) {
             log.error("Error fetching ADP model config", e);
@@ -487,7 +490,8 @@ public class AdpAIGatewayOperator extends GatewayOperator {
     }
 
     /** 将 ADP 模型对象转换为系统通用模型对象 */
-    private GatewayModelAPIResult convertToModelAPIResult(AdpAiServiceListResult.AdpAiServiceItem item) {
+    private GatewayModelAPIResult convertToModelAPIResult(
+            AdpAiServiceListResult.AdpAiServiceItem item) {
         // 使用 AIGWModelAPIResult
         return AIGWModelAPIResult.builder()
                 .modelApiId(item.getId())
@@ -497,32 +501,36 @@ public class AdpAIGatewayOperator extends GatewayOperator {
 
     /** 将 ADP 模型详情转换为 ModelConfigResult JSON 字符串 */
     private String convertToModelConfigJson(
-            AdpAiServiceDetailResult.AdpAiServiceDetail data, 
-            Gateway gateway, 
+            AdpAiServiceDetailResult.AdpAiServiceDetail data,
+            Gateway gateway,
             AdpAIGatewayConfig config) {
-        
+
         // 设置访问域名/地址
         // 优先使用 getModelApi 返回的 domainNameList
         List<DomainResult> domains = null;
         if (data.getDomainNameList() != null && !data.getDomainNameList().isEmpty()) {
-            domains = data.getDomainNameList().stream()
-                .map(domain -> DomainResult.builder()
-                    .domain(domain)
-                    .protocol("http") // 默认使用http协议
-                    .build())
-                .collect(Collectors.toList());
+            domains =
+                    data.getDomainNameList().stream()
+                            .map(
+                                    domain ->
+                                            DomainResult.builder()
+                                                    .domain(domain)
+                                                    .protocol("http") // 默认使用http协议
+                                                    .build())
+                            .collect(Collectors.toList());
         } else {
             // 降级方案：使用网关入口信息
             domains = getGatewayAccessDomains(gateway.getGatewayId(), config);
         }
 
         // 构建ModelAPIConfig
-        ModelConfigResult.ModelAPIConfig apiConfig = ModelConfigResult.ModelAPIConfig.builder()
-                .aiProtocols(Collections.singletonList(data.getProtocol())) // 使用协议信息
-                .modelCategory(data.getSceneType()) // 使用场景类型作为模型类别
-                .routes(buildRoutesFromAdpService(data, domains)) // 从ADP服务数据构建routes
-                .services(buildServicesFromAdpService(data)) // 从ADP服务数据构建services
-                .build();
+        ModelConfigResult.ModelAPIConfig apiConfig =
+                ModelConfigResult.ModelAPIConfig.builder()
+                        .aiProtocols(Collections.singletonList(data.getProtocol())) // 使用协议信息
+                        .modelCategory(data.getSceneType()) // 使用场景类型作为模型类别
+                        .routes(buildRoutesFromAdpService(data, domains)) // 从ADP服务数据构建routes
+                        .services(buildServicesFromAdpService(data)) // 从ADP服务数据构建services
+                        .build();
 
         ModelConfigResult modelConfig = new ModelConfigResult();
         modelConfig.setModelAPIConfig(apiConfig);
@@ -540,30 +548,32 @@ public class AdpAIGatewayOperator extends GatewayOperator {
         List<HttpRouteResult> routes = new ArrayList<>();
         for (String path : data.getPathList()) {
             HttpRouteResult route = new HttpRouteResult();
-            
+
             // 设置域名
             route.setDomains(domains);
-            
+
             // 设置匹配规则，路径前面加上basePath
             String fullPath = data.getBasePath() != null ? data.getBasePath() + path : path;
-            HttpRouteResult.RouteMatchResult matchResult = HttpRouteResult.RouteMatchResult.builder()
-                    .methods(Collections.singletonList("POST")) // 默认使用POST方法
-                    .path(HttpRouteResult.RouteMatchPath.builder()
-                            .value(fullPath)
-                            .type("Exact") // 使用完全匹配
-                            .build())
-                    .build();
+            HttpRouteResult.RouteMatchResult matchResult =
+                    HttpRouteResult.RouteMatchResult.builder()
+                            .methods(Collections.singletonList("POST")) // 默认使用POST方法
+                            .path(
+                                    HttpRouteResult.RouteMatchPath.builder()
+                                            .value(fullPath)
+                                            .type("Exact") // 使用完全匹配
+                                            .build())
+                            .build();
             route.setMatch(matchResult);
-            
+
             // 设置描述
             route.setDescription(data.getDescription());
-            
+
             // 设置为非内置路由
             route.setBuiltin(false);
-            
+
             routes.add(route);
         }
-        
+
         return routes;
     }
 
@@ -580,16 +590,16 @@ public class AdpAIGatewayOperator extends GatewayOperator {
             String[] parts = domainName.split(":");
             String host = parts[0];
             Integer port = parts.length > 1 ? Integer.parseInt(parts[1]) : 80;
-            
+
             ServiceResult service = new ServiceResult();
             service.setName(host);
             service.setPort(port);
             service.setProtocol(data.getProtocol() != null ? data.getProtocol() : "http");
             service.setWeight(100); // 默认权重
-            
+
             services.add(service);
         }
-        
+
         return services;
     }
 
@@ -897,32 +907,34 @@ public class AdpAIGatewayOperator extends GatewayOperator {
         }
 
         ConsumerAuthConfig result = null;
-        
+
         // 如果是MCP Server配置
         if (apigRefConfig.getMcpServerName() != null) {
             result = authorizeMcpServerConsumer(gateway, consumerId, apigRefConfig);
         }
-        
+
         // 如果是Model API配置
         if (apigRefConfig.getModelApiId() != null) {
             authorizeModelApiConsumer(gateway, consumerId, apigRefConfig);
             // Model API授权不需要返回特定的auth config
         }
-        
+
         // 如果result为null，说明是Model API的情况，返回通用配置
         if (result == null) {
-            result = ConsumerAuthConfig.builder()
-                    .adpAIAuthConfig(AdpAIAuthConfig.builder()
-                            .modelApiId(apigRefConfig.getModelApiId())
-                            .consumerId(consumerId)
-                            .gwInstanceId(gateway.getGatewayId())
-                            .build())
-                    .build();
+            result =
+                    ConsumerAuthConfig.builder()
+                            .adpAIAuthConfig(
+                                    AdpAIAuthConfig.builder()
+                                            .modelApiId(apigRefConfig.getModelApiId())
+                                            .consumerId(consumerId)
+                                            .gwInstanceId(gateway.getGatewayId())
+                                            .build())
+                            .build();
         }
-        
+
         return result;
     }
-    
+
     /**
      * 授权消费者访问MCP Server
      */
@@ -996,7 +1008,7 @@ public class AdpAIGatewayOperator extends GatewayOperator {
             client.close();
         }
     }
-    
+
     /**
      * 授权消费者访问Model API
      */
@@ -1015,8 +1027,7 @@ public class AdpAIGatewayOperator extends GatewayOperator {
             String requestBody = requestData.toString();
             HttpEntity<String> requestEntity = client.createRequestEntity(requestBody);
 
-            log.info(
-                    "Authorizing consumer to Model API: url={}, requestBody={}", url, requestBody);
+            log.info("Authorizing consumer to Model API: url={}, requestBody={}", url, requestBody);
 
             ResponseEntity<String> response =
                     client.getRestTemplate()
@@ -1078,13 +1089,13 @@ public class AdpAIGatewayOperator extends GatewayOperator {
         if (adpAIAuthConfig.getMcpServerName() != null) {
             revokeMcpServerConsumerAuthorization(gateway, consumerId, adpAIAuthConfig);
         }
-        
+
         // 如果是Model API授权，使用新逻辑
         if (adpAIAuthConfig.getModelApiId() != null) {
             revokeModelApiConsumerAuthorization(gateway, consumerId, adpAIAuthConfig);
         }
     }
-    
+
     /**
      * 撤销MCP Server的消费者授权
      */
@@ -1171,7 +1182,7 @@ public class AdpAIGatewayOperator extends GatewayOperator {
             client.close();
         }
     }
-    
+
     /**
      * 撤销Model API的消费者授权
      */
@@ -1181,8 +1192,10 @@ public class AdpAIGatewayOperator extends GatewayOperator {
         AdpAIGatewayClient client = new AdpAIGatewayClient(adpConfig);
         try {
             // 首先需要获取Model API的授权信息，以确定authId
-            String authId = getAuthIdForModelApi(gateway, adpAIAuthConfig.getModelApiId(), consumerId, adpConfig);
-            
+            String authId =
+                    getAuthIdForModelApi(
+                            gateway, adpAIAuthConfig.getModelApiId(), consumerId, adpConfig);
+
             if (authId == null) {
                 log.warn(
                         "No authId found for consumer {} and model API {}, skipping revocation",
@@ -1190,7 +1203,7 @@ public class AdpAIGatewayOperator extends GatewayOperator {
                         adpAIAuthConfig.getModelApiId());
                 return;
             }
-            
+
             // 构建撤销Model API授权请求参数
             cn.hutool.json.JSONObject requestData = JSONUtil.createObj();
             requestData.set("gwInstanceId", gateway.getGatewayId());
@@ -1266,37 +1279,35 @@ public class AdpAIGatewayOperator extends GatewayOperator {
             client.close();
         }
     }
-    
+
     /**
      * 获取Model API授权的authId
      * 使用 /modelapi/listModelApiConsumers 接口查询授权信息
      */
-    private String getAuthIdForModelApi(Gateway gateway, String modelApiId, String consumerId, AdpAIGatewayConfig config) {
+    private String getAuthIdForModelApi(
+            Gateway gateway, String modelApiId, String consumerId, AdpAIGatewayConfig config) {
         AdpAIGatewayClient client = new AdpAIGatewayClient(config);
         try {
             // 使用正确的API来查询Model API的消费者授权信息
             String url = client.getFullUrl("/modelapi/listModelApiConsumers");
-            
+
             // 构建请求体，根据您提供的API格式
             String requestBody =
                     String.format(
-                            "{\"gwInstanceId\": \"%s\", \"modelApiId\": \"%s\", \"engineType\": \"higress\", \"current\": 1, \"size\": 10}",
+                            "{\"gwInstanceId\": \"%s\", \"modelApiId\": \"%s\", \"engineType\":"
+                                    + " \"higress\", \"current\": 1, \"size\": 10}",
                             gateway.getGatewayId(), modelApiId);
-            
+
             HttpEntity<String> requestEntity = client.createRequestEntity(requestBody);
 
             ResponseEntity<String> response =
                     client.getRestTemplate()
-                            .exchange(
-                                    url,
-                                    HttpMethod.POST,
-                                    requestEntity,
-                                    String.class);
-            
+                            .exchange(url, HttpMethod.POST, requestEntity, String.class);
+
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 cn.hutool.json.JSONObject responseJson = JSONUtil.parseObj(response.getBody());
                 Integer code = responseJson.getInt("code", 0);
-                
+
                 if (code != null && code == 200) {
                     // 解析返回的授权信息，查找匹配的consumerId对应的authId
                     cn.hutool.json.JSONObject data = responseJson.getJSONObject("data");
@@ -1307,7 +1318,7 @@ public class AdpAIGatewayOperator extends GatewayOperator {
                                 cn.hutool.json.JSONObject record = records.getJSONObject(i);
                                 String recordConsumerId = record.getStr("appId");
                                 String authId = record.getStr("authId"); // 根据实际API返回结构，授权ID字段可能是id
-                                
+
                                 if (consumerId.equals(recordConsumerId)) {
                                     return authId; // 找到匹配的authId
                                 }
@@ -1315,16 +1326,17 @@ public class AdpAIGatewayOperator extends GatewayOperator {
                         }
                     }
                 }
-                
-                String msg = responseJson.getStr("message", responseJson.getStr("msg", "Unknown error"));
+
+                String msg =
+                        responseJson.getStr("message", responseJson.getStr("msg", "Unknown error"));
                 log.warn("Failed to get model API consumers for authId lookup: {}", msg);
             }
-            
+
             log.warn("Failed to call /modelapi/listModelApiConsumers for authId lookup");
-            
+
             // 如果上述方法失败，返回null
             return null;
-            
+
         } catch (Exception e) {
             log.error("Error getting authId for model API", e);
             // 如果API调用失败，返回null
@@ -1465,13 +1477,13 @@ public class AdpAIGatewayOperator extends GatewayOperator {
 
         @Data
         public static class AdpAiServiceItem {
-            private String id;        // 服务ID
-            private String apiName;   // 服务名称
+            private String id; // 服务ID
+            private String apiName; // 服务名称
             private String description; // 描述
-            private String basePath;  // 基础路径
+            private String basePath; // 基础路径
             private List<String> pathList; // 路径列表
             private List<String> domainNameList; // 域名列表
-            private String protocol;  // 协议
+            private String protocol; // 协议
             private String sceneType; // 场景类型
             // 根据实际接口补充其他字段
         }
@@ -1489,11 +1501,11 @@ public class AdpAIGatewayOperator extends GatewayOperator {
             private String id;
             private String apiName;
             private String description;
-            private String basePath;     // 服务地址
+            private String basePath; // 服务地址
             private List<String> pathList; // 路径列表
             private List<String> domainNameList; // 域名列表
-            private String protocol;     // 协议类型
-            private String sceneType;    // 场景类型
+            private String protocol; // 协议类型
+            private String sceneType; // 场景类型
             // 根据实际接口补充其他字段
         }
     }
