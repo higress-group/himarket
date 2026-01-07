@@ -604,7 +604,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
         nacosId: sourceType === 'NACOS' ? nacosId : undefined,
         sourceType,
         productId: apiProduct.productId,
-        apigRefConfig: selectedApi && ('apiId' in selectedApi || 'agentApiId' in selectedApi || 'agentApiName' in selectedApi || 'modelApiId' in selectedApi || 'modelApiName' in selectedApi) && (!('fromGatewayType' in selectedApi) || selectedApi.fromGatewayType !== 'HIGRESS') ? selectedApi as RestAPIItem | APIGAIMCPItem | AIGatewayAgentItem | AIGatewayModelItem : undefined,
+        apigRefConfig: selectedApi && ('apiId' in selectedApi || 'agentApiId' in selectedApi || 'agentApiName' in selectedApi || 'modelApiId' in selectedApi || 'modelApiName' in selectedApi) && (!('fromGatewayType' in selectedApi) || (selectedApi.fromGatewayType !== 'HIGRESS' && selectedApi.fromGatewayType !== 'SOFA_HIGRESS')) ? selectedApi as RestAPIItem | APIGAIMCPItem | AIGatewayAgentItem | AIGatewayModelItem : undefined,
         higressRefConfig: selectedApi && 'fromGatewayType' in selectedApi && selectedApi.fromGatewayType === 'HIGRESS' ? (
           apiProduct.type === 'MODEL_API'
             ? { modelRouteName: (selectedApi as any).modelRouteName, fromGatewayType: 'HIGRESS' as const }
