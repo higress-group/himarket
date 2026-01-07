@@ -19,7 +19,6 @@
 
 package com.alibaba.himarket.service.gateway;
 
-import cn.com.antcloud.api.common.BaseRequest;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.BooleanUtil;
 import cn.hutool.core.util.StrUtil;
@@ -28,13 +27,12 @@ import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.TypeReference;
 import com.alibaba.higress.sdk.model.route.KeyedRoutePredicate;
 import com.alibaba.higress.sdk.model.route.RoutePredicate;
-import com.alibaba.himarket.core.exception.BusinessException;
-import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.dto.result.agent.AgentAPIResult;
 import com.alibaba.himarket.dto.result.common.DomainResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.consumer.CredentialContext;
 import com.alibaba.himarket.dto.result.gateway.GatewayResult;
+import com.alibaba.himarket.dto.result.gateway.GatewayServiceResult;
 import com.alibaba.himarket.dto.result.httpapi.APIConfigResult;
 import com.alibaba.himarket.dto.result.httpapi.APIResult;
 import com.alibaba.himarket.dto.result.httpapi.HttpRouteResult;
@@ -706,6 +704,19 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
                 .toList();
     }
 
+    @Override
+    public List<GatewayServiceResult> fetchGatewayServices(Gateway gateway) {
+        SofaHigressClient client = getClient(gateway);
+        List<SofaHigressServiceConfig> response = client.execute(
+                "/service/all",
+                HttpMethod.POST,
+                BaseRequest.builder().build(),
+                new TypeReference<>(){});
+        return response.stream()
+                .map(SofaHigressServiceConfig::toGatewayServiceResult)
+                .toList();
+    }
+
     public BaseRequest<SofaHigressConsumerConfig> buildSofaHigressConsumer(
             String consumerId, String consumerName, ApiKeyConfig apiKeyConfig) {
         String source = mapSource(apiKeyConfig.getSource());
@@ -843,7 +854,7 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
         private String               categoryId;
         private String               categoryName;
         private String               introduction;
-        private List<McpToolVO>      tools;
+        private List<SofaHigressMCPToolConfig>      tools;
         private String               path;
         private String               config;
         private String               status;
@@ -862,7 +873,7 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
     }
 
     @Data
-    public static class McpToolVO {
+    public static class SofaHigressMCPToolConfig {
         private String toolId;
         private String name;
         private String description;
@@ -877,12 +888,12 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
         private String mcpServerType;
         // private List<McpToolArgVO> args;
         // private List<McpToolOutputArgVO> outputArgs;
-        private List<McpToolHeaderVO> mcpToolHeaders;
+        private List<SofaHigressMCPToolHeader> mcpToolHeaders;
         private String routerId;
     }
 
     @Data
-    public static class McpToolHeaderVO {
+    public static class SofaHigressMCPToolHeader {
         private String key;
         private String value;
     }
@@ -985,6 +996,32 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
+    public static class SofaHigressServiceConfig {
+        private String          serviceId;
+        private String          name;
+        private String          sourceType;
+        private String          address;
+        private String          port;
+        private String          protocol;
+        private String          namespace;
+        private String          gatewayId;
+        private String          certId;
+        private String          tlsMode;
+        private String          sni;
+
+        public GatewayServiceResult toGatewayServiceResult() {
+            return GatewayServiceResult.builder()
+                    .serviceId(serviceId)
+                    .serviceName(name)
+                    .tlsEnabled(tlsMode != null && tlsMode.equals("mutual"))
+                    .build();
+        }
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class KeyAuthConfig {
         private Boolean enabled;
         private String key;
@@ -998,16 +1035,8 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
     @AllArgsConstructor
     @Schema(description = "AI Route auth configuration")
     public static class AiRouteAuthConfig {
-
-        @Schema(description = "Whether auth is enabled")
         private Boolean enabled;
         @Schema(description = "Allowed consumer names")
         private List<String> allowedConsumers;
-
-        public void validate() {
-            if (enabled == null) {
-                throw new IllegalArgumentException("enabled is null");
-            }
-        }
     }
 }
