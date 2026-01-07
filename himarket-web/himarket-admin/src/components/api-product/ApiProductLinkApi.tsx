@@ -785,7 +785,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
         sourceInfo = 'Higress网关'
         gatewayInfo = linkedService.gatewayId || '未知'
       } else if (linkedService.sourceType === 'GATEWAY' && linkedService.sofaHigressRefConfig && 'modelApiName' in linkedService.sofaHigressRefConfig) {
-        // Higress网关上的Model API（AI路由）
+        // Sofa Higress网关上的Model API（AI路由）
         apiName = linkedService.sofaHigressRefConfig.modelApiName || '未命名'
         sourceInfo = '蚂蚁数科SOFA AI网关'
         gatewayInfo = linkedService.gatewayId || '未知'

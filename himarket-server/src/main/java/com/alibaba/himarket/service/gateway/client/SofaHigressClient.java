@@ -26,12 +26,12 @@ import cn.com.antcloud.api.antcloud.AntCloudClientResponse;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.alibaba.fastjson.TypeReference;
+import com.alibaba.himarket.core.exception.BusinessException;
+import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.support.gateway.SofaHigressConfig;
 import cn.com.antcloud.api.antcloud.AntCloudClient;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpMethod;
@@ -144,8 +144,6 @@ public class SofaHigressClient extends GatewayClient {
         payload.put("params", requestParam);
         if (objectMapper != null) {
             try {
-                objectMapper.registerModule(new JavaTimeModule());
-                objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
                 request.put("payload", objectMapper.writeValueAsString(payload));
             } catch (JsonProcessingException e) {
                 throw new RuntimeException(e);
@@ -165,7 +163,9 @@ public class SofaHigressClient extends GatewayClient {
             if (!clientResponse.isSuccess()) {
                 log.error("failed to call sofa higress console path: {}, response: {}, resultCode: {}, resultMsg: {}",
                         path, clientResponse.getData(), clientResponse.getResultCode(), clientResponse.getResultMsg());
-                throw new RuntimeException("return response is null or not success");
+                throw new BusinessException(
+                        ErrorCode.GATEWAY_ERROR,
+                        "Sofa Higress request failed: " + clientResponse.getResultMsg());
             }
             log.info("call sofa higress console {} response:{}", path, clientResponse.getData());
         } catch (Exception e) {
@@ -174,6 +174,9 @@ public class SofaHigressClient extends GatewayClient {
         }
         // 将返回的结果转为指定类型
         String data = clientResponse.getData();
+        if (data == null) {
+            throw new BusinessException(ErrorCode.GATEWAY_ERROR, "Sofa Higress returned null data");
+        }
         HigressResult<String> result = JSONObject.parseObject(data, new TypeReference<>() {});
         return result.getData();
     }

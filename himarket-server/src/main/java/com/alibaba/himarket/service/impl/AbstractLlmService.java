@@ -276,7 +276,7 @@ public abstract class AbstractLlmService implements LlmService {
         CredentialContext credentialContext = param.getCredentialContext();
 
         URI uri = getUri(modelConfig, credentialContext.copyQueryParams(), param.getGatewayUris());
-        Map<String, String> headers = getMatchHeader(modelConfig);
+        Map<String, String> headers = Optional.ofNullable(getMatchHeader(modelConfig)).orElse(new HashMap<>());
 
         // Model feature
         ModelFeature modelFeature = getOrDefaultModelFeature(product);

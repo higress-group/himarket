@@ -15,6 +15,9 @@ import com.alibaba.himarket.support.enums.GatewayType;
 import java.util.List;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import jakarta.annotation.PostConstruct;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -31,6 +34,14 @@ public class SofaHigressGatewayPublisher implements GatewayPublisher {
 
     @Autowired
     private SofaHigressOperator sofaHigressOperator;
+
+    private static final ObjectMapper objectMapper = new ObjectMapper();
+
+    @PostConstruct
+    public void init() {
+        objectMapper.registerModule(new JavaTimeModule());
+        objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+    }
 
     @Override
     public GatewayType getGatewayType() {
@@ -54,7 +65,7 @@ public class SofaHigressGatewayPublisher implements GatewayPublisher {
                         .publishConfig(publishConfig)
                         .build(),
                 new TypeReference<>(){},
-                new ObjectMapper());
+                objectMapper);
 
         // rest API返回routeId，model API返回apiId，mcp server返回serverId
         return response.getResourceId();
@@ -72,7 +83,7 @@ public class SofaHigressGatewayPublisher implements GatewayPublisher {
                         .publishConfig(publishConfig)
                         .build(),
                 new TypeReference<>(){},
-                new ObjectMapper());
+                objectMapper);
 
         // rest API返回routeId，model API返回apiId，mcp server返回serverId
         return response.getResourceId();
