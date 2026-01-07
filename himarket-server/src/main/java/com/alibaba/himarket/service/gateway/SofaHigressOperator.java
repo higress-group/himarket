@@ -618,9 +618,8 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
                 new TypeReference<>(){});
     }
 
-    private void revokeAuthorizeMCPServer(Gateway gateway, String consumerId, String serverId) {
+    private void revokeAuthorizeMCPServer(Gateway gateway, String consumerId, String routeId) {
         SofaHigressClient client = getClient(gateway);
-        SofaHigressMCPConfig response = fetchSofaHigressMCPConfig(gateway, serverId);
 
         // 通过MCP server的routeId和consumerId进行请求订阅
         client.execute(
@@ -628,21 +627,20 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
                 HttpMethod.POST,
                 SubOrUnSubRequest.builder()
                         .consumerId(consumerId)
-                        .routerId(response.getRouteId())
+                        .routerId(routeId)
                         .build(),
                 new TypeReference<>(){});
     }
 
-    private void revokeAuthorizeAIRoute(Gateway gateway, String consumerId, String modelApiId) {
+    private void revokeAuthorizeAIRoute(Gateway gateway, String consumerId, String routeId) {
         SofaHigressClient client = getClient(gateway);
-        SofaHigressApiConfig response = fetchSofaHigressApiConfig(gateway, modelApiId);
 
         client.execute(
                 "/route/unsub",
                 HttpMethod.POST,
                 SubOrUnSubRequest.builder()
                         .consumerId(consumerId)
-                        .routerId(response.getRouteInfo().getRouteId())
+                        .routerId(routeId)
                         .build(),
                 new TypeReference<>(){});
     }
