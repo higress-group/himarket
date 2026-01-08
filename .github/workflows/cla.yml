@@ -1,3 +1,6 @@
+- name: CLA assistant lite
+  uses: contributor-assistant/github-action@v2.6.1
+
 name: "CLA Assistant"
 on:
   issue_comment:
