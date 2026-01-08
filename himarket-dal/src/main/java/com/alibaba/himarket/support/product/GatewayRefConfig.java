@@ -19,20 +19,11 @@
 
 package com.alibaba.himarket.support.product;
 
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
-
 import java.io.Serializable;
 
-@JsonTypeInfo(
-        use = JsonTypeInfo.Id.NAME,
-        include = JsonTypeInfo.As.PROPERTY,
-        property = "configType",
-        visible = true)
-@JsonSubTypes({
-        @JsonSubTypes.Type(value = APIGRefConfig.class, name = "APIG or ADP_AI_GATEWAY or APSARA_GATEWAY"),
-        @JsonSubTypes.Type(value = HigressRefConfig.class, name = "HIGRESS"),
-        @JsonSubTypes.Type(value = SofaHigressRefConfig.class, name = "SOFA_HIGRESS")
-})
+/**
+ * abstract class of APIGRefConfig.class,
+ * HigressRefConfig.class, SofaHigressRefConfig.class
+ */
 public abstract class GatewayRefConfig implements Serializable {
 }
