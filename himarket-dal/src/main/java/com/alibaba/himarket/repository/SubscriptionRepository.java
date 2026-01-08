@@ -22,6 +22,8 @@ package com.alibaba.himarket.repository;
 import com.alibaba.himarket.entity.ProductSubscription;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface SubscriptionRepository extends BaseRepository<ProductSubscription, Long> {
 
@@ -38,4 +40,14 @@ public interface SubscriptionRepository extends BaseRepository<ProductSubscripti
     void deleteAllByProductId(String productId);
 
     void deleteByConsumerIdAndProductId(String consumerId, String productId);
+
+    @Query(
+            "SELECT s.productId, COUNT(s) FROM ProductSubscription s WHERE s.status = 'APPROVED'"
+                    + " GROUP BY s.productId")
+    List<Object[]> countApprovedSubscriptionsGroupedByProductId();
+
+    @Query(
+            "SELECT COUNT(s) FROM ProductSubscription s WHERE s.status = 'APPROVED'"
+                    + " AND s.productId = :productId")
+    Long countApprovedSubscriptionsByProductId(@Param("productId") String productId);
 }

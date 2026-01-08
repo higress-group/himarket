@@ -11,6 +11,7 @@ import ApiProductDetail from '@/pages/ApiProductDetail';
 import Login from '@/pages/Login';
 import ModelDashboard from '@/pages/ModelDashboard';
 import McpMonitor from '@/pages/McpMonitor';
+import ProductSummary from '@/pages/ProductSummary';
 
 export const router = createBrowserRouter([
   {
@@ -72,6 +73,10 @@ export const router = createBrowserRouter([
       {
         path: 'observability/mcp-monitor',
         element: <McpMonitor />,
+      },
+      {
+        path: 'product-summary',
+        element: <ProductSummary />,
       },
       {
         path: '*',

@@ -248,4 +248,34 @@ CREATE TABLE IF NOT EXISTS `product_subscription` (
     UNIQUE KEY `uk_product_consumer` (`product_id`, `consumer_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- product_summary table
+CREATE TABLE IF NOT EXISTS `product_summary` (
+    `id` bigint NOT NULL AUTO_INCREMENT,
+    `product_id` varchar(64) NOT NULL,
+    `name` varchar(64) NOT NULL,
+    `type` varchar(64) DEFAULT NULL,
+    `description` varchar(256) DEFAULT NULL,
+    `icon` json DEFAULT NULL,
+    `usage_count` bigint NOT NULL DEFAULT '0',
+    `likes_count` bigint NOT NULL DEFAULT '0',
+    `subscription_count` bigint NOT NULL DEFAULT '0',
+    `created_at` datetime(3) DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` datetime(3) DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (`id`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- product_like table
+CREATE TABLE IF NOT EXISTS `product_like` (
+    `id` bigint NOT NULL AUTO_INCREMENT,
+    `developer_id` varchar(64) DEFAULT NULL,
+    `like_id` varchar(64) DEFAULT NULL,
+    `portal_id` varchar(64) DEFAULT NULL,
+    `product_id` varchar(64) NOT NULL,
+    `status` varchar(64) DEFAULT NULL,
+    `created_at` datetime(3) DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` datetime(3) DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_product_consumer` (`product_id`, `developer_id`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 COMMIT;

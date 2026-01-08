@@ -85,4 +85,23 @@ public interface ChatRepository extends BaseRepository<Chat, Long> {
      * @param sessionId
      */
     void deleteAllBySessionId(String sessionId);
+
+    /**
+     * Count chats grouped by productId
+     *
+     * @return List of Object[] where index 0 is productId and index 1 is count
+     */
+    @Query(
+            "SELECT c.productId, COUNT(c) FROM Chat c WHERE c.productId IS NOT NULL GROUP BY"
+                    + " c.productId")
+    List<Object[]> countChatsGroupedByProductId();
+
+    /**
+     * Count chats for specific productId
+     *
+     * @param productId
+     * @return count of chats for the product
+     */
+    @Query("SELECT COUNT(c) FROM Chat c WHERE c.productId = :productId")
+    Long countChatsByProductId(@Param("productId") String productId);
 }
