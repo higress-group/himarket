@@ -25,6 +25,7 @@ import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.event.DeveloperDeletingEvent;
 import com.alibaba.himarket.core.event.ProductDeletingEvent;
+import com.alibaba.himarket.core.event.ProductSummaryUpdateEvent;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.core.security.ContextHolder;
@@ -67,6 +68,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -96,6 +98,8 @@ public class ConsumerServiceImpl implements ConsumerService {
     private final ProductService productService;
 
     private final ConsumerRefRepository consumerRefRepository;
+
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     public ConsumerResult createConsumer(CreateConsumerParam param) {
@@ -340,6 +344,11 @@ public class ConsumerServiceImpl implements ConsumerService {
         r.setProductName(product.getName());
         r.setProductType(product.getType());
 
+        eventPublisher.publishEvent(
+                new ProductSummaryUpdateEvent(
+                        this,
+                        param.getProductId(),
+                        ProductSummaryUpdateEvent.UpdateType.SUBSCRIPTION_COUNT));
         return r;
     }
 
@@ -371,6 +380,12 @@ public class ConsumerServiceImpl implements ConsumerService {
 
         subscriptionRepository.deleteByConsumerIdAndProductId(
                 consumerId, subscription.getProductId());
+
+        eventPublisher.publishEvent(
+                new ProductSummaryUpdateEvent(
+                        this,
+                        subscription.getProductId(),
+                        ProductSummaryUpdateEvent.UpdateType.SUBSCRIPTION_COUNT));
     }
 
     private ProductSubscription findBySubscriptionIdOrProductId(

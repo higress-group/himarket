@@ -25,6 +25,7 @@ import cn.hutool.core.collection.CollectionUtil;
 import cn.hutool.core.util.ArrayUtil;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.core.event.ChatSessionDeletingEvent;
+import com.alibaba.himarket.core.event.ProductSummaryUpdateEvent;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.core.security.ContextHolder;
@@ -61,6 +62,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Sort;
 import org.springframework.scheduling.annotation.Async;
@@ -89,6 +91,8 @@ public class ChatServiceImpl implements ChatService {
     private final GatewayService gatewayService;
 
     private final ConsumerService consumerService;
+
+    private final ApplicationEventPublisher eventPublisher;
 
     private final Cache<String, List<URI>> cache = CacheUtil.newCache(5);
 
@@ -127,6 +131,12 @@ public class ChatServiceImpl implements ChatService {
                         param.getQuestionId(),
                         param.getProductId());
         chat.setSequence(sequence + 1);
+
+        eventPublisher.publishEvent(
+                new ProductSummaryUpdateEvent(
+                        this,
+                        param.getProductId(),
+                        ProductSummaryUpdateEvent.UpdateType.USAGE_COUNT));
 
         return chatRepository.save(chat);
     }
