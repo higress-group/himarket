@@ -35,33 +35,33 @@ public class SofaHigressConfig {
     /**
      * sofa higress access key
      */
-    @Encrypted
-    private String accessKey;
+    @Encrypted private String accessKey;
 
     /**
      * sofa higress secret key
      */
-    @Encrypted
-    private String secretKey;
+    @Encrypted private String secretKey;
 
     /**
      * sofa higress tenantId
      */
-    @Encrypted
-    private String tenantId;
+    @Encrypted private String tenantId;
 
     /**
      * sofa higress workspaceId
      */
-    @Encrypted
-    private String workspaceId;
+    @Encrypted private String workspaceId;
 
     public String buildUniqueKey() {
         return StrUtil.join(":", address, accessKey, secretKey, tenantId, workspaceId);
     }
 
     public boolean validate() {
-        if (StrUtil.isBlank(address) || StrUtil.isBlank(accessKey) || StrUtil.isBlank(secretKey) || StrUtil.isBlank(tenantId) || StrUtil.isBlank(workspaceId)) {
+        if (StrUtil.isBlank(address)
+                || StrUtil.isBlank(accessKey)
+                || StrUtil.isBlank(secretKey)
+                || StrUtil.isBlank(tenantId)
+                || StrUtil.isBlank(workspaceId)) {
             return false;
         }
 

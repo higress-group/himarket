@@ -135,15 +135,20 @@ public class OpenAILlmService extends AbstractLlmService {
         UriComponentsBuilder builder = UriComponentsBuilder.newInstance();
 
         // Find domain or use gateway IP
-        DomainResult domain = route.getDomains() == null ? null :
-                route.getDomains().stream()
-                        .filter(d -> !StrUtil.equalsIgnoreCase(d.getNetworkType(), "intranet"))
-                        .findFirst()
-                        .orElseGet(
-                                () ->
-                                        CollUtil.isNotEmpty(route.getDomains())
-                                                ? route.getDomains().get(0)
-                                                : null);
+        DomainResult domain =
+                route.getDomains() == null
+                        ? null
+                        : route.getDomains().stream()
+                                .filter(
+                                        d ->
+                                                !StrUtil.equalsIgnoreCase(
+                                                        d.getNetworkType(), "intranet"))
+                                .findFirst()
+                                .orElseGet(
+                                        () ->
+                                                CollUtil.isNotEmpty(route.getDomains())
+                                                        ? route.getDomains().get(0)
+                                                        : null);
 
         if (domain != null) {
             String protocol =
@@ -172,14 +177,17 @@ public class OpenAILlmService extends AbstractLlmService {
         Optional.ofNullable(queryParams).ifPresent(params -> params.forEach(builder::queryParam));
 
         List<HttpRouteResult.RouteMatchQuery> matchQueryParams = route.getMatch().getQueryParams();
-        Optional.ofNullable(matchQueryParams).ifPresent(
-                params ->
-                        params.forEach(query -> {
-                                    String key = query.getName();
-                                    String value = HttpRouteResult.GetMatchedValue(query.getType(), query.getValue());
-                                    builder.queryParam(key, value);
-                                })
-        );
+        Optional.ofNullable(matchQueryParams)
+                .ifPresent(
+                        params ->
+                                params.forEach(
+                                        query -> {
+                                            String key = query.getName();
+                                            String value =
+                                                    HttpRouteResult.GetMatchedValue(
+                                                            query.getType(), query.getValue());
+                                            builder.queryParam(key, value);
+                                        }));
 
         return builder.build().toUri();
     }
@@ -208,14 +216,17 @@ public class OpenAILlmService extends AbstractLlmService {
 
         Map<String, String> headerMap = new HashMap<>();
         List<HttpRouteResult.RouteMatchHeader> headers = route.getMatch().getHeaders();
-        Optional.ofNullable(headers).ifPresent(
-                params ->
-                        params.forEach(query -> {
-                            String key = query.getName();
-                            String value = HttpRouteResult.GetMatchedValue(query.getType(), query.getValue());
-                            headerMap.put(key, value);
-                        })
-        );
+        Optional.ofNullable(headers)
+                .ifPresent(
+                        params ->
+                                params.forEach(
+                                        query -> {
+                                            String key = query.getName();
+                                            String value =
+                                                    HttpRouteResult.GetMatchedValue(
+                                                            query.getType(), query.getValue());
+                                            headerMap.put(key, value);
+                                        }));
 
         return headerMap;
     }

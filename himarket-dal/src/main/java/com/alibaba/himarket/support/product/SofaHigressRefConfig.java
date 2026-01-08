@@ -27,13 +27,16 @@ public class SofaHigressRefConfig {
     /** Route Identify Info */
     // apiId -> routeId, apiName -> routeName
     private String apiId;
+
     private String apiName;
 
     /** MCP Server Identify Info */
     private String serverId;
+
     private String mcpServerName;
 
     /** Model Identify Info */
     private String modelApiId;
+
     private String modelApiName;
 }

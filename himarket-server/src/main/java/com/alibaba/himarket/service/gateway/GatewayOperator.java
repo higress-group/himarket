@@ -104,8 +104,8 @@ public abstract class GatewayOperator<T> {
                 gateway.getGatewayType().isAPIG()
                         ? gateway.getApigConfig().buildUniqueKey()
                         : gateway.getGatewayType().isSofaHigress()
-                            ? gateway.getSofaHigressConfig().buildUniqueKey()
-                            : gateway.getHigressConfig().buildUniqueKey();
+                                ? gateway.getSofaHigressConfig().buildUniqueKey()
+                                : gateway.getHigressConfig().buildUniqueKey();
         return (T) clientCache.computeIfAbsent(clientKey, key -> createClient(gateway));
     }
 

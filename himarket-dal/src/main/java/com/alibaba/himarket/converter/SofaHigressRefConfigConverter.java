@@ -19,7 +19,6 @@
 
 package com.alibaba.himarket.converter;
 
-
 import com.alibaba.himarket.support.product.SofaHigressRefConfig;
 import jakarta.persistence.Converter;
 
