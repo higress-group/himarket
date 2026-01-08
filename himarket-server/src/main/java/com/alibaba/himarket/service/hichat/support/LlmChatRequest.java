@@ -77,6 +77,7 @@ public class LlmChatRequest {
      */
     private List<MCPTransportConfig> mcpConfigs;
 
+    @Deprecated
     public void tryResolveDns() {
         if (CollUtil.isEmpty(gatewayUris) || !"http".equalsIgnoreCase(uri.getScheme())) {
             return;

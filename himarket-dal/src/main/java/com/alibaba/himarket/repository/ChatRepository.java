@@ -32,39 +32,41 @@ import org.springframework.stereotype.Repository;
 public interface ChatRepository extends BaseRepository<Chat, Long> {
 
     /**
-     * Find by sessionId and status
+     * Find chats by session ID and status
      *
-     * @param sessionId
-     * @param status
-     * @param sort
-     * @return
+     * @param sessionId the session ID
+     * @param status the chat status
+     * @param sort the sort order
+     * @return the list of chats
      */
     List<Chat> findBySessionIdAndStatus(String sessionId, ChatStatus status, Sort sort);
 
     /**
-     * Find by chatId
+     * Find chat by chat ID
      *
-     * @param chatId
-     * @return
+     * @param chatId the chat ID
+     * @return the chat if found
      */
     Optional<Chat> findByChatId(String chatId);
 
     /**
-     * Find all chats for given sessionId and userId
+     * Find all chats by session ID and user ID
      *
-     * @param sessionId
-     * @param userId
-     * @param sort
-     * @return
+     * @param sessionId the session ID
+     * @param userId the user ID
+     * @param sort the sort order
+     * @return the list of chats
      */
     List<Chat> findAllBySessionIdAndUserId(String sessionId, String userId, Sort sort);
 
     /**
-     * Find next sequence for given conversationId and questionId
+     * Find current sequence number for a conversation
      *
-     * @param conversationId
-     * @param questionId
-     * @return
+     * @param sessionId the session ID
+     * @param conversationId the conversation ID
+     * @param questionId the question ID
+     * @param productId the product ID
+     * @return the current sequence number
      */
     @Query(
             "SELECT COALESCE(MAX(c.sequence), 0) "
@@ -80,9 +82,9 @@ public interface ChatRepository extends BaseRepository<Chat, Long> {
             @Param("productId") String productId);
 
     /**
-     * Delete all chats for given sessionId
+     * Delete all chats by session ID
      *
-     * @param sessionId
+     * @param sessionId the session ID
      */
     void deleteAllBySessionId(String sessionId);
 }

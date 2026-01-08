@@ -27,13 +27,15 @@ import com.alibaba.himarket.support.product.APIGRefConfig;
 import com.alibaba.himarket.support.product.HigressRefConfig;
 import com.alibaba.himarket.support.product.NacosRefConfig;
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
+import lombok.*;
 
-@EqualsAndHashCode(callSuper = true)
 @Entity
 @Table(name = "product_ref")
 @Data
+@EqualsAndHashCode(callSuper = true)
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class ProductRef extends BaseEntity {
 
     @Id

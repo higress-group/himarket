@@ -20,13 +20,15 @@
 package com.alibaba.himarket.entity;
 
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
+import lombok.*;
 
-@EqualsAndHashCode(callSuper = true)
 @Entity
 @Table(name = "publication")
 @Data
+@EqualsAndHashCode(callSuper = true)
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class ProductPublication extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

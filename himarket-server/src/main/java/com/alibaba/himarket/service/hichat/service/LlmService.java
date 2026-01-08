@@ -23,12 +23,33 @@ import com.alibaba.himarket.dto.result.chat.LlmInvokeResult;
 import com.alibaba.himarket.service.hichat.support.ChatEvent;
 import com.alibaba.himarket.service.hichat.support.InvokeModelParam;
 import com.alibaba.himarket.support.enums.AIProtocol;
+import java.util.List;
 import java.util.function.Consumer;
 import reactor.core.publisher.Flux;
 
 public interface LlmService {
 
+    /**
+     * Invoke LLM model for chat and return streaming events
+     *
+     * @param param         model invocation parameters
+     * @param resultHandler callback to handle final result (usage, tokens, etc.)
+     * @return flux of chat events (START, CONTENT, TOOL_CALL, END, etc.)
+     */
     Flux<ChatEvent> invokeLlm(InvokeModelParam param, Consumer<LlmInvokeResult> resultHandler);
 
-    AIProtocol getProtocol();
+    /**
+     * Get AI protocols supported by this service
+     *
+     * @return list of supported protocols (e.g. OPENAI, DASHSCOPE)
+     */
+    List<AIProtocol> getProtocols();
+
+    /**
+     * Check if this service supports the given protocol
+     *
+     * @param protocol protocol string to match (case-insensitive)
+     * @return true if supported
+     */
+    boolean match(String protocol);
 }

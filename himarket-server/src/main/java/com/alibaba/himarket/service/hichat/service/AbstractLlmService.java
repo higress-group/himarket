@@ -58,7 +58,7 @@ public abstract class AbstractLlmService implements LlmService {
 
         try {
             LlmChatRequest request = composeRequest(param);
-            request.tryResolveDns();
+            //            request.tryResolveDns();
 
             Model chatModel = newChatModel(request);
             ChatBot chatBot = chatBotManager.getOrCreateChatBot(request, chatModel);
@@ -181,5 +181,17 @@ public abstract class AbstractLlmService implements LlmService {
                 .build();
     }
 
+    @Override
+    public boolean match(String protocol) {
+        return getProtocols().stream()
+                .anyMatch(p -> StrUtil.equalsIgnoreCase(p.getProtocol(), protocol));
+    }
+
+    /**
+     * Create a protocol-specific chat model instance
+     *
+     * @param request request containing model config, credentials, and parameters
+     * @return model instance (e.g. DashScopeChatModel, OpenAIChatModel)
+     */
     abstract Model newChatModel(LlmChatRequest request);
 }

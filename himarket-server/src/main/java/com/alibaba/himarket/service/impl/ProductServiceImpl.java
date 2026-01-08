@@ -378,8 +378,7 @@ public class ProductServiceImpl implements ProductService {
 
     @EventListener
     @Async("taskExecutor")
-    @Override
-    public void handlePortalDeletion(PortalDeletingEvent event) {
+    public void onPortalDeletion(PortalDeletingEvent event) {
         String portalId = event.getPortalId();
         try {
             publicationRepository.deleteAllByPortalId(portalId);
@@ -795,7 +794,7 @@ public class ProductServiceImpl implements ProductService {
 
     @EventListener
     @Async("taskExecutor")
-    public void handleProductRefSync(ProductConfigReloadEvent event) {
+    public void onProductConfigReload(ProductConfigReloadEvent event) {
         String productId = event.getProductId();
 
         try {

@@ -21,20 +21,29 @@ package com.alibaba.himarket.repository;
 
 import com.alibaba.himarket.entity.Portal;
 import java.util.Optional;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 
 public interface PortalRepository extends BaseRepository<Portal, Long> {
 
+    /**
+     * Find first portal ordered by ID ascending
+     *
+     * @return the first portal if found
+     */
     Optional<Portal> findFirstByOrderByIdAsc();
 
-    Optional<Portal> findByPortalIdAndAdminId(String portalId, String adminId);
-
+    /**
+     * Find portal by portal ID
+     *
+     * @param portalId the portal ID
+     * @return the portal if found
+     */
     Optional<Portal> findByPortalId(String portalId);
 
-    Optional<Portal> findByNameAndAdminId(String name, String adminId);
-
+    /**
+     * Find portal by name
+     *
+     * @param name the portal name
+     * @return the portal if found
+     */
     Optional<Portal> findByName(String name);
-
-    Page<Portal> findByAdminId(String adminId, Pageable pageable);
 }

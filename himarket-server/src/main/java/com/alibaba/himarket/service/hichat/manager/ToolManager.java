@@ -115,6 +115,9 @@ public class ToolManager {
     /**
      * Get cached client or create new one reactively
      *
+     * <p>Uses computeIfAbsent to ensure atomic creation and prevent race conditions
+     * where multiple threads might create duplicate clients for the same key.
+     *
      * @param config MCP transport configuration
      * @return Mono of MCP client wrapper
      */
@@ -122,29 +125,38 @@ public class ToolManager {
         String cacheKey = buildCacheKey(config);
         String serverName = config.getMcpServerName();
 
-        // Check cache first
-        McpClientWrapper existingClient = clientCache.getIfPresent(cacheKey);
-        if (existingClient != null) {
-            log.debug("MCP client cache hit for server: {}", serverName);
-            return Mono.just(existingClient);
-        }
-
-        // Create new client if not cached
-        return Mono.fromCallable(() -> createClient(config))
+        // Use computeIfAbsent for atomic check-and-create to prevent race conditions
+        return Mono.fromCallable(
+                        () ->
+                                clientCache
+                                        .asMap()
+                                        .computeIfAbsent(
+                                                cacheKey,
+                                                key -> {
+                                                    try {
+                                                        return createClient(config);
+                                                    } catch (Exception e) {
+                                                        log.error(
+                                                                "Failed to create MCP client for"
+                                                                        + " server: {}, error: {}",
+                                                                serverName,
+                                                                e.getMessage());
+                                                        return null;
+                                                    }
+                                                }))
                 .subscribeOn(boundedElastic())
-                .doOnSuccess(
+                .flatMap(
                         client -> {
                             if (client != null) {
-                                clientCache.put(cacheKey, client);
+                                log.debug("MCP client ready for server: {}", serverName);
+                                return Mono.just(client);
+                            } else {
+                                log.warn(
+                                        "MCP client creation returned null for server: {}",
+                                        serverName);
+                                return Mono.empty();
                             }
-                        })
-                .doOnError(
-                        error ->
-                                log.error(
-                                        "Failed to create MCP client for server: {}, error: {}",
-                                        serverName,
-                                        error.getMessage()))
-                .onErrorResume(error -> Mono.empty());
+                        });
     }
 
     /**

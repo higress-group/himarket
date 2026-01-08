@@ -29,10 +29,8 @@ import com.alibaba.himarket.support.gateway.AdpAIGatewayConfig;
 import com.alibaba.himarket.support.gateway.ApsaraGatewayConfig;
 import com.alibaba.himarket.support.gateway.HigressConfig;
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
+import lombok.*;
 
-@EqualsAndHashCode(callSuper = true)
 @Entity
 @Table(
         name = "gateway",
@@ -42,6 +40,10 @@ import lombok.EqualsAndHashCode;
                     name = "uk_gateway_id"),
         })
 @Data
+@EqualsAndHashCode(callSuper = true)
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class Gateway extends BaseEntity {
 
     @Id

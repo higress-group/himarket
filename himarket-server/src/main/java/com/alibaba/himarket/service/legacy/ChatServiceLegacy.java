@@ -19,7 +19,6 @@
 
 package com.alibaba.himarket.service.legacy;
 
-import com.alibaba.himarket.core.event.ChatSessionDeletingEvent;
 import com.alibaba.himarket.dto.params.chat.CreateChatParam;
 import com.alibaba.himarket.dto.result.chat.ChatAnswerMessage;
 import jakarta.servlet.http.HttpServletResponse;
@@ -37,10 +36,10 @@ public interface ChatServiceLegacy {
      */
     Flux<ChatAnswerMessage> chat(CreateChatParam param, HttpServletResponse response);
 
-    /**
-     * Handle session deletion event, such as cleaning up all related chat records
-     *
-     * @param event
-     */
-    void handleSessionDeletion(ChatSessionDeletingEvent event);
+    //    /**
+    //     * Handle session deletion event, such as cleaning up all related chat records
+    //     *
+    //     * @param event
+    //     */
+    //    void handleSessionDeletion(ChatSessionDeletingEvent event);
 }

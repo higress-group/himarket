@@ -20,7 +20,6 @@
 package com.alibaba.himarket.repository;
 
 import com.alibaba.himarket.entity.ChatSession;
-import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -31,32 +30,45 @@ import org.springframework.stereotype.Repository;
 public interface ChatSessionRepository extends BaseRepository<ChatSession, Long> {
 
     /**
-     * Find a session by session ID
+     * Find session by session ID
+     *
+     * @param sessionId the session ID
+     * @return the chat session if found
      */
     Optional<ChatSession> findBySessionId(String sessionId);
 
     /**
-     * Find sessions by user ID
+     * Find sessions by user ID with pagination
+     *
+     * @param userId the user ID
+     * @param pageable the pagination information
+     * @return the page of chat sessions
      */
     Page<ChatSession> findByUserId(String userId, Pageable pageable);
 
     /**
-     * Calculate the number of sessions for a user
+     * Count sessions by user ID
+     *
+     * @param userId the user ID
+     * @return the number of sessions
      */
     int countByUserId(String userId);
 
     /**
-     * Find a session by session ID and user ID
+     * Find session by session ID and user ID
+     *
+     * @param sessionId the session ID
+     * @param userId the user ID
+     * @return the chat session if found
      */
     Optional<ChatSession> findBySessionIdAndUserId(String sessionId, String userId);
 
     /**
-     * Find all sessions for a user
-     */
-    List<ChatSession> findAllByUserId(String userId);
-
-    /**
-     * Find the first session for a user
+     * Find first session by user ID
+     *
+     * @param userId the user ID
+     * @param sort the sort order
+     * @return the first chat session if found
      */
     Optional<ChatSession> findFirstByUserId(String userId, Sort sort);
 }

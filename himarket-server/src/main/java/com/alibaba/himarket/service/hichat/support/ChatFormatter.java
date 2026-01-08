@@ -19,6 +19,7 @@
 package com.alibaba.himarket.service.hichat.support;
 
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.support.chat.ChatUsage;
 import io.agentscope.core.agent.Event;
 import io.agentscope.core.agent.EventType;
@@ -31,6 +32,18 @@ import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 
+/**
+ * Formats AgentScope events into HiChat events for frontend streaming.
+ *
+ * <p>Event flow:
+ * <pre>
+ * 1. REASONING (isLast: false) - streaming chunks (thinking, text, tool call fragments)
+ * 2. REASONING (isLast: true)  - final complete message (tool calls with parsed args)
+ * 3. TOOL_RESULT               - tool execution results
+ * 4. SUMMARY                   - max iterations reached (with usage)
+ * 5. AGENT_RESULT              - final result (with usage)
+ * </pre>
+ */
 @Slf4j
 public class ChatFormatter {
 
@@ -39,7 +52,11 @@ public class ChatFormatter {
             Msg msg = event.getMessage();
             EventType type = event.getType();
 
-            log.debug("Converting event - type: {}, isLast: {}", type, event.isLast());
+            log.debug(
+                    "Converting event - type: {}, isLast: {}, msg: {}",
+                    type,
+                    event.isLast(),
+                    JSONUtil.toJsonStr(msg));
 
             switch (type) {
                 case REASONING:
@@ -51,10 +68,12 @@ public class ChatFormatter {
                 case SUMMARY:
                     return handleSummary(msg, chatContext);
 
-                case HINT:
                 case AGENT_RESULT:
-                    // Skip internal events (RAG context, duplicate final result)
-                    log.debug("Skipping {} event (internal)", type);
+                    return handleAgentResult(msg, chatContext);
+
+                case HINT:
+                    // Skip internal events (RAG context)
+                    log.debug("Skipping HINT event (internal)");
                     return Flux.empty();
 
                 default:
@@ -73,7 +92,7 @@ public class ChatFormatter {
         List<ChatEvent> chunks = new ArrayList<>();
         String chatId = chatContext.getChatId();
 
-        // Extract thinking content
+        // 1. Extract thinking content
         List<ThinkingBlock> thinkingBlocks = msg.getContentBlocks(ThinkingBlock.class);
         for (ThinkingBlock thinking : thinkingBlocks) {
             if (StrUtil.isNotBlank(thinking.getThinking())) {
@@ -81,56 +100,53 @@ public class ChatFormatter {
             }
         }
 
-        // Extract text content (model's response)
+        // 2. Extract text content (model's response)
         String textContent = msg.getTextContent();
         if (StrUtil.isNotBlank(textContent)) {
             if (isLast) {
-                // Skip final complete text to avoid duplication and large data transfer
-                String preview =
-                        textContent.length() > 20
-                                ? textContent.substring(0, 20) + "..."
-                                : textContent;
+                getUsage(msg, chatContext);
+                // Skip final complete text to avoid duplication
                 log.debug(
-                        "Skipping final REASONING text (isLast=true, length={}): {}",
-                        textContent.length(),
-                        preview);
+                        "Skipping final complete text (isLast=true, length={})",
+                        textContent.length());
             } else {
-                // Send incremental chunks
+                // Send incremental chunks for streaming
                 chunks.add(ChatEvent.text(chatId, textContent));
             }
         }
 
-        // Extract tool calls (tool invocation requests)
+        // 3. Extract tool calls (only send when isLast=true)
+        //
+        // Streaming phase (isLast=false):
+        //   - input is EMPTY {}, parameters are in content as JSON fragments
+        //   - Skip: no useful data to send
+        //
+        // Final phase (isLast=true):
+        //   - input contains COMPLETE PARSED arguments (accumulated by AgentScope)
+        //   - Send: complete tool call with full parameters
+        //
         List<ToolUseBlock> toolUseBlocks = msg.getContentBlocks(ToolUseBlock.class);
-        for (ToolUseBlock toolUse : toolUseBlocks) {
-            // Query tool metadata from mapping
-            ToolMeta toolMeta = chatContext.getToolMeta(toolUse.getName());
-            String mcpServerName = toolMeta != null ? toolMeta.getMcpServerName() : null;
+        if (!toolUseBlocks.isEmpty()) {
+            if (isLast) {
+                // Final complete tool calls with parsed input arguments
+                log.debug("Sending {} complete tool call(s)", toolUseBlocks.size());
+                for (ToolUseBlock toolUse : toolUseBlocks) {
+                    ToolMeta toolMeta = chatContext.getToolMeta(toolUse.getName());
+                    String mcpServerName = toolMeta != null ? toolMeta.getMcpServerName() : null;
 
-            ChatEvent.ToolCallContent tc =
-                    ChatEvent.ToolCallContent.builder()
-                            .id(toolUse.getId())
-                            .name(toolUse.getName())
-                            .arguments(toolUse.getInput())
-                            .mcpServerName(mcpServerName)
-                            .build();
-            chunks.add(ChatEvent.toolCall(chatId, tc));
-        }
-
-        // Extract usage from the last REASONING event and save to context
-        if (msg.getChatUsage() != null) {
-            io.agentscope.core.model.ChatUsage chatUsage = msg.getChatUsage();
-            ChatUsage usage =
-                    ChatUsage.builder()
-                            .inputTokens(chatUsage.getInputTokens())
-                            .outputTokens(chatUsage.getOutputTokens())
-                            .totalTokens(chatUsage.getTotalTokens())
-                            .firstByteTimeout(chatContext.getFirstByteTimeout())
-                            // elapsedTime will be set by ChatContext.stop()
-                            .build();
-
-            chatContext.setUsage(usage);
-            log.debug("Extracted and saved usage to context from final REASONING: {}", usage);
+                    ChatEvent.ToolCallContent tc =
+                            ChatEvent.ToolCallContent.builder()
+                                    .id(toolUse.getId())
+                                    .name(toolUse.getName())
+                                    .arguments(toolUse.getInput())
+                                    .mcpServerName(mcpServerName)
+                                    .build();
+                    chunks.add(ChatEvent.toolCall(chatId, tc));
+                }
+            } else {
+                // Skip streaming tool call chunks (input is empty, contains fragments)
+                log.debug("Skipping {} streaming tool call chunk(s)", toolUseBlocks.size());
+            }
         }
 
         return Flux.fromIterable(chunks);
@@ -140,6 +156,7 @@ public class ChatFormatter {
         List<ChatEvent> chunks = new ArrayList<>();
         String chatId = chatContext.getChatId();
 
+        // Extract and send all tool execution results
         List<ToolResultBlock> toolResults = msg.getContentBlocks(ToolResultBlock.class);
         for (ToolResultBlock toolResult : toolResults) {
             ChatEvent.ToolResultContent tr =
@@ -155,9 +172,62 @@ public class ChatFormatter {
     }
 
     private Flux<ChatEvent> handleSummary(Msg msg, ChatContext chatContext) {
+        // Get usage from SUMMARY (emitted when max iterations reached)
+        getUsage(msg, chatContext);
+
+        // Send summary text if available
         if (msg != null && StrUtil.isNotBlank(msg.getTextContent())) {
             return Flux.just(ChatEvent.text(chatContext.getChatId(), msg.getTextContent()));
         }
         return Flux.empty();
+    }
+
+    private Flux<ChatEvent> handleAgentResult(Msg msg, ChatContext chatContext) {
+        // Get usage from AGENT_RESULT (contains final complete result and usage)
+        getUsage(msg, chatContext);
+
+        // Skip this event - complete content already sent via streaming chunks
+        log.debug("Skipping AGENT_RESULT event (usage captured)");
+        return Flux.empty();
+    }
+
+    /**
+     * Get usage information from message and saves to context.
+     *
+     * <p>Usage is only available in certain events:
+     * <ul>
+     *   <li>SUMMARY - when max iterations reached</li>
+     *   <li>AGENT_RESULT - final complete result</li>
+     * </ul>
+     *
+     * @param msg message containing usage info
+     * @param chatContext context to save usage to
+     */
+    private void getUsage(Msg msg, ChatContext chatContext) {
+        if (msg == null || msg.getChatUsage() == null) {
+            return;
+        }
+
+        // Only capture once (first occurrence wins)
+        if (chatContext.getUsage() != null) {
+            return;
+        }
+
+        io.agentscope.core.model.ChatUsage chatUsage = msg.getChatUsage();
+        ChatUsage usage =
+                ChatUsage.builder()
+                        .inputTokens(chatUsage.getInputTokens())
+                        .outputTokens(chatUsage.getOutputTokens())
+                        .totalTokens(chatUsage.getTotalTokens())
+                        .firstByteTimeout(chatContext.getFirstByteTimeout())
+                        // elapsedTime will be set by ChatContext.stop()
+                        .build();
+
+        chatContext.setUsage(usage);
+        log.debug(
+                "Get usage: input={}, output={}, total={}",
+                usage.getInputTokens(),
+                usage.getOutputTokens(),
+                usage.getTotalTokens());
     }
 }

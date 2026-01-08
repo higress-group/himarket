@@ -278,7 +278,7 @@ public class DeveloperServiceImpl implements DeveloperService {
 
     @EventListener
     @Async("taskExecutor")
-    public void handlePortalDeletion(PortalDeletingEvent event) {
+    public void onPortalDeletion(PortalDeletingEvent event) {
         String portalId = event.getPortalId();
         List<Developer> developers = developerRepository.findByPortalId(portalId);
         developers.forEach(developer -> deleteDeveloper(developer.getDeveloperId()));

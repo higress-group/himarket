@@ -19,6 +19,7 @@ import io.agentscope.core.model.GenerateOptions;
 import io.agentscope.core.model.Model;
 import io.agentscope.core.model.OpenAIChatModel;
 import java.net.URI;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -72,7 +73,7 @@ public class OpenAILlmService extends AbstractLlmService {
 
         ModelFeature modelFeature = getOrDefaultModelFeature(request.getProduct());
         GenerateOptions options =
-                GenerateOptions.builder()
+                GenerateOptions.builder().stream(true)
                         .temperature(modelFeature.getTemperature())
                         .maxTokens(modelFeature.getMaxTokens())
                         .additionalHeaders(request.getHeaders())
@@ -80,13 +81,14 @@ public class OpenAILlmService extends AbstractLlmService {
                         .additionalBodyParams(request.getBodyParams())
                         .build();
 
-        return new OpenAIChatModel(
-                baseUrl,
-                request.getApiKey(),
-                modelFeature.getModel(),
-                true,
-                options,
-                new OpenAIChatFormatter());
+        return OpenAIChatModel.builder()
+                .baseUrl(baseUrl)
+                .apiKey(request.getApiKey())
+                .modelName(modelFeature.getModel())
+                .stream(true)
+                .formatter(new OpenAIChatFormatter())
+                .generateOptions(options)
+                .build();
     }
 
     private URI getUri(ModelConfigResult modelConfig, List<URI> gatewayUris) {
@@ -163,7 +165,7 @@ public class OpenAILlmService extends AbstractLlmService {
     }
 
     @Override
-    public AIProtocol getProtocol() {
-        return AIProtocol.OPENAI;
+    public List<AIProtocol> getProtocols() {
+        return Collections.singletonList(AIProtocol.OPENAI);
     }
 }

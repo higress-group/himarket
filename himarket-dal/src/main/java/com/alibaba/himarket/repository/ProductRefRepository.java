@@ -21,19 +21,39 @@ package com.alibaba.himarket.repository;
 
 import com.alibaba.himarket.entity.ProductRef;
 import java.util.Optional;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface ProductRefRepository
-        extends JpaRepository<ProductRef, Long>, JpaSpecificationExecutor<ProductRef> {
+public interface ProductRefRepository extends BaseRepository<ProductRef, Long> {
 
+    /**
+     * Find product reference by product ID
+     *
+     * @param productId the product ID
+     * @return the product reference if found
+     */
     Optional<ProductRef> findByProductId(String productId);
 
+    /**
+     * Find first product reference by product ID
+     *
+     * @param productId the product ID
+     * @return the first product reference if found
+     */
     Optional<ProductRef> findFirstByProductId(String productId);
 
+    /**
+     * Check if gateway ID exists in product references
+     *
+     * @param gatewayId the gateway ID
+     * @return true if exists, false otherwise
+     */
     boolean existsByGatewayId(String gatewayId);
 
+    /**
+     * Delete product reference by product ID
+     *
+     * @param productId the product ID
+     */
     void deleteByProductId(String productId);
 }

@@ -48,8 +48,10 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 @Slf4j
 @Component
@@ -139,9 +141,12 @@ public class ChatBotManager {
         long startTime = System.currentTimeMillis();
 
         // Initialize and register mcp tools
+        List<MCPTransportConfig> mcpConfigs = request.getMcpConfigs();
+        int expectedMcpCount = CollUtil.isEmpty(mcpConfigs) ? 0 : mcpConfigs.size();
+
         List<McpClientWrapper> mcpClients = loadMcpClients(request);
         Toolkit toolkit = new Toolkit();
-        registerMcpTools(toolkit, mcpClients);
+        long actualSuccessCount = registerMcpTools(toolkit, mcpClients);
 
         // Build tool metadata mapping
         Map<String, ToolMeta> toolMetas = buildToolMetas(toolkit);
@@ -162,17 +167,14 @@ public class ChatBotManager {
                         .build();
 
         // Determine if ChatBot is in degraded mode
-        List<MCPTransportConfig> mcpConfigs = request.getMcpConfigs();
-        int expectedMcpCount = CollUtil.isEmpty(mcpConfigs) ? 0 : mcpConfigs.size();
-        int actualMcpCount = mcpClients.size();
-        boolean degraded = actualMcpCount < expectedMcpCount;
+        boolean degraded = actualSuccessCount < expectedMcpCount;
 
         long totalTime = System.currentTimeMillis() - startTime;
         log.info(
                 "ChatBot created successfully for session: {}, MCP: {}/{}, degraded: {}, total"
                         + " time: {}ms",
                 request.getSessionId(),
-                actualMcpCount,
+                actualSuccessCount,
                 expectedMcpCount,
                 degraded,
                 totalTime);
@@ -205,36 +207,50 @@ public class ChatBotManager {
      *
      * @param toolkit toolkit to register tools
      * @param clients MCP clients containing tools
+     * @return number of MCP clients that successfully registered tools
      */
-    private void registerMcpTools(Toolkit toolkit, List<McpClientWrapper> clients) {
+    private long registerMcpTools(Toolkit toolkit, List<McpClientWrapper> clients) {
         if (clients.isEmpty()) {
-            return;
+            return 0;
         }
 
         long startTime = System.currentTimeMillis();
 
-        Flux.fromIterable(clients)
-                .flatMap(
-                        client ->
-                                client.listTools()
-                                        .doOnError(
-                                                error ->
-                                                        log.error(
-                                                                "Failed to list tools from MCP"
+        // Process all MCP clients in parallel (max 20 concurrent)
+        Long result =
+                Flux.fromIterable(clients)
+                        .flatMap(
+                                client -> {
+                                    // Try to list and register tools from this client
+                                    return client.listTools()
+                                            .flatMapIterable(tools -> tools)
+                                            .doOnNext(tool -> registerTool(toolkit, client, tool))
+                                            // Success: count this client
+                                            .then(Mono.just(1))
+                                            .doOnError(
+                                                    error ->
+                                                            log.error(
+                                                                    "Failed to list tools from MCP"
                                                                         + " server: {}, error: {}",
-                                                                client.getName(),
-                                                                error.getMessage()))
-                                        .flatMapIterable(tools -> tools)
-                                        .doOnNext(tool -> registerTool(toolkit, client, tool)),
-                        20)
-                .then()
-                .block();
+                                                                    client.getName(),
+                                                                    error.getMessage()))
+                                            .onErrorResume(error -> Mono.empty());
+                                },
+                                20)
+                        .count()
+                        .defaultIfEmpty(0L)
+                        .block();
 
+        long successCount = result != null ? result : 0;
         long totalTime = System.currentTimeMillis() - startTime;
+
         log.info(
-                "MCP tools registered from {} servers, total time: {}ms",
+                "MCP tools registered: {}/{} servers succeeded, total time: {}ms",
+                successCount,
                 clients.size(),
                 totalTime);
+
+        return successCount;
     }
 
     /**
@@ -387,6 +403,7 @@ public class ChatBotManager {
      * @param event MCP client removed event
      */
     @EventListener
+    @Async("taskExecutor")
     public void onMcpClientRemoved(McpClientRemovedEvent event) {
         String mcpCacheKey = event.getMcpCacheKey();
 
@@ -419,6 +436,9 @@ public class ChatBotManager {
 
         // Session ID (for Memory isolation)
         sb.append("session:").append(request.getSessionId()).append("|");
+
+        // Product ID (for Product isolation)
+        sb.append("product:").append(request.getProduct().getProductId()).append("|");
 
         // Model URL (scheme + host + port + path)
         if (request.getUri() != null) {

@@ -27,6 +27,8 @@ public enum AIProtocol {
 
     ANTHROPIC("Anthropic"),
 
+    DASHSCOPE("DashScope"),
+
     DASHSCOPE_IMAGE("DashScopeImage"),
     ;
 

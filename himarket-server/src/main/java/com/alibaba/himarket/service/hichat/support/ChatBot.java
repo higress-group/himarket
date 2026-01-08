@@ -44,7 +44,7 @@ public class ChatBot {
                         .incremental(true)
                         .includeReasoningChunk(true)
                         // Exclude complete result to avoid duplication
-                        .includeReasoningResult(false)
+                        .includeReasoningResult(true)
                         .build();
 
         return agent.stream(userMsg, streamOptions);

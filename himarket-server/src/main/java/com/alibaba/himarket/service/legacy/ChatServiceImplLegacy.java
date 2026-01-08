@@ -24,7 +24,6 @@ import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.collection.CollectionUtil;
 import cn.hutool.core.util.ArrayUtil;
 import cn.hutool.core.util.StrUtil;
-import com.alibaba.himarket.core.event.ChatSessionDeletingEvent;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.core.security.ContextHolder;
@@ -60,9 +59,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Sort;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 
@@ -408,20 +405,5 @@ public class ChatServiceImplLegacy implements ChatServiceLegacy {
                                         || product.getMcpConfig() != null)
                 .map(product -> product.getMcpConfig().toTransportConfig())
                 .collect(Collectors.toList());
-    }
-
-    @EventListener
-    @Async("taskExecutor")
-    @Override
-    public void handleSessionDeletion(ChatSessionDeletingEvent event) {
-        String sessionId = event.getSessionId();
-        try {
-            chatRepository.deleteAllBySessionId(sessionId);
-
-            log.info("Completed cleanup chat records for session {}", sessionId);
-        } catch (Exception e) {
-            log.error(
-                    "Failed to cleanup chat records for session {}: {}", sessionId, e.getMessage());
-        }
     }
 }

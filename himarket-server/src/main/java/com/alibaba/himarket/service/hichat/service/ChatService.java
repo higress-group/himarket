@@ -22,6 +22,7 @@ import cn.hutool.core.codec.Base64;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.ArrayUtil;
 import cn.hutool.core.util.StrUtil;
+import com.alibaba.himarket.core.event.ChatSessionDeletingEvent;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.core.security.ContextHolder;
@@ -51,8 +52,11 @@ import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Sort;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
 
 @Slf4j
@@ -407,19 +411,35 @@ public class ChatService {
 
         // Find first matched service by protocol
         return llmServices.stream()
-                .filter(
-                        service ->
-                                aiProtocols.stream()
-                                        .anyMatch(
-                                                protocol ->
-                                                        StrUtil.equalsIgnoreCase(
-                                                                service.getProtocol().getProtocol(),
-                                                                protocol)))
+                .filter(service -> aiProtocols.stream().anyMatch(service::match))
                 .findFirst()
                 .orElseThrow(
                         () ->
                                 new IllegalArgumentException(
                                         "No supported LLM service found for protocols: "
                                                 + aiProtocols));
+    }
+
+    /**
+     * Handle session deletion event - cleanup all related chat records
+     *
+     * @param event session deletion event
+     */
+    @EventListener
+    @Async("taskExecutor")
+    @Transactional
+    public void onSessionDeletion(ChatSessionDeletingEvent event) {
+        String sessionId = event.getSessionId();
+
+        try {
+            log.info("Cleaning chat records and attachments for session: {}", sessionId);
+
+            // Delete all chat records
+            chatRepository.deleteAllBySessionId(sessionId);
+
+            log.info("Successfully cleaned chat records for session: {}", sessionId);
+        } catch (Exception e) {
+            log.error("Failed to cleanup chat records for session: {}", sessionId, e);
+        }
     }
 }

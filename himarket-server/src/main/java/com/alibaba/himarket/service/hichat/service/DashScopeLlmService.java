@@ -81,13 +81,11 @@ public class DashScopeLlmService extends AbstractLlmService {
     }
 
     private URI getUri(ModelConfigResult modelConfig, List<URI> gatewayUris) {
-
-        //
         return null;
     }
 
     @Override
-    public AIProtocol getProtocol() {
-        return AIProtocol.DASHSCOPE_IMAGE;
+    public List<AIProtocol> getProtocols() {
+        return List.of(AIProtocol.DASHSCOPE, AIProtocol.DASHSCOPE_IMAGE);
     }
 }

@@ -26,10 +26,8 @@ import com.alibaba.himarket.support.enums.ProductType;
 import com.alibaba.himarket.support.product.Icon;
 import com.alibaba.himarket.support.product.ProductFeature;
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
+import lombok.*;
 
-@EqualsAndHashCode(callSuper = true)
 @Entity
 @Table(
         name = "product",
@@ -42,6 +40,10 @@ import lombok.EqualsAndHashCode;
                     name = "uk_name")
         })
 @Data
+@EqualsAndHashCode(callSuper = true)
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class Product extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

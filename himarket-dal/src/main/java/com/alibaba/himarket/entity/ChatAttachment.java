@@ -21,8 +21,7 @@ package com.alibaba.himarket.entity;
 
 import com.alibaba.himarket.support.enums.ChatAttachmentType;
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.experimental.Accessors;
+import lombok.*;
 import org.hibernate.annotations.ColumnDefault;
 
 @Entity
@@ -34,7 +33,10 @@ import org.hibernate.annotations.ColumnDefault;
                     name = "uk_attachment_id")
         })
 @Data
-@Accessors(chain = true)
+@EqualsAndHashCode(callSuper = true)
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class ChatAttachment extends BaseEntity {
 
     @Id

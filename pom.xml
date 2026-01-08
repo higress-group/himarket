@@ -69,7 +69,7 @@
         <caffeine.version>3.2.3</caffeine.version>
         <guava-retrying.version>2.0.0</guava-retrying.version>
         <snakeyaml.version>2.0</snakeyaml.version>
-        <agentscope.version>1.0.4</agentscope.version>
+        <agentscope.version>1.0.6</agentscope.version>
         <jackson-databind.version>2.17.2</jackson-databind.version>
         <openai.java.version>4.6.1</openai.java.version>
         <dashscope.java.version>2.22.4</dashscope.java.version>

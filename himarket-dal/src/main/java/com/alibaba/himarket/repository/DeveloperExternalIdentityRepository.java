@@ -20,19 +20,24 @@
 package com.alibaba.himarket.repository;
 
 import com.alibaba.himarket.entity.DeveloperExternalIdentity;
-import java.util.List;
 import java.util.Optional;
-import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface DeveloperExternalIdentityRepository
-        extends JpaRepository<DeveloperExternalIdentity, Long> {
+        extends BaseRepository<DeveloperExternalIdentity, Long> {
 
-    List<DeveloperExternalIdentity> findByDeveloper_DeveloperId(String developerId);
-
+    /**
+     * Find external identity by provider and subject
+     *
+     * @param provider the provider name
+     * @param subject the subject identifier
+     * @return the developer external identity if found
+     */
     Optional<DeveloperExternalIdentity> findByProviderAndSubject(String provider, String subject);
 
-    void deleteByProviderAndSubjectAndDeveloper_DeveloperId(
-            String provider, String subject, String developerId);
-
+    /**
+     * Delete external identities by developer ID
+     *
+     * @param developerId the developer ID
+     */
     void deleteByDeveloper_DeveloperId(String developerId);
 }
