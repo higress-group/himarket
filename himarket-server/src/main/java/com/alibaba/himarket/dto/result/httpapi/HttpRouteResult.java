@@ -297,9 +297,9 @@ public class HttpRouteResult implements OutputConverter<HttpRouteResult, HttpRou
     public static String GetMatchedValue(String type, String value) {
         return switch (type) {
             // 前缀匹配和精确匹配直接返回value
-            case "EQUAL", "PRE" -> value;
+            case "Exact", "Prefix" -> value;
             // 正则匹配
-            case "REGULAR" -> {
+            case "Regex" -> {
                 Generex generex = new Generex(value);
                 yield generex.random();
             }
