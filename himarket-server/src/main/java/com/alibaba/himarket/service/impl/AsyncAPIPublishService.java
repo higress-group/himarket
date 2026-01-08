@@ -25,6 +25,7 @@ import com.alibaba.himarket.entity.Gateway;
 import com.alibaba.himarket.entity.ProductRef;
 import com.alibaba.himarket.repository.APIPublishRecordRepository;
 import com.alibaba.himarket.repository.ProductRefRepository;
+import com.alibaba.himarket.service.GatewayService;
 import com.alibaba.himarket.service.api.GatewayCapabilityRegistry;
 import com.alibaba.himarket.service.api.GatewayPublisher;
 import com.alibaba.himarket.support.api.PublishConfig;
@@ -56,6 +57,7 @@ public class AsyncAPIPublishService {
     private final GatewayCapabilityRegistry gatewayCapabilityRegistry;
     private final APIPublishRecordRepository apiPublishRecordRepository;
     private final ProductRefRepository productRefRepository;
+    private final GatewayService gatewayService;
 
     /**
      * Asynchronously execute publish operation
@@ -115,6 +117,26 @@ public class AsyncAPIPublishService {
         } else {
             log.error("Unsupported gateway type: {}", gateway.getGatewayType());
             throw new RuntimeException("Unsupported gateway type" + gateway.getGatewayType());
+        }
+
+        // Handle different configurations based on product type
+        switch (apiDefinition.getType()) {
+            case REST_API:
+                productRef.setApiConfig(
+                        gatewayService.fetchAPIConfig(gateway.getGatewayId(), gatewayRefConfig));
+                break;
+            case MCP_SERVER:
+                productRef.setMcpConfig(
+                        gatewayService.fetchMcpConfig(gateway.getGatewayId(), gatewayRefConfig));
+                break;
+            case AGENT_API:
+                productRef.setAgentConfig(
+                        gatewayService.fetchAgentConfig(gateway.getGatewayId(), gatewayRefConfig));
+                break;
+            case MODEL_API:
+                productRef.setModelConfig(
+                        gatewayService.fetchModelConfig(gateway.getGatewayId(), gatewayRefConfig));
+                break;
         }
 
         // update product ref
