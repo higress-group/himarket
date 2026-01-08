@@ -28,5 +28,5 @@ public class SofaHigressAuthConfig {
 
     private String resourceType;
 
-    private String resourceId;
+    private String resourceName;
 }
