@@ -19,10 +19,12 @@
 
 package com.alibaba.himarket.support.product;
 
+import lombok.Builder;
 import lombok.Data;
 
 @Data
-public class SofaHigressRefConfig {
+@Builder
+public class SofaHigressRefConfig extends GatewayRefConfig {
 
     /** Route Identify Info */
     // apiId -> routeId, apiName -> routeName

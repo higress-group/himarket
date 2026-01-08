@@ -94,8 +94,8 @@ public class ProductRef extends BaseEntity {
     @Column(name = "enabled")
     private Boolean enabled;
 
-    @Column(name = "api_definition_ids", columnDefinition = "json")
-    private String apiDefinitionIds;
+    @Column(name = "api_definition_id", length = 64)
+    private String apiDefinitionId;
 
     /** 判断是否为托管的 API */
     public boolean isManaged() {

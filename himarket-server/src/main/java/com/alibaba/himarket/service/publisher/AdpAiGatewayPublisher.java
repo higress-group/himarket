@@ -7,6 +7,8 @@ import com.alibaba.himarket.support.api.PublishConfig;
 import com.alibaba.himarket.support.enums.APIType;
 import com.alibaba.himarket.support.enums.GatewayType;
 import java.util.List;
+
+import com.alibaba.himarket.support.product.GatewayRefConfig;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -23,9 +25,9 @@ public class AdpAiGatewayPublisher implements GatewayPublisher {
     }
 
     @Override
-    public String publish(
+    public GatewayRefConfig publish(
             Gateway gateway, APIDefinitionVO apiDefinition, PublishConfig publishConfig) {
-        return "Mock publish success";
+        return null;
     }
 
     @Override

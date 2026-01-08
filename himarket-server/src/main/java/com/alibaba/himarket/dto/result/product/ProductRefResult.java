@@ -56,15 +56,15 @@ public class ProductRefResult implements OutputConverter<ProductRefResult, Produ
 
     private NacosRefConfig nacosRefConfig;
 
-    private List<String> apiDefinitionIds;
+    private String apiDefinitionId;
 
-    private List<APIDefinitionVO> apiDefinitions;
+    private APIDefinitionVO apiDefinition;
 
     @Override
     public ProductRefResult convertFrom(ProductRef productRef) {
         BeanUtil.copyProperties(productRef, this, configOptions());
-        if (StrUtil.isNotBlank(productRef.getApiDefinitionIds())) {
-            this.apiDefinitionIds = JSONUtil.toList(productRef.getApiDefinitionIds(), String.class);
+        if (StrUtil.isNotBlank(productRef.getApiDefinitionId())) {
+            this.apiDefinitionId = productRef.getApiDefinitionId();
         }
         return this;
     }

@@ -12,6 +12,8 @@ import com.alibaba.himarket.support.api.MCPToolConfig;
 import com.alibaba.himarket.support.api.PublishConfig;
 import com.alibaba.himarket.support.enums.APIType;
 import com.alibaba.himarket.support.enums.GatewayType;
+import com.alibaba.himarket.support.product.APIGRefConfig;
+import com.alibaba.himarket.support.product.GatewayRefConfig;
 import com.aliyun.sdk.service.apig20240327.models.CreateMcpServerRequest;
 import com.aliyun.sdk.service.apig20240327.models.CreateMcpServerRequest.BackendConfig;
 import com.aliyun.sdk.service.apig20240327.models.CreateMcpServerRequest.Services;
@@ -54,7 +56,7 @@ public class ApigAiGatewayPublisher implements GatewayPublisher {
     }
 
     @Override
-    public String publish(
+    public GatewayRefConfig publish(
             Gateway gateway, APIDefinitionVO apiDefinition, PublishConfig publishConfig) {
         switch (apiDefinition.getType()) {
             case MCP_SERVER:
@@ -112,7 +114,7 @@ public class ApigAiGatewayPublisher implements GatewayPublisher {
         }
     }
 
-    private String publishMcpServer(
+    private APIGRefConfig publishMcpServer(
             Gateway gateway, PublishConfig publishConfig, APIDefinitionVO apiDefinition) {
         List<DomainResult> gatewayDomains = operator.getGatewayDomains(gateway);
         Set<String> publishedDomainSet =
@@ -277,7 +279,9 @@ public class ApigAiGatewayPublisher implements GatewayPublisher {
             log.info("Created new plugin attachment");
         }
 
-        return mcpServerId;
+        return APIGRefConfig.builder()
+                .mcpServerId(mcpServerId)
+                .build();
     }
 
     /**
@@ -605,16 +609,16 @@ public class ApigAiGatewayPublisher implements GatewayPublisher {
         return null;
     }
 
-    private String publishModelAPI(
+    private APIGRefConfig publishModelAPI(
             Gateway gateway, PublishConfig publishConfig, APIDefinitionVO apiDefinition) {
         // TODO: Implement Model API publish logic
-        return "model-api-resource-id";
+        return null;
     }
 
-    private String publishAgentAPI(
+    private APIGRefConfig publishAgentAPI(
             Gateway gateway, PublishConfig publishConfig, APIDefinitionVO apiDefinition) {
         // TODO: Implement Agent API publish logic
-        return "agent-api-resource-id";
+        return null;
     }
 
     private void unpublishMcpServer(

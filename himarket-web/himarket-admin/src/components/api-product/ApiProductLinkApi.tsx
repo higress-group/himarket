@@ -81,8 +81,8 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
 
   // 获取 Publish Records
   useEffect(() => {
-    if (linkedService?.sourceType === 'MANAGED' && linkedService.apiDefinitions?.[0]?.apiDefinitionId) {
-      const apiDefId = linkedService.apiDefinitions[0].apiDefinitionId;
+    if (linkedService?.sourceType === 'MANAGED' && linkedService.apiDefinition?.apiDefinitionId) {
+      const apiDefId = linkedService.apiDefinition.apiDefinitionId;
       apiDefinitionApi.getPublishRecords(apiDefId).then((res: any) => {
          const records = res.data?.content || res.data || [];
          setPublishRecords(records);
@@ -617,7 +617,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
         adpAIGatewayRefConfig: selectedApi && 'fromGatewayType' in selectedApi && selectedApi.fromGatewayType === 'ADP_AI_GATEWAY' ? selectedApi as APIGAIMCPItem : undefined,
         apsaraGatewayRefConfig: selectedApi && 'fromGatewayType' in selectedApi && selectedApi.fromGatewayType === 'APSARA_GATEWAY' ? selectedApi as APIGAIMCPItem : undefined,
         sofaHigressRefConfig: selectedApi && 'fromGatewayType' in selectedApi && selectedApi.fromGatewayType === 'SOFA_HIGRESS' ? selectedApi as RestAPIItem | SofaHigressMCPItem : undefined,
-        apiDefinitionIds: undefined,
+        apiDefinitionId: undefined,
       }
       apiProductApi.createApiProductRef(apiProduct.productId, newService).then(async () => {
         message.success('关联成功')
@@ -685,8 +685,8 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
     let gatewayInfo = ''
 
     if (linkedService.sourceType === 'MANAGED') {
-      if (linkedService.apiDefinitions && linkedService.apiDefinitions.length > 0) {
-        const apiDef = linkedService.apiDefinitions[0];
+      if (linkedService.apiDefinition) {
+        const apiDef = linkedService.apiDefinition;
         apiName = apiDef.name;
         apiType = apiDef.type;
         sourceInfo = 'Managed API';
@@ -695,7 +695,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
         apiName = 'Managed API';
         apiType = apiProduct.type;
         sourceInfo = 'Managed API';
-        gatewayInfo = linkedService.apiDefinitionIds?.[0] || 'Unknown';
+        gatewayInfo = linkedService.apiDefinitionId || 'Unknown';
       }
       return {
         apiName,
@@ -833,7 +833,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                 <Button
                   icon={<EditOutlined />}
                   onClick={() => {
-                    const apiId = linkedService.apiDefinitions?.[0]?.apiDefinitionId || linkedService.apiDefinitionIds?.[0];
+                    const apiId = linkedService.apiDefinition?.apiDefinitionId || linkedService.apiDefinitionId;
                     if (apiId) {
                       navigate(`/api-definitions/edit?id=${apiId}`, { state: { productName: apiProduct.name, productId: apiProduct.productId, productType: apiProduct.type } });
                     }
@@ -844,7 +844,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                 <Button
                   icon={<CloudUploadOutlined />}
                   onClick={() => {
-                    const apiId = linkedService.apiDefinitions?.[0]?.apiDefinitionId || linkedService.apiDefinitionIds?.[0];
+                    const apiId = linkedService.apiDefinition?.apiDefinitionId || linkedService.apiDefinitionId;
                     if (apiId) {
                       navigate(`/api-definitions/publish?id=${apiId}`, { state: { productName: apiProduct.name, productId: apiProduct.productId, productType: apiProduct.type } });
                     }
@@ -1212,11 +1212,11 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
         <Card title="配置详情">
           <div className="space-y-6">
             {/* 协议信息 */}
-            {(linkedService?.apiDefinitions?.[0]?.metadata?.protocol || protocols.length > 0) && (
+            {(linkedService?.apiDefinition?.metadata?.protocol || protocols.length > 0) && (
               <div>
                 <div className="text-sm text-gray-600">支持协议</div>
                 <div className="font-medium">
-                  {linkedService?.apiDefinitions?.[0]?.metadata?.protocol || protocols.join(', ')}
+                  {linkedService?.apiDefinition?.metadata?.protocol || protocols.join(', ')}
                 </div>
               </div>
             )}

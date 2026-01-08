@@ -188,6 +188,12 @@ export interface ApiDefinition {
   status: string;
   version: string;
   endpoints?: any[];
+  metadata?: ApiDefinitionMetadata;
+}
+
+export interface ApiDefinitionMetadata {
+  protocol: string;
+  scenario: string;
 }
 
 // 关联服务配置
@@ -202,8 +208,8 @@ export interface LinkedService {
   adpAIGatewayRefConfig?: APIGAIMCPItem;
   apsaraGatewayRefConfig?: APIGAIMCPItem;
   sofaHigressRefConfig?: RestAPIItem | SofaHigressMCPItem;
-  apiDefinitionIds?: string[];  // API Definition IDs (for MANAGED source type)
-  apiDefinitions?: ApiDefinition[];
+  apiDefinitionId?: string;  // API Definition ID (for MANAGED source type)
+  apiDefinition?: ApiDefinition;
 }
 
 // Product Feature Types

@@ -19,17 +19,20 @@
 
 package com.alibaba.himarket.support.product;
 
-import lombok.Data;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
-@Data
-public class HigressRefConfig extends GatewayRefConfig {
+import java.io.Serializable;
 
-    private String routeName;
-
-    private String mcpServerName;
-
-    /**
-     * Model Identify Info
-     */
-    private String modelRouteName;
+@JsonTypeInfo(
+        use = JsonTypeInfo.Id.NAME,
+        include = JsonTypeInfo.As.PROPERTY,
+        property = "configType",
+        visible = true)
+@JsonSubTypes({
+        @JsonSubTypes.Type(value = APIGRefConfig.class, name = "APIG or ADP_AI_GATEWAY or APSARA_GATEWAY"),
+        @JsonSubTypes.Type(value = HigressRefConfig.class, name = "HIGRESS"),
+        @JsonSubTypes.Type(value = SofaHigressRefConfig.class, name = "SOFA_HIGRESS")
+})
+public abstract class GatewayRefConfig implements Serializable {
 }

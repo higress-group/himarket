@@ -96,7 +96,7 @@ SET @preparedStatement = (SELECT IF(
       AND (COLUMN_NAME = @columnname)
   ) > 0,
   'SELECT 1',
-  'ALTER TABLE `product_ref` ADD COLUMN `api_definition_ids` json COMMENT ''Associated API Definition ID list (for MANAGED APIs)'''
+  'ALTER TABLE `product_ref` ADD COLUMN `api_definition_id` varchar(64) COMMENT ''Associated API Definition ID (for MANAGED API)'''
 ));
 PREPARE alterIfNotExists FROM @preparedStatement;
 EXECUTE alterIfNotExists;

@@ -12,6 +12,8 @@ import com.alibaba.himarket.support.api.PublishConfig;
 import com.alibaba.himarket.support.enums.APIStatus;
 import com.alibaba.himarket.support.enums.APIType;
 import com.alibaba.himarket.support.enums.GatewayType;
+import com.alibaba.himarket.support.product.GatewayRefConfig;
+import com.alibaba.himarket.support.product.SofaHigressRefConfig;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -52,7 +54,7 @@ public class SofaHigressGatewayPublisher implements GatewayPublisher {
     }
 
     @Override
-    public String publish(
+    public GatewayRefConfig publish(
             Gateway gateway, APIDefinitionVO apiDefinition, PublishConfig publishConfig) {
         SofaHigressClient client = getClient(gateway);
 
@@ -68,7 +70,27 @@ public class SofaHigressGatewayPublisher implements GatewayPublisher {
                         objectMapper);
 
         // rest API返回routeId，model API返回apiId，mcp server返回serverId
-        return response.getResourceId();
+        String resourceId = response.getResourceId();
+        String resourceName = response.getResourceName();
+        return switch (apiDefinition.getType()) {
+            case MCP_SERVER -> SofaHigressRefConfig
+                    .builder()
+                    .serverId(resourceId)
+                    .mcpServerName(resourceName)
+                    .build();
+            case MODEL_API -> SofaHigressRefConfig
+                    .builder()
+                    .modelApiId(resourceId)
+                    .modelApiName(resourceName)
+                    .build();
+            case REST_API -> SofaHigressRefConfig
+                    .builder()
+                    .apiId(resourceId)
+                    .apiName(resourceName)
+                    .build();
+            default -> throw new IllegalArgumentException(
+                    "Unsupported API type: " + apiDefinition.getType());
+        };
     }
 
     @Override
@@ -141,6 +163,7 @@ public class SofaHigressGatewayPublisher implements GatewayPublisher {
     @AllArgsConstructor
     public static class SofaHigressAPIDefinitionResponse {
         String resourceId;
+        String resourceName;
         String type;
     }
 }

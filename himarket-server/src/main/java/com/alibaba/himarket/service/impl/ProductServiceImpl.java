@@ -331,24 +331,18 @@ public class ProductServiceImpl implements ProductService {
                 .ifPresent(
                         productRef -> {
                             if (productRef.isManaged()
-                                    && StrUtil.isNotBlank(productRef.getApiDefinitionIds())) {
-                                List<String> apiDefinitionIds =
-                                        JSONUtil.toList(
-                                                productRef.getApiDefinitionIds(), String.class);
-                                if (CollUtil.isNotEmpty(apiDefinitionIds)) {
-                                    for (String apiDefinitionId : apiDefinitionIds) {
-                                        try {
-                                            apiDefinitionService.deleteAPIDefinition(
-                                                    apiDefinitionId);
-                                        } catch (BusinessException e) {
-                                            throw e;
-                                        } catch (Exception e) {
-                                            log.warn(
-                                                    "Failed to delete managed API definition: {}",
-                                                    apiDefinitionId,
-                                                    e);
-                                        }
-                                    }
+                                    && StrUtil.isNotBlank(productRef.getApiDefinitionId())) {
+                                String apiDefinitionId = productRef.getApiDefinitionId();
+                                try {
+                                    apiDefinitionService.deleteAPIDefinition(
+                                            apiDefinitionId);
+                                } catch (BusinessException e) {
+                                    throw e;
+                                } catch (Exception e) {
+                                    log.warn(
+                                            "Failed to delete managed API definition: {}",
+                                            apiDefinitionId,
+                                            e);
                                 }
                             }
                         });
@@ -401,12 +395,10 @@ public class ProductServiceImpl implements ProductService {
                         productRef -> {
                             ProductRefResult result =
                                     new ProductRefResult().convertFrom(productRef);
-                            if (CollUtil.isNotEmpty(result.getApiDefinitionIds())) {
-                                List<APIDefinitionVO> apiDefinitions =
-                                        result.getApiDefinitionIds().stream()
-                                                .map(apiDefinitionService::getAPIDefinition)
-                                                .collect(Collectors.toList());
-                                result.setApiDefinitions(apiDefinitions);
+                            if (StrUtil.isNotEmpty(result.getApiDefinitionId())) {
+                                APIDefinitionVO apiDefinition =
+                                        apiDefinitionService.getAPIDefinition(result.getApiDefinitionId());
+                                result.setApiDefinition(apiDefinition);
                             }
                             return result;
                         })
@@ -432,19 +424,14 @@ public class ProductServiceImpl implements ProductService {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "API product already published");
         }
 
-        if (productRef.isManaged() && StrUtil.isNotBlank(productRef.getApiDefinitionIds())) {
-            List<String> apiDefinitionIds =
-                    JSONUtil.toList(productRef.getApiDefinitionIds(), String.class);
-            if (CollUtil.isNotEmpty(apiDefinitionIds)) {
-                for (String apiDefinitionId : apiDefinitionIds) {
-                    try {
-                        apiDefinitionService.deleteAPIDefinition(apiDefinitionId);
-                    } catch (BusinessException e) {
-                        throw e;
-                    } catch (Exception e) {
-                        log.warn("Failed to delete managed API definition: {}", apiDefinitionId, e);
-                    }
-                }
+        if (productRef.isManaged() && StrUtil.isNotBlank(productRef.getApiDefinitionId())) {
+            String apiDefinitionId = productRef.getApiDefinitionId();
+            try {
+                apiDefinitionService.deleteAPIDefinition(apiDefinitionId);
+            } catch (BusinessException e) {
+                throw e;
+            } catch (Exception e) {
+                log.warn("Failed to delete managed API definition: {}", apiDefinitionId, e);
             }
         }
 
@@ -762,59 +749,54 @@ public class ProductServiceImpl implements ProductService {
                             }
 
                             if (productRef.isManaged()
-                                    && StrUtil.isNotBlank(productRef.getApiDefinitionIds())) {
+                                    && StrUtil.isNotBlank(productRef.getApiDefinitionId())) {
                                 fillManagedProductConfig(product, productRef);
                             }
                         });
     }
 
     private void fillManagedProductConfig(ProductResult product, ProductRef productRef) {
-        List<String> apiDefinitionIds =
-                JSONUtil.toList(productRef.getApiDefinitionIds(), String.class);
-        if (CollUtil.isEmpty(apiDefinitionIds)) {
+        String apiDefinitionId = productRef.getApiDefinitionId();
+        if (StrUtil.isBlank(apiDefinitionId)) {
             return;
         }
 
         List<DomainResult> allDomains = new ArrayList<>();
-        for (String apiDefinitionId : apiDefinitionIds) {
-            Page<APIPublishRecord> records =
-                    apiPublishRecordRepository.findByApiDefinitionIdOrderByCreateAtDesc(
-                            apiDefinitionId, PageRequest.of(0, 1));
-            if (records.hasContent()) {
-                APIPublishRecord record = records.getContent().get(0);
-                if (StrUtil.isNotBlank(record.getPublishConfig())) {
-                    try {
-                        PublishConfig publishConfig =
-                                objectMapper.readValue(
-                                        record.getPublishConfig(), PublishConfig.class);
-                        if (CollUtil.isNotEmpty(publishConfig.getDomains())) {
-                            List<DomainResult> domains =
-                                    publishConfig.getDomains().stream()
-                                            .map(
-                                                    d ->
-                                                            DomainResult.builder()
-                                                                    .domain(d.getDomain())
-                                                                    .port(d.getPort())
-                                                                    .protocol(d.getProtocol())
-                                                                    .networkType(d.getNetworkType())
-                                                                    .build())
-                                            .collect(Collectors.toList());
-                            allDomains.addAll(domains);
-                        }
-                    } catch (Exception e) {
-                        log.warn(
-                                "Failed to parse publish config for api definition: {}",
-                                apiDefinitionId,
-                                e);
+        Page<APIPublishRecord> records =
+                apiPublishRecordRepository.findByApiDefinitionIdOrderByCreateAtDesc(
+                        apiDefinitionId, PageRequest.of(0, 1));
+        if (records.hasContent()) {
+            APIPublishRecord record = records.getContent().get(0);
+            if (StrUtil.isNotBlank(record.getPublishConfig())) {
+                try {
+                    PublishConfig publishConfig =
+                            objectMapper.readValue(
+                                    record.getPublishConfig(), PublishConfig.class);
+                    if (CollUtil.isNotEmpty(publishConfig.getDomains())) {
+                        List<DomainResult> domains =
+                                publishConfig.getDomains().stream()
+                                        .map(
+                                                d ->
+                                                        DomainResult.builder()
+                                                                .domain(d.getDomain())
+                                                                .port(d.getPort())
+                                                                .protocol(d.getProtocol())
+                                                                .networkType(d.getNetworkType())
+                                                                .build())
+                                        .collect(Collectors.toList());
+                        allDomains.addAll(domains);
                     }
+                } catch (Exception e) {
+                    log.warn(
+                            "Failed to parse publish config for api definition: {}",
+                            apiDefinitionId,
+                            e);
                 }
             }
         }
 
         List<APIEndpointVO> allEndpoints = new ArrayList<>();
-        for (String apiDefId : apiDefinitionIds) {
-            allEndpoints.addAll(apiDefinitionService.listEndpoints(apiDefId));
-        }
+        allEndpoints.addAll(apiDefinitionService.listEndpoints(apiDefinitionId));
 
         if (CollUtil.isEmpty(allEndpoints) && product.getType() != ProductType.MCP_SERVER) {
             return;

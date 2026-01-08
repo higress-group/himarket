@@ -19,10 +19,12 @@
 
 package com.alibaba.himarket.support.product;
 
+import lombok.Builder;
 import lombok.Data;
 
 @Data
-public class APIGRefConfig {
+@Builder
+public class APIGRefConfig extends GatewayRefConfig {
 
     private String apiId;
 
