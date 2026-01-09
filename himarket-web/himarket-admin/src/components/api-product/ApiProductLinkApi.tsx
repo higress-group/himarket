@@ -190,11 +190,6 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
       const baseUrl = `${domain.protocol}://${formattedDomain}`;
       let fullUrl = `${baseUrl}${path || '/'}`;
 
-      if (apiProduct.mcpConfig?.meta?.source === 'ADP_AI_GATEWAY' ||
-        apiProduct.mcpConfig?.meta?.source === 'APSARA_GATEWAY') {
-        fullUrl = `${baseUrl}/mcp-servers${path || '/'}`;
-      }
-
       if (protocolType === 'SSE') {
         // 仅生成SSE配置，不追加/sse
         const sseConfig = {

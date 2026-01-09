@@ -1,0 +1,10 @@
+#!/usr/bin/env sh
+
+# 检查前端子目录的 diff 文件
+echo "🔍 Linting frontend diff files..."
+cd himarket-web/himarket-frontend && npx lint-staged
+
+# 检查管理后台子目录的 diff 文件
+echo "🔍 Linting admin diff files..."
+cd ../himarket-admin && npx lint-staged
+

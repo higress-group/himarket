@@ -195,7 +195,7 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
 
         // 设置MCP Server配置
         MCPConfigResult.MCPServerConfig serverConfig = new MCPConfigResult.MCPServerConfig();
-        serverConfig.setPath("/" + data.getName());
+        serverConfig.setPath("/mcp-servers/" + data.getName());
 
         // 获取网关实例访问信息并设置域名信息
         List<DomainResult> domains = getGatewayAccessDomains(gwInstanceId, config);
