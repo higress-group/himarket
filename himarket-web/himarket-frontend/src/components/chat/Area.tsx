@@ -82,7 +82,7 @@ export function ChatArea(props: ChatAreaProps) {
         categoryIds: ['all', 'added'].includes(id) ? [] : [id],
       });
     }
-  }, [addedMcps]);
+  }, [addedMcps, setMcpList, getMcpList]);
 
   const handleMcpSearch = useCallback((id: string, name: string) => {
     if (id === "added") {
@@ -94,7 +94,7 @@ export function ChatArea(props: ChatAreaProps) {
         name
       });
     }
-  }, [addedMcps]);
+  }, [addedMcps, getMcpList]);
 
   const toggleMcpModal = useCallback(() => {
     setShowMcpModal(v => !v);

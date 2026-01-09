@@ -11,28 +11,29 @@ interface SwaggerUIWrapperProps {
 
 export const SwaggerUIWrapper: React.FC<SwaggerUIWrapperProps> = ({ apiSpec }) => {
   // 直接解析原始规范，不进行重新构建
-  let swaggerSpec: any;
+  let swaggerSpec: Record<string, unknown>;
   
   try {
     // 尝试解析YAML格式
     try {
-      swaggerSpec = yaml.load(apiSpec);
+      swaggerSpec = yaml.load(apiSpec) as Record<string, unknown>;
     } catch {
       // 如果YAML解析失败，尝试JSON格式
-      swaggerSpec = JSON.parse(apiSpec);
+      swaggerSpec = JSON.parse(apiSpec) as Record<string, unknown>;
     }
 
-    if (!swaggerSpec || !swaggerSpec.paths) {
+    if (!swaggerSpec || typeof swaggerSpec !== 'object' || !('paths' in swaggerSpec)) {
       throw new Error('Invalid OpenAPI specification');
     }
 
     // 为没有tags的操作添加默认标签，避免显示"default"
-    Object.keys(swaggerSpec.paths).forEach(path => {
-      const pathItem = swaggerSpec.paths[path];
+    const paths = swaggerSpec.paths as Record<string, Record<string, unknown>>;
+    Object.keys(paths).forEach(path => {
+      const pathItem = paths[path];
       Object.keys(pathItem).forEach(method => {
         const operation = pathItem[method];
-        if (operation && typeof operation === 'object' && !operation.tags) {
-          operation.tags = ['接口列表'];
+        if (operation && typeof operation === 'object' && !('tags' in operation)) {
+          (operation as Record<string, unknown>).tags = ['接口列表'];
         }
       });
     });

@@ -39,7 +39,8 @@ export function McpToolCallPanel({ toolCalls = [], toolResponses = [] }: McpTool
           parsedInput = toolCall.arguments; // @chat-legacy: || toolCall.input;
         }
         try {
-          parsedResponse = JSON.parse(toolResponse?.result || "{}"); // @chat-legacy: || toolResponse?.responseData || toolResponse?.output
+          const resultString = typeof toolResponse?.result === 'string' ? toolResponse.result : JSON.stringify(toolResponse?.result || {});
+          parsedResponse = JSON.parse(resultString || "{}"); // @chat-legacy: || toolResponse?.responseData || toolResponse?.output
         } catch {
           parsedResponse = toolResponse?.result; // @chat-legacy: || toolResponse?.responseData || toolResponse?.output;
         }

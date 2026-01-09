@@ -92,7 +92,7 @@ export interface IToolResponse {
   
   id: string;                 // 工具调用唯一 ID
   name: string;               // 工具函数名
-  result?: any;               // 工具执行结果
+  result?: unknown;           // 工具执行结果
 }
 
 export interface IChatUsage {
@@ -176,7 +176,7 @@ interface GetSessionsResp {
 
 interface SendChatMessageResp {
   // 根据实际响应结构定义
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 // ============ API 函数 ============

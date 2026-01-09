@@ -50,9 +50,11 @@ public class PortalDomain extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "type", length = 32, nullable = false)
+    @Builder.Default
     private DomainType type = DomainType.DEFAULT;
 
     @Column(name = "protocol", length = 32, nullable = false)
     @Enumerated(EnumType.STRING)
+    @Builder.Default
     private ProtocolType protocol = ProtocolType.HTTP;
 }

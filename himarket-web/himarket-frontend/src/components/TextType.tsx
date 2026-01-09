@@ -65,7 +65,10 @@ const TextType = ({
   };
 
   useEffect(() => {
-    if (!startOnVisible || !containerRef.current) return;
+    if (!startOnVisible) return;
+    
+    const currentContainer = containerRef.current;
+    if (!currentContainer) return;
 
     const observer = new IntersectionObserver(
       entries => {
@@ -78,7 +81,7 @@ const TextType = ({
       { threshold: 0.1 }
     );
 
-    observer.observe(containerRef.current);
+    observer.observe(currentContainer);
     return () => observer.disconnect();
   }, [startOnVisible]);
 

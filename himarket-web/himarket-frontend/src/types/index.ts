@@ -14,7 +14,7 @@ export interface ApiProductMcpConfig {
   meta: {
     source: string;
     mcpServerName: string;
-    mcpServerConfig: any;
+    mcpServerConfig: Record<string, unknown>;
     fromType: string;
     protocol?: string;
   }
@@ -70,14 +70,14 @@ export interface ApiProductAgentConfig {
       }>;
       capabilities?: {
         streaming?: boolean;
-        [key: string]: any;
+        [key: string]: unknown;
       };
       additionalInterfaces?: Array<{  // 附加接口信息（注意：复数形式）
         transport: string;  // 传输协议（HTTP/gRPC/JSONRPC）
         url: string;
-        [key: string]: any;
+        [key: string]: unknown;
       }>;
-      [key: string]: any;      // 支持其他扩展字段
+      [key: string]: unknown;      // 支持其他扩展字段
     };
   };
   meta?: {                     // 元数据信息
@@ -183,7 +183,7 @@ export interface BaseProduct {
   icon: ProductIcon | null;
   productType: ProductType;
   productName: string;
-  mcpConfig: any;
+  mcpConfig: Record<string, unknown>;
   updatedAt: string;
   lastUpdated: string;
   categories?: ProductCategoryData[];
@@ -196,7 +196,7 @@ export interface RestApiProduct extends BaseProduct {
 }
 
 // MCP Server 产品
-// @ts-ignore
+// @ts-expect-error - mcpSpec and mcpConfig types are complex and may overlap
 export interface McpServerProduct extends BaseProduct {
   apiSpec: null;
   mcpSpec?: McpServerConfig; // 保持向后兼容
@@ -333,7 +333,7 @@ export interface IMcpToolResponse {
   
   id: string;
   name: string;
-  result?: any;
+  result?: unknown;
 }
 
 export interface IModelConversation {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import type { IProductDetail } from "../lib/apis";
 import APIs from "../lib/apis";
 
@@ -6,7 +6,7 @@ function useProducts(params: { type: string, categoryIds?: string[], name?: stri
   const [data, setData] = useState<IProductDetail[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const get = ({ type, categoryIds, name }: { type: string, categoryIds?: string[], name?: string }) => {
+  const get = React.useCallback(({ type, categoryIds, name }: { type: string, categoryIds?: string[], name?: string }) => {
     setLoading(true);
     APIs.getProducts({ type: type, categoryIds: categoryIds, name })
       .then(res => {
@@ -14,14 +14,14 @@ function useProducts(params: { type: string, categoryIds?: string[], name?: stri
           setData(res.data.content)
         }
       }).finally(() => setLoading(false));
-  }
+  }, []);
 
   const set = setData;
 
   useEffect(() => {
     if (params.needInit === false) return;
     get({ type: params.type, categoryIds: params.categoryIds });
-  }, [params.type, params.categoryIds, params.needInit]);
+  }, [params.type, params.categoryIds, params.needInit, get]);
 
   return {
     data,

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Alert, Tabs, Space, Button, message } from "antd";
 import { Layout } from "../components/Layout";
@@ -21,12 +21,7 @@ function ApiDetailPage() {
   const [exampleMethod, setExampleMethod] = useState<string>('GET');
   const navigate = useNavigate();
 
-  useEffect(() => {
-    if (!apiProductId) return;
-    fetchApiDetail();
-  }, [apiProductId]);
-
-  const fetchApiDetail = async () => {
+  const fetchApiDetail = React.useCallback(async () => {
     setLoading(true);
     setError('');
     if (!apiProductId) return;
@@ -79,10 +74,12 @@ function ApiDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [apiProductId]);
 
-
-
+  useEffect(() => {
+    if (!apiProductId) return;
+    fetchApiDetail();
+  }, [apiProductId, fetchApiDetail]);
 
   if (error) {
     return (

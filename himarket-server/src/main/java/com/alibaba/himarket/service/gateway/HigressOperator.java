@@ -62,6 +62,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -688,6 +689,7 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
         protected Map<String, Object> properties;
     }
 
+    @EqualsAndHashCode(callSuper = true)
     @Data
     public static class HigressKeyAuthCredential extends HigressCredential {
         private String source;

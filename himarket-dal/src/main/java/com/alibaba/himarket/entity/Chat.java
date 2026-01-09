@@ -76,6 +76,7 @@ public class Chat extends BaseEntity {
      */
     @Column(name = "status", length = 32)
     @Enumerated(EnumType.STRING)
+    @Builder.Default
     private ChatStatus status = ChatStatus.INIT;
 
     /**

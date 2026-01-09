@@ -69,5 +69,5 @@ public class Portal extends BaseEntity {
     @Convert(converter = PortalUiConfigConverter.class)
     private PortalUiConfig portalUiConfig;
 
-    @Transient private List<PortalDomain> portalDomains = new ArrayList<>();
+    @Builder.Default @Transient private List<PortalDomain> portalDomains = new ArrayList<>();
 }
