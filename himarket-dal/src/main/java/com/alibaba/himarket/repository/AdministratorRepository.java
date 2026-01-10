@@ -21,10 +21,22 @@ package com.alibaba.himarket.repository;
 
 import com.alibaba.himarket.entity.Administrator;
 import java.util.Optional;
-import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface AdministratorRepository extends JpaRepository<Administrator, Long> {
+public interface AdministratorRepository extends BaseRepository<Administrator, Long> {
+
+    /**
+     * Find administrator by admin ID
+     *
+     * @param adminId the admin ID
+     * @return the administrator if found
+     */
     Optional<Administrator> findByAdminId(String adminId);
 
+    /**
+     * Find administrator by username
+     *
+     * @param username the username
+     * @return the administrator if found
+     */
     Optional<Administrator> findByUsername(String username);
 }

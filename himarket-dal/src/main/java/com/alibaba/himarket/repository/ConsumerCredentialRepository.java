@@ -24,7 +24,18 @@ import java.util.Optional;
 
 public interface ConsumerCredentialRepository extends BaseRepository<ConsumerCredential, Long> {
 
+    /**
+     * Find credential by consumer ID
+     *
+     * @param consumerId the consumer ID
+     * @return the consumer credential if found
+     */
     Optional<ConsumerCredential> findByConsumerId(String consumerId);
 
+    /**
+     * Delete all credentials by consumer ID
+     *
+     * @param consumerId the consumer ID
+     */
     void deleteAllByConsumerId(String consumerId);
 }

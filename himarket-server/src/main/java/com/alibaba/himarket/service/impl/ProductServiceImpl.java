@@ -22,6 +22,7 @@ package com.alibaba.himarket.service.impl;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.BooleanUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.extra.spring.SpringUtil;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.event.PortalDeletingEvent;
@@ -49,23 +50,22 @@ import com.alibaba.himarket.dto.result.product.SubscriptionResult;
 import com.alibaba.himarket.entity.*;
 import com.alibaba.himarket.repository.*;
 import com.alibaba.himarket.service.*;
+import com.alibaba.himarket.service.hichat.manager.ToolManager;
 import com.alibaba.himarket.support.chat.mcp.MCPTransportConfig;
 import com.alibaba.himarket.support.enums.ProductStatus;
 import com.alibaba.himarket.support.enums.ProductType;
 import com.alibaba.himarket.support.enums.SourceType;
 import com.alibaba.himarket.support.product.NacosRefConfig;
 import com.github.benmanes.caffeine.cache.Cache;
+import io.agentscope.core.tool.mcp.McpClientWrapper;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
 import jakarta.transaction.Transactional;
-import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -78,8 +78,6 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 @Transactional
 public class ProductServiceImpl implements ProductService {
-
-    private final ApplicationContext applicationContext;
 
     private final ContextHolder contextHolder;
 
@@ -99,11 +97,13 @@ public class ProductServiceImpl implements ProductService {
 
     private final NacosService nacosService;
 
-    private final ApplicationEventPublisher eventPublisher;
-
     private final ProductCategoryService productCategoryService;
 
-    /** Cache to prevent duplicate sync within interval (5 minutes default) */
+    private final ToolManager toolManager;
+
+    /**
+     * Cache to prevent duplicate sync within interval (5 minutes default)
+     */
     private final Cache<String, Boolean> productSyncCache = CacheUtil.newCache(5);
 
     @Override
@@ -147,8 +147,8 @@ public class ProductServiceImpl implements ProductService {
                     .ifPresent(
                             o -> {
                                 productSyncCache.put(productId, Boolean.TRUE);
-                                eventPublisher.publishEvent(
-                                        new ProductConfigReloadEvent(productId));
+                                SpringUtil.getApplicationContext()
+                                        .publishEvent(new ProductConfigReloadEvent(productId));
                             });
         }
 
@@ -172,7 +172,6 @@ public class ProductServiceImpl implements ProductService {
                         product -> {
                             ProductResult result = new ProductResult().convertFrom(product);
                             fillProduct(result);
-                            fillProductSubscribeInfo(result, param);
                             return result;
                         });
     }
@@ -309,7 +308,7 @@ public class ProductServiceImpl implements ProductService {
         productRefRepository.deleteByProductId(productId);
 
         // Asynchronously clean up product resources
-        eventPublisher.publishEvent(new ProductDeletingEvent(productId));
+        SpringUtil.getApplicationContext().publishEvent(new ProductDeletingEvent(productId));
     }
 
     private Product findProduct(String productId) {
@@ -379,8 +378,7 @@ public class ProductServiceImpl implements ProductService {
 
     @EventListener
     @Async("taskExecutor")
-    @Override
-    public void handlePortalDeletion(PortalDeletingEvent event) {
+    public void onPortalDeletion(PortalDeletingEvent event) {
         String portalId = event.getPortalId();
         try {
             publicationRepository.deleteAllByPortalId(portalId);
@@ -509,38 +507,36 @@ public class ProductServiceImpl implements ProductService {
                     ErrorCode.INVALID_REQUEST, "API product is not a mcp server");
         }
 
-        ConsumerService consumerService = applicationContext.getBean(ConsumerService.class);
+        ConsumerService consumerService =
+                SpringUtil.getApplicationContext().getBean(ConsumerService.class);
         String consumerId = consumerService.getPrimaryConsumer().getConsumerId();
-
-        boolean subscribed =
-                subscriptionRepository
-                        .findByConsumerIdAndProductId(consumerId, productId)
-                        .isPresent();
-        if (!subscribed) {
-            throw new BusinessException(
-                    ErrorCode.INVALID_REQUEST,
-                    "API product is not subscribed, not allowed to list tools");
-        }
+        // Check subscription status
+        subscriptionRepository
+                .findByConsumerIdAndProductId(consumerId, productId)
+                .orElseThrow(
+                        () ->
+                                new BusinessException(
+                                        ErrorCode.INVALID_REQUEST,
+                                        "API product is not subscribed, not allowed to list"
+                                                + " tools"));
 
         // Initialize client and fetch tools
         MCPTransportConfig transportConfig = product.getMcpConfig().toTransportConfig();
         CredentialContext credentialContext =
                 consumerService.getDefaultCredential(contextHolder.getUser());
+        transportConfig.setHeaders(credentialContext.copyHeaders());
+        transportConfig.setQueryParams(credentialContext.copyQueryParams());
+
         McpToolListResult result = new McpToolListResult();
 
-        try (McpClientWrapper mcpClientWrapper =
-                McpClientFactory.newClient(transportConfig, credentialContext)) {
-            if (mcpClientWrapper == null) {
-                throw new BusinessException(
-                        ErrorCode.INTERNAL_ERROR, "Failed to initialize MCP client");
-            }
-
-            result.setTools(mcpClientWrapper.listTools());
-            return result;
-        } catch (IOException e) {
-            log.error("List mcp tools failed", e);
-            return result;
+        McpClientWrapper mcpClientWrapper = toolManager.getOrCreateClient(transportConfig);
+        if (mcpClientWrapper == null) {
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR, "Failed to initialize MCP client");
         }
+
+        result.setTools(mcpClientWrapper.listTools().block());
+        return result;
     }
 
     private void syncConfig(Product product, ProductRef productRef) {
@@ -784,7 +780,8 @@ public class ProductServiceImpl implements ProductService {
         }
 
         // Get default consumer id (use applicationContext to get bean to avoid circular dependency)
-        ConsumerService consumerService = applicationContext.getBean(ConsumerService.class);
+        ConsumerService consumerService =
+                SpringUtil.getApplicationContext().getBean(ConsumerService.class);
         String consumerId = consumerService.getPrimaryConsumer().getConsumerId();
 
         // Check if product is subscribed by consumer
@@ -797,7 +794,7 @@ public class ProductServiceImpl implements ProductService {
 
     @EventListener
     @Async("taskExecutor")
-    public void handleProductRefSync(ProductConfigReloadEvent event) {
+    public void onProductConfigReload(ProductConfigReloadEvent event) {
         String productId = event.getProductId();
 
         try {

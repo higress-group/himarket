@@ -49,4 +49,9 @@ public class ModelFeature {
      * Enable web search
      */
     private Boolean webSearch;
+
+    /**
+     * Enable thinking
+     */
+    private Boolean enableThinking;
 }

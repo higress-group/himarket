@@ -27,9 +27,27 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface ProductCategoryRepository extends BaseRepository<ProductCategory, Long> {
 
+    /**
+     * Find product category by category ID
+     *
+     * @param categoryId the category ID
+     * @return the product category if found
+     */
     Optional<ProductCategory> findByCategoryId(String categoryId);
 
+    /**
+     * Find product category by name
+     *
+     * @param name the category name
+     * @return the product category if found
+     */
     Optional<ProductCategory> findByName(String name);
 
+    /**
+     * Find product categories by category IDs
+     *
+     * @param categoryIds the list of category IDs
+     * @return the list of product categories
+     */
     List<ProductCategory> findByCategoryIdIn(List<String> categoryIds);
 }

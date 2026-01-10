@@ -29,6 +29,10 @@ public class SwaggerConfig {
     @Bean
     public OpenAPI openAPI() {
         return new OpenAPI()
-                .info(new Info().title("开放平台 API").version("1.0.0").description("API 文档描述"));
+                .info(
+                        new Info()
+                                .title("HiMarket Open API")
+                                .version("1.0.0")
+                                .description("API Document"));
     }
 }

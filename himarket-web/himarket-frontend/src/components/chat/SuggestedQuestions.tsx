@@ -19,16 +19,16 @@ interface SuggestedQuestionsProps {
   onSelectQuestion: (question: string) => void;
 }
 
+function getRandomQuestions(count: number): string[] {
+  const shuffled = [...allQuestions].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, count);
+}
+
 export function SuggestedQuestions({ onSelectQuestion }: SuggestedQuestionsProps) {
   const [displayedQuestions, setDisplayedQuestions] = useState(() => {
     return getRandomQuestions(3);
   });
   const [isRefreshing, setIsRefreshing] = useState(false);
-
-  function getRandomQuestions(count: number): string[] {
-    const shuffled = [...allQuestions].sort(() => Math.random() - 0.5);
-    return shuffled.slice(0, count);
-  }
 
   const handleRefresh = () => {
     setIsRefreshing(true);

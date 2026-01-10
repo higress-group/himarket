@@ -20,10 +20,8 @@
 package com.alibaba.himarket.entity;
 
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
+import lombok.*;
 
-@EqualsAndHashCode(callSuper = true)
 @Entity
 @Table(
         name = "nacos_instance",
@@ -33,6 +31,10 @@ import lombok.EqualsAndHashCode;
                     name = "uk_nacos_id"),
         })
 @Data
+@EqualsAndHashCode(callSuper = true)
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class NacosInstance extends BaseEntity {
 
     @Id

@@ -415,6 +415,15 @@ public class ConsumerServiceImpl implements ConsumerService {
     }
 
     @Override
+    public List<SubscriptionResult> listConsumerSubscriptions(String consumerId) {
+        List<ProductSubscription> subscriptions =
+                subscriptionRepository.findAllByConsumerId(consumerId);
+        return subscriptions.stream()
+                .map(subscription -> new SubscriptionResult().convertFrom(subscription))
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public SubscriptionResult approveSubscription(String consumerId, String subscriptionId) {
         existsConsumer(consumerId);
 
@@ -648,7 +657,7 @@ public class ConsumerServiceImpl implements ConsumerService {
 
     @EventListener
     @Async("taskExecutor")
-    public void handleDeveloperDeletion(DeveloperDeletingEvent event) {
+    public void onDeveloperDeletion(DeveloperDeletingEvent event) {
         String developerId = event.getDeveloperId();
         log.info("Cleaning consumers for developer {}", developerId);
 
@@ -665,7 +674,7 @@ public class ConsumerServiceImpl implements ConsumerService {
 
     @EventListener
     @Async("taskExecutor")
-    public void handleProductDeletion(ProductDeletingEvent event) {
+    public void onProductDeletion(ProductDeletingEvent event) {
         String productId = event.getProductId();
         log.info("Cleaning subscriptions for product {}", productId);
 

@@ -30,6 +30,7 @@ import com.alibaba.himarket.dto.result.consumer.ConsumerCredentialResult;
 import com.alibaba.himarket.dto.result.consumer.ConsumerResult;
 import com.alibaba.himarket.dto.result.consumer.CredentialContext;
 import com.alibaba.himarket.dto.result.product.SubscriptionResult;
+import java.util.List;
 import org.springframework.data.domain.Pageable;
 
 public interface ConsumerService {
@@ -132,6 +133,14 @@ public interface ConsumerService {
      */
     PageResult<SubscriptionResult> listSubscriptions(
             String consumerId, QuerySubscriptionParam param, Pageable pageable);
+
+    /**
+     * List subscriptions of a consumer
+     *
+     * @param consumerId
+     * @return
+     */
+    List<SubscriptionResult> listConsumerSubscriptions(String consumerId);
 
     /**
      * Approve a subscription

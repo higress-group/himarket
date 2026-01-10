@@ -23,8 +23,7 @@ import com.alibaba.himarket.converter.ConsumerAuthConfigConverter;
 import com.alibaba.himarket.support.consumer.ConsumerAuthConfig;
 import com.alibaba.himarket.support.enums.SubscriptionStatus;
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
+import lombok.*;
 
 @Entity
 @Table(
@@ -36,6 +35,9 @@ import lombok.EqualsAndHashCode;
         })
 @Data
 @EqualsAndHashCode(callSuper = true)
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class ProductSubscription extends BaseEntity {
 
     @Id

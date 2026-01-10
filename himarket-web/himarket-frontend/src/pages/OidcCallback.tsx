@@ -57,14 +57,17 @@ const OidcCallback: React.FC = () => {
       // 5. 页面跳转
       navigate('/', { replace: true })
 
-    } catch (error: any) {
+    } catch (error) {
 
       let errorMessage = '登录失败，请重试'
-      if (error.response?.status === 400) {
-        errorMessage = '授权码无效或已过期'
-      } else if (error.response?.status === 404) {
-        errorMessage = 'OIDC配置不存在'
-      } else if (error.message) {
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { status: number } }
+        if (axiosError.response?.status === 400) {
+          errorMessage = '授权码无效或已过期'
+        } else if (axiosError.response?.status === 404) {
+          errorMessage = 'OIDC配置不存在'
+        }
+      } else if (error instanceof Error && error.message) {
         errorMessage = error.message
       }
 

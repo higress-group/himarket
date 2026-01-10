@@ -22,7 +22,8 @@ package com.alibaba.himarket.controller;
 import com.alibaba.himarket.core.annotation.AdminOrDeveloperAuth;
 import com.alibaba.himarket.dto.params.chat.CreateChatParam;
 import com.alibaba.himarket.dto.result.chat.ChatAnswerMessage;
-import com.alibaba.himarket.service.ChatService;
+import com.alibaba.himarket.service.hichat.service.ChatService;
+import com.alibaba.himarket.service.legacy.ChatServiceLegacy;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -33,7 +34,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import reactor.core.publisher.Flux;
+import reactor.core.scheduler.Schedulers;
 
 @RestController
 @RequestMapping("/chats")
@@ -43,11 +46,36 @@ import reactor.core.publisher.Flux;
 @AdminOrDeveloperAuth
 public class ChatController {
 
+    private final ChatServiceLegacy chatServiceLegacy;
+
     private final ChatService chatService;
 
-    @PostMapping(produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<ChatAnswerMessage> chat(
+    @PostMapping(value = "/legacy", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<ChatAnswerMessage> chatLegacy(
             @Valid @RequestBody CreateChatParam param, HttpServletResponse response) {
-        return chatService.chat(param, response);
+        return chatServiceLegacy.chat(param, response);
+    }
+
+    @PostMapping(produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter chat(@Valid @RequestBody CreateChatParam param) {
+        // Use SseEmitter for streaming
+        SseEmitter emitter = new SseEmitter(30 * 60 * 1000L);
+
+        chatService
+                .chat(param)
+                .subscribeOn(Schedulers.boundedElastic())
+                .subscribe(
+                        event -> {
+                            try {
+                                emitter.send(event);
+                            } catch (Exception e) {
+                                log.error("Failed to send event", e);
+                                emitter.completeWithError(e);
+                            }
+                        },
+                        emitter::completeWithError,
+                        emitter::complete);
+
+        return emitter;
     }
 }

@@ -21,6 +21,7 @@ package com.alibaba.himarket.service.gateway;
 
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
+import com.alibaba.himarket.core.utils.CacheUtil;
 import com.alibaba.himarket.dto.result.agent.AgentAPIResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.gateway.GatewayResult;
@@ -31,23 +32,22 @@ import com.alibaba.himarket.entity.Consumer;
 import com.alibaba.himarket.entity.ConsumerCredential;
 import com.alibaba.himarket.entity.Gateway;
 import com.alibaba.himarket.service.gateway.client.APIGClient;
-import com.alibaba.himarket.service.gateway.client.ApsaraStackGatewayClient;
 import com.alibaba.himarket.service.gateway.client.GatewayClient;
 import com.alibaba.himarket.service.gateway.client.HigressClient;
 import com.alibaba.himarket.support.consumer.ConsumerAuthConfig;
 import com.alibaba.himarket.support.enums.GatewayType;
 import com.alibaba.himarket.support.gateway.GatewayConfig;
 import com.aliyun.sdk.service.apig20240327.models.HttpApiApiInfo;
+import com.github.benmanes.caffeine.cache.Cache;
 import java.net.URI;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public abstract class GatewayOperator<T> {
 
-    private final Map<String, GatewayClient> clientCache = new ConcurrentHashMap<>();
+    private final Cache<String, GatewayClient> clientCache =
+            CacheUtil.newCache(60 * 3, GatewayClient::close);
 
     public abstract PageResult<APIResult> fetchHTTPAPIs(Gateway gateway, int page, int size);
 
@@ -101,7 +101,7 @@ public abstract class GatewayOperator<T> {
                 gateway.getGatewayType().isAPIG()
                         ? gateway.getApigConfig().buildUniqueKey()
                         : gateway.getHigressConfig().buildUniqueKey();
-        return (T) clientCache.computeIfAbsent(clientKey, key -> createClient(gateway));
+        return (T) clientCache.get(clientKey, key -> createClient(gateway));
     }
 
     /** Create a gateway client for the given gateway. */
@@ -111,23 +111,13 @@ public abstract class GatewayOperator<T> {
             case APIG_AI:
                 return new APIGClient(gateway.getApigConfig());
             case APSARA_GATEWAY:
-                return new ApsaraStackGatewayClient(gateway.getApsaraGatewayConfig());
+            //                return new ApsaraStackGatewayClient(gateway.getApsaraGatewayConfig());
             case HIGRESS:
                 return new HigressClient(gateway.getHigressConfig());
             default:
                 throw new BusinessException(
                         ErrorCode.INTERNAL_ERROR,
                         "No factory found for gateway type: " + gateway.getGatewayType());
-        }
-    }
-
-    /** Remove a gateway client for the given gateway. */
-    public void removeClient(String instanceId) {
-        GatewayClient client = clientCache.remove(instanceId);
-        try {
-            client.close();
-        } catch (Exception e) {
-            log.error("Error closing client for instance: {}", instanceId, e);
         }
     }
 }

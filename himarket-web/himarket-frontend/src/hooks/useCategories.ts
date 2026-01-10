@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import type { ICategory } from "../lib/apis";
 import APIs from "../lib/apis";
 
@@ -6,7 +6,7 @@ function useCategories(params: { type: string, addAll?: boolean }) {
   const [data, setData] = useState<ICategory[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const get = () => {
+  const get = React.useCallback(() => {
     setLoading(true);
     APIs.getCategoriesByProductType({ productType: params.type })
       .then(res => {
@@ -25,11 +25,11 @@ function useCategories(params: { type: string, addAll?: boolean }) {
           }
         }
       }).finally(() => setLoading(false));
-  }
+  }, [params.type, params.addAll]);
 
   useEffect(() => {
     get();
-  }, []);
+  }, [get]);
 
   return {
     data,

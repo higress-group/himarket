@@ -21,7 +21,9 @@ package com.alibaba.himarket.dto.result.model;
 
 import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
+@EqualsAndHashCode(callSuper = true)
 @Data
 @Builder
 public class AIGWModelAPIResult extends GatewayModelAPIResult {

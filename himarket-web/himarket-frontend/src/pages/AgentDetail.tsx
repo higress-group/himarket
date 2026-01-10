@@ -289,7 +289,7 @@ function AgentDetail() {
                               <div>
                                 <div className="text-sm text-gray-500 mb-2">附加接口</div>
                                 <div className="space-y-2">
-                                  {agentConfig.agentAPIConfig.agentCard.additionalInterfaces.map((iface: any, idx: number) => (
+                                  {agentConfig.agentAPIConfig.agentCard.additionalInterfaces.map((iface: { transport?: string; url: string; [key: string]: unknown }, idx: number) => (
                                     <div key={idx} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
                                       <div className="flex items-center gap-2 mb-1">
                                         <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-medium">
@@ -323,7 +323,7 @@ function AgentDetail() {
                               <div>
                                 <div className="text-sm text-gray-500 mb-2">技能列表</div>
                                 <div className="space-y-2">
-                                  {agentConfig.agentAPIConfig.agentCard.skills.map((skill: any, idx: number) => (
+                                  {agentConfig.agentAPIConfig.agentCard.skills.map((skill: { id: string; name: string; description?: string; tags?: string[] }, idx: number) => (
                                     <div key={idx} className="border border-gray-200 rounded-lg p-3 bg-white">
                                       <div className="font-medium text-gray-900">{skill.name}</div>
                                       {skill.description && (

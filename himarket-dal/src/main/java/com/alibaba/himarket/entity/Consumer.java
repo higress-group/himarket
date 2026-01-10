@@ -20,8 +20,7 @@
 package com.alibaba.himarket.entity;
 
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
+import lombok.*;
 
 @Entity
 @Table(
@@ -36,6 +35,9 @@ import lombok.EqualsAndHashCode;
         })
 @Data
 @EqualsAndHashCode(callSuper = true)
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class Consumer extends BaseEntity {
 
     @Id

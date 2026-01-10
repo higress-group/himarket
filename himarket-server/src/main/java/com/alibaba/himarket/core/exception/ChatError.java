@@ -19,19 +19,34 @@
 
 package com.alibaba.himarket.core.exception;
 
+import io.agentscope.core.model.ModelException;
+import java.io.IOException;
 import java.util.concurrent.TimeoutException;
 import lombok.Getter;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 @Getter
 public enum ChatError {
-    WEB_RESPONSE_ERROR("Web response error"),
 
-    TIMEOUT("Timeout"),
-
+    /**
+     * Unknown error
+     */
     UNKNOWN_ERROR("Unknown error"),
 
-    LLM_ERROR("LLM error, please check the input"),
+    /**
+     * Network connection error
+     */
+    NETWORK_ERROR("Network connection error"),
+
+    /**
+     * Request timeout
+     */
+    TIMEOUT("Request timeout"),
+
+    /**
+     * Request failed
+     */
+    REQUEST_ERROR("Request failed"),
     ;
 
     private final String description;
@@ -40,13 +55,27 @@ public enum ChatError {
         this.description = description;
     }
 
+    /**
+     * Determine ChatError type from exception.
+     *
+     * @param error The throwable to classify
+     * @return Corresponding ChatError enum value
+     */
     public static ChatError from(Throwable error) {
-        if (error instanceof WebClientResponseException) {
-            return WEB_RESPONSE_ERROR;
-        }
         if (error instanceof TimeoutException) {
             return TIMEOUT;
         }
+
+        // Network connection errors (network unreachable, connection refused, etc.)
+        if (error instanceof IOException) {
+            return NETWORK_ERROR;
+        }
+
+        // HTTP errors from model (401, 403, 500, etc.)
+        if (error instanceof WebClientResponseException || error instanceof ModelException) {
+            return REQUEST_ERROR;
+        }
+
         return UNKNOWN_ERROR;
     }
 }

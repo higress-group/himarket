@@ -44,14 +44,14 @@ export default function ModelFeatureForm({ initialExpanded = false }: ModelFeatu
             <Form.Item 
               label="Max Tokens" 
               name={['feature', 'modelFeature', 'maxTokens']}
-              tooltip={{ title: "1-100000", ...tooltipStyle }}
+              tooltip={{ title: "1-8192", ...tooltipStyle }}
               style={{ marginBottom: 0 }}
             >
               <InputNumber 
                 min={1} 
-                max={100000} 
+                max={8192} 
                 style={{ width: '100%' }}
-                placeholder="5000"
+                placeholder="5120"
                 size="small"
               />
             </Form.Item>

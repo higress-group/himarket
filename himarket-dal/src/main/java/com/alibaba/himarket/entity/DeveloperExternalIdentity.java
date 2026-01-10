@@ -21,15 +21,8 @@ package com.alibaba.himarket.entity;
 
 import com.alibaba.himarket.support.enums.DeveloperAuthType;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
 @Entity
 @Table(
         name = "developer_external_identity",
@@ -38,6 +31,11 @@ import lombok.NoArgsConstructor;
                     columnNames = {"provider", "subject"},
                     name = "unique_provider_subject")
         })
+@Data
+@EqualsAndHashCode(callSuper = true)
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class DeveloperExternalIdentity extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

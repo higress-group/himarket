@@ -26,14 +26,14 @@ import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.core.utils.CacheUtil;
 import com.alibaba.himarket.dto.params.chat.CreateChatParam;
-import com.alibaba.himarket.dto.params.chat.InvokeModelParam;
 import com.alibaba.himarket.dto.result.chat.LlmInvokeResult;
 import com.alibaba.himarket.dto.result.product.ProductRefResult;
 import com.alibaba.himarket.dto.result.product.ProductResult;
 import com.alibaba.himarket.service.GatewayService;
-import com.alibaba.himarket.service.LlmService;
 import com.alibaba.himarket.service.ProductService;
 import com.alibaba.himarket.service.SearchRewriteService;
+import com.alibaba.himarket.service.legacy.InvokeModelParamLegacy;
+import com.alibaba.himarket.service.legacy.LlmServiceLegacy;
 import com.alibaba.himarket.support.chat.ChatMessage;
 import com.alibaba.himarket.support.chat.search.SearchInput;
 import com.alibaba.himarket.support.enums.ChatRole;
@@ -91,7 +91,7 @@ public class SearchRewirteServiceImpl implements SearchRewriteService {
                 + "%s\n"
                 + "</chat_history>";
 
-    private final LlmService llmService;
+    private final LlmServiceLegacy llmServiceLegacy;
 
     private final ProductService productService;
 
@@ -100,8 +100,10 @@ public class SearchRewirteServiceImpl implements SearchRewriteService {
     private final Cache<String, List<URI>> cache = CacheUtil.newCache(5);
 
     public SearchRewirteServiceImpl(
-            LlmService llmService, ProductService productService, GatewayService gatewayService) {
-        this.llmService = llmService;
+            LlmServiceLegacy llmServiceLegacy,
+            ProductService productService,
+            GatewayService gatewayService) {
+        this.llmServiceLegacy = llmServiceLegacy;
         this.productService = productService;
         this.gatewayService = gatewayService;
     }
@@ -131,7 +133,7 @@ public class SearchRewirteServiceImpl implements SearchRewriteService {
     private SearchInput rewrite(List<ChatMessage> chatMessages, CreateChatParam param) {
         List<ChatMessage> messages = buildRewriteMessagesFromHistory(chatMessages);
 
-        InvokeModelParam invokeModelParam = buildInvokeModelParam(messages, param);
+        InvokeModelParamLegacy invokeModelParamLegacy = buildInvokeModelParam(messages, param);
 
         // 使用 CountDownLatch 等待异步调用完成
         CountDownLatch latch = new CountDownLatch(1);
@@ -142,8 +144,8 @@ public class SearchRewirteServiceImpl implements SearchRewriteService {
             MockHttpServletResponse mockResponse = new MockHttpServletResponse();
 
             // 调用 LLM 进行查询重写
-            llmService.invokeLLM(
-                    invokeModelParam,
+            llmServiceLegacy.invokeLLM(
+                    invokeModelParamLegacy,
                     mockResponse,
                     result -> {
                         resultRef.set(result);
@@ -226,7 +228,7 @@ public class SearchRewirteServiceImpl implements SearchRewriteService {
         }
     }
 
-    private InvokeModelParam buildInvokeModelParam(
+    private InvokeModelParamLegacy buildInvokeModelParam(
             List<ChatMessage> messages, CreateChatParam param) {
         ProductResult productResult = productService.getProduct(param.getProductId());
 
@@ -235,7 +237,7 @@ public class SearchRewirteServiceImpl implements SearchRewriteService {
         String gatewayId = productRef.getGatewayId();
         List<URI> gatewayUris = cache.get(gatewayId, gatewayService::fetchGatewayUris);
 
-        return InvokeModelParam.builder()
+        return InvokeModelParamLegacy.builder()
                 .product(productResult)
                 .chatMessages(messages)
                 .gatewayUris(gatewayUris)

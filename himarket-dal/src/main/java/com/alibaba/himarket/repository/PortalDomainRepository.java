@@ -25,13 +25,43 @@ import java.util.Optional;
 
 public interface PortalDomainRepository extends BaseRepository<PortalDomain, Long> {
 
+    /**
+     * Find portal domain by domain
+     *
+     * @param domain the domain name
+     * @return the portal domain if found
+     */
     Optional<PortalDomain> findByDomain(String domain);
 
+    /**
+     * Find portal domain by portal ID and domain
+     *
+     * @param portalId the portal ID
+     * @param domain the domain name
+     * @return the portal domain if found
+     */
     Optional<PortalDomain> findByPortalIdAndDomain(String portalId, String domain);
 
+    /**
+     * Find all portal domains by portal ID
+     *
+     * @param portalId the portal ID
+     * @return the list of portal domains
+     */
     List<PortalDomain> findAllByPortalId(String portalId);
 
+    /**
+     * Find all portal domains by portal IDs
+     *
+     * @param portalIds the list of portal IDs
+     * @return the list of portal domains
+     */
     List<PortalDomain> findAllByPortalIdIn(List<String> portalIds);
 
+    /**
+     * Delete all portal domains by portal ID
+     *
+     * @param portalId the portal ID
+     */
     void deleteAllByPortalId(String portalId);
 }
