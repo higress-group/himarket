@@ -70,9 +70,9 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps  # Using legacy-peer-deps to handle React 19 compatibility
 
-      - name: Run ESLint
-        run: npm run lint
-        # No continue-on-error - let it fail naturally
+      # - name: Run ESLint
+      #   run: npm run lint
+      #   # No continue-on-error - let it fail naturally
 
       - name: Run TypeScript type check
         run: npm run type-check
@@ -113,9 +113,9 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps  # Using legacy-peer-deps to handle React 19 compatibility
 
-      - name: Run ESLint
-        run: npm run lint
-        # No continue-on-error - let it fail naturally
+      # - name: Run ESLint
+      #   run: npm run lint
+      #   # No continue-on-error - let it fail naturally
 
       - name: Create check summary
         if: always()

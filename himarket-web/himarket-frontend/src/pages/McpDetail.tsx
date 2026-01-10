@@ -110,10 +110,6 @@ function McpDetail() {
       const baseUrl = `${domain.protocol}://${formattedDomain}`;
       let endpoint = `${baseUrl}${path}`;
 
-      if (mcpConfig?.meta?.source === 'ADP_AI_GATEWAY' || mcpConfig?.meta?.source === 'APSARA_GATEWAY') {
-        endpoint = `${baseUrl}/mcp-servers${path}`;
-      }
-
       if (protocolType === 'SSE') {
         // 仅生成SSE配置，不追加/sse
         const sseConfig = `{
