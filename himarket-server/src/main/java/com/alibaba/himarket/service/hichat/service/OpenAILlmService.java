@@ -166,6 +166,6 @@ public class OpenAILlmService extends AbstractLlmService {
 
     @Override
     public List<AIProtocol> getProtocols() {
-        return Collections.singletonList(AIProtocol.OPENAI);
+        return List.of(AIProtocol.OPENAI, AIProtocol.OPENAI_COMPATIBLE);
     }
 }
