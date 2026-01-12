@@ -616,6 +616,7 @@ public class AdpAIGatewayOperator extends GatewayOperator {
             // 构建请求参数
             cn.hutool.json.JSONObject requestData = JSONUtil.createObj();
             requestData.set("authType", 5);
+            requestData.set("apiKeyLocationType", "BEARER");
 
             // 从凭证中获取key
             if (credential.getApiKeyConfig() != null
@@ -740,6 +741,7 @@ public class AdpAIGatewayOperator extends GatewayOperator {
             requestData.set("appId", appId);
             requestData.set("appName", appName);
             requestData.set("authType", authType);
+            requestData.set("apiKeyLocationType", "BEARER");
             requestData.set("authTypeName", authTypeName);
             requestData.set("description", description);
             requestData.set("enable", enable);
