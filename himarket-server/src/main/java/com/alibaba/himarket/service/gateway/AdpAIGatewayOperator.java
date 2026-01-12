@@ -526,7 +526,9 @@ public class AdpAIGatewayOperator extends GatewayOperator {
         // 构建ModelAPIConfig
         ModelConfigResult.ModelAPIConfig apiConfig =
                 ModelConfigResult.ModelAPIConfig.builder()
-                        .aiProtocols(Collections.singletonList(mapProtocol(data.getProtocol()))) // 使用协议信息
+                        .aiProtocols(
+                                Collections.singletonList(
+                                        mapProtocol(data.getProtocol()))) // 使用协议信息
                         .modelCategory(data.getSceneType()) // 使用场景类型作为模型类别
                         .routes(buildRoutesFromAdpService(data, domains)) // 从ADP服务数据构建routes
                         .services(buildServicesFromAdpService(data)) // 从ADP服务数据构建services
