@@ -19,6 +19,7 @@ import io.agentscope.core.model.GenerateOptions;
 import io.agentscope.core.model.Model;
 import io.agentscope.core.model.OpenAIChatModel;
 import java.net.URI;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -165,6 +166,6 @@ public class OpenAILlmService extends AbstractLlmService {
 
     @Override
     public List<AIProtocol> getProtocols() {
-        return List.of(AIProtocol.OPENAI, AIProtocol.OPENAI_COMPATIBLE);
+        return Collections.singletonList(AIProtocol.OPENAI);
     }
 }

@@ -30,8 +30,6 @@ public enum AIProtocol {
     DASHSCOPE("DashScope"),
 
     DASHSCOPE_IMAGE("DashScopeImage"),
-
-    OPENAI_COMPATIBLE("OPENAI_COMPATIBLE"),
     ;
 
     private final String protocol;
