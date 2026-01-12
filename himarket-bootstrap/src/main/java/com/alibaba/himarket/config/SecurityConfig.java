@@ -51,7 +51,6 @@ public class SecurityConfig {
         "/admins/init",
         "/admins/need-init",
         "/admins/login",
-        "/developers",
         "/developers/login",
         "/developers/authorize",
         "/developers/callback",
@@ -84,6 +83,9 @@ public class SecurityConfig {
                                         .permitAll()
                                         // Permit OPTIONS
                                         .requestMatchers(HttpMethod.OPTIONS, "/**")
+                                        .permitAll()
+                                        // Permit developer registration (POST /developers)
+                                        .requestMatchers(HttpMethod.POST, "/developers")
                                         .permitAll()
                                         // Permit auth endpoints
                                         .requestMatchers(AUTH_WHITELIST)

@@ -67,6 +67,7 @@ public class DeveloperController {
 
     @Operation(summary = "获取门户的开发者列表", description = "管理员功能：获取当前门户下所有开发者的分页列表")
     @GetMapping
+    @AdminAuth
     public PageResult<DeveloperResult> listDevelopers(
             QueryDeveloperParam param, Pageable pageable) {
         return developerService.listDevelopers(param, pageable);
