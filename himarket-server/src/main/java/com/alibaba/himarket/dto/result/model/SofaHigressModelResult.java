@@ -17,30 +17,16 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.consumer;
+package com.alibaba.himarket.dto.result.model;
 
 import lombok.Builder;
 import lombok.Data;
 
 @Data
 @Builder
-public class ConsumerAuthConfig {
+public class SofaHigressModelResult extends GatewayModelAPIResult {
 
-    /**
-     * For APIG
-     */
-    private APIGAuthConfig apigAuthConfig;
+    private String modelApiId;
 
-    /**
-     * For Higress
-     */
-    private HigressAuthConfig higressAuthConfig;
-
-    /**
-     * For ADP AI Gateway
-     */
-    private AdpAIAuthConfig adpAIAuthConfig;
-
-    /** for Sofa Higress */
-    private SofaHigressAuthConfig sofaHigressAuthConfig;
+    private String modelApiName;
 }

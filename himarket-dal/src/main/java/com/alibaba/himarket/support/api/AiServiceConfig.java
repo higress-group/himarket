@@ -38,6 +38,9 @@ public class AiServiceConfig extends ServiceConfig {
     /** API Key */
     private String apiKey;
 
+    /** 模型名称 */
+    private String modelName;
+
     /** OpenAI 自定义后端 URL */
     private String openaiCustomUrl;
 

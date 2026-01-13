@@ -32,10 +32,7 @@ import com.alibaba.himarket.dto.result.model.GatewayModelAPIResult;
 import com.alibaba.himarket.entity.Consumer;
 import com.alibaba.himarket.entity.ConsumerCredential;
 import com.alibaba.himarket.entity.Gateway;
-import com.alibaba.himarket.service.gateway.client.APIGClient;
-import com.alibaba.himarket.service.gateway.client.ApsaraStackGatewayClient;
-import com.alibaba.himarket.service.gateway.client.GatewayClient;
-import com.alibaba.himarket.service.gateway.client.HigressClient;
+import com.alibaba.himarket.service.gateway.client.*;
 import com.alibaba.himarket.support.consumer.ConsumerAuthConfig;
 import com.alibaba.himarket.support.enums.GatewayType;
 import com.alibaba.himarket.support.gateway.GatewayConfig;
@@ -106,7 +103,9 @@ public abstract class GatewayOperator<T> {
         String clientKey =
                 gateway.getGatewayType().isAPIG()
                         ? gateway.getApigConfig().buildUniqueKey()
-                        : gateway.getHigressConfig().buildUniqueKey();
+                        : gateway.getGatewayType().isSofaHigress()
+                                ? gateway.getSofaHigressConfig().buildUniqueKey()
+                                : gateway.getHigressConfig().buildUniqueKey();
         return (T) clientCache.computeIfAbsent(clientKey, key -> createClient(gateway));
     }
 
@@ -120,6 +119,8 @@ public abstract class GatewayOperator<T> {
                 return new ApsaraStackGatewayClient(gateway.getApsaraGatewayConfig());
             case HIGRESS:
                 return new HigressClient(gateway.getHigressConfig());
+            case SOFA_HIGRESS:
+                return new SofaHigressClient(gateway.getSofaHigressConfig());
             default:
                 throw new BusinessException(
                         ErrorCode.INTERNAL_ERROR,

@@ -347,7 +347,7 @@ export default function ApiDefinitionForm() {
             await apiProductApi.createApiProductRef(productId, {
               productId: productId,
               sourceType: 'MANAGED',
-              apiDefinitionIds: JSON.stringify([newApiId])
+              apiDefinitionId: newApiId
             });
             message.success('已自动关联到当前产品');
           } catch (linkError) {

@@ -31,6 +31,8 @@ public interface ProductRefRepository
 
     Optional<ProductRef> findByProductId(String productId);
 
+    Optional<ProductRef> findByApiDefinitionId(String apiDefinitionId);
+
     Optional<ProductRef> findFirstByProductId(String productId);
 
     boolean existsByGatewayId(String gatewayId);

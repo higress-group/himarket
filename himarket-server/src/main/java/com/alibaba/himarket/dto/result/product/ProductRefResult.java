@@ -29,6 +29,7 @@ import com.alibaba.himarket.support.enums.SourceType;
 import com.alibaba.himarket.support.product.APIGRefConfig;
 import com.alibaba.himarket.support.product.HigressRefConfig;
 import com.alibaba.himarket.support.product.NacosRefConfig;
+import com.alibaba.himarket.support.product.SofaHigressRefConfig;
 import java.util.List;
 import lombok.Data;
 
@@ -49,19 +50,21 @@ public class ProductRefResult implements OutputConverter<ProductRefResult, Produ
 
     private HigressRefConfig higressRefConfig;
 
+    private SofaHigressRefConfig sofaHigressRefConfig;
+
     private String nacosId;
 
     private NacosRefConfig nacosRefConfig;
 
-    private List<String> apiDefinitionIds;
+    private String apiDefinitionId;
 
-    private List<APIDefinitionVO> apiDefinitions;
+    private APIDefinitionVO apiDefinition;
 
     @Override
     public ProductRefResult convertFrom(ProductRef productRef) {
         BeanUtil.copyProperties(productRef, this, configOptions());
-        if (StrUtil.isNotBlank(productRef.getApiDefinitionIds())) {
-            this.apiDefinitionIds = JSONUtil.toList(productRef.getApiDefinitionIds(), String.class);
+        if (StrUtil.isNotBlank(productRef.getApiDefinitionId())) {
+            this.apiDefinitionId = productRef.getApiDefinitionId();
         }
         return this;
     }

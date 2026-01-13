@@ -135,6 +135,14 @@ export interface HigressMCPItem {
   fromGatewayType: 'HIGRESS';
 }
 
+export interface SofaHigressMCPItem {
+  serverId?: string;
+  mcpServerName?: string;
+  modelApiId?: string;
+  modelApiName?: string;
+  fromGatewayType: 'SOFA_HIGRESS';
+}
+
 export interface NacosMCPItem {
   mcpServerName: string;
   fromGatewayType: 'NACOS';
@@ -170,7 +178,7 @@ export interface NacosAgentItem {
   type: string;               // 显示类型，如 "Agent API (public)"
 }
 
-export type ApiItem = RestAPIItem | HigressMCPItem | APIGAIMCPItem | NacosMCPItem | AIGatewayAgentItem | AIGatewayModelItem | NacosAgentItem;
+export type ApiItem = RestAPIItem | HigressMCPItem | APIGAIMCPItem | NacosMCPItem | AIGatewayAgentItem | AIGatewayModelItem | NacosAgentItem | SofaHigressMCPItem;
 
 export interface ApiDefinition {
   apiDefinitionId: string;
@@ -180,6 +188,12 @@ export interface ApiDefinition {
   status: string;
   version: string;
   endpoints?: any[];
+  metadata?: ApiDefinitionMetadata;
+}
+
+export interface ApiDefinitionMetadata {
+  protocol: string;
+  scenario: string;
 }
 
 // 关联服务配置
@@ -193,8 +207,9 @@ export interface LinkedService {
   nacosRefConfig?: NacosMCPItem | NacosAgentItem;  // 扩展支持 Agent
   adpAIGatewayRefConfig?: APIGAIMCPItem;
   apsaraGatewayRefConfig?: APIGAIMCPItem;
-  apiDefinitionIds?: string[];  // API Definition IDs (for MANAGED source type)
-  apiDefinitions?: ApiDefinition[];
+  sofaHigressRefConfig?: RestAPIItem | SofaHigressMCPItem;
+  apiDefinitionId?: string;  // API Definition ID (for MANAGED source type)
+  apiDefinition?: ApiDefinition;
 }
 
 // Product Feature Types

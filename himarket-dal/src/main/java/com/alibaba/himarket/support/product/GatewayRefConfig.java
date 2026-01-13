@@ -17,30 +17,13 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.consumer;
+package com.alibaba.himarket.support.product;
 
-import lombok.Builder;
-import lombok.Data;
+import java.io.Serializable;
 
-@Data
-@Builder
-public class ConsumerAuthConfig {
-
-    /**
-     * For APIG
-     */
-    private APIGAuthConfig apigAuthConfig;
-
-    /**
-     * For Higress
-     */
-    private HigressAuthConfig higressAuthConfig;
-
-    /**
-     * For ADP AI Gateway
-     */
-    private AdpAIAuthConfig adpAIAuthConfig;
-
-    /** for Sofa Higress */
-    private SofaHigressAuthConfig sofaHigressAuthConfig;
+/**
+ * abstract class of APIGRefConfig.class,
+ * HigressRefConfig.class, SofaHigressRefConfig.class
+ */
+public abstract class GatewayRefConfig implements Serializable {
 }

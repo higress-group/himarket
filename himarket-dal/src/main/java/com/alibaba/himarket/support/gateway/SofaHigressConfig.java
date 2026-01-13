@@ -21,19 +21,47 @@ package com.alibaba.himarket.support.gateway;
 
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.core.util.URLUtil;
+import com.alibaba.himarket.support.common.Encrypted;
 import lombok.Data;
 
 @Data
 public class SofaHigressConfig {
 
+    /**
+     * sofa higress console 地址
+     */
     private String address;
 
+    /**
+     * sofa higress access key
+     */
+    @Encrypted private String accessKey;
+
+    /**
+     * sofa higress secret key
+     */
+    @Encrypted private String secretKey;
+
+    /**
+     * sofa higress tenantId
+     */
+    @Encrypted private String tenantId;
+
+    /**
+     * sofa higress workspaceId
+     */
+    @Encrypted private String workspaceId;
+
     public String buildUniqueKey() {
-        return String.format("%s", address);
+        return StrUtil.join(":", address, accessKey, secretKey, tenantId, workspaceId);
     }
 
     public boolean validate() {
-        if (StrUtil.isBlank(address)) {
+        if (StrUtil.isBlank(address)
+                || StrUtil.isBlank(accessKey)
+                || StrUtil.isBlank(secretKey)
+                || StrUtil.isBlank(tenantId)
+                || StrUtil.isBlank(workspaceId)) {
             return false;
         }
 
