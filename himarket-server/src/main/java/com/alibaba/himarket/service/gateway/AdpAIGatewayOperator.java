@@ -337,12 +337,10 @@ public class AdpAIGatewayOperator extends GatewayOperator {
                 List<DomainResult> fallbackDomains =
                         data.getServices().stream()
                                 .map(
-                                        domain ->
+                                        service ->
                                                 DomainResult.builder()
-                                                        .domain(
-                                                                domain.getName()
-                                                                        + ":"
-                                                                        + domain.getPort())
+                                                        .domain(service.getName())
+                                                        .port(service.getPort())
                                                         .protocol("http")
                                                         .build())
                                 .collect(Collectors.toList());
@@ -436,7 +434,8 @@ public class AdpAIGatewayOperator extends GatewayOperator {
                     }
                     DomainResult domain =
                             DomainResult.builder()
-                                    .domain(externalIp + ":80")
+                                    .domain(externalIp)
+                                    .port(80)
                                     .protocol("http")
                                     .build();
                     domains.add(domain);
@@ -462,7 +461,8 @@ public class AdpAIGatewayOperator extends GatewayOperator {
                             String nodePort = parts[1].split("/")[0];
                             DomainResult domain =
                                     DomainResult.builder()
-                                            .domain(ip + ":" + nodePort)
+                                            .domain(ip)
+                                            .port(Integer.parseInt(nodePort))
                                             .protocol("http")
                                             .build();
                             domains.add(domain);
@@ -481,7 +481,7 @@ public class AdpAIGatewayOperator extends GatewayOperator {
                     continue;
                 }
                 DomainResult domain =
-                        DomainResult.builder().domain(externalIp + ":80").protocol("http").build();
+                        DomainResult.builder().domain(externalIp).port(80).protocol("http").build();
                 domains.add(domain);
             }
         }

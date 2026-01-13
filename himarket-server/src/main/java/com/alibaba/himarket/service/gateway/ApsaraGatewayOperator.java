@@ -209,10 +209,8 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
                                 .map(
                                         service ->
                                                 DomainResult.builder()
-                                                        .domain(
-                                                                service.getName()
-                                                                        + ":"
-                                                                        + service.getPort())
+                                                        .domain(service.getName())
+                                                        .port(service.getPort())
                                                         .protocol("http")
                                                         .build())
                                 .collect(Collectors.toList());
@@ -283,7 +281,8 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
                     }
                     DomainResult domain =
                             DomainResult.builder()
-                                    .domain(externalIp + ":80")
+                                    .domain(externalIp)
+                                    .port(80)
                                     .protocol("http")
                                     .build();
                     domains.add(domain);
@@ -309,7 +308,8 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
                             String nodePort = parts[1].split("/")[0];
                             DomainResult domain =
                                     DomainResult.builder()
-                                            .domain(ip + ":" + nodePort)
+                                            .domain(ip)
+                                            .port(Integer.parseInt(nodePort))
                                             .protocol("http")
                                             .build();
                             domains.add(domain);
@@ -328,7 +328,7 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
                     continue;
                 }
                 DomainResult domain =
-                        DomainResult.builder().domain(externalIp + ":80").protocol("http").build();
+                        DomainResult.builder().domain(externalIp).port(80).protocol("http").build();
                 domains.add(domain);
             }
         }
