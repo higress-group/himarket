@@ -1,12 +1,7 @@
 package com.alibaba.himarket.service.hichat.service;
 
-import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.BooleanUtil;
-import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
-import com.alibaba.himarket.dto.result.common.DomainResult;
-import com.alibaba.himarket.dto.result.httpapi.HttpRouteResult;
-import com.alibaba.himarket.dto.result.model.ModelConfigResult;
 import com.alibaba.himarket.dto.result.product.ProductResult;
 import com.alibaba.himarket.service.GatewayService;
 import com.alibaba.himarket.service.hichat.manager.ChatBotManager;
@@ -22,10 +17,8 @@ import java.net.URI;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.web.util.UriComponentsBuilder;
 
 @Service
 @Slf4j
@@ -41,7 +34,16 @@ public class OpenAILlmService extends AbstractLlmService {
         ProductResult product = param.getProduct();
 
         // Request URI (without query params)
-        URI uri = getUri(product.getModelConfig(), request.getGatewayUris());
+        String completionPath = "/chat/completions";
+        URI uri =
+                buildUri(
+                        product.getModelConfig(),
+                        request.getGatewayUris(),
+                        completionPath,
+                        path ->
+                                path.endsWith(completionPath)
+                                        ? path.substring(0, path.length() - completionPath.length())
+                                        : path);
         request.setUri(uri);
 
         if (BooleanUtil.isTrue(param.getEnableWebSearch())) {
@@ -89,79 +91,6 @@ public class OpenAILlmService extends AbstractLlmService {
                 .formatter(new OpenAIChatFormatter())
                 .generateOptions(options)
                 .build();
-    }
-
-    private URI getUri(ModelConfigResult modelConfig, List<URI> gatewayUris) {
-        ModelConfigResult.ModelAPIConfig modelAPIConfig = modelConfig.getModelAPIConfig();
-        if (modelAPIConfig == null || CollUtil.isEmpty(modelAPIConfig.getRoutes())) {
-            log.error("Failed to build URI: model API config is null or contains no routes");
-            return null;
-        }
-
-        String completionPath = "/chat/completions";
-        // Find matching route or use first route as fallback
-        HttpRouteResult route =
-                modelAPIConfig.getRoutes().stream()
-                        .filter(
-                                r ->
-                                        Optional.ofNullable(r.getMatch())
-                                                .map(HttpRouteResult.RouteMatchResult::getPath)
-                                                .map(HttpRouteResult.RouteMatchPath::getValue)
-                                                .filter(path -> path.endsWith(completionPath))
-                                                .isPresent())
-                        .findFirst()
-                        .orElseGet(() -> modelAPIConfig.getRoutes().get(0));
-
-        // Get and process path
-        String path =
-                Optional.ofNullable(route.getMatch())
-                        .map(HttpRouteResult.RouteMatchResult::getPath)
-                        .map(HttpRouteResult.RouteMatchPath::getValue)
-                        .map(
-                                p ->
-                                        p.endsWith(completionPath)
-                                                ? p.substring(
-                                                        0, p.length() - completionPath.length())
-                                                : p)
-                        .orElse("");
-
-        UriComponentsBuilder builder = UriComponentsBuilder.newInstance();
-
-        // Try to get public domain first, fallback to first domain
-        DomainResult domain =
-                route.getDomains().stream()
-                        .filter(d -> !StrUtil.equalsIgnoreCase(d.getNetworkType(), "intranet"))
-                        .findFirst()
-                        .orElseGet(
-                                () ->
-                                        CollUtil.isNotEmpty(route.getDomains())
-                                                ? route.getDomains().get(0)
-                                                : null);
-
-        if (domain != null) {
-            String protocol =
-                    StrUtil.isNotBlank(domain.getProtocol())
-                            ? domain.getProtocol().toLowerCase()
-                            : "http";
-            builder.scheme(protocol).host(domain.getDomain());
-            if (domain.getPort() != null && domain.getPort() > 0) {
-                builder.port(domain.getPort());
-            }
-        } else if (CollUtil.isNotEmpty(gatewayUris)) {
-            URI uri = gatewayUris.get(0);
-            builder.scheme(uri.getScheme() != null ? uri.getScheme() : "http").host(uri.getHost());
-            if (uri.getPort() != -1) {
-                builder.port(uri.getPort());
-            }
-        } else {
-            log.error("Failed to build URI: no valid domain found and no gateway URIs provided");
-            return null;
-        }
-
-        builder.path(path);
-        URI uri = builder.build().toUri();
-        log.debug("Successfully built URI: {}", uri);
-        return uri;
     }
 
     @Override
