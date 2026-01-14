@@ -337,12 +337,10 @@ public class AdpAIGatewayOperator extends GatewayOperator {
                 List<DomainResult> fallbackDomains =
                         data.getServices().stream()
                                 .map(
-                                        domain ->
+                                        service ->
                                                 DomainResult.builder()
-                                                        .domain(
-                                                                domain.getName()
-                                                                        + ":"
-                                                                        + domain.getPort())
+                                                        .domain(service.getName())
+                                                        .port(service.getPort())
                                                         .protocol("http")
                                                         .build())
                                 .collect(Collectors.toList());
@@ -436,7 +434,8 @@ public class AdpAIGatewayOperator extends GatewayOperator {
                     }
                     DomainResult domain =
                             DomainResult.builder()
-                                    .domain(externalIp + ":80")
+                                    .domain(externalIp)
+                                    .port(80)
                                     .protocol("http")
                                     .build();
                     domains.add(domain);
@@ -462,7 +461,8 @@ public class AdpAIGatewayOperator extends GatewayOperator {
                             String nodePort = parts[1].split("/")[0];
                             DomainResult domain =
                                     DomainResult.builder()
-                                            .domain(ip + ":" + nodePort)
+                                            .domain(ip)
+                                            .port(Integer.parseInt(nodePort))
                                             .protocol("http")
                                             .build();
                             domains.add(domain);
@@ -481,7 +481,7 @@ public class AdpAIGatewayOperator extends GatewayOperator {
                     continue;
                 }
                 DomainResult domain =
-                        DomainResult.builder().domain(externalIp + ":80").protocol("http").build();
+                        DomainResult.builder().domain(externalIp).port(80).protocol("http").build();
                 domains.add(domain);
             }
         }
@@ -526,7 +526,9 @@ public class AdpAIGatewayOperator extends GatewayOperator {
         // 构建ModelAPIConfig
         ModelConfigResult.ModelAPIConfig apiConfig =
                 ModelConfigResult.ModelAPIConfig.builder()
-                        .aiProtocols(Collections.singletonList(data.getProtocol())) // 使用协议信息
+                        .aiProtocols(
+                                Collections.singletonList(
+                                        mapProtocol(data.getProtocol()))) // 使用协议信息
                         .modelCategory(data.getSceneType()) // 使用场景类型作为模型类别
                         .routes(buildRoutesFromAdpService(data, domains)) // 从ADP服务数据构建routes
                         .services(buildServicesFromAdpService(data)) // 从ADP服务数据构建services
@@ -616,6 +618,7 @@ public class AdpAIGatewayOperator extends GatewayOperator {
             // 构建请求参数
             cn.hutool.json.JSONObject requestData = JSONUtil.createObj();
             requestData.set("authType", 5);
+            requestData.set("apiKeyLocationType", "BEARER");
 
             // 从凭证中获取key
             if (credential.getApiKeyConfig() != null
@@ -740,6 +743,7 @@ public class AdpAIGatewayOperator extends GatewayOperator {
             requestData.set("appId", appId);
             requestData.set("appName", appName);
             requestData.set("authType", authType);
+            requestData.set("apiKeyLocationType", "BEARER");
             requestData.set("authTypeName", authTypeName);
             requestData.set("description", description);
             requestData.set("enable", enable);
@@ -1456,6 +1460,17 @@ public class AdpAIGatewayOperator extends GatewayOperator {
             }
         }
         return PageResult.of(gateways, page, size, data.getTotal() != null ? data.getTotal() : 0);
+    }
+
+    /**
+     * 将协议字符串映射到AIProtocol枚举
+     * OPENAI_COMPATIBLE映射到OPENAI，因为它们本质上是同一个协议
+     */
+    private String mapProtocol(String protocol) {
+        if ("OPENAI_COMPATIBLE".equalsIgnoreCase(protocol)) {
+            return "OpenAI/V1"; // 对应AIProtocol.OPENAI
+        }
+        return protocol;
     }
 
     // ==================== ADP AI 服务响应 DTO ====================
