@@ -56,7 +56,7 @@ while (( attempt <= max_attempts )); do
   init_result=$(curl -sS -w "\nHTTP_CODE:%{http_code}" -X POST "${INIT_URL}" \
     -H "Accept: application/json, text/plain, */*" \
     -H "Content-Type: application/json" \
-    --data-raw "${REQUEST_BODY}" \
+    --data "${REQUEST_BODY}" \
     --connect-timeout 5 --max-time 10 2>/dev/null || echo "HTTP_CODE:000")
 
   # 提取 HTTP 状态码

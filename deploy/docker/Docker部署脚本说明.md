@@ -483,7 +483,7 @@ A: 根据你的场景选择：
 
 A:
 - `docker`：Docker 引擎
-- `docker-compose`：容器编排工具
+- `docker compose`：容器编排工具
 - `curl`：HTTP 客户端
 - `jq`：JSON 处理工具（必需，用于解析 higress-mcp.json）
 
@@ -519,7 +519,7 @@ A:
 1. 查看钩子日志输出，所有脚本都有详细的执行步骤和错误信息
 2. 检查 `data/.env` 中的环境变量是否正确配置
 3. 对于 Higress/Himarket 相关钩子，确认服务已正常运行并可访问
-4. 使用 `docker-compose logs <service-name>` 查看相关容器的日志
+4. 使用 `docker compose logs <service-name>` 查看相关容器的日志
 
 ### Q: 如何跳过某些 MCP 的 Himarket 配置？
 
@@ -550,15 +550,15 @@ mv scripts/hooks/post_ready.d/30-init-higress-mcp.sh scripts/hooks/post_ready.d/
 A:
 ```bash
 # 查看所有服务状态
-docker-compose ps
+docker compose ps
 
 # 查看特定服务日志
-docker-compose logs -f himarket-server
-docker-compose logs -f higress
-docker-compose logs -f nacos
+docker compose logs -f himarket-server
+docker compose logs -f higress
+docker compose logs -f nacos
 
 # 查看所有服务日志
-docker-compose logs -f
+docker compose logs -f
 ```
 
 ### Q: 如何停止和重启服务？
@@ -566,16 +566,16 @@ docker-compose logs -f
 A:
 ```bash
 # 停止所有服务
-docker-compose stop
+docker compose stop
 
 # 启动所有服务
-docker-compose start
+docker compose start
 
 # 重启特定服务
-docker-compose restart himarket-server
+docker compose restart himarket-server
 
 # 重新部署（删除并重建容器）
-docker-compose down
+docker compose down
 ./deploy.sh install
 ```
 

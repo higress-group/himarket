@@ -46,9 +46,14 @@ require_cmd() {
 check_dependencies() {
   log "检查依赖..."
   require_cmd docker
-  require_cmd docker-compose
   require_cmd curl
   require_cmd jq
+  
+  # 检查 docker compose 是否可用
+  if ! docker compose version >/dev/null 2>&1; then
+    err "docker compose 不可用，请升级 Docker 到最新版本"
+    exit 1
+  fi
 
   # 检查 Docker 是否正在运行
   if ! docker info >/dev/null 2>&1; then
@@ -73,7 +78,7 @@ wait_service() {
   while (( elapsed < max_wait )); do
     # 获取容器ID
     local cid
-    cid=$(cd "${DOCKER_DIR}" && docker-compose --env-file "${DATA_DIR}/.env" ps -q "${service_name}" 2>/dev/null || true)
+    cid=$(cd "${DOCKER_DIR}" && docker compose --env-file "${DATA_DIR}/.env" ps -q "${service_name}" 2>/dev/null || true)
     if [[ -n "$cid" ]]; then
       # 读取容器健康与状态
       local health status
@@ -96,13 +101,13 @@ wait_service() {
 
     if (( elapsed % 30 == 0 )); then
       local psline
-      psline=$(cd "${DOCKER_DIR}" && docker-compose --env-file "${DATA_DIR}/.env" ps "${service_name}" 2>/dev/null | sed -n '2p' || true)
+      psline=$(cd "${DOCKER_DIR}" && docker compose --env-file "${DATA_DIR}/.env" ps "${service_name}" 2>/dev/null | sed -n '2p' || true)
       log "等待 ${service_name} 就绪... (${elapsed}s/${max_wait}s) 状态: ${psline}"
     fi
   done
 
   err "${service_name} 启动超时"
-  (cd "${DOCKER_DIR}" && docker-compose --env-file "${DATA_DIR}/.env" logs "${service_name}" | tail -50)
+  (cd "${DOCKER_DIR}" && docker compose --env-file "${DATA_DIR}/.env" logs "${service_name}" | tail -50)
   return 1
 }
 
@@ -191,7 +196,7 @@ deploy_himarket_only() {
   if [[ "${USE_BUILTIN_MYSQL}" == "true" ]]; then
     log "使用内置 MySQL"
     export COMPOSE_PROFILES=builtin-mysql
-    docker-compose --env-file "${DATA_DIR}/.env" up -d mysql himarket-server himarket-admin himarket-frontend
+    docker compose --env-file "${DATA_DIR}/.env" up -d mysql himarket-server himarket-admin himarket-frontend
   else
     log "使用外置 MySQL (DB_HOST=${DB_HOST})"
     # 验证外置 MySQL 配置
@@ -199,7 +204,7 @@ deploy_himarket_only() {
       err "使用外置 MySQL 时，必须配置 DB_HOST, DB_PORT, DB_NAME, DB_USERNAME, DB_PASSWORD"
       exit 1
     fi
-    docker-compose --env-file "${DATA_DIR}/.env" up -d himarket-server himarket-admin himarket-frontend
+    docker compose --env-file "${DATA_DIR}/.env" up -d himarket-server himarket-admin himarket-frontend
   fi
 
   # 等待服务就绪
@@ -228,9 +233,9 @@ deploy_himarket_only() {
   log "  - Himarket Server: http://localhost:8081"
   log "========================================"
   log ""
-  log "查看服务状态: docker-compose ps"
-  log "查看服务日志: docker-compose logs -f [service-name]"
-  log "停止所有服务: docker-compose stop"
+  log "查看服务状态: docker compose ps"
+  log "查看服务日志: docker compose logs -f [service-name]"
+  log "停止所有服务: docker compose stop"
   log "卸载所有服务: ./deploy.sh uninstall"
 }
 
@@ -283,7 +288,7 @@ deploy_all() {
 
   export COMPOSE_PROFILES="${profiles}"
   log "使用 profiles: ${profiles}"
-  docker-compose --env-file "${DATA_DIR}/.env" up -d
+  docker compose --env-file "${DATA_DIR}/.env" up -d
 
   # 等待核心服务就绪
   log "等待核心服务启动..."
@@ -330,9 +335,9 @@ deploy_all() {
   log ""
   log "  - Higress Console: http://localhost:8001"
   log ""
-  log "查看服务状态: docker-compose ps"
-  log "查看服务日志: docker-compose logs -f [service-name]"
-  log "停止所有服务: docker-compose stop"
+  log "查看服务状态: docker compose ps"
+  log "查看服务日志: docker compose logs -f [service-name]"
+  log "停止所有服务: docker compose stop"
   log "卸载所有服务: ./deploy.sh uninstall"
 }
 
@@ -347,14 +352,14 @@ uninstall_all() {
   cd "${DOCKER_DIR}"  # 切换到 docker-compose.yml 所在目录
 
   log "停止并删除所有容器..."
-  docker-compose --env-file "${DATA_DIR}/.env" down
+  docker compose --env-file "${DATA_DIR}/.env" down
 
   log "清理数据卷（可选）..."
   read -p "是否删除数据卷？这将清除所有数据 (y/N): " -n 1 -r
   echo
   if [[ $REPLY =~ ^[Yy]$ ]]; then
     log "删除数据卷..."
-    docker-compose --env-file "${DATA_DIR}/.env" down -v
+    docker compose --env-file "${DATA_DIR}/.env" down -v
     rm -rf "${DOCKER_DIR}/data/mysql"
     rm -rf "${DOCKER_DIR}/data/nacos-mysql"
     log "数据卷已删除"
