@@ -150,6 +150,7 @@ interface EndpointEditorProps {
   apiType?: string; // API Definition 的类型
   apiName?: string; // API Definition 的名称
   protocol?: string; // API 协议
+  mcpBridgeType?: string; // MCP 桥接类型: HTTP_TO_MCP or DIRECT
 }
 
 // Endpoint 类型选项
@@ -209,13 +210,14 @@ export default function EndpointEditor({
   disabled = false,
   apiType,
   apiName,
-  protocol
+  protocol,
+  mcpBridgeType
 }: EndpointEditorProps) {
   // 根据 API 类型推断 Endpoint 类型
   const inferredEndpointType = apiType ? API_TYPE_TO_ENDPOINT_TYPE[apiType] : undefined;
   // 获取显示术语
   const terminology = getTerminology(apiType);
-  
+
   const [modalVisible, setModalVisible] = useState(false);
   const [editingEndpoint, setEditingEndpoint] = useState<Endpoint | null>(null);
   const [selectedType, setSelectedType] = useState<EndpointType | undefined>();
@@ -275,7 +277,7 @@ export default function EndpointEditor({
     setSelectedMcpService(undefined);
     setNacosNamespaces([]);
     setNacosServices([]);
-    
+
     try {
       const res = await nacosApi.getNamespaces(nacosId, { page: 1, size: 1000 });
       setNacosNamespaces((res.data?.content || []).map((ns: any) => ({
@@ -317,12 +319,12 @@ export default function EndpointEditor({
     // 自动设置推断出的类型
     setSelectedType(inferredEndpointType);
     setCurrentConfig({});
-    
+
     if (initialMethod === 'MANUAL') {
       form.resetFields();
       // 如果有推断的类型，自动设置到表单
       if (inferredEndpointType) {
-        form.setFieldsValue({ 
+        form.setFieldsValue({
           type: inferredEndpointType,
           name: apiType === 'MODEL_API' ? apiName : undefined
         });
@@ -358,14 +360,14 @@ export default function EndpointEditor({
   const handleModalOk = async () => {
     if (creationMethod === 'TEMPLATE') {
       let endpointsToAdd: Endpoint[] = [];
-      
+
       if (apiType === 'AGENT_API') {
         endpointsToAdd = DIFY_ENDPOINTS.filter(ep => selectedTemplateEndpoints.includes(ep.name));
       } else if (apiType === 'MODEL_API') {
         const templates = protocol === 'openai' ? OPENAI_TEMPLATES :
-                          protocol === 'anthropic' ? ANTHROPIC_TEMPLATES :
-                          protocol === 'doubao' ? DOUBAO_TEMPLATES : [];
-        
+          protocol === 'anthropic' ? ANTHROPIC_TEMPLATES :
+            protocol === 'doubao' ? DOUBAO_TEMPLATES : [];
+
         endpointsToAdd = templates
           .filter(t => selectedTemplateEndpoints.includes(t.label))
           .map(t => ({
@@ -385,15 +387,15 @@ export default function EndpointEditor({
         message.warning('请至少选择一个 Endpoint');
         return;
       }
-      
+
       const newEndpointsToAdd = endpointsToAdd.map(ep => {
         const newEp = JSON.parse(JSON.stringify(ep));
         if (newEp.config && newEp.config.requestBody && typeof newEp.config.requestBody === 'string') {
-             try {
-                 newEp.config.requestBody = JSON.parse(newEp.config.requestBody);
-             } catch (e) {
-                 console.error('Failed to parse requestBody', e);
-             }
+          try {
+            newEp.config.requestBody = JSON.parse(newEp.config.requestBody);
+          } catch (e) {
+            console.error('Failed to parse requestBody', e);
+          }
         }
         return newEp;
       });
@@ -417,9 +419,9 @@ export default function EndpointEditor({
           namespaceId: selectedNamespaceId,
           mcpServerName: selectedMcpService
         });
-        
+
         const data = res && res.data ? res.data : res;
-        
+
         if (data && data.endpoints && Array.isArray(data.endpoints)) {
           const newEndpoints = data.endpoints.map((ep: any) => {
             if (ep.config && typeof ep.config === 'string') {
@@ -431,10 +433,10 @@ export default function EndpointEditor({
             }
             return ep;
           });
-          
+
           const updatedValue = [...value, ...newEndpoints];
           onChange?.(updatedValue);
-          
+
           message.success(`成功导入 ${newEndpoints.length} 个 ${terminology.pluralLower}`);
           setModalVisible(false);
         } else {
@@ -461,9 +463,9 @@ export default function EndpointEditor({
           token: mcpToken,
           type: mcpProtocol
         });
-        
+
         const data = res && res.data ? res.data : res;
-        
+
         if (data && data.endpoints && Array.isArray(data.endpoints)) {
           const newEndpoints = data.endpoints.map((ep: any) => {
             if (ep.config && typeof ep.config === 'string') {
@@ -475,10 +477,10 @@ export default function EndpointEditor({
             }
             return ep;
           });
-          
+
           const updatedValue = [...value, ...newEndpoints];
           onChange?.(updatedValue);
-          
+
           message.success(`成功导入 ${newEndpoints.length} 个 ${terminology.pluralLower}`);
           setModalVisible(false);
         } else {
@@ -508,9 +510,9 @@ export default function EndpointEditor({
           version: '1.0.0',
           type: apiType === 'MCP_SERVER' ? 'MCP_SERVER' : 'REST_API'
         });
-        
+
         const data = res && res.data ? res.data : res;
-        
+
         if (data && data.endpoints && Array.isArray(data.endpoints)) {
           const newEndpoints = data.endpoints.map((ep: any) => {
             // Parse config string if it exists
@@ -523,11 +525,11 @@ export default function EndpointEditor({
             }
             return ep;
           });
-          
+
           // Append new endpoints to existing ones
           const updatedValue = [...value, ...newEndpoints];
           onChange?.(updatedValue);
-          
+
           message.success(`成功导入 ${newEndpoints.length} 个 ${terminology.pluralLower}`);
           setModalVisible(false);
           setSwaggerContent('');
@@ -546,7 +548,7 @@ export default function EndpointEditor({
     // 手动创建/编辑逻辑
     try {
       const values = await form.validateFields();
-      
+
       // 确定最终的 type 值：优先使用表单中的 type，如果没有则使用推断的类型或当前选中的类型
       const finalType = values.type || inferredEndpointType || selectedType;
 
@@ -558,14 +560,14 @@ export default function EndpointEditor({
       // 处理配置中的 JSON 字符串
       const processedConfig = { ...currentConfig };
       const jsonFields = ['inputSchema', 'outputSchema', 'requestBody', 'configSchema'];
-      
+
       for (const field of jsonFields) {
         if (processedConfig[field] && typeof processedConfig[field] === 'string') {
           try {
             if (processedConfig[field].trim()) {
-               processedConfig[field] = JSON.parse(processedConfig[field]);
+              processedConfig[field] = JSON.parse(processedConfig[field]);
             } else {
-               delete processedConfig[field];
+              delete processedConfig[field];
             }
           } catch (e) {
             message.error(`${field} JSON 格式错误`);
@@ -659,9 +661,9 @@ export default function EndpointEditor({
         version: '1.0.0',
         type: apiType === 'MCP_SERVER' ? 'MCP' : 'REST'
       });
-      
+
       const data = res && res.data ? res.data : res;
-      
+
       if (data && data.endpoints && Array.isArray(data.endpoints)) {
         const newEndpoints = data.endpoints.map((ep: any) => {
           // Parse config string if it exists
@@ -674,11 +676,11 @@ export default function EndpointEditor({
           }
           return ep;
         });
-        
+
         // Append new endpoints to existing ones
         const updatedValue = [...value, ...newEndpoints];
         onChange?.(updatedValue);
-        
+
         message.success(`成功导入 ${newEndpoints.length} 个 ${terminology.pluralLower}`);
         setModalVisible(false);
         setSwaggerContent('');
@@ -808,8 +810,8 @@ export default function EndpointEditor({
         onCancel={handleModalCancel}
         width={700}
         okText={
-          (creationMethod === 'SWAGGER' || creationMethod === 'NACOS' || creationMethod === 'MCP_SERVER' || creationMethod === 'TEMPLATE') && !editingEndpoint 
-            ? "导入" 
+          (creationMethod === 'SWAGGER' || creationMethod === 'NACOS' || creationMethod === 'MCP_SERVER' || creationMethod === 'TEMPLATE') && !editingEndpoint
+            ? "导入"
             : "确定"
         }
         cancelText="取消"
@@ -866,34 +868,34 @@ export default function EndpointEditor({
 
         {/* 模板选择界面 */}
         {creationMethod === 'TEMPLATE' && !editingEndpoint && (
-             <div className="mb-4">
-                 <div className="mb-2 font-medium">选择模板 ({apiType === 'AGENT_API' ? 'Dify' : protocol})</div>
-                 <div className="border rounded p-4 max-h-60 overflow-y-auto">
-                     <Checkbox.Group 
-                        className="flex flex-col gap-2"
-                        value={selectedTemplateEndpoints}
-                        onChange={(checkedValues) => setSelectedTemplateEndpoints(checkedValues as string[])}
-                     >
-                         {(apiType === 'AGENT_API' ? DIFY_ENDPOINTS : (
-                            protocol === 'openai' ? OPENAI_TEMPLATES :
-                            protocol === 'anthropic' ? ANTHROPIC_TEMPLATES :
-                            protocol === 'doubao' ? DOUBAO_TEMPLATES : []
-                         ).map(t => ({
-                            name: 'label' in t ? t.label : t.name,
-                            description: 'value' in t ? t.value : t.description
-                         }))).map(ep => {
-                             const isExist = value.some(existingEp => existingEp.name === ep.name);
-                             return (
-                                 <Checkbox key={ep.name} value={ep.name} disabled={isExist}>
-                                     <span className="font-medium">{ep.name}</span>
-                                     <span className="text-gray-500 ml-2">- {ep.description}</span>
-                                     {isExist && <span className="text-orange-500 ml-2">(已存在)</span>}
-                                 </Checkbox>
-                             );
-                         })}
-                     </Checkbox.Group>
-                 </div>
-             </div>
+          <div className="mb-4">
+            <div className="mb-2 font-medium">选择模板 ({apiType === 'AGENT_API' ? 'Dify' : protocol})</div>
+            <div className="border rounded p-4 max-h-60 overflow-y-auto">
+              <Checkbox.Group
+                className="flex flex-col gap-2"
+                value={selectedTemplateEndpoints}
+                onChange={(checkedValues) => setSelectedTemplateEndpoints(checkedValues as string[])}
+              >
+                {(apiType === 'AGENT_API' ? DIFY_ENDPOINTS : (
+                  protocol === 'openai' ? OPENAI_TEMPLATES :
+                    protocol === 'anthropic' ? ANTHROPIC_TEMPLATES :
+                      protocol === 'doubao' ? DOUBAO_TEMPLATES : []
+                ).map(t => ({
+                  name: 'label' in t ? t.label : t.name,
+                  description: 'value' in t ? t.value : t.description
+                }))).map(ep => {
+                  const isExist = value.some(existingEp => existingEp.name === ep.name);
+                  return (
+                    <Checkbox key={ep.name} value={ep.name} disabled={isExist}>
+                      <span className="font-medium">{ep.name}</span>
+                      <span className="text-gray-500 ml-2">- {ep.description}</span>
+                      {isExist && <span className="text-orange-500 ml-2">(已存在)</span>}
+                    </Checkbox>
+                  );
+                })}
+              </Checkbox.Group>
+            </div>
+          </div>
         )}
 
         {/* Nacos 导入界面 */}
@@ -982,9 +984,9 @@ export default function EndpointEditor({
         )}
 
         {/* 手动创建/编辑界面 */}
-        <Form 
-          form={form} 
-          layout="vertical" 
+        <Form
+          form={form}
+          layout="vertical"
           className="mt-4"
           style={{ display: (creationMethod === 'MANUAL' || editingEndpoint) ? 'block' : 'none' }}
         >
@@ -996,8 +998,8 @@ export default function EndpointEditor({
               { max: 100, message: '名称不能超过100个字符' }
             ]}
           >
-            <Input 
-              placeholder={apiType === 'MCP_SERVER' ? '例如：get_user_info' : '例如：getUserInfo'} 
+            <Input
+              placeholder={apiType === 'MCP_SERVER' ? '例如：get_user_info' : '例如：getUserInfo'}
             />
           </Form.Item>
 
@@ -1039,6 +1041,7 @@ export default function EndpointEditor({
                 onChange={setCurrentConfig}
                 protocol={protocol}
                 creationMode={creationMethod === 'TEMPLATE' ? 'TEMPLATE' : 'MANUAL'}
+                mcpBridgeType={mcpBridgeType}
               />
             </div>
           )}

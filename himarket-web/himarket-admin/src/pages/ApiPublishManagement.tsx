@@ -49,7 +49,7 @@ interface ExpandableTextProps {
 
 const ExpandableText = ({ text, maxLength = 100, isError = false }: ExpandableTextProps) => {
   const [expanded, setExpanded] = useState(false);
-  
+
   if (!text || text.length <= maxLength) {
     return (
       <span className={isError ? 'text-red-500' : 'text-green-500'}>
@@ -57,7 +57,7 @@ const ExpandableText = ({ text, maxLength = 100, isError = false }: ExpandableTe
       </span>
     );
   }
-  
+
   return (
     <div style={{ maxWidth: '100%' }}>
       <div className={isError ? 'text-red-500' : 'text-green-500'} style={{ wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
@@ -93,6 +93,7 @@ export default function ApiPublishManagement() {
   const [namespaces, setNamespaces] = useState<any[]>([]);
   const [gatewayServices, setGatewayServices] = useState<any[]>([]);
   const [loadingGatewayServices, setLoadingGatewayServices] = useState(false);
+  const [loadingDomains, setLoadingDomains] = useState(false);
   const [loading, setLoading] = useState(false);
   const [publishModalVisible, setPublishModalVisible] = useState(false);
   const [publishing, setPublishing] = useState(false);
@@ -132,22 +133,22 @@ export default function ApiPublishManagement() {
   // Start polling for record status
   const startPolling = (recordId: string) => {
     setPollingRecordId(recordId);
-    
+
     const interval = setInterval(async () => {
       try {
         const response = await apiDefinitionApi.getPublishRecordStatus(apiDefinitionId!, recordId);
         const record = response.data || response;
-        
+
         // Check if operation completed (not in progress states)
         if (record.status !== 'PUBLISHING' && record.status !== 'UNPUBLISHING') {
           // Stop polling
           clearInterval(interval);
           setPollingInterval(null);
           setPollingRecordId(null);
-          
+
           // Refresh data to show updated status
           await fetchData();
-          
+
           // Show success or error message
           if (record.status === 'ACTIVE') {
             message.success('发布成功');
@@ -162,7 +163,7 @@ export default function ApiPublishManagement() {
         // Continue polling even on error
       }
     }, 2000); // Poll every 2 seconds
-    
+
     setPollingInterval(interval);
   };
 
@@ -186,7 +187,7 @@ export default function ApiPublishManagement() {
       ]);
 
       setApiDefinition(apiRes.data || apiRes);
-      
+
       const allRecords = recordsRes.data?.content || recordsRes.content || [];
       // Filter active records for the status view (if needed, or just use the latest per gateway)
       // For now, we can just use the list as is, or filter for ACTIVE ones if the UI expects only active ones in publishRecords
@@ -196,7 +197,7 @@ export default function ApiPublishManagement() {
       // But wait, publishRecords was likely used for "Active Deployments".
       // If I set it to all history, publishRecords[0] will be the latest history item.
       // If the latest item is UNPUBLISH, status is INACTIVE. This is correct.
-      
+
       setPublishRecords(allRecords);
       setPublishHistory(allRecords);
 
@@ -222,7 +223,7 @@ export default function ApiPublishManagement() {
       }
 
       setNacosInstances(nacosRes.data?.content || nacosRes.content || []);
-      
+
       // Filter gateways based on API type if needed
       const allGateways = gatewaysRes.data?.content || gatewaysRes.content || [];
       setGateways(allGateways);
@@ -235,19 +236,26 @@ export default function ApiPublishManagement() {
   };
 
   const handleGatewayChange = async (gatewayId: string) => {
+    setLoadingDomains(true);
+    setLoadingGatewayServices(true);
+    setGatewayServices([]); // Reset services when gateway changes
     try {
-      const [domainsRes, serviceTypesRes] = await Promise.all([
+      const [domainsRes, serviceTypesRes, servicesRes] = await Promise.all([
         gatewayApi.getGatewayDomains(gatewayId),
-        gatewayApi.getGatewayServiceTypes(gatewayId)
+        gatewayApi.getGatewayServiceTypes(gatewayId),
+        gatewayApi.getGatewayServices(gatewayId)
       ]);
-      
+
       const domains = domainsRes.data || domainsRes;
       setIngressDomains(Array.isArray(domains) ? domains : []);
-      
+
+      const services = servicesRes.data || servicesRes;
+      setGatewayServices(Array.isArray(services) ? services : []);
+
       const types = serviceTypesRes.data || serviceTypesRes;
       let availableTypes = Array.isArray(types) ? types : [];
-      
-      // 如果是 Model API，只保留 AI_SERVICE 选项
+
+      // 如果是 Model API，只保留 AI_SERVICE 和 GATEWAY 选项
       if (apiDefinition?.type === 'MODEL_API') {
         availableTypes = ['AI_SERVICE'];
         form.setFieldValue('serviceType', 'AI_SERVICE');
@@ -257,24 +265,28 @@ export default function ApiPublishManagement() {
       if (availableTypes.length > 0) {
         setServiceTypes(availableTypes);
       }
-      
+
       // Clear gateway services - will be fetched on dropdown open
       setGatewayServices([]);
-      
+
       form.setFieldValue('ingressDomain', undefined); // Reset domain selection
       // Don't reset serviceType if it's still valid, or maybe we should? 
       // User request implies they want to see options early. 
       // If we reset, they lose selection. Let's keep it if valid, or reset if not in new list.
       const currentServiceType = form.getFieldValue('serviceType');
       if (currentServiceType && !availableTypes.includes(currentServiceType)) {
-          form.setFieldValue('serviceType', undefined);
+        form.setFieldValue('serviceType', undefined);
       }
     } catch (error) {
       console.error('Failed to fetch gateway info:', error);
       message.error('获取网关信息失败');
       setIngressDomains([]);
+      setGatewayServices([]);
       // Keep default service types on error
       setServiceTypes(['NACOS', 'FIXED_ADDRESS', 'DNS', 'GATEWAY']);
+    } finally {
+      setLoadingDomains(false);
+      setLoadingGatewayServices(false);
     }
   };
 
@@ -293,10 +305,10 @@ export default function ApiPublishManagement() {
     // Fetch gateway services when dropdown is opened
     const gatewayId = form.getFieldValue('gatewayId');
     if (!gatewayId) return;
-    
+
     // Only fetch if not already loaded
     if (gatewayServices.length > 0) return;
-    
+
     setLoadingGatewayServices(true);
     try {
       const servicesRes = await gatewayApi.getGatewayServices(gatewayId);
@@ -409,13 +421,13 @@ export default function ApiPublishManagement() {
 
       const selectedDomains = Array.isArray(values.ingressDomain) ? values.ingressDomain : (values.ingressDomain ? [values.ingressDomain] : []);
       const domainObjects = selectedDomains.map((domainStr: string) => {
-          const found = ingressDomains.find(d => d.domain === domainStr);
-          return found ? {
-              domain: found.domain,
-              port: found.port,
-              protocol: found.protocol,
-              networkType: found.networkType
-          } : { domain: domainStr };
+        const found = ingressDomains.find(d => d.domain === domainStr);
+        return found ? {
+          domain: found.domain,
+          port: found.port,
+          protocol: found.protocol,
+          networkType: found.networkType
+        } : { domain: domainStr };
       });
 
       const publishData = {
@@ -423,7 +435,14 @@ export default function ApiPublishManagement() {
         gatewayId: values.gatewayId,
         comment: values.comment,
         publishConfig: {
-          serviceConfig,
+          serviceConfig: {
+            ...serviceConfig,
+            meta: {
+              ...(serviceConfig.meta || {}),
+              ...(values.mcpProtocol ? { mcpProtocol: values.mcpProtocol } : {}),
+              ...(values.mcpPath ? { mcpPath: values.mcpPath } : {})
+            }
+          },
           domains: domainObjects,
           basePath: '/'
         }
@@ -431,16 +450,16 @@ export default function ApiPublishManagement() {
 
       const response = await apiDefinitionApi.publishApi(apiDefinitionId!, publishData);
       const publishRecord = response.data || response;
-      
+
       message.success('发布请求已提交，正在处理中...');
       setPublishModalVisible(false);
       form.resetFields();
-      
+
       // Start polling for status
       if (publishRecord.recordId) {
         startPolling(publishRecord.recordId);
       }
-      
+
       // Immediately refresh data to show PUBLISHING status
       await fetchData();
     } catch (error: any) {
@@ -461,10 +480,10 @@ export default function ApiPublishManagement() {
         try {
           const response = await apiDefinitionApi.unpublishApi(apiDefinitionId!, recordId);
           message.success('下线请求已提交，正在处理中...');
-          
+
           // Immediately refresh data to show UNPUBLISHING status
           await fetchData();
-          
+
           // The unpublish API returns the new unpublish record
           // We need to poll for that record's status
           // However, the backend doesn't return the new recordId in unpublish response
@@ -472,7 +491,7 @@ export default function ApiPublishManagement() {
           const recordsRes = await apiDefinitionApi.getPublishRecords(apiDefinitionId!, { page: 1, size: 100 });
           const allRecords = recordsRes.data?.content || recordsRes.content || [];
           const unpublishingRecord = allRecords.find((r: any) => r.status === 'UNPUBLISHING');
-          
+
           if (unpublishingRecord?.recordId) {
             startPolling(unpublishingRecord.recordId);
           }
@@ -491,7 +510,7 @@ export default function ApiPublishManagement() {
   const handleDiffSnapshot = (record: any) => {
     if (!record.snapshot) return;
     const recordSnapshot = JSON.stringify(record.snapshot, null, 2);
-    
+
     setDiffOriginal(recordSnapshot);
     setDiffModified(latestSnapshot);
     setDiffModalVisible(true);
@@ -516,7 +535,7 @@ export default function ApiPublishManagement() {
 
   const renderServiceConfig = (config: any) => {
     if (!config) return '-';
-    
+
     const itemStyle = { marginBottom: '4px', display: 'flex', alignItems: 'center' };
     const labelStyle = { color: '#8c8c8c', marginRight: '8px', minWidth: '60px' };
 
@@ -630,16 +649,16 @@ export default function ApiPublishManagement() {
       render: (_: any, record: any) => (
         record.snapshot ? (
           <Space>
-            <Button 
-              type="link" 
-              icon={<EyeOutlined />} 
+            <Button
+              type="link"
+              icon={<EyeOutlined />}
               onClick={() => handleViewSnapshot(record.snapshot)}
             >
               查看
             </Button>
             {record.recordId !== latestSnapshotRecordId && (
-              <Button 
-                type="link" 
+              <Button
+                type="link"
                 onClick={() => handleDiffSnapshot(record)}
               >
                 对比
@@ -692,8 +711,8 @@ export default function ApiPublishManagement() {
         </Card>
       )}
 
-      <Card 
-        className="mb-6" 
+      <Card
+        className="mb-6"
         title={
           <div className="flex items-center">
             <GlobalOutlined className="mr-2" />
@@ -726,9 +745,9 @@ export default function ApiPublishManagement() {
                   <Space>
                     {getStatusTag(record.status)}
                     {record.status === 'ACTIVE' && (
-                      <Button 
-                        type="link" 
-                        danger 
+                      <Button
+                        type="link"
+                        danger
                         size="small"
                         onClick={() => handleUnpublish(record.recordId)}
                         style={{ padding: 0 }}
@@ -749,7 +768,7 @@ export default function ApiPublishManagement() {
         )}
       </Card>
 
-      <Card 
+      <Card
         title={
           <div className="flex items-center">
             <HistoryOutlined className="mr-2" />
@@ -774,7 +793,7 @@ export default function ApiPublishManagement() {
         confirmLoading={publishing}
         width={600}
       >
-        
+
         <Form form={form} layout="vertical" initialValues={{ serviceType: 'NACOS', tlsEnabled: false }}>
           <Form.Item
             name="gatewayId"
@@ -798,9 +817,8 @@ export default function ApiPublishManagement() {
           <Form.Item
             name="ingressDomain"
             label="域名"
-            rules={[{ message: '请选择域名' }]}
           >
-            <Select placeholder="请选择域名" mode="multiple">
+            <Select placeholder="请选择域名" mode="multiple" loading={loadingDomains} notFoundContent={loadingDomains ? '加载中...' : '暂无数据'}>
               {ingressDomains.map(item => (
                 <Select.Option key={item.domain} value={item.domain}>
                   {item.protocol ? `${item.protocol}://${item.domain}` : item.domain}
@@ -809,67 +827,120 @@ export default function ApiPublishManagement() {
             </Select>
           </Form.Item>
 
-          <Form.Item name="serviceType" label="服务类型" rules={[{ required: true }]}>
-            <Radio.Group>
-              {serviceTypes.map(type => (
-                <Radio key={type} value={type}>
-                  {type === 'NACOS' ? 'Nacos' : 
-                   type === 'FIXED_ADDRESS' ? '固定地址' : 
-                   type === 'DNS' ? 'DNS' : 
-                   type === 'GATEWAY' ? '网关' :
-                   type === 'AI_SERVICE' ? 'AI 服务' : type}
-                </Radio>
-              ))}
+          <Form.Item name="serviceSource" label="服务来源" rules={[{ required: true }]} initialValue="NEW">
+            <Radio.Group
+              onChange={(e) => {
+                // Reset serviceType when switching source
+                if (e.target.value === 'NEW') {
+                  form.setFieldValue('serviceType', 'NACOS');
+                } else {
+                  form.setFieldValue('serviceType', 'GATEWAY');
+                }
+              }}
+            >
+              <Radio value="NEW">新建服务</Radio>
+              <Radio value="EXISTING">使用已有服务</Radio>
             </Radio.Group>
           </Form.Item>
+
+          <Form.Item
+            noStyle
+            shouldUpdate={(prev, curr) => prev.serviceSource !== curr.serviceSource}
+          >
+            {({ getFieldValue }) => {
+              const source = getFieldValue('serviceSource');
+              const newServiceTypes = serviceTypes.filter(t => t !== 'GATEWAY');
+
+              // When using existing service (GATEWAY), render a hidden input
+              // to ensure the value is included in form submission
+              if (source === 'EXISTING') {
+                return (
+                  <Form.Item name="serviceType" hidden>
+                    <Input />
+                  </Form.Item>
+                );
+              }
+
+              return (
+                <Form.Item name="serviceType" label="服务类型" rules={[{ required: true }]}>
+                  <Radio.Group>
+                    {newServiceTypes.map(type => (
+                      <Radio key={type} value={type}>
+                        {type === 'NACOS' ? 'Nacos' :
+                          type === 'FIXED_ADDRESS' ? '固定地址' :
+                            type === 'DNS' ? 'DNS' :
+                              type === 'AI_SERVICE' ? 'AI 服务' : type}
+                      </Radio>
+                    ))}
+                  </Radio.Group>
+                </Form.Item>
+              );
+            }}
+          </Form.Item>
+
+          {/* Base Path for Model API */}
+          {apiDefinition?.type === 'MODEL_API' && (
+            <Form.Item
+              name="basePath"
+              label="Base Path"
+              rules={[
+                { required: true, message: '请输入 Base Path' },
+                { pattern: /^\/.*/, message: 'Base Path 必须以 / 开头' }
+              ]}
+              initialValue="/"
+              tooltip="Model API 的基础路径，必须以 / 开头"
+            >
+              <Input placeholder="例如: /v1 or /api/v1" />
+            </Form.Item>
+          )}
 
           {serviceType === 'AI_SERVICE' && (
             <>
               <Form.Item name="protocol" label="模型协议" rules={[{ required: true }]} initialValue="openai/v1">
-                 <Select placeholder="请选择模型协议">
-                    <Select.Option value="openai/v1">openai/v1</Select.Option>
-                    <Select.Option value="original">原生协议</Select.Option>
-                 </Select>
+                <Select placeholder="请选择模型协议">
+                  <Select.Option value="openai/v1">openai/v1</Select.Option>
+                  <Select.Option value="original">原生协议</Select.Option>
+                </Select>
               </Form.Item>
               <Form.Item name="provider" label="模型提供商" rules={[{ required: true }]}>
-                 <Select placeholder="请选择模型提供商">
-                    <Select.Option value="openai">OpenAI</Select.Option>
-                    <Select.Option value="azure">Azure OpenAI</Select.Option>
-                    <Select.Option value="qwen">DashScope (通义千问)</Select.Option>
-                    <Select.Option value="moonshot">Moonshot (月之暗面)</Select.Option>
-                    <Select.Option value="baichuan">Baichuan (百川)</Select.Option>
-                    <Select.Option value="yi">Yi (零一万物)</Select.Option>
-                    <Select.Option value="zhipuai">Zhipu AI (智谱)</Select.Option>
-                    <Select.Option value="deepseek">DeepSeek</Select.Option>
-                    <Select.Option value="groq">Groq</Select.Option>
-                    <Select.Option value="grok">Grok</Select.Option>
-                    <Select.Option value="openrouter">OpenRouter</Select.Option>
-                    <Select.Option value="fireworks">Fireworks AI</Select.Option>
-                    <Select.Option value="baidu">Baidu (文心一言)</Select.Option>
-                    <Select.Option value="ai360">360 (智脑)</Select.Option>
-                    <Select.Option value="github">GitHub</Select.Option>
-                    <Select.Option value="mistral">Mistral</Select.Option>
-                    <Select.Option value="minimax">MiniMax</Select.Option>
-                    <Select.Option value="claude">Claude</Select.Option>
-                    <Select.Option value="ollama">Ollama</Select.Option>
-                    <Select.Option value="hunyuan">Hunyuan (混元)</Select.Option>
-                    <Select.Option value="stepfun">Stepfun (阶跃星辰)</Select.Option>
-                    <Select.Option value="cloudflare">Cloudflare</Select.Option>
-                    <Select.Option value="spark">Spark (星火)</Select.Option>
-                    <Select.Option value="gemini">Gemini</Select.Option>
-                    <Select.Option value="deepl">DeepL</Select.Option>
-                    <Select.Option value="cohere">Cohere</Select.Option>
-                    <Select.Option value="together-ai">Together-AI</Select.Option>
-                    <Select.Option value="dify">Dify</Select.Option>
-                    <Select.Option value="vertex">Google Vertex AI</Select.Option>
-                    <Select.Option value="bedrock">AWS Bedrock</Select.Option>
-                    <Select.Option value="triton">NVIDIA Triton</Select.Option>
-                    <Select.Option value="doubao">Doubao (豆包)</Select.Option>
-                    <Select.Option value="coze">Coze (扣子)</Select.Option>
-                    <Select.Option value="generic">Generic (通用代理)</Select.Option>
-                 </Select>
+                <Select placeholder="请选择模型提供商">
+                  <Select.Option value="openai">OpenAI</Select.Option>
+                  <Select.Option value="azure">Azure OpenAI</Select.Option>
+                  <Select.Option value="qwen">DashScope (通义千问)</Select.Option>
+                  <Select.Option value="moonshot">Moonshot (月之暗面)</Select.Option>
+                  <Select.Option value="baichuan">Baichuan (百川)</Select.Option>
+                  <Select.Option value="yi">Yi (零一万物)</Select.Option>
+                  <Select.Option value="zhipuai">Zhipu AI (智谱)</Select.Option>
+                  <Select.Option value="deepseek">DeepSeek</Select.Option>
+                  <Select.Option value="groq">Groq</Select.Option>
+                  <Select.Option value="grok">Grok</Select.Option>
+                  <Select.Option value="openrouter">OpenRouter</Select.Option>
+                  <Select.Option value="fireworks">Fireworks AI</Select.Option>
+                  <Select.Option value="baidu">Baidu (文心一言)</Select.Option>
+                  <Select.Option value="ai360">360 (智脑)</Select.Option>
+                  <Select.Option value="github">GitHub</Select.Option>
+                  <Select.Option value="mistral">Mistral</Select.Option>
+                  <Select.Option value="minimax">MiniMax</Select.Option>
+                  <Select.Option value="claude">Claude</Select.Option>
+                  <Select.Option value="ollama">Ollama</Select.Option>
+                  <Select.Option value="hunyuan">Hunyuan (混元)</Select.Option>
+                  <Select.Option value="stepfun">Stepfun (阶跃星辰)</Select.Option>
+                  <Select.Option value="cloudflare">Cloudflare</Select.Option>
+                  <Select.Option value="spark">Spark (星火)</Select.Option>
+                  <Select.Option value="gemini">Gemini</Select.Option>
+                  <Select.Option value="deepl">DeepL</Select.Option>
+                  <Select.Option value="cohere">Cohere</Select.Option>
+                  <Select.Option value="together-ai">Together-AI</Select.Option>
+                  <Select.Option value="dify">Dify</Select.Option>
+                  <Select.Option value="vertex">Google Vertex AI</Select.Option>
+                  <Select.Option value="bedrock">AWS Bedrock</Select.Option>
+                  <Select.Option value="triton">NVIDIA Triton</Select.Option>
+                  <Select.Option value="doubao">Doubao (豆包)</Select.Option>
+                  <Select.Option value="coze">Coze (扣子)</Select.Option>
+                  <Select.Option value="generic">Generic (通用代理)</Select.Option>
+                </Select>
               </Form.Item>
-              
+
               {/* Provider Specific Fields */}
               {provider === 'openai' && (
                 <>
@@ -917,11 +988,11 @@ export default function ApiPublishManagement() {
 
               {provider === 'minimax' && (
                 <>
-                  <Form.Item 
-                    noStyle 
+                  <Form.Item
+                    noStyle
                     shouldUpdate={(prev, curr) => prev.minimaxApiType !== curr.minimaxApiType}
                   >
-                    {({ getFieldValue }) => 
+                    {({ getFieldValue }) =>
                       getFieldValue('minimaxApiType') === 'pro' ? (
                         <Form.Item name="minimaxGroupId" label="Group ID" rules={[{ required: true }]}>
                           <Input />
@@ -1005,11 +1076,11 @@ export default function ApiPublishManagement() {
                       <Select.Option value="Workflow">Workflow</Select.Option>
                     </Select>
                   </Form.Item>
-                  <Form.Item 
-                    noStyle 
+                  <Form.Item
+                    noStyle
                     shouldUpdate={(prev, curr) => prev.botType !== curr.botType}
                   >
-                    {({ getFieldValue }) => 
+                    {({ getFieldValue }) =>
                       getFieldValue('botType') === 'Workflow' ? (
                         <>
                           <Form.Item name="inputVariable" label="输入变量">
@@ -1112,7 +1183,7 @@ export default function ApiPublishManagement() {
           {serviceType === 'NACOS' && (
             <>
               <Form.Item name="nacosId" label="Nacos 实例" rules={[{ required: true }]}>
-                <Select 
+                <Select
                   placeholder="请选择 Nacos 实例"
                   onChange={handleNacosChange}
                 >
@@ -1123,7 +1194,7 @@ export default function ApiPublishManagement() {
                   ))}
                 </Select>
               </Form.Item>
-              
+
               {nacosId && (
                 <Form.Item name="namespace" label="命名空间" rules={[{ required: true }]}>
                   <Select placeholder="请选择命名空间">
@@ -1161,40 +1232,98 @@ export default function ApiPublishManagement() {
             </Form.Item>
           )}
 
-          {serviceType === 'GATEWAY' && selectedGatewayId && (
-            <Form.Item name="serviceId" label="网关服务" rules={[{ required: true }]}>
-              <Select 
-                placeholder="请选择网关服务"
-                onFocus={handleGatewayServiceDropdownOpen}
-                loading={loadingGatewayServices}
-                onChange={(value) => {
-                  const selected = gatewayServices.find(s => s.serviceId === value);
-                  if (selected) {
-                    form.setFieldValue('serviceName', selected.serviceName);
-                    // Set TLS enabled based on the service's tlsEnabled property
-                    form.setFieldValue('tlsEnabled', selected.tlsEnabled || false);
-                  }
-                }}
+          <Form.Item
+            noStyle
+            shouldUpdate={(prev, curr) => prev.serviceType !== curr.serviceType || prev.gatewayId !== curr.gatewayId}
+          >
+            {({ getFieldValue }) => {
+              const currentServiceType = getFieldValue('serviceType');
+              const currentGatewayId = getFieldValue('gatewayId');
+              if (currentServiceType !== 'GATEWAY' || !currentGatewayId) return null;
+
+              return (
+                <Form.Item name="serviceId" label="网关服务" rules={[{ required: true }]}>
+                  <Select
+                    placeholder="请选择网关服务"
+                    onFocus={handleGatewayServiceDropdownOpen}
+                    loading={loadingGatewayServices}
+                    notFoundContent={loadingGatewayServices ? '加载中...' : '暂无数据'}
+                    onChange={(value) => {
+                      const selected = gatewayServices.find(s => s.serviceId === value);
+                      if (selected) {
+                        form.setFieldValue('serviceName', selected.serviceName);
+                        // Set TLS enabled based on the service's tlsEnabled property
+                        form.setFieldValue('tlsEnabled', selected.tlsEnabled || false);
+                      }
+                    }}
+                  >
+                    {gatewayServices.map(service => (
+                      <Select.Option key={service.serviceId} value={service.serviceId}>
+                        {service.serviceName} ({service.serviceId})
+                      </Select.Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+              );
+            }}
+          </Form.Item>
+
+          <Form.Item
+            noStyle
+            shouldUpdate={(prev, curr) => prev.serviceType !== curr.serviceType}
+          >
+            {({ getFieldValue }) => {
+              const currentServiceType = getFieldValue('serviceType');
+              if (currentServiceType !== 'GATEWAY') return null;
+              return (
+                <Form.Item name="serviceName" hidden>
+                  <Input />
+                </Form.Item>
+              );
+            }}
+          </Form.Item>
+
+          <Form.Item
+            noStyle
+            shouldUpdate={(prev, curr) => prev.serviceType !== curr.serviceType}
+          >
+            {({ getFieldValue }) => {
+              const currentServiceType = getFieldValue('serviceType');
+              if (apiDefinition?.type === 'MODEL_API' || currentServiceType === 'GATEWAY') {
+                return null;
+              }
+              return (
+                <Form.Item name="tlsEnabled" valuePropName="checked">
+                  <Checkbox>后端服务是否使用 TLS</Checkbox>
+                </Form.Item>
+              );
+            }}
+          </Form.Item>
+
+          {/* Conditional usage of mcpProtocol and mcpPath for DIRECT MCP Servers - Moved before comment */}
+          {apiDefinition?.metadata?.mcpBridgeType === 'DIRECT' && (
+            <>
+              <Form.Item
+                name="mcpProtocol"
+                label="MCP 协议"
+                rules={[{ required: true, message: '请选择 MCP 协议' }]}
+                initialValue="SSE"
               >
-                {gatewayServices.map(service => (
-                  <Select.Option key={service.serviceId} value={service.serviceId}>
-                    {service.serviceName} ({service.serviceId})
-                  </Select.Option>
-                ))}
-              </Select>
-            </Form.Item>
-          )}
+                <Select placeholder="请选择 MCP 协议">
+                  <Select.Option value="SSE">SSE</Select.Option>
+                  <Select.Option value="HTTP">HTTP</Select.Option>
+                </Select>
+              </Form.Item>
 
-          {serviceType === 'GATEWAY' && (
-            <Form.Item name="serviceName" hidden>
-              <Input />
-            </Form.Item>
-          )}
-
-          {apiDefinition?.type !== 'MODEL_API' && (
-            <Form.Item name="tlsEnabled" valuePropName="checked">
-              <Checkbox disabled={serviceType === 'GATEWAY' && !!selectedServiceId}>开启 TLS</Checkbox>
-            </Form.Item>
+              <Form.Item
+                name="mcpPath"
+                label="MCP 后端路径"
+                rules={[{ required: true, message: '请输入 MCP 后端路径' }]}
+                tooltip="后端服务暴露的 MCP 路径 (例如: /sse)"
+              >
+                <Input placeholder="请输入 MCP 后端路径" />
+              </Form.Item>
+            </>
           )}
 
           <Form.Item
@@ -1204,6 +1333,8 @@ export default function ApiPublishManagement() {
           >
             <TextArea rows={4} placeholder="请输入本次发布的备注信息（可选）" />
           </Form.Item>
+
+
         </Form>
       </Modal>
 
@@ -1228,9 +1359,9 @@ export default function ApiPublishManagement() {
                 <h3 className="text-base font-medium mb-2">Endpoints</h3>
                 <div className="space-y-4">
                   {currentSnapshot.endpoints.map((endpoint: any, index: number) => (
-                    <Card 
-                      key={index} 
-                      size="small" 
+                    <Card
+                      key={index}
+                      size="small"
                       title={
                         <div className="flex items-center justify-between">
                           <span>{endpoint.name}</span>
@@ -1257,9 +1388,9 @@ export default function ApiPublishManagement() {
                 <h3 className="text-base font-medium mb-2">API 属性</h3>
                 <div className="space-y-4">
                   {currentSnapshot.properties.map((property: any, index: number) => (
-                    <Card 
-                      key={index} 
-                      size="small" 
+                    <Card
+                      key={index}
+                      size="small"
                       title={
                         <div className="flex items-center justify-between">
                           <span>{property.name || property.type}</span>
@@ -1278,11 +1409,11 @@ export default function ApiPublishManagement() {
                         <pre className="text-xs overflow-x-auto whitespace-pre-wrap m-0">
                           {JSON.stringify(
                             Object.fromEntries(
-                              Object.entries(property).filter(([key]) => 
+                              Object.entries(property).filter(([key]) =>
                                 !['type', 'name', 'enabled', 'priority', 'phase'].includes(key)
                               )
-                            ), 
-                            null, 
+                            ),
+                            null,
                             2
                           )}
                         </pre>

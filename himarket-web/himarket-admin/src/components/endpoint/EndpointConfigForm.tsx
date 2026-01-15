@@ -10,6 +10,7 @@ interface EndpointConfigFormProps {
   value?: EndpointConfig;
   onChange?: (value: EndpointConfig) => void;
   protocol?: string;
+  mcpBridgeType?: string; // MCP 桥接类型: HTTP_TO_MCP or DIRECT
 }
 
 // HTTP 方法选项
@@ -38,7 +39,7 @@ const PARAMETER_IN_OPTIONS = [
   { label: 'Cookie 参数', value: 'cookie' }
 ];
 
-export default function EndpointConfigForm({ type, value, onChange, protocol, creationMode = 'MANUAL' }: EndpointConfigFormProps & { creationMode?: 'MANUAL' | 'TEMPLATE' }) {
+export default function EndpointConfigForm({ type, value, onChange, protocol, creationMode = 'MANUAL', mcpBridgeType }: EndpointConfigFormProps & { creationMode?: 'MANUAL' | 'TEMPLATE' }) {
   const [form] = Form.useForm();
   const isInternalChange = useRef(false);
 
@@ -99,7 +100,7 @@ export default function EndpointConfigForm({ type, value, onChange, protocol, cr
 
     if (value) {
       const formValues = { ...value };
-      
+
       // 处理 JSON Schema 字段，如果是对象则转换为字符串显示
       const jsonFields = ['inputSchema', 'outputSchema', 'requestBody', 'configSchema'];
       jsonFields.forEach(field => {
@@ -127,110 +128,119 @@ export default function EndpointConfigForm({ type, value, onChange, protocol, cr
 
   // 渲染 MCP Tool 配置表单
   const renderMCPToolConfig = () => {
+    // Build collapse items dynamically based on mcpBridgeType
+    const collapseItems: any[] = [
+      {
+        key: 'schema',
+        label: 'Schema 定义',
+        children: (
+          <>
+            <Form.Item
+              label="输入 Schema (Input Schema)"
+              name="inputSchema"
+              help="JSON 格式的输入参数 Schema"
+            >
+              <TextArea
+                rows={4}
+                placeholder='{"type": "object", "properties": {...}}'
+              />
+            </Form.Item>
+
+            <Form.Item
+              label="输出 Schema (Output Schema)"
+              name="outputSchema"
+              help="JSON 格式的输出结果 Schema"
+            >
+              <TextArea
+                rows={4}
+                placeholder='{"type": "object", "properties": {...}}'
+              />
+            </Form.Item>
+          </>
+        )
+      }
+    ];
+
+    // Only add request/response templates for HTTP_TO_MCP bridge type
+    if (mcpBridgeType === 'HTTP_TO_MCP' || mcpBridgeType === undefined) {
+      collapseItems.push(
+        {
+          key: 'request',
+          label: '请求模板 (Request Template) - 高级设置',
+          children: (
+            <>
+              <Form.Item
+                label="请求 URL"
+                name={['requestTemplate', 'url']}
+              >
+                <Input placeholder="https://api.example.com/endpoint" />
+              </Form.Item>
+
+              <Form.Item
+                label="HTTP 方法"
+                name={['requestTemplate', 'method']}
+              >
+                <Select options={HTTP_METHODS} placeholder="选择方法" />
+              </Form.Item>
+
+              <Form.Item label="请求头 (Headers)">
+                <Form.List name={['requestTemplate', 'headers']}>
+                  {(fields, { add, remove }) => (
+                    <div className="flex flex-col gap-2">
+                      {fields.map((field) => {
+                        const { key, ...restField } = field;
+                        return (
+                          <Space key={`requestTemplate-header-${key}`} style={{ display: 'flex', marginBottom: 8 }}>
+                            <Form.Item
+                              {...restField}
+                              name={[field.name, 'key']}
+                              noStyle
+                            >
+                              <Input placeholder="Header 名称" style={{ width: 200 }} />
+                            </Form.Item>
+                            <Form.Item
+                              {...restField}
+                              name={[field.name, 'value']}
+                              noStyle
+                            >
+                              <Input placeholder="Header 值" style={{ width: 300 }} />
+                            </Form.Item>
+                            <MinusCircleOutlined onClick={() => remove(field.name)} />
+                          </Space>
+                        );
+                      })}
+                      <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
+                        添加请求头
+                      </Button>
+                    </div>
+                  )}
+                </Form.List>
+              </Form.Item>
+
+              <Form.Item label="请求体模板 (Body)" name={['requestTemplate', 'body']}>
+                <TextArea rows={4} placeholder='{"key": "value"}' />
+              </Form.Item>
+            </>
+          )
+        },
+        {
+          key: 'response',
+          label: '响应模板 (Response Template) - 高级设置',
+          children: (
+            <Form.Item label="响应体模板" name={['responseTemplate', 'body']}>
+              <TextArea rows={4} placeholder="响应处理逻辑" />
+            </Form.Item>
+          )
+        }
+      );
+    }
+
     return (
       <>
-        <Collapse 
-          defaultActiveKey={['schema']} 
+        <Collapse
+          defaultActiveKey={['schema']}
           className="mb-4"
-          items={[
-            {
-              key: 'schema',
-              label: 'Schema 定义',
-              children: (
-                <>
-                  <Form.Item
-                    label="输入 Schema (Input Schema)"
-                    name="inputSchema"
-                    help="JSON 格式的输入参数 Schema"
-                  >
-                    <TextArea
-                      rows={4}
-                      placeholder='{"type": "object", "properties": {...}}'
-                    />
-                  </Form.Item>
-
-                  <Form.Item
-                    label="输出 Schema (Output Schema)"
-                    name="outputSchema"
-                    help="JSON 格式的输出结果 Schema"
-                  >
-                    <TextArea
-                      rows={4}
-                      placeholder='{"type": "object", "properties": {...}}'
-                    />
-                  </Form.Item>
-                </>
-              )
-            },
-            {
-              key: 'request',
-              label: '请求模板 (Request Template) - 高级设置',
-              children: (
-                <>
-                  <Form.Item
-                    label="请求 URL"
-                    name={['requestTemplate', 'url']}
-                  >
-                    <Input placeholder="https://api.example.com/endpoint" />
-                  </Form.Item>
-
-                  <Form.Item
-                    label="HTTP 方法"
-                    name={['requestTemplate', 'method']}
-                  >
-                    <Select options={HTTP_METHODS} placeholder="选择方法" />
-                  </Form.Item>
-
-                  <Form.Item label="请求头 (Headers)">
-                    <Form.List name={['requestTemplate', 'headers']}>
-                      {(fields, { add, remove }) => (
-                        <div className="flex flex-col gap-2">
-                          {fields.map((field) => {
-                            const { key, ...restField } = field;
-                            return (
-                              <Space key={`requestTemplate-header-${key}`} style={{ display: 'flex', marginBottom: 8 }}>
-                                <Form.Item
-                                  {...restField}
-                                  name={[field.name, 'key']}
-                                  noStyle
-                                >
-                                  <Input placeholder="Header 名称" style={{ width: 200 }} />
-                                </Form.Item>
-                                <Form.Item
-                                  {...restField}
-                                  name={[field.name, 'value']}
-                                  noStyle
-                                >
-                                  <Input placeholder="Header 值" style={{ width: 300 }} />
-                                </Form.Item>
-                                <MinusCircleOutlined onClick={() => remove(field.name)} />
-                              </Space>
-                            );
-                          })}
-                          <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
-                            添加请求头
-                          </Button>
-                        </div>
-                      )}
-                    </Form.List>
-                  </Form.Item>
-
-                  <Form.Item label="请求体模板 (Body)" name={['requestTemplate', 'body']}>
-                    <TextArea rows={4} placeholder='{"key": "value"}' />
-                  </Form.Item>
-                </>
-              )
-            },
-            {
-              key: 'response',
-              label: '响应模板 (Response Template) - 高级设置',
-              children: (
-                <Form.Item label="响应体模板" name={['responseTemplate', 'body']}>
-                  <TextArea rows={4} placeholder="响应处理逻辑" />
-                </Form.Item>
-              )
-            }
-          ]}
+          items={collapseItems}
         />
       </>
     );
@@ -256,8 +266,8 @@ export default function EndpointConfigForm({ type, value, onChange, protocol, cr
           <Select options={HTTP_METHODS} placeholder="选择方法" />
         </Form.Item>
 
-        <Collapse 
-          defaultActiveKey={['params']} 
+        <Collapse
+          defaultActiveKey={['params']}
           className="mb-4"
           items={[
             {
@@ -551,8 +561,8 @@ export default function EndpointConfigForm({ type, value, onChange, protocol, cr
   const renderAgentConfig = () => {
     return (
       <>
-        <Collapse 
-          defaultActiveKey={['match']} 
+        <Collapse
+          defaultActiveKey={['match']}
           className="mt-4"
           items={[
             {
@@ -569,8 +579,8 @@ export default function EndpointConfigForm({ type, value, onChange, protocol, cr
   // 渲染 HTTP 配置表单
   const renderHttpConfig = () => {
     return (
-      <Collapse 
-        defaultActiveKey={['match']} 
+      <Collapse
+        defaultActiveKey={['match']}
         className="mt-4"
         items={[
           {
@@ -593,16 +603,16 @@ export default function EndpointConfigForm({ type, value, onChange, protocol, cr
 
         {hasTemplates && creationMode === 'TEMPLATE' && (
           <Form.Item label="选择模板">
-            <Select 
-              options={templates} 
+            <Select
+              options={templates}
               onChange={handleTemplateChange}
               placeholder="请选择路由模板"
             />
           </Form.Item>
         )}
 
-        <Collapse 
-          defaultActiveKey={['match']} 
+        <Collapse
+          defaultActiveKey={['match']}
           className="mt-4"
           items={[
             {

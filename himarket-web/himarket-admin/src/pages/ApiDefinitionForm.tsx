@@ -181,7 +181,7 @@ export default function ApiDefinitionForm() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { productName, productType } = location.state || {};
+  const { productName, productType, productDescription } = location.state || {};
   const [form] = Form.useForm();
   const apiName = Form.useWatch('name', form);
   const [loading, setLoading] = useState(false);
@@ -383,6 +383,7 @@ export default function ApiDefinitionForm() {
         // 第三步：配置 Endpoints
         const apiType = form.getFieldValue('type');
         const protocol = form.getFieldValue(['metadata', 'protocol']);
+        const mcpBridgeType = form.getFieldValue(['metadata', 'mcpBridgeType']);
         return (
           <div className="py-4">
             <EndpointEditor
@@ -391,6 +392,7 @@ export default function ApiDefinitionForm() {
               apiType={apiType}
               apiName={form.getFieldValue('name')}
               protocol={protocol}
+              mcpBridgeType={mcpBridgeType}
             />
           </div>
         );
@@ -487,6 +489,7 @@ export default function ApiDefinitionForm() {
           layout="vertical"
           initialValues={{
             name: productName || '',
+            description: productDescription || '',
             type: productType || 'REST_API',
             status: 'DRAFT',
             version: '1.0.0'
@@ -538,14 +541,14 @@ export default function ApiDefinitionForm() {
               if (type === 'MCP_SERVER') {
                 return (
                   <Form.Item
-                    label="桥接方式"
+                    label="协议"
                     name={['metadata', 'mcpBridgeType']}
-                    rules={[{ required: true, message: '请选择桥接方式' }]}
+                    rules={[{ required: true, message: '请选择协议' }]}
                     initialValue="HTTP_TO_MCP"
                   >
                     <Radio.Group>
-                      <Radio value="HTTP_TO_MCP">HTTP 转 MCP</Radio>
-                      <Radio value="DIRECT">直接代理</Radio>
+                      <Radio value="HTTP_TO_MCP">HTTP转MCP</Radio>
+                      <Radio value="DIRECT">MCP服务直接代理</Radio>
                     </Radio.Group>
                   </Form.Item>
                 );
@@ -600,7 +603,7 @@ export default function ApiDefinitionForm() {
                       {({ getFieldValue }) => {
                         const scenario = getFieldValue(['metadata', 'scenario']);
                         let protocolOptions = DEFAULT_MODEL_PROTOCOLS;
-                        
+
                         if (scenario === 'text-generation') {
                           protocolOptions = TEXT_GENERATION_PROTOCOLS;
                         } else if (scenario === 'image-generation') {

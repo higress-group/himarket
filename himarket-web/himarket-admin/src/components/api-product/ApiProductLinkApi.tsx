@@ -1,5 +1,5 @@
-import { Card, Button, Modal, Form, Select, message, Collapse, Tabs, Row, Col } from 'antd'
-import { PlusOutlined, DeleteOutlined, ExclamationCircleOutlined, CopyOutlined, EditOutlined, CloudUploadOutlined } from '@ant-design/icons'
+import { Card, Button, Modal, Form, Select, message, Collapse, Tabs, Row, Col, Tag, Space } from 'antd'
+import { PlusOutlined, DeleteOutlined, ExclamationCircleOutlined, CopyOutlined, EditOutlined, CloudUploadOutlined, CheckCircleOutlined, StopOutlined, SyncOutlined, CloseCircleOutlined } from '@ant-design/icons'
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { ApiProduct, LinkedService, RestAPIItem, NacosMCPItem, APIGAIMCPItem, AIGatewayAgentItem, AIGatewayModelItem, ApiItem, SofaHigressMCPItem, AdpAIGatewayModelItem } from '@/types/api-product'
@@ -838,7 +838,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
           <div className="text-center py-8">
             <div className="text-gray-500 mb-4">暂未关联任何API</div>
             <div className="space-x-4">
-              <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/api-definitions/create', { state: { productName: apiProduct.name, productId: apiProduct.productId, productType: apiProduct.type } })}>
+              <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/api-definitions/create', { state: { productName: apiProduct.name, productId: apiProduct.productId, productType: apiProduct.type, productDescription: apiProduct.description } })}>
                 创建 API
               </Button>
               <Button icon={<PlusOutlined />} onClick={() => setIsModalVisible(true)}>
@@ -849,6 +849,26 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
         </Card>
       )
     }
+
+    const latestRecord = publishRecords && publishRecords.length > 0 ? publishRecords[0] : null;
+    const isPublished = latestRecord && latestRecord.status === 'ACTIVE';
+
+    const getStatusTag = (status: string) => {
+      switch (status) {
+        case 'ACTIVE':
+          return <Tag icon={<CheckCircleOutlined />} color="success">已发布</Tag>;
+        case 'INACTIVE':
+          return <Tag icon={<StopOutlined />} color="default">已下线</Tag>;
+        case 'PUBLISHING':
+          return <Tag icon={<SyncOutlined spin />} color="processing">发布中</Tag>;
+        case 'UNPUBLISHING':
+          return <Tag icon={<SyncOutlined spin />} color="processing">下线中</Tag>;
+        case 'FAILED':
+          return <Tag icon={<CloseCircleOutlined />} color="error">发布失败</Tag>;
+        default:
+          return <Tag color="default">未发布</Tag>;
+      }
+    };
 
     return (
       <Card
@@ -868,17 +888,6 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                   }}
                 >
                   编辑 API
-                </Button>
-                <Button
-                  icon={<CloudUploadOutlined />}
-                  onClick={() => {
-                    const apiId = linkedService.apiDefinition?.apiDefinitionId || linkedService.apiDefinitionId;
-                    if (apiId) {
-                      navigate(`/api-definitions/publish?id=${apiId}`, { state: { productName: apiProduct.name, productId: apiProduct.productId, productType: apiProduct.type } });
-                    }
-                  }}
-                >
-                  发布 API
                 </Button>
               </>
             )}
@@ -907,6 +916,46 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
             </span>
             <span className="col-span-2 text-xs text-gray-700">{serviceInfo.gatewayInfo}</span>
           </div>
+
+          {/* 第三行：发布状态（仅 Managed API 显示） */}
+          {linkedService.sourceType === 'MANAGED' && (
+            <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
+              <span className="text-xs text-gray-600">发布状态:</span>
+              <div className="col-span-5 flex items-center">
+                {getStatusTag(latestRecord?.status || 'UNPUBLISHED')}
+                {!isPublished && (
+                  <Button
+                    type="link"
+                    size="small"
+                    onClick={() => {
+                      const apiId = linkedService.apiDefinition?.apiDefinitionId || linkedService.apiDefinitionId;
+                      if (apiId) {
+                        navigate(`/api-definitions/publish?id=${apiId}`, { state: { productName: apiProduct.name, productId: apiProduct.productId, productType: apiProduct.type } });
+                      }
+                    }}
+                    style={{ marginLeft: 8, padding: 0 }}
+                  >
+                    点击发布
+                  </Button>
+                )}
+                {isPublished && (
+                  <Button
+                    type="link"
+                    size="small"
+                    onClick={() => {
+                      const apiId = linkedService.apiDefinition?.apiDefinitionId || linkedService.apiDefinitionId;
+                      if (apiId) {
+                        navigate(`/api-definitions/publish?id=${apiId}`, { state: { productName: apiProduct.name, productId: apiProduct.productId, productType: apiProduct.type } });
+                      }
+                    }}
+                    style={{ marginLeft: 8, padding: 0 }}
+                  >
+                    点击查看
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </Card>
     )
@@ -1043,32 +1092,39 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                       </div>
                     )}
 
-                    <Tabs
-                      size="small"
-                      defaultActiveKey={localJson ? "local" : (sseJson ? "sse" : "http")}
-                      items={(() => {
-                        const tabs = [];
+                    {/* Check if domains is empty/null and no local config */}
+                    {(!apiProduct.mcpConfig?.mcpServerConfig?.domains || apiProduct.mcpConfig.mcpServerConfig.domains.length === 0) && !localJson ? (
+                      <div className="text-gray-500 text-center py-8">
+                        暂无连接点配置数据，请先发布 API
+                      </div>
+                    ) : (
+                      <Tabs
+                        size="small"
+                        defaultActiveKey={localJson ? "local" : (sseJson ? "sse" : "http")}
+                        items={(() => {
+                          const tabs = [];
 
-                        if (localJson) {
-                          tabs.push({
-                            key: "local",
-                            label: "Stdio",
-                            children: (
-                              <div className="relative bg-gray-50 border border-gray-200 rounded-md p-3">
-                                <Button
-                                  size="small"
-                                  icon={<CopyOutlined />}
-                                  className="absolute top-2 right-2 z-10"
-                                  onClick={() => handleCopy(localJson)}
-                                >
-                                </Button>
-                                <div className="text-gray-800 font-mono text-xs overflow-x-auto">
-                                  <pre className="whitespace-pre">{localJson}</pre>
+                          if (localJson) {
+                            tabs.push({
+                              key: "local",
+                              label: "Stdio",
+                              children: (
+                                <div className="relative bg-gray-50 border border-gray-200 rounded-md p-3">
+                                  <Button
+                                    size="small"
+                                    icon={<CopyOutlined />}
+                                    className="absolute top-2 right-2 z-10"
+                                    onClick={() => handleCopy(localJson)}
+                                  >
+                                  </Button>
+                                  <div className="text-gray-800 font-mono text-xs overflow-x-auto">
+                                    <pre className="whitespace-pre">{localJson}</pre>
+                                  </div>
                                 </div>
-                              </div>
-                            ),
-                          });
-                        } else {
+                              ),
+                            });
+                          }
+
                           if (sseJson) {
                             tabs.push({
                               key: "sse",
@@ -1110,11 +1166,10 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                               ),
                             });
                           }
-                        }
-
-                        return tabs;
-                      })()}
-                    />
+                          return tabs;
+                        })()}
+                      />
+                    )}
                   </div>
                 </Card>
               ) : (
