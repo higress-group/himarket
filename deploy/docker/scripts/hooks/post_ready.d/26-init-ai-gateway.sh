@@ -194,7 +194,7 @@ EOF
       -H "Accept: application/json, text/plain, */*" \
       -H "Content-Type: application/json" \
       -H "Authorization: Bearer ${AUTH_TOKEN}" \
-      --data-raw "${request_body}" \
+      --data "${request_body}" \
       --connect-timeout 10 --max-time 30 2>/dev/null || echo "HTTP_CODE:000")
     
     # 提取 HTTP 状态码和响应体
