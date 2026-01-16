@@ -4,6 +4,7 @@ import com.alibaba.himarket.dto.result.api.APIDefinitionVO;
 import com.alibaba.himarket.entity.Gateway;
 import com.alibaba.himarket.service.api.GatewayPublisher;
 import com.alibaba.himarket.service.gateway.AIGWOperator;
+import com.alibaba.himarket.support.api.AiServiceConfig;
 import com.alibaba.himarket.support.api.DnsServiceConfig;
 import com.alibaba.himarket.support.api.FixedAddressServiceConfig;
 import com.alibaba.himarket.support.api.GatewayServiceConfig;
@@ -157,68 +158,17 @@ public class ApigApiGatewayPublisher implements GatewayPublisher {
         // Extract resource group ID
         String resourceGroupId = extractResourceGroupId(gateway);
 
-        // Build service configs based on service type
-        List<CreateServiceRequest.ServiceConfigs> serviceConfigsList = new ArrayList<>();
-        String sourceType;
-
-        if (serviceConfig instanceof FixedAddressServiceConfig) {
-            // Fixed address service (VIP)
-            FixedAddressServiceConfig fixedConfig = (FixedAddressServiceConfig) serviceConfig;
-            sourceType = "VIP";
-
-            // Parse addresses from comma-separated string
-            List<String> addresses = new ArrayList<>();
-            if (fixedConfig.getAddress() != null && !fixedConfig.getAddress().isEmpty()) {
-                String[] addressArray = fixedConfig.getAddress().split(",");
-                for (String addr : addressArray) {
-                    addresses.add(addr.trim());
-                }
-            }
-
-            if (addresses.isEmpty()) {
-                throw new IllegalArgumentException(
-                        "FixedAddressServiceConfig must have at least one address");
-            }
-
-            CreateServiceRequest.ServiceConfigs sdkServiceConfig = CreateServiceRequest.ServiceConfigs.builder()
-                    .name(serviceName)
-                    .addresses(addresses)
-                    .build();
-            serviceConfigsList.add(sdkServiceConfig);
-
-        } else if (serviceConfig instanceof DnsServiceConfig) {
-            // DNS service
-            DnsServiceConfig dnsConfig = (DnsServiceConfig) serviceConfig;
-            sourceType = "DNS";
-
-            if (dnsConfig.getDomain() == null || dnsConfig.getDomain().isEmpty()) {
-                throw new IllegalArgumentException("DnsServiceConfig must have a domain");
-            }
-
-            // For DNS, the address format is typically "domain:port"
-            // If no port is specified, use default port 80
-            String domain = dnsConfig.getDomain();
-            String address = domain.contains(":") ? domain : domain + ":80";
-
-            CreateServiceRequest.ServiceConfigs sdkServiceConfig = CreateServiceRequest.ServiceConfigs.builder()
-                    .name(serviceName)
-                    .addresses(Collections.singletonList(address))
-                    .build();
-            serviceConfigsList.add(sdkServiceConfig);
-
-        } else {
-            throw new IllegalArgumentException(
-                    "Unsupported ServiceConfig type: "
-                            + serviceConfig.getClass().getSimpleName()
-                            + ". Only FixedAddressServiceConfig and DnsServiceConfig are"
-                            + " supported.");
-        }
+        // Build service configs using extracted method
+        CreateServiceRequest.ServiceConfigs sdkServiceConfig =
+                buildSdkServiceConfig(serviceConfig, serviceName);
+        String sourceType = getSourceType(serviceConfig);
 
         // Build CreateServiceRequest
-        CreateServiceRequest.Builder requestBuilder = CreateServiceRequest.builder()
-                .gatewayId(gateway.getGatewayId())
-                .sourceType(sourceType)
-                .serviceConfigs(serviceConfigsList);
+        CreateServiceRequest.Builder requestBuilder =
+                CreateServiceRequest.builder()
+                        .gatewayId(gateway.getGatewayId())
+                        .sourceType(sourceType)
+                        .serviceConfigs(Collections.singletonList(sdkServiceConfig));
 
         // Add resource group ID if available
         if (resourceGroupId != null) {
@@ -235,7 +185,7 @@ public class ApigApiGatewayPublisher implements GatewayPublisher {
                 sourceType,
                 gateway.getGatewayId(),
                 resourceGroupId,
-                serviceConfigsList.get(0).getAddresses());
+                sdkServiceConfig.getAddresses());
 
         // Call operator to create service
         String serviceId = operator.createService(gateway, request);
@@ -258,74 +208,24 @@ public class ApigApiGatewayPublisher implements GatewayPublisher {
         // Extract resource group ID
         String resourceGroupId = extractResourceGroupId(gateway);
 
-        // Build service configs based on service type
-        List<CreateServiceRequest.ServiceConfigs> serviceConfigsList = new ArrayList<>();
-        String sourceType;
-
-        if (serviceConfig instanceof FixedAddressServiceConfig) {
-            // Fixed address service (VIP)
-            FixedAddressServiceConfig fixedConfig = (FixedAddressServiceConfig) serviceConfig;
-            sourceType = "VIP";
-
-            // Parse addresses from comma-separated string
-            List<String> addresses = new ArrayList<>();
-            if (fixedConfig.getAddress() != null && !fixedConfig.getAddress().isEmpty()) {
-                String[] addressArray = fixedConfig.getAddress().split(",");
-                for (String addr : addressArray) {
-                    addresses.add(addr.trim());
-                }
-            }
-
-            if (addresses.isEmpty()) {
-                throw new IllegalArgumentException(
-                        "FixedAddressServiceConfig must have at least one address");
-            }
-
-            CreateServiceRequest.ServiceConfigs sdkServiceConfig = CreateServiceRequest.ServiceConfigs.builder()
-                    .name(serviceName)
-                    .addresses(addresses)
-                    .build();
-            serviceConfigsList.add(sdkServiceConfig);
-
-        } else if (serviceConfig instanceof DnsServiceConfig) {
-            // DNS service
-            DnsServiceConfig dnsConfig = (DnsServiceConfig) serviceConfig;
-            sourceType = "DNS";
-
-            if (dnsConfig.getDomain() == null || dnsConfig.getDomain().isEmpty()) {
-                throw new IllegalArgumentException("DnsServiceConfig must have a domain");
-            }
-
-            // For DNS, the address format is typically "domain:port"
-            // If no port is specified, use default port 80
-            String domain = dnsConfig.getDomain();
-            String address = domain.contains(":") ? domain : domain + ":80";
-
-            CreateServiceRequest.ServiceConfigs sdkServiceConfig = CreateServiceRequest.ServiceConfigs.builder()
-                    .name(serviceName)
-                    .addresses(Collections.singletonList(address))
-                    .build();
-            serviceConfigsList.add(sdkServiceConfig);
-
-        } else {
-            throw new IllegalArgumentException(
-                    "Unsupported ServiceConfig type for update: "
-                            + serviceConfig.getClass().getSimpleName()
-                            + ". Only FixedAddressServiceConfig and DnsServiceConfig are"
-                            + " supported.");
-        }
+        // Build service configs using extracted method
+        CreateServiceRequest.ServiceConfigs sdkServiceConfig =
+                buildSdkServiceConfig(serviceConfig, serviceName);
+        String sourceType = getSourceType(serviceConfig);
 
         // Build UpdateServiceRequest
         // Note: UpdateServiceRequest may only support serviceId and serviceConfigs
         // Check the actual SDK structure and adjust accordingly
-        UpdateServiceRequest.Builder requestBuilder = UpdateServiceRequest.builder().serviceId(serviceId);
+        UpdateServiceRequest.Builder requestBuilder =
+                UpdateServiceRequest.builder().serviceId(serviceId);
 
         // Try to set serviceConfigs if the builder supports it
         try {
             // Use reflection to check if serviceConfigs method exists
-            java.lang.reflect.Method serviceConfigsMethod = requestBuilder.getClass().getMethod("serviceConfigs",
-                    List.class);
-            serviceConfigsMethod.invoke(requestBuilder, serviceConfigsList);
+            java.lang.reflect.Method serviceConfigsMethod =
+                    requestBuilder.getClass().getMethod("serviceConfigs", List.class);
+            serviceConfigsMethod.invoke(
+                    requestBuilder, Collections.singletonList(sdkServiceConfig));
         } catch (NoSuchMethodException e) {
             log.warn(
                     "UpdateServiceRequest.Builder does not support serviceConfigs method. "
@@ -345,12 +245,210 @@ public class ApigApiGatewayPublisher implements GatewayPublisher {
                 sourceType,
                 gateway.getGatewayId(),
                 resourceGroupId,
-                serviceConfigsList.get(0).getAddresses());
+                sdkServiceConfig.getAddresses());
 
         // Call operator to update service
         operator.updateService(gateway, request);
 
         log.info("Successfully updated Service: serviceId={}, name={}", serviceId, serviceName);
+    }
+
+    /**
+     * Build SDK ServiceConfigs from ServiceConfig
+     *
+     * @param serviceConfig The service configuration
+     * @param serviceName   The service name
+     * @return The SDK service configs
+     */
+    private CreateServiceRequest.ServiceConfigs buildSdkServiceConfig(
+            ServiceConfig serviceConfig, String serviceName) {
+        if (serviceConfig instanceof FixedAddressServiceConfig) {
+            return buildFixedAddressServiceConfig(
+                    (FixedAddressServiceConfig) serviceConfig, serviceName);
+        } else if (serviceConfig instanceof DnsServiceConfig) {
+            return buildDnsServiceConfig((DnsServiceConfig) serviceConfig, serviceName);
+        } else if (serviceConfig instanceof AiServiceConfig) {
+            return buildAiServiceConfig((AiServiceConfig) serviceConfig, serviceName);
+        } else {
+            throw new IllegalArgumentException(
+                    "Unsupported ServiceConfig type: "
+                            + serviceConfig.getClass().getSimpleName()
+                            + ". Only FixedAddressServiceConfig, DnsServiceConfig, and"
+                            + " AiServiceConfig are supported.");
+        }
+    }
+
+    /**
+     * Get source type from ServiceConfig
+     *
+     * @param serviceConfig The service configuration
+     * @return The source type
+     */
+    private String getSourceType(ServiceConfig serviceConfig) {
+        if (serviceConfig instanceof FixedAddressServiceConfig) {
+            return "VIP";
+        } else if (serviceConfig instanceof DnsServiceConfig) {
+            return "DNS";
+        } else if (serviceConfig instanceof AiServiceConfig) {
+            return "AI";
+        } else {
+            throw new IllegalArgumentException(
+                    "Unsupported ServiceConfig type: " + serviceConfig.getClass().getSimpleName());
+        }
+    }
+
+    /**
+     * Build SDK ServiceConfigs for FixedAddressServiceConfig
+     *
+     * @param fixedConfig The fixed address service config
+     * @param serviceName The service name
+     * @return The SDK service configs
+     */
+    private CreateServiceRequest.ServiceConfigs buildFixedAddressServiceConfig(
+            FixedAddressServiceConfig fixedConfig, String serviceName) {
+        // Parse addresses from comma-separated string
+        List<String> addresses = new ArrayList<>();
+        if (fixedConfig.getAddress() != null && !fixedConfig.getAddress().isEmpty()) {
+            String[] addressArray = fixedConfig.getAddress().split(",");
+            for (String addr : addressArray) {
+                addresses.add(addr.trim());
+            }
+        }
+
+        if (addresses.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "FixedAddressServiceConfig must have at least one address");
+        }
+
+        return CreateServiceRequest.ServiceConfigs.builder()
+                .name(serviceName)
+                .addresses(addresses)
+                .build();
+    }
+
+    /**
+     * Build SDK ServiceConfigs for DnsServiceConfig
+     *
+     * @param dnsConfig   The DNS service config
+     * @param serviceName The service name
+     * @return The SDK service configs
+     */
+    private CreateServiceRequest.ServiceConfigs buildDnsServiceConfig(
+            DnsServiceConfig dnsConfig, String serviceName) {
+        if (dnsConfig.getDomain() == null || dnsConfig.getDomain().isEmpty()) {
+            throw new IllegalArgumentException("DnsServiceConfig must have a domain");
+        }
+
+        // For DNS, the address format is typically "domain:port"
+        // If no port is specified, use default port 80
+        String domain = dnsConfig.getDomain();
+        String address = domain.contains(":") ? domain : domain + ":80";
+
+        return CreateServiceRequest.ServiceConfigs.builder()
+                .name(serviceName)
+                .addresses(Collections.singletonList(address))
+                .build();
+    }
+
+    /**
+     * Build SDK ServiceConfigs for AiServiceConfig
+     *
+     * @param aiConfig    The AI service config
+     * @param serviceName The service name
+     * @return The SDK service configs
+     */
+    private CreateServiceRequest.ServiceConfigs buildAiServiceConfig(
+            AiServiceConfig aiConfig, String serviceName) {
+        if (aiConfig.getProvider() == null || aiConfig.getProvider().isEmpty()) {
+            throw new IllegalArgumentException("AiServiceConfig must have a provider");
+        }
+
+        // Build protocols list - default to OpenAI/v1 if not specified
+        List<String> protocols = new ArrayList<>();
+        if (aiConfig.getProtocol() != null && !aiConfig.getProtocol().isEmpty()) {
+            protocols.add(aiConfig.getProtocol());
+        } else {
+            protocols.add("OpenAI/v1");
+        }
+
+        // Determine address - use the address field directly
+        String address = aiConfig.getAddress();
+
+        // Build AI service config using builder pattern
+        com.aliyun.sdk.service.apig20240327.models.AiServiceConfig.Builder
+                sdkAiServiceConfigBuilder =
+                        com.aliyun.sdk.service.apig20240327.models.AiServiceConfig.builder()
+                                .provider(aiConfig.getProvider())
+                                .protocols(protocols)
+                                .apiKeyGenerateMode("Custom")
+                                .enableHealthCheck(true);
+
+        // Add address if available
+        if (address != null) {
+            sdkAiServiceConfigBuilder.address(address);
+        }
+
+        // Handle Bedrock-specific configuration
+        if ("bedrock".equalsIgnoreCase(aiConfig.getProvider())) {
+            buildBedrockServiceConfig(aiConfig, sdkAiServiceConfigBuilder);
+        } else {
+            // For non-Bedrock providers, add API keys if available
+            if (aiConfig.getApiKey() != null && !aiConfig.getApiKey().isEmpty()) {
+                sdkAiServiceConfigBuilder.apiKeys(Collections.singletonList(aiConfig.getApiKey()));
+            }
+        }
+
+        // Build the service config with AI service config
+        return CreateServiceRequest.ServiceConfigs.builder()
+                .name(serviceName)
+                .aiServiceConfig(sdkAiServiceConfigBuilder.build())
+                .dnsServers(new ArrayList<>())
+                .build();
+    }
+
+    /**
+     * Build Bedrock-specific configuration
+     *
+     * @param aiConfig                 The AI service config
+     * @param sdkAiServiceConfigBuilder The SDK AI service config builder
+     */
+    private void buildBedrockServiceConfig(
+            AiServiceConfig aiConfig,
+            com.aliyun.sdk.service.apig20240327.models.AiServiceConfig.Builder
+                    sdkAiServiceConfigBuilder) {
+        // Build bedrockServiceConfig using the SDK's typed class
+        com.aliyun.sdk.service.apig20240327.models.AiServiceConfig.BedrockServiceConfig.Builder
+                bedrockConfigBuilder =
+                        com.aliyun.sdk.service.apig20240327.models.AiServiceConfig
+                                .BedrockServiceConfig.builder();
+
+        if (aiConfig.getAwsRegion() != null && !aiConfig.getAwsRegion().isEmpty()) {
+            bedrockConfigBuilder.awsRegion(aiConfig.getAwsRegion());
+        }
+
+        // Handle authentication based on bedrockAuthType
+        String authType = aiConfig.getBedrockAuthType();
+        if ("AK_SK".equals(authType)) {
+            // AK/SK authentication - apiKeys should be empty array
+            sdkAiServiceConfigBuilder.apiKeys(new ArrayList<>());
+
+            // Set credentials in bedrockServiceConfig
+            if (aiConfig.getAwsAccessKey() != null && !aiConfig.getAwsAccessKey().isEmpty()) {
+                bedrockConfigBuilder.awsAccessKey(aiConfig.getAwsAccessKey());
+            }
+            if (aiConfig.getAwsSecretKey() != null && !aiConfig.getAwsSecretKey().isEmpty()) {
+                bedrockConfigBuilder.awsSecretKey(aiConfig.getAwsSecretKey());
+            }
+        } else {
+            // API_KEY authentication - put apiKey in apiKeys array
+            if (aiConfig.getApiKey() != null && !aiConfig.getApiKey().isEmpty()) {
+                sdkAiServiceConfigBuilder.apiKeys(Collections.singletonList(aiConfig.getApiKey()));
+            }
+        }
+
+        // Set bedrockServiceConfig using typed class
+        sdkAiServiceConfigBuilder.bedrockServiceConfig(bedrockConfigBuilder.build());
+        log.info("Set bedrockServiceConfig with region: {}", aiConfig.getAwsRegion());
     }
 
     /**
@@ -366,6 +464,8 @@ public class ApigApiGatewayPublisher implements GatewayPublisher {
             serviceTypeSuffix = "-vip";
         } else if (serviceConfig instanceof DnsServiceConfig) {
             serviceTypeSuffix = "-dns";
+        } else if (serviceConfig instanceof AiServiceConfig) {
+            serviceTypeSuffix = "-ai";
         }
         return apiName + serviceTypeSuffix;
     }
@@ -421,12 +521,13 @@ public class ApigApiGatewayPublisher implements GatewayPublisher {
                     httpApiId);
 
             // Build UpdateHttpApi request
-            UpdateHttpApiRequest.Builder updateRequestBuilder = UpdateHttpApiRequest.builder()
-                    .httpApiId(httpApiId)
-                    .basePath(basePath)
-                    .removeBasePathOnForward(true)
-                    .firstByteTimeout(0)
-                    .deployConfigs(Collections.singletonList(deployConfig));
+            UpdateHttpApiRequest.Builder updateRequestBuilder =
+                    UpdateHttpApiRequest.builder()
+                            .httpApiId(httpApiId)
+                            .basePath(basePath)
+                            .removeBasePathOnForward(true)
+                            .firstByteTimeout(0)
+                            .deployConfigs(Collections.singletonList(deployConfig));
 
             // Set protocols based on type
             if ("LLM".equalsIgnoreCase(type)) {
@@ -452,30 +553,28 @@ public class ApigApiGatewayPublisher implements GatewayPublisher {
                     protocols,
                     gateway.getGatewayId(),
                     deployConfig.getCustomDomainIds(),
-                    deployConfig.getServiceConfigs() != null ? deployConfig.getServiceConfigs().size() : 0);
+                    deployConfig.getServiceConfigs() != null
+                            ? deployConfig.getServiceConfigs().size()
+                            : 0);
 
             // Call operator to update HTTP API
             operator.updateHttpApi(gateway, updateRequest);
 
             log.info(
-                    "Successfully updated {} API: name={}, httpApiId={}",
-                    type,
-                    apiName,
-                    httpApiId);
+                    "Successfully updated {} API: name={}, httpApiId={}", type, apiName, httpApiId);
         } else {
             // HTTP API doesn't exist, create new one
-            log.info(
-                    "HTTP API does not exist: name={}, will create new one",
-                    apiName);
+            log.info("HTTP API does not exist: name={}, will create new one", apiName);
 
             // Build CreateHttpApi request
-            CreateHttpApiRequest.Builder requestBuilder = CreateHttpApiRequest.builder()
-                    .name(apiName)
-                    .type(type)
-                    .removeBasePathOnForward(true)
-                    .basePath(basePath)
-                    .deployConfigs(Collections.singletonList(deployConfig))
-                    .firstByteTimeout(0);
+            CreateHttpApiRequest.Builder requestBuilder =
+                    CreateHttpApiRequest.builder()
+                            .name(apiName)
+                            .type(type)
+                            .removeBasePathOnForward(true)
+                            .basePath(basePath)
+                            .deployConfigs(Collections.singletonList(deployConfig))
+                            .firstByteTimeout(0);
 
             // Set protocols based on type
             if ("LLM".equalsIgnoreCase(type)) {
@@ -510,17 +609,16 @@ public class ApigApiGatewayPublisher implements GatewayPublisher {
                     protocols,
                     gateway.getGatewayId(),
                     deployConfig.getCustomDomainIds(),
-                    deployConfig.getServiceConfigs() != null ? deployConfig.getServiceConfigs().size() : 0,
+                    deployConfig.getServiceConfigs() != null
+                            ? deployConfig.getServiceConfigs().size()
+                            : 0,
                     resourceGroupId);
 
             // Call operator to create HTTP API
             httpApiId = operator.createHttpApi(gateway, request);
 
             log.info(
-                    "Successfully created {} API: name={}, httpApiId={}",
-                    type,
-                    apiName,
-                    httpApiId);
+                    "Successfully created {} API: name={}, httpApiId={}", type, apiName, httpApiId);
         }
 
         return httpApiId;

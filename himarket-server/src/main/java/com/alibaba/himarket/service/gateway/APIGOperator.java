@@ -552,7 +552,7 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
 
         ListDomainsRequest request =
                 ListDomainsRequest.builder()
-                        .gatewayId(gateway.getGatewayId())
+                        // .gatewayId(gateway.getGatewayId())
                         .gatewayType(queryGatewayType)
                         .pageNumber(1)
                         .pageSize(100)

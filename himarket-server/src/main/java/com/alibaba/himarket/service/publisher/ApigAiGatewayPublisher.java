@@ -821,7 +821,7 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
                     serviceId);
 
         } else if (serviceConfig instanceof AiServiceConfig) {
-            // AI Service configuration
+            // AI Service configuration - ensure service exists
             AiServiceConfig aiServiceConfig = (AiServiceConfig) serviceConfig;
 
             log.info(
@@ -829,11 +829,12 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
                     aiServiceConfig.getProvider(),
                     aiServiceConfig.getProtocol());
 
-            // TODO: Implement AI Service to APIG Service mapping
-            // The AI service needs to be registered as a service in APIG first
-            log.warn(
-                    "AI Service configuration requires service creation in APIG. Please ensure the"
-                            + " service is registered before publishing Model API.");
+            // Ensure the AI service exists in APIG
+            String serviceId = ensureServiceExists(gateway, apiDefinition.getName(), serviceConfig);
+            ServiceConfigs sdkServiceConfig = ServiceConfigs.builder().serviceId(serviceId).build();
+            serviceConfigs.add(sdkServiceConfig);
+
+            log.info("AI Service registered in APIG: serviceId={}", serviceId);
 
         } else {
             log.warn(

@@ -19,14 +19,14 @@
 
 package com.alibaba.himarket.support.api;
 
-import java.util.List;
-import java.util.Map;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 /** AI 服务配置 */
 @Data
 @EqualsAndHashCode(callSuper = true)
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class AiServiceConfig extends ServiceConfig {
 
     /** 模型提供商 */
@@ -35,129 +35,42 @@ public class AiServiceConfig extends ServiceConfig {
     /** 模型协议 */
     private String protocol;
 
-    /** API Key */
+    /** 服务地址 (通用地址字段,适用于大多数提供商) */
+    private String address;
+
+    /** API Key (通用认证字段,适用于大多数提供商) */
     private String apiKey;
 
-    /** 模型名称 */
-    private String modelName;
+    // ==================== Azure 专用字段 ====================
 
-    /** OpenAI 自定义后端 URL */
-    private String openaiCustomUrl;
-
-    /** 响应 JSON Schema */
-    private Map<String, Object> responseJsonSchema;
-
-    /** Azure 服务 URL */
+    /** Azure 服务 URL (Azure OpenAI) */
     private String azureServiceUrl;
 
-    /** Moonshot 文件 ID */
-    private String moonshotFileId;
+    // ==================== Bedrock 专用字段 ====================
 
-    /** Qwen 是否启用搜索 */
-    private Boolean qwenEnableSearch;
-
-    /** Qwen 是否启用兼容模式 */
-    private Boolean qwenEnableCompatible;
-
-    /** Qwen 推理内容模式 */
-    private String reasoningContentMode;
-
-    /** Qwen 文件 ID 列表 */
-    private List<String> qwenFileIds;
-
-    /** Minimax API 类型 */
-    private String minimaxApiType;
-
-    /** Minimax Group ID */
-    private String minimaxGroupId;
-
-    /** Claude 版本 */
-    private String claudeVersion;
-
-    /** Ollama 服务器主机 */
-    private String ollamaServerHost;
-
-    /** Ollama 服务器端口 */
-    private Integer ollamaServerPort;
-
-    /** Hunyuan Auth ID */
-    private String hunyuanAuthId;
-
-    /** Hunyuan Auth Key */
-    private String hunyuanAuthKey;
-
-    /** Cloudflare Account ID */
-    private String cloudflareAccountId;
-
-    /** API 版本 (Gemini) */
-    private String apiVersion;
-
-    /** Gemini 安全设置 */
-    private Map<String, String> geminiSafetySetting;
-
-    /** Gemini 思考预算 */
-    private Integer geminiThinkingBudget;
-
-    /** DeepL 目标语言 */
-    private String targetLang;
-
-    /** Dify API URL */
-    private String difyApiUrl;
-
-    /** Dify 应用类型 */
-    private String botType;
-
-    /** Dify 输入变量 */
-    private String inputVariable;
-
-    /** Dify 输出变量 */
-    private String outputVariable;
-
-    /** Vertex 区域 */
-    private String vertexRegion;
-
-    /** Vertex 项目 ID */
-    private String vertexProjectId;
-
-    /** Vertex Auth 服务名称 */
-    private String vertexAuthServiceName;
-
-    /** Vertex Auth Key */
-    private String vertexAuthKey;
-
-    /** Vertex Token 刷新提前时间 */
-    private Integer vertexTokenRefreshAhead;
-
-    /** AWS 区域 */
+    /** AWS 区域 (Bedrock) */
     private String awsRegion;
 
-    /** AWS Access Key */
+    /** AWS Access Key (Bedrock AK/SK 认证) */
     private String awsAccessKey;
 
-    /** AWS Secret Key */
+    /** AWS Secret Key (Bedrock AK/SK 认证) */
     private String awsSecretKey;
 
-    /** Bedrock 额外字段 */
-    private Map<String, Object> bedrockAdditionalFields;
+    /** Bedrock 认证方式 (API_KEY 或 AK_SK) */
+    private String bedrockAuthType;
 
-    /** Triton Domain */
-    private String tritonDomain;
+    // ==================== Vertex AI 专用字段 ====================
 
-    /** Triton Model Version */
-    private String tritonModelVersion;
+    /** Vertex 区域 (Vertex AI) */
+    private String vertexRegion;
 
-    /** Generic Host */
-    private String genericHost;
+    /** Vertex 项目 ID (Vertex AI) */
+    private String vertexProjectId;
 
-    /** 超时时间 */
-    private Integer timeout;
+    /** Vertex Auth 服务名称 (Vertex AI) */
+    private String vertexAuthServiceName;
 
-    /** Sub Path */
-    private String subPath;
-
-    /** 模型映射 */
-    private Map<String, String> modelMapping;
-
-    /** 上下文配置 */
-    private Object context;
+    /** Vertex Auth Key (Vertex AI) */
+    private String vertexAuthKey;
 }

@@ -889,48 +889,13 @@ public class AIGWOperator extends APIGOperator {
                                                 ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
                         }
 
-                        // Extract service ID from response
-                        // The SDK response structure should follow the pattern:
-                        // response.getBody().getData().getServiceId()
-                        // If the actual SDK structure differs, this will need to be adjusted
-                        if (response.getBody() != null && response.getBody().getData() != null) {
-                                // Try to extract serviceId using reflection
-                                // This is a workaround until we can verify the actual SDK response structure
-                                Object data = response.getBody().getData();
-                                try {
-                                        java.lang.reflect.Method getServiceIdMethod = data.getClass()
-                                                        .getMethod("getServiceId");
-                                        Object serviceId = getServiceIdMethod.invoke(data);
-                                        if (serviceId != null) {
-                                                log.info("Successfully extracted serviceId: {}", serviceId);
-                                                return serviceId.toString();
-                                        }
-                                } catch (NoSuchMethodException e) {
-                                        // If getServiceId() doesn't exist, try getId()
-                                        try {
-                                                java.lang.reflect.Method getIdMethod = data.getClass()
-                                                                .getMethod("getId");
-                                                Object id = getIdMethod.invoke(data);
-                                                if (id != null) {
-                                                        log.info("Successfully extracted serviceId using getId(): {}",
-                                                                        id);
-                                                        return id.toString();
-                                                }
-                                        } catch (Exception ex) {
-                                                log.error(
-                                                                "Failed to extract serviceId from CreateService response. "
-                                                                                + "Response data type: {}, available methods: {}",
-                                                                data.getClass().getName(),
-                                                                java.util.Arrays.toString(
-                                                                                data.getClass().getMethods()));
-                                        }
-                                } catch (Exception e) {
-                                        log.error(
-                                                        "Error extracting serviceId from CreateService response: {}",
-                                                        e.getMessage(),
-                                                        e);
-                                }
-                        }
+            // Extract service ID from response
+            // The SDK response structure should follow the pattern:
+            // response.getBody().getData().getServiceId()
+            // If the actual SDK structure differs, this will need to be adjusted
+            if (response.getBody() != null && response.getBody().getData() != null) {
+                return response.getBody().getData().getServiceIds().get(0);
+            }
 
                         // If we can't extract serviceId, throw an exception
                         throw new BusinessException(
