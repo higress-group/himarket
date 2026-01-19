@@ -31,15 +31,15 @@ import lombok.EqualsAndHashCode;
 @SupportedAPITypes({APIType.REST_API, APIType.MCP_SERVER, APIType.AGENT_API, APIType.MODEL_API})
 public class TimeoutProperty extends BaseAPIProperty {
 
-    /** 超时时间（毫秒） */
-    @APIField(label = "超时时间", description = "超时时间（毫秒）", required = true)
-    private Long timeout;
+    /** 超时时间数值 */
+    @APIField(label = "超时时间", description = "超时时间数值", required = true)
+    private Long unitNum;
 
     /** 时间单位 */
-    @APIField(
-            label = "时间单位",
-            description = "超时时间单位（ms=毫秒, s=秒）",
-            required = true,
-            defaultValue = "ms")
-    private String timeUnit = "ms";
+    @APIField(label = "时间单位", description = "超时时间单位（仅支持 s=秒）", required = true, defaultValue = "s")
+    private String timeUnit = "s";
+
+    /** 是否启用 */
+    @APIField(label = "是否启用", description = "是否启用超时策略", defaultValue = "true")
+    private Boolean enable = true;
 }
