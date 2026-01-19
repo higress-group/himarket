@@ -38,8 +38,4 @@ public class TimeoutProperty extends BaseAPIProperty {
     /** 时间单位 */
     @APIField(label = "时间单位", description = "超时时间单位（仅支持 s=秒）", required = true, defaultValue = "s")
     private String timeUnit = "s";
-
-    /** 是否启用 */
-    @APIField(label = "是否启用", description = "是否启用超时策略", defaultValue = "true")
-    private Boolean enable = true;
 }
