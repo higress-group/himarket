@@ -19,8 +19,8 @@ const Callback: React.FC = () => {
 
     // 调用后端获取token
     api
-      .post("/developers/token", { code, state })
-      .then((res: any) => {
+      .post<{ access_token: string }>("/developers/token", { code, state })
+      .then((res) => {
         if (res && res.data && res.data.access_token) {
           message.success("登录成功！");
           // 存储access_token

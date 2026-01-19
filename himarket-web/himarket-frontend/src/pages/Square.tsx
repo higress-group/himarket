@@ -131,7 +131,7 @@ function Square(props: { activeType: string }) {
     } finally {
       setLoadingMore(false);
     }
-  }, [activeType, activeCategory, currentPage, hasMore, loadingMore, PAGE_SIZE]);
+  }, [activeType, activeCategory, currentPage, hasMore, loadingMore, PAGE_SIZE, products]);
 
   // 监听滚动事件
   useEffect(() => {

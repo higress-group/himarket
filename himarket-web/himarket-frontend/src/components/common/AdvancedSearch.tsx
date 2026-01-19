@@ -25,11 +25,15 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
   // onClear,
   className = ''
 }) => {
-  const [activeSearchName, setActiveSearchName] = useState<string>('');
+  const [activeSearchName, setActiveSearchName] = useState<string>(() => {
+    // Initialize with first search param if available
+    return searchParamsList.length > 0 ? searchParamsList[0].name : '';
+  });
   const [activeSearchValue, setActiveSearchValue] = useState<string>('');
   // const [tagList, setTagList] = useState<Array<SearchParam & { value: string; displayValue?: string }>>([]);
 
   useEffect(() => {
+    // Update active search name if it's empty and params are available
     if (searchParamsList.length > 0 && !activeSearchName) {
       setActiveSearchName(searchParamsList[0].name);
     }

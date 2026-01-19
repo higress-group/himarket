@@ -154,7 +154,16 @@ function Chat() {
                       content,
                       createdAt: new Date().toDateString(),
                       activeAnswerIndex: 0,
-                      answers: [],
+                      answers: [
+                        {
+                          errorMsg: "",
+                          content: "",
+                          firstTokenTime: 0,
+                          totalTime: 0,
+                          inputTokens: 0,
+                          outputTokens: 0,
+                        }
+                      ],
                     }
                   ]
                 }
@@ -617,7 +626,7 @@ function Chat() {
       })
     } catch (error) {
       setGenerating(false);
-      console.log(error)
+      console.error("Failed to generate message:", error)
     }
 
   };

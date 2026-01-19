@@ -50,6 +50,7 @@ import com.alibaba.himarket.support.gateway.GatewayConfig;
 import jakarta.persistence.criteria.Predicate;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -366,7 +367,11 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
     @Override
     public List<URI> fetchGatewayUris(String gatewayId) {
         Gateway gateway = findGateway(gatewayId);
-        return getOperator(gateway).fetchGatewayUris(gateway);
+        List<URI> gatewayUris = getOperator(gateway).fetchGatewayUris(gateway);
+
+        // Shuffle the list
+        Collections.shuffle(gatewayUris);
+        return gatewayUris;
     }
 
     @Override

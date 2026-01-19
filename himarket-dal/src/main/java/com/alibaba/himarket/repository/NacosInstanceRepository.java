@@ -26,7 +26,19 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface NacosInstanceRepository extends BaseRepository<NacosInstance, Long> {
 
+    /**
+     * Find Nacos instance by Nacos ID
+     *
+     * @param nacosId the Nacos ID
+     * @return the Nacos instance if found
+     */
     Optional<NacosInstance> findByNacosId(String nacosId);
 
+    /**
+     * Find Nacos instance by Nacos name
+     *
+     * @param nacosName the Nacos name
+     * @return the Nacos instance if found
+     */
     Optional<NacosInstance> findByNacosName(String nacosName);
 }

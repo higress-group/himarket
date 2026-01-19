@@ -68,7 +68,7 @@ function Message({
 }: {
   conversation: IModelConversation["conversations"][0];
   question: IModelConversation["conversations"][0]['questions'][0],
-  activeAnswer: IModelConversation["conversations"][0]['questions'][0]['answers'][0],
+  activeAnswer?: IModelConversation["conversations"][0]['questions'][0]['answers'][0],
   modelIcon?: string; modelName?: string; isNewChat?: boolean;
   isLast: boolean;
   onChangeVersion?: (conversationId: string, questionId: string, direction: 'prev' | 'next') => void;
@@ -77,7 +77,10 @@ function Message({
 
   const contentRef = useRef<HTMLDivElement>(null);
 
-  const [expandedContent, setExpandedContent] = useState(true);
+  const [expandedContent, setExpandedContent] = useState(() => {
+    // Initial state will be updated after first render
+    return true;
+  });
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const handleCopy = async (content: string, messageId: string) => {
@@ -95,12 +98,14 @@ function Message({
   };
 
   useEffect(() => {
+    // Check content height after render and update expanded state if needed
     if (contentRef.current) {
-      if (contentRef.current.getBoundingClientRect().height < 160) {
+      const height = contentRef.current.getBoundingClientRect().height;
+      if (height < 160) {
         setExpandedContent(false);
       }
     }
-  }, [])
+  }, [activeAnswer?.content])
 
   return (
     <div key={question.id}>
@@ -161,7 +166,7 @@ function Message({
               </div>
             ) : (
               <div className="prose">
-                <MarkdownRender content={activeAnswer?.content} />
+                <MarkdownRender content={activeAnswer?.content || ""} />
               </div>
             )}
           </div>
@@ -180,7 +185,7 @@ function Message({
               {/* 右侧：功能按钮 */}
               <div className="flex items-center gap-1">
                 <button
-                  onClick={() => handleCopy(activeAnswer?.content, question.id)}
+                  onClick={() => handleCopy(activeAnswer?.content || "", question.id)}
                   className={`
                             p-1.5 rounded-md transition-colors duration-200
                             ${copiedId === question.id ? "text-colorPrimary" : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"}

@@ -26,7 +26,7 @@ import com.alibaba.himarket.support.consumer.ApiKeyConfig;
 import com.alibaba.himarket.support.consumer.HmacConfig;
 import com.alibaba.himarket.support.consumer.JwtConfig;
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.*;
 
 @Entity
 @Table(
@@ -37,6 +37,10 @@ import lombok.Data;
                     name = "uk_consumer_id")
         })
 @Data
+@EqualsAndHashCode(callSuper = true)
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class ConsumerCredential extends BaseEntity {
 
     @Id

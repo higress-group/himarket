@@ -22,22 +22,31 @@ package com.alibaba.himarket.repository;
 import com.alibaba.himarket.entity.Developer;
 import java.util.List;
 import java.util.Optional;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 
 public interface DeveloperRepository extends BaseRepository<Developer, Long> {
 
+    /**
+     * Find developer by developer ID
+     *
+     * @param developerId the developer ID
+     * @return the developer if found
+     */
     Optional<Developer> findByDeveloperId(String developerId);
 
-    Optional<Developer> findByUsername(String username);
-
+    /**
+     * Find all developers by portal ID
+     *
+     * @param portalId the portal ID
+     * @return the list of developers
+     */
     List<Developer> findByPortalId(String portalId);
 
+    /**
+     * Find developer by portal ID and username
+     *
+     * @param portalId the portal ID
+     * @param username the username
+     * @return the developer if found
+     */
     Optional<Developer> findByPortalIdAndUsername(String portalId, String username);
-
-    Optional<Developer> findByPortalIdAndEmail(String portalId, String email);
-
-    Optional<Developer> findByDeveloperIdAndPortalId(String developerId, String portalId);
-
-    Page<Developer> findByPortalId(String portalId, Pageable pageable);
 }

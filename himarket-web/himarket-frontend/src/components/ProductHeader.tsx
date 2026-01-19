@@ -4,7 +4,7 @@ import { ApiOutlined, CheckCircleFilled, ClockCircleFilled, ExclamationCircleFil
 import { useParams } from "react-router-dom";
 import { getConsumers, subscribeProduct, unsubscribeProduct, getProductSubscriptions } from "../lib/api";
 import type { Consumer } from "../types/consumer";
-import type { IMCPConfig, IProductIcon } from "../lib/apis/typing";
+import type { IMCPConfig, IProductIcon, IAgentConfig } from "../lib/apis/typing";
 import APIs, { getProductSubscriptionStatus, type ISubscription } from "../lib/apis";
 
 const { Title, Paragraph } = Typography;
@@ -16,7 +16,7 @@ interface ProductHeaderProps {
   icon?: IProductIcon;
   defaultIcon?: string;
   mcpConfig?: IMCPConfig;
-  agentConfig?: any;  // 添加 agentConfig 支持，用于判断 Agent 来源
+  agentConfig?: IAgentConfig;
   updatedAt?: string;
   productType?: 'REST_API' | 'MCP_SERVER' | 'AGENT_API' | 'MODEL_API';
 }
@@ -108,7 +108,7 @@ export const ProductHeader: React.FC<ProductHeaderProps> = ({
   const productId = apiProductId || mcpProductId || agentProductId || modelProductId || '';
 
   // 查询订阅状态
-  const fetchSubscriptionStatus = async () => {
+  const fetchSubscriptionStatus = React.useCallback(async () => {
     if (!productId || !shouldShowSubscribeButton) return;
     
     setSubscriptionLoading(true);
@@ -120,7 +120,7 @@ export const ProductHeader: React.FC<ProductHeaderProps> = ({
     } finally {
       setSubscriptionLoading(false);
     }
-  };
+  }, [productId, shouldShowSubscribeButton]);
 
   // 获取订阅详情（用于管理弹窗）
   const fetchSubscriptionDetails = async (page: number = 1, search: string = ''): Promise<void> => {
@@ -149,7 +149,7 @@ export const ProductHeader: React.FC<ProductHeaderProps> = ({
 
   useEffect(() => {
     fetchSubscriptionStatus();
-  }, [productId, shouldShowSubscribeButton]);
+  }, [fetchSubscriptionStatus]);
 
   // 获取消费者列表
   const fetchConsumers = async () => {

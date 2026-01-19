@@ -42,6 +42,7 @@ import com.alibaba.himarket.dto.result.idp.IdpTokenResult;
 import com.alibaba.himarket.service.DeveloperService;
 import com.alibaba.himarket.service.OidcService;
 import com.alibaba.himarket.service.PortalService;
+import com.alibaba.himarket.service.gateway.factory.HTTPClientFactory;
 import com.alibaba.himarket.support.enums.DeveloperAuthType;
 import com.alibaba.himarket.support.enums.GrantType;
 import com.alibaba.himarket.support.portal.AuthCodeConfig;
@@ -75,7 +76,7 @@ public class OidcServiceImpl implements OidcService {
 
     private final DeveloperService developerService;
 
-    private final RestTemplate restTemplate;
+    private final RestTemplate restTemplate = HTTPClientFactory.createRestTemplate();
 
     private final ContextHolder contextHolder;
 

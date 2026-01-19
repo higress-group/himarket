@@ -20,15 +20,8 @@
 package com.alibaba.himarket.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
 @Entity
 @Table(
         name = "administrator",
@@ -40,6 +33,11 @@ import lombok.NoArgsConstructor;
                     columnNames = {"username"},
                     name = "uk_username")
         })
+@Data
+@EqualsAndHashCode(callSuper = true)
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class Administrator extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

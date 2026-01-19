@@ -19,7 +19,6 @@
 
 package com.alibaba.himarket.service;
 
-import com.alibaba.himarket.core.event.PortalDeletingEvent;
 import com.alibaba.himarket.dto.params.developer.CreateDeveloperParam;
 import com.alibaba.himarket.dto.params.developer.CreateExternalDeveloperParam;
 import com.alibaba.himarket.dto.params.developer.QueryDeveloperParam;
@@ -131,13 +130,6 @@ public interface DeveloperService {
      * @param param
      */
     void updateProfile(UpdateDeveloperParam param);
-
-    /**
-     * Clean developer resources when portal is deleted
-     *
-     * @param event
-     */
-    void handlePortalDeletion(PortalDeletingEvent event);
 
     /**
      * Logout

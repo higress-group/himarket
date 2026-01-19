@@ -26,10 +26,8 @@ import com.alibaba.himarket.support.portal.PortalUiConfig;
 import jakarta.persistence.*;
 import java.util.ArrayList;
 import java.util.List;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
+import lombok.*;
 
-@EqualsAndHashCode(callSuper = true)
 @Entity
 @Table(
         name = "portal",
@@ -42,6 +40,10 @@ import lombok.EqualsAndHashCode;
                     name = "uk_name_admin_id")
         })
 @Data
+@EqualsAndHashCode(callSuper = true)
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class Portal extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -67,5 +69,5 @@ public class Portal extends BaseEntity {
     @Convert(converter = PortalUiConfigConverter.class)
     private PortalUiConfig portalUiConfig;
 
-    @Transient private List<PortalDomain> portalDomains = new ArrayList<>();
+    @Builder.Default @Transient private List<PortalDomain> portalDomains = new ArrayList<>();
 }

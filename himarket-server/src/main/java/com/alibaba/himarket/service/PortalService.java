@@ -34,122 +34,121 @@ import org.springframework.data.domain.Pageable;
 public interface PortalService {
 
     /**
-     * 创建门户
+     * Create a portal
      *
-     * @param param
-     * @return
+     * @param param the portal creation parameters
+     * @return the created portal result
      */
     PortalResult createPortal(CreatePortalParam param);
 
     /**
-     * 查询门户
+     * Get a portal
      *
-     * @param portalId
-     * @return
+     * @param portalId the portal ID
+     * @return the portal result
      */
     PortalResult getPortal(String portalId);
 
     /**
-     * 检查门户是否存在
+     * Check if portal exists
      *
-     * @param portalId
+     * @param portalId the portal ID
+     * @throws com.alibaba.himarket.core.exception.BusinessException if portal not found
      */
     void existsPortal(String portalId);
 
     /**
-     * 查询门户列表
+     * List portals with pagination
      *
-     * @param pageable
-     * @return
+     * @param pageable the pagination parameters
+     * @return page result of portals
      */
     PageResult<PortalResult> listPortals(Pageable pageable);
 
     /**
-     * 更新门户
+     * Update a portal
      *
-     * @param portalId
-     * @param param
-     * @return
+     * @param portalId the portal ID
+     * @param param    the portal update parameters
+     * @return the updated portal result
      */
     PortalResult updatePortal(String portalId, UpdatePortalParam param);
 
     /**
-     * 删除门户
+     * Delete a portal
      *
-     * @param portalId
+     * @param portalId the portal ID
      */
     void deletePortal(String portalId);
 
     /**
-     * 根据请求域名解析门户
+     * Resolve portal by domain
      *
-     * @param domain
-     * @return
+     * @param domain the domain name
+     * @return the portal ID or null if not found
      */
     String resolvePortal(String domain);
 
     /**
-     * 为门户绑定域名
+     * Bind domain to portal
      *
-     * @param portalId
-     * @param param
-     * @return
+     * @param portalId the portal ID
+     * @param param    the domain binding parameters
+     * @return the updated portal result
      */
     PortalResult bindDomain(String portalId, BindDomainParam param);
 
     /**
-     * 删除门户绑定域名
+     * Unbind domain from portal
      *
-     * @param portalId
-     * @param domain
-     * @return
+     * @param portalId the portal ID
+     * @param domain   the domain name to unbind
+     * @return the updated portal result
      */
     PortalResult unbindDomain(String portalId, String domain);
 
     /**
-     * 获取门户上的API产品订阅列表
+     * Get API product subscription list for portal
      *
-     * @param portalId 门户ID
-     * @param param 查询参数
-     * @param pageable 分页参数
-     * @return PageResult of SubscriptionResult
+     * @param portalId the portal ID
+     * @param param    the query parameters
+     * @param pageable the pagination parameters
+     * @return page result of subscriptions
      */
     PageResult<SubscriptionResult> listSubscriptions(
             String portalId, QuerySubscriptionParam param, Pageable pageable);
 
     /**
-     * 获取门户已发布的产品列表
+     * Get published product list for portal
      *
-     * @param portalId 门户ID
-     * @param pageable 分页参数
-     * @return PageResult of ProductPublicationResult
+     * @param portalId the portal ID
+     * @param pageable the pagination parameters
+     * @return page result of product publications
      */
     PageResult<ProductPublicationResult> getPublications(String portalId, Pageable pageable);
 
     /**
-     * 获取默认门户
+     * Get default portal
      *
-     * @return
+     * @return the default portal ID or null if not found
      */
     String getDefaultPortal();
 
-    // ========== 搜索引擎配置查询 ==========
-
     /**
-     * 根据引擎类型获取 API Key（供搜索功能使用） 核心方法：TalkSearchAbilityServiceGoogleImpl 将调用此方法
+     * Get API Key by engine type for search functionality.
      *
-     * @param portalId Portal ID
-     * @param engineType 搜索引擎类型
-     * @return API Key（自动解密）
-     * @throws com.alibaba.himarket.core.exception.BusinessException 如果未配置搜索引擎或搜索引擎未启用
+     * @param portalId   the portal ID
+     * @param engineType the search engine type
+     * @return the API Key (automatically decrypted)
+     * @throws com.alibaba.himarket.core.exception.BusinessException if search engine is not configured or disabled
      */
     String getSearchEngineApiKey(String portalId, SearchEngineType engineType);
 
     /**
-     * 获取 Portal 的搜索引擎配置（供开发者查询）
+     * Get search engine configuration for portal (for developer queries)
      *
-     * @param portalId Portal ID
-     * @return 搜索引擎配置，如果未配置则返回 null
+     * @param portalId the portal ID
+     * @return the search engine configuration, or null if not configured
      */
     SearchEngineConfig getSearchEngineConfig(String portalId);
 }

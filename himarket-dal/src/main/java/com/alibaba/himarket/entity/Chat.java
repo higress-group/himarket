@@ -26,8 +26,7 @@ import com.alibaba.himarket.support.chat.attachment.ChatAttachmentConfig;
 import com.alibaba.himarket.support.enums.ChatStatus;
 import jakarta.persistence.*;
 import java.util.List;
-import lombok.Data;
-import lombok.experimental.Accessors;
+import lombok.*;
 
 @Entity
 @Table(
@@ -38,7 +37,10 @@ import lombok.experimental.Accessors;
                     name = "uk_chat_id")
         })
 @Data
-@Accessors(chain = true)
+@EqualsAndHashCode(callSuper = true)
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class Chat extends BaseEntity {
 
     @Id
@@ -74,6 +76,7 @@ public class Chat extends BaseEntity {
      */
     @Column(name = "status", length = 32)
     @Enumerated(EnumType.STRING)
+    @Builder.Default
     private ChatStatus status = ChatStatus.INIT;
 
     /**

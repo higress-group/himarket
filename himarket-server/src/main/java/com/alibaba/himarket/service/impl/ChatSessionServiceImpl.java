@@ -20,6 +20,7 @@
 package com.alibaba.himarket.service.impl;
 
 import cn.hutool.core.collection.CollUtil;
+import cn.hutool.extra.spring.SpringUtil;
 import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.event.ChatSessionDeletingEvent;
 import com.alibaba.himarket.core.exception.BusinessException;
@@ -42,7 +43,6 @@ import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -63,9 +63,9 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 
     private final ContextHolder contextHolder;
 
-    private final ApplicationEventPublisher eventPublisher;
-
-    /** Allowed number of sessions per user */
+    /**
+     * Allowed number of sessions per user
+     */
     private static final int MAX_SESSIONS_PER_USER = 20;
 
     @Override
@@ -146,7 +146,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
     public void deleteSession(String sessionId) {
         ChatSession session = findUserSession(sessionId);
 
-        eventPublisher.publishEvent(new ChatSessionDeletingEvent(sessionId));
+        SpringUtil.getApplicationContext().publishEvent(new ChatSessionDeletingEvent(sessionId));
         sessionRepository.delete(session);
     }
 
@@ -156,7 +156,9 @@ public class ChatSessionServiceImpl implements ChatSessionService {
     //        sessionRepository.saveAndFlush(session);
     //    }
 
-    /** Clean up extra sessions */
+    /**
+     * Clean up extra sessions
+     */
     private void cleanupExtraSessions() {
         long count = sessionRepository.countByUserId(contextHolder.getUser());
         if (count > MAX_SESSIONS_PER_USER) {

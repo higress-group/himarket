@@ -23,22 +23,33 @@ import com.alibaba.himarket.entity.Product;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public interface ProductRepository extends BaseRepository<Product, Long> {
 
+    /**
+     * Find product by product ID
+     *
+     * @param productId the product ID
+     * @return the product if found
+     */
     Optional<Product> findByProductId(String productId);
 
-    Optional<Product> findByProductIdAndAdminId(String productId, String adminId);
-
+    /**
+     * Find product by name and admin ID
+     *
+     * @param name the product name
+     * @param adminId the admin ID
+     * @return the product if found
+     */
     Optional<Product> findByNameAndAdminId(String name, String adminId);
 
-    Page<Product> findByProductIdIn(Collection<String> productIds, Pageable pageable);
-
+    /**
+     * Find products by product IDs
+     *
+     * @param productIds the collection of product IDs
+     * @return the list of products
+     */
     List<Product> findByProductIdIn(Collection<String> productIds);
-
-    Page<Product> findByAdminId(String adminId, Pageable pageable);
 }

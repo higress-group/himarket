@@ -245,8 +245,8 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
         APIGClient client = new APIGClient(config.getApigConfig());
 
         String mark =
-                consumer.getConsumerId()
-                        .substring(Math.max(0, consumer.getConsumerId().length() - 8));
+                consumer.getDeveloperId()
+                        .substring(Math.max(0, consumer.getDeveloperId().length() - 8));
         String gwConsumerName = StrUtil.format("{}-{}", consumer.getName(), mark);
         try {
             // ApiKey

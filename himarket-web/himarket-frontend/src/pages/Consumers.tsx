@@ -24,7 +24,7 @@ function ConsumersPage() {
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [addLoading, setAddLoading] = useState(false);
   const [addForm, setAddForm] = useState({ name: '', description: '' });
-  const [refreshIndex, setRefreshIndex] = useState(0);
+  const [_refreshIndex, setRefreshIndex] = useState(0);
   const [primaryConsumer, setPrimaryConsumer] = useState<IGetPrimaryConsumerResp>();
 
   const [consumersForSelect, setConsumersForSelect] = useState<IConsumer[]>([]);
@@ -46,7 +46,7 @@ function ConsumersPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, refreshIndex]); // 不依赖 searchName
+  }, [page, pageSize]); // refreshIndex is intentionally excluded to prevent unnecessary re-fetches
 
   const fetchConsumersForSelect = async (searchKeyword?: string, targetPage?: number, size = 100, isRefresh = false) => {
     try {

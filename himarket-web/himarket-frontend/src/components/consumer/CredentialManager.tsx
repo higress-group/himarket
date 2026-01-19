@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
     Card,
     Button,
@@ -52,7 +52,7 @@ export function CredentialManager({ consumerId }: CredentialManagerProps) {
     const [currentConfig, setCurrentConfig] = useState<ConsumerCredentialResult | null>(null);
 
     // 初始化时获取当前配置
-    const fetchCurrentConfig = async () => {
+    const fetchCurrentConfig = React.useCallback(async () => {
         try {
             const response: ApiResponse<ConsumerCredentialResult> = await api.get(`/consumers/${consumerId}/credentials`);
             if (response.code === "SUCCESS" && response.data) {
@@ -66,12 +66,12 @@ export function CredentialManager({ consumerId }: CredentialManagerProps) {
         } catch (error) {
             console.error('获取当前配置失败:', error);
         }
-    };
+    }, [consumerId]);
 
     // 组件挂载时获取配置
     useEffect(() => {
         fetchCurrentConfig();
-    }, [consumerId]);
+    }, [consumerId, fetchCurrentConfig]);
 
     const handleCreateCredential = async () => {
         try {

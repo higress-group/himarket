@@ -22,15 +22,8 @@ package com.alibaba.himarket.entity;
 import com.alibaba.himarket.support.enums.DeveloperAuthType;
 import com.alibaba.himarket.support.enums.DeveloperStatus;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
 @Entity
 @Table(
         name = "developer",
@@ -42,6 +35,11 @@ import lombok.NoArgsConstructor;
                     columnNames = {"portalId", "username"},
                     name = "uk_portal_username")
         })
+@Data
+@EqualsAndHashCode(callSuper = true)
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class Developer extends BaseEntity {
 
     @Id

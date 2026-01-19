@@ -27,6 +27,7 @@ import com.alibaba.himarket.core.constant.IdpConstants;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.service.IdpService;
+import com.alibaba.himarket.service.gateway.factory.HTTPClientFactory;
 import com.alibaba.himarket.support.enums.GrantType;
 import com.alibaba.himarket.support.enums.PublicKeyFormat;
 import com.alibaba.himarket.support.portal.*;
@@ -48,7 +49,7 @@ import org.springframework.web.client.RestTemplate;
 @Slf4j
 public class IdpServiceImpl implements IdpService {
 
-    private final RestTemplate restTemplate;
+    private final RestTemplate restTemplate = HTTPClientFactory.createRestTemplate();
 
     @Override
     public void validateOidcConfigs(List<OidcConfig> oidcConfigs) {

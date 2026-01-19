@@ -88,7 +88,6 @@ export function Sidebar({
               productIds: session.products || [],
             }),
           );
-          console.log("Loaded sessions:", sessionList);
           setSessions(sessionList);
         }
       } catch (error) {

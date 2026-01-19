@@ -28,10 +28,10 @@ import lombok.*;
 @Entity
 @Table(name = "consumer_ref")
 @Data
-@Builder
-@AllArgsConstructor
-@NoArgsConstructor
 @EqualsAndHashCode(callSuper = true)
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class ConsumerRef extends BaseEntity {
 
     @Id

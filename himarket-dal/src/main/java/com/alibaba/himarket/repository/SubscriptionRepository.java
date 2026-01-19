@@ -25,17 +25,58 @@ import java.util.Optional;
 
 public interface SubscriptionRepository extends BaseRepository<ProductSubscription, Long> {
 
+    /**
+     * Find subscription by subscription ID
+     *
+     * @param subscriptionId the subscription ID
+     * @return the product subscription if found
+     */
     Optional<ProductSubscription> findBySubscriptionId(String subscriptionId);
 
+    /**
+     * Find subscription by consumer ID and product ID
+     *
+     * @param consumerId the consumer ID
+     * @param productId the product ID
+     * @return the product subscription if found
+     */
     Optional<ProductSubscription> findByConsumerIdAndProductId(String consumerId, String productId);
 
+    /**
+     * Find all subscriptions by consumer ID
+     *
+     * @param consumerId the consumer ID
+     * @return the list of product subscriptions
+     */
     List<ProductSubscription> findAllByConsumerId(String consumerId);
 
+    /**
+     * Find all subscriptions by product ID
+     *
+     * @param productId the product ID
+     * @return the list of product subscriptions
+     */
     List<ProductSubscription> findAllByProductId(String productId);
 
+    /**
+     * Delete all subscriptions by consumer ID
+     *
+     * @param consumerId the consumer ID
+     */
     void deleteAllByConsumerId(String consumerId);
 
+    /**
+     * Delete all subscriptions by product ID
+     *
+     * @param productId the product ID
+     */
     void deleteAllByProductId(String productId);
 
+    /**
+     * Delete subscription by consumer ID and product ID
+     *
+     * @param consumerId the consumer ID
+     * @param productId the product ID
+     */
     void deleteByConsumerIdAndProductId(String consumerId, String productId);
 }

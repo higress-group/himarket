@@ -21,31 +21,26 @@ package com.alibaba.himarket.repository;
 
 import com.alibaba.himarket.entity.ConsumerRef;
 import com.alibaba.himarket.support.enums.GatewayType;
-import com.alibaba.himarket.support.gateway.GatewayConfig;
 import java.util.List;
-import java.util.Optional;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface ConsumerRefRepository
-        extends JpaRepository<ConsumerRef, Long>, JpaSpecificationExecutor<ConsumerRef> {
+public interface ConsumerRefRepository extends BaseRepository<ConsumerRef, Long> {
 
+    /**
+     * Find all consumer references by consumer ID
+     *
+     * @param consumerId the consumer ID
+     * @return the list of consumer references
+     */
     List<ConsumerRef> findAllByConsumerId(String consumerId);
 
-    @Query(
-            "SELECT c FROM ConsumerRef c WHERE c.consumerId = :consumerId AND c.gatewayType ="
-                    + " :gatewayType AND c.gatewayConfig = :gatewayConfig")
-    @Deprecated
-    Optional<ConsumerRef> findConsumerRef(
-            @Param("consumerId") String consumerId,
-            @Param("gatewayType") GatewayType gatewayType,
-            @Param("gatewayConfig") GatewayConfig gatewayConfig);
-
-    Optional<ConsumerRef> findByGwConsumerId(String gwConsumerId);
-
+    /**
+     * Find consumer references by consumer ID and gateway type
+     *
+     * @param consumerId the consumer ID
+     * @param gatewayType the gateway type
+     * @return the list of consumer references
+     */
     List<ConsumerRef> findAllByConsumerIdAndGatewayType(String consumerId, GatewayType gatewayType);
 }

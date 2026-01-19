@@ -57,14 +57,14 @@ export interface IAgentConfig {
       }>;
       capabilities?: {
         streaming?: boolean;
-        [key: string]: any;
+        [key: string]: unknown;
       };
       additionalInterfaces?: Array<{
         transport: string;
         url: string;
-        [key: string]: any;
+        [key: string]: unknown;
       }>;
-      [key: string]: any;
+      [key: string]: unknown;
     };
   };
   meta?: {  // 元数据信息

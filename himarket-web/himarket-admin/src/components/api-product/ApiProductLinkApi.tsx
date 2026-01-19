@@ -2,7 +2,7 @@ import { Card, Button, Modal, Form, Select, message, Collapse, Tabs, Row, Col } 
 import { PlusOutlined, DeleteOutlined, ExclamationCircleOutlined, CopyOutlined, EditOutlined, CloudUploadOutlined } from '@ant-design/icons'
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import type { ApiProduct, LinkedService, RestAPIItem, NacosMCPItem, APIGAIMCPItem, AIGatewayAgentItem, AIGatewayModelItem, ApiItem, SofaHigressMCPItem } from '@/types/api-product'
+import type { ApiProduct, LinkedService, RestAPIItem, NacosMCPItem, APIGAIMCPItem, AIGatewayAgentItem, AIGatewayModelItem, ApiItem, SofaHigressMCPItem, AdpAIGatewayModelItem } from '@/types/api-product'
 import type { Gateway, NacosInstance } from '@/types/gateway'
 import { apiProductApi, gatewayApi, nacosApi, apiDefinitionApi } from '@/lib/api'
 import { getGatewayTypeLabel } from '@/lib/constant'
@@ -84,8 +84,8 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
     if (linkedService?.sourceType === 'MANAGED' && linkedService.apiDefinition?.apiDefinitionId) {
       const apiDefId = linkedService.apiDefinition.apiDefinitionId;
       apiDefinitionApi.getPublishRecords(apiDefId).then((res: any) => {
-         const records = res.data?.content || res.data || [];
-         setPublishRecords(records);
+        const records = res.data?.content || res.data || [];
+        setPublishRecords(records);
       }).catch(e => {
         console.error('Failed to fetch publish records', e);
         setPublishRecords([]);
@@ -115,7 +115,13 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
         } else if (linkedService.sourceType === 'GATEWAY' && linkedService.higressRefConfig) {
           mcpServerName = linkedService.higressRefConfig.mcpServerName || apiProduct.name
         } else if (linkedService.sourceType === 'GATEWAY' && linkedService.adpAIGatewayRefConfig) {
-          mcpServerName = linkedService.adpAIGatewayRefConfig.mcpServerName || apiProduct.name
+          // 检查是否是 AdpAIGatewayModelItem 类型（有 modelApiName 属性）
+          if ('modelApiName' in linkedService.adpAIGatewayRefConfig) {
+            mcpServerName = linkedService.adpAIGatewayRefConfig.modelApiName || apiProduct.name
+          } else {
+            // APIGAIMCPItem 类型
+            mcpServerName = linkedService.adpAIGatewayRefConfig.mcpServerName || apiProduct.name
+          }
         } else if (linkedService.sourceType === 'NACOS' && linkedService.nacosRefConfig && 'mcpServerName' in linkedService.nacosRefConfig) {
           mcpServerName = linkedService.nacosRefConfig.mcpServerName || apiProduct.name
         } else if (linkedService.sourceType === 'GATEWAY' && linkedService.sofaHigressRefConfig && 'mcpServerName' in linkedService.sofaHigressRefConfig) {
@@ -210,11 +216,6 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
       const baseUrl = `${domain.protocol}://${formattedDomain}`;
       let fullUrl = `${baseUrl}${path || '/'}`;
 
-      if (apiProduct.mcpConfig?.meta?.source === 'ADP_AI_GATEWAY' ||
-        apiProduct.mcpConfig?.meta?.source === 'APSARA_GATEWAY') {
-        fullUrl = `${baseUrl}/mcp-servers${path || '/'}`;
-      }
-
       if (protocolType === 'SSE') {
         // 仅生成SSE配置，不追加/sse
         const sseConfig = {
@@ -298,8 +299,8 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
         // Agent API 只支持 APIG_AI 网关
         result = res.data?.content?.filter?.((item: Gateway) => item.gatewayType === 'APIG_AI');
       } else if (apiProduct.type === 'MODEL_API') {
-        // Model API 支持 APIG_AI、HIGRESS 和 SOFA_HIGRESS 网关
-        result = res.data?.content?.filter?.((item: Gateway) => item.gatewayType === 'APIG_AI' || item.gatewayType === 'HIGRESS' || item.gatewayType === 'SOFA_HIGRESS');
+        // Model API 支持 APIG_AI、HIGRESS、ADP_AI_GATEWAY 和 SOFA_HIGRESS 网关
+        result = res.data?.content?.filter?.((item: Gateway) => item.gatewayType === 'APIG_AI' || item.gatewayType === 'HIGRESS' || item.gatewayType === 'SOFA_HIGRESS' || item.gatewayType === 'ADP_AI_GATEWAY');
       } else {
         // MCP Server 支持 HIGRESS、APIG_AI、ADP_AI_GATEWAY、SOFA_HIGRESS
         result = res.data?.content?.filter?.((item: Gateway) => item.gatewayType === 'HIGRESS' || item.gatewayType === 'APIG_AI' || item.gatewayType === 'ADP_AI_GATEWAY' || item.gatewayType === 'APSARA_GATEWAY' || item.gatewayType === 'SOFA_HIGRESS');
@@ -430,19 +431,34 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
           setApiList(mcpServers)
         }
       } else if (gateway.gatewayType === 'ADP_AI_GATEWAY') {
-        // ADP_AI_GATEWAY类型：获取MCP Server列表
-        const res = await gatewayApi.getGatewayMcpServers(gatewayId, {
-          page: 1,
-          size: 500 // 获取所有MCP Server
-        })
-        const mcpServers = (res.data?.content || []).map((api: any) => ({
-          mcpServerName: api.mcpServerName || api.name,
-          fromGatewayType: 'ADP_AI_GATEWAY' as const,
-          mcpRouteId: api.mcpRouteId,
-          mcpServerId: api.mcpServerId,
-          type: 'MCP Server'
-        }))
-        setApiList(mcpServers)
+        if (apiProduct.type === 'MODEL_API') {
+          // ADP_AI_GATEWAY类型 + Model API产品：获取Model API列表
+          const res = await gatewayApi.getGatewayModelApis(gatewayId, {
+            page: 1,
+            size: 500 // 获取所有Model API
+          })
+          const modelApis = (res.data?.content || []).map((api: any) => ({
+            modelApiId: api.modelApiId,
+            modelApiName: api.modelApiName,
+            fromGatewayType: 'ADP_AI_GATEWAY' as const,
+            type: 'Model API'
+          }))
+          setApiList(modelApis)
+        } else {
+          // ADP_AI_GATEWAY类型：获取MCP Server列表
+          const res = await gatewayApi.getGatewayMcpServers(gatewayId, {
+            page: 1,
+            size: 500 // 获取所有MCP Server
+          })
+          const mcpServers = (res.data?.content || []).map((api: any) => ({
+            mcpServerName: api.mcpServerName || api.name,
+            fromGatewayType: 'ADP_AI_GATEWAY' as const,
+            mcpRouteId: api.mcpRouteId,
+            mcpServerId: api.mcpServerId,
+            type: 'MCP Server'
+          }))
+          setApiList(mcpServers)
+        }
       } else if (gateway.gatewayType === 'APSARA_GATEWAY') {
         // APSARA_GATEWAY类型：获取MCP Server列表
         const res = await gatewayApi.getGatewayMcpServers(gatewayId, {
@@ -614,7 +630,11 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
           ...selectedApi,
           namespaceId: selectedNamespace || 'public'
         } : undefined,
-        adpAIGatewayRefConfig: selectedApi && 'fromGatewayType' in selectedApi && selectedApi.fromGatewayType === 'ADP_AI_GATEWAY' ? selectedApi as APIGAIMCPItem : undefined,
+        adpAIGatewayRefConfig: selectedApi && 'fromGatewayType' in selectedApi && selectedApi.fromGatewayType === 'ADP_AI_GATEWAY' ? (
+          apiProduct.type === 'MODEL_API'
+            ? { modelApiId: (selectedApi as any).modelApiId, modelApiName: (selectedApi as any).modelApiName, fromGatewayType: 'ADP_AI_GATEWAY' as const } as AdpAIGatewayModelItem
+            : selectedApi as APIGAIMCPItem
+        ) : undefined,
         apsaraGatewayRefConfig: selectedApi && 'fromGatewayType' in selectedApi && selectedApi.fromGatewayType === 'APSARA_GATEWAY' ? selectedApi as APIGAIMCPItem : undefined,
         sofaHigressRefConfig: selectedApi && 'fromGatewayType' in selectedApi && selectedApi.fromGatewayType === 'SOFA_HIGRESS' ? selectedApi as RestAPIItem | SofaHigressMCPItem : undefined,
         apiDefinitionId: undefined,
@@ -734,10 +754,18 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
         sourceInfo = 'Higress网关'
         gatewayInfo = linkedService.gatewayId || '未知'
       } else if (linkedService.sourceType === 'GATEWAY' && linkedService.adpAIGatewayRefConfig) {
-        // 专有云AI网关上的MCP Server
-        apiName = linkedService.adpAIGatewayRefConfig.mcpServerName || '未命名'
-        sourceInfo = '专有云AI网关'
-        gatewayInfo = linkedService.gatewayId || '未知'
+        // 检查是否是 AdpAIGatewayModelItem 类型（有 modelApiName 属性）
+        if ('modelApiName' in linkedService.adpAIGatewayRefConfig) {
+          // 专有云AI网关上的Model API
+          apiName = linkedService.adpAIGatewayRefConfig.modelApiName || '未命名'
+          sourceInfo = '专有云AI网关'
+          gatewayInfo = linkedService.gatewayId || '未知'
+        } else {
+          // 专有云AI网关上的MCP Server
+          apiName = linkedService.adpAIGatewayRefConfig.mcpServerName || '未命名'
+          sourceInfo = '专有云AI网关'
+          gatewayInfo = linkedService.gatewayId || '未知'
+        }
       } else if (linkedService.sourceType === 'GATEWAY' && linkedService.apsaraGatewayRefConfig) {
         // 飞天企业版AI网关上的MCP Server
         apiName = linkedService.apsaraGatewayRefConfig.mcpServerName || '未命名'
@@ -874,8 +902,8 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
             <span className="text-xs text-gray-600">来源:</span>
             <span className="col-span-2 text-xs text-gray-900">{serviceInfo.sourceInfo}</span>
             <span className="text-xs text-gray-600">
-              {linkedService?.sourceType === 'NACOS' ? 'Nacos ID:' : 
-               linkedService?.sourceType === 'MANAGED' ? 'API ID:' : '网关ID:'}
+              {linkedService?.sourceType === 'NACOS' ? 'Nacos ID:' :
+                linkedService?.sourceType === 'MANAGED' ? 'API ID:' : '网关ID:'}
             </span>
             <span className="col-span-2 text-xs text-gray-700">{serviceInfo.gatewayInfo}</span>
           </div>
@@ -978,117 +1006,117 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
             {/* 右侧：连接点配置 */}
             <Col span={9}>
               {apiProduct.mcpConfig ? (
-              <Card>
-                <div className="mb-4">
-                  <h3 className="text-sm font-semibold mb-3">连接点配置</h3>
+                <Card>
+                  <div className="mb-4">
+                    <h3 className="text-sm font-semibold mb-3">连接点配置</h3>
 
-                  {/* 域名选择器 */}
-                  {apiProduct.mcpConfig?.mcpServerConfig?.domains && apiProduct.mcpConfig.mcpServerConfig.domains.length > 0 && (
-                    <div className="mb-2">
-                      <div className="flex border border-gray-200 rounded-md overflow-hidden">
-                        <div className="flex-shrink-0 bg-gray-50 px-3 py-2 text-xs text-gray-600 border-r border-gray-200 flex items-center whitespace-nowrap">
-                          域名
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <Select
-                            value={selectedDomainIndex}
-                            onChange={setSelectedDomainIndex}
-                            className="w-full"
-                            placeholder="选择域名"
-                            size="middle"
-                            variant='borderless'
-                            style={{
-                              fontSize: '12px',
-                              height: '100%'
-                            }}
-                          >
-                            {getDomainOptions(apiProduct.mcpConfig.mcpServerConfig.domains).map((option) => (
-                              <Select.Option key={option.value} value={option.value}>
-                                <span title={option.label} className="text-xs text-gray-900 font-mono">
-                                  {option.label}
-                                </span>
-                              </Select.Option>
-                            ))}
-                          </Select>
+                    {/* 域名选择器 */}
+                    {apiProduct.mcpConfig?.mcpServerConfig?.domains && apiProduct.mcpConfig.mcpServerConfig.domains.length > 0 && (
+                      <div className="mb-2">
+                        <div className="flex border border-gray-200 rounded-md overflow-hidden">
+                          <div className="flex-shrink-0 bg-gray-50 px-3 py-2 text-xs text-gray-600 border-r border-gray-200 flex items-center whitespace-nowrap">
+                            域名
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <Select
+                              value={selectedDomainIndex}
+                              onChange={setSelectedDomainIndex}
+                              className="w-full"
+                              placeholder="选择域名"
+                              size="middle"
+                              variant='borderless'
+                              style={{
+                                fontSize: '12px',
+                                height: '100%'
+                              }}
+                            >
+                              {getDomainOptions(apiProduct.mcpConfig.mcpServerConfig.domains).map((option) => (
+                                <Select.Option key={option.value} value={option.value}>
+                                  <span title={option.label} className="text-xs text-gray-900 font-mono">
+                                    {option.label}
+                                  </span>
+                                </Select.Option>
+                              ))}
+                            </Select>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  <Tabs
-                    size="small"
-                    defaultActiveKey={localJson ? "local" : (sseJson ? "sse" : "http")}
-                    items={(() => {
-                      const tabs = [];
+                    <Tabs
+                      size="small"
+                      defaultActiveKey={localJson ? "local" : (sseJson ? "sse" : "http")}
+                      items={(() => {
+                        const tabs = [];
 
-                      if (localJson) {
-                        tabs.push({
-                          key: "local",
-                          label: "Stdio",
-                          children: (
-                            <div className="relative bg-gray-50 border border-gray-200 rounded-md p-3">
-                              <Button
-                                size="small"
-                                icon={<CopyOutlined />}
-                                className="absolute top-2 right-2 z-10"
-                                onClick={() => handleCopy(localJson)}
-                              >
-                              </Button>
-                              <div className="text-gray-800 font-mono text-xs overflow-x-auto">
-                                <pre className="whitespace-pre">{localJson}</pre>
-                              </div>
-                            </div>
-                          ),
-                        });
-                      } else {
-                        if (sseJson) {
+                        if (localJson) {
                           tabs.push({
-                            key: "sse",
-                            label: "SSE",
+                            key: "local",
+                            label: "Stdio",
                             children: (
                               <div className="relative bg-gray-50 border border-gray-200 rounded-md p-3">
                                 <Button
                                   size="small"
                                   icon={<CopyOutlined />}
                                   className="absolute top-2 right-2 z-10"
-                                  onClick={() => handleCopy(sseJson)}
+                                  onClick={() => handleCopy(localJson)}
                                 >
                                 </Button>
                                 <div className="text-gray-800 font-mono text-xs overflow-x-auto">
-                                  <pre className="whitespace-pre">{sseJson}</pre>
+                                  <pre className="whitespace-pre">{localJson}</pre>
                                 </div>
                               </div>
                             ),
                           });
-                        }
-
-                        if (httpJson) {
-                          tabs.push({
-                            key: "http",
-                            label: "Streamable HTTP",
-                            children: (
-                              <div className="relative bg-gray-50 border border-gray-200 rounded-md p-3">
-                                <Button
-                                  size="small"
-                                  icon={<CopyOutlined />}
-                                  className="absolute top-2 right-2 z-10"
-                                  onClick={() => handleCopy(httpJson)}
-                                >
-                                </Button>
-                                <div className="text-gray-800 font-mono text-xs overflow-x-auto">
-                                  <pre className="whitespace-pre">{httpJson}</pre>
+                        } else {
+                          if (sseJson) {
+                            tabs.push({
+                              key: "sse",
+                              label: "SSE",
+                              children: (
+                                <div className="relative bg-gray-50 border border-gray-200 rounded-md p-3">
+                                  <Button
+                                    size="small"
+                                    icon={<CopyOutlined />}
+                                    className="absolute top-2 right-2 z-10"
+                                    onClick={() => handleCopy(sseJson)}
+                                  >
+                                  </Button>
+                                  <div className="text-gray-800 font-mono text-xs overflow-x-auto">
+                                    <pre className="whitespace-pre">{sseJson}</pre>
+                                  </div>
                                 </div>
-                              </div>
-                            ),
-                          });
-                        }
-                      }
+                              ),
+                            });
+                          }
 
-                      return tabs;
-                    })()}
-                  />
-                </div>
-              </Card>
+                          if (httpJson) {
+                            tabs.push({
+                              key: "http",
+                              label: "Streamable HTTP",
+                              children: (
+                                <div className="relative bg-gray-50 border border-gray-200 rounded-md p-3">
+                                  <Button
+                                    size="small"
+                                    icon={<CopyOutlined />}
+                                    className="absolute top-2 right-2 z-10"
+                                    onClick={() => handleCopy(httpJson)}
+                                  >
+                                  </Button>
+                                  <div className="text-gray-800 font-mono text-xs overflow-x-auto">
+                                    <pre className="whitespace-pre">{httpJson}</pre>
+                                  </div>
+                                </div>
+                              ),
+                            });
+                          }
+                        }
+
+                        return tabs;
+                      })()}
+                    />
+                  </div>
+                </Card>
               ) : (
                 <Card>
                   <div className="text-gray-500 text-center py-8">
@@ -1821,9 +1849,9 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                   if (apiProduct.type === 'AGENT_API') {
                     return gateway.gatewayType === 'APIG_AI';
                   }
-                  // 如果是Model API类型，只显示AI网关（APIG_AI）和Higress、蚂蚁数科AI网关（SOFA_HIGRESS）网关
+                  // 如果是Model API类型，只显示AI网关（APIG_AI）和Higress、ADP_AI_GATEWAY、蚂蚁数科AI网关（SOFA_HIGRESS）网关
                   if (apiProduct.type === 'MODEL_API') {
-                    return gateway.gatewayType === 'APIG_AI' || gateway.gatewayType === 'HIGRESS' || gateway.gatewayType === 'SOFA_HIGRESS';
+                    return gateway.gatewayType === 'APIG_AI' || gateway.gatewayType === 'HIGRESS' || gateway.gatewayType === 'SOFA_HIGRESS' || gateway.gatewayType === 'ADP_AI_GATEWAY';
                   }
                   return true;
                 }).map(gateway => (

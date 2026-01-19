@@ -22,10 +22,8 @@ package com.alibaba.himarket.entity;
 import com.alibaba.himarket.converter.IconConverter;
 import com.alibaba.himarket.support.product.Icon;
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
+import lombok.*;
 
-@EqualsAndHashCode(callSuper = true)
 @Entity
 @Table(
         name = "product_category",
@@ -35,6 +33,10 @@ import lombok.EqualsAndHashCode;
                     name = "uk_category_id")
         })
 @Data
+@EqualsAndHashCode(callSuper = true)
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class ProductCategory extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

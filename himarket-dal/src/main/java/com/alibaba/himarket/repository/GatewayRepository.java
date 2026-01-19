@@ -23,13 +23,23 @@ import com.alibaba.himarket.entity.Gateway;
 import com.alibaba.himarket.support.enums.GatewayType;
 import java.util.List;
 import java.util.Optional;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 
 public interface GatewayRepository extends BaseRepository<Gateway, Long> {
 
+    /**
+     * Find gateway by gateway ID
+     *
+     * @param gatewayId the gateway ID
+     * @return the gateway if found
+     */
     Optional<Gateway> findByGatewayId(String gatewayId);
 
+    /**
+     * Find gateway by gateway name
+     *
+     * @param gatewayName the gateway name
+     * @return the gateway if found
+     */
     Optional<Gateway> findByGatewayName(String gatewayName);
 
     Page<Gateway> findByAdminId(String adminId, Pageable pageable);

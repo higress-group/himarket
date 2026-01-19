@@ -14,7 +14,7 @@ export interface ApiProductMcpConfig {
   meta: {
     source: string;
     mcpServerName: string;
-    mcpServerConfig: any;
+    mcpServerConfig: Record<string, unknown>;
     fromType: string;
     protocol?: string;
   }
@@ -70,14 +70,14 @@ export interface ApiProductAgentConfig {
       }>;
       capabilities?: {
         streaming?: boolean;
-        [key: string]: any;
+        [key: string]: unknown;
       };
       additionalInterfaces?: Array<{  // 附加接口信息（注意：复数形式）
         transport: string;  // 传输协议（HTTP/gRPC/JSONRPC）
         url: string;
-        [key: string]: any;
+        [key: string]: unknown;
       }>;
-      [key: string]: any;      // 支持其他扩展字段
+      [key: string]: unknown;      // 支持其他扩展字段
     };
   };
   meta?: {                     // 元数据信息
@@ -183,7 +183,7 @@ export interface BaseProduct {
   icon: ProductIcon | null;
   productType: ProductType;
   productName: string;
-  mcpConfig: any;
+  mcpConfig: Record<string, unknown>;
   updatedAt: string;
   lastUpdated: string;
   categories?: ProductCategoryData[];
@@ -196,7 +196,7 @@ export interface RestApiProduct extends BaseProduct {
 }
 
 // MCP Server 产品
-// @ts-ignore
+// @ts-expect-error - mcpSpec and mcpConfig types are complex and may overlap
 export interface McpServerProduct extends BaseProduct {
   apiSpec: null;
   mcpSpec?: McpServerConfig; // 保持向后兼容
@@ -234,17 +234,6 @@ export interface ApiResponse<T> {
   data: T;
 }
 
-// 分页响应结构
-export interface PaginatedResponse<T> {
-  content: T[];
-  totalElements: number;
-  totalPages: number;
-  size: number;
-  number: number;
-  first: boolean;
-  last: boolean;
-}
-
 // MCP 配置解析后的结构 (旧格式，保持向后兼容)
 export interface McpServerConfig {
   mcpRouteId?: string;
@@ -255,7 +244,7 @@ export interface McpServerConfig {
     domain: string;
     protocol: string;
   }>;
-  mcpServerConfig?: string; // YAML配置字符串
+  mcpServerConfig?: string;
   enabled?: boolean;
   server?: {
     name: string;
@@ -288,7 +277,6 @@ export interface McpServerConfig {
   }>;
 }
 
-// 新的nacos格式MCP配置
 export interface McpConfig {
   mcpServerName: string;
   mcpServerConfig: {
@@ -299,7 +287,7 @@ export interface McpConfig {
     }>;
     rawConfig?: string;
   };
-  tools: string; // YAML格式的tools配置字符串
+  tools: string;
   meta: {
     source: string;
     fromType: string;
@@ -316,30 +304,36 @@ export interface IMessageVersion {
   outputTokens?: number;
 }
 
-// MCP 工具调用相关类型
-export interface IMcpToolMeta {
-  toolName: string;
-  toolNameCn?: string | null;
-  mcpName: string;
-  mcpNameCn?: string | null;
-}
+// @chat-legacy: This interface is no longer used
+// export interface IMcpToolMeta {
+//   toolName: string;
+//   toolNameCn?: string | null;
+//   mcpName: string;
+//   mcpNameCn?: string | null;
+// }
 
 export interface IMcpToolCall {
-  toolMeta: IMcpToolMeta;
-  inputSchema: string;
-  input: string;
+  // @chat-legacy: Legacy fields removed - use mcpServerName and arguments instead
+  // toolMeta?: IMcpToolMeta;
+  // inputSchema?: string;
+  // input?: string;
+  
   id: string;
   type: string;
   name: string;
   arguments: string;
+  mcpServerName?: string;
 }
 
 export interface IMcpToolResponse {
-  toolMeta: IMcpToolMeta;
-  output: string;
+  // @chat-legacy: Legacy fields removed - use result instead
+  // toolMeta?: IMcpToolMeta;
+  // output?: string;
+  // responseData?: string;
+  
   id: string;
   name: string;
-  responseData: string;
+  result?: unknown;
 }
 
 export interface IModelConversation {
@@ -354,8 +348,8 @@ export interface IModelConversation {
       content: string;
       createdAt: string;
       activeAnswerIndex: number;
-      mcpToolCalls?: IMcpToolCall[];  // MCP 工具调用列表
-      mcpToolResponses?: IMcpToolResponse[];  // MCP 工具响应列表
+      mcpToolCalls?: IMcpToolCall[];
+      mcpToolResponses?: IMcpToolResponse[];
       isNewQuestion?: boolean;
       answers: {
         errorMsg: string;

@@ -23,13 +23,19 @@ public class JwtConstants {
 
     // region JWT Header
 
-    /** Algorithm */
+    /**
+     * Algorithm
+     */
     public static final String HEADER_ALG = "alg";
 
-    /** Type */
+    /**
+     * Type
+     */
     public static final String HEADER_TYP = "typ";
 
-    /** Key ID */
+    /**
+     * Key ID
+     */
     public static final String HEADER_KID = "kid";
 
     // endregion
@@ -38,55 +44,83 @@ public class JwtConstants {
 
     public static final String PAYLOAD_PROVIDER = "provider";
 
-    /** Expiration */
+    /**
+     * Expiration
+     */
     public static final String PAYLOAD_EXP = "exp";
 
-    /** Issued at */
+    /**
+     * Issued at
+     */
     public static final String PAYLOAD_IAT = "iat";
 
-    /** JWT ID */
+    /**
+     * JWT ID
+     */
     public static final String PAYLOAD_JTI = "jti";
 
-    /** Issuer */
+    /**
+     * Issuer
+     */
     public static final String PAYLOAD_ISS = "iss";
 
-    /** Subject */
+    /**
+     * Subject
+     */
     public static final String PAYLOAD_SUB = "sub";
 
-    /** Audience */
+    /**
+     * Audience
+     */
     public static final String PAYLOAD_AUD = "aud";
 
-    /** Portal ID */
+    /**
+     * Portal ID
+     */
     public static final String PAYLOAD_PORTAL = "portal";
 
     // endregion
 
     // region Custom Payload
 
-    /** User ID (default identity mapping) */
+    /**
+     * User ID (default identity mapping)
+     */
     public static final String PAYLOAD_USER_ID = "userId";
 
-    /** User name (default identity mapping) */
+    /**
+     * User name (default identity mapping)
+     */
     public static final String PAYLOAD_USER_NAME = "name";
 
-    /** Email (default identity mapping) */
+    /**
+     * Email (default identity mapping)
+     */
     public static final String PAYLOAD_EMAIL = "email";
 
     // endregion
 
     // region OAuth2 Constants
 
-    /** JWT Bearer grant type */
+    /**
+     * JWT Bearer grant type
+     */
     public static final String JWT_BEARER_GRANT_TYPE =
             "urn:ietf:params:oauth:grant-type:jwt-bearer";
 
-    /** Token type */
+    /**
+     * Token type
+     */
     public static final String TOKEN_TYPE_BEARER = "Bearer";
 
-    /** Default token expiration (seconds) */
+    /**
+     * Default token expiration (seconds)
+     */
     public static final int DEFAULT_TOKEN_EXPIRES_IN = 3600;
 
-    /** JWT token type */
+    /**
+     * JWT token type
+     */
     public static final String JWT_TOKEN_TYPE = "JWT";
 
     // endregion

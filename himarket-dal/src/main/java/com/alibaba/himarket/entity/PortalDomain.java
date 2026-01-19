@@ -22,8 +22,7 @@ package com.alibaba.himarket.entity;
 import com.alibaba.himarket.support.enums.DomainType;
 import com.alibaba.himarket.support.enums.ProtocolType;
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
+import lombok.*;
 
 @Entity
 @Table(
@@ -35,6 +34,9 @@ import lombok.EqualsAndHashCode;
         })
 @Data
 @EqualsAndHashCode(callSuper = true)
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class PortalDomain extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -48,9 +50,11 @@ public class PortalDomain extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "type", length = 32, nullable = false)
+    @Builder.Default
     private DomainType type = DomainType.DEFAULT;
 
     @Column(name = "protocol", length = 32, nullable = false)
     @Enumerated(EnumType.STRING)
+    @Builder.Default
     private ProtocolType protocol = ProtocolType.HTTP;
 }

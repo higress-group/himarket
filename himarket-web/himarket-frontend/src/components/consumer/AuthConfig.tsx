@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Button, Typography, Table, Popconfirm, Modal, Radio, Input, Select, Form, message } from "antd";
 import { EditOutlined, PlusOutlined, CopyOutlined, DeleteOutlined } from "@ant-design/icons";
 import api from "../../lib/api";
@@ -42,7 +42,7 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
   const [activeTab, setActiveTab] = useState<string>('API_KEY');
 
   // 获取当前配置
-  const fetchCurrentConfig = async () => {
+  const fetchCurrentConfig = React.useCallback(async () => {
     try {
       const response: ApiResponse<ConsumerCredentialResult> = await api.get(`/consumers/${consumerId}/credentials`);
       if (response.code === "SUCCESS" && response.data) {
@@ -56,11 +56,11 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
     } catch (error) {
       console.error('获取当前配置失败:', error);
     }
-  };
+  }, [consumerId]);
 
   useEffect(() => {
     fetchCurrentConfig();
-  }, [consumerId]);
+  }, [consumerId, fetchCurrentConfig]);
 
   // 凭证管理功能函数
   const handleCreateCredential = async () => {

@@ -21,6 +21,7 @@ package com.alibaba.himarket.service.impl;
 
 import cn.hutool.core.util.BooleanUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.extra.spring.SpringUtil;
 import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.event.DeveloperDeletingEvent;
 import com.alibaba.himarket.core.event.PortalDeletingEvent;
@@ -54,7 +55,6 @@ import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -76,8 +76,6 @@ public class DeveloperServiceImpl implements DeveloperService {
     private final PortalRepository portalRepository;
 
     private final ContextHolder contextHolder;
-
-    private final ApplicationEventPublisher eventPublisher;
 
     private final ConsumerService consumerService;
 
@@ -215,7 +213,7 @@ public class DeveloperServiceImpl implements DeveloperService {
 
     @Override
     public void deleteDeveloper(String developerId) {
-        eventPublisher.publishEvent(new DeveloperDeletingEvent(developerId));
+        SpringUtil.getApplicationContext().publishEvent(new DeveloperDeletingEvent(developerId));
         externalRepository.deleteByDeveloper_DeveloperId(developerId);
         developerRepository.findByDeveloperId(developerId).ifPresent(developerRepository::delete);
     }
@@ -280,7 +278,7 @@ public class DeveloperServiceImpl implements DeveloperService {
 
     @EventListener
     @Async("taskExecutor")
-    public void handlePortalDeletion(PortalDeletingEvent event) {
+    public void onPortalDeletion(PortalDeletingEvent event) {
         String portalId = event.getPortalId();
         List<Developer> developers = developerRepository.findByPortalId(portalId);
         developers.forEach(developer -> deleteDeveloper(developer.getDeveloperId()));

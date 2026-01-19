@@ -19,9 +19,22 @@
 
 package com.alibaba.himarket.support.enums;
 
-public enum AIProtocol {
-    OPENAI,
+import lombok.Getter;
 
-    ANTHROPIC,
+@Getter
+public enum AIProtocol {
+    OPENAI("OpenAI/V1"),
+
+    ANTHROPIC("Anthropic"),
+
+    DASHSCOPE("DashScope"),
+
+    DASHSCOPE_IMAGE("DashScopeImage"),
     ;
+
+    private final String protocol;
+
+    AIProtocol(String protocol) {
+        this.protocol = protocol;
+    }
 }

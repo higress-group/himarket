@@ -28,19 +28,46 @@ import org.springframework.transaction.annotation.Transactional;
 public interface ProductCategoryRelationRepository
         extends BaseRepository<ProductCategoryRelation, Long> {
 
+    /**
+     * Find product-category relations by product ID
+     *
+     * @param productId the product ID
+     * @return the list of product-category relations
+     */
     List<ProductCategoryRelation> findByProductId(String productId);
 
+    /**
+     * Find product-category relations by category ID
+     *
+     * @param categoryId the category ID
+     * @return the list of product-category relations
+     */
     List<ProductCategoryRelation> findByCategoryId(String categoryId);
 
+    /**
+     * Check if category ID exists in relations
+     *
+     * @param categoryId the category ID
+     * @return true if exists, false otherwise
+     */
     boolean existsByCategoryId(String categoryId);
 
+    /**
+     * Delete all product-category relations by product ID
+     *
+     * @param productId the product ID
+     */
     @Modifying
     @Transactional
     void deleteAllByProductId(String productId);
 
+    /**
+     * Delete product-category relations by product IDs and category ID
+     *
+     * @param productIds the collection of product IDs
+     * @param categoryId the category ID
+     */
     @Modifying
     @Transactional
     void deleteByProductIdInAndCategoryId(Collection<String> productIds, String categoryId);
-
-    List<ProductCategoryRelation> findByCategoryIdIn(Collection<String> categoryId);
 }
