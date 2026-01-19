@@ -4,7 +4,6 @@ import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.core.utils.McpPluginConfigUtil;
 import com.alibaba.himarket.dto.result.api.APIDefinitionVO;
 import com.alibaba.himarket.dto.result.api.APIEndpointVO;
-import com.alibaba.himarket.dto.result.common.DomainResult;
 import com.alibaba.himarket.dto.result.mcp.McpServerInfo;
 import com.alibaba.himarket.entity.Gateway;
 import com.alibaba.himarket.service.gateway.AIGWOperator;
@@ -36,10 +35,8 @@ import com.aliyun.sdk.service.apig20240327.models.UpdateMcpServerRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
-
 import java.util.ArrayList;
 import java.util.Collections;
-
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;

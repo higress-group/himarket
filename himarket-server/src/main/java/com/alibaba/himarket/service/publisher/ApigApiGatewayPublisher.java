@@ -13,7 +13,6 @@ import com.alibaba.himarket.support.api.service.ServiceConfig;
 import com.alibaba.himarket.support.enums.APIType;
 import com.alibaba.himarket.support.enums.GatewayType;
 import com.alibaba.himarket.support.product.GatewayRefConfig;
-import java.util.List;
 import com.aliyun.sdk.service.apig20240327.models.CreateHttpApiRequest;
 import com.aliyun.sdk.service.apig20240327.models.CreateServiceRequest;
 import com.aliyun.sdk.service.apig20240327.models.HttpApiDeployConfig;

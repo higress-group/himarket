@@ -109,8 +109,9 @@ public class McpPluginConfigUtil {
                             || "PUT".equalsIgnoreCase(method)
                             || "PATCH".equalsIgnoreCase(method))) {
                 // Check if Content-Type already exists
-                boolean hasContentType = headers.stream()
-                        .anyMatch(h -> "Content-Type".equalsIgnoreCase(h.get("key")));
+                boolean hasContentType =
+                        headers.stream()
+                                .anyMatch(h -> "Content-Type".equalsIgnoreCase(h.get("key")));
                 if (!hasContentType) {
                     Map<String, String> contentTypeHeader = new LinkedHashMap<>();
                     contentTypeHeader.put("key", "Content-Type");
@@ -197,12 +198,14 @@ public class McpPluginConfigUtil {
                 if (entry.getValue() instanceof Map) {
                     @SuppressWarnings("unchecked")
                     Map<String, Object> fieldSchema = (Map<String, Object>) entry.getValue();
-                    String type = fieldSchema.get("type") != null
-                            ? fieldSchema.get("type").toString()
-                            : "unknown";
-                    String description = fieldSchema.get("description") != null
-                            ? fieldSchema.get("description").toString()
-                            : "";
+                    String type =
+                            fieldSchema.get("type") != null
+                                    ? fieldSchema.get("type").toString()
+                                    : "unknown";
+                    String description =
+                            fieldSchema.get("description") != null
+                                    ? fieldSchema.get("description").toString()
+                                    : "";
                     doc.append("- **").append(fieldName).append("**: ");
                     if (!description.isEmpty()) {
                         doc.append(description).append(" ");

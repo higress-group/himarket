@@ -34,4 +34,12 @@ public class TimeoutProperty extends BaseAPIProperty {
     /** 超时时间（毫秒） */
     @APIField(label = "超时时间", description = "超时时间（毫秒）", required = true)
     private Long timeout;
+
+    /** 时间单位 */
+    @APIField(
+            label = "时间单位",
+            description = "超时时间单位（ms=毫秒, s=秒）",
+            required = true,
+            defaultValue = "ms")
+    private String timeUnit = "ms";
 }
