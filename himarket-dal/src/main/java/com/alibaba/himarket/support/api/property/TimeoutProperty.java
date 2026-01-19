@@ -36,6 +36,11 @@ public class TimeoutProperty extends BaseAPIProperty {
     private Long unitNum;
 
     /** 时间单位 */
-    @APIField(label = "时间单位", description = "超时时间单位（仅支持 s=秒）", required = true, defaultValue = "s")
+    @APIField(
+            label = "时间单位",
+            description = "超时时间单位（仅支持 s=秒）",
+            required = true,
+            defaultValue = "s",
+            options = {"s"})
     private String timeUnit = "s";
 }
