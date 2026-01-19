@@ -47,9 +47,11 @@ import com.alibaba.himarket.service.APIDefinitionService;
 import com.alibaba.himarket.service.api.GatewayCapabilityRegistry;
 import com.alibaba.himarket.service.api.GatewayPublisher;
 import com.alibaba.himarket.support.annotation.APIField;
-import com.alibaba.himarket.support.api.BaseAPIProperty;
+import com.alibaba.himarket.support.annotation.SupportedAPITypes;
 import com.alibaba.himarket.support.api.PublishConfig;
+import com.alibaba.himarket.support.api.property.BaseAPIProperty;
 import com.alibaba.himarket.support.enums.APIStatus;
+import com.alibaba.himarket.support.enums.APIType;
 import com.alibaba.himarket.support.enums.PropertyType;
 import com.alibaba.himarket.support.enums.PublishAction;
 import com.alibaba.himarket.support.enums.PublishStatus;
@@ -57,6 +59,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -87,6 +90,11 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
 
     @Override
     public List<PropertySchemaVO> listSupportedProperties() {
+        return listSupportedProperties(null);
+    }
+
+    @Override
+    public List<PropertySchemaVO> listSupportedProperties(APIType apiType) {
         List<PropertySchemaVO> schemas = new ArrayList<>();
 
         // Get the mapping from BaseAPIProperty
@@ -105,6 +113,20 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
                 continue;
             }
 
+            // Check if property supports the given API type
+            SupportedAPITypes supportedAnnotation = clazz.getAnnotation(SupportedAPITypes.class);
+            List<APIType> supportedApiTypes =
+                    supportedAnnotation != null
+                            ? Arrays.asList(supportedAnnotation.value())
+                            : Collections.emptyList();
+
+            // Filter by API type if specified
+            if (apiType != null
+                    && !supportedApiTypes.isEmpty()
+                    && !supportedApiTypes.contains(apiType)) {
+                continue;
+            }
+
             List<PropertyFieldVO> fields = new ArrayList<>();
             // Iterate all fields of the subclass
             for (java.lang.reflect.Field field : clazz.getDeclaredFields()) {
@@ -120,6 +142,7 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
                             .name(type.getLabel())
                             .description(type.getDescription())
                             .fields(fields)
+                            .supportedApiTypes(supportedApiTypes)
                             .build());
         }
 

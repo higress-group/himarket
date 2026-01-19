@@ -27,7 +27,7 @@ import com.alibaba.himarket.entity.APIEndpoint;
 import com.alibaba.himarket.service.McpToolService;
 import com.alibaba.himarket.service.legacy.McpClientFactory;
 import com.alibaba.himarket.service.legacy.McpClientWrapper;
-import com.alibaba.himarket.support.api.MCPToolConfig;
+import com.alibaba.himarket.support.api.endpoint.MCPToolConfig;
 import com.alibaba.himarket.support.chat.mcp.MCPTransportConfig;
 import com.alibaba.himarket.support.enums.EndpointType;
 import com.alibaba.himarket.support.enums.MCPTransportMode;

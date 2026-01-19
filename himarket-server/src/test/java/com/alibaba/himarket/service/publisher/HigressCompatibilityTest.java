@@ -6,7 +6,7 @@ import com.alibaba.himarket.dto.result.api.APIDefinitionVO;
 import com.alibaba.himarket.dto.result.api.APIEndpointVO;
 import com.alibaba.himarket.entity.APIEndpoint;
 import com.alibaba.himarket.service.api.SwaggerConverter;
-import com.alibaba.himarket.support.api.MCPToolConfig;
+import com.alibaba.himarket.support.api.endpoint.MCPToolConfig;
 import com.alibaba.himarket.support.enums.APIType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;

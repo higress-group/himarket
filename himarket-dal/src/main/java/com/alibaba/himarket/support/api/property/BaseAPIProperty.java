@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.api;
+package com.alibaba.himarket.support.api.property;
 
 import com.alibaba.himarket.support.enums.PropertyPhase;
 import com.alibaba.himarket.support.enums.PropertyType;
@@ -36,9 +36,7 @@ import lombok.Data;
         property = "type",
         visible = true)
 @JsonSubTypes({
-    @JsonSubTypes.Type(value = RateLimitProperty.class, name = "RATE_LIMIT"),
     @JsonSubTypes.Type(value = TimeoutProperty.class, name = "TIMEOUT"),
-    @JsonSubTypes.Type(value = CircuitBreakerProperty.class, name = "CIRCUIT_BREAKER"),
     @JsonSubTypes.Type(value = ObservabilityProperty.class, name = "OBSERVABILITY")
 })
 public class BaseAPIProperty implements Serializable {

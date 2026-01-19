@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.api;
+package com.alibaba.himarket.support.api.service;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;

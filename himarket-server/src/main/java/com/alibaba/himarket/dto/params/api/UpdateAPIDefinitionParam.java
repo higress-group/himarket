@@ -22,7 +22,7 @@ package com.alibaba.himarket.dto.params.api;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.dto.converter.InputConverter;
 import com.alibaba.himarket.entity.APIDefinition;
-import com.alibaba.himarket.support.api.BaseAPIProperty;
+import com.alibaba.himarket.support.api.property.BaseAPIProperty;
 import com.alibaba.himarket.support.enums.APIStatus;
 import jakarta.validation.constraints.Size;
 import java.util.List;

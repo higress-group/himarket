@@ -2,7 +2,7 @@ package com.alibaba.himarket.core.utils;
 
 import com.alibaba.himarket.dto.result.api.APIDefinitionVO;
 import com.alibaba.himarket.dto.result.api.APIEndpointVO;
-import com.alibaba.himarket.support.api.MCPToolConfig;
+import com.alibaba.himarket.support.api.endpoint.MCPToolConfig;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;

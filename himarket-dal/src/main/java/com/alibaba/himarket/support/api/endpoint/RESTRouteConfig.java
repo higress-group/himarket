@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.api;
+package com.alibaba.himarket.support.api.endpoint;
 
 import java.util.List;
 import java.util.Map;
@@ -44,7 +44,7 @@ public class RESTRouteConfig extends EndpointConfig {
     /** 路径参数列表 */
     private List<Parameter> pathParams;
 
-    /** 请求体定义 */
+    /** 请求体 definition */
     private Map<String, Object> requestBody;
 
     /** 响应定义（按状态码） */

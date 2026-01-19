@@ -28,6 +28,7 @@ import com.alibaba.himarket.dto.result.api.APIEndpointVO;
 import com.alibaba.himarket.dto.result.api.APIPublishRecordVO;
 import com.alibaba.himarket.dto.result.api.PropertySchemaVO;
 import com.alibaba.himarket.dto.result.common.PageResult;
+import com.alibaba.himarket.support.enums.APIType;
 import java.util.List;
 import org.springframework.data.domain.Pageable;
 
@@ -40,6 +41,14 @@ public interface APIDefinitionService {
      * @return 属性配置列表
      */
     List<PropertySchemaVO> listSupportedProperties();
+
+    /**
+     * 获取支持的属性配置列表（按 API 类型过滤）
+     *
+     * @param apiType API 类型（可选，为 null 时返回所有属性）
+     * @return 属性配置列表
+     */
+    List<PropertySchemaVO> listSupportedProperties(APIType apiType);
 
     /**
      * 创建 API Definition

@@ -17,21 +17,24 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.api;
+package com.alibaba.himarket.support.api.service;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-/** Gateway 服务配置 */
+/** Nacos 服务配置 */
 @Data
 @EqualsAndHashCode(callSuper = true)
-public class GatewayServiceConfig extends ServiceConfig {
+public class NacosServiceConfig extends ServiceConfig {
 
-    /** Gateway ID */
-    private String gatewayId;
+    /** Nacos 实例 ID */
+    private String nacosId;
 
-    /** 服务 ID */
-    private String serviceId;
+    /** 命名空间 */
+    private String namespace;
+
+    /** 分组 */
+    private String group;
 
     /** 服务名称 */
     private String serviceName;

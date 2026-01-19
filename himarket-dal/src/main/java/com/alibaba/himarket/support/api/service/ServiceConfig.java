@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.api;
+package com.alibaba.himarket.support.api.service;
 
 import com.alibaba.himarket.support.enums.ServiceType;
 import com.fasterxml.jackson.annotation.JsonSubTypes;

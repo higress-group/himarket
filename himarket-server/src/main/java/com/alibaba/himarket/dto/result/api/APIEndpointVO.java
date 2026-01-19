@@ -21,7 +21,7 @@ package com.alibaba.himarket.dto.result.api;
 
 import com.alibaba.himarket.dto.converter.OutputConverter;
 import com.alibaba.himarket.entity.APIEndpoint;
-import com.alibaba.himarket.support.api.EndpointConfig;
+import com.alibaba.himarket.support.api.endpoint.EndpointConfig;
 import com.alibaba.himarket.support.enums.EndpointType;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;

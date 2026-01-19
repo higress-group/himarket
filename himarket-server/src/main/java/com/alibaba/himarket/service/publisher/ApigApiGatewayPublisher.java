@@ -4,12 +4,12 @@ import com.alibaba.himarket.dto.result.api.APIDefinitionVO;
 import com.alibaba.himarket.entity.Gateway;
 import com.alibaba.himarket.service.api.GatewayPublisher;
 import com.alibaba.himarket.service.gateway.AIGWOperator;
-import com.alibaba.himarket.support.api.AiServiceConfig;
-import com.alibaba.himarket.support.api.DnsServiceConfig;
-import com.alibaba.himarket.support.api.FixedAddressServiceConfig;
-import com.alibaba.himarket.support.api.GatewayServiceConfig;
 import com.alibaba.himarket.support.api.PublishConfig;
-import com.alibaba.himarket.support.api.ServiceConfig;
+import com.alibaba.himarket.support.api.service.AiServiceConfig;
+import com.alibaba.himarket.support.api.service.DnsServiceConfig;
+import com.alibaba.himarket.support.api.service.FixedAddressServiceConfig;
+import com.alibaba.himarket.support.api.service.GatewayServiceConfig;
+import com.alibaba.himarket.support.api.service.ServiceConfig;
 import com.alibaba.himarket.support.enums.APIType;
 import com.alibaba.himarket.support.enums.GatewayType;
 import com.alibaba.himarket.support.product.GatewayRefConfig;
@@ -465,7 +465,13 @@ public class ApigApiGatewayPublisher implements GatewayPublisher {
         } else if (serviceConfig instanceof DnsServiceConfig) {
             serviceTypeSuffix = "-dns";
         } else if (serviceConfig instanceof AiServiceConfig) {
-            serviceTypeSuffix = "-ai";
+            AiServiceConfig aiConfig = (AiServiceConfig) serviceConfig;
+            String provider = aiConfig.getProvider();
+            if (provider != null && !provider.isEmpty()) {
+                serviceTypeSuffix = "-ai-" + provider;
+            } else {
+                serviceTypeSuffix = "-ai";
+            }
         }
         return apiName + serviceTypeSuffix;
     }

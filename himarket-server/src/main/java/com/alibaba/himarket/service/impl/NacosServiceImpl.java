@@ -44,7 +44,7 @@ import com.alibaba.himarket.entity.APIEndpoint;
 import com.alibaba.himarket.entity.NacosInstance;
 import com.alibaba.himarket.repository.NacosInstanceRepository;
 import com.alibaba.himarket.service.NacosService;
-import com.alibaba.himarket.support.api.MCPToolConfig;
+import com.alibaba.himarket.support.api.endpoint.MCPToolConfig;
 import com.alibaba.himarket.support.enums.EndpointType;
 import com.alibaba.himarket.support.enums.SourceType;
 import com.alibaba.himarket.support.product.NacosRefConfig;

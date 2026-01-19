@@ -17,12 +17,16 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.api;
+package com.alibaba.himarket.support.api.service;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-/** Model 配置 */
+/** 固定地址服务配置 */
 @Data
 @EqualsAndHashCode(callSuper = true)
-public class ModelConfig extends HttpEndpointConfig {}
+public class FixedAddressServiceConfig extends ServiceConfig {
+
+    /** 地址列表，逗号分隔 (e.g. 127.0.0.1:8080,127.0.0.2:8080) */
+    private String address;
+}

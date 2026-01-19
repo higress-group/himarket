@@ -17,24 +17,15 @@
  * under the License.
  */
 
-package com.alibaba.himarket.dto.params.api;
+package com.alibaba.himarket.support.api.property;
 
-import com.alibaba.himarket.dto.converter.InputConverter;
-import com.alibaba.himarket.entity.APIEndpoint;
-import com.alibaba.himarket.support.api.endpoint.EndpointConfig;
-import jakarta.validation.constraints.Size;
+import com.alibaba.himarket.support.annotation.SupportedAPITypes;
+import com.alibaba.himarket.support.enums.APIType;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
+/** 可观测性配置 */
 @Data
-public class UpdateEndpointParam implements InputConverter<APIEndpoint> {
-
-    @Size(max = 100, message = "端点名称长度不能超过100个字符")
-    private String name;
-
-    @Size(max = 500, message = "端点描述长度不能超过500个字符")
-    private String description;
-
-    private Integer sortOrder;
-
-    private EndpointConfig config;
-}
+@EqualsAndHashCode(callSuper = true)
+@SupportedAPITypes({APIType.MODEL_API, APIType.MCP_SERVER})
+public class ObservabilityProperty extends BaseAPIProperty {}

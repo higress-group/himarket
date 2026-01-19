@@ -30,6 +30,7 @@ import com.alibaba.himarket.dto.result.api.APIPublishRecordVO;
 import com.alibaba.himarket.dto.result.api.PropertySchemaVO;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.service.APIDefinitionService;
+import com.alibaba.himarket.support.enums.APIType;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -51,8 +52,9 @@ public class APIDefinitionController {
 
     @Operation(summary = "获取支持的属性配置列表")
     @GetMapping("/supported-properties")
-    public List<PropertySchemaVO> listSupportedProperties() {
-        return apiDefinitionService.listSupportedProperties();
+    public List<PropertySchemaVO> listSupportedProperties(
+            @RequestParam(required = false) APIType apiType) {
+        return apiDefinitionService.listSupportedProperties(apiType);
     }
 
     @Operation(summary = "创建 API Definition")

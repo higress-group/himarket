@@ -17,12 +17,21 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.api;
+package com.alibaba.himarket.support.api.property;
 
+import com.alibaba.himarket.support.annotation.APIField;
+import com.alibaba.himarket.support.annotation.SupportedAPITypes;
+import com.alibaba.himarket.support.enums.APIType;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-/** Agent 配置 */
+/** 超时插件配置 */
 @Data
 @EqualsAndHashCode(callSuper = true)
-public class AgentConfig extends HttpEndpointConfig {}
+@SupportedAPITypes({APIType.REST_API, APIType.MCP_SERVER, APIType.AGENT_API, APIType.MODEL_API})
+public class TimeoutProperty extends BaseAPIProperty {
+
+    /** 超时时间（毫秒） */
+    @APIField(label = "超时时间", description = "超时时间（毫秒）", required = true)
+    private Long timeout;
+}

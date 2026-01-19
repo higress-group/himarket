@@ -1,5 +1,6 @@
 package com.alibaba.himarket.dto.result.api;
 
+import com.alibaba.himarket.support.enums.APIType;
 import com.alibaba.himarket.support.enums.PropertyType;
 import java.util.List;
 import lombok.Builder;
@@ -12,4 +13,5 @@ public class PropertySchemaVO {
     private String name;
     private String description;
     private List<PropertyFieldVO> fields;
+    private List<APIType> supportedApiTypes;
 }

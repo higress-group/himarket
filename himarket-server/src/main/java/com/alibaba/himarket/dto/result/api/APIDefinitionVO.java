@@ -23,7 +23,7 @@ import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.dto.converter.OutputConverter;
 import com.alibaba.himarket.entity.APIDefinition;
-import com.alibaba.himarket.support.api.BaseAPIProperty;
+import com.alibaba.himarket.support.api.property.BaseAPIProperty;
 import com.alibaba.himarket.support.enums.APIStatus;
 import com.alibaba.himarket.support.enums.APIType;
 import com.fasterxml.jackson.core.type.TypeReference;

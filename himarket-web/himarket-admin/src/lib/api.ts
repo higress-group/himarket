@@ -323,8 +323,10 @@ export const apiDefinitionApi = {
     return api.get(`/api-definitions/${apiDefinitionId}`)
   },
   // 获取支持的属性配置列表
-  getSupportedProperties: () => {
-    return api.get(`/api-definitions/supported-properties`)
+  getSupportedProperties: (apiType?: string) => {
+    return api.get(`/api-definitions/supported-properties`, { 
+      params: apiType ? { apiType } : {} 
+    })
   },
   // 创建 API Definition
   createApiDefinition: (data: any) => {

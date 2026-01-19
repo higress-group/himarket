@@ -17,12 +17,12 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.api;
+package com.alibaba.himarket.support.api.endpoint;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-/** 可观测性配置 */
+/** Model 配置 */
 @Data
 @EqualsAndHashCode(callSuper = true)
-public class ObservabilityProperty extends BaseAPIProperty {}
+public class ModelConfig extends HttpEndpointConfig {}

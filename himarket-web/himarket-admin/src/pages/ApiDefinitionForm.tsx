@@ -184,6 +184,7 @@ export default function ApiDefinitionForm() {
   const { productName, productType, productDescription } = location.state || {};
   const [form] = Form.useForm();
   const apiName = Form.useWatch('name', form);
+  const apiType = Form.useWatch('type', form);
   const [loading, setLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [endpoints, setEndpoints] = useState<Endpoint[]>([]);
@@ -192,15 +193,21 @@ export default function ApiDefinitionForm() {
   const apiDefinitionId = searchParams.get('id');
 
   useEffect(() => {
-    fetchSupportedProperties();
     if (isEdit && apiDefinitionId) {
       fetchApiDefinition(apiDefinitionId);
     }
   }, [isEdit, apiDefinitionId]);
 
-  const fetchSupportedProperties = async () => {
+  // Fetch supported properties when API type changes
+  useEffect(() => {
+    if (apiType) {
+      fetchSupportedProperties(apiType);
+    }
+  }, [apiType]);
+
+  const fetchSupportedProperties = async (selectedApiType?: string) => {
     try {
-      const response: any = await apiDefinitionApi.getSupportedProperties();
+      const response: any = await apiDefinitionApi.getSupportedProperties(selectedApiType);
       const data = response && response.data ? response.data : response;
       if (Array.isArray(data)) {
         setSupportedProperties(data);

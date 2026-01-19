@@ -24,6 +24,7 @@ import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.entity.APIEndpoint;
 import com.alibaba.himarket.support.api.*;
+import com.alibaba.himarket.support.api.endpoint.*;
 import com.alibaba.himarket.support.enums.EndpointType;
 import java.util.Map;
 import org.springframework.stereotype.Component;

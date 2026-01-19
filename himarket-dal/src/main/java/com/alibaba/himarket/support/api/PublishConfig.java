@@ -19,6 +19,7 @@
 
 package com.alibaba.himarket.support.api;
 
+import com.alibaba.himarket.support.api.service.ServiceConfig;
 import java.io.Serializable;
 import java.util.List;
 import lombok.Data;

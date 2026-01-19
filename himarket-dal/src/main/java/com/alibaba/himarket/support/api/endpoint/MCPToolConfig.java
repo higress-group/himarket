@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.api;
+package com.alibaba.himarket.support.api.endpoint;
 
 import java.util.List;
 import java.util.Map;

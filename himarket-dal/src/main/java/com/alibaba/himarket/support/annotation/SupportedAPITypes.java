@@ -17,16 +17,22 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.api;
+package com.alibaba.himarket.support.annotation;
 
-import lombok.Data;
-import lombok.EqualsAndHashCode;
+import com.alibaba.himarket.support.enums.APIType;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-/** 固定地址服务配置 */
-@Data
-@EqualsAndHashCode(callSuper = true)
-public class FixedAddressServiceConfig extends ServiceConfig {
+/**
+ * Annotation to declare which API types support a specific property type.
+ * Used to filter properties based on API type in the frontend.
+ */
+@Target(ElementType.TYPE)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface SupportedAPITypes {
 
-    /** 地址列表，逗号分隔 (e.g. 127.0.0.1:8080,127.0.0.2:8080) */
-    private String address;
+    /** Array of API types that support this property */
+    APIType[] value();
 }

@@ -17,16 +17,12 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.api;
+package com.alibaba.himarket.support.api.endpoint;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-/** DNS 服务配置 */
+/** Agent 配置 */
 @Data
 @EqualsAndHashCode(callSuper = true)
-public class DnsServiceConfig extends ServiceConfig {
-
-    /** 域名 */
-    private String domain;
-}
+public class AgentConfig extends HttpEndpointConfig {}

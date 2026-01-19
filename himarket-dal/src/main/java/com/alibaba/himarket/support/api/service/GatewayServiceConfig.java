@@ -17,19 +17,22 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.api;
+package com.alibaba.himarket.support.api.service;
 
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import java.io.Serializable;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
 
-/** Endpoint 配置基类 用于标记接口，实现类型安全 */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
-@JsonSubTypes({
-    @JsonSubTypes.Type(value = MCPToolConfig.class, name = "MCP_TOOL"),
-    @JsonSubTypes.Type(value = RESTRouteConfig.class, name = "REST_ROUTE"),
-    @JsonSubTypes.Type(value = AgentConfig.class, name = "AGENT"),
-    @JsonSubTypes.Type(value = ModelConfig.class, name = "MODEL"),
-    @JsonSubTypes.Type(value = HttpEndpointConfig.class, name = "HTTP")
-})
-public abstract class EndpointConfig implements Serializable {}
+/** Gateway 服务配置 */
+@Data
+@EqualsAndHashCode(callSuper = true)
+public class GatewayServiceConfig extends ServiceConfig {
+
+    /** Gateway ID */
+    private String gatewayId;
+
+    /** 服务 ID */
+    private String serviceId;
+
+    /** 服务名称 */
+    private String serviceName;
+}

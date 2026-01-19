@@ -972,11 +972,97 @@ public class AIGWOperator extends APIGOperator {
                                                 ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
                         }
 
-                        log.info("Successfully updated Service: serviceId={}", request.getServiceId());
-                } catch (Exception e) {
-                        log.error("Error updating Service: serviceId={}", request.getServiceId(), e);
-                        throw new BusinessException(
-                                        ErrorCode.INTERNAL_ERROR, "Error updating Service，Cause：" + e.getMessage());
-                }
+            log.info("Successfully updated Service: serviceId={}", request.getServiceId());
+        } catch (Exception e) {
+            log.error("Error updating Service: serviceId={}", request.getServiceId(), e);
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR, "Error updating Service，Cause：" + e.getMessage());
         }
+    }
+
+    /**
+     * Create Policy in the gateway
+     *
+     * @param gateway The gateway
+     * @param request The CreatePolicy request
+     * @return The Policy ID
+     */
+    public String createPolicy(Gateway gateway, CreatePolicyRequest request) {
+        APIGClient client = getClient(gateway);
+        try {
+            log.info(
+                    "Creating Policy with request: name={}, className={}, gatewayId={}",
+                    request.getName(),
+                    request.getClassName(),
+                    gateway.getGatewayId());
+
+            CompletableFuture<CreatePolicyResponse> f =
+                    client.execute(c -> c.createPolicy(request));
+
+            CreatePolicyResponse response = f.join();
+
+            log.info("CreatePolicy response: statusCode={}", response.getStatusCode());
+
+            if (response.getStatusCode() != 200) {
+                throw new BusinessException(
+                        ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
+            }
+
+            if (response.getBody() != null && response.getBody().getData() != null) {
+                return response.getBody().getData().getPolicyId();
+            }
+
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR,
+                    "Unable to extract policy ID from CreatePolicy response");
+        } catch (Exception e) {
+            log.error("Error creating Policy: {}", request.getName(), e);
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR, "Error creating Policy，Cause：" + e.getMessage());
+        }
+    }
+
+    /**
+     * Create Policy Attachment in the gateway
+     *
+     * @param gateway The gateway
+     * @param request The CreatePolicyAttachment request
+     * @return The Attachment ID
+     */
+    public String createPolicyAttachment(Gateway gateway, CreatePolicyAttachmentRequest request) {
+        APIGClient client = getClient(gateway);
+        try {
+            log.info(
+                    "Creating Policy Attachment with request: policyId={}, attachResourceId={},"
+                            + " gatewayId={}",
+                    request.getPolicyId(),
+                    request.getAttachResourceId(),
+                    gateway.getGatewayId());
+
+            CompletableFuture<CreatePolicyAttachmentResponse> f =
+                    client.execute(c -> c.createPolicyAttachment(request));
+
+            CreatePolicyAttachmentResponse response = f.join();
+
+            log.info("CreatePolicyAttachment response: statusCode={}", response.getStatusCode());
+
+            if (response.getStatusCode() != 200) {
+                throw new BusinessException(
+                        ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
+            }
+
+            if (response.getBody() != null && response.getBody().getData() != null) {
+                return response.getBody().getData().getPolicyAttachmentId();
+            }
+
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR,
+                    "Unable to extract attachment ID from CreatePolicyAttachment response");
+        } catch (Exception e) {
+            log.error("Error creating Policy Attachment: {}", request.getPolicyId(), e);
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR,
+                    "Error creating Policy Attachment，Cause：" + e.getMessage());
+        }
+    }
 }
