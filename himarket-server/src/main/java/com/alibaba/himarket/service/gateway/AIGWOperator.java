@@ -343,7 +343,8 @@ public class AIGWOperator extends APIGOperator {
         } catch (Exception e) {
             log.error("Error undeploying MCP server: {}", mcpServerId, e);
             throw new BusinessException(
-                    ErrorCode.INTERNAL_ERROR, "Error undeploying MCP server，Cause：" + e.getMessage());
+                    ErrorCode.INTERNAL_ERROR,
+                    "Error undeploying MCP server，Cause：" + e.getMessage());
         }
     }
 

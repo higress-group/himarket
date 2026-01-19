@@ -25,5 +25,4 @@ import java.io.Serializable;
  * abstract class of APIGRefConfig.class,
  * HigressRefConfig.class, SofaHigressRefConfig.class
  */
-public abstract class GatewayRefConfig implements Serializable {
-}
+public abstract class GatewayRefConfig implements Serializable {}

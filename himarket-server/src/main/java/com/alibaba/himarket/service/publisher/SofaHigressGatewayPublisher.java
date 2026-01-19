@@ -73,23 +73,21 @@ public class SofaHigressGatewayPublisher implements GatewayPublisher {
         String resourceId = response.getResourceId();
         String resourceName = response.getResourceName();
         return switch (apiDefinition.getType()) {
-            case MCP_SERVER -> SofaHigressRefConfig
-                    .builder()
-                    .serverId(resourceId)
-                    .mcpServerName(resourceName)
-                    .build();
-            case MODEL_API -> SofaHigressRefConfig
-                    .builder()
-                    .modelApiId(resourceId)
-                    .modelApiName(resourceName)
-                    .build();
-            case REST_API -> SofaHigressRefConfig
-                    .builder()
-                    .apiId(resourceId)
-                    .apiName(resourceName)
-                    .build();
-            default -> throw new IllegalArgumentException(
-                    "Unsupported API type: " + apiDefinition.getType());
+            case MCP_SERVER ->
+                    SofaHigressRefConfig.builder()
+                            .serverId(resourceId)
+                            .mcpServerName(resourceName)
+                            .build();
+            case MODEL_API ->
+                    SofaHigressRefConfig.builder()
+                            .modelApiId(resourceId)
+                            .modelApiName(resourceName)
+                            .build();
+            case REST_API ->
+                    SofaHigressRefConfig.builder().apiId(resourceId).apiName(resourceName).build();
+            default ->
+                    throw new IllegalArgumentException(
+                            "Unsupported API type: " + apiDefinition.getType());
         };
     }
 

@@ -47,8 +47,8 @@ import com.alibaba.himarket.entity.Consumer;
 import com.alibaba.himarket.entity.ConsumerCredential;
 import com.alibaba.himarket.entity.Gateway;
 import com.alibaba.himarket.service.gateway.client.*;
-import com.alibaba.himarket.service.impl.McpClientFactory;
-import com.alibaba.himarket.service.impl.McpClientWrapper;
+import com.alibaba.himarket.service.legacy.McpClientFactory;
+import com.alibaba.himarket.service.legacy.McpClientWrapper;
 import com.alibaba.himarket.support.consumer.ApiKeyConfig;
 import com.alibaba.himarket.support.consumer.ConsumerAuthConfig;
 import com.alibaba.himarket.support.consumer.SofaHigressAuthConfig;
@@ -208,11 +208,10 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
         SofaHigressClient client = getClient(gateway);
 
         return client.execute(
-                        "/route/detail",
-                        HttpMethod.POST,
-                        SofaHigressGetRouteRequest.builder().routeId(routeId).routeName(routeName).build(),
-                        new TypeReference<>() {});
-
+                "/route/detail",
+                HttpMethod.POST,
+                SofaHigressGetRouteRequest.builder().routeId(routeId).routeName(routeName).build(),
+                new TypeReference<>() {});
     }
 
     @Override
@@ -395,7 +394,8 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
                                     }
                                     return null;
                                 });
-        // If authentication is enabled, but no consumer found for current workspace and tenant,
+        // If authentication is enabled, but no consumer found for current workspace and
+        // tenant,
         // return null
         if (response.getAuthConfig() != null
                 && response.getAuthConfig().getEnabled()
@@ -448,7 +448,8 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
         }
     }
 
-    private SofaHigressApiConfig fetchSofaHigressApiConfig(Gateway gateway, String apiId, String apiName) {
+    private SofaHigressApiConfig fetchSofaHigressApiConfig(
+            Gateway gateway, String apiId, String apiName) {
         SofaHigressClient client = getClient(gateway);
         // 通过 serverId 查询 Mcp 详情
         return client.execute(
@@ -628,11 +629,15 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
         client.execute(
                 "/route/unsub",
                 HttpMethod.POST,
-                SubOrUnSubRequest.builder().consumerId(consumerId).routerId(response.getRouteId()).build(),
+                SubOrUnSubRequest.builder()
+                        .consumerId(consumerId)
+                        .routerId(response.getRouteId())
+                        .build(),
                 new TypeReference<>() {});
     }
 
-    private void revokeAuthorizeMCPServer(Gateway gateway, String consumerId, String mcpServerName) {
+    private void revokeAuthorizeMCPServer(
+            Gateway gateway, String consumerId, String mcpServerName) {
         SofaHigressClient client = getClient(gateway);
 
         SofaHigressMCPConfig response = fetchSofaHigressMCPConfigByName(gateway, mcpServerName);
@@ -641,7 +646,10 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
         client.execute(
                 "/mcpServer/unsub",
                 HttpMethod.POST,
-                SubOrUnSubRequest.builder().consumerId(consumerId).routerId(response.getRouteId()).build(),
+                SubOrUnSubRequest.builder()
+                        .consumerId(consumerId)
+                        .routerId(response.getRouteId())
+                        .build(),
                 new TypeReference<>() {});
     }
 
@@ -652,7 +660,10 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
         client.execute(
                 "/route/unsub",
                 HttpMethod.POST,
-                SubOrUnSubRequest.builder().consumerId(consumerId).routerId(response.getRouteInfo().getRouteId()).build(),
+                SubOrUnSubRequest.builder()
+                        .consumerId(consumerId)
+                        .routerId(response.getRouteInfo().getRouteId())
+                        .build(),
                 new TypeReference<>() {});
     }
 
@@ -730,7 +741,7 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
             String consumerId, String consumerName, ApiKeyConfig apiKeyConfig) {
         String source = mapSource(apiKeyConfig.getSource());
         // todo: sofa-higress目前只支持一个消费者绑定一个认证凭证，
-        //  所以只取Credentials的第一个apiKey，后续需要拓展以支持多个认证凭证
+        // 所以只取Credentials的第一个apiKey，后续需要拓展以支持多个认证凭证
         String value = apiKeyConfig.getCredentials().get(0).getApiKey();
         SofaHigressConsumerConfig consumerConfig =
                 SofaHigressConsumerConfig.builder()
@@ -767,7 +778,9 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
         return super.getClient(gateway);
     }
 
-    /** reuse client when there is only config param exists (no gateway param exists) */
+    /**
+     * reuse client when there is only config param exists (no gateway param exists)
+     */
     @SuppressWarnings("unchecked")
     public SofaHigressClient getClient(SofaHigressConfig sofaHigressConfig) {
         String clientKey = sofaHigressConfig.buildUniqueKey();
@@ -872,7 +885,7 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
         private String upstreamProtocol;
         private String upstreamPrefix;
         // private QueryRateLimitConfig queryRateLimitConfig;
-        // private UpstreamTokenModel   upstreamToken;
+        // private UpstreamTokenModel upstreamToken;
         private AiRouteAuthConfig authConfig;
         private String sseUrl;
         private String sseUrlExample;
@@ -940,25 +953,25 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
         private List<String> methods;
         private String path;
         private RouteMatchConfig routeMatchConfig;
-        //        private AiUpstreamConfig aiUpstreamConfig;
-        //        private UpstreamConfig upstreamConfig;
-        //        private RouteFallbackConfig routeFallbackConfig;
-        //        private TimeoutConfig timeoutConfig;
-        //        private ProxyNextUpstreamConfig proxyNextUpstream;
-        //        private RewriteConfig rewriteConfig;
-        //        private LoadBalanceConfig loadBalanceConfig;
-        //        private CorsConfig corsConfig;
-        //        private HeaderControlConfig headerControl;
-        //        private AiRouteAuthConfig authConfig;
-        //        private AiPluginConfig aiPluginConfig;
-        //        private QueryRateLimitConfig queryRateLimitConfig;
-        //        private MockConfig mockConfig;
-        //        private RedirectConfig redirectConfig;
-        //        private CircuitBreakerConfig circuitBreakerConfig;
-        //        private ConsumerCallStatisticsConfig statisticsConfig;
-        //        private AnnotationConfig annotationConfig;
-        //        private TrafficMirrorConfig trafficMirrorConfig;
-        //        private IpControlConfig ipConfig;
+        // private AiUpstreamConfig aiUpstreamConfig;
+        // private UpstreamConfig upstreamConfig;
+        // private RouteFallbackConfig routeFallbackConfig;
+        // private TimeoutConfig timeoutConfig;
+        // private ProxyNextUpstreamConfig proxyNextUpstream;
+        // private RewriteConfig rewriteConfig;
+        // private LoadBalanceConfig loadBalanceConfig;
+        // private CorsConfig corsConfig;
+        // private HeaderControlConfig headerControl;
+        // private AiRouteAuthConfig authConfig;
+        // private AiPluginConfig aiPluginConfig;
+        // private QueryRateLimitConfig queryRateLimitConfig;
+        // private MockConfig mockConfig;
+        // private RedirectConfig redirectConfig;
+        // private CircuitBreakerConfig circuitBreakerConfig;
+        // private ConsumerCallStatisticsConfig statisticsConfig;
+        // private AnnotationConfig annotationConfig;
+        // private TrafficMirrorConfig trafficMirrorConfig;
+        // private IpControlConfig ipConfig;
         private String description;
         private String status;
         private String apiId;

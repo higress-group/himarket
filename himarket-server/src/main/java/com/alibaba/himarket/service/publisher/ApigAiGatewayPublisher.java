@@ -279,9 +279,7 @@ public class ApigAiGatewayPublisher implements GatewayPublisher {
             log.info("Created new plugin attachment");
         }
 
-        return APIGRefConfig.builder()
-                .mcpServerId(mcpServerId)
-                .build();
+        return APIGRefConfig.builder().mcpServerId(mcpServerId).build();
     }
 
     /**

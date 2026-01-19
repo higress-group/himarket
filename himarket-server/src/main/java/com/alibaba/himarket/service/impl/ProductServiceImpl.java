@@ -54,12 +54,12 @@ import com.alibaba.himarket.dto.result.product.SubscriptionResult;
 import com.alibaba.himarket.entity.*;
 import com.alibaba.himarket.repository.*;
 import com.alibaba.himarket.service.*;
+import com.alibaba.himarket.service.hichat.manager.ToolManager;
 import com.alibaba.himarket.support.api.HttpEndpointConfig;
 import com.alibaba.himarket.support.api.MCPToolConfig;
 import com.alibaba.himarket.support.api.ModelConfig;
 import com.alibaba.himarket.support.api.PublishConfig;
 import com.alibaba.himarket.support.api.RESTRouteConfig;
-import com.alibaba.himarket.service.hichat.manager.ToolManager;
 import com.alibaba.himarket.support.chat.mcp.MCPTransportConfig;
 import com.alibaba.himarket.support.enums.EndpointType;
 import com.alibaba.himarket.support.enums.ProductStatus;
@@ -155,9 +155,10 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public ProductResult getProduct(String productId) {
-        Product product = contextHolder.isAdministrator()
-                ? findProduct(productId)
-                : findPublishedProduct(contextHolder.getPortal(), productId);
+        Product product =
+                contextHolder.isAdministrator()
+                        ? findProduct(productId)
+                        : findPublishedProduct(contextHolder.getPortal(), productId);
 
         // Trigger async sync if not synced recently (cache miss)
         if (productSyncCache.getIfPresent(productId) == null) {
@@ -249,14 +250,15 @@ public class ProductServiceImpl implements ProductService {
     @Override
     public PageResult<ProductPublicationResult> getPublications(
             String productId, Pageable pageable) {
-        Page<ProductPublication> publications = publicationRepository.findByProductId(productId, pageable);
+        Page<ProductPublication> publications =
+                publicationRepository.findByProductId(productId, pageable);
 
         return new PageResult<ProductPublicationResult>()
                 .convertFrom(
                         publications,
                         publication -> {
-                            ProductPublicationResult publicationResult = new ProductPublicationResult()
-                                    .convertFrom(publication);
+                            ProductPublicationResult publicationResult =
+                                    new ProductPublicationResult().convertFrom(publication);
                             PortalResult portal;
                             try {
                                 portal = portalService.getPortal(publication.getPortalId());
@@ -278,13 +280,15 @@ public class ProductServiceImpl implements ProductService {
         Product product = findProduct(productId);
 
         // Find publication by publicationId
-        ProductPublication publication = publicationRepository
-                .findByPublicationId(publicationId)
-                .orElseThrow(
-                        () -> new BusinessException(
-                                ErrorCode.NOT_FOUND,
-                                Resources.PUBLICATION,
-                                publicationId));
+        ProductPublication publication =
+                publicationRepository
+                        .findByPublicationId(publicationId)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                ErrorCode.NOT_FOUND,
+                                                Resources.PUBLICATION,
+                                                publicationId));
 
         // Verify: ensure publication belongs to this product
         if (!publication.getProductId().equals(productId)) {
@@ -300,9 +304,10 @@ public class ProductServiceImpl implements ProductService {
          * If the product is published in other portals -> set to PUBLISHED
          * If not published anywhere else -> set to READY
          */
-        ProductStatus toStatus = publicationRepository.existsByProductIdAndPortalIdNot(productId, portalId)
-                ? ProductStatus.PUBLISHED
-                : ProductStatus.READY;
+        ProductStatus toStatus =
+                publicationRepository.existsByProductIdAndPortalIdNot(productId, portalId)
+                        ? ProductStatus.PUBLISHED
+                        : ProductStatus.READY;
         product.setStatus(toStatus);
 
         publicationRepository.delete(publication);
@@ -328,8 +333,7 @@ public class ProductServiceImpl implements ProductService {
                                     && StrUtil.isNotBlank(productRef.getApiDefinitionId())) {
                                 String apiDefinitionId = productRef.getApiDefinitionId();
                                 try {
-                                    apiDefinitionService.deleteAPIDefinition(
-                                            apiDefinitionId);
+                                    apiDefinitionService.deleteAPIDefinition(apiDefinitionId);
                                 } catch (BusinessException e) {
                                     throw e;
                                 } catch (Exception e) {
@@ -352,8 +356,9 @@ public class ProductServiceImpl implements ProductService {
         return productRepository
                 .findByProductId(productId)
                 .orElseThrow(
-                        () -> new BusinessException(
-                                ErrorCode.NOT_FOUND, Resources.PRODUCT, productId));
+                        () ->
+                                new BusinessException(
+                                        ErrorCode.NOT_FOUND, Resources.PRODUCT, productId));
     }
 
     @Override
@@ -386,10 +391,12 @@ public class ProductServiceImpl implements ProductService {
                 .findFirstByProductId(productId)
                 .map(
                         productRef -> {
-                            ProductRefResult result = new ProductRefResult().convertFrom(productRef);
+                            ProductRefResult result =
+                                    new ProductRefResult().convertFrom(productRef);
                             if (StrUtil.isNotEmpty(result.getApiDefinitionId())) {
-                                APIDefinitionVO apiDefinition = apiDefinitionService
-                                        .getAPIDefinition(result.getApiDefinitionId());
+                                APIDefinitionVO apiDefinition =
+                                        apiDefinitionService.getAPIDefinition(
+                                                result.getApiDefinitionId());
                                 result.setApiDefinition(apiDefinition);
                             }
                             return result;
@@ -402,12 +409,14 @@ public class ProductServiceImpl implements ProductService {
         Product product = findProduct(productId);
         product.setStatus(ProductStatus.PENDING);
 
-        ProductRef productRef = productRefRepository
-                .findFirstByProductId(productId)
-                .orElseThrow(
-                        () -> new BusinessException(
-                                ErrorCode.INVALID_REQUEST,
-                                "API product not linked to API"));
+        ProductRef productRef =
+                productRefRepository
+                        .findFirstByProductId(productId)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                ErrorCode.INVALID_REQUEST,
+                                                "API product not linked to API"));
 
         // Published products cannot be unbound
         if (publicationRepository.existsByProductId(productId)) {
@@ -463,18 +472,21 @@ public class ProductServiceImpl implements ProductService {
     public PageResult<SubscriptionResult> listProductSubscriptions(
             String productId, QueryProductSubscriptionParam param, Pageable pageable) {
         existsProduct(productId);
-        Page<ProductSubscription> subscriptions = subscriptionRepository.findAll(
-                buildProductSubscriptionSpec(productId, param), pageable);
+        Page<ProductSubscription> subscriptions =
+                subscriptionRepository.findAll(
+                        buildProductSubscriptionSpec(productId, param), pageable);
 
-        List<String> consumerIds = subscriptions.getContent().stream()
-                .map(ProductSubscription::getConsumerId)
-                .collect(Collectors.toList());
+        List<String> consumerIds =
+                subscriptions.getContent().stream()
+                        .map(ProductSubscription::getConsumerId)
+                        .collect(Collectors.toList());
         if (CollUtil.isEmpty(consumerIds)) {
             return PageResult.empty(pageable.getPageNumber(), pageable.getPageSize());
         }
 
-        Map<String, Consumer> consumers = consumerRepository.findByConsumerIdIn(consumerIds).stream()
-                .collect(Collectors.toMap(Consumer::getConsumerId, consumer -> consumer));
+        Map<String, Consumer> consumers =
+                consumerRepository.findByConsumerIdIn(consumerIds).stream()
+                        .collect(Collectors.toMap(Consumer::getConsumerId, consumer -> consumer));
 
         return new PageResult<SubscriptionResult>()
                 .convertFrom(
@@ -494,19 +506,22 @@ public class ProductServiceImpl implements ProductService {
         productRepository
                 .findByProductId(productId)
                 .orElseThrow(
-                        () -> new BusinessException(
-                                ErrorCode.NOT_FOUND, Resources.PRODUCT, productId));
+                        () ->
+                                new BusinessException(
+                                        ErrorCode.NOT_FOUND, Resources.PRODUCT, productId));
     }
 
     @Override
     public void existsProducts(List<String> productIds) {
-        List<String> existedProductIds = productRepository.findByProductIdIn(productIds).stream()
-                .map(Product::getProductId)
-                .collect(Collectors.toList());
+        List<String> existedProductIds =
+                productRepository.findByProductIdIn(productIds).stream()
+                        .map(Product::getProductId)
+                        .collect(Collectors.toList());
 
-        List<String> notFoundProductIds = productIds.stream()
-                .filter(productId -> !existedProductIds.contains(productId))
-                .collect(Collectors.toList());
+        List<String> notFoundProductIds =
+                productIds.stream()
+                        .filter(productId -> !existedProductIds.contains(productId))
+                        .collect(Collectors.toList());
 
         if (!notFoundProductIds.isEmpty()) {
             throw new BusinessException(
@@ -530,12 +545,14 @@ public class ProductServiceImpl implements ProductService {
     @Override
     public void reloadProductConfig(String productId) {
         Product product = findProduct(productId);
-        ProductRef productRef = productRefRepository
-                .findFirstByProductId(productId)
-                .orElseThrow(
-                        () -> new BusinessException(
-                                ErrorCode.INVALID_REQUEST,
-                                "API product not linked to API"));
+        ProductRef productRef =
+                productRefRepository
+                        .findFirstByProductId(productId)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                ErrorCode.INVALID_REQUEST,
+                                                "API product not linked to API"));
 
         // Update cache to prevent immediate re-sync
         productSyncCache.put(productId, Boolean.TRUE);
@@ -553,20 +570,23 @@ public class ProductServiceImpl implements ProductService {
                     ErrorCode.INVALID_REQUEST, "API product is not a mcp server");
         }
 
-        ConsumerService consumerService = SpringUtil.getApplicationContext().getBean(ConsumerService.class);
+        ConsumerService consumerService =
+                SpringUtil.getApplicationContext().getBean(ConsumerService.class);
         String consumerId = consumerService.getPrimaryConsumer().getConsumerId();
         // Check subscription status
         subscriptionRepository
                 .findByConsumerIdAndProductId(consumerId, productId)
                 .orElseThrow(
-                        () -> new BusinessException(
-                                ErrorCode.INVALID_REQUEST,
-                                "API product is not subscribed, not allowed to list"
-                                        + " tools"));
+                        () ->
+                                new BusinessException(
+                                        ErrorCode.INVALID_REQUEST,
+                                        "API product is not subscribed, not allowed to list"
+                                                + " tools"));
 
         // Initialize client and fetch tools
         MCPTransportConfig transportConfig = product.getMcpConfig().toTransportConfig();
-        CredentialContext credentialContext = consumerService.getDefaultCredential(contextHolder.getUser());
+        CredentialContext credentialContext =
+                consumerService.getDefaultCredential(contextHolder.getUser());
         transportConfig.setHeaders(credentialContext.copyHeaders());
         transportConfig.setQueryParams(credentialContext.copyQueryParams());
 
@@ -632,13 +652,15 @@ public class ProductServiceImpl implements ProductService {
             switch (product.getType()) {
                 case MCP_SERVER:
                     // MCP Server 配置同步（现有逻辑）
-                    String mcpConfig = nacosService.fetchMcpConfig(productRef.getNacosId(), nacosRefConfig);
+                    String mcpConfig =
+                            nacosService.fetchMcpConfig(productRef.getNacosId(), nacosRefConfig);
                     productRef.setMcpConfig(mcpConfig);
                     break;
 
                 case AGENT_API:
                     // Agent 配置同步
-                    String agentConfig = nacosService.fetchAgentConfig(productRef.getNacosId(), nacosRefConfig);
+                    String agentConfig =
+                            nacosService.fetchAgentConfig(productRef.getNacosId(), nacosRefConfig);
                     productRef.setAgentConfig(agentConfig);
                     break;
 
@@ -664,16 +686,17 @@ public class ProductServiceImpl implements ProductService {
             return;
         }
 
-        MCPConfigResult mcpConfig = Optional.ofNullable(productRef.getMcpConfig())
-                .map(config -> JSONUtil.toBean(config, MCPConfigResult.class))
-                .orElse(null);
+        MCPConfigResult mcpConfig =
+                Optional.ofNullable(productRef.getMcpConfig())
+                        .map(config -> JSONUtil.toBean(config, MCPConfigResult.class))
+                        .orElse(null);
 
         if (mcpConfig == null) {
             return;
         }
 
         Optional.ofNullable(
-                gatewayService.fetchMcpToolsForConfig(productRef.getGatewayId(), mcpConfig))
+                        gatewayService.fetchMcpToolsForConfig(productRef.getGatewayId(), mcpConfig))
                 .filter(StrUtil::isNotBlank)
                 .ifPresent(
                         tools -> {
@@ -735,24 +758,27 @@ public class ProductServiceImpl implements ProductService {
         }
 
         List<DomainResult> allDomains = new ArrayList<>();
-        Page<APIPublishRecord> records = apiPublishRecordRepository.findByApiDefinitionIdOrderByCreateAtDesc(
-                apiDefinitionId, PageRequest.of(0, 1));
+        Page<APIPublishRecord> records =
+                apiPublishRecordRepository.findByApiDefinitionIdOrderByCreateAtDesc(
+                        apiDefinitionId, PageRequest.of(0, 1));
         if (records.hasContent()) {
             APIPublishRecord record = records.getContent().get(0);
             if (StrUtil.isNotBlank(record.getPublishConfig())) {
                 try {
-                    PublishConfig publishConfig = objectMapper.readValue(
-                            record.getPublishConfig(), PublishConfig.class);
+                    PublishConfig publishConfig =
+                            objectMapper.readValue(record.getPublishConfig(), PublishConfig.class);
                     if (CollUtil.isNotEmpty(publishConfig.getDomains())) {
-                        List<DomainResult> domains = publishConfig.getDomains().stream()
-                                .map(
-                                        d -> DomainResult.builder()
-                                                .domain(d.getDomain())
-                                                .port(d.getPort())
-                                                .protocol(d.getProtocol())
-                                                .networkType(d.getNetworkType())
-                                                .build())
-                                .collect(Collectors.toList());
+                        List<DomainResult> domains =
+                                publishConfig.getDomains().stream()
+                                        .map(
+                                                d ->
+                                                        DomainResult.builder()
+                                                                .domain(d.getDomain())
+                                                                .port(d.getPort())
+                                                                .protocol(d.getProtocol())
+                                                                .networkType(d.getNetworkType())
+                                                                .build())
+                                        .collect(Collectors.toList());
                         allDomains.addAll(domains);
                     }
                 } catch (Exception e) {
@@ -771,15 +797,16 @@ public class ProductServiceImpl implements ProductService {
             return;
         }
 
-        Map<EndpointType, List<APIEndpointVO>> endpointsByType = allEndpoints.stream()
-                .collect(Collectors.groupingBy(APIEndpointVO::getType));
+        Map<EndpointType, List<APIEndpointVO>> endpointsByType =
+                allEndpoints.stream().collect(Collectors.groupingBy(APIEndpointVO::getType));
 
         // Fill API Config (REST_ROUTE)
         if (product.getApiConfig() == null
                 && endpointsByType.containsKey(EndpointType.REST_ROUTE)) {
-            List<RESTRouteConfig> routes = endpointsByType.get(EndpointType.REST_ROUTE).stream()
-                    .map(e -> (RESTRouteConfig) e.getConfig())
-                    .collect(Collectors.toList());
+            List<RESTRouteConfig> routes =
+                    endpointsByType.get(EndpointType.REST_ROUTE).stream()
+                            .map(e -> (RESTRouteConfig) e.getConfig())
+                            .collect(Collectors.toList());
 
             APIConfigResult apiConfig = new APIConfigResult();
             APIConfigResult.APIMetadata meta = new APIConfigResult.APIMetadata();
@@ -797,23 +824,25 @@ public class ProductServiceImpl implements ProductService {
             MCPConfigResult mcpConfig = new MCPConfigResult();
 
             if (endpointsByType.containsKey(EndpointType.MCP_TOOL)) {
-                List<cn.hutool.json.JSONObject> tools = endpointsByType.get(EndpointType.MCP_TOOL).stream()
-                        .map(
-                                e -> {
-                                    MCPToolConfig config = (MCPToolConfig) e.getConfig();
-                                    cn.hutool.json.JSONObject toolJson = JSONUtil.parseObj(config);
-                                    toolJson.set("name", e.getName());
-                                    if (StrUtil.isNotBlank(e.getDescription())) {
-                                        toolJson.set("description", e.getDescription());
-                                    }
-                                    toolJson.set(
-                                            "args",
-                                            convertInputSchemaToArgs(
-                                                    config.getInputSchema()));
-                                    toolJson.remove("inputSchema");
-                                    return toolJson;
-                                })
-                        .collect(Collectors.toList());
+                List<cn.hutool.json.JSONObject> tools =
+                        endpointsByType.get(EndpointType.MCP_TOOL).stream()
+                                .map(
+                                        e -> {
+                                            MCPToolConfig config = (MCPToolConfig) e.getConfig();
+                                            cn.hutool.json.JSONObject toolJson =
+                                                    JSONUtil.parseObj(config);
+                                            toolJson.set("name", e.getName());
+                                            if (StrUtil.isNotBlank(e.getDescription())) {
+                                                toolJson.set("description", e.getDescription());
+                                            }
+                                            toolJson.set(
+                                                    "args",
+                                                    convertInputSchemaToArgs(
+                                                            config.getInputSchema()));
+                                            toolJson.remove("inputSchema");
+                                            return toolJson;
+                                        })
+                                .collect(Collectors.toList());
                 Map<String, Object> toolsMap = Collections.singletonMap("tools", tools);
                 mcpConfig.setTools(JSONUtil.toJsonStr(toolsMap));
             }
@@ -848,87 +877,97 @@ public class ProductServiceImpl implements ProductService {
 
         // Fill Model Config (MODEL)
         if (product.getModelConfig() == null && endpointsByType.containsKey(EndpointType.MODEL)) {
-            List<HttpRouteResult> routes = endpointsByType.get(EndpointType.MODEL).stream()
-                    .map(
-                            e -> {
-                                ModelConfig config = (ModelConfig) e.getConfig();
-                                HttpRouteResult route = new HttpRouteResult();
-                                if (CollUtil.isNotEmpty(allDomains)) {
-                                    route.setDomains(allDomains);
-                                }
-                                if (config.getMatchConfig() != null) {
-                                    HttpEndpointConfig.MatchConfig match = config.getMatchConfig();
-                                    HttpRouteResult.RouteMatchResult.RouteMatchResultBuilder builder = HttpRouteResult.RouteMatchResult
-                                            .builder();
+            List<HttpRouteResult> routes =
+                    endpointsByType.get(EndpointType.MODEL).stream()
+                            .map(
+                                    e -> {
+                                        ModelConfig config = (ModelConfig) e.getConfig();
+                                        HttpRouteResult route = new HttpRouteResult();
+                                        if (CollUtil.isNotEmpty(allDomains)) {
+                                            route.setDomains(allDomains);
+                                        }
+                                        if (config.getMatchConfig() != null) {
+                                            HttpEndpointConfig.MatchConfig match =
+                                                    config.getMatchConfig();
+                                            HttpRouteResult.RouteMatchResult.RouteMatchResultBuilder
+                                                    builder =
+                                                            HttpRouteResult.RouteMatchResult
+                                                                    .builder();
 
-                                    if (match.getPath() != null) {
-                                        builder.path(
-                                                HttpRouteResult.RouteMatchPath.builder()
-                                                        .value(match.getPath().getValue())
-                                                        .type(match.getPath().getType())
-                                                        .build());
-                                    }
+                                            if (match.getPath() != null) {
+                                                builder.path(
+                                                        HttpRouteResult.RouteMatchPath.builder()
+                                                                .value(match.getPath().getValue())
+                                                                .type(match.getPath().getType())
+                                                                .build());
+                                            }
 
-                                    builder.methods(match.getMethods());
+                                            builder.methods(match.getMethods());
 
-                                    if (match.getHeaders() != null) {
-                                        builder.headers(
-                                                match.getHeaders().stream()
-                                                        .map(
-                                                                h -> HttpRouteResult.RouteMatchHeader
-                                                                        .builder()
-                                                                        .name(
-                                                                                h
-                                                                                        .getName())
-                                                                        .type(
-                                                                                h
-                                                                                        .getType())
-                                                                        .value(
-                                                                                h
-                                                                                        .getValue())
-                                                                        .build())
-                                                        .collect(Collectors.toList()));
-                                    }
+                                            if (match.getHeaders() != null) {
+                                                builder.headers(
+                                                        match.getHeaders().stream()
+                                                                .map(
+                                                                        h ->
+                                                                                HttpRouteResult
+                                                                                        .RouteMatchHeader
+                                                                                        .builder()
+                                                                                        .name(
+                                                                                                h
+                                                                                                        .getName())
+                                                                                        .type(
+                                                                                                h
+                                                                                                        .getType())
+                                                                                        .value(
+                                                                                                h
+                                                                                                        .getValue())
+                                                                                        .build())
+                                                                .collect(Collectors.toList()));
+                                            }
 
-                                    if (match.getQueryParams() != null) {
-                                        builder.queryParams(
-                                                match.getQueryParams().stream()
-                                                        .map(
-                                                                q -> HttpRouteResult.RouteMatchQuery
-                                                                        .builder()
-                                                                        .name(
-                                                                                q
-                                                                                        .getName())
-                                                                        .type(
-                                                                                q
-                                                                                        .getType())
-                                                                        .value(
-                                                                                q
-                                                                                        .getValue())
-                                                                        .build())
-                                                        .collect(Collectors.toList()));
-                                    }
+                                            if (match.getQueryParams() != null) {
+                                                builder.queryParams(
+                                                        match.getQueryParams().stream()
+                                                                .map(
+                                                                        q ->
+                                                                                HttpRouteResult
+                                                                                        .RouteMatchQuery
+                                                                                        .builder()
+                                                                                        .name(
+                                                                                                q
+                                                                                                        .getName())
+                                                                                        .type(
+                                                                                                q
+                                                                                                        .getType())
+                                                                                        .value(
+                                                                                                q
+                                                                                                        .getValue())
+                                                                                        .build())
+                                                                .collect(Collectors.toList()));
+                                            }
 
-                                    route.setMatch(builder.build());
-                                }
-                                return route;
-                            })
-                    .collect(Collectors.toList());
+                                            route.setMatch(builder.build());
+                                        }
+                                        return route;
+                                    })
+                            .collect(Collectors.toList());
 
             ModelConfigResult modelConfig = new ModelConfigResult();
-            ModelConfigResult.ModelAPIConfig apiConfig = ModelConfigResult.ModelAPIConfig.builder().routes(routes)
-                    .build();
+            ModelConfigResult.ModelAPIConfig apiConfig =
+                    ModelConfigResult.ModelAPIConfig.builder().routes(routes).build();
             modelConfig.setModelAPIConfig(apiConfig);
             product.setModelConfig(modelConfig);
         }
     }
 
     private Product findPublishedProduct(String portalId, String productId) {
-        ProductPublication publication = publicationRepository
-                .findByPortalIdAndProductId(portalId, productId)
-                .orElseThrow(
-                        () -> new BusinessException(
-                                ErrorCode.NOT_FOUND, Resources.PRODUCT, productId));
+        ProductPublication publication =
+                publicationRepository
+                        .findByPortalIdAndProductId(portalId, productId)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                ErrorCode.NOT_FOUND, Resources.PRODUCT, productId));
 
         return findProduct(publication.getProductId());
     }
@@ -960,7 +999,8 @@ public class ProductServiceImpl implements ProductService {
 
             if (CollUtil.isNotEmpty(param.getCategoryIds())) {
                 Subquery<String> subquery = query.subquery(String.class);
-                Root<ProductCategoryRelation> relationRoot = subquery.from(ProductCategoryRelation.class);
+                Root<ProductCategoryRelation> relationRoot =
+                        subquery.from(ProductCategoryRelation.class);
                 subquery.select(relationRoot.get("productId"))
                         .where(relationRoot.get("categoryId").in(param.getCategoryIds()));
                 predicates.add(root.get("productId").in(subquery));
@@ -968,7 +1008,8 @@ public class ProductServiceImpl implements ProductService {
 
             if (StrUtil.isNotBlank(param.getExcludeCategoryId())) {
                 Subquery<String> subquery = query.subquery(String.class);
-                Root<ProductCategoryRelation> relationRoot = subquery.from(ProductCategoryRelation.class);
+                Root<ProductCategoryRelation> relationRoot =
+                        subquery.from(ProductCategoryRelation.class);
                 subquery.select(relationRoot.get("productId"))
                         .where(
                                 cb.equal(
@@ -1027,13 +1068,15 @@ public class ProductServiceImpl implements ProductService {
 
         // Get default consumer id (use applicationContext to get bean to avoid circular
         // dependency)
-        ConsumerService consumerService = SpringUtil.getApplicationContext().getBean(ConsumerService.class);
+        ConsumerService consumerService =
+                SpringUtil.getApplicationContext().getBean(ConsumerService.class);
         String consumerId = consumerService.getPrimaryConsumer().getConsumerId();
 
         // Check if product is subscribed by consumer
-        boolean exists = subscriptionRepository
-                .findByConsumerIdAndProductId(consumerId, product.getProductId())
-                .isPresent();
+        boolean exists =
+                subscriptionRepository
+                        .findByConsumerIdAndProductId(consumerId, product.getProductId())
+                        .isPresent();
         product.setIsSubscribed(exists);
     }
 
@@ -1048,7 +1091,8 @@ public class ProductServiceImpl implements ProductService {
                 return;
             }
 
-            ProductRef productRef = productRefRepository.findFirstByProductId(productId).orElse(null);
+            ProductRef productRef =
+                    productRefRepository.findFirstByProductId(productId).orElse(null);
             if (productRef == null) {
                 return;
             }
@@ -1075,7 +1119,8 @@ public class ProductServiceImpl implements ProductService {
         }
 
         Map<String, Object> properties = (Map<String, Object>) inputSchema.get("properties");
-        List<String> required = (List<String>) inputSchema.getOrDefault("required", Collections.emptyList());
+        List<String> required =
+                (List<String>) inputSchema.getOrDefault("required", Collections.emptyList());
 
         List<Map<String, Object>> args = new ArrayList<>();
         for (Map.Entry<String, Object> entry : properties.entrySet()) {

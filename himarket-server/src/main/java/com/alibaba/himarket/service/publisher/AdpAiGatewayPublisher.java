@@ -6,9 +6,8 @@ import com.alibaba.himarket.service.api.GatewayPublisher;
 import com.alibaba.himarket.support.api.PublishConfig;
 import com.alibaba.himarket.support.enums.APIType;
 import com.alibaba.himarket.support.enums.GatewayType;
-import java.util.List;
-
 import com.alibaba.himarket.support.product.GatewayRefConfig;
+import java.util.List;
 import org.springframework.stereotype.Component;
 
 @Component

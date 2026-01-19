@@ -21,7 +21,6 @@ package com.alibaba.himarket.dto.result.product;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
-import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.dto.converter.OutputConverter;
 import com.alibaba.himarket.dto.result.api.APIDefinitionVO;
 import com.alibaba.himarket.entity.ProductRef;
@@ -30,7 +29,6 @@ import com.alibaba.himarket.support.product.APIGRefConfig;
 import com.alibaba.himarket.support.product.HigressRefConfig;
 import com.alibaba.himarket.support.product.NacosRefConfig;
 import com.alibaba.himarket.support.product.SofaHigressRefConfig;
-import java.util.List;
 import lombok.Data;
 
 @Data

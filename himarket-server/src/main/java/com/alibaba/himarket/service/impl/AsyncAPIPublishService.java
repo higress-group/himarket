@@ -34,13 +34,12 @@ import com.alibaba.himarket.support.product.APIGRefConfig;
 import com.alibaba.himarket.support.product.GatewayRefConfig;
 import com.alibaba.himarket.support.product.HigressRefConfig;
 import com.alibaba.himarket.support.product.SofaHigressRefConfig;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.Optional;
 
 /**
  * Async API Publish Service
@@ -77,10 +76,12 @@ public class AsyncAPIPublishService {
             log.info("Starting async publish for record: {}", recordId);
 
             GatewayPublisher publisher = gatewayCapabilityRegistry.getPublisher(gateway);
-            GatewayRefConfig gatewayRefConfig = publisher.publish(gateway, apiDefinition, publishConfig);
+            GatewayRefConfig gatewayRefConfig =
+                    publisher.publish(gateway, apiDefinition, publishConfig);
 
             // Update to success status
-            updatePublishRecordStatus(recordId, PublishStatus.ACTIVE, JSONUtil.toJsonStr(gatewayRefConfig), null);
+            updatePublishRecordStatus(
+                    recordId, PublishStatus.ACTIVE, JSONUtil.toJsonStr(gatewayRefConfig), null);
 
             // update product ref
             updateManagedProductRef(gateway, apiDefinition, gatewayRefConfig);
@@ -92,12 +93,14 @@ public class AsyncAPIPublishService {
         }
     }
 
-    private void updateManagedProductRef(Gateway gateway, APIDefinitionVO apiDefinition, GatewayRefConfig gatewayRefConfig) {
+    private void updateManagedProductRef(
+            Gateway gateway, APIDefinitionVO apiDefinition, GatewayRefConfig gatewayRefConfig) {
         String apiDefinitionId = apiDefinition.getApiDefinitionId();
         Optional<ProductRef> ref = productRefRepository.findByApiDefinitionId(apiDefinitionId);
         if (ref.isEmpty()) {
             log.error("Product ref not found for api definition: {}", apiDefinitionId);
-            throw new RuntimeException("Product ref not found for api definition" + apiDefinitionId);
+            throw new RuntimeException(
+                    "Product ref not found for api definition" + apiDefinitionId);
         }
         ProductRef productRef = ref.get();
         // set gatewayId

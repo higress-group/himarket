@@ -25,7 +25,6 @@ import com.alibaba.himarket.support.api.PublishConfig;
 import com.alibaba.himarket.support.enums.APIType;
 import com.alibaba.himarket.support.enums.GatewayType;
 import com.alibaba.himarket.support.product.GatewayRefConfig;
-
 import java.util.List;
 
 /** 网关发布器接口 定义了将 API Definition 发布到网关的标准操作 */
@@ -63,7 +62,8 @@ public interface GatewayPublisher {
      * @param publishConfig 发布配置
      * @return 发布结果信息
      */
-    GatewayRefConfig publish(Gateway gateway, APIDefinitionVO apiDefinition, PublishConfig publishConfig);
+    GatewayRefConfig publish(
+            Gateway gateway, APIDefinitionVO apiDefinition, PublishConfig publishConfig);
 
     /**
      * 从网关下线 API
