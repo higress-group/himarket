@@ -399,7 +399,7 @@ public class ConsumerServiceImpl implements ConsumerService {
                 subscriptions.getContent().stream()
                         .map(ProductSubscription::getProductId)
                         .collect(Collectors.toList());
-        Map<String, ProductResult> products = productService.getProducts(productIds, false);
+        Map<String, ProductResult> products = productService.getProducts(productIds);
         return new PageResult<SubscriptionResult>()
                 .convertFrom(
                         subscriptions,

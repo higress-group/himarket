@@ -132,6 +132,10 @@
                     <artifactId>error_prone_annotations</artifactId>
                     <groupId>com.google.errorprone</groupId>
                 </exclusion>
+                <exclusion>
+                    <artifactId>j2objc-annotations</artifactId>
+                    <groupId>com.google.j2objc</groupId>
+                </exclusion>
             </exclusions>
         </dependency>
 
@@ -278,6 +282,11 @@
                     <groupId>org.slf4j</groupId>
                 </exclusion>
             </exclusions>
+        </dependency>
+
+        <dependency>
+            <groupId>com.google.genai</groupId>
+            <artifactId>google-genai</artifactId>
         </dependency>
 
     </dependencies>

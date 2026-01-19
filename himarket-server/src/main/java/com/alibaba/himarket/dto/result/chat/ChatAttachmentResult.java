@@ -17,34 +17,38 @@
  * under the License.
  */
 
-package com.alibaba.himarket.dto.params.product;
+package com.alibaba.himarket.dto.result.chat;
 
-import com.alibaba.himarket.support.enums.ProductStatus;
-import com.alibaba.himarket.support.enums.ProductType;
-import java.util.List;
+import com.alibaba.himarket.dto.converter.OutputConverter;
+import com.alibaba.himarket.entity.ChatAttachment;
+import com.alibaba.himarket.support.enums.ChatAttachmentType;
 import lombok.Data;
 
 @Data
-public class QueryProductParam {
-
-    private String portalId;
-
-    private ProductType type;
-
-    private String name;
-
-    private ProductStatus status;
-
-    private List<String> categoryIds;
-
-    private String excludeCategoryId;
-
-    private ModelFilter modelFilter;
+public class ChatAttachmentResult implements OutputConverter<ChatAttachmentResult, ChatAttachment> {
 
     /**
-     * Check if any type-specific filter is present
+     * Attachment ID
      */
-    public boolean hasFilter() {
-        return modelFilter != null;
-    }
+    private String attachmentId;
+
+    /**
+     * Attachment name
+     */
+    private String name;
+
+    /**
+     * Attachment type
+     */
+    private ChatAttachmentType type;
+
+    /**
+     * MIME type
+     */
+    private String mimeType;
+
+    /**
+     * Size in bytes
+     */
+    private Long size;
 }

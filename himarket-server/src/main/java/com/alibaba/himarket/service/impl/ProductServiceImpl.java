@@ -20,7 +20,7 @@
 package com.alibaba.himarket.service.impl;
 
 import cn.hutool.core.collection.CollUtil;
-import cn.hutool.core.util.BooleanUtil;
+import cn.hutool.core.map.MapUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.extra.spring.SpringUtil;
 import cn.hutool.json.JSONUtil;
@@ -34,6 +34,7 @@ import com.alibaba.himarket.core.security.ContextHolder;
 import com.alibaba.himarket.core.utils.CacheUtil;
 import com.alibaba.himarket.core.utils.IdGenerator;
 import com.alibaba.himarket.dto.params.product.*;
+import com.alibaba.himarket.dto.result.ProductCategoryResult;
 import com.alibaba.himarket.dto.result.agent.AgentConfigResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.consumer.CredentialContext;
@@ -63,6 +64,7 @@ import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
 import jakarta.transaction.Transactional;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -155,7 +157,7 @@ public class ProductServiceImpl implements ProductService {
         ProductResult result = new ProductResult().convertFrom(product);
 
         // Fill product information
-        fillProduct(result);
+        fillProducts(Collections.singletonList(result));
         return result;
     }
 
@@ -165,15 +167,21 @@ public class ProductServiceImpl implements ProductService {
             param.setPortalId(contextHolder.getPortal());
         }
 
-        Page<Product> products = productRepository.findAll(buildSpecification(param), pageable);
-        return new PageResult<ProductResult>()
-                .convertFrom(
-                        products,
-                        product -> {
-                            ProductResult result = new ProductResult().convertFrom(product);
-                            fillProduct(result);
-                            return result;
-                        });
+        if (param.getType() != null && param.hasFilter()) {
+            return listProductsWithFilter(param, pageable);
+        }
+
+        Page<Product> page = productRepository.findAll(buildSpecification(param), pageable);
+        List<ProductResult> results =
+                page.stream()
+                        .map(product -> new ProductResult().convertFrom(product))
+                        .collect(Collectors.toList());
+
+        // Fill product information
+        fillProducts(results);
+
+        return PageResult.of(
+                results, page.getNumber() + 1, page.getSize(), page.getTotalElements());
     }
 
     @Override
@@ -390,19 +398,16 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public Map<String, ProductResult> getProducts(List<String> productIds, boolean withConfig) {
+    public Map<String, ProductResult> getProducts(List<String> productIds) {
         List<Product> products = productRepository.findByProductIdIn(productIds);
-        return products.stream()
-                .collect(
-                        Collectors.toMap(
-                                Product::getProductId,
-                                product -> {
-                                    ProductResult result = new ProductResult().convertFrom(product);
-                                    if (withConfig) {
-                                        fillProduct(result);
-                                    }
-                                    return result;
-                                }));
+
+        List<ProductResult> productResults =
+                products.stream().map(product -> new ProductResult().convertFrom(product)).toList();
+
+        fillProducts(productResults);
+
+        return productResults.stream()
+                .collect(Collectors.toMap(ProductResult::getProductId, Function.identity()));
     }
 
     @Override
@@ -453,7 +458,7 @@ public class ProductServiceImpl implements ProductService {
         List<String> existedProductIds =
                 productRepository.findByProductIdIn(productIds).stream()
                         .map(Product::getProductId)
-                        .collect(Collectors.toList());
+                        .toList();
 
         List<String> notFoundProductIds =
                 productIds.stream()
@@ -632,45 +637,70 @@ public class ProductServiceImpl implements ProductService {
                         });
     }
 
-    private void fillProduct(ProductResult product) {
-        // Fill product category information
-        product.setCategories(
-                productCategoryService.listCategoriesForProduct(product.getProductId()));
+    /**
+     * Fill product details, including product categories and product reference config.
+     *
+     * @param products the list of products to fill
+     */
+    private void fillProducts(List<ProductResult> products) {
+        if (CollUtil.isEmpty(products)) {
+            return;
+        }
 
-        productRefRepository
-                .findFirstByProductId(product.getProductId())
-                .ifPresent(
-                        productRef -> {
-                            product.setEnabled(productRef.getEnabled());
-                            if (StrUtil.isNotBlank(productRef.getApiConfig())) {
-                                product.setApiConfig(
-                                        JSONUtil.toBean(
-                                                productRef.getApiConfig(), APIConfigResult.class));
-                            }
+        List<String> productIds =
+                products.stream().map(ProductResult::getProductId).collect(Collectors.toList());
 
-                            // MCP Config
-                            if (StrUtil.isNotBlank(productRef.getMcpConfig())) {
-                                product.setMcpConfig(
-                                        JSONUtil.toBean(
-                                                productRef.getMcpConfig(), MCPConfigResult.class));
-                            }
+        Map<String, ProductRef> productRefMap =
+                productRefRepository.findByProductIdIn(productIds).stream()
+                        .collect(Collectors.toMap(ProductRef::getProductId, ref -> ref));
 
-                            // Agent Config
-                            if (StrUtil.isNotBlank(productRef.getAgentConfig())) {
-                                product.setAgentConfig(
-                                        JSONUtil.toBean(
-                                                productRef.getAgentConfig(),
-                                                AgentConfigResult.class));
-                            }
+        Map<String, List<ProductCategoryResult>> categoriesMap =
+                productCategoryService.listCategoriesForProducts(productIds);
 
-                            // Model Config
-                            if (StrUtil.isNotBlank(productRef.getModelConfig())) {
-                                product.setModelConfig(
-                                        JSONUtil.toBean(
-                                                productRef.getModelConfig(),
-                                                ModelConfigResult.class));
-                            }
-                        });
+        for (ProductResult product : products) {
+            String productId = product.getProductId();
+
+            // Fill Categories
+            product.setCategories(categoriesMap.getOrDefault(productId, Collections.emptyList()));
+
+            // Fill ProductRef config
+            ProductRef productRef = productRefMap.get(productId);
+            if (productRef != null) {
+                fillProductConfig(product, productRef);
+            }
+        }
+    }
+
+    /**
+     * Fill product config from product reference.
+     *
+     * @param product the product result to fill
+     * @param productRef the product reference containing config data
+     */
+    private void fillProductConfig(ProductResult product, ProductRef productRef) {
+        product.setEnabled(productRef.getEnabled());
+
+        // API config for REST API
+        if (StrUtil.isNotBlank(productRef.getApiConfig())) {
+            product.setApiConfig(JSONUtil.toBean(productRef.getApiConfig(), APIConfigResult.class));
+        }
+
+        // MCP config for MCP Server
+        if (StrUtil.isNotBlank(productRef.getMcpConfig())) {
+            product.setMcpConfig(JSONUtil.toBean(productRef.getMcpConfig(), MCPConfigResult.class));
+        }
+
+        // Agent config for Agent API
+        if (StrUtil.isNotBlank(productRef.getAgentConfig())) {
+            product.setAgentConfig(
+                    JSONUtil.toBean(productRef.getAgentConfig(), AgentConfigResult.class));
+        }
+
+        // Model config for Model API
+        if (StrUtil.isNotBlank(productRef.getModelConfig())) {
+            product.setModelConfig(
+                    JSONUtil.toBean(productRef.getModelConfig(), ModelConfigResult.class));
+        }
     }
 
     private Product findPublishedProduct(String portalId, String productId) {
@@ -774,24 +804,6 @@ public class ProductServiceImpl implements ProductService {
         };
     }
 
-    private void fillProductSubscribeInfo(ProductResult product, QueryProductParam param) {
-        if (!BooleanUtil.isTrue(param.getQuerySubscribeStatus())) {
-            return;
-        }
-
-        // Get default consumer id (use applicationContext to get bean to avoid circular dependency)
-        ConsumerService consumerService =
-                SpringUtil.getApplicationContext().getBean(ConsumerService.class);
-        String consumerId = consumerService.getPrimaryConsumer().getConsumerId();
-
-        // Check if product is subscribed by consumer
-        boolean exists =
-                subscriptionRepository
-                        .findByConsumerIdAndProductId(consumerId, product.getProductId())
-                        .isPresent();
-        product.setIsSubscribed(exists);
-    }
-
     @EventListener
     @Async("taskExecutor")
     public void onProductConfigReload(ProductConfigReloadEvent event) {
@@ -823,5 +835,104 @@ public class ProductServiceImpl implements ProductService {
         } catch (Exception e) {
             log.warn("Failed to auto-sync product ref: {}", productId, e);
         }
+    }
+
+    /**
+     * List products with type-specific filter.
+     * Filter is used to match specific properties in Product Config (e.g., ModelAPIConfig, APIConfig).
+     *
+     * @param param query parameters including product type and filter
+     * @param pageable pagination settings
+     * @return paginated product results
+     */
+    private PageResult<ProductResult> listProductsWithFilter(
+            QueryProductParam param, Pageable pageable) {
+        List<Product> allProducts = productRepository.findAllByType(param.getType());
+
+        if (CollUtil.isEmpty(allProducts)) {
+            return PageResult.empty(pageable.getPageNumber(), pageable.getPageSize());
+        }
+
+        Map<String, ProductRef> productRefMap =
+                productRefRepository
+                        .findByProductIdIn(
+                                allProducts.stream()
+                                        .map(Product::getProductId)
+                                        .collect(Collectors.toList()))
+                        .stream()
+                        .collect(Collectors.toMap(ProductRef::getProductId, ref -> ref));
+
+        List<Product> targetProducts =
+                allProducts.stream()
+                        .filter(p -> matchesFilter(productRefMap.get(p.getProductId()), param))
+                        // Filter by Product fields (status, name)
+                        .filter(
+                                p ->
+                                        param.getStatus() == null
+                                                || p.getStatus().equals(param.getStatus()))
+                        .filter(
+                                p ->
+                                        StrUtil.isBlank(param.getName())
+                                                || Optional.ofNullable(p.getName())
+                                                        .orElse("")
+                                                        .contains(param.getName()))
+                        .collect(Collectors.toList());
+
+        // Manual pagination
+        int start = (int) pageable.getOffset();
+        int end = Math.min(start + pageable.getPageSize(), targetProducts.size());
+        List<Product> pageContent =
+                start < targetProducts.size()
+                        ? targetProducts.subList(start, end)
+                        : Collections.emptyList();
+
+        List<ProductResult> results =
+                pageContent.stream()
+                        .map(product -> new ProductResult().convertFrom(product))
+                        .collect(Collectors.toList());
+
+        fillProducts(results);
+
+        return PageResult.of(
+                results,
+                pageable.getPageNumber() + 1,
+                pageable.getPageSize(),
+                targetProducts.size());
+    }
+
+    /**
+     * Check if product matches the type-specific filter
+     *
+     * @param productRef the product reference containing config data
+     * @param param query parameters containing filter criteria
+     * @return true if product matches the filter, false otherwise
+     */
+    private boolean matchesFilter(ProductRef productRef, QueryProductParam param) {
+        if (productRef == null || StrUtil.isBlank(productRef.getModelConfig())) {
+            return false;
+        }
+
+        // MODEL_API type: use ModelFilter
+        if (param.getType() == ProductType.MODEL_API && param.getModelFilter() != null) {
+            try {
+                ModelConfigResult config =
+                        JSONUtil.toBean(productRef.getModelConfig(), ModelConfigResult.class);
+                return param.getModelFilter().matches(config);
+            } catch (Exception e) {
+                log.warn(
+                        "Failed to parse modelConfig for product: {}",
+                        productRef.getProductId(),
+                        e);
+                return false;
+            }
+        }
+
+        // TODO: Add other filter types here
+        // if (param.getType() == ProductType.AGENT && param.getAgentFilter() != null) {
+        //     ...
+        // }
+
+        // No filter specified or no matching filter type, pass through
+        return true;
     }
 }

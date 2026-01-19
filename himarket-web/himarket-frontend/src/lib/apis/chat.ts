@@ -38,11 +38,7 @@ export interface IAnswerResult {
   answerId: string;
   productId: string;
   content: string;
-  usage?: {
-    elapsed_time?: number;
-    prompt_tokens?: number;
-    completion_tokens?: number;
-  };
+  usage?: IChatUsage;
 }
 
 export interface IAnswer {
@@ -96,21 +92,11 @@ export interface IToolResponse {
 }
 
 export interface IChatUsage {
-  elapsed_time?: number | null;
-  first_byte_timeout?: number | null;
-  // New chat fields (camelCase)
   inputTokens?: number;
   outputTokens?: number;
   totalTokens?: number;
   elapsedTime?: number | null;
   firstByteTimeout?: number | null;
-  // Legacy fields (snake_case) - keep for backward compatibility
-  prompt_tokens?: number;
-  completion_tokens?: number;
-  total_tokens?: number;
-  prompt_tokens_details?: {
-    cached_tokens?: number;
-  } | null;
 }
 
 // ============ V2 版本数据结构 ============
@@ -118,16 +104,7 @@ export interface IChatUsage {
 export interface IAnswerV2 {
   sequence: number;
   content: string;
-  usage?: {
-    elapsed_time?: number;
-    first_byte_timeout?: number;
-    prompt_tokens?: number;
-    completion_tokens?: number;
-    total_tokens?: number;
-    prompt_tokens_details?: {
-      cached_tokens?: number;
-    };
-  };
+  usage?: IChatUsage;
 }
 
 export interface IQuestionV2 {

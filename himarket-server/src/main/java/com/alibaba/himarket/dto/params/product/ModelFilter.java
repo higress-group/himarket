@@ -19,32 +19,30 @@
 
 package com.alibaba.himarket.dto.params.product;
 
-import com.alibaba.himarket.support.enums.ProductStatus;
-import com.alibaba.himarket.support.enums.ProductType;
-import java.util.List;
+import cn.hutool.core.util.StrUtil;
+import com.alibaba.himarket.dto.result.model.ModelConfigResult;
 import lombok.Data;
 
 @Data
-public class QueryProductParam {
-
-    private String portalId;
-
-    private ProductType type;
-
-    private String name;
-
-    private ProductStatus status;
-
-    private List<String> categoryIds;
-
-    private String excludeCategoryId;
-
-    private ModelFilter modelFilter;
+public class ModelFilter {
 
     /**
-     * Check if any type-specific filter is present
+     * Model category: Image, Chat, Embedding, etc.
      */
-    public boolean hasFilter() {
-        return modelFilter != null;
+    private String category;
+
+    /**
+     * Check if config matches filter
+     *
+     * @param configResult Model config to check
+     * @return true if matches all criteria
+     */
+    public boolean matches(ModelConfigResult configResult) {
+        if (configResult == null || configResult.getModelAPIConfig() == null) {
+            return false;
+        }
+
+        return StrUtil.equalsIgnoreCase(
+                category, configResult.getModelAPIConfig().getModelCategory());
     }
 }

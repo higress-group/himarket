@@ -37,6 +37,14 @@ public interface ProductCategoryRelationRepository
     List<ProductCategoryRelation> findByProductId(String productId);
 
     /**
+     * Find product-category relations by product IDs (batch query)
+     *
+     * @param productIds the collection of product IDs
+     * @return the list of product-category relations
+     */
+    List<ProductCategoryRelation> findByProductIdIn(Collection<String> productIds);
+
+    /**
      * Find product-category relations by category ID
      *
      * @param categoryId the category ID

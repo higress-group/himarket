@@ -73,20 +73,12 @@ export interface OpenAIChunk {
 }
 */
 
-export interface SSEUsage {
-  first_byte_timeout?: number;
-  prompt_tokens: number;
-  completion_tokens: number;
-  total_tokens: number;
-  elapsed_time?: number;
-}
-
 export interface SSEOptions {
   onStart?: (chatId: string) => void;
   onChunk?: (content: string, chatId: string) => void;
   onToolCall?: (toolCall: IToolCall, chatId: string, usage?: IChatUsage) => void;
   onToolResponse?: (toolResponse: IToolResponse, chatId: string, usage?: IChatUsage) => void;
-  onComplete?: (fullContent: string, chatId: string, usage?: SSEUsage) => void;
+  onComplete?: (fullContent: string, chatId: string, usage?: IChatUsage) => void;
   onError?: (error: string, code?: string, httpStatus?: number) => void;
 }
 
@@ -130,7 +122,7 @@ export async function handleSSEStream(
   let buffer = '';
   let chatId = '';
   let fullContent = '';
-  let usage: SSEUsage | undefined;
+  let usage: IChatUsage | undefined;
 
   try {
     while (true) {
@@ -212,15 +204,7 @@ export async function handleSSEStream(
                 case 'DONE':
                   // Corresponds to legacy STOP
                   if (event.chatId) {
-                    // Convert usage fields (use camelCase)
-                    const sseUsage: SSEUsage | undefined = event.usage ? {
-                      first_byte_timeout: event.usage.firstByteTimeout ?? event.usage.first_byte_timeout ?? undefined,
-                      prompt_tokens: event.usage.inputTokens ?? event.usage.prompt_tokens ?? 0,
-                      completion_tokens: event.usage.outputTokens ?? event.usage.completion_tokens ?? 0,
-                      total_tokens: event.usage.totalTokens ?? event.usage.total_tokens ?? 0,
-                      elapsed_time: event.usage.elapsedTime ?? event.usage.elapsed_time ?? undefined,
-                    } : undefined;
-                    callbacks.onComplete?.(fullContent, event.chatId, sseUsage);
+                    callbacks.onComplete?.(fullContent, event.chatId, event.usage);
                   }
                   break;
 
@@ -284,15 +268,7 @@ export async function handleSSEStream(
                 case 'STOP':
                   // Stream response completed
                   if (newMessage.chatId) {
-                    // Convert chatUsage to SSEUsage format
-                    const sseUsage: SSEUsage | undefined = newMessage.chatUsage ? {
-                      first_byte_timeout: newMessage.chatUsage.first_byte_timeout ?? undefined,
-                      prompt_tokens: newMessage.chatUsage.prompt_tokens || 0,
-                      completion_tokens: newMessage.chatUsage.completion_tokens || 0,
-                      total_tokens: newMessage.chatUsage.total_tokens || 0,
-                      elapsed_time: newMessage.chatUsage.elapsed_time ?? undefined,
-                    } : undefined;
-                    callbacks.onComplete?.(fullContent, newMessage.chatId, sseUsage);
+                    callbacks.onComplete?.(fullContent, newMessage.chatId, newMessage.chatUsage || undefined);
                   }
                   break;
 

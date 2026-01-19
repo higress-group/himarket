@@ -262,9 +262,9 @@ public class DashScopeImageLlmService extends AbstractLlmService {
                             } else if (block instanceof ImageBlock imageBlock) {
                                 // Image URL - send as markdown format
                                 String imageUrl = ((URLSource) imageBlock.getSource()).getUrl();
-                                String markdown = String.format("![Generated Image](%s)", imageUrl);
+                                String image = String.format("![Generated Image](%s)", imageUrl);
                                 log.info("Generated image URL for chatId {}: {}", chatId, imageUrl);
-                                return Flux.just(ChatEvent.text(chatId, markdown));
+                                return Flux.just(ChatEvent.text(chatId, image));
                             } else {
                                 log.warn(
                                         "Unsupported content block type: {}",
