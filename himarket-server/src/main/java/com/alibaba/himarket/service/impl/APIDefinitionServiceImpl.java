@@ -171,7 +171,12 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
                                     .collect(Collectors.toList());
                 }
             } else {
-                type = "string";
+                // For String fields, check if options are provided
+                if (!options.isEmpty()) {
+                    type = "select";
+                } else {
+                    type = "string";
+                }
             }
         }
 
