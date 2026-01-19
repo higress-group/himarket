@@ -29,4 +29,9 @@ public class DnsServiceConfig extends ServiceConfig {
 
     /** 域名 */
     private String domain;
+
+    @Override
+    public boolean isNativeService() {
+        return false;
+    }
 }

@@ -49,4 +49,13 @@ public abstract class ServiceConfig implements Serializable {
 
     /** 元数据 */
     private java.util.Map<String, String> meta;
+
+    /**
+     * 是否为网关原生服务
+     * 网关原生服务（如 GatewayServiceConfig）可能已经在网关中注册，可以直接使用现有的 serviceId。
+     * 非网关原生服务（如 AI、DNS、FixedAddress）需要先确保服务存在。
+     *
+     * @return true 如果是网关原生服务，false 否则
+     */
+    public abstract boolean isNativeService();
 }

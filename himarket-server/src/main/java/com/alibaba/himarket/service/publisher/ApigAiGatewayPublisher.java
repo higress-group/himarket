@@ -12,8 +12,6 @@ import com.alibaba.himarket.support.api.endpoint.EndpointConfig;
 import com.alibaba.himarket.support.api.endpoint.HttpEndpointConfig;
 import com.alibaba.himarket.support.api.property.BaseAPIProperty;
 import com.alibaba.himarket.support.api.service.AiServiceConfig;
-import com.alibaba.himarket.support.api.service.DnsServiceConfig;
-import com.alibaba.himarket.support.api.service.FixedAddressServiceConfig;
 import com.alibaba.himarket.support.api.service.GatewayServiceConfig;
 import com.alibaba.himarket.support.api.service.ServiceConfig;
 import com.alibaba.himarket.support.enums.APIType;
@@ -42,7 +40,9 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 
 @Slf4j
 @Component
@@ -171,7 +171,7 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
                         .createFromType("ApiGatewayProxyMcpHosting");
 
         // Only set description if it's not null/empty
-        if (apiDefinition.getDescription() != null && !apiDefinition.getDescription().isEmpty()) {
+        if (StringUtils.isNotEmpty(apiDefinition.getDescription())) {
             requestBuilder.description(apiDefinition.getDescription());
         }
 
@@ -207,8 +207,7 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
                             .exposedUriPath(mcpPath)
                             .createFromType("ApiGatewayProxyMcpHosting");
 
-            if (apiDefinition.getDescription() != null
-                    && !apiDefinition.getDescription().isEmpty()) {
+            if (StringUtils.isNotEmpty(apiDefinition.getDescription())) {
                 updateRequestBuilder.description(apiDefinition.getDescription());
             }
 
@@ -258,7 +257,7 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
                 McpPluginConfigUtil.convertApiDefinitionToPluginConfig(apiDefinition);
 
         String pluginAttachmentId = data.getMcpServerConfigPluginAttachmentId();
-        if (pluginAttachmentId != null && !pluginAttachmentId.isEmpty()) {
+        if (StringUtils.isNotEmpty(pluginAttachmentId)) {
             log.info(
                     "Plugin attachment already exists with ID: {}, updating it",
                     pluginAttachmentId);
@@ -307,7 +306,7 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
                         .domainIds(domainIds);
 
         // Only set description if it's not null/empty
-        if (apiDefinition.getDescription() != null && !apiDefinition.getDescription().isEmpty()) {
+        if (StringUtils.isNotEmpty(apiDefinition.getDescription())) {
             requestBuilder.description(apiDefinition.getDescription());
         }
 
@@ -351,8 +350,7 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
                             .domainIds(domainIds);
 
             // Only set description if it's not null/empty
-            if (apiDefinition.getDescription() != null
-                    && !apiDefinition.getDescription().isEmpty()) {
+            if (StringUtils.isNotEmpty(apiDefinition.getDescription())) {
                 updateRequestBuilder.description(apiDefinition.getDescription());
             }
 
@@ -390,7 +388,7 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
 
         // Check if plugin attachment already exists
         String pluginAttachmentId = data.getMcpServerConfigPluginAttachmentId();
-        if (pluginAttachmentId != null && !pluginAttachmentId.isEmpty()) {
+        if (StringUtils.isNotEmpty(pluginAttachmentId)) {
             log.info(
                     "Plugin attachment already exists with ID: {}, updating it",
                     pluginAttachmentId);
@@ -500,7 +498,7 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
 
         // 8. Extract basePath from publishConfig, default to "/" if not provided
         String basePath = publishConfig.getBasePath();
-        if (basePath == null || basePath.isEmpty()) {
+        if (StringUtils.isEmpty(basePath)) {
             basePath = "/";
             log.warn("No basePath provided in publishConfig, using default: /");
         }
@@ -694,7 +692,7 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
 
         // 7. Extract basePath from publishConfig, default to "/" if not provided
         String basePath = publishConfig.getBasePath();
-        if (basePath == null || basePath.isEmpty()) {
+        if (StringUtils.isEmpty(basePath)) {
             basePath = "/";
             log.warn("No basePath provided in publishConfig, using default: /");
         }
@@ -727,7 +725,7 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
                         null);
 
         // 10. Create routes for each endpoint
-        if (apiDefinition.getEndpoints() != null && !apiDefinition.getEndpoints().isEmpty()) {
+        if (!CollectionUtils.isEmpty(apiDefinition.getEndpoints())) {
             log.info(
                     "Creating {} routes for Agent API: {}",
                     apiDefinition.getEndpoints().size(),
@@ -846,7 +844,7 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
         HttpRouteMatch.Builder matchBuilder = HttpRouteMatch.builder().path(pathMatch);
 
         // Add methods if specified
-        if (matchConfig.getMethods() != null && !matchConfig.getMethods().isEmpty()) {
+        if (!CollectionUtils.isEmpty(matchConfig.getMethods())) {
             matchBuilder.methods(matchConfig.getMethods());
         }
 
@@ -857,7 +855,7 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
 
         // Extract serviceId from serviceConfigs
         String serviceId = "";
-        if (serviceConfigs != null && !serviceConfigs.isEmpty()) {
+        if (!CollectionUtils.isEmpty(serviceConfigs)) {
             serviceId = serviceConfigs.get(0).getServiceId();
         }
 
@@ -963,13 +961,13 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
             return serviceConfigs;
         }
 
-        if (serviceConfig instanceof GatewayServiceConfig) {
-            // Gateway Service configuration - use existing serviceId if available
+        if (serviceConfig.isNativeService()) {
+            // Native gateway service - may already have serviceId
             GatewayServiceConfig gatewayServiceConfig = (GatewayServiceConfig) serviceConfig;
             String serviceId = gatewayServiceConfig.getServiceId();
 
             // If serviceId is not provided, ensure service exists
-            if (serviceId == null || serviceId.isEmpty()) {
+            if (StringUtils.isEmpty(serviceId)) {
                 serviceId = ensureServiceExists(gateway, apiDefinition.getName(), serviceConfig);
             }
 
@@ -978,38 +976,26 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
 
             log.info("Using Gateway Service for Model API: serviceId={}", serviceId);
 
-        } else if (serviceConfig instanceof FixedAddressServiceConfig
-                || serviceConfig instanceof DnsServiceConfig) {
-            // Fixed address or DNS service - ensure service exists
-            String serviceId = ensureServiceExists(gateway, apiDefinition.getName(), serviceConfig);
-            ServiceConfigs sdkServiceConfig = ServiceConfigs.builder().serviceId(serviceId).build();
-            serviceConfigs.add(sdkServiceConfig);
-
-            log.info(
-                    "Using {} Service for Model API: serviceId={}",
-                    serviceConfig.getClass().getSimpleName(),
-                    serviceId);
-
-        } else if (serviceConfig instanceof AiServiceConfig) {
-            // AI Service configuration - ensure service exists
-            AiServiceConfig aiServiceConfig = (AiServiceConfig) serviceConfig;
-
-            log.info(
-                    "Using AI Service for Model API: provider={}, protocol={}",
-                    aiServiceConfig.getProvider(),
-                    aiServiceConfig.getProtocol());
-
-            // Ensure the AI service exists in APIG
-            String serviceId = ensureServiceExists(gateway, apiDefinition.getName(), serviceConfig);
-            ServiceConfigs sdkServiceConfig = ServiceConfigs.builder().serviceId(serviceId).build();
-            serviceConfigs.add(sdkServiceConfig);
-
-            log.info("AI Service registered in APIG: serviceId={}", serviceId);
-
         } else {
-            log.warn(
-                    "Unsupported service config type for Model API: {}",
-                    serviceConfig.getClass().getSimpleName());
+            // Non-native service (AI, DNS, FixedAddress, etc.) - ensure service exists
+            String serviceId = ensureServiceExists(gateway, apiDefinition.getName(), serviceConfig);
+            ServiceConfigs sdkServiceConfig = ServiceConfigs.builder().serviceId(serviceId).build();
+            serviceConfigs.add(sdkServiceConfig);
+
+            // Log with service-specific details
+            if (serviceConfig instanceof AiServiceConfig) {
+                AiServiceConfig aiServiceConfig = (AiServiceConfig) serviceConfig;
+                log.info(
+                        "Using AI Service for Model API: provider={}, protocol={}, serviceId={}",
+                        aiServiceConfig.getProvider(),
+                        aiServiceConfig.getProtocol(),
+                        serviceId);
+            } else {
+                log.info(
+                        "Using {} Service for Model API: serviceId={}",
+                        serviceConfig.getClass().getSimpleName(),
+                        serviceId);
+            }
         }
 
         return serviceConfigs;
@@ -1043,7 +1029,7 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
      * @return Category key (e.g., "Text", "Image")
      */
     private String convertScenarioToCategory(String scenario) {
-        if (scenario == null || scenario.isEmpty()) {
+        if (StringUtils.isEmpty(scenario)) {
             return "Text";
         }
 

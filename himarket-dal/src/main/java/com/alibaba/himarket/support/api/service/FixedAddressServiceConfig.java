@@ -29,4 +29,9 @@ public class FixedAddressServiceConfig extends ServiceConfig {
 
     /** 地址列表，逗号分隔 (e.g. 127.0.0.1:8080,127.0.0.2:8080) */
     private String address;
+
+    @Override
+    public boolean isNativeService() {
+        return false;
+    }
 }

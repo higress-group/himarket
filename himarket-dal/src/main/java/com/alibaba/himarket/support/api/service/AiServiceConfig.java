@@ -73,4 +73,9 @@ public class AiServiceConfig extends ServiceConfig {
 
     /** Vertex Auth Key (Vertex AI) */
     private String vertexAuthKey;
+
+    @Override
+    public boolean isNativeService() {
+        return false;
+    }
 }

@@ -35,4 +35,9 @@ public class GatewayServiceConfig extends ServiceConfig {
 
     /** 服务名称 */
     private String serviceName;
+
+    @Override
+    public boolean isNativeService() {
+        return true;
+    }
 }

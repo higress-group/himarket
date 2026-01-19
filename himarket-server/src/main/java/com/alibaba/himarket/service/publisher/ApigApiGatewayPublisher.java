@@ -213,24 +213,21 @@ public class ApigApiGatewayPublisher implements GatewayPublisher {
         String sourceType = getSourceType(serviceConfig);
 
         // Build UpdateServiceRequest
-        // Note: UpdateServiceRequest may only support serviceId and serviceConfigs
-        // Check the actual SDK structure and adjust accordingly
         UpdateServiceRequest.Builder requestBuilder =
                 UpdateServiceRequest.builder().serviceId(serviceId);
 
-        // Try to set serviceConfigs if the builder supports it
-        try {
-            // Use reflection to check if serviceConfigs method exists
-            java.lang.reflect.Method serviceConfigsMethod =
-                    requestBuilder.getClass().getMethod("serviceConfigs", List.class);
-            serviceConfigsMethod.invoke(
-                    requestBuilder, Collections.singletonList(sdkServiceConfig));
-        } catch (NoSuchMethodException e) {
-            log.warn(
-                    "UpdateServiceRequest.Builder does not support serviceConfigs method. "
-                            + "Service update may not include address changes.");
-        } catch (Exception e) {
-            log.warn("Failed to set serviceConfigs in UpdateServiceRequest: {}", e.getMessage());
+        // For DNS or Fixed Address services, set addresses directly
+        if (serviceConfig instanceof DnsServiceConfig
+                || serviceConfig instanceof FixedAddressServiceConfig) {
+            List<String> addresses = sdkServiceConfig.getAddresses();
+            if (addresses != null && !addresses.isEmpty()) {
+                requestBuilder.addresses(addresses);
+                log.info("Setting addresses for {} service: {}", sourceType, addresses);
+            }
+        }
+
+        if (serviceConfig instanceof AiServiceConfig) {
+            requestBuilder.aiServiceConfig(sdkServiceConfig.getAiServiceConfig());
         }
 
         UpdateServiceRequest request = requestBuilder.build();

@@ -459,7 +459,7 @@ export default function ApiPublishManagement() {
             }
           },
           domains: domainObjects,
-          basePath: '/'
+          basePath: values.basePath || '/'
         }
       };
 
@@ -618,10 +618,6 @@ export default function ApiPublishManagement() {
             <div style={itemStyle}>
               <span style={labelStyle}>提供商:</span>
               <span>{config.provider}</span>
-            </div>
-            <div style={itemStyle}>
-              <span style={labelStyle}>模型名称:</span>
-              <span>{config.modelName}</span>
             </div>
           </div>
         );
