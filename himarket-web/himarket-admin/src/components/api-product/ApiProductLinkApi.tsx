@@ -838,9 +838,11 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
           <div className="text-center py-8">
             <div className="text-gray-500 mb-4">暂未关联任何API</div>
             <div className="space-x-4">
-              <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/api-definitions/create', { state: { productName: apiProduct.name, productId: apiProduct.productId, productType: apiProduct.type, productDescription: apiProduct.description } })}>
-                创建 API
-              </Button>
+              {apiProduct.type === 'MODEL_API' && (
+                <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/api-definitions/create', { state: { productName: apiProduct.name, productId: apiProduct.productId, productType: apiProduct.type, productDescription: apiProduct.description } })}>
+                  创建 API
+                </Button>
+              )}
               <Button icon={<PlusOutlined />} onClick={() => setIsModalVisible(true)}>
                 关联已有的 API
               </Button>

@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS `api_publish_record` (
     `gateway_name` varchar(255) COMMENT 'Gateway name',
     `gateway_type` varchar(32) NOT NULL COMMENT 'Gateway type',
     `version` varchar(32) COMMENT 'Published API version',
-    `status` varchar(32) NOT NULL COMMENT 'Status: ACTIVE, INACTIVE, FAILED',
+    `status` varchar(32) NOT NULL COMMENT 'Status: ACTIVE, INACTIVE, PUBLISHING, UNPUBLISHING, FAILED. Application enforces uniqueness for PUBLISHING/UNPUBLISHING per API+Gateway',
     `action` varchar(32) COMMENT 'Action: PUBLISH, UNPUBLISH, UPDATE',
     `publish_config` json COMMENT 'Publish configuration including serviceConfig, extensions, etc.',
     `gateway_resource_id` varchar(255) COMMENT 'Gateway-side resource ID',
@@ -76,6 +76,7 @@ CREATE TABLE IF NOT EXISTS `api_publish_record` (
     UNIQUE KEY `uk_record_id` (`record_id`),
     KEY `idx_api_definition_id` (`api_definition_id`),
     KEY `idx_gateway_id` (`gateway_id`),
+    KEY `idx_api_gateway_status` (`api_definition_id`, `gateway_id`, `status`),
     CONSTRAINT `fk_publish_record_api_definition` FOREIGN KEY (`api_definition_id`) REFERENCES `api_definition` (`api_definition_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='API Publish Record table';
 
