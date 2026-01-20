@@ -11,7 +11,7 @@ import useProducts from "../../hooks/useProducts";
 import useCategories from "../../hooks/useCategories";
 import APIs from "../../lib/apis";
 
-import type { IGetPrimaryConsumerResp, IProductDetail, ISubscription } from "../../lib/apis";
+import type { IGetPrimaryConsumerResp, IProductDetail, ISubscription, IAttachment } from "../../lib/apis";
 import type { IModelConversation } from "../../types";
 import { safeJSONParse } from "../../lib/utils";
 import TextType from "../TextType";
@@ -24,7 +24,7 @@ interface ChatAreaProps {
   generating: boolean,
   isMcpExecuting: boolean;
   onChangeActiveAnswer: (modelId: string, conversationId: string, questionId: string, direction: 'prev' | 'next') => void
-  onSendMessage: (message: string, mcps: IProductDetail[], enableWebSearch: boolean, modelMap: Map<string, IProductDetail>) => void;
+  onSendMessage: (message: string, mcps: IProductDetail[], enableWebSearch: boolean, modelMap: Map<string, IProductDetail>, attachments: IAttachment[]) => void;
   onSelectProduct: (product: IProductDetail) => void;
   handleGenerateMessage: (ids: {
     modelId: string;
@@ -33,7 +33,8 @@ interface ChatAreaProps {
     content: string;
     mcps: IProductDetail[],
     enableWebSearch: boolean;
-    modelMap: Map<string, IProductDetail>
+    modelMap: Map<string, IProductDetail>,
+    attachments?: IAttachment[]
   }) => void;
 
   addModels: (ids: string[]) => void;
@@ -180,6 +181,15 @@ export function ChatArea(props: ChatAreaProps) {
     }
     return modelConversations.some(v => {
       return modelMap.get(v.id)?.feature?.modelFeature?.webSearch || false;
+    });
+  }, [modelConversations, modelMap, selectedModel]);
+
+  const enableMultiModal = useMemo(() => {
+    if (modelConversations.length === 0) {
+      return selectedModel?.feature?.modelFeature?.enableMultiModal || false;
+    }
+    return modelConversations.some(v => {
+      return modelMap.get(v.id)?.feature?.modelFeature?.enableMultiModal || false;
     });
   }, [modelConversations, modelMap, selectedModel]);
 
@@ -365,9 +375,9 @@ export function ChatArea(props: ChatAreaProps) {
               {/* 输入框 */}
               <div className="mb-8">
                 <InputBox
-                  onSendMessage={(c) => {
+                  onSendMessage={(c, a) => {
                     setAutoScrollEnabled(true);
-                    onSendMessage(c, mcpEnabled ? addedMcps : [], enableWebSearch, modelMap)
+                    onSendMessage(c, mcpEnabled ? addedMcps : [], enableWebSearch, modelMap, a)
                   }}
                   isLoading={generating}
                   onMcpClick={toggleMcpModal}
@@ -377,6 +387,7 @@ export function ChatArea(props: ChatAreaProps) {
                   showWebSearch={showWebSearch}
                   onWebSearchEnable={setEnableWebSearch}
                   webSearchEnabled={enableWebSearch}
+                  enableMultiModal={enableMultiModal}
                 />
               </div>
 
@@ -384,7 +395,7 @@ export function ChatArea(props: ChatAreaProps) {
               <SuggestedQuestions
                 onSelectQuestion={(c) => {
                   setAutoScrollEnabled(true);
-                  onSendMessage(c, mcpEnabled ? addedMcps : [], enableWebSearch, modelMap);
+                  onSendMessage(c, mcpEnabled ? addedMcps : [], enableWebSearch, modelMap, []);
                 }} />
             </div>
           </div>
@@ -393,9 +404,9 @@ export function ChatArea(props: ChatAreaProps) {
             <div className="max-w-3xl mx-auto">
               <InputBox
                 onMcpClick={toggleMcpModal}
-                onSendMessage={(c) => {
+                onSendMessage={(c, a) => {
                   setAutoScrollEnabled(true);
-                  onSendMessage(c, mcpEnabled ? addedMcps : [], enableWebSearch, modelMap);
+                  onSendMessage(c, mcpEnabled ? addedMcps : [], enableWebSearch, modelMap, a);
                 }}
                 isLoading={generating}
                 mcpEnabled={mcpEnabled}
@@ -404,6 +415,7 @@ export function ChatArea(props: ChatAreaProps) {
                 showWebSearch={showWebSearch}
                 onWebSearchEnable={setEnableWebSearch}
                 webSearchEnabled={enableWebSearch}
+                enableMultiModal={enableMultiModal}
               />
             </div>
           </div>

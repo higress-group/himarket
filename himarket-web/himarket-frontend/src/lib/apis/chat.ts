@@ -17,8 +17,19 @@ export interface ISession {
 }
 
 export interface IAttachment {
-  type: "IMAGE" | "VIDEO";
   attachmentId: string;
+  name: string;
+  type: "IMAGE" | "VIDEO" | "AUDIO" | "TEXT";
+  mimeType: string;
+  size: number;
+}
+
+export interface IAttachmentUploadResp {
+  attachmentId: string;
+  name: string;
+  type: "IMAGE" | "VIDEO" | "AUDIO" | "TEXT";
+  mimeType: string;
+  size: number;
 }
 
 export interface IChatMessage {
@@ -258,5 +269,22 @@ export function getConversations(sessionId: string) {
 export function getConversationsV2(sessionId: string) {
   return request.get<RespI<IProductConversations[]>, RespI<IProductConversations[]>>(
     `/sessions/${sessionId}/conversations/v2`
+  );
+}
+
+/**
+ * 上传附件
+ */
+export function uploadAttachment(file: File) {
+  const formData = new FormData();
+  formData.append('file', file);
+  return request.post<RespI<IAttachmentUploadResp>, RespI<IAttachmentUploadResp>>(
+    '/attachments',
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }
   );
 }

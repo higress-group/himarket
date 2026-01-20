@@ -348,6 +348,12 @@ export interface IModelConversation {
       content: string;
       createdAt: string;
       activeAnswerIndex: number;
+      attachments?: Array<{
+        attachmentId: string;
+        type: "IMAGE" | "VIDEO" | "AUDIO" | "TEXT";
+        name: string;
+        size: number;
+      }>;
       mcpToolCalls?: IMcpToolCall[];
       mcpToolResponses?: IMcpToolResponse[];
       isNewQuestion?: boolean;

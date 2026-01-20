@@ -36,6 +36,7 @@ export interface IProductDetail {
   feature?: {
     modelFeature: {
       webSearch: boolean;
+      enableMultiModal: boolean;
     }
   }
 }

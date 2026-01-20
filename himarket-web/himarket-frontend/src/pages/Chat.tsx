@@ -5,7 +5,7 @@ import { Layout } from "../components/Layout";
 import { Sidebar } from "../components/chat/Sidebar";
 import { generateConversationId, generateQuestionId } from "../lib/uuid";
 import { handleSSEStream, } from "../lib/sse";
-import APIs, { type IProductConversations, type IProductDetail } from "../lib/apis";
+import APIs, { type IProductConversations, type IProductDetail, type IAttachment } from "../lib/apis";
 import type { IModelConversation } from "../types";
 import { ChatArea } from "../components/chat/Area";
 
@@ -50,7 +50,7 @@ function Chat() {
     }
   }, [location]);
 
-  const handleSendMessage = async (content: string, mcps: IProductDetail[], enableWebSearch: boolean, modelMap: Map<string, IProductDetail>) => {
+  const handleSendMessage = async (content: string, mcps: IProductDetail[], enableWebSearch: boolean, modelMap: Map<string, IProductDetail>, attachments: IAttachment[] = []) => {
     if (!selectedModel) {
       antdMessage.error("请先选择一个模型");
       return;
@@ -101,6 +101,7 @@ function Chat() {
           needMemory: true,
           mcpProducts: mcps.map(mcp => mcp.productId),
           enableWebSearch: enableWebSearch ? isSupport : false,
+          attachments: attachments.map(a => ({ attachmentId: a.attachmentId })),
         };
 
         let fullContent = '';
@@ -122,6 +123,7 @@ function Chat() {
                         content,
                         createdAt: new Date().toDateString(),
                         activeAnswerIndex: 0,
+                        attachments,
                         answers: [
                           {
                             errorMsg: "",
@@ -154,6 +156,7 @@ function Chat() {
                       content,
                       createdAt: new Date().toDateString(),
                       activeAnswerIndex: 0,
+                      attachments,
                       answers: [
                         {
                           errorMsg: "",
@@ -396,10 +399,11 @@ function Chat() {
   // 重新生成答案
   const handleGenerateMessage = async ({
     modelId, conversationId, questionId, content,
-    mcps, enableWebSearch, modelMap
+    mcps, enableWebSearch, modelMap, attachments = []
   }: {
     modelId: string, conversationId: string, questionId: string, content: string,
-    mcps: IProductDetail[], enableWebSearch: boolean, modelMap: Map<string, IProductDetail>
+    mcps: IProductDetail[], enableWebSearch: boolean, modelMap: Map<string, IProductDetail>,
+    attachments?: IAttachment[]
   }) => {
     setGenerating(true);
     const isSupportWebSearch = modelMap.get(modelId)?.feature?.modelFeature?.webSearch || false;
@@ -410,7 +414,8 @@ function Chat() {
         question: content, stream: true,
         needMemory: true,
         mcpProducts: mcps.map(mcp => mcp.productId),
-        enableWebSearch: enableWebSearch ? isSupportWebSearch : false
+        enableWebSearch: enableWebSearch ? isSupportWebSearch : false,
+        attachments: attachments.map(a => ({ attachmentId: a.attachmentId })),
       };
       let fullContent = '';
       let lastIdx = -1;
@@ -713,6 +718,7 @@ function Chat() {
                     createdAt: question.createdAt,
                     activeAnswerIndex: question.answers.length - 1,
                     isNewQuestion: false,
+                    attachments: question.attachments,
                     answers: question.answers.map(answer => {
                       return {
                         errorMsg: "",
