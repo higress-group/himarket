@@ -124,7 +124,7 @@ export function AttachmentPreview({
   if ((!attachments || attachments.length === 0) && !isUploading) return null;
 
   return (
-    <div className={`flex items-center gap-1 ${className}`}>
+    <div className={`flex items-center gap-1 overflow-x-auto scrollbar-hide ${className}`}>
       {attachments?.map((file) => (
         <AttachmentItem key={file.attachmentId} file={file} onRemove={onRemove} itemClassName={itemClassName} />
       ))}
