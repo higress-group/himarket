@@ -18,6 +18,7 @@
  */
 package com.alibaba.himarket.service.hichat.service.dashscope;
 
+import cn.hutool.core.util.BooleanUtil;
 import io.agentscope.core.formatter.dashscope.dto.DashScopeMessage;
 import io.agentscope.core.formatter.dashscope.dto.DashScopeRequest;
 import io.agentscope.core.formatter.dashscope.dto.DashScopeResponse;
@@ -74,6 +75,7 @@ public class DashScopeImageChatModel extends ChatModelBase {
                     "wanx2.0-t2i-turbo");
 
     private final String modelName;
+    private final Boolean enableSearch; // nullable
     private final GenerateOptions defaultOptions;
     private final DashScopeImageFormatter formatter;
     private final DashScopeHttpClient httpClient;
@@ -83,6 +85,7 @@ public class DashScopeImageChatModel extends ChatModelBase {
      *
      * @param apiKey         DashScope API key
      * @param modelName      model name (must be in the supported image models list)
+     * @param enableSearch   whether search enhancement should be enabled
      * @param defaultOptions default generation options
      * @param baseUrl        full API URL
      * @param httpTransport  optional HTTP transport
@@ -90,6 +93,7 @@ public class DashScopeImageChatModel extends ChatModelBase {
     public DashScopeImageChatModel(
             String apiKey,
             String modelName,
+            Boolean enableSearch,
             GenerateOptions defaultOptions,
             String baseUrl,
             HttpTransport httpTransport) {
@@ -104,6 +108,7 @@ public class DashScopeImageChatModel extends ChatModelBase {
         }
 
         this.modelName = modelName;
+        this.enableSearch = enableSearch;
         this.defaultOptions =
                 defaultOptions != null ? defaultOptions : GenerateOptions.builder().build();
 
@@ -149,6 +154,10 @@ public class DashScopeImageChatModel extends ChatModelBase {
                         defaultOptions,
                         tools,
                         toolChoice);
+
+        if (BooleanUtil.isTrue(enableSearch)) {
+            request.getParameters().setEnableSearch(true);
+        }
 
         return Flux.defer(
                 () -> {
@@ -215,6 +224,7 @@ public class DashScopeImageChatModel extends ChatModelBase {
     public static class Builder {
         private String apiKey;
         private String modelName;
+        private Boolean enableSearch;
         private GenerateOptions defaultOptions = null;
         private String baseUrl;
         private HttpTransport httpTransport;
@@ -226,6 +236,20 @@ public class DashScopeImageChatModel extends ChatModelBase {
 
         public Builder modelName(String modelName) {
             this.modelName = modelName;
+            return this;
+        }
+
+        /**
+         * Enable or disable search enhancement for image generation.
+         *
+         * <p>When enabled, the model can leverage internet search to enhance
+         * image generation with up-to-date visual references and information.
+         *
+         * @param enableSearch true to enable search mode, false to disable, null for default (disabled)
+         * @return this builder instance
+         */
+        public Builder enableSearch(Boolean enableSearch) {
+            this.enableSearch = enableSearch;
             return this;
         }
 
@@ -255,7 +279,7 @@ public class DashScopeImageChatModel extends ChatModelBase {
                     ModelUtils.ensureDefaultExecutionConfig(defaultOptions);
 
             return new DashScopeImageChatModel(
-                    apiKey, modelName, effectiveOptions, baseUrl, httpTransport);
+                    apiKey, modelName, enableSearch, effectiveOptions, baseUrl, httpTransport);
         }
     }
 }

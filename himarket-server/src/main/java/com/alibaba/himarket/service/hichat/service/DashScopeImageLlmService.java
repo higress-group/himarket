@@ -213,6 +213,7 @@ public class DashScopeImageLlmService extends AbstractLlmService {
         return DashScopeImageChatModel.builder()
                 .apiKey(request.getApiKey())
                 .modelName(modelName)
+                .enableSearch(modelFeature.getWebSearch())
                 .defaultOptions(options)
                 .baseUrl(baseUrl)
                 .build();

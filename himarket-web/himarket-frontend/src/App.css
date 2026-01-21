@@ -4,7 +4,8 @@ body,
   height: 100%;
 }
 
-#root {}
+#root {
+}
 
 .logo {
   height: 6em;
@@ -74,6 +75,12 @@ body,
 
 .user-dropdown .ant-dropdown-menu-divider {
   margin: 4px 0;
+}
+
+.prose {
+  img {
+    width: 100%;
+  }
 }
 
 .prose h1 {
