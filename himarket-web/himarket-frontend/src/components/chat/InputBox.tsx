@@ -2,11 +2,10 @@ import { useState, useRef } from "react";
 import {
   SendOutlined,
   FileImageOutlined,
-  VideoCameraOutlined,
   FileOutlined,
-  PlusCircleOutlined,
+  PlusOutlined
 } from "@ant-design/icons";
-import { Dropdown, message } from "antd";
+import { Dropdown, message, Tooltip } from "antd";
 import type { MenuProps } from "antd";
 import SendButton from "../send-button";
 import { Global, Mcp } from "../icon";
@@ -44,6 +43,7 @@ export function InputBox(props: InputBoxProps) {
   const [input, setInput] = useState("");
   const [attachments, setAttachments] = useState<UploadedAttachment[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const currentUploadType = useRef<string>("");
   // 暂时绕过
@@ -54,19 +54,29 @@ export function InputBox(props: InputBoxProps) {
       ? [
           {
             key: "image",
-            label: "上传图片",
+            label: (
+              <Tooltip title={<span className="text-black-normal">最大 5MB，最多 10 个文件 </span>} placement="right">
+                <span className="w-full inline-block">上传图片</span>
+              </Tooltip>
+            ),
             icon: <FileImageOutlined />,
           },
         ]
       : []),
     {
-      key: "video",
-      label: "上传视频",
-      icon: <VideoCameraOutlined />,
-    },
-    {
       key: "text",
-      label: "上传文本",
+      label: (
+        <Tooltip
+          title={
+            <div className="text-black-normal">
+              上传文件时支持以下格式：txt、md、html、doc、docx、pdf、xls、xlsx、ppt、pptx、csv。单次最多上传 10 个文件。表格文件大小不超过 2MB。普通文档不超过 5MB。
+            </div>
+          }
+          placement="right"
+        >
+          <span className="w-full inline-block">上传文本</span>
+        </Tooltip>
+      ),
       icon: <FileOutlined />,
     },
   ];
@@ -78,8 +88,6 @@ export function InputBox(props: InputBoxProps) {
       // Set accept attribute based on type
       if (key === "image") {
         fileInputRef.current.accept = "image/*";
-      } else if (key === "video") {
-        fileInputRef.current.accept = "video/*";
       } else {
         fileInputRef.current.accept =
           ".txt,.md,.html,.doc,.docx,.pdf,.xls,.xlsx,.ppt,.pptx,.csv";
@@ -88,18 +96,29 @@ export function InputBox(props: InputBoxProps) {
     }
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const uploadFile = async (file: File) => {
+    if (attachments.length >= 10) {
+      message.warning("最多支持上传 10 个文件");
+      return;
+    }
+
+    const isTableFile = /\.(csv|xls|xlsx)$/i.test(file.name);
+    const maxSize = isTableFile ? 2 * 1024 * 1024 : 5 * 1024 * 1024;
+
+    if (file.size > maxSize) {
+      message.error(`${isTableFile ? '表格' : '文件'}大小不能超过 ${isTableFile ? '2M' : '5M'}`);
+      return;
+    }
 
     try {
       setIsUploading(true);
       const res = await APIs.uploadAttachment(file);
       if (res.code === "SUCCESS" && res.data) {
+        const uploaded = await APIs.getAttachment(res.data.attachmentId);
         const attachment = res.data as UploadedAttachment;
         // 为图片生成预览 URL
         if (attachment.type === "IMAGE") {
-          attachment.url = URL.createObjectURL(file);
+          attachment.url = `data:${uploaded.data.mimeType};base64,${uploaded.data.data}`;
         }
         setAttachments(prev => [...prev, attachment]);
       } else {
@@ -110,6 +129,32 @@ export function InputBox(props: InputBoxProps) {
       message.error("上传出错");
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      await uploadFile(file);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      await uploadFile(file);
     }
   };
 
@@ -146,11 +191,15 @@ export function InputBox(props: InputBoxProps) {
 
   return (
     <div
-      className="relative p-1.5 rounded-2xl flex flex-col justify-center"
+      className={`relative p-1.5 rounded-2xl flex flex-col justify-center transition-all duration-200 ${isDragging ? "bg-white border-2 border-dashed border-colorPrimary shadow-lg scale-[1.01]" : ""}`}
       style={{
-        background:
-          "linear-gradient(256deg, rgba(234, 228, 248, 1) 36%, rgba(215, 229, 243, 1) 100%)",
+        background: isDragging
+          ? undefined
+          : "linear-gradient(256deg, rgba(234, 228, 248, 1) 36%, rgba(215, 229, 243, 1) 100%)",
       }}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
     >
       {/* 附件预览 */}
       <AttachmentPreview
@@ -190,7 +239,7 @@ export function InputBox(props: InputBoxProps) {
             placement="topLeft"
           >
             <div className="flex h-full gap-2 items-center justify-center px-2 rounded-lg cursor-pointer transition-all ease-linear duration-400 hover:bg-black/5">
-              <PlusCircleOutlined className="text-base text-subTitle" />
+              <PlusOutlined className="text-base text-subTitle" />
             </div>
           </Dropdown>
           {showWebSearch && (
