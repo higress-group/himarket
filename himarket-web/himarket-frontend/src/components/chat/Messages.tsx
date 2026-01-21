@@ -1,4 +1,4 @@
-import { CopyOutlined, ReloadOutlined, LeftOutlined, RightOutlined, DownCircleOutlined, FileImageOutlined, VideoCameraOutlined, FileOutlined } from "@ant-design/icons";
+import { CopyOutlined, ReloadOutlined, LeftOutlined, RightOutlined, DownCircleOutlined } from "@ant-design/icons";
 import { useEffect, useRef, useState } from "react";
 import { message } from "antd";
 import MarkdownRender from "../MarkdownRender";
@@ -6,6 +6,7 @@ import { ProductIconRenderer } from "../icon/ProductIconRenderer";
 import { McpToolCallPanel } from "./McpToolCallPanel";
 import type { IModelConversation } from "../../types";
 import { copyToClipboard } from "../../lib/utils";
+import { AttachmentPreview, type PreviewAttachment } from "./AttachmentPreview";
 
 interface MessageListProps {
   conversations: IModelConversation['conversations'];
@@ -18,7 +19,7 @@ interface MessageListProps {
 
 export function Messages({
   conversations, modelName = "AI Assistant", modelIcon, onRefresh, onChangeVersion,
-  autoScrollEnabled = true, 
+  autoScrollEnabled = true,
 }: MessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -111,26 +112,8 @@ function Message({
     <div key={question.id}>
       <div className="flex justify-end">
         <div className="max-w-[80%] flex flex-col items-end gap-2">
-          {/* 附件展示 */}
           {question.attachments && question.attachments.length > 0 && (
-            <div className="flex flex-wrap justify-end gap-2 mb-1">
-              {question.attachments.map((file) => (
-                <div
-                  key={file.attachmentId}
-                  className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg border border-gray-100 max-w-[200px]"
-                >
-                  <div className="text-xl flex-shrink-0">
-                    {file.type === 'IMAGE' ? <FileImageOutlined className="text-blue-500" /> :
-                      file.type === 'VIDEO' ? <VideoCameraOutlined className="text-purple-500" /> :
-                        <FileOutlined className="text-orange-500" />}
-                  </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-xs font-medium truncate text-gray-700">{file.name}</span>
-                    <span className="text-[10px] text-gray-400">{(file.size / 1024).toFixed(1)} KB</span>
-                  </div>
-                </div>
-              ))}
-            </div>
+             <AttachmentPreview attachments={question.attachments as PreviewAttachment[]} className="mb-1 justify-end" />
           )}
           <div className="bg-colorPrimaryBgHover px-4 py-3 rounded-lg">
             <div className="whitespace-pre-wrap leading-relaxed">

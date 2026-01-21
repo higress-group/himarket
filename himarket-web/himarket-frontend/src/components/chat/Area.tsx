@@ -39,13 +39,14 @@ interface ChatAreaProps {
 
   addModels: (ids: string[]) => void;
   closeModel: (modelId: string) => void;
+  chatType?: "TEXT" | "Image";
 }
 
 export function ChatArea(props: ChatAreaProps) {
   const {
     modelConversations, onChangeActiveAnswer, onSendMessage,
     onSelectProduct, selectedModel, handleGenerateMessage, addModels, closeModel,
-    generating, isMcpExecuting
+    generating, isMcpExecuting, chatType = "TEXT"
   } = props;
 
   const isCompareMode = modelConversations.length > 1;
@@ -54,7 +55,7 @@ export function ChatArea(props: ChatAreaProps) {
     data: mcpList, get: getMcpList, loading: mcpListLoading,
     set: setMcpList
   } = useProducts({ type: "MCP_SERVER" });
-  const { data: modelList } = useProducts({ type: "MODEL_API" });
+  const { data: modelList } = useProducts({ type: "MODEL_API", ["modelFilter.category"]: chatType });
   const { data: categories } = useCategories({ type: "MODEL_API", addAll: true });
   const { data: mcpCategories } = useCategories({ type: "MCP_SERVER", addAll: true });
 

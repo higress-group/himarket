@@ -317,7 +317,7 @@ export interface IMcpToolCall {
   // toolMeta?: IMcpToolMeta;
   // inputSchema?: string;
   // input?: string;
-  
+
   id: string;
   type: string;
   name: string;
@@ -330,7 +330,7 @@ export interface IMcpToolResponse {
   // toolMeta?: IMcpToolMeta;
   // output?: string;
   // responseData?: string;
-  
+
   id: string;
   name: string;
   result?: unknown;
@@ -350,9 +350,6 @@ export interface IModelConversation {
       activeAnswerIndex: number;
       attachments?: Array<{
         attachmentId: string;
-        type: "IMAGE" | "VIDEO" | "AUDIO" | "TEXT";
-        name: string;
-        size: number;
       }>;
       mcpToolCalls?: IMcpToolCall[];
       mcpToolResponses?: IMcpToolResponse[];

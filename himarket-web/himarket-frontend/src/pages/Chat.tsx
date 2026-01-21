@@ -16,6 +16,7 @@ function Chat() {
   const [selectedModel, setSelectedModel] = useState<IProductDetail>();
   const [useStream] = useState(true); // 默认使用流式响应
   const [sidebarRefreshTrigger, setSidebarRefreshTrigger] = useState(0); // 用于触发 Sidebar 刷新
+  const [chatType, setChatType] = useState<"TEXT" | "Image">("TEXT");
   // 多模型对比的初始化数据（用于从历史会话加载）
 
   const [modelConversation, setModelConversation] = useState<IModelConversation[]>([]);
@@ -38,9 +39,12 @@ function Chat() {
             type: "MODEL_API",
             page: 0,
             size: 1,
+            ["modelFilter.category"]: chatType,
           });
           if (response.code === "SUCCESS" && response.data?.content?.length > 0) {
             setSelectedModel(response.data.content[0]);
+          } else {
+             setSelectedModel(undefined);
           }
         } catch (error) {
           console.error("Failed to load default model:", error);
@@ -48,7 +52,7 @@ function Chat() {
       };
       loadDefaultModel();
     }
-  }, [location]);
+  }, [location, chatType]);
 
   const handleSendMessage = async (content: string, mcps: IProductDetail[], enableWebSearch: boolean, modelMap: Map<string, IProductDetail>, attachments: IAttachment[] = []) => {
     if (!selectedModel) {
@@ -805,6 +809,11 @@ function Chat() {
           onNewChat={handleNewChat}
           onSelectSession={handleSelectSession}
           refreshTrigger={sidebarRefreshTrigger}
+          selectedType={chatType}
+          onSelectType={(type) => {
+            setChatType(type);
+            handleNewChat();
+          }}
         />
         <ChatArea
           isMcpExecuting={isMcpExecuting}
@@ -818,6 +827,7 @@ function Chat() {
           addModels={addModels}
           closeModel={closeModel}
           generating={generating}
+          chatType={chatType}
         />
       </div>
     </Layout>

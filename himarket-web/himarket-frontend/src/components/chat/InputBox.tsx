@@ -1,18 +1,19 @@
 import { useState, useRef } from "react";
 import {
   SendOutlined,
-  PlusCircleOutlined,
   FileImageOutlined,
   VideoCameraOutlined,
   FileOutlined,
-  LoadingOutlined,
-  CloseCircleFilled,
+  PlusCircleOutlined,
 } from "@ant-design/icons";
 import { Dropdown, message } from "antd";
 import type { MenuProps } from "antd";
 import SendButton from "../send-button";
-import { Global, Mcp, File as FileIcon } from "../icon";
+import { Global, Mcp } from "../icon";
 import APIs, { type IProductDetail, type IAttachment } from "../../lib/apis";
+import { AttachmentPreview } from "./AttachmentPreview";
+
+type UploadedAttachment = IAttachment & { url?: string };
 
 interface InputBoxProps {
   isLoading?: boolean;
@@ -38,13 +39,15 @@ export function InputBox(props: InputBoxProps) {
     showWebSearch,
     webSearchEnabled,
     onWebSearchEnable,
-    enableMultiModal = false,
+    // enableMultiModal = false,
   } = props;
   const [input, setInput] = useState("");
-  const [attachments, setAttachments] = useState<IAttachment[]>([]);
+  const [attachments, setAttachments] = useState<UploadedAttachment[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const currentUploadType = useRef<string>("");
+  // 暂时绕过
+  const enableMultiModal = true;
 
   const uploadItems: MenuProps["items"] = [
     ...(enableMultiModal
@@ -93,7 +96,12 @@ export function InputBox(props: InputBoxProps) {
       setIsUploading(true);
       const res = await APIs.uploadAttachment(file);
       if (res.code === "SUCCESS" && res.data) {
-        setAttachments(prev => [...prev, res.data]);
+        const attachment = res.data as UploadedAttachment;
+        // 为图片生成预览 URL
+        if (attachment.type === "IMAGE") {
+          attachment.url = URL.createObjectURL(file);
+        }
+        setAttachments(prev => [...prev, attachment]);
       } else {
         message.error("上传失败");
       }
@@ -106,13 +114,25 @@ export function InputBox(props: InputBoxProps) {
   };
 
   const removeAttachment = (id: string) => {
-    setAttachments(prev => prev.filter(a => a.attachmentId !== id));
+    setAttachments(prev => {
+      const target = prev.find(a => a.attachmentId === id);
+      if (target?.url && target.url.startsWith("blob:")) {
+        URL.revokeObjectURL(target.url);
+      }
+      return prev.filter(a => a.attachmentId !== id);
+    });
   };
 
   const handleSend = () => {
     if ((input.trim() || attachments.length > 0) && !isLoading) {
       onSendMessage(input.trim(), attachments);
       setInput("");
+      // 清除预览 URL
+      attachments.forEach(file => {
+        if (file.url && file.url.startsWith("blob:")) {
+          URL.revokeObjectURL(file.url);
+        }
+      });
       setAttachments([]);
     }
   };
@@ -133,57 +153,12 @@ export function InputBox(props: InputBoxProps) {
       }}
     >
       {/* 附件预览 */}
-      {(attachments.length > 0 || isUploading) && (
-        <div className="mb-1 flex items-center gap-1">
-          {attachments.map(file => {
-            if (file.type !== "IMAGE") {
-              return (
-                <div
-                  className="relative group rounded-2xl p-3 bg-white/80 hover:bg-white/50 transition-colors flex items-center w-[160px] gap-2 h-full"
-                  style={{
-                    boxShadow: "0px 4px 12px 0px rgba(118, 94, 252, 0.15)",
-                  }}
-                >
-                  <div
-                    onClick={() => removeAttachment(file.attachmentId)}
-                    className="absolute cursor-pointer hidden group-hover:block top-2 right-2 leading-none">
-                    <CloseCircleFilled className="text-ring-light" />
-                  </div>
-                  <div
-                    style={{ background: "var(--gradient-iondigo-500)" }}
-                    className="flex min-w-10 w-10 h-10 items-center justify-center rounded-lg"
-                  >
-                    <FileIcon className="fill-indigo-500" />
-                  </div>
-                  <div className="flex flex-col justify-between w-20 h-10">
-                    <div className="text-sm text-accent-dark font-medium text-ellipsis overflow-hidden max-w-full whitespace-nowrap">
-                      {file.name}
-                    </div>
-                    <span className="text-xs text-accent-dark">
-                      {file.name.split(".").pop()}
-                    </span>
-                  </div>
-                </div>
-              );
-            }
-            return (
-              <div className="relative group rounded-2xl w-16 h-16 overflow-hidden">
-                <div
-                  onClick={() => removeAttachment(file.attachmentId)}
-                  className="absolute cursor-pointer hidden group-hover:block top-2 right-2 leading-none">
-                  <CloseCircleFilled className="text-ring-light" />
-                </div>
-                <img className="w-full h-full object-cover" />
-              </div>
-            );
-          })}
-          {isUploading && (
-            <div className="flex items-center justify-center p-2 bg-gray-50 rounded-lg border border-dashed border-gray-200 min-w-[60px]">
-              <LoadingOutlined className="text-colorPrimary" />
-            </div>
-          )}
-        </div>
-      )}
+      <AttachmentPreview
+        attachments={attachments}
+        onRemove={removeAttachment}
+        isUploading={isUploading}
+        className="mb-1"
+      />
 
       <input
         type="file"
