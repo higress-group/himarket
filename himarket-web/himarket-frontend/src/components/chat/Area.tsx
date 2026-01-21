@@ -305,6 +305,7 @@ export function ChatArea(props: ChatAreaProps) {
                         mcps: mcpEnabled ? addedMcps : [],
                         enableWebSearch,
                         modelMap,
+                        attachments: quest.attachments as IAttachment[],
                       })
                     }}
                   />

@@ -38,7 +38,7 @@ export function InputBox(props: InputBoxProps) {
     showWebSearch,
     webSearchEnabled,
     onWebSearchEnable,
-    // enableMultiModal = false,
+    enableMultiModal = false,
   } = props;
   const [input, setInput] = useState("");
   const [attachments, setAttachments] = useState<UploadedAttachment[]>([]);
@@ -46,8 +46,6 @@ export function InputBox(props: InputBoxProps) {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const currentUploadType = useRef<string>("");
-  // 暂时绕过
-  const enableMultiModal = true;
 
   const uploadItems: MenuProps["items"] = [
     ...(enableMultiModal
