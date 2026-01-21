@@ -62,7 +62,7 @@ login_higress() {
     local result=$(curl -sS -i -X POST "${login_url}" \
       -H "Accept: application/json, text/plain, */*" \
       -H "Content-Type: application/json" \
-      --data-raw "${login_data}" \
+      --data "${login_data}" \
       --connect-timeout 5 --max-time 10 2>/dev/null || echo "")
     
     local http_code=$(echo "$result" | grep -i "^HTTP/" | tail -1 | awk '{print $2}')
@@ -117,7 +117,7 @@ call_higress_api() {
       -H "Accept: application/json, text/plain, */*" \
       -H "Content-Type: application/json" \
       -b "${SESSION_COOKIE}" \
-      --data-raw "${data}" \
+      --data "${data}" \
       --connect-timeout 5 --max-time 15 2>/dev/null || echo "HTTP_CODE:000")
     
     if [[ "$result" =~ HTTP_CODE:([0-9]{3}) ]]; then

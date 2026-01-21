@@ -36,6 +36,7 @@ export interface IProductDetail {
   feature?: {
     modelFeature: {
       webSearch: boolean;
+      enableMultiModal: boolean;
     }
   }
 }
@@ -53,6 +54,7 @@ export function getProducts(params: {
   name?: string;
   page?: number;
   size?: number;
+  ["modelFilter.category"]?: "Image" | "TEXT";
 }) {
   return request.get<RespI<GetProductsResp>, RespI<GetProductsResp>>('/products', {
     params: {
@@ -61,6 +63,7 @@ export function getProducts(params: {
       categoryIds: params.categoryIds,
       page: params.page || 0,
       size: params.size || 100,
+      ["modelFilter.category"]: params["modelFilter.category"],
     },
   });
 }

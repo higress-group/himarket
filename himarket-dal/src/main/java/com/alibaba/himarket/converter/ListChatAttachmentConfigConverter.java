@@ -16,27 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package com.alibaba.himarket.dto.params.chat;
 
-import lombok.*;
+package com.alibaba.himarket.converter;
 
-@Data
-@EqualsAndHashCode
-@ToString
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-@Deprecated
-public class McpToolMeta {
-    /** 工具名称 */
-    private String toolName;
+import com.alibaba.himarket.support.chat.attachment.ChatAttachmentConfig;
+import jakarta.persistence.Converter;
+import java.util.List;
 
-    /** 工具中文名称 */
-    private String toolNameCn;
+@Converter(autoApply = true)
+public class ListChatAttachmentConfigConverter extends JsonConverter<List<ChatAttachmentConfig>> {
 
-    /** 对应的mcp server名称 */
-    private String mcpName;
-
-    /** 对应的mcp server中文名称 */
-    private String mcpNameCn;
+    @SuppressWarnings("unchecked")
+    protected ListChatAttachmentConfigConverter() {
+        super(
+                (Class<List<ChatAttachmentConfig>>) (Class<?>) List.class,
+                ChatAttachmentConfig.class);
+    }
 }
