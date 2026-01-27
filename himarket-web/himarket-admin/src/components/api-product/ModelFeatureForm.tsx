@@ -87,6 +87,18 @@ export default function ModelFeatureForm({ initialExpanded = false }: ModelFeatu
               <Switch />
             </Form.Item>
           </Col>
+          <Col span={8}>
+            <Form.Item 
+              label="Enable MultiModal" 
+              name={['feature', 'modelFeature', 'enableMultiModal']}
+              tooltip={{ title: "支持多模态", ...tooltipStyle }}
+              valuePropName="checked"
+              initialValue={false}
+              style={{ marginBottom: 0 }}
+            >
+              <Switch />
+            </Form.Item>
+          </Col>
         </Row>
       </Panel>
     </Collapse>

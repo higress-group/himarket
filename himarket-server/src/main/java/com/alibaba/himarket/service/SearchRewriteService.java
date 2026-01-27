@@ -19,12 +19,7 @@
 
 package com.alibaba.himarket.service;
 
-import com.alibaba.himarket.dto.params.chat.CreateChatParam;
-import com.alibaba.himarket.support.chat.ChatMessage;
-import com.alibaba.himarket.support.chat.search.SearchInput;
-import java.util.List;
-
-public interface SearchRewriteService {
-
-    SearchInput rewriteWithRetry(List<ChatMessage> chatMessages, CreateChatParam createChatParam);
-}
+// public interface SearchRewriteService {
+//
+//    SearchInput rewriteWithRetry(List<ChatMessage> chatMessages, CreateChatParam createChatParam);
+// }

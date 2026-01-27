@@ -21,10 +21,7 @@ package com.alibaba.himarket.controller;
 
 import com.alibaba.himarket.core.annotation.AdminOrDeveloperAuth;
 import com.alibaba.himarket.dto.params.chat.CreateChatParam;
-import com.alibaba.himarket.dto.result.chat.ChatAnswerMessage;
 import com.alibaba.himarket.service.hichat.service.ChatService;
-import com.alibaba.himarket.service.legacy.ChatServiceLegacy;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,7 +32,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
-import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Schedulers;
 
 @RestController
@@ -46,15 +42,7 @@ import reactor.core.scheduler.Schedulers;
 @AdminOrDeveloperAuth
 public class ChatController {
 
-    private final ChatServiceLegacy chatServiceLegacy;
-
     private final ChatService chatService;
-
-    @PostMapping(value = "/legacy", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<ChatAnswerMessage> chatLegacy(
-            @Valid @RequestBody CreateChatParam param, HttpServletResponse response) {
-        return chatServiceLegacy.chat(param, response);
-    }
 
     @PostMapping(produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter chat(@Valid @RequestBody CreateChatParam param) {

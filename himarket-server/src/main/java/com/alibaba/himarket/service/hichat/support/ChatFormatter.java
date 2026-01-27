@@ -219,8 +219,7 @@ public class ChatFormatter {
                         .inputTokens(chatUsage.getInputTokens())
                         .outputTokens(chatUsage.getOutputTokens())
                         .totalTokens(chatUsage.getTotalTokens())
-                        .firstByteTimeout(chatContext.getFirstByteTimeout())
-                        // elapsedTime will be set by ChatContext.stop()
+                        // firstByteTimeout and elapsedTime will be set by ChatContext.stop()
                         .build();
 
         chatContext.setUsage(usage);

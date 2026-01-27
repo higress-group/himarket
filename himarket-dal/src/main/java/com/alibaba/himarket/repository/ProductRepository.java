@@ -20,6 +20,7 @@
 package com.alibaba.himarket.repository;
 
 import com.alibaba.himarket.entity.Product;
+import com.alibaba.himarket.support.enums.ProductType;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -52,4 +53,12 @@ public interface ProductRepository extends BaseRepository<Product, Long> {
      * @return the list of products
      */
     List<Product> findByProductIdIn(Collection<String> productIds);
+
+    /**
+     * Find products by type
+     *
+     * @param type the product type
+     * @return the list of products
+     */
+    List<Product> findAllByType(ProductType type);
 }

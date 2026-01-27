@@ -385,7 +385,7 @@ public class ChatService {
             return CollUtil.empty(List.class);
         }
 
-        return productService.getProducts(param.getMcpProducts(), true).values().stream()
+        return productService.getProducts(param.getMcpProducts()).values().stream()
                 .filter(
                         product ->
                                 product.getType() == ProductType.MCP_SERVER

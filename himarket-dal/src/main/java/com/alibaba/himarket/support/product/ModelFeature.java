@@ -54,4 +54,9 @@ public class ModelFeature {
      * Enable thinking
      */
     private Boolean enableThinking;
+
+    /**
+     * Enable multi modal
+     */
+    private Boolean enableMultiModal;
 }

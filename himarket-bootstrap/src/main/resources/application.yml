@@ -11,9 +11,10 @@ spring:
     properties:
       hibernate:
         format_sql: true
-  ai:
-    openai:
-      api-key: sk-1234567890
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 100MB
 
 db:
    host: ${DB_HOST:localhost}

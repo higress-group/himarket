@@ -42,7 +42,10 @@ import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -156,6 +159,57 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
         return categoryRepository.findByCategoryIdIn(categoryIds).stream()
                 .map(category -> new ProductCategoryResult().convertFrom(category))
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public Map<String, List<ProductCategoryResult>> listCategoriesForProducts(
+            List<String> productIds) {
+        // Return empty map if no product ids provided
+        if (CollUtil.isEmpty(productIds)) {
+            return Collections.emptyMap();
+        }
+
+        // Get all category relations for these products
+        List<ProductCategoryRelation> relations =
+                categoryRelationRepository.findByProductIdIn(productIds);
+        if (CollUtil.isEmpty(relations)) {
+            return Collections.emptyMap();
+        }
+
+        // Build categoryId to category mapping
+        Map<String, ProductCategory> categoryMap =
+                relations.stream()
+                        .map(ProductCategoryRelation::getCategoryId)
+                        .distinct()
+                        .collect(
+                                Collectors.collectingAndThen(
+                                        Collectors.toList(),
+                                        ids ->
+                                                categoryRepository.findByCategoryIdIn(ids).stream()
+                                                        .collect(
+                                                                Collectors.toMap(
+                                                                        ProductCategory
+                                                                                ::getCategoryId,
+                                                                        c -> c))));
+
+        // Build final result: product id -> list of categories
+        return relations.stream()
+                .collect(
+                        Collectors.groupingBy(
+                                ProductCategoryRelation::getProductId,
+                                Collectors.mapping(
+                                        relation ->
+                                                Optional.ofNullable(
+                                                                categoryMap.get(
+                                                                        relation.getCategoryId()))
+                                                        .map(
+                                                                category ->
+                                                                        new ProductCategoryResult()
+                                                                                .convertFrom(
+                                                                                        category))
+                                                        .orElse(null),
+                                        Collectors.filtering(
+                                                Objects::nonNull, Collectors.toList()))));
     }
 
     @Override
