@@ -914,7 +914,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
             <span className="col-span-2 text-xs text-gray-900">{serviceInfo.sourceInfo}</span>
             <span className="text-xs text-gray-600">
               {linkedService?.sourceType === 'NACOS' ? 'Nacos ID:' :
-                linkedService?.sourceType === 'MANAGED' ? 'API ID:' : '网关ID:'}
+                linkedService?.sourceType === 'MANAGED' ? 'API Def ID:' : '网关ID:'}
             </span>
             <span className="col-span-2 text-xs text-gray-700">{serviceInfo.gatewayInfo}</span>
           </div>

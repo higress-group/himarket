@@ -32,7 +32,8 @@ import {
   StopOutlined,
   EyeOutlined,
   DownOutlined,
-  UpOutlined
+  UpOutlined,
+  InfoCircleOutlined
 } from '@ant-design/icons';
 import { apiDefinitionApi, gatewayApi, nacosApi } from '@/lib/api';
 import type { Gateway, DomainResult } from '@/types/gateway';
@@ -60,6 +61,34 @@ const PROVIDER_ADDRESS_MAP: Record<string, string> = {
   // Bedrock uses dynamic address based on region
   // 'bedrock': 'https://bedrock-runtime.{awsRegion}.amazonaws.com',
   // Azure uses azureServiceUrl instead
+};
+
+const PROVIDER_OPTIONS = [
+  { value: 'qwen', label: '阿里云百炼' },
+  { value: 'bedrock', label: 'Bedrock' },
+  { value: 'vertex', label: 'Vertex AI' },
+  { value: 'azure', label: 'Azure' },
+  { value: 'openai', label: 'OpenAI' },
+  { value: 'generic', label: 'OpenAI兼容（OpenAI Compatible）' },
+  { value: 'deepseek', label: 'DeepSeek' },
+  { value: 'doubao', label: '豆包' },
+  { value: 'gemini', label: 'Gemini' },
+  { value: 'minimax', label: 'MiniMax' },
+  { value: 'moonshot', label: '月之暗面' },
+  { value: 'zhipuai', label: '智谱AI' },
+  { value: 'claude', label: 'Claude' },
+  { value: 'baichuan', label: '百川智能' },
+  { value: 'yi', label: '零一万物' },
+  { value: 'hunyuan', label: '混元' },
+  { value: 'stepfun', label: '阶跃星辰' },
+  { value: 'spark', label: '星火' }
+];
+
+const getProviderLabel = (provider?: string) => {
+  if (!provider) {
+    return '-';
+  }
+  return PROVIDER_OPTIONS.find(option => option.value === provider)?.label || provider;
 };
 
 // 可展开文本组件
@@ -105,6 +134,16 @@ export default function ApiPublishManagement() {
   const apiDefinitionId = searchParams.get('id');
   const { productName, productId, productType } = location.state || {};
 
+  const getApiTypeLabel = (apiType?: string) => {
+    if (!apiType) {
+      return '-';
+    }
+    if (apiType === 'MODEL_API') {
+      return 'MODEL API';
+    }
+    return apiType;
+  };
+
   const [apiDefinition, setApiDefinition] = useState<any>(null);
   const [publishRecords, setPublishRecords] = useState<any[]>([]);
   const [publishHistory, setPublishHistory] = useState<any[]>([]);
@@ -121,6 +160,7 @@ export default function ApiPublishManagement() {
   const [publishing, setPublishing] = useState(false);
   const [snapshotModalVisible, setSnapshotModalVisible] = useState(false);
   const [currentSnapshot, setCurrentSnapshot] = useState<any>(null);
+  const [viewRecord, setViewRecord] = useState<any>(null);
   const [diffModalVisible, setDiffModalVisible] = useState(false);
   const [diffOriginal, setDiffOriginal] = useState('');
   const [diffModified, setDiffModified] = useState('');
@@ -517,8 +557,9 @@ export default function ApiPublishManagement() {
     });
   };
 
-  const handleViewSnapshot = (snapshot: any) => {
-    setCurrentSnapshot(snapshot);
+  const handleViewSnapshot = (record: any) => {
+    setCurrentSnapshot(record.snapshot);
+    setViewRecord(record);
     setSnapshotModalVisible(true);
   };
 
@@ -617,13 +658,65 @@ export default function ApiPublishManagement() {
             </div>
             <div style={itemStyle}>
               <span style={labelStyle}>提供商:</span>
-              <span>{config.provider}</span>
+              <span>{getProviderLabel(config.provider)}</span>
             </div>
           </div>
         );
       default:
         return config.serviceType || '-';
     }
+  };
+
+  const formatGatewayResourceConfig = (value: any) => {
+    if (!value) {
+      return '';
+    }
+
+    if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value);
+        return JSON.stringify(parsed, null, 2);
+      } catch (error) {
+        return value;
+      }
+    }
+
+    return JSON.stringify(value, null, 2);
+  };
+
+  const renderGatewayResourceConfig = (value: any) => {
+    if (!value) return '-';
+    
+    let config = value;
+    if (typeof value === 'string') {
+      try {
+        config = JSON.parse(value);
+      } catch (e) {
+        return value;
+      }
+    }
+
+    if (typeof config !== 'object' || config === null) {
+      return String(config);
+    }
+
+    if (Object.keys(config).length === 0) {
+      return '-';
+    }
+
+    const itemStyle = { marginBottom: '4px', display: 'flex', alignItems: 'center' };
+    const labelStyle = { color: '#8c8c8c', marginRight: '8px', minWidth: '120px' };
+
+    return (
+      <div className="text-sm">
+        {Object.entries(config).map(([key, val]) => (
+          <div key={key} style={itemStyle}>
+            <span style={labelStyle}>{key}:</span>
+            <span className="font-medium break-all">{String(val)}</span>
+          </div>
+        ))}
+      </div>
+    );
   };
 
   const historyColumns = [
@@ -663,7 +756,7 @@ export default function ApiPublishManagement() {
             <Button
               type="link"
               icon={<EyeOutlined />}
-              onClick={() => handleViewSnapshot(record.snapshot)}
+              onClick={() => handleViewSnapshot(record)}
             >
               查看
             </Button>
@@ -707,11 +800,19 @@ export default function ApiPublishManagement() {
       </div>
 
       {apiDefinition && (
-        <Card className="mb-6" title="基本信息">
+        <Card
+          className="mb-6"
+          title={
+            <div className="flex items-center">
+              <InfoCircleOutlined className="mr-2" />
+              <span>基本信息</span>
+            </div>
+          }
+        >
           <Descriptions column={3}>
             <Descriptions.Item label="API 名称">{apiDefinition.name}</Descriptions.Item>
-            <Descriptions.Item label="API ID">{apiDefinition.apiDefinitionId}</Descriptions.Item>
-            <Descriptions.Item label="类型">{apiDefinition.type}</Descriptions.Item>
+            <Descriptions.Item label="API Def ID">{apiDefinition.apiDefinitionId}</Descriptions.Item>
+            <Descriptions.Item label="类型">{getApiTypeLabel(apiDefinition.type)}</Descriptions.Item>
             <Descriptions.Item label="更新时间" span={3}>
               {dayjs(apiDefinition.updatedAt).format('YYYY-MM-DD HH:mm:ss')}
             </Descriptions.Item>
@@ -723,7 +824,7 @@ export default function ApiPublishManagement() {
       )}
 
       <Card
-        className="mb-6"
+        className="mb-6 shadow-sm"
         title={
           <div className="flex items-center">
             <GlobalOutlined className="mr-2" />
@@ -736,46 +837,92 @@ export default function ApiPublishManagement() {
             const record = publishRecords[0];
             const gateway = gateways.find(g => g.gatewayId === record.gatewayId);
             return (
-              <Descriptions column={2}>
-                <Descriptions.Item label="发布网关">
-                  {gateway ? gateway.gatewayName : record.gatewayId}
-                </Descriptions.Item>
-                <Descriptions.Item label="发布版本">
-                  {record.version}
-                </Descriptions.Item>
-                <Descriptions.Item label="发布域名">
-                  {record.publishConfig?.domains?.map((d: any) => {
-                    const domainStr = typeof d === 'string' ? d : d.domain;
-                    return <Tag key={domainStr}>{domainStr}</Tag>;
-                  }) || '-'}
-                </Descriptions.Item>
-                <Descriptions.Item label="后端服务">
-                  {renderServiceConfig(record.publishConfig?.serviceConfig)}
-                </Descriptions.Item>
-                <Descriptions.Item label="当前状态" span={2}>
-                  <Space>
-                    {getStatusTag(record.status)}
-                    {record.status === 'ACTIVE' && (
-                      <Button
-                        type="link"
-                        danger
-                        size="small"
-                        onClick={() => handleUnpublish(record.recordId)}
-                        style={{ padding: 0 }}
-                      >
-                        下线
-                      </Button>
-                    )}
-                  </Space>
-                </Descriptions.Item>
-                <Descriptions.Item label="发布时间">
-                  {dayjs(record.publishTime).format('YYYY-MM-DD HH:mm:ss')}
-                </Descriptions.Item>
-              </Descriptions>
+              <div className="flex flex-col gap-6">
+                {/* 顶部概览信息 */}
+                <div className="bg-gray-50 p-4 rounded-lg flex flex-wrap items-center justify-between border border-gray-100">
+                  <div className="flex items-center gap-8">
+                    <div>
+                      <div className="text-gray-500 text-xs mb-1">当前状态</div>
+                      <div className="flex items-center gap-2">
+                        {getStatusTag(record.status)}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-gray-500 text-xs mb-1">发布网关</div>
+                      <div className="font-medium text-gray-800 text-sm">
+                        {gateway ? gateway.gatewayName : record.gatewayId}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-gray-500 text-xs mb-1">发布版本</div>
+                      <Tag className="font-mono">{record.version}</Tag>
+                    </div>
+                    <div>
+                      <div className="text-gray-500 text-xs mb-1">发布时间</div>
+                      <div className="text-gray-600 text-sm">
+                        {dayjs(record.createdAt).format('YYYY-MM-DD HH:mm:ss')}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {record.status === 'ACTIVE' && (
+                    <Button
+                      danger
+                      onClick={() => handleUnpublish(record.recordId)}
+                    >
+                      下线服务
+                    </Button>
+                  )}
+                </div>
+
+                {/* 详情分栏 */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  {/* 左侧：访问与后端 */}
+                  <div className="space-y-6">
+                    <div>
+                      <h4 className="text-sm font-bold text-gray-700 mb-3 border-l-4 border-blue-500 pl-2">访问入口</h4>
+                      <div className="bg-white p-3 rounded border border-gray-200">
+                        {record.publishConfig?.domains?.length > 0 ? (
+                          <div className="flex flex-wrap gap-2">
+                            {record.publishConfig?.domains?.map((d: any) => {
+                              const domainStr = typeof d === 'string' ? d : d.domain;
+                              return (
+                                <Tag key={domainStr} color="processing" className="mr-0 text-sm py-1 px-2">
+                                  {domainStr}
+                                </Tag>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 italic">未配置域名</span>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <h4 className="text-sm font-bold text-gray-700 mb-3 border-l-4 border-purple-500 pl-2">后端服务配置</h4>
+                      <div className="bg-white p-4 rounded border border-gray-200">
+                        {renderServiceConfig(record.publishConfig?.serviceConfig)}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 右侧：资源配置 */}
+                  <div>
+                    <h4 className="text-sm font-bold text-gray-700 mb-3 border-l-4 border-green-500 pl-2">网关资源配置</h4>
+                    <div className="bg-white p-4 rounded border border-gray-200">
+                      {renderGatewayResourceConfig(record.gatewayResourceConfig)}
+                    </div>
+                  </div>
+                </div>
+              </div>
             );
           })()
         ) : (
-          <div className="text-center text-gray-500 py-8">暂无发布信息</div>
+          <div className="text-center text-gray-500 py-12 flex flex-col items-center justify-center bg-gray-50 rounded-lg border border-dashed border-gray-200">
+            <GlobalOutlined style={{ fontSize: 32, opacity: 0.3, marginBottom: 12 }} />
+            <div>暂无发布信息</div>
+          </div>
         )}
       </Card>
 
@@ -932,24 +1079,11 @@ export default function ApiPublishManagement() {
                     }
                   }}
                 >
-                  <Select.Option value="qwen">阿里云百炼</Select.Option>
-                  <Select.Option value="bedrock">Bedrock</Select.Option>
-                  <Select.Option value="vertex">Vertex AI</Select.Option>
-                  <Select.Option value="azure">Azure</Select.Option>
-                  <Select.Option value="openai">OpenAI</Select.Option>
-                  <Select.Option value="generic">OpenAI兼容（OpenAI Compatible）</Select.Option>
-                  <Select.Option value="deepseek">DeepSeek</Select.Option>
-                  <Select.Option value="doubao">豆包</Select.Option>
-                  <Select.Option value="gemini">Gemini</Select.Option>
-                  <Select.Option value="minimax">MiniMax</Select.Option>
-                  <Select.Option value="moonshot">月之暗面</Select.Option>
-                  <Select.Option value="zhipuai">智谱AI</Select.Option>
-                  <Select.Option value="claude">Claude</Select.Option>
-                  <Select.Option value="baichuan">百川智能</Select.Option>
-                  <Select.Option value="yi">零一万物</Select.Option>
-                  <Select.Option value="hunyuan">混元</Select.Option>
-                  <Select.Option value="stepfun">阶跃星辰</Select.Option>
-                  <Select.Option value="spark">星火</Select.Option>
+                  {PROVIDER_OPTIONS.map(option => (
+                    <Select.Option key={option.value} value={option.value}>
+                      {option.label}
+                    </Select.Option>
+                  ))}
                 </Select>
               </Form.Item>
 
@@ -1329,6 +1463,15 @@ export default function ApiPublishManagement() {
                   <pre className="text-xs overflow-x-auto whitespace-pre-wrap m-0">
                     {JSON.stringify(currentSnapshot.publishConfig, null, 2)}
                   </pre>
+                </div>
+              </div>
+            )}
+
+            {viewRecord?.gatewayResourceConfig && (
+              <div className="mt-4">
+                <h3 className="text-base font-medium mb-2">网关资源配置</h3>
+                <div className="bg-gray-50 p-3 rounded border border-gray-200">
+                  {renderGatewayResourceConfig(viewRecord.gatewayResourceConfig)}
                 </div>
               </div>
             )}

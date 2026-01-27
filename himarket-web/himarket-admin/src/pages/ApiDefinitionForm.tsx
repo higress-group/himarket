@@ -300,7 +300,7 @@ export default function ApiDefinitionForm() {
         });
 
         return {
-          name: values.type === 'MODEL_API' ? values.name : endpoint.name,
+          name: endpoint.name,
           description: endpoint.description,
           type: endpoint.type,
           sortOrder: endpoint.sortOrder,

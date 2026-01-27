@@ -181,19 +181,22 @@ public class AsyncAPIPublishService {
      *
      * @param recordId Record ID
      * @param status Status
-     * @param gatewayResourceId Gateway resource ID
+     * @param gatewayResourceConfig Gateway resource config
      * @param errorMessage Error message
      */
     @Transactional
     protected void updatePublishRecordStatus(
-            String recordId, PublishStatus status, String gatewayResourceId, String errorMessage) {
+            String recordId,
+            PublishStatus status,
+            String gatewayResourceConfig,
+            String errorMessage) {
         apiPublishRecordRepository
                 .findByRecordId(recordId)
                 .ifPresent(
                         record -> {
                             record.setStatus(status);
-                            if (gatewayResourceId != null) {
-                                record.setGatewayResourceId(gatewayResourceId);
+                            if (gatewayResourceConfig != null) {
+                                record.setGatewayResourceConfig(gatewayResourceConfig);
                             }
                             if (errorMessage != null) {
                                 record.setErrorMessage(errorMessage);

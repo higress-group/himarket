@@ -76,8 +76,8 @@ public class APIPublishRecord extends BaseEntity {
     @Column(name = "publish_config", columnDefinition = "json")
     private String publishConfig;
 
-    @Column(name = "gateway_resource_id", length = 255)
-    private String gatewayResourceId;
+    @Column(name = "gateway_resource_config", length = 255)
+    private String gatewayResourceConfig;
 
     @Column(name = "access_endpoint", length = 512)
     private String accessEndpoint;

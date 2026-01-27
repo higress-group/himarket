@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -623,6 +624,85 @@ public class ApigApiGatewayPublisher implements GatewayPublisher {
                     "Successfully created {} API: name={}, httpApiId={}", type, apiName, httpApiId);
         }
 
+        waitForHttpApiDeployStatus(gateway, httpApiId, apiName, type);
+
         return httpApiId;
+    }
+
+    /**
+     * Wait until HTTP API is deployed, failed, or timeout reached.
+     *
+     * @param gateway   The gateway
+     * @param httpApiId The HTTP API ID
+     * @param apiName   The API name
+     * @param type      The API type
+     */
+    protected void waitForHttpApiDeployStatus(
+            Gateway gateway, String httpApiId, String apiName, String type) {
+        final long timeoutMillis = TimeUnit.MINUTES.toMillis(3);
+        final long pollIntervalMillis = TimeUnit.SECONDS.toMillis(3);
+        final long startTime = System.currentTimeMillis();
+
+        while (true) {
+            long elapsed = System.currentTimeMillis() - startTime;
+            if (elapsed > timeoutMillis) {
+                throw new IllegalStateException(
+                        String.format(
+                                "HTTP API deploy timeout after 3 minutes: name=%s, type=%s, httpApiId=%s",
+                                apiName, type, httpApiId));
+            }
+
+            String deployStatus = null;
+            try {
+                com.aliyun.sdk.service.apig20240327.models.HttpApiApiInfo apiInfo =
+                        operator.fetchAPI(gateway, httpApiId);
+                if (apiInfo != null
+                        && apiInfo.getEnvironments() != null
+                        && !apiInfo.getEnvironments().isEmpty()) {
+                    deployStatus = apiInfo.getEnvironments().get(0).getDeployStatus();
+                }
+            } catch (Exception e) {
+                log.warn(
+                        "Failed to fetch HTTP API deploy status: name={}, type={}, httpApiId={}, error={}",
+                        apiName,
+                        type,
+                        httpApiId,
+                        e.getMessage());
+            }
+
+            if ("Deployed".equalsIgnoreCase(deployStatus)) {
+                log.info(
+                        "HTTP API deployed successfully: name={}, type={}, httpApiId={}",
+                        apiName,
+                        type,
+                        httpApiId);
+                return;
+            }
+
+            if ("DeployFailed".equalsIgnoreCase(deployStatus)) {
+                throw new IllegalStateException(
+                        String.format(
+                                "HTTP API deploy failed: name=%s, type=%s, httpApiId=%s",
+                                apiName, type, httpApiId));
+            }
+
+            log.info(
+                    "Waiting for HTTP API deploy: name={}, type={}, httpApiId={}, status={}, elapsed={}ms",
+                    apiName,
+                    type,
+                    httpApiId,
+                    deployStatus,
+                    elapsed);
+
+            try {
+                Thread.sleep(pollIntervalMillis);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException(
+                        String.format(
+                                "HTTP API deploy wait interrupted: name=%s, type=%s, httpApiId=%s",
+                                apiName, type, httpApiId));
+            }
+        }
     }
 }

@@ -6,6 +6,8 @@ import com.alibaba.himarket.dto.result.api.APIDefinitionVO;
 import com.alibaba.himarket.dto.result.api.APIEndpointVO;
 import com.alibaba.himarket.dto.result.mcp.McpServerInfo;
 import com.alibaba.himarket.entity.Gateway;
+import com.alibaba.himarket.entity.APIPublishRecord;
+import com.alibaba.himarket.repository.APIPublishRecordRepository;
 import com.alibaba.himarket.service.gateway.AIGWOperator;
 import com.alibaba.himarket.support.api.PublishConfig;
 import com.alibaba.himarket.support.api.endpoint.EndpointConfig;
@@ -48,8 +50,12 @@ import org.springframework.util.CollectionUtils;
 @Component
 public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
 
-    public ApigAiGatewayPublisher(AIGWOperator aigwOperator) {
+    private final APIPublishRecordRepository apiPublishRecordRepository;
+
+    public ApigAiGatewayPublisher(
+            AIGWOperator aigwOperator, APIPublishRecordRepository apiPublishRecordRepository) {
         super(aigwOperator);
+        this.apiPublishRecordRepository = apiPublishRecordRepository;
     }
 
     @Override
@@ -533,7 +539,7 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
         // 11. Attach other policies that are not supported in buildPolicyConfigsSDK
         attachOtherPolicies(gateway, environmentId, httpApiId, apiDefinition, "LLMApi");
 
-        return APIGRefConfig.builder().modelApiId(httpApiId).build();
+        return APIGRefConfig.builder().modelApiId(httpApiId).modelApiName(apiDefinition.getName()).build();
     }
 
     /**
@@ -876,7 +882,59 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
     }
 
     private void unpublishModelAPI(
-            Gateway gateway, PublishConfig publishConfig, APIDefinitionVO apiDefinition) {}
+            Gateway gateway, PublishConfig publishConfig, APIDefinitionVO apiDefinition) {
+        String apiDefinitionId = apiDefinition.getApiDefinitionId();
+        String apiName = apiDefinition.getName();
+
+        Optional<APIPublishRecord> latestRecord =
+                apiPublishRecordRepository.findFirstByApiDefinitionIdAndGatewayIdOrderByCreateAtDesc(
+                        apiDefinitionId, gateway.getGatewayId());
+
+        String httpApiId = null;
+        if (latestRecord.isPresent()) {
+            String gatewayResourceConfig = latestRecord.get().getGatewayResourceConfig();
+            if (StringUtils.isNotBlank(gatewayResourceConfig)) {
+                try {
+                    APIGRefConfig refConfig =
+                            JSONUtil.toBean(gatewayResourceConfig, APIGRefConfig.class);
+                    if (refConfig != null) {
+                        if (StringUtils.isNotBlank(refConfig.getModelApiId())) {
+                            httpApiId = refConfig.getModelApiId();
+                        } else if (StringUtils.isNotBlank(refConfig.getApiId())) {
+                            httpApiId = refConfig.getApiId();
+                        }
+                    }
+                } catch (Exception e) {
+                    log.warn(
+                            "Failed to parse gatewayResourceConfig for apiDefinitionId={}, recordId={}",
+                            apiDefinitionId,
+                            latestRecord.get().getRecordId(),
+                            e);
+                }
+            }
+        }
+
+        if (StringUtils.isBlank(httpApiId)) {
+            httpApiId =
+                    operator.findHttpApiIdByName(gateway, apiName, "LLM").orElse(null);
+        }
+
+        if (StringUtils.isBlank(httpApiId)) {
+            log.warn(
+                    "No HTTP API found for Model API unpublish: name={}, gatewayId={}",
+                    apiName,
+                    gateway.getGatewayId());
+            return;
+        }
+
+        log.info(
+                "Deleting Model HTTP API: name={}, httpApiId={}, gatewayId={}",
+                apiName,
+                httpApiId,
+                gateway.getGatewayId());
+
+        operator.deleteHttpApi(gateway, httpApiId);
+    }
 
     private void unpublishAgentAPI(
             Gateway gateway, PublishConfig publishConfig, APIDefinitionVO apiDefinition) {}

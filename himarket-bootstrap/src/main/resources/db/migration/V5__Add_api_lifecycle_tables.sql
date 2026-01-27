@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS `api_publish_record` (
     `status` varchar(32) NOT NULL COMMENT 'Status: ACTIVE, INACTIVE, PUBLISHING, UNPUBLISHING, FAILED. Application enforces uniqueness for PUBLISHING/UNPUBLISHING per API+Gateway',
     `action` varchar(32) COMMENT 'Action: PUBLISH, UNPUBLISH, UPDATE',
     `publish_config` json COMMENT 'Publish configuration including serviceConfig, extensions, etc.',
-    `gateway_resource_id` varchar(255) COMMENT 'Gateway-side resource ID',
+    `gateway_resource_config` varchar(255) COMMENT 'Gateway resource config',
     `access_endpoint` varchar(512) COMMENT 'Access endpoint URL',
     `error_message` text COMMENT 'Error message if failed',
     `publish_note` text COMMENT 'Publish note',

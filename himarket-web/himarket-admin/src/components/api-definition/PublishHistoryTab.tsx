@@ -27,6 +27,7 @@ interface PublishHistory {
   action: string;
   version?: string;
   publishConfig?: any;
+  gatewayResourceConfig?: any;
   status?: string;
   errorMessage?: string;
   publishNote?: string;
@@ -86,6 +87,23 @@ const ExpandableText = ({ text, maxLength = 100 }: ExpandableTextProps) => {
       </Button>
     </div>
   );
+};
+
+const formatGatewayResourceConfig = (value: any) => {
+  if (!value) {
+    return '';
+  }
+
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return JSON.stringify(parsed, null, 2);
+    } catch (error) {
+      return value;
+    }
+  }
+
+  return JSON.stringify(value, null, 2);
 };
 
 export default function PublishHistoryTab({ apiDefinitionId }: PublishHistoryTabProps) {
@@ -280,6 +298,14 @@ export default function PublishHistoryTab({ apiDefinitionId }: PublishHistoryTab
               </pre>
             </div>
           )}
+          {record.gatewayResourceConfig && (
+            <div className="col-span-2">
+              <span className="text-gray-500">网关资源配置:</span>
+              <pre className="mt-1 p-2 bg-gray-100 rounded text-xs overflow-auto">
+                {formatGatewayResourceConfig(record.gatewayResourceConfig)}
+              </pre>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -309,7 +335,11 @@ export default function PublishHistoryTab({ apiDefinitionId }: PublishHistoryTab
           loading={loading}
           expandable={{
             expandedRowRender,
-            rowExpandable: (record) => !!record.errorMessage || !!record.publishConfig || !!record.operator
+            rowExpandable: (record) =>
+              !!record.errorMessage ||
+              !!record.publishConfig ||
+              !!record.gatewayResourceConfig ||
+              !!record.operator
           }}
           pagination={{
             ...pagination,

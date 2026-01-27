@@ -666,7 +666,7 @@ public class APIDefinitionServiceImpl implements APIDefinitionService {
         unpublishRecord.setStatus(PublishStatus.UNPUBLISHING); // 初始状态为 UNPUBLISHING
         unpublishRecord.setAction(PublishAction.UNPUBLISH);
         unpublishRecord.setPublishConfig(publishRecord.getPublishConfig());
-        unpublishRecord.setGatewayResourceId(publishRecord.getGatewayResourceId());
+        unpublishRecord.setGatewayResourceConfig(publishRecord.getGatewayResourceConfig());
         unpublishRecord.setPublishedAt(java.time.LocalDateTime.now());
 
         apiPublishRecordRepository.save(unpublishRecord);

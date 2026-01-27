@@ -248,12 +248,6 @@ export default function EndpointEditor({
   const [mcpToken, setMcpToken] = useState('');
 
   useEffect(() => {
-    if (modalVisible && apiType === 'MODEL_API') {
-      form.setFieldValue('name', apiName);
-    }
-  }, [apiName, modalVisible, apiType, form]);
-
-  useEffect(() => {
     if (creationMethod === 'NACOS') {
       fetchNacosInstances();
     }
@@ -339,7 +333,7 @@ export default function EndpointEditor({
     setSelectedType(endpoint.type);
     setCurrentConfig(endpoint.config || {});
     form.setFieldsValue({
-      name: apiType === 'MODEL_API' ? apiName : endpoint.name,
+      name: endpoint.name,
       description: endpoint.description,
       type: endpoint.type
     });

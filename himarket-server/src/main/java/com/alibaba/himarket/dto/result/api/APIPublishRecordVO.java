@@ -50,6 +50,8 @@ public class APIPublishRecordVO implements OutputConverter<APIPublishRecordVO, A
 
     private PublishConfig publishConfig;
 
+    private String gatewayResourceConfig;
+
     private String publishNote;
 
     private String operator;

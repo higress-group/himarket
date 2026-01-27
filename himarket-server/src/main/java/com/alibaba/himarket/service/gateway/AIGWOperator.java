@@ -822,6 +822,45 @@ public class AIGWOperator extends APIGOperator {
     }
 
     /**
+     * Delete HTTP API
+     *
+     * @param gateway   The gateway
+     * @param httpApiId The HTTP API ID
+     */
+    public void deleteHttpApi(Gateway gateway, String httpApiId) {
+        APIGClient client = getClient(gateway);
+        try {
+            log.info("Deleting HTTP API: httpApiId={}", httpApiId);
+
+            com.aliyun.sdk.service.apig20240327.models.DeleteHttpApiRequest request =
+                    com.aliyun.sdk.service.apig20240327.models.DeleteHttpApiRequest.builder()
+                            .httpApiId(httpApiId)
+                            .build();
+
+            CompletableFuture<com.aliyun.sdk.service.apig20240327.models.DeleteHttpApiResponse> f =
+                    client.execute(c -> c.deleteHttpApi(request));
+
+            com.aliyun.sdk.service.apig20240327.models.DeleteHttpApiResponse response = f.join();
+
+            log.info(
+                    "DeleteHttpApi response: statusCode={}, message={}",
+                    response.getStatusCode(),
+                    response.getBody() != null ? response.getBody().getMessage() : "N/A");
+
+            if (response.getStatusCode() != 200) {
+                throw new BusinessException(
+                        ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
+            }
+
+            log.info("Successfully deleted HTTP API: httpApiId={}", httpApiId);
+        } catch (Exception e) {
+            log.error("Error deleting HTTP API: {}", httpApiId, e);
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR, "Error deleting HTTP API，Cause：" + e.getMessage());
+        }
+    }
+
+    /**
      * Create HTTP API Route
      *
      * @param gateway       The gateway
