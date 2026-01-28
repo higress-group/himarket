@@ -86,6 +86,6 @@ public class DashScopeLlmService extends AbstractLlmService {
 
     @Override
     public List<AIProtocol> getProtocols() {
-        return List.of(AIProtocol.DASHSCOPE, AIProtocol.DASHSCOPE_IMAGE);
+        return List.of(AIProtocol.DASHSCOPE);
     }
 }

@@ -17,29 +17,43 @@
  * under the License.
  */
 
-package com.alibaba.himarket.service.legacy;
+package com.alibaba.himarket.dto.result.chat;
 
-import com.alibaba.himarket.dto.params.chat.CreateChatParam;
-import com.alibaba.himarket.dto.result.chat.ChatAnswerMessage;
-import jakarta.servlet.http.HttpServletResponse;
-import reactor.core.publisher.Flux;
+import com.alibaba.himarket.support.enums.ChatAttachmentType;
+import lombok.Builder;
+import lombok.Data;
 
-@Deprecated
-public interface ChatServiceLegacy {
+@Data
+@Builder
+public class ChatAttachmentDetailResult {
 
     /**
-     * Perform a chat
-     *
-     * @param param
-     * @param response
-     * @return
+     * Attachment ID
      */
-    Flux<ChatAnswerMessage> chat(CreateChatParam param, HttpServletResponse response);
+    private String attachmentId;
 
-    //    /**
-    //     * Handle session deletion event, such as cleaning up all related chat records
-    //     *
-    //     * @param event
-    //     */
-    //    void handleSessionDeletion(ChatSessionDeletingEvent event);
+    /**
+     * Attachment name
+     */
+    private String name;
+
+    /**
+     * Attachment type
+     */
+    private ChatAttachmentType type;
+
+    /**
+     * MIME type
+     */
+    private String mimeType;
+
+    /**
+     * Size in bytes
+     */
+    private Long size;
+
+    /**
+     * Base64 encoded data
+     */
+    private String data;
 }

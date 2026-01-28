@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { MenuProps } from 'antd';
-import { Button, Card, Dropdown, Modal, message, Pagination, Skeleton, Input, Select, Tag, Space } from 'antd';
+import { Button, Dropdown, Modal, message, Pagination, Skeleton, Input, Select, Tag, Space } from 'antd';
 import type { ApiProduct, ProductIcon } from '@/types/api-product';
 import { ApiOutlined, MoreOutlined, PlusOutlined, ExclamationCircleOutlined, ExclamationCircleFilled, ClockCircleFilled, CheckCircleFilled, SearchOutlined, RobotOutlined, BulbOutlined } from '@ant-design/icons';
 import McpServerIcon from '@/components/icons/McpServerIcon';

@@ -17,31 +17,32 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.chat.content;
+package com.alibaba.himarket.dto.params.product;
 
-import cn.hutool.core.annotation.Alias;
-import com.alibaba.himarket.support.enums.ContentType;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.Builder;
+import cn.hutool.core.util.StrUtil;
+import com.alibaba.himarket.dto.result.model.ModelConfigResult;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
 
-@EqualsAndHashCode(callSuper = true)
 @Data
-public class AudioUrlContent extends MessageContent {
+public class ModelFilter {
 
-    @Alias("audio_url")
-    @JsonProperty("audio_url")
-    private AudioUrl audioUrl;
+    /**
+     * Model category: Image, Chat, Embedding, etc.
+     */
+    private String category;
 
-    @Data
-    @Builder
-    public static class AudioUrl {
-        private String url;
-    }
+    /**
+     * Check if config matches filter
+     *
+     * @param configResult Model config to check
+     * @return true if matches all criteria
+     */
+    public boolean matches(ModelConfigResult configResult) {
+        if (configResult == null || configResult.getModelAPIConfig() == null) {
+            return false;
+        }
 
-    public AudioUrlContent(String url) {
-        super.type = ContentType.AUDIO_URL.getType();
-        this.audioUrl = AudioUrl.builder().url(url).build();
+        return StrUtil.equalsIgnoreCase(
+                category, configResult.getModelAPIConfig().getModelCategory());
     }
 }

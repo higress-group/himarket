@@ -19,4 +19,25 @@
 
 package com.alibaba.himarket.service;
 
-public interface ChatAttachmentService {}
+import com.alibaba.himarket.dto.result.chat.ChatAttachmentDetailResult;
+import com.alibaba.himarket.dto.result.chat.ChatAttachmentResult;
+import org.springframework.web.multipart.MultipartFile;
+
+public interface ChatAttachmentService {
+
+    /**
+     * Upload attachment
+     *
+     * @param file uploaded file
+     * @return attachment result
+     */
+    ChatAttachmentResult uploadAttachment(MultipartFile file);
+
+    /**
+     * Get attachment detail with Base64 encoded data
+     *
+     * @param attachmentId attachment ID
+     * @return attachment detail result with Base64 data
+     */
+    ChatAttachmentDetailResult getAttachmentDetail(String attachmentId);
+}

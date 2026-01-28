@@ -19,7 +19,6 @@
 
 package com.alibaba.himarket.dto.result.chat;
 
-import com.alibaba.himarket.service.legacy.ChatContextLegacy;
 import com.alibaba.himarket.support.chat.ChatUsage;
 import lombok.Builder;
 import lombok.Data;
@@ -41,13 +40,4 @@ public class LlmInvokeResult {
      * Usage, exists only when success
      */
     private ChatUsage usage;
-
-    @Deprecated
-    public static LlmInvokeResult of(ChatContextLegacy chatContext) {
-        return LlmInvokeResult.builder()
-                .success(chatContext.getSuccess())
-                .answer(chatContext.getAnswerContent().toString())
-                .usage(chatContext.getChatUsage())
-                .build();
-    }
 }

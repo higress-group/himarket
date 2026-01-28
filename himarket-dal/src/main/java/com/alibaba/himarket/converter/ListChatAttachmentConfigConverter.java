@@ -17,20 +17,19 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.chat.content;
+package com.alibaba.himarket.converter;
 
-import com.alibaba.himarket.support.enums.ContentType;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
+import com.alibaba.himarket.support.chat.attachment.ChatAttachmentConfig;
+import jakarta.persistence.Converter;
+import java.util.List;
 
-@EqualsAndHashCode(callSuper = true)
-@Data
-public class TextContent extends MessageContent {
+@Converter(autoApply = true)
+public class ListChatAttachmentConfigConverter extends JsonConverter<List<ChatAttachmentConfig>> {
 
-    private String text;
-
-    public TextContent(String text) {
-        super.type = ContentType.TEXT.getType();
-        this.text = text;
+    @SuppressWarnings("unchecked")
+    protected ListChatAttachmentConfigConverter() {
+        super(
+                (Class<List<ChatAttachmentConfig>>) (Class<?>) List.class,
+                ChatAttachmentConfig.class);
     }
 }

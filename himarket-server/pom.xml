@@ -132,6 +132,10 @@
                     <artifactId>error_prone_annotations</artifactId>
                     <groupId>com.google.errorprone</groupId>
                 </exclusion>
+                <exclusion>
+                    <artifactId>j2objc-annotations</artifactId>
+                    <groupId>com.google.j2objc</groupId>
+                </exclusion>
             </exclusions>
         </dependency>
 
@@ -179,36 +183,6 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-webflux</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>org.springframework.ai</groupId>
-            <artifactId>spring-ai-starter-model-openai</artifactId>
-            <exclusions>
-                <exclusion>
-                    <artifactId>mcp-json-jackson2</artifactId>
-                    <groupId>io.modelcontextprotocol.sdk</groupId>
-                </exclusion>
-                <exclusion>
-                    <artifactId>antlr4-runtime</artifactId>
-                    <groupId>org.antlr</groupId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-
-        <dependency>
-            <groupId>org.springframework.ai</groupId>
-            <artifactId>spring-ai-starter-mcp-client</artifactId>
-            <exclusions>
-                <exclusion>
-                    <artifactId>swagger-annotations-jakarta</artifactId>
-                    <groupId>io.swagger.core.v3</groupId>
-                </exclusion>
-                <exclusion>
-                    <artifactId>mcp</artifactId>
-                    <groupId>io.modelcontextprotocol.sdk</groupId>
-                </exclusion>
-            </exclusions>
         </dependency>
 
         <dependency>
@@ -290,6 +264,11 @@
                     <groupId>org.slf4j</groupId>
                 </exclusion>
             </exclusions>
+        </dependency>
+
+        <dependency>
+            <groupId>com.google.genai</groupId>
+            <artifactId>google-genai</artifactId>
         </dependency>
 
     </dependencies>

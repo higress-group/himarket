@@ -76,6 +76,10 @@ public class ChatContext {
         if (usage != null) {
             usage.setElapsedTime(elapsedTime);
             log.debug("Total elapsed time: {} ms", elapsedTime);
+
+            if (firstByteTimeout != null) {
+                usage.setFirstByteTimeout(firstByteTimeout);
+            }
         }
     }
 

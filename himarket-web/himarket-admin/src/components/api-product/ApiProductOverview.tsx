@@ -199,7 +199,8 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
                           apiProduct.feature.modelFeature.model,
                           apiProduct.feature.modelFeature.maxTokens && `${apiProduct.feature.modelFeature.maxTokens} tokens`,
                           apiProduct.feature.modelFeature.temperature !== null && apiProduct.feature.modelFeature.temperature !== undefined && `temperature ${apiProduct.feature.modelFeature.temperature}`,
-                          apiProduct.feature.modelFeature.webSearch && '联网搜索'
+                          apiProduct.feature.modelFeature.webSearch && '联网搜索',
+                          apiProduct.feature.modelFeature.enableMultiModal && '多模态'
                         ].filter(Boolean).map((param, index, array) => (
                           <span key={index}>
                             <span className="text-gray-900">{param}</span>

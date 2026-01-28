@@ -21,10 +21,19 @@ package com.alibaba.himarket.repository;
 
 import com.alibaba.himarket.entity.ChatAttachment;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public interface ChatAttachmentRepository extends BaseRepository<ChatAttachment, Long> {
+
+    /**
+     * Find attachment by attachment ID
+     *
+     * @param attachmentId the attachment ID
+     * @return the chat attachment
+     */
+    Optional<ChatAttachment> findByAttachmentId(String attachmentId);
 
     /**
      * Find attachments by attachment IDs

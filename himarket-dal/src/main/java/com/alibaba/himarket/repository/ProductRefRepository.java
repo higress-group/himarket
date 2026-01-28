@@ -20,6 +20,8 @@
 package com.alibaba.himarket.repository;
 
 import com.alibaba.himarket.entity.ProductRef;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Repository;
 
@@ -58,4 +60,12 @@ public interface ProductRefRepository extends BaseRepository<ProductRef, Long> {
      * @param productId the product ID
      */
     void deleteByProductId(String productId);
+
+    /**
+     * Find product references by product IDs
+     *
+     * @param productIds the collection of product IDs
+     * @return the list of product references
+     */
+    List<ProductRef> findByProductIdIn(Collection<String> productIds);
 }
