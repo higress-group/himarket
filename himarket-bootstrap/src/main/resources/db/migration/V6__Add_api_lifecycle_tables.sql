@@ -87,7 +87,7 @@ CREATE TABLE IF NOT EXISTS `api_publish_record` (
 -- ========================================
 SET @dbname = DATABASE();
 SET @tablename = 'product_ref';
-SET @columnname = 'api_definition_ids';
+SET @columnname = 'api_definition_id';
 SET @preparedStatement = (SELECT IF(
   (
     SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
