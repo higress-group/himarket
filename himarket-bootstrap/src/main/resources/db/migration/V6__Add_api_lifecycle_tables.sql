@@ -10,6 +10,7 @@ START TRANSACTION;
 CREATE TABLE IF NOT EXISTS `api_definition` (
     `id` bigint NOT NULL AUTO_INCREMENT,
     `api_definition_id` varchar(64) NOT NULL COMMENT 'API Definition unique identifier',
+    `base_path` varchar(255) COMMENT 'API base path',
     `name` varchar(255) NOT NULL COMMENT 'API name',
     `description` text COMMENT 'API description',
     `type` varchar(32) NOT NULL COMMENT 'API type: MCP_SERVER, REST_API, AGENT_API, MODEL_API',

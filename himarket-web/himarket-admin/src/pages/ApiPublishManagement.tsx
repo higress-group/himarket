@@ -483,63 +483,6 @@ export default function ApiPublishManagement() {
     setPublishModalVisible(true);
   };
 
-  const handleUpdatePublish = (record: PublishRecord) => {
-    const serviceConfig = record.publishConfig?.serviceConfig || {};
-    const domains = record.publishConfig?.domains || [];
-    const domainValues = domains
-      .map((d: string | { domain: string }) =>
-        typeof d === "string" ? d : d.domain
-      )
-      .filter(Boolean);
-
-    form.resetFields();
-
-    // Set basic values
-    const formValues: Record<string, any> = {
-      gatewayId: record.gatewayId,
-      ingressDomain: domainValues,
-      serviceSource: "NEW",
-    };
-
-    // Set service config values based on type
-    if (serviceConfig.type === "GATEWAY") {
-      formValues.serviceSource = "EXISTING";
-      formValues.serviceType = "GATEWAY";
-      formValues.serviceId = serviceConfig.serviceId;
-      formValues.serviceName = serviceConfig.serviceName;
-    } else {
-      formValues.serviceType =
-        serviceConfig.type ||
-        (apiDefinition?.type === "MODEL_API" ? "AI_SERVICE" : "NACOS");
-
-      // Common fields
-      formValues.address = serviceConfig.address;
-      formValues.domain = serviceConfig.domain; // For DNS type
-
-      // Nacos fields
-      formValues.nacosId = serviceConfig.nacosId;
-      formValues.namespace = serviceConfig.namespace;
-      formValues.group = serviceConfig.group;
-      formValues.serviceName = serviceConfig.serviceName;
-
-      // AI Service fields
-      formValues.protocol = serviceConfig.protocol;
-      formValues.provider = serviceConfig.provider;
-      formValues.apiKey = serviceConfig.apiKey;
-      formValues.azureServiceUrl = serviceConfig.azureServiceUrl;
-      formValues.vertexRegion = serviceConfig.vertexRegion;
-      formValues.vertexProjectId = serviceConfig.vertexProjectId;
-      formValues.vertexAuthServiceName = serviceConfig.vertexAuthServiceName;
-      formValues.vertexAuthKey = serviceConfig.vertexAuthKey;
-      formValues.awsRegion = serviceConfig.awsRegion;
-      formValues.bedrockAuthType = serviceConfig.bedrockAuthType;
-      formValues.awsAccessKey = serviceConfig.awsAccessKey;
-      formValues.awsSecretKey = serviceConfig.awsSecretKey;
-    }
-
-    form.setFieldsValue(formValues);
-    setPublishModalVisible(true);
-  };
 
   const handlePublish = async () => {
     try {
@@ -652,7 +595,6 @@ export default function ApiPublishManagement() {
             },
           },
           domains: domainObjects,
-          basePath: values.basePath || "/",
         },
       };
 
@@ -1071,13 +1013,6 @@ export default function ApiPublishManagement() {
 
                   {record.status === "ACTIVE" && (
                     <Space>
-                      <Button
-                        type="primary"
-                        icon={<EditOutlined />}
-                        onClick={() => handleUpdatePublish(record)}
-                      >
-                        变更配置
-                      </Button>
                       <Button danger onClick={() => handleUnpublish()}>
                         下线服务
                       </Button>
@@ -1218,21 +1153,8 @@ export default function ApiPublishManagement() {
             </Select>
           </Form.Item>
 
-          {/* Base Path for Model API - Moved to API Definition*/}
-          {apiDefinition?.type === "MODEL_API" && (
-            <Form.Item
-              name="basePath"
-              label="Base Path"
-              rules={[
-                { required: true, message: "请输入 Base Path" },
-                { pattern: /^\/.*/, message: "Base Path 必须以 / 开头" },
-              ]}
-              initialValue="/"
-              tooltip="Model API 的基础路径，必须以 / 开头"
-            >
-              <Input placeholder="例如: /v1 or /api/v1" />
-            </Form.Item>
-          )}
+
+
           <Divider
             style={{
               fontSize: "16px",

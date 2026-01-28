@@ -502,11 +502,11 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
         // 7. Build policy configs for AI capabilities using SDK classes
         List<PolicyConfigs> policyConfigs = buildPolicyConfigsSDK(apiDefinition);
 
-        // 8. Extract basePath from publishConfig, default to "/" if not provided
-        String basePath = publishConfig.getBasePath();
+        // 8. Extract basePath from apiDefinition, default to "/" if not provided
+        String basePath = apiDefinition.getBasePath();
         if (StringUtils.isEmpty(basePath)) {
             basePath = "/";
-            log.warn("No basePath provided in publishConfig, using default: /");
+            log.warn("No basePath provided in apiDefinition, using default: /");
         }
         log.info("Using basePath: {} for Model API", basePath);
 
@@ -699,11 +699,11 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
         // 6. Build policy configs (empty for Agent API by default)
         List<PolicyConfigs> policyConfigs = Collections.emptyList();
 
-        // 7. Extract basePath from publishConfig, default to "/" if not provided
-        String basePath = publishConfig.getBasePath();
+        // 7. Extract basePath from apiDefinition, default to "/" if not provided
+        String basePath = apiDefinition.getBasePath();
         if (StringUtils.isEmpty(basePath)) {
             basePath = "/";
-            log.warn("No basePath provided in publishConfig, using default: /");
+            log.warn("No basePath provided in apiDefinition, using default: /");
         }
         log.info("Using basePath: {} for Agent API", basePath);
 

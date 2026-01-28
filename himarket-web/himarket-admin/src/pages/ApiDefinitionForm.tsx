@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
+import { useState, useEffect } from "react";
+import { useSearchParams, useNavigate, useLocation } from "react-router-dom";
 import {
   Card,
   Form,
@@ -12,106 +12,134 @@ import {
   Divider,
   Upload,
   Radio,
-  Switch
-} from 'antd';
+  Switch,
+} from "antd";
 import {
   ArrowLeftOutlined,
   SaveOutlined,
-  UploadOutlined
-} from '@ant-design/icons';
-import type { UploadProps } from 'antd';
-import { apiDefinitionApi, apiProductApi } from '@/lib/api';
-import EndpointEditor from '@/components/endpoint/EndpointEditor';
-import type { Endpoint } from '@/types/endpoint';
+  UploadOutlined,
+} from "@ant-design/icons";
+import type { UploadProps } from "antd";
+import { apiDefinitionApi, apiProductApi } from "@/lib/api";
+import EndpointEditor from "@/components/endpoint/EndpointEditor";
+import type { Endpoint } from "@/types/endpoint";
 
 const { TextArea } = Input;
 
 const DIFY_ENDPOINTS: Endpoint[] = [
   {
-    name: 'chat-messages',
-    description: '发送对话消息',
-    type: 'REST_ROUTE',
+    name: "chat-messages",
+    description: "发送对话消息",
+    type: "REST_ROUTE",
     config: {
-      path: '/chat-messages',
-      method: 'POST',
+      path: "/chat-messages",
+      method: "POST",
       headers: [
         {
-          name: 'Authorization',
-          description: 'Bearer {api_key}',
-          required: true
-        }
+          name: "Authorization",
+          description: "Bearer {api_key}",
+          required: true,
+        },
       ],
       requestBody: {
-        type: 'object',
+        type: "object",
         properties: {
-          query: { type: 'string', description: '用户输入/提问内容' },
-          inputs: { type: 'object', description: '允许传入 App 定义的各变量值', default: {} },
-          response_mode: { type: 'string', enum: ['streaming', 'blocking'], description: '响应模式' },
-          user: { type: 'string', description: '用户标识' },
-          conversation_id: { type: 'string', description: '会话 ID' },
-          files: { type: 'array', items: { type: 'object' }, description: '文件列表' },
-          auto_generate_name: { type: 'boolean', default: true, description: '自动生成标题' },
-          workflow_id: { type: 'string', description: '工作流ID' }
+          query: { type: "string", description: "用户输入/提问内容" },
+          inputs: {
+            type: "object",
+            description: "允许传入 App 定义的各变量值",
+            default: {},
+          },
+          response_mode: {
+            type: "string",
+            enum: ["streaming", "blocking"],
+            description: "响应模式",
+          },
+          user: { type: "string", description: "用户标识" },
+          conversation_id: { type: "string", description: "会话 ID" },
+          files: {
+            type: "array",
+            items: { type: "object" },
+            description: "文件列表",
+          },
+          auto_generate_name: {
+            type: "boolean",
+            default: true,
+            description: "自动生成标题",
+          },
+          workflow_id: { type: "string", description: "工作流ID" },
         },
-        required: ['query', 'user']
+        required: ["query", "user"],
       },
       responses: {
-        '200': {
-          description: '成功响应',
+        "200": {
+          description: "成功响应",
           schema: {
-            type: 'object',
+            type: "object",
             properties: {
-              event: { type: 'string', description: '事件类型' },
-              task_id: { type: 'string', description: '任务 ID' },
-              id: { type: 'string', description: '消息 ID' },
-              answer: { type: 'string', description: '回答内容' },
-              created_at: { type: 'integer', description: '创建时间' }
-            }
-          }
-        }
-      }
-    }
+              event: { type: "string", description: "事件类型" },
+              task_id: { type: "string", description: "任务 ID" },
+              id: { type: "string", description: "消息 ID" },
+              answer: { type: "string", description: "回答内容" },
+              created_at: { type: "integer", description: "创建时间" },
+            },
+          },
+        },
+      },
+    },
   },
   {
-    name: 'run-workflow',
-    description: '执行工作流',
-    type: 'REST_ROUTE',
+    name: "run-workflow",
+    description: "执行工作流",
+    type: "REST_ROUTE",
     config: {
-      path: '/workflows/run',
-      method: 'POST',
+      path: "/workflows/run",
+      method: "POST",
       headers: [
         {
-          name: 'Authorization',
-          description: 'Bearer {api_key}',
-          required: true
-        }
+          name: "Authorization",
+          description: "Bearer {api_key}",
+          required: true,
+        },
       ],
       requestBody: {
-        type: 'object',
+        type: "object",
         properties: {
-          inputs: { type: 'object', description: '工作流变量输入', default: {} },
-          response_mode: { type: 'string', enum: ['streaming', 'blocking'], description: '响应模式' },
-          user: { type: 'string', description: '用户标识' },
-          files: { type: 'array', items: { type: 'object' }, description: '文件列表' }
+          inputs: {
+            type: "object",
+            description: "工作流变量输入",
+            default: {},
+          },
+          response_mode: {
+            type: "string",
+            enum: ["streaming", "blocking"],
+            description: "响应模式",
+          },
+          user: { type: "string", description: "用户标识" },
+          files: {
+            type: "array",
+            items: { type: "object" },
+            description: "文件列表",
+          },
         },
-        required: ['inputs', 'response_mode', 'user']
+        required: ["inputs", "response_mode", "user"],
       },
       responses: {
-        '200': {
-          description: '成功响应',
+        "200": {
+          description: "成功响应",
           schema: {
-            type: 'object',
+            type: "object",
             properties: {
-              workflow_run_id: { type: 'string', description: '工作流运行 ID' },
-              task_id: { type: 'string', description: '任务 ID' },
-              data: { type: 'object', description: '输出数据' },
-              status: { type: 'string', description: '运行状态' }
-            }
-          }
-        }
-      }
-    }
-  }
+              workflow_run_id: { type: "string", description: "工作流运行 ID" },
+              task_id: { type: "string", description: "任务 ID" },
+              data: { type: "object", description: "输出数据" },
+              status: { type: "string", description: "运行状态" },
+            },
+          },
+        },
+      },
+    },
+  },
 ];
 
 interface PropertyField {
@@ -132,49 +160,52 @@ interface PropertySchema {
 }
 
 const SCENARIO_OPTIONS = [
-  { label: '文本生成', value: 'text-generation', description: '根据输入提示或指令，自动创作各类文本内容，如文章、故事、邮件或代码，满足多样化内容需求。' }
+  {
+    label: "文本生成",
+    value: "text-generation",
+    description:
+      "根据输入提示或指令，自动创作各类文本内容，如文章、故事、邮件或代码，满足多样化内容需求。",
+  },
 ];
 
 const TEXT_GENERATION_PROTOCOLS = [
-  { label: 'OpenAI', value: 'openai' },
-  { label: 'Anthropic', value: 'anthropic' },
-  { label: '豆包', value: 'doubao' }
+  { label: "OpenAI", value: "openai" },
+  { label: "Anthropic", value: "anthropic" },
+  { label: "豆包", value: "doubao" },
 ];
 
 const IMAGE_GENERATION_PROTOCOLS = [
-  { label: '阿里云百炼', value: 'bailian' },
-  { label: 'OpenAI', value: 'openai' },
-  { label: '豆包', value: 'doubao' },
-  { label: 'ComfyUI', value: 'comfyui' }
+  { label: "阿里云百炼", value: "bailian" },
+  { label: "OpenAI", value: "openai" },
+  { label: "豆包", value: "doubao" },
+  { label: "ComfyUI", value: "comfyui" },
 ];
 
 const VIDEO_GENERATION_PROTOCOLS = [
-  { label: '阿里云百炼', value: 'bailian' },
-  { label: 'OpenAI', value: 'openai' },
-  { label: '豆包', value: 'doubao' }
+  { label: "阿里云百炼", value: "bailian" },
+  { label: "OpenAI", value: "openai" },
+  { label: "豆包", value: "doubao" },
 ];
 
 const SPEECH_SYNTHESIS_PROTOCOLS = [
-  { label: '阿里云百炼', value: 'bailian' },
-  { label: 'OpenAI', value: 'openai' }
+  { label: "阿里云百炼", value: "bailian" },
+  { label: "OpenAI", value: "openai" },
 ];
 
-const EMBEDDING_PROTOCOLS = [
-  { label: 'OpenAI', value: 'openai' }
-];
+const EMBEDDING_PROTOCOLS = [{ label: "OpenAI", value: "openai" }];
 
 const DEFAULT_MODEL_PROTOCOLS = [
-  { label: 'OpenAI', value: 'openai' },
-  { label: 'Anthropic', value: 'anthropic' },
-  { label: '豆包', value: 'doubao' }
+  { label: "OpenAI", value: "openai" },
+  { label: "Anthropic", value: "anthropic" },
+  { label: "豆包", value: "doubao" },
 ];
 
 // API 类型选项
 const API_TYPE_OPTIONS = [
-  { label: 'REST API', value: 'REST_API' },
-  { label: 'MCP Server', value: 'MCP_SERVER' },
-  { label: 'Agent API', value: 'AGENT_API' },
-  { label: 'Model API', value: 'MODEL_API' }
+  { label: "REST API", value: "REST_API" },
+  { label: "MCP Server", value: "MCP_SERVER" },
+  { label: "Agent API", value: "AGENT_API" },
+  { label: "Model API", value: "MODEL_API" },
 ];
 
 export default function ApiDefinitionForm() {
@@ -183,14 +214,16 @@ export default function ApiDefinitionForm() {
   const location = useLocation();
   const { productName, productType, productDescription } = location.state || {};
   const [form] = Form.useForm();
-  const apiName = Form.useWatch('name', form);
-  const apiType = Form.useWatch('type', form);
+  const apiName = Form.useWatch("name", form);
+  const apiType = Form.useWatch("type", form);
   const [loading, setLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [endpoints, setEndpoints] = useState<Endpoint[]>([]);
-  const [supportedProperties, setSupportedProperties] = useState<PropertySchema[]>([]);
-  const isEdit = searchParams.get('id') !== null;
-  const apiDefinitionId = searchParams.get('id');
+  const [supportedProperties, setSupportedProperties] = useState<
+    PropertySchema[]
+  >([]);
+  const isEdit = searchParams.get("id") !== null;
+  const apiDefinitionId = searchParams.get("id");
 
   useEffect(() => {
     if (isEdit && apiDefinitionId) {
@@ -207,13 +240,14 @@ export default function ApiDefinitionForm() {
 
   const fetchSupportedProperties = async (selectedApiType?: string) => {
     try {
-      const response: any = await apiDefinitionApi.getSupportedProperties(selectedApiType);
+      const response: any =
+        await apiDefinitionApi.getSupportedProperties(selectedApiType);
       const data = response && response.data ? response.data : response;
       if (Array.isArray(data)) {
         setSupportedProperties(data);
       }
     } catch (error) {
-      console.error('获取支持的属性配置失败:', error);
+      console.error("获取支持的属性配置失败:", error);
     }
   };
 
@@ -237,14 +271,14 @@ export default function ApiDefinitionForm() {
         type: apiData.type,
         status: apiData.status,
         version: apiData.version,
-        metadata: apiData.metadata,
-        properties: propertiesObj
+        basePath: apiData.basePath,
       });
-
-      // 加载 endpoints
       try {
         const endpointsResponse: any = await apiDefinitionApi.getEndpoints(id);
-        const endpointsData = endpointsResponse && endpointsResponse.data ? endpointsResponse.data : endpointsResponse;
+        const endpointsData =
+          endpointsResponse && endpointsResponse.data
+            ? endpointsResponse.data
+            : endpointsResponse;
 
         if (Array.isArray(endpointsData)) {
           setEndpoints(endpointsData);
@@ -252,11 +286,11 @@ export default function ApiDefinitionForm() {
           setEndpoints([]);
         }
       } catch (error) {
-        console.error('获取 endpoints 失败:', error);
+        console.error("获取 endpoints 失败:", error);
         setEndpoints([]);
       }
     } catch (error) {
-      message.error('获取 API 详情失败');
+      message.error("获取 API 详情失败");
     } finally {
       setLoading(false);
     }
@@ -288,13 +322,21 @@ export default function ApiDefinitionForm() {
       const endpointsData = endpoints.map(endpoint => {
         const config = { ...endpoint.config };
         // Ensure JSON fields are objects
-        const jsonFields = ['inputSchema', 'outputSchema', 'requestBody', 'configSchema'];
+        const jsonFields = [
+          "inputSchema",
+          "outputSchema",
+          "requestBody",
+          "configSchema",
+        ];
         jsonFields.forEach(field => {
-          if (config[field] && typeof config[field] === 'string') {
+          if (config[field] && typeof config[field] === "string") {
             try {
               config[field] = JSON.parse(config[field]);
             } catch (e) {
-              console.warn(`Failed to parse ${field} for endpoint ${endpoint.name}`, e);
+              console.warn(
+                `Failed to parse ${field} for endpoint ${endpoint.name}`,
+                e
+              );
             }
           }
         });
@@ -306,8 +348,8 @@ export default function ApiDefinitionForm() {
           sortOrder: endpoint.sortOrder,
           config: {
             ...config,
-            type: endpoint.type  // 添加 type 字段，用于 Jackson 多态反序列化
-          }
+            type: endpoint.type, // 添加 type 字段，用于 Jackson 多态反序列化
+          },
         };
       });
 
@@ -316,10 +358,14 @@ export default function ApiDefinitionForm() {
       if (values.properties) {
         for (const [type, props] of Object.entries(values.properties)) {
           // 只有当属性开启时才提交
-          if (props && typeof props === 'object' && (props as any).enabled === true) {
+          if (
+            props &&
+            typeof props === "object" &&
+            (props as any).enabled === true
+          ) {
             propertiesList.push({
               type: type,
-              ...(props as object)
+              ...(props as object),
             });
           }
         }
@@ -328,14 +374,14 @@ export default function ApiDefinitionForm() {
       const payload = {
         ...values,
         properties: propertiesList,
-        endpoints: endpointsData
+        endpoints: endpointsData,
       };
 
       if (isEdit && apiDefinitionId) {
         // 更新 API，将 endpoints 一起提交
         await apiDefinitionApi.updateApiDefinition(apiDefinitionId, payload);
 
-        message.success('API 更新成功');
+        message.success("API 更新成功");
       } else {
         // 创建 API
         let newApiId: string | undefined;
@@ -345,7 +391,7 @@ export default function ApiDefinitionForm() {
         const data = res && res.data ? res.data : res;
         newApiId = data?.apiDefinitionId;
 
-        message.success('API 创建成功');
+        message.success("API 创建成功");
 
         // 如果是从 Product 页面跳转过来的，自动关联
         const { productId } = location.state || {};
@@ -353,13 +399,13 @@ export default function ApiDefinitionForm() {
           try {
             await apiProductApi.createApiProductRef(productId, {
               productId: productId,
-              sourceType: 'MANAGED',
-              apiDefinitionId: newApiId
+              sourceType: "MANAGED",
+              apiDefinitionId: newApiId,
             });
-            message.success('已自动关联到当前产品');
+            message.success("已自动关联到当前产品");
           } catch (linkError) {
-            console.error('自动关联失败', linkError);
-            message.warning('API创建成功，但自动关联失败，请手动关联');
+            console.error("自动关联失败", linkError);
+            message.warning("API创建成功，但自动关联失败，请手动关联");
           }
         }
       }
@@ -367,9 +413,9 @@ export default function ApiDefinitionForm() {
       navigate(-1);
     } catch (error: any) {
       if (error.errorFields) {
-        message.error('请完善表单信息');
+        message.error("请完善表单信息");
       } else {
-        message.error(error.message || '操作失败');
+        message.error(error.message || "操作失败");
       }
     } finally {
       setLoading(false);
@@ -388,16 +434,25 @@ export default function ApiDefinitionForm() {
 
       case 2:
         // 第三步：配置 Endpoints
-        const apiType = form.getFieldValue('type');
-        const protocol = form.getFieldValue(['metadata', 'protocol']);
-        const mcpBridgeType = form.getFieldValue(['metadata', 'mcpBridgeType']);
+        const apiType = form.getFieldValue("type");
+        const protocol = form.getFieldValue(["metadata", "protocol"]);
+        const mcpBridgeType = form.getFieldValue(["metadata", "mcpBridgeType"]);
         return (
           <div className="py-4">
+            <Form form={form} layout="vertical">
+              <Form.Item
+                label="Base Path"
+                name="basePath"
+              >
+                <Input placeholder="/" />
+              </Form.Item>
+            </Form>
+
             <EndpointEditor
               value={endpoints}
               onChange={setEndpoints}
               apiType={apiType}
-              apiName={form.getFieldValue('name')}
+              apiName={form.getFieldValue("name")}
               protocol={protocol}
               mcpBridgeType={mcpBridgeType}
             />
@@ -411,12 +466,23 @@ export default function ApiDefinitionForm() {
 
   const renderFieldInput = (field: PropertyField) => {
     switch (field.type) {
-      case 'integer':
-        return <InputNumber style={{ width: '100%' }} />;
-      case 'boolean':
-        return <Select options={[{ label: '是', value: true }, { label: '否', value: false }]} />;
-      case 'select':
-        return <Select options={field.options?.map(opt => ({ label: opt, value: opt }))} />;
+      case "integer":
+        return <InputNumber style={{ width: "100%" }} />;
+      case "boolean":
+        return (
+          <Select
+            options={[
+              { label: "是", value: true },
+              { label: "否", value: false },
+            ]}
+          />
+        );
+      case "select":
+        return (
+          <Select
+            options={field.options?.map(opt => ({ label: opt, value: opt }))}
+          />
+        );
       default:
         return <Input />;
     }
@@ -426,13 +492,10 @@ export default function ApiDefinitionForm() {
     return (
       <div className="py-4">
         <h3 className="text-lg font-semibold mb-4">
-          {isEdit ? 'API 属性配置' : '配置 API 属性'}
+          {isEdit ? "API 属性配置" : "配置 API 属性"}
         </h3>
-        <Form
-          form={form}
-          layout="vertical"
-        >
-          {supportedProperties.map((schema) => (
+        <Form form={form} layout="vertical">
+          {supportedProperties.map(schema => (
             <Card
               key={schema.type}
               title={schema.name}
@@ -440,7 +503,7 @@ export default function ApiDefinitionForm() {
               size="small"
               extra={
                 <Form.Item
-                  name={['properties', schema.type, 'enabled']}
+                  name={["properties", schema.type, "enabled"]}
                   valuePropName="checked"
                   initialValue={false}
                   style={{ marginBottom: 0 }}
@@ -453,21 +516,33 @@ export default function ApiDefinitionForm() {
               <Form.Item
                 noStyle
                 shouldUpdate={(prev, curr) => {
-                  return prev.properties?.[schema.type]?.enabled !== curr.properties?.[schema.type]?.enabled;
+                  return (
+                    prev.properties?.[schema.type]?.enabled !==
+                    curr.properties?.[schema.type]?.enabled
+                  );
                 }}
               >
                 {({ getFieldValue }) => {
-                  const enabled = getFieldValue(['properties', schema.type, 'enabled']);
+                  const enabled = getFieldValue([
+                    "properties",
+                    schema.type,
+                    "enabled",
+                  ]);
                   if (!enabled) return null;
 
                   return (
                     <div className="grid grid-cols-2 gap-4">
-                      {schema.fields.map((field) => (
+                      {schema.fields.map(field => (
                         <Form.Item
                           key={field.name}
                           label={field.label}
-                          name={['properties', schema.type, field.name]}
-                          rules={[{ required: field.required, message: `请输入${field.label}` }]}
+                          name={["properties", schema.type, field.name]}
+                          rules={[
+                            {
+                              required: field.required,
+                              message: `请输入${field.label}`,
+                            },
+                          ]}
                           help={field.description}
                           initialValue={field.defaultValue}
                         >
@@ -489,19 +564,19 @@ export default function ApiDefinitionForm() {
     return (
       <div className="py-4">
         <h3 className="text-lg font-semibold mb-4">
-          {isEdit ? '基本信息配置' : 'API 基本信息'}
+          {isEdit ? "基本信息配置" : "API 基本信息"}
         </h3>
         <Form
           form={form}
           layout="vertical"
           initialValues={{
-            name: productName || '',
-            description: productDescription || '',
-            type: productType || 'REST_API',
-            status: 'DRAFT',
-            version: '1.0.0'
+            name: productName || "",
+            description: productDescription || "",
+            type: productType || "REST_API",
+            status: "DRAFT",
+            version: "1.0.0",
           }}
-          onValuesChange={(changedValues) => {
+          onValuesChange={changedValues => {
             // 监听协议变化
           }}
         >
@@ -509,8 +584,8 @@ export default function ApiDefinitionForm() {
             label="API 名称"
             name="name"
             rules={[
-              { required: true, message: '请输入 API 名称' },
-              { max: 100, message: '名称不能超过100个字符' }
+              { required: true, message: "请输入 API 名称" },
+              { max: 100, message: "名称不能超过100个字符" },
             ]}
           >
             <Input placeholder="例如：用户管理 API" disabled={!!productName} />
@@ -519,18 +594,15 @@ export default function ApiDefinitionForm() {
           <Form.Item
             label="API 描述"
             name="description"
-            rules={[{ max: 500, message: '描述不能超过500个字符' }]}
+            rules={[{ max: 500, message: "描述不能超过500个字符" }]}
           >
-            <TextArea
-              rows={4}
-              placeholder="详细描述这个 API 的功能和用途"
-            />
+            <TextArea rows={4} placeholder="详细描述这个 API 的功能和用途" />
           </Form.Item>
 
           <Form.Item
             label="API 类型"
             name="type"
-            rules={[{ required: true, message: '请选择 API 类型' }]}
+            rules={[{ required: true, message: "请选择 API 类型" }]}
           >
             <Select
               options={API_TYPE_OPTIONS}
@@ -544,13 +616,13 @@ export default function ApiDefinitionForm() {
             shouldUpdate={(prev, curr) => prev.type !== curr.type}
           >
             {({ getFieldValue }) => {
-              const type = getFieldValue('type');
-              if (type === 'MCP_SERVER') {
+              const type = getFieldValue("type");
+              if (type === "MCP_SERVER") {
                 return (
                   <Form.Item
                     label="协议"
-                    name={['metadata', 'mcpBridgeType']}
-                    rules={[{ required: true, message: '请选择协议' }]}
+                    name={["metadata", "mcpBridgeType"]}
+                    rules={[{ required: true, message: "请选择协议" }]}
                     initialValue="HTTP_TO_MCP"
                   >
                     <Radio.Group>
@@ -560,74 +632,89 @@ export default function ApiDefinitionForm() {
                   </Form.Item>
                 );
               }
-              if (type === 'AGENT_API') {
+              if (type === "AGENT_API") {
                 return (
                   <Form.Item
                     label="协议"
-                    name={['metadata', 'protocol']}
-                    rules={[{ required: true, message: '请选择协议' }]}
+                    name={["metadata", "protocol"]}
+                    rules={[{ required: true, message: "请选择协议" }]}
                   >
                     <Select
                       placeholder="选择协议"
                       options={[
-                        { label: 'Dify', value: 'Dify' },
-                        { label: '百炼', value: 'Bailian' }
+                        { label: "Dify", value: "Dify" },
+                        { label: "百炼", value: "Bailian" },
                       ]}
                     />
                   </Form.Item>
                 );
               }
-              if (type === 'MODEL_API') {
+              if (type === "MODEL_API") {
                 return (
                   <>
                     <Form.Item
                       label="场景"
-                      name={['metadata', 'scenario']}
-                      rules={[{ required: true, message: '请选择场景' }]}
+                      name={["metadata", "scenario"]}
+                      rules={[{ required: true, message: "请选择场景" }]}
                     >
                       <Select
                         placeholder="选择场景"
                         options={SCENARIO_OPTIONS.map(opt => ({
                           label: (
-                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <div
+                              style={{
+                                display: "flex",
+                                flexDirection: "column",
+                              }}
+                            >
                               <span>{opt.label}</span>
-                              <span style={{ fontSize: '12px', color: '#888' }}>{opt.description}</span>
+                              <span style={{ fontSize: "12px", color: "#888" }}>
+                                {opt.description}
+                              </span>
                             </div>
                           ),
                           value: opt.value,
-                          title: opt.label
+                          title: opt.label,
                         }))}
                         optionLabelProp="title"
                         onChange={() => {
-                          form.setFieldValue(['metadata', 'protocol'], undefined);
+                          form.setFieldValue(
+                            ["metadata", "protocol"],
+                            undefined
+                          );
                         }}
                       />
                     </Form.Item>
                     <Form.Item
                       noStyle
-                      shouldUpdate={(prev, curr) => prev.metadata?.scenario !== curr.metadata?.scenario}
+                      shouldUpdate={(prev, curr) =>
+                        prev.metadata?.scenario !== curr.metadata?.scenario
+                      }
                     >
                       {({ getFieldValue }) => {
-                        const scenario = getFieldValue(['metadata', 'scenario']);
+                        const scenario = getFieldValue([
+                          "metadata",
+                          "scenario",
+                        ]);
                         let protocolOptions = DEFAULT_MODEL_PROTOCOLS;
 
-                        if (scenario === 'text-generation') {
+                        if (scenario === "text-generation") {
                           protocolOptions = TEXT_GENERATION_PROTOCOLS;
-                        } else if (scenario === 'image-generation') {
+                        } else if (scenario === "image-generation") {
                           protocolOptions = IMAGE_GENERATION_PROTOCOLS;
-                        } else if (scenario === 'video-generation') {
+                        } else if (scenario === "video-generation") {
                           protocolOptions = VIDEO_GENERATION_PROTOCOLS;
-                        } else if (scenario === 'speech-synthesis') {
+                        } else if (scenario === "speech-synthesis") {
                           protocolOptions = SPEECH_SYNTHESIS_PROTOCOLS;
-                        } else if (scenario === 'embedding') {
+                        } else if (scenario === "embedding") {
                           protocolOptions = EMBEDDING_PROTOCOLS;
                         }
 
                         return (
                           <Form.Item
                             label="协议"
-                            name={['metadata', 'protocol']}
-                            rules={[{ required: true, message: '请选择协议' }]}
+                            name={["metadata", "protocol"]}
+                            rules={[{ required: true, message: "请选择协议" }]}
                           >
                             <Select
                               placeholder="选择协议"
@@ -648,11 +735,11 @@ export default function ApiDefinitionForm() {
             label="版本号"
             name="version"
             rules={[
-              { required: true, message: '请输入版本号' },
+              { required: true, message: "请输入版本号" },
               {
                 pattern: /^\d+\.\d+\.\d+$/,
-                message: '版本号格式应为：x.y.z（如：1.0.0）'
-              }
+                message: "版本号格式应为：x.y.z（如：1.0.0）",
+              },
             ]}
           >
             <Input placeholder="1.0.0" />
@@ -663,8 +750,8 @@ export default function ApiDefinitionForm() {
   };
 
   const steps = isEdit
-    ? ['编辑信息', '配置属性', '配置 Endpoints']
-    : ['基本信息', '配置属性', '配置 Endpoints'];
+    ? ["编辑信息", "配置属性", "配置 Endpoints"]
+    : ["基本信息", "配置属性", "配置 Endpoints"];
 
   return (
     <div>
@@ -679,7 +766,7 @@ export default function ApiDefinitionForm() {
           返回
         </Button>
         <h1 className="text-2xl font-bold">
-          {isEdit ? '编辑 API Definition' : '创建 API Definition'}
+          {isEdit ? "编辑 API Definition" : "创建 API Definition"}
         </h1>
       </div>
 
@@ -689,7 +776,7 @@ export default function ApiDefinitionForm() {
           current={currentStep}
           items={steps.map((step, index) => ({
             key: index.toString(),
-            title: step
+            title: step,
           }))}
         />
       </Card>
@@ -700,9 +787,7 @@ export default function ApiDefinitionForm() {
 
         {/* 操作按钮 */}
         <div className="flex justify-end space-x-4 mt-6 pt-6 border-t">
-          {currentStep > 0 && (
-            <Button onClick={handlePrev}>上一步</Button>
-          )}
+          {currentStep > 0 && <Button onClick={handlePrev}>上一步</Button>}
           <Button onClick={handleBack}>取消</Button>
           {currentStep === steps.length - 1 ? (
             <Button
@@ -711,7 +796,7 @@ export default function ApiDefinitionForm() {
               loading={loading}
               onClick={handleSubmit}
             >
-              {isEdit ? '保存' : '创建'}
+              {isEdit ? "保存" : "创建"}
             </Button>
           ) : (
             <Button type="primary" onClick={handleNext}>

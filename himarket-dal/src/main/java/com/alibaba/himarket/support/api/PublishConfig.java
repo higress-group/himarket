@@ -33,7 +33,4 @@ public class PublishConfig implements Serializable {
 
     /** 域名列表 */
     private List<DomainConfig> domains;
-
-    /** 基础路径 */
-    private String basePath;
 }
