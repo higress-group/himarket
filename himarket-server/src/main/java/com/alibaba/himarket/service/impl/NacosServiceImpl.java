@@ -40,9 +40,12 @@ import com.alibaba.himarket.dto.result.mcp.NacosMCPServerResult;
 import com.alibaba.himarket.dto.result.nacos.MseNacosResult;
 import com.alibaba.himarket.dto.result.nacos.NacosNamespaceResult;
 import com.alibaba.himarket.dto.result.nacos.NacosResult;
+import com.alibaba.himarket.entity.APIEndpoint;
 import com.alibaba.himarket.entity.NacosInstance;
 import com.alibaba.himarket.repository.NacosInstanceRepository;
 import com.alibaba.himarket.service.NacosService;
+import com.alibaba.himarket.support.api.endpoint.MCPToolConfig;
+import com.alibaba.himarket.support.enums.EndpointType;
 import com.alibaba.himarket.support.enums.SourceType;
 import com.alibaba.himarket.support.product.NacosRefConfig;
 import com.alibaba.nacos.api.PropertyKeyConst;
@@ -61,6 +64,10 @@ import com.aliyun.mse20190531.models.ListClustersRequest;
 import com.aliyun.mse20190531.models.ListClustersResponse;
 import com.aliyun.mse20190531.models.ListClustersResponseBody;
 import com.aliyun.teautil.models.RuntimeOptions;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -90,6 +97,74 @@ public class NacosServiceImpl implements NacosService {
 
     // 添加缓存，用于存储AiMaintainerService实例
     private final Map<String, AiMaintainerService> aiServiceCache = new ConcurrentHashMap<>();
+
+    @Override
+    public List<APIEndpoint> importMcpTools(
+            String nacosId, String namespaceId, String mcpServerName) {
+        NacosInstance nacosInstance = findNacosInstance(nacosId);
+        McpMaintainerService service = buildDynamicAiService(nacosInstance);
+
+        try {
+            McpServerDetailInfo detail =
+                    service.getMcpServerDetail(namespaceId, mcpServerName, null);
+            if (detail == null || detail.getToolSpec() == null) {
+                return Collections.emptyList();
+            }
+
+            return convertToolSpecToEndpoints(detail.getToolSpec());
+        } catch (Exception e) {
+            log.error("Error importing MCP tools", e);
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Failed to import MCP tools");
+        }
+    }
+
+    private List<APIEndpoint> convertToolSpecToEndpoints(Object toolSpec) {
+        List<APIEndpoint> endpoints = new ArrayList<>();
+        ObjectMapper jsonMapper = new ObjectMapper();
+
+        try {
+            String toolSpecJson = jsonMapper.writeValueAsString(toolSpec);
+            JsonNode toolSpecNode = jsonMapper.readTree(toolSpecJson);
+
+            JsonNode toolsArray = null;
+            if (toolSpecNode.isArray()) {
+                toolsArray = toolSpecNode;
+            } else if (toolSpecNode.has("tools") && toolSpecNode.get("tools").isArray()) {
+                toolsArray = toolSpecNode.get("tools");
+            }
+
+            if (toolsArray != null) {
+                for (JsonNode toolNode : toolsArray) {
+                    APIEndpoint endpoint = new APIEndpoint();
+                    endpoint.setName(toolNode.path("name").asText());
+                    endpoint.setDescription(toolNode.path("description").asText());
+                    endpoint.setType(EndpointType.MCP_TOOL);
+
+                    MCPToolConfig config = new MCPToolConfig();
+
+                    // Input Schema
+                    if (toolNode.has("inputSchema")) {
+                        config.setInputSchema(
+                                jsonMapper.convertValue(toolNode.get("inputSchema"), Map.class));
+                    }
+
+                    // Request Template (Default)
+                    MCPToolConfig.RequestTemplate requestTemplate =
+                            new MCPToolConfig.RequestTemplate();
+                    requestTemplate.setUrl("/" + endpoint.getName()); // Default URL
+                    requestTemplate.setMethod("POST");
+                    config.setRequestTemplate(requestTemplate);
+
+                    endpoint.setConfig(jsonMapper.writeValueAsString(config));
+                    endpoints.add(endpoint);
+                }
+            }
+        } catch (Exception e) {
+            log.error("Failed to parse tool spec", e);
+        }
+
+        return endpoints;
+    }
 
     @Override
     public PageResult<NacosResult> listNacosInstances(Pageable pageable) {

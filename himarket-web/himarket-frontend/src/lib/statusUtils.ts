@@ -23,10 +23,10 @@ export const ProductCategoryMap: Record<string, { text: string; color: string }>
   official2: { text: "官方", color: "blue" },
 };
 
-// 来源类型映射
+// 协议映射
 export const FromTypeMap: Record<string, string> = {
   HTTP: "HTTP转MCP",
-  MCP: "MCP直接代理",
+  MCP: "MCP服务直接代理",
   OPEN_API: "OpenAPI转MCP",
   DIRECT_ROUTE: "直接路由",
   DATABASE: "数据库",

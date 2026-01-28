@@ -222,6 +222,18 @@ export const gatewayApi = {
   importGateway: (data: any) => {
     return api.post(`/gateways`, { ...data })
   },
+  // 获取网关可选域名
+  getGatewayDomains: (gatewayId: string) => {
+    return api.get(`/gateways/${gatewayId}/domains`)
+  },
+  // 获取网关支持的服务类型
+  getGatewayServiceTypes: (gatewayId: string) => {
+    return api.get(`/gateways/${gatewayId}/service-types`)
+  },
+  // 获取网关服务列表
+  getGatewayServices: (gatewayId: string) => {
+    return api.get(`/gateways/${gatewayId}/services`)
+  },
   // 更新网关
   updateGateway: (gatewayId: string, data: any) => {
     return api.put(`/gateways/${gatewayId}`, data)
@@ -257,8 +269,14 @@ export const gatewayApi = {
 } 
 
 export const nacosApi = {
+  getNacosInstances: (params?: any) => {
+    return api.get(`/nacos`, { params })
+  },
   getNacos: (params?: any) => {
     return api.get(`/nacos`, { params })
+  },
+  getNamespaces: (nacosId: string, params?: { page?: number; size?: number }) => {
+    return api.get(`/nacos/${nacosId}/namespaces`, { params })
   },
   // 从阿里云 MSE 获取 Nacos 集群列表
   getMseNacos: (params: { regionId: string; accessKey: string; secretKey: string; page?: number; size?: number }) => {
@@ -285,9 +303,81 @@ export const nacosApi = {
     namespaceId?: string 
   }) => {
     return api.get(`/nacos/${nacosId}/agents`, { params })
+  }
+}
+
+// API Definition 相关API
+export const apiDefinitionApi = {
+  // 获取 API Definition 列表
+  getApiDefinitions: (params?: {
+    page?: number;
+    size?: number;
+    type?: string;
+    status?: string;
+    keyword?: string;
+  }) => {
+    return api.get(`/api-definitions`, { params })
   },
-  // 获取指定 Nacos 实例的命名空间列表
-  getNamespaces: (nacosId: string, params?: { page?: number; size?: number }) => {
-    return api.get(`/nacos/${nacosId}/namespaces`, { params })
+  // 获取 API Definition 详情
+  getApiDefinitionDetail: (apiDefinitionId: string) => {
+    return api.get(`/api-definitions/${apiDefinitionId}`)
+  },
+  // 获取支持的属性配置列表
+  getSupportedProperties: (apiType?: string) => {
+    return api.get(`/api-definitions/supported-properties`, { 
+      params: apiType ? { apiType } : {} 
+    })
+  },
+  // 创建 API Definition
+  createApiDefinition: (data: any) => {
+    return api.post(`/api-definitions`, data)
+  },
+  // 更新 API Definition
+  updateApiDefinition: (apiDefinitionId: string, data: any) => {
+    return api.put(`/api-definitions/${apiDefinitionId}`, data)
+  },
+  // 删除 API Definition
+  deleteApiDefinition: (apiDefinitionId: string) => {
+    return api.delete(`/api-definitions/${apiDefinitionId}`)
+  },
+  // 获取 API Definition 的端点列表
+  getEndpoints: (apiDefinitionId: string) => {
+    return api.get(`/api-definitions/${apiDefinitionId}/endpoints`)
+  },
+  // 获取发布记录
+  getPublishRecords: (apiDefinitionId: string, params?: { page?: number; size?: number }) => {
+    return api.get(`/api-definitions/${apiDefinitionId}/publish-records`, { params })
+  },
+  // 发布 API
+  publishApi: (apiDefinitionId: string, data: any) => {
+    return api.post(`/api-definitions/${apiDefinitionId}/publish`, data)
+  },
+  // 取消发布
+  unpublishApi: (apiDefinitionId: string, recordId: string) => {
+    return api.delete(`/api-definitions/${apiDefinitionId}/publish-records/${recordId}`)
+  },
+  // 查询发布记录状态
+  getPublishRecordStatus: (apiDefinitionId: string, recordId: string) => {
+    return api.get(`/api-definitions/${apiDefinitionId}/publish-records/${recordId}/status`)
+  },
+  // 导入 Swagger/OpenAPI
+  importSwagger: (data: any) => {
+    return api.post(`/api-definitions/import/swagger`, data)
+  },
+  // 转换 Swagger/OpenAPI
+  convertSwagger: (data: any) => {
+    return api.post(`/tools/import/swagger`, data)
+  },
+  // 从 Nacos 导入 MCP Tool
+  importFromNacos: (data: any) => {
+    return api.post(`/tools/import/nacos`, data)
+  },
+  // 从 MCP Server 导入 MCP Tool
+  importFromMcpServer: (data: any) => {
+    return api.post(`/tools/import/mcp-server`, data)
+  },
+  // 获取可用网关能力
+  getGatewayCapabilities: (apiType: string) => {
+    return api.get(`/api-definitions/gateway-capabilities`, { params: { apiType } })
   }
 }

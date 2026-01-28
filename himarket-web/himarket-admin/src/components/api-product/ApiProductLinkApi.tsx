@@ -1,9 +1,10 @@
-import { Card, Button, Modal, Form, Select, message, Collapse, Tabs, Row, Col } from 'antd'
-import { PlusOutlined, DeleteOutlined, ExclamationCircleOutlined, CopyOutlined } from '@ant-design/icons'
+import { Card, Button, Modal, Form, Select, message, Collapse, Tabs, Row, Col, Tag, Space } from 'antd'
+import { PlusOutlined, DeleteOutlined, ExclamationCircleOutlined, CopyOutlined, EditOutlined, CloudUploadOutlined, CheckCircleOutlined, StopOutlined, SyncOutlined, CloseCircleOutlined } from '@ant-design/icons'
 import { useState, useEffect } from 'react'
-import type { ApiProduct, LinkedService, RestAPIItem, NacosMCPItem, APIGAIMCPItem, AIGatewayAgentItem, AIGatewayModelItem, ApiItem, AdpAIGatewayModelItem } from '@/types/api-product'
+import { useNavigate } from 'react-router-dom'
+import type { ApiProduct, LinkedService, RestAPIItem, NacosMCPItem, APIGAIMCPItem, AIGatewayAgentItem, AIGatewayModelItem, ApiItem, SofaHigressMCPItem, AdpAIGatewayModelItem } from '@/types/api-product'
 import type { Gateway, NacosInstance } from '@/types/gateway'
-import { apiProductApi, gatewayApi, nacosApi } from '@/lib/api'
+import { apiProductApi, gatewayApi, nacosApi, apiDefinitionApi } from '@/lib/api'
 import { getGatewayTypeLabel } from '@/lib/constant'
 import { copyToClipboard, formatDomainWithPort } from '@/lib/utils'
 import * as yaml from 'js-yaml'
@@ -17,6 +18,7 @@ interface ApiProductLinkApiProps {
 }
 
 export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUpdate, handleRefresh }: ApiProductLinkApiProps) {
+  const navigate = useNavigate()
   // 移除了内部的 linkedService 状态，现在从 props 接收
   const [isModalVisible, setIsModalVisible] = useState(false)
   const [form] = Form.useForm()
@@ -31,6 +33,8 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
   const [apiList, setApiList] = useState<ApiItem[] | NacosMCPItem[]>([])
   const [apiLoading, setApiLoading] = useState(false)
   const [sourceType, setSourceType] = useState<'GATEWAY' | 'NACOS'>('GATEWAY')
+  const [publishRecords, setPublishRecords] = useState<any[]>([])
+
   const [parsedTools, setParsedTools] = useState<Array<{
     name: string;
     description: string;
@@ -58,18 +62,38 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
 
   // 解析MCP tools配置
   useEffect(() => {
-    if (apiProduct.type === 'MCP_SERVER' && apiProduct.mcpConfig?.tools) {
-      const parsedConfig = parseYamlConfig(apiProduct.mcpConfig.tools)
-      if (parsedConfig && parsedConfig.tools && Array.isArray(parsedConfig.tools)) {
-        setParsedTools(parsedConfig.tools)
+    if (apiProduct.type === 'MCP_SERVER') {
+      if (apiProduct.mcpConfig?.tools) {
+        const parsedConfig = parseYamlConfig(apiProduct.mcpConfig.tools)
+        if (parsedConfig && parsedConfig.tools && Array.isArray(parsedConfig.tools)) {
+          setParsedTools(parsedConfig.tools)
+        } else {
+          // 如果tools字段存在但是空数组，也设置为空数组
+          setParsedTools([])
+        }
       } else {
-        // 如果tools字段存在但是空数组，也设置为空数组
         setParsedTools([])
       }
     } else {
       setParsedTools([])
     }
-  }, [apiProduct])
+  }, [apiProduct, linkedService])
+
+  // 获取 Publish Records
+  useEffect(() => {
+    if (linkedService?.sourceType === 'MANAGED' && linkedService.apiDefinition?.apiDefinitionId) {
+      const apiDefId = linkedService.apiDefinition.apiDefinitionId;
+      apiDefinitionApi.getPublishRecords(apiDefId).then((res: any) => {
+        const records = res.data?.content || res.data || [];
+        setPublishRecords(records);
+      }).catch(e => {
+        console.error('Failed to fetch publish records', e);
+        setPublishRecords([]);
+      });
+    } else {
+      setPublishRecords([]);
+    }
+  }, [linkedService]);
 
   // 生成连接配置
   // 当产品切换时重置域名选择索引
@@ -100,6 +124,8 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
           }
         } else if (linkedService.sourceType === 'NACOS' && linkedService.nacosRefConfig && 'mcpServerName' in linkedService.nacosRefConfig) {
           mcpServerName = linkedService.nacosRefConfig.mcpServerName || apiProduct.name
+        } else if (linkedService.sourceType === 'GATEWAY' && linkedService.sofaHigressRefConfig && 'mcpServerName' in linkedService.sofaHigressRefConfig) {
+          mcpServerName = linkedService.sofaHigressRefConfig.mcpServerName || apiProduct.name
         }
       }
 
@@ -267,17 +293,17 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
       })
       let result;
       if (apiProduct.type === 'REST_API') {
-        // REST API 只支持 APIG_API 网关
-        result = res.data?.content?.filter?.((item: Gateway) => item.gatewayType === 'APIG_API');
+        // REST API 只支持 APIG_API 和 SOFA_HIGRESS 网关
+        result = res.data?.content?.filter?.((item: Gateway) => item.gatewayType === 'APIG_API' || item.gatewayType === 'SOFA_HIGRESS');
       } else if (apiProduct.type === 'AGENT_API') {
         // Agent API 只支持 APIG_AI 网关
         result = res.data?.content?.filter?.((item: Gateway) => item.gatewayType === 'APIG_AI');
       } else if (apiProduct.type === 'MODEL_API') {
-        // Model API 支持 APIG_AI 和 HIGRESS 网关
-        result = res.data?.content?.filter?.((item: Gateway) => item.gatewayType === 'APIG_AI' || item.gatewayType === 'HIGRESS' || item.gatewayType === 'ADP_AI_GATEWAY');
+        // Model API 支持 APIG_AI、HIGRESS、ADP_AI_GATEWAY 和 SOFA_HIGRESS 网关
+        result = res.data?.content?.filter?.((item: Gateway) => item.gatewayType === 'APIG_AI' || item.gatewayType === 'HIGRESS' || item.gatewayType === 'SOFA_HIGRESS' || item.gatewayType === 'ADP_AI_GATEWAY');
       } else {
-        // MCP Server 支持 HIGRESS、APIG_AI、ADP_AI_GATEWAY
-        result = res.data?.content?.filter?.((item: Gateway) => item.gatewayType === 'HIGRESS' || item.gatewayType === 'APIG_AI' || item.gatewayType === 'ADP_AI_GATEWAY' || item.gatewayType === 'APSARA_GATEWAY');
+        // MCP Server 支持 HIGRESS、APIG_AI、ADP_AI_GATEWAY、SOFA_HIGRESS
+        result = res.data?.content?.filter?.((item: Gateway) => item.gatewayType === 'HIGRESS' || item.gatewayType === 'APIG_AI' || item.gatewayType === 'ADP_AI_GATEWAY' || item.gatewayType === 'APSARA_GATEWAY' || item.gatewayType === 'SOFA_HIGRESS');
       }
       setGateways(result || [])
     } catch (error) {
@@ -312,7 +338,8 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
     form.setFieldsValue({
       gatewayId: undefined,
       nacosId: undefined,
-      apiId: undefined
+      apiId: undefined,
+      apiDefinitionId: undefined
     })
   }
 
@@ -446,6 +473,47 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
           type: 'MCP Server'
         }))
         setApiList(mcpServers)
+      } else if (gateway.gatewayType === 'SOFA_HIGRESS') {
+        if (apiProduct.type === 'REST_API') {
+          // SOFA_HIGRESS类型 + REST API产品：获取REST API列表
+          const res = await gatewayApi.getGatewayRestApis(gatewayId, {
+            page: 1,
+            size: 1000 // 获取所有REST API
+          })
+          const restApis = (res.data?.content || []).map((api: any) => ({
+            apiId: api.apiId,
+            apiName: api.apiName,
+            fromGatewayType: 'SOFA_HIGRESS' as const,
+            type: 'REST API'
+          }))
+          setApiList(restApis)
+        } else if (apiProduct.type === 'MODEL_API') {
+          // SOFA_HIGRESS类型 + Model API产品：获取Model API列表
+          const res = await gatewayApi.getGatewayModelApis(gatewayId, {
+            page: 1,
+            size: 1000 // 获取所有Model API
+          })
+          const modelApis = (res.data?.content || []).map((api: any) => ({
+            modelApiId: api.modelApiId,
+            modelApiName: api.modelApiName,
+            fromGatewayType: 'SOFA_HIGRESS' as const,
+            type: 'Model API'
+          }))
+          setApiList(modelApis)
+        } else if (apiProduct.type === 'MCP_SERVER') {
+          // SOFA_HIGRESS类型：获取MCP Server列表
+          const res = await gatewayApi.getGatewayMcpServers(gatewayId, {
+            page: 1,
+            size: 1000 // 获取所有MCP Server
+          })
+          const mcpServers = (res.data?.content || []).map((api: any) => ({
+            serverId: api.serverId,
+            mcpServerName: api.mcpServerName,
+            fromGatewayType: 'SOFA_HIGRESS' as const,
+            type: 'MCP Server'
+          }))
+          setApiList(mcpServers)
+        }
       }
     } catch (error) {
     } finally {
@@ -521,7 +589,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
   // TODO
   const handleModalOk = () => {
     form.validateFields().then((values) => {
-      const { sourceType, gatewayId, nacosId, apiId } = values
+      const { sourceType, gatewayId, nacosId, apiId, apiDefinitionId } = values
       const selectedApi = apiList.find((item: any) => {
         if ('apiId' in item) {
           // REST API或MCP server 会返回apiId和mcpRouteId，此时mcpRouteId为唯一值，apiId不是
@@ -552,7 +620,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
         nacosId: sourceType === 'NACOS' ? nacosId : undefined,
         sourceType,
         productId: apiProduct.productId,
-        apigRefConfig: selectedApi && ('apiId' in selectedApi || 'agentApiId' in selectedApi || 'agentApiName' in selectedApi || 'modelApiId' in selectedApi || 'modelApiName' in selectedApi) && (!('fromGatewayType' in selectedApi) || selectedApi.fromGatewayType !== 'HIGRESS') ? selectedApi as RestAPIItem | APIGAIMCPItem | AIGatewayAgentItem | AIGatewayModelItem : undefined,
+        apigRefConfig: selectedApi && ('apiId' in selectedApi || 'agentApiId' in selectedApi || 'agentApiName' in selectedApi || 'modelApiId' in selectedApi || 'modelApiName' in selectedApi) && (!('fromGatewayType' in selectedApi) || (selectedApi.fromGatewayType !== 'HIGRESS' && selectedApi.fromGatewayType !== 'SOFA_HIGRESS')) ? selectedApi as RestAPIItem | APIGAIMCPItem | AIGatewayAgentItem | AIGatewayModelItem : undefined,
         higressRefConfig: selectedApi && 'fromGatewayType' in selectedApi && selectedApi.fromGatewayType === 'HIGRESS' ? (
           apiProduct.type === 'MODEL_API'
             ? { modelRouteName: (selectedApi as any).modelRouteName, fromGatewayType: 'HIGRESS' as const }
@@ -568,6 +636,8 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
             : selectedApi as APIGAIMCPItem
         ) : undefined,
         apsaraGatewayRefConfig: selectedApi && 'fromGatewayType' in selectedApi && selectedApi.fromGatewayType === 'APSARA_GATEWAY' ? selectedApi as APIGAIMCPItem : undefined,
+        sofaHigressRefConfig: selectedApi && 'fromGatewayType' in selectedApi && selectedApi.fromGatewayType === 'SOFA_HIGRESS' ? selectedApi as RestAPIItem | SofaHigressMCPItem : undefined,
+        apiDefinitionId: undefined,
       }
       apiProductApi.createApiProductRef(apiProduct.productId, newService).then(async () => {
         message.success('关联成功')
@@ -634,6 +704,27 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
     let sourceInfo = ''
     let gatewayInfo = ''
 
+    if (linkedService.sourceType === 'MANAGED') {
+      if (linkedService.apiDefinition) {
+        const apiDef = linkedService.apiDefinition;
+        apiName = apiDef.name;
+        apiType = apiDef.type;
+        sourceInfo = 'Managed API';
+        gatewayInfo = apiDef.apiDefinitionId;
+      } else {
+        apiName = 'Managed API';
+        apiType = apiProduct.type;
+        sourceInfo = 'Managed API';
+        gatewayInfo = linkedService.apiDefinitionId || 'Unknown';
+      }
+      return {
+        apiName,
+        apiType,
+        sourceInfo,
+        gatewayInfo
+      }
+    }
+
     // 首先根据 Product 的 type 确定基本类型
     if (apiProduct.type === 'REST_API') {
       // REST API 类型产品 - 只能关联 API 网关上的 REST API
@@ -641,6 +732,11 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
         apiName = linkedService.apigRefConfig.apiName || '未命名'
         apiType = 'REST API'
         sourceInfo = 'API网关'
+        gatewayInfo = linkedService.gatewayId || '未知'
+      } else if (linkedService.sourceType === 'GATEWAY' && linkedService.sofaHigressRefConfig && 'apiName' in linkedService.sofaHigressRefConfig) {
+        apiName = linkedService.sofaHigressRefConfig.apiName || '未命名'
+        apiType = 'REST API'
+        sourceInfo = '蚂蚁数科SOFA AI网关'
         gatewayInfo = linkedService.gatewayId || '未知'
       }
     } else if (apiProduct.type === 'MCP_SERVER') {
@@ -680,6 +776,11 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
         apiName = linkedService.nacosRefConfig.mcpServerName || '未命名'
         sourceInfo = 'Nacos服务发现'
         gatewayInfo = linkedService.nacosId || '未知'
+      } else if (linkedService.sourceType === 'GATEWAY' && linkedService.sofaHigressRefConfig && 'mcpServerName' in linkedService.sofaHigressRefConfig) {
+        // SOFA Higress网关上的MCP Server
+        apiName = linkedService.sofaHigressRefConfig.mcpServerName || '未命名'
+        sourceInfo = '蚂蚁数科SOFA AI网关'
+        gatewayInfo = linkedService.gatewayId || '未知'
       }
     } else if (apiProduct.type === 'AGENT_API') {
       // Agent API 类型产品 - 可以关联 AI 网关或 Nacos 上的 Agent API
@@ -711,6 +812,11 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
         apiName = linkedService.higressRefConfig.modelRouteName || '未命名'
         sourceInfo = 'Higress网关'
         gatewayInfo = linkedService.gatewayId || '未知'
+      } else if (linkedService.sourceType === 'GATEWAY' && linkedService.sofaHigressRefConfig && 'modelApiName' in linkedService.sofaHigressRefConfig) {
+        // Sofa Higress网关上的Model API（AI路由）
+        apiName = linkedService.sofaHigressRefConfig.modelApiName || '未命名'
+        sourceInfo = '蚂蚁数科SOFA AI网关'
+        gatewayInfo = linkedService.gatewayId || '未知'
       }
     }
 
@@ -731,22 +837,66 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
         <Card className="mb-6">
           <div className="text-center py-8">
             <div className="text-gray-500 mb-4">暂未关联任何API</div>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalVisible(true)}>
-              关联API
-            </Button>
+            <div className="space-x-4">
+              {apiProduct.type === 'MODEL_API' && (
+                <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/api-definitions/create', { state: { productName: apiProduct.name, productId: apiProduct.productId, productType: apiProduct.type, productDescription: apiProduct.description } })}>
+                  创建 API
+                </Button>
+              )}
+              <Button icon={<PlusOutlined />} onClick={() => setIsModalVisible(true)}>
+                关联已有的 API
+              </Button>
+            </div>
           </div>
         </Card>
       )
     }
+
+    const latestRecord = publishRecords && publishRecords.length > 0 ? publishRecords[0] : null;
+    const isPublished = latestRecord && latestRecord.status === 'ACTIVE';
+
+    const getStatusTag = (status: string) => {
+      switch (status) {
+        case 'ACTIVE':
+          return <Tag icon={<CheckCircleOutlined />} color="success">已发布</Tag>;
+        case 'INACTIVE':
+          return <Tag icon={<StopOutlined />} color="default">已下线</Tag>;
+        case 'PUBLISHING':
+          return <Tag icon={<SyncOutlined spin />} color="processing">发布中</Tag>;
+        case 'UNPUBLISHING':
+          return <Tag icon={<SyncOutlined spin />} color="processing">下线中</Tag>;
+        case 'FAILED':
+          return <Tag icon={<CloseCircleOutlined />} color="error">发布失败</Tag>;
+        default:
+          return <Tag color="default">未发布</Tag>;
+      }
+    };
 
     return (
       <Card
         className="mb-6"
         title="关联详情"
         extra={
-          <Button type="primary" danger icon={<DeleteOutlined />} onClick={handleDelete}>
-            解除关联
-          </Button>
+          <div className="space-x-2">
+            {linkedService.sourceType === 'MANAGED' && (
+              <>
+                <Button
+                  icon={<EditOutlined />}
+                  onClick={() => {
+                    const apiId = linkedService.apiDefinition?.apiDefinitionId || linkedService.apiDefinitionId;
+                    if (apiId) {
+                      navigate(`/api-definitions/edit?id=${apiId}`, { state: { productName: apiProduct.name, productId: apiProduct.productId, productType: apiProduct.type } });
+                    }
+                  }}
+                >
+                  编辑 API
+                </Button>
+              </>
+            )}
+            <Button type="primary" danger icon={<DeleteOutlined />} onClick={handleDelete}>
+              解除关联
+            </Button>
+          </div>
         }
       >
         <div>
@@ -763,14 +913,57 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
             <span className="text-xs text-gray-600">来源:</span>
             <span className="col-span-2 text-xs text-gray-900">{serviceInfo.sourceInfo}</span>
             <span className="text-xs text-gray-600">
-              {linkedService?.sourceType === 'NACOS' ? 'Nacos ID:' : '网关ID:'}
+              {linkedService?.sourceType === 'NACOS' ? 'Nacos ID:' :
+                linkedService?.sourceType === 'MANAGED' ? 'API Def ID:' : '网关ID:'}
             </span>
             <span className="col-span-2 text-xs text-gray-700">{serviceInfo.gatewayInfo}</span>
           </div>
+
+          {/* 第三行：发布状态（仅 Managed API 显示） */}
+          {linkedService.sourceType === 'MANAGED' && (
+            <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
+              <span className="text-xs text-gray-600">发布状态:</span>
+              <div className="col-span-5 flex items-center">
+                {getStatusTag(latestRecord?.status || 'UNPUBLISHED')}
+                {!isPublished && (
+                  <Button
+                    type="link"
+                    size="small"
+                    onClick={() => {
+                      const apiId = linkedService.apiDefinition?.apiDefinitionId || linkedService.apiDefinitionId;
+                      if (apiId) {
+                        navigate(`/api-definitions/publish?id=${apiId}`, { state: { productName: apiProduct.name, productId: apiProduct.productId, productType: apiProduct.type } });
+                      }
+                    }}
+                    style={{ marginLeft: 8, padding: 0 }}
+                  >
+                    点击发布
+                  </Button>
+                )}
+                {isPublished && (
+                  <Button
+                    type="link"
+                    size="small"
+                    onClick={() => {
+                      const apiId = linkedService.apiDefinition?.apiDefinitionId || linkedService.apiDefinitionId;
+                      if (apiId) {
+                        navigate(`/api-definitions/publish?id=${apiId}`, { state: { productName: apiProduct.name, productId: apiProduct.productId, productType: apiProduct.type } });
+                      }
+                    }}
+                    style={{ marginLeft: 8, padding: 0 }}
+                  >
+                    点击查看
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </Card>
     )
   }
+
+
 
   const renderApiConfig = () => {
     const isMcp = apiProduct.type === 'MCP_SERVER'
@@ -778,8 +971,11 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
     const isAgent = apiProduct.type === 'AGENT_API'
     const isModel = apiProduct.type === 'MODEL_API'
 
-    // MCP Server类型：无论是否有linkedService都显示tools和连接点配置  
-    if (isMcp && apiProduct.mcpConfig) {
+    // Check if we have tools from Managed API
+    const hasManagedTools = isMcp && linkedService?.sourceType === 'MANAGED' && parsedTools.length > 0;
+
+    // MCP Server类型：无论是否有linkedService都显示tools和连接点配置
+    if (isMcp && (apiProduct.mcpConfig || hasManagedTools)) {
       return (
         <Card title="配置详情">
           <Row gutter={24}>
@@ -798,7 +994,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                             <div key={idx} className={idx < parsedTools.length - 1 ? "border-b border-gray-200" : ""}>
                               <Collapse
                                 ghost
-                                expandIconPosition="end"
+                                expandIconPlacement="end"
                                 items={[{
                                   key: idx.toString(),
                                   label: tool.name,
@@ -860,117 +1056,131 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
 
             {/* 右侧：连接点配置 */}
             <Col span={9}>
-              <Card>
-                <div className="mb-4">
-                  <h3 className="text-sm font-semibold mb-3">连接点配置</h3>
+              {apiProduct.mcpConfig ? (
+                <Card>
+                  <div className="mb-4">
+                    <h3 className="text-sm font-semibold mb-3">连接点配置</h3>
 
-                  {/* 域名选择器 */}
-                  {apiProduct.mcpConfig?.mcpServerConfig?.domains && apiProduct.mcpConfig.mcpServerConfig.domains.length > 0 && (
-                    <div className="mb-2">
-                      <div className="flex border border-gray-200 rounded-md overflow-hidden">
-                        <div className="flex-shrink-0 bg-gray-50 px-3 py-2 text-xs text-gray-600 border-r border-gray-200 flex items-center whitespace-nowrap">
-                          域名
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <Select
-                            value={selectedDomainIndex}
-                            onChange={setSelectedDomainIndex}
-                            className="w-full"
-                            placeholder="选择域名"
-                            size="middle"
-                            variant='borderless'
-                            style={{
-                              fontSize: '12px',
-                              height: '100%'
-                            }}
-                          >
-                            {getDomainOptions(apiProduct.mcpConfig.mcpServerConfig.domains).map((option) => (
-                              <Select.Option key={option.value} value={option.value}>
-                                <span title={option.label} className="text-xs text-gray-900 font-mono">
-                                  {option.label}
-                                </span>
-                              </Select.Option>
-                            ))}
-                          </Select>
+                    {/* 域名选择器 */}
+                    {apiProduct.mcpConfig?.mcpServerConfig?.domains && apiProduct.mcpConfig.mcpServerConfig.domains.length > 0 && (
+                      <div className="mb-2">
+                        <div className="flex border border-gray-200 rounded-md overflow-hidden">
+                          <div className="flex-shrink-0 bg-gray-50 px-3 py-2 text-xs text-gray-600 border-r border-gray-200 flex items-center whitespace-nowrap">
+                            域名
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <Select
+                              value={selectedDomainIndex}
+                              onChange={setSelectedDomainIndex}
+                              className="w-full"
+                              placeholder="选择域名"
+                              size="middle"
+                              variant='borderless'
+                              style={{
+                                fontSize: '12px',
+                                height: '100%'
+                              }}
+                            >
+                              {getDomainOptions(apiProduct.mcpConfig.mcpServerConfig.domains).map((option) => (
+                                <Select.Option key={option.value} value={option.value}>
+                                  <span title={option.label} className="text-xs text-gray-900 font-mono">
+                                    {option.label}
+                                  </span>
+                                </Select.Option>
+                              ))}
+                            </Select>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  <Tabs
-                    size="small"
-                    defaultActiveKey={localJson ? "local" : (sseJson ? "sse" : "http")}
-                    items={(() => {
-                      const tabs = [];
+                    {/* Check if domains is empty/null and no local config */}
+                    {(!apiProduct.mcpConfig?.mcpServerConfig?.domains || apiProduct.mcpConfig.mcpServerConfig.domains.length === 0) && !localJson ? (
+                      <div className="text-gray-500 text-center py-8">
+                        暂无连接点配置数据，请先发布 API
+                      </div>
+                    ) : (
+                      <Tabs
+                        size="small"
+                        defaultActiveKey={localJson ? "local" : (sseJson ? "sse" : "http")}
+                        items={(() => {
+                          const tabs = [];
 
-                      if (localJson) {
-                        tabs.push({
-                          key: "local",
-                          label: "Stdio",
-                          children: (
-                            <div className="relative bg-gray-50 border border-gray-200 rounded-md p-3">
-                              <Button
-                                size="small"
-                                icon={<CopyOutlined />}
-                                className="absolute top-2 right-2 z-10"
-                                onClick={() => handleCopy(localJson)}
-                              >
-                              </Button>
-                              <div className="text-gray-800 font-mono text-xs overflow-x-auto">
-                                <pre className="whitespace-pre">{localJson}</pre>
-                              </div>
-                            </div>
-                          ),
-                        });
-                      } else {
-                        if (sseJson) {
-                          tabs.push({
-                            key: "sse",
-                            label: "SSE",
-                            children: (
-                              <div className="relative bg-gray-50 border border-gray-200 rounded-md p-3">
-                                <Button
-                                  size="small"
-                                  icon={<CopyOutlined />}
-                                  className="absolute top-2 right-2 z-10"
-                                  onClick={() => handleCopy(sseJson)}
-                                >
-                                </Button>
-                                <div className="text-gray-800 font-mono text-xs overflow-x-auto">
-                                  <pre className="whitespace-pre">{sseJson}</pre>
+                          if (localJson) {
+                            tabs.push({
+                              key: "local",
+                              label: "Stdio",
+                              children: (
+                                <div className="relative bg-gray-50 border border-gray-200 rounded-md p-3">
+                                  <Button
+                                    size="small"
+                                    icon={<CopyOutlined />}
+                                    className="absolute top-2 right-2 z-10"
+                                    onClick={() => handleCopy(localJson)}
+                                  >
+                                  </Button>
+                                  <div className="text-gray-800 font-mono text-xs overflow-x-auto">
+                                    <pre className="whitespace-pre">{localJson}</pre>
+                                  </div>
                                 </div>
-                              </div>
-                            ),
-                          });
-                        }
+                              ),
+                            });
+                          }
 
-                        if (httpJson) {
-                          tabs.push({
-                            key: "http",
-                            label: "Streamable HTTP",
-                            children: (
-                              <div className="relative bg-gray-50 border border-gray-200 rounded-md p-3">
-                                <Button
-                                  size="small"
-                                  icon={<CopyOutlined />}
-                                  className="absolute top-2 right-2 z-10"
-                                  onClick={() => handleCopy(httpJson)}
-                                >
-                                </Button>
-                                <div className="text-gray-800 font-mono text-xs overflow-x-auto">
-                                  <pre className="whitespace-pre">{httpJson}</pre>
+                          if (sseJson) {
+                            tabs.push({
+                              key: "sse",
+                              label: "SSE",
+                              children: (
+                                <div className="relative bg-gray-50 border border-gray-200 rounded-md p-3">
+                                  <Button
+                                    size="small"
+                                    icon={<CopyOutlined />}
+                                    className="absolute top-2 right-2 z-10"
+                                    onClick={() => handleCopy(sseJson)}
+                                  >
+                                  </Button>
+                                  <div className="text-gray-800 font-mono text-xs overflow-x-auto">
+                                    <pre className="whitespace-pre">{sseJson}</pre>
+                                  </div>
                                 </div>
-                              </div>
-                            ),
-                          });
-                        }
-                      }
+                              ),
+                            });
+                          }
 
-                      return tabs;
-                    })()}
-                  />
-                </div>
-              </Card>
+                          if (httpJson) {
+                            tabs.push({
+                              key: "http",
+                              label: "Streamable HTTP",
+                              children: (
+                                <div className="relative bg-gray-50 border border-gray-200 rounded-md p-3">
+                                  <Button
+                                    size="small"
+                                    icon={<CopyOutlined />}
+                                    className="absolute top-2 right-2 z-10"
+                                    onClick={() => handleCopy(httpJson)}
+                                  >
+                                  </Button>
+                                  <div className="text-gray-800 font-mono text-xs overflow-x-auto">
+                                    <pre className="whitespace-pre">{httpJson}</pre>
+                                  </div>
+                                </div>
+                              ),
+                            });
+                          }
+                          return tabs;
+                        })()}
+                      />
+                    )}
+                  </div>
+                </Card>
+              ) : (
+                <Card>
+                  <div className="text-gray-500 text-center py-8">
+                    暂无连接配置信息
+                  </div>
+                </Card>
+              )}
             </Col>
           </Row>
         </Card>
@@ -979,7 +1189,8 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
 
     // Agent API类型：显示协议支持和路由配置或 AgentCard
     if (isAgent && apiProduct.agentConfig?.agentAPIConfig) {
-      const agentAPIConfig = apiProduct.agentConfig.agentAPIConfig
+      let agentAPIConfig = apiProduct.agentConfig.agentAPIConfig;
+
       const routes = agentAPIConfig.routes || []
       const protocols = agentAPIConfig.agentProtocols || []
       const isA2A = protocols.includes('a2a')
@@ -1086,10 +1297,12 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
         <Card title="配置详情">
           <div className="space-y-6">
             {/* 协议信息 */}
-            {protocols.length > 0 && (
+            {(linkedService?.apiDefinition?.metadata?.protocol || protocols.length > 0) && (
               <div>
                 <div className="text-sm text-gray-600">支持协议</div>
-                <div className="font-medium">{protocols.join(', ')}</div>
+                <div className="font-medium">
+                  {linkedService?.apiDefinition?.metadata?.protocol || protocols.join(', ')}
+                </div>
               </div>
             )}
 
@@ -1251,7 +1464,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
 
                 <div className="border border-gray-200 rounded-lg overflow-hidden">
                   <Collapse
-                    ghost expandIconPosition="end"
+                    ghost expandIconPlacement="end"
                   >
                     {routes.map((route, index) => (
                       <Collapse.Panel
@@ -1363,10 +1576,10 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
     }
 
     // Model API类型：显示协议支持和路由配置
-    if (isModel && apiProduct.modelConfig?.modelAPIConfig) {
-      const modelAPIConfig = apiProduct.modelConfig.modelAPIConfig
+    let modelAPIConfig = apiProduct.modelConfig?.modelAPIConfig;
+
+    if (isModel && modelAPIConfig) {
       const routes = modelAPIConfig.routes || []
-      const protocols = modelAPIConfig.aiProtocols || []
 
       // 获取所有唯一域名的简化版本
       const getAllModelUniqueDomains = () => {
@@ -1472,45 +1685,9 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
         return null
       }
 
-      // 获取适用场景中文翻译
-      const getModelCategoryText = (category: string) => {
-        switch (category) {
-          case 'Text':
-            return '文本生成'
-          case 'Image':
-            return '图片生成'
-          case 'Video':
-            return '视频生成'
-          case 'Audio':
-            return '语音合成'
-          case 'Embedding':
-            return '向量化（Embedding）'
-          case 'Rerank':
-            return '文本排序（Rerank）'
-          case 'Others':
-            return '其他'
-          default:
-            return category || '未知'
-        }
-      }
-
       return (
         <Card title="配置详情">
           <div className="space-y-4">
-            {/* 适用场景信息 */}
-            {modelAPIConfig.modelCategory && (
-              <div className="text-sm">
-                <span className="text-gray-700">适用场景: </span>
-                <span className="font-medium">{getModelCategoryText(modelAPIConfig.modelCategory)}</span>
-              </div>
-            )}
-
-            {/* 协议信息 */}
-            <div className="text-sm">
-              <span className="text-gray-700">协议: </span>
-              <span className="font-medium">{protocols.join(', ')}</span>
-            </div>
-
             {/* 路由配置表格 */}
             {routes.length > 0 && (
               <div>
@@ -1550,7 +1727,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                 )}
 
                 <div className="border border-gray-200 rounded-lg overflow-hidden">
-                  <Collapse ghost expandIconPosition="end">
+                  <Collapse ghost expandIconPlacement="end">
                     {routes.map((route, index) => (
                       <Collapse.Panel
                         key={index}
@@ -1729,9 +1906,9 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                   if (apiProduct.type === 'AGENT_API') {
                     return gateway.gatewayType === 'APIG_AI';
                   }
-                  // 如果是Model API类型，只显示AI网关（APIG_AI）和Higress网关
+                  // 如果是Model API类型，只显示AI网关（APIG_AI）和Higress、ADP_AI_GATEWAY、蚂蚁数科AI网关（SOFA_HIGRESS）网关
                   if (apiProduct.type === 'MODEL_API') {
-                    return gateway.gatewayType === 'APIG_AI' || gateway.gatewayType === 'HIGRESS' || gateway.gatewayType === 'ADP_AI_GATEWAY';
+                    return gateway.gatewayType === 'APIG_AI' || gateway.gatewayType === 'HIGRESS' || gateway.gatewayType === 'SOFA_HIGRESS' || gateway.gatewayType === 'ADP_AI_GATEWAY';
                   }
                   return true;
                 }).map(gateway => (

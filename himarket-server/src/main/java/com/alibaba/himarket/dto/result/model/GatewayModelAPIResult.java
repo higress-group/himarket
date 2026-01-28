@@ -27,6 +27,7 @@ import lombok.Data;
         oneOf = {
             HigressModelResult.class,
             AIGWModelAPIResult.class,
+            SofaHigressModelResult.class,
         },
         discriminatorProperty = "type")
 public class GatewayModelAPIResult {}

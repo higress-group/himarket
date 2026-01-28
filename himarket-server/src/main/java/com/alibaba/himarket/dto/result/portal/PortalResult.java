@@ -61,7 +61,8 @@ public class PortalResult implements OutputConverter<PortalResult, Portal> {
     }
 
     @Data
-    static class PortalDomainConfig implements OutputConverter<PortalDomainConfig, PortalDomain> {
+    public static class PortalDomainConfig
+            implements OutputConverter<PortalDomainConfig, PortalDomain> {
 
         private String domain;
 

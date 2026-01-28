@@ -40,4 +40,7 @@ public class ConsumerAuthConfig {
      * For ADP AI Gateway
      */
     private AdpAIAuthConfig adpAIAuthConfig;
+
+    /** for Sofa Higress */
+    private SofaHigressAuthConfig sofaHigressAuthConfig;
 }

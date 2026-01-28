@@ -21,8 +21,10 @@ package com.alibaba.himarket.service;
 
 import com.alibaba.himarket.dto.params.gateway.*;
 import com.alibaba.himarket.dto.result.agent.AgentAPIResult;
+import com.alibaba.himarket.dto.result.common.DomainResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.gateway.GatewayResult;
+import com.alibaba.himarket.dto.result.gateway.GatewayServiceResult;
 import com.alibaba.himarket.dto.result.httpapi.APIResult;
 import com.alibaba.himarket.dto.result.mcp.GatewayMCPServerResult;
 import com.alibaba.himarket.dto.result.model.GatewayModelAPIResult;
@@ -100,6 +102,8 @@ public interface GatewayService {
 
     PageResult<APIResult> fetchRESTAPIs(String gatewayId, int page, int size);
 
+    List<DomainResult> getGatewayDomains(String gatewayId);
+
     PageResult<APIResult> fetchRoutes(String gatewayId, int page, int size);
 
     PageResult<GatewayMCPServerResult> fetchMcpServers(String gatewayId, int page, int size);
@@ -135,4 +139,6 @@ public interface GatewayService {
     GatewayConfig getGatewayConfig(String gatewayId);
 
     List<URI> fetchGatewayUris(String gatewayId);
+
+    List<GatewayServiceResult> fetchGatewayServices(String gatewayId);
 }

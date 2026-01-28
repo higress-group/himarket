@@ -35,6 +35,7 @@ import com.alibaba.himarket.core.utils.IdGenerator;
 import com.alibaba.himarket.dto.params.product.*;
 import com.alibaba.himarket.dto.result.ProductCategoryResult;
 import com.alibaba.himarket.dto.result.agent.AgentConfigResult;
+import com.alibaba.himarket.dto.result.api.APIDefinitionVO;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.consumer.CredentialContext;
 import com.alibaba.himarket.dto.result.gateway.GatewayResult;
@@ -56,6 +57,7 @@ import com.alibaba.himarket.support.enums.ProductStatus;
 import com.alibaba.himarket.support.enums.ProductType;
 import com.alibaba.himarket.support.enums.SourceType;
 import com.alibaba.himarket.support.product.NacosRefConfig;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.Cache;
 import io.agentscope.core.tool.mcp.McpClientWrapper;
 import jakarta.persistence.criteria.Predicate;
@@ -63,6 +65,8 @@ import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
 import jakarta.transaction.Transactional;
 import java.util.*;
+import java.util.Collections;
+import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -82,6 +86,8 @@ public class ProductServiceImpl implements ProductService {
 
     private final ContextHolder contextHolder;
 
+    private final ObjectMapper objectMapper;
+
     private final PortalService portalService;
 
     private final GatewayService gatewayService;
@@ -98,7 +104,11 @@ public class ProductServiceImpl implements ProductService {
 
     private final NacosService nacosService;
 
+    private final APIDefinitionService apiDefinitionService;
+
     private final ProductCategoryService productCategoryService;
+
+    private final APIPublishRecordRepository apiPublishRecordRepository;
 
     private final ToolManager toolManager;
 
@@ -311,6 +321,27 @@ public class ProductServiceImpl implements ProductService {
         // Clear product category relationships
         clearProductCategoryRelations(productId);
 
+        // Delete managed API definitions if exists
+        productRefRepository
+                .findByProductId(productId)
+                .ifPresent(
+                        productRef -> {
+                            if (productRef.isManaged()
+                                    && StrUtil.isNotBlank(productRef.getApiDefinitionId())) {
+                                String apiDefinitionId = productRef.getApiDefinitionId();
+                                try {
+                                    apiDefinitionService.deleteAPIDefinition(apiDefinitionId);
+                                } catch (BusinessException e) {
+                                    throw e;
+                                } catch (Exception e) {
+                                    log.warn(
+                                            "Failed to delete managed API definition: {}",
+                                            apiDefinitionId,
+                                            e);
+                                }
+                            }
+                        });
+
         productRepository.delete(product);
         productRefRepository.deleteByProductId(productId);
 
@@ -355,7 +386,18 @@ public class ProductServiceImpl implements ProductService {
     public ProductRefResult getProductRef(String productId) {
         return productRefRepository
                 .findFirstByProductId(productId)
-                .map(productRef -> new ProductRefResult().convertFrom(productRef))
+                .map(
+                        productRef -> {
+                            ProductRefResult result =
+                                    new ProductRefResult().convertFrom(productRef);
+                            if (StrUtil.isNotEmpty(result.getApiDefinitionId())) {
+                                APIDefinitionVO apiDefinition =
+                                        apiDefinitionService.getAPIDefinition(
+                                                result.getApiDefinitionId());
+                                result.setApiDefinition(apiDefinition);
+                            }
+                            return result;
+                        })
                 .orElse(null);
     }
 
@@ -376,6 +418,17 @@ public class ProductServiceImpl implements ProductService {
         // Published products cannot be unbound
         if (publicationRepository.existsByProductId(productId)) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "API product already published");
+        }
+
+        if (productRef.isManaged() && StrUtil.isNotBlank(productRef.getApiDefinitionId())) {
+            String apiDefinitionId = productRef.getApiDefinitionId();
+            try {
+                apiDefinitionService.deleteAPIDefinition(apiDefinitionId);
+            } catch (BusinessException e) {
+                throw e;
+            } catch (Exception e) {
+                log.warn("Failed to delete managed API definition: {}", apiDefinitionId, e);
+            }
         }
 
         productRefRepository.delete(productRef);
@@ -557,6 +610,8 @@ public class ProductServiceImpl implements ProductService {
                 config = productRef.getAdpAIGatewayRefConfig();
             } else if (gateway.getGatewayType().isApsaraGateway()) {
                 config = productRef.getApsaraGatewayRefConfig();
+            } else if (gateway.getGatewayType().isSofaHigress()) {
+                config = productRef.getSofaHigressRefConfig();
             } else {
                 config = productRef.getApigRefConfig();
             }
@@ -608,6 +663,14 @@ public class ProductServiceImpl implements ProductService {
                             ErrorCode.INVALID_REQUEST,
                             "Nacos source does not support product type: " + product.getType());
             }
+        } else if (sourceType.isManaged()) {
+            // Handle MANAGED API Definition
+            // For MANAGED type, API configuration comes from API Definition
+            // No need to fetch from external sources
+            // Configuration sync will be implemented when publishing API Definition
+            log.debug(
+                    "MANAGED API type detected for product {}, skipping external config sync",
+                    product.getProductId());
         }
     }
 
@@ -933,5 +996,33 @@ public class ProductServiceImpl implements ProductService {
 
         // No filter specified or no matching filter type, pass through
         return true;
+    }
+
+    private List<Map<String, Object>> convertInputSchemaToArgs(Map<String, Object> inputSchema) {
+        if (inputSchema == null || !inputSchema.containsKey("properties")) {
+            return Collections.emptyList();
+        }
+
+        Map<String, Object> properties = (Map<String, Object>) inputSchema.get("properties");
+        List<String> required =
+                (List<String>) inputSchema.getOrDefault("required", Collections.emptyList());
+
+        List<Map<String, Object>> args = new ArrayList<>();
+        for (Map.Entry<String, Object> entry : properties.entrySet()) {
+            String name = entry.getKey();
+            Map<String, Object> prop = (Map<String, Object>) entry.getValue();
+
+            Map<String, Object> arg = new HashMap<>();
+            arg.put("name", name);
+            arg.put("description", prop.get("description"));
+            arg.put("type", prop.get("type"));
+            arg.put("required", required.contains(name));
+            arg.put("defaultValue", prop.get("default"));
+            arg.put("enumValues", prop.get("enum"));
+            arg.put("position", "query");
+
+            args.add(arg);
+        }
+        return args;
     }
 }

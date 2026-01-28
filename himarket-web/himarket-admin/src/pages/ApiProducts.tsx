@@ -116,6 +116,7 @@ const ProductCard = memo(({ product, onNavigate, handleRefresh, onEdit }: {
         h-[168px]
       "
       onClick={handleClick}
+
     >
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-3">
@@ -352,7 +353,11 @@ export default function ApiProducts() {
             管理和配置您的API产品
           </p>
         </div>
-        <Button onClick={handleCreate} type="primary" icon={<PlusOutlined/>}>
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={handleCreate}
+        >
           创建 API Product
         </Button>
       </div>

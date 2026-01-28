@@ -31,6 +31,7 @@ import com.alibaba.himarket.dto.result.common.DomainResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.consumer.CredentialContext;
 import com.alibaba.himarket.dto.result.gateway.GatewayResult;
+import com.alibaba.himarket.dto.result.gateway.GatewayServiceResult;
 import com.alibaba.himarket.dto.result.httpapi.APIResult;
 import com.alibaba.himarket.dto.result.httpapi.HttpRouteResult;
 import com.alibaba.himarket.dto.result.mcp.GatewayMCPServerResult;
@@ -589,6 +590,11 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
     }
 
     @Override
+    public List<DomainResult> getGatewayDomains(Gateway gateway) {
+        return List.of();
+    }
+
+    @Override
     public List<URI> fetchGatewayUris(Gateway gateway) {
         String address =
                 Optional.ofNullable(gateway.getHigressConfig())
@@ -613,6 +619,11 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
             log.warn("Invalid gateway address: {}, error: {}", address, e.getMessage());
             return Collections.emptyList();
         }
+    }
+
+    @Override
+    public List<GatewayServiceResult> fetchGatewayServices(Gateway gateway) {
+        return Collections.emptyList();
     }
 
     @Data

@@ -36,7 +36,7 @@ const Layout: React.FC = () => {
 
   useEffect(() => {
     // 进入详情页自动折叠侧边栏
-    if (location.pathname.startsWith('/portals/detail') || location.pathname.startsWith('/api-products/detail')) {
+    if (location.pathname.startsWith('/portals/detail') || location.pathname.startsWith('/api-products/detail') || location.pathname.startsWith('/api-definitions/detail')) {
       setSidebarCollapsed(true)
     } else {
       setSidebarCollapsed(false)

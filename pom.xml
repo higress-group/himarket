@@ -56,7 +56,7 @@
         <hutool.version>5.8.33</hutool.version>
         <bouncycastle.version>1.78</bouncycastle.version>
         <springdoc.version>2.5.0</springdoc.version>
-        <apigsdk.version>5.0.6</apigsdk.version>
+        <apigsdk.version>5.0.13</apigsdk.version>
         <msesdk.version>7.21.0</msesdk.version>
         <aliyunsdk.version>4.4.6</aliyunsdk.version>
         <aliyun-sts.version>3.1.3</aliyun-sts.version>

@@ -301,8 +301,9 @@ public class ConsumerServiceImpl implements ConsumerService {
                     ErrorCode.INTERNAL_ERROR, "API product is not associated with any API");
         }
 
-        // Only gateway source type is supported
-        if (productRef.getSourceType() != SourceType.GATEWAY) {
+        // Only gateway and managed source type is supported
+        if (productRef.getSourceType() != SourceType.GATEWAY
+                && productRef.getSourceType() != SourceType.MANAGED) {
             throw new BusinessException(
                     ErrorCode.INVALID_REQUEST, "API product does not support subscription");
         }

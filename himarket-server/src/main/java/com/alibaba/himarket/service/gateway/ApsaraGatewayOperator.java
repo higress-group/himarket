@@ -27,6 +27,7 @@ import com.alibaba.himarket.dto.result.agent.AgentAPIResult;
 import com.alibaba.himarket.dto.result.common.DomainResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.gateway.GatewayResult;
+import com.alibaba.himarket.dto.result.gateway.GatewayServiceResult;
 import com.alibaba.himarket.dto.result.httpapi.APIResult;
 import com.alibaba.himarket.dto.result.mcp.AdpMCPServerResult;
 import com.alibaba.himarket.dto.result.mcp.GatewayMCPServerResult;
@@ -766,7 +767,17 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
     }
 
     @Override
+    public List<DomainResult> getGatewayDomains(Gateway gateway) {
+        return List.of();
+    }
+
+    @Override
     public List<URI> fetchGatewayUris(Gateway gateway) {
+        return Collections.emptyList();
+    }
+
+    @Override
+    public List<GatewayServiceResult> fetchGatewayServices(Gateway gateway) {
         return Collections.emptyList();
     }
 }

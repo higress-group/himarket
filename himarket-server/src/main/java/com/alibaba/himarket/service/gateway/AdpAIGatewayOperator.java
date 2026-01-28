@@ -28,6 +28,7 @@ import com.alibaba.himarket.dto.result.common.DomainResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.gateway.AdpGatewayInstanceResult;
 import com.alibaba.himarket.dto.result.gateway.GatewayResult;
+import com.alibaba.himarket.dto.result.gateway.GatewayServiceResult;
 import com.alibaba.himarket.dto.result.httpapi.APIResult;
 import com.alibaba.himarket.dto.result.httpapi.HttpRouteResult;
 import com.alibaba.himarket.dto.result.httpapi.ServiceResult;
@@ -1361,7 +1362,22 @@ public class AdpAIGatewayOperator extends GatewayOperator {
     }
 
     @Override
+    public List<DomainResult> getGatewayDomains(Gateway gateway) {
+        AdpAIGatewayConfig config = gateway.getAdpAIGatewayConfig();
+        if (config == null) {
+            return Collections.emptyList();
+        }
+        List<DomainResult> domains = getGatewayAccessDomains(gateway.getGatewayId(), config);
+        return domains != null ? domains : Collections.emptyList();
+    }
+
+    @Override
     public List<URI> fetchGatewayUris(Gateway gateway) {
+        return Collections.emptyList();
+    }
+
+    @Override
+    public List<GatewayServiceResult> fetchGatewayServices(Gateway gateway) {
         return Collections.emptyList();
     }
 
