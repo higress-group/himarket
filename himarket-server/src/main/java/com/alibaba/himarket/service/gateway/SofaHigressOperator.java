@@ -23,8 +23,6 @@ import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.BooleanUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.TypeReference;
 import com.alibaba.higress.sdk.model.route.KeyedRoutePredicate;
 import com.alibaba.higress.sdk.model.route.RoutePredicate;
 import com.alibaba.himarket.dto.result.agent.AgentAPIResult;
@@ -57,6 +55,9 @@ import com.alibaba.himarket.support.gateway.GatewayConfig;
 import com.alibaba.himarket.support.gateway.SofaHigressConfig;
 import com.alibaba.himarket.support.product.SofaHigressRefConfig;
 import com.aliyun.sdk.service.apig20240327.models.HttpApiApiInfo;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.agentscope.core.tool.mcp.McpClientWrapper;
 import io.modelcontextprotocol.spec.McpSchema;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -81,6 +82,7 @@ import org.springframework.util.ReflectionUtils;
 @Slf4j
 public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
     @Resource private ToolManager toolManager;
+    @Resource private ObjectMapper objectMapper;
 
     @Override
     public PageResult<APIResult> fetchHTTPAPIs(Gateway gateway, int page, int size) {
@@ -232,7 +234,11 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
         mcpServerConfig.setDomains(domainConvert(gateway, domains));
         mcpConfigResult.setMcpServerConfig(mcpServerConfig);
         // 设置工具信息
-        mcpConfigResult.setTools(JSON.toJSONString(response.getTools()));
+        try {
+            mcpConfigResult.setTools(objectMapper.writeValueAsString(response.getTools()));
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
         // meta
         MCPConfigResult.McpMetadata mcpMetadata = new MCPConfigResult.McpMetadata();
         mcpMetadata.setSource(GatewayType.SOFA_HIGRESS.name());

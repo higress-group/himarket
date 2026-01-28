@@ -24,13 +24,11 @@ import cn.com.antcloud.api.acapi.HttpConfig;
 import cn.com.antcloud.api.antcloud.AntCloudClient;
 import cn.com.antcloud.api.antcloud.AntCloudClientRequest;
 import cn.com.antcloud.api.antcloud.AntCloudClientResponse;
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONObject;
-import com.alibaba.fastjson.TypeReference;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.support.gateway.SofaHigressConfig;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -86,7 +84,11 @@ public class SofaHigressClient extends GatewayClient {
             ObjectMapper objectMapper) {
 
         String data = execute(path, method, requestParam, objectMapper);
-        return JSONObject.parseObject(data, typeReference);
+        try {
+            return objectMapper.readValue(data, typeReference);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /**
@@ -102,7 +104,12 @@ public class SofaHigressClient extends GatewayClient {
             String path, HttpMethod method, R requestParam, TypeReference<T> typeReference) {
 
         String data = execute(path, method, requestParam);
-        return JSONObject.parseObject(data, typeReference);
+        ObjectMapper objectMapper = new ObjectMapper();
+        try {
+            return objectMapper.readValue(data, typeReference);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /**
@@ -114,7 +121,7 @@ public class SofaHigressClient extends GatewayClient {
      * @param <R>
      */
     public <R> String execute(String path, HttpMethod method, R requestParam) {
-        return execute(path, method, requestParam, (ObjectMapper) null);
+        return execute(path, method, requestParam, new ObjectMapper());
     }
 
     /**
@@ -134,18 +141,19 @@ public class SofaHigressClient extends GatewayClient {
         Map<String, Object> request = new HashMap<>();
         // 请求路径path
         request.put("path", path);
-        JSONObject payload = new JSONObject();
+
+        Map<String, Object> payload = new HashMap<>();
         // 请求参数params
         payload.put("params", requestParam);
-        if (objectMapper != null) {
-            try {
-                request.put("payload", objectMapper.writeValueAsString(payload));
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException(e);
-            }
-        } else {
-            request.put("payload", JSON.toJSONString(payload));
+
+        ObjectMapper finalObjectMapper = objectMapper != null ? objectMapper : new ObjectMapper();
+
+        try {
+            request.put("payload", finalObjectMapper.writeValueAsString(payload));
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
         }
+
         AntCloudClientRequest clientRequest = new AntCloudClientRequest();
         clientRequest.putParametersFromObject(request);
         clientRequest.setMethod(method.name());
@@ -155,7 +163,7 @@ public class SofaHigressClient extends GatewayClient {
             log.info(
                     "call sofa higress console path: {}, requestParam: {}",
                     path,
-                    JSON.toJSONString(requestParam));
+                    finalObjectMapper.writeValueAsString(requestParam));
             clientResponse = antCloudClient.execute(clientRequest);
             if (!clientResponse.isSuccess()) {
                 log.error(
@@ -179,8 +187,13 @@ public class SofaHigressClient extends GatewayClient {
         if (data == null) {
             throw new BusinessException(ErrorCode.GATEWAY_ERROR, "Sofa Higress returned null data");
         }
-        HigressResult<String> result = JSONObject.parseObject(data, new TypeReference<>() {});
-        return result.getData();
+        try {
+            HigressResult<String> result =
+                    finalObjectMapper.readValue(data, new TypeReference<>() {});
+            return result.getData();
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /**

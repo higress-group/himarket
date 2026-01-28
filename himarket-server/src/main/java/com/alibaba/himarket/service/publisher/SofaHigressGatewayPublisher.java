@@ -1,6 +1,5 @@
 package com.alibaba.himarket.service.publisher;
 
-import com.alibaba.fastjson.TypeReference;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.dto.result.api.APIDefinitionVO;
@@ -14,6 +13,7 @@ import com.alibaba.himarket.support.enums.APIType;
 import com.alibaba.himarket.support.enums.GatewayType;
 import com.alibaba.himarket.support.product.GatewayRefConfig;
 import com.alibaba.himarket.support.product.SofaHigressRefConfig;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;

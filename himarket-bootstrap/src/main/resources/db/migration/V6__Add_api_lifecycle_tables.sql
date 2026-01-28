@@ -1,4 +1,4 @@
--- V4__Add_api_lifecycle_tables.sql
+-- V6__Add_api_lifecycle_tables.sql
 -- Add API lifecycle management tables
 -- Description: Support for API Definition, Endpoint, Publish Record and History
 
