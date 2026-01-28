@@ -22,11 +22,9 @@ package com.alibaba.himarket.service.impl;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
-import com.alibaba.himarket.dto.result.consumer.CredentialContext;
 import com.alibaba.himarket.entity.APIEndpoint;
 import com.alibaba.himarket.service.McpToolService;
-import com.alibaba.himarket.service.legacy.McpClientFactory;
-import com.alibaba.himarket.service.legacy.McpClientWrapper;
+import com.alibaba.himarket.service.hichat.manager.ToolManager;
 import com.alibaba.himarket.support.api.endpoint.MCPToolConfig;
 import com.alibaba.himarket.support.chat.mcp.MCPTransportConfig;
 import com.alibaba.himarket.support.enums.EndpointType;
@@ -34,6 +32,7 @@ import com.alibaba.himarket.support.enums.MCPTransportMode;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.agentscope.core.tool.mcp.McpClientWrapper;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -51,6 +50,7 @@ import org.springframework.stereotype.Service;
 public class McpToolServiceImpl implements McpToolService {
 
     private final ObjectMapper objectMapper;
+    private final ToolManager toolManager;
 
     @Override
     public List<APIEndpoint> importFromMcpServer(String endpoint, String token, String type) {
@@ -73,18 +73,20 @@ public class McpToolServiceImpl implements McpToolService {
                                                 "Invalid transport type: " + type));
 
         MCPTransportConfig transportConfig =
-                MCPTransportConfig.builder().url(endpoint).transportMode(transportMode).build();
+                MCPTransportConfig.builder()
+                        .url(endpoint)
+                        .transportMode(transportMode)
+                        .headers(headers)
+                        .mcpServerName("temp-import-server-" + UUID.randomUUID())
+                        .build();
 
-        CredentialContext credentialContext = CredentialContext.builder().headers(headers).build();
-
-        try (McpClientWrapper client =
-                McpClientFactory.newClient(transportConfig, credentialContext)) {
+        try (McpClientWrapper client = toolManager.createClient(transportConfig)) {
             if (client == null) {
                 throw new BusinessException(
                         ErrorCode.INTERNAL_ERROR, "Failed to connect to MCP Server");
             }
 
-            List<McpSchema.Tool> tools = client.listTools();
+            List<McpSchema.Tool> tools = client.listTools().block();
 
             return tools.stream()
                     .map(

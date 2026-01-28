@@ -47,8 +47,8 @@ import com.alibaba.himarket.entity.Consumer;
 import com.alibaba.himarket.entity.ConsumerCredential;
 import com.alibaba.himarket.entity.Gateway;
 import com.alibaba.himarket.service.gateway.client.*;
-import com.alibaba.himarket.service.legacy.McpClientFactory;
-import com.alibaba.himarket.service.legacy.McpClientWrapper;
+import com.alibaba.himarket.service.hichat.manager.ToolManager;
+import com.alibaba.himarket.support.chat.mcp.MCPTransportConfig;
 import com.alibaba.himarket.support.consumer.ApiKeyConfig;
 import com.alibaba.himarket.support.consumer.ConsumerAuthConfig;
 import com.alibaba.himarket.support.consumer.SofaHigressAuthConfig;
@@ -57,9 +57,10 @@ import com.alibaba.himarket.support.gateway.GatewayConfig;
 import com.alibaba.himarket.support.gateway.SofaHigressConfig;
 import com.alibaba.himarket.support.product.SofaHigressRefConfig;
 import com.aliyun.sdk.service.apig20240327.models.HttpApiApiInfo;
+import io.agentscope.core.tool.mcp.McpClientWrapper;
 import io.modelcontextprotocol.spec.McpSchema;
 import io.swagger.v3.oas.annotations.media.Schema;
-import java.io.IOException;
+import jakarta.annotation.Resource;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -79,6 +80,8 @@ import org.springframework.util.ReflectionUtils;
 @Service
 @Slf4j
 public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
+    @Resource private ToolManager toolManager;
+
     @Override
     public PageResult<APIResult> fetchHTTPAPIs(Gateway gateway, int page, int size) {
         return fetchHTTPorRestAPIs(gateway, page, size);
@@ -414,19 +417,26 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
                                             fillCredentialContext(credentialContext, credential));
                 });
 
+        MCPTransportConfig transportConfig = config.toTransportConfig();
+        if (transportConfig == null) {
+            return null;
+        }
+
+        transportConfig.setHeaders(credentialContext.getHeaders());
+        transportConfig.setQueryParams(credentialContext.getQueryParams());
+
         // Get and transform tool list
-        try (McpClientWrapper mcpClientWrapper =
-                McpClientFactory.newClient(config.toTransportConfig(), credentialContext)) {
+        try (McpClientWrapper mcpClientWrapper = toolManager.createClient(transportConfig)) {
             if (mcpClientWrapper == null) {
                 return null;
             }
 
-            List<McpSchema.Tool> tools = mcpClientWrapper.listTools();
+            List<McpSchema.Tool> tools = mcpClientWrapper.listTools().block();
             OpenAPIMCPConfig openAPIMCPConfig =
                     OpenAPIMCPConfig.convertFromToolList(config.getMcpServerName(), tools);
 
             return JSONUtil.toJsonStr(openAPIMCPConfig);
-        } catch (IOException e) {
+        } catch (Exception e) {
             log.error("List mcp tools failed", e);
             return null;
         }
