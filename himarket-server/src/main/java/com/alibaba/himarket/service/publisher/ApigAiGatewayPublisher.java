@@ -5,8 +5,8 @@ import com.alibaba.himarket.core.utils.McpPluginConfigUtil;
 import com.alibaba.himarket.dto.result.api.APIDefinitionVO;
 import com.alibaba.himarket.dto.result.api.APIEndpointVO;
 import com.alibaba.himarket.dto.result.mcp.McpServerInfo;
-import com.alibaba.himarket.entity.Gateway;
 import com.alibaba.himarket.entity.APIPublishRecord;
+import com.alibaba.himarket.entity.Gateway;
 import com.alibaba.himarket.repository.APIPublishRecordRepository;
 import com.alibaba.himarket.service.gateway.AIGWOperator;
 import com.alibaba.himarket.support.api.PublishConfig;
@@ -539,7 +539,10 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
         // 11. Attach other policies that are not supported in buildPolicyConfigsSDK
         attachOtherPolicies(gateway, environmentId, httpApiId, apiDefinition, "LLMApi");
 
-        return APIGRefConfig.builder().modelApiId(httpApiId).modelApiName(apiDefinition.getName()).build();
+        return APIGRefConfig.builder()
+                .modelApiId(httpApiId)
+                .modelApiName(apiDefinition.getName())
+                .build();
     }
 
     /**
@@ -887,8 +890,9 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
         String apiName = apiDefinition.getName();
 
         Optional<APIPublishRecord> latestRecord =
-                apiPublishRecordRepository.findFirstByApiDefinitionIdAndGatewayIdOrderByCreateAtDesc(
-                        apiDefinitionId, gateway.getGatewayId());
+                apiPublishRecordRepository
+                        .findFirstByApiDefinitionIdAndGatewayIdOrderByCreateAtDesc(
+                                apiDefinitionId, gateway.getGatewayId());
 
         String httpApiId = null;
         if (latestRecord.isPresent()) {
@@ -906,7 +910,8 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
                     }
                 } catch (Exception e) {
                     log.warn(
-                            "Failed to parse gatewayResourceConfig for apiDefinitionId={}, recordId={}",
+                            "Failed to parse gatewayResourceConfig for apiDefinitionId={},"
+                                    + " recordId={}",
                             apiDefinitionId,
                             latestRecord.get().getRecordId(),
                             e);
@@ -915,8 +920,7 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
         }
 
         if (StringUtils.isBlank(httpApiId)) {
-            httpApiId =
-                    operator.findHttpApiIdByName(gateway, apiName, "LLM").orElse(null);
+            httpApiId = operator.findHttpApiIdByName(gateway, apiName, "LLM").orElse(null);
         }
 
         if (StringUtils.isBlank(httpApiId)) {

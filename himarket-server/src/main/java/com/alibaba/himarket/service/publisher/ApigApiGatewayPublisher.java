@@ -648,7 +648,8 @@ public class ApigApiGatewayPublisher implements GatewayPublisher {
             if (elapsed > timeoutMillis) {
                 throw new IllegalStateException(
                         String.format(
-                                "HTTP API deploy timeout after 3 minutes: name=%s, type=%s, httpApiId=%s",
+                                "HTTP API deploy timeout after 3 minutes: name=%s, type=%s,"
+                                        + " httpApiId=%s",
                                 apiName, type, httpApiId));
             }
 
@@ -663,7 +664,8 @@ public class ApigApiGatewayPublisher implements GatewayPublisher {
                 }
             } catch (Exception e) {
                 log.warn(
-                        "Failed to fetch HTTP API deploy status: name={}, type={}, httpApiId={}, error={}",
+                        "Failed to fetch HTTP API deploy status: name={}, type={}, httpApiId={},"
+                                + " error={}",
                         apiName,
                         type,
                         httpApiId,
@@ -687,7 +689,8 @@ public class ApigApiGatewayPublisher implements GatewayPublisher {
             }
 
             log.info(
-                    "Waiting for HTTP API deploy: name={}, type={}, httpApiId={}, status={}, elapsed={}ms",
+                    "Waiting for HTTP API deploy: name={}, type={}, httpApiId={}, status={},"
+                            + " elapsed={}ms",
                     apiName,
                     type,
                     httpApiId,
