@@ -48,6 +48,9 @@ public class CreateAPIDefinitionParam implements InputConverter<APIDefinition> {
     @Size(max = 50, message = "版本号长度不能超过50个字符")
     private String version;
 
+    @Size(max = 255, message = "Base Path长度不能超过255个字符")
+    private String basePath;
+
     private List<BaseAPIProperty> properties;
 
     private Map<String, Object> metadata;

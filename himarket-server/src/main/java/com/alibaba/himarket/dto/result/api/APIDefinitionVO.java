@@ -50,6 +50,8 @@ public class APIDefinitionVO implements OutputConverter<APIDefinitionVO, APIDefi
 
     private String version;
 
+    private String basePath;
+
     private List<BaseAPIProperty> properties;
 
     private Map<String, Object> metadata;

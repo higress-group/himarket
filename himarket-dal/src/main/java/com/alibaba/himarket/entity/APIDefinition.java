@@ -68,6 +68,9 @@ public class APIDefinition extends BaseEntity {
     @Column(name = "version", length = 32)
     private String version;
 
+    @Column(name = "base_path", length = 255)
+    private String basePath;
+
     @Column(name = "properties", columnDefinition = "json")
     private String properties;
 
