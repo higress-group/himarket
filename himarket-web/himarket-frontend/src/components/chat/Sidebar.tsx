@@ -21,6 +21,8 @@ interface SidebarProps {
   onNewChat: () => void;
   onSelectSession?: (sessionId: string, productIds: string[]) => void;
   refreshTrigger?: number; // 添加刷新触发器
+  selectedType?: "TEXT" | "Image";
+  onSelectType?: (type: "TEXT" | "Image") => void;
 }
 
 interface ChatSession {
@@ -58,6 +60,8 @@ export function Sidebar({
   onNewChat,
   onSelectSession,
   refreshTrigger,
+  selectedType = "TEXT",
+  onSelectType,
 }: SidebarProps) {
   // const [selectedFeature, setSelectedFeature] = useState("language-model");
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -446,10 +450,12 @@ export function Sidebar({
           className={`
             px-3 py-2 rounded-lg text-sm cursor-pointer
             transition-all duration-200 ease-in-out overflow-hidden text-nowrap
-            hover:scale-[1.02] hover:shadow-sm bg-colorPrimaryHoverLight text-gray-900
+            hover:scale-[1.02] hover:shadow-sm 
+            ${selectedType === "TEXT" ? "bg-colorPrimaryHoverLight text-gray-900 font-medium" : "text-gray-600 hover:bg-gray-100"}
             ${isCollapsed ? "px-2 py-2 text-center" : "px-3 py-2 text-sm"}
           `}
           title={isCollapsed ? "语言模型" : ""}
+          onClick={() => onSelectType?.("TEXT")}
         >
           {isCollapsed ? (
             <MessageSquareQuote className="fill-mainTitle text-base transition-transform duration-200 hover:scale-110" />
@@ -462,12 +468,14 @@ export function Sidebar({
         </div>
         <div
           className={`
-            px-3 py-2 rounded-lg text-sm overflow-hidden text-nowrap
+            px-3 py-2 rounded-lg text-sm overflow-hidden text-nowrap cursor-pointer
             transition-all duration-200 ease-in-out
-            hover:scale-[1.02] hover:shadow-sm  text-gray-900
+            hover:scale-[1.02] hover:shadow-sm
+            ${selectedType === "Image" ? "bg-colorPrimaryHoverLight text-gray-900 font-medium" : "text-gray-600 hover:bg-gray-100"}
             ${isCollapsed ? "px-2 py-2 text-center" : "px-3 py-2 text-sm"}
           `}
-          title={isCollapsed ? "语言模型" : ""}
+          title={isCollapsed ? "文生图" : ""}
+          onClick={() => onSelectType?.("Image")}
         >
           {isCollapsed ? (
             <Image className="fill-mainTitle text-base transition-transform duration-200 hover:scale-110" />
@@ -476,9 +484,6 @@ export function Sidebar({
               <div className="flex items-center gap-2">
                 <Image className="fill-mainTitle text-base transition-transform duration-200 hover:scale-110" />
                 文生图
-              </div>
-              <div className="py-1 px-2 rounded-xl bg-[#F3F4F6] text-[#99A1AF]">
-                敬请期待
               </div>
             </div>
           )}

@@ -199,6 +199,7 @@ export interface ModelFeature {
   temperature?: number;
   streaming?: boolean;
   webSearch?: boolean;
+  enableMultiModal?: boolean;
 }
 
 export interface ProductFeature {

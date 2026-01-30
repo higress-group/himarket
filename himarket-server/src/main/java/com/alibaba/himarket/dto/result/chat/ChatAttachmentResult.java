@@ -17,31 +17,38 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.chat.content;
+package com.alibaba.himarket.dto.result.chat;
 
-import cn.hutool.core.annotation.Alias;
-import com.alibaba.himarket.support.enums.ContentType;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.Builder;
+import com.alibaba.himarket.dto.converter.OutputConverter;
+import com.alibaba.himarket.entity.ChatAttachment;
+import com.alibaba.himarket.support.enums.ChatAttachmentType;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
 
-@EqualsAndHashCode(callSuper = true)
 @Data
-public class ImageUrlContent extends MessageContent {
+public class ChatAttachmentResult implements OutputConverter<ChatAttachmentResult, ChatAttachment> {
 
-    @Alias("image_url")
-    @JsonProperty("image_url")
-    private ImageUrl imageUrl;
+    /**
+     * Attachment ID
+     */
+    private String attachmentId;
 
-    @Data
-    @Builder
-    public static class ImageUrl {
-        private String url;
-    }
+    /**
+     * Attachment name
+     */
+    private String name;
 
-    public ImageUrlContent(String url) {
-        super.type = ContentType.IMAGE_URL.getType();
-        imageUrl = ImageUrl.builder().url(url).build();
-    }
+    /**
+     * Attachment type
+     */
+    private ChatAttachmentType type;
+
+    /**
+     * MIME type
+     */
+    private String mimeType;
+
+    /**
+     * Size in bytes
+     */
+    private Long size;
 }

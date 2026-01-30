@@ -20,7 +20,7 @@
 package com.alibaba.himarket.entity;
 
 import com.alibaba.himarket.converter.ChatUsageConverter;
-import com.alibaba.himarket.converter.ListJsonConverter;
+import com.alibaba.himarket.converter.ListChatAttachmentConfigConverter;
 import com.alibaba.himarket.support.chat.ChatUsage;
 import com.alibaba.himarket.support.chat.attachment.ChatAttachmentConfig;
 import com.alibaba.himarket.support.enums.ChatStatus;
@@ -101,7 +101,7 @@ public class Chat extends BaseEntity {
      * Multi-modal content
      */
     @Column(name = "attachments", columnDefinition = "json")
-    @Convert(converter = ListJsonConverter.class)
+    @Convert(converter = ListChatAttachmentConfigConverter.class)
     private List<ChatAttachmentConfig> attachments;
 
     /**

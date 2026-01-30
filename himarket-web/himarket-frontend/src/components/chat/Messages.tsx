@@ -6,6 +6,7 @@ import { ProductIconRenderer } from "../icon/ProductIconRenderer";
 import { McpToolCallPanel } from "./McpToolCallPanel";
 import type { IModelConversation } from "../../types";
 import { copyToClipboard } from "../../lib/utils";
+import { AttachmentPreview, type PreviewAttachment } from "./AttachmentPreview";
 
 interface MessageListProps {
   conversations: IModelConversation['conversations'];
@@ -18,7 +19,7 @@ interface MessageListProps {
 
 export function Messages({
   conversations, modelName = "AI Assistant", modelIcon, onRefresh, onChangeVersion,
-  autoScrollEnabled = true, 
+  autoScrollEnabled = true,
 }: MessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -110,7 +111,10 @@ function Message({
   return (
     <div key={question.id}>
       <div className="flex justify-end">
-        <div className="max-w-[80%]">
+        <div className="max-w-[80%] flex flex-col items-end gap-2">
+          {question.attachments && question.attachments.length > 0 && (
+             <AttachmentPreview attachments={question.attachments as PreviewAttachment[]} className="mb-1 justify-end" />
+          )}
           <div className="bg-colorPrimaryBgHover px-4 py-3 rounded-lg">
             <div className="whitespace-pre-wrap leading-relaxed">
               {question.content}

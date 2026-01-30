@@ -34,10 +34,30 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public abstract class JsonConverter<T> implements AttributeConverter<T, String> {
 
+    /**
+     * Field type: object class for simple types, List.class for List, Map.class for Map
+     */
     private final Class<T> type;
 
+    /**
+     * Element type for List (e.g., ChatAttachmentConfig.class for List<ChatAttachmentConfig>), null
+     * for simple types
+     */
+    private final Class<?> elementType;
+
+    /**
+     * For simple object types: super(ChatUsage.class)
+     */
     protected JsonConverter(Class<T> type) {
+        this(type, null);
+    }
+
+    /**
+     * For List types: super(List.class, ChatAttachmentConfig.class)
+     */
+    protected JsonConverter(Class<T> type, Class<?> elementType) {
         this.type = type;
+        this.elementType = elementType;
     }
 
     @Override
@@ -57,7 +77,10 @@ public abstract class JsonConverter<T> implements AttributeConverter<T, String> 
             return null;
         }
         if (List.class.isAssignableFrom(type)) {
-            T attribute = (T) JSONUtil.toList(dbData, Object.class);
+            // Use elementType if specified, otherwise fallback to Object.class for backward
+            // compatibility
+            Class<?> listElementType = elementType != null ? elementType : Object.class;
+            T attribute = (T) JSONUtil.toList(dbData, listElementType);
             decrypt(attribute);
             return attribute;
         }

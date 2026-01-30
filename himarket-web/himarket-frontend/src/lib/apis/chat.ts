@@ -17,9 +17,14 @@ export interface ISession {
 }
 
 export interface IAttachment {
-  type: "IMAGE" | "VIDEO";
   attachmentId: string;
+  name: string;
+  type: "IMAGE" | "VIDEO" | "AUDIO" | "TEXT";
+  mimeType: string;
+  size: number;
 }
+
+export interface IAttachmentUploadResp extends IAttachment { }
 
 export interface IChatMessage {
   productId: string;
@@ -27,7 +32,9 @@ export interface IChatMessage {
   conversationId: string;
   questionId: string;
   question: string;
-  attachments?: IAttachment[];
+  attachments?: {
+    attachmentId: string;
+  }[];
   stream?: boolean;
   needMemory?: boolean;
   enableThinking?: boolean;
@@ -38,11 +45,7 @@ export interface IAnswerResult {
   answerId: string;
   productId: string;
   content: string;
-  usage?: {
-    elapsed_time?: number;
-    prompt_tokens?: number;
-    completion_tokens?: number;
-  };
+  usage?: IChatUsage;
 }
 
 export interface IAnswer {
@@ -52,7 +55,7 @@ export interface IAnswer {
 export interface IQuestion {
   questionId: string;
   content: string;
-  attachments: IAttachment[];
+  attachments: { attachmentId: string }[];
   answers: IAnswer[];
 }
 
@@ -76,12 +79,12 @@ export interface IToolCall {
   // toolMeta?: IToolMeta;
   // inputSchema?: string;
   // input?: string;
-  
-  id: string;                 // 工具调用唯一 ID
-  type: string;               // 通常为 "function"
-  name: string;               // 工具函数名
-  arguments: string;          // 工具参数 (JSON string)
-  mcpServerName?: string;     // MCP server 名称
+
+  id: string; // 工具调用唯一 ID
+  type: string; // 通常为 "function"
+  name: string; // 工具函数名
+  arguments: string; // 工具参数 (JSON string)
+  mcpServerName?: string; // MCP server 名称
 }
 
 export interface IToolResponse {
@@ -89,28 +92,18 @@ export interface IToolResponse {
   // toolMeta?: IToolMeta;
   // output?: string;
   // responseData?: string;
-  
-  id: string;                 // 工具调用唯一 ID
-  name: string;               // 工具函数名
-  result?: unknown;           // 工具执行结果
+
+  id: string; // 工具调用唯一 ID
+  name: string; // 工具函数名
+  result?: unknown; // 工具执行结果
 }
 
 export interface IChatUsage {
-  elapsed_time?: number | null;
-  first_byte_timeout?: number | null;
-  // New chat fields (camelCase)
   inputTokens?: number;
   outputTokens?: number;
   totalTokens?: number;
   elapsedTime?: number | null;
   firstByteTimeout?: number | null;
-  // Legacy fields (snake_case) - keep for backward compatibility
-  prompt_tokens?: number;
-  completion_tokens?: number;
-  total_tokens?: number;
-  prompt_tokens_details?: {
-    cached_tokens?: number;
-  } | null;
 }
 
 // ============ V2 版本数据结构 ============
@@ -118,23 +111,14 @@ export interface IChatUsage {
 export interface IAnswerV2 {
   sequence: number;
   content: string;
-  usage?: {
-    elapsed_time?: number;
-    first_byte_timeout?: number;
-    prompt_tokens?: number;
-    completion_tokens?: number;
-    total_tokens?: number;
-    prompt_tokens_details?: {
-      cached_tokens?: number;
-    };
-  };
+  usage?: IChatUsage;
 }
 
 export interface IQuestionV2 {
   questionId: string;
   content: string;
   createdAt: string;
-  attachments: IAttachment[];
+  attachments: { attachmentId: string }[];
   answers: IAnswerV2[];
 }
 
@@ -173,7 +157,6 @@ interface GetSessionsResp {
   last: boolean;
 }
 
-
 interface SendChatMessageResp {
   // 根据实际响应结构定义
   [key: string]: unknown;
@@ -185,10 +168,7 @@ interface SendChatMessageResp {
  * 创建会话
  */
 export function createSession(data: CreateSessionData) {
-  return request.post<RespI<ISession>, RespI<ISession>>(
-    '/sessions',
-    data
-  );
+  return request.post<RespI<ISession>, RespI<ISession>>("/sessions", data);
 }
 
 /**
@@ -196,7 +176,7 @@ export function createSession(data: CreateSessionData) {
  */
 export function getSessions(params?: GetSessionsParams) {
   return request.get<RespI<GetSessionsResp>, RespI<GetSessionsResp>>(
-    '/sessions',
+    "/sessions",
     {
       params: {
         page: params?.page || 0,
@@ -220,9 +200,7 @@ export function updateSession(sessionId: string, data: UpdateSessionData) {
  * 删除会话
  */
 export function deleteSession(sessionId: string) {
-  return request.delete<RespI<void>, RespI<void>>(
-    `/sessions/${sessionId}`
-  );
+  return request.delete<RespI<void>, RespI<void>>(`/sessions/${sessionId}`);
 }
 
 /**
@@ -230,7 +208,7 @@ export function deleteSession(sessionId: string) {
  */
 export function sendChatMessage(message: IChatMessage) {
   return request.post<RespI<SendChatMessageResp>, RespI<SendChatMessageResp>>(
-    '/chats',
+    "/chats",
     message
   );
 }
@@ -239,7 +217,7 @@ export function sendChatMessage(message: IChatMessage) {
  * 获取聊天消息流式接口的完整 URL（用于 SSE）
  */
 export function getChatMessageStreamUrl(): string {
-  const baseURL = (request.defaults.baseURL || '') as string;
+  const baseURL = (request.defaults.baseURL || "") as string;
   return `${baseURL}/chats`;
 }
 
@@ -256,7 +234,37 @@ export function getConversations(sessionId: string) {
  * 获取会话的历史聊天记录（V2版本 - 支持多模型对比）
  */
 export function getConversationsV2(sessionId: string) {
-  return request.get<RespI<IProductConversations[]>, RespI<IProductConversations[]>>(
-    `/sessions/${sessionId}/conversations/v2`
+  return request.get<
+    RespI<IProductConversations[]>,
+    RespI<IProductConversations[]>
+  >(`/sessions/${sessionId}/conversations/v2`);
+}
+
+/**
+ * 上传附件
+ */
+export function uploadAttachment(file: File) {
+  const formData = new FormData();
+  formData.append("file", file);
+  return request.post<
+    RespI<IAttachmentUploadResp>,
+    RespI<IAttachmentUploadResp>
+  >("/attachments", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+}
+
+export interface IAttachmentContent extends IAttachment {
+  data: string;
+}
+
+/**
+ * 获取附件内容
+ */
+export function getAttachment(attachmentId: string) {
+  return request.get<RespI<IAttachmentContent>, RespI<IAttachmentContent>>(
+    `/attachments/${attachmentId}`
   );
 }

@@ -39,5 +39,12 @@ public class QueryProductParam {
 
     private String excludeCategoryId;
 
-    private Boolean querySubscribeStatus;
+    private ModelFilter modelFilter;
+
+    /**
+     * Check if any type-specific filter is present
+     */
+    public boolean hasFilter() {
+        return modelFilter != null;
+    }
 }

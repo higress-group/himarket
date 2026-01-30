@@ -26,8 +26,12 @@ import cn.hutool.core.lang.ObjectId;
  *
  * <p>Format: prefix + 24-char string
  *
- * <p>Supported ID types: - Portal ID: portal-xxxxxx - API Product ID: product-xxxxxx - Developer
- * ID: dev-xxxxxx - Administrator ID: admin-xxxxxx - Category ID: category-xxxxxx
+ * <p>Supported ID types:
+ * - Portal ID: portal-xxxxxx
+ * - API Product ID: product-xxxxxx
+ * - Developer ID: dev-xxxxxx
+ * - Administrator ID: admin-xxxxxx
+ * - Category ID: category-xxxxxx
  *
  * <p>Note: - API ID is synced from gateway
  */
@@ -44,6 +48,7 @@ public class IdGenerator {
 
     private static final String SESSION_PREFIX = "session-";
     private static final String CHAT_PREFIX = "chat-";
+    private static final String CHAT_ATTACHMENT_PREFIX = "attachment-";
     private static final String SUBSCRIPTION_PREFIX = "subscription-";
     private static final String PUBLICATION_PREFIX = "publication-";
 
@@ -97,5 +102,9 @@ public class IdGenerator {
 
     public static String genIdWithPrefix(String prefix) {
         return prefix + ObjectId.next();
+    }
+
+    public static String genChatAttachmentId() {
+        return CHAT_ATTACHMENT_PREFIX + ObjectId.next();
     }
 }

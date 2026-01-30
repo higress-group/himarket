@@ -128,10 +128,9 @@ public interface ProductService {
      * including categories, API config, MCP config, agent config and model config
      *
      * @param productIds
-     * @param withConfig
      * @return
      */
-    Map<String, ProductResult> getProducts(List<String> productIds, boolean withConfig);
+    Map<String, ProductResult> getProducts(List<String> productIds);
 
     /**
      * Get API product subscription information

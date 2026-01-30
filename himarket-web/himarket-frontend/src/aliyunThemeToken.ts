@@ -7,7 +7,10 @@ export const colors = {
   "colorTextSecondaryCustom": "#A3A3A3",
   "colorPrimaryBorderHover": "#A5B4FC",
   "subTitle": "#737373",
-  "mainTitle": "#404040"
+  "mainTitle": "#404040",
+  "indigo-500": "#6366F1",
+  "accent-dark": "#404040",
+  "ring-light": "#A3A3A3",
 }
 
 export default {

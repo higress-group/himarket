@@ -25,6 +25,7 @@ import com.alibaba.himarket.dto.params.category.UpdateProductCategoryParam;
 import com.alibaba.himarket.dto.result.ProductCategoryResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import java.util.List;
+import java.util.Map;
 import org.springframework.data.domain.Pageable;
 
 public interface ProductCategoryService {
@@ -79,6 +80,14 @@ public interface ProductCategoryService {
      * @return
      */
     List<ProductCategoryResult> listCategoriesForProduct(String productId);
+
+    /**
+     * List all product categories for multiple products.
+     *
+     * @param productIds the list of product IDs
+     * @return Map of productId to list of categories
+     */
+    Map<String, List<ProductCategoryResult>> listCategoriesForProducts(List<String> productIds);
 
     /**
      * Bind product categories to a product.
