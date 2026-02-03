@@ -19,8 +19,8 @@
 
 package com.alibaba.himarket.core.advice;
 
-import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.core.response.Response;
+import com.alibaba.himarket.utils.JsonUtil;
 import java.lang.reflect.Method;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.MethodParameter;
@@ -86,7 +86,7 @@ public class ResponseAdvice implements ResponseBodyAdvice<Object> {
         response.setStatusCode(HttpStatus.OK);
 
         if (body instanceof String) {
-            return JSONUtil.toJsonStr(Response.ok(body));
+            return JsonUtil.toJson(Response.ok(body));
         }
         return Response.ok(body);
     }

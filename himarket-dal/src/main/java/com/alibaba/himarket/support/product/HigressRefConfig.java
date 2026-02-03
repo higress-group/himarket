@@ -22,7 +22,7 @@ package com.alibaba.himarket.support.product;
 import lombok.Data;
 
 @Data
-public class HigressRefConfig {
+public class HigressRefConfig extends GatewayRefConfig {
 
     private String routeName;
 

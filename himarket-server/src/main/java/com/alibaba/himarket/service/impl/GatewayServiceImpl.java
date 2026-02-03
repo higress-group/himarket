@@ -25,11 +25,12 @@ import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.core.security.ContextHolder;
-import com.alibaba.himarket.core.utils.IdGenerator;
 import com.alibaba.himarket.dto.params.gateway.*;
 import com.alibaba.himarket.dto.result.agent.AgentAPIResult;
+import com.alibaba.himarket.dto.result.common.DomainResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.gateway.GatewayResult;
+import com.alibaba.himarket.dto.result.gateway.GatewayServiceResult;
 import com.alibaba.himarket.dto.result.httpapi.APIResult;
 import com.alibaba.himarket.dto.result.mcp.GatewayMCPServerResult;
 import com.alibaba.himarket.dto.result.model.GatewayModelAPIResult;
@@ -45,6 +46,7 @@ import com.alibaba.himarket.support.consumer.ConsumerAuthConfig;
 import com.alibaba.himarket.support.enums.APIGAPIType;
 import com.alibaba.himarket.support.enums.GatewayType;
 import com.alibaba.himarket.support.gateway.GatewayConfig;
+import com.alibaba.himarket.utils.IdGenerator;
 import jakarta.persistence.criteria.Predicate;
 import java.net.URI;
 import java.util.ArrayList;
@@ -116,6 +118,8 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
         Gateway gateway = param.convertTo();
         if (gateway.getGatewayType().isHigress()) {
             gateway.setGatewayId(IdGenerator.genHigressGatewayId());
+        } else if (gateway.getGatewayType().isSofaHigress()) {
+            gateway.setGatewayId(IdGenerator.genSofaHigressGatewayId());
         }
         gateway.setAdminId(contextHolder.getUser());
         gatewayRepository.save(gateway);
@@ -296,6 +300,8 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
             refConfig = productRef.getAdpAIGatewayRefConfig();
         } else if (gateway.getGatewayType().isApsaraGateway()) {
             refConfig = productRef.getApsaraGatewayRefConfig();
+        } else if (gateway.getGatewayType().isSofaHigress()) {
+            refConfig = productRef.getSofaHigressRefConfig();
         } else {
             refConfig = productRef.getApigRefConfig();
         }
@@ -320,6 +326,7 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
                 .higressConfig(gateway.getHigressConfig())
                 .adpAIGatewayConfig(gateway.getAdpAIGatewayConfig())
                 .apsaraGatewayConfig(gateway.getApsaraGatewayConfig())
+                .sofaHigressConfig(gateway.getSofaHigressConfig())
                 .gateway(gateway) // 添加Gateway实体引用
                 .build();
     }
@@ -365,6 +372,18 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
         // Shuffle the list
         Collections.shuffle(gatewayUris);
         return gatewayUris;
+    }
+
+    @Override
+    public List<DomainResult> getGatewayDomains(String gatewayId) {
+        Gateway gateway = findGateway(gatewayId);
+        return getOperator(gateway).getGatewayDomains(gateway);
+    }
+
+    @Override
+    public List<GatewayServiceResult> fetchGatewayServices(String gatewayId) {
+        Gateway gateway = findGateway(gatewayId);
+        return getOperator(gateway).fetchGatewayServices(gateway);
     }
 
     private Specification<Gateway> buildGatewaySpec(QueryGatewayParam param) {

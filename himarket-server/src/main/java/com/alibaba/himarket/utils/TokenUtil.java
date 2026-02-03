@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package com.alibaba.himarket.core.utils;
+package com.alibaba.himarket.utils;
 
 import cn.hutool.core.map.MapUtil;
 import cn.hutool.core.util.ObjectUtil;

@@ -19,11 +19,16 @@
 
 package com.alibaba.himarket.dto.result.common;
 
+import java.util.Map;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class DomainResult {
 
     private String domain;
@@ -33,4 +38,6 @@ public class DomainResult {
     private String protocol;
 
     private String networkType;
+
+    private Map<String, String> meta;
 }

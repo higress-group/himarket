@@ -19,7 +19,8 @@ const SourceMap: Record<string, string> = {
   APIG_AI: "AI网关",
   HIGRESS: "Higress",
   NACOS: "Nacos",
-  APIG_API: "API网关"
+  APIG_API: "API网关",
+  SOFA_HIGRESS: "蚂蚁数科SOFA AI网关"
 };
 
 interface ApiProductApiDocsProps {

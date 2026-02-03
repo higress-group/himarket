@@ -19,8 +19,10 @@
 package com.alibaba.himarket.service.hichat.support;
 
 import com.alibaba.himarket.support.chat.ChatUsage;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 /**
  * Unified streaming chunk structure for chat responses.
@@ -201,6 +203,8 @@ public class ChatEvent {
      */
     @Data
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class ToolCallContent {
         /**
          * Tool call ID
@@ -228,6 +232,8 @@ public class ChatEvent {
      */
     @Data
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class ToolResultContent {
         /**
          * Tool call ID (matches the call)

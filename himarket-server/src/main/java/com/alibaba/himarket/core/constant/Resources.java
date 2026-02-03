@@ -60,4 +60,8 @@ public class Resources {
     public static final String SUBSCRIPTION = "Subscription";
 
     public static final String CHAT_SESSION = "ChatSession";
+
+    public static final String API_DEFINITION = "ApiDefinition";
+
+    public static final String PUBLISH_RECORD = "PublishRecord";
 }

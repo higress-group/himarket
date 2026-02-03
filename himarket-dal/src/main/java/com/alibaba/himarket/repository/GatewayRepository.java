@@ -20,7 +20,11 @@
 package com.alibaba.himarket.repository;
 
 import com.alibaba.himarket.entity.Gateway;
+import com.alibaba.himarket.support.enums.GatewayType;
+import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 public interface GatewayRepository extends BaseRepository<Gateway, Long> {
 
@@ -39,4 +43,14 @@ public interface GatewayRepository extends BaseRepository<Gateway, Long> {
      * @return the gateway if found
      */
     Optional<Gateway> findByGatewayName(String gatewayName);
+
+    Page<Gateway> findByAdminId(String adminId, Pageable pageable);
+
+    /**
+     * 根据网关类型列表查询网关
+     *
+     * @param gatewayTypes 网关类型列表
+     * @return 网关列表
+     */
+    List<Gateway> findByGatewayTypeIn(List<GatewayType> gatewayTypes);
 }

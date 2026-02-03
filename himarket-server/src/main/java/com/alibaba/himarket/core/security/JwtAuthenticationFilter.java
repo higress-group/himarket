@@ -20,8 +20,8 @@
 package com.alibaba.himarket.core.security;
 
 import com.alibaba.himarket.core.constant.CommonConstants;
-import com.alibaba.himarket.core.utils.TokenUtil;
 import com.alibaba.himarket.support.common.User;
+import com.alibaba.himarket.utils.TokenUtil;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

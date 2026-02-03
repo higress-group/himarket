@@ -23,8 +23,10 @@ import com.alibaba.himarket.support.chat.ChatUsage;
 import com.alibaba.himarket.support.chat.attachment.ChatAttachmentConfig;
 import java.time.LocalDateTime;
 import java.util.List;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
 @Builder
@@ -36,6 +38,8 @@ public class ProductConversationResult {
 
     @Data
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class ConversationResult {
         private String conversationId;
         private List<QuestionResult> questions;
@@ -43,6 +47,8 @@ public class ProductConversationResult {
 
     @Data
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class QuestionResult {
         private String questionId;
         private String content;
@@ -53,6 +59,8 @@ public class ProductConversationResult {
 
     @Data
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class AnswerResult {
         private Integer sequence;
         private String answerId;

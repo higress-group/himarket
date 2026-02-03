@@ -21,8 +21,6 @@ package com.alibaba.himarket.service.impl;
 
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
-import cn.hutool.json.JSONObject;
-import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.core.constant.IdpConstants;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
@@ -31,6 +29,8 @@ import com.alibaba.himarket.service.gateway.factory.HTTPClientFactory;
 import com.alibaba.himarket.support.enums.GrantType;
 import com.alibaba.himarket.support.enums.PublicKeyFormat;
 import com.alibaba.himarket.support.portal.*;
+import com.alibaba.himarket.utils.JsonUtil;
+import com.fasterxml.jackson.databind.JsonNode;
 import java.math.BigInteger;
 import java.security.KeyFactory;
 import java.security.PublicKey;
@@ -249,7 +249,7 @@ public class IdpServiceImpl implements IdpService {
     }
 
     private PublicKey loadPublicKeyFromJwk(String jwkContent) {
-        JSONObject jwk = JSONUtil.parseObj(jwkContent);
+        JsonNode jwk = JsonUtil.readTree(jwkContent);
 
         // Validate required fields
         String kty = getRequiredField(jwk, "kty");
@@ -260,7 +260,7 @@ public class IdpServiceImpl implements IdpService {
         return loadRSAPublicKeyFromJwk(jwk);
     }
 
-    private PublicKey loadRSAPublicKeyFromJwk(JSONObject jwk) {
+    private PublicKey loadRSAPublicKeyFromJwk(JsonNode jwk) {
         // Get required RSA parameters
         String nStr = getRequiredField(jwk, "n");
         String eStr = getRequiredField(jwk, "e");
@@ -285,8 +285,13 @@ public class IdpServiceImpl implements IdpService {
         }
     }
 
-    private String getRequiredField(JSONObject jwk, String fieldName) {
-        String value = jwk.getStr(fieldName);
+    private String getRequiredField(JsonNode jwk, String fieldName) {
+        JsonNode fieldNode = jwk.get(fieldName);
+        if (fieldNode == null || fieldNode.isNull()) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST, "Missing field in JWK: " + fieldName);
+        }
+        String value = fieldNode.asText();
         if (StrUtil.isBlank(value)) {
             throw new BusinessException(
                     ErrorCode.INVALID_REQUEST, "Missing field in JWK: " + fieldName);

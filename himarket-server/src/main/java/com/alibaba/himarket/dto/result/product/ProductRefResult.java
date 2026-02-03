@@ -19,12 +19,16 @@
 
 package com.alibaba.himarket.dto.result.product;
 
+import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.dto.converter.OutputConverter;
+import com.alibaba.himarket.dto.result.api.APIDefinitionResult;
 import com.alibaba.himarket.entity.ProductRef;
 import com.alibaba.himarket.support.enums.SourceType;
 import com.alibaba.himarket.support.product.APIGRefConfig;
 import com.alibaba.himarket.support.product.HigressRefConfig;
 import com.alibaba.himarket.support.product.NacosRefConfig;
+import com.alibaba.himarket.support.product.SofaHigressRefConfig;
 import lombok.Data;
 
 @Data
@@ -44,7 +48,22 @@ public class ProductRefResult implements OutputConverter<ProductRefResult, Produ
 
     private HigressRefConfig higressRefConfig;
 
+    private SofaHigressRefConfig sofaHigressRefConfig;
+
     private String nacosId;
 
     private NacosRefConfig nacosRefConfig;
+
+    private String apiDefinitionId;
+
+    private APIDefinitionResult apiDefinition;
+
+    @Override
+    public ProductRefResult convertFrom(ProductRef productRef) {
+        BeanUtil.copyProperties(productRef, this, configOptions());
+        if (StrUtil.isNotBlank(productRef.getApiDefinitionId())) {
+            this.apiDefinitionId = productRef.getApiDefinitionId();
+        }
+        return this;
+    }
 }

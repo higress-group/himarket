@@ -2,12 +2,13 @@ export interface Gateway {
   gatewayId: string
   gatewayName: string
   description?: string
-  gatewayType: 'APIG_API' | 'HIGRESS' | 'APIG_AI' | 'ADP_AI_GATEWAY' | 'APSARA_GATEWAY'
+  gatewayType: 'APIG_API' | 'HIGRESS' | 'APIG_AI' | 'ADP_AI_GATEWAY' | 'APSARA_GATEWAY' | 'SOFA_HIGRESS'
   createAt: string
   apigConfig?: ApigConfig
   higressConfig?: HigressConfig
   adpAIGatewayConfig?: AdpAIGatewayConfig
   apsaraGatewayConfig?: ApsaraGatewayConfig
+  sofaHigressConfig?: SofaHigressConfig
 }
 
 export interface ApigConfig {
@@ -45,6 +46,14 @@ export interface ApsaraGatewayConfig {
   xAcsCallerType?: string
 }
 
+export interface SofaHigressConfig {
+  address: string
+  accessKey: string
+  secretKey: string
+  tenantId: string
+  workspaceId: string
+}
+
 export interface NacosInstance {
   nacosId: string
   nacosName: string
@@ -58,4 +67,11 @@ export interface NacosInstance {
   createAt?: string | number
 }
 
-export type GatewayType = 'APIG_API' | 'APIG_AI' | 'HIGRESS' | 'ADP_AI_GATEWAY' | 'APSARA_GATEWAY'
+export type GatewayType = 'APIG_API' | 'APIG_AI' | 'HIGRESS' | 'ADP_AI_GATEWAY' | 'APSARA_GATEWAY' | 'SOFA_HIGRESS'
+
+export interface DomainResult {
+  domain: string
+  port?: number
+  protocol?: string
+  networkType?: string
+}

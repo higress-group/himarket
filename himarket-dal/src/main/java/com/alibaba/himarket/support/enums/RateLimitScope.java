@@ -17,19 +17,21 @@
  * under the License.
  */
 
-package com.alibaba.himarket.core.utils;
+package com.alibaba.himarket.support.enums;
 
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+/** 限流范围枚举 */
+public enum RateLimitScope {
 
-public class PasswordHasher {
+    /** 全局 */
+    GLOBAL,
 
-    private static final BCryptPasswordEncoder ENCODER = new BCryptPasswordEncoder();
+    /** 消费者 */
+    CONSUMER,
 
-    public static String hash(String plainPassword) {
-        return ENCODER.encode(plainPassword);
-    }
+    /** IP */
+    IP,
 
-    public static boolean verify(String plainPassword, String hashed) {
-        return ENCODER.matches(plainPassword, hashed);
-    }
+    /** 自定义 */
+    CUSTOM,
+    ;
 }

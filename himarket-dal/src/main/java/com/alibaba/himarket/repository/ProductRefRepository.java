@@ -36,6 +36,8 @@ public interface ProductRefRepository extends BaseRepository<ProductRef, Long> {
      */
     Optional<ProductRef> findByProductId(String productId);
 
+    Optional<ProductRef> findByApiDefinitionId(String apiDefinitionId);
+
     /**
      * Find first product reference by product ID
      *

@@ -50,6 +50,9 @@ public enum GatewayType {
      * Higress
      */
     HIGRESS("Higress"),
+
+    /** SOFA Higress */
+    SOFA_HIGRESS("SOFA_HIGRESS"),
     ;
 
     private final String type;
@@ -72,5 +75,9 @@ public enum GatewayType {
 
     public boolean isApsaraGateway() {
         return this == APSARA_GATEWAY;
+    }
+
+    public boolean isSofaHigress() {
+        return this == SOFA_HIGRESS;
     }
 }

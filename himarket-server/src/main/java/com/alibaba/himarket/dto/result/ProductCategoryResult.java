@@ -37,7 +37,7 @@ public class ProductCategoryResult
 
     private Icon icon;
 
-    private LocalDateTime createAt;
+    private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
 }

@@ -19,8 +19,6 @@
 
 package com.alibaba.himarket.service.impl;
 
-import cn.hutool.json.JSONObject;
-import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.core.security.ContextHolder;
 import com.alibaba.himarket.service.PortalService;
 import com.alibaba.himarket.service.TalkSearchAbilityService;
@@ -28,6 +26,8 @@ import com.alibaba.himarket.service.gateway.factory.HTTPClientFactory;
 import com.alibaba.himarket.support.chat.search.SearchContext;
 import com.alibaba.himarket.support.chat.search.SearchInput;
 import com.alibaba.himarket.support.enums.SearchEngineType;
+import com.alibaba.himarket.utils.JsonUtil;
+import com.fasterxml.jackson.core.type.TypeReference;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -200,7 +200,8 @@ public class TalkSearchAbilityServiceGoogleImpl
         int id = 1;
         if (searchResponse.getStatusCode().is2xxSuccessful()) {
             String body = searchResponse.getBody();
-            JSONObject jsonObject = JSONUtil.parseObj(body);
+            Map<String, Object> jsonObject =
+                    JsonUtil.parse(body, new TypeReference<Map<String, Object>>() {});
 
             for (String resultType : STANDARD_RESULT_TYPES) {
                 List<Map<String, Object>> resultList = getResultList(jsonObject, resultType);

@@ -19,6 +19,7 @@
 
 package com.alibaba.himarket.dto.converter;
 
+import com.alibaba.himarket.utils.JsonUtil;
 import com.alibaba.nacos.api.ai.model.mcp.McpServerDetailInfo;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -57,9 +58,8 @@ public class NacosToGatewayToolsConverter {
 
     private void convertTools(Object toolSpec) {
         try {
-            ObjectMapper jsonMapper = new ObjectMapper();
-            String toolSpecJson = jsonMapper.writeValueAsString(toolSpec);
-            JsonNode toolSpecNode = jsonMapper.readTree(toolSpecJson);
+            String toolSpecJson = JsonUtil.toJson(toolSpec);
+            JsonNode toolSpecNode = JsonUtil.readTree(toolSpecJson);
 
             if (toolSpecNode.isArray()) {
                 for (JsonNode toolNode : toolSpecNode) {

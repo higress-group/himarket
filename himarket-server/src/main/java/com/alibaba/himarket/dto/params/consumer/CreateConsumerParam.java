@@ -23,11 +23,15 @@ import com.alibaba.himarket.dto.converter.InputConverter;
 import com.alibaba.himarket.entity.Consumer;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class CreateConsumerParam implements InputConverter<Consumer> {
 
     @NotBlank(message = "Consumer名称不能为空")

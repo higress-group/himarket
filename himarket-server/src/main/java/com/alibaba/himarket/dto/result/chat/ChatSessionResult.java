@@ -37,7 +37,7 @@ public class ChatSessionResult implements OutputConverter<ChatSessionResult, Cha
 
     private List<String> products;
 
-    private LocalDateTime createAt;
+    private LocalDateTime createdAt;
 
     private LocalDateTime updateAt;
 }

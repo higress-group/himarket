@@ -38,44 +38,44 @@ public class PageResult<T> implements OutputConverter<PageResult<T>, Page<T>> {
 
     private List<T> content;
 
-    private int number;
+    private int pageNumber;
 
-    private int size;
+    private int pageSize;
 
-    private long totalElements;
+    private long totalCount;
 
     public <S> PageResult<T> mapFrom(PageResult<S> source, Function<S, T> mapper) {
         setContent(source.getContent().stream().map(mapper).collect(Collectors.toList()));
-        setSize(source.getSize());
-        setNumber(source.getNumber());
-        setTotalElements(source.getTotalElements());
+        setPageSize(source.getPageSize());
+        setPageNumber(source.getPageNumber());
+        setTotalCount(source.getTotalCount());
         return this;
     }
 
     public <S> PageResult<T> convertFrom(Page<S> source, Function<S, T> mapper) {
         setContent(source.getContent().stream().map(mapper).collect(Collectors.toList()));
-        setSize(source.getSize());
+        setPageSize(source.getSize());
         // 由Pageable转换时修正
-        setNumber(source.getNumber() + 1);
-        setTotalElements(source.getTotalElements());
+        setPageNumber(source.getNumber() + 1);
+        setTotalCount(source.getTotalElements());
         return this;
     }
 
     public static <T> PageResult<T> empty(int pageNumber, int pageSize) {
         return PageResult.<T>builder()
                 .content(new ArrayList<>())
-                .number(pageNumber)
-                .size(pageSize)
-                .totalElements(0)
+                .pageNumber(pageNumber)
+                .pageSize(pageSize)
+                .totalCount(0)
                 .build();
     }
 
     public static <T> PageResult<T> of(List<T> content, int pageNumber, int pageSize, long total) {
         return PageResult.<T>builder()
                 .content(content)
-                .number(pageNumber)
-                .size(pageSize)
-                .totalElements(total)
+                .pageNumber(pageNumber)
+                .pageSize(pageSize)
+                .totalCount(total)
                 .build();
     }
 }

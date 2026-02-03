@@ -21,7 +21,6 @@ package com.alibaba.himarket.service.gateway;
 
 import cn.hutool.core.codec.Base64;
 import cn.hutool.core.util.StrUtil;
-import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.dto.result.agent.AgentAPIResult;
@@ -33,6 +32,7 @@ import com.alibaba.himarket.dto.result.httpapi.HttpRouteResult;
 import com.alibaba.himarket.dto.result.mcp.APIGMCPServerResult;
 import com.alibaba.himarket.dto.result.mcp.GatewayMCPServerResult;
 import com.alibaba.himarket.dto.result.mcp.MCPConfigResult;
+import com.alibaba.himarket.dto.result.mcp.McpServerInfo;
 import com.alibaba.himarket.dto.result.model.AIGWModelAPIResult;
 import com.alibaba.himarket.dto.result.model.GatewayModelAPIResult;
 import com.alibaba.himarket.dto.result.model.ModelConfigResult;
@@ -44,12 +44,14 @@ import com.alibaba.himarket.support.enums.APIGAPIType;
 import com.alibaba.himarket.support.enums.APIGResourceType;
 import com.alibaba.himarket.support.enums.GatewayType;
 import com.alibaba.himarket.support.product.APIGRefConfig;
+import com.alibaba.himarket.utils.JsonUtil;
 import com.aliyun.sdk.gateway.pop.exception.PopClientException;
 import com.aliyun.sdk.service.apig20240327.models.*;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -59,6 +61,31 @@ import org.springframework.stereotype.Service;
 @Service
 @Slf4j
 public class AIGWOperator extends APIGOperator {
+
+    /**
+     * Fetch gateway environment ID
+     *
+     * @param gateway The gateway
+     * @return The environment ID
+     */
+    public String getGatewayEnvironmentId(Gateway gateway) {
+        return fetchGatewayEnv(gateway);
+    }
+
+    /**
+     * Get domain IDs for specified domains
+     *
+     * @param gateway            The gateway
+     * @param publishedDomainSet The set of domains to find IDs for
+     * @return List of domain IDs
+     */
+    public List<String> getDomainIds(Gateway gateway, Set<String> publishedDomainSet) {
+        List<DomainResult> gatewayDomains = getGatewayDomains(gateway);
+        return gatewayDomains.stream()
+                .filter(d -> publishedDomainSet.contains(d.getDomain()))
+                .map(d -> d.getMeta().get("domainId"))
+                .toList();
+    }
 
     @Override
     public PageResult<? extends GatewayMCPServerResult> fetchMcpServers(
@@ -104,41 +131,43 @@ public class AIGWOperator extends APIGOperator {
         return PageResult.of(mcpServers, page, size, result.getBody().getData().getTotalSize());
     }
 
-    //    @Override
-    //    public PageResult<? extends GatewayMCPServerResult> fetchMcpServers(Gateway gateway, int
+    // @Override
+    // public PageResult<? extends GatewayMCPServerResult> fetchMcpServers(Gateway
+    // gateway, int
     // page, int size) {
-    //        PopGatewayClient client = new PopGatewayClient(gateway.getApigConfig());
+    // PopGatewayClient client = new PopGatewayClient(gateway.getApigConfig());
     //
-    //        Map<String, String> queryParams = MapUtil.<String, String>builder()
-    //                .put("gatewayId", gateway.getGatewayId())
-    //                .put("pageNumber", String.valueOf(page))
-    //                .put("pageSize", String.valueOf(size))
-    //                .build();
+    // Map<String, String> queryParams = MapUtil.<String, String>builder()
+    // .put("gatewayId", gateway.getGatewayId())
+    // .put("pageNumber", String.valueOf(page))
+    // .put("pageSize", String.valueOf(size))
+    // .build();
     //
-    //        return client.execute("/v1/mcp-servers", MethodType.GET, queryParams, data -> {
-    //            List<APIGMCPServerResult> mcpServers =
+    // return client.execute("/v1/mcp-servers", MethodType.GET, queryParams, data ->
+    // {
+    // List<APIGMCPServerResult> mcpServers =
     // Optional.ofNullable(data.getJSONArray("items"))
-    //                    .map(items -> items.stream()
-    //                            .map(JSONObject.class::cast)
-    //                            .map(json -> {
-    //                                APIGMCPServerResult result = new APIGMCPServerResult();
-    //                                result.setMcpServerName(json.getStr("name"));
-    //                                result.setMcpServerId(json.getStr("mcpServerId"));
-    //                                result.setMcpRouteId(json.getStr("routeId"));
-    //                                result.setApiId(json.getStr("apiId"));
-    //                                return result;
-    //                            })
-    //                            .collect(Collectors.toList()))
-    //                    .orElse(new ArrayList<>());
+    // .map(items -> items.stream()
+    // .map(JSONObject.class::cast)
+    // .map(json -> {
+    // APIGMCPServerResult result = new APIGMCPServerResult();
+    // result.setMcpServerName(json.getStr("name"));
+    // result.setMcpServerId(json.getStr("mcpServerId"));
+    // result.setMcpRouteId(json.getStr("routeId"));
+    // result.setApiId(json.getStr("apiId"));
+    // return result;
+    // })
+    // .collect(Collectors.toList()))
+    // .orElse(new ArrayList<>());
     //
-    //            return PageResult.of(mcpServers, page, size, data.getInt("totalSize"));
-    //        });
-    //    }
+    // return PageResult.of(mcpServers, page, size, data.getInt("totalSize"));
+    // });
+    // }
 
     public PageResult<? extends GatewayMCPServerResult> fetchMcpServers_V1(
             Gateway gateway, int page, int size) {
         PageResult<APIResult> apiPage = fetchAPIs(gateway, APIGAPIType.MCP, 0, 1);
-        if (apiPage.getTotalElements() == 0) {
+        if (apiPage.getTotalCount() == 0) {
             return PageResult.empty(page, size);
         }
 
@@ -146,7 +175,7 @@ public class AIGWOperator extends APIGOperator {
         String apiId = apiPage.getContent().get(0).getApiId();
         try {
             PageResult<HttpRoute> routesPage = fetchHttpRoutes(gateway, apiId, page, size);
-            if (routesPage.getTotalElements() == 0) {
+            if (routesPage.getTotalCount() == 0) {
                 return PageResult.empty(page, size);
             }
 
@@ -170,24 +199,9 @@ public class AIGWOperator extends APIGOperator {
     @Override
     public String fetchMcpConfig(Gateway gateway, Object conf) {
         APIGRefConfig config = (APIGRefConfig) conf;
-        APIGClient client = getClient(gateway);
         MCPConfigResult mcpConfig = new MCPConfigResult();
 
-        CompletableFuture<GetMcpServerResponse> f =
-                client.execute(
-                        c -> {
-                            GetMcpServerRequest request =
-                                    GetMcpServerRequest.builder()
-                                            .mcpServerId(config.getMcpServerId())
-                                            .build();
-                            return c.getMcpServer(request);
-                        });
-
-        GetMcpServerResponse response = f.join();
-        if (200 != response.getStatusCode()) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, response.getBody().getMessage());
-        }
-        GetMcpServerResponseBody.Data resp = response.getBody().getData();
+        McpServerInfo resp = fetchRawMcpServerInfo(gateway, config.getMcpServerId());
 
         // mcpServer name
         mcpConfig.setMcpServerName(resp.getName());
@@ -234,7 +248,181 @@ public class AIGWOperator extends APIGOperator {
             mcpConfig.setTools(Base64.isBase64(tools) ? Base64.decodeStr(tools) : tools);
         }
 
-        return JSONUtil.toJsonStr(mcpConfig);
+        return JsonUtil.toJson(mcpConfig);
+    }
+
+    public McpServerInfo fetchRawMcpServerInfo(Gateway gateway, String mcpServerId) {
+        APIGClient client = getClient(gateway);
+        CompletableFuture<GetMcpServerResponse> f =
+                client.execute(
+                        c -> {
+                            GetMcpServerRequest request =
+                                    GetMcpServerRequest.builder().mcpServerId(mcpServerId).build();
+                            return c.getMcpServer(request);
+                        });
+
+        GetMcpServerResponse response = f.join();
+        if (200 != response.getStatusCode()) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, response.getBody().getMessage());
+        }
+
+        GetMcpServerResponseBody.Data data = response.getBody().getData();
+        return McpServerInfo.builder()
+                .mcpServerId(data.getMcpServerId())
+                .name(data.getName())
+                .description(data.getDescription())
+                .mcpServerPath(data.getMcpServerPath())
+                .exposedUriPath(data.getExposedUriPath())
+                .domainInfos(
+                        Optional.ofNullable(data.getDomainInfos())
+                                .map(
+                                        list ->
+                                                list.stream()
+                                                        .map(
+                                                                d ->
+                                                                        McpServerInfo.DomainInfo
+                                                                                .builder()
+                                                                                .name(d.getName())
+                                                                                .protocol(
+                                                                                        d
+                                                                                                .getProtocol())
+                                                                                .build())
+                                                        .collect(Collectors.toList()))
+                                .orElse(null))
+                .protocol(data.getProtocol())
+                .createFromType(data.getCreateFromType())
+                .mcpServerConfig(data.getMcpServerConfig())
+                .mcpServerConfigPluginAttachmentId(data.getMcpServerConfigPluginAttachmentId())
+                .gatewayId(data.getGatewayId())
+                .environmentId(data.getEnvironmentId())
+                .deployStatus(data.getDeployStatus())
+                .routeId(data.getRouteId())
+                .type(data.getType())
+                .build();
+    }
+
+    /**
+     * Deploy MCP Server
+     *
+     * @param gateway     The gateway
+     * @param mcpServerId The MCP server ID to deploy
+     */
+    public void deployMcpServer(Gateway gateway, String mcpServerId) {
+        APIGClient client = getClient(gateway);
+        try {
+            CompletableFuture<DeployMcpServerResponse> f =
+                    client.execute(
+                            c -> {
+                                DeployMcpServerRequest request =
+                                        DeployMcpServerRequest.builder()
+                                                .mcpServerId(mcpServerId)
+                                                .build();
+                                return c.deployMcpServer(request);
+                            });
+
+            DeployMcpServerResponse response = f.join();
+            if (200 != response.getStatusCode()) {
+                throw new BusinessException(
+                        ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
+            }
+            log.info("Successfully deployed MCP server: {}", mcpServerId);
+        } catch (Exception e) {
+            log.error("Error deploying MCP server: {}", mcpServerId, e);
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR, "Error deploying MCP server，Cause：" + e.getMessage());
+        }
+    }
+
+    /**
+     * Undeploy MCP Server
+     *
+     * @param gateway     The gateway
+     * @param mcpServerId The MCP server ID to undeploy
+     */
+    public void undeployMcpServer(Gateway gateway, String mcpServerId) {
+        APIGClient client = getClient(gateway);
+        try {
+            CompletableFuture<UnDeployMcpServerResponse> f =
+                    client.execute(
+                            c -> {
+                                UnDeployMcpServerRequest request =
+                                        UnDeployMcpServerRequest.builder()
+                                                .mcpServerId(mcpServerId)
+                                                .build();
+                                return c.unDeployMcpServer(request);
+                            });
+
+            UnDeployMcpServerResponse response = f.join();
+            if (200 != response.getStatusCode()) {
+                throw new BusinessException(
+                        ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
+            }
+            log.info("Successfully undeployed MCP server: {}", mcpServerId);
+        } catch (Exception e) {
+            log.error("Error undeploying MCP server: {}", mcpServerId, e);
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR,
+                    "Error undeploying MCP server，Cause：" + e.getMessage());
+        }
+    }
+
+    public String findMcpServerPlugin(Gateway gateway) {
+        APIGClient client = getClient(gateway);
+        CompletableFuture<ListPluginClassesResponse> f =
+                client.execute(
+                        c -> {
+                            ListPluginClassesRequest request =
+                                    ListPluginClassesRequest.builder()
+                                            .gatewayId(gateway.getGatewayId())
+                                            .nameLike("mcp-server")
+                                            .source("HigressOfficial")
+                                            .gatewayType("AI")
+                                            .pageSize(100)
+                                            .pageNumber(1)
+                                            .build();
+                            return c.listPluginClasses(request);
+                        });
+
+        ListPluginClassesResponse response = f.join();
+        if (200 != response.getStatusCode()) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, response.getBody().getMessage());
+        }
+
+        return Optional.ofNullable(response.getBody().getData().getItems())
+                .flatMap(
+                        items ->
+                                items.stream()
+                                        .filter(
+                                                item ->
+                                                        "mcp-server"
+                                                                .equalsIgnoreCase(item.getName()))
+                                        .findFirst()
+                                        .map(item -> item.getPluginId()))
+                .orElse(null);
+    }
+
+    public void listPluginClasses(Gateway gateway) {
+        APIGClient client = getClient(gateway);
+        CompletableFuture<ListPluginClassesResponse> f =
+                client.execute(
+                        c -> {
+                            ListPluginClassesRequest request =
+                                    ListPluginClassesRequest.builder()
+                                            .gatewayId(gateway.getGatewayId())
+                                            .nameLike("mcp-server")
+                                            .source("HigressOfficial")
+                                            .gatewayType("AI")
+                                            .pageSize(100)
+                                            .pageNumber(1)
+                                            .build();
+                            return c.listPluginClasses(request);
+                        });
+
+        ListPluginClassesResponse response = f.join();
+        if (200 != response.getStatusCode()) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, response.getBody().getMessage());
+        }
+        response.getBody().getData().getItems();
     }
 
     @Override
@@ -301,7 +489,7 @@ public class AIGWOperator extends APIGOperator {
                         .build();
         result.setMeta(meta); // 设置元数据到顶层
 
-        return JSONUtil.toJsonStr(result);
+        return JsonUtil.toJson(result);
     }
 
     @Override
@@ -328,7 +516,7 @@ public class AIGWOperator extends APIGOperator {
                         .build();
         result.setModelAPIConfig(apiConfig);
 
-        return JSONUtil.toJsonStr(result);
+        return JsonUtil.toJson(result);
     }
 
     @Override
@@ -497,5 +685,461 @@ public class AIGWOperator extends APIGOperator {
                         .build();
 
         return ConsumerAuthConfig.builder().apigAuthConfig(apigAuthConfig).build();
+    }
+
+    /**
+     * Create HTTP API for Model API
+     *
+     * @param gateway The gateway
+     * @param request The CreateHttpApi request
+     * @return The HTTP API ID
+     */
+    public String createHttpApi(Gateway gateway, CreateHttpApiRequest request) {
+        APIGClient client = getClient(gateway);
+        try {
+            // Log the request for debugging
+            log.info(
+                    "Creating HTTP API with request: name={}, type={}, gatewayId={}",
+                    request.getName(),
+                    request.getType(),
+                    request.getDeployConfigs() != null && !request.getDeployConfigs().isEmpty()
+                            ? request.getDeployConfigs().get(0).getGatewayId()
+                            : "N/A");
+
+            CompletableFuture<CreateHttpApiResponse> f =
+                    client.execute(c -> c.createHttpApi(request));
+
+            CreateHttpApiResponse response = f.join();
+
+            // Log the response for debugging
+            log.info(
+                    "CreateHttpApi response: statusCode={}, apiId={}",
+                    response.getStatusCode(),
+                    response.getBody() != null && response.getBody().getData() != null
+                            ? response.getBody().getData().getHttpApiId()
+                            : "N/A");
+
+            if (response.getStatusCode() != 200) {
+                throw new BusinessException(
+                        ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
+            }
+
+            return response.getBody().getData().getHttpApiId();
+        } catch (Exception e) {
+            log.error("Error creating HTTP API: {}", request.getName(), e);
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR, "Error creating HTTP API，Cause：" + e.getMessage());
+        }
+    }
+
+    /**
+     * Find HTTP API ID by name
+     *
+     * @param gateway The gateway to search
+     * @param apiName The HTTP API name to find
+     * @param type    The HTTP API type (e.g., "LLM", "Agent")
+     * @return Optional containing the HTTP API ID if found, empty otherwise
+     */
+    public Optional<String> findHttpApiIdByName(Gateway gateway, String apiName, String type) {
+        APIGClient client = getClient(gateway);
+        try {
+            // Fetch all HTTP APIs of specified type and find the one matching the name
+            CompletableFuture<ListHttpApisResponse> f =
+                    client.execute(
+                            c -> {
+                                ListHttpApisRequest request =
+                                        ListHttpApisRequest.builder()
+                                                .gatewayId(gateway.getGatewayId())
+                                                .gatewayType(gateway.getGatewayType().getType())
+                                                .types(type)
+                                                .name(apiName)
+                                                .pageNumber(1)
+                                                .pageSize(100)
+                                                .build();
+                                return c.listHttpApis(request);
+                            });
+
+            ListHttpApisResponse response = f.join();
+            if (200 != response.getStatusCode()) {
+                log.warn("Failed to find HTTP API by name: {}", response.getBody().getMessage());
+                return Optional.empty();
+            }
+
+            // Return the first matching API's ID
+            return Optional.ofNullable(response.getBody().getData().getItems())
+                    .flatMap(
+                            items ->
+                                    items.stream()
+                                            .flatMap(item -> item.getVersionedHttpApis().stream())
+                                            .filter(api -> apiName.equals(api.getName()))
+                                            .findFirst())
+                    .map(api -> api.getHttpApiId());
+        } catch (Exception e) {
+            log.warn("Error finding HTTP API ID by name: {}", apiName, e);
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * Update HTTP API for Model API
+     *
+     * @param gateway The gateway
+     * @param request The UpdateHttpApi request
+     */
+    public void updateHttpApi(
+            Gateway gateway,
+            com.aliyun.sdk.service.apig20240327.models.UpdateHttpApiRequest request) {
+        APIGClient client = getClient(gateway);
+        try {
+            // Log the request for debugging
+            log.info(
+                    "Updating HTTP API with request: httpApiId={}, basePath={}",
+                    request.getHttpApiId(),
+                    request.getBasePath());
+
+            CompletableFuture<com.aliyun.sdk.service.apig20240327.models.UpdateHttpApiResponse> f =
+                    client.execute(c -> c.updateHttpApi(request));
+
+            com.aliyun.sdk.service.apig20240327.models.UpdateHttpApiResponse response = f.join();
+
+            // Log the response for debugging
+            log.info(
+                    "UpdateHttpApi response: statusCode={}, message={}",
+                    response.getStatusCode(),
+                    response.getBody() != null ? response.getBody().getMessage() : "N/A");
+
+            if (response.getStatusCode() != 200) {
+                throw new BusinessException(
+                        ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
+            }
+
+            log.info("Successfully updated HTTP API: httpApiId={}", request.getHttpApiId());
+        } catch (Exception e) {
+            log.error("Error updating HTTP API: {}", request.getHttpApiId(), e);
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR, "Error updating HTTP API，Cause：" + e.getMessage());
+        }
+    }
+
+    /**
+     * Delete HTTP API
+     *
+     * @param gateway   The gateway
+     * @param httpApiId The HTTP API ID
+     */
+    public void deleteHttpApi(Gateway gateway, String httpApiId) {
+        APIGClient client = getClient(gateway);
+        try {
+            log.info("Deleting HTTP API: httpApiId={}", httpApiId);
+
+            com.aliyun.sdk.service.apig20240327.models.DeleteHttpApiRequest request =
+                    com.aliyun.sdk.service.apig20240327.models.DeleteHttpApiRequest.builder()
+                            .httpApiId(httpApiId)
+                            .build();
+
+            CompletableFuture<com.aliyun.sdk.service.apig20240327.models.DeleteHttpApiResponse> f =
+                    client.execute(c -> c.deleteHttpApi(request));
+
+            com.aliyun.sdk.service.apig20240327.models.DeleteHttpApiResponse response = f.join();
+
+            log.info(
+                    "DeleteHttpApi response: statusCode={}, message={}",
+                    response.getStatusCode(),
+                    response.getBody() != null ? response.getBody().getMessage() : "N/A");
+
+            if (response.getStatusCode() != 200) {
+                throw new BusinessException(
+                        ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
+            }
+
+            log.info("Successfully deleted HTTP API: httpApiId={}", httpApiId);
+        } catch (Exception e) {
+            log.error("Error deleting HTTP API: {}", httpApiId, e);
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR, "Error deleting HTTP API，Cause：" + e.getMessage());
+        }
+    }
+
+    /**
+     * Create HTTP API Route
+     *
+     * @param gateway       The gateway
+     * @param httpApiId     The HTTP API ID
+     * @param routeName     The route name
+     * @param environmentId The environment ID
+     * @param domainIds     List of domain IDs
+     * @param match         The route match configuration
+     * @param serviceId     The backend service ID
+     */
+    public void createHttpApiRoute(
+            Gateway gateway,
+            String httpApiId,
+            String routeName,
+            String environmentId,
+            List<String> domainIds,
+            com.aliyun.sdk.service.apig20240327.models.HttpRouteMatch match,
+            String serviceId) {
+        APIGClient client = getClient(gateway);
+        try {
+            // Build CreateHttpApiRoute request
+            // Note: BackendConfig structure follows the example request format
+            com.aliyun.sdk.service.apig20240327.models.CreateHttpApiRouteRequest request =
+                    com.aliyun.sdk.service.apig20240327.models.CreateHttpApiRouteRequest.builder()
+                            .httpApiId(httpApiId)
+                            .name(routeName)
+                            .environmentId(environmentId)
+                            .domainIds(domainIds)
+                            .match(match)
+                            .build();
+
+            log.info(
+                    "Creating HTTP API Route: httpApiId={}, routeName={}, path={}, serviceId={}",
+                    httpApiId,
+                    routeName,
+                    match.getPath() != null ? match.getPath().getValue() : "N/A",
+                    serviceId);
+
+            CompletableFuture<com.aliyun.sdk.service.apig20240327.models.CreateHttpApiRouteResponse>
+                    f = client.execute(c -> c.createHttpApiRoute(request));
+
+            com.aliyun.sdk.service.apig20240327.models.CreateHttpApiRouteResponse response =
+                    f.join();
+
+            if (response.getStatusCode() != 200) {
+                throw new BusinessException(
+                        ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
+            }
+
+            String routeId =
+                    response.getBody() != null && response.getBody().getData() != null
+                            ? response.getBody().getData().getRouteId()
+                            : "N/A";
+            log.info(
+                    "Successfully created HTTP API Route: httpApiId={}, routeName={}, routeId={}",
+                    httpApiId,
+                    routeName,
+                    routeId);
+        } catch (Exception e) {
+            log.error(
+                    "Error creating HTTP API Route: httpApiId={}, routeName={}, error: {}",
+                    httpApiId,
+                    routeName,
+                    e.getMessage(),
+                    e);
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR,
+                    "Error creating HTTP API Route，Cause：" + e.getMessage());
+        }
+    }
+
+    /**
+     * Create Service in the gateway
+     *
+     * @param gateway The gateway
+     * @param request The CreateService request
+     * @return The Service ID
+     */
+    public String createService(Gateway gateway, CreateServiceRequest request) {
+        APIGClient client = getClient(gateway);
+        try {
+            log.info(
+                    "Creating Service with request: name={}, sourceType={}, gatewayId={}",
+                    request.getServiceConfigs() != null && !request.getServiceConfigs().isEmpty()
+                            ? request.getServiceConfigs().get(0).getName()
+                            : "N/A",
+                    request.getSourceType(),
+                    request.getGatewayId());
+
+            CompletableFuture<CreateServiceResponse> f =
+                    client.execute(c -> c.createService(request));
+
+            CreateServiceResponse response = f.join();
+
+            // Log the response for debugging
+            log.info("CreateService response: statusCode={}", response.getStatusCode());
+
+            if (response.getStatusCode() != 200) {
+                throw new BusinessException(
+                        ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
+            }
+
+            // Extract service ID from response
+            // The SDK response structure should follow the pattern:
+            // response.getBody().getData().getServiceId()
+            // If the actual SDK structure differs, this will need to be adjusted
+            if (response.getBody() != null && response.getBody().getData() != null) {
+                return response.getBody().getData().getServiceIds().get(0);
+            }
+
+            // If we can't extract serviceId, throw an exception
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR,
+                    "Unable to extract service ID from CreateService response. Please verify the"
+                            + " SDK response structure and update the code accordingly.");
+        } catch (Exception e) {
+            log.error("Error creating Service", e);
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR, "Error creating Service，Cause：" + e.getMessage());
+        }
+    }
+
+    /**
+     * Find Service ID by name
+     *
+     * @param gateway     The gateway to search
+     * @param serviceName The service name to find
+     * @return Optional containing the service ID if found, empty otherwise
+     */
+    public Optional<String> findServiceIdByName(Gateway gateway, String serviceName) {
+        APIGClient client = getClient(gateway);
+        try {
+            // Fetch all services and find the one matching the name
+            CompletableFuture<ListServicesResponse> f =
+                    client.execute(
+                            c -> {
+                                ListServicesRequest request =
+                                        ListServicesRequest.builder()
+                                                .gatewayId(gateway.getGatewayId())
+                                                .pageNumber(1)
+                                                .pageSize(100)
+                                                .build();
+                                return c.listServices(request);
+                            });
+
+            ListServicesResponse response = f.join();
+            if (200 != response.getStatusCode()) {
+                log.warn("Failed to find service by name: {}", response.getBody().getMessage());
+                return Optional.empty();
+            }
+
+            // Return the first matching service's ID
+            return Optional.ofNullable(response.getBody().getData().getItems())
+                    .flatMap(
+                            items ->
+                                    items.stream()
+                                            .filter(item -> serviceName.equals(item.getName()))
+                                            .findFirst())
+                    .map(item -> item.getServiceId());
+        } catch (Exception e) {
+            log.warn("Error finding service ID by name: {}", serviceName, e);
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * Update Service in the gateway
+     *
+     * @param gateway The gateway
+     * @param request The UpdateService request
+     */
+    public void updateService(Gateway gateway, UpdateServiceRequest request) {
+        APIGClient client = getClient(gateway);
+        try {
+            log.info("Updating Service with request: serviceId={}", request.getServiceId());
+
+            CompletableFuture<UpdateServiceResponse> f =
+                    client.execute(c -> c.updateService(request));
+
+            UpdateServiceResponse response = f.join();
+
+            log.info("UpdateService response: statusCode={}", response.getStatusCode());
+
+            if (response.getStatusCode() != 200) {
+                throw new BusinessException(
+                        ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
+            }
+
+            log.info("Successfully updated Service: serviceId={}", request.getServiceId());
+        } catch (Exception e) {
+            log.error("Error updating Service: serviceId={}", request.getServiceId(), e);
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR, "Error updating Service，Cause：" + e.getMessage());
+        }
+    }
+
+    /**
+     * Create Policy in the gateway
+     *
+     * @param gateway The gateway
+     * @param request The CreatePolicy request
+     * @return The Policy ID
+     */
+    public String createPolicy(Gateway gateway, CreatePolicyRequest request) {
+        APIGClient client = getClient(gateway);
+        try {
+            log.info(
+                    "Creating Policy with request: name={}, className={}, gatewayId={}",
+                    request.getName(),
+                    request.getClassName(),
+                    gateway.getGatewayId());
+
+            CompletableFuture<CreatePolicyResponse> f =
+                    client.execute(c -> c.createPolicy(request));
+
+            CreatePolicyResponse response = f.join();
+
+            log.info("CreatePolicy response: statusCode={}", response.getStatusCode());
+
+            if (response.getStatusCode() != 200) {
+                throw new BusinessException(
+                        ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
+            }
+
+            if (response.getBody() != null && response.getBody().getData() != null) {
+                return response.getBody().getData().getPolicyId();
+            }
+
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR,
+                    "Unable to extract policy ID from CreatePolicy response");
+        } catch (Exception e) {
+            log.error("Error creating Policy: {}", request.getName(), e);
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR, "Error creating Policy，Cause：" + e.getMessage());
+        }
+    }
+
+    /**
+     * Create Policy Attachment in the gateway
+     *
+     * @param gateway The gateway
+     * @param request The CreatePolicyAttachment request
+     * @return The Attachment ID
+     */
+    public String createPolicyAttachment(Gateway gateway, CreatePolicyAttachmentRequest request) {
+        APIGClient client = getClient(gateway);
+        try {
+            log.info(
+                    "Creating Policy Attachment with request: policyId={}, attachResourceId={},"
+                            + " gatewayId={}",
+                    request.getPolicyId(),
+                    request.getAttachResourceId(),
+                    gateway.getGatewayId());
+
+            CompletableFuture<CreatePolicyAttachmentResponse> f =
+                    client.execute(c -> c.createPolicyAttachment(request));
+
+            CreatePolicyAttachmentResponse response = f.join();
+
+            log.info("CreatePolicyAttachment response: statusCode={}", response.getStatusCode());
+
+            if (response.getStatusCode() != 200) {
+                throw new BusinessException(
+                        ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
+            }
+
+            if (response.getBody() != null && response.getBody().getData() != null) {
+                return response.getBody().getData().getPolicyAttachmentId();
+            }
+
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR,
+                    "Unable to extract attachment ID from CreatePolicyAttachment response");
+        } catch (Exception e) {
+            log.error("Error creating Policy Attachment: {}", request.getPolicyId(), e);
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR,
+                    "Error creating Policy Attachment，Cause：" + e.getMessage());
+        }
     }
 }

@@ -28,9 +28,6 @@ import com.alibaba.himarket.core.event.PortalDeletingEvent;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.core.security.ContextHolder;
-import com.alibaba.himarket.core.utils.IdGenerator;
-import com.alibaba.himarket.core.utils.PasswordHasher;
-import com.alibaba.himarket.core.utils.TokenUtil;
 import com.alibaba.himarket.dto.params.consumer.CreateConsumerParam;
 import com.alibaba.himarket.dto.params.developer.CreateDeveloperParam;
 import com.alibaba.himarket.dto.params.developer.CreateExternalDeveloperParam;
@@ -49,6 +46,9 @@ import com.alibaba.himarket.service.ConsumerService;
 import com.alibaba.himarket.service.DeveloperService;
 import com.alibaba.himarket.support.enums.DeveloperAuthType;
 import com.alibaba.himarket.support.enums.DeveloperStatus;
+import com.alibaba.himarket.utils.IdGenerator;
+import com.alibaba.himarket.utils.PasswordVerifier;
+import com.alibaba.himarket.utils.TokenUtil;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.ArrayList;
@@ -115,9 +115,9 @@ public class DeveloperServiceImpl implements DeveloperService {
                         });
 
         Developer developer = param.convertTo();
-        developer.setDeveloperId(generateDeveloperId());
+        developer.setDeveloperId(IdGenerator.genDeveloperId());
         developer.setPortalId(portalId);
-        developer.setPasswordHash(PasswordHasher.hash(param.getPassword()));
+        developer.setPasswordHash(PasswordVerifier.hash(param.getPassword()));
 
         Portal portal = findPortal(portalId);
         boolean autoApprove =
@@ -149,7 +149,7 @@ public class DeveloperServiceImpl implements DeveloperService {
                     ErrorCode.INVALID_REQUEST, "Your account is pending approval");
         }
 
-        if (!PasswordHasher.verify(password, developer.getPasswordHash())) {
+        if (!PasswordVerifier.verify(password, developer.getPasswordHash())) {
             throw new BusinessException(
                     ErrorCode.UNAUTHORIZED, "The username or password you entered is incorrect");
         }
@@ -247,12 +247,12 @@ public class DeveloperServiceImpl implements DeveloperService {
     public boolean resetPassword(String developerId, String oldPassword, String newPassword) {
         Developer developer = findDeveloper(developerId);
 
-        if (!PasswordHasher.verify(oldPassword, developer.getPasswordHash())) {
+        if (!PasswordVerifier.verify(oldPassword, developer.getPasswordHash())) {
             throw new BusinessException(
                     ErrorCode.UNAUTHORIZED, "The username or password you entered is incorrect");
         }
 
-        developer.setPasswordHash(PasswordHasher.hash(newPassword));
+        developer.setPasswordHash(PasswordVerifier.hash(newPassword));
         developerRepository.save(developer);
         return true;
     }
@@ -286,10 +286,6 @@ public class DeveloperServiceImpl implements DeveloperService {
 
     private String generateToken(String developerId) {
         return TokenUtil.generateDeveloperToken(developerId);
-    }
-
-    private String generateDeveloperId() {
-        return IdGenerator.genDeveloperId();
     }
 
     private Developer findDeveloper(String developerId) {

@@ -25,6 +25,7 @@ import com.alibaba.himarket.support.enums.GatewayType;
 import com.alibaba.himarket.support.gateway.APIGConfig;
 import com.alibaba.himarket.support.gateway.AdpAIGatewayConfig;
 import com.alibaba.himarket.support.gateway.HigressConfig;
+import com.alibaba.himarket.support.gateway.SofaHigressConfig;
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -49,7 +50,9 @@ public class GatewayResult implements OutputConverter<GatewayResult, Gateway> {
 
     private HigressConfigResult higressConfig;
 
-    private LocalDateTime createAt;
+    private SofaHigressConfigResult sofaHigressConfig;
+
+    private LocalDateTime createdAt;
 
     @Override
     public GatewayResult convertFrom(Gateway source) {
@@ -59,6 +62,9 @@ public class GatewayResult implements OutputConverter<GatewayResult, Gateway> {
         } else if (source.getGatewayType().isAdpAIGateway()) {
             setAdpAIGatewayConfig(
                     new AdpAIGatewayConfigResult().convertFrom(source.getAdpAIGatewayConfig()));
+        } else if (source.getGatewayType().isSofaHigress()) {
+            setSofaHigressConfig(
+                    new SofaHigressConfigResult().convertFrom(source.getSofaHigressConfig()));
         } else {
             setHigressConfig(new HigressConfigResult().convertFrom(source.getHigressConfig()));
         }
@@ -84,5 +90,11 @@ public class GatewayResult implements OutputConverter<GatewayResult, Gateway> {
         private String address;
         private String username;
         private String gatewayAddress;
+    }
+
+    @Data
+    public static class SofaHigressConfigResult
+            implements OutputConverter<SofaHigressConfigResult, SofaHigressConfig> {
+        private String address;
     }
 }

@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package com.alibaba.himarket.core.utils;
+package com.alibaba.himarket.utils;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;

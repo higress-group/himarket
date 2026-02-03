@@ -25,6 +25,7 @@ import com.alibaba.himarket.support.enums.SourceType;
 import com.alibaba.himarket.support.product.APIGRefConfig;
 import com.alibaba.himarket.support.product.HigressRefConfig;
 import com.alibaba.himarket.support.product.NacosRefConfig;
+import com.alibaba.himarket.support.product.SofaHigressRefConfig;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
@@ -46,5 +47,10 @@ public class CreateProductRefParam implements InputConverter<ProductRef> {
 
     private HigressRefConfig higressRefConfig;
 
+    private SofaHigressRefConfig sofaHigressRefConfig;
+
     private NacosRefConfig nacosRefConfig;
+
+    /** API Definition ID (for MANAGED source type) 当前版本：只包含一个元素 */
+    private String apiDefinitionId;
 }

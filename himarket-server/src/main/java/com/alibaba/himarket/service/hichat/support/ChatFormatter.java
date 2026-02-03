@@ -19,8 +19,8 @@
 package com.alibaba.himarket.service.hichat.support;
 
 import cn.hutool.core.util.StrUtil;
-import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.support.chat.ChatUsage;
+import com.alibaba.himarket.utils.JsonUtil;
 import io.agentscope.core.agent.Event;
 import io.agentscope.core.agent.EventType;
 import io.agentscope.core.message.Msg;
@@ -56,7 +56,7 @@ public class ChatFormatter {
                     "Converting event - type: {}, isLast: {}, msg: {}",
                     type,
                     event.isLast(),
-                    JSONUtil.toJsonStr(msg));
+                    JsonUtil.toJson(msg));
 
             switch (type) {
                 case REASONING:

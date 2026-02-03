@@ -19,11 +19,15 @@
 
 package com.alibaba.himarket.support.consumer;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class ConsumerAuthConfig {
 
     /**
@@ -40,4 +44,7 @@ public class ConsumerAuthConfig {
      * For ADP AI Gateway
      */
     private AdpAIAuthConfig adpAIAuthConfig;
+
+    /** for Sofa Higress */
+    private SofaHigressAuthConfig sofaHigressAuthConfig;
 }

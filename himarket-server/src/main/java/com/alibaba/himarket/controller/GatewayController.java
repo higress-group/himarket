@@ -22,8 +22,10 @@ package com.alibaba.himarket.controller;
 import com.alibaba.himarket.core.annotation.AdminAuth;
 import com.alibaba.himarket.dto.params.gateway.*;
 import com.alibaba.himarket.dto.result.agent.AgentAPIResult;
+import com.alibaba.himarket.dto.result.common.DomainResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.gateway.GatewayResult;
+import com.alibaba.himarket.dto.result.gateway.GatewayServiceResult;
 import com.alibaba.himarket.dto.result.httpapi.APIResult;
 import com.alibaba.himarket.dto.result.mcp.GatewayMCPServerResult;
 import com.alibaba.himarket.dto.result.model.GatewayModelAPIResult;
@@ -31,6 +33,7 @@ import com.alibaba.himarket.service.GatewayService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
@@ -94,6 +97,25 @@ public class GatewayController {
     @DeleteMapping("/{gatewayId}")
     public void deleteGateway(@PathVariable String gatewayId) {
         gatewayService.deleteGateway(gatewayId);
+    }
+
+    @Operation(summary = "获取Gateway可选域名列表")
+    @GetMapping("/{gatewayId}/domains")
+    public List<DomainResult> getGatewayDomains(@PathVariable String gatewayId) {
+        return gatewayService.getGatewayDomains(gatewayId);
+    }
+
+    @Operation(summary = "获取Gateway服务列表")
+    @GetMapping("/{gatewayId}/services")
+    public List<GatewayServiceResult> getGatewayServices(@PathVariable String gatewayId) {
+        return gatewayService.fetchGatewayServices(gatewayId);
+    }
+
+    @Operation(summary = "获取Gateway支持的服务类型")
+    @GetMapping("/{gatewayId}/service-types")
+    public List<String> getGatewayServiceTypes(@PathVariable String gatewayId) {
+        // Mock implementation
+        return List.of("NACOS", "FIXED_ADDRESS", "DNS", "GATEWAY");
     }
 
     @Operation(summary = "获取REST API列表")

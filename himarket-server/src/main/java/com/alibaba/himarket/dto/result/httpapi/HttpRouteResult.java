@@ -23,13 +23,17 @@ import cn.hutool.core.util.BooleanUtil;
 import com.alibaba.himarket.dto.converter.OutputConverter;
 import com.alibaba.himarket.dto.result.common.DomainResult;
 import com.alibaba.himarket.service.gateway.HigressOperator;
+import com.alibaba.himarket.service.gateway.SofaHigressOperator;
 import com.aliyun.sdk.service.apig20240327.models.HttpRoute;
+import com.mifmif.common.regex.Generex;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
 public class HttpRouteResult implements OutputConverter<HttpRouteResult, HttpRoute> {
@@ -216,8 +220,101 @@ public class HttpRouteResult implements OutputConverter<HttpRouteResult, HttpRou
         return this;
     }
 
+    public HttpRouteResult convertFrom(
+            SofaHigressOperator.SofaHigressRouteConfig routeInfo,
+            List<DomainResult> domainResults) {
+        // path
+        HttpRouteResult.RouteMatchPath matchPath =
+                Optional.ofNullable(routeInfo.getRouteMatchConfig().getPath())
+                        .map(
+                                path ->
+                                        HttpRouteResult.RouteMatchPath.builder()
+                                                .value(path.getMatchValue())
+                                                .type(path.getMatchType())
+                                                .caseSensitive(path.getCaseSensitive())
+                                                .build())
+                        .orElse(null);
+
+        // methods
+        List<String> methods = Collections.singletonList("POST");
+
+        // headers
+        List<HttpRouteResult.RouteMatchHeader> matchHeaders =
+                Optional.ofNullable(routeInfo.getRouteMatchConfig().getHeaders())
+                        .map(
+                                headers ->
+                                        headers.stream()
+                                                .map(
+                                                        header ->
+                                                                HttpRouteResult.RouteMatchHeader
+                                                                        .builder()
+                                                                        .name(header.getKey())
+                                                                        .type(header.getMatchType())
+                                                                        .value(
+                                                                                header
+                                                                                        .getMatchValue())
+                                                                        .caseSensitive(
+                                                                                header
+                                                                                        .getCaseSensitive())
+                                                                        .build())
+                                                .collect(Collectors.toList()))
+                        .orElse(null);
+
+        // queryParams
+        List<HttpRouteResult.RouteMatchQuery> matchQueries =
+                Optional.ofNullable(routeInfo.getRouteMatchConfig().getUrlParams())
+                        .map(
+                                params ->
+                                        params.stream()
+                                                .map(
+                                                        param ->
+                                                                HttpRouteResult.RouteMatchQuery
+                                                                        .builder()
+                                                                        .name(param.getKey())
+                                                                        .type(param.getMatchType())
+                                                                        .value(
+                                                                                param
+                                                                                        .getMatchValue())
+                                                                        .caseSensitive(
+                                                                                param
+                                                                                        .getCaseSensitive())
+                                                                        .build())
+                                                .collect(Collectors.toList()))
+                        .orElse(null);
+
+        // routeMatch
+        HttpRouteResult.RouteMatchResult routeMatchResult =
+                HttpRouteResult.RouteMatchResult.builder()
+                        .methods(methods)
+                        .path(matchPath)
+                        .headers(matchHeaders)
+                        .queryParams(matchQueries)
+                        .build();
+
+        setDomains(domains);
+        setMatch(routeMatchResult);
+
+        return this;
+    }
+
+    // 根据匹配规则生成符合匹配要求的value
+    public static String GetMatchedValue(String type, String value) {
+        return switch (type) {
+            // 前缀匹配和精确匹配直接返回value
+            case "Exact", "EQUAL", "Prefix", "PRE" -> value;
+            // 正则匹配
+            case "Regex", "REGULAR" -> {
+                Generex generex = new Generex(value);
+                yield generex.random();
+            }
+            default -> throw new RuntimeException("unsupported type: " + type);
+        };
+    }
+
     @Data
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class RouteMatchResult {
         private List<String> methods;
         private RouteMatchPath path;
@@ -230,6 +327,8 @@ public class HttpRouteResult implements OutputConverter<HttpRouteResult, HttpRou
 
     @Data
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class RouteMatchPath {
         private String value;
         private String type;
@@ -238,6 +337,8 @@ public class HttpRouteResult implements OutputConverter<HttpRouteResult, HttpRou
 
     @Data
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class RouteMatchHeader {
         private String name;
         private String type;
@@ -247,6 +348,8 @@ public class HttpRouteResult implements OutputConverter<HttpRouteResult, HttpRou
 
     @Data
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class RouteMatchQuery {
         private String name;
         private String type;
@@ -256,6 +359,8 @@ public class HttpRouteResult implements OutputConverter<HttpRouteResult, HttpRou
 
     @Data
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class ModelMatch {
         private String name;
         private String type;

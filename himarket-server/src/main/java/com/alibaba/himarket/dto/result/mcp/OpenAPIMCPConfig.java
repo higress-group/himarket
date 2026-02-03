@@ -31,8 +31,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.*;
 import java.util.stream.Collectors;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Data
@@ -45,6 +47,8 @@ public class OpenAPIMCPConfig {
 
     @Data
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class Server {
         private String name;
         @Builder.Default private Map<String, Object> config = new HashMap<>();
@@ -58,6 +62,8 @@ public class OpenAPIMCPConfig {
 
     @Data
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     private static class Tool {
         private String name;
         private String description;
@@ -70,6 +76,8 @@ public class OpenAPIMCPConfig {
 
     @Data
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     private static class Arg {
         private String name;
         private String description;
@@ -91,6 +99,8 @@ public class OpenAPIMCPConfig {
 
     @Data
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class RequestTemplate {
         private String url;
         private String method;
@@ -104,6 +114,8 @@ public class OpenAPIMCPConfig {
 
     @Data
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class Header {
         private String key;
         private String value;

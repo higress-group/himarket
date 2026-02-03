@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package com.alibaba.himarket.core.utils;
+package com.alibaba.himarket.utils;
 
 import cn.hutool.core.lang.ObjectId;
 
@@ -44,6 +44,7 @@ public class IdGenerator {
     private static final String ADMINISTRATOR_PREFIX = "admin-";
     private static final String NACOS_PREFIX = "nacos-";
     private static final String HIGRESS_PREFIX = "higress-";
+    private static final String SOFA_HIGRESS_PREFIX = "sofa-higress-";
     private static final String CATEGORY_PREFIX = "category-";
 
     private static final String SESSION_PREFIX = "session-";
@@ -52,8 +53,15 @@ public class IdGenerator {
     private static final String SUBSCRIPTION_PREFIX = "subscription-";
     private static final String PUBLICATION_PREFIX = "publication-";
 
+    private static final String API_DEFINITION_PREFIX = "api-def-";
+    private static final String PUBLISH_RECORD_PREFIX = "record-";
+
     public static String genHigressGatewayId() {
         return HIGRESS_PREFIX + ObjectId.next();
+    }
+
+    public static String genSofaHigressGatewayId() {
+        return SOFA_HIGRESS_PREFIX + ObjectId.next();
     }
 
     public static String genPortalId() {
@@ -106,5 +114,13 @@ public class IdGenerator {
 
     public static String genChatAttachmentId() {
         return CHAT_ATTACHMENT_PREFIX + ObjectId.next();
+    }
+
+    public static String genApiDefinitionId() {
+        return API_DEFINITION_PREFIX + ObjectId.next();
+    }
+
+    public static String genPublishRecordId() {
+        return PUBLISH_RECORD_PREFIX + ObjectId.next();
     }
 }

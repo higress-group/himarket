@@ -21,22 +21,22 @@ package com.alibaba.himarket.service.gateway;
 
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
-import com.alibaba.himarket.core.utils.CacheUtil;
 import com.alibaba.himarket.dto.result.agent.AgentAPIResult;
+import com.alibaba.himarket.dto.result.common.DomainResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.gateway.GatewayResult;
+import com.alibaba.himarket.dto.result.gateway.GatewayServiceResult;
 import com.alibaba.himarket.dto.result.httpapi.APIResult;
 import com.alibaba.himarket.dto.result.mcp.GatewayMCPServerResult;
 import com.alibaba.himarket.dto.result.model.GatewayModelAPIResult;
 import com.alibaba.himarket.entity.Consumer;
 import com.alibaba.himarket.entity.ConsumerCredential;
 import com.alibaba.himarket.entity.Gateway;
-import com.alibaba.himarket.service.gateway.client.APIGClient;
-import com.alibaba.himarket.service.gateway.client.GatewayClient;
-import com.alibaba.himarket.service.gateway.client.HigressClient;
+import com.alibaba.himarket.service.gateway.client.*;
 import com.alibaba.himarket.support.consumer.ConsumerAuthConfig;
 import com.alibaba.himarket.support.enums.GatewayType;
 import com.alibaba.himarket.support.gateway.GatewayConfig;
+import com.alibaba.himarket.utils.CacheUtil;
 import com.aliyun.sdk.service.apig20240327.models.HttpApiApiInfo;
 import com.github.benmanes.caffeine.cache.Cache;
 import java.net.URI;
@@ -95,12 +95,18 @@ public abstract class GatewayOperator<T> {
 
     public abstract List<URI> fetchGatewayUris(Gateway gateway);
 
+    public abstract List<DomainResult> getGatewayDomains(Gateway gateway);
+
+    public abstract List<GatewayServiceResult> fetchGatewayServices(Gateway gateway);
+
     @SuppressWarnings("unchecked")
     protected T getClient(Gateway gateway) {
         String clientKey =
                 gateway.getGatewayType().isAPIG()
                         ? gateway.getApigConfig().buildUniqueKey()
-                        : gateway.getHigressConfig().buildUniqueKey();
+                        : gateway.getGatewayType().isSofaHigress()
+                                ? gateway.getSofaHigressConfig().buildUniqueKey()
+                                : gateway.getHigressConfig().buildUniqueKey();
         return (T) clientCache.get(clientKey, key -> createClient(gateway));
     }
 
@@ -111,9 +117,11 @@ public abstract class GatewayOperator<T> {
             case APIG_AI:
                 return new APIGClient(gateway.getApigConfig());
             case APSARA_GATEWAY:
-            //                return new ApsaraStackGatewayClient(gateway.getApsaraGatewayConfig());
+            // return new ApsaraStackGatewayClient(gateway.getApsaraGatewayConfig());
             case HIGRESS:
                 return new HigressClient(gateway.getHigressConfig());
+            case SOFA_HIGRESS:
+                return new SofaHigressClient(gateway.getSofaHigressConfig());
             default:
                 throw new BusinessException(
                         ErrorCode.INTERNAL_ERROR,
