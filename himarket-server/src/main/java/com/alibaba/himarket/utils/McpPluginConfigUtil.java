@@ -1,8 +1,7 @@
-package com.alibaba.himarket.core.utils;
+package com.alibaba.himarket.utils;
 
-import com.alibaba.himarket.dto.result.api.APIDefinitionVO;
-import com.alibaba.himarket.dto.result.api.APIEndpointVO;
-import com.alibaba.himarket.support.api.endpoint.MCPToolConfig;
+import com.alibaba.himarket.entity.APIDefinition;
+import com.alibaba.himarket.support.api.v2.spec.MCPServerSpec;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -26,23 +25,35 @@ public class McpPluginConfigUtil {
      * @param apiDefinition The API definition to convert
      * @return Base64 encoded YAML string
      */
-    public static String convertApiDefinitionToPluginConfig(APIDefinitionVO apiDefinition) {
+    public static String convertApiDefinitionToPluginConfig(APIDefinition apiDefinition) {
+        // Validate spec type
+        if (!(apiDefinition.getSpec() instanceof MCPServerSpec)) {
+            throw new IllegalArgumentException(
+                    "API definition spec must be MCPServerSpec for MCP Server");
+        }
+
+        MCPServerSpec mcpSpec = (MCPServerSpec) apiDefinition.getSpec();
+
         // Build MCP Server plugin configuration according to Higress documentation
         Map<String, Object> pluginConfig = new LinkedHashMap<>();
 
         // Server configuration
         Map<String, Object> server = new LinkedHashMap<>();
-        server.put("name", apiDefinition.getName());
+        if (mcpSpec.getServer() != null) {
+            server.put("name", mcpSpec.getServer().getName());
+        } else {
+            server.put("name", apiDefinition.getName());
+        }
         // Note: Higress does NOT include "type" field in server config
         pluginConfig.put("server", server);
 
-        // Tools configuration - convert endpoints to MCP tools
+        // Tools configuration - convert spec tools to MCP tools
         List<Map<String, Object>> tools = new ArrayList<>();
-        if (apiDefinition.getEndpoints() != null) {
-            for (APIEndpointVO endpoint : apiDefinition.getEndpoints()) {
-                Map<String, Object> tool = convertEndpointToTool(endpoint);
-                if (tool != null) {
-                    tools.add(tool);
+        if (mcpSpec.getTools() != null) {
+            for (MCPServerSpec.Tool tool : mcpSpec.getTools()) {
+                Map<String, Object> toolMap = convertToolToMap(tool);
+                if (toolMap != null) {
+                    tools.add(toolMap);
                 }
             }
         }
@@ -57,33 +68,67 @@ public class McpPluginConfigUtil {
     }
 
     /**
-     * Convert an API endpoint to an MCP tool configuration
+     * Convert a tool from MCPServerSpec to an MCP tool configuration map
      *
-     * @param endpoint The API endpoint to convert
+     * @param tool The tool from MCPServerSpec
      * @return MCP tool configuration map
      */
-    private static Map<String, Object> convertEndpointToTool(APIEndpointVO endpoint) {
-        if (!(endpoint.getConfig() instanceof MCPToolConfig)) {
+    private static Map<String, Object> convertToolToMap(MCPServerSpec.Tool tool) {
+        if (tool == null) {
             return null;
         }
 
-        MCPToolConfig mcpConfig = (MCPToolConfig) endpoint.getConfig();
-        Map<String, Object> tool = new LinkedHashMap<>();
+        Map<String, Object> toolMap = new LinkedHashMap<>();
 
         // Basic tool information
-        tool.put("name", endpoint.getName());
-        tool.put("description", endpoint.getDescription());
+        if (tool.getName() != null) {
+            toolMap.put("name", tool.getName());
+        }
+        if (tool.getDescription() != null) {
+            toolMap.put("description", tool.getDescription());
+        }
 
-        // Convert input schema to args
-        if (mcpConfig.getInputSchema() != null) {
-            List<Map<String, Object>> args = convertSchemaToArgs(mcpConfig.getInputSchema());
-            tool.put("args", args);
+        // Args
+        if (tool.getArgs() != null && !tool.getArgs().isEmpty()) {
+            List<Map<String, Object>> args = new ArrayList<>();
+            for (MCPServerSpec.Arg arg : tool.getArgs()) {
+                Map<String, Object> argMap = new LinkedHashMap<>();
+                if (arg.getName() != null) {
+                    argMap.put("name", arg.getName());
+                }
+                if (arg.getDescription() != null) {
+                    argMap.put("description", arg.getDescription());
+                }
+                if (arg.getType() != null) {
+                    argMap.put("type", arg.getType());
+                }
+                if (arg.isRequired()) {
+                    argMap.put("required", true);
+                }
+                if (arg.getDefaultValue() != null) {
+                    argMap.put("default", arg.getDefaultValue());
+                }
+                if (arg.getEnumValues() != null) {
+                    argMap.put("enum", arg.getEnumValues());
+                }
+                if (arg.getPosition() != null) {
+                    argMap.put("position", arg.getPosition());
+                }
+                if (arg.getItems() != null) {
+                    argMap.put("items", arg.getItems());
+                }
+                if (arg.getProperties() != null) {
+                    argMap.put("properties", arg.getProperties());
+                }
+                args.add(argMap);
+            }
+            toolMap.put("args", args);
         }
 
         // Request template
-        if (mcpConfig.getRequestTemplate() != null) {
+        if (tool.getRequestTemplate() != null) {
             Map<String, Object> requestTemplate = new LinkedHashMap<>();
-            MCPToolConfig.RequestTemplate reqTemplate = mcpConfig.getRequestTemplate();
+            MCPServerSpec.RequestTemplate reqTemplate = tool.getRequestTemplate();
 
             if (reqTemplate.getUrl() != null) {
                 requestTemplate.put("url", reqTemplate.getUrl());
@@ -92,23 +137,23 @@ public class McpPluginConfigUtil {
                 requestTemplate.put("method", reqTemplate.getMethod());
             }
 
-            // Auto-add Content-Type header for POST/PUT/PATCH with body
+            // Headers
             List<Map<String, String>> headers = new ArrayList<>();
             if (reqTemplate.getHeaders() != null && !reqTemplate.getHeaders().isEmpty()) {
-                for (MCPToolConfig.Header header : reqTemplate.getHeaders()) {
+                for (MCPServerSpec.Header header : reqTemplate.getHeaders()) {
                     Map<String, String> headerMap = new LinkedHashMap<>();
                     headerMap.put("key", header.getKey());
                     headerMap.put("value", header.getValue());
                     headers.add(headerMap);
                 }
             }
+
             // Auto-add Content-Type for POST/PUT/PATCH if not already present
             String method = reqTemplate.getMethod();
             if (method != null
                     && ("POST".equalsIgnoreCase(method)
                             || "PUT".equalsIgnoreCase(method)
                             || "PATCH".equalsIgnoreCase(method))) {
-                // Check if Content-Type already exists
                 boolean hasContentType =
                         headers.stream()
                                 .anyMatch(h -> "Content-Type".equalsIgnoreCase(h.get("key")));
@@ -131,13 +176,13 @@ public class McpPluginConfigUtil {
                 requestTemplate.put("queryParams", reqTemplate.getQueryParams());
             }
 
-            tool.put("requestTemplate", requestTemplate);
+            toolMap.put("requestTemplate", requestTemplate);
         }
 
-        // Response template - use existing or generate default
+        // Response template
         Map<String, Object> responseTemplate = new LinkedHashMap<>();
-        if (mcpConfig.getResponseTemplate() != null) {
-            MCPToolConfig.ResponseTemplate respTemplate = mcpConfig.getResponseTemplate();
+        if (tool.getResponseTemplate() != null) {
+            MCPServerSpec.ResponseTemplate respTemplate = tool.getResponseTemplate();
             if (respTemplate.getPrependBody() != null) {
                 responseTemplate.put("prependBody", respTemplate.getPrependBody());
             }
@@ -150,21 +195,21 @@ public class McpPluginConfigUtil {
         }
 
         // Auto-generate prependBody if not provided and we have output schema
-        if (!responseTemplate.containsKey("prependBody") && mcpConfig.getOutputSchema() != null) {
-            String prependBody = generateResponseDocumentation(mcpConfig.getOutputSchema());
+        if (!responseTemplate.containsKey("prependBody") && tool.getOutputSchema() != null) {
+            String prependBody = generateResponseDocumentation(tool.getOutputSchema());
             responseTemplate.put("prependBody", prependBody);
         }
 
         if (!responseTemplate.isEmpty()) {
-            tool.put("responseTemplate", responseTemplate);
+            toolMap.put("responseTemplate", responseTemplate);
         }
 
         // Output schema
-        if (mcpConfig.getOutputSchema() != null) {
-            tool.put("outputSchema", mcpConfig.getOutputSchema());
+        if (tool.getOutputSchema() != null) {
+            toolMap.put("outputSchema", tool.getOutputSchema());
         }
 
-        return tool;
+        return toolMap;
     }
 
     /**
@@ -217,85 +262,5 @@ public class McpPluginConfigUtil {
 
         doc.append("\n## Original Response\n");
         return doc.toString();
-    }
-
-    /**
-     * Convert JSON Schema to MCP args format
-     *
-     * @param inputSchema JSON Schema of input parameters
-     * @return List of MCP args
-     */
-    private static List<Map<String, Object>> convertSchemaToArgs(Map<String, Object> inputSchema) {
-        List<Map<String, Object>> args = new ArrayList<>();
-
-        if (inputSchema == null) {
-            return args;
-        }
-
-        // Extract properties from JSON Schema
-        Object propertiesObj = inputSchema.get("properties");
-        if (!(propertiesObj instanceof Map)) {
-            return args;
-        }
-
-        @SuppressWarnings("unchecked")
-        Map<String, Object> properties = (Map<String, Object>) propertiesObj;
-
-        // Extract required fields
-        Object requiredObj = inputSchema.get("required");
-        List<String> requiredFields = new ArrayList<>();
-        if (requiredObj instanceof List) {
-            @SuppressWarnings("unchecked")
-            List<Object> requiredList = (List<Object>) requiredObj;
-            for (Object item : requiredList) {
-                if (item instanceof String) {
-                    requiredFields.add((String) item);
-                }
-            }
-        }
-
-        // Convert each property to an arg
-        for (Map.Entry<String, Object> entry : properties.entrySet()) {
-            String paramName = entry.getKey();
-            if (!(entry.getValue() instanceof Map)) {
-                continue;
-            }
-
-            @SuppressWarnings("unchecked")
-            Map<String, Object> propertySchema = (Map<String, Object>) entry.getValue();
-
-            Map<String, Object> arg = new LinkedHashMap<>();
-            arg.put("name", paramName);
-
-            if (propertySchema.get("description") != null) {
-                arg.put("description", propertySchema.get("description"));
-            }
-            if (propertySchema.get("type") != null) {
-                arg.put("type", propertySchema.get("type"));
-            }
-            if (requiredFields.contains(paramName)) {
-                arg.put("required", true);
-            }
-            if (propertySchema.get("default") != null) {
-                arg.put("default", propertySchema.get("default"));
-            }
-            if (propertySchema.get("enum") != null) {
-                arg.put("enum", propertySchema.get("enum"));
-            }
-            if (propertySchema.get("items") != null) {
-                arg.put("items", propertySchema.get("items"));
-            }
-            if (propertySchema.get("properties") != null) {
-                arg.put("properties", propertySchema.get("properties"));
-            }
-            // Add position metadata (query/header/cookie/body/path)
-            if (propertySchema.get("x-position") != null) {
-                arg.put("position", propertySchema.get("x-position"));
-            }
-
-            args.add(arg);
-        }
-
-        return args;
     }
 }

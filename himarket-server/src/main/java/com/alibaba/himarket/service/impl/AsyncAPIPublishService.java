@@ -19,21 +19,21 @@
 
 package com.alibaba.himarket.service.impl;
 
-import cn.hutool.json.JSONUtil;
-import com.alibaba.himarket.dto.result.api.APIDefinitionVO;
+import com.alibaba.himarket.entity.APIDefinition;
 import com.alibaba.himarket.entity.Gateway;
 import com.alibaba.himarket.entity.ProductRef;
-import com.alibaba.himarket.repository.APIPublishRecordRepository;
+import com.alibaba.himarket.repository.APIDeploymentRepository;
 import com.alibaba.himarket.repository.ProductRefRepository;
 import com.alibaba.himarket.service.GatewayService;
 import com.alibaba.himarket.service.api.GatewayCapabilityRegistry;
 import com.alibaba.himarket.service.api.GatewayPublisher;
-import com.alibaba.himarket.support.api.PublishConfig;
+import com.alibaba.himarket.support.api.DeploymentConfig;
 import com.alibaba.himarket.support.enums.PublishStatus;
 import com.alibaba.himarket.support.product.APIGRefConfig;
 import com.alibaba.himarket.support.product.GatewayRefConfig;
 import com.alibaba.himarket.support.product.HigressRefConfig;
 import com.alibaba.himarket.support.product.SofaHigressRefConfig;
+import com.alibaba.himarket.utils.JsonUtil;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -54,47 +54,48 @@ import org.springframework.transaction.annotation.Transactional;
 public class AsyncAPIPublishService {
 
     private final GatewayCapabilityRegistry gatewayCapabilityRegistry;
-    private final APIPublishRecordRepository apiPublishRecordRepository;
+    private final APIDeploymentRepository apiPublishRecordRepository;
     private final ProductRefRepository productRefRepository;
     private final GatewayService gatewayService;
 
     /**
      * Asynchronously execute publish operation
      *
-     * @param recordId Publish record ID
+     * @param deploymentId Publish record ID
      * @param gateway Gateway
-     * @param apiDefinition API Definition
-     * @param publishConfig Publish configuration
+     * @param apiDefinition API Definition entity
+     * @param deploymentConfig Publish configuration
      */
     @Async("taskExecutor")
     public void asyncPublish(
-            String recordId,
+            String deploymentId,
             Gateway gateway,
-            APIDefinitionVO apiDefinition,
-            PublishConfig publishConfig) {
+            APIDefinition apiDefinition,
+            DeploymentConfig deploymentConfig) {
         try {
-            log.info("Starting async publish for record: {}", recordId);
+            log.info("Starting async publish for record: {}", deploymentId);
 
             GatewayPublisher publisher = gatewayCapabilityRegistry.getPublisher(gateway);
             GatewayRefConfig gatewayRefConfig =
-                    publisher.publish(gateway, apiDefinition, publishConfig);
+                    publisher.publish(gateway, apiDefinition, deploymentConfig);
 
             // Update to success status
             updatePublishRecordStatus(
-                    recordId, PublishStatus.ACTIVE, JSONUtil.toJsonStr(gatewayRefConfig), null);
+                    deploymentId, PublishStatus.ACTIVE, JsonUtil.toJson(gatewayRefConfig), null);
 
             // update product ref
             updateManagedProductRef(gateway, apiDefinition, gatewayRefConfig);
 
-            log.info("Async publish completed for record: {}", recordId);
+            log.info("Async publish completed for record: {}", deploymentId);
         } catch (Exception e) {
-            log.error("Async publish failed for record: {}", recordId, e);
-            updatePublishRecordStatus(recordId, PublishStatus.FAILED, null, e.getMessage());
+            log.error("Async publish failed for record: {}", deploymentId, e);
+            updatePublishRecordStatus(
+                    deploymentId, PublishStatus.PUBLISH_FAILED, null, e.getMessage());
         }
     }
 
     private void updateManagedProductRef(
-            Gateway gateway, APIDefinitionVO apiDefinition, GatewayRefConfig gatewayRefConfig) {
+            Gateway gateway, APIDefinition apiDefinition, GatewayRefConfig gatewayRefConfig) {
         String apiDefinitionId = apiDefinition.getApiDefinitionId();
         Optional<ProductRef> ref = productRefRepository.findByApiDefinitionId(apiDefinitionId);
         if (ref.isEmpty()) {
@@ -149,49 +150,50 @@ public class AsyncAPIPublishService {
     /**
      * Asynchronously execute unpublish operation
      *
-     * @param recordId Unpublish record ID
+     * @param deploymentId Unpublish record ID
      * @param gateway Gateway
-     * @param apiDefinition API Definition
-     * @param publishConfig Publish configuration
+     * @param apiDefinition API Definition entity
+     * @param deploymentConfig Publish configuration
      */
     @Async("taskExecutor")
     public void asyncUnpublish(
-            String recordId,
+            String deploymentId,
             Gateway gateway,
-            APIDefinitionVO apiDefinition,
-            PublishConfig publishConfig) {
+            APIDefinition apiDefinition,
+            DeploymentConfig deploymentConfig) {
         try {
-            log.info("Starting async unpublish for record: {}", recordId);
+            log.info("Starting async unpublish for record: {}", deploymentId);
 
             GatewayPublisher publisher = gatewayCapabilityRegistry.getPublisher(gateway);
-            publisher.unpublish(gateway, apiDefinition, publishConfig);
+            publisher.unpublish(gateway, apiDefinition, deploymentConfig);
 
             // Update to INACTIVE status
-            updatePublishRecordStatus(recordId, PublishStatus.INACTIVE, null, null);
+            updatePublishRecordStatus(deploymentId, PublishStatus.INACTIVE, null, null);
 
-            log.info("Async unpublish completed for record: {}", recordId);
+            log.info("Async unpublish completed for record: {}", deploymentId);
         } catch (Exception e) {
-            log.error("Async unpublish failed for record: {}", recordId, e);
-            updatePublishRecordStatus(recordId, PublishStatus.FAILED, null, e.getMessage());
+            log.error("Async unpublish failed for record: {}", deploymentId, e);
+            updatePublishRecordStatus(
+                    deploymentId, PublishStatus.UNPUBLISH_FAILED, null, e.getMessage());
         }
     }
 
     /**
      * Update publish record status
      *
-     * @param recordId Record ID
+     * @param deploymentId Record ID
      * @param status Status
      * @param gatewayResourceConfig Gateway resource config
      * @param errorMessage Error message
      */
     @Transactional
     protected void updatePublishRecordStatus(
-            String recordId,
+            String deploymentId,
             PublishStatus status,
             String gatewayResourceConfig,
             String errorMessage) {
         apiPublishRecordRepository
-                .findByRecordId(recordId)
+                .findByDeploymentId(deploymentId)
                 .ifPresent(
                         record -> {
                             record.setStatus(status);
@@ -202,7 +204,8 @@ public class AsyncAPIPublishService {
                                 record.setErrorMessage(errorMessage);
                             }
                             apiPublishRecordRepository.save(record);
-                            log.info("Updated publish record {} status to {}", recordId, status);
+                            log.info(
+                                    "Updated publish record {} status to {}", deploymentId, status);
                         });
     }
 }

@@ -17,18 +17,15 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.enums;
+package com.alibaba.himarket.converter;
 
-/** 发布操作枚举 */
-public enum PublishAction {
+import com.alibaba.himarket.support.api.v2.spec.APISpec;
+import jakarta.persistence.Converter;
 
-    /** 发布 */
-    PUBLISH,
+@Converter
+public class APISpecConverter extends JsonConverter<APISpec> {
 
-    /** 下线 */
-    UNPUBLISH,
-
-    /** 更新 */
-    UPDATE,
-    ;
+    public APISpecConverter() {
+        super(APISpec.class);
+    }
 }

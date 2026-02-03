@@ -2,12 +2,13 @@ package com.alibaba.himarket.service.publisher;
 
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
-import com.alibaba.himarket.dto.result.api.APIDefinitionVO;
+import com.alibaba.himarket.dto.result.api.APIDefinitionResult;
+import com.alibaba.himarket.entity.APIDefinition;
 import com.alibaba.himarket.entity.Gateway;
 import com.alibaba.himarket.service.api.GatewayPublisher;
 import com.alibaba.himarket.service.gateway.SofaHigressOperator;
 import com.alibaba.himarket.service.gateway.client.SofaHigressClient;
-import com.alibaba.himarket.support.api.PublishConfig;
+import com.alibaba.himarket.support.api.DeploymentConfig;
 import com.alibaba.himarket.support.enums.APIStatus;
 import com.alibaba.himarket.support.enums.APIType;
 import com.alibaba.himarket.support.enums.GatewayType;
@@ -55,16 +56,20 @@ public class SofaHigressGatewayPublisher implements GatewayPublisher {
 
     @Override
     public GatewayRefConfig publish(
-            Gateway gateway, APIDefinitionVO apiDefinition, PublishConfig publishConfig) {
+            Gateway gateway, APIDefinition apiDefinition, DeploymentConfig deploymentConfig) {
         SofaHigressClient client = getClient(gateway);
+
+        // Convert to result object for the remote call
+        APIDefinitionResult apiDefinitionResult =
+                new APIDefinitionResult().convertFrom(apiDefinition);
 
         SofaHigressAPIDefinitionResponse response =
                 client.execute(
                         "/apiDefinition/pub",
                         HttpMethod.POST,
                         SofaHigressAPIDefinitionParam.builder()
-                                .apiDefinitionVO(apiDefinition)
-                                .publishConfig(publishConfig)
+                                .apiDefinitionResult(apiDefinitionResult)
+                                .deploymentConfig(deploymentConfig)
                                 .build(),
                         new TypeReference<>() {},
                         objectMapper);
@@ -93,16 +98,20 @@ public class SofaHigressGatewayPublisher implements GatewayPublisher {
 
     @Override
     public String unpublish(
-            Gateway gateway, APIDefinitionVO apiDefinition, PublishConfig publishConfig) {
+            Gateway gateway, APIDefinition apiDefinition, DeploymentConfig deploymentConfig) {
         SofaHigressClient client = getClient(gateway);
+
+        // Convert to result object for the remote call
+        APIDefinitionResult apiDefinitionResult =
+                new APIDefinitionResult().convertFrom(apiDefinition);
 
         SofaHigressAPIDefinitionResponse response =
                 client.execute(
                         "/apiDefinition/unpub",
                         HttpMethod.POST,
                         SofaHigressAPIDefinitionParam.builder()
-                                .apiDefinitionVO(apiDefinition)
-                                .publishConfig(publishConfig)
+                                .apiDefinitionResult(apiDefinitionResult)
+                                .deploymentConfig(deploymentConfig)
                                 .build(),
                         new TypeReference<>() {},
                         objectMapper);
@@ -112,27 +121,31 @@ public class SofaHigressGatewayPublisher implements GatewayPublisher {
     }
 
     @Override
-    public boolean isPublished(Gateway gateway, APIDefinitionVO apiDefinition) {
+    public boolean isPublished(Gateway gateway, APIDefinition apiDefinition) {
         SofaHigressClient client = getClient(gateway);
+
+        // Convert to result object for the remote call
+        APIDefinitionResult apiDefinitionResult =
+                new APIDefinitionResult().convertFrom(apiDefinition);
 
         String response =
                 client.execute(
                         "/apiDefinition/isPub",
                         HttpMethod.POST,
                         SofaHigressAPIDefinitionParam.builder()
-                                .apiDefinitionVO(apiDefinition)
+                                .apiDefinitionResult(apiDefinitionResult)
                                 .build());
 
         return Boolean.parseBoolean(response);
     }
 
     @Override
-    public void validatePublishConfig(APIDefinitionVO apiDefinition, PublishConfig publishConfig) {
+    public void validateDeploymentConfig(
+            APIDefinition apiDefinition, DeploymentConfig deploymentConfig) {
         // 确定必要的参数是否缺失
-        if (apiDefinition == null || publishConfig == null) {
+        if (apiDefinition == null || deploymentConfig == null) {
             throw new BusinessException(
-                    ErrorCode.INVALID_PARAMETER,
-                    "API definition, endpoints or publish config is missing");
+                    ErrorCode.INVALID_PARAMETER, "API definition or publish config is missing");
         }
 
         if (apiDefinition.getStatus() != APIStatus.DRAFT) {
@@ -150,8 +163,8 @@ public class SofaHigressGatewayPublisher implements GatewayPublisher {
     @NoArgsConstructor
     public static class SofaHigressAPIDefinitionParam
             extends SofaHigressOperator.BaseRequest<Object> {
-        APIDefinitionVO apiDefinitionVO;
-        PublishConfig publishConfig;
+        APIDefinitionResult apiDefinitionResult;
+        DeploymentConfig deploymentConfig;
         String serviceAddress;
     }
 

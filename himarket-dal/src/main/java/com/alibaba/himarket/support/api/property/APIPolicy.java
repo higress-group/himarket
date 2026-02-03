@@ -19,15 +19,15 @@
 
 package com.alibaba.himarket.support.api.property;
 
-import com.alibaba.himarket.support.enums.PropertyPhase;
-import com.alibaba.himarket.support.enums.PropertyType;
+import com.alibaba.himarket.support.enums.Phase;
+import com.alibaba.himarket.support.enums.PolicyType;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import java.io.Serializable;
 import lombok.Data;
 
-/** API 属性配置基类 用于定义 API 的扩展属性基础信息 */
+/** API 策略配置基类，用于定义 API 的运行时治理策略 */
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonTypeInfo(
@@ -36,23 +36,18 @@ import lombok.Data;
         property = "type",
         visible = true)
 @JsonSubTypes({
-    @JsonSubTypes.Type(value = TimeoutProperty.class, name = "TIMEOUT"),
-    @JsonSubTypes.Type(value = ObservabilityProperty.class, name = "OBSERVABILITY")
+    @JsonSubTypes.Type(value = TimeoutPolicy.class, name = "TIMEOUT"),
+    @JsonSubTypes.Type(value = ObservabilityPolicy.class, name = "OBSERVABILITY")
 })
-public class BaseAPIProperty implements Serializable {
+public class APIPolicy implements Serializable {
 
-    /** 属性类型 */
-    private PropertyType type;
+    private PolicyType type;
 
-    /** 扩展名称（唯一标识） */
     private String name;
 
-    /** 执行阶段 */
-    private PropertyPhase phase;
+    private Phase phase;
 
-    /** 是否启用 */
     private Boolean enabled;
 
-    /** 优先级（数字越小越先执行） */
     private Integer priority;
 }

@@ -19,7 +19,7 @@
 
 package com.alibaba.himarket.dto.params.api;
 
-import com.alibaba.himarket.support.api.PublishConfig;
+import com.alibaba.himarket.support.api.DeploymentConfig;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
@@ -34,7 +34,7 @@ public class PublishAPIParam {
     private String gatewayId;
 
     @NotNull(message = "发布配置不能为空")
-    private PublishConfig publishConfig;
+    private DeploymentConfig deploymentConfig;
 
-    private String comment;
+    private String description;
 }

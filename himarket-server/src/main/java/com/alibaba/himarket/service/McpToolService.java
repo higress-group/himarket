@@ -19,19 +19,19 @@
 
 package com.alibaba.himarket.service;
 
-import com.alibaba.himarket.entity.APIEndpoint;
+import com.alibaba.himarket.dto.result.api.ToolImportPreviewDTO;
 import java.util.List;
 
 /** MCP Tool 服务接口 */
 public interface McpToolService {
 
     /**
-     * 从 MCP Server 导入 Tool
+     * 从 MCP Server 导入 Tool 预览
      *
      * @param endpoint MCP Server Endpoint
      * @param token 访问 Token
      * @param type 协议类型 (sse/http)
-     * @return Endpoint 列表
+     * @return 工具预览列表
      */
-    List<APIEndpoint> importFromMcpServer(String endpoint, String token, String type);
+    List<ToolImportPreviewDTO> importFromMcpServer(String endpoint, String token, String type);
 }

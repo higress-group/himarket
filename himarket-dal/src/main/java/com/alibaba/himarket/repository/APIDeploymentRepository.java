@@ -19,43 +19,35 @@
 
 package com.alibaba.himarket.repository;
 
-import com.alibaba.himarket.entity.APIPublishRecord;
+import com.alibaba.himarket.entity.APIDeployment;
 import com.alibaba.himarket.support.enums.PublishStatus;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface APIPublishRecordRepository extends BaseRepository<APIPublishRecord, Long> {
+public interface APIDeploymentRepository extends BaseRepository<APIDeployment, Long> {
 
-    Optional<APIPublishRecord> findByRecordId(String recordId);
+    Optional<APIDeployment> findByDeploymentId(String deploymentId);
 
-    List<APIPublishRecord> findByApiDefinitionId(String apiDefinitionId);
+    List<APIDeployment> findByApiDefinitionId(String apiDefinitionId, Sort sort);
 
-    Page<APIPublishRecord> findByApiDefinitionIdOrderByCreateAtDesc(
+    Page<APIDeployment> findByApiDefinitionIdOrderByCreatedAtDesc(
             String apiDefinitionId, Pageable pageable);
 
-    List<APIPublishRecord> findByApiDefinitionIdAndStatus(
+    List<APIDeployment> findByApiDefinitionIdAndStatus(
             String apiDefinitionId, PublishStatus status);
 
-    Optional<APIPublishRecord> findFirstByApiDefinitionIdAndGatewayIdOrderByCreateAtDesc(
+    Optional<APIDeployment> findFirstByApiDefinitionIdAndGatewayIdOrderByCreatedAtDesc(
             String apiDefinitionId, String gatewayId);
 
-    List<APIPublishRecord> findByGatewayId(String gatewayId);
+    Optional<APIDeployment> findFirstByApiDefinitionIdAndGatewayId(
+            String apiDefinitionId, String gatewayId, Sort sort);
+
+    List<APIDeployment> findByGatewayId(String gatewayId);
 
     void deleteByApiDefinitionId(String apiDefinitionId);
-
-    /**
-     * Find records by API Definition ID, Gateway ID and status in the given list
-     * Used to check for ongoing publish/unpublish operations
-     *
-     * @param apiDefinitionId API Definition ID
-     * @param gatewayId Gateway ID
-     * @param statuses List of statuses to check
-     * @return List of matching records
-     */
-    List<APIPublishRecord> findByApiDefinitionIdAndGatewayIdAndStatusIn(
-            String apiDefinitionId, String gatewayId, List<PublishStatus> statuses);
 }

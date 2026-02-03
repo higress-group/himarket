@@ -19,9 +19,9 @@
 
 package com.alibaba.himarket.service.api;
 
-import com.alibaba.himarket.dto.result.api.APIDefinitionVO;
+import com.alibaba.himarket.entity.APIDefinition;
 import com.alibaba.himarket.entity.Gateway;
-import com.alibaba.himarket.support.api.PublishConfig;
+import com.alibaba.himarket.support.api.DeploymentConfig;
 import com.alibaba.himarket.support.enums.APIType;
 import com.alibaba.himarket.support.enums.GatewayType;
 import com.alibaba.himarket.support.product.GatewayRefConfig;
@@ -58,38 +58,38 @@ public interface GatewayPublisher {
      * 发布 API Definition 到网关
      *
      * @param gateway 目标网关
-     * @param apiDefinition API Definition
-     * @param publishConfig 发布配置
+     * @param apiDefinition API Definition entity
+     * @param deploymentConfig 发布配置
      * @return 发布结果信息
      */
     GatewayRefConfig publish(
-            Gateway gateway, APIDefinitionVO apiDefinition, PublishConfig publishConfig);
+            Gateway gateway, APIDefinition apiDefinition, DeploymentConfig deploymentConfig);
 
     /**
      * 从网关下线 API
      *
      * @param gateway 目标网关
-     * @param apiDefinition API Definition
-     * @param publishConfig 发布配置
+     * @param apiDefinition API Definition entity
+     * @param deploymentConfig 发布配置
      * @return 下线结果信息
      */
-    String unpublish(Gateway gateway, APIDefinitionVO apiDefinition, PublishConfig publishConfig);
+    String unpublish(
+            Gateway gateway, APIDefinition apiDefinition, DeploymentConfig deploymentConfig);
 
     /**
      * 检查 API 是否已发布到网关
      *
      * @param gateway 目标网关
-     * @param apiDefinition API Definition
+     * @param apiDefinition API Definition entity
      * @return 是否已发布
      */
-    boolean isPublished(Gateway gateway, APIDefinitionVO apiDefinition);
+    boolean isPublished(Gateway gateway, APIDefinition apiDefinition);
 
     /**
      * 验证发布配置的有效性
      *
-     * @param apiDefinition API Definition
-     * @param publishConfig 发布配置
-     * @throws com.alibaba.himarket.core.exception.BusinessException 如果配置无效
+     * @param apiDefinition API Definition entity
+     * @param deploymentConfig 发布配置
      */
-    void validatePublishConfig(APIDefinitionVO apiDefinition, PublishConfig publishConfig);
+    void validateDeploymentConfig(APIDefinition apiDefinition, DeploymentConfig deploymentConfig);
 }

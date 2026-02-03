@@ -17,23 +17,36 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.enums;
+package com.alibaba.himarket.dto.result.api;
 
+import com.alibaba.himarket.support.api.DeploymentConfig;
 import lombok.AllArgsConstructor;
-import lombok.Getter;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-/** 属性类型枚举 */
-@Getter
+/**
+ * API Deployment Snapshot
+ *
+ * <p>Complete snapshot of API deployment operation, including:
+ * <ul>
+ *   <li>API Definition at the time of deployment</li>
+ *   <li>Deployment configuration used for this operation</li>
+ * </ul>
+ */
+@Data
+@Builder
+@NoArgsConstructor
 @AllArgsConstructor
-public enum PropertyType {
+public class APIDeploymentSnapshot {
 
-    /** 超时配置 */
-    TIMEOUT("超时配置", "配置 API 的超时时间"),
+    /**
+     * API Definition snapshot at deployment time
+     */
+    private APIDefinitionResult apiDefinition;
 
-    /** 可观测性 */
-    OBSERVABILITY("可观测性", "配置 API 的可观测性"),
-    ;
-
-    private final String label;
-    private final String description;
+    /**
+     * Deployment configuration for this operation
+     */
+    private DeploymentConfig deploymentConfig;
 }

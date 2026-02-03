@@ -1,9 +1,9 @@
 package com.alibaba.himarket.service.publisher;
 
-import com.alibaba.himarket.dto.result.api.APIDefinitionVO;
+import com.alibaba.himarket.entity.APIDefinition;
 import com.alibaba.himarket.entity.Gateway;
 import com.alibaba.himarket.service.api.GatewayPublisher;
-import com.alibaba.himarket.support.api.PublishConfig;
+import com.alibaba.himarket.support.api.DeploymentConfig;
 import com.alibaba.himarket.support.enums.APIType;
 import com.alibaba.himarket.support.enums.GatewayType;
 import com.alibaba.himarket.support.product.GatewayRefConfig;
@@ -25,23 +25,24 @@ public class ApsaraGatewayPublisher implements GatewayPublisher {
 
     @Override
     public GatewayRefConfig publish(
-            Gateway gateway, APIDefinitionVO apiDefinition, PublishConfig publishConfig) {
+            Gateway gateway, APIDefinition apiDefinition, DeploymentConfig deploymentConfig) {
         return null;
     }
 
     @Override
     public String unpublish(
-            Gateway gateway, APIDefinitionVO apiDefinition, PublishConfig publishConfig) {
+            Gateway gateway, APIDefinition apiDefinition, DeploymentConfig deploymentConfig) {
         return "Mock unpublish success";
     }
 
     @Override
-    public boolean isPublished(Gateway gateway, APIDefinitionVO apiDefinition) {
+    public boolean isPublished(Gateway gateway, APIDefinition apiDefinition) {
         return false;
     }
 
     @Override
-    public void validatePublishConfig(APIDefinitionVO apiDefinition, PublishConfig publishConfig) {
+    public void validateDeploymentConfig(
+            APIDefinition apiDefinition, DeploymentConfig deploymentConfig) {
         // Mock validation
     }
 }

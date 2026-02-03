@@ -48,6 +48,7 @@ import com.alibaba.himarket.support.enums.GatewayType;
 import com.alibaba.himarket.support.gateway.AdpAIGatewayConfig;
 import com.alibaba.himarket.support.gateway.GatewayConfig;
 import com.alibaba.himarket.support.product.APIGRefConfig;
+import com.alibaba.himarket.utils.JsonUtil;
 import com.aliyun.sdk.service.apig20240327.models.HttpApiApiInfo;
 import java.net.URI;
 import java.time.LocalDateTime;
@@ -360,7 +361,7 @@ public class AdpAIGatewayOperator extends GatewayOperator {
         meta.setCreateFromType(data.getType());
         mcpConfig.setMeta(meta);
 
-        return JSONUtil.toJsonStr(mcpConfig);
+        return JsonUtil.toJson(mcpConfig);
     }
 
     /** 获取网关实例的访问信息并构建域名列表 */
@@ -538,7 +539,7 @@ public class AdpAIGatewayOperator extends GatewayOperator {
         ModelConfigResult modelConfig = new ModelConfigResult();
         modelConfig.setModelAPIConfig(apiConfig);
 
-        return JSONUtil.toJsonStr(modelConfig);
+        return JsonUtil.toJson(modelConfig);
     }
 
     /** 从ADP服务数据构建路由列表 */
@@ -1470,7 +1471,7 @@ public class AdpAIGatewayOperator extends GatewayOperator {
                                 .gatewayId(instance.getGwInstanceId())
                                 .gatewayName(instance.getName())
                                 .gatewayType(GatewayType.ADP_AI_GATEWAY)
-                                .createAt(createTime)
+                                .createdAt(createTime)
                                 .build();
                 gateways.add(gateway);
             }

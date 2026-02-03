@@ -35,5 +35,5 @@ public class ConsumerResult implements OutputConverter<ConsumerResult, Consumer>
 
     private Boolean isPrimary;
 
-    private LocalDateTime createAt;
+    private LocalDateTime createdAt;
 }

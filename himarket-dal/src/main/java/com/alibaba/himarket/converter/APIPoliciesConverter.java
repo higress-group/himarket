@@ -17,27 +17,16 @@
  * under the License.
  */
 
-package com.alibaba.himarket.repository;
+package com.alibaba.himarket.converter;
 
-import com.alibaba.himarket.entity.APIEndpoint;
-import com.alibaba.himarket.support.enums.EndpointType;
+import com.alibaba.himarket.support.api.property.APIPolicy;
+import jakarta.persistence.Converter;
 import java.util.List;
-import java.util.Optional;
-import org.springframework.stereotype.Repository;
 
-@Repository
-public interface APIEndpointRepository extends BaseRepository<APIEndpoint, Long> {
+@Converter
+public class APIPoliciesConverter extends JsonConverter<List<APIPolicy>> {
 
-    Optional<APIEndpoint> findByEndpointId(String endpointId);
-
-    List<APIEndpoint> findByApiDefinitionId(String apiDefinitionId);
-
-    List<APIEndpoint> findByApiDefinitionIdOrderBySortOrderAsc(String apiDefinitionId);
-
-    List<APIEndpoint> findByApiDefinitionIdAndType(String apiDefinitionId, EndpointType type);
-
-    Optional<APIEndpoint> findByEndpointIdAndApiDefinitionId(
-            String endpointId, String apiDefinitionId);
-
-    void deleteByApiDefinitionId(String apiDefinitionId);
+    public APIPoliciesConverter() {
+        super((Class) List.class, APIPolicy.class);
+    }
 }

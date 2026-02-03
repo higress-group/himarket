@@ -22,9 +22,9 @@ package com.alibaba.himarket.converter;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.ClassUtil;
 import cn.hutool.core.util.ReflectUtil;
-import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.support.common.Encrypted;
 import com.alibaba.himarket.support.common.Encryptor;
+import com.alibaba.himarket.utils.JsonUtil;
 import jakarta.persistence.AttributeConverter;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -67,7 +67,7 @@ public abstract class JsonConverter<T> implements AttributeConverter<T, String> 
         }
 
         T clonedAttribute = cloneAndEncrypt(attribute);
-        return JSONUtil.toJsonStr(clonedAttribute);
+        return JsonUtil.toJson(clonedAttribute);
     }
 
     @Override
@@ -80,12 +80,12 @@ public abstract class JsonConverter<T> implements AttributeConverter<T, String> 
             // Use elementType if specified, otherwise fallback to Object.class for backward
             // compatibility
             Class<?> listElementType = elementType != null ? elementType : Object.class;
-            T attribute = (T) JSONUtil.toList(dbData, listElementType);
+            T attribute = (T) JsonUtil.parseArray(dbData, listElementType);
             decrypt(attribute);
             return attribute;
         }
 
-        T attribute = JSONUtil.toBean(dbData, type);
+        T attribute = JsonUtil.parse(dbData, type);
         decrypt(attribute);
         return attribute;
     }
@@ -96,7 +96,7 @@ public abstract class JsonConverter<T> implements AttributeConverter<T, String> 
         T cloned =
                 original instanceof List
                         ? (T) new ArrayList<>((List<?>) original)
-                        : JSONUtil.toBean(JSONUtil.toJsonStr(original), type);
+                        : JsonUtil.parse(JsonUtil.toJson(original), type);
         handleEncryption(cloned, true);
         return cloned;
     }

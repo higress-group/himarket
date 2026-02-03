@@ -22,7 +22,6 @@ package com.alibaba.himarket.service.gateway;
 import cn.hutool.core.codec.Base64;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
-import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.dto.params.gateway.QueryAPIGParam;
@@ -47,6 +46,7 @@ import com.alibaba.himarket.support.enums.APIGAPIType;
 import com.alibaba.himarket.support.enums.GatewayType;
 import com.alibaba.himarket.support.gateway.GatewayConfig;
 import com.alibaba.himarket.support.product.APIGRefConfig;
+import com.alibaba.himarket.utils.JsonUtil;
 import com.aliyun.sdk.gateway.pop.exception.PopClientException;
 import com.aliyun.sdk.service.apig20240327.models.*;
 import com.aliyun.sdk.service.apig20240327.models.CreateConsumerAuthorizationRulesRequest.AuthorizationRules;
@@ -130,7 +130,7 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
             meta.setType("REST");
             configResult.setMeta(meta);
 
-            return JSONUtil.toJsonStr(configResult);
+            return JsonUtil.toJson(configResult);
         } catch (Exception e) {
             log.error("Error fetching API Spec", e);
             throw new BusinessException(

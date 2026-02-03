@@ -19,48 +19,45 @@
 
 package com.alibaba.himarket.entity;
 
-import com.alibaba.himarket.support.enums.PublishAction;
 import com.alibaba.himarket.support.enums.PublishStatus;
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
 
-/** API Publish Record 实体类 */
-@EqualsAndHashCode(callSuper = true)
 @Entity
 @Table(
-        name = "api_publish_record",
+        name = "api_deployment",
         uniqueConstraints = {
             @UniqueConstraint(
-                    columnNames = {"record_id"},
-                    name = "uk_record_id")
+                    columnNames = {"deployment_id"},
+                    name = "uk_deployment_id")
         },
         indexes = {
             @Index(name = "idx_api_definition_id", columnList = "api_definition_id"),
             @Index(name = "idx_gateway_id", columnList = "gateway_id")
         })
 @Data
-public class APIPublishRecord extends BaseEntity {
+@EqualsAndHashCode(callSuper = true)
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class APIDeployment extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "record_id", length = 64, nullable = false)
-    private String recordId;
+    @Column(name = "deployment_id", length = 64, nullable = false)
+    private String deploymentId;
 
     @Column(name = "api_definition_id", length = 64, nullable = false)
     private String apiDefinitionId;
 
     @Column(name = "gateway_id", length = 64, nullable = false)
     private String gatewayId;
-
-    @Column(name = "gateway_name", length = 255)
-    private String gatewayName;
-
-    @Column(name = "gateway_type", length = 32, nullable = false)
-    private String gatewayType;
 
     @Column(name = "version", length = 32)
     private String version;
@@ -69,34 +66,15 @@ public class APIPublishRecord extends BaseEntity {
     @Enumerated(EnumType.STRING)
     private PublishStatus status;
 
-    @Column(name = "action", length = 32)
-    @Enumerated(EnumType.STRING)
-    private PublishAction action;
-
-    @Column(name = "publish_config", columnDefinition = "json")
-    private String publishConfig;
-
-    @Column(name = "gateway_resource_config", length = 255)
+    @Column(name = "gateway_resource_config", columnDefinition = "json")
     private String gatewayResourceConfig;
-
-    @Column(name = "access_endpoint", length = 512)
-    private String accessEndpoint;
 
     @Column(name = "error_message", columnDefinition = "text")
     private String errorMessage;
 
-    @Column(name = "publish_note", columnDefinition = "text")
-    private String publishNote;
-
-    @Column(name = "operator", length = 64)
-    private String operator;
+    @Column(name = "description", columnDefinition = "text")
+    private String description;
 
     @Column(name = "snapshot", columnDefinition = "json")
     private String snapshot;
-
-    @Column(name = "published_at", columnDefinition = "datetime(3)")
-    private LocalDateTime publishedAt;
-
-    @Column(name = "last_sync_at", columnDefinition = "datetime(3)")
-    private LocalDateTime lastSyncAt;
 }

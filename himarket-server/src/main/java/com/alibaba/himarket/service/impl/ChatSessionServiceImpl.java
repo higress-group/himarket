@@ -26,7 +26,6 @@ import com.alibaba.himarket.core.event.ChatSessionDeletingEvent;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.core.security.ContextHolder;
-import com.alibaba.himarket.core.utils.IdGenerator;
 import com.alibaba.himarket.dto.params.chat.CreateChatSessionParam;
 import com.alibaba.himarket.dto.params.chat.UpdateChatSessionParam;
 import com.alibaba.himarket.dto.result.chat.ChatSessionResult;
@@ -39,6 +38,7 @@ import com.alibaba.himarket.repository.ChatRepository;
 import com.alibaba.himarket.repository.ChatSessionRepository;
 import com.alibaba.himarket.service.ChatSessionService;
 import com.alibaba.himarket.service.ProductService;
+import com.alibaba.himarket.utils.IdGenerator;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -165,7 +165,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
             // Delete the first session
             sessionRepository
                     .findFirstByUserId(
-                            contextHolder.getUser(), Sort.by(Sort.Direction.ASC, "createAt"))
+                            contextHolder.getUser(), Sort.by(Sort.Direction.ASC, "createdAt"))
                     .ifPresent(session -> deleteSession(session.getSessionId()));
         }
     }
@@ -176,7 +176,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
                 chatRepository.findAllBySessionIdAndUserId(
                         sessionId,
                         contextHolder.getUser(),
-                        Sort.by(Sort.Direction.ASC, "createAt"));
+                        Sort.by(Sort.Direction.ASC, "createdAt"));
         if (CollUtil.isEmpty(chats)) {
             return Collections.emptyList();
         }
@@ -220,7 +220,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
                     ConversationResult_V1.QuestionResult.builder()
                             .questionId(e.getKey())
                             .content(firstChat.getQuestion())
-                            .createdAt(firstChat.getCreateAt())
+                            .createdAt(firstChat.getCreatedAt())
                             .attachments(
                                     Optional.ofNullable(firstChat.getAttachments())
                                             .orElse(Collections.emptyList()))
@@ -279,7 +279,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
                 chatRepository.findAllBySessionIdAndUserId(
                         sessionId,
                         contextHolder.getUser(),
-                        Sort.by(Sort.Direction.ASC, "createAt"));
+                        Sort.by(Sort.Direction.ASC, "createdAt"));
 
         if (CollUtil.isEmpty(chats)) {
             return Collections.emptyList();
@@ -349,7 +349,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
                     ProductConversationResult.QuestionResult.builder()
                             .questionId(entry.getKey())
                             .content(firstChat.getQuestion())
-                            .createdAt(firstChat.getCreateAt())
+                            .createdAt(firstChat.getCreatedAt())
                             .attachments(
                                     Optional.ofNullable(firstChat.getAttachments())
                                             .orElse(Collections.emptyList()))

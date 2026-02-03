@@ -5,11 +5,15 @@ import com.alibaba.himarket.dto.result.product.ProductResult;
 import com.alibaba.himarket.support.chat.mcp.MCPTransportConfig;
 import io.agentscope.core.message.Msg;
 import java.util.List;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class InvokeModelParam {
 
     /**

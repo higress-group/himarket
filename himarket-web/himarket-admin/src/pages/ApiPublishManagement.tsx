@@ -26,7 +26,6 @@ import {
   SyncOutlined,
   StopOutlined,
   EyeOutlined,
-  EditOutlined,
   DownOutlined,
   UpOutlined,
   InfoCircleOutlined,

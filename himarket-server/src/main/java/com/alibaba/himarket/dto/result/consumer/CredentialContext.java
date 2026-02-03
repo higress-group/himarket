@@ -21,11 +21,15 @@ package com.alibaba.himarket.dto.result.consumer;
 
 import java.util.HashMap;
 import java.util.Map;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class CredentialContext {
 
     private String apiKey;

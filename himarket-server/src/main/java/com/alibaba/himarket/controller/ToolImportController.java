@@ -23,9 +23,8 @@ import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.core.response.Response;
 import com.alibaba.himarket.dto.params.api.ToolImportParam;
-import com.alibaba.himarket.dto.result.api.APIEndpointVO;
 import com.alibaba.himarket.dto.result.api.ImportToolsResult;
-import com.alibaba.himarket.entity.APIEndpoint;
+import com.alibaba.himarket.dto.result.api.ToolImportPreviewDTO;
 import com.alibaba.himarket.service.McpToolService;
 import com.alibaba.himarket.service.NacosService;
 import com.alibaba.himarket.service.api.SwaggerConverter;
@@ -33,7 +32,6 @@ import com.alibaba.himarket.support.enums.APIType;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.StringUtils;
@@ -56,16 +54,18 @@ public class ToolImportController {
     private final McpToolService mcpToolService;
 
     @PostMapping("/{source}")
-    @Operation(summary = "统一导入接口", description = "根据 source (nacos, mcp-server, swagger) 导入 Tool")
+    @Operation(
+            summary = "统一导入接口",
+            description = "根据 source (nacos, mcp-server, swagger) 导入 Tool 预览")
     public Response<ImportToolsResult> importTools(
             @PathVariable("source") String source, @RequestBody ToolImportParam param) {
         validate(param, source);
-        List<APIEndpoint> endpoints;
+        List<ToolImportPreviewDTO> tools;
 
         switch (source) {
             case "nacos":
                 log.info("Importing MCP Tools from Nacos: {}", param);
-                endpoints =
+                tools =
                         nacosService.importMcpTools(
                                 param.getNacosId(),
                                 param.getNamespaceId(),
@@ -74,7 +74,7 @@ public class ToolImportController {
             case "mcp-server":
                 log.info("Importing MCP Tools from MCP Server: {}", param);
                 String mcpType = StringUtils.hasText(param.getType()) ? param.getType() : "sse";
-                endpoints =
+                tools =
                         mcpToolService.importFromMcpServer(
                                 param.getEndpoint(), param.getToken(), mcpType);
                 break;
@@ -84,22 +84,17 @@ public class ToolImportController {
                         StringUtils.hasText(param.getType())
                                 ? APIType.valueOf(param.getType())
                                 : null;
-                endpoints = swaggerConverter.convertEndpoints(param.getSwaggerContent(), apiType);
+                tools = swaggerConverter.convertEndpoints(param.getSwaggerContent(), apiType);
                 break;
             default:
                 throw new BusinessException(
                         ErrorCode.INVALID_PARAMETER, "Unsupported import source: " + source);
         }
 
-        List<APIEndpointVO> endpointVOs =
-                endpoints.stream()
-                        .map(endpoint -> new APIEndpointVO().convertFrom(endpoint))
-                        .collect(Collectors.toList());
-
         return Response.ok(
                 ImportToolsResult.builder()
-                        .endpoints(endpointVOs)
-                        .message("成功从 " + source + " 导入 " + endpointVOs.size() + " 个 Tool")
+                        .tools(tools)
+                        .message("成功从 " + source + " 导入 " + tools.size() + " 个 Tool")
                         .build());
     }
 

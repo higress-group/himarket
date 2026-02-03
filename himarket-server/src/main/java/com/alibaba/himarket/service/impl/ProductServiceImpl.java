@@ -22,7 +22,6 @@ package com.alibaba.himarket.service.impl;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.extra.spring.SpringUtil;
-import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.event.PortalDeletingEvent;
 import com.alibaba.himarket.core.event.ProductConfigReloadEvent;
@@ -30,12 +29,10 @@ import com.alibaba.himarket.core.event.ProductDeletingEvent;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.core.security.ContextHolder;
-import com.alibaba.himarket.core.utils.CacheUtil;
-import com.alibaba.himarket.core.utils.IdGenerator;
 import com.alibaba.himarket.dto.params.product.*;
 import com.alibaba.himarket.dto.result.ProductCategoryResult;
 import com.alibaba.himarket.dto.result.agent.AgentConfigResult;
-import com.alibaba.himarket.dto.result.api.APIDefinitionVO;
+import com.alibaba.himarket.dto.result.api.APIDefinitionResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.consumer.CredentialContext;
 import com.alibaba.himarket.dto.result.gateway.GatewayResult;
@@ -57,7 +54,9 @@ import com.alibaba.himarket.support.enums.ProductStatus;
 import com.alibaba.himarket.support.enums.ProductType;
 import com.alibaba.himarket.support.enums.SourceType;
 import com.alibaba.himarket.support.product.NacosRefConfig;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.alibaba.himarket.utils.CacheUtil;
+import com.alibaba.himarket.utils.IdGenerator;
+import com.alibaba.himarket.utils.JsonUtil;
 import com.github.benmanes.caffeine.cache.Cache;
 import io.agentscope.core.tool.mcp.McpClientWrapper;
 import jakarta.persistence.criteria.Predicate;
@@ -86,8 +85,6 @@ public class ProductServiceImpl implements ProductService {
 
     private final ContextHolder contextHolder;
 
-    private final ObjectMapper objectMapper;
-
     private final PortalService portalService;
 
     private final GatewayService gatewayService;
@@ -107,8 +104,6 @@ public class ProductServiceImpl implements ProductService {
     private final APIDefinitionService apiDefinitionService;
 
     private final ProductCategoryService productCategoryService;
-
-    private final APIPublishRecordRepository apiPublishRecordRepository;
 
     private final ToolManager toolManager;
 
@@ -391,7 +386,7 @@ public class ProductServiceImpl implements ProductService {
                             ProductRefResult result =
                                     new ProductRefResult().convertFrom(productRef);
                             if (StrUtil.isNotEmpty(result.getApiDefinitionId())) {
-                                APIDefinitionVO apiDefinition =
+                                APIDefinitionResult apiDefinition =
                                         apiDefinitionService.getAPIDefinition(
                                                 result.getApiDefinitionId());
                                 result.setApiDefinition(apiDefinition);
@@ -682,7 +677,7 @@ public class ProductServiceImpl implements ProductService {
 
         MCPConfigResult mcpConfig =
                 Optional.ofNullable(productRef.getMcpConfig())
-                        .map(config -> JSONUtil.toBean(config, MCPConfigResult.class))
+                        .map(config -> JsonUtil.parse(config, MCPConfigResult.class))
                         .orElse(null);
 
         if (mcpConfig == null) {
@@ -695,7 +690,7 @@ public class ProductServiceImpl implements ProductService {
                 .ifPresent(
                         tools -> {
                             mcpConfig.setTools(tools);
-                            productRef.setMcpConfig(JSONUtil.toJsonStr(mcpConfig));
+                            productRef.setMcpConfig(JsonUtil.toJson(mcpConfig));
                         });
     }
 
@@ -744,24 +739,24 @@ public class ProductServiceImpl implements ProductService {
 
         // API config for REST API
         if (StrUtil.isNotBlank(productRef.getApiConfig())) {
-            product.setApiConfig(JSONUtil.toBean(productRef.getApiConfig(), APIConfigResult.class));
+            product.setApiConfig(JsonUtil.parse(productRef.getApiConfig(), APIConfigResult.class));
         }
 
         // MCP config for MCP Server
         if (StrUtil.isNotBlank(productRef.getMcpConfig())) {
-            product.setMcpConfig(JSONUtil.toBean(productRef.getMcpConfig(), MCPConfigResult.class));
+            product.setMcpConfig(JsonUtil.parse(productRef.getMcpConfig(), MCPConfigResult.class));
         }
 
         // Agent config for Agent API
         if (StrUtil.isNotBlank(productRef.getAgentConfig())) {
             product.setAgentConfig(
-                    JSONUtil.toBean(productRef.getAgentConfig(), AgentConfigResult.class));
+                    JsonUtil.parse(productRef.getAgentConfig(), AgentConfigResult.class));
         }
 
         // Model config for Model API
         if (StrUtil.isNotBlank(productRef.getModelConfig())) {
             product.setModelConfig(
-                    JSONUtil.toBean(productRef.getModelConfig(), ModelConfigResult.class));
+                    JsonUtil.parse(productRef.getModelConfig(), ModelConfigResult.class));
         }
     }
 
@@ -978,7 +973,7 @@ public class ProductServiceImpl implements ProductService {
         if (param.getType() == ProductType.MODEL_API && param.getModelFilter() != null) {
             try {
                 ModelConfigResult config =
-                        JSONUtil.toBean(productRef.getModelConfig(), ModelConfigResult.class);
+                        JsonUtil.parse(productRef.getModelConfig(), ModelConfigResult.class);
                 return param.getModelFilter().matches(config);
             } catch (Exception e) {
                 log.warn(
@@ -996,33 +991,5 @@ public class ProductServiceImpl implements ProductService {
 
         // No filter specified or no matching filter type, pass through
         return true;
-    }
-
-    private List<Map<String, Object>> convertInputSchemaToArgs(Map<String, Object> inputSchema) {
-        if (inputSchema == null || !inputSchema.containsKey("properties")) {
-            return Collections.emptyList();
-        }
-
-        Map<String, Object> properties = (Map<String, Object>) inputSchema.get("properties");
-        List<String> required =
-                (List<String>) inputSchema.getOrDefault("required", Collections.emptyList());
-
-        List<Map<String, Object>> args = new ArrayList<>();
-        for (Map.Entry<String, Object> entry : properties.entrySet()) {
-            String name = entry.getKey();
-            Map<String, Object> prop = (Map<String, Object>) entry.getValue();
-
-            Map<String, Object> arg = new HashMap<>();
-            arg.put("name", name);
-            arg.put("description", prop.get("description"));
-            arg.put("type", prop.get("type"));
-            arg.put("required", required.contains(name));
-            arg.put("defaultValue", prop.get("default"));
-            arg.put("enumValues", prop.get("enum"));
-            arg.put("position", "query");
-
-            args.add(arg);
-        }
-        return args;
     }
 }

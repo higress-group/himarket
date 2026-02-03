@@ -37,5 +37,5 @@ public class DeveloperResult implements OutputConverter<DeveloperResult, Develop
 
     private String avatarUrl;
 
-    private LocalDateTime createAt;
+    private LocalDateTime createdAt;
 }

@@ -52,7 +52,7 @@ public class GatewayResult implements OutputConverter<GatewayResult, Gateway> {
 
     private SofaHigressConfigResult sofaHigressConfig;
 
-    private LocalDateTime createAt;
+    private LocalDateTime createdAt;
 
     @Override
     public GatewayResult convertFrom(Gateway source) {

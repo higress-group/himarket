@@ -17,20 +17,27 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.api;
+package com.alibaba.himarket.support.api.property;
 
-import com.alibaba.himarket.support.api.service.ServiceConfig;
-import java.io.Serializable;
-import java.util.List;
+import com.alibaba.himarket.support.annotation.APIField;
+import com.alibaba.himarket.support.annotation.SupportedAPITypes;
+import com.alibaba.himarket.support.enums.APIType;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
-/** 发布配置 */
 @Data
-public class PublishConfig implements Serializable {
+@EqualsAndHashCode(callSuper = true)
+@SupportedAPITypes({APIType.REST_API, APIType.MCP_SERVER, APIType.AGENT_API, APIType.MODEL_API})
+public class TimeoutPolicy extends APIPolicy {
 
-    /** 服务配置 */
-    private ServiceConfig serviceConfig;
+    @APIField(label = "超时时间", description = "超时时间数值", required = true)
+    private Long unitNum;
 
-    /** 域名列表 */
-    private List<DomainConfig> domains;
+    @APIField(
+            label = "时间单位",
+            description = "超时时间单位（仅支持 s=秒）",
+            required = true,
+            defaultValue = "s",
+            options = {"s"})
+    private String timeUnit = "s";
 }

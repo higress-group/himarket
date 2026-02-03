@@ -19,17 +19,14 @@
 
 package com.alibaba.himarket.dto.params.api;
 
-import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.dto.converter.InputConverter;
 import com.alibaba.himarket.entity.APIDefinition;
-import com.alibaba.himarket.support.api.property.BaseAPIProperty;
+import com.alibaba.himarket.support.api.property.APIPolicy;
 import com.alibaba.himarket.support.enums.APIType;
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.util.List;
-import java.util.Map;
 import lombok.Data;
 
 @Data
@@ -48,30 +45,5 @@ public class CreateAPIDefinitionParam implements InputConverter<APIDefinition> {
     @Size(max = 50, message = "版本号长度不能超过50个字符")
     private String version;
 
-    @Size(max = 255, message = "Base Path长度不能超过255个字符")
-    private String basePath;
-
-    private List<BaseAPIProperty> properties;
-
-    private Map<String, Object> metadata;
-
-    /** 端点配置列表，创建 API 时可以同时创建多个端点 */
-    @Valid private List<CreateEndpointParam> endpoints;
-
-    @Override
-    public APIDefinition convertTo() {
-        APIDefinition apiDefinition = InputConverter.super.convertTo();
-
-        // 处理 properties JSON 序列化
-        if (properties != null && !properties.isEmpty()) {
-            apiDefinition.setProperties(JSONUtil.toJsonStr(properties));
-        }
-
-        // 处理 metadata JSON 序列化
-        if (metadata != null && !metadata.isEmpty()) {
-            apiDefinition.setMetadata(JSONUtil.toJsonStr(metadata));
-        }
-
-        return apiDefinition;
-    }
+    private List<APIPolicy> policies;
 }

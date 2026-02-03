@@ -21,7 +21,6 @@ package com.alibaba.himarket.service.gateway;
 
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
-import com.alibaba.himarket.core.utils.CacheUtil;
 import com.alibaba.himarket.dto.result.agent.AgentAPIResult;
 import com.alibaba.himarket.dto.result.common.DomainResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
@@ -37,6 +36,7 @@ import com.alibaba.himarket.service.gateway.client.*;
 import com.alibaba.himarket.support.consumer.ConsumerAuthConfig;
 import com.alibaba.himarket.support.enums.GatewayType;
 import com.alibaba.himarket.support.gateway.GatewayConfig;
+import com.alibaba.himarket.utils.CacheUtil;
 import com.aliyun.sdk.service.apig20240327.models.HttpApiApiInfo;
 import com.github.benmanes.caffeine.cache.Cache;
 import java.net.URI;

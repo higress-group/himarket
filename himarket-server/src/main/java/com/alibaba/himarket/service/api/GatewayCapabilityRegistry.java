@@ -85,28 +85,6 @@ public class GatewayCapabilityRegistry {
     }
 
     /**
-     * 查询支持指定 API 类型的所有网关
-     *
-     * @param apiType API 类型
-     * @return 支持的网关列表
-     */
-    public List<Gateway> findSupportedGateways(APIType apiType) {
-        // 获取所有支持该 API 类型的网关类型
-        List<GatewayType> supportedTypes =
-                publishers.values().stream()
-                        .filter(publisher -> publisher.supportsAPIType(apiType))
-                        .map(GatewayPublisher::getGatewayType)
-                        .collect(Collectors.toList());
-
-        if (supportedTypes.isEmpty()) {
-            return new ArrayList<>();
-        }
-
-        // 从数据库查询这些类型的网关实例
-        return gatewayRepository.findByGatewayTypeIn(supportedTypes);
-    }
-
-    /**
      * 获取指定网关的能力信息
      *
      * @param gateway 网关实体

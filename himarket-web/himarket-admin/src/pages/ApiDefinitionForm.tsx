@@ -9,139 +9,19 @@ import {
   Button,
   message,
   Steps,
-  Divider,
-  Upload,
   Radio,
   Switch,
 } from "antd";
 import {
   ArrowLeftOutlined,
   SaveOutlined,
-  UploadOutlined,
+
 } from "@ant-design/icons";
-import type { UploadProps } from "antd";
 import { apiDefinitionApi, apiProductApi } from "@/lib/api";
 import EndpointEditor from "@/components/endpoint/EndpointEditor";
 import type { Endpoint } from "@/types/endpoint";
 
 const { TextArea } = Input;
-
-const DIFY_ENDPOINTS: Endpoint[] = [
-  {
-    name: "chat-messages",
-    description: "发送对话消息",
-    type: "REST_ROUTE",
-    config: {
-      path: "/chat-messages",
-      method: "POST",
-      headers: [
-        {
-          name: "Authorization",
-          description: "Bearer {api_key}",
-          required: true,
-        },
-      ],
-      requestBody: {
-        type: "object",
-        properties: {
-          query: { type: "string", description: "用户输入/提问内容" },
-          inputs: {
-            type: "object",
-            description: "允许传入 App 定义的各变量值",
-            default: {},
-          },
-          response_mode: {
-            type: "string",
-            enum: ["streaming", "blocking"],
-            description: "响应模式",
-          },
-          user: { type: "string", description: "用户标识" },
-          conversation_id: { type: "string", description: "会话 ID" },
-          files: {
-            type: "array",
-            items: { type: "object" },
-            description: "文件列表",
-          },
-          auto_generate_name: {
-            type: "boolean",
-            default: true,
-            description: "自动生成标题",
-          },
-          workflow_id: { type: "string", description: "工作流ID" },
-        },
-        required: ["query", "user"],
-      },
-      responses: {
-        "200": {
-          description: "成功响应",
-          schema: {
-            type: "object",
-            properties: {
-              event: { type: "string", description: "事件类型" },
-              task_id: { type: "string", description: "任务 ID" },
-              id: { type: "string", description: "消息 ID" },
-              answer: { type: "string", description: "回答内容" },
-              created_at: { type: "integer", description: "创建时间" },
-            },
-          },
-        },
-      },
-    },
-  },
-  {
-    name: "run-workflow",
-    description: "执行工作流",
-    type: "REST_ROUTE",
-    config: {
-      path: "/workflows/run",
-      method: "POST",
-      headers: [
-        {
-          name: "Authorization",
-          description: "Bearer {api_key}",
-          required: true,
-        },
-      ],
-      requestBody: {
-        type: "object",
-        properties: {
-          inputs: {
-            type: "object",
-            description: "工作流变量输入",
-            default: {},
-          },
-          response_mode: {
-            type: "string",
-            enum: ["streaming", "blocking"],
-            description: "响应模式",
-          },
-          user: { type: "string", description: "用户标识" },
-          files: {
-            type: "array",
-            items: { type: "object" },
-            description: "文件列表",
-          },
-        },
-        required: ["inputs", "response_mode", "user"],
-      },
-      responses: {
-        "200": {
-          description: "成功响应",
-          schema: {
-            type: "object",
-            properties: {
-              workflow_run_id: { type: "string", description: "工作流运行 ID" },
-              task_id: { type: "string", description: "任务 ID" },
-              data: { type: "object", description: "输出数据" },
-              status: { type: "string", description: "运行状态" },
-            },
-          },
-        },
-      },
-    },
-  },
-];
-
 interface PropertyField {
   name: string;
   label: string;
@@ -214,7 +94,7 @@ export default function ApiDefinitionForm() {
   const location = useLocation();
   const { productName, productType, productDescription } = location.state || {};
   const [form] = Form.useForm();
-  const apiName = Form.useWatch("name", form);
+  Form.useWatch("name", form);
   const apiType = Form.useWatch("type", form);
   const [loading, setLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
@@ -576,7 +456,7 @@ export default function ApiDefinitionForm() {
             status: "DRAFT",
             version: "1.0.0",
           }}
-          onValuesChange={changedValues => {
+          onValuesChange={() => {
             // 监听协议变化
           }}
         >

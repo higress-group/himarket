@@ -21,7 +21,6 @@ package com.alibaba.himarket.service.gateway;
 
 import cn.hutool.core.codec.Base64;
 import cn.hutool.core.util.StrUtil;
-import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.dto.result.agent.AgentAPIResult;
@@ -45,6 +44,7 @@ import com.alibaba.himarket.support.enums.APIGAPIType;
 import com.alibaba.himarket.support.enums.APIGResourceType;
 import com.alibaba.himarket.support.enums.GatewayType;
 import com.alibaba.himarket.support.product.APIGRefConfig;
+import com.alibaba.himarket.utils.JsonUtil;
 import com.aliyun.sdk.gateway.pop.exception.PopClientException;
 import com.aliyun.sdk.service.apig20240327.models.*;
 import java.util.ArrayList;
@@ -167,7 +167,7 @@ public class AIGWOperator extends APIGOperator {
     public PageResult<? extends GatewayMCPServerResult> fetchMcpServers_V1(
             Gateway gateway, int page, int size) {
         PageResult<APIResult> apiPage = fetchAPIs(gateway, APIGAPIType.MCP, 0, 1);
-        if (apiPage.getTotalElements() == 0) {
+        if (apiPage.getTotalCount() == 0) {
             return PageResult.empty(page, size);
         }
 
@@ -175,7 +175,7 @@ public class AIGWOperator extends APIGOperator {
         String apiId = apiPage.getContent().get(0).getApiId();
         try {
             PageResult<HttpRoute> routesPage = fetchHttpRoutes(gateway, apiId, page, size);
-            if (routesPage.getTotalElements() == 0) {
+            if (routesPage.getTotalCount() == 0) {
                 return PageResult.empty(page, size);
             }
 
@@ -248,7 +248,7 @@ public class AIGWOperator extends APIGOperator {
             mcpConfig.setTools(Base64.isBase64(tools) ? Base64.decodeStr(tools) : tools);
         }
 
-        return JSONUtil.toJsonStr(mcpConfig);
+        return JsonUtil.toJson(mcpConfig);
     }
 
     public McpServerInfo fetchRawMcpServerInfo(Gateway gateway, String mcpServerId) {
@@ -489,7 +489,7 @@ public class AIGWOperator extends APIGOperator {
                         .build();
         result.setMeta(meta); // 设置元数据到顶层
 
-        return JSONUtil.toJsonStr(result);
+        return JsonUtil.toJson(result);
     }
 
     @Override
@@ -516,7 +516,7 @@ public class AIGWOperator extends APIGOperator {
                         .build();
         result.setModelAPIConfig(apiConfig);
 
-        return JSONUtil.toJsonStr(result);
+        return JsonUtil.toJson(result);
     }
 
     @Override

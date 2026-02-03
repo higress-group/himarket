@@ -43,7 +43,7 @@ public class SubscriptionResult
 
     private String consumerName;
 
-    private LocalDateTime createAt;
+    private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
 }

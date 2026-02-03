@@ -22,14 +22,12 @@ package com.alibaba.himarket.service.impl;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
-import com.alibaba.himarket.entity.APIEndpoint;
+import com.alibaba.himarket.dto.result.api.ToolImportPreviewDTO;
 import com.alibaba.himarket.service.McpToolService;
 import com.alibaba.himarket.service.hichat.manager.ToolManager;
-import com.alibaba.himarket.support.api.endpoint.MCPToolConfig;
 import com.alibaba.himarket.support.chat.mcp.MCPTransportConfig;
 import com.alibaba.himarket.support.enums.EndpointType;
 import com.alibaba.himarket.support.enums.MCPTransportMode;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.agentscope.core.tool.mcp.McpClientWrapper;
@@ -53,7 +51,8 @@ public class McpToolServiceImpl implements McpToolService {
     private final ToolManager toolManager;
 
     @Override
-    public List<APIEndpoint> importFromMcpServer(String endpoint, String token, String type) {
+    public List<ToolImportPreviewDTO> importFromMcpServer(
+            String endpoint, String token, String type) {
         Map<String, String> headers = new HashMap<>();
         if (StrUtil.isNotBlank(token)) {
             headers.put("Authorization", "Bearer " + token);
@@ -91,28 +90,17 @@ public class McpToolServiceImpl implements McpToolService {
             return tools.stream()
                     .map(
                             tool -> {
-                                APIEndpoint apiEndpoint = new APIEndpoint();
-                                apiEndpoint.setEndpointId(UUID.randomUUID().toString());
-                                apiEndpoint.setApiDefinitionId("temp-id");
-                                apiEndpoint.setType(EndpointType.MCP_TOOL);
-                                apiEndpoint.setName(tool.name());
-                                apiEndpoint.setDescription(tool.description());
-
-                                MCPToolConfig config = new MCPToolConfig();
-                                config.setInputSchema(
+                                Map<String, Object> inputSchema =
                                         objectMapper.convertValue(
                                                 tool.inputSchema(),
-                                                new TypeReference<Map<String, Object>>() {}));
-                                try {
-                                    apiEndpoint.setConfig(objectMapper.writeValueAsString(config));
-                                } catch (JsonProcessingException e) {
-                                    throw new BusinessException(
-                                            ErrorCode.INTERNAL_ERROR,
-                                            "Failed to serialize config",
-                                            e);
-                                }
+                                                new TypeReference<Map<String, Object>>() {});
 
-                                return apiEndpoint;
+                                return ToolImportPreviewDTO.builder()
+                                        .name(tool.name())
+                                        .description(tool.description())
+                                        .type(EndpointType.MCP_TOOL)
+                                        .config(inputSchema)
+                                        .build();
                             })
                     .collect(Collectors.toList());
         } catch (Exception e) {

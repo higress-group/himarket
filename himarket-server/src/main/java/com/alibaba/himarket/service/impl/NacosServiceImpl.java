@@ -21,12 +21,10 @@ package com.alibaba.himarket.service.impl;
 
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.crypto.SecureUtil;
-import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.core.security.ContextHolder;
-import com.alibaba.himarket.core.utils.IdGenerator;
 import com.alibaba.himarket.dto.converter.NacosAgentConverter;
 import com.alibaba.himarket.dto.converter.NacosToGatewayToolsConverter;
 import com.alibaba.himarket.dto.params.nacos.CreateNacosParam;
@@ -34,20 +32,21 @@ import com.alibaba.himarket.dto.params.nacos.QueryNacosParam;
 import com.alibaba.himarket.dto.params.nacos.UpdateNacosParam;
 import com.alibaba.himarket.dto.result.agent.AgentConfigResult;
 import com.alibaba.himarket.dto.result.agent.NacosAgentResult;
+import com.alibaba.himarket.dto.result.api.ToolImportPreviewDTO;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.mcp.MCPConfigResult;
 import com.alibaba.himarket.dto.result.mcp.NacosMCPServerResult;
 import com.alibaba.himarket.dto.result.nacos.MseNacosResult;
 import com.alibaba.himarket.dto.result.nacos.NacosNamespaceResult;
 import com.alibaba.himarket.dto.result.nacos.NacosResult;
-import com.alibaba.himarket.entity.APIEndpoint;
 import com.alibaba.himarket.entity.NacosInstance;
 import com.alibaba.himarket.repository.NacosInstanceRepository;
 import com.alibaba.himarket.service.NacosService;
-import com.alibaba.himarket.support.api.endpoint.MCPToolConfig;
 import com.alibaba.himarket.support.enums.EndpointType;
 import com.alibaba.himarket.support.enums.SourceType;
 import com.alibaba.himarket.support.product.NacosRefConfig;
+import com.alibaba.himarket.utils.IdGenerator;
+import com.alibaba.himarket.utils.JsonUtil;
 import com.alibaba.nacos.api.PropertyKeyConst;
 import com.alibaba.nacos.api.ai.model.a2a.AgentCard;
 import com.alibaba.nacos.api.ai.model.a2a.AgentCardVersionInfo;
@@ -65,7 +64,6 @@ import com.aliyun.mse20190531.models.ListClustersResponse;
 import com.aliyun.mse20190531.models.ListClustersResponseBody;
 import com.aliyun.teautil.models.RuntimeOptions;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -99,7 +97,7 @@ public class NacosServiceImpl implements NacosService {
     private final Map<String, AiMaintainerService> aiServiceCache = new ConcurrentHashMap<>();
 
     @Override
-    public List<APIEndpoint> importMcpTools(
+    public List<ToolImportPreviewDTO> importMcpTools(
             String nacosId, String namespaceId, String mcpServerName) {
         NacosInstance nacosInstance = findNacosInstance(nacosId);
         McpMaintainerService service = buildDynamicAiService(nacosInstance);
@@ -111,20 +109,19 @@ public class NacosServiceImpl implements NacosService {
                 return Collections.emptyList();
             }
 
-            return convertToolSpecToEndpoints(detail.getToolSpec());
+            return convertToolSpecToPreviewDTOs(detail.getToolSpec());
         } catch (Exception e) {
             log.error("Error importing MCP tools", e);
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Failed to import MCP tools");
         }
     }
 
-    private List<APIEndpoint> convertToolSpecToEndpoints(Object toolSpec) {
-        List<APIEndpoint> endpoints = new ArrayList<>();
-        ObjectMapper jsonMapper = new ObjectMapper();
+    private List<ToolImportPreviewDTO> convertToolSpecToPreviewDTOs(Object toolSpec) {
+        List<ToolImportPreviewDTO> tools = new ArrayList<>();
 
         try {
-            String toolSpecJson = jsonMapper.writeValueAsString(toolSpec);
-            JsonNode toolSpecNode = jsonMapper.readTree(toolSpecJson);
+            String toolSpecJson = JsonUtil.toJson(toolSpec);
+            JsonNode toolSpecNode = JsonUtil.readTree(toolSpecJson);
 
             JsonNode toolsArray = null;
             if (toolSpecNode.isArray()) {
@@ -134,36 +131,34 @@ public class NacosServiceImpl implements NacosService {
             }
 
             if (toolsArray != null) {
+                int order = 0;
                 for (JsonNode toolNode : toolsArray) {
-                    APIEndpoint endpoint = new APIEndpoint();
-                    endpoint.setName(toolNode.path("name").asText());
-                    endpoint.setDescription(toolNode.path("description").asText());
-                    endpoint.setType(EndpointType.MCP_TOOL);
-
-                    MCPToolConfig config = new MCPToolConfig();
+                    Map<String, Object> config = new HashMap<>();
 
                     // Input Schema
                     if (toolNode.has("inputSchema")) {
-                        config.setInputSchema(
-                                jsonMapper.convertValue(toolNode.get("inputSchema"), Map.class));
+                        config.put(
+                                "inputSchema",
+                                JsonUtil.convert(toolNode.get("inputSchema"), Map.class));
                     }
 
-                    // Request Template (Default)
-                    MCPToolConfig.RequestTemplate requestTemplate =
-                            new MCPToolConfig.RequestTemplate();
-                    requestTemplate.setUrl("/" + endpoint.getName()); // Default URL
-                    requestTemplate.setMethod("POST");
-                    config.setRequestTemplate(requestTemplate);
+                    ToolImportPreviewDTO dto =
+                            ToolImportPreviewDTO.builder()
+                                    .name(toolNode.path("name").asText())
+                                    .description(toolNode.path("description").asText())
+                                    .type(EndpointType.MCP_TOOL)
+                                    .config(config)
+                                    .sortOrder(order++)
+                                    .build();
 
-                    endpoint.setConfig(jsonMapper.writeValueAsString(config));
-                    endpoints.add(endpoint);
+                    tools.add(dto);
                 }
             }
         } catch (Exception e) {
             log.error("Failed to parse tool spec", e);
         }
 
-        return endpoints;
+        return tools;
     }
 
     @Override
@@ -382,7 +377,7 @@ public class NacosServiceImpl implements NacosService {
             }
 
             MCPConfigResult mcpConfig = buildMCPConfigResult(detail);
-            return JSONUtil.toJsonStr(mcpConfig);
+            return JsonUtil.toJson(mcpConfig);
         } catch (Exception e) {
             log.error("Error fetching Nacos MCP servers", e);
             throw new BusinessException(
@@ -832,7 +827,7 @@ public class NacosServiceImpl implements NacosService {
             result.setMeta(meta); // 设置元数据到顶层
 
             // 4. 序列化为 JSON
-            return JSONUtil.toJsonStr(result);
+            return JsonUtil.toJson(result);
 
         } catch (Exception e) {
             log.error(

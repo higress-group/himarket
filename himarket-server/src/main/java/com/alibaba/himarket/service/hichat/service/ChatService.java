@@ -26,7 +26,6 @@ import com.alibaba.himarket.core.event.ChatSessionDeletingEvent;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.core.security.ContextHolder;
-import com.alibaba.himarket.core.utils.IdGenerator;
 import com.alibaba.himarket.dto.params.chat.CreateChatParam;
 import com.alibaba.himarket.dto.result.chat.LlmInvokeResult;
 import com.alibaba.himarket.dto.result.consumer.CredentialContext;
@@ -46,6 +45,7 @@ import com.alibaba.himarket.support.chat.mcp.MCPTransportConfig;
 import com.alibaba.himarket.support.enums.ChatAttachmentType;
 import com.alibaba.himarket.support.enums.ChatStatus;
 import com.alibaba.himarket.support.enums.ProductType;
+import com.alibaba.himarket.utils.IdGenerator;
 import io.agentscope.core.message.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -193,7 +193,7 @@ public class ChatService {
                 chatRepository.findBySessionIdAndStatus(
                         param.getSessionId(),
                         ChatStatus.SUCCESS,
-                        Sort.by(Sort.Direction.ASC, "createAt"));
+                        Sort.by(Sort.Direction.ASC, "createdAt"));
 
         if (CollUtil.isEmpty(chats)) {
             return CollUtil.empty(List.class);
@@ -224,7 +224,7 @@ public class ChatService {
                                     // 3.1 Find the latest question ID
                                     String latestQuestionId =
                                             conversationChats.stream()
-                                                    .max(Comparator.comparing(Chat::getCreateAt))
+                                                    .max(Comparator.comparing(Chat::getCreatedAt))
                                                     .map(Chat::getQuestionId)
                                                     .orElse(null);
 
@@ -238,11 +238,11 @@ public class ChatService {
                                                     chat ->
                                                             latestQuestionId.equals(
                                                                     chat.getQuestionId()))
-                                            .max(Comparator.comparing(Chat::getCreateAt))
+                                            .max(Comparator.comparing(Chat::getCreatedAt))
                                             .orElse(null);
                                 })
                         .filter(Objects::nonNull)
-                        .sorted(Comparator.comparing(Chat::getCreateAt))
+                        .sorted(Comparator.comparing(Chat::getCreatedAt))
                         .toList();
 
         // 4. Build AgentScope Msg objects (user + assistant pairs)

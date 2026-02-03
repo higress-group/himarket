@@ -24,8 +24,8 @@ import com.alibaba.himarket.support.enums.APIType;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-/** 可观测性配置 */
+/** 可观测性策略配置 */
 @Data
 @EqualsAndHashCode(callSuper = true)
 @SupportedAPITypes({APIType.MODEL_API, APIType.MCP_SERVER})
-public class ObservabilityProperty extends BaseAPIProperty {}
+public class ObservabilityPolicy extends APIPolicy {}

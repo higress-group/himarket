@@ -59,6 +59,8 @@
         <apigsdk.version>5.0.13</apigsdk.version>
         <msesdk.version>7.21.0</msesdk.version>
         <aliyunsdk.version>4.4.6</aliyunsdk.version>
+        <antcloudsdk.version>4.0.8</antcloudsdk.version>
+        <generex.version>1.0.2</generex.version>
         <aliyun-sts.version>3.1.3</aliyun-sts.version>
         <aliyun-log.version>0.6.142</aliyun-log.version>
         <okhttp.version>4.12.0</okhttp.version>
@@ -161,6 +163,18 @@
                 <groupId>com.aliyun</groupId>
                 <artifactId>aliyun-java-sdk-core</artifactId>
                 <version>${aliyunsdk.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.com.antcloud.api</groupId>
+                <artifactId>antcloud-api-sdk</artifactId>
+                <version>${antcloudsdk.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.github.mifmif</groupId>
+                <artifactId>generex</artifactId>
+                <version>${generex.version}</version>
             </dependency>
 
             <dependency>

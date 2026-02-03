@@ -44,5 +44,5 @@ public class ProductPublicationResult
 
     private Boolean autoApproveSubscriptions = false;
 
-    private LocalDateTime createAt;
+    private LocalDateTime createdAt;
 }

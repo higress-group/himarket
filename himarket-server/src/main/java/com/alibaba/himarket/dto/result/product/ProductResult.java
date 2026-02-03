@@ -57,7 +57,7 @@ public class ProductResult implements OutputConverter<ProductResult, Product> {
 
     private Boolean autoApprove;
 
-    private LocalDateTime createAt;
+    private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
 

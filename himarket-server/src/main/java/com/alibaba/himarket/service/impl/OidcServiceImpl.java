@@ -23,7 +23,6 @@ import cn.hutool.core.codec.Base64;
 import cn.hutool.core.convert.Convert;
 import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.StrUtil;
-import cn.hutool.json.JSONUtil;
 import cn.hutool.jwt.JWT;
 import cn.hutool.jwt.JWTUtil;
 import com.alibaba.himarket.core.constant.CommonConstants;
@@ -32,7 +31,6 @@ import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.core.security.ContextHolder;
-import com.alibaba.himarket.core.utils.TokenUtil;
 import com.alibaba.himarket.dto.params.developer.CreateExternalDeveloperParam;
 import com.alibaba.himarket.dto.result.common.AuthResult;
 import com.alibaba.himarket.dto.result.developer.DeveloperResult;
@@ -48,6 +46,8 @@ import com.alibaba.himarket.support.enums.GrantType;
 import com.alibaba.himarket.support.portal.AuthCodeConfig;
 import com.alibaba.himarket.support.portal.IdentityMapping;
 import com.alibaba.himarket.support.portal.OidcConfig;
+import com.alibaba.himarket.utils.JsonUtil;
+import com.alibaba.himarket.utils.TokenUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.Collections;
@@ -199,12 +199,12 @@ public class OidcServiceImpl implements OidcService {
                         .nonce(IdUtil.fastSimpleUUID())
                         .apiPrefix(apiPrefix)
                         .build();
-        return Base64.encode(JSONUtil.toJsonStr(state));
+        return Base64.encode(JsonUtil.toJson(state));
     }
 
     private IdpState parseState(String encodedState) {
         String stateJson = Base64.decodeStr(encodedState);
-        IdpState idpState = JSONUtil.toBean(stateJson, IdpState.class);
+        IdpState idpState = JsonUtil.parse(stateJson, IdpState.class);
 
         // Validate timestamp, 10 minutes validity
         if (idpState.getTimestamp() != null) {
@@ -371,6 +371,6 @@ public class OidcServiceImpl implements OidcService {
                 response.getStatusCode(),
                 response.getBody());
 
-        return JSONUtil.toBean(response.getBody(), responseType);
+        return JsonUtil.parse(response.getBody(), responseType);
     }
 }

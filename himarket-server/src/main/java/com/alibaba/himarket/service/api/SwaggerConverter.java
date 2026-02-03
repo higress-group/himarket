@@ -20,28 +20,24 @@
 package com.alibaba.himarket.service.api;
 
 import cn.hutool.core.util.StrUtil;
-import cn.hutool.json.JSONObject;
-import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
-import com.alibaba.himarket.entity.APIEndpoint;
-import com.alibaba.himarket.support.api.endpoint.MCPToolConfig;
-import com.alibaba.himarket.support.api.endpoint.RESTRouteConfig;
+import com.alibaba.himarket.dto.result.api.ToolImportPreviewDTO;
 import com.alibaba.himarket.support.enums.APIType;
 import com.alibaba.himarket.support.enums.EndpointType;
-import com.fasterxml.jackson.core.JsonProcessingException;
+import com.alibaba.himarket.utils.JsonUtil;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-/** Swagger/OpenAPI 转换器 支持 Swagger 2.0 和 OpenAPI 3.0 规范 */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -50,43 +46,47 @@ public class SwaggerConverter {
     private final ObjectMapper objectMapper;
 
     /**
-     * 转换 Swagger 文档中的 paths 为 Endpoints
+     * 转换 Swagger 文档中的 paths 为工具预览列表
      *
      * @param swaggerContent Swagger JSON 内容
      * @param type API 类型
-     * @return Endpoints 列表
+     * @return 工具预览列表
      */
-    public List<APIEndpoint> convertEndpoints(String swaggerContent, APIType type) {
+    public List<ToolImportPreviewDTO> convertEndpoints(String swaggerContent, APIType type) {
         try {
-            JSONObject swagger = JSONUtil.parseObj(swaggerContent);
-            JSONObject paths = swagger.getJSONObject("paths");
+            JsonNode swagger = JsonUtil.readTree(swaggerContent);
+            JsonNode paths = swagger.get("paths");
 
             if (paths == null || paths.isEmpty()) {
                 return new ArrayList<>();
             }
 
-            List<APIEndpoint> endpoints = new ArrayList<>();
+            List<ToolImportPreviewDTO> tools = new ArrayList<>();
             int sortOrder = 0;
 
-            for (String path : paths.keySet()) {
-                JSONObject pathItem = paths.getJSONObject(path);
+            Iterator<String> pathIterator = paths.fieldNames();
+            while (pathIterator.hasNext()) {
+                String path = pathIterator.next();
+                JsonNode pathItem = paths.get(path);
 
                 // 处理每个 HTTP 方法
-                for (String method : pathItem.keySet()) {
+                Iterator<String> methodIterator = pathItem.fieldNames();
+                while (methodIterator.hasNext()) {
+                    String method = methodIterator.next();
                     if (isHttpMethod(method)) {
-                        JSONObject operation = pathItem.getJSONObject(method);
-                        APIEndpoint endpoint =
+                        JsonNode operation = pathItem.get(method);
+                        ToolImportPreviewDTO tool =
                                 convertOperation(
                                         path, method, operation, sortOrder++, type, swagger);
-                        endpoints.add(endpoint);
+                        tools.add(tool);
                     }
                 }
             }
 
-            // Sort endpoints by name to ensure consistent order (Higress compatibility)
-            endpoints.sort(Comparator.comparing(APIEndpoint::getName));
+            // Sort tools by name to ensure consistent order
+            tools.sort(Comparator.comparing(ToolImportPreviewDTO::getName));
 
-            return endpoints;
+            return tools;
         } catch (Exception e) {
             log.error("Failed to convert Swagger endpoints", e);
             throw new BusinessException(
@@ -95,102 +95,118 @@ public class SwaggerConverter {
         }
     }
 
-    /** 转换单个操作为 Endpoint */
-    private APIEndpoint convertOperation(
+    /** 转换单个操作为工具预览 DTO */
+    private ToolImportPreviewDTO convertOperation(
             String path,
             String method,
-            JSONObject operation,
+            JsonNode operation,
             int sortOrder,
             APIType type,
-            JSONObject swagger)
-            throws JsonProcessingException {
-        APIEndpoint endpoint = new APIEndpoint();
-        endpoint.setEndpointId(UUID.randomUUID().toString());
-        endpoint.setApiDefinitionId("temp-id");
-        endpoint.setSortOrder(sortOrder);
+            JsonNode swagger) {
+        Map<String, Object> config = new HashMap<>();
+        EndpointType endpointType;
+        String name;
+        String description;
 
         if (type == APIType.MCP_SERVER) {
-            endpoint.setType(EndpointType.MCP_TOOL);
-            endpoint.setName(generateToolName(path, method, operation));
-            endpoint.setDescription(getToolDescription(operation));
+            endpointType = EndpointType.MCP_TOOL;
+            name = generateToolName(path, method, operation);
+            description = getToolDescription(operation);
 
-            MCPToolConfig config = new MCPToolConfig();
-
-            MCPToolConfig.RequestTemplate requestTemplate = new MCPToolConfig.RequestTemplate();
             // Build complete URL from servers + path
             String baseUrl = getBaseUrl(swagger);
             String fullUrl = baseUrl != null ? baseUrl + path : path;
-            requestTemplate.setUrl(fullUrl);
-            requestTemplate.setMethod(method.toUpperCase());
-            config.setRequestTemplate(requestTemplate);
+
+            Map<String, Object> requestTemplate = new HashMap<>();
+            requestTemplate.put("url", fullUrl);
+            requestTemplate.put("method", method.toUpperCase());
+            config.put("requestTemplate", requestTemplate);
 
             // 设置 Input Schema
-            config.setInputSchema(createInputSchema(operation, swagger));
+            config.put("inputSchema", createInputSchema(operation, swagger));
 
             // 设置 Output Schema
-            config.setOutputSchema(createOutputSchema(operation, swagger));
+            config.put("outputSchema", createOutputSchema(operation, swagger));
 
-            // 保存配置
-            endpoint.setConfig(objectMapper.writeValueAsString(config));
         } else {
-            endpoint.setType(EndpointType.REST_ROUTE);
+            endpointType = EndpointType.REST_ROUTE;
             // 提取基本信息
-            String summary = operation.getStr("summary");
-            String description = operation.getStr("description");
-            endpoint.setName(
-                    StrUtil.isNotBlank(summary) ? summary : method.toUpperCase() + " " + path);
-            endpoint.setDescription(description);
+            String summary = operation.path("summary").asText(null);
+            String desc = operation.path("description").asText(null);
+            name = StrUtil.isNotBlank(summary) ? summary : method.toUpperCase() + " " + path;
+            description = desc;
 
-            // 构建 REST Route 配置
-            RESTRouteConfig config = new RESTRouteConfig();
-            config.setPath(path);
-            config.setMethod(method.toUpperCase());
+            config.put("path", path);
+            config.put("method", method.toUpperCase());
 
             // 提取参数
-            List<RESTRouteConfig.Parameter> parameters = new ArrayList<>();
-            if (operation.containsKey("parameters")) {
+            List<Map<String, Object>> parameters = new ArrayList<>();
+            if (operation.has("parameters")) {
                 operation
-                        .getJSONArray("parameters")
+                        .get("parameters")
                         .forEach(
                                 param -> {
-                                    JSONObject paramObj = (JSONObject) param;
-                                    RESTRouteConfig.Parameter parameter =
-                                            new RESTRouteConfig.Parameter();
-                                    parameter.setName(paramObj.getStr("name"));
-                                    parameter.setIn(paramObj.getStr("in"));
-                                    parameter.setDescription(paramObj.getStr("description"));
-                                    parameter.setRequired(paramObj.getBool("required", false));
-                                    parameter.setSchema(paramObj.getJSONObject("schema"));
+                                    JsonNode paramObj = (JsonNode) param;
+                                    Map<String, Object> parameter = new HashMap<>();
+                                    parameter.put("name", paramObj.path("name").asText(null));
+                                    parameter.put("in", paramObj.path("in").asText(null));
+                                    parameter.put(
+                                            "description",
+                                            paramObj.path("description").asText(null));
+                                    parameter.put(
+                                            "required", paramObj.path("required").asBoolean(false));
+                                    JsonNode schemaNode = paramObj.get("schema");
+                                    if (schemaNode != null) {
+                                        parameter.put(
+                                                "schema",
+                                                objectMapper.convertValue(
+                                                        schemaNode,
+                                                        new com.fasterxml.jackson.core.type
+                                                                        .TypeReference<
+                                                                Map<String, Object>>() {}));
+                                    }
                                     parameters.add(parameter);
                                 });
             }
-            config.setParameters(parameters);
+            config.put("parameters", parameters);
 
             // 提取响应
-            Map<String, RESTRouteConfig.ResponseDef> responses = new HashMap<>();
-            if (operation.containsKey("responses")) {
-                JSONObject responsesObj = operation.getJSONObject("responses");
-                responsesObj.forEach(
-                        (code, response) -> {
-                            RESTRouteConfig.ResponseDef resp = new RESTRouteConfig.ResponseDef();
-                            JSONObject respObj = (JSONObject) response;
-                            resp.setDescription(respObj.getStr("description"));
-                            resp.setSchema(respObj.getJSONObject("schema"));
-                            responses.put(code, resp);
-                        });
+            Map<String, Map<String, Object>> responses = new HashMap<>();
+            if (operation.has("responses")) {
+                JsonNode responsesObj = operation.get("responses");
+                Iterator<String> codeIterator = responsesObj.fieldNames();
+                while (codeIterator.hasNext()) {
+                    String code = codeIterator.next();
+                    JsonNode response = responsesObj.get(code);
+                    Map<String, Object> resp = new HashMap<>();
+                    resp.put("description", response.path("description").asText(null));
+                    JsonNode schemaNode = response.get("schema");
+                    if (schemaNode != null) {
+                        resp.put(
+                                "schema",
+                                objectMapper.convertValue(
+                                        schemaNode,
+                                        new com.fasterxml.jackson.core.type.TypeReference<
+                                                Map<String, Object>>() {}));
+                    }
+                    responses.put(code, resp);
+                }
             }
-            config.setResponses(responses);
-
-            // 保存配置
-            endpoint.setConfig(objectMapper.writeValueAsString(config));
+            config.put("responses", responses);
         }
 
-        return endpoint;
+        return ToolImportPreviewDTO.builder()
+                .name(name)
+                .description(description)
+                .type(endpointType)
+                .config(config)
+                .sortOrder(sortOrder)
+                .build();
     }
 
     /** 生成 MCP Tool 名称 */
-    private String generateToolName(String path, String method, JSONObject operation) {
-        String operationId = operation.getStr("operationId");
+    private String generateToolName(String path, String method, JsonNode operation) {
+        String operationId = operation.path("operationId").asText(null);
         if (StrUtil.isNotBlank(operationId)) {
             return sanitizeName(operationId);
         }
@@ -210,9 +226,9 @@ public class SwaggerConverter {
     }
 
     /** 获取 MCP Tool 描述 */
-    private String getToolDescription(JSONObject operation) {
-        String summary = operation.getStr("summary");
-        String description = operation.getStr("description");
+    private String getToolDescription(JsonNode operation) {
+        String summary = operation.path("summary").asText(null);
+        String description = operation.path("description").asText(null);
 
         if (StrUtil.isNotBlank(summary)) {
             if (StrUtil.isNotBlank(description)) {
@@ -224,7 +240,7 @@ public class SwaggerConverter {
     }
 
     /** 创建 MCP Input Schema */
-    private Map<String, Object> createInputSchema(JSONObject operation, JSONObject swagger) {
+    private Map<String, Object> createInputSchema(JsonNode operation, JsonNode swagger) {
         Map<String, Object> schema = new HashMap<>();
         schema.put("type", "object");
         Map<String, Object> properties = new HashMap<>();
@@ -233,22 +249,23 @@ public class SwaggerConverter {
         Map<String, String> parameterPositions = new HashMap<>();
 
         // 处理参数
-        if (operation.containsKey("parameters")) {
+        if (operation.has("parameters")) {
             operation
-                    .getJSONArray("parameters")
+                    .get("parameters")
                     .forEach(
                             param -> {
-                                JSONObject paramObj = (JSONObject) param;
+                                JsonNode paramObj = (JsonNode) param;
                                 // 处理参数引用
-                                if (paramObj.containsKey("$ref")) {
-                                    paramObj = resolveRef(paramObj.getStr("$ref"), swagger);
+                                if (paramObj.has("$ref")) {
+                                    paramObj =
+                                            resolveRef(paramObj.path("$ref").asText(null), swagger);
                                 }
                                 if (paramObj == null) return;
 
-                                String name = paramObj.getStr("name");
-                                String position = paramObj.getStr("in", "query");
+                                String name = paramObj.path("name").asText(null);
+                                String position = paramObj.path("in").asText("query");
 
-                                JSONObject paramSchema = paramObj.getJSONObject("schema");
+                                JsonNode paramSchema = paramObj.get("schema");
                                 Map<String, Object> propSchema;
                                 if (paramSchema != null) {
                                     // 复制 schema 属性
@@ -256,12 +273,14 @@ public class SwaggerConverter {
                                 } else {
                                     // 如果没有 schema，尝试直接从参数定义中获取类型信息 (Swagger 2.0)
                                     propSchema = new HashMap<>();
-                                    propSchema.put("type", paramObj.getStr("type", "string"));
+                                    propSchema.put("type", paramObj.path("type").asText("string"));
                                 }
 
                                 // Add description if present
-                                if (paramObj.containsKey("description")) {
-                                    propSchema.put("description", paramObj.getStr("description"));
+                                if (paramObj.has("description")) {
+                                    propSchema.put(
+                                            "description",
+                                            paramObj.path("description").asText(null));
                                 }
 
                                 // Store position metadata
@@ -270,32 +289,34 @@ public class SwaggerConverter {
 
                                 properties.put(name, propSchema);
 
-                                if (paramObj.getBool("required", false)) {
+                                if (paramObj.path("required").asBoolean(false)) {
                                     required.add(name);
                                 }
                             });
         }
 
         // 处理 Request Body (OpenAPI 3.0)
-        if (operation.containsKey("requestBody")) {
-            JSONObject requestBody = operation.getJSONObject("requestBody");
+        if (operation.has("requestBody")) {
+            JsonNode requestBody = operation.get("requestBody");
             // 处理 Request Body 引用
-            if (requestBody.containsKey("$ref")) {
-                requestBody = resolveRef(requestBody.getStr("$ref"), swagger);
+            if (requestBody.has("$ref")) {
+                requestBody = resolveRef(requestBody.path("$ref").asText(null), swagger);
             }
 
             if (requestBody != null) {
-                JSONObject content = requestBody.getJSONObject("content");
+                JsonNode content = requestBody.get("content");
                 if (content != null) {
                     // 优先处理 application/json
-                    JSONObject jsonContent = content.getJSONObject("application/json");
-                    if (jsonContent != null && jsonContent.containsKey("schema")) {
-                        JSONObject bodySchema =
-                                resolveSchema(jsonContent.getJSONObject("schema"), swagger);
+                    JsonNode jsonContent = content.get("application/json");
+                    if (jsonContent != null && jsonContent.has("schema")) {
+                        Map<String, Object> bodySchema =
+                                resolveSchema(jsonContent.get("schema"), swagger);
                         // 如果 body 是 object，将其属性合并到 properties
                         if ("object".equals(bodySchema.get("type"))) {
                             if (bodySchema.containsKey("properties")) {
-                                JSONObject bodyProps = (JSONObject) bodySchema.get("properties");
+                                @SuppressWarnings("unchecked")
+                                Map<String, Object> bodyProps =
+                                        (Map<String, Object>) bodySchema.get("properties");
                                 bodyProps.forEach(
                                         (k, v) -> {
                                             // Mark body parameters with position
@@ -318,7 +339,7 @@ public class SwaggerConverter {
                             bodySchema.put("x-position", "body");
                             properties.put("body", bodySchema);
                             parameterPositions.put("body", "body");
-                            if (requestBody.getBool("required", false)) {
+                            if (requestBody.path("required").asBoolean(false)) {
                                 required.add("body");
                             }
                         }
@@ -337,39 +358,43 @@ public class SwaggerConverter {
     }
 
     /** 创建 MCP Output Schema */
-    private Map<String, Object> createOutputSchema(JSONObject operation, JSONObject swagger) {
-        if (!operation.containsKey("responses")) {
+    private Map<String, Object> createOutputSchema(JsonNode operation, JsonNode swagger) {
+        if (!operation.has("responses")) {
             return null;
         }
-        JSONObject responses = operation.getJSONObject("responses");
+        JsonNode responses = operation.get("responses");
 
         // 查找 2xx 响应
-        for (String code : responses.keySet()) {
+        Iterator<String> fieldNames = responses.fieldNames();
+        while (fieldNames.hasNext()) {
+            String code = fieldNames.next();
             if (code.startsWith("2")) {
-                JSONObject response = responses.getJSONObject(code);
+                JsonNode response = responses.get(code);
                 // 处理 Response 引用
-                if (response.containsKey("$ref")) {
-                    response = resolveRef(response.getStr("$ref"), swagger);
+                if (response.has("$ref")) {
+                    response = resolveRef(response.path("$ref").asText(null), swagger);
                 }
                 if (response == null) continue;
 
-                if (response.containsKey("content")) {
-                    JSONObject content = response.getJSONObject("content");
+                if (response.has("content")) {
+                    JsonNode content = response.get("content");
                     // 优先处理 application/json
-                    JSONObject jsonContent = content.getJSONObject("application/json");
-                    if (jsonContent != null && jsonContent.containsKey("schema")) {
-                        return resolveSchema(jsonContent.getJSONObject("schema"), swagger);
+                    JsonNode jsonContent = content.get("application/json");
+                    if (jsonContent != null && jsonContent.has("schema")) {
+                        return resolveSchema(jsonContent.get("schema"), swagger);
                     }
                     // 尝试其他 content type
-                    for (String contentType : content.keySet()) {
-                        JSONObject typeContent = content.getJSONObject(contentType);
-                        if (typeContent != null && typeContent.containsKey("schema")) {
-                            return resolveSchema(typeContent.getJSONObject("schema"), swagger);
+                    Iterator<String> contentTypeIterator = content.fieldNames();
+                    while (contentTypeIterator.hasNext()) {
+                        String contentType = contentTypeIterator.next();
+                        JsonNode typeContent = content.get(contentType);
+                        if (typeContent != null && typeContent.has("schema")) {
+                            return resolveSchema(typeContent.get("schema"), swagger);
                         }
                     }
-                } else if (response.containsKey("schema")) {
+                } else if (response.has("schema")) {
                     // Swagger 2.0
-                    return resolveSchema(response.getJSONObject("schema"), swagger);
+                    return resolveSchema(response.get("schema"), swagger);
                 }
             }
         }
@@ -377,136 +402,156 @@ public class SwaggerConverter {
     }
 
     /** 解析 Schema 中的引用 */
-    private JSONObject resolveSchema(JSONObject schema, JSONObject swagger) {
+    private Map<String, Object> resolveSchema(JsonNode schema, JsonNode swagger) {
         if (schema == null) return null;
 
         // 如果是引用，解析引用
-        if (schema.containsKey("$ref")) {
-            JSONObject resolved = resolveRef(schema.getStr("$ref"), swagger);
+        if (schema.has("$ref")) {
+            JsonNode resolved = resolveRef(schema.path("$ref").asText(null), swagger);
             if (resolved != null) {
                 // 递归解析引用的 schema
                 return resolveSchema(resolved, swagger);
             }
-            return schema; // 无法解析，返回原样
+            return objectMapper.convertValue(
+                    schema,
+                    new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
         }
 
+        // 将JsonNode转换为Map以便操作
+        @SuppressWarnings("unchecked")
+        Map<String, Object> schemaMap =
+                objectMapper.convertValue(
+                        schema,
+                        new com.fasterxml.jackson.core.type.TypeReference<
+                                Map<String, Object>>() {});
+
         // 处理 allOf: 合并所有 schema 到当前 schema
-        if (schema.containsKey("allOf")) {
-            List<Object> allOfList = schema.getJSONArray("allOf");
-            JSONObject merged = new JSONObject();
+        if (schemaMap.containsKey("allOf")) {
+            List<?> allOfList = (List<?>) schemaMap.get("allOf");
+            Map<String, Object> merged = new HashMap<>();
 
             // 先复制当前 schema 的其他属性
-            schema.forEach(
-                    (k, v) -> {
-                        if (!"allOf".equals(k)) {
-                            merged.put(k, v);
-                        }
-                    });
+            for (Map.Entry<String, Object> entry : schemaMap.entrySet()) {
+                if (!"allOf".equals(entry.getKey())) {
+                    merged.put(entry.getKey(), entry.getValue());
+                }
+            }
 
             // 合并所有 allOf 中的 schema
             for (Object item : allOfList) {
-                if (item instanceof JSONObject) {
-                    JSONObject resolvedItem = resolveSchema((JSONObject) item, swagger);
-                    if (resolvedItem != null) {
-                        // 合并类型
-                        if (resolvedItem.containsKey("type") && !merged.containsKey("type")) {
-                            merged.put("type", resolvedItem.get("type"));
+                JsonNode itemNode = objectMapper.valueToTree(item);
+                Map<String, Object> resolvedItem = resolveSchema(itemNode, swagger);
+                if (resolvedItem != null) {
+                    // 合并类型
+                    if (resolvedItem.containsKey("type") && !merged.containsKey("type")) {
+                        merged.put("type", resolvedItem.get("type"));
+                    }
+                    // 合并 properties
+                    if (resolvedItem.containsKey("properties")) {
+                        if (!merged.containsKey("properties")) {
+                            merged.put("properties", new HashMap<>());
                         }
-                        // 合并 properties
-                        if (resolvedItem.containsKey("properties")) {
-                            if (!merged.containsKey("properties")) {
-                                merged.put("properties", new JSONObject());
-                            }
-                            JSONObject mergedProps = merged.getJSONObject("properties");
-                            JSONObject itemProps = resolvedItem.getJSONObject("properties");
-                            itemProps.forEach((k, v) -> mergedProps.put(k, v));
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> mergedProps =
+                                (Map<String, Object>) merged.get("properties");
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> itemProps =
+                                (Map<String, Object>) resolvedItem.get("properties");
+                        mergedProps.putAll(itemProps);
+                    }
+                    // 合并 required
+                    if (resolvedItem.containsKey("required")) {
+                        @SuppressWarnings("unchecked")
+                        List<Object> mergedRequired = (List<Object>) merged.get("required");
+                        if (mergedRequired == null) {
+                            mergedRequired = new ArrayList<>();
+                            merged.put("required", mergedRequired);
                         }
-                        // 合并 required
-                        if (resolvedItem.containsKey("required")) {
-                            List<Object> mergedRequired = merged.getJSONArray("required");
-                            if (mergedRequired == null) {
-                                mergedRequired = new ArrayList<>();
-                                merged.put("required", mergedRequired);
-                            }
-                            List<Object> itemRequired = resolvedItem.getJSONArray("required");
-                            for (Object req : itemRequired) {
-                                if (!mergedRequired.contains(req)) {
-                                    mergedRequired.add(req);
-                                }
+                        @SuppressWarnings("unchecked")
+                        List<Object> itemRequired = (List<Object>) resolvedItem.get("required");
+                        for (Object req : itemRequired) {
+                            if (!mergedRequired.contains(req)) {
+                                mergedRequired.add(req);
                             }
                         }
-                        // 合并其他字段 (description, etc)
-                        for (String key : resolvedItem.keySet()) {
-                            if (!merged.containsKey(key)
-                                    && !"type".equals(key)
-                                    && !"properties".equals(key)
-                                    && !"required".equals(key)) {
-                                merged.put(key, resolvedItem.get(key));
-                            }
+                    }
+                    // 合并其他字段 (description, etc)
+                    for (String key : resolvedItem.keySet()) {
+                        if (!merged.containsKey(key)
+                                && !"type".equals(key)
+                                && !"properties".equals(key)
+                                && !"required".equals(key)) {
+                            merged.put(key, resolvedItem.get(key));
                         }
                     }
                 }
             }
-            schema = merged;
+            schemaMap = merged;
         }
 
         // 递归处理 properties
-        if (schema.containsKey("properties")) {
-            JSONObject properties = schema.getJSONObject("properties");
-            JSONObject newProperties = new JSONObject();
-            properties.forEach(
-                    (k, v) -> {
-                        if (v instanceof JSONObject) {
-                            newProperties.put(k, resolveSchema((JSONObject) v, swagger));
-                        } else {
-                            newProperties.put(k, v);
-                        }
-                    });
-            schema.put("properties", newProperties);
+        if (schemaMap.containsKey("properties")) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> properties = (Map<String, Object>) schemaMap.get("properties");
+            Map<String, Object> newProperties = new HashMap<>();
+            for (Map.Entry<String, Object> entry : properties.entrySet()) {
+                if (entry.getValue() != null) {
+                    JsonNode valueNode = objectMapper.valueToTree(entry.getValue());
+                    newProperties.put(entry.getKey(), resolveSchema(valueNode, swagger));
+                } else {
+                    newProperties.put(entry.getKey(), null);
+                }
+            }
+            schemaMap.put("properties", newProperties);
         }
 
         // 递归处理 items (数组)
-        if (schema.containsKey("items")) {
-            JSONObject items = schema.getJSONObject("items");
-            schema.put("items", resolveSchema(items, swagger));
+        if (schemaMap.containsKey("items")) {
+            Object itemsObj = schemaMap.get("items");
+            if (itemsObj != null) {
+                JsonNode itemsNode = objectMapper.valueToTree(itemsObj);
+                schemaMap.put("items", resolveSchema(itemsNode, swagger));
+            }
         }
 
         // 递归处理 anyOf, oneOf (保留原样，不合并)
         String[] combinators = {"anyOf", "oneOf"};
         for (String combinator : combinators) {
-            if (schema.containsKey(combinator)) {
-                List<Object> list = schema.getJSONArray(combinator);
+            if (schemaMap.containsKey(combinator)) {
+                @SuppressWarnings("unchecked")
+                List<Object> list = (List<Object>) schemaMap.get(combinator);
                 List<Object> newList = new ArrayList<>();
                 for (Object item : list) {
-                    if (item instanceof JSONObject) {
-                        newList.add(resolveSchema((JSONObject) item, swagger));
+                    if (item != null) {
+                        JsonNode itemNode = objectMapper.valueToTree(item);
+                        newList.add(resolveSchema(itemNode, swagger));
                     } else {
-                        newList.add(item);
+                        newList.add(null);
                     }
                 }
-                schema.put(combinator, newList);
+                schemaMap.put(combinator, newList);
             }
         }
 
-        return schema;
+        return schemaMap;
     }
 
     /** 解析引用路径 */
-    private JSONObject resolveRef(String ref, JSONObject swagger) {
+    private JsonNode resolveRef(String ref, JsonNode swagger) {
         if (StrUtil.isBlank(ref) || !ref.startsWith("#/")) {
             return null;
         }
 
         try {
             String[] parts = ref.substring(2).split("/");
-            JSONObject current = swagger;
+            JsonNode current = swagger;
             for (String part : parts) {
                 // 处理转义字符: ~1 -> /, ~0 -> ~
                 part = part.replace("~1", "/").replace("~0", "~");
-                if (current.containsKey(part)) {
-                    Object val = current.get(part);
-                    if (val instanceof JSONObject) {
-                        current = (JSONObject) val;
+                if (current.has(part)) {
+                    JsonNode val = current.get(part);
+                    if (val != null) {
+                        current = val;
                     } else {
                         return null;
                     }
@@ -515,7 +560,7 @@ public class SwaggerConverter {
                 }
             }
             // 复制一份，避免修改原对象
-            return JSONUtil.parseObj(JSONUtil.toJsonStr(current));
+            return JsonUtil.readTree(JsonUtil.toJson(current));
         } catch (Exception e) {
             log.warn("Failed to resolve ref: {}", ref, e);
             return null;
@@ -539,18 +584,15 @@ public class SwaggerConverter {
      * @param swagger Swagger/OpenAPI 文档
      * @return base URL，如果没有定义则返回 null
      */
-    private String getBaseUrl(JSONObject swagger) {
+    private String getBaseUrl(JsonNode swagger) {
         // OpenAPI 3.0: servers[0].url
-        if (swagger.containsKey("servers")) {
-            Object serversObj = swagger.get("servers");
-            if (serversObj instanceof List) {
-                List<?> servers = (List<?>) serversObj;
-                if (!servers.isEmpty() && servers.get(0) instanceof Map) {
-                    @SuppressWarnings("unchecked")
-                    Map<String, Object> firstServer = (Map<String, Object>) servers.get(0);
-                    Object url = firstServer.get("url");
-                    if (url != null) {
-                        String urlStr = url.toString();
+        if (swagger.has("servers")) {
+            JsonNode serversNode = swagger.get("servers");
+            if (serversNode != null && serversNode.isArray() && serversNode.size() > 0) {
+                JsonNode firstServer = serversNode.get(0);
+                if (firstServer != null && firstServer.has("url")) {
+                    String urlStr = firstServer.path("url").asText(null);
+                    if (urlStr != null) {
                         // Remove trailing slash
                         return urlStr.endsWith("/")
                                 ? urlStr.substring(0, urlStr.length() - 1)
@@ -561,19 +603,16 @@ public class SwaggerConverter {
         }
 
         // Swagger 2.0: schemes[0] + host + basePath
-        if (swagger.containsKey("host")) {
+        if (swagger.has("host")) {
             String scheme = "http"; // default
-            if (swagger.containsKey("schemes")) {
-                Object schemesObj = swagger.get("schemes");
-                if (schemesObj instanceof List) {
-                    List<?> schemes = (List<?>) schemesObj;
-                    if (!schemes.isEmpty()) {
-                        scheme = schemes.get(0).toString();
-                    }
+            if (swagger.has("schemes")) {
+                JsonNode schemesNode = swagger.get("schemes");
+                if (schemesNode != null && schemesNode.isArray() && schemesNode.size() > 0) {
+                    scheme = schemesNode.get(0).asText("http");
                 }
             }
-            String host = swagger.getStr("host");
-            String basePath = swagger.getStr("basePath", "");
+            String host = swagger.path("host").asText(null);
+            String basePath = swagger.path("basePath").asText("");
             // Remove trailing slash from basePath
             if (basePath.endsWith("/")) {
                 basePath = basePath.substring(0, basePath.length() - 1);

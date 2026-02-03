@@ -251,4 +251,3 @@ public class SofaHigressClient extends GatewayClient {
         private String resultMsg;
     }
 }
-

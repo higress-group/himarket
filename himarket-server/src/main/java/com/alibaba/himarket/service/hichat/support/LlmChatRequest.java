@@ -8,11 +8,15 @@ import java.net.URI;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 @Slf4j
 @Data
 public class LlmChatRequest {

@@ -54,7 +54,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
                 new PageableHandlerMethodArgumentResolver();
         // Default page size is 100
         resolver.setFallbackPageable(
-                PageRequest.of(0, 100, Sort.by(Sort.Direction.DESC, "createAt")));
+                PageRequest.of(0, 100, Sort.by(Sort.Direction.DESC, "createdAt")));
         // Page index starts from 1
         resolver.setOneIndexedParameters(true);
 

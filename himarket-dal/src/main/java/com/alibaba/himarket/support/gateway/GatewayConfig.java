@@ -21,11 +21,15 @@ package com.alibaba.himarket.support.gateway;
 
 import com.alibaba.himarket.entity.Gateway;
 import com.alibaba.himarket.support.enums.GatewayType;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class GatewayConfig {
 
     private GatewayType gatewayType;

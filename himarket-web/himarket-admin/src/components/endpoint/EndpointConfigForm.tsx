@@ -1,6 +1,6 @@
-import { Form, Input, Select, Button, Space, Collapse, Radio } from 'antd';
+import { Form, Input, Select, Button, Space, Collapse } from 'antd';
 import { PlusOutlined, MinusCircleOutlined } from '@ant-design/icons';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import type { EndpointType, EndpointConfig } from '@/types/endpoint';
 
 const { TextArea } = Input;
@@ -32,13 +32,6 @@ const MATCH_TYPES = [
 ];
 
 // 参数位置选项
-const PARAMETER_IN_OPTIONS = [
-  { label: 'Query 参数', value: 'query' },
-  { label: 'Path 参数', value: 'path' },
-  { label: 'Header 参数', value: 'header' },
-  { label: 'Cookie 参数', value: 'cookie' }
-];
-
 export default function EndpointConfigForm({ type, value, onChange, protocol, creationMode = 'MANUAL', mcpBridgeType }: EndpointConfigFormProps & { creationMode?: 'MANUAL' | 'TEMPLATE' }) {
   const [form] = Form.useForm();
   const isInternalChange = useRef(false);

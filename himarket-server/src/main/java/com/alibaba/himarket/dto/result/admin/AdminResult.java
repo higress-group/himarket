@@ -31,7 +31,7 @@ public class AdminResult implements OutputConverter<AdminResult, Administrator> 
 
     private String username;
 
-    private LocalDateTime createAt;
+    private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
 }

@@ -17,15 +17,19 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.enums;
+package com.alibaba.himarket.utils;
 
-/** 属性执行阶段枚举 */
-public enum PropertyPhase {
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
-    /** 入站阶段 */
-    INBOUND,
+public class PasswordVerifier {
 
-    /** 出站阶段 */
-    OUTBOUND,
-    ;
+    private static final BCryptPasswordEncoder ENCODER = new BCryptPasswordEncoder();
+
+    public static String hash(String plainPassword) {
+        return ENCODER.encode(plainPassword);
+    }
+
+    public static boolean verify(String plainPassword, String hashed) {
+        return ENCODER.matches(plainPassword, hashed);
+    }
 }

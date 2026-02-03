@@ -19,12 +19,16 @@
 
 package com.alibaba.himarket.support.consumer;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 /** ADP AI网关授权配置 */
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class AdpAIAuthConfig {
 
     /** MCP Server名称 */

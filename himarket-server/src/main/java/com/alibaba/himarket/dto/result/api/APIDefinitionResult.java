@@ -19,24 +19,18 @@
 
 package com.alibaba.himarket.dto.result.api;
 
-import cn.hutool.core.util.StrUtil;
-import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.dto.converter.OutputConverter;
 import com.alibaba.himarket.entity.APIDefinition;
-import com.alibaba.himarket.support.api.property.BaseAPIProperty;
+import com.alibaba.himarket.support.api.property.APIPolicy;
+import com.alibaba.himarket.support.api.v2.spec.APISpec;
 import com.alibaba.himarket.support.enums.APIStatus;
 import com.alibaba.himarket.support.enums.APIType;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 import lombok.Data;
 
 @Data
-public class APIDefinitionVO implements OutputConverter<APIDefinitionVO, APIDefinition> {
-
-    private static final ObjectMapper objectMapper = new ObjectMapper();
+public class APIDefinitionResult implements OutputConverter<APIDefinitionResult, APIDefinition> {
 
     private String apiDefinitionId;
 
@@ -50,42 +44,21 @@ public class APIDefinitionVO implements OutputConverter<APIDefinitionVO, APIDefi
 
     private String version;
 
-    private String basePath;
+    private List<APIPolicy> policies;
 
-    private List<BaseAPIProperty> properties;
-
-    private Map<String, Object> metadata;
-
-    private List<APIEndpointVO> endpoints;
+    private APISpec spec;
 
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
 
     @Override
-    public APIDefinitionVO convertFrom(APIDefinition source) {
+    public APIDefinitionResult convertFrom(APIDefinition source) {
         OutputConverter.super.convertFrom(source);
 
-        // 处理 properties JSON 字段 - 转换为 APIProperties 类型
-        if (StrUtil.isNotBlank(source.getProperties())) {
-            try {
-                this.properties =
-                        objectMapper.readValue(
-                                source.getProperties(),
-                                new TypeReference<List<BaseAPIProperty>>() {});
-            } catch (Exception e) {
-                this.properties = null;
-            }
-        }
-
-        // 处理 metadata JSON 字段
-        if (StrUtil.isNotBlank(source.getMetadata())) {
-            try {
-                this.metadata = JSONUtil.toBean(source.getMetadata(), Map.class);
-            } catch (Exception e) {
-                this.metadata = null;
-            }
-        }
+        // 直接复制 policies 和 spec（无需手动 JSON 转换）
+        this.policies = source.getPolicies();
+        this.spec = source.getSpec();
 
         return this;
     }

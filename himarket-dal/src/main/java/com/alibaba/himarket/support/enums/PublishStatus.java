@@ -34,7 +34,52 @@ public enum PublishStatus {
     /** 取消发布中 */
     UNPUBLISHING,
 
-    /** 失败 */
-    FAILED,
+    /** 发布失败 */
+    PUBLISH_FAILED,
+
+    /** 下线失败 */
+    UNPUBLISH_FAILED,
     ;
+
+    /**
+     * Check if status is in processing state (publishing or unpublishing)
+     */
+    public boolean isProcessing() {
+        return this == PUBLISHING || this == UNPUBLISHING;
+    }
+
+    /**
+     * Check if status is active
+     */
+    public boolean isActive() {
+        return this == ACTIVE;
+    }
+
+    /**
+     * Check if status is failed
+     */
+    public boolean isFailed() {
+        return this == PUBLISH_FAILED || this == UNPUBLISH_FAILED;
+    }
+
+    /**
+     * Check if this is a publish-related operation (not unpublish)
+     */
+    public boolean isPublishOperation() {
+        return this == PUBLISHING || this == ACTIVE || this == PUBLISH_FAILED;
+    }
+
+    /**
+     * Check if this is an unpublish-related operation
+     */
+    public boolean isUnpublishOperation() {
+        return this == UNPUBLISHING || this == INACTIVE || this == UNPUBLISH_FAILED;
+    }
+
+    /**
+     * Check if can perform new publish operation
+     */
+    public boolean canPublish() {
+        return this == INACTIVE || this == PUBLISH_FAILED || this == UNPUBLISH_FAILED;
+    }
 }

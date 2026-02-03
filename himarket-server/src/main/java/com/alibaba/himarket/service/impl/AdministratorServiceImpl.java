@@ -23,14 +23,14 @@ import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.core.security.ContextHolder;
-import com.alibaba.himarket.core.utils.IdGenerator;
-import com.alibaba.himarket.core.utils.PasswordHasher;
-import com.alibaba.himarket.core.utils.TokenUtil;
 import com.alibaba.himarket.dto.result.admin.AdminResult;
 import com.alibaba.himarket.dto.result.common.AuthResult;
 import com.alibaba.himarket.entity.Administrator;
 import com.alibaba.himarket.repository.AdministratorRepository;
 import com.alibaba.himarket.service.AdministratorService;
+import com.alibaba.himarket.utils.IdGenerator;
+import com.alibaba.himarket.utils.PasswordVerifier;
+import com.alibaba.himarket.utils.TokenUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -56,7 +56,7 @@ public class AdministratorServiceImpl implements AdministratorService {
                                                 Resources.ADMINISTRATOR,
                                                 username));
 
-        if (!PasswordHasher.verify(password, admin.getPasswordHash())) {
+        if (!PasswordVerifier.verify(password, admin.getPasswordHash())) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED, "Invalid username or password");
         }
 
@@ -75,7 +75,7 @@ public class AdministratorServiceImpl implements AdministratorService {
                 Administrator.builder()
                         .adminId(generateAdminId())
                         .username(username)
-                        .passwordHash(PasswordHasher.hash(password))
+                        .passwordHash(PasswordVerifier.hash(password))
                         .build();
         administratorRepository.save(admin);
         return new AdminResult().convertFrom(admin);
@@ -92,11 +92,11 @@ public class AdministratorServiceImpl implements AdministratorService {
     public void resetPassword(String oldPassword, String newPassword) {
         Administrator admin = findAdministrator(contextHolder.getUser());
 
-        if (!PasswordHasher.verify(oldPassword, admin.getPasswordHash())) {
+        if (!PasswordVerifier.verify(oldPassword, admin.getPasswordHash())) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED, "Invalid username or password");
         }
 
-        admin.setPasswordHash(PasswordHasher.hash(newPassword));
+        admin.setPasswordHash(PasswordVerifier.hash(newPassword));
         administratorRepository.save(admin);
     }
 

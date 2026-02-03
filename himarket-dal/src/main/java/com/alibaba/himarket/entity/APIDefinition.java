@@ -19,15 +19,19 @@
 
 package com.alibaba.himarket.entity;
 
+import com.alibaba.himarket.converter.APIPoliciesConverter;
+import com.alibaba.himarket.converter.APISpecConverter;
+import com.alibaba.himarket.support.api.property.APIPolicy;
+import com.alibaba.himarket.support.api.v2.spec.APISpec;
 import com.alibaba.himarket.support.enums.APIStatus;
 import com.alibaba.himarket.support.enums.APIType;
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
+import java.util.List;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
 
-/** API Definition 实体类 */
-@EqualsAndHashCode(callSuper = true)
 @Entity
 @Table(
         name = "api_definition",
@@ -35,13 +39,11 @@ import lombok.EqualsAndHashCode;
             @UniqueConstraint(
                     columnNames = {"api_definition_id"},
                     name = "uk_api_definition_id")
-        },
-        indexes = {
-            @Index(name = "idx_type", columnList = "type"),
-            @Index(name = "idx_status", columnList = "status"),
-            @Index(name = "idx_deleted_at", columnList = "deleted_at")
         })
 @Data
+@EqualsAndHashCode(callSuper = true)
+@NoArgsConstructor
+@AllArgsConstructor
 public class APIDefinition extends BaseEntity {
 
     @Id
@@ -68,15 +70,11 @@ public class APIDefinition extends BaseEntity {
     @Column(name = "version", length = 32)
     private String version;
 
-    @Column(name = "base_path", length = 255)
-    private String basePath;
+    @Convert(converter = APIPoliciesConverter.class)
+    @Column(name = "policies", columnDefinition = "json")
+    private List<APIPolicy> policies;
 
-    @Column(name = "properties", columnDefinition = "json")
-    private String properties;
-
-    @Column(name = "metadata", columnDefinition = "json")
-    private String metadata;
-
-    @Column(name = "deleted_at", columnDefinition = "datetime(3)")
-    private LocalDateTime deletedAt;
+    @Convert(converter = APISpecConverter.class)
+    @Column(name = "spec", columnDefinition = "json")
+    private APISpec spec;
 }

@@ -17,30 +17,30 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.api.property;
+package com.alibaba.himarket.support.api.v2.spec;
 
-import com.alibaba.himarket.support.annotation.APIField;
-import com.alibaba.himarket.support.annotation.SupportedAPITypes;
-import com.alibaba.himarket.support.enums.APIType;
+import com.alibaba.himarket.support.api.v2.HttpRoute;
+import java.util.List;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-/** 超时插件配置 */
 @Data
 @EqualsAndHashCode(callSuper = true)
-@SupportedAPITypes({APIType.REST_API, APIType.MCP_SERVER, APIType.AGENT_API, APIType.MODEL_API})
-public class TimeoutProperty extends BaseAPIProperty {
+public class ModelAPISpec extends APISpec {
 
-    /** 超时时间数值 */
-    @APIField(label = "超时时间", description = "超时时间数值", required = true)
-    private Long unitNum;
+    // Routing configuration
+    private String basePath;
 
-    /** 时间单位 */
-    @APIField(
-            label = "时间单位",
-            description = "超时时间单位（仅支持 s=秒）",
-            required = true,
-            defaultValue = "s",
-            options = {"s"})
-    private String timeUnit = "s";
+    private List<HttpRoute> httpRoutes;
+
+    // Model-specific attributes
+    /**
+     * Supported protocols (e.g., ["OpenAI/v1", "Anthropic"])
+     */
+    private List<String> protocols;
+
+    /**
+     * Usage scenario (e.g., "text-generation", "image-generation")
+     */
+    private String scenario;
 }

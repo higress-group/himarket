@@ -23,7 +23,6 @@ import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.map.MapBuilder;
 import cn.hutool.core.util.BooleanUtil;
 import cn.hutool.core.util.StrUtil;
-import cn.hutool.json.JSONUtil;
 import com.alibaba.higress.sdk.model.route.KeyedRoutePredicate;
 import com.alibaba.higress.sdk.model.route.RoutePredicate;
 import com.alibaba.himarket.dto.result.agent.AgentAPIResult;
@@ -54,6 +53,7 @@ import com.alibaba.himarket.support.enums.GatewayType;
 import com.alibaba.himarket.support.gateway.GatewayConfig;
 import com.alibaba.himarket.support.gateway.HigressConfig;
 import com.alibaba.himarket.support.product.HigressRefConfig;
+import com.alibaba.himarket.utils.JsonUtil;
 import com.aliyun.sdk.service.apig20240327.models.HttpApiApiInfo;
 import io.agentscope.core.tool.mcp.McpClientWrapper;
 import io.modelcontextprotocol.spec.McpSchema;
@@ -61,9 +61,11 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.*;
 import java.util.stream.Collectors;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -237,7 +239,7 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
                         : "HTTP");
         m.setMeta(meta);
 
-        return JSONUtil.toJsonStr(m);
+        return JsonUtil.toJson(m);
     }
 
     private List<DomainResult> fetchDefaultDomains(Gateway gateway) {
@@ -325,7 +327,7 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
         ModelConfigResult result = new ModelConfigResult();
         result.setModelAPIConfig(config);
 
-        return JSONUtil.toJsonStr(result);
+        return JsonUtil.toJson(result);
     }
 
     @Override
@@ -392,7 +394,7 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
         OpenAPIMCPConfig openAPIMCPConfig =
                 OpenAPIMCPConfig.convertFromToolList(config.getMcpServerName(), tools);
 
-        return JSONUtil.toJsonStr(openAPIMCPConfig);
+        return JsonUtil.toJson(openAPIMCPConfig);
     }
 
     private void fillCredentialContext(
@@ -628,6 +630,8 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
 
     @Data
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class HigressConsumerConfig {
         private String name;
         private List<HigressCredentialConfig> credentials;
@@ -635,6 +639,8 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
 
     @Data
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class HigressCredentialConfig {
         private String type;
         private String source;
@@ -777,6 +783,8 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
 
     @Data
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class HigressAuthConsumerConfig {
         private String mcpServerName;
         private List<String> consumers;

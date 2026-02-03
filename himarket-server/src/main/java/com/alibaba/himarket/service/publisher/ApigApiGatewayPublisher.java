@@ -1,10 +1,10 @@
 package com.alibaba.himarket.service.publisher;
 
-import com.alibaba.himarket.dto.result.api.APIDefinitionVO;
+import com.alibaba.himarket.entity.APIDefinition;
 import com.alibaba.himarket.entity.Gateway;
 import com.alibaba.himarket.service.api.GatewayPublisher;
 import com.alibaba.himarket.service.gateway.AIGWOperator;
-import com.alibaba.himarket.support.api.PublishConfig;
+import com.alibaba.himarket.support.api.DeploymentConfig;
 import com.alibaba.himarket.support.api.service.AiServiceConfig;
 import com.alibaba.himarket.support.api.service.DnsServiceConfig;
 import com.alibaba.himarket.support.api.service.FixedAddressServiceConfig;
@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -34,17 +35,10 @@ import org.springframework.stereotype.Component;
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class ApigApiGatewayPublisher implements GatewayPublisher {
 
     protected AIGWOperator operator;
-
-    public ApigApiGatewayPublisher() {
-        // Default constructor for subclasses that inject their own operator
-    }
-
-    public ApigApiGatewayPublisher(AIGWOperator aigwOperator) {
-        this.operator = aigwOperator;
-    }
 
     @Override
     public GatewayType getGatewayType() {
@@ -58,23 +52,24 @@ public class ApigApiGatewayPublisher implements GatewayPublisher {
 
     @Override
     public GatewayRefConfig publish(
-            Gateway gateway, APIDefinitionVO apiDefinition, PublishConfig publishConfig) {
+            Gateway gateway, APIDefinition apiDefinition, DeploymentConfig deploymentConfig) {
         return null;
     }
 
     @Override
     public String unpublish(
-            Gateway gateway, APIDefinitionVO apiDefinition, PublishConfig publishConfig) {
+            Gateway gateway, APIDefinition apiDefinition, DeploymentConfig deploymentConfig) {
         return "Mock unpublish success";
     }
 
     @Override
-    public boolean isPublished(Gateway gateway, APIDefinitionVO apiDefinition) {
+    public boolean isPublished(Gateway gateway, APIDefinition apiDefinition) {
         return false;
     }
 
     @Override
-    public void validatePublishConfig(APIDefinitionVO apiDefinition, PublishConfig publishConfig) {
+    public void validateDeploymentConfig(
+            APIDefinition apiDefinition, DeploymentConfig deploymentConfig) {
         // Mock validation
     }
 
@@ -483,7 +478,7 @@ public class ApigApiGatewayPublisher implements GatewayPublisher {
         // ResourceGroupId is not stored in APIGConfig
         // It should be configured separately or passed through publish config
         // For now, return null to use the default resource group
-        // TODO: Add resourceGroupId field to Gateway or PublishConfig if needed
+        // TODO: Add resourceGroupId field to Gateway or DeploymentConfig if needed
         return null;
     }
 

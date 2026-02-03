@@ -22,7 +22,6 @@ package com.alibaba.himarket.service.gateway;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.BooleanUtil;
 import cn.hutool.core.util.StrUtil;
-import cn.hutool.json.JSONUtil;
 import com.alibaba.higress.sdk.model.route.KeyedRoutePredicate;
 import com.alibaba.higress.sdk.model.route.RoutePredicate;
 import com.alibaba.himarket.dto.result.agent.AgentAPIResult;
@@ -54,6 +53,7 @@ import com.alibaba.himarket.support.enums.GatewayType;
 import com.alibaba.himarket.support.gateway.GatewayConfig;
 import com.alibaba.himarket.support.gateway.SofaHigressConfig;
 import com.alibaba.himarket.support.product.SofaHigressRefConfig;
+import com.alibaba.himarket.utils.JsonUtil;
 import com.aliyun.sdk.service.apig20240327.models.HttpApiApiInfo;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -198,7 +198,7 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
 
         APIConfigResult configResult = new APIConfigResult();
         // spec
-        configResult.setSpec(JSONUtil.toJsonStr(response));
+        configResult.setSpec(JsonUtil.toJson(response));
 
         // meta
         APIConfigResult.APIMetadata meta = new APIConfigResult.APIMetadata();
@@ -206,7 +206,7 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
         meta.setType("Route");
         configResult.setMeta(meta);
 
-        return JSONUtil.toJsonStr(configResult);
+        return JsonUtil.toJson(configResult);
     }
 
     public SofaHigressRouteConfig fetchRoute(Gateway gateway, String routeId, String routeName) {
@@ -245,7 +245,7 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
         mcpMetadata.setCreateFromType(response.getType());
         mcpMetadata.setProtocol("SSE");
         mcpConfigResult.setMeta(mcpMetadata);
-        return JSONUtil.toJsonStr(mcpConfigResult);
+        return JsonUtil.toJson(mcpConfigResult);
     }
 
     private SofaHigressMCPConfig fetchSofaHigressMCPConfig(Gateway gateway, String serverId) {
@@ -351,7 +351,7 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
                         .build();
         result.setModelAPIConfig(config);
 
-        return JSONUtil.toJsonStr(result);
+        return JsonUtil.toJson(result);
     }
 
     public SofaHigressConsumerConfig getSofaHigressConsumerConfigByName(
@@ -441,7 +441,7 @@ public class SofaHigressOperator extends GatewayOperator<SofaHigressClient> {
             OpenAPIMCPConfig openAPIMCPConfig =
                     OpenAPIMCPConfig.convertFromToolList(config.getMcpServerName(), tools);
 
-            return JSONUtil.toJsonStr(openAPIMCPConfig);
+            return JsonUtil.toJson(openAPIMCPConfig);
         } catch (Exception e) {
             log.error("List mcp tools failed", e);
             return null;

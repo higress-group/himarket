@@ -30,8 +30,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ImportToolsResult {
-    private List<APIEndpointVO> endpoints;
+    /** Imported tools preview */
+    private List<ToolImportPreviewDTO> tools;
 
-    /** 导入结果消息 */
+    /** Import result message */
     private String message;
 }

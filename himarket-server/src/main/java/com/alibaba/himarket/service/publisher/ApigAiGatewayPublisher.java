@@ -1,26 +1,30 @@
 package com.alibaba.himarket.service.publisher;
 
-import cn.hutool.json.JSONUtil;
-import com.alibaba.himarket.core.utils.McpPluginConfigUtil;
-import com.alibaba.himarket.dto.result.api.APIDefinitionVO;
-import com.alibaba.himarket.dto.result.api.APIEndpointVO;
+import com.alibaba.himarket.core.exception.BusinessException;
+import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.dto.result.mcp.McpServerInfo;
-import com.alibaba.himarket.entity.APIPublishRecord;
+import com.alibaba.himarket.entity.APIDefinition;
+import com.alibaba.himarket.entity.APIDeployment;
 import com.alibaba.himarket.entity.Gateway;
-import com.alibaba.himarket.repository.APIPublishRecordRepository;
+import com.alibaba.himarket.repository.APIDeploymentRepository;
 import com.alibaba.himarket.service.gateway.AIGWOperator;
-import com.alibaba.himarket.support.api.PublishConfig;
-import com.alibaba.himarket.support.api.endpoint.EndpointConfig;
-import com.alibaba.himarket.support.api.endpoint.HttpEndpointConfig;
-import com.alibaba.himarket.support.api.property.BaseAPIProperty;
+import com.alibaba.himarket.support.api.DeploymentConfig;
+import com.alibaba.himarket.support.api.DomainConfig;
+import com.alibaba.himarket.support.api.property.APIPolicy;
 import com.alibaba.himarket.support.api.service.AiServiceConfig;
 import com.alibaba.himarket.support.api.service.GatewayServiceConfig;
 import com.alibaba.himarket.support.api.service.ServiceConfig;
+import com.alibaba.himarket.support.api.v2.HttpRoute;
+import com.alibaba.himarket.support.api.v2.spec.AgentAPISpec;
+import com.alibaba.himarket.support.api.v2.spec.MCPServerSpec;
+import com.alibaba.himarket.support.api.v2.spec.ModelAPISpec;
 import com.alibaba.himarket.support.enums.APIType;
 import com.alibaba.himarket.support.enums.GatewayType;
-import com.alibaba.himarket.support.enums.PropertyType;
+import com.alibaba.himarket.support.enums.PolicyType;
 import com.alibaba.himarket.support.product.APIGRefConfig;
 import com.alibaba.himarket.support.product.GatewayRefConfig;
+import com.alibaba.himarket.utils.JsonUtil;
+import com.alibaba.himarket.utils.McpPluginConfigUtil;
 import com.aliyun.sdk.service.apig20240327.models.CreateMcpServerRequest;
 import com.aliyun.sdk.service.apig20240327.models.CreateMcpServerRequest.BackendConfig;
 import com.aliyun.sdk.service.apig20240327.models.CreateMcpServerRequest.Services;
@@ -32,15 +36,11 @@ import com.aliyun.sdk.service.apig20240327.models.HttpApiDeployConfig.ServiceCon
 import com.aliyun.sdk.service.apig20240327.models.HttpRouteMatch;
 import com.aliyun.sdk.service.apig20240327.models.HttpRouteMatch.HttpRouteMatchPath;
 import com.aliyun.sdk.service.apig20240327.models.UpdateMcpServerRequest;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
@@ -48,15 +48,12 @@ import org.springframework.util.CollectionUtils;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
 
-    private final APIPublishRecordRepository apiPublishRecordRepository;
+    private final AIGWOperator operator;
 
-    public ApigAiGatewayPublisher(
-            AIGWOperator aigwOperator, APIPublishRecordRepository apiPublishRecordRepository) {
-        super(aigwOperator);
-        this.apiPublishRecordRepository = apiPublishRecordRepository;
-    }
+    private final APIDeploymentRepository apiPublishRecordRepository;
 
     @Override
     public GatewayType getGatewayType() {
@@ -70,14 +67,14 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
 
     @Override
     public GatewayRefConfig publish(
-            Gateway gateway, APIDefinitionVO apiDefinition, PublishConfig publishConfig) {
+            Gateway gateway, APIDefinition apiDefinition, DeploymentConfig deploymentConfig) {
         switch (apiDefinition.getType()) {
             case MCP_SERVER:
-                return publishMcpServer(gateway, publishConfig, apiDefinition);
+                return publishMcpServer(gateway, deploymentConfig, apiDefinition);
             case MODEL_API:
-                return publishModelAPI(gateway, publishConfig, apiDefinition);
+                return publishModelAPI(gateway, deploymentConfig, apiDefinition);
             case AGENT_API:
-                return publishAgentAPI(gateway, publishConfig, apiDefinition);
+                return publishAgentAPI(gateway, deploymentConfig, apiDefinition);
             default:
                 throw new IllegalArgumentException(
                         "Unsupported API type: " + apiDefinition.getType());
@@ -86,16 +83,16 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
 
     @Override
     public String unpublish(
-            Gateway gateway, APIDefinitionVO apiDefinition, PublishConfig publishConfig) {
+            Gateway gateway, APIDefinition apiDefinition, DeploymentConfig deploymentConfig) {
         switch (apiDefinition.getType()) {
             case MCP_SERVER:
-                unpublishMcpServer(gateway, publishConfig, apiDefinition);
+                unpublishMcpServer(gateway, deploymentConfig, apiDefinition);
                 break;
             case MODEL_API:
-                unpublishModelAPI(gateway, publishConfig, apiDefinition);
+                unpublishModelAPI(gateway, deploymentConfig, apiDefinition);
                 break;
             case AGENT_API:
-                unpublishAgentAPI(gateway, publishConfig, apiDefinition);
+                unpublishAgentAPI(gateway, deploymentConfig, apiDefinition);
                 break;
             default:
                 throw new IllegalArgumentException(
@@ -105,21 +102,22 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
     }
 
     @Override
-    public boolean isPublished(Gateway gateway, APIDefinitionVO apiDefinition) {
+    public boolean isPublished(Gateway gateway, APIDefinition apiDefinition) {
         return false;
     }
 
     @Override
-    public void validatePublishConfig(APIDefinitionVO apiDefinition, PublishConfig publishConfig) {
+    public void validateDeploymentConfig(
+            APIDefinition apiDefinition, DeploymentConfig deploymentConfig) {
         switch (apiDefinition.getType()) {
             case MCP_SERVER:
-                validateMcpServerConfig(apiDefinition, publishConfig);
+                validateMcpServerConfig(apiDefinition, deploymentConfig);
                 break;
             case MODEL_API:
-                validateModelAPIConfig(apiDefinition, publishConfig);
+                validateModelAPIConfig(apiDefinition, deploymentConfig);
                 break;
             case AGENT_API:
-                validateAgentAPIConfig(apiDefinition, publishConfig);
+                validateAgentAPIConfig(apiDefinition, deploymentConfig);
                 break;
             default:
                 throw new IllegalArgumentException(
@@ -128,38 +126,42 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
     }
 
     private APIGRefConfig publishMcpServer(
-            Gateway gateway, PublishConfig publishConfig, APIDefinitionVO apiDefinition) {
-        // Check for DIRECT bridge type
-        if (apiDefinition.getMetadata() != null
-                && "DIRECT".equals(apiDefinition.getMetadata().get("mcpBridgeType"))) {
-            return publishDirectMcpServer(gateway, publishConfig, apiDefinition);
-        } else {
-            return publishHttpToMcpBridgeServer(gateway, publishConfig, apiDefinition);
+            Gateway gateway, DeploymentConfig deploymentConfig, APIDefinition apiDefinition) {
+        // Check for DIRECT bridge type from MCPServerSpec
+        if (apiDefinition.getSpec() instanceof MCPServerSpec mcpSpec) {
+            if ("DIRECT".equals(mcpSpec.getBridgeType())) {
+                return publishDirectMcpServer(gateway, deploymentConfig, apiDefinition);
+            }
         }
+        // Default to HTTP_TO_MCP bridge
+        return publishHttpToMcpBridgeServer(gateway, deploymentConfig, apiDefinition);
     }
 
     private APIGRefConfig publishDirectMcpServer(
-            Gateway gateway, PublishConfig publishConfig, APIDefinitionVO apiDefinition) {
+            Gateway gateway, DeploymentConfig deploymentConfig, APIDefinition apiDefinition) {
         log.info("Publishing MCP server with DIRECT bridge type: {}", apiDefinition.getName());
 
         // Extract domain IDs
         Set<String> publishedDomainSet =
-                publishConfig.getDomains().stream()
+                deploymentConfig.getDomains().stream()
                         .map(d -> d.getDomain())
                         .collect(Collectors.toSet());
         List<String> domainIds = operator.getDomainIds(gateway, publishedDomainSet);
 
         // Build the backend config
-        BackendConfig backendConfig = getMcpBackendConfig(gateway, publishConfig, apiDefinition);
+        BackendConfig backendConfig = getMcpBackendConfig(gateway, deploymentConfig, apiDefinition);
 
         // Extract MCP config from ServiceConfig meta
         String mcpProtocol = "SSE";
         String mcpPath = null;
-        if (publishConfig.getServiceConfig() != null
-                && publishConfig.getServiceConfig().getMeta() != null) {
+        if (deploymentConfig.getServiceConfig() != null
+                && deploymentConfig.getServiceConfig().getMeta() != null) {
             mcpProtocol =
-                    publishConfig.getServiceConfig().getMeta().getOrDefault("mcpProtocol", "SSE");
-            mcpPath = publishConfig.getServiceConfig().getMeta().get("mcpPath");
+                    deploymentConfig
+                            .getServiceConfig()
+                            .getMeta()
+                            .getOrDefault("mcpProtocol", "SSE");
+            mcpPath = deploymentConfig.getServiceConfig().getMeta().get("mcpPath");
         }
 
         // Build CreateMcpServerRequest for DIRECT type
@@ -288,9 +290,9 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
     }
 
     private APIGRefConfig publishHttpToMcpBridgeServer(
-            Gateway gateway, PublishConfig publishConfig, APIDefinitionVO apiDefinition) {
+            Gateway gateway, DeploymentConfig deploymentConfig, APIDefinition apiDefinition) {
         Set<String> publishedDomainSet =
-                publishConfig.getDomains().stream()
+                deploymentConfig.getDomains().stream()
                         .map(d -> d.getDomain())
                         .collect(Collectors.toSet());
         List<String> domainIds = operator.getDomainIds(gateway, publishedDomainSet);
@@ -300,7 +302,7 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
         // or it might need to be set through a different mechanism
 
         // Build the backend config (may be null for non-gateway services)
-        BackendConfig backendConfig = getMcpBackendConfig(gateway, publishConfig, apiDefinition);
+        BackendConfig backendConfig = getMcpBackendConfig(gateway, deploymentConfig, apiDefinition);
 
         CreateMcpServerRequest.Builder requestBuilder =
                 CreateMcpServerRequest.builder()
@@ -325,8 +327,7 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
 
         // Debug: Print request as JSON to identify null values
         try {
-            ObjectMapper objectMapper = new ObjectMapper();
-            String requestJson = objectMapper.writeValueAsString(request);
+            String requestJson = JsonUtil.toJson(request);
             log.info("CreateMcpServerRequest JSON: {}", requestJson);
         } catch (Exception e) {
             log.error("Failed to serialize request to JSON", e);
@@ -426,7 +427,7 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
      * @param apiDefinition The API definition containing the MCP server name
      * @return Match configuration with path prefix pattern
      */
-    private HttpRouteMatch getMcpMatch(APIDefinitionVO apiDefinition) {
+    private HttpRouteMatch getMcpMatch(APIDefinition apiDefinition) {
         // Build match configuration with path prefix: /mcp-servers/{name}
         // URL encode the name to handle special characters like spaces
         String encodedName;
@@ -449,12 +450,12 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
     }
 
     private BackendConfig getMcpBackendConfig(
-            Gateway gateway, PublishConfig publishConfig, APIDefinitionVO apiDefinition) {
-        if (publishConfig == null || publishConfig.getServiceConfig() == null) {
+            Gateway gateway, DeploymentConfig deploymentConfig, APIDefinition apiDefinition) {
+        if (deploymentConfig == null || deploymentConfig.getServiceConfig() == null) {
             return null;
         }
 
-        ServiceConfig serviceConfig = publishConfig.getServiceConfig();
+        ServiceConfig serviceConfig = deploymentConfig.getServiceConfig();
 
         // Ensure service exists (query/create/update) and get serviceId
         String serviceId = ensureServiceExists(gateway, apiDefinition.getName(), serviceConfig);
@@ -470,26 +471,17 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
     }
 
     private APIGRefConfig publishModelAPI(
-            Gateway gateway, PublishConfig publishConfig, APIDefinitionVO apiDefinition) {
+            Gateway gateway, DeploymentConfig deploymentConfig, APIDefinition apiDefinition) {
         // 1. Fetch environment ID using operator method
         String environmentId = operator.getGatewayEnvironmentId(gateway);
-        log.info(
-                "Fetched environment ID: {} for gateway: {}",
-                environmentId,
-                gateway.getGatewayId());
 
-        // 2. Extract domain IDs from publishConfig
-        Set<String> publishedDomainSet =
-                publishConfig.getDomains().stream()
-                        .map(d -> d.getDomain())
-                        .collect(Collectors.toSet());
+        // 2. Extract domain IDs (priority: deploymentConfig > spec)
+        List<String> customDomainIds = extractDomainIds(gateway, deploymentConfig, apiDefinition);
 
-        List<String> customDomainIds = operator.getDomainIds(gateway, publishedDomainSet);
+        // 3. Extract AI protocols from spec
+        List<String> aiProtocols = extractAiProtocols(apiDefinition);
 
-        // 3. Extract AI protocols - default to OpenAI/v1
-        List<String> aiProtocols = extractAiProtocols(publishConfig);
-
-        // 4. Extract model category - default to Text
+        // 4. Extract model category from spec
         String modelCategory = extractModelCategory(apiDefinition);
 
         // 5. Extract resource group ID from gateway
@@ -497,16 +489,18 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
 
         // 6. Build service configs for backend using SDK classes
         List<ServiceConfigs> serviceConfigs =
-                buildServiceConfigsSDK(gateway, publishConfig, apiDefinition);
+                buildServiceConfigsSDK(gateway, deploymentConfig, apiDefinition);
 
         // 7. Build policy configs for AI capabilities using SDK classes
         List<PolicyConfigs> policyConfigs = buildPolicyConfigsSDK(apiDefinition);
 
-        // 8. Extract basePath from apiDefinition, default to "/" if not provided
-        String basePath = apiDefinition.getBasePath();
-        if (StringUtils.isEmpty(basePath)) {
-            basePath = "/";
-            log.warn("No basePath provided in apiDefinition, using default: /");
+        // 8. Extract basePath from spec, default to "/" if not provided
+        String basePath = "/";
+        if (apiDefinition.getSpec() instanceof ModelAPISpec) {
+            ModelAPISpec spec = (ModelAPISpec) apiDefinition.getSpec();
+            if (StringUtils.isNotEmpty(spec.getBasePath())) {
+                basePath = spec.getBasePath();
+            }
         }
         log.info("Using basePath: {} for Model API", basePath);
 
@@ -559,18 +553,19 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
             Gateway gateway,
             String environmentId,
             String httpApiId,
-            APIDefinitionVO apiDefinition,
+            APIDefinition apiDefinition,
             String attachResourceType) {
-        if (apiDefinition == null || apiDefinition.getProperties() == null) {
+        List<APIPolicy> policies = apiDefinition.getPolicies();
+        if (apiDefinition == null || policies == null || policies.isEmpty()) {
             return;
         }
 
-        for (BaseAPIProperty property : apiDefinition.getProperties()) {
+        for (APIPolicy property : policies) {
             if (property == null || property.getType() == null) {
                 continue;
             }
 
-            PropertyType type = property.getType();
+            PolicyType type = property.getType();
             // Skip policies handled in buildPolicyConfigsSDK (built-in policies)
             if (isBuiltInPolicy(apiDefinition.getType(), type)) {
                 continue;
@@ -583,7 +578,7 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
 
             try {
                 // Prepare policy config JSON
-                String configJson = JSONUtil.toJsonStr(property);
+                String configJson = JsonUtil.toJson(property);
 
                 // Generate policy name based on API definition name and policy class name
                 String policyName = apiDefinition.getName() + "-" + className;
@@ -631,13 +626,13 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
      * Built-in policies are those that are directly handled by the SDK for specific API types
      *
      * @param apiType The API definition type
-     * @param propertyType The property type
+     * @param policyType The property type
      * @return true if it's a built-in policy, false otherwise
      */
-    private boolean isBuiltInPolicy(APIType apiType, PropertyType propertyType) {
+    private boolean isBuiltInPolicy(APIType apiType, PolicyType policyType) {
         // For MODEL_API and AGENT_API, AI policies are built-in
         if (apiType == APIType.MODEL_API || apiType == APIType.AGENT_API) {
-            switch (propertyType) {
+            switch (policyType) {
                 case OBSERVABILITY:
                     return true;
                 default:
@@ -653,7 +648,7 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
      * @param type The property type
      * @return The policy class name or null if not a policy type
      */
-    private String getPolicyClassName(PropertyType type) {
+    private String getPolicyClassName(PolicyType type) {
         switch (type) {
             case TIMEOUT:
                 return "Timeout";
@@ -665,7 +660,7 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
     }
 
     private APIGRefConfig publishAgentAPI(
-            Gateway gateway, PublishConfig publishConfig, APIDefinitionVO apiDefinition) {
+            Gateway gateway, DeploymentConfig deploymentConfig, APIDefinition apiDefinition) {
         log.info(
                 "Publishing Agent API: name={}, gatewayId={}",
                 apiDefinition.getName(),
@@ -673,37 +668,30 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
 
         // 1. Fetch environment ID using operator method
         String environmentId = operator.getGatewayEnvironmentId(gateway);
-        log.info(
-                "Fetched environment ID: {} for gateway: {}",
-                environmentId,
-                gateway.getGatewayId());
 
-        // 2. Extract domain IDs from publishConfig
-        Set<String> publishedDomainSet =
-                publishConfig.getDomains().stream()
-                        .map(d -> d.getDomain())
-                        .collect(Collectors.toSet());
-
-        List<String> customDomainIds = operator.getDomainIds(gateway, publishedDomainSet);
+        // 2. Extract domain IDs (priority: deploymentConfig > spec)
+        List<String> customDomainIds = extractDomainIds(gateway, deploymentConfig, apiDefinition);
 
         // 3. Extract agent protocols - default to Dify
-        List<String> agentProtocols = extractAgentProtocols(publishConfig);
+        List<String> agentProtocols = extractAgentProtocols(deploymentConfig);
 
         // 4. Extract resource group ID from gateway
         String resourceGroupId = extractResourceGroupId(gateway);
 
         // 5. Build service configs for backend using SDK classes
         List<ServiceConfigs> serviceConfigs =
-                buildServiceConfigsSDK(gateway, publishConfig, apiDefinition);
+                buildServiceConfigsSDK(gateway, deploymentConfig, apiDefinition);
 
         // 6. Build policy configs (empty for Agent API by default)
         List<PolicyConfigs> policyConfigs = Collections.emptyList();
 
-        // 7. Extract basePath from apiDefinition, default to "/" if not provided
-        String basePath = apiDefinition.getBasePath();
-        if (StringUtils.isEmpty(basePath)) {
-            basePath = "/";
-            log.warn("No basePath provided in apiDefinition, using default: /");
+        // 7. Extract basePath from spec, default to "/" if not provided
+        String basePath = "/";
+        if (apiDefinition.getSpec() instanceof AgentAPISpec) {
+            AgentAPISpec spec = (AgentAPISpec) apiDefinition.getSpec();
+            if (StringUtils.isNotEmpty(spec.getBasePath())) {
+                basePath = spec.getBasePath();
+            }
         }
         log.info("Using basePath: {} for Agent API", basePath);
 
@@ -733,19 +721,24 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
                         apiDefinition.getDescription(),
                         null);
 
-        // 10. Create routes for each endpoint
-        if (!CollectionUtils.isEmpty(apiDefinition.getEndpoints())) {
-            log.info(
-                    "Creating {} routes for Agent API: {}",
-                    apiDefinition.getEndpoints().size(),
-                    httpApiId);
-            createAgentApiRoutes(
-                    gateway,
-                    httpApiId,
-                    environmentId,
-                    customDomainIds,
-                    serviceConfigs,
-                    apiDefinition.getEndpoints());
+        // 10. Create routes from spec
+        if (apiDefinition.getSpec() instanceof AgentAPISpec) {
+            AgentAPISpec spec = (AgentAPISpec) apiDefinition.getSpec();
+            if (!CollectionUtils.isEmpty(spec.getHttpRoutes())) {
+                log.info(
+                        "Creating {} routes for Agent API: {}",
+                        spec.getHttpRoutes().size(),
+                        httpApiId);
+                createAgentApiRoutes(
+                        gateway,
+                        httpApiId,
+                        environmentId,
+                        customDomainIds,
+                        serviceConfigs,
+                        spec.getHttpRoutes());
+            }
+        } else {
+            log.warn("Agent API spec not found or invalid for: {}", apiDefinition.getName());
         }
 
         // 11. Attach other policies that are not supported in buildPolicyConfigsSDK
@@ -755,7 +748,7 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
     }
 
     private void unpublishMcpServer(
-            Gateway gateway, PublishConfig publishConfig, APIDefinitionVO apiDefinition) {
+            Gateway gateway, DeploymentConfig deploymentConfig, APIDefinition apiDefinition) {
         // Find MCP server ID by name
         String mcpServerName = apiDefinition.getName();
         Optional<String> mcpServerId = operator.findMcpServerIdByName(gateway, mcpServerName);
@@ -770,14 +763,14 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
     }
 
     /**
-     * Create HTTP API routes for Agent API endpoints
+     * Create HTTP API routes for Agent API from spec
      *
      * @param gateway         The gateway
      * @param httpApiId       The HTTP API ID
      * @param environmentId   The environment ID
      * @param customDomainIds List of custom domain IDs
      * @param serviceConfigs  List of service configurations
-     * @param endpoints       List of API endpoints
+     * @param httpRoutes      List of HTTP routes from spec
      */
     private void createAgentApiRoutes(
             Gateway gateway,
@@ -785,37 +778,32 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
             String environmentId,
             List<String> customDomainIds,
             List<ServiceConfigs> serviceConfigs,
-            List<APIEndpointVO> endpoints) {
+            List<HttpRoute> httpRoutes) {
 
-        for (APIEndpointVO endpoint : endpoints) {
+        for (HttpRoute route : httpRoutes) {
             try {
                 createAgentApiRoute(
-                        gateway,
-                        httpApiId,
-                        environmentId,
-                        customDomainIds,
-                        serviceConfigs,
-                        endpoint);
+                        gateway, httpApiId, environmentId, customDomainIds, serviceConfigs, route);
             } catch (Exception e) {
                 log.error(
-                        "Failed to create route for endpoint: {}, error: {}",
-                        endpoint.getName(),
+                        "Failed to create route: {}, error: {}",
+                        route.getName(),
                         e.getMessage(),
                         e);
-                // Continue with other endpoints even if one fails
+                // Continue with other routes even if one fails
             }
         }
     }
 
     /**
-     * Create a single HTTP API route for an Agent API endpoint
+     * Create a single HTTP API route for an Agent API from spec
      *
      * @param gateway         The gateway
      * @param httpApiId       The HTTP API ID
      * @param environmentId   The environment ID
      * @param customDomainIds List of custom domain IDs
      * @param serviceConfigs  List of service configurations
-     * @param endpoint        The API endpoint
+     * @param route           The HTTP route from spec
      */
     private void createAgentApiRoute(
             Gateway gateway,
@@ -823,42 +811,36 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
             String environmentId,
             List<String> customDomainIds,
             List<ServiceConfigs> serviceConfigs,
-            APIEndpointVO endpoint) {
+            HttpRoute route) {
 
-        // Extract endpoint config
-        EndpointConfig endpointConfig = endpoint.getConfig();
-        if (!(endpointConfig instanceof HttpEndpointConfig)) {
+        // Validate route match config
+        if (route.getMatch() == null || route.getMatch().getPath() == null) {
             log.warn(
-                    "Endpoint {} is not an HTTP endpoint, skipping route creation",
-                    endpoint.getName());
+                    "Route {} has no match config or path, skipping route creation",
+                    route.getName());
             return;
         }
 
-        HttpEndpointConfig httpConfig = (HttpEndpointConfig) endpointConfig;
-        HttpEndpointConfig.MatchConfig matchConfig = httpConfig.getMatchConfig();
-        if (matchConfig == null || matchConfig.getPath() == null) {
-            log.warn(
-                    "Endpoint {} has no match config or path, skipping route creation",
-                    endpoint.getName());
-            return;
-        }
+        HttpRoute.RouteMatch routeMatch = route.getMatch();
+        HttpRoute.PathMatch pathMatchSpec = routeMatch.getPath();
 
-        // Build HttpRouteMatch
+        // Build HttpRouteMatch for APIG SDK
         HttpRouteMatchPath pathMatch =
                 HttpRouteMatchPath.builder()
-                        .type(matchConfig.getPath().getType())
-                        .value(matchConfig.getPath().getValue())
+                        .type(pathMatchSpec.getType())
+                        .value(pathMatchSpec.getValue())
                         .build();
 
         HttpRouteMatch.Builder matchBuilder = HttpRouteMatch.builder().path(pathMatch);
 
         // Add methods if specified
-        if (!CollectionUtils.isEmpty(matchConfig.getMethods())) {
-            matchBuilder.methods(matchConfig.getMethods());
+        if (!CollectionUtils.isEmpty(routeMatch.getMethods())) {
+            matchBuilder.methods(routeMatch.getMethods());
         }
 
-        // Set ignoreUriCase (default to false)
-        matchBuilder.ignoreUriCase(false);
+        // Set ignoreUriCase based on caseSensitive flag
+        Boolean caseSensitive = pathMatchSpec.getCaseSensitive();
+        matchBuilder.ignoreUriCase(caseSensitive != null && !caseSensitive);
 
         HttpRouteMatch match = matchBuilder.build();
 
@@ -872,26 +854,26 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
         operator.createHttpApiRoute(
                 gateway,
                 httpApiId,
-                endpoint.getName(),
+                route.getName(),
                 environmentId,
                 customDomainIds,
                 match,
                 serviceId);
 
         log.info(
-                "Successfully created route for endpoint: {} with path: {}",
-                endpoint.getName(),
-                matchConfig.getPath().getValue());
+                "Successfully created route: {} with path: {}",
+                route.getName(),
+                pathMatchSpec.getValue());
     }
 
     private void unpublishModelAPI(
-            Gateway gateway, PublishConfig publishConfig, APIDefinitionVO apiDefinition) {
+            Gateway gateway, DeploymentConfig deploymentConfig, APIDefinition apiDefinition) {
         String apiDefinitionId = apiDefinition.getApiDefinitionId();
         String apiName = apiDefinition.getName();
 
-        Optional<APIPublishRecord> latestRecord =
+        Optional<APIDeployment> latestRecord =
                 apiPublishRecordRepository
-                        .findFirstByApiDefinitionIdAndGatewayIdOrderByCreateAtDesc(
+                        .findFirstByApiDefinitionIdAndGatewayIdOrderByCreatedAtDesc(
                                 apiDefinitionId, gateway.getGatewayId());
 
         String httpApiId = null;
@@ -900,7 +882,7 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
             if (StringUtils.isNotBlank(gatewayResourceConfig)) {
                 try {
                     APIGRefConfig refConfig =
-                            JSONUtil.toBean(gatewayResourceConfig, APIGRefConfig.class);
+                            JsonUtil.parse(gatewayResourceConfig, APIGRefConfig.class);
                     if (refConfig != null) {
                         if (StringUtils.isNotBlank(refConfig.getModelApiId())) {
                             httpApiId = refConfig.getModelApiId();
@@ -911,9 +893,9 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
                 } catch (Exception e) {
                     log.warn(
                             "Failed to parse gatewayResourceConfig for apiDefinitionId={},"
-                                    + " recordId={}",
+                                    + " deploymentId={}",
                             apiDefinitionId,
-                            latestRecord.get().getRecordId(),
+                            latestRecord.get().getDeploymentId(),
                             e);
                 }
             }
@@ -941,16 +923,16 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
     }
 
     private void unpublishAgentAPI(
-            Gateway gateway, PublishConfig publishConfig, APIDefinitionVO apiDefinition) {}
+            Gateway gateway, DeploymentConfig deploymentConfig, APIDefinition apiDefinition) {}
 
     private void validateMcpServerConfig(
-            APIDefinitionVO apiDefinition, PublishConfig publishConfig) {}
+            APIDefinition apiDefinition, DeploymentConfig deploymentConfig) {}
 
     private void validateModelAPIConfig(
-            APIDefinitionVO apiDefinition, PublishConfig publishConfig) {}
+            APIDefinition apiDefinition, DeploymentConfig deploymentConfig) {}
 
     private void validateAgentAPIConfig(
-            APIDefinitionVO apiDefinition, PublishConfig publishConfig) {}
+            APIDefinition apiDefinition, DeploymentConfig deploymentConfig) {}
 
     /**
      * Build policy configurations for Model API using SDK classes
@@ -960,16 +942,17 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
      * @param apiDefinition The API definition containing policy configuration
      * @return List of SDK PolicyConfigs
      */
-    private List<PolicyConfigs> buildPolicyConfigsSDK(APIDefinitionVO apiDefinition) {
+    private List<PolicyConfigs> buildPolicyConfigsSDK(APIDefinition apiDefinition) {
         List<PolicyConfigs> configs = new ArrayList<>();
 
-        if (apiDefinition == null || apiDefinition.getProperties() == null) {
+        List<APIPolicy> policies = apiDefinition.getPolicies();
+        if (policies == null || policies.isEmpty()) {
             return configs;
         }
 
-        // Convert each property to a PolicyConfig
-        for (BaseAPIProperty property : apiDefinition.getProperties()) {
-            PolicyConfigs policyConfig = convertPropertyToPolicyConfig(property);
+        // Convert each policy to a PolicyConfig
+        for (APIPolicy policy : policies) {
+            PolicyConfigs policyConfig = convertPropertyToPolicyConfig(policy);
             if (policyConfig != null) {
                 configs.add(policyConfig);
             }
@@ -979,27 +962,27 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
     }
 
     /**
-     * Convert a BaseAPIProperty to a PolicyConfig
+     * Convert an APIPolicy to a PolicyConfig
      * Maps property types to corresponding policy types
      *
      * @param property The property to convert
      * @return PolicyConfig or null if property is not a policy type
      */
-    private PolicyConfigs convertPropertyToPolicyConfig(BaseAPIProperty property) {
+    private PolicyConfigs convertPropertyToPolicyConfig(APIPolicy property) {
         if (property == null || property.getType() == null) {
             return null;
         }
 
         boolean enabled = property.getEnabled() != null ? property.getEnabled() : false;
-        PropertyType propertyType = property.getType();
+        PolicyType policyType = property.getType();
 
         // Map property type to policy type and build corresponding PolicyConfig
-        switch (propertyType) {
+        switch (policyType) {
             case OBSERVABILITY:
                 return PolicyConfigs.builder().type("AiStatistics").enable(enabled).build();
             default:
                 // Not a policy type, skip
-                log.debug("Skipping property with type '{}' - not a policy type", propertyType);
+                log.debug("Skipping property with type '{}' - not a policy type", policyType);
                 return null;
         }
     }
@@ -1009,15 +992,15 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
      * Supports both AI Service and Gateway Service configurations
      *
      * @param gateway       The gateway
-     * @param publishConfig The publish configuration
+     * @param deploymentConfig The publish configuration
      * @param apiDefinition The API definition
      * @return List of SDK ServiceConfigs
      */
     private List<ServiceConfigs> buildServiceConfigsSDK(
-            Gateway gateway, PublishConfig publishConfig, APIDefinitionVO apiDefinition) {
+            Gateway gateway, DeploymentConfig deploymentConfig, APIDefinition apiDefinition) {
         List<ServiceConfigs> serviceConfigs = new ArrayList<>();
 
-        ServiceConfig serviceConfig = publishConfig.getServiceConfig();
+        ServiceConfig serviceConfig = deploymentConfig.getServiceConfig();
         if (serviceConfig == null) {
             log.warn("No service config found in publish config");
             return serviceConfigs;
@@ -1064,22 +1047,12 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
     }
 
     /**
-     * Extract model category from API definition metadata
+     * Extract model category from API definition spec
      *
      * @param apiDefinition The API definition
      * @return Model category (e.g., "Text", "Image", "Audio", "Video")
      */
-    private String extractModelCategory(APIDefinitionVO apiDefinition) {
-        // Extract from API definition metadata if available
-        if (apiDefinition != null && apiDefinition.getMetadata() != null) {
-            Object scenario = apiDefinition.getMetadata().get("scenario");
-            if (scenario != null) {
-                String scenarioStr = scenario.toString();
-                // Convert scenario value to category key
-                return convertScenarioToCategory(scenarioStr);
-            }
-        }
-
+    private String extractModelCategory(APIDefinition apiDefinition) {
         // Default to "Text" for LLM models
         return "Text";
     }
@@ -1105,29 +1078,97 @@ public class ApigAiGatewayPublisher extends ApigApiGatewayPublisher {
     }
 
     /**
-     * Extract AI protocols from publish config
+     * Extract AI protocols from API definition spec
      *
-     * @param publishConfig The publish configuration
+     * @param apiDefinition The API definition
      * @return List of AI protocols (e.g., ["OpenAI/v1"], ["Anthropic"])
      */
-    private List<String> extractAiProtocols(PublishConfig publishConfig) {
-        // Extract from publishConfig or API definition metadata
-        // For now, default to OpenAI/v1
-        // This should be configurable through the publish config or API definition
+    private List<String> extractAiProtocols(APIDefinition apiDefinition) {
+        // Extract from ModelAPISpec if available
+        if (apiDefinition != null && apiDefinition.getSpec() instanceof ModelAPISpec modelSpec) {
+            if (modelSpec.getProtocols() != null && !modelSpec.getProtocols().isEmpty()) {
+                return modelSpec.getProtocols();
+            }
+        }
+
+        // Default to OpenAI/v1 for backward compatibility
         return List.of("OpenAI/v1");
     }
 
     /**
      * Extract agent protocols from publish config
      *
-     * @param publishConfig The publish configuration
+     * @param deploymentConfig The publish configuration
      * @return List of agent protocols (e.g., ["Dify"])
      */
-    private List<String> extractAgentProtocols(PublishConfig publishConfig) {
-        // Extract from publishConfig or API definition metadata
+    private List<String> extractAgentProtocols(DeploymentConfig deploymentConfig) {
+        // Extract from deploymentConfig or API definition metadata
         // For now, default to Dify
         // This should be configurable through the publish config or API definition
         return List.of("Dify");
+    }
+
+    /**
+     * Extract domain IDs with priority: deploymentConfig > spec
+     * This method supports flexible domain configuration:
+     * 1. If deploymentConfig.domains exists, use it (for environment-specific overrides)
+     * 2. Otherwise, extract from API spec (Model API: first route, Agent API: all routes)
+     *
+     * @param gateway       The gateway
+     * @param deploymentConfig The publish configuration
+     * @param apiDefinition The API definition
+     * @return List of domain IDs
+     */
+    private List<String> extractDomainIds(
+            Gateway gateway, DeploymentConfig deploymentConfig, APIDefinition apiDefinition) {
+
+        Set<String> domainSet = new HashSet<>();
+
+        // Priority 1: Use deploymentConfig.domains if specified (for environment-specific
+        // overrides)
+        if (deploymentConfig.getDomains() != null && !deploymentConfig.getDomains().isEmpty()) {
+            domainSet =
+                    deploymentConfig.getDomains().stream()
+                            .map(DomainConfig::getDomain)
+                            .collect(Collectors.toSet());
+            log.info("Using domains from deploymentConfig: {}", domainSet);
+        }
+        // Priority 2: Extract from API spec
+        else if (apiDefinition.getSpec() instanceof ModelAPISpec) {
+            ModelAPISpec spec = (ModelAPISpec) apiDefinition.getSpec();
+            if (spec.getHttpRoutes() != null && !spec.getHttpRoutes().isEmpty()) {
+                // For Model API, use the first route's domains
+                HttpRoute firstRoute = spec.getHttpRoutes().get(0);
+                if (firstRoute.getDomains() != null && !firstRoute.getDomains().isEmpty()) {
+                    domainSet =
+                            firstRoute.getDomains().stream()
+                                    .map(HttpRoute.Domain::getDomain)
+                                    .collect(Collectors.toSet());
+                    log.info("Using domains from Model API spec (first route): {}", domainSet);
+                }
+            }
+        } else if (apiDefinition.getSpec() instanceof AgentAPISpec) {
+            AgentAPISpec spec = (AgentAPISpec) apiDefinition.getSpec();
+            if (spec.getHttpRoutes() != null && !spec.getHttpRoutes().isEmpty()) {
+                // For Agent API, merge domains from all routes
+                domainSet =
+                        spec.getHttpRoutes().stream()
+                                .filter(route -> route.getDomains() != null)
+                                .flatMap(route -> route.getDomains().stream())
+                                .map(HttpRoute.Domain::getDomain)
+                                .collect(Collectors.toSet());
+                log.info("Using domains from Agent API spec (all routes): {}", domainSet);
+            }
+        }
+
+        // Validate that at least one domain is specified
+        if (domainSet.isEmpty()) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST,
+                    "No domains specified in deploymentConfig or API spec");
+        }
+
+        return operator.getDomainIds(gateway, domainSet);
     }
 
     /**
