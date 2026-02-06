@@ -381,10 +381,13 @@ public class ChatService {
     }
 
     private List<MCPTransportConfig> buildMCPConfigs(
-            CreateChatParam param, CredentialContext credentialContext) {
+            CreateChatParam param, CredentialContext defaultCredentialContext) {
         if (CollUtil.isEmpty(param.getMcpProducts())) {
             return CollUtil.empty(List.class);
         }
+
+        // Get primary consumer for credential lookup
+        String consumerId = consumerService.getPrimaryConsumer().getConsumerId();
 
         return productService.getProducts(param.getMcpProducts()).values().stream()
                 .filter(
@@ -396,9 +399,22 @@ public class ChatService {
                             MCPTransportConfig transportConfig =
                                     product.getMcpConfig().toTransportConfig();
 
-                            // Add authentication credentials
-                            transportConfig.setHeaders(credentialContext.copyHeaders());
-                            transportConfig.setQueryParams(credentialContext.copyQueryParams());
+                            // Get product-specific credentials from subscription
+                            CredentialContext productCredential =
+                                    consumerService.getCredentialForProduct(
+                                            consumerId, product.getProductId());
+
+                            // Use product-specific credential if available, otherwise fallback to
+                            // default
+                            if (productCredential.getApiKey() != null) {
+                                transportConfig.setHeaders(productCredential.copyHeaders());
+                                transportConfig.setQueryParams(productCredential.copyQueryParams());
+                            } else {
+                                // Fallback to default credential
+                                transportConfig.setHeaders(defaultCredentialContext.copyHeaders());
+                                transportConfig.setQueryParams(
+                                        defaultCredentialContext.copyQueryParams());
+                            }
 
                             return transportConfig;
                         })
