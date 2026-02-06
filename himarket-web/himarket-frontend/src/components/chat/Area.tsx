@@ -40,13 +40,14 @@ interface ChatAreaProps {
   addModels: (ids: string[]) => void;
   closeModel: (modelId: string) => void;
   chatType?: "TEXT" | "Image";
+  onStop?: () => void;
 }
 
 export function ChatArea(props: ChatAreaProps) {
   const {
     modelConversations, onChangeActiveAnswer, onSendMessage,
     onSelectProduct, selectedModel, handleGenerateMessage, addModels, closeModel,
-    generating, isMcpExecuting, chatType = "TEXT"
+    generating, isMcpExecuting, chatType = "TEXT", onStop
   } = props;
 
   const isCompareMode = modelConversations.length > 1;
@@ -390,6 +391,7 @@ export function ChatArea(props: ChatAreaProps) {
                   onWebSearchEnable={setEnableWebSearch}
                   webSearchEnabled={enableWebSearch}
                   enableMultiModal={enableMultiModal}
+                  onStop={onStop}
                 />
               </div>
 
@@ -418,6 +420,7 @@ export function ChatArea(props: ChatAreaProps) {
                 onWebSearchEnable={setEnableWebSearch}
                 webSearchEnabled={enableWebSearch}
                 enableMultiModal={enableMultiModal}
+                onStop={onStop}
               />
             </div>
           </div>

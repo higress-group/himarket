@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { message as antdMessage } from "antd";
 import { Layout } from "../components/Layout";
@@ -23,6 +23,17 @@ function Chat() {
   const [isMcpExecuting, setIsMcpExecuting] = useState(false);
 
   const [generating, setGenerating] = useState(false);
+  const abortControllersRef = useRef<AbortController[]>([]);
+
+  // 停止生成
+  const handleStop = () => {
+    abortControllersRef.current.forEach(controller => {
+      controller.abort();
+    });
+    abortControllersRef.current = [];
+    setGenerating(false);
+    setIsMcpExecuting(false);
+  };
 
   // 从 location.state 接收选中的产品，或者加载默认第一个模型
   useEffect(() => {
@@ -93,7 +104,14 @@ function Chat() {
 
       const modelIds = modelConversation.length ? modelConversation.map(model => model.id) : [selectedModel.productId];
       // const modelInsts = modelIds.map(id => modelMap.get(id));
+      
+      // 清除之前的 AbortController
+      abortControllersRef.current = [];
+      
       const requests = modelIds.map(async (modelId) => {
+        const abortController = new AbortController();
+        abortControllersRef.current.push(abortController);
+        
         const isSupport = modelMap.get(modelId)?.feature?.modelFeature?.webSearch || false;
         const messagePayload = {
           productId: modelId,
@@ -353,7 +371,8 @@ function Chat() {
                 })
               })
             },
-          }
+          },
+          abortController.signal
         );
       });
 
@@ -361,6 +380,7 @@ function Chat() {
       setGenerating(true);
       await Promise.allSettled(requests);
       setGenerating(false);
+      abortControllersRef.current = [];
 
     } catch (error) {
       setModelConversation((prev) => {
@@ -410,6 +430,11 @@ function Chat() {
     attachments?: IAttachment[]
   }) => {
     setGenerating(true);
+    
+    // 创建新的 AbortController
+    const abortController = new AbortController();
+    abortControllersRef.current = [abortController];
+    
     const isSupportWebSearch = modelMap.get(modelId)?.feature?.modelFeature?.webSearch || false;
     try {
       const messagePayload = {
@@ -632,7 +657,9 @@ function Chat() {
           });
           setGenerating(false)
         }
-      })
+      },
+      abortController.signal
+      )
     } catch (error) {
       setGenerating(false);
       console.error("Failed to generate message:", error)
@@ -828,6 +855,7 @@ function Chat() {
           closeModel={closeModel}
           generating={generating}
           chatType={chatType}
+          onStop={handleStop}
         />
       </div>
     </Layout>

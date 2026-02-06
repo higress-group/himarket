@@ -25,6 +25,7 @@ interface InputBoxProps {
   onWebSearchEnable: (enabled: boolean) => void;
   onMcpClick?: () => void;
   onSendMessage: (content: string, attachments: IAttachment[]) => void;
+  onStop?: () => void;
 }
 
 export function InputBox(props: InputBoxProps) {
@@ -39,6 +40,7 @@ export function InputBox(props: InputBoxProps) {
     webSearchEnabled,
     onWebSearchEnable,
     enableMultiModal = false,
+    onStop,
   } = props;
   const [input, setInput] = useState("");
   const [attachments, setAttachments] = useState<UploadedAttachment[]>([]);
@@ -264,10 +266,13 @@ export function InputBox(props: InputBoxProps) {
           className={`w-9 h-9 ${
             input.trim() && !isLoading
               ? "bg-colorPrimary text-white hover:opacity-90"
+              : isLoading
+              ? "bg-colorPrimary text-white hover:opacity-90"
               : "bg-colorPrimarySecondary text-colorPrimary cursor-not-allowed"
           }`}
           isLoading={isLoading}
           onClick={handleSend}
+          onStop={onStop}
         >
           <SendOutlined className={"text-sm text-white"} />
         </SendButton>

@@ -1,13 +1,24 @@
 interface SendButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   isLoading: boolean;
+  onStop?: () => void;
 }
 
 const SendButton: React.FC<SendButtonProps> = ({
   isLoading,
+  onStop,
   className = '',
   children,
+  onClick,
   ...props
 }) => {
+  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    if (isLoading && onStop) {
+      onStop();
+    } else if (!isLoading && onClick) {
+      onClick(e);
+    }
+  };
+
   return (
     <>
       <style>{`
@@ -34,10 +45,10 @@ const SendButton: React.FC<SendButtonProps> = ({
 
       <button
         type="button"
-        disabled={isLoading}
         // 这里的 className 允许你传入 w-*, h-*, text-*, bg-* 等 tailwind 类
         // 默认添加了 relative, flex 等布局属性
-        className={`relative flex items-center justify-center rounded-full transition-all active:scale-95 ${className}`}
+        className={`relative flex items-center justify-center rounded-full transition-all active:scale-95 ${isLoading ? 'cursor-pointer' : ''} ${className}`}
+        onClick={handleClick}
         {...props}
       >
         {isLoading ? (
