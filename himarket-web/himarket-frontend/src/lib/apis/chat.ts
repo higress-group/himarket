@@ -108,10 +108,19 @@ export interface IChatUsage {
 
 // ============ V2 版本数据结构 ============
 
+export interface IToolCallInfo {
+  id: string;
+  name: string;
+  arguments: unknown;
+  mcpServerName?: string;
+  result?: unknown;
+}
+
 export interface IAnswerV2 {
   sequence: number;
   content: string;
   usage?: IChatUsage;
+  toolCalls?: IToolCallInfo[];
 }
 
 export interface IQuestionV2 {

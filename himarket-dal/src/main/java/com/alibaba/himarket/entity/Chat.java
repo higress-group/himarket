@@ -21,7 +21,9 @@ package com.alibaba.himarket.entity;
 
 import com.alibaba.himarket.converter.ChatUsageConverter;
 import com.alibaba.himarket.converter.ListChatAttachmentConfigConverter;
+import com.alibaba.himarket.converter.ListToolCallInfoConverter;
 import com.alibaba.himarket.support.chat.ChatUsage;
+import com.alibaba.himarket.support.chat.ToolCallInfo;
 import com.alibaba.himarket.support.chat.attachment.ChatAttachmentConfig;
 import com.alibaba.himarket.support.enums.ChatStatus;
 import jakarta.persistence.*;
@@ -128,4 +130,11 @@ public class Chat extends BaseEntity {
     @Column(name = "chat_usage", columnDefinition = "json")
     @Convert(converter = ChatUsageConverter.class)
     private ChatUsage chatUsage;
+
+    /**
+     * Tool calls (tool call and result pairs)
+     */
+    @Column(name = "tool_calls", columnDefinition = "json")
+    @Convert(converter = ListToolCallInfoConverter.class)
+    private List<ToolCallInfo> toolCalls;
 }

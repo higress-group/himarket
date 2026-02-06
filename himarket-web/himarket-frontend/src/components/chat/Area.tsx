@@ -74,6 +74,24 @@ export function ChatArea(props: ChatAreaProps) {
   const [showModelSelector, setShowModelSelector] = useState(false);
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
   const [showMcpModal, setShowMcpModal] = useState(false);
+  const scrollContainerRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+
+  // 处理滚动事件，检测用户是否手动向上滚动
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+    const { scrollTop, scrollHeight, clientHeight } = target;
+    // 距离底部的阈值（像素）
+    const threshold = 100;
+    const isAtBottom = scrollHeight - scrollTop - clientHeight < threshold;
+
+    if (isAtBottom) {
+      // 用户滚动到底部，恢复自动滚动
+      setAutoScrollEnabled(true);
+    } else {
+      // 用户向上滚动，禁用自动滚动
+      setAutoScrollEnabled(false);
+    }
+  }, []);
 
 
   const handleMcpFilter = useCallback((id: string) => {
@@ -290,7 +308,13 @@ export function ChatArea(props: ChatAreaProps) {
                 }
 
                 {/* 消息列表 */}
-                <div className="h-full overflow-auto">
+                <div
+                  className="h-full overflow-auto"
+                  onScroll={handleScroll}
+                  ref={(el) => {
+                    if (el) scrollContainerRefs.current.set(model.id, el);
+                  }}
+                >
                   <Messages
                     conversations={model.conversations}
                     onChangeVersion={(...args) => onChangeActiveAnswer(model.id, ...args)}

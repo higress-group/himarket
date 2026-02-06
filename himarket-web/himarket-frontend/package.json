@@ -68,5 +68,6 @@
     "*.{css,scss,json,md}": [
       "prettier --write"
     ]
-  }
+  },
+  "repository": "https://github.com/lexburner/himarket.git"
 }

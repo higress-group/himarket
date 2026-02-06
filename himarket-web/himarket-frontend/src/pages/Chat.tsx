@@ -6,7 +6,7 @@ import { Sidebar } from "../components/chat/Sidebar";
 import { generateConversationId, generateQuestionId } from "../lib/uuid";
 import { handleSSEStream, } from "../lib/sse";
 import APIs, { type IProductConversations, type IProductDetail, type IAttachment } from "../lib/apis";
-import type { IModelConversation } from "../types";
+import type { IModelConversation, IMessageChunk, IMcpToolCall, IMcpToolResponse } from "../types";
 import { ChatArea } from "../components/chat/Area";
 
 
@@ -225,9 +225,16 @@ function Chat() {
                         ...con,
                         questions: con.questions.map(question => {
                           if (question.id === questionId) {
+                            // 创建 tool_call chunk
+                            const toolCallChunk: IMessageChunk = {
+                              id: `chunk-tc-${toolCall.id}`,
+                              type: 'tool_call',
+                              toolCall: toolCall
+                            };
                             return {
                               ...question,
-                              mcpToolCalls: [...(question.mcpToolCalls || []), toolCall]
+                              mcpToolCalls: [...(question.mcpToolCalls || []), toolCall],
+                              messageChunks: [...(question.messageChunks || []), toolCallChunk]
                             };
                           }
                           return question;
@@ -251,9 +258,16 @@ function Chat() {
                         ...con,
                         questions: con.questions.map(question => {
                           if (question.id === questionId) {
+                            // 创建 tool_result chunk
+                            const toolResultChunk: IMessageChunk = {
+                              id: `chunk-tr-${toolResponse.id}`,
+                              type: 'tool_result',
+                              toolResult: toolResponse
+                            };
                             return {
                               ...question,
-                              mcpToolResponses: [...(question.mcpToolResponses || []), toolResponse]
+                              mcpToolResponses: [...(question.mcpToolResponses || []), toolResponse],
+                              messageChunks: [...(question.messageChunks || []), toolResultChunk]
                             };
                           }
                           return question;
@@ -277,8 +291,30 @@ function Chat() {
                         loading: false,
                         questions: con.questions.map(question => {
                           if (question.id === questionId) {
+                            // 更新 messageChunks：合并或创建 text chunk
+                            const chunks = question.messageChunks || [];
+                            const lastChunk = chunks[chunks.length - 1];
+                            let newChunks: IMessageChunk[];
+                            
+                            if (lastChunk && lastChunk.type === 'text') {
+                              // 追加到最后一个 text chunk
+                              newChunks = chunks.map((c, i) => 
+                                i === chunks.length - 1 
+                                  ? { ...c, content: (c.content || '') + chunk }
+                                  : c
+                              );
+                            } else {
+                              // 创建新的 text chunk
+                              newChunks = [...chunks, {
+                                id: `chunk-text-${Date.now()}`,
+                                type: 'text' as const,
+                                content: chunk
+                              }];
+                            }
+                            
                             return {
                               ...question,
+                              messageChunks: newChunks,
                               answers: [
                                 {
                                   errorMsg: "",
@@ -498,9 +534,16 @@ function Chat() {
                     ...con,
                     questions: con.questions.map(question => {
                       if (question.id === questionId) {
+                        // 创建 tool_call chunk
+                        const toolCallChunk: IMessageChunk = {
+                          id: `chunk-tc-${toolCall.id}`,
+                          type: 'tool_call',
+                          toolCall: toolCall
+                        };
                         return {
                           ...question,
-                          mcpToolCalls: [...(question.mcpToolCalls || []), toolCall]
+                          mcpToolCalls: [...(question.mcpToolCalls || []), toolCall],
+                          messageChunks: [...(question.messageChunks || []), toolCallChunk]
                         };
                       }
                       return question;
@@ -524,9 +567,16 @@ function Chat() {
                     ...con,
                     questions: con.questions.map(question => {
                       if (question.id === questionId) {
+                        // 创建 tool_result chunk
+                        const toolResultChunk: IMessageChunk = {
+                          id: `chunk-tr-${toolResponse.id}`,
+                          type: 'tool_result',
+                          toolResult: toolResponse
+                        };
                         return {
                           ...question,
-                          mcpToolResponses: [...(question.mcpToolResponses || []), toolResponse]
+                          mcpToolResponses: [...(question.mcpToolResponses || []), toolResponse],
+                          messageChunks: [...(question.messageChunks || []), toolResultChunk]
                         };
                       }
                       return question;
@@ -551,6 +601,28 @@ function Chat() {
                     loading: false,
                     questions: con.questions.map(question => {
                       if (question.id !== questionId) return question;
+                      
+                      // 更新 messageChunks：合并或创建 text chunk
+                      const chunks = question.messageChunks || [];
+                      const lastChunk = chunks[chunks.length - 1];
+                      let newChunks: IMessageChunk[];
+                      
+                      if (lastChunk && lastChunk.type === 'text') {
+                        // 追加到最后一个 text chunk
+                        newChunks = chunks.map((c, i) => 
+                          i === chunks.length - 1 
+                            ? { ...c, content: (c.content || '') + chunk }
+                            : c
+                        );
+                      } else {
+                        // 创建新的 text chunk
+                        newChunks = [...chunks, {
+                          id: `chunk-text-${Date.now()}`,
+                          type: 'text' as const,
+                          content: chunk
+                        }];
+                      }
+                      
                       const ans = lastIdx !== -1 ? question.answers.map((answer, idx) => {
                         if (idx !== question.answers.length - 1) return answer;
                         return {
@@ -573,6 +645,7 @@ function Chat() {
                       }
                       return {
                         ...question,
+                        messageChunks: newChunks,
                         activeAnswerIndex: ans.length - 1,
                         answers: ans
                       }
@@ -743,13 +816,37 @@ function Chat() {
                 id: conversation.conversationId,
                 loading: false,
                 questions: conversation.questions.map(question => {
+                  // 从当前活跃的 answer 中提取 toolCalls
+                  const activeAnswerIndex = question.answers.length - 1;
+                  const activeAnswer = question.answers[activeAnswerIndex];
+                  const toolCalls = activeAnswer?.toolCalls || [];
+                  
+                  // 转换为前端格式
+                  const mcpToolCalls: IMcpToolCall[] = toolCalls.map(tc => ({
+                    id: tc.id,
+                    type: "function",
+                    name: tc.name,
+                    arguments: typeof tc.arguments === 'string' ? tc.arguments : JSON.stringify(tc.arguments),
+                    mcpServerName: tc.mcpServerName,
+                  }));
+                  
+                  const mcpToolResponses: IMcpToolResponse[] = toolCalls
+                    .filter(tc => tc.result !== undefined && tc.result !== null)
+                    .map(tc => ({
+                      id: tc.id,
+                      name: tc.name,
+                      result: tc.result,
+                    }));
+
                   return {
                     id: question.questionId,
                     content: question.content,
                     createdAt: question.createdAt,
-                    activeAnswerIndex: question.answers.length - 1,
+                    activeAnswerIndex,
                     isNewQuestion: false,
                     attachments: question.attachments,
+                    mcpToolCalls: mcpToolCalls.length > 0 ? mcpToolCalls : undefined,
+                    mcpToolResponses: mcpToolResponses.length > 0 ? mcpToolResponses : undefined,
                     answers: question.answers.map(answer => {
                       return {
                         errorMsg: "",

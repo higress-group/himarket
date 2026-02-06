@@ -17,34 +17,44 @@
  * under the License.
  */
 
-package com.alibaba.himarket.dto.result.chat;
+package com.alibaba.himarket.support.chat;
 
-import com.alibaba.himarket.support.chat.ChatUsage;
-import com.alibaba.himarket.support.chat.ToolCallInfo;
-import java.util.List;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
+import lombok.NoArgsConstructor;
 
+/**
+ * Tool call information for persistence in chat history.
+ */
 @Data
 @Builder
-@Slf4j
-public class LlmInvokeResult {
-
-    private boolean success;
-
-    /**
-     * Completed answer
-     */
-    private String answer;
+@NoArgsConstructor
+@AllArgsConstructor
+public class ToolCallInfo {
 
     /**
-     * Usage, exists only when success
+     * Tool call ID
      */
-    private ChatUsage usage;
+    private String id;
 
     /**
-     * Tool calls (tool call and result pairs)
+     * Tool name
      */
-    private List<ToolCallInfo> toolCalls;
+    private String name;
+
+    /**
+     * Tool call arguments (as JSON object)
+     */
+    private Object arguments;
+
+    /**
+     * MCP server name (optional)
+     */
+    private String mcpServerName;
+
+    /**
+     * Tool execution result
+     */
+    private Object result;
 }
