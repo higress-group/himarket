@@ -172,4 +172,15 @@ public interface ConsumerService {
      * @return ConsumerResult
      */
     ConsumerResult getPrimaryConsumer();
+
+    /**
+     * Get credential context for a specific product subscription.
+     * This method retrieves the subscription-specific credentials needed
+     * to access a product (e.g., MCP server on ADP AI Gateway).
+     *
+     * @param consumerId the consumer ID
+     * @param productId the product ID
+     * @return credential context with headers and query params, or empty context if not found
+     */
+    CredentialContext getCredentialForProduct(String consumerId, String productId);
 }

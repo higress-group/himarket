@@ -837,4 +837,42 @@ public class ConsumerServiceImpl implements ConsumerService {
                 .queryParams(queryParams)
                 .build();
     }
+
+    @Override
+    public CredentialContext getCredentialForProduct(String consumerId, String productId) {
+        // Find subscription for product
+        Optional<ProductSubscription> subscriptionOpt =
+                subscriptionRepository.findByConsumerIdAndProductId(consumerId, productId);
+
+        if (subscriptionOpt.isEmpty()) {
+            log.debug(
+                    "No subscription found for consumer: {} and product: {}",
+                    consumerId,
+                    productId);
+            return CredentialContext.builder().build();
+        }
+
+        ProductSubscription subscription = subscriptionOpt.get();
+
+        // Verify subscription is active
+        if (subscription.getStatus() != SubscriptionStatus.APPROVED) {
+            log.debug(
+                    "Subscription not approved for consumer: {} and product: {}",
+                    consumerId,
+                    productId);
+            return CredentialContext.builder().build();
+        }
+
+        // Get consumer credential
+        Optional<ConsumerCredential> credentialOpt =
+                credentialRepository.findByConsumerId(consumerId);
+
+        if (credentialOpt.isEmpty()) {
+            log.debug("No credential found for consumer: {}", consumerId);
+            return CredentialContext.builder().build();
+        }
+
+        // Build credential context from consumer's API key
+        return buildAuthInfo(credentialOpt.get());
+    }
 }
