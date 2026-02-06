@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { message } from "antd";
 import MarkdownRender from "../MarkdownRender";
 import { ProductIconRenderer } from "../icon/ProductIconRenderer";
-import { McpToolCallPanel } from "./McpToolCallPanel";
+import { McpToolCallPanel, McpToolCallItem } from "./McpToolCallPanel";
 import type { IModelConversation } from "../../types";
 import { copyToClipboard } from "../../lib/utils";
 import { AttachmentPreview, type PreviewAttachment } from "./AttachmentPreview";
@@ -132,15 +132,7 @@ function Message({
           <div className="text-sm text-gray-500 mb-1.5">{modelName}</div>
         </div>
 
-        {/* MCP 工具调用面板 */}
-        {(question.mcpToolCalls && question.mcpToolCalls.length > 0) && (
-          <McpToolCallPanel
-            toolCalls={question.mcpToolCalls}
-            toolResponses={question.mcpToolResponses}
-          />
-        )}
-
-        {/* 消息内容 */}
+        {/* 消息内容区域 */}
         <div className="flex-1">
           <div
             ref={contentRef}
@@ -168,10 +160,50 @@ function Message({
                   <span className="w-1.5 h-1.5 bg-colorPrimary rounded-full" style={{ animation: 'bounceStrong 1s infinite', animationDelay: '300ms' }}></span>
                 </div>
               </div>
-            ) : (
-              <div className="prose">
-                <MarkdownRender content={activeAnswer?.content || ""} />
+            ) : question.messageChunks && question.messageChunks.length > 0 ? (
+              /* 新逻辑：按 messageChunks 顺序渲染 */
+              <div className="space-y-3">
+                {question.messageChunks.map((chunk) => {
+                  if (chunk.type === 'text' && chunk.content) {
+                    return (
+                      <div key={chunk.id} className="prose">
+                        <MarkdownRender content={chunk.content} />
+                      </div>
+                    );
+                  }
+                  if (chunk.type === 'tool_call' && chunk.toolCall) {
+                    // 查找对应的 tool_result
+                    const toolResultChunk = question.messageChunks?.find(
+                      c => c.type === 'tool_result' && c.toolResult?.id === chunk.toolCall?.id
+                    );
+                    return (
+                      <McpToolCallItem
+                        key={chunk.id}
+                        toolCall={chunk.toolCall}
+                        toolResponse={toolResultChunk?.toolResult}
+                      />
+                    );
+                  }
+                  // tool_result 已在 tool_call 中处理，跳过
+                  return null;
+                })}
               </div>
+            ) : (
+              /* 旧逻辑：兼容历史数据 */
+              <>
+                {/* MCP 工具调用面板 */}
+                {(question.mcpToolCalls && question.mcpToolCalls.length > 0) && (
+                  <div className="mb-3">
+                    <McpToolCallPanel
+                      toolCalls={question.mcpToolCalls}
+                      toolResponses={question.mcpToolResponses}
+                    />
+                  </div>
+                )}
+                <div className="prose">
+                  <MarkdownRender content={activeAnswer?.content || ""} />
+                </div>
+              </>
             )}
           </div>
 

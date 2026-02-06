@@ -169,6 +169,12 @@ public class ToolManager {
         String serverName = config.getMcpServerName();
         long startTime = System.currentTimeMillis();
 
+        log.info(
+                "Creating MCP client for server: {}, transport: {}, url: {}",
+                serverName,
+                config.getTransportMode(),
+                config.getUrl());
+
         McpClientBuilder builder = McpClientBuilder.create(serverName).timeout(REQUEST_TIMEOUT);
         switch (config.getTransportMode()) {
             case SSE:

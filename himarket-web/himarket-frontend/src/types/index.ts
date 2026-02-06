@@ -336,6 +336,18 @@ export interface IMcpToolResponse {
   result?: unknown;
 }
 
+// 消息片段类型 - 用于按顺序展示消息内容和工具调用
+export type MessageChunkType = 'text' | 'tool_call' | 'tool_result';
+
+// 消息片段 - 按 SSE 事件顺序存储
+export interface IMessageChunk {
+  id: string;
+  type: MessageChunkType;
+  content?: string;              // text 类型使用
+  toolCall?: IMcpToolCall;       // tool_call 类型使用
+  toolResult?: IMcpToolResponse; // tool_result 类型使用
+}
+
 export interface IModelConversation {
   sessionId: string;
   id: string;
@@ -353,6 +365,7 @@ export interface IModelConversation {
       }>;
       mcpToolCalls?: IMcpToolCall[];
       mcpToolResponses?: IMcpToolResponse[];
+      messageChunks?: IMessageChunk[];  // 按顺序的消息片段
       isNewQuestion?: boolean;
       answers: {
         errorMsg: string;

@@ -85,7 +85,8 @@ export interface SSEOptions {
 export async function handleSSEStream(
   url: string,
   options: RequestInit,
-  callbacks: SSEOptions
+  callbacks: SSEOptions,
+  signal?: AbortSignal
 ): Promise<void> {
   const response = await fetch(url, {
     ...options,
@@ -93,6 +94,7 @@ export async function handleSSEStream(
       ...options.headers,
       'Accept': 'text/event-stream',
     },
+    signal,
   });
 
   if (!response.ok) {

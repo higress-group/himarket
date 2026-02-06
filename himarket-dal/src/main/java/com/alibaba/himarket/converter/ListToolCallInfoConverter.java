@@ -17,34 +17,17 @@
  * under the License.
  */
 
-package com.alibaba.himarket.dto.result.chat;
+package com.alibaba.himarket.converter;
 
-import com.alibaba.himarket.support.chat.ChatUsage;
 import com.alibaba.himarket.support.chat.ToolCallInfo;
+import jakarta.persistence.Converter;
 import java.util.List;
-import lombok.Builder;
-import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
 
-@Data
-@Builder
-@Slf4j
-public class LlmInvokeResult {
+@Converter(autoApply = true)
+public class ListToolCallInfoConverter extends JsonConverter<List<ToolCallInfo>> {
 
-    private boolean success;
-
-    /**
-     * Completed answer
-     */
-    private String answer;
-
-    /**
-     * Usage, exists only when success
-     */
-    private ChatUsage usage;
-
-    /**
-     * Tool calls (tool call and result pairs)
-     */
-    private List<ToolCallInfo> toolCalls;
+    @SuppressWarnings("unchecked")
+    protected ListToolCallInfoConverter() {
+        super((Class<List<ToolCallInfo>>) (Class<?>) List.class, ToolCallInfo.class);
+    }
 }

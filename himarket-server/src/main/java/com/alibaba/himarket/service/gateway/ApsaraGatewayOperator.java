@@ -19,6 +19,7 @@
 
 package com.alibaba.himarket.service.gateway;
 
+import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
@@ -408,6 +409,12 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
             throw new BusinessException(ErrorCode.INVALID_PARAMETER, "网关实例ID缺失");
         }
 
+        // 使用 developerId 后8位作为后缀，避免不同 developer 的 consumer 名称冲突
+        String mark =
+                consumer.getDeveloperId()
+                        .substring(Math.max(0, consumer.getDeveloperId().length() - 8));
+        String gwConsumerName = StrUtil.format("{}-{}", consumer.getName(), mark);
+
         ApsaraStackGatewayClient client = new ApsaraStackGatewayClient(apsaraConfig);
         try {
             // 从凭证中获取API Key
@@ -422,15 +429,12 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
                     "Creating consumer in Apsara gateway: gatewayId={}, consumerName={},"
                             + " hasApiKey={}",
                     gateway.getGatewayId(),
-                    consumer.getName(),
+                    gwConsumerName,
                     key != null);
 
             CreateAppResponse response =
                     client.CreateApp(
-                            gateway.getGatewayId(),
-                            consumer.getName(),
-                            key,
-                            5 // authType: 5 = API_KEY
+                            gateway.getGatewayId(), gwConsumerName, key, 5 // authType: 5 = API_KEY
                             );
 
             // 检查响应
@@ -446,11 +450,11 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
                     if (response.getBody().getData() != null) {
                         // SDK返回的data就是appName，直接返回
                         return extractConsumerIdFromResponse(
-                                response.getBody().getData(), consumer.getName());
+                                response.getBody().getData(), gwConsumerName);
                     }
-                    // 即使data为null，如果状态码是200，也认为创建成功，使用consumer name作为ID
-                    log.warn("CreateApp succeeded but data is null, using consumer name as ID");
-                    return consumer.getName();
+                    // 即使data为null，如果状态码是200，也认为创建成功，使用gwConsumerName作为ID
+                    log.warn("CreateApp succeeded but data is null, using gwConsumerName as ID");
+                    return gwConsumerName;
                 }
                 // 状态码不是200，抛出详细错误信息
                 String errorMsg =
