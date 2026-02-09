@@ -87,7 +87,7 @@ function CodingContent() {
 
 function Coding() {
   return (
-    <Layout>
+    <Layout className="h-screen overflow-hidden">
       <CodingSessionProvider>
         <CodingContent />
       </CodingSessionProvider>
