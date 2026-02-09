@@ -42,8 +42,10 @@ public class AcpHandshakeInterceptor implements HandshakeInterceptor {
         }
 
         if (StrUtil.isBlank(token)) {
-            logger.warn("WebSocket handshake rejected: no token provided");
-            return false;
+            // POC mode: allow anonymous access
+            logger.info("WebSocket handshake allowed: anonymous (no token, POC mode)");
+            attributes.put("userId", "anonymous");
+            return true;
         }
 
         try {
