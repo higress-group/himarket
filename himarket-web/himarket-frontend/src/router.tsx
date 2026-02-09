@@ -15,6 +15,7 @@ import Callback from "./pages/Callback";
 import OidcCallback from "./pages/OidcCallback";
 import Square from "./pages/Square";
 import Chat from "./pages/Chat";
+import Coding from "./pages/Coding";
 
 export function Router() {
   return (
@@ -25,6 +26,7 @@ export function Router() {
       <Route path="/agents" element={<Square activeType="AGENT_API" />} />
       <Route path="/apis" element={<Square activeType="REST_API" />} />
       <Route path="/chat" element={<Chat />} />
+      <Route path="/coding" element={<Coding />} />
       <Route path="/getting-started" element={<GettingStarted />} />
       <Route path="/apis/:apiProductId" element={<ApiDetail />} />
       <Route path="/consumers/:consumerId" element={<ConsumerDetail />} />

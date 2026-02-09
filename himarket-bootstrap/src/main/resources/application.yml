@@ -40,6 +40,11 @@ jwt:
   secret: YourJWTSecret
   expiration: 2h
 
+acp:
+  cli-command: ${ACP_CLI_COMMAND:qodercli}
+  cli-args: ${ACP_CLI_ARGS:--acp}
+  workspace-root: ${ACP_WORKSPACE_ROOT:./workspaces}
+
 sls:
   # SLS服务端点（必填）
   # cn-chengdu.log.aliyuncs.com

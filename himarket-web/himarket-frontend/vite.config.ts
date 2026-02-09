@@ -23,6 +23,11 @@ export default defineConfig({
     allowedHosts: true,
     port: 5173,
     proxy: {
+      '/ws/acp': {
+        target: tempApiUrl,
+        ws: true,
+        changeOrigin: true,
+      },
       [apiPrefix]: {
         target: tempApiUrl,
         changeOrigin: true,
