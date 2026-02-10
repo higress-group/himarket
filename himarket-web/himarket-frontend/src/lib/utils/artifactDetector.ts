@@ -88,6 +88,49 @@ const IGNORED_EXTENSIONS = new Set([
 
 let _artifactSeq = 0;
 
+function buildArtifacts(paths: string[], toolCallId: string): Artifact[] {
+  const now = Date.now();
+  const results: Artifact[] = [];
+  const seen = new Set<string>();
+
+  for (const path of paths) {
+    if (!path || seen.has(path)) continue;
+    seen.add(path);
+
+    const lastDot = path.lastIndexOf(".");
+    if (lastDot === -1) continue;
+
+    const ext = path.slice(lastDot).toLowerCase();
+    if (IGNORED_EXTENSIONS.has(ext)) continue;
+
+    const type = getArtifactType(path);
+    if (!type) continue;
+
+    results.push({
+      id: `artifact-${++_artifactSeq}`,
+      toolCallId,
+      type,
+      path,
+      fileName: getFileName(path),
+      content: null,
+      updatedAt: now,
+    });
+  }
+
+  return results;
+}
+
+/**
+ * Detect artifacts from a raw path list (e.g. workspace scan results).
+ */
+export function detectArtifactsFromPaths(
+  paths: string[],
+  toolCallId: string
+): Artifact[] {
+  if (!paths.length) return [];
+  return buildArtifacts(paths, toolCallId);
+}
+
 /**
  * Detect artifacts from a tool call.
  * Iterates over ALL paths (rawInput + locations) so that files produced as
@@ -99,32 +142,5 @@ export function detectArtifacts(toolCall: ChatItemToolCall): Artifact[] {
 
   const paths = extractAllPaths(toolCall);
   if (paths.length === 0) return [];
-
-  const now = Date.now();
-  const results: Artifact[] = [];
-
-  for (const path of paths) {
-    const lastDot = path.lastIndexOf(".");
-    if (lastDot === -1) continue;
-
-    const ext = path.slice(lastDot).toLowerCase();
-    if (IGNORED_EXTENSIONS.has(ext)) continue;
-
-    const type = getArtifactType(path);
-    if (!type) continue;
-
-    // content is always null here — ArtifactPreview will fetch the real
-    // file content from the API after the tool call completes.
-    results.push({
-      id: `artifact-${++_artifactSeq}`,
-      toolCallId: toolCall.toolCallId,
-      type,
-      path,
-      fileName: getFileName(path),
-      content: null,
-      updatedAt: now,
-    });
-  }
-
-  return results;
+  return buildArtifacts(paths, toolCall.toolCallId);
 }

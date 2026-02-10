@@ -21,7 +21,10 @@ import type {
   Attachment,
 } from "../types/acp";
 import type { Artifact } from "../types/artifact";
-import { detectArtifacts } from "../lib/utils/artifactDetector";
+import {
+  detectArtifacts,
+  detectArtifactsFromPaths,
+} from "../lib/utils/artifactDetector";
 
 // ===== Quest Data =====
 
@@ -36,6 +39,7 @@ export interface QuestData {
   selectedToolCallId: string | null;
   artifacts: Artifact[];
   activeArtifactId: string | null;
+  lastArtifactScanAt: number;
   createdAt: number;
 }
 
@@ -112,7 +116,14 @@ export type CodingAction =
   | { type: "PERMISSION_RESOLVED" }
   | { type: "COMMANDS_UPDATED"; commands: Command[] }
   | { type: "SELECT_ARTIFACT"; artifactId: string | null }
-  | { type: "UPDATE_ARTIFACT_CONTENT"; artifactId: string; content: string };
+  | { type: "UPDATE_ARTIFACT_CONTENT"; artifactId: string; content: string }
+  | {
+      type: "UPSERT_ARTIFACTS_FROM_PATHS";
+      questId: string;
+      toolCallId: string;
+      paths: string[];
+    }
+  | { type: "SET_ARTIFACT_SCAN_CURSOR"; questId: string; cursor: number };
 
 // ===== Helpers =====
 
@@ -147,11 +158,7 @@ function updateQuestById(
 
 // ===== Artifact Helpers =====
 
-function applyArtifactDetection(
-  q: QuestData,
-  toolCall: ChatItemToolCall
-): QuestData {
-  const detected = detectArtifacts(toolCall);
+function upsertDetectedArtifacts(q: QuestData, detected: Artifact[]): QuestData {
   if (detected.length === 0) return q;
 
   let artifacts = q.artifacts;
@@ -179,6 +186,24 @@ function applyArtifactDetection(
   }
 
   return { ...q, artifacts, activeArtifactId };
+}
+
+function applyArtifactDetection(q: QuestData, toolCall: ChatItemToolCall): QuestData {
+  const detected = detectArtifacts(toolCall);
+  return upsertDetectedArtifacts(q, detected);
+}
+
+function applyArtifactPaths(
+  q: QuestData,
+  paths: string[],
+  toolCallId: string
+): QuestData {
+  const detected = detectArtifactsFromPaths(paths, toolCallId);
+  return upsertDetectedArtifacts(q, detected);
+}
+
+function hasOwn(obj: object, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(obj, key);
 }
 
 // ===== Reducer =====
@@ -211,6 +236,7 @@ function codingReducer(state: CodingState, action: CodingAction): CodingState {
         selectedToolCallId: null,
         artifacts: [],
         activeArtifactId: null,
+        lastArtifactScanAt: Date.now(),
         createdAt: Date.now(),
       };
       const newModels =
@@ -305,6 +331,17 @@ function codingReducer(state: CodingState, action: CodingAction): CodingState {
             ? { ...a, content: action.content, updatedAt: Date.now() }
             : a
         ),
+      }));
+
+    case "UPSERT_ARTIFACTS_FROM_PATHS":
+      return updateQuestById(state, action.questId, q =>
+        applyArtifactPaths(q, action.paths, action.toolCallId)
+      );
+
+    case "SET_ARTIFACT_SCAN_CURSOR":
+      return updateQuestById(state, action.questId, q => ({
+        ...q,
+        lastArtifactScanAt: action.cursor,
       }));
 
     case "PERMISSION_REQUEST":
@@ -432,7 +469,7 @@ function handleSessionUpdate(
           messages: msgs,
           selectedToolCallId: u.toolCallId,
         };
-        if (u.status === "completed") {
+        if (u.status === "completed" || u.status === "failed") {
           updated = applyArtifactDetection(updated, toolCallItem);
         }
         return updated;
@@ -443,35 +480,59 @@ function handleSessionUpdate(
       const u = update.update as {
         sessionUpdate: "tool_call_update";
         toolCallId: string;
-        status: ToolCallStatus;
-        content?: Array<{
-          type: "content";
-          content: { type: "text"; text: string };
-        }>;
+        status?: ToolCallStatus | null;
+        title?: string | null;
+        kind?: ChatItemToolCall["kind"] | null;
+        rawInput?: Record<string, unknown> | null;
+        content?: ToolCallContentItem[] | null;
+        locations?: { path: string }[] | null;
       };
       return updateQuestById(state, sessionId, q => {
-        let updatedToolCall: ChatItemToolCall | null = null;
+        const hasLocationsField = hasOwn(u, "locations");
+        const hasContentField = hasOwn(u, "content");
+        const hasRawInputField = hasOwn(u, "rawInput");
+        const hasKindField = hasOwn(u, "kind");
+        const hasTitleField = hasOwn(u, "title");
+        const hasStatusField = hasOwn(u, "status");
+
         const msgs = q.messages.map(m => {
           if (m.type === "tool_call" && m.toolCallId === u.toolCallId) {
-            const newContent = u.content
-              ? u.content.map(c => ({
-                  type: "content" as const,
-                  content: c.content,
-                }))
-              : m.content;
-            const tc = {
-              ...m,
-              status: u.status,
-              content: newContent ?? m.content,
-            } as ChatItemToolCall;
-            updatedToolCall = tc;
+            const tc: ChatItemToolCall = { ...m };
+
+            if (hasStatusField && u.status) {
+              tc.status = u.status;
+            }
+            if (hasTitleField && typeof u.title === "string" && u.title) {
+              tc.title = u.title;
+            }
+            if (hasKindField && u.kind) {
+              tc.kind = u.kind;
+            }
+            if (hasRawInputField) {
+              tc.rawInput = u.rawInput ?? undefined;
+            }
+            if (hasContentField) {
+              tc.content = u.content ?? undefined;
+            }
+            if (hasLocationsField) {
+              tc.locations = u.locations ?? undefined;
+            }
+
             return tc;
           }
           return m;
         });
+
+        const mergedToolCall = msgs.find(
+          m => m.type === "tool_call" && m.toolCallId === u.toolCallId
+        ) as ChatItemToolCall | undefined;
+
         let updated = { ...q, messages: msgs };
-        if (u.status === "completed" && updatedToolCall) {
-          updated = applyArtifactDetection(updated, updatedToolCall);
+        const reachedTerminal =
+          mergedToolCall?.status === "completed" ||
+          mergedToolCall?.status === "failed";
+        if ((reachedTerminal || hasLocationsField) && mergedToolCall) {
+          updated = applyArtifactDetection(updated, mergedToolCall);
         }
         return updated;
       });

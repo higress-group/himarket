@@ -1,6 +1,9 @@
 package com.alibaba.himarket.service.acp;
 
 import com.alibaba.himarket.config.AcpProperties;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -21,13 +24,17 @@ import reactor.core.Disposable;
 public class AcpWebSocketHandler extends TextWebSocketHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(AcpWebSocketHandler.class);
+    private static final String SESSION_NEW_METHOD = "session/new";
 
     private final AcpProperties properties;
+    private final ObjectMapper objectMapper;
     private final Map<String, AcpProcess> processMap = new ConcurrentHashMap<>();
     private final Map<String, Disposable> subscriptionMap = new ConcurrentHashMap<>();
+    private final Map<String, String> cwdMap = new ConcurrentHashMap<>();
 
-    public AcpWebSocketHandler(AcpProperties properties) {
+    public AcpWebSocketHandler(AcpProperties properties, ObjectMapper objectMapper) {
         this.properties = properties;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -56,6 +63,7 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
         }
 
         processMap.put(session.getId(), acpProcess);
+        cwdMap.put(session.getId(), cwd);
 
         // Subscribe to stdout: pipe qodercli output → WebSocket
         Disposable subscription =
@@ -116,6 +124,9 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
                 session.getId(),
                 payload.length() > 200 ? payload.substring(0, 200) + "..." : payload);
 
+        // Rewrite cwd in session/new requests to the absolute workspace path
+        payload = rewriteSessionNewCwd(session.getId(), payload);
+
         try {
             acpProcess.send(payload);
         } catch (IOException e) {
@@ -147,12 +158,42 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
         if (acpProcess != null) {
             acpProcess.close();
         }
+
+        cwdMap.remove(sessionId);
+    }
+
+    /**
+     * Intercept session/new requests and replace the cwd parameter with the
+     * absolute workspace path so that qodercli knows the real directory.
+     */
+    private String rewriteSessionNewCwd(String sessionId, String payload) {
+        String cwd = cwdMap.get(sessionId);
+        if (cwd == null) {
+            return payload;
+        }
+        try {
+            JsonNode root = objectMapper.readTree(payload);
+            JsonNode methodNode = root.get("method");
+            if (methodNode == null || !SESSION_NEW_METHOD.equals(methodNode.asText())) {
+                return payload;
+            }
+            JsonNode params = root.get("params");
+            if (params == null || !params.isObject()) {
+                return payload;
+            }
+            ((ObjectNode) params).put("cwd", cwd);
+            return objectMapper.writeValueAsString(root);
+        } catch (Exception e) {
+            logger.debug("Failed to rewrite session/new cwd, forwarding original payload", e);
+            return payload;
+        }
     }
 
     private String buildWorkspacePath(String userId) {
         // Sanitize userId to prevent path traversal
         String sanitized = userId.replaceAll("[^a-zA-Z0-9_-]", "_");
-        Path workspacePath = Paths.get(properties.getWorkspaceRoot(), sanitized);
+        Path workspacePath =
+                Paths.get(properties.getWorkspaceRoot(), sanitized).toAbsolutePath().normalize();
 
         try {
             Files.createDirectories(workspacePath);
@@ -160,6 +201,6 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
             logger.error("Failed to create workspace directory: {}", workspacePath, e);
         }
 
-        return workspacePath.toAbsolutePath().toString();
+        return workspacePath.toString();
     }
 }

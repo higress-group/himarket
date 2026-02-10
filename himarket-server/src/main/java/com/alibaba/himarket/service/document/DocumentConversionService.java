@@ -27,56 +27,55 @@ public class DocumentConversionService {
      * @return path to the converted PDF, or {@code null} if conversion failed
      */
     public Path convertToPdf(Path sourceFile) {
-        // The cached PDF uses the pattern: <original>.pdf  (e.g. demo.pptx.pdf)
-        // This avoids name collision when demo.pptx and demo.pdf coexist.
-        Path cachedPdf = sourceFile.resolveSibling(sourceFile.getFileName() + ".pdf");
+        Path normalizedSource = sourceFile.toAbsolutePath().normalize();
+        Path cachedPdf = resolveCachedPdfPath(normalizedSource);
 
-        // Return cached version if it exists and is newer than the source
-        try {
-            if (Files.exists(cachedPdf)
-                    && Files.getLastModifiedTime(cachedPdf)
-                                    .compareTo(Files.getLastModifiedTime(sourceFile))
-                            >= 0) {
-                log.debug("Using cached PDF: {}", cachedPdf);
-                return cachedPdf;
-            }
-        } catch (IOException e) {
-            log.warn("Failed to check cached PDF timestamp, will re-convert", e);
+        Path cached = getCachedPdfIfUpToDate(normalizedSource);
+        if (cached != null) {
+            log.debug("Using cached PDF: {}", cached);
+            return cached;
         }
 
         // Run LibreOffice headless conversion
         try {
-            Path outDir = sourceFile.getParent();
+            Path outDir = normalizedSource.getParent();
             ProcessBuilder pb =
                     new ProcessBuilder(
                             LIBREOFFICE_COMMAND,
                             "--headless",
                             "--convert-to",
                             "pdf",
-                            sourceFile.getFileName().toString(),
+                            normalizedSource.getFileName().toString(),
                             "--outdir",
                             outDir.toString());
             pb.directory(outDir.toFile());
             pb.redirectErrorStream(true);
 
-            log.info("Converting to PDF: {}", sourceFile);
+            log.info("Converting to PDF: {}", normalizedSource);
             Process process = pb.start();
 
             boolean finished = process.waitFor(CONVERSION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             if (!finished) {
                 process.destroyForcibly();
-                log.warn("LibreOffice conversion timed out after {}s: {}", CONVERSION_TIMEOUT_SECONDS, sourceFile);
+                log.warn(
+                        "LibreOffice conversion timed out after {}s: {}",
+                        CONVERSION_TIMEOUT_SECONDS,
+                        normalizedSource);
                 return null;
             }
 
             if (process.exitValue() != 0) {
                 String output = new String(process.getInputStream().readAllBytes());
-                log.warn("LibreOffice conversion failed (exit={}): {}\n{}", process.exitValue(), sourceFile, output);
+                log.warn(
+                        "LibreOffice conversion failed (exit={}): {}\n{}",
+                        process.exitValue(),
+                        normalizedSource,
+                        output);
                 return null;
             }
 
             // LibreOffice outputs <stem>.pdf in the outdir (e.g. demo.pptx → demo.pdf)
-            String stem = stripExtension(sourceFile.getFileName().toString());
+            String stem = stripExtension(normalizedSource.getFileName().toString());
             Path generatedPdf = outDir.resolve(stem + ".pdf");
 
             if (!Files.exists(generatedPdf)) {
@@ -86,20 +85,55 @@ public class DocumentConversionService {
 
             // Rename to our cache path to avoid collisions
             if (!generatedPdf.equals(cachedPdf)) {
-                Files.move(generatedPdf, cachedPdf, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                Files.move(
+                        generatedPdf, cachedPdf, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
             }
 
-            log.info("Conversion successful: {} → {}", sourceFile.getFileName(), cachedPdf.getFileName());
+            log.info(
+                    "Conversion successful: {} → {}",
+                    normalizedSource.getFileName(),
+                    cachedPdf.getFileName());
             return cachedPdf;
 
         } catch (IOException e) {
-            log.error("LibreOffice conversion I/O error: {}", sourceFile, e);
+            log.error("LibreOffice conversion I/O error: {}", normalizedSource, e);
             return null;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            log.warn("LibreOffice conversion interrupted: {}", sourceFile);
+            log.warn("LibreOffice conversion interrupted: {}", normalizedSource);
             return null;
         }
+    }
+
+    /**
+     * Get the cache path for converted PDF.
+     *
+     * @param sourceFile source office file
+     * @return cache path, pattern: {@code <original>.pdf}
+     */
+    public Path resolveCachedPdfPath(Path sourceFile) {
+        Path normalizedSource = sourceFile.toAbsolutePath().normalize();
+        return normalizedSource.resolveSibling(normalizedSource.getFileName() + ".pdf");
+    }
+
+    /**
+     * Return the cached PDF path if it exists and is newer than source, otherwise {@code null}.
+     */
+    public Path getCachedPdfIfUpToDate(Path sourceFile) {
+        Path normalizedSource = sourceFile.toAbsolutePath().normalize();
+        Path cachedPdf = resolveCachedPdfPath(normalizedSource);
+
+        try {
+            if (Files.exists(cachedPdf)
+                    && Files.getLastModifiedTime(cachedPdf)
+                                    .compareTo(Files.getLastModifiedTime(normalizedSource))
+                            >= 0) {
+                return cachedPdf;
+            }
+        } catch (IOException e) {
+            log.warn("Failed to check cached PDF timestamp for {}", normalizedSource, e);
+        }
+        return null;
     }
 
     private static String stripExtension(String fileName) {

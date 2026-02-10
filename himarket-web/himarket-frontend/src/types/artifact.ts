@@ -23,6 +23,6 @@ export const ARTIFACT_EXTENSIONS: Record<string, ArtifactType> = {
   ".gif": "image",
   ".webp": "image",
   ".pdf": "pdf",
-  ".pptx": "pdf",
-  ".ppt": "pdf",
+  ".pptx": "file",
+  ".ppt": "file",
 };

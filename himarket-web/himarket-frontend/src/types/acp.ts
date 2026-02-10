@@ -183,11 +183,12 @@ export interface ToolCallStatusUpdate extends BaseSessionUpdate {
   update: {
     sessionUpdate: "tool_call_update";
     toolCallId: string;
-    status: ToolCallStatus;
-    content?: Array<{
-      type: "content";
-      content: { type: "text"; text: string };
-    }>;
+    status?: ToolCallStatus | null;
+    title?: string | null;
+    kind?: ToolKind | null;
+    rawInput?: Record<string, unknown> | null;
+    content?: ToolCallContentItem[] | null;
+    locations?: ToolCallLocationItem[] | null;
   };
 }
 

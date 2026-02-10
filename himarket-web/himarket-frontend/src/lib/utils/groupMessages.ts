@@ -19,6 +19,11 @@ export type RenderItem =
   | { type: "single"; item: ChatItem }
   | { type: "work_unit"; id: string; items: ChatItem[]; meta: WorkUnitMeta };
 
+function buildWorkUnitId(items: ChatItem[]): string {
+  // Keep key stable while the unit grows during streaming updates.
+  return `wu-${items[0].id}`;
+}
+
 // ===== Meta Computation =====
 
 export function computeWorkUnitMeta(items: ChatItem[]): WorkUnitMeta {
@@ -155,11 +160,9 @@ export function groupMessages(messages: ChatItem[]): RenderItem[] {
       if (toolCount > 0) {
         // Form a work_unit with reasoning header
         const meta = computeWorkUnitMeta(collected);
-        const firstId = collected[0].id;
-        const lastId = collected[collected.length - 1].id;
         result.push({
           type: "work_unit",
-          id: `wu-${firstId}-${lastId}`,
+          id: buildWorkUnitId(collected),
           items: collected,
           meta,
         });
@@ -203,11 +206,9 @@ export function groupMessages(messages: ChatItem[]): RenderItem[] {
       if (toolCount >= 2) {
         // Form a work_unit without reasoning header
         const meta = computeWorkUnitMeta(collected);
-        const firstId = collected[0].id;
-        const lastId = collected[collected.length - 1].id;
         result.push({
           type: "work_unit",
-          id: `wu-${firstId}-${lastId}`,
+          id: buildWorkUnitId(collected),
           items: collected,
           meta,
         });

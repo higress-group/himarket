@@ -1,4 +1,6 @@
-import { FileBox } from "lucide-react";
+import { useState } from "react";
+import { FileBox, Download, Loader2 } from "lucide-react";
+import { fetchArtifactContent } from "../../../lib/utils/workspaceApi";
 
 interface FileRendererProps {
   fileName: string;
@@ -31,6 +33,34 @@ function getExtLabel(fileName: string): string {
 
 export function FileRenderer({ fileName, path }: FileRendererProps) {
   const label = getExtLabel(fileName);
+  const [downloading, setDownloading] = useState(false);
+
+  const handleDownload = async () => {
+    setDownloading(true);
+    try {
+      const raw = await fetchArtifactContent(path, { raw: true });
+      if (!raw.content) return;
+
+      const blob =
+        raw.encoding === "base64"
+          ? (() => {
+              const bin = atob(raw.content!);
+              const bytes = new Uint8Array(bin.length);
+              for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+              return new Blob([bytes], { type: "application/octet-stream" });
+            })()
+          : new Blob([raw.content], { type: "text/plain" });
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   return (
     <div className="flex items-center justify-center h-full p-6">
@@ -43,6 +73,21 @@ export function FileRenderer({ fileName, path }: FileRendererProps) {
         <div className="text-[11px] text-gray-400 font-mono max-w-[300px] truncate">
           {path}
         </div>
+        <button
+          className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium
+                     rounded-md border border-gray-200 text-gray-600
+                     hover:bg-gray-50 hover:border-gray-300 transition-colors
+                     disabled:opacity-50 disabled:cursor-not-allowed"
+          onClick={handleDownload}
+          disabled={downloading}
+        >
+          {downloading ? (
+            <Loader2 size={14} className="animate-spin" />
+          ) : (
+            <Download size={14} />
+          )}
+          下载文件
+        </button>
       </div>
     </div>
   );

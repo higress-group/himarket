@@ -12,6 +12,7 @@ import type {
   SessionUpdate,
   PermissionRequest,
   Attachment,
+  ChatItemToolCall,
 } from "../types/acp";
 import { ACP_METHODS } from "../types/acp";
 import {
@@ -27,6 +28,10 @@ import {
   extractSessionUpdate,
   extractPermissionRequest,
 } from "../lib/utils/acp";
+import {
+  ARTIFACT_SCAN_FALLBACK_ENABLED,
+  fetchWorkspaceChanges,
+} from "../lib/utils/workspaceApi";
 
 interface UseAcpSessionOptions {
   wsUrl: string;
@@ -37,6 +42,7 @@ export function useAcpSession({ wsUrl }: UseAcpSessionOptions) {
   const state = useCodingState();
   const initializedRef = useRef(false);
   const sendRawRef = useRef<(data: string) => void>(() => {});
+  const scanTriggeredRef = useRef<Set<string>>(new Set());
 
   const handleMessage = useCallback(
     (data: string) => {
@@ -117,6 +123,48 @@ export function useAcpSession({ wsUrl }: UseAcpSessionOptions) {
   useEffect(() => {
     sendRawRef.current = sendRaw;
   }, [sendRaw]);
+
+  useEffect(() => {
+    if (!ARTIFACT_SCAN_FALLBACK_ENABLED) return;
+
+    const quests = Object.values(state.quests);
+    for (const quest of quests) {
+      for (const item of quest.messages) {
+        if (item.type !== "tool_call") continue;
+        const tc = item as ChatItemToolCall;
+        if (tc.kind !== "execute") continue;
+        if (tc.status !== "completed" && tc.status !== "failed") continue;
+
+        const scanKey = `${quest.id}:${tc.toolCallId}:${tc.status}`;
+        if (scanTriggeredRef.current.has(scanKey)) continue;
+        scanTriggeredRef.current.add(scanKey);
+
+        const since = quest.lastArtifactScanAt ?? quest.createdAt;
+        const now = Date.now();
+
+        fetchWorkspaceChanges(quest.cwd, since, 200)
+          .then(changes => {
+            const paths = changes.map(c => c.path);
+            if (paths.length > 0) {
+              dispatch({
+                type: "UPSERT_ARTIFACTS_FROM_PATHS",
+                questId: quest.id,
+                toolCallId: tc.toolCallId,
+                paths,
+              });
+            }
+            dispatch({
+              type: "SET_ARTIFACT_SCAN_CURSOR",
+              questId: quest.id,
+              cursor: Math.max(0, now - 2000),
+            });
+          })
+          .catch(() => {
+            scanTriggeredRef.current.delete(scanKey);
+          });
+      }
+    }
+  }, [state.quests, dispatch]);
 
   // Auto-initialize protocol when connected
   useEffect(() => {

@@ -14,12 +14,13 @@ interface ChatStreamProps {
   onSelectToolCall: (toolCallId: string) => void;
 }
 
-const SCROLL_THRESHOLD = 100;
+const SCROLL_THRESHOLD = 24;
 
 export function ChatStream({ onSelectToolCall }: ChatStreamProps) {
   const quest = useActiveQuest();
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const lastScrollTopRef = useRef(0);
   const isUserNearBottom = useRef(true);
   const [showScrollButton, setShowScrollButton] = useState(false);
 
@@ -33,7 +34,18 @@ export function ChatStream({ onSelectToolCall }: ChatStreamProps) {
     const container = scrollContainerRef.current;
     if (!container) return;
     const { scrollTop, clientHeight, scrollHeight } = container;
-    const atBottom = scrollTop + clientHeight >= scrollHeight - SCROLL_THRESHOLD;
+    const distanceToBottom = scrollHeight - (scrollTop + clientHeight);
+    const atBottom = distanceToBottom <= SCROLL_THRESHOLD;
+    const isScrollingUp = scrollTop < lastScrollTopRef.current - 2;
+    lastScrollTopRef.current = scrollTop;
+
+    // If user is scrolling up, stop auto-follow immediately to avoid snap-back.
+    if (isScrollingUp && distanceToBottom > 8) {
+      isUserNearBottom.current = false;
+      setShowScrollButton(true);
+      return;
+    }
+
     isUserNearBottom.current = atBottom;
     setShowScrollButton(!atBottom);
   }, []);
@@ -42,6 +54,7 @@ export function ChatStream({ onSelectToolCall }: ChatStreamProps) {
   useEffect(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
+    lastScrollTopRef.current = container.scrollTop;
     container.addEventListener("scroll", handleScroll, { passive: true });
     return () => container.removeEventListener("scroll", handleScroll);
   }, [handleScroll]);
@@ -49,9 +62,11 @@ export function ChatStream({ onSelectToolCall }: ChatStreamProps) {
   // Auto-scroll only when user is near bottom
   useEffect(() => {
     if (isUserNearBottom.current) {
-      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+      bottomRef.current?.scrollIntoView({
+        behavior: isProcessing ? "auto" : "smooth",
+      });
     }
-  }, [messages]);
+  }, [messages, isProcessing]);
 
   // Reset to bottom when switching quests
   const questId = quest?.id;
@@ -59,6 +74,10 @@ export function ChatStream({ onSelectToolCall }: ChatStreamProps) {
     isUserNearBottom.current = true;
     setShowScrollButton(false);
     bottomRef.current?.scrollIntoView({ behavior: "auto" });
+    const container = scrollContainerRef.current;
+    if (container) {
+      lastScrollTopRef.current = container.scrollTop;
+    }
   }, [questId]);
 
   const scrollToBottom = useCallback(() => {

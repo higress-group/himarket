@@ -1,5 +1,11 @@
-import { useEffect } from "react";
-import { Download, Maximize2, Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import {
+  Download,
+  Maximize2,
+  Loader2,
+  RefreshCcw,
+  AlertCircle,
+} from "lucide-react";
 import { ArtifactRenderer } from "./renderers/ArtifactRenderer";
 import { useCodingDispatch } from "../../context/CodingSessionContext";
 import { fetchArtifactContent } from "../../lib/utils/workspaceApi";
@@ -11,6 +17,25 @@ interface ArtifactPreviewProps {
 
 export function ArtifactPreview({ artifact }: ArtifactPreviewProps) {
   const dispatch = useCodingDispatch();
+  const [error, setError] = useState<string | null>(null);
+  const [retryToken, setRetryToken] = useState(0);
+
+  const resolveDownloadName = (name: string) => {
+    if (artifact.type !== "pdf") return name;
+    if (name.toLowerCase().endsWith(".pdf")) return name;
+    const dot = name.lastIndexOf(".");
+    const base = dot > 0 ? name.slice(0, dot) : name;
+    return `${base}.pdf`;
+  };
+
+  const decodeBase64ToBlob = (content: string, mime: string) => {
+    const binaryString = atob(content);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    return new Blob([bytes], { type: mime });
+  };
 
   // Fetch full content from API whenever content is missing (null).
   // Content is reset to null each time the file is modified (see
@@ -20,40 +45,61 @@ export function ArtifactPreview({ artifact }: ArtifactPreviewProps) {
     if (artifact.type === "file") return;
 
     let cancelled = false;
-    fetchArtifactContent(artifact.path)
-      .then(content => {
-        if (!cancelled && content !== null) {
-          dispatch({
-            type: "UPDATE_ARTIFACT_CONTENT",
-            artifactId: artifact.id,
-            content,
-          });
-        }
-      })
-      .catch(() => {
-        // Silently fail — FileRenderer fallback will show
-      });
+    setError(null);
+
+    const load = async () => {
+      const result = await fetchArtifactContent(artifact.path);
+      if (cancelled) return;
+
+      if (result.content !== null) {
+        setError(null);
+        dispatch({
+          type: "UPDATE_ARTIFACT_CONTENT",
+          artifactId: artifact.id,
+          content: result.content,
+        });
+      } else {
+        setError(result.error?.message ?? "加载预览失败");
+      }
+    };
+
+    load().catch(() => {
+      if (!cancelled) {
+        setError("加载预览失败");
+      }
+    });
 
     return () => {
       cancelled = true;
     };
-  }, [artifact.id, artifact.content, artifact.type, artifact.path, artifact.updatedAt, dispatch]);
+  }, [
+    artifact.id,
+    artifact.content,
+    artifact.type,
+    artifact.path,
+    artifact.updatedAt,
+    dispatch,
+    retryToken,
+  ]);
 
   const hasContent = artifact.content !== null;
-  const isLoading = !hasContent && artifact.type !== "file";
+  const isLoading = !hasContent && artifact.type !== "file" && !error;
+
+  const handleRetry = () => {
+    setError(null);
+    setRetryToken(v => v + 1);
+  };
 
   const handleDownload = () => {
     if (!artifact.content) return;
 
     let blob: Blob;
     if (artifact.type === "pdf" || artifact.type === "image") {
-      const binaryString = atob(artifact.content);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-      const mime = artifact.type === "pdf" ? "application/pdf" : "application/octet-stream";
-      blob = new Blob([bytes], { type: mime });
+      const mime =
+        artifact.type === "pdf"
+          ? "application/pdf"
+          : "application/octet-stream";
+      blob = decodeBase64ToBlob(artifact.content, mime);
     } else {
       blob = new Blob([artifact.content], { type: "text/plain" });
     }
@@ -61,7 +107,7 @@ export function ArtifactPreview({ artifact }: ArtifactPreviewProps) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = artifact.fileName;
+    a.download = resolveDownloadName(artifact.fileName);
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -70,12 +116,7 @@ export function ArtifactPreview({ artifact }: ArtifactPreviewProps) {
     if (!artifact.content) return;
 
     if (artifact.type === "pdf") {
-      const binaryString = atob(artifact.content);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-      const blob = new Blob([bytes], { type: "application/pdf" });
+      const blob = decodeBase64ToBlob(artifact.content, "application/pdf");
       const url = URL.createObjectURL(blob);
       window.open(url, "_blank");
       return;
@@ -96,7 +137,6 @@ export function ArtifactPreview({ artifact }: ArtifactPreviewProps) {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Action bar */}
       {hasContent && (
         <div className="flex items-center justify-end px-3 py-1.5 border-b border-gray-200/60">
           <div className="flex items-center gap-1">
@@ -120,16 +160,34 @@ export function ArtifactPreview({ artifact }: ArtifactPreviewProps) {
         </div>
       )}
 
-      {/* Preview area */}
       <div className="flex-1 min-h-0 overflow-hidden">
         {isLoading ? (
           <div className="flex items-center justify-center h-full text-gray-400 text-sm gap-2">
             <Loader2 size={16} className="animate-spin" />
             Loading preview...
           </div>
+        ) : error ? (
+          <div className="flex h-full items-center justify-center p-6">
+            <div className="max-w-md text-center space-y-3">
+              <div className="flex items-center justify-center gap-2 text-amber-600">
+                <AlertCircle size={16} />
+                <span className="text-sm font-medium">预览失败</span>
+              </div>
+              <div className="text-xs text-gray-500 break-words">{error}</div>
+              <div className="flex items-center justify-center gap-2">
+                <button
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs
+                             rounded border border-gray-200 text-gray-600 hover:bg-gray-50"
+                  onClick={handleRetry}
+                >
+                  <RefreshCcw size={12} />
+                  重试
+                </button>
+              </div>
+            </div>
+          </div>
         ) : (
           <ArtifactRenderer
-            key={artifact.updatedAt}
             type={artifact.type}
             content={artifact.content}
             path={artifact.path}

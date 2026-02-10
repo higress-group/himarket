@@ -43,3 +43,6 @@ build/
 package-lock.json
 
 .clinerules/
+
+/workspace/
+/workspaces/
