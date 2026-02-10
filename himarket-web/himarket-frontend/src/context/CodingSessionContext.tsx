@@ -18,7 +18,10 @@ import type {
   SessionUpdate,
   ToolCallContentItem,
   ToolCallStatus,
+  Attachment,
 } from "../types/acp";
+import type { Artifact } from "../types/artifact";
+import { detectArtifacts } from "../lib/utils/artifactDetector";
 
 // ===== Quest Data =====
 
@@ -31,6 +34,8 @@ export interface QuestData {
   currentModeId: string;
   isProcessing: boolean;
   selectedToolCallId: string | null;
+  artifacts: Artifact[];
+  activeArtifactId: string | null;
   createdAt: number;
 }
 
@@ -93,7 +98,7 @@ export type CodingAction =
   | { type: "QUEST_CLOSED"; questId: string }
   | { type: "QUEST_TITLE_UPDATED"; questId: string; title: string }
   | { type: "SESSION_UPDATE"; sessionId: string; update: SessionUpdate }
-  | { type: "USER_PROMPT_SENT"; text: string }
+  | { type: "USER_PROMPT_SENT"; text: string; attachments?: Attachment[] }
   | { type: "PROMPT_COMPLETED"; questId: string; stopReason: string }
   | { type: "SET_MODEL"; modelId: string }
   | { type: "SET_MODE"; modeId: string }
@@ -105,7 +110,9 @@ export type CodingAction =
       request: PermissionRequest;
     }
   | { type: "PERMISSION_RESOLVED" }
-  | { type: "COMMANDS_UPDATED"; commands: Command[] };
+  | { type: "COMMANDS_UPDATED"; commands: Command[] }
+  | { type: "SELECT_ARTIFACT"; artifactId: string | null }
+  | { type: "UPDATE_ARTIFACT_CONTENT"; artifactId: string; content: string };
 
 // ===== Helpers =====
 
@@ -138,6 +145,42 @@ function updateQuestById(
   return { ...state, quests: { ...state.quests, [questId]: updater(quest) } };
 }
 
+// ===== Artifact Helpers =====
+
+function applyArtifactDetection(
+  q: QuestData,
+  toolCall: ChatItemToolCall
+): QuestData {
+  const detected = detectArtifacts(toolCall);
+  if (detected.length === 0) return q;
+
+  let artifacts = q.artifacts;
+  let activeArtifactId = q.activeArtifactId;
+
+  for (const artifact of detected) {
+    const existingIdx = artifacts.findIndex(a => a.path === artifact.path);
+
+    if (existingIdx >= 0) {
+      artifacts = artifacts.map((a, i) =>
+        i === existingIdx
+          ? {
+              ...a,
+              content: artifact.content,
+              updatedAt: artifact.updatedAt,
+              toolCallId: artifact.toolCallId,
+            }
+          : a
+      );
+      activeArtifactId = artifacts[existingIdx].id;
+    } else {
+      artifacts = [...artifacts, artifact];
+      activeArtifactId = artifact.id;
+    }
+  }
+
+  return { ...q, artifacts, activeArtifactId };
+}
+
 // ===== Reducer =====
 
 function codingReducer(state: CodingState, action: CodingAction): CodingState {
@@ -166,6 +209,8 @@ function codingReducer(state: CodingState, action: CodingAction): CodingState {
         currentModeId: action.currentModeId ?? state.modes[0]?.id ?? "",
         isProcessing: false,
         selectedToolCallId: null,
+        artifacts: [],
+        activeArtifactId: null,
         createdAt: Date.now(),
       };
       const newModels =
@@ -209,7 +254,14 @@ function codingReducer(state: CodingState, action: CodingAction): CodingState {
         ...q,
         messages: [
           ...q.messages,
-          { type: "user", id: chatItemId(), text: action.text } as ChatItem,
+          {
+            type: "user",
+            id: chatItemId(),
+            text: action.text,
+            ...(action.attachments && action.attachments.length > 0
+              ? { attachments: action.attachments }
+              : {}),
+          } as ChatItem,
         ],
         isProcessing: true,
       }));
@@ -237,6 +289,22 @@ function codingReducer(state: CodingState, action: CodingAction): CodingState {
       return updateActiveQuest(state, q => ({
         ...q,
         selectedToolCallId: action.toolCallId,
+      }));
+
+    case "SELECT_ARTIFACT":
+      return updateActiveQuest(state, q => ({
+        ...q,
+        activeArtifactId: action.artifactId,
+      }));
+
+    case "UPDATE_ARTIFACT_CONTENT":
+      return updateActiveQuest(state, q => ({
+        ...q,
+        artifacts: q.artifacts.map(a =>
+          a.id === action.artifactId
+            ? { ...a, content: action.content, updatedAt: Date.now() }
+            : a
+        ),
       }));
 
     case "PERMISSION_REQUEST":
@@ -322,7 +390,7 @@ function handleSessionUpdate(
         toolCallId: string;
         status: ToolCallStatus;
         title: string;
-        kind: "read" | "edit" | "execute";
+        kind: "read" | "edit" | "execute" | "skill";
         rawInput?: Record<string, unknown>;
         content?: ToolCallContentItem[];
         locations?: { path: string }[];
@@ -333,9 +401,17 @@ function handleSessionUpdate(
         if (last && last.type === "agent") {
           msgs[msgs.length - 1] = { ...last, complete: true } as ChatItemAgent;
         }
-        msgs.push({
+
+        // Deduplicate: if a tool_call with the same toolCallId already exists, update it
+        const existingIdx = msgs.findIndex(
+          m =>
+            m.type === "tool_call" &&
+            (m as ChatItemToolCall).toolCallId === u.toolCallId
+        );
+
+        const toolCallItem: ChatItemToolCall = {
           type: "tool_call",
-          id: chatItemId(),
+          id: existingIdx >= 0 ? msgs[existingIdx].id : chatItemId(),
           toolCallId: u.toolCallId,
           title: u.title,
           kind: u.kind,
@@ -343,8 +419,23 @@ function handleSessionUpdate(
           rawInput: u.rawInput,
           content: u.content,
           locations: u.locations,
-        } as ChatItemToolCall);
-        return { ...q, messages: msgs, selectedToolCallId: u.toolCallId };
+        };
+
+        if (existingIdx >= 0) {
+          msgs[existingIdx] = toolCallItem;
+        } else {
+          msgs.push(toolCallItem);
+        }
+
+        let updated: QuestData = {
+          ...q,
+          messages: msgs,
+          selectedToolCallId: u.toolCallId,
+        };
+        if (u.status === "completed") {
+          updated = applyArtifactDetection(updated, toolCallItem);
+        }
+        return updated;
       });
     }
 
@@ -359,6 +450,7 @@ function handleSessionUpdate(
         }>;
       };
       return updateQuestById(state, sessionId, q => {
+        let updatedToolCall: ChatItemToolCall | null = null;
         const msgs = q.messages.map(m => {
           if (m.type === "tool_call" && m.toolCallId === u.toolCallId) {
             const newContent = u.content
@@ -367,15 +459,21 @@ function handleSessionUpdate(
                   content: c.content,
                 }))
               : m.content;
-            return {
+            const tc = {
               ...m,
               status: u.status,
               content: newContent ?? m.content,
             } as ChatItemToolCall;
+            updatedToolCall = tc;
+            return tc;
           }
           return m;
         });
-        return { ...q, messages: msgs };
+        let updated = { ...q, messages: msgs };
+        if (u.status === "completed" && updatedToolCall) {
+          updated = applyArtifactDetection(updated, updatedToolCall);
+        }
+        return updated;
       });
     }
 
@@ -478,4 +576,9 @@ export function useActiveQuest(): QuestData | null {
   const state = useCodingState();
   if (!state.activeQuestId) return null;
   return state.quests[state.activeQuestId] ?? null;
+}
+
+export function useActiveArtifacts(): Artifact[] {
+  const quest = useActiveQuest();
+  return quest?.artifacts ?? [];
 }

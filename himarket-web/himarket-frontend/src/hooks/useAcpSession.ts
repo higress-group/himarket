@@ -11,6 +11,7 @@ import type {
   SessionNewResult,
   SessionUpdate,
   PermissionRequest,
+  Attachment,
 } from "../types/acp";
 import { ACP_METHODS } from "../types/acp";
 import {
@@ -89,10 +90,6 @@ export function useAcpSession({ wsUrl }: UseAcpSessionOptions) {
               request: perm as PermissionRequest,
             });
           }
-        } else if (req.method === ACP_METHODS.READ_TEXT_FILE) {
-          send(JSON.stringify(buildResponse(req.id, { content: "" })));
-        } else if (req.method === ACP_METHODS.WRITE_TEXT_FILE) {
-          send(JSON.stringify(buildResponse(req.id, { success: true })));
         } else if (req.method === ACP_METHODS.TERMINAL_CREATE) {
           send(
             JSON.stringify(
@@ -153,6 +150,10 @@ export function useAcpSession({ wsUrl }: UseAcpSessionOptions) {
     }
   }, [status, dispatch]);
 
+  // Default model / mode to apply after quest creation
+  const DEFAULT_MODEL_NAME = "Kimi-K2.5";
+  const DEFAULT_MODE_NAME = "Bypass Permissions";
+
   const createQuest = useCallback(
     async (cwd: string): Promise<string> => {
       const send = sendRawRef.current;
@@ -169,6 +170,31 @@ export function useAcpSession({ wsUrl }: UseAcpSessionOptions) {
         currentModelId: result.models?.currentModelId,
         currentModeId: result.modes?.currentModeId,
       });
+
+      // Auto-set default model if available
+      const targetModel = result.models?.availableModels?.find(
+        m => m.name === DEFAULT_MODEL_NAME
+      );
+      if (
+        targetModel &&
+        targetModel.modelId !== result.models?.currentModelId
+      ) {
+        dispatch({ type: "SET_MODEL", modelId: targetModel.modelId });
+        const req = buildSetModel(result.sessionId, targetModel.modelId);
+        send(JSON.stringify(req));
+        trackRequest(req.id).catch(() => {});
+      }
+
+      // Auto-set default mode if available
+      const targetMode = result.modes?.availableModes?.find(
+        m => m.name === DEFAULT_MODE_NAME
+      );
+      if (targetMode && targetMode.id !== result.modes?.currentModeId) {
+        dispatch({ type: "SET_MODE", modeId: targetMode.id });
+        const req = buildSetMode(result.sessionId, targetMode.id);
+        send(JSON.stringify(req));
+        trackRequest(req.id).catch(() => {});
+      }
 
       return result.sessionId;
     },
@@ -190,11 +216,11 @@ export function useAcpSession({ wsUrl }: UseAcpSessionOptions) {
   );
 
   const sendPrompt = useCallback(
-    (text: string) => {
+    (text: string, attachments?: Attachment[]) => {
       const activeId = state.activeQuestId;
       if (!activeId) return;
-      dispatch({ type: "USER_PROMPT_SENT", text });
-      const req = buildPrompt(activeId, text);
+      dispatch({ type: "USER_PROMPT_SENT", text, attachments });
+      const req = buildPrompt(activeId, text, attachments);
       sendRawRef.current(JSON.stringify(req));
       trackRequest(req.id)
         .then(result => {

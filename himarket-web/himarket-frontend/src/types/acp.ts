@@ -33,12 +33,50 @@ export interface TextContent {
 
 export interface ImageContent {
   type: "image";
-  data?: string;
-  mimeType?: string;
-  uri?: string;
+  data: string;
+  mimeType: string;
+  uri?: string | null;
 }
 
-export type ContentBlock = TextContent | ImageContent;
+export interface AudioContent {
+  type: "audio";
+  data: string;
+  mimeType: string;
+}
+
+export interface ResourceLink {
+  type: "resource_link";
+  name: string;
+  uri: string;
+  mimeType?: string | null;
+  description?: string | null;
+  title?: string | null;
+  size?: number | null;
+}
+
+export interface TextResourceContents {
+  uri: string;
+  text: string;
+  mimeType?: string | null;
+}
+
+export interface BlobResourceContents {
+  uri: string;
+  blob: string;
+  mimeType?: string | null;
+}
+
+export interface EmbeddedResource {
+  type: "resource";
+  resource: TextResourceContents | BlobResourceContents;
+}
+
+export type ContentBlock =
+  | TextContent
+  | ImageContent
+  | AudioContent
+  | ResourceLink
+  | EmbeddedResource;
 
 // ===== Model / Mode =====
 
@@ -87,7 +125,7 @@ export interface PromptResult {
 // ===== ToolCall Sub-types =====
 
 export type ToolCallStatus = "pending" | "in_progress" | "completed" | "failed";
-export type ToolKind = "read" | "edit" | "execute";
+export type ToolKind = "read" | "edit" | "execute" | "skill";
 
 export interface ToolCallContentItem {
   type: "content" | "diff";
@@ -270,12 +308,26 @@ export const ACP_METHODS = {
   TERMINAL_OUTPUT: "terminal/output",
 } as const;
 
+// ===== Attachment (client-side, for coding input) =====
+
+export interface FilePathAttachment {
+  id: string;
+  kind: "file_path";
+  name: string;
+  filePath: string; // absolute file path on server
+  mimeType?: string;
+  previewUrl?: string; // Object URL for local image preview (transient)
+}
+
+export type Attachment = FilePathAttachment;
+
 // ===== Chat Item Types (for UI rendering) =====
 
 export interface ChatItemUser {
   type: "user";
   id: string;
   text: string;
+  attachments?: Attachment[];
 }
 
 export interface ChatItemAgent {

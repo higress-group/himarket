@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Layout } from "../components/Layout";
 import {
   CodingSessionProvider,
@@ -11,14 +11,21 @@ import { CodingSidebar } from "../components/coding/CodingSidebar";
 import { CodingTopBar } from "../components/coding/CodingTopBar";
 import { CodingWelcome } from "../components/coding/CodingWelcome";
 import { ChatStream } from "../components/coding/ChatStream";
-import { ToolPanel } from "../components/coding/ToolPanel";
+import { RightPanel } from "../components/coding/RightPanel";
 import { CodingInput } from "../components/coding/CodingInput";
 import { PermissionDialog } from "../components/coding/PermissionDialog";
+import { PlanDisplay } from "../components/coding/PlanDisplay";
+import type { ChatItemPlan, ChatItemToolCall } from "../types/acp";
 
-const WS_URL = `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/ws/acp`;
+function buildWsUrl(): string {
+  const base = `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/ws/acp`;
+  const token = localStorage.getItem("access_token");
+  return token ? `${base}?token=${encodeURIComponent(token)}` : base;
+}
 
 function CodingContent() {
-  const session = useAcpSession({ wsUrl: WS_URL });
+  const [wsUrl] = useState(buildWsUrl);
+  const session = useAcpSession({ wsUrl });
   const state = useCodingState();
   const activeQuest = useActiveQuest();
   const dispatch = useCodingDispatch();
@@ -30,50 +37,76 @@ function CodingContent() {
     });
   }, [session]);
 
-  const hasToolSelected = activeQuest?.selectedToolCallId != null;
+  const hasArtifacts = (activeQuest?.artifacts.length ?? 0) > 0;
+  const activeQuestMessages = activeQuest?.messages;
+
+  const hasDiffs = useMemo(() => {
+    if (!activeQuestMessages) return false;
+    return activeQuestMessages.some(
+      m =>
+        m.type === "tool_call" &&
+        (m as ChatItemToolCall).content?.some(c => c.type === "diff")
+    );
+  }, [activeQuestMessages]);
+
+  const showRightPanel = hasDiffs || hasArtifacts;
+
+  const planEntries = useMemo(() => {
+    const plan = activeQuestMessages?.find(
+      (m): m is ChatItemPlan => m.type === "plan"
+    );
+    return plan?.entries;
+  }, [activeQuestMessages]);
 
   return (
-    <div className="flex h-[calc(100vh-48px)]">
+    <div className="flex h-full">
       <CodingSidebar
         onCreateQuest={handleCreateQuest}
         onSwitchQuest={session.switchQuest}
         onCloseQuest={session.closeQuest}
       />
-      <div className="flex-1 flex flex-col min-w-0">
-        {activeQuest ? (
-          <>
+      {activeQuest ? (
+        <div className="flex-1 flex min-w-0">
+          {/* Middle column: top bar + chat + plan + input */}
+          <div className="flex-1 flex flex-col min-w-0">
             <CodingTopBar
               status={session.status}
               onSetModel={session.setModel}
               onSetMode={session.setMode}
             />
-            <div className="flex-1 flex min-h-0">
-              <ChatStream
-                onSelectToolCall={toolCallId =>
-                  dispatch({ type: "SELECT_TOOL_CALL", toolCallId })
-                }
-              />
-              {hasToolSelected && !panelCollapsed && (
-                <ToolPanel
-                  collapsed={panelCollapsed}
-                  onToggleCollapse={() => setPanelCollapsed(p => !p)}
-                />
-              )}
-            </div>
+            <ChatStream
+              onSelectToolCall={toolCallId =>
+                dispatch({ type: "SELECT_TOOL_CALL", toolCallId })
+              }
+            />
+            {planEntries && planEntries.length > 0 && (
+              <div className="max-w-3xl mx-auto w-full px-4 pt-2">
+                <PlanDisplay entries={planEntries} />
+              </div>
+            )}
             <CodingInput
               onSend={session.sendPrompt}
               onCancel={session.cancelPrompt}
               isProcessing={activeQuest.isProcessing}
               disabled={!state.initialized}
             />
-          </>
-        ) : (
+          </div>
+          {/* Right column: artifacts & changes */}
+          {showRightPanel && (
+            <RightPanel
+              collapsed={panelCollapsed}
+              onToggleCollapse={() => setPanelCollapsed(p => !p)}
+            />
+          )}
+        </div>
+      ) : (
+        <div className="flex-1 flex flex-col min-w-0">
           <CodingWelcome
             onCreateQuest={handleCreateQuest}
             disabled={!state.initialized}
           />
-        )}
-      </div>
+        </div>
+      )}
 
       {state.pendingPermission && (
         <PermissionDialog

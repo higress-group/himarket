@@ -43,7 +43,7 @@ jwt:
 acp:
   cli-command: ${ACP_CLI_COMMAND:qodercli}
   cli-args: ${ACP_CLI_ARGS:--acp}
-  workspace-root: ${ACP_WORKSPACE_ROOT:./workspaces}
+  workspace-root: ${ACP_WORKSPACE_ROOT:~/workspaces}
 
 sls:
   # SLS服务端点（必填）

@@ -8,6 +8,7 @@ import {
   type SessionUpdate,
   type PermissionRequest,
   type ContentBlock,
+  type Attachment,
 } from "../../types/acp";
 
 // ===== Request ID Management =====
@@ -43,9 +44,7 @@ export function buildResponse(id: number, result: unknown): AcpResponse {
 export function buildInitialize(): AcpRequest {
   return buildRequest(ACP_METHODS.INITIALIZE, {
     protocolVersion: 1,
-    clientCapabilities: {
-      fs: { readTextFile: true, writeTextFile: true },
-    },
+    clientCapabilities: {},
   });
 }
 
@@ -53,8 +52,31 @@ export function buildSessionNew(cwd: string): AcpRequest {
   return buildRequest(ACP_METHODS.SESSION_NEW, { cwd, mcpServers: [] });
 }
 
-export function buildPrompt(sessionId: string, text: string): AcpRequest {
-  const prompt: ContentBlock[] = [{ type: "text", text }];
+export function buildPrompt(
+  sessionId: string,
+  text: string,
+  attachments?: Attachment[]
+): AcpRequest {
+  const prompt: ContentBlock[] = [];
+
+  if (attachments && attachments.length > 0) {
+    for (const att of attachments) {
+      const uri = att.filePath.startsWith("file://")
+        ? att.filePath
+        : `file://${att.filePath}`;
+      prompt.push({
+        type: "resource_link",
+        name: att.name,
+        uri,
+        mimeType: att.mimeType ?? null,
+      });
+    }
+  }
+
+  if (text) {
+    prompt.push({ type: "text", text });
+  }
+
   return buildRequest(ACP_METHODS.SESSION_PROMPT, { sessionId, prompt });
 }
 
