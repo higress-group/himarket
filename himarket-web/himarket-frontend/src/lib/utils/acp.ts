@@ -1,6 +1,7 @@
 import {
   JSONRPC_VERSION,
   ACP_METHODS,
+  type JsonRpcId,
   type AcpRequest,
   type AcpResponse,
   type AcpNotification,
@@ -35,7 +36,7 @@ export function buildNotification(
   return { jsonrpc: JSONRPC_VERSION, method, params };
 }
 
-export function buildResponse(id: number, result: unknown): AcpResponse {
+export function buildResponse(id: JsonRpcId, result: unknown): AcpResponse {
   return { jsonrpc: JSONRPC_VERSION, id, result };
 }
 
@@ -147,9 +148,9 @@ type PendingResolver = {
   reject: (error: { code: number; message: string }) => void;
 };
 
-const pendingRequests = new Map<number, PendingResolver>();
+const pendingRequests = new Map<JsonRpcId, PendingResolver>();
 
-export function trackRequest(id: number): Promise<unknown> {
+export function trackRequest(id: JsonRpcId): Promise<unknown> {
   return new Promise((resolve, reject) => {
     pendingRequests.set(id, { resolve, reject });
   });

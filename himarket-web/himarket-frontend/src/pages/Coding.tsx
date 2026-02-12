@@ -49,7 +49,16 @@ function CodingContent() {
     );
   }, [activeQuestMessages]);
 
-  const showRightPanel = hasDiffs || hasArtifacts;
+  const hasTerminals = useMemo(() => {
+    if (!activeQuestMessages) return false;
+    return activeQuestMessages.some(
+      m =>
+        m.type === "tool_call" &&
+        (m as ChatItemToolCall).content?.some(c => c.type === "terminal")
+    );
+  }, [activeQuestMessages]);
+
+  const showRightPanel = hasDiffs || hasArtifacts || hasTerminals;
 
   const planEntries = useMemo(() => {
     const plan = activeQuestMessages?.find(
@@ -67,7 +76,7 @@ function CodingContent() {
       />
       {activeQuest ? (
         <div className="flex-1 flex min-w-0">
-          {/* Middle column: top bar + chat + plan + input */}
+          {/* Middle column: top bar + chat + input */}
           <div className="flex-1 flex flex-col min-w-0">
             <CodingTopBar
               status={session.status}
@@ -86,8 +95,11 @@ function CodingContent() {
             )}
             <CodingInput
               onSend={session.sendPrompt}
+              onDropQueuedPrompt={session.dropQueuedPrompt}
               onCancel={session.cancelPrompt}
               isProcessing={activeQuest.isProcessing}
+              queueSize={activeQuest.promptQueue.length}
+              queuedPrompts={activeQuest.promptQueue}
               disabled={!state.initialized}
             />
           </div>

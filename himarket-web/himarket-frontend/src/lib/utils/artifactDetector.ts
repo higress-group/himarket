@@ -137,8 +137,11 @@ export function detectArtifactsFromPaths(
  * side-effects of Bash execution (e.g. .pptx, .pdf) are also captured.
  */
 export function detectArtifacts(toolCall: ChatItemToolCall): Artifact[] {
-  // Only detect for edit/execute kind tool calls
-  if (toolCall.kind === "read") return [];
+  // Skip kinds that never create files
+  const NON_CREATING_KINDS = new Set([
+    "read", "search", "think", "fetch", "switch_mode",
+  ]);
+  if (NON_CREATING_KINDS.has(toolCall.kind)) return [];
 
   const paths = extractAllPaths(toolCall);
   if (paths.length === 0) return [];

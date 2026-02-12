@@ -10,7 +10,7 @@ export function CodingWelcome({ onCreateQuest, disabled }: CodingWelcomeProps) {
     <div className="flex-1 flex items-center justify-center">
       <div className="text-center">
         <div className="text-4xl mb-3 text-gray-300">&#9672;</div>
-        <h1 className="text-2xl font-semibold text-gray-700 mb-2">HiCoding</h1>
+        <h1 className="text-2xl font-semibold text-gray-700 mb-2">HiWork</h1>
         <p className="text-sm text-gray-400 mb-6">
           创建一个新的 Quest 开始编程
         </p>

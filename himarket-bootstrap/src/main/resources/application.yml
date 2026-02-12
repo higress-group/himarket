@@ -38,7 +38,7 @@ springdoc:
 
 jwt:
   secret: YourJWTSecret
-  expiration: 2h
+  expiration: 7d
 
 acp:
   cli-command: ${ACP_CLI_COMMAND:qodercli}

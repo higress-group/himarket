@@ -115,13 +115,10 @@ public class WorkspaceController {
             @RequestParam String path, @RequestParam(defaultValue = "false") boolean raw) {
         String userId = getCurrentUserId();
         Path workspaceRoot = getWorkspaceRootForUser(userId);
-        Path filePath = workspaceRoot.resolve(path).toAbsolutePath().normalize();
-
-        // Prevent path traversal
-        if (!filePath.startsWith(workspaceRoot)) {
-            log.warn("Path traversal attempt by user {}: {}", userId, path);
-            return ResponseEntity.badRequest().body(Map.of("error", "Invalid path"));
-        }
+        Path filePath =
+                Paths.get(path).isAbsolute()
+                        ? Paths.get(path).toAbsolutePath().normalize()
+                        : workspaceRoot.resolve(path).toAbsolutePath().normalize();
 
         if (!Files.exists(filePath) || !Files.isRegularFile(filePath)) {
             return ResponseEntity.notFound().build();
@@ -161,12 +158,11 @@ public class WorkspaceController {
 
         String userId = getCurrentUserId();
         Path workspaceRoot = getWorkspaceRootForUser(userId);
-        Path filePath = workspaceRoot.resolve(request.path()).toAbsolutePath().normalize();
+        Path filePath =
+                Paths.get(request.path()).isAbsolute()
+                        ? Paths.get(request.path()).toAbsolutePath().normalize()
+                        : workspaceRoot.resolve(request.path()).toAbsolutePath().normalize();
 
-        if (!filePath.startsWith(workspaceRoot)) {
-            log.warn("Path traversal attempt by user {}: {}", userId, request.path());
-            return ResponseEntity.badRequest().body(Map.of("error", "Invalid path"));
-        }
         if (!Files.exists(filePath) || !Files.isRegularFile(filePath)) {
             return ResponseEntity.notFound().build();
         }
@@ -220,12 +216,11 @@ public class WorkspaceController {
             @RequestParam(defaultValue = "200") int limit) {
         String userId = getCurrentUserId();
         Path workspaceRoot = getWorkspaceRootForUser(userId);
-        Path cwdPath = workspaceRoot.resolve(cwd).toAbsolutePath().normalize();
+        Path cwdPath =
+                Paths.get(cwd).isAbsolute()
+                        ? Paths.get(cwd).toAbsolutePath().normalize()
+                        : workspaceRoot.resolve(cwd).toAbsolutePath().normalize();
 
-        if (!cwdPath.startsWith(workspaceRoot)) {
-            log.warn("Path traversal attempt on cwd by user {}: {}", userId, cwd);
-            return ResponseEntity.badRequest().body(Map.of("error", "Invalid cwd"));
-        }
         if (!Files.exists(cwdPath) || !Files.isDirectory(cwdPath)) {
             return ResponseEntity.badRequest().body(Map.of("error", "cwd does not exist"));
         }

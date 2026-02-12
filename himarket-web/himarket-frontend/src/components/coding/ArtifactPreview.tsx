@@ -20,6 +20,11 @@ export function ArtifactPreview({ artifact }: ArtifactPreviewProps) {
   const [error, setError] = useState<string | null>(null);
   const [retryToken, setRetryToken] = useState(0);
 
+  // Reset error when switching to a different artifact
+  useEffect(() => {
+    setError(null);
+  }, [artifact.id]);
+
   const resolveDownloadName = (name: string) => {
     if (artifact.type !== "pdf") return name;
     if (name.toLowerCase().endsWith(".pdf")) return name;

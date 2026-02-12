@@ -20,6 +20,7 @@ import { useCodingState } from "../../context/CodingSessionContext";
 import { SlashMenu } from "./SlashMenu";
 import { uploadFileToWorkspace } from "../../lib/utils/workspaceApi";
 import type { Attachment, FilePathAttachment } from "../../types/acp";
+import type { QueuedPromptItem } from "../../context/CodingSessionContext";
 
 const MAX_ATTACHMENTS = 10;
 const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
@@ -53,16 +54,29 @@ function nextAttId(): string {
 }
 
 interface CodingInputProps {
-  onSend: (text: string, attachments?: Attachment[]) => void;
+  onSend: (
+    text: string,
+    attachments?: Attachment[]
+  ) =>
+    | { queued: true; queuedPromptId?: string }
+    | { queued: false; requestId?: string | number };
+  onSendQueued?: (queuedPromptId?: string) => void;
+  onDropQueuedPrompt: (promptId: string) => void;
   onCancel: () => void;
   isProcessing: boolean;
+  queueSize: number;
+  queuedPrompts: QueuedPromptItem[];
   disabled: boolean;
 }
 
 export function CodingInput({
   onSend,
+  onSendQueued,
+  onDropQueuedPrompt,
   onCancel,
   isProcessing,
+  queueSize,
+  queuedPrompts,
   disabled,
 }: CodingInputProps) {
   const [text, setText] = useState("");
@@ -127,15 +141,14 @@ export function CodingInput({
   const handleSend = useCallback(() => {
     const trimmed = text.trim();
     if (!trimmed && attachments.length === 0) return;
-    onSend(trimmed, attachments.length > 0 ? attachments : undefined);
+    const result = onSend(trimmed, attachments.length > 0 ? attachments : undefined);
+    if (result.queued) {
+      onSendQueued?.(result.queuedPromptId);
+    }
     setText("");
     setShowSlash(false);
-    // release object URLs for image preview
-    attachments.forEach(att => {
-      if (att.previewUrl) URL.revokeObjectURL(att.previewUrl);
-    });
     setAttachments([]);
-  }, [text, attachments, onSend]);
+  }, [text, attachments, onSend, onSendQueued]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -281,6 +294,33 @@ export function CodingInput({
         </div>
       )}
 
+      {queuedPrompts.length > 0 && (
+        <div className="mb-2 rounded-lg border border-amber-200 bg-amber-50/70 px-2.5 py-2">
+          <div className="flex items-center justify-between text-[11px] text-amber-700 mb-1.5">
+            <span>队列中 {queueSize} 条消息</span>
+          </div>
+          <div className="space-y-1 max-h-24 overflow-y-auto">
+            {queuedPrompts.map(item => (
+              <div
+                key={item.id}
+                className="flex items-center gap-2 rounded border border-amber-200/80 bg-white/70 px-2 py-1"
+              >
+                <span className="text-xs text-gray-700 truncate flex-1 min-w-0">
+                  {item.text || "[仅附件]"}
+                </span>
+                <button
+                  className="text-[11px] text-gray-400 hover:text-gray-600"
+                  onClick={() => onDropQueuedPrompt(item.id)}
+                  title="移除队列消息"
+                >
+                  移除
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex items-end gap-2">
         <div className="flex-1 flex items-end gap-1.5">
           <button
@@ -313,15 +353,28 @@ export function CodingInput({
           />
         </div>
         {isProcessing ? (
-          <button
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium
-                       bg-red-50 text-red-600 border border-red-200
-                       hover:bg-red-100 transition-colors"
-            onClick={onCancel}
-          >
-            <Square size={14} />
-            停止
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium
+                         bg-gray-800 text-white
+                         hover:bg-gray-700 transition-colors
+                         disabled:opacity-40 disabled:cursor-not-allowed"
+              onClick={handleSend}
+              disabled={!canSend}
+            >
+              <Send size={14} />
+              发送到队列
+            </button>
+            <button
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium
+                         bg-red-50 text-red-600 border border-red-200
+                         hover:bg-red-100 transition-colors"
+              onClick={onCancel}
+            >
+              <Square size={14} />
+              停止
+            </button>
+          </div>
         ) : (
           <button
             className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium

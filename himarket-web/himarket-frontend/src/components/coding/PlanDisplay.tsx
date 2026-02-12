@@ -55,7 +55,7 @@ export function PlanDisplay({
             <ClipboardList size={14} className="text-blue-500" />
           )}
           <span className="text-xs font-semibold text-blue-600 uppercase tracking-wide">
-            Plan
+            Todo
           </span>
           <span className="flex-1" />
           {/* Progress bar */}
@@ -123,7 +123,7 @@ export function PlanDisplay({
           <CheckCircle2 size={14} className="text-green-500" />
         )}
         <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex-1">
-          Plan
+          Todo
         </span>
         <span className="text-[10px] text-gray-400">{summary.text}</span>
         {expanded ? (

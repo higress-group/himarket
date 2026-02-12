@@ -22,14 +22,22 @@ export function ChatStream({ onSelectToolCall }: ChatStreamProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const lastScrollTopRef = useRef(0);
   const isUserNearBottom = useRef(true);
+  const userInteractingRef = useRef(false);
+  const wheelTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const [showScrollButton, setShowScrollButton] = useState(false);
+  const [completionToast, setCompletionToast] = useState<string | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const messages = useMemo(() => quest?.messages ?? [], [quest?.messages]);
   const selectedToolCallId = quest?.selectedToolCallId ?? null;
   const isProcessing = quest?.isProcessing ?? false;
+  const lastCompletedAt = quest?.lastCompletedAt ?? null;
+  const lastStopReason = quest?.lastStopReason ?? null;
   const renderItems = useMemo(() => groupMessages(messages), [messages]);
 
-  // Track scroll position to determine if user is near bottom
+  // Track scroll position to determine if user is near bottom.
+  // Only react to user-initiated scrolls (guarded by userInteractingRef)
+  // so that programmatic scrollIntoView calls cannot re-enable auto-follow.
   const handleScroll = useCallback(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
@@ -39,7 +47,10 @@ export function ChatStream({ onSelectToolCall }: ChatStreamProps) {
     const isScrollingUp = scrollTop < lastScrollTopRef.current - 2;
     lastScrollTopRef.current = scrollTop;
 
-    // If user is scrolling up, stop auto-follow immediately to avoid snap-back.
+    // Only process scroll events that originate from real user interaction
+    // (wheel, pointer, touch). Programmatic scrollIntoView never fires these.
+    if (!userInteractingRef.current) return;
+
     if (isScrollingUp && distanceToBottom > 8) {
       isUserNearBottom.current = false;
       setShowScrollButton(true);
@@ -58,6 +69,39 @@ export function ChatStream({ onSelectToolCall }: ChatStreamProps) {
     container.addEventListener("scroll", handleScroll, { passive: true });
     return () => container.removeEventListener("scroll", handleScroll);
   }, [handleScroll]);
+
+  // Detect real user interaction with the scroll container.
+  // pointer/touch events only fire from user actions, never from programmatic
+  // scrollIntoView, so this reliably distinguishes user vs auto scrolls.
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const onPointerDown = () => {
+      userInteractingRef.current = true;
+    };
+    const onPointerUp = () => {
+      userInteractingRef.current = false;
+    };
+    const onWheel = () => {
+      userInteractingRef.current = true;
+      clearTimeout(wheelTimerRef.current);
+      wheelTimerRef.current = setTimeout(() => {
+        userInteractingRef.current = false;
+      }, 150);
+    };
+
+    container.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("pointerup", onPointerUp);
+    container.addEventListener("wheel", onWheel, { passive: true });
+
+    return () => {
+      container.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("pointerup", onPointerUp);
+      container.removeEventListener("wheel", onWheel);
+      clearTimeout(wheelTimerRef.current);
+    };
+  }, []);
 
   // Auto-scroll only when user is near bottom
   useEffect(() => {
@@ -84,6 +128,51 @@ export function ChatStream({ onSelectToolCall }: ChatStreamProps) {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
     isUserNearBottom.current = true;
     setShowScrollButton(false);
+    setCompletionToast(null);
+  }, []);
+
+  useEffect(() => {
+    if (!lastCompletedAt) return;
+
+    if (!isUserNearBottom.current) {
+      const text =
+        lastStopReason === "cancelled"
+          ? "任务已停止"
+          : lastStopReason === "error"
+            ? "任务执行失败"
+            : "任务已完成";
+      setCompletionToast(text);
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
+      }
+      toastTimerRef.current = setTimeout(() => {
+        setCompletionToast(null);
+      }, 5000);
+    }
+
+    if (typeof window !== "undefined" && typeof Notification !== "undefined") {
+      if (document.hidden) {
+        if (Notification.permission === "granted") {
+          void new Notification("HiWork", {
+            body:
+              lastStopReason === "error"
+                ? "任务执行失败，请返回查看详情。"
+                : "任务已完成。",
+          });
+        } else if (Notification.permission === "default") {
+          void Notification.requestPermission();
+        }
+      }
+    }
+  }, [lastCompletedAt, lastStopReason]);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
+      }
+      clearTimeout(wheelTimerRef.current);
+    };
   }, []);
 
   if (messages.length === 0) {
@@ -174,6 +263,15 @@ export function ChatStream({ onSelectToolCall }: ChatStreamProps) {
       </div>
 
       {/* Scroll to bottom button */}
+      {completionToast && (
+        <button
+          className="absolute bottom-16 right-4 rounded-lg border border-blue-200 bg-blue-50/95 px-3 py-1.5
+                     text-xs text-blue-700 shadow-sm hover:bg-blue-100 transition-colors"
+          onClick={scrollToBottom}
+        >
+          {completionToast}，点击查看
+        </button>
+      )}
       {showScrollButton && (
         <button
           className="absolute bottom-4 right-4 bg-gray-800/80 text-white rounded-full p-2 shadow-lg

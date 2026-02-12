@@ -68,6 +68,9 @@ export async function uploadFileToWorkspace(file: File): Promise<string> {
     formData,
     {
       timeout: 60000,
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
     }
   );
   return resp.filePath;

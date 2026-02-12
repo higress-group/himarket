@@ -52,7 +52,10 @@ export function ToolPanel({ collapsed, onToggleCollapse }: ToolPanelProps) {
           />
         ))}
         {textContent.map((c, i) => (
-          <TerminalOutput key={i} text={c.content?.text ?? ""} />
+          <TerminalOutput
+            key={i}
+            text={c.content?.type === "text" ? c.content.text : ""}
+          />
         ))}
         {selectedTool.rawInput && (
           <div className="rounded-lg border border-gray-200/60 overflow-hidden">

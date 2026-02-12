@@ -1,6 +1,13 @@
 import {
   Eye,
   Terminal,
+  Trash2,
+  ArrowRightLeft,
+  Search,
+  Brain,
+  CloudDownload,
+  Settings2,
+  CircleHelp,
   CheckCircle2,
   XCircle,
   Loader2,
@@ -111,14 +118,22 @@ function isSkillItem(item: ChatItemToolCall): boolean {
 
 function getOutputPreview(content?: ToolCallContentItem[]): string | null {
   if (!content) return null;
-  const textItems = content.filter(
-    c => c.type === "content" && c.content?.text
+  const textItem = content.find(
+    c => c.type === "content" && c.content?.type === "text"
   );
-  if (textItems.length === 0) return null;
-  const text = textItems[0].content?.text ?? "";
-  const firstLine = text.split("\n").filter(l => l.trim())[0] ?? "";
+  if (!textItem || textItem.type !== "content" || textItem.content?.type !== "text") {
+    return null;
+  }
+  const text = textItem.content.text;
+  const firstLine = text.split("\n").filter((l: string) => l.trim())[0] ?? "";
   if (firstLine.length > 80) return firstLine.slice(0, 80) + "...";
   return firstLine || null;
+}
+
+function getTerminalId(content?: ToolCallContentItem[]): string | null {
+  if (!content) return null;
+  const terminal = content.find(c => c.type === "terminal");
+  return terminal && terminal.type === "terminal" ? terminal.terminalId : null;
 }
 
 // ===== Sub-components =====
@@ -187,6 +202,7 @@ export function ToolCallCard({
   const fileName = filePath ? extractFileName(filePath) : null;
   const fileOp = item.kind === "edit" ? getFileOp(item) : null;
   const command = item.kind === "execute" && !isSkill ? getCommand(item) : null;
+  const terminalId = item.kind === "execute" ? getTerminalId(item.content) : null;
   const extraFileCount =
     item.locations && item.locations.length > 1
       ? item.locations.length - 1
@@ -240,6 +256,33 @@ export function ToolCallCard({
           </>
         )}
 
+        {!isSkill && item.kind === "delete" && (
+          <>
+            <Trash2 size={14} className="text-red-400 flex-shrink-0" />
+            <span className="text-xs text-gray-600 truncate flex-1 min-w-0">
+              {fileName || item.title}
+            </span>
+          </>
+        )}
+
+        {!isSkill && item.kind === "move" && (
+          <>
+            <ArrowRightLeft size={14} className="text-indigo-400 flex-shrink-0" />
+            <span className="text-xs text-gray-600 truncate flex-1 min-w-0">
+              {fileName || item.title}
+            </span>
+          </>
+        )}
+
+        {!isSkill && item.kind === "search" && (
+          <>
+            <Search size={14} className="text-cyan-500 flex-shrink-0" />
+            <span className="text-xs text-gray-600 truncate flex-1 min-w-0">
+              {item.title}
+            </span>
+          </>
+        )}
+
         {/* Execute: terminal icon + command */}
         {!isSkill && item.kind === "execute" && (
           <>
@@ -250,11 +293,40 @@ export function ToolCallCard({
           </>
         )}
 
-        {/* Fallback for unknown kinds */}
-        {!isSkill && item.kind !== "edit" && item.kind !== "read" && item.kind !== "execute" && (
-          <span className="text-xs text-gray-500 truncate flex-1 min-w-0">
-            {item.title}
-          </span>
+        {!isSkill && item.kind === "think" && (
+          <>
+            <Brain size={14} className="text-purple-500 flex-shrink-0" />
+            <span className="text-xs text-gray-600 truncate flex-1 min-w-0">
+              {item.title}
+            </span>
+          </>
+        )}
+
+        {!isSkill && item.kind === "fetch" && (
+          <>
+            <CloudDownload size={14} className="text-sky-500 flex-shrink-0" />
+            <span className="text-xs text-gray-600 truncate flex-1 min-w-0">
+              {item.title}
+            </span>
+          </>
+        )}
+
+        {!isSkill && item.kind === "switch_mode" && (
+          <>
+            <Settings2 size={14} className="text-amber-500 flex-shrink-0" />
+            <span className="text-xs text-gray-600 truncate flex-1 min-w-0">
+              {item.title}
+            </span>
+          </>
+        )}
+
+        {!isSkill && item.kind === "other" && (
+          <>
+            <CircleHelp size={14} className="text-gray-400 flex-shrink-0" />
+            <span className="text-xs text-gray-500 truncate flex-1 min-w-0">
+              {item.title}
+            </span>
+          </>
         )}
 
         <StatusBadge item={item} />
@@ -375,7 +447,87 @@ export function ToolCallCard({
     );
   }
 
-  // Execute kind (fallback)
+  if (item.kind === "delete" || item.kind === "move") {
+    const Icon = item.kind === "delete" ? Trash2 : ArrowRightLeft;
+    const iconCls = item.kind === "delete" ? "text-red-500" : "text-indigo-500";
+    return (
+      <div
+        className={`
+          rounded-lg border cursor-pointer transition-all duration-200
+          ${
+            selected
+              ? "border-blue-300 bg-blue-50/40 shadow-sm"
+              : isFailed
+                ? "border-red-200 bg-red-50/30"
+                : "border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm"
+          }
+        `}
+        onClick={onClick}
+      >
+        <div className="px-3 py-2 flex items-center gap-2">
+          <Icon size={15} className={`${iconCls} flex-shrink-0`} />
+          <span className="text-sm text-gray-600 truncate flex-1 min-w-0">
+            {fileName || item.title}
+          </span>
+          <StatusBadge item={item} />
+        </div>
+      </div>
+    );
+  }
+
+  if (
+    item.kind === "search" ||
+    item.kind === "think" ||
+    item.kind === "fetch" ||
+    item.kind === "switch_mode" ||
+    item.kind === "other"
+  ) {
+    const Icon =
+      item.kind === "search"
+        ? Search
+        : item.kind === "think"
+          ? Brain
+          : item.kind === "fetch"
+            ? CloudDownload
+            : item.kind === "switch_mode"
+              ? Settings2
+              : CircleHelp;
+    const iconClass =
+      item.kind === "search"
+        ? "text-cyan-500"
+        : item.kind === "think"
+          ? "text-purple-500"
+          : item.kind === "fetch"
+            ? "text-sky-500"
+            : item.kind === "switch_mode"
+              ? "text-amber-500"
+              : "text-gray-500";
+    return (
+      <div
+        className={`
+          rounded-lg border cursor-pointer transition-all duration-200
+          ${
+            selected
+              ? "border-blue-300 bg-blue-50/40 shadow-sm"
+              : isFailed
+                ? "border-red-200 bg-red-50/30"
+                : "border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm"
+          }
+        `}
+        onClick={onClick}
+      >
+        <div className="px-3 py-2 flex items-center gap-2">
+          <Icon size={15} className={`${iconClass} flex-shrink-0`} />
+          <span className="text-sm text-gray-600 truncate flex-1 min-w-0">
+            {item.title}
+          </span>
+          <StatusBadge item={item} />
+        </div>
+      </div>
+    );
+  }
+
+  // Execute kind
   return (
     <div
       className={`
@@ -402,6 +554,11 @@ export function ToolCallCard({
           <div className="mt-1.5 bg-gray-900 rounded-md px-2.5 py-1.5 font-mono text-[11px] text-gray-300 truncate">
             <span className="text-emerald-400 mr-1.5 select-none">$</span>
             {command}
+          </div>
+        )}
+        {terminalId && (
+          <div className="mt-1 text-[11px] text-gray-400 truncate pl-[23px]">
+            terminal: {terminalId}
           </div>
         )}
         {item.status === "completed" && getOutputPreview(item.content) && (

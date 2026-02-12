@@ -21,11 +21,14 @@ export function ChangesView() {
       if (m.type !== "tool_call") continue;
       const tc = m as ChatItemToolCall;
       for (const c of tc.content ?? []) {
-        if (c.type === "diff" && c.newText) {
+        if (
+          c.type === "diff" &&
+          (c.oldText !== undefined || c.newText !== undefined)
+        ) {
           result.push({
             path: c.path ?? "unknown",
             oldText: c.oldText,
-            newText: c.newText,
+            newText: c.newText ?? "",
             toolTitle: tc.title,
           });
         }

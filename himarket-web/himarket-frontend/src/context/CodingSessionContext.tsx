@@ -19,6 +19,9 @@ import type {
   ToolCallContentItem,
   ToolCallStatus,
   Attachment,
+  JsonRpcId,
+  ToolKind,
+  ContentBlock,
 } from "../types/acp";
 import type { Artifact } from "../types/artifact";
 import {
@@ -33,13 +36,26 @@ export interface QuestData {
   title: string;
   cwd: string;
   messages: ChatItem[];
+  availableModels: Model[];
+  availableModes: Mode[];
   currentModelId: string;
   currentModeId: string;
   isProcessing: boolean;
+  inflightPromptId: JsonRpcId | null;
+  promptQueue: QueuedPromptItem[];
+  lastStopReason: string | null;
+  lastCompletedAt: number | null;
   selectedToolCallId: string | null;
   artifacts: Artifact[];
   activeArtifactId: string | null;
   lastArtifactScanAt: number;
+  createdAt: number;
+}
+
+export interface QueuedPromptItem {
+  id: string;
+  text: string;
+  attachments?: Attachment[];
   createdAt: number;
 }
 
@@ -59,13 +75,13 @@ export interface CodingState {
     cost?: { amount: number; currency: string };
   } | null;
   pendingPermission: {
-    id: number;
+    id: JsonRpcId;
     sessionId: string;
     request: PermissionRequest;
   } | null;
 }
 
-const initialState: CodingState = {
+export const initialState: CodingState = {
   connected: false,
   initialized: false,
   quests: {},
@@ -102,14 +118,28 @@ export type CodingAction =
   | { type: "QUEST_CLOSED"; questId: string }
   | { type: "QUEST_TITLE_UPDATED"; questId: string; title: string }
   | { type: "SESSION_UPDATE"; sessionId: string; update: SessionUpdate }
-  | { type: "USER_PROMPT_SENT"; text: string; attachments?: Attachment[] }
-  | { type: "PROMPT_COMPLETED"; questId: string; stopReason: string }
+  | { type: "PROMPT_ENQUEUED"; questId: string; item: QueuedPromptItem }
+  | { type: "PROMPT_DEQUEUED"; questId: string; promptId: string }
+  | {
+      type: "PROMPT_STARTED";
+      questId: string;
+      requestId: JsonRpcId;
+      text: string;
+      attachments?: Attachment[];
+      promptId?: string;
+    }
+  | {
+      type: "PROMPT_COMPLETED";
+      questId: string;
+      requestId?: JsonRpcId;
+      stopReason: string;
+    }
   | { type: "SET_MODEL"; modelId: string }
   | { type: "SET_MODE"; modeId: string }
   | { type: "SELECT_TOOL_CALL"; toolCallId: string | null }
   | {
       type: "PERMISSION_REQUEST";
-      id: number;
+      id: JsonRpcId;
       sessionId: string;
       request: PermissionRequest;
     }
@@ -206,9 +236,27 @@ function hasOwn(obj: object, key: string): boolean {
   return Object.prototype.hasOwnProperty.call(obj, key);
 }
 
+function extractTextFromContentBlock(content: ContentBlock | undefined): string {
+  if (!content) return "";
+  if (content.type === "text") {
+    return typeof content.text === "string" ? content.text : "";
+  }
+  if (content.type === "resource_link") {
+    const name = typeof content.name === "string" ? content.name : "resource";
+    return `[resource] ${name}`;
+  }
+  if (content.type === "image") return "[image]";
+  if (content.type === "audio") return "[audio]";
+  if (content.type === "resource") return "[embedded resource]";
+  return "";
+}
+
 // ===== Reducer =====
 
-function codingReducer(state: CodingState, action: CodingAction): CodingState {
+export function codingReducer(
+  state: CodingState,
+  action: CodingAction
+): CodingState {
   switch (action.type) {
     case "WS_CONNECTED":
       return { ...state, connected: true };
@@ -225,26 +273,32 @@ function codingReducer(state: CodingState, action: CodingAction): CodingState {
       };
 
     case "QUEST_CREATED": {
-      const quest: QuestData = {
-        id: action.sessionId,
-        title: `Quest ${Object.keys(state.quests).length + 1}`,
-        cwd: action.cwd,
-        messages: [],
-        currentModelId: action.currentModelId ?? state.models[0]?.modelId ?? "",
-        currentModeId: action.currentModeId ?? state.modes[0]?.id ?? "",
-        isProcessing: false,
-        selectedToolCallId: null,
-        artifacts: [],
-        activeArtifactId: null,
-        lastArtifactScanAt: Date.now(),
-        createdAt: Date.now(),
-      };
       const newModels =
         action.models && action.models.length > 0
           ? action.models
           : state.models;
       const newModes =
         action.modes && action.modes.length > 0 ? action.modes : state.modes;
+      const quest: QuestData = {
+        id: action.sessionId,
+        title: `Quest ${Object.keys(state.quests).length + 1}`,
+        cwd: action.cwd,
+        messages: [],
+        availableModels: newModels,
+        availableModes: newModes,
+        currentModelId: action.currentModelId ?? newModels[0]?.modelId ?? "",
+        currentModeId: action.currentModeId ?? newModes[0]?.id ?? "",
+        isProcessing: false,
+        inflightPromptId: null,
+        promptQueue: [],
+        lastStopReason: null,
+        lastCompletedAt: null,
+        selectedToolCallId: null,
+        artifacts: [],
+        activeArtifactId: null,
+        lastArtifactScanAt: Date.now(),
+        createdAt: Date.now(),
+      };
       return {
         ...state,
         quests: { ...state.quests, [action.sessionId]: quest },
@@ -275,9 +329,24 @@ function codingReducer(state: CodingState, action: CodingAction): CodingState {
         title: action.title,
       }));
 
-    case "USER_PROMPT_SENT": {
-      return updateActiveQuest(state, q => ({
+    case "PROMPT_ENQUEUED":
+      return updateQuestById(state, action.questId, q => ({
         ...q,
+        promptQueue: [...q.promptQueue, action.item],
+      }));
+
+    case "PROMPT_DEQUEUED":
+      return updateQuestById(state, action.questId, q => ({
+        ...q,
+        promptQueue: q.promptQueue.filter(item => item.id !== action.promptId),
+      }));
+
+    case "PROMPT_STARTED":
+      return updateQuestById(state, action.questId, q => ({
+        ...q,
+        promptQueue: action.promptId
+          ? q.promptQueue.filter(item => item.id !== action.promptId)
+          : q.promptQueue,
         messages: [
           ...q.messages,
           {
@@ -290,14 +359,26 @@ function codingReducer(state: CodingState, action: CodingAction): CodingState {
           } as ChatItem,
         ],
         isProcessing: true,
+        inflightPromptId: action.requestId,
       }));
-    }
 
     case "PROMPT_COMPLETED":
-      return updateQuestById(state, action.questId, q => ({
-        ...q,
-        isProcessing: false,
-      }));
+      return updateQuestById(state, action.questId, q => {
+        if (
+          action.requestId !== undefined &&
+          q.inflightPromptId !== null &&
+          q.inflightPromptId !== action.requestId
+        ) {
+          return q;
+        }
+        return {
+          ...q,
+          isProcessing: false,
+          inflightPromptId: null,
+          lastStopReason: action.stopReason,
+          lastCompletedAt: Date.now(),
+        };
+      });
 
     case "SET_MODEL":
       return updateActiveQuest(state, q => ({
@@ -377,11 +458,11 @@ function handleSessionUpdate(
 
   switch (variant) {
     case "agent_message_chunk": {
-      const text =
+      const contentBlock =
         "content" in update.update
-          ? ((update.update as { content?: { text?: string } }).content?.text ??
-            "")
-          : "";
+          ? (update.update as { content?: ContentBlock }).content
+          : undefined;
+      const text = extractTextFromContentBlock(contentBlock);
       return updateQuestById(state, sessionId, q => {
         const msgs = [...q.messages];
         const last = msgs[msgs.length - 1];
@@ -393,15 +474,35 @@ function handleSessionUpdate(
         } else {
           msgs.push({ type: "agent", id: chatItemId(), text, complete: false });
         }
-        return { ...q, messages: msgs };
+
+        let updated = { ...q, messages: msgs };
+
+        // Detect artifacts from resource_link content blocks
+        if (
+          contentBlock?.type === "resource_link" &&
+          typeof contentBlock.uri === "string"
+        ) {
+          let filePath = contentBlock.uri;
+          if (filePath.startsWith("file://")) filePath = filePath.slice(7);
+          if (filePath && !filePath.startsWith("http")) {
+            updated = applyArtifactPaths(
+              updated,
+              [filePath],
+              "resource-link"
+            );
+          }
+        }
+
+        return updated;
       });
     }
 
     case "agent_thought_chunk": {
       const text =
         "content" in update.update
-          ? ((update.update as { content?: { text?: string } }).content?.text ??
-            "")
+          ? extractTextFromContentBlock(
+              (update.update as { content?: ContentBlock }).content
+            )
           : "";
       return updateQuestById(state, sessionId, q => {
         const msgs = [...q.messages];
@@ -427,7 +528,7 @@ function handleSessionUpdate(
         toolCallId: string;
         status: ToolCallStatus;
         title: string;
-        kind: "read" | "edit" | "execute" | "skill";
+        kind: ToolKind;
         rawInput?: Record<string, unknown>;
         content?: ToolCallContentItem[];
         locations?: { path: string }[];
@@ -482,7 +583,7 @@ function handleSessionUpdate(
         toolCallId: string;
         status?: ToolCallStatus | null;
         title?: string | null;
-        kind?: ChatItemToolCall["kind"] | null;
+        kind?: ToolKind | null;
         rawInput?: Record<string, unknown> | null;
         content?: ToolCallContentItem[] | null;
         locations?: { path: string }[] | null;
@@ -499,14 +600,18 @@ function handleSessionUpdate(
           if (m.type === "tool_call" && m.toolCallId === u.toolCallId) {
             const tc: ChatItemToolCall = { ...m };
 
-            if (hasStatusField && u.status) {
-              tc.status = u.status;
+            if (
+              hasStatusField &&
+              typeof u.status === "string" &&
+              u.status.length > 0
+            ) {
+              tc.status = u.status as ToolCallStatus;
             }
             if (hasTitleField && typeof u.title === "string" && u.title) {
               tc.title = u.title;
             }
-            if (hasKindField && u.kind) {
-              tc.kind = u.kind;
+            if (hasKindField && typeof u.kind === "string" && u.kind) {
+              tc.kind = u.kind as ToolKind;
             }
             if (hasRawInputField) {
               tc.rawInput = u.rawInput ?? undefined;

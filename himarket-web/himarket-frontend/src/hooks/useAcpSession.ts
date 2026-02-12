@@ -13,6 +13,7 @@ import type {
   PermissionRequest,
   Attachment,
   ChatItemToolCall,
+  JsonRpcId,
 } from "../types/acp";
 import { ACP_METHODS } from "../types/acp";
 import {
@@ -28,6 +29,7 @@ import {
   extractSessionUpdate,
   extractPermissionRequest,
 } from "../lib/utils/acp";
+import { normalizeIncomingMessage } from "../lib/utils/acpNormalize";
 import {
   ARTIFACT_SCAN_FALLBACK_ENABLED,
   fetchWorkspaceChanges,
@@ -37,12 +39,65 @@ interface UseAcpSessionOptions {
   wsUrl: string;
 }
 
+interface QueuedPromptItemInput {
+  id: string;
+  text: string;
+  attachments?: Attachment[];
+  createdAt: number;
+}
+
 export function useAcpSession({ wsUrl }: UseAcpSessionOptions) {
   const dispatch = useCodingDispatch();
   const state = useCodingState();
+  const stateRef = useRef(state);
   const initializedRef = useRef(false);
   const sendRawRef = useRef<(data: string) => void>(() => {});
   const scanTriggeredRef = useRef<Set<string>>(new Set());
+  const promptSeqRef = useRef(0);
+
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
+  const startPrompt = useCallback(
+    (
+      questId: string,
+      text: string,
+      attachments?: Attachment[],
+      promptId?: string
+    ): JsonRpcId => {
+      const req = buildPrompt(questId, text, attachments);
+      dispatch({
+        type: "PROMPT_STARTED",
+        questId,
+        requestId: req.id,
+        text,
+        attachments,
+        promptId,
+      });
+      sendRawRef.current(JSON.stringify(req));
+      trackRequest(req.id)
+        .then(result => {
+          const r = result as { stopReason?: string };
+          dispatch({
+            type: "PROMPT_COMPLETED",
+            questId,
+            requestId: req.id,
+            stopReason: r?.stopReason ?? "unknown",
+          });
+        })
+        .catch(() => {
+          dispatch({
+            type: "PROMPT_COMPLETED",
+            questId,
+            requestId: req.id,
+            stopReason: "error",
+          });
+        });
+      return req.id;
+    },
+    [dispatch]
+  );
 
   const handleMessage = useCallback(
     (data: string) => {
@@ -52,8 +107,9 @@ export function useAcpSession({ wsUrl }: UseAcpSessionOptions) {
       } catch {
         return;
       }
+      parsed = normalizeIncomingMessage(parsed);
 
-      const hasId = typeof parsed.id === "number";
+      const hasId = typeof parsed.id === "number" || typeof parsed.id === "string";
       const hasMethod = typeof parsed.method === "string";
 
       // Response (has id, no method)
@@ -103,7 +159,15 @@ export function useAcpSession({ wsUrl }: UseAcpSessionOptions) {
             )
           );
         } else if (req.method === ACP_METHODS.TERMINAL_OUTPUT) {
-          send(JSON.stringify(buildResponse(req.id, {})));
+          send(
+            JSON.stringify(
+              buildResponse(req.id, {
+                output: "",
+                truncated: false,
+                exitStatus: null,
+              })
+            )
+          );
         }
       }
     },
@@ -125,6 +189,17 @@ export function useAcpSession({ wsUrl }: UseAcpSessionOptions) {
   }, [sendRaw]);
 
   useEffect(() => {
+    if (!state.initialized) return;
+    const quests = Object.values(state.quests);
+    for (const quest of quests) {
+      if (quest.isProcessing || quest.inflightPromptId !== null) continue;
+      const next = quest.promptQueue[0];
+      if (!next) continue;
+      startPrompt(quest.id, next.text, next.attachments, next.id);
+    }
+  }, [state.initialized, state.quests, startPrompt]);
+
+  useEffect(() => {
     if (!ARTIFACT_SCAN_FALLBACK_ENABLED) return;
 
     const quests = Object.values(state.quests);
@@ -132,7 +207,10 @@ export function useAcpSession({ wsUrl }: UseAcpSessionOptions) {
       for (const item of quest.messages) {
         if (item.type !== "tool_call") continue;
         const tc = item as ChatItemToolCall;
-        if (tc.kind !== "execute") continue;
+        const SCAN_SKIP_KINDS: ReadonlySet<string> = new Set([
+          "read", "search", "think", "fetch", "switch_mode",
+        ]);
+        if (SCAN_SKIP_KINDS.has(tc.kind)) continue;
         if (tc.status !== "completed" && tc.status !== "failed") continue;
 
         const scanKey = `${quest.id}:${tc.toolCallId}:${tc.status}`;
@@ -265,29 +343,37 @@ export function useAcpSession({ wsUrl }: UseAcpSessionOptions) {
 
   const sendPrompt = useCallback(
     (text: string, attachments?: Attachment[]) => {
-      const activeId = state.activeQuestId;
-      if (!activeId) return;
-      dispatch({ type: "USER_PROMPT_SENT", text, attachments });
-      const req = buildPrompt(activeId, text, attachments);
-      sendRawRef.current(JSON.stringify(req));
-      trackRequest(req.id)
-        .then(result => {
-          const r = result as { stopReason?: string };
-          dispatch({
-            type: "PROMPT_COMPLETED",
-            questId: activeId,
-            stopReason: r?.stopReason ?? "unknown",
-          });
-        })
-        .catch(() => {
-          dispatch({
-            type: "PROMPT_COMPLETED",
-            questId: activeId,
-            stopReason: "error",
-          });
-        });
+      const activeId = stateRef.current.activeQuestId;
+      if (!activeId) return { queued: false } as const;
+      const quest = stateRef.current.quests[activeId];
+      if (!quest) return { queued: false } as const;
+
+      if (quest.isProcessing || quest.inflightPromptId !== null) {
+        const item: QueuedPromptItemInput = {
+          id: `qp-${Date.now()}-${++promptSeqRef.current}`,
+          text,
+          ...(attachments && attachments.length > 0
+            ? { attachments }
+            : {}),
+          createdAt: Date.now(),
+        };
+        dispatch({ type: "PROMPT_ENQUEUED", questId: activeId, item });
+        return { queued: true, queuedPromptId: item.id } as const;
+      }
+
+      const requestId = startPrompt(activeId, text, attachments);
+      return { queued: false, requestId } as const;
     },
-    [dispatch, state.activeQuestId]
+    [dispatch, startPrompt]
+  );
+
+  const dropQueuedPrompt = useCallback(
+    (promptId: string) => {
+      const activeId = stateRef.current.activeQuestId;
+      if (!activeId) return;
+      dispatch({ type: "PROMPT_DEQUEUED", questId: activeId, promptId });
+    },
+    [dispatch]
   );
 
   const cancelPrompt = useCallback(() => {
@@ -319,7 +405,7 @@ export function useAcpSession({ wsUrl }: UseAcpSessionOptions) {
   );
 
   const respondPermission = useCallback(
-    (requestId: number, optionId: string) => {
+    (requestId: JsonRpcId, optionId: string) => {
       const resp = buildResponse(requestId, { optionId });
       sendRawRef.current(JSON.stringify(resp));
       dispatch({ type: "PERMISSION_RESOLVED" });
@@ -335,6 +421,7 @@ export function useAcpSession({ wsUrl }: UseAcpSessionOptions) {
     switchQuest,
     closeQuest,
     sendPrompt,
+    dropQueuedPrompt,
     cancelPrompt,
     setModel,
     setMode,

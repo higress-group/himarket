@@ -61,8 +61,15 @@ function getSummaryText(
   }
 
   if (meta.readCount > 0) parts.push(`${meta.readCount}次阅读`);
+  if (meta.deleteCount > 0) parts.push(`${meta.deleteCount}次删除`);
+  if (meta.moveCount > 0) parts.push(`${meta.moveCount}次移动`);
+  if (meta.searchCount > 0) parts.push(`${meta.searchCount}次搜索`);
   if (meta.executeCount > 0) parts.push(`${meta.executeCount}次执行`);
+  if (meta.fetchCount > 0) parts.push(`${meta.fetchCount}次抓取`);
+  if (meta.thinkCount > 0) parts.push(`${meta.thinkCount}次思考`);
+  if (meta.switchModeCount > 0) parts.push(`${meta.switchModeCount}次模式切换`);
   if (meta.skillCount > 0) parts.push(`${meta.skillCount}个技能`);
+  if (meta.otherCount > 0) parts.push(`${meta.otherCount}次其他操作`);
   if (parts.length === 0) return `${meta.toolCallCount} 个操作`;
   return parts.join(" · ");
 }

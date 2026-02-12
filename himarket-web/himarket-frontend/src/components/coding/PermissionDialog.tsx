@@ -1,8 +1,8 @@
-import type { PermissionRequest } from "../../types/acp";
+import type { JsonRpcId, PermissionRequest } from "../../types/acp";
 
 interface PermissionDialogProps {
-  permission: { id: number; request: PermissionRequest };
-  onRespond: (requestId: number, optionId: string) => void;
+  permission: { id: JsonRpcId; request: PermissionRequest };
+  onRespond: (requestId: JsonRpcId, optionId: string) => void;
 }
 
 export function PermissionDialog({

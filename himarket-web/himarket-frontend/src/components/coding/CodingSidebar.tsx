@@ -24,7 +24,7 @@ export function CodingSidebar({
   return (
     <div className="w-56 flex-shrink-0 flex flex-col border-r border-gray-200/60 bg-white/40 backdrop-blur-sm">
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200/60">
-        <span className="text-sm font-semibold text-gray-700">HiCoding</span>
+        <span className="text-sm font-semibold text-gray-700">HiWork</span>
         <button
           className="w-7 h-7 flex items-center justify-center rounded-md text-gray-500
                      hover:bg-gray-100 hover:text-gray-700 transition-colors disabled:opacity-40"

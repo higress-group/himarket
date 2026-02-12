@@ -16,12 +16,13 @@ import {
 } from "../../context/CodingSessionContext";
 import { ChangesView } from "./ChangesView";
 import { ArtifactPreview } from "./ArtifactPreview";
+import { TerminalView } from "./TerminalView";
 import type { Artifact, ArtifactType } from "../../types/artifact";
 import type { ChatItemToolCall } from "../../types/acp";
 
 // ===== Tab types =====
 
-type TabId = "changes" | `artifact-${string}`;
+type TabId = "changes" | `artifact-${string}` | `terminal-${string}`;
 
 interface TabDef {
   id: TabId;
@@ -38,6 +39,8 @@ const artifactTypeIcons: Record<ArtifactType, typeof FileText> = {
   pdf: FileSpreadsheet,
   file: FileBox,
 };
+
+const TerminalIcon = FileCode;
 
 // ===== Component =====
 
@@ -62,6 +65,24 @@ export function RightPanel({ collapsed, onToggleCollapse }: RightPanelProps) {
     );
   }, [questMessages]);
 
+  const terminals = useMemo(() => {
+    if (!questMessages) return [] as Array<{ terminalId: string; toolCall: ChatItemToolCall }>;
+    const byId = new Map<string, ChatItemToolCall>();
+    for (const m of questMessages) {
+      if (m.type !== "tool_call") continue;
+      const tc = m as ChatItemToolCall;
+      for (const c of tc.content ?? []) {
+        if (c.type === "terminal" && c.terminalId) {
+          byId.set(c.terminalId, tc);
+        }
+      }
+    }
+    return Array.from(byId.entries()).map(([terminalId, toolCall]) => ({
+      terminalId,
+      toolCall,
+    }));
+  }, [questMessages]);
+
   // Build tab list
   const tabs = useMemo<TabDef[]>(() => {
     const result: TabDef[] = [];
@@ -81,8 +102,16 @@ export function RightPanel({ collapsed, onToggleCollapse }: RightPanelProps) {
         closable: false,
       });
     }
+    for (const terminal of terminals) {
+      result.push({
+        id: `terminal-${terminal.terminalId}`,
+        label: `Terminal ${terminal.terminalId}`,
+        icon: TerminalIcon,
+        closable: false,
+      });
+    }
     return result;
-  }, [hasDiffs, artifacts]);
+  }, [hasDiffs, artifacts, terminals]);
 
   // Active tab state
   const [activeTabId, setActiveTabId] = useState<TabId>(
@@ -136,6 +165,9 @@ export function RightPanel({ collapsed, onToggleCollapse }: RightPanelProps) {
   const activeArtifact: Artifact | null = activeTabId.startsWith("artifact-")
     ? (artifacts.find(a => `artifact-${a.id}` === activeTabId) ?? null)
     : null;
+  const activeTerminal = activeTabId.startsWith("terminal-")
+    ? terminals.find(t => `terminal-${t.terminalId}` === activeTabId) ?? null
+    : null;
 
   return (
     <div className="w-[520px] flex-shrink-0 border-l border-gray-200/60 bg-white/30 backdrop-blur-sm flex flex-col">
@@ -187,6 +219,11 @@ export function RightPanel({ collapsed, onToggleCollapse }: RightPanelProps) {
       <div className="flex-1 min-h-0 overflow-y-auto">
         {activeTabId === "changes" ? (
           <ChangesView />
+        ) : activeTerminal ? (
+          <TerminalView
+            terminalId={activeTerminal.terminalId}
+            toolCall={activeTerminal.toolCall}
+          />
         ) : activeArtifact ? (
           <ArtifactPreview artifact={activeArtifact} />
         ) : (

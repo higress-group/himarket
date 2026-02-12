@@ -7,8 +7,15 @@ export interface WorkUnitMeta {
   hasReasoningHeader: boolean;
   readCount: number;
   editCount: number;
+  deleteCount: number;
+  moveCount: number;
+  searchCount: number;
   executeCount: number;
+  thinkCount: number;
+  fetchCount: number;
+  switchModeCount: number;
   skillCount: number;
+  otherCount: number;
   toolCallCount: number;
   allCompleted: boolean;
   hasInProgress: boolean;
@@ -29,8 +36,15 @@ function buildWorkUnitId(items: ChatItem[]): string {
 export function computeWorkUnitMeta(items: ChatItem[]): WorkUnitMeta {
   let readCount = 0;
   let editCount = 0;
+  let deleteCount = 0;
+  let moveCount = 0;
+  let searchCount = 0;
   let executeCount = 0;
+  let thinkCount = 0;
+  let fetchCount = 0;
+  let switchModeCount = 0;
   let skillCount = 0;
+  let otherCount = 0;
   let toolCallCount = 0;
   let allCompleted = true;
   let hasInProgress = false;
@@ -61,8 +75,29 @@ export function computeWorkUnitMeta(items: ChatItem[]): WorkUnitMeta {
         case "edit":
           editCount++;
           break;
+        case "delete":
+          deleteCount++;
+          break;
+        case "move":
+          moveCount++;
+          break;
+        case "search":
+          searchCount++;
+          break;
         case "execute":
           executeCount++;
+          break;
+        case "think":
+          thinkCount++;
+          break;
+        case "fetch":
+          fetchCount++;
+          break;
+        case "switch_mode":
+          switchModeCount++;
+          break;
+        default:
+          otherCount++;
           break;
       }
     }
@@ -86,8 +121,15 @@ export function computeWorkUnitMeta(items: ChatItem[]): WorkUnitMeta {
     hasReasoningHeader,
     readCount,
     editCount,
+    deleteCount,
+    moveCount,
+    searchCount,
     executeCount,
+    thinkCount,
+    fetchCount,
+    switchModeCount,
     skillCount,
+    otherCount,
     toolCallCount,
     allCompleted,
     hasInProgress,

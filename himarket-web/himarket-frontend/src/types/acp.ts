@@ -1,17 +1,18 @@
 // ===== JSON-RPC 2.0 Base Types =====
 
 export const JSONRPC_VERSION = "2.0" as const;
+export type JsonRpcId = number | string;
 
 export interface AcpRequest {
   jsonrpc: typeof JSONRPC_VERSION;
-  id: number;
+  id: JsonRpcId;
   method: string;
   params?: Record<string, unknown>;
 }
 
 export interface AcpResponse {
   jsonrpc: typeof JSONRPC_VERSION;
-  id: number;
+  id: JsonRpcId;
   result?: unknown;
   error?: { code: number; message: string };
 }
@@ -125,15 +126,40 @@ export interface PromptResult {
 // ===== ToolCall Sub-types =====
 
 export type ToolCallStatus = "pending" | "in_progress" | "completed" | "failed";
-export type ToolKind = "read" | "edit" | "execute" | "skill";
+export type ToolKind =
+  | "read"
+  | "edit"
+  | "delete"
+  | "move"
+  | "search"
+  | "execute"
+  | "think"
+  | "fetch"
+  | "switch_mode"
+  | "other"
+  | "skill";
 
-export interface ToolCallContentItem {
-  type: "content" | "diff";
-  content?: { type: "text"; text: string };
+export interface ToolCallContentTextItem {
+  type: "content";
+  content?: ContentBlock;
+}
+
+export interface ToolCallContentDiffItem {
+  type: "diff";
   path?: string;
   oldText?: string | null;
-  newText?: string;
+  newText?: string | null;
 }
+
+export interface ToolCallContentTerminalItem {
+  type: "terminal";
+  terminalId: string;
+}
+
+export type ToolCallContentItem =
+  | ToolCallContentTextItem
+  | ToolCallContentDiffItem
+  | ToolCallContentTerminalItem;
 
 export interface ToolCallLocationItem {
   path: string;
@@ -273,7 +299,7 @@ export interface PermissionRequest {
     rawInput?: Record<string, unknown>;
     status?: string;
     title?: string;
-    kind?: string;
+    kind?: ToolKind | string;
     content?: ToolCallContentItem[];
     locations?: ToolCallLocationItem[];
   };
