@@ -1,11 +1,11 @@
 import { Sparkles } from "lucide-react";
 
-interface CodingWelcomeProps {
+interface QuestWelcomeProps {
   onCreateQuest: () => void;
   disabled: boolean;
 }
 
-export function CodingWelcome({ onCreateQuest, disabled }: CodingWelcomeProps) {
+export function QuestWelcome({ onCreateQuest, disabled }: QuestWelcomeProps) {
   return (
     <div className="flex-1 flex items-center justify-center">
       <div className="text-center">

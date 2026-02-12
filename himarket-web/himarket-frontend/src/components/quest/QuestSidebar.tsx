@@ -1,20 +1,20 @@
 import { useState } from "react";
 import { Plus } from "lucide-react";
-import { useCodingState } from "../../context/CodingSessionContext";
-import type { QuestData } from "../../context/CodingSessionContext";
+import { useQuestState } from "../../context/QuestSessionContext";
+import type { QuestData } from "../../context/QuestSessionContext";
 
-interface CodingSidebarProps {
+interface QuestSidebarProps {
   onCreateQuest: () => void;
   onSwitchQuest: (questId: string) => void;
   onCloseQuest: (questId: string) => void;
 }
 
-export function CodingSidebar({
+export function QuestSidebar({
   onCreateQuest,
   onSwitchQuest,
   onCloseQuest,
-}: CodingSidebarProps) {
-  const state = useCodingState();
+}: QuestSidebarProps) {
+  const state = useQuestState();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   const questList = Object.values(state.quests).sort(

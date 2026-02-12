@@ -1,17 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
-  codingReducer,
+  questReducer,
   initialState,
-  type CodingState,
+  type QuestState,
   type QueuedPromptItem,
-} from "./CodingSessionContext";
+} from "./QuestSessionContext";
 
 function buildQueueItem(id: string, text: string): QueuedPromptItem {
   return { id, text, createdAt: Date.now() };
 }
 
-function createQuestState(): CodingState {
-  return codingReducer(initialState, {
+function createQuestState(): QuestState {
+  return questReducer(initialState, {
     type: "QUEST_CREATED",
     sessionId: "q1",
     cwd: ".",
@@ -22,22 +22,22 @@ function createQuestState(): CodingState {
   });
 }
 
-describe("codingReducer prompt queue state machine", () => {
+describe("questReducer prompt queue state machine", () => {
   it("supports single-flight prompt + queue", () => {
     let state = createQuestState();
 
-    state = codingReducer(state, {
+    state = questReducer(state, {
       type: "PROMPT_STARTED",
       questId: "q1",
       requestId: 1,
       text: "first",
     });
-    state = codingReducer(state, {
+    state = questReducer(state, {
       type: "PROMPT_ENQUEUED",
       questId: "q1",
       item: buildQueueItem("qp-2", "second"),
     });
-    state = codingReducer(state, {
+    state = questReducer(state, {
       type: "PROMPT_ENQUEUED",
       questId: "q1",
       item: buildQueueItem("qp-3", "third"),
@@ -48,7 +48,7 @@ describe("codingReducer prompt queue state machine", () => {
     expect(q1.isProcessing).toBe(true);
     expect(q1.promptQueue.map(item => item.id)).toEqual(["qp-2", "qp-3"]);
 
-    state = codingReducer(state, {
+    state = questReducer(state, {
       type: "PROMPT_COMPLETED",
       questId: "q1",
       requestId: 1,
@@ -58,7 +58,7 @@ describe("codingReducer prompt queue state machine", () => {
     expect(state.quests.q1.inflightPromptId).toBeNull();
     expect(state.quests.q1.promptQueue.length).toBe(2);
 
-    state = codingReducer(state, {
+    state = questReducer(state, {
       type: "PROMPT_STARTED",
       questId: "q1",
       requestId: 2,
@@ -68,20 +68,20 @@ describe("codingReducer prompt queue state machine", () => {
     expect(state.quests.q1.inflightPromptId).toBe(2);
     expect(state.quests.q1.promptQueue.map(item => item.id)).toEqual(["qp-3"]);
 
-    state = codingReducer(state, {
+    state = questReducer(state, {
       type: "PROMPT_COMPLETED",
       questId: "q1",
       requestId: 2,
       stopReason: "completed",
     });
-    state = codingReducer(state, {
+    state = questReducer(state, {
       type: "PROMPT_STARTED",
       questId: "q1",
       requestId: 3,
       promptId: "qp-3",
       text: "third",
     });
-    state = codingReducer(state, {
+    state = questReducer(state, {
       type: "PROMPT_COMPLETED",
       questId: "q1",
       requestId: 3,
@@ -97,14 +97,14 @@ describe("codingReducer prompt queue state machine", () => {
 
   it("ignores stale completion from non-inflight request", () => {
     let state = createQuestState();
-    state = codingReducer(state, {
+    state = questReducer(state, {
       type: "PROMPT_STARTED",
       questId: "q1",
       requestId: 100,
       text: "only",
     });
 
-    state = codingReducer(state, {
+    state = questReducer(state, {
       type: "PROMPT_COMPLETED",
       questId: "q1",
       requestId: 999,

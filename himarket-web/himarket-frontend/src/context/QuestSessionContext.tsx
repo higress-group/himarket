@@ -61,7 +61,7 @@ export interface QueuedPromptItem {
 
 // ===== App State =====
 
-export interface CodingState {
+export interface QuestState {
   connected: boolean;
   initialized: boolean;
   quests: Record<string, QuestData>;
@@ -81,7 +81,7 @@ export interface CodingState {
   } | null;
 }
 
-export const initialState: CodingState = {
+export const initialState: QuestState = {
   connected: false,
   initialized: false,
   quests: {},
@@ -95,7 +95,7 @@ export const initialState: CodingState = {
 
 // ===== Actions =====
 
-export type CodingAction =
+export type QuestAction =
   | { type: "WS_CONNECTED" }
   | { type: "WS_DISCONNECTED" }
   | {
@@ -162,25 +162,25 @@ function chatItemId(): string {
   return `ci-${++_chatItemId}`;
 }
 
-function getActiveQuest(state: CodingState): QuestData | null {
+function getActiveQuest(state: QuestState): QuestData | null {
   if (!state.activeQuestId) return null;
   return state.quests[state.activeQuestId] ?? null;
 }
 
 function updateActiveQuest(
-  state: CodingState,
+  state: QuestState,
   updater: (q: QuestData) => QuestData
-): CodingState {
+): QuestState {
   const quest = getActiveQuest(state);
   if (!quest) return state;
   return { ...state, quests: { ...state.quests, [quest.id]: updater(quest) } };
 }
 
 function updateQuestById(
-  state: CodingState,
+  state: QuestState,
   questId: string,
   updater: (q: QuestData) => QuestData
-): CodingState {
+): QuestState {
   const quest = state.quests[questId];
   if (!quest) return state;
   return { ...state, quests: { ...state.quests, [questId]: updater(quest) } };
@@ -253,10 +253,10 @@ function extractTextFromContentBlock(content: ContentBlock | undefined): string 
 
 // ===== Reducer =====
 
-export function codingReducer(
-  state: CodingState,
-  action: CodingAction
-): CodingState {
+export function questReducer(
+  state: QuestState,
+  action: QuestAction
+): QuestState {
   switch (action.type) {
     case "WS_CONNECTED":
       return { ...state, connected: true };
@@ -450,10 +450,10 @@ export function codingReducer(
 }
 
 function handleSessionUpdate(
-  state: CodingState,
+  state: QuestState,
   sessionId: string,
   update: SessionUpdate
-): CodingState {
+): QuestState {
   const variant = update.update.sessionUpdate;
 
   switch (variant) {
@@ -704,7 +704,7 @@ function handleSessionUpdate(
     case "usage_update": {
       const u = update.update as {
         sessionUpdate: "usage_update";
-        usage: CodingState["usage"];
+        usage: QuestState["usage"];
       };
       return { ...state, usage: u.usage };
     }
@@ -716,30 +716,30 @@ function handleSessionUpdate(
 
 // ===== Context =====
 
-const CodingStateContext = createContext<CodingState>(initialState);
-const CodingDispatchContext = createContext<Dispatch<CodingAction>>(() => {});
+const QuestStateContext = createContext<QuestState>(initialState);
+const QuestDispatchContext = createContext<Dispatch<QuestAction>>(() => {});
 
-export function CodingSessionProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(codingReducer, initialState);
+export function QuestSessionProvider({ children }: { children: ReactNode }) {
+  const [state, dispatch] = useReducer(questReducer, initialState);
   return (
-    <CodingStateContext.Provider value={state}>
-      <CodingDispatchContext.Provider value={dispatch}>
+    <QuestStateContext.Provider value={state}>
+      <QuestDispatchContext.Provider value={dispatch}>
         {children}
-      </CodingDispatchContext.Provider>
-    </CodingStateContext.Provider>
+      </QuestDispatchContext.Provider>
+    </QuestStateContext.Provider>
   );
 }
 
-export function useCodingState(): CodingState {
-  return useContext(CodingStateContext);
+export function useQuestState(): QuestState {
+  return useContext(QuestStateContext);
 }
 
-export function useCodingDispatch(): Dispatch<CodingAction> {
-  return useContext(CodingDispatchContext);
+export function useQuestDispatch(): Dispatch<QuestAction> {
+  return useContext(QuestDispatchContext);
 }
 
 export function useActiveQuest(): QuestData | null {
-  const state = useCodingState();
+  const state = useQuestState();
   if (!state.activeQuestId) return null;
   return state.quests[state.activeQuestId] ?? null;
 }

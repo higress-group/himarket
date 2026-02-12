@@ -16,11 +16,11 @@ import {
   FileText,
   Loader2,
 } from "lucide-react";
-import { useCodingState } from "../../context/CodingSessionContext";
+import { useQuestState } from "../../context/QuestSessionContext";
 import { SlashMenu } from "./SlashMenu";
 import { uploadFileToWorkspace } from "../../lib/utils/workspaceApi";
 import type { Attachment, FilePathAttachment } from "../../types/acp";
-import type { QueuedPromptItem } from "../../context/CodingSessionContext";
+import type { QueuedPromptItem } from "../../context/QuestSessionContext";
 
 const MAX_ATTACHMENTS = 10;
 const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
@@ -53,7 +53,7 @@ function nextAttId(): string {
   return `att-${++_attId}-${Date.now()}`;
 }
 
-interface CodingInputProps {
+interface QuestInputProps {
   onSend: (
     text: string,
     attachments?: Attachment[]
@@ -69,7 +69,7 @@ interface CodingInputProps {
   disabled: boolean;
 }
 
-export function CodingInput({
+export function QuestInput({
   onSend,
   onSendQueued,
   onDropQueuedPrompt,
@@ -78,7 +78,7 @@ export function CodingInput({
   queueSize,
   queuedPrompts,
   disabled,
-}: CodingInputProps) {
+}: QuestInputProps) {
   const [text, setText] = useState("");
   const [showSlash, setShowSlash] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -86,7 +86,7 @@ export function CodingInput({
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const state = useCodingState();
+  const state = useQuestState();
 
   // Upload files to backend and create FilePathAttachment entries
   const addFiles = useCallback(

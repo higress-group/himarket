@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ChevronRight, ChevronDown } from "lucide-react";
-import { useActiveQuest } from "../../context/CodingSessionContext";
+import { useActiveQuest } from "../../context/QuestSessionContext";
 import { DiffViewer } from "./DiffViewer";
 import { TerminalOutput } from "./TerminalOutput";
 import type { ChatItemToolCall } from "../../types/acp";

@@ -1,6 +1,6 @@
 import { useRef, useEffect, useMemo, useState, useCallback } from "react";
 import { MessageCircle, ArrowDown } from "lucide-react";
-import { useActiveQuest } from "../../context/CodingSessionContext";
+import { useActiveQuest } from "../../context/QuestSessionContext";
 import { groupMessages } from "../../lib/utils/groupMessages";
 import { UserMessage } from "./UserMessage";
 import { AgentMessage } from "./AgentMessage";

@@ -7,7 +7,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { ArtifactRenderer } from "./renderers/ArtifactRenderer";
-import { useCodingDispatch } from "../../context/CodingSessionContext";
+import { useQuestDispatch } from "../../context/QuestSessionContext";
 import { fetchArtifactContent } from "../../lib/utils/workspaceApi";
 import type { Artifact } from "../../types/artifact";
 
@@ -16,7 +16,7 @@ interface ArtifactPreviewProps {
 }
 
 export function ArtifactPreview({ artifact }: ArtifactPreviewProps) {
-  const dispatch = useCodingDispatch();
+  const dispatch = useQuestDispatch();
   const [error, setError] = useState<string | null>(null);
   const [retryToken, setRetryToken] = useState(0);
 

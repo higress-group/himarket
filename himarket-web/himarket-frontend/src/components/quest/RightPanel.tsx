@@ -12,8 +12,8 @@ import {
 } from "lucide-react";
 import {
   useActiveQuest,
-  useCodingDispatch,
-} from "../../context/CodingSessionContext";
+  useQuestDispatch,
+} from "../../context/QuestSessionContext";
 import { ChangesView } from "./ChangesView";
 import { ArtifactPreview } from "./ArtifactPreview";
 import { TerminalView } from "./TerminalView";
@@ -51,7 +51,7 @@ interface RightPanelProps {
 
 export function RightPanel({ collapsed, onToggleCollapse }: RightPanelProps) {
   const quest = useActiveQuest();
-  const dispatch = useCodingDispatch();
+  const dispatch = useQuestDispatch();
   const questArtifacts = quest?.artifacts;
   const questMessages = quest?.messages;
   const artifacts = useMemo(() => questArtifacts ?? [], [questArtifacts]);

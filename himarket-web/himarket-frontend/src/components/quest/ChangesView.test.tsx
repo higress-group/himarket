@@ -4,7 +4,7 @@ import { ChangesView } from "./ChangesView";
 
 const useActiveQuestMock = vi.fn();
 
-vi.mock("../../context/CodingSessionContext", () => ({
+vi.mock("../../context/QuestSessionContext", () => ({
   useActiveQuest: () => useActiveQuestMock(),
 }));
 

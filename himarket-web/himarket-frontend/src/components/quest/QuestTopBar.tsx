@@ -1,21 +1,21 @@
 import {
-  useCodingState,
+  useQuestState,
   useActiveQuest,
-} from "../../context/CodingSessionContext";
+} from "../../context/QuestSessionContext";
 import type { WsStatus } from "../../hooks/useAcpWebSocket";
 
-interface CodingTopBarProps {
+interface QuestTopBarProps {
   status: WsStatus;
   onSetModel: (modelId: string) => void;
   onSetMode: (modeId: string) => void;
 }
 
-export function CodingTopBar({
+export function QuestTopBar({
   status,
   onSetModel,
   onSetMode,
-}: CodingTopBarProps) {
-  const state = useCodingState();
+}: QuestTopBarProps) {
+  const state = useQuestState();
   const quest = useActiveQuest();
 
   const statusColor =

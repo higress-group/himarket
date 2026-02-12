@@ -4,7 +4,7 @@ import { ChatStream } from "./ChatStream";
 
 const useActiveQuestMock = vi.fn();
 
-vi.mock("../../context/CodingSessionContext", () => ({
+vi.mock("../../context/QuestSessionContext", () => ({
   useActiveQuest: () => useActiveQuestMock(),
 }));
 

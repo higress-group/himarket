@@ -1,20 +1,20 @@
 import { useState, useCallback, useMemo } from "react";
 import { Layout } from "../components/Layout";
 import {
-  CodingSessionProvider,
-  useCodingState,
+  QuestSessionProvider,
+  useQuestState,
   useActiveQuest,
-  useCodingDispatch,
-} from "../context/CodingSessionContext";
+  useQuestDispatch,
+} from "../context/QuestSessionContext";
 import { useAcpSession } from "../hooks/useAcpSession";
-import { CodingSidebar } from "../components/coding/CodingSidebar";
-import { CodingTopBar } from "../components/coding/CodingTopBar";
-import { CodingWelcome } from "../components/coding/CodingWelcome";
-import { ChatStream } from "../components/coding/ChatStream";
-import { RightPanel } from "../components/coding/RightPanel";
-import { CodingInput } from "../components/coding/CodingInput";
-import { PermissionDialog } from "../components/coding/PermissionDialog";
-import { PlanDisplay } from "../components/coding/PlanDisplay";
+import { QuestSidebar } from "../components/quest/QuestSidebar";
+import { QuestTopBar } from "../components/quest/QuestTopBar";
+import { QuestWelcome } from "../components/quest/QuestWelcome";
+import { ChatStream } from "../components/quest/ChatStream";
+import { RightPanel } from "../components/quest/RightPanel";
+import { QuestInput } from "../components/quest/QuestInput";
+import { PermissionDialog } from "../components/quest/PermissionDialog";
+import { PlanDisplay } from "../components/quest/PlanDisplay";
 import type { ChatItemPlan, ChatItemToolCall } from "../types/acp";
 
 function buildWsUrl(): string {
@@ -23,12 +23,12 @@ function buildWsUrl(): string {
   return token ? `${base}?token=${encodeURIComponent(token)}` : base;
 }
 
-function CodingContent() {
+function QuestContent() {
   const [wsUrl] = useState(buildWsUrl);
   const session = useAcpSession({ wsUrl });
-  const state = useCodingState();
+  const state = useQuestState();
   const activeQuest = useActiveQuest();
-  const dispatch = useCodingDispatch();
+  const dispatch = useQuestDispatch();
   const [panelCollapsed, setPanelCollapsed] = useState(false);
 
   const handleCreateQuest = useCallback(() => {
@@ -69,7 +69,7 @@ function CodingContent() {
 
   return (
     <div className="flex h-full">
-      <CodingSidebar
+      <QuestSidebar
         onCreateQuest={handleCreateQuest}
         onSwitchQuest={session.switchQuest}
         onCloseQuest={session.closeQuest}
@@ -78,7 +78,7 @@ function CodingContent() {
         <div className="flex-1 flex min-w-0">
           {/* Middle column: top bar + chat + input */}
           <div className="flex-1 flex flex-col min-w-0">
-            <CodingTopBar
+            <QuestTopBar
               status={session.status}
               onSetModel={session.setModel}
               onSetMode={session.setMode}
@@ -93,7 +93,7 @@ function CodingContent() {
                 <PlanDisplay entries={planEntries} />
               </div>
             )}
-            <CodingInput
+            <QuestInput
               onSend={session.sendPrompt}
               onDropQueuedPrompt={session.dropQueuedPrompt}
               onCancel={session.cancelPrompt}
@@ -113,7 +113,7 @@ function CodingContent() {
         </div>
       ) : (
         <div className="flex-1 flex flex-col min-w-0">
-          <CodingWelcome
+          <QuestWelcome
             onCreateQuest={handleCreateQuest}
             disabled={!state.initialized}
           />
@@ -130,14 +130,14 @@ function CodingContent() {
   );
 }
 
-function Coding() {
+function Quest() {
   return (
     <Layout className="h-screen overflow-hidden">
-      <CodingSessionProvider>
-        <CodingContent />
-      </CodingSessionProvider>
+      <QuestSessionProvider>
+        <QuestContent />
+      </QuestSessionProvider>
     </Layout>
   );
 }
 
-export default Coding;
+export default Quest;

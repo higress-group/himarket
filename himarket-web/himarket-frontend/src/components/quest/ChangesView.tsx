@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useActiveQuest } from "../../context/CodingSessionContext";
+import { useActiveQuest } from "../../context/QuestSessionContext";
 import { DiffViewer } from "./DiffViewer";
 import type { ChatItemToolCall } from "../../types/acp";
 

@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useAcpWebSocket, type WsStatus } from "./useAcpWebSocket";
 import {
-  useCodingDispatch,
-  useCodingState,
-} from "../context/CodingSessionContext";
+  useQuestDispatch,
+  useQuestState,
+} from "../context/QuestSessionContext";
 import type {
   AcpRequest,
   AcpResponse,
@@ -47,12 +47,13 @@ interface QueuedPromptItemInput {
 }
 
 export function useAcpSession({ wsUrl }: UseAcpSessionOptions) {
-  const dispatch = useCodingDispatch();
-  const state = useCodingState();
+  const dispatch = useQuestDispatch();
+  const state = useQuestState();
   const stateRef = useRef(state);
   const initializedRef = useRef(false);
   const sendRawRef = useRef<(data: string) => void>(() => {});
   const scanTriggeredRef = useRef<Set<string>>(new Set());
+  const autoPermissionsRef = useRef<Record<string, "allow" | "reject">>({});
   const promptSeqRef = useRef(0);
 
   useEffect(() => {
@@ -145,6 +146,28 @@ export function useAcpSession({ wsUrl }: UseAcpSessionOptions) {
           if (perm) {
             const sessionId =
               (req.params as { sessionId?: string })?.sessionId ?? "";
+            const autoDecision = autoPermissionsRef.current[sessionId];
+            if (autoDecision) {
+              // Find a matching option to auto-respond with
+              const targetKind =
+                autoDecision === "allow" ? "allow_once" : "reject_once";
+              const option =
+                perm.options.find(o => o.kind === targetKind) ??
+                perm.options.find(o => o.kind.startsWith(autoDecision));
+              if (option) {
+                send(
+                  JSON.stringify(
+                    buildResponse(req.id, {
+                      outcome: {
+                        outcome: "selected",
+                        optionId: option.optionId,
+                      },
+                    })
+                  )
+                );
+                return;
+              }
+            }
             dispatch({
               type: "PERMISSION_REQUEST",
               id: req.id,
@@ -406,7 +429,22 @@ export function useAcpSession({ wsUrl }: UseAcpSessionOptions) {
 
   const respondPermission = useCallback(
     (requestId: JsonRpcId, optionId: string) => {
-      const resp = buildResponse(requestId, { optionId });
+      // Look up the selected option's kind from the pending permission
+      const pending = stateRef.current.pendingPermission;
+      const option = pending?.request.options.find(
+        o => o.optionId === optionId
+      );
+
+      // Store auto-permission if it's an "always" kind
+      if (option?.kind === "allow_always" && pending?.sessionId) {
+        autoPermissionsRef.current[pending.sessionId] = "allow";
+      } else if (option?.kind === "reject_always" && pending?.sessionId) {
+        autoPermissionsRef.current[pending.sessionId] = "reject";
+      }
+
+      const resp = buildResponse(requestId, {
+        outcome: { outcome: "selected", optionId },
+      });
       sendRawRef.current(JSON.stringify(resp));
       dispatch({ type: "PERMISSION_RESOLVED" });
     },
