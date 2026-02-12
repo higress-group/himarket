@@ -338,7 +338,7 @@ export function QuestInput({
             className="flex-1 resize-none rounded-xl border border-gray-200/80 bg-white/80 px-4 py-2.5
                        text-sm text-gray-700 placeholder-gray-400
                        outline-none focus:border-gray-300 focus:shadow-sm transition-all
-                       min-h-[40px] max-h-[160px]"
+                       min-h-[40px] max-h-[160px] overflow-y-hidden"
             value={text}
             onChange={e => handleChange(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -346,32 +346,32 @@ export function QuestInput({
             placeholder={
               disabled
                 ? "正在连接..."
-                : "输入消息… (Enter 发送, Shift+Enter 换行)"
+                : "输入消息… (Enter 发送)"
             }
             disabled={disabled}
             rows={1}
           />
         </div>
         {isProcessing ? (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <button
               className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium
-                         bg-gray-800 text-white
+                         bg-gray-800 text-white whitespace-nowrap flex-shrink-0
                          hover:bg-gray-700 transition-colors
                          disabled:opacity-40 disabled:cursor-not-allowed"
               onClick={handleSend}
               disabled={!canSend}
             >
-              <Send size={14} />
+              <Send size={14} className="flex-shrink-0" />
               发送到队列
             </button>
             <button
               className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium
-                         bg-red-50 text-red-600 border border-red-200
+                         bg-red-50 text-red-600 border border-red-200 whitespace-nowrap flex-shrink-0
                          hover:bg-red-100 transition-colors"
               onClick={onCancel}
             >
-              <Square size={14} />
+              <Square size={14} className="flex-shrink-0" />
               停止
             </button>
           </div>

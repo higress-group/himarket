@@ -1,4 +1,5 @@
 import request from "../request";
+import type { FileNode } from "../../types/coding";
 
 interface FileContentResponse {
   content: string;
@@ -54,7 +55,10 @@ function parseWorkspaceError(error: unknown): WorkspaceApiError {
       "Workspace API request failed";
     return { code, message, status };
   }
-  return { code: "WORKSPACE_API_ERROR", message: "Workspace API request failed" };
+  return {
+    code: "WORKSPACE_API_ERROR",
+    message: "Workspace API request failed",
+  };
 }
 
 /**
@@ -130,11 +134,41 @@ export async function fetchWorkspaceChanges(
   limit = 200
 ): Promise<WorkspaceChange[]> {
   try {
-    const resp: WorkspaceChangesResponse = await request.get("/workspace/changes", {
-      params: { cwd, since, limit },
-    });
+    const resp: WorkspaceChangesResponse = await request.get(
+      "/workspace/changes",
+      {
+        params: { cwd, since, limit },
+      }
+    );
     return resp.changes ?? [];
   } catch {
     return [];
   }
+}
+
+/**
+ * Fetch directory tree from workspace.
+ * Backend returns a root node { name, path, type, children }.
+ * We extract children as the top-level tree.
+ */
+export async function fetchDirectoryTree(
+  cwd: string,
+  depth = 5
+): Promise<FileNode[]> {
+  try {
+    const resp: FileNode = await request.get("/workspace/tree", {
+      params: { cwd, depth },
+    });
+    return resp.children ?? [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Build preview URL for a dev server running on the given port.
+ * In local development, directly access the dev server on localhost.
+ */
+export function getPreviewUrl(port: number): string {
+  return `http://localhost:${port}/`;
 }

@@ -110,7 +110,14 @@ export function useAcpSession({ wsUrl }: UseAcpSessionOptions) {
       }
       parsed = normalizeIncomingMessage(parsed);
 
-      const hasId = typeof parsed.id === "number" || typeof parsed.id === "string";
+      // Debug: log all terminal-related messages
+      const method = parsed.method as string | undefined;
+      if (method && method.startsWith("terminal")) {
+        console.log("[ACP Terminal]", method, parsed);
+      }
+
+      const hasId =
+        typeof parsed.id === "number" || typeof parsed.id === "string";
       const hasMethod = typeof parsed.method === "string";
 
       // Response (has id, no method)
@@ -131,6 +138,54 @@ export function useAcpSession({ wsUrl }: UseAcpSessionOptions) {
               type: "SESSION_UPDATE",
               sessionId,
               update: update as SessionUpdate,
+            });
+          }
+        } else if (notif.method === ACP_METHODS.TERMINAL_OUTPUT) {
+          // terminal/output may arrive as notification (no id) in some agent impls
+          const params = notif.params as {
+            sessionId?: string;
+            terminalId?: string;
+            data?: string;
+            output?: string;
+          };
+          const sessionId = params?.sessionId ?? "";
+          const terminalId = params?.terminalId ?? "";
+          const data = params?.data ?? params?.output ?? "";
+          if (sessionId && terminalId && data) {
+            dispatch({
+              type: "TERMINAL_DATA",
+              questId: sessionId,
+              terminalId,
+              data,
+            });
+
+            const portMatch = data.match(
+              /(?:https?:\/\/)?(?:localhost|127\.0\.0\.1):(\d{4,5})/
+            );
+            if (portMatch) {
+              const port = parseInt(portMatch[1], 10);
+              if (port >= 1024 && port <= 65535) {
+                dispatch({
+                  type: "PREVIEW_PORT_DETECTED",
+                  questId: sessionId,
+                  port,
+                });
+              }
+            }
+          }
+        } else if (notif.method === ACP_METHODS.TERMINAL_CREATE) {
+          // terminal/create as notification — auto-register terminal
+          const params = notif.params as {
+            sessionId?: string;
+            terminalId?: string;
+          };
+          const sessionId = params?.sessionId ?? "";
+          const terminalId = params?.terminalId ?? `term-notif-${Date.now()}`;
+          if (sessionId) {
+            dispatch({
+              type: "TERMINAL_CREATED",
+              questId: sessionId,
+              terminalId,
             });
           }
         }
@@ -176,12 +231,54 @@ export function useAcpSession({ wsUrl }: UseAcpSessionOptions) {
             });
           }
         } else if (req.method === ACP_METHODS.TERMINAL_CREATE) {
-          send(
-            JSON.stringify(
-              buildResponse(req.id, { terminalId: `term-${req.id}` })
-            )
-          );
+          const params = req.params as {
+            sessionId?: string;
+            terminalId?: string;
+          };
+          // Use agent-provided terminalId if present, otherwise generate one
+          const terminalId = params?.terminalId || `term-${req.id}`;
+          const sessionId = params?.sessionId ?? "";
+          send(JSON.stringify(buildResponse(req.id, { terminalId })));
+          if (sessionId) {
+            dispatch({
+              type: "TERMINAL_CREATED",
+              questId: sessionId,
+              terminalId,
+            });
+          }
         } else if (req.method === ACP_METHODS.TERMINAL_OUTPUT) {
+          const params = req.params as {
+            sessionId?: string;
+            terminalId?: string;
+            data?: string;
+            output?: string;
+          };
+          const sessionId = params?.sessionId ?? "";
+          const terminalId = params?.terminalId ?? "";
+          const data = params?.data ?? params?.output ?? "";
+          if (sessionId && terminalId && data) {
+            dispatch({
+              type: "TERMINAL_DATA",
+              questId: sessionId,
+              terminalId,
+              data,
+            });
+
+            // Detect localhost port from terminal output for preview
+            const portMatch = data.match(
+              /(?:https?:\/\/)?(?:localhost|127\.0\.0\.1):(\d{4,5})/
+            );
+            if (portMatch) {
+              const port = parseInt(portMatch[1], 10);
+              if (port >= 1024 && port <= 65535) {
+                dispatch({
+                  type: "PREVIEW_PORT_DETECTED",
+                  questId: sessionId,
+                  port,
+                });
+              }
+            }
+          }
           send(
             JSON.stringify(
               buildResponse(req.id, {
@@ -231,7 +328,11 @@ export function useAcpSession({ wsUrl }: UseAcpSessionOptions) {
         if (item.type !== "tool_call") continue;
         const tc = item as ChatItemToolCall;
         const SCAN_SKIP_KINDS: ReadonlySet<string> = new Set([
-          "read", "search", "think", "fetch", "switch_mode",
+          "read",
+          "search",
+          "think",
+          "fetch",
+          "switch_mode",
         ]);
         if (SCAN_SKIP_KINDS.has(tc.kind)) continue;
         if (tc.status !== "completed" && tc.status !== "failed") continue;
@@ -375,9 +476,7 @@ export function useAcpSession({ wsUrl }: UseAcpSessionOptions) {
         const item: QueuedPromptItemInput = {
           id: `qp-${Date.now()}-${++promptSeqRef.current}`,
           text,
-          ...(attachments && attachments.length > 0
-            ? { attachments }
-            : {}),
+          ...(attachments && attachments.length > 0 ? { attachments } : {}),
           createdAt: Date.now(),
         };
         dispatch({ type: "PROMPT_ENQUEUED", questId: activeId, item });

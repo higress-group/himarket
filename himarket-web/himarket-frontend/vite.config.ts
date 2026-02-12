@@ -28,6 +28,11 @@ export default defineConfig({
         ws: true,
         changeOrigin: true,
       },
+      '/ws/terminal': {
+        target: tempApiUrl,
+        ws: true,
+        changeOrigin: true,
+      },
       [apiPrefix]: {
         target: tempApiUrl,
         changeOrigin: true,

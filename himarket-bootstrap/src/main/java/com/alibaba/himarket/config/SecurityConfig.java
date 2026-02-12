@@ -59,7 +59,8 @@ public class SecurityConfig {
         "/developers/oidc/callback",
         "/developers/oidc/providers",
         "/developers/oauth2/token",
-        "/ws/acp"
+        "/ws/acp",
+        "/ws/terminal"
     };
 
     // Swagger endpoints

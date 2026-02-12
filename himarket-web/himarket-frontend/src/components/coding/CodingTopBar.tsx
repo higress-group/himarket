@@ -1,18 +1,23 @@
+import { FolderOpen, Folder } from "lucide-react";
 import {
   useQuestState,
   useActiveQuest,
 } from "../../context/QuestSessionContext";
 import type { WsStatus } from "../../hooks/useAcpWebSocket";
 
-interface QuestTopBarProps {
+interface CodingTopBarProps {
   status: WsStatus;
   onSetModel: (modelId: string) => void;
+  fileTreeVisible: boolean;
+  onToggleFileTree: () => void;
 }
 
-export function QuestTopBar({
+export function CodingTopBar({
   status,
   onSetModel,
-}: QuestTopBarProps) {
+  fileTreeVisible,
+  onToggleFileTree,
+}: CodingTopBarProps) {
   const state = useQuestState();
   const quest = useActiveQuest();
 
@@ -28,10 +33,8 @@ export function QuestTopBar({
       : state.models;
 
   return (
-    <div className="flex items-center gap-3 px-4 py-2 border-b border-gray-200/60 bg-white/30 backdrop-blur-sm">
-      <div className="text-sm font-medium text-gray-700 truncate max-w-[200px]">
-        {quest?.title ?? "HiWork"}
-      </div>
+    <div className="flex items-center gap-3 px-3 py-1.5 border-b border-gray-200/60 bg-white/30 backdrop-blur-sm flex-shrink-0">
+      <div className="text-sm font-semibold text-gray-700">HiCoding</div>
 
       {modelOptions.length > 0 && (
         <select
@@ -61,6 +64,15 @@ export function QuestTopBar({
         <span className={`w-1.5 h-1.5 rounded-full ${statusColor}`} />
         {status}
       </div>
+
+      <button
+        className={`w-7 h-7 flex items-center justify-center rounded transition-colors ml-2
+          ${fileTreeVisible ? "text-blue-600 bg-blue-50" : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"}`}
+        onClick={onToggleFileTree}
+        title={fileTreeVisible ? "隐藏文件" : "显示文件"}
+      >
+        {fileTreeVisible ? <FolderOpen size={16} /> : <Folder size={16} />}
+      </button>
     </div>
   );
 }

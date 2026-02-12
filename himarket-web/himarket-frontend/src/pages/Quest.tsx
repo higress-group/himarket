@@ -81,7 +81,6 @@ function QuestContent() {
             <QuestTopBar
               status={session.status}
               onSetModel={session.setModel}
-              onSetMode={session.setMode}
             />
             <ChatStream
               onSelectToolCall={toolCallId =>

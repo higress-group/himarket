@@ -24,6 +24,7 @@ import type {
   ContentBlock,
 } from "../types/acp";
 import type { Artifact } from "../types/artifact";
+import type { OpenFile, TerminalSession } from "../types/coding";
 import {
   detectArtifacts,
   detectArtifactsFromPaths,
@@ -50,6 +51,11 @@ export interface QuestData {
   activeArtifactId: string | null;
   lastArtifactScanAt: number;
   createdAt: number;
+  // Coding IDE state
+  openFiles: OpenFile[];
+  activeFilePath: string | null;
+  terminals: TerminalSession[];
+  previewPort: number | null;
 }
 
 export interface QueuedPromptItem {
@@ -153,7 +159,14 @@ export type QuestAction =
       toolCallId: string;
       paths: string[];
     }
-  | { type: "SET_ARTIFACT_SCAN_CURSOR"; questId: string; cursor: number };
+  | { type: "SET_ARTIFACT_SCAN_CURSOR"; questId: string; cursor: number }
+  // Coding IDE actions
+  | { type: "FILE_OPENED"; questId: string; file: OpenFile }
+  | { type: "FILE_CLOSED"; questId: string; path: string }
+  | { type: "ACTIVE_FILE_CHANGED"; questId: string; path: string | null }
+  | { type: "TERMINAL_CREATED"; questId: string; terminalId: string }
+  | { type: "TERMINAL_DATA"; questId: string; terminalId: string; data: string }
+  | { type: "PREVIEW_PORT_DETECTED"; questId: string; port: number };
 
 // ===== Helpers =====
 
@@ -188,7 +201,10 @@ function updateQuestById(
 
 // ===== Artifact Helpers =====
 
-function upsertDetectedArtifacts(q: QuestData, detected: Artifact[]): QuestData {
+function upsertDetectedArtifacts(
+  q: QuestData,
+  detected: Artifact[]
+): QuestData {
   if (detected.length === 0) return q;
 
   let artifacts = q.artifacts;
@@ -218,7 +234,10 @@ function upsertDetectedArtifacts(q: QuestData, detected: Artifact[]): QuestData 
   return { ...q, artifacts, activeArtifactId };
 }
 
-function applyArtifactDetection(q: QuestData, toolCall: ChatItemToolCall): QuestData {
+function applyArtifactDetection(
+  q: QuestData,
+  toolCall: ChatItemToolCall
+): QuestData {
   const detected = detectArtifacts(toolCall);
   return upsertDetectedArtifacts(q, detected);
 }
@@ -236,7 +255,9 @@ function hasOwn(obj: object, key: string): boolean {
   return Object.prototype.hasOwnProperty.call(obj, key);
 }
 
-function extractTextFromContentBlock(content: ContentBlock | undefined): string {
+function extractTextFromContentBlock(
+  content: ContentBlock | undefined
+): string {
   if (!content) return "";
   if (content.type === "text") {
     return typeof content.text === "string" ? content.text : "";
@@ -298,6 +319,10 @@ export function questReducer(
         activeArtifactId: null,
         lastArtifactScanAt: Date.now(),
         createdAt: Date.now(),
+        openFiles: [],
+        activeFilePath: null,
+        terminals: [],
+        previewPort: null,
       };
       return {
         ...state,
@@ -444,6 +469,71 @@ export function questReducer(
     case "SESSION_UPDATE":
       return handleSessionUpdate(state, action.sessionId, action.update);
 
+    // ===== Coding IDE Actions =====
+
+    case "FILE_OPENED":
+      return updateQuestById(state, action.questId, q => {
+        const exists = q.openFiles.some(f => f.path === action.file.path);
+        return {
+          ...q,
+          openFiles: exists
+            ? q.openFiles.map(f =>
+                f.path === action.file.path ? action.file : f
+              )
+            : [...q.openFiles, action.file],
+          activeFilePath: action.file.path,
+        };
+      });
+
+    case "FILE_CLOSED":
+      return updateQuestById(state, action.questId, q => {
+        const newFiles = q.openFiles.filter(f => f.path !== action.path);
+        let newActive = q.activeFilePath;
+        if (q.activeFilePath === action.path) {
+          newActive =
+            newFiles.length > 0 ? newFiles[newFiles.length - 1].path : null;
+        }
+        return { ...q, openFiles: newFiles, activeFilePath: newActive };
+      });
+
+    case "ACTIVE_FILE_CHANGED":
+      return updateQuestById(state, action.questId, q => ({
+        ...q,
+        activeFilePath: action.path,
+      }));
+
+    case "TERMINAL_CREATED":
+      return updateQuestById(state, action.questId, q => {
+        const exists = q.terminals.some(t => t.id === action.terminalId);
+        if (exists) return q;
+        return {
+          ...q,
+          terminals: [...q.terminals, { id: action.terminalId, lines: [] }],
+        };
+      });
+
+    case "TERMINAL_DATA":
+      return updateQuestById(state, action.questId, q => {
+        const hasTerminal = q.terminals.some(t => t.id === action.terminalId);
+        const terminals = hasTerminal
+          ? q.terminals.map(t =>
+              t.id === action.terminalId
+                ? { ...t, lines: [...t.lines, action.data] }
+                : t
+            )
+          : [
+              ...q.terminals,
+              { id: action.terminalId, lines: [action.data] },
+            ];
+        return { ...q, terminals };
+      });
+
+    case "PREVIEW_PORT_DETECTED":
+      return updateQuestById(state, action.questId, q => ({
+        ...q,
+        previewPort: action.port,
+      }));
+
     default:
       return state;
   }
@@ -485,11 +575,7 @@ function handleSessionUpdate(
           let filePath = contentBlock.uri;
           if (filePath.startsWith("file://")) filePath = filePath.slice(7);
           if (filePath && !filePath.startsWith("http")) {
-            updated = applyArtifactPaths(
-              updated,
-              [filePath],
-              "resource-link"
-            );
+            updated = applyArtifactPaths(updated, [filePath], "resource-link");
           }
         }
 

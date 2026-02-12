@@ -6,7 +6,7 @@ import ConsumerDetail from "./pages/ConsumerDetail";
 import GettingStarted from "./pages/GettingStarted";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
-import Profile from './pages/Profile'
+import Profile from "./pages/Profile";
 import McpDetail from "./pages/McpDetail";
 import Agent from "./pages/Agent";
 import AgentDetail from "./pages/AgentDetail";
@@ -16,6 +16,7 @@ import OidcCallback from "./pages/OidcCallback";
 import Square from "./pages/Square";
 import Chat from "./pages/Chat";
 import Quest from "./pages/Quest";
+import Coding from "./pages/Coding";
 
 export function Router() {
   return (
@@ -27,6 +28,7 @@ export function Router() {
       <Route path="/apis" element={<Square activeType="REST_API" />} />
       <Route path="/chat" element={<Chat />} />
       <Route path="/quest" element={<Quest />} />
+      <Route path="/coding" element={<Coding />} />
       <Route path="/getting-started" element={<GettingStarted />} />
       <Route path="/apis/:apiProductId" element={<ApiDetail />} />
       <Route path="/consumers/:consumerId" element={<ConsumerDetail />} />

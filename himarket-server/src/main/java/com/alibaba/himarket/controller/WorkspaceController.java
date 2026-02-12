@@ -383,4 +383,89 @@ public class WorkspaceController {
     private record PreparePreviewRequest(String path) {}
 
     private record WorkspaceChange(String path, long mtimeMs, long size, String ext) {}
+
+    // ======================== Directory Tree API ========================
+
+    @Operation(summary = "Get directory tree for workspace")
+    @GetMapping("/tree")
+    public ResponseEntity<?> getDirectoryTree(
+            @RequestParam String cwd, @RequestParam(defaultValue = "3") int depth) {
+        String userId = getCurrentUserId();
+        Path workspaceRoot = getWorkspaceRootForUser(userId);
+        Path cwdPath =
+                Paths.get(cwd).isAbsolute()
+                        ? Paths.get(cwd).toAbsolutePath().normalize()
+                        : workspaceRoot.resolve(cwd).toAbsolutePath().normalize();
+
+        if (!Files.exists(cwdPath) || !Files.isDirectory(cwdPath)) {
+            return ResponseEntity.badRequest().body(Map.of("error", "cwd does not exist"));
+        }
+
+        int safeDepth = Math.min(Math.max(depth, 1), 10);
+        try {
+            Map<String, Object> tree = buildTreeNode(cwdPath, safeDepth);
+            return ResponseEntity.ok(tree);
+        } catch (IOException e) {
+            log.error("Failed to build directory tree: user={}, cwd={}", userId, cwdPath, e);
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", "Failed to build directory tree"));
+        }
+    }
+
+    private Map<String, Object> buildTreeNode(Path dir, int remainingDepth) throws IOException {
+        Map<String, Object> node = new HashMap<>();
+        node.put("name", dir.getFileName() != null ? dir.getFileName().toString() : dir.toString());
+        node.put("path", dir.toAbsolutePath().normalize().toString());
+        node.put("type", "directory");
+
+        if (remainingDepth <= 0) {
+            node.put("children", List.of());
+            return node;
+        }
+
+        List<Map<String, Object>> children = new ArrayList<>();
+        List<Path> dirs = new ArrayList<>();
+        List<Path> files = new ArrayList<>();
+
+        try (var stream = Files.list(dir)) {
+            stream.forEach(
+                    child -> {
+                        String name = child.getFileName().toString();
+                        if (name.startsWith(".") && IGNORED_SCAN_DIRECTORIES.contains(name)) {
+                            return;
+                        }
+                        if (Files.isDirectory(child)) {
+                            if (IGNORED_SCAN_DIRECTORIES.contains(name)) {
+                                return;
+                            }
+                            dirs.add(child);
+                        } else if (Files.isRegularFile(child)) {
+                            files.add(child);
+                        }
+                    });
+        }
+
+        dirs.sort(Comparator.comparing(p -> p.getFileName().toString().toLowerCase()));
+        files.sort(Comparator.comparing(p -> p.getFileName().toString().toLowerCase()));
+
+        for (Path d : dirs) {
+            children.add(buildTreeNode(d, remainingDepth - 1));
+        }
+        for (Path f : files) {
+            Map<String, Object> fileNode = new HashMap<>();
+            fileNode.put("name", f.getFileName().toString());
+            fileNode.put("path", f.toAbsolutePath().normalize().toString());
+            fileNode.put("type", "file");
+            fileNode.put("extension", getExtension(f.getFileName().toString()));
+            try {
+                fileNode.put("size", Files.size(f));
+            } catch (IOException ignored) {
+                fileNode.put("size", 0L);
+            }
+            children.add(fileNode);
+        }
+
+        node.put("children", children);
+        return node;
+    }
 }

@@ -2,6 +2,7 @@ package com.alibaba.himarket.config;
 
 import com.alibaba.himarket.service.acp.AcpHandshakeInterceptor;
 import com.alibaba.himarket.service.acp.AcpWebSocketHandler;
+import com.alibaba.himarket.service.terminal.TerminalWebSocketHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,11 +17,15 @@ import org.springframework.web.socket.server.standard.ServletServerContainerFact
 public class WebSocketConfig implements WebSocketConfigurer {
 
     private final AcpWebSocketHandler acpWebSocketHandler;
+    private final TerminalWebSocketHandler terminalWebSocketHandler;
     private final AcpHandshakeInterceptor acpHandshakeInterceptor;
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
         registry.addHandler(acpWebSocketHandler, "/ws/acp")
+                .addInterceptors(acpHandshakeInterceptor)
+                .setAllowedOrigins("*");
+        registry.addHandler(terminalWebSocketHandler, "/ws/terminal")
                 .addInterceptors(acpHandshakeInterceptor)
                 .setAllowedOrigins("*");
     }
