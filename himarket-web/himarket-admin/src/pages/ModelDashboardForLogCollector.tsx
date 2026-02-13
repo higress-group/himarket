@@ -391,6 +391,7 @@ const ModelDashboardForLogCollector: React.FC = () => {
       const q0 = getChartPayload(data?.query_0);
       const q1 = getChartPayload(data?.query_1);
       const q2 = getChartPayload(data?.query_2);
+      const q3 = getChartPayload(data?.query_3);
 
       // QPS 趋势图：请求 QPS、流式 QPS、总 QPS
       if (q0?.values) {
@@ -462,10 +463,32 @@ const ModelDashboardForLogCollector: React.FC = () => {
         });
       }
 
-      // Token/s、限流、缓存 当前接口未返回，显示暂无数据
-      tokenPerSecChartInstance.current?.setOption(emptyChartOption, {
-        notMerge: true,
-      });
+      // Token/s 趋势图：输入/输出/总 Token/s（来自 query_3 / token_rate）
+      if (q3?.values) {
+        const series = [
+          { name: "输入Token/s", data: q3.values.input_token_rate ?? [] },
+          { name: "输出Token/s", data: q3.values.output_token_rate ?? [] },
+          { name: "总Token/s", data: q3.values.total_token_rate ?? [] },
+        ].filter(s => s.data.length > 0);
+        if (series.length > 0) {
+          tokenPerSecChartInstance.current?.setOption(
+            buildTimeSeriesOption(q3.timestamps, series, {
+              yAxisName: "Token/s",
+            }),
+            {
+              notMerge: true,
+            }
+          );
+        } else {
+          tokenPerSecChartInstance.current?.setOption(emptyChartOption, {
+            notMerge: true,
+          });
+        }
+      } else {
+        tokenPerSecChartInstance.current?.setOption(emptyChartOption, {
+          notMerge: true,
+        });
+      }
       ratelimitedChartInstance.current?.setOption(emptyChartOption, {
         notMerge: true,
       });
