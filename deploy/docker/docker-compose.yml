@@ -113,6 +113,8 @@ services:
     container_name: himarket-admin
     environment:
       - HIMARKET_SERVER=http://himarket-server:8080
+      # 指标服务地址，不设则与 HIMARKET_SERVER 相同；若指标在独立服务可改为该服务地址
+      - METRICS_SERVER=${METRICS_SERVER:-http://himarket-server:8080}
     ports:
       - "5174:8000"
     depends_on:
