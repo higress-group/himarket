@@ -1,24 +1,26 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom';
-import LayoutWrapper from '@/components/LayoutWrapper';
-import Portals from '@/pages/Portals';
-import ApiProducts from '@/pages/ApiProducts';
-import ProductCategories from '@/pages/ProductCategories';
-import ProductCategoryDetail from '@/pages/ProductCategoryDetail';
-import GatewayConsoles from '@/pages/GatewayConsoles';
-import NacosConsoles from '@/pages/NacosConsoles';
-import PortalDetail from '@/pages/PortalDetail';
-import ApiProductDetail from '@/pages/ApiProductDetail';
-import Login from '@/pages/Login';
-import ModelDashboard from '@/pages/ModelDashboard';
-import McpMonitor from '@/pages/McpMonitor';
+import { createBrowserRouter, Navigate } from "react-router-dom";
+import LayoutWrapper from "@/components/LayoutWrapper";
+import Portals from "@/pages/Portals";
+import ApiProducts from "@/pages/ApiProducts";
+import ProductCategories from "@/pages/ProductCategories";
+import ProductCategoryDetail from "@/pages/ProductCategoryDetail";
+import GatewayConsoles from "@/pages/GatewayConsoles";
+import NacosConsoles from "@/pages/NacosConsoles";
+import PortalDetail from "@/pages/PortalDetail";
+import ApiProductDetail from "@/pages/ApiProductDetail";
+import Login from "@/pages/Login";
+import ModelDashboard from "@/pages/ModelDashboard";
+import McpMonitor from "@/pages/McpMonitor";
+import McpMonitorForLogCollector from "@/pages/McpMonitorForLogCollector.tsx";
+import ModelDashboardForLogCollector from "@/pages/ModelDashboardForLogCollector.tsx";
 
 export const router = createBrowserRouter([
   {
-    path: '/login',
+    path: "/login",
     element: <Login />,
   },
   {
-    path: '/',
+    path: "/",
     element: <LayoutWrapper />,
     children: [
       {
@@ -26,55 +28,63 @@ export const router = createBrowserRouter([
         element: <Navigate to="/portals" replace />,
       },
       {
-        path: 'portals',
+        path: "portals",
         element: <Portals />,
       },
       {
-        path: 'portals/detail',
+        path: "portals/detail",
         element: <PortalDetail />,
       },
       {
-        path: 'api-products',
+        path: "api-products",
         element: <ApiProducts />,
       },
       {
-        path: 'api-products/detail',
+        path: "api-products/detail",
         element: <ApiProductDetail />,
       },
       {
-        path: 'product-categories',
+        path: "product-categories",
         element: <ProductCategories />,
       },
       {
-        path: 'product-categories/:categoryId',
+        path: "product-categories/:categoryId",
         element: <ProductCategoryDetail />,
       },
       {
-        path: 'consoles',
+        path: "consoles",
         element: <Navigate to="/consoles/gateway" replace />,
       },
       {
-        path: 'consoles/gateway',
+        path: "consoles/gateway",
         element: <GatewayConsoles />,
       },
       {
-        path: 'consoles/nacos',
+        path: "consoles/nacos",
         element: <NacosConsoles />,
       },
       {
-        path: 'observability',
+        path: "observability",
         element: <Navigate to="/observability/model-dashboard" replace />,
       },
       {
-        path: 'observability/model-dashboard',
+        path: "observability/model-dashboard",
         element: <ModelDashboard />,
       },
       {
-        path: 'observability/mcp-monitor',
+        path: "observability/mcp-monitor",
         element: <McpMonitor />,
       },
       {
-        path: '*',
+        path: "observability/model-dashboard-for-log-collector",
+        element: <ModelDashboardForLogCollector />,
+      },
+      {
+        path: "observability/mcp-monitor-for-log-collector",
+        element: <McpMonitorForLogCollector />,
+      },
+      {
+        path: "*",
         element: <Navigate to="/portals" replace />,
       },
     ],
