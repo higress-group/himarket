@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { ChevronDown, ChevronRight, Brain } from "lucide-react";
 
 interface ThoughtBlockProps {
@@ -8,6 +8,15 @@ interface ThoughtBlockProps {
 }
 
 const PREVIEW_MAX_LINES = 3;
+
+function formatDuration(ms: number): string {
+  if (ms < 1000) return `${Math.round(ms)}ms`;
+  const seconds = ms / 1000;
+  if (seconds < 60) return `${seconds.toFixed(1)}s`;
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.round(seconds % 60);
+  return `${mins}m ${secs}s`;
+}
 
 export function ThoughtBlock({
   text,
@@ -27,25 +36,54 @@ export function ThoughtBlock({
     };
   }, [text]);
 
+  // Duration tracking
+  const startTimeRef = useRef<number | null>(null);
+  const [finalDuration, setFinalDuration] = useState<number | null>(null);
+  const [liveDuration, setLiveDuration] = useState<number>(0);
+  const timerRef = useRef<ReturnType<typeof setInterval>>();
+
   // Auto-expand while streaming, auto-collapse when done
   const [expanded, setExpanded] = useState(!!streaming);
   const [userToggled, setUserToggled] = useState(false);
   const prevStreamingRef = useRef(streaming);
 
   useEffect(() => {
-    if (streaming && !prevStreamingRef.current && !userToggled) {
-      setExpanded(true);
+    if (streaming && !prevStreamingRef.current) {
+      // Streaming started
+      startTimeRef.current = Date.now();
+      setFinalDuration(null);
+      timerRef.current = setInterval(() => {
+        if (startTimeRef.current) {
+          setLiveDuration(Date.now() - startTimeRef.current);
+        }
+      }, 100);
+      if (!userToggled) setExpanded(true);
     }
-    if (!streaming && prevStreamingRef.current && !userToggled) {
-      setExpanded(false);
+    if (!streaming && prevStreamingRef.current) {
+      // Streaming ended
+      if (startTimeRef.current) {
+        setFinalDuration(Date.now() - startTimeRef.current);
+      }
+      clearInterval(timerRef.current);
+      if (!userToggled) setExpanded(false);
     }
     prevStreamingRef.current = streaming;
   }, [streaming, userToggled]);
 
-  const handleToggle = () => {
+  useEffect(() => {
+    return () => clearInterval(timerRef.current);
+  }, []);
+
+  const durationText = useMemo(() => {
+    if (finalDuration != null) return formatDuration(finalDuration);
+    if (streaming && liveDuration > 0) return formatDuration(liveDuration);
+    return null;
+  }, [finalDuration, streaming, liveDuration]);
+
+  const handleToggle = useCallback(() => {
     setExpanded(prev => !prev);
     setUserToggled(true);
-  };
+  }, []);
 
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -57,7 +95,7 @@ export function ThoughtBlock({
 
   if (isInline) {
     return (
-      <div className="border-l-2 border-purple-300 pl-3 py-1">
+      <div className={`border-l-2 pl-3 py-1 ${streaming ? "border-purple-300" : "border-gray-200"}`}>
         {/* Header */}
         <button
           className="flex items-center gap-1.5 w-full text-xs hover:opacity-80 transition-opacity"
@@ -66,15 +104,15 @@ export function ThoughtBlock({
           <Brain
             size={12}
             className={
-              streaming ? "text-purple-500 animate-pulse" : "text-purple-400"
+              streaming ? "text-purple-500 animate-pulse" : "text-gray-300"
             }
           />
           <span
             className={
-              streaming ? "text-purple-600 font-medium" : "text-purple-500/80"
+              streaming ? "text-purple-600 font-medium" : "text-gray-400"
             }
           >
-            {streaming ? "思考中..." : "思考"}
+            {streaming ? "思考中..." : "深度思考"}
           </span>
           {streaming && (
             <span className="flex gap-0.5 ml-0.5">
@@ -83,11 +121,14 @@ export function ThoughtBlock({
               <span className="w-1 h-1 rounded-full bg-purple-400 animate-bounce [animation-delay:300ms]" />
             </span>
           )}
+          {durationText && (
+            <span className="text-[11px] text-gray-300 tabular-nums ml-0.5">{durationText}</span>
+          )}
           <span className="flex-1" />
           {expanded ? (
-            <ChevronDown size={12} className="text-purple-300" />
+            <ChevronDown size={12} className="text-gray-300" />
           ) : (
-            <ChevronRight size={12} className="text-purple-300" />
+            <ChevronRight size={12} className="text-gray-300" />
           )}
         </button>
 
@@ -95,7 +136,7 @@ export function ThoughtBlock({
         {expanded && text && (
           <div
             ref={contentRef}
-            className="mt-1 text-xs text-gray-500 whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto"
+            className="mt-1 text-xs text-gray-400 whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto"
           >
             {text}
             {streaming && (
@@ -106,7 +147,7 @@ export function ThoughtBlock({
 
         {/* Collapsed preview */}
         {!expanded && preview && (
-          <div className="mt-0.5 text-xs text-gray-400 whitespace-pre-wrap leading-relaxed line-clamp-2">
+          <div className="mt-0.5 text-xs text-gray-300 whitespace-pre-wrap leading-relaxed line-clamp-2">
             {preview}
             {hasMore && <span> ...</span>}
           </div>
@@ -119,7 +160,7 @@ export function ThoughtBlock({
   return (
     <div
       className={`border-l-[3px] pl-3 transition-colors duration-300 ${
-        streaming ? "border-purple-400" : "border-purple-300"
+        streaming ? "border-purple-400" : "border-gray-300"
       }`}
     >
       {/* Header */}
@@ -130,15 +171,15 @@ export function ThoughtBlock({
         <Brain
           size={13}
           className={
-            streaming ? "text-purple-500 animate-pulse" : "text-gray-400"
+            streaming ? "text-purple-500 animate-pulse" : "text-gray-300"
           }
         />
         <span
           className={
-            streaming ? "text-purple-600 font-medium" : "text-gray-500"
+            streaming ? "text-purple-600 font-medium" : "text-gray-400"
           }
         >
-          {streaming ? "思考中..." : "思考"}
+          {streaming ? "思考中..." : "深度思考"}
         </span>
         {streaming && (
           <span className="flex gap-0.5 ml-1">
@@ -147,11 +188,14 @@ export function ThoughtBlock({
             <span className="w-1 h-1 rounded-full bg-purple-400 animate-bounce [animation-delay:300ms]" />
           </span>
         )}
+        {durationText && (
+          <span className="text-[11px] text-gray-300 tabular-nums ml-1">{durationText}</span>
+        )}
         <span className="flex-1" />
         {expanded ? (
-          <ChevronDown size={13} className="text-gray-400" />
+          <ChevronDown size={13} className="text-gray-300" />
         ) : (
-          <ChevronRight size={13} className="text-gray-400" />
+          <ChevronRight size={13} className="text-gray-300" />
         )}
       </button>
 
@@ -159,7 +203,7 @@ export function ThoughtBlock({
       {expanded && text && (
         <div
           ref={contentRef}
-          className="mt-1 text-xs text-gray-500 whitespace-pre-wrap leading-relaxed max-h-60 overflow-y-auto"
+          className="mt-1 text-xs text-gray-400 whitespace-pre-wrap leading-relaxed max-h-60 overflow-y-auto"
         >
           {text}
           {streaming && (
@@ -170,7 +214,7 @@ export function ThoughtBlock({
 
       {/* Collapsed preview */}
       {!expanded && preview && (
-        <div className="mt-0.5 text-xs text-gray-400 whitespace-pre-wrap leading-relaxed line-clamp-2">
+        <div className="mt-0.5 text-xs text-gray-300 whitespace-pre-wrap leading-relaxed line-clamp-2">
           {preview}
           {hasMore && <span> ...</span>}
         </div>

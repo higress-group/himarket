@@ -6,6 +6,12 @@ import {
   XCircle,
   Loader2,
   Layers,
+  Eye,
+  Search,
+  Brain,
+  CloudDownload,
+  Settings2,
+  CircleHelp,
 } from "lucide-react";
 import type {
   ChatItem,
@@ -23,15 +29,13 @@ interface WorkUnitCardProps {
   meta: WorkUnitMeta;
   selectedToolCallId: string | null;
   onSelectToolCall: (toolCallId: string) => void;
+  onOpenFile?: (path: string) => void;
   isLastUnit?: boolean;
   isProcessing?: boolean;
 }
 
 /** Build a concise summary: show filenames for edits, counts for others */
-function getSummaryText(
-  meta: WorkUnitMeta,
-  toolCallItems: ChatItem[]
-): string {
+function getSummaryText(meta: WorkUnitMeta, toolCallItems: ChatItem[]): string {
   // Collect edited filenames
   const editedFiles: string[] = [];
   for (const item of toolCallItems) {
@@ -74,11 +78,157 @@ function getSummaryText(
   return parts.join(" · ");
 }
 
+// ===== Same-kind operation merging =====
+
+const MERGEABLE_KINDS = new Set([
+  "read",
+  "search",
+  "think",
+  "fetch",
+  "switch_mode",
+  "other",
+]);
+
+type ToolCallGroup =
+  | { type: "single"; item: ChatItem }
+  | { type: "merged"; kind: string; items: ChatItemToolCall[] };
+
+function groupConsecutiveToolCalls(items: ChatItem[]): ToolCallGroup[] {
+  const groups: ToolCallGroup[] = [];
+  let i = 0;
+
+  while (i < items.length) {
+    const item = items[i];
+    if (item.type === "tool_call") {
+      const tc = item as ChatItemToolCall;
+      if (MERGEABLE_KINDS.has(tc.kind)) {
+        const sameKindItems: ChatItemToolCall[] = [tc];
+        let j = i + 1;
+        while (j < items.length) {
+          const next = items[j];
+          if (
+            next.type === "tool_call" &&
+            (next as ChatItemToolCall).kind === tc.kind
+          ) {
+            sameKindItems.push(next as ChatItemToolCall);
+            j++;
+          } else {
+            break;
+          }
+        }
+        if (sameKindItems.length >= 2) {
+          groups.push({ type: "merged", kind: tc.kind, items: sameKindItems });
+          i = j;
+          continue;
+        }
+      }
+    }
+    groups.push({ type: "single", item });
+    i++;
+  }
+
+  return groups;
+}
+
+const MERGED_ICON_MAP: Record<string, typeof Eye> = {
+  read: Eye,
+  search: Search,
+  think: Brain,
+  fetch: CloudDownload,
+  switch_mode: Settings2,
+  other: CircleHelp,
+};
+
+function getMergedLabel(kind: string, items: ChatItemToolCall[]): string {
+  const count = items.length;
+  if (kind === "read") {
+    const names = items
+      .map(tc => {
+        const p =
+          (tc.rawInput?.file_path as string) ??
+          (tc.rawInput?.path as string) ??
+          tc.locations?.[0]?.path ??
+          null;
+        return p ? extractFileName(p) : null;
+      })
+      .filter(Boolean);
+    const shown = names.slice(0, 3).join(", ");
+    const rest = names.length - 3;
+    return `已查看 ${count} 个文件${shown ? ": " + shown : ""}${rest > 0 ? ` +${rest}` : ""}`;
+  }
+  if (kind === "search") return `搜索了 ${count} 次`;
+  if (kind === "think") return `思考了 ${count} 次`;
+  if (kind === "fetch") return `抓取了 ${count} 次`;
+  if (kind === "switch_mode") return `切换模式 ${count} 次`;
+  return `其他操作 ${count} 次`;
+}
+
+function MergedRow({
+  kind,
+  items,
+  selectedToolCallId,
+  onSelectToolCall,
+}: {
+  kind: string;
+  items: ChatItemToolCall[];
+  selectedToolCallId: string | null;
+  onSelectToolCall: (toolCallId: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const Icon = MERGED_ICON_MAP[kind] ?? CircleHelp;
+  const label = getMergedLabel(kind, items);
+  const allDone = items.every(tc => tc.status === "completed");
+  const anyFailed = items.some(tc => tc.status === "failed");
+
+  return (
+    <div>
+      <div
+        className="flex items-center gap-2 px-2.5 py-1.5 cursor-pointer hover:bg-gray-50/60 rounded-md transition-colors"
+        onClick={() => setExpanded(prev => !prev)}
+      >
+        {expanded ? (
+          <ChevronDown size={12} className="text-gray-300 flex-shrink-0" />
+        ) : (
+          <ChevronRight size={12} className="text-gray-300 flex-shrink-0" />
+        )}
+        <Icon size={13} className="text-gray-300 flex-shrink-0" />
+        <span className="text-xs text-gray-400 truncate flex-1 min-w-0">
+          {label}
+        </span>
+        {anyFailed ? (
+          <XCircle size={13} className="text-red-500 flex-shrink-0" />
+        ) : allDone ? (
+          <CheckCircle2 size={13} className="text-green-500/70 flex-shrink-0" />
+        ) : (
+          <Loader2
+            size={13}
+            className="text-blue-500 animate-spin flex-shrink-0"
+          />
+        )}
+      </div>
+      {expanded && (
+        <div className="pl-4 space-y-0.5">
+          {items.map(tc => (
+            <ToolCallCard
+              key={tc.id}
+              item={tc}
+              selected={selectedToolCallId === tc.toolCallId}
+              onClick={() => onSelectToolCall(tc.toolCallId)}
+              variant="compact"
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function WorkUnitCard({
   items,
   meta,
   selectedToolCallId,
   onSelectToolCall,
+  onOpenFile,
   isLastUnit,
   isProcessing,
 }: WorkUnitCardProps) {
@@ -128,29 +278,26 @@ export function WorkUnitCard({
     };
   }, [items]);
 
+  // Group consecutive same-kind auxiliary tool calls for merged rendering
+  const groupedToolCalls = useMemo(
+    () => groupConsecutiveToolCalls(toolCallItems),
+    [toolCallItems]
+  );
+
   // Streaming detection: is this the last unit and still processing?
   const isStreaming = !!(isLastUnit && isProcessing);
 
   // Actions expand/collapse state
-  const [actionsExpanded, setActionsExpanded] = useState(!meta.allCompleted);
-  const [userToggledActions, setUserToggledActions] = useState(false);
+  const [actionsExpanded, setActionsExpanded] = useState(true);
   const prevHasInProgressRef = useRef(meta.hasInProgress);
 
   // Auto-expand when an item goes in_progress
   useEffect(() => {
     if (meta.hasInProgress && !prevHasInProgressRef.current) {
       setActionsExpanded(true);
-      setUserToggledActions(false);
     }
     prevHasInProgressRef.current = meta.hasInProgress;
   }, [meta.hasInProgress]);
-
-  // Auto-collapse when all completed (only if user hasn't manually toggled)
-  useEffect(() => {
-    if (meta.allCompleted && !userToggledActions) {
-      setActionsExpanded(false);
-    }
-  }, [meta.allCompleted, userToggledActions]);
 
   // Auto-expand when selected tool is inside this unit
   useEffect(() => {
@@ -167,7 +314,6 @@ export function WorkUnitCard({
 
   const handleToggleActions = () => {
     setActionsExpanded(prev => !prev);
-    setUserToggledActions(true);
   };
 
   // Header status icon
@@ -185,12 +331,12 @@ export function WorkUnitCard({
       : "text-blue-500";
 
   const borderColor = meta.hasFailed
-    ? "border-red-400"
+    ? "border-red-300"
     : meta.hasInProgress
-      ? "border-blue-400"
+      ? "border-blue-300"
       : meta.allCompleted
-        ? "border-green-400"
-        : "border-gray-300";
+        ? "border-green-300"
+        : "border-gray-200";
 
   return (
     <div
@@ -217,7 +363,10 @@ export function WorkUnitCard({
             if (item.type === "agent") {
               const a = item as ChatItemAgent;
               return (
-                <div key={item.id} className="border-l-2 border-gray-200/60 pl-3">
+                <div
+                  key={item.id}
+                  className="border-l-2 border-gray-200/60 pl-3"
+                >
                   <AgentMessage
                     text={a.text}
                     variant="compact"
@@ -225,6 +374,7 @@ export function WorkUnitCard({
                       isStreaming &&
                       item === reasoningItems[reasoningItems.length - 1]
                     }
+                    onOpenFile={onOpenFile}
                   />
                 </div>
               );
@@ -246,7 +396,7 @@ export function WorkUnitCard({
               size={14}
               className={`${statusColor} ${meta.hasInProgress ? "animate-spin" : ""}`}
             />
-            <span className="text-gray-600 text-xs font-medium flex-1 text-left">
+            <span className="text-gray-400 text-xs font-medium flex-1 text-left">
               {getSummaryText(meta, toolCallItems)}
             </span>
             {actionsExpanded ? (
@@ -259,7 +409,19 @@ export function WorkUnitCard({
           {/* Expanded Actions List */}
           {actionsExpanded && (
             <div className="space-y-0.5">
-              {toolCallItems.map(item => {
+              {groupedToolCalls.map((group, gi) => {
+                if (group.type === "merged") {
+                  return (
+                    <MergedRow
+                      key={`merged-${group.kind}-${gi}`}
+                      kind={group.kind}
+                      items={group.items}
+                      selectedToolCallId={selectedToolCallId}
+                      onSelectToolCall={onSelectToolCall}
+                    />
+                  );
+                }
+                const item = group.item;
                 if (item.type === "tool_call") {
                   const tc = item as ChatItemToolCall;
                   return (

@@ -54,7 +54,7 @@ export function PlanDisplay({
           ) : (
             <ClipboardList size={14} className="text-blue-500" />
           )}
-          <span className="text-xs font-semibold text-blue-600 uppercase tracking-wide">
+          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
             Todo
           </span>
           <span className="flex-1" />
@@ -94,10 +94,10 @@ export function PlanDisplay({
                 <span
                   className={`text-xs leading-snug ${
                     entry.status === "completed"
-                      ? "text-gray-400 line-through"
+                      ? "text-gray-300 line-through"
                       : entry.status === "in_progress"
                         ? "text-blue-700 font-medium"
-                        : "text-gray-600"
+                        : "text-gray-400"
                   }`}
                 >
                   {entry.content}

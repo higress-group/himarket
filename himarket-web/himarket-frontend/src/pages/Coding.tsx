@@ -313,6 +313,35 @@ function CodingContent() {
     [activeQuest, dispatch]
   );
 
+  const handleOpenFilePath = useCallback(
+    async (path: string) => {
+      if (!activeQuest) return;
+      // If already open, just switch to it
+      if (activeQuest.openFiles.some(f => f.path === path)) {
+        dispatch({
+          type: "ACTIVE_FILE_CHANGED",
+          questId: activeQuest.id,
+          path,
+        });
+        setActiveTab("code");
+        return;
+      }
+      const result = await fetchArtifactContent(path, { raw: true });
+      if (result.content !== null) {
+        const fileName = path.split(/[/\\]/).pop() ?? path;
+        const file: OpenFile = {
+          path,
+          fileName,
+          content: result.content,
+          language: inferLanguage(fileName),
+        };
+        dispatch({ type: "FILE_OPENED", questId: activeQuest.id, file });
+        setActiveTab("code");
+      }
+    },
+    [activeQuest, dispatch]
+  );
+
   const handleSelectFile = useCallback(
     (path: string) => {
       if (!activeQuest) return;
@@ -365,6 +394,7 @@ function CodingContent() {
           onSelectToolCall={toolCallId =>
             dispatch({ type: "SELECT_TOOL_CALL", toolCallId })
           }
+          onOpenFile={handleOpenFilePath}
         />
 
         {planEntries && planEntries.length > 0 && (
@@ -408,7 +438,9 @@ function CodingContent() {
                 >
                   {/* File tree header */}
                   <div className="flex items-center px-3 py-2 border-b border-gray-200/60 bg-white/30">
-                    <span className="text-xs font-medium text-gray-600">文件</span>
+                    <span className="text-xs font-medium text-gray-600">
+                      文件
+                    </span>
                   </div>
                   {/* File tree content */}
                   <div className="flex-1 overflow-hidden">

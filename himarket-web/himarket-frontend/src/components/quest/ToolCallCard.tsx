@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Eye,
   Terminal,
@@ -12,8 +13,11 @@ import {
   XCircle,
   Loader2,
   Sparkles,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import type { ChatItemToolCall, ToolCallContentItem } from "../../types/acp";
+import { DiffViewer } from "./DiffViewer";
 
 interface ToolCallCardProps {
   item: ChatItemToolCall;
@@ -384,65 +388,36 @@ export function ToolCallCard({
   if (item.kind === "edit") {
     const dirHint =
       filePath && fileName ? extractDirHint(filePath, fileName) : null;
+    const diffs = (item.content ?? []).filter(c => c.type === "diff");
+    const hasDiff = diffs.length > 0;
     return (
-      <div
-        className={`
-          rounded-lg border cursor-pointer transition-all duration-200 overflow-hidden
-          ${
-            selected
-              ? "border-blue-300 bg-blue-50/40 shadow-sm"
-              : isFailed
-                ? "border-red-200 bg-red-50/30"
-                : "border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm"
-          }
-        `}
+      <EditCard
+        item={item}
+        selected={selected}
+        isFailed={isFailed}
+        fileOp={fileOp}
+        fileName={fileName}
+        dirHint={dirHint}
+        extraFileCount={extraFileCount}
+        diffs={diffs}
+        hasDiff={hasDiff}
         onClick={onClick}
-      >
-        <div className="px-3 py-2.5">
-          <div className="flex items-center gap-2">
-            {fileOp && <OpBadge op={fileOp} />}
-            <span className="text-sm text-gray-800 font-medium truncate flex-1 min-w-0">
-              {fileName || item.title}
-              {extraFileCount > 0 && (
-                <span className="text-gray-400 font-normal text-xs ml-1.5">
-                  +{extraFileCount} files
-                </span>
-              )}
-            </span>
-            <DiffStatsDisplay content={item.content} />
-            <StatusBadge item={item} />
-          </div>
-          {dirHint && (
-            <div className="mt-1 text-[11px] text-gray-400 truncate pl-[26px]">
-              {dirHint}
-            </div>
-          )}
-        </div>
-      </div>
+      />
     );
   }
 
-  // Read kind
+  // Read kind — lightweight inline style
   if (item.kind === "read") {
     return (
       <div
-        className={`
-          rounded-lg border cursor-pointer transition-all duration-200
-          ${
-            selected
-              ? "border-blue-300 bg-blue-50/40 shadow-sm"
-              : "border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm"
-          }
-        `}
+        className="flex items-center gap-2 px-1 py-1 cursor-pointer hover:opacity-70 transition-opacity"
         onClick={onClick}
       >
-        <div className="px-3 py-2 flex items-center gap-2">
-          <Eye size={15} className="text-blue-400/70 flex-shrink-0" />
-          <span className="text-sm text-gray-600 truncate flex-1 min-w-0">
-            {fileName || item.title}
-          </span>
-          <StatusBadge item={item} />
-        </div>
+        <Eye size={13} className="text-gray-300 flex-shrink-0" />
+        <span className="text-xs text-gray-400 truncate flex-1 min-w-0">
+          已查看 {fileName || item.title}
+        </span>
+        <StatusBadge item={item} />
       </div>
     );
   }
@@ -492,42 +467,153 @@ export function ToolCallCard({
             : item.kind === "switch_mode"
               ? Settings2
               : CircleHelp;
-    const iconClass =
+    const label =
       item.kind === "search"
-        ? "text-cyan-500"
+        ? "搜索"
         : item.kind === "think"
-          ? "text-purple-500"
+          ? "思考"
           : item.kind === "fetch"
-            ? "text-sky-500"
+            ? "抓取"
             : item.kind === "switch_mode"
-              ? "text-amber-500"
-              : "text-gray-500";
+              ? "切换模式"
+              : "操作";
     return (
       <div
-        className={`
-          rounded-lg border cursor-pointer transition-all duration-200
-          ${
-            selected
-              ? "border-blue-300 bg-blue-50/40 shadow-sm"
-              : isFailed
-                ? "border-red-200 bg-red-50/30"
-                : "border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm"
-          }
-        `}
+        className="flex items-center gap-2 px-1 py-1 cursor-pointer hover:opacity-70 transition-opacity"
         onClick={onClick}
       >
-        <div className="px-3 py-2 flex items-center gap-2">
-          <Icon size={15} className={`${iconClass} flex-shrink-0`} />
-          <span className="text-sm text-gray-600 truncate flex-1 min-w-0">
-            {item.title}
-          </span>
-          <StatusBadge item={item} />
-        </div>
+        <Icon size={13} className="text-gray-300 flex-shrink-0" />
+        <span className="text-xs text-gray-400 truncate flex-1 min-w-0">
+          {label} {item.title}
+        </span>
+        <StatusBadge item={item} />
       </div>
     );
   }
 
   // Execute kind
+  return (
+    <ExecuteCard
+      item={item}
+      selected={selected}
+      isFailed={isFailed}
+      command={command}
+      terminalId={terminalId}
+      onClick={onClick}
+    />
+  );
+}
+
+// ===== EditCard with expandable diff =====
+
+function EditCard({
+  item,
+  selected,
+  isFailed,
+  fileOp,
+  fileName,
+  dirHint,
+  extraFileCount,
+  diffs,
+  hasDiff,
+  onClick,
+}: {
+  item: ChatItemToolCall;
+  selected: boolean;
+  isFailed: boolean;
+  fileOp: FileOp | null;
+  fileName: string | null;
+  dirHint: string | null;
+  extraFileCount: number;
+  diffs: ToolCallContentItem[];
+  hasDiff: boolean;
+  onClick: () => void;
+}) {
+  const [diffExpanded, setDiffExpanded] = useState(false);
+
+  return (
+    <div
+      className={`
+        rounded-lg border cursor-pointer transition-all duration-200 overflow-hidden
+        ${
+          selected
+            ? "border-blue-300 bg-blue-50/40 shadow-sm"
+            : isFailed
+              ? "border-red-200 bg-red-50/30"
+              : "border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm"
+        }
+      `}
+    >
+      <div className="px-3 py-2.5" onClick={onClick}>
+        <div className="flex items-center gap-2">
+          {fileOp && <OpBadge op={fileOp} />}
+          <span className="text-sm text-gray-800 font-medium truncate flex-1 min-w-0">
+            {fileName || item.title}
+            {extraFileCount > 0 && (
+              <span className="text-gray-400 font-normal text-xs ml-1.5">
+                +{extraFileCount} files
+              </span>
+            )}
+          </span>
+          <DiffStatsDisplay content={item.content} />
+          {hasDiff && (
+            <button
+              className="p-0.5 rounded hover:bg-gray-100 transition-colors"
+              onClick={e => {
+                e.stopPropagation();
+                setDiffExpanded(prev => !prev);
+              }}
+            >
+              {diffExpanded ? (
+                <ChevronDown size={13} className="text-gray-400" />
+              ) : (
+                <ChevronRight size={13} className="text-gray-400" />
+              )}
+            </button>
+          )}
+          <StatusBadge item={item} />
+        </div>
+        {dirHint && (
+          <div className="mt-1 text-[11px] text-gray-400 truncate pl-[26px]">
+            {dirHint}
+          </div>
+        )}
+      </div>
+      {diffExpanded && hasDiff && (
+        <div className="border-t border-gray-100 max-h-[300px] overflow-y-auto">
+          {diffs.map((d, i) => (
+            <DiffViewer
+              key={i}
+              path={d.type === "diff" ? (d.path ? extractFileName(d.path) : undefined) : undefined}
+              oldText={d.type === "diff" ? d.oldText : undefined}
+              newText={d.type === "diff" ? d.newText : undefined}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ===== ExecuteCard with expandable command =====
+
+function ExecuteCard({
+  item,
+  selected,
+  isFailed,
+  command,
+  terminalId,
+  onClick,
+}: {
+  item: ChatItemToolCall;
+  selected: boolean;
+  isFailed: boolean;
+  command: string | null;
+  terminalId: string | null;
+  onClick: () => void;
+}) {
+  const [cmdExpanded, setCmdExpanded] = useState(false);
+
   return (
     <div
       className={`
@@ -551,7 +637,15 @@ export function ToolCallCard({
           <StatusBadge item={item} />
         </div>
         {command && (
-          <div className="mt-1.5 bg-gray-900 rounded-md px-2.5 py-1.5 font-mono text-[11px] text-gray-300 truncate">
+          <div
+            className={`mt-1.5 bg-gray-900 rounded-md px-2.5 py-1.5 font-mono text-[11px] text-gray-300 ${
+              cmdExpanded ? "whitespace-pre-wrap break-all" : "truncate"
+            }`}
+            onClick={e => {
+              e.stopPropagation();
+              setCmdExpanded(prev => !prev);
+            }}
+          >
             <span className="text-emerald-400 mr-1.5 select-none">$</span>
             {command}
           </div>

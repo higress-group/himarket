@@ -12,11 +12,12 @@ import type { ChatItemUser, ChatItemPlan } from "../../types/acp";
 
 interface ChatStreamProps {
   onSelectToolCall: (toolCallId: string) => void;
+  onOpenFile?: (path: string) => void;
 }
 
 const SCROLL_THRESHOLD = 24;
 
-export function ChatStream({ onSelectToolCall }: ChatStreamProps) {
+export function ChatStream({ onSelectToolCall, onOpenFile }: ChatStreamProps) {
   const quest = useActiveQuest();
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -203,6 +204,7 @@ export function ChatStream({ onSelectToolCall }: ChatStreamProps) {
                 meta={ri.meta}
                 selectedToolCallId={selectedToolCallId}
                 onSelectToolCall={onSelectToolCall}
+                onOpenFile={onOpenFile}
                 isLastUnit={isLast}
                 isProcessing={isProcessing}
               />
@@ -225,6 +227,7 @@ export function ChatStream({ onSelectToolCall }: ChatStreamProps) {
                   key={item.id}
                   text={item.text}
                   streaming={isLast && isProcessing && !item.complete}
+                  onOpenFile={onOpenFile}
                 />
               );
             }
