@@ -28,6 +28,8 @@ import {
   trackRequest,
   extractSessionUpdate,
   extractPermissionRequest,
+  clearPendingRequests,
+  resetNextId,
 } from "../lib/utils/acp";
 import { normalizeIncomingMessage } from "../lib/utils/acpNormalize";
 import {
@@ -55,6 +57,13 @@ export function useAcpSession({ wsUrl }: UseAcpSessionOptions) {
   const scanTriggeredRef = useRef<Set<string>>(new Set());
   const autoPermissionsRef = useRef<Record<string, "allow" | "reject">>({});
   const promptSeqRef = useRef(0);
+
+  // wsUrl 变化时（CLI provider 切换），重置初始化状态和 pending 请求
+  useEffect(() => {
+    initializedRef.current = false;
+    clearPendingRequests();
+    resetNextId();
+  }, [wsUrl]);
 
   useEffect(() => {
     stateRef.current = state;
@@ -396,6 +405,8 @@ export function useAcpSession({ wsUrl }: UseAcpSessionOptions) {
 
     if (status === "disconnected") {
       initializedRef.current = false;
+      clearPendingRequests();
+      resetNextId();
       dispatch({ type: "WS_DISCONNECTED" });
     }
   }, [status, dispatch]);

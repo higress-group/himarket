@@ -3,15 +3,20 @@ import {
   useActiveQuest,
 } from "../../context/QuestSessionContext";
 import type { WsStatus } from "../../hooks/useAcpWebSocket";
+import { CliProviderSelect } from "../coding/CliProviderSelect";
 
 interface QuestTopBarProps {
   status: WsStatus;
   onSetModel: (modelId: string) => void;
+  currentProvider: string;
+  onProviderChange: (providerKey: string) => void;
 }
 
 export function QuestTopBar({
   status,
   onSetModel,
+  currentProvider,
+  onProviderChange,
 }: QuestTopBarProps) {
   const state = useQuestState();
   const quest = useActiveQuest();
@@ -32,6 +37,8 @@ export function QuestTopBar({
       <div className="text-sm font-medium text-gray-700 truncate max-w-[200px]">
         {quest?.title ?? "HiWork"}
       </div>
+
+      <CliProviderSelect value={currentProvider} onChange={onProviderChange} />
 
       {modelOptions.length > 0 && (
         <select

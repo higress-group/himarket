@@ -6,7 +6,9 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,7 +18,7 @@ import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 
 /**
- * Manages a qodercli --acp subprocess.
+ * Manages an ACP-compatible CLI subprocess (qodercli, kiro-cli, claude-code, codex, qwen-code, etc.).
  * Provides reactive stdin/stdout access for transparent proxying.
  */
 public class AcpProcess {
@@ -26,6 +28,7 @@ public class AcpProcess {
     private final String command;
     private final List<String> args;
     private final String cwd;
+    private final Map<String, String> extraEnv;
     private Process process;
     private OutputStream stdin;
     private volatile boolean closed = false;
@@ -37,13 +40,18 @@ public class AcpProcess {
     private Scheduler stderrScheduler;
 
     public AcpProcess(String command, List<String> args, String cwd) {
+        this(command, args, cwd, Collections.emptyMap());
+    }
+
+    public AcpProcess(String command, List<String> args, String cwd, Map<String, String> extraEnv) {
         this.command = command;
         this.args = args;
         this.cwd = cwd;
+        this.extraEnv = extraEnv != null ? extraEnv : Collections.emptyMap();
     }
 
     /**
-     * Start the qodercli subprocess.
+     * Start the ACP CLI subprocess.
      */
     public void start() throws IOException {
         List<String> fullCommand = new ArrayList<>();
@@ -56,6 +64,10 @@ public class AcpProcess {
         pb.redirectErrorStream(false);
         if (cwd != null) {
             pb.directory(new java.io.File(cwd));
+        }
+        // Merge extra environment variables (e.g. API keys for specific CLI providers)
+        if (!extraEnv.isEmpty()) {
+            pb.environment().putAll(extraEnv);
         }
         this.process = pb.start();
         this.stdin = process.getOutputStream();
@@ -139,7 +151,7 @@ public class AcpProcess {
     }
 
     /**
-     * Reactive stream of stdout lines (each line is a JSON-RPC message from qodercli).
+     * Reactive stream of stdout lines (each line is a JSON-RPC message from the ACP CLI).
      */
     public Flux<String> stdout() {
         return stdoutSink.asFlux();

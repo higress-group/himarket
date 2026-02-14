@@ -76,6 +76,7 @@
 
         <!-- Plugins Versions -->
         <maven-compiler-plugin.version>3.11.0</maven-compiler-plugin.version>
+        <maven-surefire-plugin.version>3.2.5</maven-surefire-plugin.version>
         <spotless-maven-plugin.version>2.46.1</spotless-maven-plugin.version>
         <google-java-format.version>1.28.0</google-java-format.version>
 
@@ -284,6 +285,12 @@
                         <encoding>${project.build.sourceEncoding}</encoding>
                         <parameters>true</parameters>
                     </configuration>
+                </plugin>
+
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>${maven-surefire-plugin.version}</version>
                 </plugin>
 
                 <!-- Spotless Plugin for Code Formatting -->

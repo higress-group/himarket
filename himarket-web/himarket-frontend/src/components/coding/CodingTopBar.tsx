@@ -4,12 +4,15 @@ import {
   useActiveQuest,
 } from "../../context/QuestSessionContext";
 import type { WsStatus } from "../../hooks/useAcpWebSocket";
+import { CliProviderSelect } from "./CliProviderSelect";
 
 interface CodingTopBarProps {
   status: WsStatus;
   onSetModel: (modelId: string) => void;
   fileTreeVisible: boolean;
   onToggleFileTree: () => void;
+  currentProvider: string;
+  onProviderChange: (providerKey: string) => void;
 }
 
 export function CodingTopBar({
@@ -17,6 +20,8 @@ export function CodingTopBar({
   onSetModel,
   fileTreeVisible,
   onToggleFileTree,
+  currentProvider,
+  onProviderChange,
 }: CodingTopBarProps) {
   const state = useQuestState();
   const quest = useActiveQuest();
@@ -35,6 +40,8 @@ export function CodingTopBar({
   return (
     <div className="flex items-center gap-3 px-3 py-1.5 border-b border-gray-200/60 bg-white/30 backdrop-blur-sm flex-shrink-0">
       <div className="text-sm font-semibold text-gray-700">HiCoding</div>
+
+      <CliProviderSelect value={currentProvider} onChange={onProviderChange} />
 
       {modelOptions.length > 0 && (
         <select

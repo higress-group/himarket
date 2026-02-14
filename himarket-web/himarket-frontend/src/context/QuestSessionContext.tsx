@@ -104,6 +104,7 @@ export const initialState: QuestState = {
 export type QuestAction =
   | { type: "WS_CONNECTED" }
   | { type: "WS_DISCONNECTED" }
+  | { type: "RESET_STATE" }
   | {
       type: "PROTOCOL_INITIALIZED";
       models: Model[];
@@ -284,6 +285,9 @@ export function questReducer(
 
     case "WS_DISCONNECTED":
       return { ...state, connected: false, initialized: false };
+
+    case "RESET_STATE":
+      return { ...initialState };
 
     case "PROTOCOL_INITIALIZED":
       return {

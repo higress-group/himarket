@@ -60,7 +60,8 @@ public class SecurityConfig {
         "/developers/oidc/providers",
         "/developers/oauth2/token",
         "/ws/acp",
-        "/ws/terminal"
+        "/ws/terminal",
+        "/cli-providers"
     };
 
     // Swagger endpoints

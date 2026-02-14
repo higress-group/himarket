@@ -97,6 +97,7 @@ export function QuestInput({
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [mentionedFiles, setMentionedFiles] = useState<FlatFileItem[]>([]);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const state = useQuestState();
@@ -168,10 +169,29 @@ export function QuestInput({
     }
   }, [flatFiles.length, activeQuest?.cwd]);
 
+  const removeMention = useCallback((path: string) => {
+    setMentionedFiles(prev => prev.filter(f => f.path !== path));
+  }, []);
+
   const handleSend = useCallback(() => {
     const trimmed = text.trim();
-    if (!trimmed && attachments.length === 0) return;
-    const result = onSend(trimmed, attachments.length > 0 ? attachments : undefined);
+    if (!trimmed && attachments.length === 0 && mentionedFiles.length === 0) return;
+
+    // Convert mentioned files to resource_link attachments
+    const mentionAttachments: FilePathAttachment[] = mentionedFiles.map(file => ({
+      id: nextAttId(),
+      kind: "file_path" as const,
+      name: file.name,
+      filePath: file.path,
+      mimeType: file.extension ? `text/${file.extension}` : "text/plain",
+    }));
+
+    const allAttachments = [...mentionAttachments, ...attachments];
+
+    const result = onSend(
+      trimmed,
+      allAttachments.length > 0 ? allAttachments : undefined
+    );
     if (result.queued) {
       onSendQueued?.(result.queuedPromptId);
     }
@@ -179,7 +199,8 @@ export function QuestInput({
     setShowSlash(false);
     setShowMentionMenu(false);
     setAttachments([]);
-  }, [text, attachments, onSend, onSendQueued]);
+    setMentionedFiles([]);
+  }, [text, attachments, mentionedFiles, onSend, onSendQueued]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     // Let FileMentionMenu handle navigation when it's open
@@ -226,34 +247,21 @@ export function QuestInput({
 
   const handleFileSelect = useCallback(
     (file: FlatFileItem) => {
-      // Replace "@query" with "@filename "
-      const newText = text.replace(/@\S*$/, `@${file.name} `);
+      // Remove "@query" from text — the file chip provides the visual reference
+      const newText = text.replace(/@\S*$/, "");
       setText(newText);
       setShowMentionMenu(false);
       setMentionFilter("");
 
-      // Check if file already attached (by path)
-      const alreadyAttached = attachments.some(
-        att => att.kind === "file_path" && att.filePath === file.path
-      );
-      if (alreadyAttached) {
-        inputRef.current?.focus();
-        return;
-      }
+      // Add to mentioned files if not already present
+      setMentionedFiles(prev => {
+        if (prev.some(f => f.path === file.path)) return prev;
+        return [...prev, file];
+      });
 
-      // Create FilePathAttachment
-      const newAttachment: FilePathAttachment = {
-        id: nextAttId(),
-        kind: "file_path",
-        name: file.name,
-        filePath: file.path,
-        mimeType: file.extension ? `text/${file.extension}` : "text/plain",
-      };
-
-      setAttachments(prev => [...prev, newAttachment]);
       inputRef.current?.focus();
     },
-    [text, attachments]
+    [text]
   );
 
   const handlePaste = (e: ClipboardEvent<HTMLTextAreaElement>) => {
@@ -298,7 +306,7 @@ export function QuestInput({
   const canSend =
     !disabled &&
     !uploading &&
-    (text.trim().length > 0 || attachments.length > 0);
+    (text.trim().length > 0 || attachments.length > 0 || mentionedFiles.length > 0);
 
   return (
     <div
@@ -327,6 +335,32 @@ export function QuestInput({
           onSelect={handleFileSelect}
           loading={filesLoading}
         />
+      )}
+
+      {/* Mentioned file chips (from @ references) */}
+      {mentionedFiles.length > 0 && (
+        <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+          {mentionedFiles.map(file => (
+            <span
+              key={file.path}
+              className="inline-flex items-center gap-1 pl-1.5 pr-1 py-0.5 rounded-md
+                         bg-blue-50 border border-blue-200/80 text-blue-700 text-xs font-medium
+                         transition-colors"
+            >
+              <FileText size={12} className="text-blue-500 flex-shrink-0" />
+              <span className="truncate max-w-[160px]" title={file.relativePath}>
+                {file.name}
+              </span>
+              <button
+                className="ml-0.5 p-0.5 rounded text-blue-400 hover:text-blue-600 hover:bg-blue-100
+                           transition-colors flex-shrink-0"
+                onClick={() => removeMention(file.path)}
+              >
+                <X size={12} />
+              </button>
+            </span>
+          ))}
+        </div>
       )}
 
       {/* Attachment preview strip */}

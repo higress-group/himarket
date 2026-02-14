@@ -20,6 +20,10 @@ export function nextId(): number {
   return _nextId++;
 }
 
+export function resetNextId(): void {
+  _nextId = 1;
+}
+
 // ===== Request Builders =====
 
 export function buildRequest(
@@ -166,4 +170,15 @@ export function resolveResponse(response: AcpResponse): boolean {
     pending.resolve(response.result);
   }
   return true;
+}
+
+/**
+ * 清除所有 pending 请求，reject 它们以避免 promise 泄漏。
+ * 在 WebSocket 断开或 CLI provider 切换时调用。
+ */
+export function clearPendingRequests(): void {
+  for (const [, pending] of pendingRequests) {
+    pending.reject({ code: -1, message: "Connection reset" });
+  }
+  pendingRequests.clear();
 }

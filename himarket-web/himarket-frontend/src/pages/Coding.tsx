@@ -58,10 +58,15 @@ function inferLanguage(fileName: string): string {
   return EXT_TO_LANG[ext] ?? "plaintext";
 }
 
-function buildWsUrl(): string {
+function buildWsUrl(provider?: string): string {
   const base = `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/ws/acp`;
+  const params = new URLSearchParams();
   const token = localStorage.getItem("access_token");
-  return token ? `${base}?token=${encodeURIComponent(token)}` : base;
+  if (token) params.set("token", token);
+  const p = provider || localStorage.getItem("hicoding:cliProvider") || "";
+  if (p) params.set("provider", p);
+  const qs = params.toString();
+  return qs ? `${base}?${qs}` : base;
 }
 
 function readBool(key: string, fallback: boolean): boolean {
@@ -127,11 +132,23 @@ const READ_ONLY_KINDS = new Set([
 ]);
 
 function CodingContent() {
-  const [wsUrl] = useState(buildWsUrl);
+  // CLI Provider 切换（持久化到 localStorage，切换时重建 WebSocket 连接）
+  const [currentProvider, setCurrentProvider] = useState(
+    () => localStorage.getItem("hicoding:cliProvider") || ""
+  );
+  const [wsUrl, setWsUrl] = useState(() => buildWsUrl(currentProvider));
   const session = useAcpSession({ wsUrl });
+
   const state = useQuestState();
   const activeQuest = useActiveQuest();
   const dispatch = useQuestDispatch();
+
+  const handleProviderChange = useCallback((providerKey: string) => {
+    localStorage.setItem("hicoding:cliProvider", providerKey);
+    setCurrentProvider(providerKey);
+    dispatch({ type: "RESET_STATE" });
+    setWsUrl(buildWsUrl(providerKey));
+  }, [dispatch]);
 
   const [activeTab, setActiveTab] = useState<RightTab>("code");
   const [tree, setTree] = useState<FileNode[]>([]);
@@ -388,6 +405,8 @@ function CodingContent() {
           onSetModel={session.setModel}
           fileTreeVisible={fileTreeVisible}
           onToggleFileTree={toggleFileTree}
+          currentProvider={currentProvider}
+          onProviderChange={handleProviderChange}
         />
 
         <ChatStream

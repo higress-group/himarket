@@ -90,14 +90,22 @@ export function useAcpWebSocket({
 
   useEffect(() => {
     if (autoConnect) {
+      reconnectAttemptRef.current = 0;
       connect();
     }
     return () => {
       cleanup();
       if (wsRef.current) {
+        // 把 onclose 置空，避免触发旧的重连逻辑
+        wsRef.current.onclose = null;
+        wsRef.current.onerror = null;
+        wsRef.current.onopen = null;
+        wsRef.current.onmessage = null;
         wsRef.current.close();
         wsRef.current = null;
       }
+      // 确保 status 回到 disconnected，让 useAcpSession 能正确重置
+      setStatus("disconnected");
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url]);

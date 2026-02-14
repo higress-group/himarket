@@ -32,6 +32,12 @@ public class AcpHandshakeInterceptor implements HandshakeInterceptor {
         try {
             var params = UriComponentsBuilder.fromUri(request.getURI()).build().getQueryParams();
             token = params.getFirst("token");
+
+            // Extract CLI provider selection from query param: ?provider=kiro-cli
+            String provider = params.getFirst("provider");
+            if (StrUtil.isNotBlank(provider)) {
+                attributes.put("provider", provider);
+            }
         } catch (Exception e) {
             logger.debug("Failed to parse token from query param", e);
         }

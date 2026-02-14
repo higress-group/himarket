@@ -41,9 +41,29 @@ jwt:
   expiration: 7d
 
 acp:
-  cli-command: ${ACP_CLI_COMMAND:qodercli}
-  cli-args: ${ACP_CLI_ARGS:--acp}
+  default-provider: ${ACP_DEFAULT_PROVIDER:qodercli}
   workspace-root: ${ACP_WORKSPACE_ROOT:${user.home}/.himarket/workspaces}
+  providers:
+    qodercli:
+      display-name: Qoder CLI
+      command: ${ACP_CLI_COMMAND_QODERCLI:qodercli}
+      args: ${ACP_CLI_ARGS_QODERCLI:--acp}
+    kiro-cli:
+      display-name: Kiro CLI
+      command: ${ACP_CLI_COMMAND_KIRO:kiro-cli}
+      args: ${ACP_CLI_ARGS_KIRO:acp}
+    claude-code:
+      display-name: Claude Code
+      command: ${ACP_CLI_COMMAND_CLAUDE:npx}
+      args: ${ACP_CLI_ARGS_CLAUDE:@zed-industries/claude-code-acp}
+    codex:
+      display-name: Codex CLI
+      command: ${ACP_CLI_COMMAND_CODEX:npx}
+      args: ${ACP_CLI_ARGS_CODEX:@zed-industries/codex-acp}
+    qwen-code:
+      display-name: Qwen Code
+      command: ${ACP_CLI_COMMAND_QWEN:qwen-code}
+      args: ${ACP_CLI_ARGS_QWEN:--acp}
 
 sls:
   # SLS服务端点（必填）

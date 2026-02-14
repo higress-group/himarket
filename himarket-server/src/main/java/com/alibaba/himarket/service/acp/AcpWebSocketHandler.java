@@ -1,6 +1,7 @@
 package com.alibaba.himarket.service.acp;
 
 import com.alibaba.himarket.config.AcpProperties;
+import com.alibaba.himarket.config.AcpProperties.CliProviderConfig;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -50,14 +51,33 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
         String cwd = buildWorkspacePath(userId);
         logger.info("WebSocket connected: id={}, userId={}, cwd={}", session.getId(), userId, cwd);
 
-        // Start qodercli process
+        // Resolve CLI provider: prefer query param, fallback to default
+        String providerKey = (String) session.getAttributes().get("provider");
+        if (providerKey == null || providerKey.isBlank()) {
+            providerKey = properties.getDefaultProvider();
+        }
+        CliProviderConfig providerConfig = properties.getProvider(providerKey);
+        if (providerConfig == null) {
+            logger.error("Unknown CLI provider '{}', closing connection", providerKey);
+            session.close(CloseStatus.POLICY_VIOLATION);
+            return;
+        }
+
+        logger.info(
+                "Using CLI provider '{}' (command={})", providerKey, providerConfig.getCommand());
+
+        // Start ACP CLI process
         AcpProcess acpProcess =
-                new AcpProcess(properties.getCliCommand(), List.of(properties.getCliArgs()), cwd);
+                new AcpProcess(
+                        providerConfig.getCommand(),
+                        List.of(providerConfig.getArgs()),
+                        cwd,
+                        providerConfig.getEnv());
 
         try {
             acpProcess.start();
         } catch (Exception e) {
-            logger.error("Failed to start qodercli for user {}", userId, e);
+            logger.error("Failed to start CLI provider '{}' for user {}", providerKey, userId, e);
             session.close(CloseStatus.SERVER_ERROR);
             return;
         }
@@ -65,7 +85,7 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
         processMap.put(session.getId(), acpProcess);
         cwdMap.put(session.getId(), cwd);
 
-        // Subscribe to stdout: pipe qodercli output → WebSocket
+        // Subscribe to stdout: pipe ACP CLI output → WebSocket
         Disposable subscription =
                 acpProcess
                         .stdout()
@@ -130,7 +150,7 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
         try {
             acpProcess.send(payload);
         } catch (IOException e) {
-            logger.error("Error writing to qodercli stdin for session {}", session.getId(), e);
+            logger.error("Error writing to ACP CLI stdin for session {}", session.getId(), e);
         }
     }
 
@@ -164,7 +184,7 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
 
     /**
      * Intercept session/new requests and replace the cwd parameter with the
-     * absolute workspace path so that qodercli knows the real directory.
+     * absolute workspace path so that the ACP CLI knows the real directory.
      */
     private String rewriteSessionNewCwd(String sessionId, String payload) {
         String cwd = cwdMap.get(sessionId);
