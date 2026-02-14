@@ -16,9 +16,18 @@ import {
   FileText,
   Loader2,
 } from "lucide-react";
-import { useQuestState } from "../../context/QuestSessionContext";
+import { useQuestState, useActiveQuest } from "../../context/QuestSessionContext";
 import { SlashMenu } from "./SlashMenu";
-import { uploadFileToWorkspace } from "../../lib/utils/workspaceApi";
+import { FileMentionMenu } from "./FileMentionMenu";
+import {
+  uploadFileToWorkspace,
+  fetchDirectoryTree,
+} from "../../lib/utils/workspaceApi";
+import {
+  flattenFileTree,
+  filterFiles,
+  type FlatFileItem,
+} from "../../lib/utils/fileTreeUtils";
 import type { Attachment, FilePathAttachment } from "../../types/acp";
 import type { QueuedPromptItem } from "../../context/QuestSessionContext";
 
@@ -81,12 +90,17 @@ export function QuestInput({
 }: QuestInputProps) {
   const [text, setText] = useState("");
   const [showSlash, setShowSlash] = useState(false);
+  const [showMentionMenu, setShowMentionMenu] = useState(false);
+  const [mentionFilter, setMentionFilter] = useState("");
+  const [flatFiles, setFlatFiles] = useState<FlatFileItem[]>([]);
+  const [filesLoading, setFilesLoading] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const state = useQuestState();
+  const activeQuest = useActiveQuest();
 
   // Upload files to backend and create FilePathAttachment entries
   const addFiles = useCallback(
@@ -138,6 +152,22 @@ export function QuestInput({
     });
   }, []);
 
+  // Load file tree on first "@" trigger
+  const loadFileTree = useCallback(async () => {
+    if (flatFiles.length > 0 || !activeQuest?.cwd) return;
+
+    setFilesLoading(true);
+    try {
+      const tree = await fetchDirectoryTree(activeQuest.cwd, 5);
+      const flattened = flattenFileTree(tree, activeQuest.cwd);
+      setFlatFiles(flattened);
+    } catch {
+      setFlatFiles([]);
+    } finally {
+      setFilesLoading(false);
+    }
+  }, [flatFiles.length, activeQuest?.cwd]);
+
   const handleSend = useCallback(() => {
     const trimmed = text.trim();
     if (!trimmed && attachments.length === 0) return;
@@ -147,21 +177,45 @@ export function QuestInput({
     }
     setText("");
     setShowSlash(false);
+    setShowMentionMenu(false);
     setAttachments([]);
   }, [text, attachments, onSend, onSendQueued]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    // Let FileMentionMenu handle navigation when it's open
+    if (showMentionMenu && ["ArrowDown", "ArrowUp", "Enter"].includes(e.key)) {
+      return;
+    }
+
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
+    } else if (e.key === "Escape") {
+      if (showMentionMenu) {
+        e.preventDefault();
+        setShowMentionMenu(false);
+        setMentionFilter("");
+      }
     }
   };
 
   const handleChange = (value: string) => {
     setText(value);
-    setShowSlash(
-      value === "/" || (value.startsWith("/") && !value.includes(" "))
-    );
+
+    // Check for slash command (only at start)
+    const isSlashCommand = value === "/" || (value.startsWith("/") && !value.includes(" "));
+    setShowSlash(isSlashCommand);
+
+    // Check for "@" mention (at end of input)
+    const mentionMatch = value.match(/@(\S*)$/);
+    if (mentionMatch && !isSlashCommand) {
+      setShowMentionMenu(true);
+      setMentionFilter(mentionMatch[1]);
+      loadFileTree();
+    } else {
+      setShowMentionMenu(false);
+      setMentionFilter("");
+    }
   };
 
   const handleCommandSelect = (name: string) => {
@@ -169,6 +223,38 @@ export function QuestInput({
     setShowSlash(false);
     inputRef.current?.focus();
   };
+
+  const handleFileSelect = useCallback(
+    (file: FlatFileItem) => {
+      // Replace "@query" with "@filename "
+      const newText = text.replace(/@\S*$/, `@${file.name} `);
+      setText(newText);
+      setShowMentionMenu(false);
+      setMentionFilter("");
+
+      // Check if file already attached (by path)
+      const alreadyAttached = attachments.some(
+        att => att.kind === "file_path" && att.filePath === file.path
+      );
+      if (alreadyAttached) {
+        inputRef.current?.focus();
+        return;
+      }
+
+      // Create FilePathAttachment
+      const newAttachment: FilePathAttachment = {
+        id: nextAttId(),
+        kind: "file_path",
+        name: file.name,
+        filePath: file.path,
+        mimeType: file.extension ? `text/${file.extension}` : "text/plain",
+      };
+
+      setAttachments(prev => [...prev, newAttachment]);
+      inputRef.current?.focus();
+    },
+    [text, attachments]
+  );
 
   const handlePaste = (e: ClipboardEvent<HTMLTextAreaElement>) => {
     const items = e.clipboardData?.files;
@@ -232,6 +318,14 @@ export function QuestInput({
           commands={state.commands}
           filter={text.slice(1)}
           onSelect={handleCommandSelect}
+        />
+      )}
+      {showMentionMenu && (
+        <FileMentionMenu
+          files={filterFiles(flatFiles, mentionFilter)}
+          filter={mentionFilter}
+          onSelect={handleFileSelect}
+          loading={filesLoading}
         />
       )}
 
