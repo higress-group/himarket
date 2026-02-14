@@ -1,4 +1,5 @@
 import { FolderOpen, Folder } from "lucide-react";
+import { Select } from "antd";
 import {
   useQuestState,
   useActiveQuest,
@@ -44,18 +45,18 @@ export function CodingTopBar({
       <CliProviderSelect value={currentProvider} onChange={onProviderChange} />
 
       {modelOptions.length > 0 && (
-        <select
-          className="text-xs border border-gray-200 rounded-md px-2 py-1 bg-white/80
-                     text-gray-600 outline-none focus:border-gray-400 transition-colors"
+        <Select
+          size="small"
+          variant="outlined"
+          placement="bottomLeft"
+          className="min-w-[120px]"
           value={quest?.currentModelId ?? ""}
-          onChange={e => onSetModel(e.target.value)}
-        >
-          {modelOptions.map(m => (
-            <option key={m.modelId} value={m.modelId}>
-              {m.name}
-            </option>
-          ))}
-        </select>
+          onChange={onSetModel}
+          options={modelOptions.map(m => ({
+            value: m.modelId,
+            label: m.name,
+          }))}
+        />
       )}
 
       <div className="flex-1" />

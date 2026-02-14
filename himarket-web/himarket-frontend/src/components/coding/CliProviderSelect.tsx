@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Select } from "antd";
 import { getCliProviders, type ICliProvider } from "../../lib/apis/cliProvider";
 
 interface CliProviderSelectProps {
@@ -37,18 +38,19 @@ export function CliProviderSelect({ value, onChange }: CliProviderSelectProps) {
   if (providers.length <= 1) return null;
 
   return (
-    <select
-      className="text-xs border border-gray-200 rounded-md px-2 py-1 bg-white/80
-                 text-gray-600 outline-none focus:border-gray-400 transition-colors"
+    <Select
+      size="small"
+      variant="outlined"
+      placement="bottomLeft"
+      className="min-w-[100px]"
       value={value}
-      onChange={e => onChange(e.target.value)}
+      onChange={onChange}
       title="切换 CLI Agent"
-    >
-      {providers.map(p => (
-        <option key={p.key} value={p.key} disabled={!p.available}>
-          {p.displayName}{!p.available ? " (不可用)" : ""}
-        </option>
-      ))}
-    </select>
+      options={providers.map(p => ({
+        value: p.key,
+        label: p.displayName + (!p.available ? " (不可用)" : ""),
+        disabled: !p.available,
+      }))}
+    />
   );
 }

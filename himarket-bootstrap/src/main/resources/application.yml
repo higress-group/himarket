@@ -62,8 +62,12 @@ acp:
       args: ${ACP_CLI_ARGS_CODEX:@zed-industries/codex-acp}
     qwen-code:
       display-name: Qwen Code
-      command: ${ACP_CLI_COMMAND_QWEN:qwen-code}
+      command: ${ACP_CLI_COMMAND_QWEN:qwen}
       args: ${ACP_CLI_ARGS_QWEN:--acp}
+    opencode:
+      display-name: OpenCode
+      command: ${ACP_CLI_COMMAND_OPENCODE:opencode}
+      args: ${ACP_CLI_ARGS_OPENCODE:acp}
 
 sls:
   # SLS服务端点（必填）
