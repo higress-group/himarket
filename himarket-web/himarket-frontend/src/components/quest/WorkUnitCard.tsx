@@ -183,7 +183,7 @@ function MergedRow({
   return (
     <div>
       <div
-        className="flex items-center gap-2 px-2.5 py-1.5 cursor-pointer hover:bg-gray-50/60 rounded-md transition-colors"
+        className="flex items-center gap-2 px-2.5 py-1.5 cursor-pointer hover:bg-gray-50/60 rounded-lg transition-colors"
         onClick={() => setExpanded(prev => !prev)}
       >
         {expanded ? (
@@ -191,8 +191,8 @@ function MergedRow({
         ) : (
           <ChevronRight size={12} className="text-gray-300 flex-shrink-0" />
         )}
-        <Icon size={13} className="text-gray-300 flex-shrink-0" />
-        <span className="text-xs text-gray-400 truncate flex-1 min-w-0">
+        <Icon size={13} className="text-gray-400 flex-shrink-0" />
+        <span className="text-[13px] text-gray-400 truncate flex-1 min-w-0">
           {label}
         </span>
         {anyFailed ? (
@@ -289,11 +289,12 @@ export function WorkUnitCard({
 
   // Actions expand/collapse state
   const [actionsExpanded, setActionsExpanded] = useState(true);
+  const userToggledActionsRef = useRef(false);
   const prevHasInProgressRef = useRef(meta.hasInProgress);
 
-  // Auto-expand when an item goes in_progress
+  // Auto-expand when an item goes in_progress (only if user hasn't manually toggled)
   useEffect(() => {
-    if (meta.hasInProgress && !prevHasInProgressRef.current) {
+    if (meta.hasInProgress && !prevHasInProgressRef.current && !userToggledActionsRef.current) {
       setActionsExpanded(true);
     }
     prevHasInProgressRef.current = meta.hasInProgress;
@@ -309,11 +310,13 @@ export function WorkUnitCard({
     );
     if (containsSelected && !actionsExpanded) {
       setActionsExpanded(true);
+      userToggledActionsRef.current = false;
     }
   }, [selectedToolCallId, toolCallItems, actionsExpanded]);
 
   const handleToggleActions = () => {
     setActionsExpanded(prev => !prev);
+    userToggledActionsRef.current = true;
   };
 
   // Header status icon
@@ -330,17 +333,9 @@ export function WorkUnitCard({
       ? "text-green-500"
       : "text-blue-500";
 
-  const borderColor = meta.hasFailed
-    ? "border-red-300"
-    : meta.hasInProgress
-      ? "border-blue-300"
-      : meta.allCompleted
-        ? "border-green-300"
-        : "border-gray-200";
-
   return (
     <div
-      className={`border-l-[3px] pl-4 transition-colors duration-200 ${borderColor}`}
+      className="pl-1 transition-colors duration-200"
     >
       {/* Reasoning Header */}
       {reasoningItems.length > 0 && (
@@ -365,7 +360,7 @@ export function WorkUnitCard({
               return (
                 <div
                   key={item.id}
-                  className="border-l-2 border-gray-200/60 pl-3"
+                  className="pl-1"
                 >
                   <AgentMessage
                     text={a.text}
@@ -389,20 +384,20 @@ export function WorkUnitCard({
         <>
           {/* Actions Summary Bar */}
           <button
-            className="flex items-center gap-2 w-full py-1.5 text-sm hover:opacity-80 transition-opacity"
+            className="flex items-center gap-2 w-full py-1.5 px-2 rounded-lg text-[13px] hover:bg-gray-50 transition-colors"
             onClick={handleToggleActions}
           >
             <StatusIcon
               size={14}
-              className={`${statusColor} ${meta.hasInProgress ? "animate-spin" : ""}`}
+              className={`${statusColor} flex-shrink-0 ${meta.hasInProgress ? "animate-spin" : ""}`}
             />
-            <span className="text-gray-400 text-xs font-medium flex-1 text-left">
+            <span className="text-gray-500 text-[13px] flex-1 text-left truncate">
               {getSummaryText(meta, toolCallItems)}
             </span>
             {actionsExpanded ? (
-              <ChevronDown size={14} className="text-gray-400" />
+              <ChevronDown size={14} className="text-gray-300 flex-shrink-0" />
             ) : (
-              <ChevronRight size={14} className="text-gray-400" />
+              <ChevronRight size={14} className="text-gray-300 flex-shrink-0" />
             )}
           </button>
 

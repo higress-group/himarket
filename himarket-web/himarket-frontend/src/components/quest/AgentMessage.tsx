@@ -135,10 +135,11 @@ export function AgentMessage({
     return (
       <div
         className="prose prose-sm max-w-none text-gray-600
+                   prose-p:text-[14px] prose-p:leading-[1.75] prose-li:text-[14px]
                    prose-pre:bg-gray-50 prose-pre:border prose-pre:border-gray-200/80 prose-pre:rounded-lg
-                   prose-code:text-gray-600 prose-code:before:content-none prose-code:after:content-none
+                   prose-code:text-[13px] prose-code:text-gray-600 prose-code:before:content-none prose-code:after:content-none
                    prose-headings:text-gray-700 prose-a:text-blue-600
-                   prose-p:my-1 prose-headings:my-1
+                   prose-p:my-1.5 prose-headings:my-2
                    prose-table:border-collapse prose-th:border prose-th:border-gray-200 prose-th:bg-gray-50 prose-th:px-3 prose-th:py-1.5
                    prose-td:border prose-td:border-gray-200 prose-td:px-3 prose-td:py-1.5"
       >
@@ -159,9 +160,10 @@ export function AgentMessage({
   return (
     <div
       className="prose prose-sm max-w-none text-gray-700
+                     prose-p:text-[14.5px] prose-p:leading-[1.8] prose-li:text-[14.5px]
                      prose-pre:bg-gray-50 prose-pre:border prose-pre:border-gray-200/80 prose-pre:rounded-xl
-                     prose-code:text-gray-700 prose-code:before:content-none prose-code:after:content-none
-                     prose-headings:text-gray-800 prose-a:text-blue-600
+                     prose-code:text-[13px] prose-code:text-gray-700 prose-code:before:content-none prose-code:after:content-none
+                     prose-headings:text-gray-800 prose-headings:tracking-tight prose-a:text-blue-600
                      prose-table:border-collapse prose-th:border prose-th:border-gray-200 prose-th:bg-gray-50 prose-th:px-3 prose-th:py-1.5
                      prose-td:border prose-td:border-gray-200 prose-td:px-3 prose-td:py-1.5"
     >

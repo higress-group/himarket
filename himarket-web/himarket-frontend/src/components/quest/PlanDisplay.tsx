@@ -35,16 +35,10 @@ export function PlanDisplay({
   const hasInProgress = entries.some(e => e.status === "in_progress");
 
   if (isInline) {
-    const borderColor = hasInProgress
-      ? "border-blue-400"
-      : summary.completed === summary.total
-        ? "border-green-400"
-        : "border-blue-300";
-
     return (
-      <div className={`border-l-[3px] pl-4 transition-colors duration-200 ${borderColor}`}>
+      <div className="py-0.5">
         <button
-          className="flex items-center gap-2 w-full py-1.5 text-left hover:opacity-80 transition-opacity"
+          className="flex items-center gap-2 w-full py-1.5 px-2 rounded-lg text-left hover:bg-gray-50 transition-colors"
           onClick={() => setExpanded(prev => !prev)}
         >
           {hasInProgress ? (
@@ -77,7 +71,7 @@ export function PlanDisplay({
           )}
         </button>
         {expanded && (
-          <div className="mt-1.5 space-y-1.5">
+          <div className="mt-1.5 space-y-1.5 px-2">
             {entries.map((entry, i) => (
               <div key={i} className="flex items-start gap-2">
                 <span className="mt-0.5 flex-shrink-0">
@@ -92,7 +86,7 @@ export function PlanDisplay({
                   )}
                 </span>
                 <span
-                  className={`text-xs leading-snug ${
+                  className={`text-[13px] leading-snug ${
                     entry.status === "completed"
                       ? "text-gray-300 line-through"
                       : entry.status === "in_progress"
@@ -112,9 +106,9 @@ export function PlanDisplay({
 
   // Sidebar variant
   return (
-    <div className="border-l-[3px] border-gray-300 pl-4 transition-colors duration-200">
+    <div className="py-0.5">
       <button
-        className="flex items-center gap-2 w-full py-1.5 text-left hover:opacity-80 transition-opacity"
+        className="flex items-center gap-2 w-full py-1.5 px-2 rounded-lg text-left hover:bg-gray-50 transition-colors"
         onClick={() => setExpanded(prev => !prev)}
       >
         {hasInProgress ? (
@@ -133,7 +127,7 @@ export function PlanDisplay({
         )}
       </button>
       {expanded && (
-        <div className="mt-1.5 space-y-1.5">
+        <div className="mt-1.5 space-y-1.5 px-2">
           {entries.map((entry, i) => (
             <div key={i} className="flex items-start gap-2">
               <span className="mt-0.5 flex-shrink-0">
@@ -148,7 +142,7 @@ export function PlanDisplay({
                 )}
               </span>
               <span
-                className={`text-sm leading-snug ${
+                className={`text-[13px] leading-snug ${
                   entry.status === "completed"
                     ? "text-gray-400 line-through"
                     : "text-gray-600"

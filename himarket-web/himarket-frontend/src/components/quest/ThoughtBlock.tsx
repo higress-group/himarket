@@ -95,10 +95,10 @@ export function ThoughtBlock({
 
   if (isInline) {
     return (
-      <div className={`border-l-2 pl-3 py-1 ${streaming ? "border-purple-300" : "border-gray-200"}`}>
+      <div className="py-0.5">
         {/* Header */}
         <button
-          className="flex items-center gap-1.5 w-full text-xs hover:opacity-80 transition-opacity"
+          className="flex items-center gap-1.5 w-full text-xs hover:bg-gray-50 rounded-md px-1.5 py-1 transition-colors"
           onClick={handleToggle}
         >
           <Brain
@@ -136,7 +136,7 @@ export function ThoughtBlock({
         {expanded && text && (
           <div
             ref={contentRef}
-            className="mt-1 text-xs text-gray-400 whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto"
+            className="mt-1 px-1.5 text-[13px] text-gray-400 whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto"
           >
             {text}
             {streaming && (
@@ -147,7 +147,7 @@ export function ThoughtBlock({
 
         {/* Collapsed preview */}
         {!expanded && preview && (
-          <div className="mt-0.5 text-xs text-gray-300 whitespace-pre-wrap leading-relaxed line-clamp-2">
+          <div className="mt-0.5 px-1.5 text-[13px] text-gray-300 whitespace-pre-wrap leading-relaxed line-clamp-2">
             {preview}
             {hasMore && <span> ...</span>}
           </div>
@@ -158,14 +158,10 @@ export function ThoughtBlock({
 
   // Standalone variant
   return (
-    <div
-      className={`border-l-[3px] pl-3 transition-colors duration-300 ${
-        streaming ? "border-purple-400" : "border-gray-300"
-      }`}
-    >
+    <div className="py-0.5">
       {/* Header */}
       <button
-        className="flex items-center gap-1.5 w-full py-1.5 text-xs hover:opacity-80 transition-opacity"
+        className="flex items-center gap-1.5 w-full py-1.5 px-1.5 text-xs hover:bg-gray-50 rounded-md transition-colors"
         onClick={handleToggle}
       >
         <Brain
@@ -203,7 +199,7 @@ export function ThoughtBlock({
       {expanded && text && (
         <div
           ref={contentRef}
-          className="mt-1 text-xs text-gray-400 whitespace-pre-wrap leading-relaxed max-h-60 overflow-y-auto"
+          className="mt-1 px-1.5 text-[13px] text-gray-400 whitespace-pre-wrap leading-relaxed max-h-60 overflow-y-auto"
         >
           {text}
           {streaming && (
@@ -214,7 +210,7 @@ export function ThoughtBlock({
 
       {/* Collapsed preview */}
       {!expanded && preview && (
-        <div className="mt-0.5 text-xs text-gray-300 whitespace-pre-wrap leading-relaxed line-clamp-2">
+        <div className="mt-0.5 px-1.5 text-[13px] text-gray-300 whitespace-pre-wrap leading-relaxed line-clamp-2">
           {preview}
           {hasMore && <span> ...</span>}
         </div>
