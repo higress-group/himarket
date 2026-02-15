@@ -68,6 +68,12 @@ public class AcpProperties {
         private String args = "--acp";
         private Map<String, String> env = new LinkedHashMap<>();
 
+        /**
+         * 是否将 HOME 环境变量设为用户工作目录，实现凭证隔离。
+         * 开启后 CLI 工具的凭证文件会存储在 ~/.himarket/workspaces/{userId}/ 下。
+         */
+        private boolean isolateHome = false;
+
         public String getDisplayName() {
             return displayName;
         }
@@ -98,6 +104,14 @@ public class AcpProperties {
 
         public void setEnv(Map<String, String> env) {
             this.env = env;
+        }
+
+        public boolean isIsolateHome() {
+            return isolateHome;
+        }
+
+        public void setIsolateHome(boolean isolateHome) {
+            this.isolateHome = isolateHome;
         }
     }
 }

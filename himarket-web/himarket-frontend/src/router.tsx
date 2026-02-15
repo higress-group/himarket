@@ -17,6 +17,7 @@ import Square from "./pages/Square";
 import Chat from "./pages/Chat";
 import Quest from "./pages/Quest";
 import Coding from "./pages/Coding";
+import HiCli from "./pages/HiCli";
 
 export function Router() {
   return (
@@ -29,6 +30,7 @@ export function Router() {
       <Route path="/chat" element={<Chat />} />
       <Route path="/quest" element={<Quest />} />
       <Route path="/coding" element={<Coding />} />
+      <Route path="/hicli" element={<HiCli />} />
       <Route path="/getting-started" element={<GettingStarted />} />
       <Route path="/apis/:apiProductId" element={<ApiDetail />} />
       <Route path="/consumers/:consumerId" element={<ConsumerDetail />} />

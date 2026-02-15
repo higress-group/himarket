@@ -20,6 +20,7 @@ export function Header() {
     { path: "/chat", label: "HiChat" },
     { path: "/quest", label: "HiWork" },
     { path: "/coding", label: "HiCoding" },
+    { path: "/hicli", label: "HiCli" },
     { path: "/agents", label: "智能体" },
     { path: "/mcp", label: "MCP" },
     { path: "/models", label: "模型" },

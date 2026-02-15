@@ -809,6 +809,8 @@ function handleSessionUpdate(
 const QuestStateContext = createContext<QuestState>(initialState);
 const QuestDispatchContext = createContext<Dispatch<QuestAction>>(() => {});
 
+export { QuestStateContext, QuestDispatchContext };
+
 export function QuestSessionProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(questReducer, initialState);
   return (

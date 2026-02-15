@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -66,13 +67,22 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
         logger.info(
                 "Using CLI provider '{}' (command={})", providerKey, providerConfig.getCommand());
 
+        // Build process environment: start from provider-level env config.
+        // If isolateHome is enabled, override HOME so the CLI stores credentials
+        // under the per-user workspace (e.g. ~/.himarket/workspaces/{userId}/).
+        Map<String, String> processEnv = new HashMap<>(providerConfig.getEnv());
+        if (providerConfig.isIsolateHome()) {
+            processEnv.put("HOME", cwd);
+            logger.info("HOME isolated for provider '{}': {}", providerKey, cwd);
+        }
+
         // Start ACP CLI process
         AcpProcess acpProcess =
                 new AcpProcess(
                         providerConfig.getCommand(),
                         List.of(providerConfig.getArgs()),
                         cwd,
-                        providerConfig.getEnv());
+                        processEnv);
 
         try {
             acpProcess.start();

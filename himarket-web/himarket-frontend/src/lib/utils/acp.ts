@@ -49,7 +49,9 @@ export function buildResponse(id: JsonRpcId, result: unknown): AcpResponse {
 export function buildInitialize(): AcpRequest {
   return buildRequest(ACP_METHODS.INITIALIZE, {
     protocolVersion: 1,
-    clientCapabilities: {},
+    clientCapabilities: {
+      fs: { readTextFile: false, writeTextFile: false },
+    },
   });
 }
 

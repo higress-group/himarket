@@ -98,11 +98,41 @@ export interface Command {
   input?: { hint?: string } | null;
 }
 
+// ===== Agent Info (migrated from acp-demo) =====
+
+export interface AgentInfo {
+  name?: string;
+  title?: string;
+  version?: string;
+}
+
+export interface AuthMethod {
+  id: string;
+  name: string;
+  description?: string;
+  type?: string;
+  args?: string[];
+}
+
+export interface AgentCapabilities {
+  loadSession?: boolean;
+  mcpCapabilities?: Record<string, unknown>;
+  promptCapabilities?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
 // ===== Initialize =====
 
 export interface InitializeResult {
   protocolVersion: number;
   serverCapabilities: Record<string, unknown>;
+  agentInfo?: AgentInfo;
+  authMethods?: AuthMethod[];
+  modes?: {
+    currentModeId: string;
+    availableModes: Mode[];
+  };
+  agentCapabilities?: AgentCapabilities;
 }
 
 // ===== Session =====
