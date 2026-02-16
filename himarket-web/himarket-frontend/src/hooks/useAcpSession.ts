@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAcpWebSocket, type WsStatus } from "./useAcpWebSocket";
 import {
   useQuestDispatch,
@@ -96,12 +96,38 @@ export function useAcpSession({ wsUrl }: UseAcpSessionOptions) {
             stopReason: r?.stopReason ?? "unknown",
           });
         })
-        .catch(() => {
+        .catch((err: unknown) => {
+          let code = -1;
+          let message = "Unknown error";
+          let data: Record<string, unknown> | undefined;
+
+          if (
+            typeof err === "object" &&
+            err !== null &&
+            "code" in err &&
+            "message" in err &&
+            typeof (err as Record<string, unknown>).code === "number" &&
+            typeof (err as Record<string, unknown>).message === "string"
+          ) {
+            code = (err as Record<string, unknown>).code as number;
+            message = (err as Record<string, unknown>).message as string;
+            const rawData = (err as Record<string, unknown>).data;
+            if (
+              typeof rawData === "object" &&
+              rawData !== null &&
+              !Array.isArray(rawData)
+            ) {
+              data = rawData as Record<string, unknown>;
+            }
+          }
+
           dispatch({
-            type: "PROMPT_COMPLETED",
+            type: "PROMPT_ERROR",
             questId,
             requestId: req.id,
-            stopReason: "error",
+            code,
+            message,
+            ...(data !== undefined ? { data } : {}),
           });
         });
       return req.id;
@@ -415,49 +441,62 @@ export function useAcpSession({ wsUrl }: UseAcpSessionOptions) {
   const DEFAULT_MODEL_NAME = "Kimi-K2.5";
   const DEFAULT_MODE_NAME = "Bypass Permissions";
 
+  const creatingQuestRef = useRef(false);
+  const [creatingQuest, setCreatingQuest] = useState(false);
+
   const createQuest = useCallback(
     async (cwd: string): Promise<string> => {
-      const send = sendRawRef.current;
-      const sessionReq = buildSessionNew(cwd);
-      send(JSON.stringify(sessionReq));
-      const result = (await trackRequest(sessionReq.id)) as SessionNewResult;
-
-      dispatch({
-        type: "QUEST_CREATED",
-        sessionId: result.sessionId,
-        cwd,
-        models: result.models?.availableModels,
-        modes: result.modes?.availableModes,
-        currentModelId: result.models?.currentModelId,
-        currentModeId: result.modes?.currentModeId,
-      });
-
-      // Auto-set default model if available
-      const targetModel = result.models?.availableModels?.find(
-        m => m.name === DEFAULT_MODEL_NAME
-      );
-      if (
-        targetModel &&
-        targetModel.modelId !== result.models?.currentModelId
-      ) {
-        dispatch({ type: "SET_MODEL", modelId: targetModel.modelId });
-        const req = buildSetModel(result.sessionId, targetModel.modelId);
-        send(JSON.stringify(req));
-        trackRequest(req.id).catch(() => {});
+      if (creatingQuestRef.current) {
+        return Promise.reject(new Error("Quest creation already in progress"));
       }
+      creatingQuestRef.current = true;
+      setCreatingQuest(true);
+      try {
+        const send = sendRawRef.current;
+        const sessionReq = buildSessionNew(cwd);
+        send(JSON.stringify(sessionReq));
+        const result = (await trackRequest(sessionReq.id)) as SessionNewResult;
 
-      // Auto-set default mode if available
-      const targetMode = result.modes?.availableModes?.find(
-        m => m.name === DEFAULT_MODE_NAME
-      );
-      if (targetMode && targetMode.id !== result.modes?.currentModeId) {
-        dispatch({ type: "SET_MODE", modeId: targetMode.id });
-        const req = buildSetMode(result.sessionId, targetMode.id);
-        send(JSON.stringify(req));
-        trackRequest(req.id).catch(() => {});
+        dispatch({
+          type: "QUEST_CREATED",
+          sessionId: result.sessionId,
+          cwd,
+          models: result.models?.availableModels,
+          modes: result.modes?.availableModes,
+          currentModelId: result.models?.currentModelId,
+          currentModeId: result.modes?.currentModeId,
+        });
+
+        // Auto-set default model if available
+        const targetModel = result.models?.availableModels?.find(
+          m => m.name === DEFAULT_MODEL_NAME
+        );
+        if (
+          targetModel &&
+          targetModel.modelId !== result.models?.currentModelId
+        ) {
+          dispatch({ type: "SET_MODEL", modelId: targetModel.modelId });
+          const req = buildSetModel(result.sessionId, targetModel.modelId);
+          send(JSON.stringify(req));
+          trackRequest(req.id).catch(() => {});
+        }
+
+        // Auto-set default mode if available
+        const targetMode = result.modes?.availableModes?.find(
+          m => m.name === DEFAULT_MODE_NAME
+        );
+        if (targetMode && targetMode.id !== result.modes?.currentModeId) {
+          dispatch({ type: "SET_MODE", modeId: targetMode.id });
+          const req = buildSetMode(result.sessionId, targetMode.id);
+          send(JSON.stringify(req));
+          trackRequest(req.id).catch(() => {});
+        }
+
+        return result.sessionId;
+      } finally {
+        creatingQuestRef.current = false;
+        setCreatingQuest(false);
       }
-
-      return result.sessionId;
     },
     [dispatch]
   );
@@ -563,6 +602,7 @@ export function useAcpSession({ wsUrl }: UseAcpSessionOptions) {
 
   return {
     status: status as WsStatus,
+    creatingQuest,
     connect,
     disconnect,
     createQuest,

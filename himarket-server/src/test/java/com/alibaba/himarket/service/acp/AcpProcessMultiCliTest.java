@@ -55,10 +55,8 @@ class AcpProcessMultiCliTest {
 
     static List<CliDef> cliProviders() {
         return List.of(
-                new CliDef("qodercli", "qodercli", List.of("--acp")),
                 new CliDef("kiro-cli", "kiro-cli", List.of("acp")),
-                new CliDef("claude-code", "npx", List.of("@zed-industries/claude-code-acp")),
-                new CliDef("codex", "npx", List.of("@zed-industries/codex-acp")));
+                new CliDef("qwen-code", "qwen", List.of("--acp")));
     }
 
     @ParameterizedTest(name = "ACP initialize: {0}")

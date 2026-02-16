@@ -203,8 +203,11 @@ export function QuestInput({
   }, [text, attachments, mentionedFiles, onSend, onSendQueued]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    // Let FileMentionMenu handle navigation when it's open
-    if (showMentionMenu && ["ArrowDown", "ArrowUp", "Enter"].includes(e.key)) {
+    // Let SlashMenu or FileMentionMenu handle navigation when open
+    if (
+      (showSlash || showMentionMenu) &&
+      ["ArrowDown", "ArrowUp", "Enter", "Tab"].includes(e.key)
+    ) {
       return;
     }
 
@@ -212,7 +215,10 @@ export function QuestInput({
       e.preventDefault();
       handleSend();
     } else if (e.key === "Escape") {
-      if (showMentionMenu) {
+      if (showSlash) {
+        e.preventDefault();
+        setShowSlash(false);
+      } else if (showMentionMenu) {
         e.preventDefault();
         setShowMentionMenu(false);
         setMentionFilter("");

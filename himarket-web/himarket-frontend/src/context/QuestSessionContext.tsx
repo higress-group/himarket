@@ -11,6 +11,7 @@ import type {
   ChatItemThought,
   ChatItemToolCall,
   ChatItemPlan,
+  ChatItemError,
   Model,
   Mode,
   Command,
@@ -140,6 +141,14 @@ export type QuestAction =
       questId: string;
       requestId?: JsonRpcId;
       stopReason: string;
+    }
+  | {
+      type: "PROMPT_ERROR";
+      questId: string;
+      requestId: JsonRpcId;
+      code: number;
+      message: string;
+      data?: Record<string, unknown>;
     }
   | { type: "SET_MODEL"; modelId: string }
   | { type: "SET_MODE"; modeId: string }
@@ -405,6 +414,32 @@ export function questReducer(
           isProcessing: false,
           inflightPromptId: null,
           lastStopReason: action.stopReason,
+          lastCompletedAt: Date.now(),
+        };
+      });
+
+    case "PROMPT_ERROR":
+      return updateQuestById(state, action.questId, q => {
+        if (
+          action.requestId !== undefined &&
+          q.inflightPromptId !== null &&
+          q.inflightPromptId !== action.requestId
+        ) {
+          return q;
+        }
+        const errorItem: ChatItemError = {
+          type: "error",
+          id: chatItemId(),
+          code: action.code,
+          message: action.message,
+          ...(action.data ? { data: action.data } : {}),
+        };
+        return {
+          ...q,
+          messages: [...q.messages, errorItem],
+          isProcessing: false,
+          inflightPromptId: null,
+          lastStopReason: "error",
           lastCompletedAt: Date.now(),
         };
       });

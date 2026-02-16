@@ -90,6 +90,7 @@ function QuestContent() {
         onCreateQuest={handleCreateQuest}
         onSwitchQuest={session.switchQuest}
         onCloseQuest={session.closeQuest}
+        creatingQuest={session.creatingQuest}
       />
       {activeQuest ? (
         <div className="flex-1 flex min-w-0">
@@ -134,6 +135,7 @@ function QuestContent() {
           <QuestWelcome
             onCreateQuest={handleCreateQuest}
             disabled={!state.initialized}
+            creatingQuest={session.creatingQuest}
           />
         </div>
       )}

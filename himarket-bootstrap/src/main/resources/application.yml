@@ -64,7 +64,7 @@ acp:
       display-name: Qwen Code
       command: ${ACP_CLI_COMMAND_QWEN:qwen}
       args: ${ACP_CLI_ARGS_QWEN:--acp}
-      isolate-home: true
+      isolate-home: false
     opencode:
       display-name: OpenCode
       command: ${ACP_CLI_COMMAND_OPENCODE:opencode}

@@ -206,8 +206,14 @@ function CodingContent() {
   });
 
   // Auto-create quest on mount
+  const autoCreatedRef = useRef(false);
   useEffect(() => {
-    if (state.initialized && Object.keys(state.quests).length === 0) {
+    if (
+      state.initialized &&
+      Object.keys(state.quests).length === 0 &&
+      !autoCreatedRef.current
+    ) {
+      autoCreatedRef.current = true;
       session.createQuest(".").catch(err => {
         console.error("Failed to create quest:", err);
       });

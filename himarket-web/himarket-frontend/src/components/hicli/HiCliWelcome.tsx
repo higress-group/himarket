@@ -1,4 +1,4 @@
-import { Sparkles, Terminal } from "lucide-react";
+import { Sparkles, Terminal, Loader2 } from "lucide-react";
 import { HiCliSelector } from "./HiCliSelector";
 
 interface HiCliWelcomeProps {
@@ -6,6 +6,7 @@ interface HiCliWelcomeProps {
   onCreateQuest: () => void;
   isConnected: boolean;
   disabled: boolean;
+  creatingQuest?: boolean;
 }
 
 export function HiCliWelcome({
@@ -13,10 +14,11 @@ export function HiCliWelcome({
   onCreateQuest,
   isConnected,
   disabled,
+  creatingQuest,
 }: HiCliWelcomeProps) {
   return (
-    <div className="flex-1 flex items-center justify-center">
-      <div className="flex flex-col items-center text-center">
+    <div className="flex-1 flex items-center justify-center px-6">
+      <div className="flex flex-col items-center text-center w-full max-w-sm">
         <div className="mb-4 text-gray-300">
           <Terminal size={48} strokeWidth={1.5} />
         </div>
@@ -33,10 +35,14 @@ export function HiCliWelcome({
                          hover:bg-gray-700 transition-colors
                          disabled:opacity-40 disabled:cursor-not-allowed"
               onClick={onCreateQuest}
-              disabled={disabled}
+              disabled={disabled || creatingQuest}
             >
-              <Sparkles size={16} />
-              新建 Quest
+              {creatingQuest ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <Sparkles size={16} />
+              )}
+              {creatingQuest ? "创建中..." : "新建 Quest"}
             </button>
           </>
         ) : (

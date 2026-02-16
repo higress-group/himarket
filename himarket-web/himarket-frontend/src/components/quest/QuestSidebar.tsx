@@ -7,12 +7,14 @@ interface QuestSidebarProps {
   onCreateQuest: () => void;
   onSwitchQuest: (questId: string) => void;
   onCloseQuest: (questId: string) => void;
+  creatingQuest?: boolean;
 }
 
 export function QuestSidebar({
   onCreateQuest,
   onSwitchQuest,
   onCloseQuest,
+  creatingQuest,
 }: QuestSidebarProps) {
   const state = useQuestState();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -29,10 +31,14 @@ export function QuestSidebar({
           className="w-7 h-7 flex items-center justify-center rounded-md text-gray-500
                      hover:bg-gray-100 hover:text-gray-700 transition-colors disabled:opacity-40"
           onClick={onCreateQuest}
-          disabled={!state.initialized}
+          disabled={!state.initialized || creatingQuest}
           title="New Quest"
         >
-          <Plus size={16} />
+          {creatingQuest ? (
+            <span className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
+          ) : (
+            <Plus size={16} />
+          )}
         </button>
       </div>
 
@@ -60,7 +66,7 @@ export function QuestSidebar({
         )}
       </div>
 
-      <div className="px-4 py-2 border-t border-gray-200/60">
+      <div className="px-4 py-2.5 border-t border-gray-200/60">
         <div className="flex items-center gap-1.5 text-xs">
           <span
             className={`w-1.5 h-1.5 rounded-full ${state.connected ? "bg-green-500" : "bg-gray-400"}`}

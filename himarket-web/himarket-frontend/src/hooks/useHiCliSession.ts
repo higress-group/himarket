@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+
 import { useAcpWebSocket, type WsStatus } from "./useAcpWebSocket";
 import {
   useHiCliDispatch,
@@ -53,6 +54,7 @@ function buildHiCliWsUrl(cliId: string, cwd: string): string {
 
 export interface UseHiCliSessionReturn {
   status: WsStatus;
+  creatingQuest: boolean;
   connect: () => void;
   disconnect: () => void;
   createQuest: (cwd: string) => Promise<string>;
@@ -178,12 +180,38 @@ export function useHiCliSession(): UseHiCliSessionReturn {
             stopReason: r?.stopReason ?? "unknown",
           });
         })
-        .catch(() => {
+        .catch((err: unknown) => {
+          let code = -1;
+          let message = "Unknown error";
+          let data: Record<string, unknown> | undefined;
+
+          if (
+            typeof err === "object" &&
+            err !== null &&
+            "code" in err &&
+            "message" in err &&
+            typeof (err as Record<string, unknown>).code === "number" &&
+            typeof (err as Record<string, unknown>).message === "string"
+          ) {
+            code = (err as Record<string, unknown>).code as number;
+            message = (err as Record<string, unknown>).message as string;
+            const rawData = (err as Record<string, unknown>).data;
+            if (
+              typeof rawData === "object" &&
+              rawData !== null &&
+              !Array.isArray(rawData)
+            ) {
+              data = rawData as Record<string, unknown>;
+            }
+          }
+
           dispatch({
-            type: "PROMPT_COMPLETED",
+            type: "PROMPT_ERROR",
             questId,
             requestId: req.id,
-            stopReason: "error",
+            code,
+            message,
+            ...(data !== undefined ? { data } : {}),
           });
         });
       return req.id;
@@ -375,34 +403,47 @@ export function useHiCliSession(): UseHiCliSessionReturn {
 
   // ===== 公开方法 =====
 
+  const creatingQuestRef = useRef(false);
+  const [creatingQuest, setCreatingQuest] = useState(false);
+
   const createQuest = useCallback(
     async (cwd: string): Promise<string> => {
-      const sessionReq = buildSessionNew(cwd);
-      sendWithLog(JSON.stringify(sessionReq));
-      const result = (await trackRequest(sessionReq.id)) as SessionNewResult;
-
-      // session/new 响应中可能包含 modes，如果 initialize 没有返回 modes 则更新来源
-      const sessionModes = result.modes?.availableModes ?? [];
-
-      dispatch({
-        type: "QUEST_CREATED",
-        sessionId: result.sessionId,
-        cwd,
-        models: result.models?.availableModels,
-        modes: sessionModes.length > 0 ? sessionModes : undefined,
-        currentModelId: result.models?.currentModelId,
-        currentModeId: result.modes?.currentModeId,
-      });
-
-      // 如果 session/new 返回了 modes 且之前 initialize 没有返回，更新来源标注
-      if (sessionModes.length > 0 && !stateRef.current.modesSource) {
-        dispatch({
-          type: "DEBUG_PROTOCOL_INITIALIZED",
-          modesSource: "session_new" as const,
-        });
+      if (creatingQuestRef.current) {
+        return Promise.reject(new Error("Quest creation already in progress"));
       }
+      creatingQuestRef.current = true;
+      setCreatingQuest(true);
+      try {
+        const sessionReq = buildSessionNew(cwd);
+        sendWithLog(JSON.stringify(sessionReq));
+        const result = (await trackRequest(sessionReq.id)) as SessionNewResult;
 
-      return result.sessionId;
+        // session/new 响应中可能包含 modes，如果 initialize 没有返回 modes 则更新来源
+        const sessionModes = result.modes?.availableModes ?? [];
+
+        dispatch({
+          type: "QUEST_CREATED",
+          sessionId: result.sessionId,
+          cwd,
+          models: result.models?.availableModels,
+          modes: sessionModes.length > 0 ? sessionModes : undefined,
+          currentModelId: result.models?.currentModelId,
+          currentModeId: result.modes?.currentModeId,
+        });
+
+        // 如果 session/new 返回了 modes 且之前 initialize 没有返回，更新来源标注
+        if (sessionModes.length > 0 && !stateRef.current.modesSource) {
+          dispatch({
+            type: "DEBUG_PROTOCOL_INITIALIZED",
+            modesSource: "session_new" as const,
+          });
+        }
+
+        return result.sessionId;
+      } finally {
+        creatingQuestRef.current = false;
+        setCreatingQuest(false);
+      }
     },
     [dispatch, sendWithLog]
   );
@@ -503,6 +544,7 @@ export function useHiCliSession(): UseHiCliSessionReturn {
 
   return {
     status: status as WsStatus,
+    creatingQuest,
     connect,
     disconnect,
     createQuest,

@@ -8,7 +8,8 @@ import { ThoughtBlock } from "./ThoughtBlock";
 import { ToolCallCard } from "./ToolCallCard";
 import { WorkUnitCard } from "./WorkUnitCard";
 import { PlanDisplay } from "./PlanDisplay";
-import type { ChatItemUser, ChatItemPlan } from "../../types/acp";
+import type { ChatItemUser, ChatItemPlan, ChatItemError } from "../../types/acp";
+import { ErrorMessage } from "./ErrorMessage";
 
 interface ChatStreamProps {
   onSelectToolCall: (toolCallId: string) => void;
@@ -258,6 +259,17 @@ export function ChatStream({ onSelectToolCall, onOpenFile }: ChatStreamProps) {
                   variant="inline"
                 />
               );
+            case "error": {
+              const err = item as ChatItemError;
+              return (
+                <ErrorMessage
+                  key={err.id}
+                  code={err.code}
+                  message={err.message}
+                  data={err.data}
+                />
+              );
+            }
             default:
               return null;
           }

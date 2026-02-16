@@ -11,6 +11,7 @@ interface HiCliSidebarProps {
   onCloseQuest: (questId: string) => void;
   onSwitchTool: () => void;
   status: WsStatus;
+  creatingQuest?: boolean;
 }
 
 export function HiCliSidebar({
@@ -21,6 +22,7 @@ export function HiCliSidebar({
   onCloseQuest,
   onSwitchTool,
   status,
+  creatingQuest,
 }: HiCliSidebarProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
@@ -39,10 +41,14 @@ export function HiCliSidebar({
           className="w-7 h-7 flex items-center justify-center rounded-md text-gray-500
                      hover:bg-gray-100 hover:text-gray-700 transition-colors disabled:opacity-40"
           onClick={onCreateQuest}
-          disabled={!isConnected}
+          disabled={!isConnected || creatingQuest}
           title="新建 Quest"
         >
-          <Plus size={16} />
+          {creatingQuest ? (
+            <span className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
+          ) : (
+            <Plus size={16} />
+          )}
         </button>
       </div>
 
@@ -74,35 +80,37 @@ export function HiCliSidebar({
       </div>
 
       {/* 底部：连接状态 + 切换工具 */}
-      <div className="px-4 py-2 border-t border-gray-200/60 space-y-2">
-        <div className="flex items-center gap-1.5 text-xs">
-          <span
-            className={`w-1.5 h-1.5 rounded-full ${
-              status === "connected"
-                ? "bg-green-500"
+      <div className="px-4 py-2.5 border-t border-gray-200/60 space-y-1.5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-xs">
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                status === "connected"
+                  ? "bg-green-500"
+                  : status === "connecting"
+                    ? "bg-yellow-500 animate-pulse"
+                    : "bg-gray-400"
+              }`}
+            />
+            <span className="text-gray-500">
+              {status === "connected"
+                ? "已连接"
                 : status === "connecting"
-                  ? "bg-yellow-500 animate-pulse"
-                  : "bg-gray-400"
-            }`}
-          />
-          <span className="text-gray-500">
-            {status === "connected"
-              ? "已连接"
-              : status === "connecting"
-                ? "连接中..."
-                : "未连接"}
-          </span>
+                  ? "连接中..."
+                  : "未连接"}
+            </span>
+          </div>
+          {isConnected && (
+            <button
+              className="flex items-center gap-1 px-2 py-1 rounded-md
+                         text-xs text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+              onClick={onSwitchTool}
+            >
+              <ArrowLeftRight size={11} />
+              切换
+            </button>
+          )}
         </div>
-        {isConnected && (
-          <button
-            className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md
-                       text-xs text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
-            onClick={onSwitchTool}
-          >
-            <ArrowLeftRight size={12} />
-            切换工具
-          </button>
-        )}
       </div>
     </div>
   );

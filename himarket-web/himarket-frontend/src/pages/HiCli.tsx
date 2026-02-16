@@ -36,6 +36,7 @@ function HiCliContent() {
   const [logFilter, setLogFilter] = useState("");
 
   const isConnected = session.status === "connected";
+  const isCreatingQuest = session.creatingQuest;
   const hasActiveQuest = !!activeQuest;
 
   // 连接成功且初始化完成后，自动创建第一个 Quest（获取 models/modes）
@@ -115,6 +116,7 @@ function HiCliContent() {
         onCloseQuest={session.closeQuest}
         onSwitchTool={handleSwitchTool}
         status={session.status}
+        creatingQuest={isCreatingQuest}
       />
 
       {/* ===== 主内容区 ===== */}
@@ -141,6 +143,7 @@ function HiCliContent() {
                 onCreateQuest={handleCreateQuest}
                 isConnected={false}
                 disabled={false}
+                creatingQuest={isCreatingQuest}
               />
             ) : !hasActiveQuest ? (
               /* 已连接但无活跃 Quest：展示新建 Quest 引导 */
@@ -149,6 +152,7 @@ function HiCliContent() {
                 onCreateQuest={handleCreateQuest}
                 isConnected={true}
                 disabled={false}
+                creatingQuest={isCreatingQuest}
               />
             ) : (
               /* 已连接且有活跃 Quest：展示聊天流 + 输入框 */

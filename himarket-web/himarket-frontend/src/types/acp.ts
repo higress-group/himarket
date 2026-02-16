@@ -14,7 +14,7 @@ export interface AcpResponse {
   jsonrpc: typeof JSONRPC_VERSION;
   id: JsonRpcId;
   result?: unknown;
-  error?: { code: number; message: string };
+  error?: { code: number; message: string; data?: Record<string, unknown> };
 }
 
 export interface AcpNotification {
@@ -380,12 +380,13 @@ export type Attachment = FilePathAttachment;
 
 // ===== Chat Item Types (for UI rendering) =====
 
-export interface ChatItemUser {
-  type: "user";
-  id: string;
-  text: string;
-  attachments?: Attachment[];
-}
+export type ChatItem =
+  | ChatItemUser
+  | ChatItemAgent
+  | ChatItemThought
+  | ChatItemToolCall
+  | ChatItemPlan
+  | ChatItemError;
 
 export interface ChatItemAgent {
   type: "agent";
@@ -422,9 +423,10 @@ export interface ChatItemPlan {
   }>;
 }
 
-export type ChatItem =
-  | ChatItemUser
-  | ChatItemAgent
-  | ChatItemThought
-  | ChatItemToolCall
-  | ChatItemPlan;
+export interface ChatItemError {
+  type: "error";
+  id: string;
+  code: number;
+  message: string;
+  data?: Record<string, unknown>;
+}

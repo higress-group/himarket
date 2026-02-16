@@ -100,10 +100,10 @@ export function HiCliSelector({ onSelect, disabled }: HiCliSelectorProps) {
   }
 
   return (
-    <div className="flex flex-col gap-4 w-full max-w-md">
+    <div className="flex flex-col items-center gap-5 w-full max-w-sm">
       {/* CLI 工具选择 */}
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-medium text-gray-600">CLI 工具</label>
+      <div className="flex flex-col gap-1.5 w-full">
+        <label className="text-sm font-medium text-gray-600 text-center">CLI 工具</label>
         <Select
           value={selectedCliId || undefined}
           onChange={(val) => setSelectedCliId(val)}
@@ -119,8 +119,8 @@ export function HiCliSelector({ onSelect, disabled }: HiCliSelectorProps) {
       </div>
 
       {/* 工作目录输入 */}
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-medium text-gray-600">工作目录</label>
+      <div className="flex flex-col gap-1.5 w-full">
+        <label className="text-sm font-medium text-gray-600 text-center">工作目录</label>
         <Input
           value={cwd}
           onChange={(e) => setCwd(e.target.value)}
@@ -137,7 +137,7 @@ export function HiCliSelector({ onSelect, disabled }: HiCliSelectorProps) {
         icon={<Plug size={14} />}
         onClick={handleConnect}
         disabled={disabled || !selectedCliId || !cwd.trim()}
-        className="self-end"
+        className="px-8"
       >
         连接
       </Button>
