@@ -1,8 +1,9 @@
 import { Sparkles, Terminal, Loader2 } from "lucide-react";
 import { HiCliSelector } from "./HiCliSelector";
+import type { ICliProvider } from "../../lib/apis/cliProvider";
 
 interface HiCliWelcomeProps {
-  onSelectCli: (cliId: string, cwd: string) => void;
+  onSelectCli: (cliId: string, cwd: string, runtime?: string, providerObj?: ICliProvider) => void;
   onCreateQuest: () => void;
   isConnected: boolean;
   disabled: boolean;

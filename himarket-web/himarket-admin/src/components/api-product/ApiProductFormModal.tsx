@@ -17,6 +17,7 @@ import { getProductCategories } from "@/lib/productCategoryApi";
 import type { ApiProduct } from "@/types/api-product";
 import type { ProductCategory } from "@/types/product-category";
 import ModelFeatureForm from "./ModelFeatureForm";
+import SkillConfigForm from "./SkillConfigForm";
 
 interface ApiProductFormModalProps {
   visible: boolean;
@@ -71,6 +72,7 @@ export default function ApiProductFormModal({
         type: initialData.type,
         autoApprove: initialData.autoApprove,
             feature: initialData.feature,
+            skillConfig: initialData.skillConfig,
           });
         }, 300);
 
@@ -302,6 +304,7 @@ export default function ApiProductFormModal({
             <Select.Option value="MCP_SERVER">MCP Server</Select.Option>
             <Select.Option value="AGENT_API">Agent API</Select.Option>
             <Select.Option value="MODEL_API">Model API</Select.Option>
+            <Select.Option value="AGENT_SKILL">Agent Skill</Select.Option>
           </Select>
         </Form.Item>
 
@@ -511,6 +514,7 @@ export default function ApiProductFormModal({
 
         {/* Feature Configuration */}
         {productType === 'MODEL_API' && <ModelFeatureForm initialExpanded={isEditMode && !!initialData?.feature} />}
+        {productType === 'AGENT_SKILL' && <SkillConfigForm initialExpanded={isEditMode && !!initialData?.skillConfig} />}
       </Form>
     </Modal>
   );

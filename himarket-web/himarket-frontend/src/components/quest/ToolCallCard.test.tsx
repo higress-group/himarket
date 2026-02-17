@@ -50,10 +50,16 @@ describe("ToolCallCard kind mapping", () => {
       expect(screen.getByText("npm test")).toBeInTheDocument();
     } else if (kind === "skill") {
       expect(screen.getByText("my-skill")).toBeInTheDocument();
-    } else if (shouldRenderFileName) {
+    } else if (kind === "read") {
+      // Default variant renders "已查看 {fileName}"
+      expect(screen.getByText(/demo\.txt/)).toBeInTheDocument();
+    } else if (kind === "edit" || kind === "delete" || kind === "move") {
       expect(screen.getByText("demo.txt")).toBeInTheDocument();
     } else {
-      expect(screen.getByText(title)).toBeInTheDocument();
+      // search/think/fetch/switch_mode/other prepend a Chinese label before the title
+      const span = document.querySelector("span.truncate");
+      expect(span).not.toBeNull();
+      expect(span!.textContent).toContain(title);
     }
   });
 });

@@ -38,6 +38,12 @@ public class AcpHandshakeInterceptor implements HandshakeInterceptor {
             if (StrUtil.isNotBlank(provider)) {
                 attributes.put("provider", provider);
             }
+
+            // Extract runtime type from query param: ?runtime=local|k8s
+            String runtime = params.getFirst("runtime");
+            if (StrUtil.isNotBlank(runtime)) {
+                attributes.put("runtime", runtime);
+            }
         } catch (Exception e) {
             logger.debug("Failed to parse token from query param", e);
         }

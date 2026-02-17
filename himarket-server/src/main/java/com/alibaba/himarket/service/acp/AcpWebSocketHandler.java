@@ -2,6 +2,10 @@ package com.alibaba.himarket.service.acp;
 
 import com.alibaba.himarket.config.AcpProperties;
 import com.alibaba.himarket.config.AcpProperties.CliProviderConfig;
+import com.alibaba.himarket.service.acp.runtime.RuntimeAdapter;
+import com.alibaba.himarket.service.acp.runtime.RuntimeConfig;
+import com.alibaba.himarket.service.acp.runtime.RuntimeFactory;
+import com.alibaba.himarket.service.acp.runtime.RuntimeType;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -30,13 +34,16 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
 
     private final AcpProperties properties;
     private final ObjectMapper objectMapper;
-    private final Map<String, AcpProcess> processMap = new ConcurrentHashMap<>();
+    private final RuntimeFactory runtimeFactory;
+    private final Map<String, RuntimeAdapter> runtimeMap = new ConcurrentHashMap<>();
     private final Map<String, Disposable> subscriptionMap = new ConcurrentHashMap<>();
     private final Map<String, String> cwdMap = new ConcurrentHashMap<>();
 
-    public AcpWebSocketHandler(AcpProperties properties, ObjectMapper objectMapper) {
+    public AcpWebSocketHandler(
+            AcpProperties properties, ObjectMapper objectMapper, RuntimeFactory runtimeFactory) {
         this.properties = properties;
         this.objectMapper = objectMapper;
+        this.runtimeFactory = runtimeFactory;
     }
 
     @Override
@@ -50,7 +57,17 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
 
         // Build per-user working directory
         String cwd = buildWorkspacePath(userId);
-        logger.info("WebSocket connected: id={}, userId={}, cwd={}", session.getId(), userId, cwd);
+
+        // Resolve runtime type from session attributes (set by AcpHandshakeInterceptor)
+        String runtimeParam = (String) session.getAttributes().get("runtime");
+        RuntimeType runtimeType = resolveRuntimeType(runtimeParam);
+
+        logger.info(
+                "WebSocket connected: id={}, userId={}, cwd={}, runtime={}",
+                session.getId(),
+                userId,
+                cwd,
+                runtimeType);
 
         // Resolve CLI provider: prefer query param, fallback to default
         String providerKey = (String) session.getAttributes().get("provider");
@@ -67,38 +84,26 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
         logger.info(
                 "Using CLI provider '{}' (command={})", providerKey, providerConfig.getCommand());
 
-        // Build process environment: start from provider-level env config.
-        // If isolateHome is enabled, override HOME so the CLI stores credentials
-        // under the per-user workspace (e.g. ~/.himarket/workspaces/{userId}/).
-        Map<String, String> processEnv = new HashMap<>(providerConfig.getEnv());
-        if (providerConfig.isIsolateHome()) {
-            processEnv.put("HOME", cwd);
-            logger.info("HOME isolated for provider '{}': {}", providerKey, cwd);
-        }
+        // Build RuntimeConfig from provider configuration
+        RuntimeConfig config = buildRuntimeConfig(userId, providerKey, providerConfig, cwd);
 
-        // Start ACP CLI process
-        AcpProcess acpProcess =
-                new AcpProcess(
-                        providerConfig.getCommand(),
-                        List.of(providerConfig.getArgs()),
-                        cwd,
-                        processEnv);
-
+        // Create runtime via factory
+        RuntimeAdapter runtime;
         try {
-            acpProcess.start();
+            runtime = runtimeFactory.create(runtimeType, config);
+            runtime.start(config);
         } catch (Exception e) {
-            logger.error("Failed to start CLI provider '{}' for user {}", providerKey, userId, e);
+            logger.error("Failed to start runtime (type={}) for user {}", runtimeType, userId, e);
             session.close(CloseStatus.SERVER_ERROR);
             return;
         }
 
-        processMap.put(session.getId(), acpProcess);
+        runtimeMap.put(session.getId(), runtime);
         cwdMap.put(session.getId(), cwd);
 
-        // Subscribe to stdout: pipe ACP CLI output → WebSocket
+        // Subscribe to stdout: pipe runtime output → WebSocket
         Disposable subscription =
-                acpProcess
-                        .stdout()
+                runtime.stdout()
                         .subscribe(
                                 line -> {
                                     try {
@@ -137,9 +142,9 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message)
             throws Exception {
-        AcpProcess acpProcess = processMap.get(session.getId());
-        if (acpProcess == null) {
-            logger.warn("No ACP process for session {}", session.getId());
+        RuntimeAdapter runtime = runtimeMap.get(session.getId());
+        if (runtime == null) {
+            logger.warn("No runtime for session {}", session.getId());
             return;
         }
 
@@ -158,9 +163,9 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
         payload = rewriteSessionNewCwd(session.getId(), payload);
 
         try {
-            acpProcess.send(payload);
+            runtime.send(payload);
         } catch (IOException e) {
-            logger.error("Error writing to ACP CLI stdin for session {}", session.getId(), e);
+            logger.error("Error writing to runtime stdin for session {}", session.getId(), e);
         }
     }
 
@@ -184,12 +189,53 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
             subscription.dispose();
         }
 
-        AcpProcess acpProcess = processMap.remove(sessionId);
-        if (acpProcess != null) {
-            acpProcess.close();
+        RuntimeAdapter runtime = runtimeMap.remove(sessionId);
+        if (runtime != null) {
+            runtime.close();
         }
 
         cwdMap.remove(sessionId);
+    }
+
+    /**
+     * Resolve the runtime type from the query parameter string.
+     * Defaults to LOCAL if the parameter is null, blank, or unrecognized (backward compatibility).
+     */
+    RuntimeType resolveRuntimeType(String runtimeParam) {
+        if (runtimeParam == null || runtimeParam.isBlank()) {
+            return RuntimeType.LOCAL;
+        }
+        try {
+            return RuntimeType.valueOf(runtimeParam.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            logger.warn("Unknown runtime type '{}', defaulting to LOCAL", runtimeParam);
+            return RuntimeType.LOCAL;
+        }
+    }
+
+    /**
+     * Build a RuntimeConfig from the CLI provider configuration and session context.
+     */
+    private RuntimeConfig buildRuntimeConfig(
+            String userId, String providerKey, CliProviderConfig providerConfig, String cwd) {
+        // Build process environment: start from provider-level env config.
+        // If isolateHome is enabled, override HOME so the CLI stores credentials
+        // under the per-user workspace.
+        Map<String, String> processEnv = new HashMap<>(providerConfig.getEnv());
+        if (providerConfig.isIsolateHome()) {
+            processEnv.put("HOME", cwd);
+            logger.info("HOME isolated for provider '{}': {}", providerKey, cwd);
+        }
+
+        RuntimeConfig config = new RuntimeConfig();
+        config.setUserId(userId);
+        config.setProviderKey(providerKey);
+        config.setCommand(providerConfig.getCommand());
+        config.setArgs(List.of(providerConfig.getArgs()));
+        config.setCwd(cwd);
+        config.setEnv(processEnv);
+        config.setIsolateHome(providerConfig.isIsolateHome());
+        return config;
     }
 
     /**

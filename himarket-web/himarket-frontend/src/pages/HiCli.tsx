@@ -8,6 +8,8 @@ import {
 } from "../context/HiCliSessionContext";
 import { useActiveQuest } from "../context/QuestSessionContext";
 import { useHiCliSession } from "../hooks/useHiCliSession";
+import { useRuntimeSelection } from "../hooks/useRuntimeSelection";
+import type { ICliProvider } from "../lib/apis/cliProvider";
 import { HiCliSidebar } from "../components/hicli/HiCliSidebar";
 import { HiCliTopBar } from "../components/hicli/HiCliTopBar";
 import { HiCliWelcome } from "../components/hicli/HiCliWelcome";
@@ -31,6 +33,12 @@ function HiCliContent() {
   const dispatch = useHiCliDispatch();
   const activeQuest = useActiveQuest();
   const session = useHiCliSession();
+
+  // 运行时选择（跟踪当前选中的 provider 对象）
+  const [currentProviderObj, setCurrentProviderObj] = useState<ICliProvider | null>(null);
+  const { selectedRuntime, compatibleRuntimes, selectRuntime } = useRuntimeSelection({
+    provider: currentProviderObj,
+  });
 
   const [debugTab, setDebugTab] = useState<DebugTab>("none");
   const [logFilter, setLogFilter] = useState("");
@@ -66,8 +74,9 @@ function HiCliContent() {
 
   // CLI 工具选择 → 连接
   const handleSelectCli = useCallback(
-    (cliId: string, cwd: string) => {
-      session.connectToCli(cliId, cwd);
+    (cliId: string, cwd: string, runtime?: string, providerObj?: ICliProvider) => {
+      if (providerObj) setCurrentProviderObj(providerObj);
+      session.connectToCli(cliId, cwd, runtime);
     },
     [session]
   );
@@ -83,7 +92,16 @@ function HiCliContent() {
   const handleSwitchTool = useCallback(() => {
     session.disconnect();
     dispatch({ type: "RESET_STATE" });
+    setCurrentProviderObj(null);
   }, [session, dispatch]);
+
+  // 运行时切换：断开并以新运行时重新连接
+  const handleRuntimeChange = useCallback((runtimeType: string) => {
+    selectRuntime(runtimeType);
+    if (state.selectedCliId && state.cwd) {
+      session.connectToCli(state.selectedCliId, state.cwd, runtimeType);
+    }
+  }, [selectRuntime, session, state.selectedCliId, state.cwd]);
 
   // 移除队列中的 prompt
   const handleDropQueuedPrompt = useCallback(
@@ -128,6 +146,9 @@ function HiCliContent() {
           onSetMode={session.setMode}
           currentProvider={state.selectedCliId ?? ""}
           onProviderChange={() => {}}
+          selectedRuntime={selectedRuntime}
+          compatibleRuntimes={compatibleRuntimes}
+          onRuntimeChange={handleRuntimeChange}
           debugTab={debugTab}
           onToggleDebugTab={handleToggleDebugTab}
         />

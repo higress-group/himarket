@@ -172,6 +172,15 @@ public class AcpProcess {
     }
 
     /**
+     * Return the PID of the underlying OS process.
+     *
+     * @return process id, or -1 if the process has not been started
+     */
+    public long pid() {
+        return process != null ? process.pid() : -1;
+    }
+
+    /**
      * Gracefully close the subprocess.
      */
     public void close() {

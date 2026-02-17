@@ -206,11 +206,16 @@ export interface ProductFeature {
   modelFeature?: ModelFeature;
 }
 
+export interface ApiProductSkillConfig {
+  skillTags?: string[];
+  downloadCount?: number;
+}
+
 export interface ApiProduct {
   productId: string;
   name: string;
   description: string;
-  type: 'REST_API' | 'MCP_SERVER' | 'AGENT_API' | 'MODEL_API';
+  type: 'REST_API' | 'MCP_SERVER' | 'AGENT_API' | 'MODEL_API' | 'AGENT_SKILL';
   status: 'PENDING' | 'READY' | 'PUBLISHED' | string;
   createAt: string;
   enableConsumerAuth?: boolean;
@@ -223,6 +228,7 @@ export interface ApiProduct {
   icon?: ProductIcon;
   categories?: ProductCategory[];
   feature?: ProductFeature;
+  skillConfig?: ApiProductSkillConfig;
 }
 
 // Publication 类型定义（Product 和 Portal 的发布关系）

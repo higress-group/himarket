@@ -18,6 +18,7 @@ import Chat from "./pages/Chat";
 import Quest from "./pages/Quest";
 import Coding from "./pages/Coding";
 import HiCli from "./pages/HiCli";
+import SkillDetail from "./pages/SkillDetail";
 
 export function Router() {
   return (
@@ -27,6 +28,8 @@ export function Router() {
       <Route path="/mcp" element={<Square activeType="MCP_SERVER" />} />
       <Route path="/agents" element={<Square activeType="AGENT_API" />} />
       <Route path="/apis" element={<Square activeType="REST_API" />} />
+      <Route path="/skills" element={<Square activeType="AGENT_SKILL" />} />
+      <Route path="/skills/:skillProductId" element={<SkillDetail />} />
       <Route path="/chat" element={<Chat />} />
       <Route path="/quest" element={<Quest />} />
       <Route path="/coding" element={<Coding />} />

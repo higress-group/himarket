@@ -7,6 +7,7 @@ import MdEditor from 'react-markdown-editor-lite'
 import 'react-markdown-editor-lite/lib/index.css'
 import type { ApiProduct } from '@/types/api-product'
 import { apiProductApi } from '@/lib/api'
+import SkillMdEditor from './SkillMdEditor'
 
 interface ApiProductUsageGuideProps {
   apiProduct: ApiProduct
@@ -17,7 +18,10 @@ export function ApiProductUsageGuide({ apiProduct, handleRefresh }: ApiProductUs
   const [content, setContent] = useState(apiProduct.document || '')
   const [isEditing, setIsEditing] = useState(false)
   const [originalContent, setOriginalContent] = useState(apiProduct.document || '')
+  const [saving, setSaving] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const isAgentSkill = apiProduct.type === 'AGENT_SKILL'
 
   useEffect(() => {
     const doc = apiProduct.document || ''
@@ -30,9 +34,9 @@ export function ApiProductUsageGuide({ apiProduct, handleRefresh }: ApiProductUs
   }
 
   const handleSave = () => {
-    // 提取 categoryIds 以保留产品类别信息
     const categoryIds = apiProduct.categories?.map(cat => cat.categoryId) || [];
-    
+
+    setSaving(true)
     apiProductApi.updateApiProduct(apiProduct.productId, {
       document: content,
       categories: categoryIds
@@ -41,6 +45,24 @@ export function ApiProductUsageGuide({ apiProduct, handleRefresh }: ApiProductUs
       setIsEditing(false)
       setOriginalContent(content)
       handleRefresh();
+    }).finally(() => {
+      setSaving(false)
+    })
+  }
+
+  const handleSkillMdSave = (value: string) => {
+    const categoryIds = apiProduct.categories?.map(cat => cat.categoryId) || [];
+
+    setSaving(true)
+    apiProductApi.updateApiProduct(apiProduct.productId, {
+      document: value,
+      categories: categoryIds
+    }).then(() => {
+      message.success('保存成功')
+      setOriginalContent(value)
+      handleRefresh();
+    }).finally(() => {
+      setSaving(false)
     })
   }
 
@@ -70,7 +92,6 @@ export function ApiProductUsageGuide({ apiProduct, handleRefresh }: ApiProductUs
       }
       reader.readAsText(file)
     }
-    // 清空 input 值，允许重复选择同一文件
     if (event.target) {
       event.target.value = ''
     }
@@ -78,6 +99,24 @@ export function ApiProductUsageGuide({ apiProduct, handleRefresh }: ApiProductUs
 
   const triggerFileInput = () => {
     fileInputRef.current?.click()
+  }
+
+  // AGENT_SKILL 类型使用 SkillMdEditor
+  if (isAgentSkill) {
+    return (
+      <div className="p-6 space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold mb-2">SKILL.md 编辑</h1>
+          <p className="text-gray-600">编辑技能的 SKILL.md 描述文件</p>
+        </div>
+        <SkillMdEditor
+          value={content}
+          onChange={setContent}
+          onSave={handleSkillMdSave}
+          saving={saving}
+        />
+      </div>
+    )
   }
 
   return (
@@ -133,7 +172,7 @@ export function ApiProductUsageGuide({ apiProduct, handleRefresh }: ApiProductUs
         ) : (
           <div className="min-h-[400px]">
             {content ? (
-              <div 
+              <div
                 className="prose prose-lg max-w-none"
                 style={{
                   lineHeight: '1.7',
@@ -143,146 +182,29 @@ export function ApiProductUsageGuide({ apiProduct, handleRefresh }: ApiProductUs
                 }}
               >
                 <style>{`
-                  .prose h1 {
-                    color: #111827;
-                    font-weight: 700;
-                    font-size: 2.25rem;
-                    line-height: 1.2;
-                    margin-top: 0;
-                    margin-bottom: 1.5rem;
-                    border-bottom: 2px solid #e5e7eb;
-                    padding-bottom: 0.5rem;
-                  }
-                  .prose h2 {
-                    color: #1f2937;
-                    font-weight: 600;
-                    font-size: 1.875rem;
-                    line-height: 1.3;
-                    margin-top: 2rem;
-                    margin-bottom: 1rem;
-                    border-bottom: 1px solid #e5e7eb;
-                    padding-bottom: 0.25rem;
-                  }
-                  .prose h3 {
-                    color: #374151;
-                    font-weight: 600;
-                    font-size: 1.5rem;
-                    margin-top: 1.5rem;
-                    margin-bottom: 0.75rem;
-                  }
-                  .prose p {
-                    margin-bottom: 1.25rem;
-                    color: #4b5563;
-                    line-height: 1.7;
-                    font-size: 16px;
-                  }
-                  .prose code {
-                    background-color: #f3f4f6;
-                    border: 1px solid #e5e7eb;
-                    border-radius: 0.375rem;
-                    padding: 0.125rem 0.375rem;
-                    font-size: 0.875rem;
-                    color: #374151;
-                    font-weight: 500;
-                  }
-                  .prose pre {
-                    background-color: #1f2937;
-                    border-radius: 0.5rem;
-                    padding: 1.25rem;
-                    overflow-x: auto;
-                    margin: 1.5rem 0;
-                    border: 1px solid #374151;
-                  }
-                  .prose pre code {
-                    background-color: transparent;
-                    border: none;
-                    color: #f9fafb;
-                    padding: 0;
-                    font-size: 0.875rem;
-                    font-weight: normal;
-                  }
-                  .prose blockquote {
-                    border-left: 4px solid #3b82f6;
-                    padding-left: 1rem;
-                    margin: 1.5rem 0;
-                    color: #6b7280;
-                    font-style: italic;
-                    background-color: #f8fafc;
-                    padding: 1rem;
-                    border-radius: 0.375rem;
-                    font-size: 16px;
-                  }
-                  .prose ul, .prose ol {
-                    margin: 1.25rem 0;
-                    padding-left: 1.5rem;
-                  }
-                  .prose ol {
-                    list-style-type: decimal;
-                    list-style-position: outside;
-                  }
-                  .prose ul {
-                    list-style-type: disc;
-                    list-style-position: outside;
-                  }
-                  .prose li {
-                    margin: 0.5rem 0;
-                    color: #4b5563;
-                    display: list-item;
-                    font-size: 16px;
-                  }
-                  .prose ol li {
-                    padding-left: 0.25rem;
-                  }
-                  .prose ul li {
-                    padding-left: 0.25rem;
-                  }
-                  .prose table {
-                    width: 100%;
-                    border-collapse: collapse;
-                    margin: 1.5rem 0;
-                    font-size: 16px;
-                  }
-                  .prose th, .prose td {
-                    border: 1px solid #d1d5db;
-                    padding: 0.75rem;
-                    text-align: left;
-                  }
-                  .prose th {
-                    background-color: #f9fafb;
-                    font-weight: 600;
-                    color: #374151;
-                    font-size: 16px;
-                  }
-                  .prose td {
-                    color: #4b5563;
-                    font-size: 16px;
-                  }
-                  .prose a {
-                    color: #3b82f6;
-                    text-decoration: underline;
-                    font-weight: 500;
-                    transition: color 0.2s;
-                    font-size: inherit;
-                  }
-                  .prose a:hover {
-                    color: #1d4ed8;
-                  }
-                  .prose strong {
-                    color: #111827;
-                    font-weight: 600;
-                    font-size: inherit;
-                  }
-                  .prose em {
-                    color: #6b7280;
-                    font-style: italic;
-                    font-size: inherit;
-                  }
-                  .prose hr {
-                    border: none;
-                    height: 1px;
-                    background-color: #e5e7eb;
-                    margin: 2rem 0;
-                  }
+                  .prose h1 { color: #111827; font-weight: 700; font-size: 2.25rem; line-height: 1.2; margin-top: 0; margin-bottom: 1.5rem; border-bottom: 2px solid #e5e7eb; padding-bottom: 0.5rem; }
+                  .prose h2 { color: #1f2937; font-weight: 600; font-size: 1.875rem; line-height: 1.3; margin-top: 2rem; margin-bottom: 1rem; border-bottom: 1px solid #e5e7eb; padding-bottom: 0.25rem; }
+                  .prose h3 { color: #374151; font-weight: 600; font-size: 1.5rem; margin-top: 1.5rem; margin-bottom: 0.75rem; }
+                  .prose p { margin-bottom: 1.25rem; color: #4b5563; line-height: 1.7; font-size: 16px; }
+                  .prose code { background-color: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 0.375rem; padding: 0.125rem 0.375rem; font-size: 0.875rem; color: #374151; font-weight: 500; }
+                  .prose pre { background-color: #1f2937; border-radius: 0.5rem; padding: 1.25rem; overflow-x: auto; margin: 1.5rem 0; border: 1px solid #374151; }
+                  .prose pre code { background-color: transparent; border: none; color: #f9fafb; padding: 0; font-size: 0.875rem; font-weight: normal; }
+                  .prose blockquote { border-left: 4px solid #3b82f6; padding-left: 1rem; margin: 1.5rem 0; color: #6b7280; font-style: italic; background-color: #f8fafc; padding: 1rem; border-radius: 0.375rem; font-size: 16px; }
+                  .prose ul, .prose ol { margin: 1.25rem 0; padding-left: 1.5rem; }
+                  .prose ol { list-style-type: decimal; list-style-position: outside; }
+                  .prose ul { list-style-type: disc; list-style-position: outside; }
+                  .prose li { margin: 0.5rem 0; color: #4b5563; display: list-item; font-size: 16px; }
+                  .prose ol li { padding-left: 0.25rem; }
+                  .prose ul li { padding-left: 0.25rem; }
+                  .prose table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; font-size: 16px; }
+                  .prose th, .prose td { border: 1px solid #d1d5db; padding: 0.75rem; text-align: left; }
+                  .prose th { background-color: #f9fafb; font-weight: 600; color: #374151; font-size: 16px; }
+                  .prose td { color: #4b5563; font-size: 16px; }
+                  .prose a { color: #3b82f6; text-decoration: underline; font-weight: 500; transition: color 0.2s; font-size: inherit; }
+                  .prose a:hover { color: #1d4ed8; }
+                  .prose strong { color: #111827; font-weight: 600; font-size: inherit; }
+                  .prose em { color: #6b7280; font-style: italic; font-size: inherit; }
+                  .prose hr { border: none; height: 1px; background-color: #e5e7eb; margin: 2rem 0; }
                 `}</style>
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
               </div>
@@ -309,4 +231,4 @@ export function ApiProductUsageGuide({ apiProduct, handleRefresh }: ApiProductUs
       />
     </div>
   )
-} 
+}

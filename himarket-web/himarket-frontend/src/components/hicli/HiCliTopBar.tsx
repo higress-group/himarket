@@ -1,5 +1,6 @@
-import { Select } from "antd";
+import { Select, Tooltip } from "antd";
 import { ScrollText, Bot, Wifi, WifiOff, Loader2 } from "lucide-react";
+import type { RuntimeOption } from "../common/RuntimeSelector";
 import { useHiCliState } from "../../context/HiCliSessionContext";
 import { useActiveQuest } from "../../context/QuestSessionContext";
 import type { WsStatus } from "../../hooks/useAcpWebSocket";
@@ -12,6 +13,9 @@ interface HiCliTopBarProps {
   onSetMode: (modeId: string) => void;
   currentProvider: string;
   onProviderChange: (providerKey: string) => void;
+  selectedRuntime?: string;
+  compatibleRuntimes?: RuntimeOption[];
+  onRuntimeChange?: (runtimeType: string) => void;
   debugTab: DebugTab;
   onToggleDebugTab: (tab: DebugTab) => void;
 }
@@ -21,6 +25,9 @@ export function HiCliTopBar({
   onSetModel,
   onSetMode,
   currentProvider,
+  selectedRuntime,
+  compatibleRuntimes,
+  onRuntimeChange,
   debugTab,
   onToggleDebugTab,
 }: HiCliTopBarProps) {
@@ -79,6 +86,26 @@ export function HiCliTopBar({
         >
           {currentProvider}
         </div>
+      )}
+
+      {/* Runtime select */}
+      {compatibleRuntimes && compatibleRuntimes.length > 1 && onRuntimeChange && (
+        <Tooltip title="运行时方案">
+          <Select
+            size="small"
+            variant="outlined"
+            placement="bottomLeft"
+            className="min-w-[100px]"
+            value={selectedRuntime}
+            onChange={onRuntimeChange}
+            options={compatibleRuntimes.map(r => ({
+              value: r.type,
+              label: r.label,
+              disabled: !r.available,
+              title: r.available ? r.description : r.unavailableReason,
+            }))}
+          />
+        </Tooltip>
       )}
 
       {/* Model select */}

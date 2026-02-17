@@ -43,32 +43,47 @@ jwt:
 acp:
   default-provider: ${ACP_DEFAULT_PROVIDER:qodercli}
   workspace-root: ${ACP_WORKSPACE_ROOT:${user.home}/.himarket/workspaces}
+  default-runtime: ${ACP_DEFAULT_RUNTIME:local}
   providers:
     qodercli:
       display-name: Qoder CLI
       command: ${ACP_CLI_COMMAND_QODERCLI:qodercli}
       args: ${ACP_CLI_ARGS_QODERCLI:--acp}
+      runtime-category: native
+      compatible-runtimes: LOCAL,K8S
+      container-image: ${ACP_SANDBOX_IMAGE:himarket/sandbox:latest}
     kiro-cli:
       display-name: Kiro CLI
       command: ${ACP_CLI_COMMAND_KIRO:kiro-cli}
       args: ${ACP_CLI_ARGS_KIRO:acp}
+      runtime-category: native
+      compatible-runtimes: LOCAL
     claude-code:
       display-name: Claude Code
       command: ${ACP_CLI_COMMAND_CLAUDE:npx}
       args: ${ACP_CLI_ARGS_CLAUDE:@zed-industries/claude-code-acp}
+      runtime-category: nodejs
+      compatible-runtimes: LOCAL
     codex:
       display-name: Codex CLI
       command: ${ACP_CLI_COMMAND_CODEX:npx}
       args: ${ACP_CLI_ARGS_CODEX:@zed-industries/codex-acp}
+      runtime-category: nodejs
+      compatible-runtimes: LOCAL
     qwen-code:
       display-name: Qwen Code
       command: ${ACP_CLI_COMMAND_QWEN:qwen}
       args: ${ACP_CLI_ARGS_QWEN:--acp}
       isolate-home: false
+      runtime-category: nodejs
+      compatible-runtimes: LOCAL,K8S
+      container-image: ${ACP_SANDBOX_IMAGE:himarket/sandbox:latest}
     opencode:
       display-name: OpenCode
       command: ${ACP_CLI_COMMAND_OPENCODE:opencode}
       args: ${ACP_CLI_ARGS_OPENCODE:acp}
+      runtime-category: native
+      compatible-runtimes: LOCAL
 
 sls:
   # SLS服务端点（必填）

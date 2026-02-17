@@ -7,6 +7,8 @@ import {
   useQuestDispatch,
 } from "../context/QuestSessionContext";
 import { useAcpSession } from "../hooks/useAcpSession";
+import { useRuntimeSelection } from "../hooks/useRuntimeSelection";
+import type { RuntimeType } from "../types/runtime";
 import { QuestSidebar } from "../components/quest/QuestSidebar";
 import { QuestTopBar } from "../components/quest/QuestTopBar";
 import { QuestWelcome } from "../components/quest/QuestWelcome";
@@ -16,16 +18,16 @@ import { QuestInput } from "../components/quest/QuestInput";
 import { PermissionDialog } from "../components/quest/PermissionDialog";
 import { PlanDisplay } from "../components/quest/PlanDisplay";
 import type { ChatItemPlan, ChatItemToolCall } from "../types/acp";
+import type { ICliProvider } from "../lib/apis/cliProvider";
+import { buildAcpWsUrl } from "../lib/utils/wsUrl";
 
-function buildWsUrl(provider?: string): string {
-  const base = `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/ws/acp`;
-  const params = new URLSearchParams();
-  const token = localStorage.getItem("access_token");
-  if (token) params.set("token", token);
+function buildWsUrl(provider?: string, runtime?: string): string {
   const p = provider || localStorage.getItem("hicoding:cliProvider") || "";
-  if (p) params.set("provider", p);
-  const qs = params.toString();
-  return qs ? `${base}?${qs}` : base;
+  return buildAcpWsUrl({
+    token: localStorage.getItem("access_token") || undefined,
+    provider: p || undefined,
+    runtime,
+  });
 }
 
 function QuestContent() {
@@ -33,20 +35,32 @@ function QuestContent() {
   const [currentProvider, setCurrentProvider] = useState(
     () => localStorage.getItem("hicoding:cliProvider") || ""
   );
-  const [wsUrl, setWsUrl] = useState(() => buildWsUrl(currentProvider));
-  const session = useAcpSession({ wsUrl });
+  // 当前选中的 provider 对象（用于运行时选择）
+  const [currentProviderObj, setCurrentProviderObj] = useState<ICliProvider | null>(null);
+  const { selectedRuntime, compatibleRuntimes, selectRuntime } = useRuntimeSelection({
+    provider: currentProviderObj,
+  });
+  const [wsUrl, setWsUrl] = useState(() => buildWsUrl(currentProvider, selectedRuntime));
+  const session = useAcpSession({ wsUrl, runtimeType: selectedRuntime as RuntimeType });
 
   const state = useQuestState();
   const activeQuest = useActiveQuest();
   const dispatch = useQuestDispatch();
   const [panelCollapsed, setPanelCollapsed] = useState(false);
 
-  const handleProviderChange = useCallback((providerKey: string) => {
+  const handleProviderChange = useCallback((providerKey: string, providerObj?: ICliProvider) => {
     localStorage.setItem("hicoding:cliProvider", providerKey);
     setCurrentProvider(providerKey);
+    if (providerObj) setCurrentProviderObj(providerObj);
     dispatch({ type: "RESET_STATE" });
-    setWsUrl(buildWsUrl(providerKey));
-  }, [dispatch]);
+    setWsUrl(buildWsUrl(providerKey, selectedRuntime));
+  }, [dispatch, selectedRuntime]);
+
+  const handleRuntimeChange = useCallback((runtimeType: string) => {
+    selectRuntime(runtimeType);
+    dispatch({ type: "RESET_STATE" });
+    setWsUrl(buildWsUrl(currentProvider, runtimeType));
+  }, [selectRuntime, dispatch, currentProvider]);
 
   const handleCreateQuest = useCallback(() => {
     session.createQuest(".").catch(err => {
@@ -101,6 +115,9 @@ function QuestContent() {
               onSetModel={session.setModel}
               currentProvider={currentProvider}
               onProviderChange={handleProviderChange}
+              selectedRuntime={selectedRuntime}
+              compatibleRuntimes={compatibleRuntimes}
+              onRuntimeChange={handleRuntimeChange}
             />
             <ChatStream
               onSelectToolCall={toolCallId =>

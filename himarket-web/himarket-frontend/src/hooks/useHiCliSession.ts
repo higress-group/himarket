@@ -36,18 +36,17 @@ import {
 } from "../lib/utils/acp";
 import { normalizeIncomingMessage } from "../lib/utils/acpNormalize";
 import { LogAggregator } from "../lib/utils/logAggregator";
+import { buildAcpWsUrl } from "../lib/utils/wsUrl";
 
 // ===== WebSocket URL 构建 =====
 
-function buildHiCliWsUrl(cliId: string, cwd: string): string {
-  const base = `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/ws/acp`;
-  const params = new URLSearchParams();
-  const token = localStorage.getItem("access_token");
-  if (token) params.set("token", token);
-  if (cliId) params.set("provider", cliId);
-  if (cwd) params.set("cwd", encodeURIComponent(cwd));
-  const qs = params.toString();
-  return qs ? `${base}?${qs}` : base;
+function buildHiCliWsUrl(cliId: string, cwd: string, runtime?: string): string {
+  return buildAcpWsUrl({
+    token: localStorage.getItem("access_token") || undefined,
+    provider: cliId || undefined,
+    cwd: cwd || undefined,
+    runtime,
+  });
 }
 
 // ===== Hook 接口 =====
@@ -65,7 +64,7 @@ export interface UseHiCliSessionReturn {
   setModel: (modelId: string) => void;
   setMode: (modeId: string) => void;
   respondPermission: (requestId: JsonRpcId, optionId: string) => void;
-  connectToCli: (cliId: string, cwd: string) => void;
+  connectToCli: (cliId: string, cwd: string, runtime?: string) => void;
 }
 
 // ===== Hook 实现 =====
@@ -528,7 +527,7 @@ export function useHiCliSession(): UseHiCliSessionReturn {
   // ===== connectToCli：连接到指定 CLI 工具 =====
 
   const connectToCli = useCallback(
-    (cliId: string, cwd: string) => {
+    (cliId: string, cwd: string, runtime?: string) => {
       // 重置状态（清空调试数据和会话）
       dispatch({ type: "RESET_STATE" });
       // 记录选中的 CLI 工具
@@ -536,7 +535,7 @@ export function useHiCliSession(): UseHiCliSessionReturn {
       // 重置初始化状态
       initializedRef.current = false;
       // 构建新的 WebSocket URL 并触发连接
-      const newUrl = buildHiCliWsUrl(cliId, cwd);
+      const newUrl = buildHiCliWsUrl(cliId, cwd, runtime);
       setCurrentWsUrl(newUrl);
     },
     [dispatch]

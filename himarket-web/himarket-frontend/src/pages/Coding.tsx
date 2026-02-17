@@ -8,6 +8,8 @@ import {
   useQuestDispatch,
 } from "../context/QuestSessionContext";
 import { useAcpSession } from "../hooks/useAcpSession";
+import { useRuntimeSelection } from "../hooks/useRuntimeSelection";
+import type { RuntimeType } from "../types/runtime";
 import { useResizable } from "../hooks/useResizable";
 import { CodingTopBar } from "../components/coding/CodingTopBar";
 import { FileTree } from "../components/coding/FileTree";
@@ -26,6 +28,8 @@ import {
 } from "../lib/utils/workspaceApi";
 import type { FileNode, OpenFile } from "../types/coding";
 import type { ChatItemPlan } from "../types/acp";
+import type { ICliProvider } from "../lib/apis/cliProvider";
+import { buildAcpWsUrl } from "../lib/utils/wsUrl";
 
 const EXT_TO_LANG: Record<string, string> = {
   ts: "typescript",
@@ -58,15 +62,13 @@ function inferLanguage(fileName: string): string {
   return EXT_TO_LANG[ext] ?? "plaintext";
 }
 
-function buildWsUrl(provider?: string): string {
-  const base = `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/ws/acp`;
-  const params = new URLSearchParams();
-  const token = localStorage.getItem("access_token");
-  if (token) params.set("token", token);
+function buildWsUrl(provider?: string, runtime?: string): string {
   const p = provider || localStorage.getItem("hicoding:cliProvider") || "";
-  if (p) params.set("provider", p);
-  const qs = params.toString();
-  return qs ? `${base}?${qs}` : base;
+  return buildAcpWsUrl({
+    token: localStorage.getItem("access_token") || undefined,
+    provider: p || undefined,
+    runtime,
+  });
 }
 
 function readBool(key: string, fallback: boolean): boolean {
@@ -136,19 +138,30 @@ function CodingContent() {
   const [currentProvider, setCurrentProvider] = useState(
     () => localStorage.getItem("hicoding:cliProvider") || ""
   );
-  const [wsUrl, setWsUrl] = useState(() => buildWsUrl(currentProvider));
-  const session = useAcpSession({ wsUrl });
+  const [currentProviderObj, setCurrentProviderObj] = useState<ICliProvider | null>(null);
+  const { selectedRuntime, compatibleRuntimes, selectRuntime } = useRuntimeSelection({
+    provider: currentProviderObj,
+  });
+  const [wsUrl, setWsUrl] = useState(() => buildWsUrl(currentProvider, selectedRuntime));
+  const session = useAcpSession({ wsUrl, runtimeType: selectedRuntime as RuntimeType });
 
   const state = useQuestState();
   const activeQuest = useActiveQuest();
   const dispatch = useQuestDispatch();
 
-  const handleProviderChange = useCallback((providerKey: string) => {
+  const handleProviderChange = useCallback((providerKey: string, providerObj?: ICliProvider) => {
     localStorage.setItem("hicoding:cliProvider", providerKey);
     setCurrentProvider(providerKey);
+    if (providerObj) setCurrentProviderObj(providerObj);
     dispatch({ type: "RESET_STATE" });
-    setWsUrl(buildWsUrl(providerKey));
-  }, [dispatch]);
+    setWsUrl(buildWsUrl(providerKey, selectedRuntime));
+  }, [dispatch, selectedRuntime]);
+
+  const handleRuntimeChange = useCallback((runtimeType: string) => {
+    selectRuntime(runtimeType);
+    dispatch({ type: "RESET_STATE" });
+    setWsUrl(buildWsUrl(currentProvider, runtimeType));
+  }, [selectRuntime, dispatch, currentProvider]);
 
   const [activeTab, setActiveTab] = useState<RightTab>("code");
   const [tree, setTree] = useState<FileNode[]>([]);
@@ -413,6 +426,9 @@ function CodingContent() {
           onToggleFileTree={toggleFileTree}
           currentProvider={currentProvider}
           onProviderChange={handleProviderChange}
+          selectedRuntime={selectedRuntime}
+          compatibleRuntimes={compatibleRuntimes}
+          onRuntimeChange={handleRuntimeChange}
         />
 
         <ChatStream

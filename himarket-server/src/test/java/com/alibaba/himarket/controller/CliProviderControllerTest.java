@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.alibaba.himarket.config.AcpProperties;
 import com.alibaba.himarket.config.AcpProperties.CliProviderConfig;
+import com.alibaba.himarket.service.acp.runtime.RuntimeType;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,12 +30,17 @@ class CliProviderControllerTest {
         qoder.setDisplayName("Qoder CLI");
         qoder.setCommand("qodercli");
         qoder.setArgs("--acp");
+        qoder.setRuntimeCategory("native");
+        qoder.setCompatibleRuntimes(List.of(RuntimeType.LOCAL, RuntimeType.K8S));
+        qoder.setContainerImage("himarket/sandbox:latest");
         providers.put("qodercli", qoder);
 
         CliProviderConfig kiro = new CliProviderConfig();
         kiro.setDisplayName("Kiro CLI");
         kiro.setCommand("kiro-cli");
         kiro.setArgs("acp");
+        kiro.setRuntimeCategory("native");
+        kiro.setCompatibleRuntimes(List.of(RuntimeType.LOCAL));
         providers.put("kiro-cli", kiro);
 
         // npx 通常在安装了 Node.js 的机器上可用
@@ -42,6 +48,8 @@ class CliProviderControllerTest {
         claude.setDisplayName("Claude Code");
         claude.setCommand("npx");
         claude.setArgs("@zed-industries/claude-code-acp");
+        claude.setRuntimeCategory("nodejs");
+        claude.setCompatibleRuntimes(List.of(RuntimeType.LOCAL));
         providers.put("claude-code", claude);
 
         // 一个肯定不存在的命令
@@ -49,6 +57,8 @@ class CliProviderControllerTest {
         fake.setDisplayName("Fake CLI");
         fake.setCommand("this-command-definitely-does-not-exist-xyz");
         fake.setArgs("--acp");
+        fake.setRuntimeCategory("native");
+        fake.setCompatibleRuntimes(List.of(RuntimeType.LOCAL));
         providers.put("fake-cli", fake);
 
         properties.setProviders(providers);
@@ -133,5 +143,69 @@ class CliProviderControllerTest {
             assertNotNull(info.displayName());
             // available 是 boolean 基本类型，不会为 null
         }
+    }
+
+    @Test
+    void testRuntimeCategoryIncludedInResponse() {
+        List<CliProviderController.CliProviderInfo> result = controller.listProviders();
+
+        CliProviderController.CliProviderInfo qoder =
+                result.stream().filter(p -> p.key().equals("qodercli")).findFirst().orElseThrow();
+        assertEquals("native", qoder.runtimeCategory());
+
+        CliProviderController.CliProviderInfo claude =
+                result.stream()
+                        .filter(p -> p.key().equals("claude-code"))
+                        .findFirst()
+                        .orElseThrow();
+        assertEquals("nodejs", claude.runtimeCategory());
+    }
+
+    @Test
+    void testCompatibleRuntimesIncludedInResponse() {
+        List<CliProviderController.CliProviderInfo> result = controller.listProviders();
+
+        CliProviderController.CliProviderInfo qoder =
+                result.stream().filter(p -> p.key().equals("qodercli")).findFirst().orElseThrow();
+        assertEquals(List.of(RuntimeType.LOCAL, RuntimeType.K8S), qoder.compatibleRuntimes());
+
+        CliProviderController.CliProviderInfo claude =
+                result.stream()
+                        .filter(p -> p.key().equals("claude-code"))
+                        .findFirst()
+                        .orElseThrow();
+        assertEquals(List.of(RuntimeType.LOCAL), claude.compatibleRuntimes());
+    }
+
+    @Test
+    void testContainerImageIncludedInResponse() {
+        List<CliProviderController.CliProviderInfo> result = controller.listProviders();
+
+        CliProviderController.CliProviderInfo qoder =
+                result.stream().filter(p -> p.key().equals("qodercli")).findFirst().orElseThrow();
+        assertEquals("himarket/sandbox:latest", qoder.containerImage());
+
+        // fake-cli 没有设置 containerImage，应该为 null
+        CliProviderController.CliProviderInfo fake =
+                result.stream().filter(p -> p.key().equals("fake-cli")).findFirst().orElseThrow();
+        assertNull(fake.containerImage());
+    }
+
+    @Test
+    void testProviderWithNullCompatibleRuntimes() {
+        CliProviderConfig noRuntime = new CliProviderConfig();
+        noRuntime.setDisplayName("No Runtime CLI");
+        noRuntime.setCommand("ls");
+        // 不设置 compatibleRuntimes
+        properties.getProviders().put("no-runtime-cli", noRuntime);
+
+        List<CliProviderController.CliProviderInfo> result = controller.listProviders();
+        CliProviderController.CliProviderInfo noRuntimeInfo =
+                result.stream()
+                        .filter(p -> p.key().equals("no-runtime-cli"))
+                        .findFirst()
+                        .orElseThrow();
+        assertNull(noRuntimeInfo.compatibleRuntimes());
+        assertNull(noRuntimeInfo.runtimeCategory());
     }
 }

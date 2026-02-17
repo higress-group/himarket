@@ -1,6 +1,8 @@
 package com.alibaba.himarket.config;
 
+import com.alibaba.himarket.service.acp.runtime.RuntimeType;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
@@ -13,6 +15,12 @@ public class AcpProperties {
     private String defaultProvider = "qodercli";
 
     private String workspaceRoot = "./workspaces";
+
+    /**
+     * 默认运行时类型（local | k8s）。
+     * 当用户未主动选择运行时方案时使用此默认值。
+     */
+    private String defaultRuntime = "local";
 
     /**
      * CLI provider 注册表，支持多种 ACP 兼容的 CLI 工具。
@@ -34,6 +42,14 @@ public class AcpProperties {
 
     public void setWorkspaceRoot(String workspaceRoot) {
         this.workspaceRoot = workspaceRoot;
+    }
+
+    public String getDefaultRuntime() {
+        return defaultRuntime;
+    }
+
+    public void setDefaultRuntime(String defaultRuntime) {
+        this.defaultRuntime = defaultRuntime;
     }
 
     public Map<String, CliProviderConfig> getProviders() {
@@ -74,6 +90,22 @@ public class AcpProperties {
          */
         private boolean isolateHome = false;
 
+        /**
+         * 该 CLI 工具兼容的运行时列表。
+         * 用于运行时选择器过滤不兼容的运行时方案。
+         */
+        private List<RuntimeType> compatibleRuntimes;
+
+        /**
+         * K8s 运行时使用的容器镜像地址。
+         */
+        private String containerImage;
+
+        /**
+         * 运行时分类：native（原生二进制）、nodejs（Node.js 生态）、python。
+         */
+        private String runtimeCategory;
+
         public String getDisplayName() {
             return displayName;
         }
@@ -112,6 +144,30 @@ public class AcpProperties {
 
         public void setIsolateHome(boolean isolateHome) {
             this.isolateHome = isolateHome;
+        }
+
+        public List<RuntimeType> getCompatibleRuntimes() {
+            return compatibleRuntimes;
+        }
+
+        public void setCompatibleRuntimes(List<RuntimeType> compatibleRuntimes) {
+            this.compatibleRuntimes = compatibleRuntimes;
+        }
+
+        public String getContainerImage() {
+            return containerImage;
+        }
+
+        public void setContainerImage(String containerImage) {
+            this.containerImage = containerImage;
+        }
+
+        public String getRuntimeCategory() {
+            return runtimeCategory;
+        }
+
+        public void setRuntimeCategory(String runtimeCategory) {
+            this.runtimeCategory = runtimeCategory;
         }
     }
 }

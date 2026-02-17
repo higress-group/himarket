@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
-import { GlobalOutlined, AppstoreOutlined, DesktopOutlined, UserOutlined, MenuOutlined, SettingOutlined, FolderOutlined, BarChartOutlined, DashboardOutlined, MonitorOutlined } from '@ant-design/icons'
+import { GlobalOutlined, AppstoreOutlined, DesktopOutlined, UserOutlined, MenuOutlined, SettingOutlined, FolderOutlined, BarChartOutlined, DashboardOutlined, MonitorOutlined, CloudServerOutlined } from '@ant-design/icons'
 import { Button } from 'antd'
 import { isAuthenticated, removeToken } from '../lib/utils'
 
@@ -65,6 +65,15 @@ const Layout: React.FC = () => {
       children: [
         { name: '模型监控', cn: '模型监控', href: '/observability/model-dashboard', icon: DashboardOutlined },
         { name: 'MCP监控', cn: 'MCP监控', href: '/observability/mcp-monitor', icon: MonitorOutlined },
+      ]
+    },
+    {
+      name: '系统设置',
+      cn: '系统设置',
+      href: '/settings',
+      icon: SettingOutlined,
+      children: [
+        { name: 'K8s 集群', cn: 'K8s 集群', href: '/settings/k8s-cluster', icon: CloudServerOutlined },
       ]
     },
   ]

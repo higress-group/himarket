@@ -36,9 +36,13 @@ import {
   ARTIFACT_SCAN_FALLBACK_ENABLED,
   fetchWorkspaceChanges,
 } from "../lib/utils/workspaceApi";
+import { WebContainerAdapter } from "../lib/runtime/WebContainerAdapter";
+import { FileSyncService } from "../lib/runtime/FileSyncService";
+import type { RuntimeType } from "../types/runtime";
 
-interface UseAcpSessionOptions {
+export interface UseAcpSessionOptions {
   wsUrl: string;
+  runtimeType?: RuntimeType;
 }
 
 interface QueuedPromptItemInput {
@@ -48,7 +52,7 @@ interface QueuedPromptItemInput {
   createdAt: number;
 }
 
-export function useAcpSession({ wsUrl }: UseAcpSessionOptions) {
+export function useAcpSession({ wsUrl, runtimeType }: UseAcpSessionOptions) {
   const dispatch = useQuestDispatch();
   const state = useQuestState();
   const stateRef = useRef(state);
@@ -58,12 +62,19 @@ export function useAcpSession({ wsUrl }: UseAcpSessionOptions) {
   const autoPermissionsRef = useRef<Record<string, "allow" | "reject">>({});
   const promptSeqRef = useRef(0);
 
-  // wsUrl 变化时（CLI provider 切换），重置初始化状态和 pending 请求
+  // WebContainer 运行时相关 refs
+  const isWebContainer = runtimeType === "webcontainer";
+  const wcAdapterRef = useRef<WebContainerAdapter | null>(null);
+  const fileSyncRef = useRef<FileSyncService | null>(null);
+  const [wcStatus, setWcStatus] = useState<WsStatus>("disconnected");
+  const [wcError, setWcError] = useState<string | null>(null);
+
+  // wsUrl 或 runtimeType 变化时（CLI provider / 运行时切换），重置初始化状态和 pending 请求
   useEffect(() => {
     initializedRef.current = false;
     clearPendingRequests();
     resetNextId();
-  }, [wsUrl]);
+  }, [wsUrl, runtimeType]);
 
   useEffect(() => {
     stateRef.current = state;
@@ -330,18 +341,119 @@ export function useAcpSession({ wsUrl }: UseAcpSessionOptions) {
   );
 
   const {
-    status,
+    status: wsStatus,
     send: sendRaw,
-    connect,
-    disconnect,
+    connect: wsConnect,
+    disconnect: wsDisconnect,
   } = useAcpWebSocket({
     url: wsUrl,
     onMessage: handleMessage,
+    autoConnect: !isWebContainer, // WebContainer 模式下不自动建立 WebSocket
   });
 
+  // ===== WebContainer 运行时管理 =====
+
+  const wcConnect = useCallback(() => {
+    if (!isWebContainer) return;
+    setWcStatus("connecting");
+    setWcError(null);
+
+    // 从 wsUrl 中提取 provider 信息来确定 CLI 命令
+    const urlParams = new URLSearchParams(wsUrl.split("?")[1] || "");
+    const provider = urlParams.get("provider") || "";
+
+    // WebContainer 模式下使用 npx 运行 Node.js CLI
+    const adapter = new WebContainerAdapter();
+    wcAdapterRef.current = adapter;
+
+    // 注册消息回调，复用现有的 handleMessage 逻辑
+    adapter.onMessage((data: string) => {
+      handleMessage(data);
+    });
+
+    // 注册进程退出回调，检测异常退出 (Req 8.4)
+    adapter.onExit((exitCode: number) => {
+      const errorMsg =
+        exitCode === 0
+          ? "WebContainer 进程已正常退出"
+          : `WebContainer 进程异常退出 (exit code: ${exitCode})`;
+      console.error(errorMsg);
+      setWcError(errorMsg);
+      setWcStatus("disconnected");
+    });
+
+    // 创建 FileSyncService 用于文件持久化
+    const baseUrl = `${window.location.protocol}//${window.location.host}`;
+    const userId = localStorage.getItem("userId") || "anonymous";
+    const syncService = new FileSyncService(baseUrl, userId);
+    fileSyncRef.current = syncService;
+    syncService.startAutoSync();
+
+    // 启动 WebContainer
+    adapter
+      .start("npx", [provider])
+      .then(() => {
+        setWcStatus("connected");
+      })
+      .catch((err) => {
+        console.error("WebContainer start failed:", err);
+        setWcError(
+          err instanceof Error ? err.message : "WebContainer 启动失败"
+        );
+        setWcStatus("disconnected");
+      });
+  }, [isWebContainer, wsUrl, handleMessage]);
+
+  const wcDisconnect = useCallback(() => {
+    if (fileSyncRef.current) {
+      fileSyncRef.current.flush().catch(() => {});
+      fileSyncRef.current.stop();
+      fileSyncRef.current = null;
+    }
+    if (wcAdapterRef.current) {
+      wcAdapterRef.current.close().catch(() => {});
+      wcAdapterRef.current = null;
+    }
+    setWcStatus("disconnected");
+  }, []);
+
+  /**
+   * 重新创建 WebContainer 运行时 (Req 8.4)。
+   * 先清理旧实例，再重新启动。
+   */
+  const wcReconnect = useCallback(() => {
+    wcDisconnect();
+    // 使用 setTimeout 确保清理完成后再重新连接
+    setTimeout(() => {
+      wcConnect();
+    }, 0);
+  }, [wcDisconnect, wcConnect]);
+
+  const wcSend = useCallback((data: string) => {
+    if (wcAdapterRef.current) {
+      wcAdapterRef.current.send(data);
+    }
+  }, []);
+
+  // WebContainer 模式下自动启动/清理
   useEffect(() => {
-    sendRawRef.current = sendRaw;
-  }, [sendRaw]);
+    if (isWebContainer) {
+      wcConnect();
+      return () => {
+        wcDisconnect();
+      };
+    }
+  }, [isWebContainer, wcConnect, wcDisconnect]);
+
+  // 统一的 status / connect / disconnect / send —— 根据 runtimeType 分流
+  const status: WsStatus = isWebContainer ? wcStatus : wsStatus;
+  const connect = isWebContainer ? wcConnect : wsConnect;
+  const disconnect = isWebContainer ? wcDisconnect : wsDisconnect;
+  const send = isWebContainer ? wcSend : sendRaw;
+
+  useEffect(() => {
+    sendRawRef.current = send;
+  }, [send]);
 
   useEffect(() => {
     if (!state.initialized) return;
@@ -603,8 +715,10 @@ export function useAcpSession({ wsUrl }: UseAcpSessionOptions) {
   return {
     status: status as WsStatus,
     creatingQuest,
+    runtimeError: isWebContainer ? wcError : null,
     connect,
     disconnect,
+    reconnect: isWebContainer ? wcReconnect : connect,
     createQuest,
     switchQuest,
     closeQuest,

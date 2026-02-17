@@ -180,6 +180,9 @@ function Square(props: { activeType: string }) {
       case "REST_API":
         navigate(`/apis/${product.productId}`);
         break;
+      case "AGENT_SKILL":
+        navigate(`/skills/${product.productId}`);
+        break;
       default:
         console.log("未知的产品类型", product.type);
     }

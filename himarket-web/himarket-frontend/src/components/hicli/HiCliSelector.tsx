@@ -2,9 +2,11 @@ import { useState, useEffect, useCallback } from "react";
 import { Select, Input, Button } from "antd";
 import { FolderOpen, Plug, RefreshCw, Loader2, AlertCircle } from "lucide-react";
 import { getCliProviders, type ICliProvider } from "../../lib/apis/cliProvider";
+import { RuntimeSelector } from "../common/RuntimeSelector";
+import { useRuntimeSelection } from "../../hooks/useRuntimeSelection";
 
 interface HiCliSelectorProps {
-  onSelect: (cliId: string, cwd: string) => void;
+  onSelect: (cliId: string, cwd: string, runtime?: string, providerObj?: ICliProvider) => void;
   disabled: boolean;
 }
 
@@ -14,6 +16,14 @@ export function HiCliSelector({ onSelect, disabled }: HiCliSelectorProps) {
   const [cwd, setCwd] = useState<string>("/Users/xujingfeng/NodeProjects/qoderwork");
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+
+  // 当前选中的 provider 对象
+  const selectedProvider = providers.find(p => p.key === selectedCliId) ?? null;
+
+  // 运行时选择
+  const { selectedRuntime, compatibleRuntimes, selectRuntime } = useRuntimeSelection({
+    provider: selectedProvider,
+  });
 
   const fetchProviders = useCallback(async () => {
     setLoading(true);
@@ -45,7 +55,7 @@ export function HiCliSelector({ onSelect, disabled }: HiCliSelectorProps) {
 
   const handleConnect = () => {
     if (selectedCliId && cwd.trim()) {
-      onSelect(selectedCliId, cwd.trim());
+      onSelect(selectedCliId, cwd.trim(), selectedRuntime, selectedProvider ?? undefined);
     }
   };
 
@@ -130,6 +140,16 @@ export function HiCliSelector({ onSelect, disabled }: HiCliSelectorProps) {
           onPressEnter={handleConnect}
         />
       </div>
+
+      {/* 运行时选择 */}
+      {compatibleRuntimes.length > 0 && (
+        <RuntimeSelector
+          cliProvider={selectedCliId}
+          compatibleRuntimes={compatibleRuntimes}
+          selectedRuntime={selectedRuntime}
+          onSelect={selectRuntime}
+        />
+      )}
 
       {/* 连接按钮 */}
       <Button

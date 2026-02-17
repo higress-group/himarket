@@ -1,0 +1,75 @@
+import { describe, expect, it } from "vitest";
+import { buildAcpWsUrl } from "./wsUrl";
+
+const ORIGIN = "wss://example.com";
+
+describe("buildAcpWsUrl", () => {
+  it("should include runtime query parameter when provided", () => {
+    const url = buildAcpWsUrl(
+      { provider: "qodercli", runtime: "local" },
+      "/ws/acp",
+      ORIGIN,
+    );
+    const parsed = new URL(url);
+    expect(parsed.searchParams.get("runtime")).toBe("local");
+    expect(parsed.searchParams.get("provider")).toBe("qodercli");
+  });
+
+  it("should include runtime=k8s for K8s runtime", () => {
+    const url = buildAcpWsUrl(
+      { provider: "kiro-cli", runtime: "k8s" },
+      "/ws/acp",
+      ORIGIN,
+    );
+    const parsed = new URL(url);
+    expect(parsed.searchParams.get("runtime")).toBe("k8s");
+  });
+
+  it("should omit runtime parameter when not provided", () => {
+    const url = buildAcpWsUrl(
+      { provider: "qodercli" },
+      "/ws/acp",
+      ORIGIN,
+    );
+    const parsed = new URL(url);
+    expect(parsed.searchParams.has("runtime")).toBe(false);
+  });
+
+  it("should include token when provided", () => {
+    const url = buildAcpWsUrl(
+      { provider: "qodercli", runtime: "local", token: "abc123" },
+      "/ws/acp",
+      ORIGIN,
+    );
+    const parsed = new URL(url);
+    expect(parsed.searchParams.get("token")).toBe("abc123");
+  });
+
+  it("should include encoded cwd for HiCli usage", () => {
+    const url = buildAcpWsUrl(
+      { provider: "kiro-cli", cwd: "/home/user/project", runtime: "local" },
+      "/ws/acp",
+      ORIGIN,
+    );
+    const parsed = new URL(url);
+    expect(parsed.searchParams.get("runtime")).toBe("local");
+    // cwd is double-encoded by design (encodeURIComponent inside, then URL encoding)
+    expect(parsed.searchParams.get("cwd")).toBeTruthy();
+  });
+
+  it("should return base URL without query string when no params provided", () => {
+    const url = buildAcpWsUrl({}, "/ws/acp", ORIGIN);
+    expect(url).toBe("wss://example.com/ws/acp");
+  });
+
+  it("should use default basePath /ws/acp", () => {
+    const url = buildAcpWsUrl(
+      { runtime: "local" },
+      undefined,
+      ORIGIN,
+    );
+    expect(url).toContain("/ws/acp");
+    const parsed = new URL(url);
+    expect(parsed.searchParams.get("runtime")).toBe("local");
+  });
+});

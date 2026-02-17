@@ -2,6 +2,7 @@ package com.alibaba.himarket.controller;
 
 import com.alibaba.himarket.config.AcpProperties;
 import com.alibaba.himarket.config.AcpProperties.CliProviderConfig;
+import com.alibaba.himarket.service.acp.runtime.RuntimeType;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.ArrayList;
@@ -24,7 +25,7 @@ public class CliProviderController {
 
     private final AcpProperties acpProperties;
 
-    @Operation(summary = "获取可用的 CLI Provider 列表")
+    @Operation(summary = "获取可用的 CLI Provider 列表（含运行时兼容性信息）")
     @GetMapping
     public List<CliProviderInfo> listProviders() {
         List<CliProviderInfo> result = new ArrayList<>();
@@ -39,7 +40,10 @@ public class CliProviderController {
                                     ? config.getDisplayName()
                                     : entry.getKey(),
                             entry.getKey().equals(defaultKey),
-                            available));
+                            available,
+                            config.getRuntimeCategory(),
+                            config.getCompatibleRuntimes(),
+                            config.getContainerImage()));
         }
         return result;
     }
@@ -69,5 +73,11 @@ public class CliProviderController {
     }
 
     public record CliProviderInfo(
-            String key, String displayName, boolean isDefault, boolean available) {}
+            String key,
+            String displayName,
+            boolean isDefault,
+            boolean available,
+            String runtimeCategory,
+            List<RuntimeType> compatibleRuntimes,
+            String containerImage) {}
 }

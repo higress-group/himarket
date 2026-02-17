@@ -126,6 +126,11 @@ public class ProductServiceImpl implements ProductService {
         product.setProductId(productId);
         product.setAdminId(contextHolder.getUser());
 
+        // AGENT_SKILL products are immediately ready (no gateway/nacos binding needed)
+        if (param.getType() == ProductType.AGENT_SKILL) {
+            product.setStatus(ProductStatus.READY);
+        }
+
         productRepository.save(product);
 
         // Set product categories
@@ -220,8 +225,8 @@ public class ProductServiceImpl implements ProductService {
         Product product = findProduct(productId);
         product.setStatus(ProductStatus.PUBLISHED);
 
-        // Cannot publish if not linked
-        if (getProductRef(productId) == null) {
+        // AGENT_SKILL products don't require a ProductRef (no gateway/nacos binding needed)
+        if (product.getType() != ProductType.AGENT_SKILL && getProductRef(productId) == null) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "API product not linked to API");
         }
 
@@ -666,6 +671,11 @@ public class ProductServiceImpl implements ProductService {
             ProductRef productRef = productRefMap.get(productId);
             if (productRef != null) {
                 fillProductConfig(product, productRef);
+            }
+
+            // Fill skill config from feature
+            if (product.getFeature() != null && product.getFeature().getSkillConfig() != null) {
+                product.setSkillConfig(product.getFeature().getSkillConfig());
             }
         }
     }

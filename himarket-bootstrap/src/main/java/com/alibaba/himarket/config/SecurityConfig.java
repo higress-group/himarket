@@ -61,7 +61,8 @@ public class SecurityConfig {
         "/developers/oauth2/token",
         "/ws/acp",
         "/ws/terminal",
-        "/cli-providers"
+        "/cli-providers",
+        "/skills/*/download"
     };
 
     // Swagger endpoints
