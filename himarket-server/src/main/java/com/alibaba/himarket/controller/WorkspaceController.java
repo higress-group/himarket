@@ -60,6 +60,9 @@ public class WorkspaceController {
             Set.of(".git", "node_modules", "target", "dist", "__pycache__", ".idea", ".vscode");
 
     private static final long MAX_SCAN_FILE_SIZE_BYTES = 50L * 1024L * 1024L;
+    private static final int MAX_TREE_NODES = 2000;
+    private static final long MAX_TEXT_FILE_SIZE_BYTES = 2L * 1024L * 1024L;   // 2MB
+    private static final long MAX_BINARY_FILE_SIZE_BYTES = 20L * 1024L * 1024L; // 20MB
 
     private final AcpProperties acpProperties;
     private final DocumentConversionService conversionService;
@@ -126,20 +129,33 @@ public class WorkspaceController {
 
         try {
             String ext = getExtension(filePath.getFileName().toString());
+            long fileSize = Files.size(filePath);
 
             if (raw) {
-                return readRawFile(filePath, ext);
+                return readRawFile(filePath, ext, fileSize);
             }
 
             if (IMAGE_EXTENSIONS.contains(ext)
                     || BINARY_EXTENSIONS.contains(ext)
                     || CONVERTIBLE_EXTENSIONS.contains(ext)) {
+                if (fileSize > MAX_BINARY_FILE_SIZE_BYTES) {
+                    return ResponseEntity.status(413).body(Map.of(
+                            "error", "File too large to preview",
+                            "size", fileSize,
+                            "maxSize", MAX_BINARY_FILE_SIZE_BYTES));
+                }
                 byte[] bytes = Files.readAllBytes(filePath);
                 String base64 = Base64.getEncoder().encodeToString(bytes);
                 return ResponseEntity.ok(Map.of("content", base64, "encoding", "base64"));
             }
 
             // Default: read as text
+            if (fileSize > MAX_TEXT_FILE_SIZE_BYTES) {
+                return ResponseEntity.status(413).body(Map.of(
+                        "error", "File too large to preview",
+                        "size", fileSize,
+                        "maxSize", MAX_TEXT_FILE_SIZE_BYTES));
+            }
             String content = Files.readString(filePath, StandardCharsets.UTF_8);
             return ResponseEntity.ok(Map.of("content", content, "encoding", "utf-8"));
         } catch (IOException e) {
@@ -282,13 +298,25 @@ public class WorkspaceController {
         return ResponseEntity.ok(Map.of("changes", result));
     }
 
-    private ResponseEntity<?> readRawFile(Path filePath, String ext) throws IOException {
+    private ResponseEntity<?> readRawFile(Path filePath, String ext, long fileSize) throws IOException {
         if (IMAGE_EXTENSIONS.contains(ext)
                 || BINARY_EXTENSIONS.contains(ext)
                 || CONVERTIBLE_EXTENSIONS.contains(ext)) {
+            if (fileSize > MAX_BINARY_FILE_SIZE_BYTES) {
+                return ResponseEntity.status(413).body(Map.of(
+                        "error", "File too large to preview",
+                        "size", fileSize,
+                        "maxSize", MAX_BINARY_FILE_SIZE_BYTES));
+            }
             byte[] bytes = Files.readAllBytes(filePath);
             String base64 = Base64.getEncoder().encodeToString(bytes);
             return ResponseEntity.ok(Map.of("content", base64, "encoding", "base64"));
+        }
+        if (fileSize > MAX_TEXT_FILE_SIZE_BYTES) {
+            return ResponseEntity.status(413).body(Map.of(
+                    "error", "File too large to preview",
+                    "size", fileSize,
+                    "maxSize", MAX_TEXT_FILE_SIZE_BYTES));
         }
         String content = Files.readString(filePath, StandardCharsets.UTF_8);
         return ResponseEntity.ok(Map.of("content", content, "encoding", "utf-8"));
@@ -403,7 +431,8 @@ public class WorkspaceController {
 
         int safeDepth = Math.min(Math.max(depth, 1), 10);
         try {
-            Map<String, Object> tree = buildTreeNode(cwdPath, safeDepth);
+            java.util.concurrent.atomic.AtomicInteger nodeCount = new java.util.concurrent.atomic.AtomicInteger(0);
+            Map<String, Object> tree = buildTreeNode(cwdPath, safeDepth, nodeCount);
             return ResponseEntity.ok(tree);
         } catch (IOException e) {
             log.error("Failed to build directory tree: user={}, cwd={}", userId, cwdPath, e);
@@ -412,7 +441,7 @@ public class WorkspaceController {
         }
     }
 
-    private Map<String, Object> buildTreeNode(Path dir, int remainingDepth) throws IOException {
+    private Map<String, Object> buildTreeNode(Path dir, int remainingDepth, java.util.concurrent.atomic.AtomicInteger nodeCount) throws IOException {
         Map<String, Object> node = new HashMap<>();
         node.put("name", dir.getFileName() != null ? dir.getFileName().toString() : dir.toString());
         node.put("path", dir.toAbsolutePath().normalize().toString());
@@ -449,9 +478,17 @@ public class WorkspaceController {
         files.sort(Comparator.comparing(p -> p.getFileName().toString().toLowerCase()));
 
         for (Path d : dirs) {
-            children.add(buildTreeNode(d, remainingDepth - 1));
+            if (nodeCount.incrementAndGet() > MAX_TREE_NODES) {
+                node.put("truncated", true);
+                break;
+            }
+            children.add(buildTreeNode(d, remainingDepth - 1, nodeCount));
         }
         for (Path f : files) {
+            if (nodeCount.incrementAndGet() > MAX_TREE_NODES) {
+                node.put("truncated", true);
+                break;
+            }
             Map<String, Object> fileNode = new HashMap<>();
             fileNode.put("name", f.getFileName().toString());
             fileNode.put("path", f.toAbsolutePath().normalize().toString());

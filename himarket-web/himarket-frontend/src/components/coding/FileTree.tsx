@@ -77,6 +77,14 @@ function TreeNode({ node, depth, onFileSelect, selectedPath }: TreeNodeProps) {
               selectedPath={selectedPath}
             />
           ))}
+          {node.truncated && (
+            <div
+              className="text-[11px] text-amber-500 px-2 py-1"
+              style={{ paddingLeft: `${(depth + 1) * 12 + 4}px` }}
+            >
+              ⚠ 文件过多，仅显示部分
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -7,6 +7,7 @@ export interface FileNode {
   extension?: string;
   size?: number;
   children?: FileNode[];
+  truncated?: boolean; // true when children were cut off due to node limit
 }
 
 export interface OpenFile {
@@ -14,6 +15,7 @@ export interface OpenFile {
   fileName: string;
   content: string;
   language: string; // Monaco language id
+  encoding?: "utf-8" | "base64"; // base64 for binary files (images, pdf, etc.)
 }
 
 export interface TerminalSession {

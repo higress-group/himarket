@@ -50,9 +50,11 @@ function parseWorkspaceError(error: unknown): WorkspaceApiError {
     const status = errObj.response?.status;
     const code = errObj.response?.data?.code ?? "WORKSPACE_API_ERROR";
     const message =
-      errObj.response?.data?.error ??
-      errObj.message ??
-      "Workspace API request failed";
+      status === 413
+        ? "文件过大，无法预览"
+        : errObj.response?.data?.error ??
+          errObj.message ??
+          "Workspace API request failed";
     return { code, message, status };
   }
   return {

@@ -2,12 +2,19 @@ import { useCallback } from "react";
 import Editor from "@monaco-editor/react";
 import { X } from "lucide-react";
 import type { OpenFile } from "../../types/coding";
+import { ImageRenderer } from "../quest/renderers/ImageRenderer";
 
 interface EditorAreaProps {
   openFiles: OpenFile[];
   activeFilePath: string | null;
   onSelectFile: (path: string) => void;
   onCloseFile: (path: string) => void;
+}
+
+const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "webp"]);
+
+function getExt(fileName: string): string {
+  return fileName.split(".").pop()?.toLowerCase() ?? "";
 }
 
 export function EditorArea({
@@ -33,6 +40,8 @@ export function EditorArea({
       </div>
     );
   }
+
+  const isImage = activeFile ? IMAGE_EXTENSIONS.has(getExt(activeFile.fileName)) : false;
 
   return (
     <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
@@ -65,9 +74,13 @@ export function EditorArea({
         })}
       </div>
 
-      {/* Editor */}
+      {/* Content */}
       <div className="flex-1 min-h-0 relative">
-        {activeFile && (
+        {activeFile && isImage ? (
+          <div className="absolute inset-0">
+            <ImageRenderer content={activeFile.content} path={activeFile.path} />
+          </div>
+        ) : activeFile ? (
           <Editor
             key={activeFile.path}
             language={activeFile.language}
@@ -87,7 +100,7 @@ export function EditorArea({
               padding: { top: 8 },
             }}
           />
-        )}
+        ) : null}
       </div>
     </div>
   );

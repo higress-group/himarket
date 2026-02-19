@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { RefreshCw, ExternalLink, Code2, Eye } from "lucide-react";
+import { message } from "antd";
 import { Header } from "../components/Header";
 import {
   QuestSessionProvider,
@@ -309,6 +310,7 @@ function CodingContent() {
                 fileName,
                 content: result.content,
                 language: inferLanguage(fileName),
+                encoding: result.encoding ?? "utf-8",
               },
             });
             setActiveTab("code");
@@ -337,9 +339,12 @@ function CodingContent() {
           fileName: node.name,
           content: result.content,
           language: inferLanguage(node.name),
+          encoding: result.encoding ?? "utf-8",
         };
         dispatch({ type: "FILE_OPENED", questId: activeQuest.id, file });
         setActiveTab("code");
+      } else if (result.error) {
+        message.warning(result.error.message);
       }
     },
     [activeQuest, dispatch]
@@ -374,9 +379,12 @@ function CodingContent() {
           fileName,
           content: result.content,
           language: inferLanguage(fileName),
+          encoding: result.encoding ?? "utf-8",
         };
         dispatch({ type: "FILE_OPENED", questId: activeQuest.id, file });
         setActiveTab("code");
+      } else if (result.error) {
+        message.warning(result.error.message);
       }
     },
     [activeQuest, dispatch]
