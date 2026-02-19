@@ -18,3 +18,6 @@ export interface CliProviderWithRuntime {
   compatibleRuntimes: RuntimeType[];
   containerImage?: string;
 }
+
+export type SandboxMode = 'user' | 'session';
+

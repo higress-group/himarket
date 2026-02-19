@@ -10,6 +10,7 @@ import { getSkillMdBody } from "../lib/skillMdUtils";
 import MarkdownRender from "../components/MarkdownRender";
 import InstallCommand from "../components/skill/InstallCommand";
 import SkillMdViewer from "../components/skill/SkillMdViewer";
+import RelatedSkills from "../components/skill/RelatedSkills";
 
 function SkillDetail() {
   const { skillProductId } = useParams<{ skillProductId: string }>();
@@ -143,6 +144,9 @@ function SkillDetail() {
 
           {/* SkillMdViewer 组件 */}
           <SkillMdViewer document={data.document || ""} />
+
+          {/* 相关技能推荐 */}
+          <RelatedSkills currentProductId={skillProductId!} />
         </div>
       </div>
     </Layout>

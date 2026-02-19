@@ -14,6 +14,8 @@ export interface WsUrlParams {
   token?: string;
   /** 工作目录（HiCli 专用） */
   cwd?: string;
+  /** 沙箱模式 (user | session) */
+  sandboxMode?: string;
 }
 
 /**
@@ -38,6 +40,7 @@ export function buildAcpWsUrl(
   if (params.provider) searchParams.set("provider", params.provider);
   if (params.cwd) searchParams.set("cwd", encodeURIComponent(params.cwd));
   if (params.runtime) searchParams.set("runtime", params.runtime);
+  if (params.sandboxMode) searchParams.set("sandboxMode", params.sandboxMode);
 
   const qs = searchParams.toString();
   return qs ? `${base}?${qs}` : base;

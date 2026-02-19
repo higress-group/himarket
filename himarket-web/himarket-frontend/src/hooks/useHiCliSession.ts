@@ -246,6 +246,15 @@ export function useHiCliSession(): UseHiCliSessionReturn {
       // Notification (has method, no id)
       if (hasMethod && !hasId) {
         const notif = parsed as unknown as AcpNotification;
+        if (notif.method === "sandbox/status") {
+          const params = notif.params as { status?: string; message?: string };
+          dispatch({
+            type: "SANDBOX_STATUS",
+            status: (params?.status ?? "creating") as "creating" | "ready" | "error",
+            message: params?.message ?? "",
+          });
+          return;
+        }
         if (notif.method === ACP_METHODS.SESSION_UPDATE) {
           const update = extractSessionUpdate(notif);
           if (update) {

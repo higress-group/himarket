@@ -12,6 +12,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -21,18 +22,9 @@ import org.slf4j.LoggerFactory;
 /**
  * 集成测试：验证各 CLI 在未认证状态下的行为。
  *
- * <p>测试策略：
- * 1. 使用隔离的 HOME 目录启动 CLI（避免使用用户主目录的凭证）
- * 2. 完成 initialize 握手，验证返回 authMethods
- * 3. 尝试 session/new，验证在未认证时返回 -32000 错误
- * 4. 如果 session/new 成功，再尝试 session/prompt 验证认证错误
- *
- * <p>不同 CLI 的行为差异：
- * - qodercli/qwen-code: session/new 直接返回 -32000 认证错误
- * - kiro-cli: 隔离 HOME 下可能超时或行为异常
- *
- * <p>仅测试本机已安装的 CLI 工具，未安装的自动跳过。
+ * <p>依赖真实 CLI 工具，使用 {@code mvn test -Dgroups=integration} 显式启用。
  */
+@Tag("integration")
 class AcpAuthenticationTest {
 
     private static final Logger log = LoggerFactory.getLogger(AcpAuthenticationTest.class);

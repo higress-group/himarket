@@ -8,8 +8,6 @@ import {
   useQuestDispatch,
 } from "../context/QuestSessionContext";
 import { useAcpSession } from "../hooks/useAcpSession";
-import { useRuntimeSelection } from "../hooks/useRuntimeSelection";
-import type { RuntimeType } from "../types/runtime";
 import { useResizable } from "../hooks/useResizable";
 import { CodingTopBar } from "../components/coding/CodingTopBar";
 import { FileTree } from "../components/coding/FileTree";
@@ -30,6 +28,7 @@ import type { FileNode, OpenFile } from "../types/coding";
 import type { ChatItemPlan } from "../types/acp";
 import type { ICliProvider } from "../lib/apis/cliProvider";
 import { buildAcpWsUrl } from "../lib/utils/wsUrl";
+import { CliSelector } from "../components/common/CliSelector";
 
 const EXT_TO_LANG: Record<string, string> = {
   ts: "typescript",
@@ -62,14 +61,7 @@ function inferLanguage(fileName: string): string {
   return EXT_TO_LANG[ext] ?? "plaintext";
 }
 
-function buildWsUrl(provider?: string, runtime?: string): string {
-  const p = provider || localStorage.getItem("hicoding:cliProvider") || "";
-  return buildAcpWsUrl({
-    token: localStorage.getItem("access_token") || undefined,
-    provider: p || undefined,
-    runtime,
-  });
-}
+// buildWsUrl removed — wsUrl is now built lazily via handleSelectCli
 
 function readBool(key: string, fallback: boolean): boolean {
   try {
@@ -134,34 +126,41 @@ const READ_ONLY_KINDS = new Set([
 ]);
 
 function CodingContent() {
-  // CLI Provider 切换（持久化到 localStorage，切换时重建 WebSocket 连接）
-  const [currentProvider, setCurrentProvider] = useState(
+  // 延迟连接模式：初始 wsUrl 为空，不触发连接
+  const [currentWsUrl, setCurrentWsUrl] = useState("");
+  const [, setCurrentProvider] = useState(
     () => localStorage.getItem("hicoding:cliProvider") || ""
   );
-  const [currentProviderObj, setCurrentProviderObj] = useState<ICliProvider | null>(null);
-  const { selectedRuntime, compatibleRuntimes, selectRuntime } = useRuntimeSelection({
-    provider: currentProviderObj,
-  });
-  const [wsUrl, setWsUrl] = useState(() => buildWsUrl(currentProvider, selectedRuntime));
-  const session = useAcpSession({ wsUrl, runtimeType: selectedRuntime as RuntimeType });
+  const session = useAcpSession({ wsUrl: currentWsUrl, runtimeType: "local" });
 
   const state = useQuestState();
   const activeQuest = useActiveQuest();
   const dispatch = useQuestDispatch();
 
-  const handleProviderChange = useCallback((providerKey: string, providerObj?: ICliProvider) => {
-    localStorage.setItem("hicoding:cliProvider", providerKey);
-    setCurrentProvider(providerKey);
-    if (providerObj) setCurrentProviderObj(providerObj);
-    dispatch({ type: "RESET_STATE" });
-    setWsUrl(buildWsUrl(providerKey, selectedRuntime));
-  }, [dispatch, selectedRuntime]);
+  const isConnected = session.status === "connected";
 
-  const handleRuntimeChange = useCallback((runtimeType: string) => {
-    selectRuntime(runtimeType);
+  // CLI 工具选择 → 构建 wsUrl 触发连接
+  const handleSelectCli = useCallback(
+    (cliId: string, _cwd: string, _runtime?: string, _providerObj?: ICliProvider) => {
+      localStorage.setItem("hicoding:cliProvider", cliId);
+      setCurrentProvider(cliId);
+      const url = buildAcpWsUrl({
+        token: localStorage.getItem("access_token") || undefined,
+        provider: cliId || undefined,
+        runtime: "local",
+      });
+      setCurrentWsUrl(url);
+    },
+    []
+  );
+
+  // 切换工具：断开连接 → RESET_STATE → 清空 wsUrl → 返回欢迎页
+  const handleSwitchTool = useCallback(() => {
+    session.disconnect();
     dispatch({ type: "RESET_STATE" });
-    setWsUrl(buildWsUrl(currentProvider, runtimeType));
-  }, [selectRuntime, dispatch, currentProvider]);
+    setCurrentWsUrl("");
+    autoCreatedRef.current = false;
+  }, [session, dispatch]);
 
   const [activeTab, setActiveTab] = useState<RightTab>("code");
   const [tree, setTree] = useState<FileNode[]>([]);
@@ -218,10 +217,11 @@ function CodingContent() {
     reverse: true,
   });
 
-  // Auto-create quest on mount
+  // Auto-create quest on connect + initialized
   const autoCreatedRef = useRef(false);
   useEffect(() => {
     if (
+      isConnected &&
       state.initialized &&
       Object.keys(state.quests).length === 0 &&
       !autoCreatedRef.current
@@ -231,7 +231,11 @@ function CodingContent() {
         console.error("Failed to create quest:", err);
       });
     }
-  }, [state.initialized, state.quests, session]);
+    // 断开连接时重置标记
+    if (!isConnected) {
+      autoCreatedRef.current = false;
+    }
+  }, [isConnected, state.initialized, state.quests, session]);
 
   // Load directory tree when quest is created
   useEffect(() => {
@@ -412,6 +416,27 @@ function CodingContent() {
     (m): m is ChatItemPlan => m.type === "plan"
   )?.entries;
 
+  // 未连接时显示欢迎页，已连接时显示 IDE 界面
+  if (!isConnected || !activeQuest) {
+    return (
+      <div className="flex flex-1 min-h-0 overflow-hidden items-center justify-center bg-white/50">
+        <div className="flex flex-col items-center gap-6">
+          <h2 className="text-xl font-semibold text-gray-700">欢迎使用 HiCoding</h2>
+          <p className="text-sm text-gray-500">请选择 CLI 工具以开始编码</p>
+          <CliSelector onSelect={handleSelectCli} disabled={false} />
+        </div>
+
+        {/* Permission dialog */}
+        {state.pendingPermission && (
+          <PermissionDialog
+            permission={state.pendingPermission}
+            onRespond={session.respondPermission}
+          />
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-1 min-h-0 overflow-hidden">
       {/* ===== Left Column: Conversation ===== */}
@@ -424,11 +449,6 @@ function CodingContent() {
           onSetModel={session.setModel}
           fileTreeVisible={fileTreeVisible}
           onToggleFileTree={toggleFileTree}
-          currentProvider={currentProvider}
-          onProviderChange={handleProviderChange}
-          selectedRuntime={selectedRuntime}
-          compatibleRuntimes={compatibleRuntimes}
-          onRuntimeChange={handleRuntimeChange}
         />
 
         <ChatStream

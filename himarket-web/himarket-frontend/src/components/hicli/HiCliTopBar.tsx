@@ -158,6 +158,11 @@ export function HiCliTopBar({
       <div className={`flex items-center gap-1.5 text-[11px] ${statusColor}`}>
         {statusIcon}
         <span>{status}</span>
+        {hiCliState.sandboxStatus?.status === "creating" && (
+          <span className="ml-2 text-blue-500 animate-pulse">
+            {hiCliState.sandboxStatus.message}
+          </span>
+        )}
       </div>
 
       {/* Debug tab toggle buttons */}

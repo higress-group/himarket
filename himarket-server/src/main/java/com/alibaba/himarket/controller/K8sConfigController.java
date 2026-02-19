@@ -40,8 +40,9 @@ public class K8sConfigController {
         if (kubeconfig == null || kubeconfig.isBlank()) {
             throw new BusinessException(ErrorCode.INVALID_PARAMETER, "kubeconfig 内容不能为空");
         }
+        String description = request.get("description");
         try {
-            String configId = k8sConfigService.registerConfig(kubeconfig);
+            String configId = k8sConfigService.registerConfig(kubeconfig, description);
             return Map.of("configId", configId);
         } catch (IllegalArgumentException e) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, e, e.getMessage());

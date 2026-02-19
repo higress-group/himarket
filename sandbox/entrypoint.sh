@@ -1,11 +1,11 @@
 #!/bin/bash
 # HiMarket 沙箱容器入口脚本
-# 单容器方案：同时启动 ACP Sidecar 和保持容器运行
+# 使用 websocat 将 WebSocket 连接与 CLI 进程的 stdio 双向桥接
 #
 # 环境变量:
 #   CLI_COMMAND  - CLI 工具命令 (如 qodercli)
 #   CLI_ARGS     - CLI 工具参数 (如 --acp)
-#   SIDECAR_PORT - Sidecar WebSocket 端口 (默认 8080)
+#   SIDECAR_PORT - WebSocket 监听端口 (默认 8080)
 
 set -e
 
@@ -16,32 +16,33 @@ echo "[sandbox] CLI_COMMAND=${CLI_COMMAND:-<not set>}"
 echo "[sandbox] CLI_ARGS=${CLI_ARGS:-<not set>}"
 echo "[sandbox] SIDECAR_PORT=${SIDECAR_PORT}"
 
-# 启动 ACP Sidecar（后台运行）
-# Sidecar 负责：
-#   1. 监听 WebSocket 连接 (ws://0.0.0.0:${SIDECAR_PORT}/ws)
-#   2. 收到后端消息后，启动/转发给 CLI 进程的 stdin
-#   3. 读取 CLI 进程的 stdout，通过 WebSocket 返回给后端
-if command -v acp-sidecar &> /dev/null; then
-    echo "[sandbox] Starting ACP Sidecar on port ${SIDECAR_PORT}..."
-    acp-sidecar \
-        --port "${SIDECAR_PORT}" \
-        --cli-command "${CLI_COMMAND}" \
-        --cli-args "${CLI_ARGS}" \
-        &
-    SIDECAR_PID=$!
-    echo "[sandbox] ACP Sidecar started (PID: ${SIDECAR_PID})"
-else
-    echo "[sandbox] WARNING: acp-sidecar not found, running in standby mode"
+# 校验必要的环境变量
+if [ -z "${CLI_COMMAND}" ]; then
+    echo "[sandbox] ERROR: CLI_COMMAND is not set"
+    exit 1
 fi
 
-# 保持容器运行
-# 如果 sidecar 退出，容器也退出
-if [ -n "${SIDECAR_PID:-}" ]; then
-    wait ${SIDECAR_PID}
-    EXIT_CODE=$?
-    echo "[sandbox] ACP Sidecar exited with code ${EXIT_CODE}"
-    exit ${EXIT_CODE}
-else
-    # 没有 sidecar 时保持容器运行（开发调试用）
-    exec sleep infinity
+# 校验 websocat 是否可用
+if ! command -v websocat &> /dev/null; then
+    echo "[sandbox] ERROR: websocat not found, cannot start WebSocket bridge"
+    exit 1
 fi
+
+# 构建 CLI 启动命令
+CLI_CMD="${CLI_COMMAND}"
+if [ -n "${CLI_ARGS}" ]; then
+    CLI_CMD="${CLI_CMD} ${CLI_ARGS}"
+fi
+
+echo "[sandbox] Starting websocat bridge: ws://0.0.0.0:${SIDECAR_PORT} <-> ${CLI_CMD}"
+
+# websocat 参数说明:
+#   ws-l:0.0.0.0:PORT  — 监听 WebSocket 连接
+#   sh-c:CMD           — 每个连接启动一个 CLI 子进程
+#   --text             — 文本帧模式（匹配 JSON-RPC newline-delimited 协议）
+#   -E                 — 任一端关闭时退出
+exec websocat \
+    --text \
+    -E \
+    "ws-l:0.0.0.0:${SIDECAR_PORT}" \
+    "sh-c:${CLI_CMD}"

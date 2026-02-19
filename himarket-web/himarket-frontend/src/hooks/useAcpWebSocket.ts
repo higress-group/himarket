@@ -37,11 +37,13 @@ export function useAcpWebSocket({
     }
 
     setStatus("connecting");
+    console.log("[AcpWebSocket] Connecting to:", url);
     const ws = new WebSocket(url);
     wsRef.current = ws;
 
     ws.onopen = () => {
       if (wsRef.current !== ws) return;
+      console.log("[AcpWebSocket] Connected successfully");
       setStatus("connected");
       reconnectAttemptRef.current = 0;
     };
@@ -50,11 +52,12 @@ export function useAcpWebSocket({
       onMessageRef.current(e.data);
     };
 
-    ws.onerror = () => {
-      // onclose will fire after this
+    ws.onerror = (e) => {
+      console.error("[AcpWebSocket] Error:", e);
     };
 
-    ws.onclose = () => {
+    ws.onclose = (e) => {
+      console.log("[AcpWebSocket] Closed:", e.code, e.reason);
       if (wsRef.current !== ws) return;
       wsRef.current = null;
       setStatus("disconnected");

@@ -12,6 +12,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -21,13 +22,9 @@ import org.slf4j.LoggerFactory;
 /**
  * 集成测试：验证各 CLI 通过 ACP 协议 session/new 返回的 models 和 modes。
  *
- * <p>测试流程：
- * 1. 启动 CLI 子进程
- * 2. 发送 initialize 请求并等待响应
- * 3. 发送 session/new 请求并等待响应
- * 4. 解析并验证 models 和 modes 字段
- * 5. 打印各 CLI 支持的 model 和 mode 列表
+ * <p>依赖真实 CLI 工具，使用 {@code mvn test -Dgroups=integration} 显式启用。
  */
+@Tag("integration")
 class AcpSessionModelsTest {
 
     private static final Logger log = LoggerFactory.getLogger(AcpSessionModelsTest.class);

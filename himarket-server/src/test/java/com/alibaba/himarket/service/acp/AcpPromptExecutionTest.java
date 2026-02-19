@@ -12,6 +12,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -21,15 +22,9 @@ import org.slf4j.LoggerFactory;
 /**
  * 集成测试：验证各 CLI 通过 ACP 协议执行 prompt 的完整流程。
  *
- * <p>测试流程：
- * 1. 启动 CLI 子进程
- * 2. 发送 initialize 请求并等待响应
- * 3. 发送 session/new 请求并等待响应
- * 4. 发送 session/prompt 请求执行简单任务
- * 5. 验证响应格式和基本功能
- *
- * <p>仅测试本机已安装的 CLI 工具，未安装的自动跳过。
+ * <p>依赖真实 CLI 工具，使用 {@code mvn test -Dgroups=integration} 显式启用。
  */
+@Tag("integration")
 class AcpPromptExecutionTest {
 
     private static final Logger log = LoggerFactory.getLogger(AcpPromptExecutionTest.class);

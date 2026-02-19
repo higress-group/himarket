@@ -1,6 +1,8 @@
 package com.alibaba.himarket.service.acp.runtime;
 
 import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
+import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
+import io.fabric8.kubernetes.api.model.PersistentVolumeClaimBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.Quantity;
@@ -42,13 +44,17 @@ public class K8sRuntimeAdapter implements RuntimeAdapter {
     private static final Logger logger = LoggerFactory.getLogger(K8sRuntimeAdapter.class);
 
     static final String DEFAULT_NAMESPACE = "himarket";
-    static final String DEFAULT_SANDBOX_IMAGE = "himarket/sandbox:latest";
+    static final String DEFAULT_SANDBOX_IMAGE =
+            "registry.cn-shanghai.aliyuncs.com/daofeng/sandbox:latest";
+    static final String IMAGE_PULL_SECRET = "daofeng-acr-secret";
     static final int SIDECAR_PORT = 8080;
     static final String LABEL_APP = "sandbox";
     static final Duration DEFAULT_POD_READY_TIMEOUT = Duration.ofSeconds(60);
     static final long DEFAULT_HEALTH_CHECK_INTERVAL_SECONDS = 30;
     static final long DEFAULT_IDLE_TIMEOUT_SECONDS = 600;
     static final int DEFAULT_HEALTH_CHECK_FAILURE_THRESHOLD = 3;
+    static final String WORKSPACE_STORAGE_CLASS = "alicloud-disk-efficiency";
+    static final String WORKSPACE_STORAGE_SIZE = "20Gi";
 
     private final KubernetesClient k8sClient;
     private final String namespace;
@@ -79,6 +85,9 @@ public class K8sRuntimeAdapter implements RuntimeAdapter {
 
     /** 异常通知回调，上层可注册以接收运行时异常通知 */
     private Consumer<RuntimeFaultNotification> faultListener;
+
+    /** 复用模式标志：true 时 close() 只断开 WebSocket，不删除 Pod */
+    private boolean reuseMode = false;
 
     /**
      * 使用默认配置创建适配器。
@@ -175,6 +184,9 @@ public class K8sRuntimeAdapter implements RuntimeAdapter {
         }
 
         try {
+            // 0. 确保 workspace PVC 存在
+            ensurePvcExists(config.getUserId());
+
             // 1. 构建 Pod Spec
             Pod pod = buildPodSpec(config);
 
@@ -188,7 +200,7 @@ public class K8sRuntimeAdapter implements RuntimeAdapter {
 
             // 4. 获取 Pod IP，构建 Sidecar WebSocket URI
             podIp = getPodIp(podName);
-            sidecarWsUri = URI.create(String.format("ws://%s:%d/ws", podIp, SIDECAR_PORT));
+            sidecarWsUri = URI.create(String.format("ws://%s:%d/", podIp, SIDECAR_PORT));
             logger.info("Pod ready: name={}, ip={}, sidecarUri={}", podName, podIp, sidecarWsUri);
 
             // 5. 建立 WebSocket 连接到 Sidecar
@@ -216,6 +228,60 @@ public class K8sRuntimeAdapter implements RuntimeAdapter {
             status = RuntimeStatus.ERROR;
             cleanupPod();
             throw new RuntimeException("Failed to start K8s runtime: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 复用模式下的启动方法，跳过 Pod 创建，直接连接到已有的 Running Pod。
+     * <p>
+     * 用于用户级沙箱场景：PodReuseManager 已找到可复用的 Pod，
+     * 本方法直接建立 WebSocket 连接并启动健康检查。
+     *
+     * @param podInfo 已有 Pod 的信息（podName、podIp、sidecarWsUri）
+     * @return Pod 名称
+     * @throws RuntimeException 如果连接失败
+     */
+    public String startWithExistingPod(PodInfo podInfo) {
+        if (status != RuntimeStatus.CREATING) {
+            throw new RuntimeException("Cannot start: current status is " + status);
+        }
+        if (podInfo == null) {
+            throw new IllegalArgumentException("PodInfo must not be null");
+        }
+
+        try {
+            // 1. 设置 podName, podIp, sidecarWsUri（跳过 Pod 创建和等待）
+            this.podName = podInfo.podName();
+            this.podIp = podInfo.podIp();
+            this.sidecarWsUri = podInfo.sidecarWsUri();
+            logger.info(
+                    "Reusing existing pod: name={}, ip={}, sidecarUri={}",
+                    podName,
+                    podIp,
+                    sidecarWsUri);
+
+            // 2. 建立 WebSocket 连接到 Sidecar
+            connectToSidecarWebSocket(sidecarWsUri);
+
+            // 3. 启动健康检查
+            startHealthCheck();
+
+            // 4. 启动空闲超时检查
+            startIdleCheck();
+
+            // 5. 创建文件系统适配器
+            fileSystem = new PodFileSystemAdapter(k8sClient, podName, namespace);
+
+            // 6. 初始化最后活跃时间
+            lastActiveAt = Instant.now();
+
+            // 7. 状态 → RUNNING
+            status = RuntimeStatus.RUNNING;
+            return podName;
+        } catch (Exception e) {
+            status = RuntimeStatus.ERROR;
+            throw new RuntimeException(
+                    "Failed to connect to existing pod '" + podName + "': " + e.getMessage(), e);
         }
     }
 
@@ -271,7 +337,7 @@ public class K8sRuntimeAdapter implements RuntimeAdapter {
         if (status == RuntimeStatus.STOPPED) {
             return;
         }
-        logger.info("Closing K8sRuntimeAdapter: pod={}", podName);
+        logger.info("Closing K8sRuntimeAdapter: pod={}, reuseMode={}", podName, reuseMode);
 
         stopHealthCheck();
         stopIdleCheck();
@@ -288,8 +354,11 @@ public class K8sRuntimeAdapter implements RuntimeAdapter {
         }
 
         stdoutSink.tryEmitComplete();
-        cleanupPod();
-        healthChecker.shutdownNow();
+
+        if (!reuseMode) {
+            cleanupPod(); // 仅非复用模式删除 Pod
+            healthChecker.shutdownNow();
+        }
 
         status = RuntimeStatus.STOPPED;
     }
@@ -300,6 +369,44 @@ public class K8sRuntimeAdapter implements RuntimeAdapter {
     }
 
     // ===== Package-private/Protected 方法，便于测试 =====
+
+    /**
+     * 确保用户的 workspace PVC 存在，不存在则通过 StorageClass 自动创建。
+     */
+    void ensurePvcExists(String userId) {
+        String pvcName = "workspace-" + userId;
+        PersistentVolumeClaim existing =
+                k8sClient.persistentVolumeClaims().inNamespace(namespace).withName(pvcName).get();
+        if (existing != null) {
+            logger.debug("PVC already exists: {}", pvcName);
+            return;
+        }
+
+        PersistentVolumeClaim pvc =
+                new PersistentVolumeClaimBuilder()
+                        .withNewMetadata()
+                        .withName(pvcName)
+                        .withNamespace(namespace)
+                        .addToLabels("app", LABEL_APP)
+                        .addToLabels("userId", userId)
+                        .endMetadata()
+                        .withNewSpec()
+                        .addToAccessModes("ReadWriteOnce")
+                        .withStorageClassName(WORKSPACE_STORAGE_CLASS)
+                        .withNewResources()
+                        .addToRequests("storage", new Quantity(WORKSPACE_STORAGE_SIZE))
+                        .endResources()
+                        .endSpec()
+                        .build();
+
+        k8sClient.persistentVolumeClaims().inNamespace(namespace).resource(pvc).create();
+        logger.info(
+                "PVC created: namespace={}, name={}, storageClass={}, size={}",
+                namespace,
+                pvcName,
+                WORKSPACE_STORAGE_CLASS,
+                WORKSPACE_STORAGE_SIZE);
+    }
 
     Pod buildPodSpec(RuntimeConfig config) {
         // 统一沙箱镜像：所有 CLI 工具和 ACP Sidecar 预装在同一个镜像中
@@ -322,9 +429,13 @@ public class K8sRuntimeAdapter implements RuntimeAdapter {
                         .endMetadata()
                         .withNewSpec()
                         .withRestartPolicy("Never")
+                        .addNewImagePullSecret()
+                        .withName(IMAGE_PULL_SECRET)
+                        .endImagePullSecret()
                         .addNewContainer()
                         .withName("sandbox")
                         .withImage(sandboxImage)
+                        .withImagePullPolicy("Always")
                         .addNewEnv()
                         .withName("CLI_COMMAND")
                         .withValue(config.getCommand())
@@ -654,6 +765,14 @@ public class K8sRuntimeAdapter implements RuntimeAdapter {
 
     public void touchActivity() {
         lastActiveAt = Instant.now();
+    }
+
+    public void setReuseMode(boolean reuseMode) {
+        this.reuseMode = reuseMode;
+    }
+
+    public boolean isReuseMode() {
+        return reuseMode;
     }
 
     public void setFaultListener(Consumer<RuntimeFaultNotification> listener) {

@@ -2,6 +2,7 @@ import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useRuntimeSelection } from '../useRuntimeSelection';
 import type { ICliProvider } from '../../lib/apis/cliProvider';
+import type { SandboxMode } from '../../types/runtime';
 
 // Mock localStorage
 const localStorageMock = (() => {
@@ -119,5 +120,66 @@ describe('useRuntimeSelection', () => {
       expect(option.label).toBeTruthy();
       expect(option.description).toBeTruthy();
     }
+  });
+});
+
+describe('useRuntimeSelection - sandboxMode', () => {
+  it('sandboxMode 默认为 user', () => {
+    const { result } = renderHook(() =>
+      useRuntimeSelection({ provider: nativeProvider })
+    );
+
+    expect(result.current.sandboxMode).toBe('user');
+  });
+
+  it('从 localStorage 恢复有效的 sandboxMode', () => {
+    localStorageMock.setItem('himarket:sandboxMode', 'session');
+
+    const { result } = renderHook(() =>
+      useRuntimeSelection({ provider: nativeProvider })
+    );
+
+    expect(result.current.sandboxMode).toBe('session');
+  });
+
+  it('localStorage 中无效值时回退到 user', () => {
+    localStorageMock.setItem('himarket:sandboxMode', 'invalid');
+
+    const { result } = renderHook(() =>
+      useRuntimeSelection({ provider: nativeProvider })
+    );
+
+    expect(result.current.sandboxMode).toBe('user');
+  });
+
+  it('setSandboxMode 更新状态并持久化到 localStorage', () => {
+    const { result } = renderHook(() =>
+      useRuntimeSelection({ provider: nativeProvider })
+    );
+
+    act(() => {
+      result.current.setSandboxMode('session');
+    });
+
+    expect(result.current.sandboxMode).toBe('session');
+    expect(localStorageMock.setItem).toHaveBeenCalledWith('himarket:sandboxMode', 'session');
+  });
+
+  it('sandboxMode 变化时持久化到 localStorage', () => {
+    const { result } = renderHook(() =>
+      useRuntimeSelection({ provider: nativeProvider })
+    );
+
+    act(() => {
+      result.current.setSandboxMode('session');
+    });
+
+    expect(localStorageMock.setItem).toHaveBeenCalledWith('himarket:sandboxMode', 'session');
+
+    act(() => {
+      result.current.setSandboxMode('user');
+    });
+
+    expect(localStorageMock.setItem).toHaveBeenCalledWith('himarket:sandboxMode', 'user');
   });
 });

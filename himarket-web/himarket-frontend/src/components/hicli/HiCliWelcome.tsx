@@ -1,5 +1,6 @@
 import { Sparkles, Terminal, Loader2 } from "lucide-react";
 import { HiCliSelector } from "./HiCliSelector";
+import { useHiCliState } from "../../context/HiCliSessionContext";
 import type { ICliProvider } from "../../lib/apis/cliProvider";
 
 interface HiCliWelcomeProps {
@@ -17,6 +18,11 @@ export function HiCliWelcome({
   disabled,
   creatingQuest,
 }: HiCliWelcomeProps) {
+  const state = useHiCliState();
+  const sandbox = state.sandboxStatus;
+  const isSandboxCreating = sandbox?.status === "creating";
+  const isSandboxError = sandbox?.status === "error";
+
   return (
     <div className="flex-1 flex items-center justify-center px-6">
       <div className="flex flex-col items-center text-center w-full max-w-sm">
@@ -24,6 +30,19 @@ export function HiCliWelcome({
           <Terminal size={48} strokeWidth={1.5} />
         </div>
         <h1 className="text-2xl font-semibold text-gray-700 mb-2">HiCli</h1>
+
+        {isSandboxCreating && (
+          <div className="mb-4 flex items-center justify-center gap-2 text-sm text-blue-600">
+            <Loader2 size={16} className="animate-spin" />
+            <span>{sandbox.message}</span>
+          </div>
+        )}
+
+        {isSandboxError && (
+          <div className="mb-4 text-sm text-red-500">
+            {sandbox.message}
+          </div>
+        )}
 
         {isConnected ? (
           <>
@@ -51,7 +70,7 @@ export function HiCliWelcome({
             <p className="text-sm text-gray-400 mb-6">
               选择一个 CLI 工具开始调试
             </p>
-            <HiCliSelector onSelect={onSelectCli} disabled={disabled} />
+            <HiCliSelector onSelect={onSelectCli} disabled={disabled || isSandboxCreating} />
           </>
         )}
       </div>

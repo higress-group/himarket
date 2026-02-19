@@ -28,6 +28,11 @@ public class AcpProperties {
      */
     private Map<String, CliProviderConfig> providers = new LinkedHashMap<>();
 
+    /**
+     * K8s 运行时相关配置。
+     */
+    private K8sConfig k8s = new K8sConfig();
+
     public String getDefaultProvider() {
         return defaultProvider;
     }
@@ -58,6 +63,14 @@ public class AcpProperties {
 
     public void setProviders(Map<String, CliProviderConfig> providers) {
         this.providers = providers;
+    }
+
+    public K8sConfig getK8s() {
+        return k8s;
+    }
+
+    public void setK8s(K8sConfig k8s) {
+        this.k8s = k8s;
     }
 
     /**
@@ -168,6 +181,45 @@ public class AcpProperties {
 
         public void setRuntimeCategory(String runtimeCategory) {
             this.runtimeCategory = runtimeCategory;
+        }
+    }
+
+    /**
+     * K8s 运行时相关配置项。
+     */
+    public static class K8sConfig {
+
+        /**
+         * 用户级沙箱 Pod 空闲超时秒数。
+         * 当 Pod 上所有连接断开后，经过此时间仍无新连接则自动删除 Pod。
+         * 默认 1800 秒（30 分钟）。
+         */
+        private long reusePodIdleTimeout = 1800;
+
+        /**
+         * 是否通过 LoadBalancer Service IP 访问沙箱 Pod。
+         * 开启后创建 Pod 时会同时创建 LoadBalancer 类型的 Service，
+         * 并通过 Service 的 External IP 构建 WebSocket URI。
+         * 适用于本地开发调试场景（Pod IP 在本地不可达）。
+         * 生产环境可关闭此选项，直接使用 Pod IP。
+         * 默认 true（通过 Service 访问）。
+         */
+        private boolean sandboxAccessViaService = true;
+
+        public long getReusePodIdleTimeout() {
+            return reusePodIdleTimeout;
+        }
+
+        public void setReusePodIdleTimeout(long reusePodIdleTimeout) {
+            this.reusePodIdleTimeout = reusePodIdleTimeout;
+        }
+
+        public boolean isSandboxAccessViaService() {
+            return sandboxAccessViaService;
+        }
+
+        public void setSandboxAccessViaService(boolean sandboxAccessViaService) {
+            this.sandboxAccessViaService = sandboxAccessViaService;
         }
     }
 }

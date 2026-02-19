@@ -72,4 +72,24 @@ describe("buildAcpWsUrl", () => {
     const parsed = new URL(url);
     expect(parsed.searchParams.get("runtime")).toBe("local");
   });
+
+  it("should include sandboxMode query parameter when provided", () => {
+    const url = buildAcpWsUrl(
+      { provider: "kiro-cli", runtime: "k8s", sandboxMode: "user" },
+      "/ws/acp",
+      ORIGIN,
+    );
+    const parsed = new URL(url);
+    expect(parsed.searchParams.get("sandboxMode")).toBe("user");
+  });
+
+  it("should omit sandboxMode parameter when not provided", () => {
+    const url = buildAcpWsUrl(
+      { provider: "kiro-cli", runtime: "k8s" },
+      "/ws/acp",
+      ORIGIN,
+    );
+    const parsed = new URL(url);
+    expect(parsed.searchParams.has("sandboxMode")).toBe(false);
+  });
 });

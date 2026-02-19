@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { Layout } from "../components/Layout";
 import {
   QuestSessionProvider,
@@ -7,8 +7,6 @@ import {
   useQuestDispatch,
 } from "../context/QuestSessionContext";
 import { useAcpSession } from "../hooks/useAcpSession";
-import { useRuntimeSelection } from "../hooks/useRuntimeSelection";
-import type { RuntimeType } from "../types/runtime";
 import { QuestSidebar } from "../components/quest/QuestSidebar";
 import { QuestTopBar } from "../components/quest/QuestTopBar";
 import { QuestWelcome } from "../components/quest/QuestWelcome";
@@ -21,46 +19,64 @@ import type { ChatItemPlan, ChatItemToolCall } from "../types/acp";
 import type { ICliProvider } from "../lib/apis/cliProvider";
 import { buildAcpWsUrl } from "../lib/utils/wsUrl";
 
-function buildWsUrl(provider?: string, runtime?: string): string {
-  const p = provider || localStorage.getItem("hicoding:cliProvider") || "";
-  return buildAcpWsUrl({
-    token: localStorage.getItem("access_token") || undefined,
-    provider: p || undefined,
-    runtime,
-  });
-}
-
 function QuestContent() {
-  // CLI Provider 切换
-  const [currentProvider, setCurrentProvider] = useState(
+  // 延迟连接模式：初始 wsUrl 为空，不触发连接
+  const [currentWsUrl, setCurrentWsUrl] = useState("");
+  const [, setCurrentProvider] = useState(
     () => localStorage.getItem("hicoding:cliProvider") || ""
   );
-  // 当前选中的 provider 对象（用于运行时选择）
-  const [currentProviderObj, setCurrentProviderObj] = useState<ICliProvider | null>(null);
-  const { selectedRuntime, compatibleRuntimes, selectRuntime } = useRuntimeSelection({
-    provider: currentProviderObj,
-  });
-  const [wsUrl, setWsUrl] = useState(() => buildWsUrl(currentProvider, selectedRuntime));
-  const session = useAcpSession({ wsUrl, runtimeType: selectedRuntime as RuntimeType });
+  const session = useAcpSession({ wsUrl: currentWsUrl, runtimeType: "local" });
 
   const state = useQuestState();
   const activeQuest = useActiveQuest();
   const dispatch = useQuestDispatch();
   const [panelCollapsed, setPanelCollapsed] = useState(false);
 
-  const handleProviderChange = useCallback((providerKey: string, providerObj?: ICliProvider) => {
-    localStorage.setItem("hicoding:cliProvider", providerKey);
-    setCurrentProvider(providerKey);
-    if (providerObj) setCurrentProviderObj(providerObj);
-    dispatch({ type: "RESET_STATE" });
-    setWsUrl(buildWsUrl(providerKey, selectedRuntime));
-  }, [dispatch, selectedRuntime]);
+  const isConnected = session.status === "connected";
 
-  const handleRuntimeChange = useCallback((runtimeType: string) => {
-    selectRuntime(runtimeType);
+  // 自动创建 Quest 的标记
+  const autoCreatedRef = useRef(false);
+
+  // 连接成功且初始化完成后，自动创建第一个 Quest
+  useEffect(() => {
+    if (
+      isConnected &&
+      state.initialized &&
+      Object.keys(state.quests).length === 0 &&
+      !autoCreatedRef.current
+    ) {
+      autoCreatedRef.current = true;
+      session.createQuest(".").catch((err) => {
+        console.error("Auto create quest failed:", err);
+      });
+    }
+    // 断开连接时重置标记
+    if (!isConnected) {
+      autoCreatedRef.current = false;
+    }
+  }, [isConnected, state.initialized, state.quests, session]);
+
+  // CLI 工具选择 → 构建 wsUrl 触发连接
+  const handleSelectCli = useCallback(
+    (cliId: string, _cwd: string, _runtime?: string, _providerObj?: ICliProvider) => {
+      localStorage.setItem("hicoding:cliProvider", cliId);
+      setCurrentProvider(cliId);
+      const url = buildAcpWsUrl({
+        token: localStorage.getItem("access_token") || undefined,
+        provider: cliId || undefined,
+        runtime: "local",
+      });
+      setCurrentWsUrl(url);
+    },
+    []
+  );
+
+  // 切换工具：断开连接 → RESET_STATE → 清空 wsUrl → 返回欢迎页
+  const handleSwitchTool = useCallback(() => {
+    session.disconnect();
     dispatch({ type: "RESET_STATE" });
-    setWsUrl(buildWsUrl(currentProvider, runtimeType));
-  }, [selectRuntime, dispatch, currentProvider]);
+    setCurrentWsUrl("");
+  }, [session, dispatch]);
 
   const handleCreateQuest = useCallback(() => {
     session.createQuest(".").catch(err => {
@@ -104,8 +120,11 @@ function QuestContent() {
         onCreateQuest={handleCreateQuest}
         onSwitchQuest={session.switchQuest}
         onCloseQuest={session.closeQuest}
+        onSwitchTool={handleSwitchTool}
+        status={session.status}
         creatingQuest={session.creatingQuest}
       />
+
       {activeQuest ? (
         <div className="flex-1 flex min-w-0">
           {/* Middle column: top bar + chat + input */}
@@ -113,11 +132,6 @@ function QuestContent() {
             <QuestTopBar
               status={session.status}
               onSetModel={session.setModel}
-              currentProvider={currentProvider}
-              onProviderChange={handleProviderChange}
-              selectedRuntime={selectedRuntime}
-              compatibleRuntimes={compatibleRuntimes}
-              onRuntimeChange={handleRuntimeChange}
             />
             <ChatStream
               onSelectToolCall={toolCallId =>
@@ -150,8 +164,10 @@ function QuestContent() {
       ) : (
         <div className="flex-1 flex flex-col min-w-0">
           <QuestWelcome
+            onSelectCli={handleSelectCli}
             onCreateQuest={handleCreateQuest}
-            disabled={!state.initialized}
+            isConnected={isConnected && state.initialized}
+            disabled={false}
             creatingQuest={session.creatingQuest}
           />
         </div>

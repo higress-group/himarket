@@ -10,6 +10,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.slf4j.Logger;
@@ -21,11 +22,11 @@ import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 /**
- * 端到端测试：通过 WebSocket 连接后端，验证不同 provider 参数能正确启动对应的 CLI 并完成 ACP
- * 握手。
+ * 端到端测试：通过 WebSocket 连接后端验证 ACP 握手。
  *
- * <p>前置条件：后端服务需要在 localhost:8080 运行（使用 h2 profile）。
+ * <p>依赖运行中的后端服务，使用 {@code mvn test -Dgroups=integration} 显式启用。
  */
+@Tag("integration")
 class AcpWebSocketE2ETest {
 
     private static final Logger log = LoggerFactory.getLogger(AcpWebSocketE2ETest.class);

@@ -44,6 +44,12 @@ public class AcpHandshakeInterceptor implements HandshakeInterceptor {
             if (StrUtil.isNotBlank(runtime)) {
                 attributes.put("runtime", runtime);
             }
+
+            // Extract sandbox mode from query param: ?sandboxMode=user|session
+            String sandboxMode = params.getFirst("sandboxMode");
+            if (StrUtil.isNotBlank(sandboxMode)) {
+                attributes.put("sandboxMode", sandboxMode);
+            }
         } catch (Exception e) {
             logger.debug("Failed to parse token from query param", e);
         }

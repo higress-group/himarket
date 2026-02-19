@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import type { RuntimeType } from '../types/runtime';
+import type { RuntimeType, SandboxMode } from '../types/runtime';
 import type { RuntimeOption } from '../components/common/RuntimeSelector';
 import type { ICliProvider } from '../lib/apis/cliProvider';
 import { getAvailableRuntimes, type IRuntimeAvailability } from '../lib/apis/runtime';
@@ -22,6 +22,7 @@ const DEFAULT_RUNTIME_OPTIONS: Record<RuntimeType, Omit<RuntimeOption, 'availabl
 };
 
 const STORAGE_KEY = 'himarket:selectedRuntime';
+const SANDBOX_MODE_STORAGE_KEY = 'himarket:sandboxMode';
 
 interface UseRuntimeSelectionOptions {
   /** 当前选中的 CLI Provider（从 providers 列表中获取） */
@@ -35,6 +36,10 @@ interface UseRuntimeSelectionReturn {
   compatibleRuntimes: RuntimeOption[];
   /** 选择运行时 */
   selectRuntime: (type: string) => void;
+  /** 当前沙箱模式 */
+  sandboxMode: SandboxMode;
+  /** 设置沙箱模式 */
+  setSandboxMode: (mode: SandboxMode) => void;
 }
 
 /**
@@ -57,6 +62,19 @@ export function useRuntimeSelection({
       // ignore
     }
     return 'local';
+  });
+
+  // 沙箱模式状态，从 localStorage 初始化，默认 'user'
+  const [sandboxMode, setSandboxModeState] = useState<SandboxMode>(() => {
+    try {
+      const stored = localStorage.getItem(SANDBOX_MODE_STORAGE_KEY);
+      if (stored === 'user' || stored === 'session') {
+        return stored;
+      }
+    } catch {
+      // ignore
+    }
+    return 'user';
   });
 
   // 后端返回的运行时可用性状态
@@ -137,9 +155,24 @@ export function useRuntimeSelection({
     }
   }, []);
 
+  // sandboxMode 变化时持久化到 localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(SANDBOX_MODE_STORAGE_KEY, sandboxMode);
+    } catch {
+      // ignore
+    }
+  }, [sandboxMode]);
+
+  const setSandboxMode = useCallback((mode: SandboxMode) => {
+    setSandboxModeState(mode);
+  }, []);
+
   return {
     selectedRuntime,
     compatibleRuntimes,
     selectRuntime,
+    sandboxMode,
+    setSandboxMode,
   };
 }

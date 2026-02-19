@@ -106,6 +106,61 @@ class AcpHandshakeInterceptorTest {
         assertEquals("local", attributes.get("runtime"));
     }
 
+    // ===== sandboxMode 参数提取 =====
+
+    @Test
+    void beforeHandshake_sandboxModeUser_storedInAttributes() throws Exception {
+        Map<String, Object> attributes = new HashMap<>();
+        ServerHttpRequest request = mockRequest("ws://localhost/acp?sandboxMode=user");
+
+        interceptor.beforeHandshake(request, response, wsHandler, attributes);
+
+        assertEquals("user", attributes.get("sandboxMode"));
+    }
+
+    @Test
+    void beforeHandshake_sandboxModeSession_storedInAttributes() throws Exception {
+        Map<String, Object> attributes = new HashMap<>();
+        ServerHttpRequest request = mockRequest("ws://localhost/acp?sandboxMode=session");
+
+        interceptor.beforeHandshake(request, response, wsHandler, attributes);
+
+        assertEquals("session", attributes.get("sandboxMode"));
+    }
+
+    @Test
+    void beforeHandshake_noSandboxModeParam_attributeNotSet() throws Exception {
+        Map<String, Object> attributes = new HashMap<>();
+        ServerHttpRequest request = mockRequest("ws://localhost/acp");
+
+        interceptor.beforeHandshake(request, response, wsHandler, attributes);
+
+        assertNull(attributes.get("sandboxMode"));
+    }
+
+    @Test
+    void beforeHandshake_blankSandboxModeParam_attributeNotSet() throws Exception {
+        Map<String, Object> attributes = new HashMap<>();
+        ServerHttpRequest request = mockRequest("ws://localhost/acp?sandboxMode=");
+
+        interceptor.beforeHandshake(request, response, wsHandler, attributes);
+
+        assertNull(attributes.get("sandboxMode"));
+    }
+
+    @Test
+    void beforeHandshake_allParamsIncludingSandboxMode_allStored() throws Exception {
+        Map<String, Object> attributes = new HashMap<>();
+        ServerHttpRequest request =
+                mockRequest("ws://localhost/acp?provider=qodercli&runtime=k8s&sandboxMode=user");
+
+        interceptor.beforeHandshake(request, response, wsHandler, attributes);
+
+        assertEquals("qodercli", attributes.get("provider"));
+        assertEquals("k8s", attributes.get("runtime"));
+        assertEquals("user", attributes.get("sandboxMode"));
+    }
+
     // ===== provider 参数提取（回归测试） =====
 
     @Test

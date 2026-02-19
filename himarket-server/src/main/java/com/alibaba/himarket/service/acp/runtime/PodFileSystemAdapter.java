@@ -81,7 +81,7 @@ public class PodFileSystemAdapter implements FileSystemAdapter {
      * @param namespace Pod 所在的 K8s 命名空间
      */
     public PodFileSystemAdapter(KubernetesClient k8sClient, String podName, String namespace) {
-        this(k8sClient, podName, namespace, "cli-agent", "/workspace");
+        this(k8sClient, podName, namespace, "sandbox", "/workspace");
     }
 
     @Override

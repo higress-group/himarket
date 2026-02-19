@@ -1,24 +1,16 @@
 import { FolderOpen, Folder } from "lucide-react";
-import { Select, Tooltip } from "antd";
+import { Select } from "antd";
 import {
   useQuestState,
   useActiveQuest,
 } from "../../context/QuestSessionContext";
 import type { WsStatus } from "../../hooks/useAcpWebSocket";
-import { CliProviderSelect } from "./CliProviderSelect";
-import type { RuntimeOption } from "../common/RuntimeSelector";
-import type { ICliProvider } from "../../lib/apis/cliProvider";
 
 interface CodingTopBarProps {
   status: WsStatus;
   onSetModel: (modelId: string) => void;
   fileTreeVisible: boolean;
   onToggleFileTree: () => void;
-  currentProvider: string;
-  onProviderChange: (providerKey: string, providerObj?: ICliProvider) => void;
-  selectedRuntime: string;
-  compatibleRuntimes: RuntimeOption[];
-  onRuntimeChange: (runtimeType: string) => void;
 }
 
 export function CodingTopBar({
@@ -26,11 +18,6 @@ export function CodingTopBar({
   onSetModel,
   fileTreeVisible,
   onToggleFileTree,
-  currentProvider,
-  onProviderChange,
-  selectedRuntime,
-  compatibleRuntimes,
-  onRuntimeChange,
 }: CodingTopBarProps) {
   const state = useQuestState();
   const quest = useActiveQuest();
@@ -49,27 +36,6 @@ export function CodingTopBar({
   return (
     <div className="flex items-center gap-3 px-3 py-1.5 border-b border-gray-200/60 bg-white/30 backdrop-blur-sm flex-shrink-0">
       <div className="text-sm font-semibold text-gray-700">HiCoding</div>
-
-      <CliProviderSelect value={currentProvider} onChange={onProviderChange} />
-
-      {compatibleRuntimes.length > 1 && (
-        <Tooltip title="运行时方案">
-          <Select
-            size="small"
-            variant="outlined"
-            placement="bottomLeft"
-            className="min-w-[100px]"
-            value={selectedRuntime}
-            onChange={onRuntimeChange}
-            options={compatibleRuntimes.map(r => ({
-              value: r.type,
-              label: r.label,
-              disabled: !r.available,
-              title: r.available ? r.description : r.unavailableReason,
-            }))}
-          />
-        </Tooltip>
-      )}
 
       {modelOptions.length > 0 && (
         <Select

@@ -380,6 +380,13 @@ export type Attachment = FilePathAttachment;
 
 // ===== Chat Item Types (for UI rendering) =====
 
+export interface ChatItemUser {
+  type: "user";
+  id: string;
+  text: string;
+  attachments?: Attachment[];
+}
+
 export type ChatItem =
   | ChatItemUser
   | ChatItemAgent

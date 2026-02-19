@@ -30,20 +30,35 @@ public class RuntimeSelector {
     public RuntimeSelector(AcpProperties acpProperties, boolean k8sAvailable) {
         this.acpProperties = acpProperties;
         // 测试兼容：用一个简单的 stub
-        this.k8sConfigService =
-                k8sAvailable
-                        ? new K8sConfigService() {
-                            @Override
-                            public boolean hasAnyCluster() {
-                                return true;
-                            }
-                        }
-                        : new K8sConfigService() {
-                            @Override
-                            public boolean hasAnyCluster() {
-                                return false;
-                            }
-                        };
+        this.k8sConfigService = new StubK8sConfigService(k8sAvailable);
+    }
+
+    /**
+     * 测试用的 K8sConfigService 桩实现。
+     * 覆盖所有可能访问 repository 的方法，避免 NPE。
+     */
+    private static class StubK8sConfigService extends K8sConfigService {
+        private final boolean hasCluster;
+
+        StubK8sConfigService(boolean hasCluster) {
+            super(null);
+            this.hasCluster = hasCluster;
+        }
+
+        @Override
+        public void init() {
+            // 测试桩：跳过数据库加载
+        }
+
+        @Override
+        public boolean hasAnyCluster() {
+            return hasCluster;
+        }
+
+        @Override
+        public java.util.List<K8sClusterInfo> listClusters() {
+            return java.util.Collections.emptyList();
+        }
     }
 
     public RuntimeSelector(AcpProperties acpProperties, K8sConfigService k8sConfigService) {

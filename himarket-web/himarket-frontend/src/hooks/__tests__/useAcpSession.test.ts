@@ -1,5 +1,5 @@
 import { renderHook, act } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // ===== Mocks =====
 
@@ -121,7 +121,7 @@ describe("useAcpSession 运行时分支逻辑", () => {
 
     it("runtimeType 为 agentrun 时使用 WebSocket 通信", () => {
       renderHook(() =>
-        useAcpSession({ wsUrl: "ws://localhost/ws/acp", runtimeType: "agentrun" })
+        useAcpSession({ wsUrl: "ws://localhost/ws/acp", runtimeType: "agentrun" as any })
       );
 
       expect(mockWsAutoConnect).toBe(true);
@@ -134,7 +134,7 @@ describe("useAcpSession 运行时分支逻辑", () => {
       renderHook(() =>
         useAcpSession({
           wsUrl: "ws://localhost/ws/acp?provider=claude-code",
-          runtimeType: "webcontainer",
+          runtimeType: "webcontainer" as any,
         })
       );
 
@@ -145,7 +145,7 @@ describe("useAcpSession 运行时分支逻辑", () => {
       renderHook(() =>
         useAcpSession({
           wsUrl: "ws://localhost/ws/acp?provider=claude-code",
-          runtimeType: "webcontainer",
+          runtimeType: "webcontainer" as any,
         })
       );
 
@@ -157,7 +157,7 @@ describe("useAcpSession 运行时分支逻辑", () => {
       renderHook(() =>
         useAcpSession({
           wsUrl: "ws://localhost/ws/acp?provider=claude-code",
-          runtimeType: "webcontainer",
+          runtimeType: "webcontainer" as any,
         })
       );
 
@@ -169,7 +169,7 @@ describe("useAcpSession 运行时分支逻辑", () => {
       renderHook(() =>
         useAcpSession({
           wsUrl: "ws://localhost/ws/acp?provider=claude-code",
-          runtimeType: "webcontainer",
+          runtimeType: "webcontainer" as any,
         })
       );
 
@@ -185,7 +185,7 @@ describe("useAcpSession 运行时分支逻辑", () => {
       const { result } = renderHook(() =>
         useAcpSession({
           wsUrl: "ws://localhost/ws/acp?provider=claude-code",
-          runtimeType: "webcontainer",
+          runtimeType: "webcontainer" as any,
         })
       );
 
@@ -207,7 +207,7 @@ describe("useAcpSession 运行时分支逻辑", () => {
       const { result } = renderHook(() =>
         useAcpSession({
           wsUrl: "ws://localhost/ws/acp?provider=claude-code",
-          runtimeType: "webcontainer",
+          runtimeType: "webcontainer" as any,
         })
       );
 
@@ -229,7 +229,7 @@ describe("useAcpSession 运行时分支逻辑", () => {
       const { result } = renderHook(() =>
         useAcpSession({
           wsUrl: "ws://localhost/ws/acp?provider=claude-code",
-          runtimeType: "webcontainer",
+          runtimeType: "webcontainer" as any,
         })
       );
 
@@ -247,7 +247,7 @@ describe("useAcpSession 运行时分支逻辑", () => {
       const { unmount } = renderHook(() =>
         useAcpSession({
           wsUrl: "ws://localhost/ws/acp?provider=claude-code",
-          runtimeType: "webcontainer",
+          runtimeType: "webcontainer" as any,
         })
       );
 
@@ -262,12 +262,12 @@ describe("useAcpSession 运行时分支逻辑", () => {
   describe("运行时切换", () => {
     it("从 local 切换到 webcontainer 时创建 WebContainerAdapter", () => {
       const { rerender } = renderHook(
-        (props: { runtimeType?: "local" | "agentrun" | "webcontainer" }) =>
+        (props: { runtimeType?: string }) =>
           useAcpSession({
             wsUrl: "ws://localhost/ws/acp?provider=claude-code",
-            runtimeType: props.runtimeType,
+            runtimeType: props.runtimeType as any,
           }),
-        { initialProps: { runtimeType: "local" as const } }
+        { initialProps: { runtimeType: "local" } }
       );
 
       expect(WebContainerAdapter).not.toHaveBeenCalled();
@@ -283,7 +283,7 @@ describe("useAcpSession 运行时分支逻辑", () => {
       renderHook(() =>
         useAcpSession({
           wsUrl: "ws://localhost/ws/acp?provider=claude-code",
-          runtimeType: "webcontainer",
+          runtimeType: "webcontainer" as any,
         })
       );
 
@@ -301,7 +301,7 @@ describe("useAcpSession 运行时分支逻辑", () => {
       const { result } = renderHook(() =>
         useAcpSession({
           wsUrl: "ws://localhost/ws/acp?provider=claude-code",
-          runtimeType: "webcontainer",
+          runtimeType: "webcontainer" as any,
         })
       );
 
@@ -337,7 +337,7 @@ describe("useAcpSession 运行时分支逻辑", () => {
       const { result } = renderHook(() =>
         useAcpSession({
           wsUrl: "ws://localhost/ws/acp?provider=claude-code",
-          runtimeType: "webcontainer",
+          runtimeType: "webcontainer" as any,
         })
       );
 
@@ -363,7 +363,7 @@ describe("useAcpSession 运行时分支逻辑", () => {
       const { result } = renderHook(() =>
         useAcpSession({
           wsUrl: "ws://localhost/ws/acp?provider=claude-code",
-          runtimeType: "webcontainer",
+          runtimeType: "webcontainer" as any,
         })
       );
 
@@ -400,7 +400,7 @@ describe("useAcpSession 运行时分支逻辑", () => {
       const { result } = renderHook(() =>
         useAcpSession({
           wsUrl: "ws://localhost/ws/acp?provider=claude-code",
-          runtimeType: "webcontainer",
+          runtimeType: "webcontainer" as any,
         })
       );
 

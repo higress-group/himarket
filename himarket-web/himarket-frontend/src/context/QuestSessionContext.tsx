@@ -86,6 +86,11 @@ export interface QuestState {
     sessionId: string;
     request: PermissionRequest;
   } | null;
+  /** 沙箱状态：K8s Pod 异步创建时的进度信息 */
+  sandboxStatus: {
+    status: "creating" | "ready" | "error";
+    message: string;
+  } | null;
 }
 
 export const initialState: QuestState = {
@@ -98,6 +103,7 @@ export const initialState: QuestState = {
   commands: [],
   usage: null,
   pendingPermission: null,
+  sandboxStatus: null,
 };
 
 // ===== Actions =====
@@ -176,7 +182,8 @@ export type QuestAction =
   | { type: "ACTIVE_FILE_CHANGED"; questId: string; path: string | null }
   | { type: "TERMINAL_CREATED"; questId: string; terminalId: string }
   | { type: "TERMINAL_DATA"; questId: string; terminalId: string; data: string }
-  | { type: "PREVIEW_PORT_DETECTED"; questId: string; port: number };
+  | { type: "PREVIEW_PORT_DETECTED"; questId: string; port: number }
+  | { type: "SANDBOX_STATUS"; status: "creating" | "ready" | "error"; message: string };
 
 // ===== Helpers =====
 
@@ -572,6 +579,12 @@ export function questReducer(
         ...q,
         previewPort: action.port,
       }));
+
+    case "SANDBOX_STATUS":
+      return {
+        ...state,
+        sandboxStatus: { status: action.status, message: action.message },
+      };
 
     default:
       return state;

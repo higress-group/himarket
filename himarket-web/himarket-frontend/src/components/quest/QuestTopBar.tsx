@@ -1,31 +1,18 @@
-import { Select, Tooltip } from "antd";
+import { Select } from "antd";
 import {
   useQuestState,
   useActiveQuest,
 } from "../../context/QuestSessionContext";
 import type { WsStatus } from "../../hooks/useAcpWebSocket";
-import { CliProviderSelect } from "../coding/CliProviderSelect";
-import type { RuntimeOption } from "../common/RuntimeSelector";
-import type { ICliProvider } from "../../lib/apis/cliProvider";
 
 interface QuestTopBarProps {
   status: WsStatus;
   onSetModel: (modelId: string) => void;
-  currentProvider: string;
-  onProviderChange: (providerKey: string, providerObj?: ICliProvider) => void;
-  selectedRuntime: string;
-  compatibleRuntimes: RuntimeOption[];
-  onRuntimeChange: (runtimeType: string) => void;
 }
 
 export function QuestTopBar({
   status,
   onSetModel,
-  currentProvider,
-  onProviderChange,
-  selectedRuntime,
-  compatibleRuntimes,
-  onRuntimeChange,
 }: QuestTopBarProps) {
   const state = useQuestState();
   const quest = useActiveQuest();
@@ -46,27 +33,6 @@ export function QuestTopBar({
       <div className="text-sm font-medium text-gray-700 truncate max-w-[200px]">
         {quest?.title ?? "HiWork"}
       </div>
-
-      <CliProviderSelect value={currentProvider} onChange={onProviderChange} />
-
-      {compatibleRuntimes.length > 1 && (
-        <Tooltip title="运行时方案">
-          <Select
-            size="small"
-            variant="outlined"
-            placement="bottomLeft"
-            className="min-w-[100px]"
-            value={selectedRuntime}
-            onChange={onRuntimeChange}
-            options={compatibleRuntimes.map(r => ({
-              value: r.type,
-              label: r.label,
-              disabled: !r.available,
-              title: r.available ? r.description : r.unavailableReason,
-            }))}
-          />
-        </Tooltip>
-      )}
 
       {modelOptions.length > 0 && (
         <Select

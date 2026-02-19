@@ -43,6 +43,8 @@ import type { RuntimeType } from "../types/runtime";
 export interface UseAcpSessionOptions {
   wsUrl: string;
   runtimeType?: RuntimeType;
+  /** If false, WebSocket won't connect until `connect()` or `createQuest()` is called. Default true. */
+  autoConnect?: boolean;
 }
 
 interface QueuedPromptItemInput {
@@ -52,7 +54,7 @@ interface QueuedPromptItemInput {
   createdAt: number;
 }
 
-export function useAcpSession({ wsUrl, runtimeType }: UseAcpSessionOptions) {
+export function useAcpSession({ wsUrl, runtimeType, autoConnect: autoConnectOpt = true }: UseAcpSessionOptions) {
   const dispatch = useQuestDispatch();
   const state = useQuestState();
   const stateRef = useRef(state);
@@ -63,7 +65,7 @@ export function useAcpSession({ wsUrl, runtimeType }: UseAcpSessionOptions) {
   const promptSeqRef = useRef(0);
 
   // WebContainer 运行时相关 refs
-  const isWebContainer = runtimeType === "webcontainer";
+  const isWebContainer = (runtimeType as string) === "webcontainer";
   const wcAdapterRef = useRef<WebContainerAdapter | null>(null);
   const fileSyncRef = useRef<FileSyncService | null>(null);
   const [wcStatus, setWcStatus] = useState<WsStatus>("disconnected");
@@ -152,9 +154,11 @@ export function useAcpSession({ wsUrl, runtimeType }: UseAcpSessionOptions) {
       try {
         parsed = JSON.parse(data);
       } catch {
+        console.warn("[AcpSession] Failed to parse message:", data.substring(0, 200));
         return;
       }
       parsed = normalizeIncomingMessage(parsed);
+      console.log("[AcpSession] Received message:", JSON.stringify(parsed).substring(0, 300));
 
       // Debug: log all terminal-related messages
       const method = parsed.method as string | undefined;
@@ -348,7 +352,7 @@ export function useAcpSession({ wsUrl, runtimeType }: UseAcpSessionOptions) {
   } = useAcpWebSocket({
     url: wsUrl,
     onMessage: handleMessage,
-    autoConnect: !isWebContainer, // WebContainer 模式下不自动建立 WebSocket
+    autoConnect: !isWebContainer && autoConnectOpt && !!wsUrl,
   });
 
   // ===== WebContainer 运行时管理 =====
@@ -519,14 +523,22 @@ export function useAcpSession({ wsUrl, runtimeType }: UseAcpSessionOptions) {
   useEffect(() => {
     if (status === "connected" && !initializedRef.current) {
       initializedRef.current = true;
+      console.log("[AcpSession] WS connected, starting initialize...");
       dispatch({ type: "WS_CONNECTED" });
 
       (async () => {
         try {
           const send = sendRawRef.current;
           const initReq = buildInitialize();
+          console.log("[AcpSession] Sending initialize request:", JSON.stringify(initReq));
           send(JSON.stringify(initReq));
-          await trackRequest(initReq.id);
+
+          // 给 initialize 请求加 15 秒超时，避免 CLI 未启动时按钮永远置灰
+          const timeoutPromise = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("Initialize timeout")), 15000)
+          );
+          const result = await Promise.race([trackRequest(initReq.id), timeoutPromise]);
+          console.log("[AcpSession] Initialize response received:", result);
 
           dispatch({
             type: "PROTOCOL_INITIALIZED",
@@ -535,8 +547,18 @@ export function useAcpSession({ wsUrl, runtimeType }: UseAcpSessionOptions) {
             currentModelId: "",
             currentModeId: "",
           });
+          console.log("[AcpSession] PROTOCOL_INITIALIZED dispatched");
         } catch (err) {
-          console.error("ACP initialization failed:", err);
+          console.error("[AcpSession] ACP initialization failed:", err);
+          // 超时或失败时也标记为已初始化，让用户能看到错误而不是永远置灰
+          dispatch({
+            type: "PROTOCOL_INITIALIZED",
+            models: [],
+            modes: [],
+            currentModelId: "",
+            currentModeId: "",
+          });
+          console.log("[AcpSession] PROTOCOL_INITIALIZED dispatched (fallback after error)");
         }
       })();
     }
@@ -556,6 +578,27 @@ export function useAcpSession({ wsUrl, runtimeType }: UseAcpSessionOptions) {
   const creatingQuestRef = useRef(false);
   const [creatingQuest, setCreatingQuest] = useState(false);
 
+  // Promise that resolves once ACP protocol is initialized.
+  // Used by createQuest to wait for connection + init when autoConnect is off.
+  const initPromiseRef = useRef<{ promise: Promise<void>; resolve: () => void } | null>(null);
+
+  const getInitPromise = useCallback(() => {
+    if (!initPromiseRef.current) {
+      let resolve!: () => void;
+      const promise = new Promise<void>(r => { resolve = r; });
+      initPromiseRef.current = { promise, resolve };
+    }
+    return initPromiseRef.current;
+  }, []);
+
+  // Resolve the init promise when protocol is initialized
+  useEffect(() => {
+    if (state.initialized && initPromiseRef.current) {
+      initPromiseRef.current.resolve();
+      initPromiseRef.current = null;
+    }
+  }, [state.initialized]);
+
   const createQuest = useCallback(
     async (cwd: string): Promise<string> => {
       if (creatingQuestRef.current) {
@@ -564,6 +607,13 @@ export function useAcpSession({ wsUrl, runtimeType }: UseAcpSessionOptions) {
       creatingQuestRef.current = true;
       setCreatingQuest(true);
       try {
+        // If not yet initialized, trigger connection and wait for ACP init
+        if (!stateRef.current.initialized) {
+          const { promise } = getInitPromise();
+          connect();
+          await promise;
+        }
+
         const send = sendRawRef.current;
         const sessionReq = buildSessionNew(cwd);
         send(JSON.stringify(sessionReq));
@@ -610,7 +660,7 @@ export function useAcpSession({ wsUrl, runtimeType }: UseAcpSessionOptions) {
         setCreatingQuest(false);
       }
     },
-    [dispatch]
+    [dispatch, connect, getInitPromise]
   );
 
   const switchQuest = useCallback(

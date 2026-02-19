@@ -196,4 +196,112 @@ describe('RuntimeSelector', () => {
       screen.getByText('通过 K8s Pod 提供隔离运行环境（生产部署）'),
     ).toBeInTheDocument();
   });
+
+  // ===== 沙箱模式子选项测试 =====
+
+  it('选中 K8s 时展示沙箱模式子选项', () => {
+    const onSelect = vi.fn();
+    render(
+      <RuntimeSelector
+        cliProvider="claude-code"
+        compatibleRuntimes={[localRuntime, k8sRuntime]}
+        selectedRuntime="k8s"
+        onSelect={onSelect}
+      />,
+    );
+
+    expect(screen.getByText('沙箱模式')).toBeInTheDocument();
+    expect(screen.getByText('用户级沙箱')).toBeInTheDocument();
+    expect(screen.getByText('会话级沙箱')).toBeInTheDocument();
+  });
+
+  it('选中 local 时不展示沙箱模式子选项', () => {
+    const onSelect = vi.fn();
+    render(
+      <RuntimeSelector
+        cliProvider="claude-code"
+        compatibleRuntimes={[localRuntime, k8sRuntime]}
+        selectedRuntime="local"
+        onSelect={onSelect}
+      />,
+    );
+
+    expect(screen.queryByText('沙箱模式')).not.toBeInTheDocument();
+  });
+
+  it('K8s 不可用时不展示沙箱模式子选项', () => {
+    const onSelect = vi.fn();
+    render(
+      <RuntimeSelector
+        cliProvider="qodercli"
+        compatibleRuntimes={[localRuntime, k8sUnavailable]}
+        selectedRuntime="k8s"
+        onSelect={onSelect}
+      />,
+    );
+
+    expect(screen.queryByText('沙箱模式')).not.toBeInTheDocument();
+  });
+
+  it('默认选中用户级沙箱', () => {
+    const onSelect = vi.fn();
+    render(
+      <RuntimeSelector
+        cliProvider="claude-code"
+        compatibleRuntimes={[localRuntime, k8sRuntime]}
+        selectedRuntime="k8s"
+        onSelect={onSelect}
+      />,
+    );
+
+    const radios = screen.getAllByRole('radio');
+    const userRadio = radios.find((r) => r.getAttribute('value') === 'user');
+    expect(userRadio).toBeChecked();
+  });
+
+  it('会话级沙箱标记为"即将推出"且 disabled', () => {
+    const onSelect = vi.fn();
+    render(
+      <RuntimeSelector
+        cliProvider="claude-code"
+        compatibleRuntimes={[localRuntime, k8sRuntime]}
+        selectedRuntime="k8s"
+        onSelect={onSelect}
+      />,
+    );
+
+    expect(screen.getByText('即将推出')).toBeInTheDocument();
+    const radios = screen.getAllByRole('radio');
+    const sessionRadio = radios.find((r) => r.getAttribute('value') === 'session');
+    expect(sessionRadio).toBeDisabled();
+  });
+
+  it('用户级沙箱展示正确描述', () => {
+    const onSelect = vi.fn();
+    render(
+      <RuntimeSelector
+        cliProvider="claude-code"
+        compatibleRuntimes={[localRuntime, k8sRuntime]}
+        selectedRuntime="k8s"
+        onSelect={onSelect}
+      />,
+    );
+
+    expect(screen.getByText('常驻 Pod，多会话复用，适合调试开发')).toBeInTheDocument();
+  });
+
+  it('未传 onSandboxModeChange 时不报错', () => {
+    const onSelect = vi.fn();
+    // 不传 onSandboxModeChange，组件不应报错
+    expect(() => {
+      render(
+        <RuntimeSelector
+          cliProvider="claude-code"
+          compatibleRuntimes={[localRuntime, k8sRuntime]}
+          selectedRuntime="k8s"
+          onSelect={onSelect}
+        />,
+      );
+    }).not.toThrow();
+  });
 });

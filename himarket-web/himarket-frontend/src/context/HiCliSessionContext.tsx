@@ -61,7 +61,7 @@ export type HiCliAction =
       agentInfo?: AgentInfo;
       authMethods?: AuthMethod[];
       agentCapabilities?: AgentCapabilities;
-      modesSource?: "initialize" | null;
+      modesSource?: "initialize" | "session_new" | null;
     };
 
 // ===== Reducer =====

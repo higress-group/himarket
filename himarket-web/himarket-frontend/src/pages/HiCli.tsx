@@ -48,11 +48,14 @@ function HiCliContent() {
   const hasActiveQuest = !!activeQuest;
 
   // 连接成功且初始化完成后，自动创建第一个 Quest（获取 models/modes）
+  // 如果沙箱正在创建中，等沙箱就绪后再自动创建
   const autoCreatedRef = useRef(false);
+  const sandboxReady = !state.sandboxStatus || state.sandboxStatus.status === "ready";
   useEffect(() => {
     if (
       isConnected &&
       state.initialized &&
+      sandboxReady &&
       Object.keys(state.quests).length === 0 &&
       !autoCreatedRef.current
     ) {
@@ -65,7 +68,7 @@ function HiCliContent() {
     if (!isConnected) {
       autoCreatedRef.current = false;
     }
-  }, [isConnected, state.initialized, state.quests, state.cwd, session]);
+  }, [isConnected, state.initialized, sandboxReady, state.quests, state.cwd, session]);
 
   // 调试面板切换：再次点击已激活标签则关闭
   const handleToggleDebugTab = useCallback((tab: DebugTab) => {
