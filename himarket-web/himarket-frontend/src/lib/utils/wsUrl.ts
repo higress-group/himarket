@@ -14,6 +14,8 @@ export interface WsUrlParams {
   token?: string;
   /** 沙箱模式 (user | session) */
   sandboxMode?: string;
+  /** JSON 序列化的自定义模型配置 */
+  customModelConfig?: string;
 }
 
 /**
@@ -38,6 +40,7 @@ export function buildAcpWsUrl(
   if (params.provider) searchParams.set("provider", params.provider);
   if (params.runtime) searchParams.set("runtime", params.runtime);
   if (params.sandboxMode) searchParams.set("sandboxMode", params.sandboxMode);
+  if (params.customModelConfig) searchParams.set("customModelConfig", params.customModelConfig);
 
   const qs = searchParams.toString();
   return qs ? `${base}?${qs}` : base;

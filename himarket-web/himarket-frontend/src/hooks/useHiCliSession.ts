@@ -40,11 +40,12 @@ import { buildAcpWsUrl } from "../lib/utils/wsUrl";
 
 // ===== WebSocket URL 构建 =====
 
-function buildHiCliWsUrl(cliId: string, runtime?: string): string {
+function buildHiCliWsUrl(cliId: string, runtime?: string, customModelConfig?: string): string {
   return buildAcpWsUrl({
     token: localStorage.getItem("access_token") || undefined,
     provider: cliId || undefined,
     runtime,
+    customModelConfig,
   });
 }
 
@@ -63,7 +64,7 @@ export interface UseHiCliSessionReturn {
   setModel: (modelId: string) => void;
   setMode: (modeId: string) => void;
   respondPermission: (requestId: JsonRpcId, optionId: string) => void;
-  connectToCli: (cliId: string, runtime?: string) => void;
+  connectToCli: (cliId: string, runtime?: string, customModelConfig?: string) => void;
 }
 
 // ===== Hook 实现 =====
@@ -556,7 +557,7 @@ export function useHiCliSession(): UseHiCliSessionReturn {
   // ===== connectToCli：连接到指定 CLI 工具 =====
 
   const connectToCli = useCallback(
-    (cliId: string, runtime?: string) => {
+    (cliId: string, runtime?: string, customModelConfig?: string) => {
       // 重置状态（清空调试数据和会话）
       dispatch({ type: "RESET_STATE" });
       // 记录选中的 CLI 工具（cwd 由后端决定，连接后通过 workspace/info 通知）
@@ -572,7 +573,7 @@ export function useHiCliSession(): UseHiCliSessionReturn {
       // 重置初始化状态
       initializedRef.current = false;
       // 构建新的 WebSocket URL 并触发连接
-      const newUrl = buildHiCliWsUrl(cliId, runtime);
+      const newUrl = buildHiCliWsUrl(cliId, runtime, customModelConfig);
       setCurrentWsUrl(newUrl);
     },
     [dispatch]

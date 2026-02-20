@@ -3,6 +3,9 @@ package com.alibaba.himarket.service.acp;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.core.utils.TokenUtil;
 import com.alibaba.himarket.support.common.User;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,6 +21,12 @@ import org.springframework.web.util.UriComponentsBuilder;
 public class AcpHandshakeInterceptor implements HandshakeInterceptor {
 
     private static final Logger logger = LoggerFactory.getLogger(AcpHandshakeInterceptor.class);
+
+    private final ObjectMapper objectMapper;
+
+    public AcpHandshakeInterceptor(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
 
     @Override
     public boolean beforeHandshake(
@@ -49,6 +58,22 @@ public class AcpHandshakeInterceptor implements HandshakeInterceptor {
             String sandboxMode = params.getFirst("sandboxMode");
             if (StrUtil.isNotBlank(sandboxMode)) {
                 attributes.put("sandboxMode", sandboxMode);
+            }
+
+            // Extract custom model config from query param: ?customModelConfig={json}
+            String customModelConfigJson = params.getFirst("customModelConfig");
+            logger.info("customModelConfig raw param: {}", customModelConfigJson != null ? customModelConfigJson.substring(0, Math.min(customModelConfigJson.length(), 100)) : "null");
+            if (StrUtil.isNotBlank(customModelConfigJson)) {
+                try {
+                    String decoded = URLDecoder.decode(customModelConfigJson, StandardCharsets.UTF_8);
+                    logger.info("customModelConfig decoded: {}", decoded.substring(0, Math.min(decoded.length(), 100)));
+                    CustomModelConfig customModelConfig =
+                            objectMapper.readValue(decoded, CustomModelConfig.class);
+                    attributes.put("customModelConfig", customModelConfig);
+                    logger.info("customModelConfig parsed successfully: modelId={}", customModelConfig.getModelId());
+                } catch (Exception e) {
+                    logger.warn("Failed to parse customModelConfig: {}", e.getMessage());
+                }
             }
         } catch (Exception e) {
             logger.debug("Failed to parse token from query param", e);

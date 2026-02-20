@@ -24,8 +24,8 @@ export function HiCliWelcome({
   const isSandboxError = sandbox?.status === "error";
 
   return (
-    <div className="flex-1 flex items-center justify-center px-6">
-      <div className="flex flex-col items-center text-center w-full max-w-sm">
+    <div className="flex-1 overflow-y-auto px-6 py-8">
+      <div className="flex flex-col items-center text-center w-full max-w-sm mx-auto min-h-full justify-center">
         <div className="mb-4 text-gray-300">
           <Terminal size={48} strokeWidth={1.5} />
         </div>

@@ -70,8 +70,8 @@ function HiCliContent() {
 
   // CLI 工具选择 → 连接
   const handleSelectCli = useCallback(
-    (cliId: string, _cwd: string, runtime?: string, _providerObj?: ICliProvider) => {
-      session.connectToCli(cliId, runtime);
+    (cliId: string, _cwd: string, runtime?: string, _providerObj?: ICliProvider, customModelConfig?: string) => {
+      session.connectToCli(cliId, runtime, customModelConfig);
     },
     [session]
   );

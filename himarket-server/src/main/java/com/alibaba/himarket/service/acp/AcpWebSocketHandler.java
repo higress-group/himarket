@@ -43,11 +43,16 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
     private final RuntimeFactory runtimeFactory;
     private final K8sConfigService k8sConfigService;
     private final PodReuseManager podReuseManager;
+    private final Map<String, CliConfigGenerator> configGeneratorRegistry;
     private final Map<String, RuntimeAdapter> runtimeMap = new ConcurrentHashMap<>();
     private final Map<String, Disposable> subscriptionMap = new ConcurrentHashMap<>();
     private final Map<String, String> cwdMap = new ConcurrentHashMap<>();
     private final Map<String, String> userIdMap = new ConcurrentHashMap<>();
     private final Map<String, String> sandboxModeMap = new ConcurrentHashMap<>();
+
+    /** 记录每个 session 生成的配置文件路径，用于启动失败时清理 */
+    private final Map<String, java.util.List<Path>> generatedConfigFilesMap =
+            new ConcurrentHashMap<>();
 
     /** K8s Pod 异步初始化线程池 */
     private final ExecutorService podInitExecutor =
@@ -73,6 +78,13 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
         this.runtimeFactory = runtimeFactory;
         this.k8sConfigService = k8sConfigService;
         this.podReuseManager = podReuseManager;
+
+        // 初始化配置生成器注册表
+        this.configGeneratorRegistry = new HashMap<>();
+        OpenCodeConfigGenerator openCodeGenerator = new OpenCodeConfigGenerator(objectMapper);
+        QwenCodeConfigGenerator qwenCodeGenerator = new QwenCodeConfigGenerator(objectMapper);
+        this.configGeneratorRegistry.put(openCodeGenerator.supportedProvider(), openCodeGenerator);
+        this.configGeneratorRegistry.put(qwenCodeGenerator.supportedProvider(), qwenCodeGenerator);
     }
 
     @Override
@@ -119,6 +131,36 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
         RuntimeConfig config =
                 buildRuntimeConfig(userId, providerKey, providerConfig, cwd, runtimeType);
 
+        // 自定义模型配置注入：在 CLI 进程启动前生成配置文件并注入环境变量
+        CustomModelConfig customModelConfig =
+                (CustomModelConfig) session.getAttributes().get("customModelConfig");
+        if (customModelConfig != null && providerConfig.isSupportsCustomModel()) {
+            CliConfigGenerator generator = configGeneratorRegistry.get(providerKey);
+            if (generator != null) {
+                try {
+                    Map<String, String> extraEnv = generator.generateConfig(cwd, customModelConfig);
+                    config.getEnv().putAll(extraEnv);
+                    // 记录生成的配置文件路径，用于启动失败时清理
+                    java.util.List<Path> generatedFiles = getGeneratedConfigFiles(providerKey, cwd);
+                    if (!generatedFiles.isEmpty()) {
+                        generatedConfigFilesMap.put(session.getId(), generatedFiles);
+                    }
+                    logger.info(
+                            "Custom model config applied for provider '{}': baseUrl={}, modelId={}",
+                            providerKey,
+                            customModelConfig.getBaseUrl(),
+                            customModelConfig.getModelId());
+                } catch (IOException e) {
+                    logger.error(
+                            "Failed to generate custom model config for provider '{}': {}",
+                            providerKey,
+                            e.getMessage(),
+                            e);
+                    // 配置生成失败不阻止 CLI 启动，按现有逻辑继续
+                }
+            }
+        }
+
         // Resolve sandboxMode from session attributes (set by AcpHandshakeInterceptor)
         String sandboxMode = (String) session.getAttributes().get("sandboxMode");
         // POC 阶段：K8s 运行时默认使用用户级沙箱
@@ -148,6 +190,7 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
             }
         } catch (Exception e) {
             logger.error("Failed to start runtime (type={}) for user {}", runtimeType, userId, e);
+            cleanupGeneratedConfigFiles(session.getId());
             session.close(CloseStatus.SERVER_ERROR);
             return;
         }
@@ -269,9 +312,46 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
             }
         }
 
+        // 清理生成的配置文件记录（不删除文件，仅清理 map 条目）
+        generatedConfigFilesMap.remove(sessionId);
+
         cwdMap.remove(sessionId);
         userIdMap.remove(sessionId);
         sandboxModeMap.remove(sessionId);
+    }
+
+    /**
+     * 根据 provider 类型获取生成的配置文件路径列表。
+     */
+    private java.util.List<Path> getGeneratedConfigFiles(String providerKey, String cwd) {
+        java.util.List<Path> files = new java.util.ArrayList<>();
+        if ("opencode".equals(providerKey)) {
+            files.add(Path.of(cwd, "opencode.json"));
+        } else if ("qwen-code".equals(providerKey)) {
+            files.add(Path.of(cwd, ".qwen", "settings.json"));
+        }
+        return files;
+    }
+
+    /**
+     * 清理已生成的配置文件，防止残留配置影响后续会话。
+     * 在 CLI 进程启动失败时调用。
+     */
+    private void cleanupGeneratedConfigFiles(String sessionId) {
+        java.util.List<Path> files = generatedConfigFilesMap.remove(sessionId);
+        if (files == null || files.isEmpty()) {
+            return;
+        }
+        for (Path file : files) {
+            try {
+                if (Files.deleteIfExists(file)) {
+                    logger.info("Cleaned up generated config file: {}", file);
+                }
+            } catch (IOException e) {
+                logger.warn(
+                        "Failed to clean up generated config file {}: {}", file, e.getMessage());
+            }
+        }
     }
 
     /**

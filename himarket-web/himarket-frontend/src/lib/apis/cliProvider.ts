@@ -15,6 +15,7 @@ export interface ICliProvider {
   compatibleRuntimes?: RuntimeType[];
   runtimeCategory?: 'native' | 'nodejs' | 'python';
   containerImage?: string;
+  supportsCustomModel?: boolean;
 }
 
 // ============ API 函数 ============

@@ -3,6 +3,7 @@ package com.alibaba.himarket.service.acp;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -25,7 +26,8 @@ import org.springframework.web.socket.WebSocketHandler;
  */
 class AcpHandshakeInterceptorSandboxModePropertyTest {
 
-    private final AcpHandshakeInterceptor interceptor = new AcpHandshakeInterceptor();
+    private final AcpHandshakeInterceptor interceptor =
+            new AcpHandshakeInterceptor(new ObjectMapper());
     private final ServerHttpResponse response = mock(ServerHttpResponse.class);
     private final WebSocketHandler wsHandler = mock(WebSocketHandler.class);
 

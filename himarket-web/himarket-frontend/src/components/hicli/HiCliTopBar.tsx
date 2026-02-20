@@ -1,4 +1,4 @@
-import { Select } from "antd";
+import { Select, Tooltip } from "antd";
 import { ScrollText, Bot, Wifi, WifiOff, Loader2, Monitor, Container, FolderOpen } from "lucide-react";
 import { useHiCliState } from "../../context/HiCliSessionContext";
 import { useActiveQuest } from "../../context/QuestSessionContext";
@@ -70,8 +70,8 @@ export function HiCliTopBar({
         </div>
       )}
 
-      {/* Current CLI tool name */}
-      {currentProvider && (
+      {/* Current CLI tool name - only show if no agent info title */}
+      {currentProvider && !agentInfo?.title && !agentInfo?.name && (
         <div
           className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded truncate max-w-[160px]"
           title={currentProvider}
@@ -97,13 +97,14 @@ export function HiCliTopBar({
 
       {/* Working directory */}
       {hiCliState.cwd && (
-        <div
-          className="flex items-center gap-1 text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded truncate max-w-[240px]"
-          title={`工作目录: ${hiCliState.cwd}`}
-        >
-          <FolderOpen size={12} className="flex-shrink-0" />
-          <span className="truncate">{hiCliState.cwd}</span>
-        </div>
+        <Tooltip title={hiCliState.cwd} placement="bottom" overlayStyle={{ maxWidth: 480 }}>
+          <span
+            className="inline-flex items-center gap-1 text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded max-w-[240px] cursor-default"
+          >
+            <FolderOpen size={12} className="flex-shrink-0" />
+            <span className="truncate">{hiCliState.cwd}</span>
+          </span>
+        </Tooltip>
       )}
 
       {/* Model select */}

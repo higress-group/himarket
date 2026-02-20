@@ -4,9 +4,10 @@ import { Plug, RefreshCw, Loader2, AlertCircle } from "lucide-react";
 import { getCliProviders, type ICliProvider } from "../../lib/apis/cliProvider";
 import { RuntimeSelector } from "./RuntimeSelector";
 import { useRuntimeSelection } from "../../hooks/useRuntimeSelection";
+import { CustomModelForm, type CustomModelFormData } from "../hicli/CustomModelForm";
 
 export interface CliSelectorProps {
-  onSelect: (cliId: string, cwd: string, runtime?: string, providerObj?: ICliProvider) => void;
+  onSelect: (cliId: string, cwd: string, runtime?: string, providerObj?: ICliProvider, customModelConfig?: string) => void;
   disabled: boolean;
   showRuntimeSelector?: boolean; // 默认 false，HiCli 传 true
 }
@@ -24,6 +25,21 @@ export function CliSelector({ onSelect, disabled, showRuntimeSelector = false }:
   const { selectedRuntime, compatibleRuntimes, selectRuntime } = useRuntimeSelection({
     provider: selectedProvider,
   });
+
+  // 自定义模型配置状态
+  const [customModelEnabled, setCustomModelEnabled] = useState(false);
+  const [customModelData, setCustomModelData] = useState<CustomModelFormData | null>(null);
+
+  const handleCustomModelChange = useCallback((enabled: boolean, data: CustomModelFormData | null) => {
+    setCustomModelEnabled(enabled);
+    setCustomModelData(data);
+  }, []);
+
+  // 当选中的 provider 变化时，重置自定义模型状态
+  useEffect(() => {
+    setCustomModelEnabled(false);
+    setCustomModelData(null);
+  }, [selectedCliId]);
 
   const fetchProviders = useCallback(async () => {
     setLoading(true);
@@ -56,7 +72,10 @@ export function CliSelector({ onSelect, disabled, showRuntimeSelector = false }:
   const handleConnect = () => {
     if (selectedCliId) {
       // cwd 由后端根据用户信息和运行时类型自动决定，前端不再指定
-      onSelect(selectedCliId, "", selectedRuntime, selectedProvider ?? undefined);
+      const configJson = customModelEnabled && customModelData
+        ? JSON.stringify(customModelData)
+        : undefined;
+      onSelect(selectedCliId, "", selectedRuntime, selectedProvider ?? undefined, configJson);
     }
   };
 
@@ -138,6 +157,12 @@ export function CliSelector({ onSelect, disabled, showRuntimeSelector = false }:
           onSelect={selectRuntime}
         />
       )}
+
+      {/* 自定义模型配置 - 仅在选中的 provider 支持时显示 */}
+      <CustomModelForm
+        supportsCustomModel={selectedProvider?.supportsCustomModel ?? false}
+        onChange={handleCustomModelChange}
+      />
 
       {/* 连接按钮 */}
       <Button

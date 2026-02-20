@@ -43,7 +43,8 @@ public class CliProviderController {
                             available,
                             config.getRuntimeCategory(),
                             config.getCompatibleRuntimes(),
-                            config.getContainerImage()));
+                            config.getContainerImage(),
+                            config.isSupportsCustomModel()));
         }
         return result;
     }
@@ -79,5 +80,6 @@ public class CliProviderController {
             boolean available,
             String runtimeCategory,
             List<RuntimeType> compatibleRuntimes,
-            String containerImage) {}
+            String containerImage,
+            boolean supportsCustomModel) {}
 }

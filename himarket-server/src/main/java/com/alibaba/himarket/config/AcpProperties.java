@@ -119,6 +119,12 @@ public class AcpProperties {
          */
         private String runtimeCategory;
 
+        /**
+         * 该 CLI 工具是否支持自定义模型配置。
+         * 开启后前端会展示自定义模型配置表单，允许用户配置自定义 LLM 接入点。
+         */
+        private boolean supportsCustomModel = false;
+
         public String getDisplayName() {
             return displayName;
         }
@@ -181,6 +187,14 @@ public class AcpProperties {
 
         public void setRuntimeCategory(String runtimeCategory) {
             this.runtimeCategory = runtimeCategory;
+        }
+
+        public boolean isSupportsCustomModel() {
+            return supportsCustomModel;
+        }
+
+        public void setSupportsCustomModel(boolean supportsCustomModel) {
+            this.supportsCustomModel = supportsCustomModel;
         }
     }
 
