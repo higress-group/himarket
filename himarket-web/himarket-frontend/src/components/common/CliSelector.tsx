@@ -1,10 +1,15 @@
 import { useState, useEffect, useCallback } from "react";
-import { Select, Button } from "antd";
+import { Select, Button, Switch } from "antd";
 import { Plug, RefreshCw, Loader2, AlertCircle } from "lucide-react";
 import { getCliProviders, type ICliProvider } from "../../lib/apis/cliProvider";
 import { RuntimeSelector } from "./RuntimeSelector";
 import { useRuntimeSelection } from "../../hooks/useRuntimeSelection";
 import { CustomModelForm, type CustomModelFormData } from "../hicli/CustomModelForm";
+import { MarketModelSelector } from "../hicli/MarketModelSelector";
+
+// ============ 类型定义 ============
+
+export type ModelConfigMode = 'none' | 'custom' | 'market';
 
 export interface CliSelectorProps {
   onSelect: (cliId: string, cwd: string, runtime?: string, providerObj?: ICliProvider, customModelConfig?: string) => void;
@@ -26,18 +31,44 @@ export function CliSelector({ onSelect, disabled, showRuntimeSelector = false }:
     provider: selectedProvider,
   });
 
-  // 自定义模型配置状态
-  const [customModelEnabled, setCustomModelEnabled] = useState(false);
+  // 模型配置模式（替代原来的 customModelEnabled 布尔状态）
+  const [modelConfigMode, setModelConfigMode] = useState<ModelConfigMode>('none');
   const [customModelData, setCustomModelData] = useState<CustomModelFormData | null>(null);
 
-  const handleCustomModelChange = useCallback((enabled: boolean, data: CustomModelFormData | null) => {
-    setCustomModelEnabled(enabled);
+  // 模式切换处理：开启一个模式时自动关闭另一个，并清除前一个模式的配置数据
+  const handleCustomModelSwitch = useCallback((checked: boolean) => {
+    if (checked) {
+      setModelConfigMode('custom');
+      setCustomModelData(null); // 清除之前可能的 market 数据
+    } else {
+      setModelConfigMode('none');
+      setCustomModelData(null);
+    }
+  }, []);
+
+  const handleMarketModelSwitch = useCallback((checked: boolean) => {
+    if (checked) {
+      setModelConfigMode('market');
+      setCustomModelData(null); // 清除之前可能的 custom 数据
+    } else {
+      setModelConfigMode('none');
+      setCustomModelData(null);
+    }
+  }, []);
+
+  // CustomModelForm 数据变化回调
+  const handleCustomFormChange = useCallback((data: CustomModelFormData | null) => {
     setCustomModelData(data);
   }, []);
 
-  // 当选中的 provider 变化时，重置自定义模型状态
+  // MarketModelSelector 数据变化回调
+  const handleMarketModelChange = useCallback((data: CustomModelFormData | null) => {
+    setCustomModelData(data);
+  }, []);
+
+  // 切换 CLI 工具时重置模型配置模式
   useEffect(() => {
-    setCustomModelEnabled(false);
+    setModelConfigMode('none');
     setCustomModelData(null);
   }, [selectedCliId]);
 
@@ -71,8 +102,8 @@ export function CliSelector({ onSelect, disabled, showRuntimeSelector = false }:
 
   const handleConnect = () => {
     if (selectedCliId) {
-      // cwd 由后端根据用户信息和运行时类型自动决定，前端不再指定
-      const configJson = customModelEnabled && customModelData
+      // 连接时统一从 customModelData 获取配置（无论来源是手动还是模型市场）
+      const configJson = modelConfigMode !== 'none' && customModelData
         ? JSON.stringify(customModelData)
         : undefined;
       onSelect(selectedCliId, "", selectedRuntime, selectedProvider ?? undefined, configJson);
@@ -129,6 +160,8 @@ export function CliSelector({ onSelect, disabled, showRuntimeSelector = false }:
     );
   }
 
+  const supportsCustomModel = selectedProvider?.supportsCustomModel ?? false;
+
   return (
     <div className="flex flex-col items-center gap-5 w-full max-w-sm">
       {/* CLI 工具选择 */}
@@ -158,11 +191,46 @@ export function CliSelector({ onSelect, disabled, showRuntimeSelector = false }:
         />
       )}
 
-      {/* 自定义模型配置 - 仅在选中的 provider 支持时显示 */}
-      <CustomModelForm
-        supportsCustomModel={selectedProvider?.supportsCustomModel ?? false}
-        onChange={handleCustomModelChange}
-      />
+      {/* 模型配置模式切换 - 仅在选中的 provider 支持自定义模型时显示 */}
+      {supportsCustomModel && (
+        <div className="flex flex-col gap-3 w-full">
+          {/* 使用自定义模型开关 */}
+          <div className="flex items-center justify-center gap-2">
+            <Switch
+              size="small"
+              checked={modelConfigMode === 'custom'}
+              onChange={handleCustomModelSwitch}
+            />
+            <span className="text-sm text-gray-600">使用自定义模型</span>
+          </div>
+
+          {/* 使用模型市场模型开关 */}
+          <div className="flex items-center justify-center gap-2">
+            <Switch
+              size="small"
+              checked={modelConfigMode === 'market'}
+              onChange={handleMarketModelSwitch}
+            />
+            <span className="text-sm text-gray-600">使用模型市场模型</span>
+          </div>
+        </div>
+      )}
+
+      {/* 自定义模型表单 - mode 为 custom 时显示 */}
+      {supportsCustomModel && (
+        <CustomModelForm
+          enabled={modelConfigMode === 'custom'}
+          onChange={handleCustomFormChange}
+        />
+      )}
+
+      {/* 模型市场选择器 - mode 为 market 时显示 */}
+      {supportsCustomModel && (
+        <MarketModelSelector
+          enabled={modelConfigMode === 'market'}
+          onChange={handleMarketModelChange}
+        />
+      )}
 
       {/* 连接按钮 */}
       <Button

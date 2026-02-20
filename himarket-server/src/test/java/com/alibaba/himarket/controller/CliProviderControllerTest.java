@@ -62,7 +62,7 @@ class CliProviderControllerTest {
         providers.put("fake-cli", fake);
 
         properties.setProviders(providers);
-        controller = new CliProviderController(properties);
+        controller = new CliProviderController(properties, null, null);
     }
 
     @Test

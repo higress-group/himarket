@@ -28,3 +28,31 @@ export function getCliProviders() {
     "/cli-providers"
   );
 }
+
+
+// ============ 模型市场类型定义 ============
+
+export interface MarketModelInfo {
+  productId: string;
+  name: string;
+  modelId: string;
+  baseUrl: string;
+  protocolType: string;
+  description: string;
+}
+
+export interface MarketModelsResponse {
+  models: MarketModelInfo[];
+  apiKey: string | null;
+}
+
+// ============ 模型市场 API 函数 ============
+
+/**
+ * 获取当前开发者已订阅的模型市场模型列表
+ */
+export function getMarketModels() {
+  return request.get<RespI<MarketModelsResponse>, RespI<MarketModelsResponse>>(
+    "/cli-providers/market-models"
+  );
+}

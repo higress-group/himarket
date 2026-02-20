@@ -62,15 +62,25 @@ public class AcpHandshakeInterceptor implements HandshakeInterceptor {
 
             // Extract custom model config from query param: ?customModelConfig={json}
             String customModelConfigJson = params.getFirst("customModelConfig");
-            logger.info("customModelConfig raw param: {}", customModelConfigJson != null ? customModelConfigJson.substring(0, Math.min(customModelConfigJson.length(), 100)) : "null");
+            logger.info(
+                    "customModelConfig raw param: {}",
+                    customModelConfigJson != null
+                            ? customModelConfigJson.substring(
+                                    0, Math.min(customModelConfigJson.length(), 100))
+                            : "null");
             if (StrUtil.isNotBlank(customModelConfigJson)) {
                 try {
-                    String decoded = URLDecoder.decode(customModelConfigJson, StandardCharsets.UTF_8);
-                    logger.info("customModelConfig decoded: {}", decoded.substring(0, Math.min(decoded.length(), 100)));
+                    String decoded =
+                            URLDecoder.decode(customModelConfigJson, StandardCharsets.UTF_8);
+                    logger.info(
+                            "customModelConfig decoded: {}",
+                            decoded.substring(0, Math.min(decoded.length(), 100)));
                     CustomModelConfig customModelConfig =
                             objectMapper.readValue(decoded, CustomModelConfig.class);
                     attributes.put("customModelConfig", customModelConfig);
-                    logger.info("customModelConfig parsed successfully: modelId={}", customModelConfig.getModelId());
+                    logger.info(
+                            "customModelConfig parsed successfully: modelId={}",
+                            customModelConfig.getModelId());
                 } catch (Exception e) {
                     logger.warn("Failed to parse customModelConfig: {}", e.getMessage());
                 }

@@ -2,12 +2,29 @@ package com.alibaba.himarket.controller;
 
 import com.alibaba.himarket.config.AcpProperties;
 import com.alibaba.himarket.config.AcpProperties.CliProviderConfig;
+import com.alibaba.himarket.core.annotation.DeveloperAuth;
+import com.alibaba.himarket.dto.result.cli.MarketModelInfo;
+import com.alibaba.himarket.dto.result.cli.MarketModelsResponse;
+import com.alibaba.himarket.dto.result.consumer.ConsumerCredentialResult;
+import com.alibaba.himarket.dto.result.consumer.ConsumerResult;
+import com.alibaba.himarket.dto.result.model.ModelConfigResult;
+import com.alibaba.himarket.dto.result.product.ProductResult;
+import com.alibaba.himarket.dto.result.product.SubscriptionResult;
+import com.alibaba.himarket.service.ConsumerService;
+import com.alibaba.himarket.service.ProductService;
+import com.alibaba.himarket.service.acp.BaseUrlExtractor;
+import com.alibaba.himarket.service.acp.ProtocolTypeMapper;
 import com.alibaba.himarket.service.acp.runtime.RuntimeType;
+import com.alibaba.himarket.support.consumer.ApiKeyConfig;
+import com.alibaba.himarket.support.enums.ProductType;
+import com.alibaba.himarket.support.enums.SubscriptionStatus;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,6 +41,138 @@ public class CliProviderController {
     private static final Logger logger = LoggerFactory.getLogger(CliProviderController.class);
 
     private final AcpProperties acpProperties;
+    private final ConsumerService consumerService;
+    private final ProductService productService;
+
+    @Operation(summary = "获取当前开发者已订阅的模型市场模型列表")
+    @GetMapping("/market-models")
+    @DeveloperAuth
+    public MarketModelsResponse listMarketModels() {
+        // 1. 获取 Primary Consumer
+        ConsumerResult consumer;
+        try {
+            consumer = consumerService.getPrimaryConsumer();
+        } catch (Exception e) {
+            logger.debug("No primary consumer found for current developer: {}", e.getMessage());
+            return MarketModelsResponse.builder()
+                    .models(Collections.emptyList())
+                    .apiKey(null)
+                    .build();
+        }
+
+        String consumerId = consumer.getConsumerId();
+
+        // 2. 获取订阅列表，筛选 APPROVED 状态
+        List<SubscriptionResult> subscriptions =
+                consumerService.listConsumerSubscriptions(consumerId);
+        List<SubscriptionResult> approvedSubscriptions =
+                subscriptions.stream()
+                        .filter(s -> SubscriptionStatus.APPROVED.name().equals(s.getStatus()))
+                        .collect(Collectors.toList());
+
+        // 3. 获取 apiKey
+        String apiKey = extractApiKey(consumerId);
+
+        if (approvedSubscriptions.isEmpty()) {
+            return MarketModelsResponse.builder()
+                    .models(Collections.emptyList())
+                    .apiKey(apiKey)
+                    .build();
+        }
+
+        // 4. 批量获取产品详情，然后按 MODEL_API 类型筛选
+        List<String> productIds =
+                approvedSubscriptions.stream()
+                        .map(SubscriptionResult::getProductId)
+                        .collect(Collectors.toList());
+        Map<String, ProductResult> productMap = productService.getProducts(productIds);
+
+        // 5. 对每个产品提取信息，仅处理 MODEL_API 类型
+        List<MarketModelInfo> models = new ArrayList<>();
+        for (SubscriptionResult subscription : approvedSubscriptions) {
+            ProductResult product = productMap.get(subscription.getProductId());
+            if (product == null) {
+                logger.warn(
+                        "Product not found for subscription: productId={}",
+                        subscription.getProductId());
+                continue;
+            }
+
+            // 通过产品详情中的 type 字段筛选 MODEL_API
+            if (product.getType() != ProductType.MODEL_API) {
+                continue;
+            }
+
+            MarketModelInfo modelInfo = buildMarketModelInfo(product);
+            if (modelInfo != null) {
+                models.add(modelInfo);
+            }
+        }
+
+        // 6. 组装响应
+        return MarketModelsResponse.builder().models(models).apiKey(apiKey).build();
+    }
+
+    private String extractApiKey(String consumerId) {
+        try {
+            ConsumerCredentialResult credential = consumerService.getCredential(consumerId);
+            if (credential == null || credential.getApiKeyConfig() == null) {
+                return null;
+            }
+            ApiKeyConfig apiKeyConfig = credential.getApiKeyConfig();
+            if (apiKeyConfig.getCredentials() == null || apiKeyConfig.getCredentials().isEmpty()) {
+                return null;
+            }
+            return apiKeyConfig.getCredentials().get(0).getApiKey();
+        } catch (Exception e) {
+            logger.debug(
+                    "Failed to get credential for consumer {}: {}", consumerId, e.getMessage());
+            return null;
+        }
+    }
+
+    private MarketModelInfo buildMarketModelInfo(ProductResult product) {
+        // 提取 modelId
+        String modelId = null;
+        if (product.getFeature() != null
+                && product.getFeature().getModelFeature() != null
+                && product.getFeature().getModelFeature().getModel() != null) {
+            modelId = product.getFeature().getModelFeature().getModel();
+        }
+
+        // 提取 baseUrl
+        ModelConfigResult modelConfig = product.getModelConfig();
+        if (modelConfig == null || modelConfig.getModelAPIConfig() == null) {
+            logger.warn(
+                    "Product modelConfig is incomplete, skipping: productId={}, name={}",
+                    product.getProductId(),
+                    product.getName());
+            return null;
+        }
+
+        String baseUrl = BaseUrlExtractor.extract(modelConfig.getModelAPIConfig().getRoutes());
+        if (baseUrl == null) {
+            logger.warn(
+                    "Failed to extract baseUrl from product routes, skipping: productId={},"
+                            + " name={}",
+                    product.getProductId(),
+                    product.getName());
+            return null;
+        }
+
+        // 提取 protocolType
+        String protocolType =
+                ProtocolTypeMapper.map(modelConfig.getModelAPIConfig().getAiProtocols());
+
+        return MarketModelInfo.builder()
+                .productId(product.getProductId())
+                .name(product.getName())
+                .modelId(modelId)
+                .baseUrl(baseUrl)
+                .protocolType(protocolType)
+                .description(product.getDescription())
+                .build();
+    }
 
     @Operation(summary = "获取可用的 CLI Provider 列表（含运行时兼容性信息）")
     @GetMapping
