@@ -1,6 +1,5 @@
-import { Select, Tooltip } from "antd";
-import { ScrollText, Bot, Wifi, WifiOff, Loader2 } from "lucide-react";
-import type { RuntimeOption } from "../common/RuntimeSelector";
+import { Select } from "antd";
+import { ScrollText, Bot, Wifi, WifiOff, Loader2, Monitor, Container, FolderOpen } from "lucide-react";
 import { useHiCliState } from "../../context/HiCliSessionContext";
 import { useActiveQuest } from "../../context/QuestSessionContext";
 import type { WsStatus } from "../../hooks/useAcpWebSocket";
@@ -12,10 +11,6 @@ interface HiCliTopBarProps {
   onSetModel: (modelId: string) => void;
   onSetMode: (modeId: string) => void;
   currentProvider: string;
-  onProviderChange: (providerKey: string) => void;
-  selectedRuntime?: string;
-  compatibleRuntimes?: RuntimeOption[];
-  onRuntimeChange?: (runtimeType: string) => void;
   debugTab: DebugTab;
   onToggleDebugTab: (tab: DebugTab) => void;
 }
@@ -25,9 +20,6 @@ export function HiCliTopBar({
   onSetModel,
   onSetMode,
   currentProvider,
-  selectedRuntime,
-  compatibleRuntimes,
-  onRuntimeChange,
   debugTab,
   onToggleDebugTab,
 }: HiCliTopBarProps) {
@@ -88,24 +80,30 @@ export function HiCliTopBar({
         </div>
       )}
 
-      {/* Runtime select */}
-      {compatibleRuntimes && compatibleRuntimes.length > 1 && onRuntimeChange && (
-        <Tooltip title="运行时方案">
-          <Select
-            size="small"
-            variant="outlined"
-            placement="bottomLeft"
-            className="min-w-[100px]"
-            value={selectedRuntime}
-            onChange={onRuntimeChange}
-            options={compatibleRuntimes.map(r => ({
-              value: r.type,
-              label: r.label,
-              disabled: !r.available,
-              title: r.available ? r.description : r.unavailableReason,
-            }))}
-          />
-        </Tooltip>
+      {/* Runtime type badge */}
+      {hiCliState.runtimeType && (
+        <div
+          className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded ${
+            hiCliState.runtimeType === "k8s"
+              ? "text-blue-600 bg-blue-50"
+              : "text-gray-500 bg-gray-100"
+          }`}
+          title={hiCliState.runtimeType === "k8s" ? "K8s 沙箱运行" : "本地运行"}
+        >
+          {hiCliState.runtimeType === "k8s" ? <Container size={12} /> : <Monitor size={12} />}
+          <span>{hiCliState.runtimeType === "k8s" ? "沙箱" : "本地"}</span>
+        </div>
+      )}
+
+      {/* Working directory */}
+      {hiCliState.cwd && (
+        <div
+          className="flex items-center gap-1 text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded truncate max-w-[240px]"
+          title={`工作目录: ${hiCliState.cwd}`}
+        >
+          <FolderOpen size={12} className="flex-shrink-0" />
+          <span className="truncate">{hiCliState.cwd}</span>
+        </div>
       )}
 
       {/* Model select */}

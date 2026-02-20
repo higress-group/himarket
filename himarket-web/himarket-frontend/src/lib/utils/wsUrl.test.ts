@@ -45,16 +45,14 @@ describe("buildAcpWsUrl", () => {
     expect(parsed.searchParams.get("token")).toBe("abc123");
   });
 
-  it("should include encoded cwd for HiCli usage", () => {
+  it("should not include cwd parameter (cwd is determined by backend)", () => {
     const url = buildAcpWsUrl(
-      { provider: "kiro-cli", cwd: "/home/user/project", runtime: "local" },
+      { provider: "kiro-cli", runtime: "local" },
       "/ws/acp",
       ORIGIN,
     );
     const parsed = new URL(url);
-    expect(parsed.searchParams.get("runtime")).toBe("local");
-    // cwd is double-encoded by design (encodeURIComponent inside, then URL encoding)
-    expect(parsed.searchParams.get("cwd")).toBeTruthy();
+    expect(parsed.searchParams.has("cwd")).toBe(false);
   });
 
   it("should return base URL without query string when no params provided", () => {

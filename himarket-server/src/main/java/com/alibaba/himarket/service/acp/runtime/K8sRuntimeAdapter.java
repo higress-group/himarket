@@ -10,6 +10,7 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.CountDownLatch;
@@ -24,7 +25,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.reactive.socket.WebSocketMessage;
 import org.springframework.web.reactive.socket.client.ReactorNettyWebSocketClient;
-import org.springframework.web.reactive.socket.client.WebSocketClient;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -56,6 +56,9 @@ public class K8sRuntimeAdapter implements RuntimeAdapter {
     static final String WORKSPACE_STORAGE_CLASS = "alicloud-disk-efficiency";
     static final String WORKSPACE_STORAGE_SIZE = "20Gi";
 
+    /** WebSocket ping 间隔（秒），需小于 SLB 空闲超时（通常 15s） */
+    static final long WS_PING_INTERVAL_SECONDS = 10;
+
     private final KubernetesClient k8sClient;
     private final String namespace;
     private final Duration podReadyTimeout;
@@ -74,6 +77,7 @@ public class K8sRuntimeAdapter implements RuntimeAdapter {
     private ScheduledFuture<?> idleCheckFuture;
     private PodFileSystemAdapter fileSystem;
     private Disposable wsConnection;
+    private ScheduledFuture<?> wsPingFuture;
     private final AtomicReference<org.springframework.web.reactive.socket.WebSocketSession>
             wsSessionRef = new AtomicReference<>();
 
@@ -341,6 +345,7 @@ public class K8sRuntimeAdapter implements RuntimeAdapter {
 
         stopHealthCheck();
         stopIdleCheck();
+        stopWsPing();
 
         // 关闭 WebSocket 连接
         wsSendSink.tryEmitComplete();
@@ -503,7 +508,13 @@ public class K8sRuntimeAdapter implements RuntimeAdapter {
 
     void connectToSidecarWebSocket(URI wsUri) {
         logger.info("Connecting to sidecar WebSocket: {}", wsUri);
-        WebSocketClient wsClient = new ReactorNettyWebSocketClient();
+        // 配置 Reactor Netty WebSocket 客户端：启用协议层 ping/pong，防止 SLB 空闲断连
+        ReactorNettyWebSocketClient wsClient =
+                new ReactorNettyWebSocketClient(
+                        reactor.netty.http.client.HttpClient.create()
+                                .responseTimeout(Duration.ofSeconds(30)));
+        wsClient.setHandlePing(true);
+        wsClient.setMaxFramePayloadLength(1024 * 1024);
         CountDownLatch connectedLatch = new CountDownLatch(1);
 
         wsConnection =
@@ -511,22 +522,65 @@ public class K8sRuntimeAdapter implements RuntimeAdapter {
                                 wsUri,
                                 session -> {
                                     wsSessionRef.set(session);
-                                    connectedLatch.countDown();
+                                    logger.info(
+                                            "[WS-Sidecar] Session established: pod={},"
+                                                    + " sessionId={}",
+                                            podName,
+                                            session.getId());
 
                                     // 接收来自 Sidecar 的消息，推送到 stdoutSink
                                     Mono<Void> receive =
                                             session.receive()
-                                                    .map(WebSocketMessage::getPayloadAsText)
+                                                    .doOnSubscribe(
+                                                            sub ->
+                                                                    logger.info(
+                                                                            "[WS-Sidecar] Receive"
+                                                                                    + " stream"
+                                                                                    + " subscribed:"
+                                                                                    + " pod={}",
+                                                                            podName))
                                                     .doOnNext(
                                                             msg -> {
+                                                                if (msg.getType()
+                                                                        == WebSocketMessage.Type
+                                                                                .PONG) {
+                                                                    logger.debug(
+                                                                            "[WS-Sidecar] Pong"
+                                                                                + " received from"
+                                                                                + " pod {}",
+                                                                            podName);
+                                                                    return;
+                                                                }
+                                                                String text =
+                                                                        msg.getPayloadAsText();
+                                                                logger.info(
+                                                                        "[WS-Sidecar] Received from"
+                                                                                + " pod {}: {}",
+                                                                        podName,
+                                                                        text.length() > 300
+                                                                                ? text.substring(
+                                                                                                0,
+                                                                                                300)
+                                                                                        + "..."
+                                                                                : text);
                                                                 lastActiveAt = Instant.now();
-                                                                stdoutSink.tryEmitNext(msg);
+                                                                Sinks.EmitResult emitResult =
+                                                                        stdoutSink.tryEmitNext(
+                                                                                text);
+                                                                if (emitResult.isFailure()) {
+                                                                    logger.warn(
+                                                                            "[WS-Sidecar]"
+                                                                                + " stdoutSink emit"
+                                                                                + " failed: {}",
+                                                                            emitResult);
+                                                                }
                                                             })
                                                     .doOnError(
                                                             err -> {
                                                                 logger.warn(
-                                                                        "WebSocket receive error"
-                                                                            + " from pod {}: {}",
+                                                                        "[WS-Sidecar] Receive"
+                                                                                + " error from pod"
+                                                                                + " {}: {}",
                                                                         podName,
                                                                         err.getMessage());
                                                                 status = RuntimeStatus.ERROR;
@@ -538,9 +592,21 @@ public class K8sRuntimeAdapter implements RuntimeAdapter {
                                                             })
                                                     .doOnComplete(
                                                             () -> {
-                                                                logger.info(
-                                                                        "WebSocket connection"
-                                                                            + " closed for pod {}",
+                                                                logger.warn(
+                                                                        "[WS-Sidecar] Receive"
+                                                                            + " stream completed"
+                                                                            + " (sidecar closed"
+                                                                            + " connection):"
+                                                                            + " pod={}",
+                                                                        podName);
+                                                                status = RuntimeStatus.ERROR;
+                                                            })
+                                                    .doOnCancel(
+                                                            () -> {
+                                                                logger.warn(
+                                                                        "[WS-Sidecar] Receive"
+                                                                            + " stream cancelled"
+                                                                            + " for pod {}",
                                                                         podName);
                                                             })
                                                     .then();
@@ -548,15 +614,62 @@ public class K8sRuntimeAdapter implements RuntimeAdapter {
                                     // 发送来自 wsSendSink 的消息到 Sidecar
                                     Mono<Void> send =
                                             session.send(
-                                                    wsSendSink.asFlux().map(session::textMessage));
+                                                    wsSendSink
+                                                            .asFlux()
+                                                            .doOnSubscribe(
+                                                                    sub ->
+                                                                            logger.info(
+                                                                                    "[WS-Sidecar]"
+                                                                                        + " Send"
+                                                                                        + " stream"
+                                                                                        + " subscribed:"
+                                                                                        + " pod={}",
+                                                                                    podName))
+                                                            .doOnNext(
+                                                                    msg ->
+                                                                            logger.info(
+                                                                                    "[WS-Sidecar]"
+                                                                                        + " Sending"
+                                                                                        + " to pod"
+                                                                                        + " {}: {}",
+                                                                                    podName,
+                                                                                    msg.length()
+                                                                                                    > 300
+                                                                                            ? msg
+                                                                                                            .substring(
+                                                                                                                    0,
+                                                                                                                    300)
+                                                                                                    + "..."
+                                                                                            : msg))
+                                                            .doOnCancel(
+                                                                    () ->
+                                                                            logger.warn(
+                                                                                    "[WS-Sidecar]"
+                                                                                        + " Send"
+                                                                                        + " stream"
+                                                                                        + " cancelled"
+                                                                                        + " for pod"
+                                                                                        + " {}",
+                                                                                    podName))
+                                                            .map(session::textMessage));
 
-                                    return Mono.zip(receive, send).then();
+                                    // 释放 latch 后再返回管道，确保 send/receive 已构建
+                                    connectedLatch.countDown();
+                                    // 使用 Mono.when 而非 Mono.zip：
+                                    // zip 对 Mono<Void> 会在任一方空完成时取消另一方，
+                                    // when 则等待两个流都完成，适合长期运行的 send/receive 管道
+                                    return Mono.when(receive, send);
                                 })
                         .subscribe(
-                                unused -> {},
+                                unused -> {
+                                    logger.info(
+                                            "[WS-Sidecar] Connection completed normally: pod={}",
+                                            podName);
+                                },
                                 err -> {
                                     logger.error(
-                                            "WebSocket connection failed for pod {}: {}",
+                                            "[WS-Sidecar] Connection failed/terminated: pod={},"
+                                                    + " error={}",
                                             podName,
                                             err.getMessage());
                                     connectedLatch.countDown();
@@ -578,6 +691,63 @@ public class K8sRuntimeAdapter implements RuntimeAdapter {
                     "Failed to establish WebSocket connection to sidecar at " + wsUri);
         }
         logger.info("WebSocket connected to sidecar: {}", wsUri);
+
+        // 启动应用层 ping 心跳，防止 SLB 空闲超时断连（阿里云 SLB 默认 15s）
+        startWsPing();
+    }
+
+    /**
+     * 定期向 Sidecar WebSocket 发送 Ping 帧，保持连接活跃。
+     * 阿里云 SLB 默认空闲超时 15 秒，此处每 10 秒发送一次 ping。
+     */
+    private void startWsPing() {
+        wsPingFuture =
+                healthChecker.scheduleAtFixedRate(
+                        () -> {
+                            try {
+                                var session = wsSessionRef.get();
+                                if (session == null || !session.isOpen()) {
+                                    logger.debug(
+                                            "[WS-Ping] Session closed, skipping ping: pod={}",
+                                            podName);
+                                    return;
+                                }
+                                // 发送 WebSocket Ping 帧
+                                session.send(
+                                                Mono.just(
+                                                        session.pingMessage(
+                                                                factory ->
+                                                                        factory.wrap(
+                                                                                "ping"
+                                                                                        .getBytes(
+                                                                                                StandardCharsets
+                                                                                                        .UTF_8)))))
+                                        .subscribe(
+                                                unused -> {},
+                                                err ->
+                                                        logger.warn(
+                                                                "[WS-Ping] Failed to send ping to"
+                                                                        + " pod {}: {}",
+                                                                podName,
+                                                                err.getMessage()));
+                                logger.debug("[WS-Ping] Sent ping to pod {}", podName);
+                            } catch (Exception e) {
+                                logger.warn(
+                                        "[WS-Ping] Error sending ping to pod {}: {}",
+                                        podName,
+                                        e.getMessage());
+                            }
+                        },
+                        WS_PING_INTERVAL_SECONDS,
+                        WS_PING_INTERVAL_SECONDS,
+                        TimeUnit.SECONDS);
+    }
+
+    private void stopWsPing() {
+        if (wsPingFuture != null) {
+            wsPingFuture.cancel(false);
+            wsPingFuture = null;
+        }
     }
 
     // ===== 私有辅助方法 =====
@@ -699,6 +869,7 @@ public class K8sRuntimeAdapter implements RuntimeAdapter {
     private void forceDestroy() {
         stopHealthCheck();
         stopIdleCheck();
+        stopWsPing();
         cleanupPod();
     }
 

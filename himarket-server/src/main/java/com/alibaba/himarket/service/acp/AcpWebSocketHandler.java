@@ -84,12 +84,14 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
             return;
         }
 
-        // Build per-user working directory
-        String cwd = buildWorkspacePath(userId);
-
         // Resolve runtime type from session attributes (set by AcpHandshakeInterceptor)
         String runtimeParam = (String) session.getAttributes().get("runtime");
         RuntimeType runtimeType = resolveRuntimeType(runtimeParam);
+
+        // Build per-user working directory
+        // K8s 运行时：CLI 在 Pod 内运行，cwd 使用 Pod 内路径 /workspace
+        // 本地运行时：使用服务器本地路径
+        String cwd = runtimeType == RuntimeType.K8S ? "/workspace" : buildWorkspacePath(userId);
 
         logger.info(
                 "WebSocket connected: id={}, userId={}, cwd={}, runtime={}",
@@ -191,6 +193,9 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
                                 });
 
         subscriptionMap.put(session.getId(), subscription);
+
+        // 通知前端实际使用的工作目录
+        sendWorkspaceInfo(session, cwd);
     }
 
     @Override
@@ -281,19 +286,33 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
     private void initK8sPodAsync(
             WebSocketSession session, String userId, String providerKey, RuntimeConfig config) {
         try {
+            logger.info("[K8s-Init] 开始异步 Pod 初始化: userId={}, session={}", userId, session.getId());
             sendSandboxStatus(session, "creating", "正在准备沙箱环境...");
 
+            logger.info("[K8s-Init] 调用 acquirePod: userId={}", userId);
             PodInfo podInfo = podReuseManager.acquirePod(userId, config);
+            logger.info(
+                    "[K8s-Init] acquirePod 完成: pod={}, podIp={}, serviceIp={}, sidecarUri={},"
+                            + " reused={}",
+                    podInfo.podName(),
+                    podInfo.podIp(),
+                    podInfo.serviceIp(),
+                    podInfo.sidecarWsUri(),
+                    podInfo.reused());
 
             if (!session.isOpen()) {
                 logger.warn("WebSocket already closed during pod init: userId={}", userId);
                 return;
             }
 
+            logger.info(
+                    "[K8s-Init] 创建 K8sRuntimeAdapter 并连接 Sidecar: sidecarUri={}",
+                    podInfo.sidecarWsUri());
             K8sRuntimeAdapter adapter =
                     (K8sRuntimeAdapter) runtimeFactory.create(RuntimeType.K8S, config);
             adapter.setReuseMode(true);
             adapter.startWithExistingPod(podInfo);
+            logger.info("[K8s-Init] Sidecar WebSocket 连接成功: pod={}", podInfo.podName());
 
             runtimeMap.put(session.getId(), adapter);
 
@@ -308,6 +327,11 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
                     adapter.stdout()
                             .subscribe(
                                     line -> {
+                                        logger.info(
+                                                "[K8s-Init] Sidecar 响应: {}",
+                                                line.length() > 300
+                                                        ? line.substring(0, 300) + "..."
+                                                        : line);
                                         try {
                                             if (session.isOpen()) {
                                                 synchronized (session) {
@@ -342,12 +366,25 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
 
             // 推送就绪通知
             sendSandboxStatus(session, "ready", "沙箱环境已就绪");
+            logger.info("[K8s-Init] 已发送 sandbox/status: ready");
+
+            // 通知前端实际使用的工作目录
+            String cwd = cwdMap.get(session.getId());
+            if (cwd != null) {
+                sendWorkspaceInfo(session, cwd);
+            }
 
             // 回放缓存的消息
             java.util.Queue<String> pendingQueue = pendingMessageMap.remove(session.getId());
             if (pendingQueue != null) {
+                int count = 0;
                 String queued;
                 while ((queued = pendingQueue.poll()) != null) {
+                    count++;
+                    logger.info(
+                            "[K8s-Init] 回放缓存消息 #{}: {}",
+                            count,
+                            queued.length() > 200 ? queued.substring(0, 200) + "..." : queued);
                     String rewritten = rewriteSessionNewCwd(session.getId(), queued);
                     try {
                         adapter.send(rewritten);
@@ -358,6 +395,25 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
                                 e);
                     }
                 }
+                logger.info("[K8s-Init] 回放完成，共 {} 条消息", count);
+            } else {
+                logger.warn("[K8s-Init] pendingQueue 为 null，没有缓存的消息可回放");
+            }
+
+            // 短暂等待后检查 Sidecar 连接是否存活
+            // Sidecar 可能在连接后立即关闭（进程未运行、端口不匹配等）
+            try {
+                Thread.sleep(2000);
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+            }
+            if (!adapter.isAlive()
+                    || adapter.getStatus()
+                            == com.alibaba.himarket.service.acp.runtime.RuntimeStatus.ERROR) {
+                logger.error(
+                        "[K8s-Init] Sidecar 连接已断开，Pod 内 Sidecar 可能未正常运行: pod={}",
+                        podInfo.podName());
+                sendSandboxStatus(session, "error", "沙箱 Sidecar 连接失败，请检查 Pod 内 Sidecar 进程是否正常运行");
             }
 
         } catch (Exception e) {
@@ -394,6 +450,28 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
             }
         } catch (Exception e) {
             logger.warn("Failed to send sandbox status notification: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * 向前端推送工作目录信息通知（JSON-RPC notification）。
+     * <p>
+     * 格式：{"jsonrpc":"2.0","method":"workspace/info","params":{"cwd":"..."}}
+     */
+    private void sendWorkspaceInfo(WebSocketSession session, String cwd) {
+        try {
+            if (!session.isOpen()) return;
+            ObjectNode notification = objectMapper.createObjectNode();
+            notification.put("jsonrpc", "2.0");
+            notification.put("method", "workspace/info");
+            ObjectNode params = objectMapper.createObjectNode();
+            params.put("cwd", cwd);
+            notification.set("params", params);
+            synchronized (session) {
+                session.sendMessage(new TextMessage(objectMapper.writeValueAsString(notification)));
+            }
+        } catch (Exception e) {
+            logger.warn("Failed to send workspace info notification: {}", e.getMessage());
         }
     }
 

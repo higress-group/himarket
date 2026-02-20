@@ -63,7 +63,7 @@ export const RuntimeSelector: React.FC<RuntimeSelectorProps> = ({
 
   return (
     <div className="flex flex-col gap-1.5 w-full">
-      <label className="text-sm font-medium text-gray-600">运行时方案</label>
+      <label className="text-sm font-medium text-gray-600 text-center">运行时方案</label>
       <Radio.Group
         value={selectedRuntime}
         onChange={(e) => onSelect(e.target.value)}
@@ -118,7 +118,7 @@ export const RuntimeSelector: React.FC<RuntimeSelectorProps> = ({
       {/* 沙箱模式子选项：仅当 K8s 运行时被选中且可用时展示 */}
       {selectedRuntime === 'k8s' &&
         compatibleRuntimes.some((r) => r.type === 'k8s' && r.available) && (
-          <div className="ml-6 mt-1 flex flex-col gap-1.5">
+          <div className="ml-6 mt-1 flex flex-col gap-1.5 w-full text-left">
             <label className="text-xs font-medium text-gray-500">沙箱模式</label>
             <Radio.Group
               value={sandboxMode}
@@ -126,25 +126,21 @@ export const RuntimeSelector: React.FC<RuntimeSelectorProps> = ({
             >
               <div className="flex flex-col gap-1.5">
                 <Radio value="user">
-                  <div className="flex flex-col">
-                    <span className="text-sm text-gray-800">用户级沙箱</span>
-                    <span className="text-xs text-gray-500">
-                      常驻 Pod，多会话复用，适合调试开发
-                    </span>
-                  </div>
+                  <span className="text-sm text-gray-800">用户级沙箱</span>
+                  <br />
+                  <span className="text-xs text-gray-500">
+                    常驻 Pod，多会话复用，适合调试开发
+                  </span>
                 </Radio>
                 <Radio value="session" disabled>
-                  <div className="flex flex-col">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-400">会话级沙箱</span>
-                      <Tag color="default" className="text-xs">
-                        即将推出
-                      </Tag>
-                    </div>
-                    <span className="text-xs text-gray-300">
-                      每会话独立 Pod，会话结束后自动销毁
-                    </span>
-                  </div>
+                  <span className="text-sm text-gray-400">会话级沙箱</span>
+                  <Tag color="default" className="text-xs ml-2">
+                    即将推出
+                  </Tag>
+                  <br />
+                  <span className="text-xs text-gray-300">
+                    每会话独立 Pod，会话结束后自动销毁
+                  </span>
                 </Radio>
               </div>
             </Radio.Group>

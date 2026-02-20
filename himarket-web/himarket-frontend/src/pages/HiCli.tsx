@@ -8,7 +8,6 @@ import {
 } from "../context/HiCliSessionContext";
 import { useActiveQuest } from "../context/QuestSessionContext";
 import { useHiCliSession } from "../hooks/useHiCliSession";
-import { useRuntimeSelection } from "../hooks/useRuntimeSelection";
 import type { ICliProvider } from "../lib/apis/cliProvider";
 import { HiCliSidebar } from "../components/hicli/HiCliSidebar";
 import { HiCliTopBar } from "../components/hicli/HiCliTopBar";
@@ -33,12 +32,6 @@ function HiCliContent() {
   const dispatch = useHiCliDispatch();
   const activeQuest = useActiveQuest();
   const session = useHiCliSession();
-
-  // 运行时选择（跟踪当前选中的 provider 对象）
-  const [currentProviderObj, setCurrentProviderObj] = useState<ICliProvider | null>(null);
-  const { selectedRuntime, compatibleRuntimes, selectRuntime } = useRuntimeSelection({
-    provider: currentProviderObj,
-  });
 
   const [debugTab, setDebugTab] = useState<DebugTab>("none");
   const [logFilter, setLogFilter] = useState("");
@@ -77,9 +70,8 @@ function HiCliContent() {
 
   // CLI 工具选择 → 连接
   const handleSelectCli = useCallback(
-    (cliId: string, cwd: string, runtime?: string, providerObj?: ICliProvider) => {
-      if (providerObj) setCurrentProviderObj(providerObj);
-      session.connectToCli(cliId, cwd, runtime);
+    (cliId: string, _cwd: string, runtime?: string, _providerObj?: ICliProvider) => {
+      session.connectToCli(cliId, runtime);
     },
     [session]
   );
@@ -95,16 +87,7 @@ function HiCliContent() {
   const handleSwitchTool = useCallback(() => {
     session.disconnect();
     dispatch({ type: "RESET_STATE" });
-    setCurrentProviderObj(null);
   }, [session, dispatch]);
-
-  // 运行时切换：断开并以新运行时重新连接
-  const handleRuntimeChange = useCallback((runtimeType: string) => {
-    selectRuntime(runtimeType);
-    if (state.selectedCliId && state.cwd) {
-      session.connectToCli(state.selectedCliId, state.cwd, runtimeType);
-    }
-  }, [selectRuntime, session, state.selectedCliId, state.cwd]);
 
   // 移除队列中的 prompt
   const handleDropQueuedPrompt = useCallback(
@@ -148,10 +131,6 @@ function HiCliContent() {
           onSetModel={session.setModel}
           onSetMode={session.setMode}
           currentProvider={state.selectedCliId ?? ""}
-          onProviderChange={() => {}}
-          selectedRuntime={selectedRuntime}
-          compatibleRuntimes={compatibleRuntimes}
-          onRuntimeChange={handleRuntimeChange}
           debugTab={debugTab}
           onToggleDebugTab={handleToggleDebugTab}
         />
@@ -161,11 +140,11 @@ function HiCliContent() {
           {/* 左侧聊天区 */}
           <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
             {!isConnected || !state.initialized ? (
-              /* 未连接：展示欢迎页 + CLI 选择器 */
+              /* 未连接或未初始化：展示欢迎页 + CLI 选择器 / 沙箱创建状态 */
               <HiCliWelcome
                 onSelectCli={handleSelectCli}
                 onCreateQuest={handleCreateQuest}
-                isConnected={false}
+                isConnected={isConnected}
                 disabled={false}
                 creatingQuest={isCreatingQuest}
               />

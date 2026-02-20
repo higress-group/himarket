@@ -89,7 +89,10 @@ RUN npm config set registry https://registry.npmmirror.com
 # ============================================================
 
 # --- qodercli (native binary) ---
-RUN curl -fsSL https://qoder.com/install | bash
+RUN curl -fsSL https://qoder.com/install | bash && \
+    QODERCLI_BIN=$(find /root/.qoder/bin -name 'qodercli-*' -type f -executable | head -1) && \
+    if [ -n "$QODERCLI_BIN" ]; then ln -sf "$QODERCLI_BIN" /usr/local/bin/qodercli; fi && \
+    qodercli --version || echo "[sandbox] WARNING: qodercli not found after install"
 
 # --- qwen-code (npm package) ---
 RUN npm install -g @qwen-code/qwen-code@latest

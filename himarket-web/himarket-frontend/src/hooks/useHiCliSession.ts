@@ -40,11 +40,10 @@ import { buildAcpWsUrl } from "../lib/utils/wsUrl";
 
 // ===== WebSocket URL 构建 =====
 
-function buildHiCliWsUrl(cliId: string, cwd: string, runtime?: string): string {
+function buildHiCliWsUrl(cliId: string, runtime?: string): string {
   return buildAcpWsUrl({
     token: localStorage.getItem("access_token") || undefined,
     provider: cliId || undefined,
-    cwd: cwd || undefined,
     runtime,
   });
 }
@@ -64,7 +63,7 @@ export interface UseHiCliSessionReturn {
   setModel: (modelId: string) => void;
   setMode: (modeId: string) => void;
   respondPermission: (requestId: JsonRpcId, optionId: string) => void;
-  connectToCli: (cliId: string, cwd: string, runtime?: string) => void;
+  connectToCli: (cliId: string, runtime?: string) => void;
 }
 
 // ===== Hook 实现 =====
@@ -255,6 +254,13 @@ export function useHiCliSession(): UseHiCliSessionReturn {
           });
           return;
         }
+        if (notif.method === "workspace/info") {
+          const params = notif.params as { cwd?: string };
+          if (params?.cwd) {
+            dispatch({ type: "WORKSPACE_INFO", cwd: params.cwd });
+          }
+          return;
+        }
         if (notif.method === ACP_METHODS.SESSION_UPDATE) {
           const update = extractSessionUpdate(notif);
           if (update) {
@@ -371,9 +377,15 @@ export function useHiCliSession(): UseHiCliSessionReturn {
         try {
           const initReq = buildInitialize();
           sendWithLog(JSON.stringify(initReq));
-          const initResult = (await trackRequest(
-            initReq.id
-          )) as InitializeResult;
+
+          // 给 initialize 请求加 15 秒超时，避免 Sidecar 未响应时永远卡住
+          const timeoutPromise = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("Initialize timeout")), 15000)
+          );
+          const initResult = (await Promise.race([
+            trackRequest(initReq.id),
+            timeoutPromise,
+          ])) as InitializeResult;
 
           // 从 initialize 响应中提取 modes（部分 Agent 如 qwen 在此阶段返回）
           const initModes = initResult.modes?.availableModes ?? [];
@@ -397,6 +409,14 @@ export function useHiCliSession(): UseHiCliSessionReturn {
           });
         } catch (err) {
           console.error("ACP initialization failed:", err);
+          // 超时或失败时也标记为已初始化，让用户能看到状态而不是永远卡住
+          dispatch({
+            type: "PROTOCOL_INITIALIZED",
+            models: [],
+            modes: [],
+            currentModelId: "",
+            currentModeId: "",
+          });
         }
       })();
     }
@@ -536,15 +556,23 @@ export function useHiCliSession(): UseHiCliSessionReturn {
   // ===== connectToCli：连接到指定 CLI 工具 =====
 
   const connectToCli = useCallback(
-    (cliId: string, cwd: string, runtime?: string) => {
+    (cliId: string, runtime?: string) => {
       // 重置状态（清空调试数据和会话）
       dispatch({ type: "RESET_STATE" });
-      // 记录选中的 CLI 工具
-      dispatch({ type: "CLI_SELECTED", cliId, cwd });
+      // 记录选中的 CLI 工具（cwd 由后端决定，连接后通过 workspace/info 通知）
+      dispatch({ type: "CLI_SELECTED", cliId, cwd: "", runtime });
+      // K8s 运行时：立即显示沙箱创建中状态，让用户有即时反馈
+      if (runtime === "K8S") {
+        dispatch({
+          type: "SANDBOX_STATUS",
+          status: "creating",
+          message: "正在连接沙箱环境...",
+        });
+      }
       // 重置初始化状态
       initializedRef.current = false;
       // 构建新的 WebSocket URL 并触发连接
-      const newUrl = buildHiCliWsUrl(cliId, cwd, runtime);
+      const newUrl = buildHiCliWsUrl(cliId, runtime);
       setCurrentWsUrl(newUrl);
     },
     [dispatch]

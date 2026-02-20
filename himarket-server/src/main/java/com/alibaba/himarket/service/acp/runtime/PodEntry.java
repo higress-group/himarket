@@ -14,7 +14,7 @@ public class PodEntry {
 
     private final String podName;
     private final String podIp;
-    private final String serviceIp;
+    private volatile String serviceIp;
     private final Instant createdAt;
     private final AtomicInteger connectionCount;
     private volatile ScheduledFuture<?> idleTimer;
@@ -41,6 +41,10 @@ public class PodEntry {
 
     public String getServiceIp() {
         return serviceIp;
+    }
+
+    public void setServiceIp(String serviceIp) {
+        this.serviceIp = serviceIp;
     }
 
     public Instant getCreatedAt() {

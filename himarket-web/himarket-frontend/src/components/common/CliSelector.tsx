@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { Select, Input, Button } from "antd";
-import { FolderOpen, Plug, RefreshCw, Loader2, AlertCircle } from "lucide-react";
+import { Select, Button } from "antd";
+import { Plug, RefreshCw, Loader2, AlertCircle } from "lucide-react";
 import { getCliProviders, type ICliProvider } from "../../lib/apis/cliProvider";
 import { RuntimeSelector } from "./RuntimeSelector";
 import { useRuntimeSelection } from "../../hooks/useRuntimeSelection";
@@ -14,7 +14,6 @@ export interface CliSelectorProps {
 export function CliSelector({ onSelect, disabled, showRuntimeSelector = false }: CliSelectorProps) {
   const [providers, setProviders] = useState<ICliProvider[]>([]);
   const [selectedCliId, setSelectedCliId] = useState<string>("");
-  const [cwd, setCwd] = useState<string>("/Users/xujingfeng/NodeProjects/qoderwork");
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,8 +54,9 @@ export function CliSelector({ onSelect, disabled, showRuntimeSelector = false }:
   }, [fetchProviders]);
 
   const handleConnect = () => {
-    if (selectedCliId && cwd.trim()) {
-      onSelect(selectedCliId, cwd.trim(), selectedRuntime, selectedProvider ?? undefined);
+    if (selectedCliId) {
+      // cwd 由后端根据用户信息和运行时类型自动决定，前端不再指定
+      onSelect(selectedCliId, "", selectedRuntime, selectedProvider ?? undefined);
     }
   };
 
@@ -129,19 +129,6 @@ export function CliSelector({ onSelect, disabled, showRuntimeSelector = false }:
         />
       </div>
 
-      {/* 工作目录输入 */}
-      <div className="flex flex-col gap-1.5 w-full">
-        <label className="text-sm font-medium text-gray-600 text-center">工作目录</label>
-        <Input
-          value={cwd}
-          onChange={(e) => setCwd(e.target.value)}
-          placeholder="输入工作目录路径，例如 /home/user/project"
-          prefix={<FolderOpen size={14} className="text-gray-400" />}
-          disabled={disabled}
-          onPressEnter={handleConnect}
-        />
-      </div>
-
       {/* 运行时选择 - 仅在 showRuntimeSelector 为 true 且有兼容运行时时显示 */}
       {showRuntimeSelector && compatibleRuntimes.length > 0 && (
         <RuntimeSelector
@@ -157,7 +144,7 @@ export function CliSelector({ onSelect, disabled, showRuntimeSelector = false }:
         type="primary"
         icon={<Plug size={14} />}
         onClick={handleConnect}
-        disabled={disabled || !selectedCliId || !cwd.trim()}
+        disabled={disabled || !selectedCliId}
         className="px-8"
       >
         连接

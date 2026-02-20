@@ -45,26 +45,33 @@ export function HiCliWelcome({
         )}
 
         {isConnected ? (
-          <>
-            <p className="text-sm text-gray-400 mb-6">
-              创建一个新的 Quest 开始对话
+          isSandboxCreating ? (
+            /* 已连接但沙箱正在创建中：只显示创建状态 */
+            <p className="text-sm text-gray-400">
+              请稍候，沙箱就绪后将自动进入会话
             </p>
-            <button
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full
-                         bg-gray-800 text-white text-sm font-medium
-                         hover:bg-gray-700 transition-colors
-                         disabled:opacity-40 disabled:cursor-not-allowed"
-              onClick={onCreateQuest}
-              disabled={disabled || creatingQuest}
-            >
-              {creatingQuest ? (
-                <Loader2 size={16} className="animate-spin" />
-              ) : (
-                <Sparkles size={16} />
-              )}
-              {creatingQuest ? "创建中..." : "新建 Quest"}
-            </button>
-          </>
+          ) : (
+            <>
+              <p className="text-sm text-gray-400 mb-6">
+                创建一个新的 Quest 开始对话
+              </p>
+              <button
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full
+                           bg-gray-800 text-white text-sm font-medium
+                           hover:bg-gray-700 transition-colors
+                           disabled:opacity-40 disabled:cursor-not-allowed"
+                onClick={onCreateQuest}
+                disabled={disabled || creatingQuest}
+              >
+                {creatingQuest ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <Sparkles size={16} />
+                )}
+                {creatingQuest ? "创建中..." : "新建 Quest"}
+              </button>
+            </>
+          )
         ) : (
           <>
             <p className="text-sm text-gray-400 mb-6">

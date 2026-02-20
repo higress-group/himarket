@@ -7,6 +7,7 @@ import {
 } from "react";
 import type { RawMessage, AggregatedLogEntry } from "../types/log";
 import type { AgentInfo, AuthMethod, AgentCapabilities } from "../types/acp";
+import type { RuntimeType } from "../types/runtime";
 import {
   type QuestState,
   type QuestAction,
@@ -35,6 +36,8 @@ export interface HiCliState extends QuestState {
   selectedCliId: string | null;
   /** 当前工作目录 */
   cwd: string;
+  /** 当前运行时类型 */
+  runtimeType: RuntimeType | null;
 }
 
 export const hiCliInitialState: HiCliState = {
@@ -47,6 +50,7 @@ export const hiCliInitialState: HiCliState = {
   modesSource: null,
   selectedCliId: null,
   cwd: "",
+  runtimeType: null,
 };
 
 // ===== HiCli Actions =====
@@ -55,7 +59,8 @@ export type HiCliAction =
   | QuestAction
   | { type: "RAW_MESSAGE"; message: RawMessage }
   | { type: "AGGREGATED_LOG"; entry: AggregatedLogEntry }
-  | { type: "CLI_SELECTED"; cliId: string; cwd: string }
+  | { type: "CLI_SELECTED"; cliId: string; cwd: string; runtime?: string }
+  | { type: "WORKSPACE_INFO"; cwd: string }
   | {
       type: "DEBUG_PROTOCOL_INITIALIZED";
       agentInfo?: AgentInfo;
@@ -88,6 +93,7 @@ export function hiCliReducer(
         ...state,
         selectedCliId: action.cliId,
         cwd: action.cwd,
+        runtimeType: (action.runtime as RuntimeType) ?? "local",
         // 切换 CLI 时清空调试状态
         rawMessages: [],
         aggregatedLogs: [],
@@ -95,6 +101,12 @@ export function hiCliReducer(
         authMethods: [],
         agentCapabilities: null,
         modesSource: null,
+      };
+
+    case "WORKSPACE_INFO":
+      return {
+        ...state,
+        cwd: action.cwd,
       };
 
     case "DEBUG_PROTOCOL_INITIALIZED":
@@ -121,6 +133,7 @@ export function hiCliReducer(
         modesSource: state.modesSource,
         selectedCliId: state.selectedCliId,
         cwd: state.cwd,
+        runtimeType: state.runtimeType,
       };
   }
 }

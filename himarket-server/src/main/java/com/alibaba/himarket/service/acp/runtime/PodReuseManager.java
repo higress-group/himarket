@@ -153,6 +153,15 @@ public class PodReuseManager {
                                     reused[0] = true;
                                     cancelIdleTimer(existing);
                                     existing.getConnectionCount().incrementAndGet();
+                                    // 补创建 Service（如果开启了 Service 访问且 serviceIp 缺失）
+                                    if (sandboxAccessViaService
+                                            && (existing.getServiceIp() == null
+                                                    || existing.getServiceIp().isBlank())) {
+                                        String svcIp =
+                                                ensureServiceForPod(
+                                                        client, existing.getPodName(), userId);
+                                        existing.setServiceIp(svcIp);
+                                    }
                                     return existing;
                                 }
                                 // Pod 不健康，清理后继续创建新 Pod
@@ -384,8 +393,10 @@ public class PodReuseManager {
                                     pod -> {
                                         String svcIp =
                                                 sandboxAccessViaService
-                                                        ? getServiceIpForPod(
-                                                                client, pod.getMetadata().getName())
+                                                        ? ensureServiceForPod(
+                                                                client,
+                                                                pod.getMetadata().getName(),
+                                                                userId)
                                                         : null;
                                         return new PodEntry(
                                                 pod.getMetadata().getName(),
@@ -420,7 +431,9 @@ public class PodReuseManager {
                         && readyPod.getStatus().getPodIP() != null
                         && !readyPod.getStatus().getPodIP().isBlank()) {
                     String svcIp =
-                            sandboxAccessViaService ? getServiceIpForPod(client, podName) : null;
+                            sandboxAccessViaService
+                                    ? ensureServiceForPod(client, podName, userId)
+                                    : null;
                     return new PodEntry(podName, readyPod.getStatus().getPodIP(), svcIp);
                 }
             }
@@ -730,6 +743,22 @@ public class PodReuseManager {
     }
 
     // ---- Service 相关方法 ----
+
+    /**
+     * 确保 Pod 对应的 Service 存在。如果已存在则返回其 IP，否则创建新 Service。
+     *
+     * @return Service 的 External IP，如果创建失败或超时则返回 null
+     */
+    String ensureServiceForPod(KubernetesClient client, String podName, String userId) {
+        // 先查已有 Service
+        String existingIp = getServiceIpForPod(client, podName);
+        if (existingIp != null) {
+            return existingIp;
+        }
+        // Service 不存在或未就绪，补创建
+        log.info("Pod '{}' 对应的 Service 不存在，补创建 LoadBalancer Service", podName);
+        return createServiceForPod(client, podName, userId);
+    }
 
     /**
      * 根据开关决定使用 Service IP 还是 Pod IP。

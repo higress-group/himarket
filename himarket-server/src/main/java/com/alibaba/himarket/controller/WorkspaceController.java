@@ -61,7 +61,7 @@ public class WorkspaceController {
 
     private static final long MAX_SCAN_FILE_SIZE_BYTES = 50L * 1024L * 1024L;
     private static final int MAX_TREE_NODES = 2000;
-    private static final long MAX_TEXT_FILE_SIZE_BYTES = 2L * 1024L * 1024L;   // 2MB
+    private static final long MAX_TEXT_FILE_SIZE_BYTES = 2L * 1024L * 1024L; // 2MB
     private static final long MAX_BINARY_FILE_SIZE_BYTES = 20L * 1024L * 1024L; // 20MB
 
     private final AcpProperties acpProperties;
@@ -139,10 +139,12 @@ public class WorkspaceController {
                     || BINARY_EXTENSIONS.contains(ext)
                     || CONVERTIBLE_EXTENSIONS.contains(ext)) {
                 if (fileSize > MAX_BINARY_FILE_SIZE_BYTES) {
-                    return ResponseEntity.status(413).body(Map.of(
-                            "error", "File too large to preview",
-                            "size", fileSize,
-                            "maxSize", MAX_BINARY_FILE_SIZE_BYTES));
+                    return ResponseEntity.status(413)
+                            .body(
+                                    Map.of(
+                                            "error", "File too large to preview",
+                                            "size", fileSize,
+                                            "maxSize", MAX_BINARY_FILE_SIZE_BYTES));
                 }
                 byte[] bytes = Files.readAllBytes(filePath);
                 String base64 = Base64.getEncoder().encodeToString(bytes);
@@ -151,10 +153,12 @@ public class WorkspaceController {
 
             // Default: read as text
             if (fileSize > MAX_TEXT_FILE_SIZE_BYTES) {
-                return ResponseEntity.status(413).body(Map.of(
-                        "error", "File too large to preview",
-                        "size", fileSize,
-                        "maxSize", MAX_TEXT_FILE_SIZE_BYTES));
+                return ResponseEntity.status(413)
+                        .body(
+                                Map.of(
+                                        "error", "File too large to preview",
+                                        "size", fileSize,
+                                        "maxSize", MAX_TEXT_FILE_SIZE_BYTES));
             }
             String content = Files.readString(filePath, StandardCharsets.UTF_8);
             return ResponseEntity.ok(Map.of("content", content, "encoding", "utf-8"));
@@ -298,25 +302,30 @@ public class WorkspaceController {
         return ResponseEntity.ok(Map.of("changes", result));
     }
 
-    private ResponseEntity<?> readRawFile(Path filePath, String ext, long fileSize) throws IOException {
+    private ResponseEntity<?> readRawFile(Path filePath, String ext, long fileSize)
+            throws IOException {
         if (IMAGE_EXTENSIONS.contains(ext)
                 || BINARY_EXTENSIONS.contains(ext)
                 || CONVERTIBLE_EXTENSIONS.contains(ext)) {
             if (fileSize > MAX_BINARY_FILE_SIZE_BYTES) {
-                return ResponseEntity.status(413).body(Map.of(
-                        "error", "File too large to preview",
-                        "size", fileSize,
-                        "maxSize", MAX_BINARY_FILE_SIZE_BYTES));
+                return ResponseEntity.status(413)
+                        .body(
+                                Map.of(
+                                        "error", "File too large to preview",
+                                        "size", fileSize,
+                                        "maxSize", MAX_BINARY_FILE_SIZE_BYTES));
             }
             byte[] bytes = Files.readAllBytes(filePath);
             String base64 = Base64.getEncoder().encodeToString(bytes);
             return ResponseEntity.ok(Map.of("content", base64, "encoding", "base64"));
         }
         if (fileSize > MAX_TEXT_FILE_SIZE_BYTES) {
-            return ResponseEntity.status(413).body(Map.of(
-                    "error", "File too large to preview",
-                    "size", fileSize,
-                    "maxSize", MAX_TEXT_FILE_SIZE_BYTES));
+            return ResponseEntity.status(413)
+                    .body(
+                            Map.of(
+                                    "error", "File too large to preview",
+                                    "size", fileSize,
+                                    "maxSize", MAX_TEXT_FILE_SIZE_BYTES));
         }
         String content = Files.readString(filePath, StandardCharsets.UTF_8);
         return ResponseEntity.ok(Map.of("content", content, "encoding", "utf-8"));
@@ -431,7 +440,8 @@ public class WorkspaceController {
 
         int safeDepth = Math.min(Math.max(depth, 1), 10);
         try {
-            java.util.concurrent.atomic.AtomicInteger nodeCount = new java.util.concurrent.atomic.AtomicInteger(0);
+            java.util.concurrent.atomic.AtomicInteger nodeCount =
+                    new java.util.concurrent.atomic.AtomicInteger(0);
             Map<String, Object> tree = buildTreeNode(cwdPath, safeDepth, nodeCount);
             return ResponseEntity.ok(tree);
         } catch (IOException e) {
@@ -441,7 +451,9 @@ public class WorkspaceController {
         }
     }
 
-    private Map<String, Object> buildTreeNode(Path dir, int remainingDepth, java.util.concurrent.atomic.AtomicInteger nodeCount) throws IOException {
+    private Map<String, Object> buildTreeNode(
+            Path dir, int remainingDepth, java.util.concurrent.atomic.AtomicInteger nodeCount)
+            throws IOException {
         Map<String, Object> node = new HashMap<>();
         node.put("name", dir.getFileName() != null ? dir.getFileName().toString() : dir.toString());
         node.put("path", dir.toAbsolutePath().normalize().toString());
