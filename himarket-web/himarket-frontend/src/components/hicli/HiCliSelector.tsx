@@ -2,7 +2,7 @@ import type { ICliProvider } from "../../lib/apis/cliProvider";
 import { CliSelector } from "../common/CliSelector";
 
 interface HiCliSelectorProps {
-  onSelect: (cliId: string, cwd: string, runtime?: string, providerObj?: ICliProvider, customModelConfig?: string) => void;
+  onSelect: (cliId: string, cwd: string, runtime?: string, providerObj?: ICliProvider, cliSessionConfig?: string) => void;
   disabled: boolean;
 }
 

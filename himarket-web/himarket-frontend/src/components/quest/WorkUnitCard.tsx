@@ -22,7 +22,7 @@ import type {
 import type { WorkUnitMeta } from "../../lib/utils/groupMessages";
 import { ThoughtBlock } from "./ThoughtBlock";
 import { AgentMessage } from "./AgentMessage";
-import { ToolCallCard, extractFileName } from "./ToolCallCard";
+import { ToolCallCard, extractFileName, isMcpItem } from "./ToolCallCard";
 
 interface WorkUnitCardProps {
   items: ChatItem[];
@@ -73,7 +73,18 @@ function getSummaryText(meta: WorkUnitMeta, toolCallItems: ChatItem[]): string {
   if (meta.thinkCount > 0) parts.push(`${meta.thinkCount}次思考`);
   if (meta.switchModeCount > 0) parts.push(`${meta.switchModeCount}次模式切换`);
   if (meta.skillCount > 0) parts.push(`${meta.skillCount}个技能`);
-  if (meta.otherCount > 0) parts.push(`${meta.otherCount}次其他操作`);
+  if (meta.otherCount > 0) {
+    // Count how many "other" items are actually MCP tool calls
+    let mcpCount = 0;
+    for (const item of toolCallItems) {
+      if (item.type !== "tool_call") continue;
+      const tc = item as ChatItemToolCall;
+      if (tc.kind === "other" && isMcpItem(tc)) mcpCount++;
+    }
+    const nonMcpCount = meta.otherCount - mcpCount;
+    if (mcpCount > 0) parts.push(`${mcpCount}次MCP调用`);
+    if (nonMcpCount > 0) parts.push(`${nonMcpCount}次其他操作`);
+  }
   if (parts.length === 0) return `${meta.toolCallCount} 个操作`;
   return parts.join(" · ");
 }

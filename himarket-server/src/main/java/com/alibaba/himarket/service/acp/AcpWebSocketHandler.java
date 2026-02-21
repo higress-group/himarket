@@ -131,32 +131,78 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
         RuntimeConfig config =
                 buildRuntimeConfig(userId, providerKey, providerConfig, cwd, runtimeType);
 
-        // 自定义模型配置注入：在 CLI 进程启动前生成配置文件并注入环境变量
-        CustomModelConfig customModelConfig =
-                (CustomModelConfig) session.getAttributes().get("customModelConfig");
-        if (customModelConfig != null && providerConfig.isSupportsCustomModel()) {
+        // 统一会话配置注入：在 CLI 进程启动前生成配置文件并注入环境变量
+        CliSessionConfig sessionConfig =
+                (CliSessionConfig) session.getAttributes().get("cliSessionConfig");
+        if (sessionConfig != null && providerConfig.isSupportsCustomModel()) {
             CliConfigGenerator generator = configGeneratorRegistry.get(providerKey);
             if (generator != null) {
-                try {
-                    Map<String, String> extraEnv = generator.generateConfig(cwd, customModelConfig);
-                    config.getEnv().putAll(extraEnv);
-                    // 记录生成的配置文件路径，用于启动失败时清理
-                    java.util.List<Path> generatedFiles = getGeneratedConfigFiles(providerKey, cwd);
-                    if (!generatedFiles.isEmpty()) {
-                        generatedConfigFilesMap.put(session.getId(), generatedFiles);
+                // 1. 模型配置注入（现有逻辑）
+                if (sessionConfig.getCustomModelConfig() != null) {
+                    try {
+                        Map<String, String> extraEnv =
+                                generator.generateConfig(cwd, sessionConfig.getCustomModelConfig());
+                        config.getEnv().putAll(extraEnv);
+                        // 记录生成的配置文件路径，用于启动失败时清理
+                        java.util.List<Path> generatedFiles =
+                                getGeneratedConfigFiles(providerKey, cwd);
+                        if (!generatedFiles.isEmpty()) {
+                            generatedConfigFilesMap.put(session.getId(), generatedFiles);
+                        }
+                        logger.info(
+                                "Custom model config applied for provider '{}': baseUrl={},"
+                                        + " modelId={}",
+                                providerKey,
+                                sessionConfig.getCustomModelConfig().getBaseUrl(),
+                                sessionConfig.getCustomModelConfig().getModelId());
+                    } catch (IOException e) {
+                        logger.error(
+                                "Failed to generate custom model config for provider '{}': {}",
+                                providerKey,
+                                e.getMessage(),
+                                e);
+                        // 配置生成失败不阻止 CLI 启动，按现有逻辑继续
                     }
-                    logger.info(
-                            "Custom model config applied for provider '{}': baseUrl={}, modelId={}",
-                            providerKey,
-                            customModelConfig.getBaseUrl(),
-                            customModelConfig.getModelId());
-                } catch (IOException e) {
-                    logger.error(
-                            "Failed to generate custom model config for provider '{}': {}",
-                            providerKey,
-                            e.getMessage(),
-                            e);
-                    // 配置生成失败不阻止 CLI 启动，按现有逻辑继续
+                }
+
+                // 2. MCP 配置注入（新增）
+                if (sessionConfig.getMcpServers() != null
+                        && !sessionConfig.getMcpServers().isEmpty()
+                        && providerConfig.isSupportsMcp()) {
+                    try {
+                        generator.generateMcpConfig(cwd, sessionConfig.getMcpServers());
+                        logger.info(
+                                "MCP config applied for provider '{}': {} server(s)",
+                                providerKey,
+                                sessionConfig.getMcpServers().size());
+                    } catch (IOException e) {
+                        logger.error(
+                                "Failed to generate MCP config for provider '{}': {}",
+                                providerKey,
+                                e.getMessage(),
+                                e);
+                        // MCP 配置生成失败不阻止 CLI 启动
+                    }
+                }
+
+                // 3. Skill 配置注入（新增）
+                if (sessionConfig.getSkills() != null
+                        && !sessionConfig.getSkills().isEmpty()
+                        && providerConfig.isSupportsSkill()) {
+                    try {
+                        generator.generateSkillConfig(cwd, sessionConfig.getSkills());
+                        logger.info(
+                                "Skill config applied for provider '{}': {} skill(s)",
+                                providerKey,
+                                sessionConfig.getSkills().size());
+                    } catch (IOException e) {
+                        logger.error(
+                                "Failed to generate Skill config for provider '{}': {}",
+                                providerKey,
+                                e.getMessage(),
+                                e);
+                        // Skill 配置生成失败不阻止 CLI 启动
+                    }
                 }
             }
         }

@@ -82,6 +82,8 @@ acp:
       compatible-runtimes: LOCAL,K8S
       container-image: ${ACP_SANDBOX_IMAGE:registry.cn-shanghai.aliyuncs.com/daofeng/sandbox:latest}
       supports-custom-model: true
+      supports-mcp: true
+      supports-skill: true
     opencode:
       display-name: OpenCode
       command: ${ACP_CLI_COMMAND_OPENCODE:opencode}

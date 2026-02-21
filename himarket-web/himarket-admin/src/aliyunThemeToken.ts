@@ -38,7 +38,7 @@ export default {
   "colorFillSecondary": "#E5E5E5",
   "colorFill": "#E5E5E5",
   "colorBgLayout": "#F7F7F7",
-  "colorBgSpotlight": "ffffff",
+  "colorBgSpotlight": "rgba(0, 0, 0, 0.85)",
   "colorSuccess": "#23b066",
   "colorSuccessBg": "#EBFFF6",
   "colorSuccessBgHover": "#D1F4E1",

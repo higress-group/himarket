@@ -1,10 +1,10 @@
 import { Sparkles, Terminal, Loader2 } from "lucide-react";
-import { HiCliSelector } from "./HiCliSelector";
+import { WelcomePage } from "../common/WelcomePage";
 import { useHiCliState } from "../../context/HiCliSessionContext";
 import type { ICliProvider } from "../../lib/apis/cliProvider";
 
 interface HiCliWelcomeProps {
-  onSelectCli: (cliId: string, cwd: string, runtime?: string, providerObj?: ICliProvider) => void;
+  onSelectCli: (cliId: string, cwd: string, runtime?: string, providerObj?: ICliProvider, cliSessionConfig?: string) => void;
   onCreateQuest: () => void;
   isConnected: boolean;
   disabled: boolean;
@@ -23,64 +23,64 @@ export function HiCliWelcome({
   const isSandboxCreating = sandbox?.status === "creating";
   const isSandboxError = sandbox?.status === "error";
 
-  return (
-    <div className="flex-1 overflow-y-auto px-6 py-8">
-      <div className="flex flex-col items-center text-center w-full max-w-sm mx-auto min-h-full justify-center">
-        <div className="mb-4 text-gray-300">
-          <Terminal size={48} strokeWidth={1.5} />
+  // 沙箱状态提示 + 已连接后的操作内容
+  const connectedContent = (
+    <>
+      {/* 沙箱创建中提示 */}
+      {isSandboxCreating && (
+        <div className="mb-4 flex items-center justify-center gap-2 text-sm text-blue-600">
+          <Loader2 size={16} className="animate-spin" />
+          <span>{sandbox.message}</span>
         </div>
-        <h1 className="text-2xl font-semibold text-gray-700 mb-2">HiCli</h1>
+      )}
 
-        {isSandboxCreating && (
-          <div className="mb-4 flex items-center justify-center gap-2 text-sm text-blue-600">
-            <Loader2 size={16} className="animate-spin" />
-            <span>{sandbox.message}</span>
-          </div>
-        )}
+      {/* 沙箱错误提示 */}
+      {isSandboxError && (
+        <div className="mb-4 text-sm text-red-500">
+          {sandbox.message}
+        </div>
+      )}
 
-        {isSandboxError && (
-          <div className="mb-4 text-sm text-red-500">
-            {sandbox.message}
-          </div>
-        )}
+      {isSandboxCreating ? (
+        /* 已连接但沙箱正在创建中：只显示创建状态 */
+        <p className="text-sm text-gray-400">
+          请稍候，沙箱就绪后将自动进入会话
+        </p>
+      ) : (
+        <>
+          <p className="text-sm text-gray-400 mb-6">
+            创建一个新的 Quest 开始对话
+          </p>
+          <button
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full
+                       bg-gray-800 text-white text-sm font-medium
+                       hover:bg-gray-700 transition-colors
+                       disabled:opacity-40 disabled:cursor-not-allowed"
+            onClick={onCreateQuest}
+            disabled={disabled || creatingQuest}
+          >
+            {creatingQuest ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <Sparkles size={16} />
+            )}
+            {creatingQuest ? "创建中..." : "新建 Quest"}
+          </button>
+        </>
+      )}
+    </>
+  );
 
-        {isConnected ? (
-          isSandboxCreating ? (
-            /* 已连接但沙箱正在创建中：只显示创建状态 */
-            <p className="text-sm text-gray-400">
-              请稍候，沙箱就绪后将自动进入会话
-            </p>
-          ) : (
-            <>
-              <p className="text-sm text-gray-400 mb-6">
-                创建一个新的 Quest 开始对话
-              </p>
-              <button
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full
-                           bg-gray-800 text-white text-sm font-medium
-                           hover:bg-gray-700 transition-colors
-                           disabled:opacity-40 disabled:cursor-not-allowed"
-                onClick={onCreateQuest}
-                disabled={disabled || creatingQuest}
-              >
-                {creatingQuest ? (
-                  <Loader2 size={16} className="animate-spin" />
-                ) : (
-                  <Sparkles size={16} />
-                )}
-                {creatingQuest ? "创建中..." : "新建 Quest"}
-              </button>
-            </>
-          )
-        ) : (
-          <>
-            <p className="text-sm text-gray-400 mb-6">
-              选择一个 CLI 工具开始调试
-            </p>
-            <HiCliSelector onSelect={onSelectCli} disabled={disabled || isSandboxCreating} />
-          </>
-        )}
-      </div>
-    </div>
+  return (
+    <WelcomePage
+      icon={<Terminal size={48} strokeWidth={1.5} />}
+      title="HiCli"
+      description="选择一个 CLI 工具开始调试"
+      isConnected={isConnected}
+      disabled={disabled || isSandboxCreating}
+      onSelectCli={onSelectCli}
+      showRuntimeSelector={true}
+      connectedContent={connectedContent}
+    />
   );
 }

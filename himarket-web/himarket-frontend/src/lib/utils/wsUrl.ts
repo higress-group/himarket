@@ -16,6 +16,8 @@ export interface WsUrlParams {
   sandboxMode?: string;
   /** JSON 序列化的自定义模型配置 */
   customModelConfig?: string;
+  /** JSON 序列化的统一会话配置（包含模型、MCP、Skill） */
+  cliSessionConfig?: string;
 }
 
 /**
@@ -41,6 +43,7 @@ export function buildAcpWsUrl(
   if (params.runtime) searchParams.set("runtime", params.runtime);
   if (params.sandboxMode) searchParams.set("sandboxMode", params.sandboxMode);
   if (params.customModelConfig) searchParams.set("customModelConfig", params.customModelConfig);
+  if (params.cliSessionConfig) searchParams.set("cliSessionConfig", params.cliSessionConfig);
 
   const qs = searchParams.toString();
   return qs ? `${base}?${qs}` : base;

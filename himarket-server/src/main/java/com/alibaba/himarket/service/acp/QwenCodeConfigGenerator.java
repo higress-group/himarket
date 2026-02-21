@@ -69,6 +69,76 @@ public class QwenCodeConfigGenerator implements CliConfigGenerator {
         return envVars;
     }
 
+    @Override
+    public void generateMcpConfig(
+            String workingDirectory, List<CliSessionConfig.McpServerEntry> mcpServers)
+            throws IOException {
+        if (mcpServers == null || mcpServers.isEmpty()) return;
+
+        Path qwenDir = Path.of(workingDirectory, QWEN_DIR);
+        Path configPath = qwenDir.resolve(CONFIG_FILE_NAME);
+        Files.createDirectories(qwenDir);
+
+        Map<String, Object> root = readExistingConfig(configPath);
+        mergeMcpServers(root, mcpServers);
+        writeConfig(configPath, root);
+    }
+
+    @Override
+    public void generateSkillConfig(
+            String workingDirectory, List<CliSessionConfig.SkillEntry> skills) throws IOException {
+        if (skills == null || skills.isEmpty()) return;
+
+        for (CliSessionConfig.SkillEntry skill : skills) {
+            String dirName = toKebabCase(skill.getName());
+            Path skillDir = Path.of(workingDirectory, QWEN_DIR, "skills", dirName);
+            Files.createDirectories(skillDir);
+            Files.writeString(skillDir.resolve("SKILL.md"), skill.getSkillMdContent());
+        }
+    }
+
+    /**
+     * 将名称转换为 kebab-case 格式。
+     * 规则：空格替换为 -，大写转小写，去除特殊字符，合并连续 -，去除首尾 -。
+     */
+    static String toKebabCase(String name) {
+        if (name == null || name.isBlank()) return "";
+
+        String result =
+                name.trim()
+                        .replaceAll("\\s+", "-")
+                        .toLowerCase()
+                        .replaceAll("[^a-z0-9\\-]", "")
+                        .replaceAll("-{2,}", "-")
+                        .replaceAll("^-|-$", "");
+        return result;
+    }
+
+    /**
+     * 将 MCP Server 列表合并到根配置的 mcpServers 段中。
+     * 按 name 去重，新条目覆盖同名旧条目。
+     */
+    @SuppressWarnings("unchecked")
+    void mergeMcpServers(
+            Map<String, Object> root, List<CliSessionConfig.McpServerEntry> mcpServers) {
+        Map<String, Object> mcpServersMap =
+                root.containsKey("mcpServers")
+                        ? (Map<String, Object>) root.get("mcpServers")
+                        : new LinkedHashMap<>();
+
+        for (CliSessionConfig.McpServerEntry entry : mcpServers) {
+            Map<String, Object> serverConfig = new LinkedHashMap<>();
+            serverConfig.put("url", entry.getUrl());
+            serverConfig.put("type", entry.getTransportType());
+            if (entry.getHeaders() != null && !entry.getHeaders().isEmpty()) {
+                serverConfig.put("headers", entry.getHeaders());
+            }
+            mcpServersMap.put(entry.getName(), serverConfig);
+        }
+
+        root.put("mcpServers", mcpServersMap);
+    }
+
     /**
      * 读取已有的 .qwen/settings.json 配置文件。
      * 如果文件不存在，返回空 map。

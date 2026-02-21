@@ -91,3 +91,38 @@ describe("buildAcpWsUrl", () => {
     expect(parsed.searchParams.has("sandboxMode")).toBe(false);
   });
 });
+
+describe("buildAcpWsUrl - cliSessionConfig", () => {
+  it("should include cliSessionConfig query parameter when provided", () => {
+    const config = JSON.stringify({ mcpServers: [{ name: "test", url: "http://example.com", transportType: "sse" }] });
+    const url = buildAcpWsUrl(
+      { provider: "qwen-code", cliSessionConfig: config },
+      "/ws/acp",
+      ORIGIN,
+    );
+    const parsed = new URL(url);
+    expect(parsed.searchParams.get("cliSessionConfig")).toBe(config);
+  });
+
+  it("should omit cliSessionConfig parameter when not provided", () => {
+    const url = buildAcpWsUrl(
+      { provider: "qwen-code" },
+      "/ws/acp",
+      ORIGIN,
+    );
+    const parsed = new URL(url);
+    expect(parsed.searchParams.has("cliSessionConfig")).toBe(false);
+  });
+
+  it("should include both customModelConfig and cliSessionConfig when both provided", () => {
+    const url = buildAcpWsUrl(
+      { provider: "qwen-code", customModelConfig: '{"model":"x"}', cliSessionConfig: '{"skills":[]}' },
+      "/ws/acp",
+      ORIGIN,
+    );
+    const parsed = new URL(url);
+    expect(parsed.searchParams.get("customModelConfig")).toBe('{"model":"x"}');
+    expect(parsed.searchParams.get("cliSessionConfig")).toBe('{"skills":[]}');
+  });
+});
+

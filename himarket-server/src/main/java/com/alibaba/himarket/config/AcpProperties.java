@@ -125,6 +125,18 @@ public class AcpProperties {
          */
         private boolean supportsCustomModel = false;
 
+        /**
+         * 该 CLI 工具是否支持 MCP Server 配置注入。
+         * 开启后前端会展示 MCP Server 选择器，允许用户选择市场中已订阅的 MCP Server。
+         */
+        private boolean supportsMcp = false;
+
+        /**
+         * 该 CLI 工具是否支持 Skill 配置注入。
+         * 开启后前端会展示 Skill 选择器，允许用户选择市场中已发布的 Skill。
+         */
+        private boolean supportsSkill = false;
+
         public String getDisplayName() {
             return displayName;
         }
@@ -195,6 +207,22 @@ public class AcpProperties {
 
         public void setSupportsCustomModel(boolean supportsCustomModel) {
             this.supportsCustomModel = supportsCustomModel;
+        }
+
+        public boolean isSupportsMcp() {
+            return supportsMcp;
+        }
+
+        public void setSupportsMcp(boolean supportsMcp) {
+            this.supportsMcp = supportsMcp;
+        }
+
+        public boolean isSupportsSkill() {
+            return supportsSkill;
+        }
+
+        public void setSupportsSkill(boolean supportsSkill) {
+            this.supportsSkill = supportsSkill;
         }
     }
 

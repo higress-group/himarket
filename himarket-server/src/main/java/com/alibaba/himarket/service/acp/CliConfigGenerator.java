@@ -1,6 +1,7 @@
 package com.alibaba.himarket.service.acp;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -27,4 +28,31 @@ public interface CliConfigGenerator {
      */
     Map<String, String> generateConfig(String workingDirectory, CustomModelConfig config)
             throws IOException;
+
+    /**
+     * 生成 MCP Server 配置（新增，默认空实现）。
+     * 子类按需覆盖以实现具体的 MCP 配置注入逻辑。
+     *
+     * @param workingDirectory CLI 进程的工作目录
+     * @param mcpServers 选中的 MCP Server 列表
+     * @throws IOException 配置文件写入失败时抛出
+     */
+    default void generateMcpConfig(
+            String workingDirectory, List<CliSessionConfig.McpServerEntry> mcpServers)
+            throws IOException {
+        // 默认不执行任何操作，子类按需覆盖
+    }
+
+    /**
+     * 生成 Skill 配置（新增，默认空实现）。
+     * 子类按需覆盖以实现具体的 Skill 配置注入逻辑。
+     *
+     * @param workingDirectory CLI 进程的工作目录
+     * @param skills 选中的 Skill 列表
+     * @throws IOException 配置文件写入失败时抛出
+     */
+    default void generateSkillConfig(
+            String workingDirectory, List<CliSessionConfig.SkillEntry> skills) throws IOException {
+        // 默认不执行任何操作，子类按需覆盖
+    }
 }

@@ -17,6 +17,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import type { ChatItemToolCall, ToolCallContentItem } from "../../types/acp";
+import { Mcp } from "../icon";
 import { DiffViewer } from "./DiffViewer";
 
 interface ToolCallCardProps {
@@ -118,6 +119,53 @@ function getSkillName(item: ChatItemToolCall): string {
 function isSkillItem(item: ChatItemToolCall): boolean {
   if (item.kind === "skill") return true;
   return /^Skill\s+/i.test(item.title || "");
+}
+
+// ===== MCP tool_call detection & parsing =====
+
+interface McpTitleInfo {
+  toolName: string;
+  serverName: string;
+  paramsSummary: string;
+}
+
+/**
+ * Parse MCP tool_call title like:
+ *   "ip-address-query (ip-query MCP Server): {\"ip\":\"\"}"
+ * into structured parts.
+ */
+function parseMcpTitle(title: string): McpTitleInfo | null {
+  // Pattern: toolName (serverName MCP Server): jsonParams
+  const match = title.match(/^(.+?)\s+\((.+?)\s+MCP Server\)\s*:\s*(.*)$/);
+  if (!match) return null;
+  const [, toolName, serverName, rawParams] = match;
+  // Build a human-readable params summary from the JSON
+  let paramsSummary = "";
+  try {
+    const parsed = JSON.parse(rawParams);
+    if (typeof parsed === "object" && parsed !== null) {
+      const entries = Object.entries(parsed)
+        .filter(([, v]) => v !== "" && v !== null && v !== undefined)
+        .map(([k, v]) => `${k}: ${typeof v === "string" ? v : JSON.stringify(v)}`);
+      paramsSummary = entries.length > 0 ? entries.join(", ") : "";
+    }
+  } catch {
+    // If JSON parse fails, use raw string but trim it
+    paramsSummary = rawParams.length > 60 ? rawParams.slice(0, 60) + "..." : rawParams;
+  }
+  return { toolName, serverName, paramsSummary };
+}
+
+/** Detect if a tool_call is an MCP tool invocation */
+export function isMcpItem(item: ChatItemToolCall): boolean {
+  if (item.kind !== "other") return false;
+  return /\(.+\s+MCP Server\)\s*:/.test(item.title || "");
+}
+
+/** Get parsed MCP info, returns null if not an MCP tool_call */
+function getMcpInfo(item: ChatItemToolCall): McpTitleInfo | null {
+  if (!isMcpItem(item)) return null;
+  return parseMcpTitle(item.title || "");
 }
 
 function getOutputPreview(content?: ToolCallContentItem[]): string | null {
@@ -325,12 +373,32 @@ export function ToolCallCard({
         )}
 
         {!isSkill && item.kind === "other" && (
-          <>
-            <CircleHelp size={14} className="text-gray-400 flex-shrink-0" />
-            <span className="text-xs text-gray-500 truncate flex-1 min-w-0">
-              {item.title}
-            </span>
-          </>
+          (() => {
+            const mcpInfo = getMcpInfo(item);
+            if (mcpInfo) {
+              return (
+                <>
+                  <span className="flex items-center justify-center w-[18px] h-[18px] rounded bg-blue-50 border border-blue-200 flex-shrink-0">
+                    <Mcp className="w-2.5 h-2.5 fill-blue-500" />
+                  </span>
+                  <span className="text-xs text-blue-700 font-medium truncate min-w-0">
+                    {mcpInfo.toolName}
+                  </span>
+                  <span className="text-[10px] text-gray-400 truncate min-w-0 flex-1">
+                    {mcpInfo.serverName}
+                  </span>
+                </>
+              );
+            }
+            return (
+              <>
+                <CircleHelp size={14} className="text-gray-400 flex-shrink-0" />
+                <span className="text-xs text-gray-500 truncate flex-1 min-w-0">
+                  {item.title}
+                </span>
+              </>
+            );
+          })()
         )}
 
         <StatusBadge item={item} />
@@ -457,6 +525,61 @@ export function ToolCallCard({
     item.kind === "switch_mode" ||
     item.kind === "other"
   ) {
+    // MCP tool_call: render as a styled card
+    const mcpInfo = item.kind === "other" ? getMcpInfo(item) : null;
+    if (mcpInfo) {
+      const inProgress = item.status === "in_progress" || item.status === "pending";
+      return (
+        <div
+          className={`
+            rounded-lg border cursor-pointer transition-all duration-200 overflow-hidden
+            ${
+              selected
+                ? "border-blue-300 bg-blue-50/40 shadow-sm"
+                : isFailed
+                  ? "border-red-200 bg-red-50/30"
+                  : "border-blue-200/60 bg-gradient-to-r from-blue-50/40 to-white hover:border-blue-300 hover:shadow-sm"
+            }
+          `}
+          onClick={onClick}
+        >
+          <div className="px-3 py-2.5">
+            <div className="flex items-center gap-2.5">
+              <span
+                className={`
+                  flex items-center justify-center w-[22px] h-[22px] rounded-md flex-shrink-0
+                  ${isFailed ? "bg-red-50 border border-red-200" : "bg-blue-100/80 border border-blue-200"}
+                `}
+              >
+                <Mcp className={`w-3 h-3 ${isFailed ? "fill-red-400" : "fill-blue-500"}`} />
+              </span>
+              <div className="flex flex-col flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm text-gray-800 font-medium truncate">
+                    {mcpInfo.toolName}
+                  </span>
+                  <span className="text-[11px] text-gray-400 truncate flex-shrink-0">
+                    {mcpInfo.serverName}
+                  </span>
+                </div>
+                {mcpInfo.paramsSummary ? (
+                  <span className="text-[11px] text-gray-400 truncate">
+                    {mcpInfo.paramsSummary}
+                  </span>
+                ) : (
+                  <span className={`text-[11px] ${isFailed ? "text-red-400" : inProgress ? "text-blue-400" : "text-gray-400"}`}>
+                    {isFailed ? "MCP 调用失败" : inProgress ? "MCP 调用中..." : "MCP 调用完成"}
+                  </span>
+                )}
+              </div>
+              <StatusBadge item={item} />
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Non-MCP "other" and other lightweight kinds
     const Icon =
       item.kind === "search"
         ? Search

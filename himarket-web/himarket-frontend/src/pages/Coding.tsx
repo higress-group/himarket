@@ -29,7 +29,7 @@ import type { FileNode, OpenFile } from "../types/coding";
 import type { ChatItemPlan } from "../types/acp";
 import type { ICliProvider } from "../lib/apis/cliProvider";
 import { buildAcpWsUrl } from "../lib/utils/wsUrl";
-import { CliSelector } from "../components/common/CliSelector";
+import { WelcomePage } from "../components/common/WelcomePage";
 
 const EXT_TO_LANG: Record<string, string> = {
   ts: "typescript",
@@ -427,12 +427,15 @@ function CodingContent() {
   // 未连接时显示欢迎页，已连接时显示 IDE 界面
   if (!isConnected || !activeQuest) {
     return (
-      <div className="flex flex-1 min-h-0 overflow-hidden items-center justify-center bg-white/50">
-        <div className="flex flex-col items-center gap-6">
-          <h2 className="text-xl font-semibold text-gray-700">欢迎使用 HiCoding</h2>
-          <p className="text-sm text-gray-500">请选择 CLI 工具以开始编码</p>
-          <CliSelector onSelect={handleSelectCli} disabled={false} />
-        </div>
+      <div className="flex flex-1 min-h-0 overflow-hidden bg-white/50">
+        <WelcomePage
+          icon={<Code2 size={48} />}
+          title="HiCoding"
+          description="选择一个 CLI 工具开始编码"
+          isConnected={false}
+          disabled={false}
+          onSelectCli={handleSelectCli}
+        />
 
         {/* Permission dialog */}
         {state.pendingPermission && (
