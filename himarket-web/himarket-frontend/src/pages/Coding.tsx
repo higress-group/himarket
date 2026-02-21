@@ -132,7 +132,7 @@ function CodingContent() {
   const [, setCurrentProvider] = useState(
     () => localStorage.getItem("hicoding:cliProvider") || ""
   );
-  const session = useAcpSession({ wsUrl: currentWsUrl, runtimeType: "local" });
+  const session = useAcpSession({ wsUrl: currentWsUrl });
 
   const state = useQuestState();
   const activeQuest = useActiveQuest();
