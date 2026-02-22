@@ -324,7 +324,7 @@ class PodReuseManagerPropertyTest {
         assertEquals("sandbox", labels.get("app"), "标签 app 应为 sandbox");
         assertEquals(userId, labels.get("userId"), "标签 userId 应与输入一致");
         assertEquals("user", labels.get("sandboxMode"), "标签 sandboxMode 应为 user");
-        assertEquals(providerKey, labels.get("provider"), "标签 provider 应与输入的 providerKey 一致");
+        assertNull(labels.get("provider"), "Pod 标签中不应包含 provider 字段");
     }
 
     // ===== Property 7: 连接计数不变量 =====

@@ -248,6 +248,12 @@ public class AcpProperties {
          */
         private boolean sandboxAccessViaService = true;
 
+        /**
+         * Sidecar Server 允许启动的 CLI 命令白名单，逗号分隔。
+         * 传递给 Pod 的 ALLOWED_COMMANDS 环境变量。
+         */
+        private String allowedCommands = "qodercli,qwen";
+
         public long getReusePodIdleTimeout() {
             return reusePodIdleTimeout;
         }
@@ -262,6 +268,14 @@ public class AcpProperties {
 
         public void setSandboxAccessViaService(boolean sandboxAccessViaService) {
             this.sandboxAccessViaService = sandboxAccessViaService;
+        }
+
+        public String getAllowedCommands() {
+            return allowedCommands;
+        }
+
+        public void setAllowedCommands(String allowedCommands) {
+            this.allowedCommands = allowedCommands;
         }
     }
 }

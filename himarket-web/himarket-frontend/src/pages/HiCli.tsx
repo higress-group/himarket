@@ -55,6 +55,11 @@ function HiCliContent() {
       autoCreatedRef.current = true;
       session.createQuest(state.cwd || ".").catch((err) => {
         console.error("Auto create quest failed:", err);
+        dispatch({
+          type: "SANDBOX_STATUS",
+          status: "error",
+          message: err?.message || "会话创建失败",
+        });
       });
     }
     // 断开连接时重置标记
@@ -80,8 +85,13 @@ function HiCliContent() {
   const handleCreateQuest = useCallback(() => {
     session.createQuest(state.cwd || ".").catch((err) => {
       console.error("Failed to create quest:", err);
+      dispatch({
+        type: "SANDBOX_STATUS",
+        status: "error",
+        message: err?.message || "会话创建失败",
+      });
     });
-  }, [session, state.cwd]);
+  }, [session, state.cwd, dispatch]);
 
   // 切换工具：断开连接并返回 CLI 选择界面
   const handleSwitchTool = useCallback(() => {

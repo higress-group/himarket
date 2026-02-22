@@ -35,6 +35,8 @@ public class PodFileSystemAdapter implements FileSystemAdapter {
     private static final Logger logger = LoggerFactory.getLogger(PodFileSystemAdapter.class);
     private static final RuntimeType RUNTIME_TYPE = RuntimeType.K8S;
     private static final long EXEC_TIMEOUT_SECONDS = 30;
+    private static final int EXEC_MAX_RETRIES = 2;
+    private static final long EXEC_RETRY_DELAY_MS = 500;
 
     private final KubernetesClient k8sClient;
     private final String podName;
@@ -286,8 +288,43 @@ public class PodFileSystemAdapter implements FileSystemAdapter {
 
     /**
      * 在 Pod 容器内执行命令，可选通过 stdin 传入数据。
+     * 内置重试机制：遇到连接级别的异常（超时、SocketException 等）时自动重试。
      */
     ExecResult execInPodWithStdin(String stdinData, String... command) throws IOException {
+        IOException lastException = null;
+        for (int attempt = 1; attempt <= EXEC_MAX_RETRIES; attempt++) {
+            try {
+                return execInPodOnce(stdinData, command);
+            } catch (FileSystemException e) {
+                lastException = e;
+                // 仅对连接级别的 IO 错误重试（超时、连接断开等），其他类型直接抛出
+                if (e.getErrorType() != FileSystemException.ErrorType.IO_ERROR) {
+                    throw e;
+                }
+                if (attempt < EXEC_MAX_RETRIES) {
+                    logger.warn(
+                            "Pod exec 失败 (第 {}/{} 次), {}ms 后重试: cmd={}, error={}",
+                            attempt,
+                            EXEC_MAX_RETRIES,
+                            EXEC_RETRY_DELAY_MS,
+                            String.join(" ", command),
+                            e.getMessage());
+                    try {
+                        Thread.sleep(EXEC_RETRY_DELAY_MS);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        throw e;
+                    }
+                }
+            }
+        }
+        throw lastException;
+    }
+
+    /**
+     * 单次执行 Pod 命令（无重试）。
+     */
+    private ExecResult execInPodOnce(String stdinData, String... command) throws IOException {
         ByteArrayOutputStream stdout = new ByteArrayOutputStream();
         ByteArrayOutputStream stderr = new ByteArrayOutputStream();
         CompletableFuture<Integer> exitCodeFuture = new CompletableFuture<>();

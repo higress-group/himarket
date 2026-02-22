@@ -287,7 +287,9 @@ class AcpWebSocketHandlerTest {
         verify(podReuseManager, timeout(5000)).acquirePod(eq("user1"), any(RuntimeConfig.class));
         verify(runtimeFactory, timeout(5000)).create(eq(RuntimeType.K8S), any(RuntimeConfig.class));
         verify(mockK8sAdapter, timeout(5000)).setReuseMode(true);
-        verify(mockK8sAdapter, timeout(5000)).startWithExistingPod(podInfo);
+        verify(mockK8sAdapter, timeout(5000))
+                .prepareForExistingPod(eq(podInfo), any(RuntimeConfig.class));
+        verify(mockK8sAdapter, timeout(5000)).connectAndStart();
         // 不应调用普通的 start
         verify(mockK8sAdapter, never()).start(any(RuntimeConfig.class));
     }
@@ -323,7 +325,9 @@ class AcpWebSocketHandlerTest {
         // POC 阶段：K8s 运行时默认使用用户级沙箱，应走复用路径（异步）
         verify(podReuseManager, timeout(5000)).acquirePod(eq("user1"), any(RuntimeConfig.class));
         verify(mockK8sAdapter, timeout(5000)).setReuseMode(true);
-        verify(mockK8sAdapter, timeout(5000)).startWithExistingPod(podInfo);
+        verify(mockK8sAdapter, timeout(5000))
+                .prepareForExistingPod(eq(podInfo), any(RuntimeConfig.class));
+        verify(mockK8sAdapter, timeout(5000)).connectAndStart();
         verify(mockK8sAdapter, never()).start(any(RuntimeConfig.class));
     }
 

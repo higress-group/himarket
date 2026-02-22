@@ -132,9 +132,13 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
                 buildRuntimeConfig(userId, providerKey, providerConfig, cwd, runtimeType);
 
         // 统一会话配置注入：在 CLI 进程启动前生成配置文件并注入环境变量
+        // K8s 运行时：配置生成延迟到 Pod Ready 后，通过 PodFileSystemAdapter 写入 Pod 内部
+        // 本地运行时：直接在本地文件系统生成配置文件
         CliSessionConfig sessionConfig =
                 (CliSessionConfig) session.getAttributes().get("cliSessionConfig");
-        if (sessionConfig != null && providerConfig.isSupportsCustomModel()) {
+        if (sessionConfig != null
+                && providerConfig.isSupportsCustomModel()
+                && runtimeType != RuntimeType.K8S) {
             CliConfigGenerator generator = configGeneratorRegistry.get(providerKey);
             if (generator != null) {
                 // 1. 模型配置注入（现有逻辑）
@@ -165,7 +169,7 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
                     }
                 }
 
-                // 2. MCP 配置注入（新增）
+                // 2. MCP 配置注入
                 if (sessionConfig.getMcpServers() != null
                         && !sessionConfig.getMcpServers().isEmpty()
                         && providerConfig.isSupportsMcp()) {
@@ -181,11 +185,10 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
                                 providerKey,
                                 e.getMessage(),
                                 e);
-                        // MCP 配置生成失败不阻止 CLI 启动
                     }
                 }
 
-                // 3. Skill 配置注入（新增）
+                // 3. Skill 配置注入
                 if (sessionConfig.getSkills() != null
                         && !sessionConfig.getSkills().isEmpty()
                         && providerConfig.isSupportsSkill()) {
@@ -201,7 +204,6 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
                                 providerKey,
                                 e.getMessage(),
                                 e);
-                        // Skill 配置生成失败不阻止 CLI 启动
                     }
                 }
             }
@@ -226,8 +228,17 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
 
                 final String fProviderKey = providerKey;
                 final RuntimeConfig fConfig = config;
+                final CliProviderConfig fProviderConfig = providerConfig;
+                final CliSessionConfig fSessionConfig = sessionConfig;
                 podInitExecutor.submit(
-                        () -> initK8sPodAsync(session, userId, fProviderKey, fConfig));
+                        () ->
+                                initK8sPodAsync(
+                                        session,
+                                        userId,
+                                        fProviderKey,
+                                        fConfig,
+                                        fProviderConfig,
+                                        fSessionConfig));
                 return; // 不阻塞，直接返回让 WebSocket 连接完成
             } else {
                 // 原有逻辑：本地运行时同步启动
@@ -410,7 +421,12 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
      * 4. 失败则推送错误通知并关闭连接
      */
     private void initK8sPodAsync(
-            WebSocketSession session, String userId, String providerKey, RuntimeConfig config) {
+            WebSocketSession session,
+            String userId,
+            String providerKey,
+            RuntimeConfig config,
+            CliProviderConfig providerConfig,
+            CliSessionConfig sessionConfig) {
         try {
             logger.info("[K8s-Init] 开始异步 Pod 初始化: userId={}, session={}", userId, session.getId());
             sendSandboxStatus(session, "creating", "正在准备沙箱环境...");
@@ -431,13 +447,24 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
                 return;
             }
 
-            logger.info(
-                    "[K8s-Init] 创建 K8sRuntimeAdapter 并连接 Sidecar: sidecarUri={}",
-                    podInfo.sidecarWsUri());
+            sendSandboxStatus(session, "connecting", "沙箱已就绪，正在连接...");
+
+            logger.info("[K8s-Init] 创建 K8sRuntimeAdapter: sidecarUri={}", podInfo.sidecarWsUri());
             K8sRuntimeAdapter adapter =
                     (K8sRuntimeAdapter) runtimeFactory.create(RuntimeType.K8S, config);
             adapter.setReuseMode(true);
-            adapter.startWithExistingPod(podInfo);
+
+            // 先初始化 Pod 基本信息和文件系统适配器（不建立 WebSocket 连接）
+            // startWithExistingPod 内部已将 fileSystem 创建提前到 connectToSidecarWebSocket 之前
+            // 但我们需要在 CLI 启动前注入配置，所以先手动准备 adapter 再注入配置
+            adapter.prepareForExistingPod(podInfo, config);
+
+            // K8s 运行时：在 CLI 启动前，通过 PodFileSystemAdapter 注入配置文件到 Pod 内部
+            // 必须在 connectToSidecarWebSocket 之前完成，因为 Sidecar 收到连接后会立即 spawn CLI
+            injectConfigIntoPod(adapter, providerKey, providerConfig, sessionConfig, config);
+
+            // 现在建立 WebSocket 连接，触发 Sidecar 启动 CLI 进程（此时配置文件已就位）
+            adapter.connectAndStart();
             logger.info("[K8s-Init] Sidecar WebSocket 连接成功: pod={}", podInfo.podName());
 
             runtimeMap.put(session.getId(), adapter);
@@ -458,6 +485,21 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
                                                 line.length() > 300
                                                         ? line.substring(0, 300) + "..."
                                                         : line);
+                                        // 检测 CLI 返回的 JSON-RPC error 响应，记录有意义的告警日志
+                                        try {
+                                            JsonNode node = objectMapper.readTree(line);
+                                            if (node.has("error") && node.has("jsonrpc")) {
+                                                JsonNode error = node.get("error");
+                                                logger.warn(
+                                                        "[K8s-Init] CLI 返回错误响应: code={},"
+                                                                + " message={}, pod={}",
+                                                        error.path("code").asInt(),
+                                                        error.path("message").asText(),
+                                                        podInfo.podName());
+                                            }
+                                        } catch (Exception ignored) {
+                                            // 非 JSON 内容，忽略
+                                        }
                                         try {
                                             if (session.isOpen()) {
                                                 synchronized (session) {
@@ -553,6 +595,177 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
             } catch (IOException closeEx) {
                 logger.debug("Error closing WebSocket after pod init failure", closeEx);
             }
+        }
+    }
+
+    /**
+     * K8s 运行时：Pod Ready 后通过 PodFileSystemAdapter 将配置文件写入 Pod 内部。
+     * <p>
+     * 解决原有逻辑中在后端 JVM 本地写 /workspace 导致 Read-only file system 的问题。
+     * 配置生成仍复用 CliConfigGenerator 的内存逻辑，但最终通过 kubectl exec 写入 Pod。
+     */
+    private void injectConfigIntoPod(
+            K8sRuntimeAdapter adapter,
+            String providerKey,
+            CliProviderConfig providerConfig,
+            CliSessionConfig sessionConfig,
+            RuntimeConfig config) {
+        if (sessionConfig == null
+                || providerConfig == null
+                || !providerConfig.isSupportsCustomModel()) {
+            return;
+        }
+        CliConfigGenerator generator = configGeneratorRegistry.get(providerKey);
+        if (generator == null) {
+            return;
+        }
+
+        var fileSystem = adapter.getFileSystem();
+        if (fileSystem == null) {
+            logger.warn(
+                    "[K8s-Config] PodFileSystemAdapter not available, skipping config injection");
+            return;
+        }
+
+        String cwd = "/workspace";
+
+        // 1. 模型配置注入：生成到临时目录，再通过 PodFileSystemAdapter 写入 Pod
+        if (sessionConfig.getCustomModelConfig() != null) {
+            try {
+                // 使用临时目录生成配置文件，然后读取内容写入 Pod
+                java.nio.file.Path tempDir = java.nio.file.Files.createTempDirectory("k8s-config-");
+                try {
+                    Map<String, String> extraEnv =
+                            generator.generateConfig(
+                                    tempDir.toString(), sessionConfig.getCustomModelConfig());
+                    config.getEnv().putAll(extraEnv);
+
+                    // 将临时目录中生成的配置文件写入 Pod
+                    copyTempConfigToPod(tempDir, cwd, fileSystem);
+
+                    logger.info(
+                            "[K8s-Config] Custom model config injected into pod for provider '{}': "
+                                    + "baseUrl={}, modelId={}",
+                            providerKey,
+                            sessionConfig.getCustomModelConfig().getBaseUrl(),
+                            sessionConfig.getCustomModelConfig().getModelId());
+                } finally {
+                    deleteDirectory(tempDir);
+                }
+            } catch (Exception e) {
+                logger.error(
+                        "[K8s-Config] Failed to inject custom model config for provider '{}': {}",
+                        providerKey,
+                        e.getMessage(),
+                        e);
+            }
+        }
+
+        // 2. MCP 配置注入
+        if (sessionConfig.getMcpServers() != null
+                && !sessionConfig.getMcpServers().isEmpty()
+                && providerConfig.isSupportsMcp()) {
+            try {
+                java.nio.file.Path tempDir = java.nio.file.Files.createTempDirectory("k8s-mcp-");
+                try {
+                    generator.generateMcpConfig(tempDir.toString(), sessionConfig.getMcpServers());
+                    copyTempConfigToPod(tempDir, cwd, fileSystem);
+                    logger.info(
+                            "[K8s-Config] MCP config injected into pod for provider '{}': {}"
+                                    + " server(s)",
+                            providerKey,
+                            sessionConfig.getMcpServers().size());
+                } finally {
+                    deleteDirectory(tempDir);
+                }
+            } catch (Exception e) {
+                logger.error(
+                        "[K8s-Config] Failed to inject MCP config for provider '{}': {}",
+                        providerKey,
+                        e.getMessage(),
+                        e);
+            }
+        }
+
+        // 3. Skill 配置注入
+        if (sessionConfig.getSkills() != null
+                && !sessionConfig.getSkills().isEmpty()
+                && providerConfig.isSupportsSkill()) {
+            try {
+                java.nio.file.Path tempDir = java.nio.file.Files.createTempDirectory("k8s-skill-");
+                try {
+                    generator.generateSkillConfig(tempDir.toString(), sessionConfig.getSkills());
+                    copyTempConfigToPod(tempDir, cwd, fileSystem);
+                    logger.info(
+                            "[K8s-Config] Skill config injected into pod for provider '{}': {}"
+                                    + " skill(s)",
+                            providerKey,
+                            sessionConfig.getSkills().size());
+                } finally {
+                    deleteDirectory(tempDir);
+                }
+            } catch (Exception e) {
+                logger.error(
+                        "[K8s-Config] Failed to inject Skill config for provider '{}': {}",
+                        providerKey,
+                        e.getMessage(),
+                        e);
+            }
+        }
+    }
+
+    /**
+     * 将临时目录中生成的配置文件递归写入 Pod 内部。
+     *
+     * @param tempDir  本地临时目录（CliConfigGenerator 生成的配置文件所在目录）
+     * @param podCwd   Pod 内的目标根目录（如 /workspace）
+     * @param fileSystem PodFileSystemAdapter 实例
+     */
+    private void copyTempConfigToPod(
+            java.nio.file.Path tempDir,
+            String podCwd,
+            com.alibaba.himarket.service.acp.runtime.FileSystemAdapter fileSystem) {
+        try {
+            java.nio.file.Files.walk(tempDir)
+                    .filter(java.nio.file.Files::isRegularFile)
+                    .forEach(
+                            file -> {
+                                try {
+                                    // 计算相对路径：tempDir 下的相对路径即为 Pod 内 cwd 下的相对路径
+                                    String relativePath = tempDir.relativize(file).toString();
+                                    String content = java.nio.file.Files.readString(file);
+                                    // PodFileSystemAdapter.writeFile 接受相对于 basePath(/workspace) 的路径
+                                    fileSystem.writeFile(relativePath, content);
+                                    logger.debug(
+                                            "[K8s-Config] Written to pod: {}/{}",
+                                            podCwd,
+                                            relativePath);
+                                } catch (Exception e) {
+                                    logger.warn(
+                                            "[K8s-Config] Failed to write file to pod: {}",
+                                            e.getMessage());
+                                }
+                            });
+        } catch (IOException e) {
+            logger.warn("[K8s-Config] Failed to walk temp directory: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * 递归删除临时目录。
+     */
+    private void deleteDirectory(java.nio.file.Path dir) {
+        try {
+            java.nio.file.Files.walk(dir)
+                    .sorted(java.util.Comparator.reverseOrder())
+                    .forEach(
+                            path -> {
+                                try {
+                                    java.nio.file.Files.deleteIfExists(path);
+                                } catch (IOException ignored) {
+                                }
+                            });
+        } catch (IOException ignored) {
         }
     }
 

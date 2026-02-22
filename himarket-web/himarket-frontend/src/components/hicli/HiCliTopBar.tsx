@@ -162,6 +162,11 @@ export function HiCliTopBar({
             {hiCliState.sandboxStatus.message}
           </span>
         )}
+        {hiCliState.sandboxStatus?.status === "error" && (
+          <span className="ml-2 text-red-500">
+            {hiCliState.sandboxStatus.message}
+          </span>
+        )}
       </div>
 
       {/* Debug tab toggle buttons */}

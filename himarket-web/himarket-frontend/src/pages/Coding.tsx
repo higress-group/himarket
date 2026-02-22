@@ -230,6 +230,11 @@ function CodingContent() {
       autoCreatedRef.current = true;
       session.createQuest(".").catch(err => {
         console.error("Failed to create quest:", err);
+        dispatch({
+          type: "SANDBOX_STATUS",
+          status: "error",
+          message: err?.message || "会话创建失败",
+        });
       });
     }
     // 断开连接时重置标记

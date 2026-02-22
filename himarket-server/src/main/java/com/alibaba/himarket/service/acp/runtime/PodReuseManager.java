@@ -14,6 +14,7 @@ import io.fabric8.kubernetes.api.model.PodList;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
+import io.fabric8.kubernetes.api.model.ServiceList;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import java.net.URI;
 import java.time.Duration;
@@ -50,8 +51,8 @@ public class PodReuseManager {
     static final String LABEL_SANDBOX_MODE = "sandboxMode";
     static final String SANDBOX_MODE_USER = "user";
     static final String DEFAULT_SANDBOX_IMAGE =
-            "registry.cn-shanghai.aliyuncs.com/daofeng/sandbox:latest";
-    static final String IMAGE_PULL_SECRET = "daofeng-acr-secret";
+            "opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/sandbox:latest";
+    static final String IMAGE_PULL_SECRET = "";
     static final Duration POD_READY_TIMEOUT = Duration.ofSeconds(60);
 
     /** 镜像拉取等可恢复场景下的最大等待时间 */
@@ -87,6 +88,7 @@ public class PodReuseManager {
     private final ScheduledExecutorService scheduler;
     private final long idleTimeoutSeconds;
     private final boolean sandboxAccessViaService;
+    private String allowedCommands = "qodercli,qwen";
 
     @org.springframework.beans.factory.annotation.Autowired
     public PodReuseManager(K8sConfigService k8sConfigService, AcpProperties acpProperties) {
@@ -94,6 +96,7 @@ public class PodReuseManager {
                 k8sConfigService,
                 acpProperties.getK8s().getReusePodIdleTimeout(),
                 acpProperties.getK8s().isSandboxAccessViaService());
+        this.allowedCommands = acpProperties.getK8s().getAllowedCommands();
     }
 
     public PodReuseManager(K8sConfigService k8sConfigService, long idleTimeoutSeconds) {
@@ -430,6 +433,7 @@ public class PodReuseManager {
                         && readyPod.getStatus() != null
                         && readyPod.getStatus().getPodIP() != null
                         && !readyPod.getStatus().getPodIP().isBlank()) {
+                    // Service IP 不在此处同步获取，由 acquirePod 异步补获取
                     String svcIp =
                             sandboxAccessViaService
                                     ? ensureServiceForPod(client, podName, userId)
@@ -496,8 +500,6 @@ public class PodReuseManager {
                         ? config.getContainerImage()
                         : DEFAULT_SANDBOX_IMAGE;
 
-        String cliArgs = config.getArgs() != null ? String.join(" ", config.getArgs()) : "";
-
         String cpuLimit = "2";
         String memoryLimit = "4Gi";
         if (config.getResourceLimits() != null) {
@@ -509,32 +511,24 @@ public class PodReuseManager {
             }
         }
 
-        Pod pod =
+        PodBuilder podBuilder =
                 new PodBuilder()
                         .withNewMetadata()
                         .withGenerateName("sandbox-" + userId + "-")
                         .withNamespace(NAMESPACE)
                         .addToLabels("app", LABEL_APP)
                         .addToLabels("userId", userId)
-                        .addToLabels("provider", config.getProviderKey())
                         .addToLabels(LABEL_SANDBOX_MODE, SANDBOX_MODE_USER)
                         .endMetadata()
                         .withNewSpec()
                         .withRestartPolicy("Never")
-                        .addNewImagePullSecret()
-                        .withName(IMAGE_PULL_SECRET)
-                        .endImagePullSecret()
                         .addNewContainer()
                         .withName("sandbox")
                         .withImage(sandboxImage)
                         .withImagePullPolicy("Always")
                         .addNewEnv()
-                        .withName("CLI_COMMAND")
-                        .withValue(config.getCommand())
-                        .endEnv()
-                        .addNewEnv()
-                        .withName("CLI_ARGS")
-                        .withValue(cliArgs)
+                        .withName("ALLOWED_COMMANDS")
+                        .withValue(allowedCommands)
                         .endEnv()
                         .addToPorts(
                                 new ContainerPortBuilder()
@@ -558,8 +552,19 @@ public class PodReuseManager {
                         .withClaimName("workspace-" + userId)
                         .endPersistentVolumeClaim()
                         .endVolume()
-                        .endSpec()
-                        .build();
+                        .endSpec();
+
+        // 仅在配置了 imagePullSecret 时添加
+        if (IMAGE_PULL_SECRET != null && !IMAGE_PULL_SECRET.isBlank()) {
+            podBuilder
+                    .editSpec()
+                    .addNewImagePullSecret()
+                    .withName(IMAGE_PULL_SECRET)
+                    .endImagePullSecret()
+                    .endSpec();
+        }
+
+        Pod pod = podBuilder.build();
 
         Pod created = client.pods().inNamespace(NAMESPACE).resource(pod).create();
         String podName = created.getMetadata().getName();
@@ -750,13 +755,53 @@ public class PodReuseManager {
      * @return Service 的 External IP，如果创建失败或超时则返回 null
      */
     String ensureServiceForPod(KubernetesClient client, String podName, String userId) {
-        // 先查已有 Service
+        // 1. 先按 podName 精确查找对应的 Service
         String existingIp = getServiceIpForPod(client, podName);
         if (existingIp != null) {
             return existingIp;
         }
-        // Service 不存在或未就绪，补创建
-        log.info("Pod '{}' 对应的 Service 不存在，补创建 LoadBalancer Service", podName);
+
+        // 2. 按 userId label 查找该用户已有的 Service（Pod 重建后名字变了，但 Service selector 按 userId 匹配）
+        try {
+            ServiceList svcList =
+                    client.services()
+                            .inNamespace(NAMESPACE)
+                            .withLabels(Map.of("app", LABEL_APP, "userId", userId))
+                            .list();
+            if (svcList != null && svcList.getItems() != null) {
+                for (Service svc : svcList.getItems()) {
+                    if (svc.getStatus() != null
+                            && svc.getStatus().getLoadBalancer() != null
+                            && svc.getStatus().getLoadBalancer().getIngress() != null
+                            && !svc.getStatus().getLoadBalancer().getIngress().isEmpty()) {
+                        String ip = svc.getStatus().getLoadBalancer().getIngress().get(0).getIp();
+                        if (ip != null && !ip.isBlank()) {
+                            log.info(
+                                    "复用用户已有 Service: userId={}, service={}, ip={}",
+                                    userId,
+                                    svc.getMetadata().getName(),
+                                    ip);
+                            return ip;
+                        }
+                        String hostname =
+                                svc.getStatus().getLoadBalancer().getIngress().get(0).getHostname();
+                        if (hostname != null && !hostname.isBlank()) {
+                            log.info(
+                                    "复用用户已有 Service: userId={}, service={}, hostname={}",
+                                    userId,
+                                    svc.getMetadata().getName(),
+                                    hostname);
+                            return hostname;
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("按 userId 查找已有 Service 失败: userId={}, error={}", userId, e.getMessage());
+        }
+
+        // 3. 都没找到，创建新 Service
+        log.info("Pod '{}' 未找到可复用的 Service，创建 LoadBalancer Service", podName);
         return createServiceForPod(client, podName, userId);
     }
 

@@ -1,11 +1,11 @@
 # HiMarket 统一沙箱镜像 (精简版)
 # 预装 Node.js + Python + qodercli + qwen-code
 # 适用于 HiCoding / HiWork / HiCli 全场景
-# 单容器方案：websocat 桥接 WebSocket ↔ CLI Agent stdio
+# 单容器方案：Node.js Sidecar Server 桥接 WebSocket ↔ CLI Agent stdio
 #
 # 基础镜像：Rocky Linux 9 (RHEL 9 兼容，支持 x86_64 + aarch64 双架构)
 
-FROM rockylinux:9
+FROM opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/rockylinux:9
 
 LABEL maintainer="himarket-team"
 LABEL description="HiMarket unified sandbox image for HiCoding/HiWork/HiCli"
@@ -23,6 +23,11 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && \
 # ============================================================
 # 1. 系统基础工具
 # ============================================================
+# 配置阿里云镜像源（解决 mirrors.rockylinux.org 不可达问题）
+RUN sed -e 's|^mirrorlist=|#mirrorlist=|g' \
+    -e 's|^#baseurl=http://dl.rockylinux.org/$contentdir|baseurl=https://mirrors.aliyun.com/rockylinux|g' \
+    -i.bak /etc/yum.repos.d/rocky*.repo
+
 RUN yum install -y --allowerasing \
     ca-certificates \
     curl \
@@ -114,13 +119,10 @@ RUN npm install -g @qwen-code/qwen-code@latest
 # RUN curl -fsSL https://example.com/opencode/install | bash
 
 # ============================================================
-# 5. websocat — WebSocket ↔ stdio 桥接器 (替代自研 ACP Sidecar)
+# 5. Sidecar Server — Node.js WebSocket 服务，支持多 CLI 进程
 # ============================================================
-# websocat 将 WebSocket 连接与 CLI 进程的 stdin/stdout 双向桥接，
-# 天然适配 ACP 协议（newline-delimited JSON-RPC）。
-# GitHub: https://github.com/vi/websocat
-COPY websocat.x86_64-unknown-linux-musl /usr/local/bin/websocat
-RUN chmod +x /usr/local/bin/websocat
+COPY sidecar-server/ /usr/local/lib/sidecar-server/
+RUN cd /usr/local/lib/sidecar-server && npm install --production
 
 # ============================================================
 # 6. 启动脚本

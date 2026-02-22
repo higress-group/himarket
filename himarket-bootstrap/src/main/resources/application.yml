@@ -47,6 +47,7 @@ acp:
   k8s:
     reuse-pod-idle-timeout: ${ACP_K8S_REUSE_POD_IDLE_TIMEOUT:1800}
     sandbox-access-via-service: ${ACP_K8S_SANDBOX_ACCESS_VIA_SERVICE:true}
+    allowed-commands: ${ACP_K8S_ALLOWED_COMMANDS:qodercli,qwen}
   providers:
     qodercli:
       display-name: Qoder CLI
@@ -54,7 +55,7 @@ acp:
       args: ${ACP_CLI_ARGS_QODERCLI:--acp}
       runtime-category: native
       compatible-runtimes: LOCAL,K8S
-      container-image: ${ACP_SANDBOX_IMAGE:registry.cn-shanghai.aliyuncs.com/daofeng/sandbox:latest}
+      container-image: ${ACP_SANDBOX_IMAGE:opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/sandbox:latest}
     kiro-cli:
       display-name: Kiro CLI
       command: ${ACP_CLI_COMMAND_KIRO:kiro-cli}
@@ -80,7 +81,7 @@ acp:
       isolate-home: false
       runtime-category: nodejs
       compatible-runtimes: LOCAL,K8S
-      container-image: ${ACP_SANDBOX_IMAGE:registry.cn-shanghai.aliyuncs.com/daofeng/sandbox:latest}
+      container-image: ${ACP_SANDBOX_IMAGE:opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/sandbox:latest}
       supports-custom-model: true
       supports-mcp: true
       supports-skill: true

@@ -10,6 +10,7 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
@@ -45,8 +46,8 @@ public class K8sRuntimeAdapter implements RuntimeAdapter {
 
     static final String DEFAULT_NAMESPACE = "himarket";
     static final String DEFAULT_SANDBOX_IMAGE =
-            "registry.cn-shanghai.aliyuncs.com/daofeng/sandbox:latest";
-    static final String IMAGE_PULL_SECRET = "daofeng-acr-secret";
+            "opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/sandbox:latest";
+    static final String IMAGE_PULL_SECRET = "";
     static final int SIDECAR_PORT = 8080;
     static final String LABEL_APP = "sandbox";
     static final Duration DEFAULT_POD_READY_TIMEOUT = Duration.ofSeconds(60);
@@ -92,6 +93,9 @@ public class K8sRuntimeAdapter implements RuntimeAdapter {
 
     /** 复用模式标志：true 时 close() 只断开 WebSocket，不删除 Pod */
     private boolean reuseMode = false;
+
+    /** Sidecar 允许启动的 CLI 命令白名单，逗号分隔 */
+    private String allowedCommands = "qodercli,qwen";
 
     /**
      * 使用默认配置创建适配器。
@@ -202,22 +206,24 @@ public class K8sRuntimeAdapter implements RuntimeAdapter {
             // 3. 等待 Pod Ready
             waitForPodReady(podName, podReadyTimeout);
 
-            // 4. 获取 Pod IP，构建 Sidecar WebSocket URI
+            // 4. 获取 Pod IP，构建带 CLI 参数的 Sidecar WebSocket URI
             podIp = getPodIp(podName);
-            sidecarWsUri = URI.create(String.format("ws://%s:%d/", podIp, SIDECAR_PORT));
+            String command = config.getCommand();
+            String cliArgs = config.getArgs() != null ? String.join(" ", config.getArgs()) : null;
+            sidecarWsUri = buildSidecarWsUri(podIp, command, cliArgs);
             logger.info("Pod ready: name={}, ip={}, sidecarUri={}", podName, podIp, sidecarWsUri);
 
-            // 5. 建立 WebSocket 连接到 Sidecar
+            // 5. 创建文件系统适配器（提前到 WebSocket 连接之前，以便调用方在连接前注入配置文件）
+            fileSystem = new PodFileSystemAdapter(k8sClient, podName, namespace);
+
+            // 6. 建立 WebSocket 连接到 Sidecar（Sidecar 收到连接后会立即 spawn CLI 进程）
             connectToSidecarWebSocket(sidecarWsUri);
 
-            // 6. 启动健康检查
+            // 7. 启动健康检查
             startHealthCheck();
 
-            // 7. 启动空闲超时检查
+            // 8. 启动空闲超时检查
             startIdleCheck();
-
-            // 8. 创建文件系统适配器
-            fileSystem = new PodFileSystemAdapter(k8sClient, podName, namespace);
 
             // 9. 初始化最后活跃时间
             lastActiveAt = Instant.now();
@@ -245,7 +251,18 @@ public class K8sRuntimeAdapter implements RuntimeAdapter {
      * @return Pod 名称
      * @throws RuntimeException 如果连接失败
      */
-    public String startWithExistingPod(PodInfo podInfo) {
+    public String startWithExistingPod(PodInfo podInfo, RuntimeConfig config) {
+        prepareForExistingPod(podInfo, config);
+        connectAndStart();
+        return podName;
+    }
+
+    /**
+     * 两阶段启动 - 第一阶段：准备 Pod 信息和文件系统适配器，但不建立 WebSocket 连接。
+     * 调用方可以在此阶段通过 getFileSystem() 注入配置文件到 Pod 内部，
+     * 然后调用 connectAndStart() 建立 WebSocket 连接触发 CLI 启动。
+     */
+    public void prepareForExistingPod(PodInfo podInfo, RuntimeConfig config) {
         if (status != RuntimeStatus.CREATING) {
             throw new RuntimeException("Cannot start: current status is " + status);
         }
@@ -253,35 +270,54 @@ public class K8sRuntimeAdapter implements RuntimeAdapter {
             throw new IllegalArgumentException("PodInfo must not be null");
         }
 
-        try {
-            // 1. 设置 podName, podIp, sidecarWsUri（跳过 Pod 创建和等待）
-            this.podName = podInfo.podName();
-            this.podIp = podInfo.podIp();
-            this.sidecarWsUri = podInfo.sidecarWsUri();
-            logger.info(
-                    "Reusing existing pod: name={}, ip={}, sidecarUri={}",
-                    podName,
-                    podIp,
-                    sidecarWsUri);
+        // 1. 设置 podName, podIp
+        this.podName = podInfo.podName();
+        this.podIp = podInfo.podIp();
 
-            // 2. 建立 WebSocket 连接到 Sidecar
+        // 2. 使用 buildSidecarWsUri 构建带 CLI 参数的 WebSocket URI
+        String command = config.getCommand();
+        String args = config.getArgs() != null ? String.join(" ", config.getArgs()) : null;
+        String accessIp =
+                podInfo.serviceIp() != null && !podInfo.serviceIp().isBlank()
+                        ? podInfo.serviceIp()
+                        : podInfo.podIp();
+        this.sidecarWsUri = buildSidecarWsUri(accessIp, command, args);
+        logger.info(
+                "Prepared existing pod: name={}, ip={}, sidecarUri={}",
+                podName,
+                podIp,
+                sidecarWsUri);
+
+        // 3. 创建文件系统适配器（调用方可在 connectAndStart 之前通过 fileSystem 注入配置）
+        fileSystem = new PodFileSystemAdapter(k8sClient, podName, namespace);
+
+        // 状态保持 CREATING，等待 connectAndStart 完成后变为 RUNNING
+    }
+
+    /**
+     * 两阶段启动 - 第二阶段：建立 WebSocket 连接到 Sidecar，触发 CLI 进程启动。
+     * 必须在 prepareForExistingPod 之后调用。
+     */
+    public void connectAndStart() {
+        if (podName == null || sidecarWsUri == null) {
+            throw new RuntimeException("Must call prepareForExistingPod before connectAndStart");
+        }
+
+        try {
+            // 建立 WebSocket 连接到 Sidecar（Sidecar 收到连接后会立即 spawn CLI 进程）
             connectToSidecarWebSocket(sidecarWsUri);
 
-            // 3. 启动健康检查
+            // 启动健康检查
             startHealthCheck();
 
-            // 4. 启动空闲超时检查
+            // 启动空闲超时检查
             startIdleCheck();
 
-            // 5. 创建文件系统适配器
-            fileSystem = new PodFileSystemAdapter(k8sClient, podName, namespace);
-
-            // 6. 初始化最后活跃时间
+            // 初始化最后活跃时间
             lastActiveAt = Instant.now();
 
-            // 7. 状态 → RUNNING
+            // 状态 → RUNNING
             status = RuntimeStatus.RUNNING;
-            return podName;
         } catch (Exception e) {
             status = RuntimeStatus.ERROR;
             throw new RuntimeException(
@@ -414,14 +450,13 @@ public class K8sRuntimeAdapter implements RuntimeAdapter {
     }
 
     Pod buildPodSpec(RuntimeConfig config) {
-        // 统一沙箱镜像：所有 CLI 工具和 ACP Sidecar 预装在同一个镜像中
-        // 通过环境变量 CLI_COMMAND / CLI_ARGS 告知 entrypoint 启动哪个 CLI
+        // 统一沙箱镜像：所有 CLI 工具和 Sidecar Server 预装在同一个镜像中
+        // Sidecar Server 通过 ALLOWED_COMMANDS 环境变量获取允许启动的 CLI 白名单
+        // 具体启动哪个 CLI 由后端连接 Sidecar WebSocket 时通过 URL 参数动态指定
         String sandboxImage =
                 config.getContainerImage() != null && !config.getContainerImage().isBlank()
                         ? config.getContainerImage()
                         : DEFAULT_SANDBOX_IMAGE;
-
-        String cliArgs = config.getArgs() != null ? String.join(" ", config.getArgs()) : "";
 
         PodBuilder builder =
                 new PodBuilder()
@@ -430,24 +465,16 @@ public class K8sRuntimeAdapter implements RuntimeAdapter {
                         .withNamespace(namespace)
                         .addToLabels("app", LABEL_APP)
                         .addToLabels("userId", config.getUserId())
-                        .addToLabels("provider", config.getProviderKey())
                         .endMetadata()
                         .withNewSpec()
                         .withRestartPolicy("Never")
-                        .addNewImagePullSecret()
-                        .withName(IMAGE_PULL_SECRET)
-                        .endImagePullSecret()
                         .addNewContainer()
                         .withName("sandbox")
                         .withImage(sandboxImage)
                         .withImagePullPolicy("Always")
                         .addNewEnv()
-                        .withName("CLI_COMMAND")
-                        .withValue(config.getCommand())
-                        .endEnv()
-                        .addNewEnv()
-                        .withName("CLI_ARGS")
-                        .withValue(cliArgs)
+                        .withName("ALLOWED_COMMANDS")
+                        .withValue(allowedCommands)
                         .endEnv()
                         .addToPorts(
                                 new ContainerPortBuilder()
@@ -473,6 +500,15 @@ public class K8sRuntimeAdapter implements RuntimeAdapter {
                         .endPersistentVolumeClaim()
                         .endVolume()
                         .endSpec();
+
+        // 仅在配置了 imagePullSecret 时添加
+        if (IMAGE_PULL_SECRET != null && !IMAGE_PULL_SECRET.isBlank()) {
+            builder.editSpec()
+                    .addNewImagePullSecret()
+                    .withName(IMAGE_PULL_SECRET)
+                    .endImagePullSecret()
+                    .endSpec();
+        }
 
         return builder.build();
     }
@@ -504,6 +540,29 @@ public class K8sRuntimeAdapter implements RuntimeAdapter {
             throw new RuntimeException("Pod IP not available for: " + name);
         }
         return ip;
+    }
+
+    /**
+     * 构建带 CLI 参数的 Sidecar WebSocket URI。
+     * <p>
+     * 根据 Pod IP、CLI 命令和参数构建形如
+     * {@code ws://ip:8080/?command=xxx&args=xxx} 的 URI，
+     * 对参数进行 URL 编码以确保特殊字符安全传输。
+     *
+     * @param ip      Pod IP 地址
+     * @param command CLI 命令名
+     * @param args    CLI 参数（可选，可为 null 或空）
+     * @return 编码后的 WebSocket URI
+     */
+    URI buildSidecarWsUri(String ip, String command, String args) {
+        String uri =
+                String.format(
+                        "ws://%s:%d/?command=%s",
+                        ip, SIDECAR_PORT, URLEncoder.encode(command, StandardCharsets.UTF_8));
+        if (args != null && !args.isBlank()) {
+            uri += "&args=" + URLEncoder.encode(args, StandardCharsets.UTF_8);
+        }
+        return URI.create(uri);
     }
 
     void connectToSidecarWebSocket(URI wsUri) {
@@ -944,6 +1003,14 @@ public class K8sRuntimeAdapter implements RuntimeAdapter {
 
     public boolean isReuseMode() {
         return reuseMode;
+    }
+
+    public String getAllowedCommands() {
+        return allowedCommands;
+    }
+
+    public void setAllowedCommands(String allowedCommands) {
+        this.allowedCommands = allowedCommands;
     }
 
     public void setFaultListener(Consumer<RuntimeFaultNotification> listener) {

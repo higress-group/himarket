@@ -48,6 +48,11 @@ function QuestContent() {
       autoCreatedRef.current = true;
       session.createQuest(".").catch((err) => {
         console.error("Auto create quest failed:", err);
+        dispatch({
+          type: "SANDBOX_STATUS",
+          status: "error",
+          message: err?.message || "会话创建失败",
+        });
       });
     }
     // 断开连接时重置标记
@@ -81,8 +86,13 @@ function QuestContent() {
   const handleCreateQuest = useCallback(() => {
     session.createQuest(".").catch(err => {
       console.error("Failed to create quest:", err);
+      dispatch({
+        type: "SANDBOX_STATUS",
+        status: "error",
+        message: err?.message || "会话创建失败",
+      });
     });
-  }, [session]);
+  }, [session, dispatch]);
 
   const hasArtifacts = (activeQuest?.artifacts.length ?? 0) > 0;
   const activeQuestMessages = activeQuest?.messages;
