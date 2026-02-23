@@ -2,175 +2,175 @@
 
 ## 简介
 
-HiMarket 当前采用 POC 本地启动方案运行 CLI Agent：Java 服务通过 `ProcessBuilder` 在本机直接启动 CLI 子进程（qodercli、kiro-cli、qwen-code 等），通过 stdio 进行 JSON-RPC 通信。该方案存在以下核心局限：
+本需求文档描述对 HiMarket 沙箱运行时架构的根本性重构。核心理念是：本地 Mac 是一种沙箱，K8s Pod 是一种沙箱，未来的 E2B 也是一种沙箱——它们共享相同的初始化流水线、通信协议和生命周期管理。
 
-- **无多租户隔离**：所有用户的 CLI 进程共享同一台服务器的文件系统和系统资源，仅通过 HOME 环境变量实现有限的凭证隔离（且 Kiro CLI 不支持此机制）
-- **无法远程部署**：CLI 工具必须预装在 Java 服务器所在的机器上，无法弹性扩缩容
-- **安全风险**：CLI Agent 可执行任意系统命令，缺乏沙箱隔离，恶意或错误操作可能影响宿主机
-- **资源无限制**：单个 CLI 进程可能耗尽服务器 CPU、内存或磁盘资源，影响其他用户
+当前架构中，`LocalRuntimeAdapter` 通过 `ProcessBuilder` 直接启动 CLI 子进程，而 `K8sRuntimeAdapter` 通过 Sidecar WebSocket 桥接 CLI。两条路径的初始化逻辑、配置注入方式、文件操作方式完全不同，导致本地模式和沙箱模式的行为不一致，`AcpWebSocketHandler` 中存在大量类型分支。
 
-为解决上述问题，需要设计一套多运行时策略，支持两种运行时方案的统一抽象和按需切换：
-1. **Local（本地进程）**：保持现有开发调试能力，通过 ProcessBuilder 在本机启动 CLI 子进程
-2. **K8s（Kubernetes Pod）**：基于 K8s Pod 的生产级隔离方案，适用于多节点集群部署，提供完整的多租户隔离和弹性调度
-
-通过运行时抽象层屏蔽底层差异，上层业务代码（AcpWebSocketHandler、前端 useAcpSession 等）无需感知具体运行时实现。所有 CLI 工具均兼容这两种运行时方案。
+重构目标：
+1. 引入统一的 `SandboxProvider` 抽象层，所有沙箱类型实现相同接口
+2. 本地也启动 Sidecar Server，使本地流程与 K8s 沙箱完全一致
+3. 所有文件操作（writeFile/readFile）统一走 Sidecar HTTP API，Java 后端不直接操作文件系统
+4. `SandboxInitPipeline` 流水线模式，5 个阶段有序执行，带重试和就绪验证
+5. 消除 `AcpWebSocketHandler` 中的类型分支，面向 `SandboxProvider` 接口编程
 
 ## 术语表
 
-- **Runtime_Abstraction**：运行时抽象层，定义统一的接口规范，屏蔽不同运行时（本地进程、K8s Pod）的底层差异
-- **Local_Runtime**：本地运行时，即当前 POC 方案，通过 ProcessBuilder 在 Java 服务器本机启动 CLI 子进程
-- **K8s_Runtime**：Kubernetes 运行时，通过连接 K8s 集群按需拉起 Pod，为每个用户/任务提供隔离的 Linux 环境，支持弹性调度
-- **Runtime_Selector**：运行时选择器，根据部署环境和配置策略自动选择合适的运行时
-- **CLI_Provider**：CLI 工具提供商配置，包含命令、参数、环境变量和运行时兼容性信息
-- **Sandbox_Container**：沙箱容器，K8s_Runtime 中为单个用户/任务在 K8s 集群中拉起的 Pod 实例
-- **File_System_Adapter**：文件系统适配器，为不同运行时提供统一的文件访问接口
-- **Communication_Adapter**：通信适配器，为不同运行时提供统一的消息收发接口（stdio、WebSocket、HTTP API 等）
-- **Runtime_Capability**：运行时能力描述，标识某个运行时支持的特性（如原生二进制执行、文件系统访问、网络隔离等）
-- **K8s_Config**：K8s 集群连接配置，用户提供的 kubeconfig 内容，用于 K8s_Runtime 连接目标 K8s 集群创建 Pod
-- **Workspace_Persistence**：工作空间持久化机制，确保 CLI Agent 产生的文件在运行时实例销毁后不丢失
-- **Runtime_Selection_UI**：运行时选择界面，前端提供的运行时方案选择交互组件，允许用户在发起会话时选择运行时方案
+- **SandboxProvider**：统一沙箱提供者接口，抽象不同沙箱环境（本地 Mac、K8s Pod、E2B）的差异，为 SandboxInitPipeline 提供统一的操作契约
+- **SandboxType**：沙箱类型枚举，包含 LOCAL、K8S、E2B 三种类型
+- **SandboxInfo**：沙箱实例信息记录，由 SandboxProvider.acquire() 返回，包含连接沙箱所需的地址、端口、工作空间路径等
+- **SandboxConfig**：沙箱创建/获取配置，统一各沙箱类型的配置参数
+- **SandboxInitPipeline**：统一初始化流水线，按顺序执行注册的 InitPhase，对所有沙箱类型通用
+- **InitPhase**：初始化阶段接口，每个阶段通过 InitContext.getProvider() 获取 SandboxProvider 执行操作
+- **InitContext**：初始化上下文，各阶段通过此对象共享数据，持有 SandboxProvider 引用
+- **InitResult**：初始化结果记录，包含成功/失败状态、各阶段耗时和事件日志
+- **SandboxProviderRegistry**：提供者注册中心，根据 SandboxType 查找对应的 Provider 实现
+- **Sidecar_Server**：运行在沙箱内的 Node.js 服务，提供 WebSocket CLI 桥接和文件操作 HTTP API
+- **Sidecar_HTTP_API**：Sidecar Server 提供的文件操作 HTTP 端点，包括 /files/write、/files/read、/files/mkdir、/files/exists
+- **LocalSandboxProvider**：本地沙箱提供者，在本地 Mac 上启动 Sidecar Server 进程
+- **K8sSandboxProvider**：K8s 沙箱提供者，复用 PodReuseManager 管理 Pod 生命周期
+- **RetryPolicy**：重试策略记录，定义最大重试次数、初始延迟、退避倍数和最大延迟
+- **ConfigFile**：配置文件写入记录，包含路径、内容、SHA-256 哈希和配置类型
+- **CliConfigGenerator**：CLI 配置生成器，根据不同 CLI 工具生成对应的配置文件内容
 
 ## 需求
 
-### 需求 1：运行时抽象层设计
+### 需求 1：SandboxProvider 统一抽象接口
 
-**用户故事：** 作为平台开发者，我希望有一个统一的运行时抽象接口，以便上层业务代码无需关心 CLI Agent 运行在哪种运行时环境中。
-
-#### 验收标准
-
-1. THE Runtime_Abstraction SHALL 定义统一的生命周期接口，包含创建（create）、启动（start）、停止（stop）、销毁（destroy）四个阶段
-2. THE Runtime_Abstraction SHALL 定义统一的消息收发接口，支持向 CLI 进程发送 JSON-RPC 消息和接收 JSON-RPC 响应
-3. THE Runtime_Abstraction SHALL 定义统一的状态查询接口，支持查询运行时实例的当前状态（创建中、运行中、已停止、异常）
-4. THE Runtime_Abstraction SHALL 定义统一的文件操作接口，支持读取、写入、列举和删除工作空间中的文件
-5. WHEN 上层业务代码通过 Runtime_Abstraction 接口操作 CLI Agent 时，THE Runtime_Abstraction SHALL 将操作委托给具体的运行时实现，上层代码无需感知底层运行时类型
-6. THE Runtime_Abstraction SHALL 为每种运行时实现定义 Runtime_Capability 描述，标识该运行时支持的特性集合
-
-### 需求 2：Local 本地运行时适配
-
-**用户故事：** 作为平台开发者，我希望现有的 POC 本地启动方案能适配到运行时抽象层，以便在开发调试阶段继续使用本地进程方式。
+**用户故事：** 作为平台开发者，我希望有一个统一的沙箱提供者接口，以便所有沙箱类型（本地、K8s、E2B）共享相同的操作契约，上层代码无需感知底层沙箱实现。
 
 #### 验收标准
 
-1. THE Local_Runtime SHALL 实现 Runtime_Abstraction 定义的全部接口，封装现有的 AcpProcess 和 ProcessBuilder 逻辑
-2. WHEN Local_Runtime 创建实例时，THE Local_Runtime SHALL 使用 CLI_Provider 配置中的 command、args、env 参数通过 ProcessBuilder 启动本地子进程
-3. WHEN Local_Runtime 发送消息时，THE Local_Runtime SHALL 将 JSON-RPC 消息写入子进程的 stdin 流
-4. WHEN Local_Runtime 接收消息时，THE Local_Runtime SHALL 从子进程的 stdout 流读取 JSON-RPC 消息并通过统一接口返回
-5. WHEN Local_Runtime 执行文件操作时，THE Local_Runtime SHALL 直接操作本地文件系统中用户工作空间目录下的文件
-6. THE Local_Runtime SHALL 支持现有的 HOME 环境变量隔离机制，对支持该特性的 CLI 工具启用凭证隔离
+1. THE SandboxProvider SHALL 定义 acquire(SandboxConfig) 方法，返回 SandboxInfo 实例，用于获取或创建沙箱
+2. THE SandboxProvider SHALL 定义 release(SandboxInfo) 方法，用于释放沙箱资源
+3. THE SandboxProvider SHALL 定义 healthCheck(SandboxInfo) 方法，通过 Sidecar_HTTP_API 验证沙箱文件系统可读写
+4. THE SandboxProvider SHALL 定义 writeFile(SandboxInfo, relativePath, content) 方法，通过 Sidecar_HTTP_API 的 POST /files/write 端点写入文件
+5. THE SandboxProvider SHALL 定义 readFile(SandboxInfo, relativePath) 方法，通过 Sidecar_HTTP_API 的 POST /files/read 端点读取文件
+6. THE SandboxProvider SHALL 定义 connectSidecar(SandboxInfo, RuntimeConfig) 方法，建立到 Sidecar_Server 的 WebSocket 连接并返回 RuntimeAdapter
+7. THE SandboxProvider SHALL 定义 getType() 方法，返回该提供者对应的 SandboxType
+8. THE SandboxProviderRegistry SHALL 根据 SandboxType 查找并返回对应的 SandboxProvider 实现
+9. IF 请求的 SandboxType 未注册，THEN THE SandboxProviderRegistry SHALL 抛出 IllegalArgumentException 并包含未知类型信息
 
-### 需求 3：K8s Pod 沙箱运行时
+### 需求 2：本地沙箱提供者（LocalSandboxProvider）
 
-**用户故事：** 作为平台运维人员，我希望通过 K8s 集群按需拉起 Pod 为每个用户提供隔离的运行环境，以便在生产环境中实现安全的多租户隔离和弹性调度。
-
-#### 验收标准
-
-1. THE K8s_Runtime SHALL 实现 Runtime_Abstraction 定义的全部接口，将操作映射为 K8s Pod 管理操作
-2. WHEN K8s_Runtime 初始化时，THE K8s_Runtime SHALL 接受用户提供的 K8s_Config（kubeconfig），通过该配置连接目标 K8s 集群
-3. WHEN K8s_Runtime 创建实例时，THE K8s_Runtime SHALL 通过 K8s API 在目标集群中拉起一个 Sandbox_Container Pod，Pod 使用预构建的容器镜像，镜像中预装目标 CLI 工具及其依赖
-4. WHEN K8s_Runtime 发送消息时，THE K8s_Runtime SHALL 通过 Pod 暴露的 API 或 WebSocket 端点将 JSON-RPC 消息转发给 Pod 内的 CLI 进程
-5. WHEN K8s_Runtime 接收消息时，THE K8s_Runtime SHALL 从 Pod 的 API 或 WebSocket 端点接收 CLI 进程的 JSON-RPC 响应
-6. WHEN K8s_Runtime 执行文件操作时，THE K8s_Runtime SHALL 通过 Pod 的文件系统 API 操作 Pod 内工作空间目录中的文件
-7. THE K8s_Runtime SHALL 通过 K8s 资源配额（Resource Quota）和限制范围（Limit Range）为每个 Pod 配置资源限制（CPU、内存、磁盘），防止单个 Pod 耗尽集群资源
-8. WHEN Sandbox_Container Pod 空闲超过配置的超时时间时，THE K8s_Runtime SHALL 自动删除该 Pod 并释放集群资源
-9. THE K8s_Runtime SHALL 支持容器镜像的版本管理，允许为不同 CLI 工具配置不同的基础镜像
-10. IF 提供的 K8s_Config 无效或无法连接目标集群，THEN THE K8s_Runtime SHALL 返回明确的连接错误信息
-
-### 需求 4：运行时选择策略
-
-**用户故事：** 作为平台用户，我希望在发起 Agent 会话时能选择运行时方案，同时系统能根据环境可用性过滤不可用的选项。
+**用户故事：** 作为平台开发者，我希望本地开发时也启动 Sidecar Server，使本地流程与 K8s 沙箱完全一致，消除本地模式与远程模式的行为差异。
 
 #### 验收标准
 
-1. THE Runtime_Selector SHALL 维护每个 CLI_Provider 的运行时兼容性配置，所有 CLI 工具均兼容 Local 和 K8s 两种运行时方案
-2. WHEN 用户在前端选择 CLI 工具后，THE Runtime_Selection_UI SHALL 展示该 CLI 工具兼容的运行时方案列表，不可用的方案标记为不可选并显示原因
-3. WHEN 用户选择运行时方案并发起 Agent 会话请求时，THE Runtime_Selector SHALL 验证所选运行时的可用性（如 K8s 集群是否已配置）
-4. WHEN 当前环境仅有一种运行时可用时，THE Runtime_Selection_UI SHALL 自动选中该运行时，无需用户手动选择
-5. IF 用户选择的运行时当前不可用（如未配置 K8s_Config），THEN THE Runtime_Selector SHALL 返回明确的错误信息，说明不可用原因和配置指引
-6. THE Runtime_Selector SHALL 支持通过配置文件设置默认运行时优先级，作为用户未主动选择时的默认值
-7. THE Runtime_Selection_UI SHALL 在 HiWork、HiCoding、HiCli 三个模块中提供一致的运行时选择交互体验
+1. WHEN LocalSandboxProvider 执行 acquire 时，THE LocalSandboxProvider SHALL 启动本地 Sidecar_Server 进程（Node.js），并等待其 /health 端点可响应后返回 SandboxInfo
+2. WHEN 已有可复用的 Sidecar_Server 进程存活时，THE LocalSandboxProvider SHALL 复用该进程而非启动新进程
+3. WHEN LocalSandboxProvider 执行 writeFile 时，THE LocalSandboxProvider SHALL 通过本地 Sidecar_HTTP_API 的 POST /files/write 端点写入文件，不直接调用 Java Files API
+4. WHEN LocalSandboxProvider 执行 readFile 时，THE LocalSandboxProvider SHALL 通过本地 Sidecar_HTTP_API 的 POST /files/read 端点读取文件，不直接调用 Java Files API
+5. WHEN LocalSandboxProvider 执行 healthCheck 时，THE LocalSandboxProvider SHALL 通过 HTTP GET /health 验证本地 Sidecar_Server 进程存活且响应正常
+6. WHEN LocalSandboxProvider 执行 connectSidecar 时，THE LocalSandboxProvider SHALL 建立到本地 Sidecar_Server 的 WebSocket 连接，通过 Sidecar 桥接 CLI 进程
+7. WHEN LocalSandboxProvider 执行 release 且无其他会话使用该 Sidecar 时，THE LocalSandboxProvider SHALL 正确终止本地 Sidecar_Server 进程
+8. THE LocalSandboxProvider SHALL 为每个用户维护独立的 Sidecar_Server 进程（不同端口）
 
-### 需求 5：文件系统抽象
+### 需求 3：K8s 沙箱提供者（K8sSandboxProvider）
 
-**用户故事：** 作为 HiCoding 用户，我希望无论 CLI Agent 运行在哪种环境中，我都能通过文件树浏览和编辑工作空间中的文件。
-
-#### 验收标准
-
-1. THE File_System_Adapter SHALL 定义统一的文件操作接口，包含读取文件内容、写入文件内容、列举目录、创建目录、删除文件或目录、获取文件元信息六种操作
-2. WHEN 使用 Local_Runtime 时，THE File_System_Adapter SHALL 直接通过 Java NIO 操作本地文件系统中的用户工作空间目录
-3. WHEN 使用 K8s_Runtime 时，THE File_System_Adapter SHALL 通过 Sandbox_Container 暴露的文件系统 API 操作 Pod 内的文件
-4. THE File_System_Adapter SHALL 对所有文件路径进行安全校验，防止路径遍历攻击，确保操作限制在用户工作空间范围内
-5. WHEN 文件操作失败时，THE File_System_Adapter SHALL 返回统一格式的错误信息，包含错误类型（权限不足、文件不存在、空间不足等）和运行时类型
-
-### 需求 6：通信层适配
-
-**用户故事：** 作为平台开发者，我希望不同运行时的通信方式差异被屏蔽，以便 AcpWebSocketHandler 无需为每种运行时编写不同的消息转发逻辑。
+**用户故事：** 作为平台运维人员，我希望 K8s 沙箱的文件操作统一通过 Pod 内 Sidecar HTTP API 完成，不再使用 kubectl exec 写文件，以提升稳定性和性能。
 
 #### 验收标准
 
-1. THE Communication_Adapter SHALL 定义统一的消息发送接口，接受 JSON-RPC 字符串并将其投递到目标 CLI 进程
-2. THE Communication_Adapter SHALL 定义统一的消息接收接口，以响应式流（Reactive Stream）形式返回 CLI 进程的输出消息
-3. WHEN 使用 Local_Runtime 时，THE Communication_Adapter SHALL 通过子进程的 stdin/stdout 流进行消息收发
-4. WHEN 使用 K8s_Runtime 时，THE Communication_Adapter SHALL 通过与 Sandbox_Container 之间的 WebSocket 或 HTTP API 进行消息收发
-5. WHEN 通信链路中断时，THE Communication_Adapter SHALL 触发统一的断连事件，携带运行时类型和断连原因
-6. THE Communication_Adapter SHALL 保证消息的顺序性和完整性，不丢失、不重复、不乱序
+1. WHEN K8sSandboxProvider 执行 acquire 时，THE K8sSandboxProvider SHALL 通过 PodReuseManager 获取或创建 Pod，并返回包含 Pod IP 和 Sidecar 端口的 SandboxInfo
+2. WHEN K8sSandboxProvider 执行 writeFile 时，THE K8sSandboxProvider SHALL 通过 Pod 内 Sidecar_HTTP_API 的 POST /files/write 端点写入文件，不使用 kubectl exec
+3. WHEN K8sSandboxProvider 执行 readFile 时，THE K8sSandboxProvider SHALL 通过 Pod 内 Sidecar_HTTP_API 的 POST /files/read 端点读取文件，不使用 kubectl exec
+4. WHEN K8sSandboxProvider 执行 healthCheck 时，THE K8sSandboxProvider SHALL 通过 Pod 内 Sidecar 的 HTTP GET /health 验证可用性
+5. WHEN K8sSandboxProvider 执行 connectSidecar 时，THE K8sSandboxProvider SHALL 建立到 Pod 内 Sidecar_Server 的 WebSocket 连接
+6. WHEN K8sSandboxProvider 执行 release 时，THE K8sSandboxProvider SHALL 通过 PodReuseManager 释放 Pod（复用模式下仅断开连接）
+7. IF Sidecar_HTTP_API 请求超时，THEN THE K8sSandboxProvider SHALL 在 10 秒内返回 IOException 并包含 Pod 标识信息
 
-### 需求 7：运行时健康检查与故障恢复
+### 需求 4：SandboxInitPipeline 统一初始化流水线
 
-**用户故事：** 作为平台运维人员，我希望系统能自动检测运行时实例的健康状态并在故障时进行恢复，以保证服务可用性。
-
-#### 验收标准
-
-1. WHILE 运行时实例处于运行状态，THE Runtime_Abstraction SHALL 定期执行健康检查，检查间隔通过配置指定
-2. WHEN Local_Runtime 的 CLI 子进程意外退出时，THE Local_Runtime SHALL 在 5 秒内检测到异常并通知上层
-3. WHEN K8s_Runtime 的 Sandbox_Container Pod 停止响应时，THE K8s_Runtime SHALL 标记该实例为异常状态并通知上层
-4. WHEN 运行时实例被标记为异常状态时，THE Runtime_Abstraction SHALL 向关联的客户端会话发送错误通知，包含故障类型和建议操作（如重新连接）
-5. IF 运行时实例连续健康检查失败超过配置的阈值，THEN THE Runtime_Abstraction SHALL 强制销毁该实例并释放相关资源
-
-### 需求 8：工作空间文件持久化
-
-**用户故事：** 作为平台用户，我希望 CLI Agent 通过 vibe coding 产生的文件在会话结束或运行时实例销毁后不会丢失，以便我后续继续使用这些文件。
+**用户故事：** 作为平台开发者，我希望所有沙箱类型共享同一个初始化流水线，按固定顺序执行 5 个阶段，以确保初始化行为一致且可观测。
 
 #### 验收标准
 
-1. WHEN 使用 Local_Runtime 时，THE Workspace_Persistence SHALL 直接依赖本地文件系统持久化，文件存储在 `{workspaceRoot}/{userId}/` 目录下，无需额外持久化操作
-2. WHEN 使用 K8s_Runtime 时，THE Workspace_Persistence SHALL 为每个 Pod 挂载 K8s PersistentVolume，将工作空间目录映射到持久化存储，确保 Pod 销毁后文件保留
-3. WHEN 用户重新打开 K8s_Runtime 会话时，THE Workspace_Persistence SHALL 将之前持久化的文件挂载到新的 Pod 实例中
+1. THE SandboxInitPipeline SHALL 按 InitPhase.order() 值升序依次执行注册的初始化阶段
+2. WHEN 某个 InitPhase 的 shouldExecute 返回 false 时，THE SandboxInitPipeline SHALL 跳过该阶段并记录 PHASE_SKIP 事件
+3. WHEN 某个 InitPhase 执行成功后，THE SandboxInitPipeline SHALL 调用该阶段的 verify() 方法验证就绪状态，verify 返回 true 后才执行下一阶段
+4. WHEN 某个 InitPhase 执行失败且 RetryPolicy 允许重试时，THE SandboxInitPipeline SHALL 按退避策略重试，直到成功或达到最大重试次数
+5. WHEN 某个 InitPhase 最终失败时，THE SandboxInitPipeline SHALL 返回包含失败阶段名称、错误信息和已完成阶段列表的 InitResult
+6. THE SandboxInitPipeline SHALL 记录每个阶段的开始、完成、跳过、重试、失败事件及时间戳
+7. WHEN 总执行时间超过 InitConfig.totalTimeout 时，THE SandboxInitPipeline SHALL 终止当前阶段并返回超时失败的 InitResult
+8. THE SandboxInitPipeline SHALL 支持从指定阶段恢复执行（resumeFrom），用于部分失败后重试
 
-### 需求 9：K8s 集群配置管理
+### 需求 5：五个初始化阶段
 
-**用户故事：** 作为平台管理员，我希望能配置 K8s 集群连接信息，以便 K8s_Runtime 能连接到指定的 K8s 集群创建 Pod。
+**用户故事：** 作为平台开发者，我希望初始化流程分为明确的 5 个阶段，每个阶段职责单一，通过 SandboxProvider 接口执行操作，不直接依赖具体沙箱实现。
 
 #### 验收标准
 
-1. THE K8s_Runtime SHALL 支持通过用户提供的 kubeconfig 内容连接目标 K8s 集群
-2. WHEN 用户提交 K8s_Config 时，THE 系统 SHALL 验证 kubeconfig 的有效性，包括集群可达性和认证凭证有效性
-3. THE 系统 SHALL 安全存储 K8s_Config，对敏感字段（如证书、token）进行加密存储
-4. WHEN K8s_Config 未配置时，THE Runtime_Selection_UI SHALL 将 K8s_Runtime 选项标记为不可用，并提示用户先配置 K8s 集群
-5. THE 系统 SHALL 支持配置多个 K8s 集群，允许管理员为不同场景（如不同地域、不同资源规格）指定不同的集群
+1. THE SandboxAcquirePhase（order=100）SHALL 调用 SandboxProvider.acquire() 获取沙箱实例，并将 SandboxInfo 存入 InitContext
+2. WHEN SandboxAcquirePhase 获取沙箱失败时，THE SandboxAcquirePhase SHALL 快速失败且不重试
+3. THE FileSystemReadyPhase（order=200）SHALL 调用 SandboxProvider.healthCheck() 验证沙箱文件系统可访问
+4. WHEN FileSystemReadyPhase 验证就绪状态时，THE FileSystemReadyPhase SHALL 通过写入并读回临时文件来验证文件系统读写能力
+5. THE ConfigInjectionPhase（order=300）SHALL 通过 SandboxProvider.writeFile() 将模型配置、MCP 配置、Skill 配置注入沙箱
+6. WHEN ConfigInjectionPhase 写入配置文件后，THE ConfigInjectionPhase SHALL 通过 SandboxProvider.readFile() 读回内容进行验证
+7. THE SidecarConnectPhase（order=400）SHALL 调用 SandboxProvider.connectSidecar() 建立 WebSocket 连接并将 RuntimeAdapter 存入 InitContext
+8. THE CliReadyPhase（order=500）SHALL 等待 CLI 进程启动并通过 RuntimeAdapter 接收到首条 stdout 消息确认就绪
+9. WHEN CliReadyPhase 等待超过 15 秒未收到 CLI 就绪信号时，THE CliReadyPhase SHALL 标记为失败且不重试
 
-## 附录：两种运行时方案对比分析
+### 需求 6：Sidecar Server 文件操作 HTTP 端点
 
-| 维度 | Local（本地进程） | K8s（Kubernetes Pod） |
-|------|------------------|----------------------|
-| 隔离级别 | 无隔离（共享宿主机） | Pod 级隔离（K8s 命名空间 + 容器） |
-| 启动速度 | 秒级（进程启动） | 秒~十秒级（Pod 调度 + 容器启动） |
-| 资源消耗 | 服务器 CPU/内存 | 集群 CPU/内存（K8s 资源配额管控） |
-| CLI 兼容性 | 全部（需预装） | 全部（镜像预装） |
-| 多租户支持 | 有限（HOME 隔离） | 完整（Pod 隔离 + 命名空间） |
-| 文件系统 | 本地文件系统 | Pod 内文件系统（可挂载 PV） |
-| 网络访问 | 无限制 | 可配置 NetworkPolicy |
-| 运维复杂度 | 低 | 高（需 K8s 集群） |
-| 弹性扩缩容 | 不支持 | 支持（K8s 自动调度） |
-| 适用场景 | 开发调试 | 生产多租户部署 |
-| 持久化 | 本地磁盘 | PersistentVolume |
-| 安全性 | 低（CLI 可执行任意命令） | 高（Pod 沙箱 + 资源限制 + NetworkPolicy） |
+**用户故事：** 作为平台开发者，我希望 Sidecar Server 提供文件操作 HTTP API，使所有沙箱类型的文件读写统一通过这些端点完成，Java 后端不再直接操作文件系统。
 
-### CLI 工具运行时兼容性矩阵
+#### 验收标准
 
-| CLI 工具 | 运行时类型 | Local_Runtime | K8s_Runtime |
-|---------|----------|--------------|-------------|
-| Qoder CLI | 原生二进制 | ✅ | ✅ |
-| Kiro CLI | 原生二进制 | ✅ | ✅ |
-| Qwen Code | Python | ✅ | ✅ |
-| Claude Code ACP | Node.js (npx) | ✅ | ✅ |
-| Codex ACP | Node.js (npx) | ✅ | ✅ |
+1. THE Sidecar_Server SHALL 提供 POST /files/write 端点，接受 { path, content } 请求体，将内容写入工作空间内的指定路径并自动创建父目录
+2. THE Sidecar_Server SHALL 提供 POST /files/read 端点，接受 { path } 请求体，返回 { content } 响应
+3. THE Sidecar_Server SHALL 提供 POST /files/mkdir 端点，接受 { path } 请求体，递归创建目录
+4. THE Sidecar_Server SHALL 提供 POST /files/exists 端点，接受 { path } 请求体，返回 { exists, isFile, isDirectory } 响应
+5. WHEN /files/write 请求缺少 path 或 content 参数时，THE Sidecar_Server SHALL 返回 HTTP 400 状态码和错误描述
+6. WHEN /files/read 请求的文件不存在时，THE Sidecar_Server SHALL 返回 HTTP 404 状态码和 ENOENT 错误信息
+7. THE Sidecar_Server SHALL 通过 resolveSafePath 函数对所有文件路径进行安全校验，确保解析后的绝对路径始终在 WORKSPACE_ROOT 目录内
+8. WHEN 文件路径包含路径遍历模式（如 ../）时，THE Sidecar_Server SHALL 拒绝请求并返回路径越界错误
+9. WHEN 本地模式运行时，THE Sidecar_Server SHALL 仅监听 127.0.0.1，不暴露到外部网络
+
+### 需求 7：AcpWebSocketHandler 改造
+
+**用户故事：** 作为平台开发者，我希望 AcpWebSocketHandler 不再包含任何沙箱类型分支，统一通过 SandboxInitPipeline 和 SandboxProvider 处理所有沙箱类型。
+
+#### 验收标准
+
+1. WHEN 前端建立 WebSocket 连接时，THE AcpWebSocketHandler SHALL 通过 SandboxProviderRegistry 获取对应的 SandboxProvider，而非使用 if/else 类型分支
+2. THE AcpWebSocketHandler SHALL 将所有沙箱类型的初始化委托给 SandboxInitPipeline.execute()，走统一的异步初始化路径
+3. WHEN SandboxInitPipeline 返回成功结果时，THE AcpWebSocketHandler SHALL 从 InitContext 获取 RuntimeAdapter，订阅 stdout 并向前端发送 sandbox/status: ready 消息
+4. WHEN SandboxInitPipeline 返回失败结果时，THE AcpWebSocketHandler SHALL 向前端发送包含失败阶段、错误信息和建议操作的 sandbox/status: error 消息
+5. THE AcpWebSocketHandler SHALL 在初始化过程中向前端推送 sandbox/init-progress 消息，包含当前阶段、状态、进度百分比
+
+### 需求 8：配置注入统一化
+
+**用户故事：** 作为平台开发者，我希望所有沙箱类型的配置注入走完全相同的代码路径，通过 Sidecar HTTP API 写入配置文件，消除本地直接写文件和 K8s kubectl exec 写文件的差异。
+
+#### 验收标准
+
+1. THE ConfigInjectionPhase SHALL 使用 CliConfigGenerator 生成配置文件内容，然后通过 SandboxProvider.writeFile() 统一写入
+2. WHEN 配置文件写入后，THE ConfigInjectionPhase SHALL 通过 SandboxProvider.readFile() 读回内容，与写入内容进行 SHA-256 哈希比较验证一致性
+3. IF 写入后读回验证不一致，THEN THE ConfigInjectionPhase SHALL 按 RetryPolicy.fileOperation() 策略重试（最多 2 次，初始延迟 500ms）
+4. THE ConfigInjectionPhase SHALL 支持注入模型配置（settings.json）、MCP 配置和 Skill 配置三种类型
+5. WHEN 配置文件内容包含 API Key 等敏感信息时，THE ConfigInjectionPhase SHALL 仅在日志中记录文件路径和哈希值，不记录文件内容
+
+### 需求 9：重试与错误处理
+
+**用户故事：** 作为平台运维人员，我希望初始化流水线具备合理的重试机制和详细的错误诊断信息，以便快速定位和恢复故障。
+
+#### 验收标准
+
+1. THE RetryPolicy SHALL 支持配置最大重试次数、初始延迟、退避倍数和最大延迟
+2. WHEN FileSystemReadyPhase 的 Sidecar /health 请求超时时，THE SandboxInitPipeline SHALL 按 defaultPolicy（3 次重试，1s 初始延迟，2.0 倍退避）重试
+3. WHEN SidecarConnectPhase 的 WebSocket 连接失败时，THE SandboxInitPipeline SHALL 按策略（2 次重试，2s 初始延迟，2.0 倍退避，8s 最大延迟）重试
+4. WHEN 初始化失败时，THE InitResult SHALL 包含失败阶段名称、错误信息、总耗时、各阶段耗时和完整事件日志
+5. THE 错误通知 SHALL 包含 sandboxType、failedPhase、retryable 标志和 diagnostics（已完成阶段列表、总耗时、建议操作）
+
+### 需求 10：SandboxInfo 与 SandboxConfig 数据模型
+
+**用户故事：** 作为平台开发者，我希望沙箱实例信息和配置参数有清晰的数据模型，以便各组件之间传递完整的沙箱上下文。
+
+#### 验收标准
+
+1. THE SandboxInfo SHALL 包含 type（SandboxType）、sandboxId（唯一标识）、host（访问地址）、sidecarPort（Sidecar 端口）、workspacePath（工作空间路径）、reused（是否复用）和 metadata（扩展元数据）字段
+2. THE SandboxInfo SHALL 提供 sidecarWsUri(command, args) 方法，构建 Sidecar WebSocket URI
+3. THE SandboxConfig SHALL 包含 userId、type（SandboxType）、workspacePath、env（环境变量）以及各沙箱类型的特有配置字段
+4. WHEN SandboxType 为 LOCAL 时，THE SandboxInfo 的 host SHALL 为 "localhost"，sandboxId 格式为 "local-{port}"
+5. WHEN SandboxType 为 K8S 时，THE SandboxInfo 的 metadata SHALL 包含 podName 和 namespace 信息
+

@@ -6,7 +6,11 @@ import com.fasterxml.jackson.annotation.JsonValue;
 /**
  * 运行时类型枚举，标识 CLI Agent 运行在哪种环境中。
  * JSON 序列化为小写（"local"、"k8s"），与前端 RuntimeType 类型定义一致。
+ *
+ * @deprecated 已被 {@link SandboxType} 替代。
+ * 请使用 SandboxType 枚举代替 RuntimeType。
  */
+@Deprecated
 public enum RuntimeType {
 
     /** POC 本地进程运行时 */

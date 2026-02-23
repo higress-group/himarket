@@ -1,6 +1,8 @@
 'use strict';
 
 const http = require('http');
+const fs = require('fs/promises');
+const path = require('path');
 const { WebSocketServer } = require('ws');
 const { spawn } = require('child_process');
 const crypto = require('crypto');
@@ -16,6 +18,57 @@ const ALLOWED_COMMANDS = new Set(
     .filter(Boolean)
 );
 const GRACEFUL_TIMEOUT_MS = parseInt(process.env.GRACEFUL_TIMEOUT_MS, 10) || 5000;
+const WORKSPACE_ROOT = process.env.WORKSPACE_ROOT || process.cwd();
+const SIDECAR_MODE = process.env.SIDECAR_MODE || 'k8s';
+
+// ---------------------------------------------------------------------------
+// 路径安全校验
+// ---------------------------------------------------------------------------
+
+/**
+ * 安全路径解析：确保所有文件操作限制在工作空间内。
+ * 防止路径遍历攻击（如 ../../etc/passwd）。
+ */
+function resolveSafePath(relativePath) {
+  const resolved = path.resolve(WORKSPACE_ROOT, relativePath);
+  const root = path.resolve(WORKSPACE_ROOT);
+  if (!resolved.startsWith(root + path.sep) && resolved !== root) {
+    throw new Error('路径越界: ' + relativePath);
+  }
+  return resolved;
+}
+
+// ---------------------------------------------------------------------------
+// 请求体解析
+// ---------------------------------------------------------------------------
+
+/**
+ * 解析 JSON 请求体。返回 Promise<object>。
+ */
+function parseJsonBody(req) {
+  return new Promise((resolve, reject) => {
+    let body = '';
+    req.on('data', (chunk) => { body += chunk; });
+    req.on('end', () => {
+      try {
+        resolve(body ? JSON.parse(body) : {});
+      } catch (err) {
+        reject(err);
+      }
+    });
+    req.on('error', reject);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// JSON 响应辅助
+// ---------------------------------------------------------------------------
+
+function sendJson(res, statusCode, data) {
+  const body = JSON.stringify(data);
+  res.writeHead(statusCode, { 'Content-Type': 'application/json' });
+  res.end(body);
+}
 
 // ---------------------------------------------------------------------------
 // 服务器状态
@@ -27,16 +80,107 @@ const sessions = new Map();
 // ---------------------------------------------------------------------------
 // HTTP 服务器
 // ---------------------------------------------------------------------------
-const server = http.createServer((req, res) => {
+const server = http.createServer(async (req, res) => {
+  // --- 健康检查 ---
   if (req.method === 'GET' && req.url === '/health') {
     const activeProcesses = Array.from(sessions.values()).filter(s => s.process !== null).length;
-    const body = JSON.stringify({
+    sendJson(res, 200, {
       status: 'ok',
       connections: sessions.size,
       processes: activeProcesses,
     });
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(body);
+    return;
+  }
+
+  // --- 文件操作端点 ---
+
+  // POST /files/write
+  if (req.method === 'POST' && req.url === '/files/write') {
+    let body;
+    try { body = await parseJsonBody(req); } catch { return sendJson(res, 400, { success: false, error: '无效的 JSON 请求体' }); }
+    const { path: filePath, content } = body;
+    if (!filePath || content === undefined || content === null) {
+      return sendJson(res, 400, { success: false, error: '缺少 path 或 content 参数' });
+    }
+    try {
+      const fullPath = resolveSafePath(filePath);
+      await fs.mkdir(path.dirname(fullPath), { recursive: true });
+      await fs.writeFile(fullPath, content, 'utf-8');
+      sendJson(res, 200, { success: true });
+    } catch (err) {
+      if (err.message.startsWith('路径越界')) {
+        return sendJson(res, 403, { success: false, error: err.message });
+      }
+      sendJson(res, 500, { success: false, error: err.message });
+    }
+    return;
+  }
+
+  // POST /files/read
+  if (req.method === 'POST' && req.url === '/files/read') {
+    let body;
+    try { body = await parseJsonBody(req); } catch { return sendJson(res, 400, { success: false, error: '无效的 JSON 请求体' }); }
+    const { path: filePath } = body;
+    if (!filePath) {
+      return sendJson(res, 400, { success: false, error: '缺少 path 参数' });
+    }
+    try {
+      const fullPath = resolveSafePath(filePath);
+      const content = await fs.readFile(fullPath, 'utf-8');
+      sendJson(res, 200, { content });
+    } catch (err) {
+      if (err.message.startsWith('路径越界')) {
+        return sendJson(res, 403, { success: false, error: err.message });
+      }
+      const status = err.code === 'ENOENT' ? 404 : 500;
+      sendJson(res, status, { success: false, error: err.message });
+    }
+    return;
+  }
+
+  // POST /files/mkdir
+  if (req.method === 'POST' && req.url === '/files/mkdir') {
+    let body;
+    try { body = await parseJsonBody(req); } catch { return sendJson(res, 400, { success: false, error: '无效的 JSON 请求体' }); }
+    const { path: dirPath } = body;
+    if (!dirPath) {
+      return sendJson(res, 400, { success: false, error: '缺少 path 参数' });
+    }
+    try {
+      const fullPath = resolveSafePath(dirPath);
+      await fs.mkdir(fullPath, { recursive: true });
+      sendJson(res, 200, { success: true });
+    } catch (err) {
+      if (err.message.startsWith('路径越界')) {
+        return sendJson(res, 403, { success: false, error: err.message });
+      }
+      sendJson(res, 500, { success: false, error: err.message });
+    }
+    return;
+  }
+
+  // POST /files/exists
+  if (req.method === 'POST' && req.url === '/files/exists') {
+    let body;
+    try { body = await parseJsonBody(req); } catch { return sendJson(res, 400, { success: false, error: '无效的 JSON 请求体' }); }
+    const { path: filePath } = body;
+    if (!filePath) {
+      return sendJson(res, 400, { success: false, error: '缺少 path 参数' });
+    }
+    try {
+      const fullPath = resolveSafePath(filePath);
+      const stat = await fs.stat(fullPath);
+      sendJson(res, 200, { exists: true, isFile: stat.isFile(), isDirectory: stat.isDirectory() });
+    } catch (err) {
+      if (err.message.startsWith('路径越界')) {
+        return sendJson(res, 403, { success: false, error: err.message });
+      }
+      if (err.code === 'ENOENT') {
+        sendJson(res, 200, { exists: false, isFile: false, isDirectory: false });
+      } else {
+        sendJson(res, 500, { success: false, error: err.message });
+      }
+    }
     return;
   }
 
@@ -235,8 +379,9 @@ process.on('SIGTERM', gracefulShutdown);
 // ---------------------------------------------------------------------------
 // 启动服务器
 // ---------------------------------------------------------------------------
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Sidecar server listening on 0.0.0.0:${PORT}`);
+const LISTEN_HOST = SIDECAR_MODE === 'local' ? '127.0.0.1' : '0.0.0.0';
+server.listen(PORT, LISTEN_HOST, () => {
+  console.log(`Sidecar server listening on ${LISTEN_HOST}:${PORT} (mode: ${SIDECAR_MODE})`);
   console.log(`Allowed commands: [${Array.from(ALLOWED_COMMANDS).join(', ')}]`);
   console.log(`Graceful timeout: ${GRACEFUL_TIMEOUT_MS}ms`);
 });
@@ -244,4 +389,4 @@ server.listen(PORT, '0.0.0.0', () => {
 // ---------------------------------------------------------------------------
 // 导出供测试使用
 // ---------------------------------------------------------------------------
-module.exports = { server, wss, sessions, ALLOWED_COMMANDS, GRACEFUL_TIMEOUT_MS, PORT, gracefulShutdown };
+module.exports = { server, wss, sessions, ALLOWED_COMMANDS, GRACEFUL_TIMEOUT_MS, PORT, WORKSPACE_ROOT, SIDECAR_MODE, LISTEN_HOST, gracefulShutdown, resolveSafePath, parseJsonBody, sendJson };

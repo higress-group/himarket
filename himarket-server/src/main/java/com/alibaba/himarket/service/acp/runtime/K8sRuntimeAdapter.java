@@ -67,7 +67,10 @@ public class K8sRuntimeAdapter implements RuntimeAdapter {
     private final long idleTimeoutSeconds;
     private final int healthCheckFailureThreshold;
 
-    private final Sinks.Many<String> stdoutSink = Sinks.many().multicast().onBackpressureBuffer();
+    // autoCancel=false: 防止 CliReadyPhase.blockFirst() 取消订阅后 sink 自动 complete，
+    // 导致后续 initSandboxAsync 中的 stdout 订阅立即收到 onComplete 而关闭 WebSocket
+    private final Sinks.Many<String> stdoutSink =
+            Sinks.many().multicast().onBackpressureBuffer(256, false);
     private final Sinks.Many<String> wsSendSink = Sinks.many().unicast().onBackpressureBuffer();
     private volatile RuntimeStatus status = RuntimeStatus.CREATING;
     private String podName;

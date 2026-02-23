@@ -4,6 +4,9 @@ VERSION=latest
 
 set -e
 
+# 切换到项目根目录（脚本可从任意位置调用）
+cd "$(dirname "$0")/.."
+
 # 检查 Java 版本
 JAVA_VERSION_OUTPUT=$(java -version 2>&1 | head -n 1 | cut -d'"' -f2)
 JAVA_MAJOR=$(echo "$JAVA_VERSION_OUTPUT" | cut -d'.' -f1)

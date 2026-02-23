@@ -761,7 +761,8 @@ public class PodReuseManager {
             return existingIp;
         }
 
-        // 2. 按 userId label 查找该用户已有的 Service（Pod 重建后名字变了，但 Service selector 按 userId 匹配）
+        // 2. 按 userId label 查找该用户已有的 Service，但必须验证其对应的 Pod 仍然存在
+        //    否则旧 Pod 删除后遗留的孤儿 Service 会被错误复用，导致流量打到已消失的 Pod
         try {
             ServiceList svcList =
                     client.services()
@@ -770,6 +771,38 @@ public class PodReuseManager {
                             .list();
             if (svcList != null && svcList.getItems() != null) {
                 for (Service svc : svcList.getItems()) {
+                    // 检查 Service 绑定的 Pod 是否就是当前 podName
+                    String boundPod =
+                            svc.getMetadata().getLabels() != null
+                                    ? svc.getMetadata().getLabels().get("sandboxPod")
+                                    : null;
+                    if (!podName.equals(boundPod)) {
+                        // 绑定的是其他 Pod，检查该 Pod 是否还存在
+                        boolean podExists =
+                                boundPod != null
+                                        && client.pods()
+                                                        .inNamespace(NAMESPACE)
+                                                        .withName(boundPod)
+                                                        .get()
+                                                != null;
+                        if (!podExists) {
+                            // 孤儿 Service，直接删除
+                            log.warn(
+                                    "发现孤儿 Service（对应 Pod 已不存在），删除: service={}, boundPod={}",
+                                    svc.getMetadata().getName(),
+                                    boundPod);
+                            try {
+                                client.services()
+                                        .inNamespace(NAMESPACE)
+                                        .withName(svc.getMetadata().getName())
+                                        .delete();
+                            } catch (Exception ex) {
+                                log.warn("删除孤儿 Service 失败: {}", ex.getMessage());
+                            }
+                        }
+                        continue;
+                    }
+                    // Service 绑定的就是当前 podName，可以复用
                     if (svc.getStatus() != null
                             && svc.getStatus().getLoadBalancer() != null
                             && svc.getStatus().getLoadBalancer().getIngress() != null

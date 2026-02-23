@@ -29,7 +29,11 @@ import org.slf4j.LoggerFactory;
  * </ul>
  * <p>
  * Requirements: 3.6, 6.3
+ *
+ * @deprecated 文件操作已统一通过 Sidecar HTTP API 完成，kubectl exec 写文件不再需要。
+ *     请使用 {@link K8sSandboxProvider} 的 writeFile/readFile 方法。
  */
+@Deprecated
 public class PodFileSystemAdapter implements FileSystemAdapter {
 
     private static final Logger logger = LoggerFactory.getLogger(PodFileSystemAdapter.class);

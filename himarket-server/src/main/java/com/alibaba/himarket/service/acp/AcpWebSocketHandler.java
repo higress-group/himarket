@@ -2,6 +2,13 @@ package com.alibaba.himarket.service.acp;
 
 import com.alibaba.himarket.config.AcpProperties;
 import com.alibaba.himarket.config.AcpProperties.CliProviderConfig;
+import com.alibaba.himarket.service.acp.runtime.CliReadyPhase;
+import com.alibaba.himarket.service.acp.runtime.ConfigFile;
+import com.alibaba.himarket.service.acp.runtime.ConfigInjectionPhase;
+import com.alibaba.himarket.service.acp.runtime.FileSystemReadyPhase;
+import com.alibaba.himarket.service.acp.runtime.InitConfig;
+import com.alibaba.himarket.service.acp.runtime.InitContext;
+import com.alibaba.himarket.service.acp.runtime.InitResult;
 import com.alibaba.himarket.service.acp.runtime.K8sConfigService;
 import com.alibaba.himarket.service.acp.runtime.K8sRuntimeAdapter;
 import com.alibaba.himarket.service.acp.runtime.PodInfo;
@@ -10,14 +17,26 @@ import com.alibaba.himarket.service.acp.runtime.RuntimeAdapter;
 import com.alibaba.himarket.service.acp.runtime.RuntimeConfig;
 import com.alibaba.himarket.service.acp.runtime.RuntimeFactory;
 import com.alibaba.himarket.service.acp.runtime.RuntimeType;
+import com.alibaba.himarket.service.acp.runtime.SandboxAcquirePhase;
+import com.alibaba.himarket.service.acp.runtime.SandboxConfig;
+import com.alibaba.himarket.service.acp.runtime.SandboxInitPipeline;
+import com.alibaba.himarket.service.acp.runtime.SandboxProvider;
+import com.alibaba.himarket.service.acp.runtime.SandboxProviderRegistry;
+import com.alibaba.himarket.service.acp.runtime.SandboxType;
+import com.alibaba.himarket.service.acp.runtime.SidecarConnectPhase;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -43,6 +62,7 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
     private final RuntimeFactory runtimeFactory;
     private final K8sConfigService k8sConfigService;
     private final PodReuseManager podReuseManager;
+    private final SandboxProviderRegistry sandboxProviderRegistry;
     private final Map<String, CliConfigGenerator> configGeneratorRegistry;
     private final Map<String, RuntimeAdapter> runtimeMap = new ConcurrentHashMap<>();
     private final Map<String, Disposable> subscriptionMap = new ConcurrentHashMap<>();
@@ -72,12 +92,14 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
             ObjectMapper objectMapper,
             RuntimeFactory runtimeFactory,
             K8sConfigService k8sConfigService,
-            PodReuseManager podReuseManager) {
+            PodReuseManager podReuseManager,
+            SandboxProviderRegistry sandboxProviderRegistry) {
         this.properties = properties;
         this.objectMapper = objectMapper;
         this.runtimeFactory = runtimeFactory;
         this.k8sConfigService = k8sConfigService;
         this.podReuseManager = podReuseManager;
+        this.sandboxProviderRegistry = sandboxProviderRegistry;
 
         // 初始化配置生成器注册表
         this.configGeneratorRegistry = new HashMap<>();
@@ -131,171 +153,39 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
         RuntimeConfig config =
                 buildRuntimeConfig(userId, providerKey, providerConfig, cwd, runtimeType);
 
-        // 统一会话配置注入：在 CLI 进程启动前生成配置文件并注入环境变量
-        // K8s 运行时：配置生成延迟到 Pod Ready 后，通过 PodFileSystemAdapter 写入 Pod 内部
-        // 本地运行时：直接在本地文件系统生成配置文件
+        // 获取会话配置（配置注入由 ConfigInjectionPhase 统一处理）
         CliSessionConfig sessionConfig =
                 (CliSessionConfig) session.getAttributes().get("cliSessionConfig");
-        if (sessionConfig != null
-                && providerConfig.isSupportsCustomModel()
-                && runtimeType != RuntimeType.K8S) {
-            CliConfigGenerator generator = configGeneratorRegistry.get(providerKey);
-            if (generator != null) {
-                // 1. 模型配置注入（现有逻辑）
-                if (sessionConfig.getCustomModelConfig() != null) {
-                    try {
-                        Map<String, String> extraEnv =
-                                generator.generateConfig(cwd, sessionConfig.getCustomModelConfig());
-                        config.getEnv().putAll(extraEnv);
-                        // 记录生成的配置文件路径，用于启动失败时清理
-                        java.util.List<Path> generatedFiles =
-                                getGeneratedConfigFiles(providerKey, cwd);
-                        if (!generatedFiles.isEmpty()) {
-                            generatedConfigFilesMap.put(session.getId(), generatedFiles);
-                        }
-                        logger.info(
-                                "Custom model config applied for provider '{}': baseUrl={},"
-                                        + " modelId={}",
-                                providerKey,
-                                sessionConfig.getCustomModelConfig().getBaseUrl(),
-                                sessionConfig.getCustomModelConfig().getModelId());
-                    } catch (IOException e) {
-                        logger.error(
-                                "Failed to generate custom model config for provider '{}': {}",
-                                providerKey,
-                                e.getMessage(),
-                                e);
-                        // 配置生成失败不阻止 CLI 启动，按现有逻辑继续
-                    }
-                }
-
-                // 2. MCP 配置注入
-                if (sessionConfig.getMcpServers() != null
-                        && !sessionConfig.getMcpServers().isEmpty()
-                        && providerConfig.isSupportsMcp()) {
-                    try {
-                        generator.generateMcpConfig(cwd, sessionConfig.getMcpServers());
-                        logger.info(
-                                "MCP config applied for provider '{}': {} server(s)",
-                                providerKey,
-                                sessionConfig.getMcpServers().size());
-                    } catch (IOException e) {
-                        logger.error(
-                                "Failed to generate MCP config for provider '{}': {}",
-                                providerKey,
-                                e.getMessage(),
-                                e);
-                    }
-                }
-
-                // 3. Skill 配置注入
-                if (sessionConfig.getSkills() != null
-                        && !sessionConfig.getSkills().isEmpty()
-                        && providerConfig.isSupportsSkill()) {
-                    try {
-                        generator.generateSkillConfig(cwd, sessionConfig.getSkills());
-                        logger.info(
-                                "Skill config applied for provider '{}': {} skill(s)",
-                                providerKey,
-                                sessionConfig.getSkills().size());
-                    } catch (IOException e) {
-                        logger.error(
-                                "Failed to generate Skill config for provider '{}': {}",
-                                providerKey,
-                                e.getMessage(),
-                                e);
-                    }
-                }
-            }
-        }
 
         // Resolve sandboxMode from session attributes (set by AcpHandshakeInterceptor)
         String sandboxMode = (String) session.getAttributes().get("sandboxMode");
-        // POC 阶段：K8s 运行时默认使用用户级沙箱
-        boolean isUserScoped = "user".equals(sandboxMode) || runtimeType == RuntimeType.K8S;
 
-        // Create runtime via factory, route based on sandboxMode
-        RuntimeAdapter runtime;
-        try {
-            if (runtimeType == RuntimeType.K8S && isUserScoped) {
-                // K8s 用户级沙箱：异步创建 Pod，先让 WebSocket 连接建立
-                // 前端可以立即收到进度通知
-                cwdMap.put(session.getId(), cwd);
-                userIdMap.put(session.getId(), userId);
-                sandboxModeMap.put(session.getId(), sandboxMode != null ? sandboxMode : "");
-                pendingMessageMap.put(
-                        session.getId(), new java.util.concurrent.ConcurrentLinkedQueue<>());
+        // Map RuntimeType to SandboxType — 所有沙箱类型走统一的异步初始化路径
+        SandboxType sandboxType =
+                runtimeType == RuntimeType.K8S ? SandboxType.K8S : SandboxType.LOCAL;
 
-                final String fProviderKey = providerKey;
-                final RuntimeConfig fConfig = config;
-                final CliProviderConfig fProviderConfig = providerConfig;
-                final CliSessionConfig fSessionConfig = sessionConfig;
-                podInitExecutor.submit(
-                        () ->
-                                initK8sPodAsync(
-                                        session,
-                                        userId,
-                                        fProviderKey,
-                                        fConfig,
-                                        fProviderConfig,
-                                        fSessionConfig));
-                return; // 不阻塞，直接返回让 WebSocket 连接完成
-            } else {
-                // 原有逻辑：本地运行时同步启动
-                runtime = runtimeFactory.create(runtimeType, config);
-                runtime.start(config);
-            }
-        } catch (Exception e) {
-            logger.error("Failed to start runtime (type={}) for user {}", runtimeType, userId, e);
-            cleanupGeneratedConfigFiles(session.getId());
-            session.close(CloseStatus.SERVER_ERROR);
-            return;
-        }
-
-        runtimeMap.put(session.getId(), runtime);
+        // Store session state
         cwdMap.put(session.getId(), cwd);
         userIdMap.put(session.getId(), userId);
         sandboxModeMap.put(session.getId(), sandboxMode != null ? sandboxMode : "");
+        pendingMessageMap.put(session.getId(), new java.util.concurrent.ConcurrentLinkedQueue<>());
 
-        // Subscribe to stdout: pipe runtime output → WebSocket
-        Disposable subscription =
-                runtime.stdout()
-                        .subscribe(
-                                line -> {
-                                    try {
-                                        if (session.isOpen()) {
-                                            synchronized (session) {
-                                                session.sendMessage(new TextMessage(line));
-                                            }
-                                        }
-                                    } catch (IOException e) {
-                                        logger.error("Error sending message to WebSocket", e);
-                                    }
-                                },
-                                error ->
-                                        logger.error(
-                                                "Stdout stream error for session {}",
-                                                session.getId(),
-                                                error),
-                                () -> {
-                                    logger.info(
-                                            "Stdout stream completed for session {}",
-                                            session.getId());
-                                    try {
-                                        if (session.isOpen()) {
-                                            session.close(CloseStatus.NORMAL);
-                                        }
-                                    } catch (IOException e) {
-                                        logger.debug(
-                                                "Error closing WebSocket after stdout completion",
-                                                e);
-                                    }
-                                });
-
-        subscriptionMap.put(session.getId(), subscription);
-
-        // 通知前端实际使用的工作目录
-        sendWorkspaceInfo(session, cwd);
+        // All sandbox types go through unified async initialization via Pipeline + SandboxProvider
+        final String fProviderKey = providerKey;
+        final RuntimeConfig fConfig = config;
+        final CliProviderConfig fProviderConfig = providerConfig;
+        final CliSessionConfig fSessionConfig = sessionConfig;
+        podInitExecutor.submit(
+                () ->
+                        initSandboxAsync(
+                                session,
+                                userId,
+                                fProviderKey,
+                                fConfig,
+                                fProviderConfig,
+                                fSessionConfig,
+                                sandboxType));
+        // Non-blocking return for all sandbox types
     }
 
     @Override
@@ -412,6 +302,454 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
     }
 
     /**
+     * 通过 Pipeline + SandboxProvider 异步初始化沙箱环境。
+     * <p>
+     * 流程：
+     * 1. 通过 SandboxProviderRegistry 获取对应的 SandboxProvider
+     * 2. 构建 SandboxConfig 和 InitContext
+     * 3. 准备配置文件（填充 InitContext.injectedConfigs）
+     * 4. 执行 SandboxInitPipeline
+     * 5. 成功：获取 RuntimeAdapter，订阅 stdout，发送 ready
+     * 6. 失败：发送详细错误信息（含 failedPhase、retryable、diagnostics）
+     * <p>
+     * Requirements: 7.1, 7.2, 7.3, 7.4, 7.5
+     */
+    private void initSandboxAsync(
+            WebSocketSession session,
+            String userId,
+            String providerKey,
+            RuntimeConfig config,
+            CliProviderConfig providerConfig,
+            CliSessionConfig sessionConfig,
+            SandboxType sandboxType) {
+        try {
+            logger.info(
+                    "[Sandbox-Init] 开始异步沙箱初始化: userId={}, session={}, type={}",
+                    userId,
+                    session.getId(),
+                    sandboxType);
+            sendSandboxStatus(session, "creating", "正在准备沙箱环境...");
+            sendInitProgress(session, "sandbox-acquire", "executing", "正在获取沙箱实例...", 0, 5, 0);
+
+            // 1. 获取 Provider
+            SandboxProvider provider = sandboxProviderRegistry.getProvider(sandboxType);
+
+            // 2. 构建 SandboxConfig
+            SandboxConfig sandboxConfig =
+                    new SandboxConfig(
+                            userId,
+                            sandboxType,
+                            config.getCwd(),
+                            config.getEnv() != null ? config.getEnv() : Map.of(),
+                            config.getK8sConfigId(),
+                            Map.of(),
+                            null,
+                            0);
+
+            // 3. 构建 InitContext
+            InitContext context =
+                    new InitContext(
+                            provider,
+                            userId,
+                            sandboxConfig,
+                            config,
+                            providerConfig,
+                            sessionConfig,
+                            session);
+
+            // 4. 准备配置文件（填充 injectedConfigs）
+            prepareConfigFiles(context, providerKey, providerConfig, sessionConfig, config);
+
+            // 5. 构建并执行 Pipeline
+            SandboxInitPipeline pipeline =
+                    new SandboxInitPipeline(
+                            List.of(
+                                    new SandboxAcquirePhase(),
+                                    new FileSystemReadyPhase(),
+                                    new ConfigInjectionPhase(),
+                                    new SidecarConnectPhase(),
+                                    new CliReadyPhase()),
+                            InitConfig.defaults());
+
+            // 推送进度：沙箱获取中
+            sendInitProgress(session, "sandbox-acquire", "executing", "正在获取沙箱实例...", 10, 5, 0);
+
+            InitResult result = pipeline.execute(context);
+
+            if (!session.isOpen()) {
+                logger.warn("[Sandbox-Init] WebSocket 已关闭，放弃后续处理: userId={}", userId);
+                return;
+            }
+
+            if (result.success()) {
+                RuntimeAdapter adapter = context.getRuntimeAdapter();
+                runtimeMap.put(session.getId(), adapter);
+
+                // 订阅 stdout
+                Disposable subscription =
+                        adapter.stdout()
+                                .subscribe(
+                                        line -> {
+                                            try {
+                                                if (session.isOpen()) {
+                                                    synchronized (session) {
+                                                        session.sendMessage(new TextMessage(line));
+                                                    }
+                                                }
+                                            } catch (IOException e) {
+                                                logger.error(
+                                                        "Error sending message to WebSocket", e);
+                                            }
+                                        },
+                                        error ->
+                                                logger.error(
+                                                        "Stdout stream error for session {}",
+                                                        session.getId(),
+                                                        error),
+                                        () -> {
+                                            logger.info(
+                                                    "Stdout stream completed for session {}",
+                                                    session.getId());
+                                            try {
+                                                if (session.isOpen()) {
+                                                    session.close(CloseStatus.NORMAL);
+                                                }
+                                            } catch (IOException e) {
+                                                logger.debug(
+                                                        "Error closing WebSocket after stdout"
+                                                                + " completion",
+                                                        e);
+                                            }
+                                        });
+                subscriptionMap.put(session.getId(), subscription);
+
+                // 推送就绪通知
+                sendSandboxStatus(session, "ready", "沙箱环境已就绪");
+                sendInitProgress(session, "cli-ready", "completed", "沙箱环境已就绪", 100, 5, 5);
+                logger.info("[Sandbox-Init] 已发送 sandbox/status: ready");
+
+                // 通知前端实际使用的工作目录
+                String cwd = cwdMap.get(session.getId());
+                if (cwd != null) {
+                    sendWorkspaceInfo(session, cwd);
+                }
+
+                // 回放缓存的消息
+                replayPendingMessages(session, adapter);
+
+            } else {
+                // 发送详细错误信息
+                sendSandboxError(session, result, sandboxType);
+                try {
+                    if (session.isOpen()) {
+                        session.close(CloseStatus.SERVER_ERROR);
+                    }
+                } catch (IOException closeEx) {
+                    logger.debug("Error closing WebSocket after sandbox init failure", closeEx);
+                }
+            }
+        } catch (Exception e) {
+            logger.error("[Sandbox-Init] 沙箱初始化异常: userId={}, error={}", userId, e.getMessage(), e);
+            pendingMessageMap.remove(session.getId());
+            sendSandboxStatus(session, "error", "沙箱创建失败: " + e.getMessage());
+            try {
+                if (session.isOpen()) {
+                    session.close(CloseStatus.SERVER_ERROR);
+                }
+            } catch (IOException closeEx) {
+                logger.debug("Error closing WebSocket after sandbox init failure", closeEx);
+            }
+        }
+    }
+
+    /**
+     * 准备配置文件，填充 InitContext.injectedConfigs。
+     * 使用 CliConfigGenerator 生成配置内容，构建 ConfigFile 列表供 ConfigInjectionPhase 使用。
+     */
+    private void prepareConfigFiles(
+            InitContext context,
+            String providerKey,
+            CliProviderConfig providerConfig,
+            CliSessionConfig sessionConfig,
+            RuntimeConfig config) {
+        if (sessionConfig == null
+                || providerConfig == null
+                || !providerConfig.isSupportsCustomModel()) {
+            return;
+        }
+        CliConfigGenerator generator = configGeneratorRegistry.get(providerKey);
+        if (generator == null) {
+            return;
+        }
+
+        List<ConfigFile> configFiles = new ArrayList<>();
+
+        // 使用同一个临时目录生成所有配置，避免 settings.json 互相覆盖
+        // （generateConfig 写入 modelProviders，generateMcpConfig 读取已有文件后合并 mcpServers）
+        java.nio.file.Path sharedTempDir = null;
+        try {
+            sharedTempDir = java.nio.file.Files.createTempDirectory("sandbox-config-all-");
+
+            // 1. 模型配置（先写入 settings.json，包含 modelProviders + env）
+            if (sessionConfig.getCustomModelConfig() != null) {
+                try {
+                    Map<String, String> extraEnv =
+                            generator.generateConfig(
+                                    sharedTempDir.toString(), sessionConfig.getCustomModelConfig());
+                    config.getEnv().putAll(extraEnv);
+
+                    logger.info(
+                            "[Sandbox-Config] 模型配置已准备: provider={}, baseUrl={}, modelId={}",
+                            providerKey,
+                            sessionConfig.getCustomModelConfig().getBaseUrl(),
+                            sessionConfig.getCustomModelConfig().getModelId());
+                } catch (Exception e) {
+                    logger.error(
+                            "[Sandbox-Config] 模型配置生成失败: provider={}, error={}",
+                            providerKey,
+                            e.getMessage(),
+                            e);
+                }
+            }
+
+            // 2. MCP 配置（读取已有 settings.json 后合并 mcpServers，不会丢失模型配置）
+            if (sessionConfig.getMcpServers() != null
+                    && !sessionConfig.getMcpServers().isEmpty()
+                    && providerConfig.isSupportsMcp()) {
+                try {
+                    generator.generateMcpConfig(
+                            sharedTempDir.toString(), sessionConfig.getMcpServers());
+
+                    logger.info(
+                            "[Sandbox-Config] MCP 配置已准备: provider={}, {} server(s)",
+                            providerKey,
+                            sessionConfig.getMcpServers().size());
+                } catch (Exception e) {
+                    logger.error(
+                            "[Sandbox-Config] MCP 配置生成失败: provider={}, error={}",
+                            providerKey,
+                            e.getMessage(),
+                            e);
+                }
+            }
+
+            // 3. Skill 配置（写入独立的 .qwen/skills/xxx/SKILL.md 文件，不影响 settings.json）
+            if (sessionConfig.getSkills() != null
+                    && !sessionConfig.getSkills().isEmpty()
+                    && providerConfig.isSupportsSkill()) {
+                try {
+                    generator.generateSkillConfig(
+                            sharedTempDir.toString(), sessionConfig.getSkills());
+
+                    logger.info(
+                            "[Sandbox-Config] Skill 配置已准备: provider={}, {} skill(s)",
+                            providerKey,
+                            sessionConfig.getSkills().size());
+                } catch (Exception e) {
+                    logger.error(
+                            "[Sandbox-Config] Skill 配置生成失败: provider={}, error={}",
+                            providerKey,
+                            e.getMessage(),
+                            e);
+                }
+            }
+
+            // 统一收集所有生成的文件
+            final java.nio.file.Path tempDirRef = sharedTempDir;
+            java.nio.file.Files.walk(sharedTempDir)
+                    .filter(java.nio.file.Files::isRegularFile)
+                    .forEach(
+                            file -> {
+                                try {
+                                    String relativePath = tempDirRef.relativize(file).toString();
+                                    String content = java.nio.file.Files.readString(file);
+                                    String hash = sha256(content);
+                                    ConfigFile.ConfigType type = inferConfigType(relativePath);
+                                    configFiles.add(
+                                            new ConfigFile(relativePath, content, hash, type));
+                                } catch (IOException e) {
+                                    logger.warn("[Sandbox-Config] 读取配置文件失败: {}", e.getMessage());
+                                }
+                            });
+
+        } catch (Exception e) {
+            logger.error(
+                    "[Sandbox-Config] 配置准备失败: provider={}, error={}",
+                    providerKey,
+                    e.getMessage(),
+                    e);
+        } finally {
+            if (sharedTempDir != null) {
+                deleteDirectory(sharedTempDir);
+            }
+        }
+
+        if (!configFiles.isEmpty()) {
+            context.setInjectedConfigs(configFiles);
+        }
+    }
+
+    /**
+     * 根据文件相对路径推断配置类型。
+     */
+    private static ConfigFile.ConfigType inferConfigType(String relativePath) {
+        if (relativePath.contains("skills") && relativePath.endsWith("SKILL.md")) {
+            return ConfigFile.ConfigType.SKILL_CONFIG;
+        }
+        if (relativePath.endsWith("settings.json")) {
+            // settings.json 现在包含合并后的模型+MCP配置，标记为 MODEL_SETTINGS
+            return ConfigFile.ConfigType.MODEL_SETTINGS;
+        }
+        return ConfigFile.ConfigType.CUSTOM;
+    }
+
+    /**
+     * 发送详细的沙箱初始化错误信息。
+     * 包含 failedPhase、errorMessage、retryable、diagnostics。
+     * <p>
+     * Requirements: 7.4, 9.4, 9.5
+     */
+    private void sendSandboxError(
+            WebSocketSession session, InitResult result, SandboxType sandboxType) {
+        try {
+            if (!session.isOpen()) return;
+            ObjectNode notification = objectMapper.createObjectNode();
+            notification.put("jsonrpc", "2.0");
+            notification.put("method", "sandbox/status");
+            ObjectNode params = objectMapper.createObjectNode();
+            params.put("status", "error");
+            params.put(
+                    "message",
+                    "沙箱初始化失败: " + (result.errorMessage() != null ? result.errorMessage() : "未知错误"));
+            params.put("failedPhase", result.failedPhase());
+            params.put("sandboxType", sandboxType.getValue());
+
+            // 判断是否可重试：基于失败阶段的 retryPolicy
+            boolean retryable = isPhaseRetryable(result.failedPhase());
+            params.put("retryable", retryable);
+
+            // diagnostics
+            ObjectNode diagnostics = objectMapper.createObjectNode();
+            List<String> completedPhases = new ArrayList<>();
+            if (result.phaseDurations() != null) {
+                for (Map.Entry<String, java.time.Duration> entry :
+                        result.phaseDurations().entrySet()) {
+                    if (!entry.getKey().equals(result.failedPhase())) {
+                        completedPhases.add(entry.getKey());
+                    }
+                }
+            }
+            diagnostics.set("completedPhases", objectMapper.valueToTree(completedPhases));
+            if (result.totalDuration() != null) {
+                diagnostics.put(
+                        "totalDuration",
+                        String.format("%.1fs", result.totalDuration().toMillis() / 1000.0));
+            }
+            diagnostics.put("suggestion", retryable ? "请重试连接" : "请检查沙箱配置或联系管理员");
+            params.set("diagnostics", diagnostics);
+
+            notification.set("params", params);
+            synchronized (session) {
+                session.sendMessage(new TextMessage(objectMapper.writeValueAsString(notification)));
+            }
+            logger.error(
+                    "[Sandbox-Init] 发送错误通知: failedPhase={}, retryable={}, message={}",
+                    result.failedPhase(),
+                    retryable,
+                    result.errorMessage());
+        } catch (Exception e) {
+            logger.warn("Failed to send sandbox error notification: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * 判断失败阶段是否可重试。
+     */
+    private boolean isPhaseRetryable(String phaseName) {
+        if (phaseName == null) return false;
+        return switch (phaseName) {
+            case "filesystem-ready", "config-injection", "sidecar-connect" -> true;
+            case "sandbox-acquire", "cli-ready" -> false;
+            default -> false;
+        };
+    }
+
+    /**
+     * 向前端推送初始化进度消息。
+     * <p>
+     * Requirements: 7.5
+     */
+    private void sendInitProgress(
+            WebSocketSession session,
+            String phase,
+            String status,
+            String message,
+            int progress,
+            int totalPhases,
+            int completedPhases) {
+        try {
+            if (!session.isOpen()) return;
+            ObjectNode notification = objectMapper.createObjectNode();
+            notification.put("jsonrpc", "2.0");
+            notification.put("method", "sandbox/init-progress");
+            ObjectNode params = objectMapper.createObjectNode();
+            params.put("phase", phase);
+            params.put("status", status);
+            params.put("message", message);
+            params.put("progress", progress);
+            params.put("totalPhases", totalPhases);
+            params.put("completedPhases", completedPhases);
+            notification.set("params", params);
+            synchronized (session) {
+                session.sendMessage(new TextMessage(objectMapper.writeValueAsString(notification)));
+            }
+        } catch (Exception e) {
+            logger.warn("Failed to send init progress notification: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * 回放缓存的消息到 RuntimeAdapter。
+     */
+    private void replayPendingMessages(WebSocketSession session, RuntimeAdapter adapter) {
+        java.util.Queue<String> pendingQueue = pendingMessageMap.remove(session.getId());
+        if (pendingQueue != null) {
+            int count = 0;
+            String queued;
+            while ((queued = pendingQueue.poll()) != null) {
+                count++;
+                logger.info(
+                        "[Sandbox-Init] 回放缓存消息 #{}: {}",
+                        count,
+                        queued.length() > 200 ? queued.substring(0, 200) + "..." : queued);
+                String rewritten = rewriteSessionNewCwd(session.getId(), queued);
+                try {
+                    adapter.send(rewritten);
+                } catch (IOException e) {
+                    logger.error(
+                            "Error replaying queued message for session {}", session.getId(), e);
+                }
+            }
+            logger.info("[Sandbox-Init] 回放完成，共 {} 条消息", count);
+        } else {
+            logger.warn("[Sandbox-Init] pendingQueue 为 null，没有缓存的消息可回放");
+        }
+    }
+
+    /**
+     * 计算 SHA-256 哈希值。
+     */
+    private static String sha256(String content) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(content.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(hash);
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("SHA-256 不可用", e);
+        }
+    }
+
+    /**
      * 异步初始化 K8s Pod，通过 WebSocket 向前端推送进度通知。
      * <p>
      * 流程：
@@ -419,7 +757,10 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
      * 2. 调用 acquirePod（可能耗时数分钟）
      * 3. 成功后创建 RuntimeAdapter，订阅 stdout，回放缓存消息
      * 4. 失败则推送错误通知并关闭连接
+     * <p>
+     * @deprecated 已被 {@link #initSandboxAsync} 替代，保留供回退使用
      */
+    @Deprecated
     private void initK8sPodAsync(
             WebSocketSession session,
             String userId,
@@ -629,87 +970,91 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
 
         String cwd = "/workspace";
 
-        // 1. 模型配置注入：生成到临时目录，再通过 PodFileSystemAdapter 写入 Pod
-        if (sessionConfig.getCustomModelConfig() != null) {
-            try {
-                // 使用临时目录生成配置文件，然后读取内容写入 Pod
-                java.nio.file.Path tempDir = java.nio.file.Files.createTempDirectory("k8s-config-");
+        // 使用同一个临时目录生成所有配置，避免 settings.json 互相覆盖
+        java.nio.file.Path sharedTempDir = null;
+        try {
+            sharedTempDir = java.nio.file.Files.createTempDirectory("k8s-config-all-");
+
+            // 1. 模型配置注入
+            if (sessionConfig.getCustomModelConfig() != null) {
                 try {
                     Map<String, String> extraEnv =
                             generator.generateConfig(
-                                    tempDir.toString(), sessionConfig.getCustomModelConfig());
+                                    sharedTempDir.toString(), sessionConfig.getCustomModelConfig());
                     config.getEnv().putAll(extraEnv);
 
-                    // 将临时目录中生成的配置文件写入 Pod
-                    copyTempConfigToPod(tempDir, cwd, fileSystem);
-
                     logger.info(
-                            "[K8s-Config] Custom model config injected into pod for provider '{}': "
+                            "[K8s-Config] Custom model config generated for provider '{}': "
                                     + "baseUrl={}, modelId={}",
                             providerKey,
                             sessionConfig.getCustomModelConfig().getBaseUrl(),
                             sessionConfig.getCustomModelConfig().getModelId());
-                } finally {
-                    deleteDirectory(tempDir);
+                } catch (Exception e) {
+                    logger.error(
+                            "[K8s-Config] Failed to generate custom model config for provider '{}':"
+                                    + " {}",
+                            providerKey,
+                            e.getMessage(),
+                            e);
                 }
-            } catch (Exception e) {
-                logger.error(
-                        "[K8s-Config] Failed to inject custom model config for provider '{}': {}",
-                        providerKey,
-                        e.getMessage(),
-                        e);
             }
-        }
 
-        // 2. MCP 配置注入
-        if (sessionConfig.getMcpServers() != null
-                && !sessionConfig.getMcpServers().isEmpty()
-                && providerConfig.isSupportsMcp()) {
-            try {
-                java.nio.file.Path tempDir = java.nio.file.Files.createTempDirectory("k8s-mcp-");
+            // 2. MCP 配置注入（读取已有 settings.json 后合并，不会丢失模型配置）
+            if (sessionConfig.getMcpServers() != null
+                    && !sessionConfig.getMcpServers().isEmpty()
+                    && providerConfig.isSupportsMcp()) {
                 try {
-                    generator.generateMcpConfig(tempDir.toString(), sessionConfig.getMcpServers());
-                    copyTempConfigToPod(tempDir, cwd, fileSystem);
+                    generator.generateMcpConfig(
+                            sharedTempDir.toString(), sessionConfig.getMcpServers());
                     logger.info(
-                            "[K8s-Config] MCP config injected into pod for provider '{}': {}"
+                            "[K8s-Config] MCP config generated for provider '{}': {}"
                                     + " server(s)",
                             providerKey,
                             sessionConfig.getMcpServers().size());
-                } finally {
-                    deleteDirectory(tempDir);
+                } catch (Exception e) {
+                    logger.error(
+                            "[K8s-Config] Failed to generate MCP config for provider '{}': {}",
+                            providerKey,
+                            e.getMessage(),
+                            e);
                 }
-            } catch (Exception e) {
-                logger.error(
-                        "[K8s-Config] Failed to inject MCP config for provider '{}': {}",
-                        providerKey,
-                        e.getMessage(),
-                        e);
             }
-        }
 
-        // 3. Skill 配置注入
-        if (sessionConfig.getSkills() != null
-                && !sessionConfig.getSkills().isEmpty()
-                && providerConfig.isSupportsSkill()) {
-            try {
-                java.nio.file.Path tempDir = java.nio.file.Files.createTempDirectory("k8s-skill-");
+            // 3. Skill 配置注入
+            if (sessionConfig.getSkills() != null
+                    && !sessionConfig.getSkills().isEmpty()
+                    && providerConfig.isSupportsSkill()) {
                 try {
-                    generator.generateSkillConfig(tempDir.toString(), sessionConfig.getSkills());
-                    copyTempConfigToPod(tempDir, cwd, fileSystem);
+                    generator.generateSkillConfig(
+                            sharedTempDir.toString(), sessionConfig.getSkills());
                     logger.info(
-                            "[K8s-Config] Skill config injected into pod for provider '{}': {}"
+                            "[K8s-Config] Skill config generated for provider '{}': {}"
                                     + " skill(s)",
                             providerKey,
                             sessionConfig.getSkills().size());
-                } finally {
-                    deleteDirectory(tempDir);
+                } catch (Exception e) {
+                    logger.error(
+                            "[K8s-Config] Failed to generate Skill config for provider '{}': {}",
+                            providerKey,
+                            e.getMessage(),
+                            e);
                 }
-            } catch (Exception e) {
-                logger.error(
-                        "[K8s-Config] Failed to inject Skill config for provider '{}': {}",
-                        providerKey,
-                        e.getMessage(),
-                        e);
+            }
+
+            // 统一将临时目录中所有配置文件写入 Pod
+            copyTempConfigToPod(sharedTempDir, cwd, fileSystem);
+            logger.info(
+                    "[K8s-Config] All configs injected into pod for provider '{}'", providerKey);
+
+        } catch (Exception e) {
+            logger.error(
+                    "[K8s-Config] Failed to inject configs for provider '{}': {}",
+                    providerKey,
+                    e.getMessage(),
+                    e);
+        } finally {
+            if (sharedTempDir != null) {
+                deleteDirectory(sharedTempDir);
             }
         }
     }

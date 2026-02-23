@@ -26,6 +26,9 @@ set -e
 # 管道命令中任何一个失败则整个管道失败
 set -o pipefail
 
+# 切换到项目根目录（脚本可从任意位置调用）
+cd "$(dirname "$0")/.."
+
 # --- 检查必要的环境变量 ---
 check_env_var() {
     local var_name="$1"
@@ -82,9 +85,8 @@ else
 fi
 
 
-# --- 步骤 1: 登录镜像仓库 (修正-1: 安全且正确地登录) ---
+# --- 步骤 1: 登录镜像仓库 ---
 echo "=== Step 1: Logging into Docker Registry: $REPOSITORY ==="
-# 使用 --password-stdin 从管道读取密码，避免密码暴露在命令行历史中
 echo "$PASSWORD" | docker login "$REPOSITORY" --username "$USER" --password-stdin
 echo "✅ Login successful."
 
@@ -94,7 +96,6 @@ echo "\n=== Step 2: Building and pushing backend server ==="
 echo "Building with Maven..."
 mvn clean package -DskipTests
 
-# 定义完整的镜像标签
 SERVER_IMAGE_TAG="$REPOSITORY/$NAMESPACE/himarket-server:$VERSION"
 
 cd himarket-bootstrap
@@ -102,7 +103,7 @@ echo "Building and pushing backend Docker image ($SERVER_IMAGE_TAG) for platform
 docker buildx build \
     --platform "$PLATFORMS" \
     -t "$SERVER_IMAGE_TAG" \
-    --push . # --push 会在构建成功后直接推送多架构镜像
+    --push .
 echo "✅ Backend server image pushed successfully."
 cd ..
 
@@ -111,7 +112,6 @@ cd ..
 cd himarket-web/himarket-frontend
 echo "\n=== Step 3: Building and pushing frontend ==="
 
-# 定义完整的镜像标签
 FRONTEND_IMAGE_TAG="$REPOSITORY/$NAMESPACE/himarket-frontend:$VERSION"
 
 echo "Preparing frontend assets..."
@@ -129,11 +129,9 @@ cd ../..
 
 
 # --- 步骤 4: 构建并推送 Admin ---
-# (修正-2: 修正目录切换逻辑)
 cd himarket-web/himarket-admin
 echo  "\n=== Step 4: Building and pushing admin ==="
 
-# 定义完整的镜像标签
 ADMIN_IMAGE_TAG="$REPOSITORY/$NAMESPACE/himarket-admin:$VERSION"
 
 echo "Preparing admin assets..."
@@ -147,7 +145,7 @@ docker buildx build \
     --platform "$PLATFORMS" \
     --push .
 echo "✅ Admin image pushed successfully."
-cd ../.. # 从 himarket-admin 返回项目根目录
+cd ../..
 
 
 # --- 完成 ---

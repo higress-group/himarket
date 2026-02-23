@@ -19,7 +19,11 @@ import org.slf4j.LoggerFactory;
  * <p>
  * 所有操作前均通过 {@link PathValidator#validatePath} 进行路径安全校验，
  * 防止路径遍历攻击。错误信息包含统一的 errorType 和 runtimeType 字段。
+ *
+ * @deprecated 文件操作已统一通过 Sidecar HTTP API 完成。
+ *     请使用 {@link LocalSandboxProvider} 的 writeFile/readFile 方法。
  */
+@Deprecated
 public class LocalFileSystemAdapter implements FileSystemAdapter {
 
     private static final Logger logger = LoggerFactory.getLogger(LocalFileSystemAdapter.class);

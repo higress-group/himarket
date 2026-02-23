@@ -207,6 +207,35 @@ public class QwenCodeConfigGenerator implements CliConfigGenerator {
                         : new LinkedHashMap<>();
         env.put(envKey, config.getApiKey());
         root.put("env", env);
+
+        // 设置 security.auth.selectedType，告诉 qwen CLI 已选择认证方式，跳过登录交互
+        Map<String, Object> security =
+                root.containsKey("security")
+                        ? (Map<String, Object>) root.get("security")
+                        : new LinkedHashMap<>();
+        Map<String, Object> auth =
+                security.containsKey("auth")
+                        ? (Map<String, Object>) security.get("auth")
+                        : new LinkedHashMap<>();
+        auth.put("selectedType", protocolType);
+        security.put("auth", auth);
+        root.put("security", security);
+
+        // 设置 model.name，指定默认使用的模型
+        Map<String, Object> model =
+                root.containsKey("model")
+                        ? (Map<String, Object>) root.get("model")
+                        : new LinkedHashMap<>();
+        model.put("name", config.getModelId());
+        root.put("model", model);
+
+        // 沙箱环境设置 tools.approvalMode 为 yolo，自动批准所有工具调用，避免非交互模式下卡在确认提示
+        Map<String, Object> tools =
+                root.containsKey("tools")
+                        ? (Map<String, Object>) root.get("tools")
+                        : new LinkedHashMap<>();
+        tools.put("approvalMode", "yolo");
+        root.put("tools", tools);
     }
 
     /**

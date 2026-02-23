@@ -11,7 +11,11 @@ import org.springframework.stereotype.Component;
  *   <li>LOCAL: 创建 {@link LocalRuntimeAdapter}，封装本地 AcpProcess</li>
  *   <li>K8S: 创建 {@link K8sRuntimeAdapter}，通过 K8s Pod 提供沙箱隔离</li>
  * </ul>
+ *
+ * @deprecated 已被 {@link SandboxProviderRegistry} 替代。
+ * 请使用 SandboxProviderRegistry.getProvider(SandboxType) 获取对应的 SandboxProvider。
  */
+@Deprecated
 @Component
 public class RuntimeFactory {
 

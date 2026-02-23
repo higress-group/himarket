@@ -21,7 +21,11 @@ import reactor.core.publisher.Flux;
  * <p>
  * 支持定期健康检查，检测子进程是否存活，在 5 秒内检测到异常并通知上层。
  * Requirements: 2.1, 2.2, 2.3, 2.4, 8.1, 8.2
+ *
+ * @deprecated 已被 {@link LocalSandboxProvider} 替代。
+ *     本地 CLI 进程现在通过 Sidecar WebSocket 桥接，不再使用 ProcessBuilder 直接启动。
  */
+@Deprecated
 public class LocalRuntimeAdapter implements RuntimeAdapter {
 
     private static final Logger logger = LoggerFactory.getLogger(LocalRuntimeAdapter.class);

@@ -4,23 +4,45 @@ Always respond in Chinese-simplified.
 
 ### 数据库访问
 
-本地开发时，数据库连接信息存储在 `~/.env` 文件中，包含以下变量：
+本地开发时，数据库连接信息可以通过以下任意方式提供（优先级从高到低）：
+- shell 环境变量（直接 export 或写入 `~/.zshrc` / `~/.bashrc`）
+- `~/.env` 文件（`scripts/run.sh` 启动时会自动 source）
+
+需要包含以下变量：
 - `DB_HOST`：数据库地址
 - `DB_PORT`：端口（默认 3306）
 - `DB_NAME`：数据库名
 - `DB_USERNAME`：用户名
 - `DB_PASSWORD`：密码
 
-查询数据库时，先读取 `~/.env`，然后使用 mysql CLI：
+查询数据库时，使用 mysql CLI（环境变量已在 shell 中或通过 `~/.env` 加载）：
 
 ```bash
-source ~/.env && mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USERNAME" -p"$DB_PASSWORD" "$DB_NAME" -e "YOUR_SQL_HERE"
+mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USERNAME" -p"$DB_PASSWORD" "$DB_NAME" -e "YOUR_SQL_HERE"
 ```
 
 注意事项：
 - 只执行 SELECT 查询，除非用户明确要求修改数据
 - 不要在回复中展示完整的密码、密钥等敏感字段
 - 数据库 schema 由 Flyway 管理，迁移文件在 `himarket-bootstrap/src/main/resources/db/migration/`
+
+### 启动后端服务
+
+使用 `scripts/run.sh` 脚本启动 Java 后端：
+
+```bash
+./scripts/run.sh
+```
+
+脚本会自动：
+1. 加载 `~/.env` 环境变量
+2. 杀掉占用 8080 端口的旧进程
+3. 编译所有模块
+4. 启动 Spring Boot 应用
+
+**调试接口时的工作流**：修改代码 → `./scripts/run.sh`（无需手动杀进程，脚本自动处理）
+
+等待日志出现 `Started HiMarketApplication` 后，服务即可访问。
 
 ### API 接口测试
 
@@ -63,3 +85,7 @@ curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/your-endpoint
 - 无注解：无需认证
 
 Token 有效期为 7 天。Swagger 文档：`http://localhost:8080/portal/swagger-ui.html`
+
+### 应用日志
+
+本地运行时日志文件位于 `~/himarket.log`。排查后端问题时应主动读取该日志。
