@@ -49,3 +49,6 @@ node_modules/
 
 /workspace/
 /workspaces/
+
+### Local docs ###
+/docs/
