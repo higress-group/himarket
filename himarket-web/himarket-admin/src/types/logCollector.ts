@@ -1,5 +1,36 @@
 // 日志收集器相关类型定义
 
+// 通用过滤器类型
+export interface FilterParams {
+  consumer?: string[];
+  service?: string[];
+  model?: string[];
+  route?: string[];
+  mcpServer?: string[];
+  mcpTool?: string[];
+  api?: string[];
+}
+
+// 仅适用于 MODEL_API 业务类型的过滤器
+export interface ModelFilterParams {
+  consumer?: string[];
+  service?: string[];
+  model?: string[];
+  route?: string[];
+  api?: string[];
+}
+
+// 仅适用于 MCP_SERVER 业务类型的过滤器
+export interface McpFilterParams {
+  consumer?: string[];
+  service?: string[];
+  model?: string[];
+  route?: string[];
+  mcpServer?: string[];
+  mcpTool?: string[];
+  api?: string[];
+}
+
 // 时间范围
 export interface TimeRange {
   start: string; // 格式: YYYY-MM-DD HH:mm:ss
@@ -12,6 +43,7 @@ export interface ChartQueryRequest {
   interval: string; // 例如: "60s"
   scenario: string; // 场景标识
   bizType: string; // 业务类型，如 MODEL_API
+  filters: FilterParams;
 }
 
 // 表格查询请求参数
@@ -19,12 +51,14 @@ export interface TableQueryRequest {
   tableType: string; // 表格类型，如 method_distribution
   timeRange: TimeRange;
   bizType: string; // 业务类型，如 MODEL_API
+  filters: FilterParams;
 }
 
 // KPI 查询请求参数
 export interface KpiQueryRequest {
   timeRange: TimeRange;
   bizType: string; // 业务类型，如 MCP_SERVER
+  filters: FilterParams;
 }
 
 // 批量查询请求参数

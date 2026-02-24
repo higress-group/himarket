@@ -16,25 +16,40 @@ const api: AxiosInstance = axios.create({
   },
   withCredentials: true, // 确保跨域请求时携带 cookie
 });
+
+function processRequest(
+  request: ChartQueryRequest | TableQueryRequest | KpiQueryRequest
+) {
+  const filters = {
+    ...request.filters,
+    mcp_server: request.filters.mcpServer,
+    mcp_tool: request.filters.mcpTool,
+  };
+  return {
+    ...request,
+    filters,
+  };
+}
+
 // 批量图表查询API
 export const batchChartQuery = async (
   requests: ChartQueryRequest[]
 ): Promise<BatchQueryResponse> => {
-  return (await api.post("/batch/chart", requests)).data;
+  return (await api.post("/batch/chart", requests.map(processRequest))).data;
 };
 
 // 批量表格查询API
 export const batchTableQuery = async (
   requests: TableQueryRequest[]
 ): Promise<BatchQueryResponse> => {
-  return (await api.post("/batch/table", requests)).data;
+  return (await api.post("/batch/table", requests.map(processRequest))).data;
 };
 
 // 批量KPI查询API
 export const batchKpiQuery = async (
   requests: KpiQueryRequest[]
 ): Promise<BatchQueryResponse> => {
-  return (await api.post("/batch/kpi", requests)).data;
+  return (await api.post("/batch/kpi", requests.map(processRequest))).data;
 };
 
 export const batchLoadOptions = async (): Promise<Record<string, string[]>> => {

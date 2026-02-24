@@ -19,7 +19,7 @@ import {
   formatNumber,
 } from "../utils/dateTimeUtils";
 import dayjs from "dayjs";
-import { KpiData } from "@/types/logCollector";
+import { KpiData, McpFilterParams } from "@/types/logCollector";
 import {
   batchKpiQuery,
   batchTableQuery,
@@ -249,11 +249,13 @@ const McpMonitorForLogCollector: React.FC = () => {
   };
 
   // 查询KPI数据
-  const queryKpiData = async (baseParams: {
-    startTime: string;
-    endTime: string;
-    interval: string;
-  }) => {
+  const queryKpiData = async (
+    baseParams: {
+      startTime: string;
+      endTime: string;
+      interval: string;
+    } & McpFilterParams
+  ) => {
     try {
       const {
         data: {
@@ -266,6 +268,15 @@ const McpMonitorForLogCollector: React.FC = () => {
             end: baseParams.endTime,
           },
           bizType: "MCP_SERVER",
+          filters: {
+            consumer: baseParams.consumer || ([] as string[]),
+            service: baseParams.service || ([] as string[]),
+            model: baseParams.model || ([] as string[]),
+            route: baseParams.route || ([] as string[]),
+            mcpServer: baseParams.mcpServer || ([] as string[]),
+            mcpTool: baseParams.mcpTool || ([] as string[]),
+            api: baseParams.api || ([] as string[]),
+          },
         },
       ]);
 
@@ -284,11 +295,13 @@ const McpMonitorForLogCollector: React.FC = () => {
   };
 
   // 查询图表数据：QPS、成功率、响应时间（参考 ModelDashboardForLogCollector）
-  const queryChartData = async (baseParams: {
-    startTime: string;
-    endTime: string;
-    interval: string;
-  }) => {
+  const queryChartData = async (
+    baseParams: {
+      startTime: string;
+      endTime: string;
+      interval: string;
+    } & McpFilterParams
+  ) => {
     try {
       const intervalStr =
         typeof baseParams.interval === "number"
@@ -303,6 +316,15 @@ const McpMonitorForLogCollector: React.FC = () => {
           interval: intervalStr,
           scenario: "qps_total_simple",
           bizType: "MCP_SERVER",
+          filters: {
+            consumer: baseParams.consumer || ([] as string[]),
+            service: baseParams.service || ([] as string[]),
+            model: baseParams.model || ([] as string[]),
+            route: baseParams.route || ([] as string[]),
+            mcpServer: baseParams.mcpServer || ([] as string[]),
+            mcpTool: baseParams.mcpTool || ([] as string[]),
+            api: baseParams.api || ([] as string[]),
+          },
         },
         {
           timeRange: {
@@ -312,6 +334,15 @@ const McpMonitorForLogCollector: React.FC = () => {
           interval: intervalStr,
           scenario: "success_rate",
           bizType: "MCP_SERVER",
+          filters: {
+            consumer: baseParams.consumer || ([] as string[]),
+            service: baseParams.service || ([] as string[]),
+            model: baseParams.model || ([] as string[]),
+            route: baseParams.route || ([] as string[]),
+            mcpServer: baseParams.mcpServer || ([] as string[]),
+            mcpTool: baseParams.mcpTool || ([] as string[]),
+            api: baseParams.api || ([] as string[]),
+          },
         },
         {
           timeRange: {
@@ -321,6 +352,15 @@ const McpMonitorForLogCollector: React.FC = () => {
           interval: intervalStr,
           scenario: "rt_distribution",
           bizType: "MCP_SERVER",
+          filters: {
+            consumer: baseParams.consumer || ([] as string[]),
+            service: baseParams.service || ([] as string[]),
+            model: baseParams.model || ([] as string[]),
+            route: baseParams.route || ([] as string[]),
+            mcpServer: baseParams.mcpServer || ([] as string[]),
+            mcpTool: baseParams.mcpTool || ([] as string[]),
+            api: baseParams.api || ([] as string[]),
+          },
         },
       ]);
 
@@ -406,11 +446,13 @@ const McpMonitorForLogCollector: React.FC = () => {
   };
 
   // 查询表格数据
-  const queryTableData = async (baseParams: {
-    startTime: string;
-    endTime: string;
-    interval: string;
-  }) => {
+  const queryTableData = async (
+    baseParams: {
+      startTime: string;
+      endTime: string;
+      interval: string;
+    } & McpFilterParams
+  ) => {
     try {
       const { data } = await batchTableQuery([
         {
@@ -420,6 +462,15 @@ const McpMonitorForLogCollector: React.FC = () => {
           },
           tableType: "method_distribution",
           bizType: "MCP_SERVER",
+          filters: {
+            consumer: baseParams.consumer || ([] as string[]),
+            service: baseParams.service || ([] as string[]),
+            model: baseParams.model || ([] as string[]),
+            route: baseParams.route || ([] as string[]),
+            mcpServer: baseParams.mcpServer || ([] as string[]),
+            mcpTool: baseParams.mcpTool || ([] as string[]),
+            api: baseParams.api || ([] as string[]),
+          },
         },
         {
           timeRange: {
@@ -428,6 +479,15 @@ const McpMonitorForLogCollector: React.FC = () => {
           },
           tableType: "status_code_distribution",
           bizType: "MCP_SERVER",
+          filters: {
+            consumer: baseParams.consumer || ([] as string[]),
+            service: baseParams.service || ([] as string[]),
+            model: baseParams.model || ([] as string[]),
+            route: baseParams.route || ([] as string[]),
+            mcpServer: baseParams.mcpServer || ([] as string[]),
+            mcpTool: baseParams.mcpTool || ([] as string[]),
+            api: baseParams.api || ([] as string[]),
+          },
         },
         {
           timeRange: {
@@ -436,6 +496,15 @@ const McpMonitorForLogCollector: React.FC = () => {
           },
           tableType: "upstream_status_distribution",
           bizType: "MCP_SERVER",
+          filters: {
+            consumer: baseParams.consumer || ([] as string[]),
+            service: baseParams.service || ([] as string[]),
+            model: baseParams.model || ([] as string[]),
+            route: baseParams.route || ([] as string[]),
+            mcpServer: baseParams.mcpServer || ([] as string[]),
+            mcpTool: baseParams.mcpTool || ([] as string[]),
+            api: baseParams.api || ([] as string[]),
+          },
         },
         {
           timeRange: {
@@ -444,6 +513,15 @@ const McpMonitorForLogCollector: React.FC = () => {
           },
           tableType: "request_distribution",
           bizType: "MCP_SERVER",
+          filters: {
+            consumer: baseParams.consumer || ([] as string[]),
+            service: baseParams.service || ([] as string[]),
+            model: baseParams.model || ([] as string[]),
+            route: baseParams.route || ([] as string[]),
+            mcpServer: baseParams.mcpServer || ([] as string[]),
+            mcpTool: baseParams.mcpTool || ([] as string[]),
+            api: baseParams.api || ([] as string[]),
+          },
         },
         {
           timeRange: {
@@ -452,6 +530,15 @@ const McpMonitorForLogCollector: React.FC = () => {
           },
           tableType: "backend_status_distribution",
           bizType: "MCP_SERVER",
+          filters: {
+            consumer: baseParams.consumer || ([] as string[]),
+            service: baseParams.service || ([] as string[]),
+            model: baseParams.model || ([] as string[]),
+            route: baseParams.route || ([] as string[]),
+            mcpServer: baseParams.mcpServer || ([] as string[]),
+            mcpTool: baseParams.mcpTool || ([] as string[]),
+            api: baseParams.api || ([] as string[]),
+          },
         },
       ]);
 
@@ -496,11 +583,11 @@ const McpMonitorForLogCollector: React.FC = () => {
       const {
         timeRange,
         interval,
-        cluster_id,
+        // cluster_id,
         route_name,
         mcp_tool_name,
         consumer,
-        upstream_cluster,
+        // upstream_cluster,
       } = values;
 
       if (!timeRange || timeRange.length !== 2) {
@@ -521,20 +608,17 @@ const McpMonitorForLogCollector: React.FC = () => {
         startTime: string;
         endTime: string;
         interval: string;
-        cluster_id: string;
-        route_name: string;
-        mcp_tool_name: string;
-        consumer: string;
-        upstream_cluster: string;
-      } = {
+      } & McpFilterParams = {
         startTime: startTimeStr,
         endTime: endTimeStr,
         interval: interval || 15,
-        cluster_id,
-        route_name,
-        mcp_tool_name,
-        consumer,
-        upstream_cluster,
+        consumer: consumer,
+        service: undefined,
+        model: undefined,
+        route: undefined,
+        mcpServer: route_name,
+        mcpTool: mcp_tool_name,
+        api: undefined,
       };
 
       // 并发查询所有数据

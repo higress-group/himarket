@@ -12,7 +12,6 @@ import {
 } from "antd";
 import * as echarts from "echarts";
 import dayjs from "dayjs";
-import { SlsQueryRequest, QueryInterval } from "../types/sls";
 import {
   formatDatetimeLocal,
   rangePresets,
@@ -27,7 +26,7 @@ import {
   batchChartQuery,
   batchLoadOptions,
 } from "@/lib/logCollectorApi";
-import type { KpiData } from "@/types/logCollector";
+import type { KpiData, ModelFilterParams } from "@/types/logCollector";
 
 const { RangePicker } = DatePicker;
 
@@ -278,7 +277,11 @@ const ModelDashboardForLogCollector: React.FC = () => {
 
   // 查询KPI数据
   const queryKpiData = async (
-    baseParams: Omit<SlsQueryRequest, "scenario">
+    baseParams: {
+      startTime: string;
+      endTime: string;
+      interval: string;
+    } & ModelFilterParams
   ) => {
     try {
       const {
@@ -292,6 +295,13 @@ const ModelDashboardForLogCollector: React.FC = () => {
             end: baseParams.endTime,
           },
           bizType: "MODEL_API",
+          filters: {
+            api: baseParams.api || ([] as string[]),
+            model: baseParams.model || ([] as string[]),
+            route: baseParams.route || ([] as string[]),
+            service: baseParams.service || ([] as string[]),
+            consumer: baseParams.consumer || ([] as string[]),
+          },
         },
       ]);
 
@@ -313,11 +323,13 @@ const ModelDashboardForLogCollector: React.FC = () => {
 
   // 查询图表数据
 
-  const queryChartData = async (baseParams: {
-    startTime: string;
-    endTime: string;
-    interval: QueryInterval;
-  }) => {
+  const queryChartData = async (
+    baseParams: {
+      startTime: string;
+      endTime: string;
+      interval: string;
+    } & ModelFilterParams
+  ) => {
     // 注意这地方有三条线 流式qps、请求qps、总qps
     // 请求成功率
     // 输入token/s、输出token/s、总token/s
@@ -330,6 +342,13 @@ const ModelDashboardForLogCollector: React.FC = () => {
         interval: baseParams.interval + "s",
         scenario: "qps_total_simple",
         bizType: "MODEL_API",
+        filters: {
+          api: baseParams.api || ([] as string[]),
+          model: baseParams.model || ([] as string[]),
+          route: baseParams.route || ([] as string[]),
+          service: baseParams.service || ([] as string[]),
+          consumer: baseParams.consumer || ([] as string[]),
+        },
       },
       {
         timeRange: {
@@ -339,6 +358,13 @@ const ModelDashboardForLogCollector: React.FC = () => {
         interval: baseParams.interval + "s",
         scenario: "success_rate",
         bizType: "MODEL_API",
+        filters: {
+          api: baseParams.api || ([] as string[]),
+          model: baseParams.model || ([] as string[]),
+          route: baseParams.route || ([] as string[]),
+          service: baseParams.service || ([] as string[]),
+          consumer: baseParams.consumer || ([] as string[]),
+        },
       },
       {
         timeRange: {
@@ -348,6 +374,13 @@ const ModelDashboardForLogCollector: React.FC = () => {
         interval: baseParams.interval + "s",
         scenario: "rt_distribution",
         bizType: "MODEL_API",
+        filters: {
+          api: baseParams.api || ([] as string[]),
+          model: baseParams.model || ([] as string[]),
+          route: baseParams.route || ([] as string[]),
+          service: baseParams.service || ([] as string[]),
+          consumer: baseParams.consumer || ([] as string[]),
+        },
       },
       {
         timeRange: {
@@ -357,6 +390,13 @@ const ModelDashboardForLogCollector: React.FC = () => {
         interval: baseParams.interval + "s",
         scenario: "token_rate",
         bizType: "MODEL_API",
+        filters: {
+          api: baseParams.api || ([] as string[]),
+          model: baseParams.model || ([] as string[]),
+          route: baseParams.route || ([] as string[]),
+          service: baseParams.service || ([] as string[]),
+          consumer: baseParams.consumer || ([] as string[]),
+        },
       },
     ]);
 
@@ -474,11 +514,13 @@ const ModelDashboardForLogCollector: React.FC = () => {
   };
 
   // 查询表格数据
-  const queryTableData = async (baseParams: {
-    startTime: string;
-    endTime: string;
-    interval: QueryInterval;
-  }) => {
+  const queryTableData = async (
+    baseParams: {
+      startTime: string;
+      endTime: string;
+      interval: string;
+    } & ModelFilterParams
+  ) => {
     try {
       const { data } = await batchTableQuery([
         {
@@ -488,6 +530,13 @@ const ModelDashboardForLogCollector: React.FC = () => {
           },
           tableType: "model_token_stats",
           bizType: "MODEL_API",
+          filters: {
+            api: baseParams.api || ([] as string[]),
+            model: baseParams.model || ([] as string[]),
+            route: baseParams.route || ([] as string[]),
+            service: baseParams.service || ([] as string[]),
+            consumer: baseParams.consumer || ([] as string[]),
+          },
         },
         {
           timeRange: {
@@ -496,6 +545,13 @@ const ModelDashboardForLogCollector: React.FC = () => {
           },
           tableType: "consumer_token_stats",
           bizType: "MODEL_API",
+          filters: {
+            api: baseParams.api || ([] as string[]),
+            model: baseParams.model || ([] as string[]),
+            route: baseParams.route || ([] as string[]),
+            service: baseParams.service || ([] as string[]),
+            consumer: baseParams.consumer || ([] as string[]),
+          },
         },
         {
           timeRange: {
@@ -504,6 +560,13 @@ const ModelDashboardForLogCollector: React.FC = () => {
           },
           tableType: "service_token_stats",
           bizType: "MODEL_API",
+          filters: {
+            api: baseParams.api || ([] as string[]),
+            model: baseParams.model || ([] as string[]),
+            route: baseParams.route || ([] as string[]),
+            service: baseParams.service || ([] as string[]),
+            consumer: baseParams.consumer || ([] as string[]),
+          },
         },
         // {
         //   timeRange: {
@@ -579,7 +642,7 @@ const ModelDashboardForLogCollector: React.FC = () => {
       const {
         timeRange,
         interval,
-        cluster_id,
+        // cluster_id,
         api,
         model,
         route,
@@ -601,11 +664,14 @@ const ModelDashboardForLogCollector: React.FC = () => {
       // 设置时间范围标签
       setTimeRangeLabel(getTimeRangeLabel(startTimeStr, endTimeStr));
 
-      const baseParams: Omit<SlsQueryRequest, "scenario"> = {
+      const baseParams: {
+        startTime: string;
+        endTime: string;
+        interval: string;
+      } & ModelFilterParams = {
         startTime: startTimeStr,
         endTime: endTimeStr,
-        interval: interval || 15,
-        cluster_id,
+        interval: (interval || "15").toString(),
         api,
         model,
         route,
