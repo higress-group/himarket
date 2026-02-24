@@ -117,7 +117,7 @@ const generateTableColumns = (
   const firstRow = data[0];
   const keys = Object.keys(firstRow);
 
-  const priorityFields = ["method", "status_code"];
+  const priorityFields = ["method", "status_code", "tool_name", "status"];
   const sortedKeys = [
     ...priorityFields.filter(field => keys.includes(field)),
     ...keys.filter(key => !priorityFields.includes(key)).sort(),
@@ -462,6 +462,22 @@ const McpMonitorForLogCollector: React.FC = () => {
           tableType: "upstream_status_distribution",
           bizType: "MCP_SERVER",
         },
+        {
+          timeRange: {
+            start: baseParams.startTime,
+            end: baseParams.endTime,
+          },
+          tableType: "request_distribution",
+          bizType: "MCP_SERVER",
+        },
+        {
+          timeRange: {
+            start: baseParams.startTime,
+            end: baseParams.endTime,
+          },
+          tableType: "backend_status_distribution",
+          bizType: "MCP_SERVER",
+        },
       ]);
 
       // 安全地访问嵌套数据，使用类型守卫处理联合类型（参考 ModelDashboardForLogCollector）
@@ -484,12 +500,13 @@ const McpMonitorForLogCollector: React.FC = () => {
       const methodDistributionData = getDataArray(data?.query_0?.data);
       const gatewayStatusData = getDataArray(data?.query_1?.data);
       const backendStatusData = getDataArray(data?.query_2?.data);
+      const requestDistributionData = getDataArray(data?.query_3?.data);
 
       setTableData({
         methodDistribution: methodDistributionData,
         gatewayStatus: gatewayStatusData,
         backendStatus: backendStatusData,
-        requestDistribution: [], // 当前仅 3 个 table 请求，无第 4 项
+        requestDistribution: requestDistributionData,
       });
     } catch (error) {
       console.error("查询表格数据失败:", error);
