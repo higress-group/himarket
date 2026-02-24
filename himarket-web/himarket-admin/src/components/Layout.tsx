@@ -19,7 +19,7 @@ interface NavigationItem {
   name: string;
   cn: string;
   href: string;
-  icon: React.ComponentType<unknown>;
+  icon: React.ComponentType<{ className?: string }>;
   children?: NavigationItem[];
 }
 
