@@ -24,6 +24,7 @@ import {
   batchKpiQuery,
   batchTableQuery,
   batchChartQuery,
+  batchLoadOptions,
 } from "@/lib/logCollectorApi";
 
 const { RangePicker } = DatePicker;
@@ -156,8 +157,8 @@ const McpMonitorForLogCollector: React.FC = () => {
   const [timeRangeLabel, setTimeRangeLabel] = useState("");
 
   // 过滤选项状态
-  const [filterOptions] = useState({
-    clusterIds: [] as string[],
+  const [filterOptions, setFilterOptions] = useState({
+    // clusterIds: [] as string[],
     routeNames: [] as string[],
     mcpToolNames: [] as string[],
     consumers: [] as string[],
@@ -213,63 +214,37 @@ const McpMonitorForLogCollector: React.FC = () => {
 
   // 初始化默认值
   useEffect(() => {
-    const loadData = async () => {
+    const initPage = async () => {
       const [start, end] =
         rangePresets.find(p => p.label === "最近1周")?.value || [];
       form.setFieldsValue({
         timeRange: [start, end],
         interval: 15,
       });
-      // 自动触发一次查询
+
+      // 先加载过滤选项
+      await loadFilterOptions();
+
+      // 再执行查询
       await handleQuery();
     };
 
-    loadData();
+    initPage();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // 加载过滤选项
-  const loadFilterOptions = async (
-    startTime: string,
-    endTime: string,
-    interval: string
-  ) => {
+  const loadFilterOptions = async () => {
     try {
-      console.log("loadFilterOptions", startTime, endTime, interval);
-      // const options = await slsApi.fetchMcpFilterOptions(
-      //   startTime,
-      //   endTime,
-      //   interval
-      // );
-      // setFilterOptions({
-      //   clusterIds: options.cluster_id || [],
-      //   routeNames: options.route_name || [],
-      //   mcpToolNames: options.mcp_tool_name || [],
-      //   consumers: options.consumer || [],
-      //   upstreamClusters: options.upstream_cluster || [],
-      // });
+      const options = await batchLoadOptions();
+      setFilterOptions({
+        routeNames: options.routes || [],
+        mcpToolNames: options.mcpTools || [],
+        consumers: options.consumers || [],
+        upstreamClusters: [],
+      });
     } catch (error) {
       console.error("加载过滤选项失败:", error);
-    }
-  };
-
-  // 监听时间范围变化
-  const handleTimeRangeChange = (
-    dates: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    _dateStrings: [string, string]
-  ) => {
-    if (dates && dates.length === 2) {
-      const [start, end] = dates;
-      // 类型保护：确保 start 和 end 都不为 null
-      if (start && end) {
-        const interval = form.getFieldValue("interval") || 15;
-        loadFilterOptions(
-          formatDatetimeLocal(start),
-          formatDatetimeLocal(end),
-          interval
-        );
-      }
     }
   };
 
@@ -563,11 +538,11 @@ const McpMonitorForLogCollector: React.FC = () => {
       };
 
       // 并发查询所有数据
-      queryKpiData(baseParams);
-      queryChartData(baseParams);
-      queryTableData(baseParams);
-      // 查询成功后刷新过滤选项
-      await loadFilterOptions(startTimeStr, endTimeStr, interval || 15);
+      await Promise.all([
+        queryKpiData(baseParams),
+        queryChartData(baseParams),
+        queryTableData(baseParams),
+      ]);
 
       message.success("查询成功");
     } catch (error) {
@@ -618,7 +593,6 @@ const McpMonitorForLogCollector: React.FC = () => {
                   showTime
                   format={DATETIME_FORMAT}
                   presets={rangePresets}
-                  onChange={handleTimeRangeChange}
                   style={{ width: "100%" }}
                 />
               </Form.Item>
@@ -641,7 +615,7 @@ const McpMonitorForLogCollector: React.FC = () => {
                   mode="tags"
                   placeholder="请选择"
                   style={{ width: "100%" }}
-                  options={filterOptions.clusterIds.map(v => ({
+                  options={[].map(v => ({
                     label: v,
                     value: v,
                   }))}

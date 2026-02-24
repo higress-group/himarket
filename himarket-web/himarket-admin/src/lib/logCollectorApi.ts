@@ -37,6 +37,27 @@ export const batchKpiQuery = async (
   return (await api.post("/batch/kpi", requests)).data;
 };
 
+export const batchLoadOptions = async (): Promise<Record<string, string[]>> => {
+  const responses = await Promise.all([
+    api.get("/filters/consumers"),
+    api.get("/filters/apis"),
+    api.get("/filters/models"),
+    api.get("/filters/routes"),
+    api.get("/filters/services"),
+    api.get("/filters/mcp-servers"),
+    api.get("/filters/mcp-tools"),
+  ]);
+  return {
+    consumers: responses[0].data.data,
+    apis: responses[1].data.data,
+    models: responses[2].data.data,
+    routes: responses[3].data.data,
+    services: responses[4].data.data,
+    mcpServers: responses[5].data.data,
+    mcpTools: responses[6].data.data,
+  };
+};
+
 // 日志收集器API导出
 export const logCollectorApi = {
   batchChartQuery,

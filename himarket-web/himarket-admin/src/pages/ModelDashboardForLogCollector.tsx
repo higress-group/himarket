@@ -11,7 +11,7 @@ import {
   message,
 } from "antd";
 import * as echarts from "echarts";
-import dayjs, { type Dayjs } from "dayjs";
+import dayjs from "dayjs";
 import { SlsQueryRequest, QueryInterval } from "../types/sls";
 import {
   formatDatetimeLocal,
@@ -25,6 +25,7 @@ import {
   batchKpiQuery,
   batchTableQuery,
   batchChartQuery,
+  batchLoadOptions,
 } from "@/lib/logCollectorApi";
 import type { KpiData } from "@/types/logCollector";
 
@@ -153,7 +154,7 @@ const ModelDashboardForLogCollector: React.FC = () => {
 
   // 过滤选项状态
   const [filterOptions, setFilterOptions] = useState({
-    clusterIds: [] as string[],
+    // clusterIds: [] as string[],
     apis: [] as string[],
     models: [] as string[],
     routes: [] as string[],
@@ -256,50 +257,22 @@ const ModelDashboardForLogCollector: React.FC = () => {
     });
     // 自动触发一次查询
     handleQuery();
+    loadFilterOptions();
   }, []);
 
   // 加载过滤选项
-  const loadFilterOptions = async (
-    startTime: string,
-    endTime: string,
-    interval: QueryInterval
-  ) => {
+  const loadFilterOptions = async () => {
     try {
-      console.log("Loading filter options...", startTime, endTime, interval);
-      const options = {
-        cluster_id: [],
-        api: [],
-        model: [],
-        route: [],
-        service: [],
-        consumer: [],
-      };
+      const options = await batchLoadOptions();
       setFilterOptions({
-        clusterIds: options.cluster_id || [],
-        apis: options.api || [],
-        models: options.model || [],
-        routes: options.route || [],
-        services: options.service || [],
-        consumers: options.consumer || [],
+        apis: options.apis || [],
+        models: options.models || [],
+        routes: options.routes || [],
+        services: options.services || [],
+        consumers: options.consumers || [],
       });
     } catch (error) {
       console.error("加载过滤选项失败:", error);
-    }
-  };
-
-  // 监听时间范围变化
-  const handleTimeRangeChange = (
-    dates: [Dayjs | null, Dayjs | null] | null,
-    dateStrings: [string, string]
-  ) => {
-    if (dates && dates[0] && dates[1]) {
-      const [start, end] = dateStrings;
-      const interval = form.getFieldValue("interval") || 15;
-      loadFilterOptions(
-        formatDatetimeLocal(start),
-        formatDatetimeLocal(end),
-        interval
-      );
     }
   };
 
@@ -647,9 +620,6 @@ const ModelDashboardForLogCollector: React.FC = () => {
         queryTableData(baseParams),
       ]);
 
-      // 查询成功后刷新过滤选项
-      await loadFilterOptions(startTimeStr, endTimeStr, interval || 15);
-
       message.success("查询成功");
     } catch (error) {
       console.error("查询失败:", error);
@@ -707,7 +677,6 @@ const ModelDashboardForLogCollector: React.FC = () => {
                   showTime
                   format={DATETIME_FORMAT}
                   presets={rangePresets}
-                  onChange={handleTimeRangeChange}
                   style={{ width: "100%" }}
                 />
               </Form.Item>
@@ -730,7 +699,7 @@ const ModelDashboardForLogCollector: React.FC = () => {
                   mode="tags"
                   placeholder="请选择"
                   style={{ width: "100%" }}
-                  options={filterOptions.clusterIds.map(v => ({
+                  options={[].map(v => ({
                     label: v,
                     value: v,
                   }))}
