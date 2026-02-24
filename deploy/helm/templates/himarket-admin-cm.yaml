@@ -7,4 +7,4 @@ metadata:
 data:
   HIMARKET_SERVER: "http://himarket-server"
   # 指标服务地址，不设则与 HIMARKET_SERVER 相同
-  METRICS_SERVER: "http://himarket-server"
+  METRICS_SERVER: "http://log-collector.higress-system.svc:8080"
