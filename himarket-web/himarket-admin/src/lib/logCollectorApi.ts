@@ -23,8 +23,10 @@ function processRequest(
   const filters = {
     ...request.filters,
     mcp_server: request.filters.mcpServer,
-    mcp_tool: request.filters.mcpTool,
+    tool_name: request.filters.mcpTool,
   };
+  delete filters.mcpServer;
+  delete filters.mcpTool;
   return {
     ...request,
     filters,
