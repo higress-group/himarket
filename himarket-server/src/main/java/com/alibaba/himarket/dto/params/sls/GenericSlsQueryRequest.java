@@ -63,6 +63,20 @@ public class GenericSlsQueryRequest {
     /** 服务名（过滤参数，对 upstream_cluster 进行包含匹配，支持多个值OR查询） */
     private String[] service;
 
+    /**
+     * 路由名称（MCP监控侧字段，兼容前端使用 route_name 传参）
+     *
+     * <p>说明：历史上模型大盘使用 {@link #route}，MCP 大盘使用 route_name；两者在后端都映射到
+     * access_logs.route_name / SLS 的 route_name。
+     */
+    private String[] routeName;
+
+    /** 上游服务（MCP监控侧字段，兼容前端使用 upstream_cluster 传参） */
+    private String[] upstreamCluster;
+
+    /** MCP 工具名称（MCP监控侧字段，兼容前端使用 mcp_tool_name 传参） */
+    private String[] mcpToolName;
+
     /** 场景名（如: pv, uv, qps_total 等） */
     private String scenario;
 

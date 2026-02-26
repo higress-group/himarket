@@ -100,13 +100,13 @@ const Layout: React.FC = () => {
         {
           name: "模型监控",
           cn: "模型监控",
-          href: "/observability/model-dashboard-for-log-collector",
+          href: "/observability/model-dashboard",
           icon: DashboardOutlined,
         },
         {
           name: "MCP监控",
           cn: "MCP监控",
-          href: "/observability/mcp-monitor-for-log-collector",
+          href: "/observability/mcp-monitor",
           icon: MonitorOutlined,
         },
       ],
