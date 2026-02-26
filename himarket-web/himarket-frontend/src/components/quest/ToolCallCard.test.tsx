@@ -20,9 +20,7 @@ const KINDS: ToolKind[] = [
 describe("ToolCallCard kind mapping", () => {
   it.each(KINDS)("renders kind=%s without falling back incorrectly", kind => {
     const title = kind === "skill" ? "Skill my-skill" : `${kind} title`;
-    const shouldRenderFileName = ["read", "edit", "delete", "move"].includes(
-      kind
-    );
+    // file-based kinds: read, edit, delete, move
     render(
       <ToolCallCard
         item={{

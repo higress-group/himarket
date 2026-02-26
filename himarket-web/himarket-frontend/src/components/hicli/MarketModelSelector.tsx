@@ -35,7 +35,7 @@ export function MarketModelSelector({
     setError(null);
     try {
       const res = await getMarketModels();
-      const data = res.data?.data ?? res.data;
+      const data = res.data;
       setModels(data.models ?? []);
       setApiKey(data.apiKey ?? null);
     } catch (err: any) {

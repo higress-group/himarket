@@ -3,7 +3,7 @@ import fc from "fast-check";
 import {
   trackRequest,
   resolveResponse,
-  resetNextId,
+
 } from "./acp";
 import type { AcpResponse } from "../../types/acp";
 

@@ -2,7 +2,6 @@ import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useRuntimeSelection } from '../useRuntimeSelection';
 import type { ICliProvider } from '../../lib/apis/cliProvider';
-import type { SandboxMode } from '../../types/runtime';
 
 // Mock localStorage
 const localStorageMock = (() => {

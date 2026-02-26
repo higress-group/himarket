@@ -155,13 +155,6 @@ function CodingContent() {
     []
   );
 
-  // 切换工具：断开连接 → RESET_STATE → 清空 wsUrl → 返回欢迎页
-  const handleSwitchTool = useCallback(() => {
-    session.disconnect();
-    dispatch({ type: "RESET_STATE" });
-    setCurrentWsUrl("");
-    autoCreatedRef.current = false;
-  }, [session, dispatch]);
 
   const [activeTab, setActiveTab] = useState<RightTab>("code");
   const [tree, setTree] = useState<FileNode[]>([]);

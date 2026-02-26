@@ -30,7 +30,7 @@ public class K8sProperties {
     /**
      * Pod 所在的 K8s 命名空间。
      */
-    private String podNamespace = "himarket";
+    private String podNamespace = "default";
 
     public boolean isEnabled() {
         return enabled;

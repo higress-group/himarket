@@ -345,7 +345,11 @@ public class CliProviderController {
         String defaultKey = acpProperties.getDefaultProvider();
         for (Map.Entry<String, CliProviderConfig> entry : acpProperties.getProviders().entrySet()) {
             CliProviderConfig config = entry.getValue();
-            boolean available = isCommandAvailable(config.getCommand());
+            // 兼容 K8S 运行时的 Provider 可在沙箱中运行，无需本机安装命令
+            boolean canRunInSandbox =
+                    config.getCompatibleRuntimes() != null
+                            && config.getCompatibleRuntimes().contains(RuntimeType.K8S);
+            boolean available = canRunInSandbox || isCommandAvailable(config.getCommand());
             result.add(
                     new CliProviderInfo(
                             entry.getKey(),

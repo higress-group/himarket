@@ -59,7 +59,9 @@ export interface UseHiCliSessionReturn {
   createQuest: (cwd: string) => Promise<string>;
   switchQuest: (questId: string) => void;
   closeQuest: (questId: string) => void;
-  sendPrompt: (text: string, attachments?: Attachment[]) => void;
+  sendPrompt: (text: string, attachments?: Attachment[]) =>
+    | { queued: true; queuedPromptId?: string }
+    | { queued: false; requestId?: string | number };
   cancelPrompt: () => void;
   setModel: (modelId: string) => void;
   setMode: (modeId: string) => void;

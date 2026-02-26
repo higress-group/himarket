@@ -61,19 +61,19 @@ acp:
       command: ${ACP_CLI_COMMAND_KIRO:kiro-cli}
       args: ${ACP_CLI_ARGS_KIRO:acp}
       runtime-category: native
-      compatible-runtimes: LOCAL
+      compatible-runtimes: LOCAL,K8S
     claude-code:
       display-name: Claude Code
       command: ${ACP_CLI_COMMAND_CLAUDE:npx}
       args: ${ACP_CLI_ARGS_CLAUDE:@zed-industries/claude-code-acp}
       runtime-category: nodejs
-      compatible-runtimes: LOCAL
+      compatible-runtimes: LOCAL,K8S
     codex:
       display-name: Codex CLI
       command: ${ACP_CLI_COMMAND_CODEX:npx}
       args: ${ACP_CLI_ARGS_CODEX:@zed-industries/codex-acp}
       runtime-category: nodejs
-      compatible-runtimes: LOCAL
+      compatible-runtimes: LOCAL,K8S
     qwen-code:
       display-name: Qwen Code
       command: ${ACP_CLI_COMMAND_QWEN:qwen}
@@ -90,7 +90,7 @@ acp:
       command: ${ACP_CLI_COMMAND_OPENCODE:opencode}
       args: ${ACP_CLI_ARGS_OPENCODE:acp}
       runtime-category: native
-      compatible-runtimes: LOCAL
+      compatible-runtimes: LOCAL,K8S
       supports-custom-model: true
 
 sls:

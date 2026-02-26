@@ -300,11 +300,9 @@ describe("端到端错误信息保真 property-based tests", () => {
           };
 
           // Step 2: Simulate trackRequest + resolveResponse (what happens in the real flow)
-          let capturedError: { code: number; message: string; data?: Record<string, unknown> } | null = null;
-
           const promise = trackRequest(requestId);
-          promise.catch((err) => {
-            capturedError = err;
+          promise.catch(() => {
+            // error captured via acpErrorResponse.error below
           });
 
           resolveResponse(acpErrorResponse);

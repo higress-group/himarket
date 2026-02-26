@@ -4,7 +4,7 @@
 import { render, screen, cleanup } from "@testing-library/react";
 import { describe, it, expect, vi, afterEach } from "vitest";
 import * as fc from "fast-check";
-import type { AgentInfo, AuthMethod, AgentCapabilities } from "../../../types/acp";
+import type { AgentInfo } from "../../../types/acp";
 import type { HiCliState } from "../../../context/HiCliSessionContext";
 
 // ===== Mock useHiCliState =====

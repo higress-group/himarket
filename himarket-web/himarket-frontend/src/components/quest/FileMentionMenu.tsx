@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { File, FileText, FileCode, Image, Loader2 } from "lucide-react";
+import { FileText, FileCode, Image, Loader2 } from "lucide-react";
 import type { FlatFileItem } from "../../lib/utils/fileTreeUtils";
 
 interface FileMentionMenuProps {

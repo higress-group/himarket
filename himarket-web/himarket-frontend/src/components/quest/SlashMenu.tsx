@@ -97,7 +97,7 @@ export function SlashMenu({ commands, filter, onSelect }: SlashMenuProps) {
         className="flex-1 min-w-0 max-h-[320px] overflow-y-auto rounded-l-xl border border-r-0
                    border-gray-200/80 bg-white/95 backdrop-blur-md shadow-lg"
       >
-        {items.map((item, i) => {
+        {items.map((item) => {
           if (item.type === "header") {
             return (
               <div

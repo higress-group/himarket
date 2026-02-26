@@ -40,7 +40,7 @@ export function MarketSkillSelector({ onChange }: MarketSkillSelectorProps) {
     setError(null);
     try {
       const res = await getMarketSkills();
-      const data = res.data?.data ?? res.data;
+      const data = res.data;
       setSkills(Array.isArray(data) ? data : []);
     } catch (err: any) {
       setError(

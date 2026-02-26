@@ -37,7 +37,7 @@ export function MarketMcpSelector({ onChange }: MarketMcpSelectorProps) {
     setError(null);
     try {
       const res = await getMarketMcps();
-      const data = res.data?.data ?? res.data;
+      const data = res.data;
       setMcpServers(data.mcpServers ?? []);
       setAuthHeaders(data.authHeaders ?? null);
     } catch (err: any) {
