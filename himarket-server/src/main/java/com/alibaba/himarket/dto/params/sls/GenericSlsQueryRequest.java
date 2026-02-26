@@ -90,4 +90,7 @@ public class GenericSlsQueryRequest {
 
     /** 时间间隔（秒，用于时序图表聚合） */
     private Integer interval;
+    
+    /** 业务类型，用于区分不同的产品类型（如 MCP_SERVER, MODEL_API 等） */
+    private String bizType;
 }

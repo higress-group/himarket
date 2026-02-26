@@ -92,7 +92,7 @@ export async function fetchModelFilterOptions(
   endTime: string,
   interval: 1 | 15 | 60
 ): Promise<FilterOptions> {
-  const baseParams = { startTime, endTime, interval };
+  const baseParams = { startTime, endTime, interval, bizType: "MODEL_API" };
 
   // 并发查询所有过滤选项场景
   const requests: SlsQueryRequest[] = [
@@ -139,7 +139,7 @@ export async function fetchMcpFilterOptions(
   endTime: string,
   interval: 1 | 15 | 60
 ): Promise<FilterOptions> {
-  const baseParams = { startTime, endTime, interval };
+  const baseParams = { startTime, endTime, interval, bizType: "MCP_SERVER" };
 
   // 并发查询所有过滤选项场景
   const requests: SlsQueryRequest[] = [

@@ -331,6 +331,7 @@ const McpMonitor: React.FC = () => {
         startTime: startTimeStr,
         endTime: endTimeStr,
         interval: interval || 15,
+        bizType: "MCP_SERVER",
         cluster_id,
         route_name,
         mcp_tool_name,
