@@ -42,6 +42,7 @@ import org.springframework.stereotype.Component;
 public class MatrixPresetSqlRegistry {
 
     public static final String WHERE_PLACEHOLDER = "/*WHERE*/";
+    public static final String BIZ_PLACEHOLDER = "/*BIZ*/";
 
     /** 场景预设 */
     @Getter
@@ -75,7 +76,10 @@ public class MatrixPresetSqlRegistry {
                 new Preset(
                         "pv",
                         SlsPresetSqlRegistry.DisplayType.CARD,
-                        "SELECT COUNT(1) AS pv FROM access_logs " + WHERE_PLACEHOLDER,
+                        "SELECT COUNT(1) AS pv FROM access_logs "
+                                + WHERE_PLACEHOLDER
+                                + " "
+                                + BIZ_PLACEHOLDER,
                         null,
                         null));
         presets.put(
@@ -84,7 +88,9 @@ public class MatrixPresetSqlRegistry {
                         "uv",
                         SlsPresetSqlRegistry.DisplayType.CARD,
                         "SELECT COUNT(DISTINCT x_forwarded_for) AS uv FROM access_logs "
-                                + WHERE_PLACEHOLDER,
+                                + WHERE_PLACEHOLDER
+                                + " "
+                                + BIZ_PLACEHOLDER,
                         null,
                         null));
         presets.put(

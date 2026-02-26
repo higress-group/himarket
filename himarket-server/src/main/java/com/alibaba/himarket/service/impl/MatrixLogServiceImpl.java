@@ -75,6 +75,10 @@ public class MatrixLogServiceImpl implements MatrixLogService {
                 sql = sql.replace(MatrixPresetSqlRegistry.WHERE_PLACEHOLDER, where);
             }
 
+            if (sql.contains(MatrixPresetSqlRegistry.BIZ_PLACEHOLDER)) {
+                sql = sql.replace(MatrixPresetSqlRegistry.BIZ_PLACEHOLDER, buildBizClause(request));
+            }
+
             // 可选 limit：仅当请求显式传入 pageSize 且 SQL 未显式 limit 时追加
             if (request.getPageSize() != null && !containsLimit(sql)) {
                 sql = sql + " LIMIT " + clampLimit(request.getPageSize());
@@ -182,6 +186,26 @@ public class MatrixLogServiceImpl implements MatrixLogService {
         appendOrEquals(sb, params, "mcp_tool", "mcpToolName", request.getMcpToolName());
 
         return sb.toString();
+    }
+
+    /**
+     * pv/uv 场景区分来源：
+     *
+     * <ul>
+     *   <li>Model 请求：ai_log.model 字段存在且不为空
+     *   <li>MCP 请求：ai_log.mcp_tool_name 字段存在且不为空
+     * </ul>
+     */
+    private String buildBizClause(GenericSlsQueryRequest request) {
+        boolean isMcp =
+                request.getBizType() != null && request.getBizType().equals("MCP_SERVER");
+
+        if (isMcp) {
+            return "AND JSON_VALID(ai_log) AND NULLIF(JSON_UNQUOTE(JSON_EXTRACT(ai_log,"
+                    + " '$.mcp_tool_name')), '') IS NOT NULL";
+        }
+        return "AND JSON_VALID(ai_log)"
+                + " AND NULLIF(JSON_UNQUOTE(JSON_EXTRACT(ai_log, '$.model')), '') IS NOT NULL";
     }
 
     private void appendOrEquals(
