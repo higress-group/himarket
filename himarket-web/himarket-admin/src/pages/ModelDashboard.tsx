@@ -417,13 +417,28 @@ const ModelDashboard: React.FC = () => {
       const responses = await slsApi.batchQueryStatistics(requests);
 
       setTableData({
-        modelToken: responses[0].table || [],
-        consumerToken: responses[1].table || [],
-        serviceToken: responses[2].table || [],
-        errorRequests: responses[3].table || [],
-        ratelimitedConsumer: responses[4].table || [],
-        riskLabel: responses[5].table || [],
-        riskConsumer: responses[6].table || [],
+        modelToken: (responses[0].table || []) as Record<string, TableValue>[],
+        consumerToken: (responses[1].table || []) as Record<
+          string,
+          TableValue
+        >[],
+        serviceToken: (responses[2].table || []) as Record<
+          string,
+          TableValue
+        >[],
+        errorRequests: (responses[3].table || []) as Record<
+          string,
+          TableValue
+        >[],
+        ratelimitedConsumer: (responses[4].table || []) as Record<
+          string,
+          TableValue
+        >[],
+        riskLabel: (responses[5].table || []) as Record<string, TableValue>[],
+        riskConsumer: (responses[6].table || []) as Record<
+          string,
+          TableValue
+        >[],
       });
     } catch (error) {
       console.error("查询表格数据失败:", error);
