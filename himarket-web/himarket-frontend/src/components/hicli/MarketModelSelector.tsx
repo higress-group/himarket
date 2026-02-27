@@ -36,8 +36,22 @@ export function MarketModelSelector({
     try {
       const res = await getMarketModels();
       const data = res.data;
-      setModels(data.models ?? []);
-      setApiKey(data.apiKey ?? null);
+      const fetchedModels = data.models ?? [];
+      const fetchedApiKey = data.apiKey ?? null;
+      setModels(fetchedModels);
+      setApiKey(fetchedApiKey);
+      // 自动选中第一个模型
+      if (fetchedModels.length > 0 && fetchedApiKey) {
+        const first = fetchedModels[0];
+        setSelectedProductId(first.productId);
+        onChange({
+          baseUrl: first.baseUrl,
+          apiKey: fetchedApiKey,
+          modelId: first.modelId,
+          modelName: first.name,
+          protocolType: first.protocolType as CustomModelFormData["protocolType"],
+        });
+      }
     } catch (err: any) {
       // 401 未登录
       if (err?.response?.status === 401) {

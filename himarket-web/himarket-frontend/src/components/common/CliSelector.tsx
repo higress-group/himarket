@@ -40,7 +40,7 @@ export function CliSelector({ onSelect, disabled, showRuntimeSelector = false }:
   });
 
   // 模型配置模式
-  const [modelConfigMode, setModelConfigMode] = useState<ModelConfigMode>('none');
+  const [modelConfigMode, setModelConfigMode] = useState<ModelConfigMode>('market');
   const [customModelData, setCustomModelData] = useState<CustomModelFormData | null>(null);
 
   // MCP 和 Skill 选择状态
@@ -107,7 +107,7 @@ export function CliSelector({ onSelect, disabled, showRuntimeSelector = false }:
 
   // 切换 CLI 工具时重置模型配置模式和 MCP/Skill 选择状态，并回到步骤一
   useEffect(() => {
-    setModelConfigMode('none');
+    setModelConfigMode('market');
     setCustomModelData(null);
     setMcpEnabled(false);
     setSkillEnabled(false);
@@ -384,9 +384,9 @@ export function CliSelector({ onSelect, disabled, showRuntimeSelector = false }:
 
   /** 步骤二：模型配置（Segmented Control 三选一） */
   const modelConfigOptions = [
-    { label: '默认模型', value: 'none' as ModelConfigMode },
-    { label: '自定义模型', value: 'custom' as ModelConfigMode },
     { label: '市场模型', value: 'market' as ModelConfigMode },
+    { label: '自定义模型', value: 'custom' as ModelConfigMode },
+    { label: '默认模型', value: 'none' as ModelConfigMode },
   ];
 
   const handleModelConfigModeChange = (value: ModelConfigMode) => {
