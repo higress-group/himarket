@@ -41,7 +41,7 @@ jwt:
   expiration: 7d
 
 acp:
-  local-enabled: ${ACP_LOCAL_ENABLED:true}
+  local-enabled: ${ACP_LOCAL_ENABLED:false}
   default-provider: ${ACP_DEFAULT_PROVIDER:qodercli}
   workspace-root: ${ACP_WORKSPACE_ROOT:${user.home}/.himarket/workspaces}
   default-runtime: ${ACP_DEFAULT_RUNTIME:local}

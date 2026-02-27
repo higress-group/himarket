@@ -15,7 +15,7 @@ export function useTerminalWebSocket({
   onOutput,
   onExit,
   autoConnect = true,
-  maxReconnectAttempts = 10,
+  maxReconnectAttempts = 2,
 }: UseTerminalWebSocketOptions) {
   const [status, setStatus] = useState<TerminalWsStatus>("disconnected");
   const wsRef = useRef<WebSocket | null>(null);

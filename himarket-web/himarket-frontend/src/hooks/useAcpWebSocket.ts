@@ -13,7 +13,7 @@ export function useAcpWebSocket({
   url,
   onMessage,
   autoConnect = true,
-  maxReconnectAttempts = 10,
+  maxReconnectAttempts = 2,
 }: UseWebSocketOptions) {
   const [status, setStatus] = useState<WsStatus>("disconnected");
   const wsRef = useRef<WebSocket | null>(null);

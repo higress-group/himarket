@@ -104,6 +104,7 @@ echo "Building and pushing backend Docker image ($SERVER_IMAGE_TAG) for platform
 docker buildx build \
     --platform "$PLATFORMS" \
     -t "$SERVER_IMAGE_TAG" \
+    --pull=false \
     --push .
 echo "✅ Backend server image pushed successfully."
 cd ..
@@ -124,6 +125,7 @@ echo "Building and pushing frontend Docker image ($FRONTEND_IMAGE_TAG) for platf
 docker buildx build \
     -t "$FRONTEND_IMAGE_TAG" \
     --platform "$PLATFORMS" \
+    --pull=false \
     --push .
 echo "✅ Frontend image pushed successfully."
 cd ../..
@@ -144,6 +146,7 @@ echo "Building and pushing admin Docker image ($ADMIN_IMAGE_TAG) for platforms: 
 docker buildx build \
     -t "$ADMIN_IMAGE_TAG" \
     --platform "$PLATFORMS" \
+    --pull=false \
     --push .
 echo "✅ Admin image pushed successfully."
 cd ../..
