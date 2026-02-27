@@ -61,7 +61,6 @@ public abstract class AbstractLlmService implements LlmService {
 
         try {
             LlmChatRequest request = composeRequest(param);
-            //            request.tryResolveDns();
 
             Model chatModel = newChatModel(request);
             ChatBot chatBot = chatBotManager.getOrCreateChatBot(request, chatModel);

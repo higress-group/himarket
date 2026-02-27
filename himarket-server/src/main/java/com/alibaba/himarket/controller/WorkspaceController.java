@@ -2,6 +2,7 @@ package com.alibaba.himarket.controller;
 
 import com.alibaba.himarket.config.AcpProperties;
 import com.alibaba.himarket.core.annotation.AdminOrDeveloperAuth;
+import com.alibaba.himarket.service.acp.K8sWorkspaceService;
 import com.alibaba.himarket.service.document.DocumentConversionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -66,6 +67,7 @@ public class WorkspaceController {
 
     private final AcpProperties acpProperties;
     private final DocumentConversionService conversionService;
+    private final K8sWorkspaceService k8sWorkspaceService;
     private final ConcurrentMap<Path, CompletableFuture<Path>> previewConversionTasks =
             new ConcurrentHashMap<>();
     private final ConcurrentMap<Path, String> previewConversionErrors = new ConcurrentHashMap<>();
@@ -115,8 +117,23 @@ public class WorkspaceController {
     @Operation(summary = "Read file content from workspace")
     @GetMapping("/file")
     public ResponseEntity<?> readFile(
-            @RequestParam String path, @RequestParam(defaultValue = "false") boolean raw) {
+            @RequestParam String path,
+            @RequestParam(defaultValue = "false") boolean raw,
+            @RequestParam(required = false) String runtime) {
         String userId = getCurrentUserId();
+
+        if ("k8s".equalsIgnoreCase(runtime)) {
+            try {
+                String content = k8sWorkspaceService.readFile(userId, path);
+                return ResponseEntity.ok(Map.of("content", content, "encoding", "utf-8"));
+            } catch (IOException e) {
+                log.error(
+                        "Failed to read file from K8s sandbox: user={}, path={}", userId, path, e);
+                return ResponseEntity.internalServerError()
+                        .body(Map.of("error", "Failed to read file from sandbox"));
+            }
+        }
+
         Path workspaceRoot = getWorkspaceRootForUser(userId);
         Path filePath =
                 Paths.get(path).isAbsolute()
@@ -233,8 +250,23 @@ public class WorkspaceController {
     public ResponseEntity<?> listWorkspaceChanges(
             @RequestParam String cwd,
             @RequestParam long since,
-            @RequestParam(defaultValue = "200") int limit) {
+            @RequestParam(defaultValue = "200") int limit,
+            @RequestParam(required = false) String runtime) {
         String userId = getCurrentUserId();
+
+        if ("k8s".equalsIgnoreCase(runtime)) {
+            try {
+                List<Map<String, Object>> changes =
+                        k8sWorkspaceService.getChanges(userId, cwd, since);
+                return ResponseEntity.ok(Map.of("changes", changes));
+            } catch (IOException e) {
+                log.error(
+                        "Failed to get changes from K8s sandbox: user={}, cwd={}", userId, cwd, e);
+                return ResponseEntity.internalServerError()
+                        .body(Map.of("error", "Failed to get changes from sandbox"));
+            }
+        }
+
         Path workspaceRoot = getWorkspaceRootForUser(userId);
         Path cwdPath =
                 Paths.get(cwd).isAbsolute()
@@ -426,8 +458,26 @@ public class WorkspaceController {
     @Operation(summary = "Get directory tree for workspace")
     @GetMapping("/tree")
     public ResponseEntity<?> getDirectoryTree(
-            @RequestParam String cwd, @RequestParam(defaultValue = "3") int depth) {
+            @RequestParam String cwd,
+            @RequestParam(defaultValue = "3") int depth,
+            @RequestParam(required = false) String runtime) {
         String userId = getCurrentUserId();
+
+        if ("k8s".equalsIgnoreCase(runtime)) {
+            try {
+                Map<String, Object> tree = k8sWorkspaceService.getDirectoryTree(userId, cwd, depth);
+                return ResponseEntity.ok(tree);
+            } catch (IOException e) {
+                log.error(
+                        "Failed to get directory tree from K8s sandbox: user={}, cwd={}",
+                        userId,
+                        cwd,
+                        e);
+                return ResponseEntity.internalServerError()
+                        .body(Map.of("error", "Failed to get directory tree from sandbox"));
+            }
+        }
+
         Path workspaceRoot = getWorkspaceRootForUser(userId);
         Path cwdPath =
                 Paths.get(cwd).isAbsolute()

@@ -128,7 +128,7 @@ public class RuntimeSelector {
      */
     public boolean isRuntimeAvailable(RuntimeType type) {
         return switch (type) {
-            case LOCAL -> true;
+            case LOCAL -> acpProperties.isLocalEnabled();
             case K8S -> k8sConfigService.hasAnyCluster();
         };
     }
@@ -165,7 +165,7 @@ public class RuntimeSelector {
 
     private String getUnavailableReason(RuntimeType type) {
         return switch (type) {
-            case LOCAL -> null;
+            case LOCAL -> acpProperties.isLocalEnabled() ? null : "本地模式已被管理员禁用";
             case K8S -> "K8s 集群未配置，请联系平台管理员配置 kubeconfig";
         };
     }

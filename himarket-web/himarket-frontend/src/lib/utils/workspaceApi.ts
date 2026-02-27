@@ -89,11 +89,15 @@ export async function uploadFileToWorkspace(file: File): Promise<string> {
  */
 export async function fetchArtifactContent(
   filePath: string,
-  opts?: { raw?: boolean }
+  opts?: { raw?: boolean; runtime?: string }
 ): Promise<ArtifactContentResult> {
   try {
     const resp: FileContentResponse = await request.get("/workspace/file", {
-      params: { path: filePath, raw: opts?.raw === true },
+      params: {
+        path: filePath,
+        raw: opts?.raw === true,
+        ...(opts?.runtime ? { runtime: opts.runtime } : {}),
+      },
     });
     return {
       content: resp.content ?? null,
@@ -133,13 +137,14 @@ export async function prepareArtifactPreview(
 export async function fetchWorkspaceChanges(
   cwd: string,
   since: number,
-  limit = 200
+  limit = 200,
+  runtime?: string
 ): Promise<WorkspaceChange[]> {
   try {
     const resp: WorkspaceChangesResponse = await request.get(
       "/workspace/changes",
       {
-        params: { cwd, since, limit },
+        params: { cwd, since, limit, ...(runtime ? { runtime } : {}) },
       }
     );
     return resp.changes ?? [];
@@ -155,11 +160,12 @@ export async function fetchWorkspaceChanges(
  */
 export async function fetchDirectoryTree(
   cwd: string,
-  depth = 5
+  depth = 5,
+  runtime?: string
 ): Promise<FileNode[]> {
   try {
     const resp: FileNode = await request.get("/workspace/tree", {
-      params: { cwd, depth },
+      params: { cwd, depth, ...(runtime ? { runtime } : {}) },
     });
     return resp.children ?? [];
   } catch {
@@ -169,8 +175,10 @@ export async function fetchDirectoryTree(
 
 /**
  * Build preview URL for a dev server running on the given port.
- * In local development, directly access the dev server on localhost.
+ * When sandboxHost is provided (K8s sandbox), use it as the host.
+ * Otherwise fall back to localhost (local development).
  */
-export function getPreviewUrl(port: number): string {
-  return `http://localhost:${port}/`;
+export function getPreviewUrl(port: number, sandboxHost?: string | null): string {
+  const host = sandboxHost || "localhost";
+  return `http://${host}:${port}/`;
 }

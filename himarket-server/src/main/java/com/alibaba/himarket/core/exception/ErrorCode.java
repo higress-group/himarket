@@ -51,6 +51,15 @@ public enum ErrorCode {
 
     /** Gateway error */
     GATEWAY_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "网关错误：{}"),
+
+    /** Sandbox not ready (Pod 未就绪) */
+    SANDBOX_NOT_READY(HttpStatus.SERVICE_UNAVAILABLE, "沙箱未就绪：{}"),
+
+    /** Sandbox connection failed (Sidecar 不可达) */
+    SANDBOX_CONNECTION_FAILED(HttpStatus.BAD_GATEWAY, "沙箱连接失败：{}"),
+
+    /** Sandbox error (Sidecar 返回错误) */
+    SANDBOX_ERROR(HttpStatus.BAD_GATEWAY, "{}"),
     ;
 
     private final HttpStatus status;

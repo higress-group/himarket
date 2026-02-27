@@ -1,4 +1,5 @@
-import { Sparkles, Terminal, Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { MessageSquare, Terminal, Loader2 } from "lucide-react";
 import { WelcomePage } from "../common/WelcomePage";
 import { useHiCliState } from "../../context/HiCliSessionContext";
 import type { ICliProvider } from "../../lib/apis/cliProvider";
@@ -9,6 +10,14 @@ interface HiCliWelcomeProps {
   isConnected: boolean;
   disabled: boolean;
   creatingQuest?: boolean;
+}
+
+/** 格式化已等待秒数为 "Xs" 或 "Xm Ys" */
+function formatElapsed(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return s > 0 ? `${m}m ${s}s` : `${m}m`;
 }
 
 export function HiCliWelcome({
@@ -22,6 +31,22 @@ export function HiCliWelcome({
   const sandbox = state.sandboxStatus;
   const isSandboxCreating = sandbox?.status === "creating";
   const isSandboxError = sandbox?.status === "error";
+
+  // 等待计时器：从 connectStartedAt 开始计时，直到 initialized
+  const [elapsed, setElapsed] = useState(0);
+  const isWaiting = !state.initialized && !!state.connectStartedAt;
+
+  useEffect(() => {
+    if (!isWaiting || !state.connectStartedAt) {
+      setElapsed(0);
+      return;
+    }
+    setElapsed(Math.floor((Date.now() - state.connectStartedAt) / 1000));
+    const timer = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - state.connectStartedAt!) / 1000));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [isWaiting, state.connectStartedAt]);
 
   // 沙箱状态提示 + 已连接后的操作内容
   const connectedContent = (
@@ -47,26 +72,21 @@ export function HiCliWelcome({
           请稍候，沙箱就绪后将自动进入会话
         </p>
       ) : (
-        <>
-          <p className="text-sm text-gray-400 mb-6">
-            创建一个新的 Quest 开始对话
+        /* 已连接且就绪：展示欢迎提示，引导用户通过输入框发送消息 */
+        <div className="flex flex-col items-center gap-3">
+          <MessageSquare size={24} className="text-gray-400" />
+          <p className="text-sm text-gray-500">
+            在下方输入框发送消息开始新对话
           </p>
-          <button
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full
-                       bg-gray-800 text-white text-sm font-medium
-                       hover:bg-gray-700 transition-colors
-                       disabled:opacity-40 disabled:cursor-not-allowed"
-            onClick={onCreateQuest}
-            disabled={disabled || creatingQuest}
-          >
-            {creatingQuest ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : (
-              <Sparkles size={16} />
-            )}
-            {creatingQuest ? "创建中..." : "新建 Quest"}
-          </button>
-        </>
+        </div>
+      )}
+
+      {/* 等待计时器：CLI 启动中时显示已等待时间 */}
+      {isWaiting && elapsed > 0 && (
+        <div className="mt-4 flex items-center justify-center gap-2 text-xs text-gray-400">
+          <Loader2 size={14} className="animate-spin" />
+          <span>正在启动 CLI 工具，已等待 {formatElapsed(elapsed)}</span>
+        </div>
       )}
     </>
   );

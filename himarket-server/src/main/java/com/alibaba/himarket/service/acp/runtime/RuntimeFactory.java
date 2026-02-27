@@ -20,9 +20,13 @@ import org.springframework.stereotype.Component;
 public class RuntimeFactory {
 
     private final K8sConfigService k8sConfigService;
+    private final com.alibaba.himarket.config.AcpProperties acpProperties;
 
-    public RuntimeFactory(K8sConfigService k8sConfigService) {
+    public RuntimeFactory(
+            K8sConfigService k8sConfigService,
+            com.alibaba.himarket.config.AcpProperties acpProperties) {
         this.k8sConfigService = k8sConfigService;
+        this.acpProperties = acpProperties;
     }
 
     /**
@@ -43,7 +47,7 @@ public class RuntimeFactory {
                             "K8s runtime requires k8sConfigId in RuntimeConfig");
                 }
                 KubernetesClient client = k8sConfigService.getClient(k8sConfigId);
-                yield new K8sRuntimeAdapter(client);
+                yield new K8sRuntimeAdapter(client, acpProperties.getK8s().getNamespace());
             }
         };
     }

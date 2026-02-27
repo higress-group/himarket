@@ -113,10 +113,12 @@ export function CliSelector({ onSelect, disabled, showRuntimeSelector = false }:
     setSkillEnabled(false);
     setSelectedMcps(null);
     setSelectedSkills(null);
-    setSelectedAuthOption("");
+    // 自动选中当前 provider 的第一个认证方案作为默认值
+    const authOptions = selectedProvider?.authOptions ?? [];
+    setSelectedAuthOption(authOptions.length > 0 ? authOptions[0] : "");
     setAuthTokenInput("");
     setCurrentStepIndex(0);
-  }, [selectedCliId]);
+  }, [selectedCliId, selectedProvider]);
 
   const fetchProviders = useCallback(async () => {
     setLoading(true);
@@ -268,8 +270,11 @@ export function CliSelector({ onSelect, disabled, showRuntimeSelector = false }:
   // 判断是否为 Claude Code + K8s 运行时（需要直接展示 API Key 输入）
   const isClaudeCodeK8s = selectedProvider?.authEnvVar && !selectedProvider?.authOptions?.length && selectedRuntime === 'k8s';
 
-  // 判断是否为 Kiro CLI + K8s 运行时（Kiro CLI 仅支持 OAuth 登录，沙箱中无法完成认证）
-  const isKiroCliK8sDisabled = selectedProvider?.key === 'kiro-cli' && selectedRuntime === 'k8s';
+  // 判断是否为不支持沙箱的 CLI + K8s 运行时
+  // - Kiro CLI：仅支持 OAuth 登录，沙箱中无法完成认证
+  // - Claude Code / Codex CLI：沙箱调试尚未完成
+  const sandboxDisabledClis = new Set(['kiro-cli', 'claude-code', 'codex']);
+  const isKiroCliK8sDisabled = sandboxDisabledClis.has(selectedProvider?.key ?? '') && selectedRuntime === 'k8s';
 
   /** 步骤：认证方案选择 */
   const renderAuthConfigStep = () => {
@@ -480,11 +485,11 @@ export function CliSelector({ onSelect, disabled, showRuntimeSelector = false }:
       {/* 当前步骤内容 */}
       {renderCurrentStep()}
 
-      {/* Kiro CLI + K8s 运行时禁用提示 */}
+      {/* CLI + K8s 运行时禁用提示 */}
       {isKiroCliK8sDisabled && (
         <div className="flex items-center gap-2 text-amber-600 text-sm">
           <AlertCircle size={16} className="flex-shrink-0" />
-          <span>Kiro CLI 沙箱认证待支持（仅支持 OAuth 登录）</span>
+          <span>{selectedProvider?.displayName} 沙箱模式暂不可用</span>
         </div>
       )}
 

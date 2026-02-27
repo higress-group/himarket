@@ -71,7 +71,7 @@ public class K8sSandboxProvider implements SandboxProvider {
                         "podName",
                         podInfo.podName(),
                         "namespace",
-                        "himarket",
+                        podReuseManager.getNamespace(),
                         "podIp",
                         podInfo.podIp() != null ? podInfo.podIp() : "",
                         "k8sConfigId",
@@ -153,10 +153,13 @@ public class K8sSandboxProvider implements SandboxProvider {
 
     @Override
     public RuntimeAdapter connectSidecar(SandboxInfo info, RuntimeConfig config) {
+        String namespace =
+                info.metadata().getOrDefault("namespace", podReuseManager.getNamespace());
         K8sRuntimeAdapter adapter =
                 new K8sRuntimeAdapter(
                         k8sConfigService.getClient(
-                                info.metadata().getOrDefault("k8sConfigId", "default")));
+                                info.metadata().getOrDefault("k8sConfigId", "default")),
+                        namespace);
         adapter.setReuseMode(true);
 
         String command = config.getCommand();

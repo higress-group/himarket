@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -36,13 +37,14 @@ import org.springframework.web.client.RestTemplate;
  * <p>Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8
  */
 @Component
+@ConditionalOnProperty(name = "acp.local-enabled", havingValue = "true", matchIfMissing = true)
 public class LocalSandboxProvider implements SandboxProvider {
 
     private static final Logger logger = LoggerFactory.getLogger(LocalSandboxProvider.class);
     private static final Duration HTTP_TIMEOUT = Duration.ofSeconds(10);
     private static final Duration HEALTH_POLL_INTERVAL = Duration.ofMillis(500);
     private static final Duration SIDECAR_READY_TIMEOUT = Duration.ofSeconds(10);
-    private static final String DEFAULT_ALLOWED_COMMANDS = "qodercli,qwen";
+    private static final String DEFAULT_ALLOWED_COMMANDS = "qodercli,qwen,npx,kiro-cli,opencode";
 
     /** 用户 → 本地 Sidecar 进程映射，支持复用 */
     private final ConcurrentHashMap<String, LocalSidecarProcess> sidecarProcesses =
@@ -202,9 +204,12 @@ public class LocalSandboxProvider implements SandboxProvider {
         URI wsUri = baseUri;
         if (config.getEnv() != null && !config.getEnv().isEmpty()) {
             try {
-                String envJson = new com.fasterxml.jackson.databind.ObjectMapper()
-                        .writeValueAsString(config.getEnv());
-                String encodedEnv = java.net.URLEncoder.encode(envJson, java.nio.charset.StandardCharsets.UTF_8);
+                String envJson =
+                        new com.fasterxml.jackson.databind.ObjectMapper()
+                                .writeValueAsString(config.getEnv());
+                String encodedEnv =
+                        java.net.URLEncoder.encode(
+                                envJson, java.nio.charset.StandardCharsets.UTF_8);
                 String separator = baseUri.getRawQuery() != null ? "&" : "?";
                 wsUri = URI.create(baseUri.toString() + separator + "env=" + encodedEnv);
             } catch (Exception e) {

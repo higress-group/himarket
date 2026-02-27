@@ -41,13 +41,15 @@ jwt:
   expiration: 7d
 
 acp:
+  local-enabled: ${ACP_LOCAL_ENABLED:true}
   default-provider: ${ACP_DEFAULT_PROVIDER:qodercli}
   workspace-root: ${ACP_WORKSPACE_ROOT:${user.home}/.himarket/workspaces}
   default-runtime: ${ACP_DEFAULT_RUNTIME:local}
   k8s:
+    namespace: ${ACP_K8S_NAMESPACE:default}
     reuse-pod-idle-timeout: ${ACP_K8S_REUSE_POD_IDLE_TIMEOUT:1800}
     sandbox-access-via-service: ${ACP_K8S_SANDBOX_ACCESS_VIA_SERVICE:true}
-    allowed-commands: ${ACP_K8S_ALLOWED_COMMANDS:qodercli,qwen}
+    allowed-commands: ${ACP_K8S_ALLOWED_COMMANDS:qodercli,qwen,npx,kiro-cli,opencode}
   providers:
     qodercli:
       display-name: Qoder CLI

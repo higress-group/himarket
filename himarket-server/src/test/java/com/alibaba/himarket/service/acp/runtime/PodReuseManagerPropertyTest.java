@@ -192,7 +192,7 @@ class PodReuseManagerPropertyTest {
      * 构建 PodReuseManager 并注入 mock K8sConfigService。
      */
     private PodReuseManager buildManager(K8sConfigService configService) {
-        return new PodReuseManager(configService, 1800, false);
+        return new PodReuseManager(configService, "himarket", 1800, false);
     }
 
     @SuppressWarnings("unchecked")

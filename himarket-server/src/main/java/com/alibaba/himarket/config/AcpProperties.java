@@ -10,6 +10,13 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class AcpProperties {
 
     /**
+     * 是否启用本地沙箱模式（LocalSandboxProvider）。
+     * 服务端部署时应设为 false 以禁用本地 Sidecar 进程启动。
+     * 默认 true，适用于本地开发。
+     */
+    private boolean localEnabled = true;
+
+    /**
      * 默认使用的 CLI provider key（对应 providers map 中的 key）
      */
     private String defaultProvider = "qodercli";
@@ -32,6 +39,14 @@ public class AcpProperties {
      * K8s 运行时相关配置。
      */
     private K8sConfig k8s = new K8sConfig();
+
+    public boolean isLocalEnabled() {
+        return localEnabled;
+    }
+
+    public void setLocalEnabled(boolean localEnabled) {
+        this.localEnabled = localEnabled;
+    }
 
     public String getDefaultProvider() {
         return defaultProvider;
@@ -260,6 +275,12 @@ public class AcpProperties {
     public static class K8sConfig {
 
         /**
+         * K8s 命名空间，所有沙箱 Pod、Service、PVC 均创建在此命名空间下。
+         * 默认 "himarket"。
+         */
+        private String namespace = "himarket";
+
+        /**
          * 用户级沙箱 Pod 空闲超时秒数。
          * 当 Pod 上所有连接断开后，经过此时间仍无新连接则自动删除 Pod。
          * 默认 1800 秒（30 分钟）。
@@ -280,7 +301,15 @@ public class AcpProperties {
          * Sidecar Server 允许启动的 CLI 命令白名单，逗号分隔。
          * 传递给 Pod 的 ALLOWED_COMMANDS 环境变量。
          */
-        private String allowedCommands = "qodercli,qwen";
+        private String allowedCommands = "qodercli,qwen,npx,kiro-cli,opencode";
+
+        public String getNamespace() {
+            return namespace;
+        }
+
+        public void setNamespace(String namespace) {
+            this.namespace = namespace;
+        }
 
         public long getReusePodIdleTimeout() {
             return reusePodIdleTimeout;

@@ -3,9 +3,10 @@ import { getPreviewUrl } from "../../lib/utils/workspaceApi";
 
 interface PreviewPanelProps {
   port: number | null;
+  sandboxHost?: string | null;
 }
 
-export function PreviewPanel({ port }: PreviewPanelProps) {
+export function PreviewPanel({ port, sandboxHost }: PreviewPanelProps) {
   // No port at all
   if (!port) {
     return (
@@ -25,7 +26,7 @@ export function PreviewPanel({ port }: PreviewPanelProps) {
     );
   }
 
-  const url = getPreviewUrl(port);
+  const url = getPreviewUrl(port, sandboxHost);
 
   // Show iframe directly - dev server is assumed ready when port is set
   return (

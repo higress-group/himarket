@@ -1,13 +1,22 @@
 package com.alibaba.himarket.service.terminal;
 
 import com.alibaba.himarket.config.AcpProperties;
+import com.alibaba.himarket.service.acp.runtime.K8sClusterInfo;
+import com.alibaba.himarket.service.acp.runtime.K8sConfigService;
+import com.alibaba.himarket.service.acp.runtime.PodEntry;
+import com.alibaba.himarket.service.acp.runtime.PodReuseManager;
+import com.alibaba.himarket.service.acp.terminal.K8sTerminalBackend;
+import com.alibaba.himarket.service.acp.terminal.LocalTerminalBackend;
+import com.alibaba.himarket.service.acp.terminal.TerminalBackend;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.fabric8.kubernetes.client.KubernetesClient;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Base64;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
@@ -21,7 +30,8 @@ import reactor.core.Disposable;
 
 /**
  * WebSocket handler that provides an interactive shell terminal.
- * Each WebSocket connection spawns a PTY shell process for the user.
+ * Each WebSocket connection spawns a terminal backend (local PTY or K8s Pod shell)
+ * based on the runtime parameter in session attributes.
  *
  * Protocol:
  *   Client → Server: { "type": "input", "data": "..." }
@@ -36,12 +46,20 @@ public class TerminalWebSocketHandler extends TextWebSocketHandler {
 
     private final AcpProperties acpProperties;
     private final ObjectMapper objectMapper;
-    private final Map<String, TerminalProcess> processMap = new ConcurrentHashMap<>();
+    private final PodReuseManager podReuseManager;
+    private final K8sConfigService k8sConfigService;
+    private final Map<String, TerminalBackend> backendMap = new ConcurrentHashMap<>();
     private final Map<String, Disposable> subscriptionMap = new ConcurrentHashMap<>();
 
-    public TerminalWebSocketHandler(AcpProperties acpProperties, ObjectMapper objectMapper) {
+    public TerminalWebSocketHandler(
+            AcpProperties acpProperties,
+            ObjectMapper objectMapper,
+            PodReuseManager podReuseManager,
+            K8sConfigService k8sConfigService) {
         this.acpProperties = acpProperties;
         this.objectMapper = objectMapper;
+        this.podReuseManager = podReuseManager;
+        this.k8sConfigService = k8sConfigService;
     }
 
     @Override
@@ -53,28 +71,69 @@ public class TerminalWebSocketHandler extends TextWebSocketHandler {
             return;
         }
 
-        String cwd = buildWorkspacePath(userId);
+        String runtimeParam = (String) session.getAttributes().get("runtime");
+        boolean isK8s = "k8s".equalsIgnoreCase(runtimeParam);
+
         logger.info(
-                "Terminal WebSocket connected: id={}, userId={}, cwd={}",
+                "Terminal WebSocket connected: id={}, userId={}, runtime={}",
                 session.getId(),
                 userId,
-                cwd);
+                runtimeParam);
 
-        TerminalProcess terminalProcess = new TerminalProcess(cwd);
+        TerminalBackend backend;
+        if (isK8s) {
+            // K8s 模式：从 PodReuseManager 获取用户的 Pod 信息
+            PodEntry podEntry = podReuseManager.getPodEntry(userId);
+            if (podEntry == null) {
+                logger.warn("Pod not found for user {}, closing terminal connection", userId);
+                String exitJson =
+                        objectMapper.writeValueAsString(Map.of("type", "exit", "code", -1));
+                synchronized (session) {
+                    session.sendMessage(new TextMessage(exitJson));
+                }
+                session.close(CloseStatus.SERVER_ERROR);
+                return;
+            }
+
+            // 获取 K8s client
+            List<K8sClusterInfo> clusters = k8sConfigService.listClusters();
+            if (clusters.isEmpty()) {
+                logger.error("No K8s cluster registered, cannot create K8s terminal");
+                String exitJson =
+                        objectMapper.writeValueAsString(Map.of("type", "exit", "code", -1));
+                synchronized (session) {
+                    session.sendMessage(new TextMessage(exitJson));
+                }
+                session.close(CloseStatus.SERVER_ERROR);
+                return;
+            }
+            KubernetesClient client = k8sConfigService.getClient(clusters.get(0).configId());
+
+            backend = new K8sTerminalBackend(client, podEntry.getPodName(), "himarket", "sandbox");
+            logger.info(
+                    "Created K8sTerminalBackend for user {}, pod={}",
+                    userId,
+                    podEntry.getPodName());
+        } else {
+            // 本地模式：保持现有行为
+            String cwd = buildWorkspacePath(userId);
+            backend = new LocalTerminalBackend(cwd);
+            logger.info("Created LocalTerminalBackend for user {}, cwd={}", userId, cwd);
+        }
+
         try {
-            terminalProcess.start(80, 24);
+            backend.start(80, 24);
         } catch (Exception e) {
             logger.error("Failed to start terminal for user {}", userId, e);
             session.close(CloseStatus.SERVER_ERROR);
             return;
         }
 
-        processMap.put(session.getId(), terminalProcess);
+        backendMap.put(session.getId(), backend);
 
         // Subscribe to terminal output → send to WebSocket as JSON
         Disposable subscription =
-                terminalProcess
-                        .output()
+                backend.output()
                         .subscribe(
                                 data -> {
                                     try {
@@ -108,10 +167,9 @@ public class TerminalWebSocketHandler extends TextWebSocketHandler {
                                         if (session.isOpen()) {
                                             int exitCode = 0;
                                             try {
-                                                TerminalProcess tp =
-                                                        processMap.get(session.getId());
-                                                if (tp != null && !tp.isAlive()) {
-                                                    // Process ended
+                                                TerminalBackend tb =
+                                                        backendMap.get(session.getId());
+                                                if (tb != null && !tb.isAlive()) {
                                                     exitCode = 0;
                                                 }
                                             } catch (Exception ignored) {
@@ -136,9 +194,9 @@ public class TerminalWebSocketHandler extends TextWebSocketHandler {
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message)
             throws Exception {
-        TerminalProcess terminalProcess = processMap.get(session.getId());
-        if (terminalProcess == null) {
-            logger.warn("No terminal process for session {}", session.getId());
+        TerminalBackend backend = backendMap.get(session.getId());
+        if (backend == null) {
+            logger.warn("No terminal backend for session {}", session.getId());
             return;
         }
 
@@ -153,13 +211,13 @@ public class TerminalWebSocketHandler extends TextWebSocketHandler {
                 case "input" -> {
                     String data = root.has("data") ? root.get("data").asText() : "";
                     if (!data.isEmpty()) {
-                        terminalProcess.write(data);
+                        backend.write(data);
                     }
                 }
                 case "resize" -> {
                     int cols = root.has("cols") ? root.get("cols").asInt(80) : 80;
                     int rows = root.has("rows") ? root.get("rows").asInt(24) : 24;
-                    terminalProcess.resize(cols, rows);
+                    backend.resize(cols, rows);
                 }
                 default -> logger.debug("Unknown terminal message type: {}", type);
             }
@@ -189,9 +247,9 @@ public class TerminalWebSocketHandler extends TextWebSocketHandler {
             subscription.dispose();
         }
 
-        TerminalProcess terminalProcess = processMap.remove(sessionId);
-        if (terminalProcess != null) {
-            terminalProcess.close();
+        TerminalBackend backend = backendMap.remove(sessionId);
+        if (backend != null) {
+            backend.close();
         }
     }
 

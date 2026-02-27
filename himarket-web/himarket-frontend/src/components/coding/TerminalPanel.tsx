@@ -8,30 +8,41 @@ import {
 } from "../../hooks/useTerminalWebSocket";
 import "@xterm/xterm/css/xterm.css";
 
-function buildTerminalWsUrl(): string {
+function buildTerminalWsUrl(runtime?: string): string {
   const protocol =
     window.location.protocol === "https:" ? "wss:" : "ws:";
   const base = `${protocol}//${window.location.host}/ws/terminal`;
+  const params = new URLSearchParams();
   const token = localStorage.getItem("access_token");
-  return token ? `${base}?token=${encodeURIComponent(token)}` : base;
+  if (token) params.set("token", token);
+  if (runtime) params.set("runtime", runtime);
+  const qs = params.toString();
+  return qs ? `${base}?${qs}` : base;
 }
 
 interface TerminalPanelProps {
   height: number;
   collapsed: boolean;
   onToggleCollapse: () => void;
+  runtime?: string;
 }
 
 export function TerminalPanel({
   height,
   collapsed,
   onToggleCollapse,
+  runtime,
 }: TerminalPanelProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const resizeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [wsUrl] = useState(buildTerminalWsUrl);
+  const [wsUrl, setWsUrl] = useState(() => buildTerminalWsUrl(runtime));
+
+  // Reconnect when runtime changes
+  useEffect(() => {
+    setWsUrl(buildTerminalWsUrl(runtime));
+  }, [runtime]);
 
   // Terminal output handler (stable ref to avoid re-creating WebSocket)
   const onOutputRef = useRef<(data: Uint8Array) => void>(() => {});

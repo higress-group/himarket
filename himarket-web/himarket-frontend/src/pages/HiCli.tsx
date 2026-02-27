@@ -40,10 +40,12 @@ function HiCliContent() {
   const isCreatingQuest = session.creatingQuest;
   const hasActiveQuest = !!activeQuest;
 
-  // 连接成功且初始化完成后，自动创建第一个 Quest（获取 models/modes）
-  // 如果沙箱正在创建中，等沙箱就绪后再自动创建
+  // 连接初始化完成后自动创建一个 session（获取 models/modes 元数据）
+  // 这个预创建的 session 直接作为用户的第一个会话使用
   const autoCreatedRef = useRef(false);
-  const sandboxReady = !state.sandboxStatus || state.sandboxStatus.status === "ready";
+  const sandboxReady =
+    !state.sandboxStatus || state.sandboxStatus.status === "ready";
+
   useEffect(() => {
     if (
       isConnected &&
@@ -54,11 +56,17 @@ function HiCliContent() {
     ) {
       autoCreatedRef.current = true;
       session.createQuest(state.cwd || ".").catch((err) => {
-        console.error("Auto create quest failed:", err);
+        console.error("Failed to auto-create quest:", err);
+        // 不重置 autoCreatedRef，避免认证失败等场景下无限重试
+        // 将错误展示给用户
+        const message = err?.message || "会话创建失败";
+        const isAuthError = message.toLowerCase().includes("authentication") ||
+          message.toLowerCase().includes("auth") ||
+          err?.code === 32000;
         dispatch({
           type: "SANDBOX_STATUS",
           status: "error",
-          message: err?.message || "会话创建失败",
+          message: isAuthError ? "该工具需要登录后使用，请在工具设置中配置访问凭据" : message,
         });
       });
     }
@@ -81,8 +89,18 @@ function HiCliContent() {
     [session]
   );
 
-  // 新建 Quest
+  // 新建 Quest（如果已有空白会话则复用）
   const handleCreateQuest = useCallback(() => {
+    // 检查是否已存在无消息的空白会话
+    const emptyQuest = Object.values(state.quests).find(
+      (q) => q.messages.length === 0
+    );
+    if (emptyQuest) {
+      // 复用已有的空白会话，切换过去即可
+      session.switchQuest(emptyQuest.id);
+      return;
+    }
+
     session.createQuest(state.cwd || ".").catch((err) => {
       console.error("Failed to create quest:", err);
       dispatch({
@@ -91,7 +109,7 @@ function HiCliContent() {
         message: err?.message || "会话创建失败",
       });
     });
-  }, [session, state.cwd, dispatch]);
+  }, [session, state.quests, state.cwd, dispatch]);
 
   // 切换工具：断开连接并返回 CLI 选择界面
   const handleSwitchTool = useCallback(() => {
@@ -159,14 +177,27 @@ function HiCliContent() {
                 creatingQuest={isCreatingQuest}
               />
             ) : !hasActiveQuest ? (
-              /* 已连接但无活跃 Quest：展示新建 Quest 引导 */
-              <HiCliWelcome
-                onSelectCli={handleSelectCli}
-                onCreateQuest={handleCreateQuest}
-                isConnected={true}
-                disabled={false}
-                creatingQuest={isCreatingQuest}
-              />
+              /* 已连接但无活跃 Quest：展示欢迎提示 + 输入框 */
+              <>
+                <HiCliWelcome
+                  onSelectCli={handleSelectCli}
+                  onCreateQuest={handleCreateQuest}
+                  isConnected={true}
+                  disabled={false}
+                  creatingQuest={isCreatingQuest}
+                />
+                <div className="flex-shrink-0">
+                  <QuestInput
+                    onSend={session.sendPrompt}
+                    onDropQueuedPrompt={handleDropQueuedPrompt}
+                    onCancel={session.cancelPrompt}
+                    isProcessing={false}
+                    queueSize={0}
+                    queuedPrompts={[]}
+                    disabled={false}
+                  />
+                </div>
+              </>
             ) : (
               /* 已连接且有活跃 Quest：展示聊天流 + 输入框 */
               <>

@@ -45,7 +45,6 @@ public class PodReuseManager {
 
     private static final Logger log = LoggerFactory.getLogger(PodReuseManager.class);
 
-    static final String NAMESPACE = "himarket";
     static final int SIDECAR_PORT = 8080;
     static final String LABEL_APP = "sandbox";
     static final String LABEL_SANDBOX_MODE = "sandboxMode";
@@ -86,28 +85,32 @@ public class PodReuseManager {
     private final ConcurrentHashMap<String, PodEntry> podCache = new ConcurrentHashMap<>();
     private final K8sConfigService k8sConfigService;
     private final ScheduledExecutorService scheduler;
+    private final String namespace;
     private final long idleTimeoutSeconds;
     private final boolean sandboxAccessViaService;
-    private String allowedCommands = "qodercli,qwen";
+    private String allowedCommands = "qodercli,qwen,npx,kiro-cli,opencode";
 
     @org.springframework.beans.factory.annotation.Autowired
     public PodReuseManager(K8sConfigService k8sConfigService, AcpProperties acpProperties) {
         this(
                 k8sConfigService,
+                acpProperties.getK8s().getNamespace(),
                 acpProperties.getK8s().getReusePodIdleTimeout(),
                 acpProperties.getK8s().isSandboxAccessViaService());
         this.allowedCommands = acpProperties.getK8s().getAllowedCommands();
     }
 
     public PodReuseManager(K8sConfigService k8sConfigService, long idleTimeoutSeconds) {
-        this(k8sConfigService, idleTimeoutSeconds, true);
+        this(k8sConfigService, "himarket", idleTimeoutSeconds, true);
     }
 
     public PodReuseManager(
             K8sConfigService k8sConfigService,
+            String namespace,
             long idleTimeoutSeconds,
             boolean sandboxAccessViaService) {
         this.k8sConfigService = k8sConfigService;
+        this.namespace = namespace != null ? namespace : "himarket";
         this.idleTimeoutSeconds =
                 idleTimeoutSeconds > 0 ? idleTimeoutSeconds : DEFAULT_IDLE_TIMEOUT_SECONDS;
         this.sandboxAccessViaService = sandboxAccessViaService;
@@ -118,6 +121,10 @@ public class PodReuseManager {
                             t.setDaemon(true);
                             return t;
                         });
+    }
+
+    public String getNamespace() {
+        return namespace;
     }
 
     /**
@@ -247,7 +254,7 @@ public class PodReuseManager {
                                     try {
                                         KubernetesClient client = k8sConfigService.getClient(null);
                                         client.pods()
-                                                .inNamespace(NAMESPACE)
+                                                .inNamespace(namespace)
                                                 .withName(entry.getPodName())
                                                 .delete();
                                         deleteServiceForPod(client, entry.getPodName());
@@ -311,7 +318,7 @@ public class PodReuseManager {
 
         try {
             KubernetesClient client = k8sConfigService.getClient(null);
-            client.pods().inNamespace(NAMESPACE).withName(entry.getPodName()).delete();
+            client.pods().inNamespace(namespace).withName(entry.getPodName()).delete();
             deleteServiceForPod(client, entry.getPodName());
             log.info("evictPod: 已删除 Pod: userId={}, pod={}", userId, entry.getPodName());
         } catch (Exception e) {
@@ -331,7 +338,7 @@ public class PodReuseManager {
      */
     boolean isPodHealthy(KubernetesClient client, PodEntry entry) {
         try {
-            Pod pod = client.pods().inNamespace(NAMESPACE).withName(entry.getPodName()).get();
+            Pod pod = client.pods().inNamespace(namespace).withName(entry.getPodName()).get();
             if (pod == null || pod.getStatus() == null) {
                 return false;
             }
@@ -348,7 +355,7 @@ public class PodReuseManager {
     private void cleanupUnhealthyPod(KubernetesClient client, PodEntry entry) {
         cancelIdleTimer(entry);
         try {
-            client.pods().inNamespace(NAMESPACE).withName(entry.getPodName()).delete();
+            client.pods().inNamespace(namespace).withName(entry.getPodName()).delete();
             deleteServiceForPod(client, entry.getPodName());
             log.info("已删除不健康 Pod: {}", entry.getPodName());
         } catch (Exception e) {
@@ -365,7 +372,7 @@ public class PodReuseManager {
         try {
             PodList podList =
                     client.pods()
-                            .inNamespace(NAMESPACE)
+                            .inNamespace(namespace)
                             .withLabels(
                                     Map.of(
                                             "app",
@@ -428,7 +435,7 @@ public class PodReuseManager {
                 // 复用两段式等待逻辑
                 waitForPodReadyWithExtension(client, podName);
                 // 等待成功后获取 IP
-                Pod readyPod = client.pods().inNamespace(NAMESPACE).withName(podName).get();
+                Pod readyPod = client.pods().inNamespace(namespace).withName(podName).get();
                 if (readyPod != null
                         && readyPod.getStatus() != null
                         && readyPod.getStatus().getPodIP() != null
@@ -455,7 +462,7 @@ public class PodReuseManager {
     void ensurePvcExists(KubernetesClient client, String userId) {
         String pvcName = "workspace-" + userId;
         PersistentVolumeClaim existing =
-                client.persistentVolumeClaims().inNamespace(NAMESPACE).withName(pvcName).get();
+                client.persistentVolumeClaims().inNamespace(namespace).withName(pvcName).get();
         if (existing != null) {
             log.debug("PVC 已存在: {}", pvcName);
             return;
@@ -465,7 +472,7 @@ public class PodReuseManager {
                 new PersistentVolumeClaimBuilder()
                         .withNewMetadata()
                         .withName(pvcName)
-                        .withNamespace(NAMESPACE)
+                        .withNamespace(namespace)
                         .addToLabels("app", LABEL_APP)
                         .addToLabels("userId", userId)
                         .endMetadata()
@@ -478,10 +485,10 @@ public class PodReuseManager {
                         .endSpec()
                         .build();
 
-        client.persistentVolumeClaims().inNamespace(NAMESPACE).resource(pvc).create();
+        client.persistentVolumeClaims().inNamespace(namespace).resource(pvc).create();
         log.info(
                 "PVC 已创建: namespace={}, name={}, storageClass={}, size={}",
-                NAMESPACE,
+                namespace,
                 pvcName,
                 WORKSPACE_STORAGE_CLASS,
                 WORKSPACE_STORAGE_SIZE);
@@ -515,7 +522,7 @@ public class PodReuseManager {
                 new PodBuilder()
                         .withNewMetadata()
                         .withGenerateName("sandbox-" + userId + "-")
-                        .withNamespace(NAMESPACE)
+                        .withNamespace(namespace)
                         .addToLabels("app", LABEL_APP)
                         .addToLabels("userId", userId)
                         .addToLabels(LABEL_SANDBOX_MODE, SANDBOX_MODE_USER)
@@ -566,15 +573,15 @@ public class PodReuseManager {
 
         Pod pod = podBuilder.build();
 
-        Pod created = client.pods().inNamespace(NAMESPACE).resource(pod).create();
+        Pod created = client.pods().inNamespace(namespace).resource(pod).create();
         String podName = created.getMetadata().getName();
-        log.info("新 Pod 已创建: namespace={}, name={}, userId={}", NAMESPACE, podName, userId);
+        log.info("新 Pod 已创建: namespace={}, name={}, userId={}", namespace, podName, userId);
 
         // 等待 Pod Ready（两段式：先快速等 60s，未就绪则检查状态决定是否延长等待）
         waitForPodReadyWithExtension(client, podName);
 
         // 获取 Pod IP
-        Pod readyPod = client.pods().inNamespace(NAMESPACE).withName(podName).get();
+        Pod readyPod = client.pods().inNamespace(namespace).withName(podName).get();
         if (readyPod == null
                 || readyPod.getStatus() == null
                 || readyPod.getStatus().getPodIP() == null
@@ -608,7 +615,7 @@ public class PodReuseManager {
         // 第一段：快速等待 60s
         try {
             client.pods()
-                    .inNamespace(NAMESPACE)
+                    .inNamespace(namespace)
                     .withName(podName)
                     .waitUntilReady(POD_READY_TIMEOUT.getSeconds(), TimeUnit.SECONDS);
             return; // 60s 内就绪，直接返回
@@ -619,7 +626,7 @@ public class PodReuseManager {
         // 第二段：轮询检查状态，决定继续等还是放弃
         long deadline = System.currentTimeMillis() + POD_READY_TIMEOUT_EXTENDED.toMillis();
         while (System.currentTimeMillis() < deadline) {
-            Pod pod = client.pods().inNamespace(NAMESPACE).withName(podName).get();
+            Pod pod = client.pods().inNamespace(namespace).withName(podName).get();
             if (pod == null) {
                 throw new RuntimeException("Pod 已不存在: " + podName);
             }
@@ -700,7 +707,7 @@ public class PodReuseManager {
      */
     private void deletePodQuietly(KubernetesClient client, String podName) {
         try {
-            client.pods().inNamespace(NAMESPACE).withName(podName).delete();
+            client.pods().inNamespace(namespace).withName(podName).delete();
             log.info("已删除 Pod: {}", podName);
         } catch (Exception e) {
             log.warn("删除 Pod 失败: {}, error={}", podName, e.getMessage());
@@ -766,7 +773,7 @@ public class PodReuseManager {
         try {
             ServiceList svcList =
                     client.services()
-                            .inNamespace(NAMESPACE)
+                            .inNamespace(namespace)
                             .withLabels(Map.of("app", LABEL_APP, "userId", userId))
                             .list();
             if (svcList != null && svcList.getItems() != null) {
@@ -781,7 +788,7 @@ public class PodReuseManager {
                         boolean podExists =
                                 boundPod != null
                                         && client.pods()
-                                                        .inNamespace(NAMESPACE)
+                                                        .inNamespace(namespace)
                                                         .withName(boundPod)
                                                         .get()
                                                 != null;
@@ -793,7 +800,7 @@ public class PodReuseManager {
                                     boundPod);
                             try {
                                 client.services()
-                                        .inNamespace(NAMESPACE)
+                                        .inNamespace(namespace)
                                         .withName(svc.getMetadata().getName())
                                         .delete();
                             } catch (Exception ex) {
@@ -863,7 +870,7 @@ public class PodReuseManager {
                 new ServiceBuilder()
                         .withNewMetadata()
                         .withName(serviceName)
-                        .withNamespace(NAMESPACE)
+                        .withNamespace(namespace)
                         .addToLabels("app", LABEL_APP)
                         .addToLabels("userId", userId)
                         .addToLabels("sandboxPod", podName)
@@ -882,8 +889,8 @@ public class PodReuseManager {
                         .endSpec()
                         .build();
 
-        client.services().inNamespace(NAMESPACE).resource(svc).create();
-        log.info("Service 已创建: namespace={}, name={}, pod={}", NAMESPACE, serviceName, podName);
+        client.services().inNamespace(namespace).resource(svc).create();
+        log.info("Service 已创建: namespace={}, name={}, pod={}", namespace, serviceName, podName);
 
         // 等待 LoadBalancer IP 分配
         return waitForServiceExternalIp(client, serviceName);
@@ -897,7 +904,7 @@ public class PodReuseManager {
     String waitForServiceExternalIp(KubernetesClient client, String serviceName) {
         long deadline = System.currentTimeMillis() + SERVICE_LB_TIMEOUT.toMillis();
         while (System.currentTimeMillis() < deadline) {
-            Service svc = client.services().inNamespace(NAMESPACE).withName(serviceName).get();
+            Service svc = client.services().inNamespace(namespace).withName(serviceName).get();
             if (svc != null
                     && svc.getStatus() != null
                     && svc.getStatus().getLoadBalancer() != null) {
@@ -946,7 +953,7 @@ public class PodReuseManager {
     String getServiceIpForPod(KubernetesClient client, String podName) {
         String serviceName = serviceNameForPod(podName);
         try {
-            Service svc = client.services().inNamespace(NAMESPACE).withName(serviceName).get();
+            Service svc = client.services().inNamespace(namespace).withName(serviceName).get();
             if (svc != null
                     && svc.getStatus() != null
                     && svc.getStatus().getLoadBalancer() != null) {
@@ -975,9 +982,9 @@ public class PodReuseManager {
     void deleteServiceForPod(KubernetesClient client, String podName) {
         String serviceName = serviceNameForPod(podName);
         try {
-            Service existing = client.services().inNamespace(NAMESPACE).withName(serviceName).get();
+            Service existing = client.services().inNamespace(namespace).withName(serviceName).get();
             if (existing != null) {
-                client.services().inNamespace(NAMESPACE).withName(serviceName).delete();
+                client.services().inNamespace(namespace).withName(serviceName).delete();
                 log.info("已删除 Service: {}", serviceName);
             }
         } catch (Exception e) {

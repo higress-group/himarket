@@ -144,6 +144,52 @@ function createTestServer(workspaceRoot) {
       return;
     }
 
+    if (req.method === 'POST' && req.url === '/files/list') {
+      let body;
+      try { body = await parseJsonBody(req); } catch { return sendJson(res, 400, { success: false, error: '无效的 JSON 请求体' }); }
+      const { path: dirPath, depth } = body;
+      if (!dirPath) {
+        return sendJson(res, 400, { success: false, error: '缺少 path 参数' });
+      }
+      const maxDepth = (typeof depth === 'number' && depth > 0) ? depth : 3;
+      try {
+        const fullPath = resolveSafePath(dirPath);
+        const stat = await fs.stat(fullPath);
+        if (!stat.isDirectory()) {
+          return sendJson(res, 400, { success: false, error: '指定路径不是目录' });
+        }
+
+        async function buildTree(currentPath, currentDepth) {
+          const entries = await fs.readdir(currentPath, { withFileTypes: true });
+          const result = [];
+          for (const entry of entries) {
+            if (entry.isFile()) {
+              result.push({ name: entry.name, type: 'file' });
+            } else if (entry.isDirectory()) {
+              const node = { name: entry.name, type: 'dir', children: [] };
+              if (currentDepth < maxDepth) {
+                node.children = await buildTree(path.join(currentPath, entry.name), currentDepth + 1);
+              }
+              result.push(node);
+            }
+          }
+          return result;
+        }
+
+        const tree = await buildTree(fullPath, 1);
+        sendJson(res, 200, tree);
+      } catch (err) {
+        if (err.message.startsWith('路径越界')) {
+          return sendJson(res, 403, { success: false, error: err.message });
+        }
+        if (err.code === 'ENOENT') {
+          return sendJson(res, 404, { success: false, error: '路径不存在: ' + dirPath });
+        }
+        sendJson(res, 500, { success: false, error: err.message });
+      }
+      return;
+    }
+
     if (req.method === 'POST' && req.url === '/files/exists') {
       let body;
       try { body = await parseJsonBody(req); } catch { return sendJson(res, 400, { success: false, error: '无效的 JSON 请求体' }); }
@@ -420,5 +466,110 @@ describe('POST /files/exists', () => {
     const res = await request('POST', '/files/exists', { path: '../../../etc' });
     expect(res.status).toBe(403);
     expect(res.body.success).toBe(false);
+  });
+});
+
+// ===========================================================================
+// POST /files/list 单元测试
+// Validates: Requirements 5.1, 5.2, 5.3
+// ===========================================================================
+
+describe('POST /files/list', () => {
+
+  beforeAll(async () => {
+    // 构建测试目录结构：
+    // unit-list/
+    //   src/
+    //     utils/
+    //       helper.js
+    //     index.js
+    //   README.md
+    const base = nodePath.join(testWorkspaceRoot, 'unit-list');
+    await fs.mkdir(nodePath.join(base, 'src', 'utils'), { recursive: true });
+    await fs.writeFile(nodePath.join(base, 'src', 'utils', 'helper.js'), 'export {}', 'utf-8');
+    await fs.writeFile(nodePath.join(base, 'src', 'index.js'), 'console.log("hi")', 'utf-8');
+    await fs.writeFile(nodePath.join(base, 'README.md'), '# Hello', 'utf-8');
+  });
+
+  test('返回目录树结构，包含 name、type 和 children', async () => {
+    const res = await request('POST', '/files/list', { path: 'unit-list', depth: 3 });
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+
+    // 查找 src 目录
+    const src = res.body.find(e => e.name === 'src');
+    expect(src).toBeDefined();
+    expect(src.type).toBe('dir');
+    expect(Array.isArray(src.children)).toBe(true);
+
+    // 查找 README.md 文件
+    const readme = res.body.find(e => e.name === 'README.md');
+    expect(readme).toBeDefined();
+    expect(readme.type).toBe('file');
+    expect(readme.children).toBeUndefined();
+
+    // 查找嵌套的 utils 目录
+    const utils = src.children.find(e => e.name === 'utils');
+    expect(utils).toBeDefined();
+    expect(utils.type).toBe('dir');
+    expect(utils.children.length).toBe(1);
+    expect(utils.children[0].name).toBe('helper.js');
+    expect(utils.children[0].type).toBe('file');
+  });
+
+  test('depth 限制目录递归深度', async () => {
+    const res = await request('POST', '/files/list', { path: 'unit-list', depth: 1 });
+    expect(res.status).toBe(200);
+
+    const src = res.body.find(e => e.name === 'src');
+    expect(src).toBeDefined();
+    expect(src.type).toBe('dir');
+    // depth=1 时，src 的 children 应为空数组（不递归进入子目录）
+    expect(src.children).toEqual([]);
+  });
+
+  test('depth 未提供时默认为 3', async () => {
+    const res = await request('POST', '/files/list', { path: 'unit-list' });
+    expect(res.status).toBe(200);
+
+    // 应能看到 src/utils/helper.js（3 层深度）
+    const src = res.body.find(e => e.name === 'src');
+    const utils = src.children.find(e => e.name === 'utils');
+    expect(utils.children.length).toBe(1);
+  });
+
+  test('路径不存在返回 404', async () => {
+    const res = await request('POST', '/files/list', { path: 'nonexistent-dir', depth: 3 });
+    expect(res.status).toBe(404);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toMatch(/不存在/);
+  });
+
+  test('缺少 path 参数返回 400', async () => {
+    const res = await request('POST', '/files/list', {});
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toMatch(/path/);
+  });
+
+  test('路径遍历返回 403', async () => {
+    const res = await request('POST', '/files/list', { path: '../../etc', depth: 1 });
+    expect(res.status).toBe(403);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toMatch(/路径越界/);
+  });
+
+  test('指定路径为文件而非目录返回 400', async () => {
+    const res = await request('POST', '/files/list', { path: 'unit-list/README.md', depth: 1 });
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toMatch(/不是目录/);
+  });
+
+  test('空目录返回空数组', async () => {
+    await fs.mkdir(nodePath.join(testWorkspaceRoot, 'unit-list-empty'), { recursive: true });
+    const res = await request('POST', '/files/list', { path: 'unit-list-empty', depth: 3 });
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([]);
   });
 });

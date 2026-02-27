@@ -146,6 +146,52 @@ function createTestServer(workspaceRoot) {
       return;
     }
 
+    if (req.method === 'POST' && req.url === '/files/list') {
+      let body;
+      try { body = await parseJsonBody(req); } catch { return sendJson(res, 400, { success: false, error: '无效的 JSON 请求体' }); }
+      const { path: dirPath, depth } = body;
+      if (!dirPath) {
+        return sendJson(res, 400, { success: false, error: '缺少 path 参数' });
+      }
+      const maxDepth = (typeof depth === 'number' && depth > 0) ? depth : 3;
+      try {
+        const fullPath = resolveSafePath(dirPath);
+        const stat = await fs.stat(fullPath);
+        if (!stat.isDirectory()) {
+          return sendJson(res, 400, { success: false, error: '指定路径不是目录' });
+        }
+
+        async function buildTree(currentPath, currentDepth) {
+          const entries = await fs.readdir(currentPath, { withFileTypes: true });
+          const result = [];
+          for (const entry of entries) {
+            if (entry.isFile()) {
+              result.push({ name: entry.name, type: 'file' });
+            } else if (entry.isDirectory()) {
+              const node = { name: entry.name, type: 'dir', children: [] };
+              if (currentDepth < maxDepth) {
+                node.children = await buildTree(path.join(currentPath, entry.name), currentDepth + 1);
+              }
+              result.push(node);
+            }
+          }
+          return result;
+        }
+
+        const tree = await buildTree(fullPath, 1);
+        sendJson(res, 200, tree);
+      } catch (err) {
+        if (err.message.startsWith('路径越界')) {
+          return sendJson(res, 403, { success: false, error: err.message });
+        }
+        if (err.code === 'ENOENT') {
+          return sendJson(res, 404, { success: false, error: '路径不存在: ' + dirPath });
+        }
+        sendJson(res, 500, { success: false, error: err.message });
+      }
+      return;
+    }
+
     if (req.method === 'POST' && req.url === '/files/exists') {
       let body;
       try { body = await parseJsonBody(req); } catch { return sendJson(res, 400, { success: false, error: '无效的 JSON 请求体' }); }

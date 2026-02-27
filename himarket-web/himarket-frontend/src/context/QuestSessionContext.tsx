@@ -90,7 +90,10 @@ export interface QuestState {
   sandboxStatus: {
     status: "creating" | "ready" | "error";
     message: string;
+    sandboxHost?: string;
   } | null;
+  /** 全局当前 mode ID（由 PROTOCOL_INITIALIZED 设置，无活跃 Quest 时用于 TopBar 回退） */
+  currentModeId: string;
 }
 
 export const initialState: QuestState = {
@@ -104,6 +107,7 @@ export const initialState: QuestState = {
   usage: null,
   pendingPermission: null,
   sandboxStatus: null,
+  currentModeId: "",
 };
 
 // ===== Actions =====
@@ -183,7 +187,7 @@ export type QuestAction =
   | { type: "TERMINAL_CREATED"; questId: string; terminalId: string }
   | { type: "TERMINAL_DATA"; questId: string; terminalId: string; data: string }
   | { type: "PREVIEW_PORT_DETECTED"; questId: string; port: number }
-  | { type: "SANDBOX_STATUS"; status: "creating" | "ready" | "error"; message: string };
+  | { type: "SANDBOX_STATUS"; status: "creating" | "ready" | "error"; message: string; sandboxHost?: string };
 
 // ===== Helpers =====
 
@@ -311,6 +315,7 @@ export function questReducer(
         initialized: true,
         models: action.models,
         modes: action.modes,
+        currentModeId: action.currentModeId || state.currentModeId,
       };
 
     case "QUEST_CREATED": {
@@ -583,7 +588,11 @@ export function questReducer(
     case "SANDBOX_STATUS":
       return {
         ...state,
-        sandboxStatus: { status: action.status, message: action.message },
+        sandboxStatus: {
+          status: action.status,
+          message: action.message,
+          sandboxHost: action.sandboxHost ?? state.sandboxStatus?.sandboxHost,
+        },
       };
 
     default:

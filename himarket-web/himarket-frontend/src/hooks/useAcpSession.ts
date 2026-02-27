@@ -169,11 +169,12 @@ export function useAcpSession({ wsUrl, autoConnect: autoConnectOpt = true }: Use
       if (hasMethod && !hasId) {
         const notif = parsed as unknown as AcpNotification;
         if (notif.method === "sandbox/status") {
-          const params = notif.params as { status?: string; message?: string };
+          const params = notif.params as { status?: string; message?: string; sandboxHost?: string };
           dispatch({
             type: "SANDBOX_STATUS",
             status: (params?.status ?? "creating") as "creating" | "ready" | "error",
             message: params?.message ?? "",
+            sandboxHost: params?.sandboxHost,
           });
           return;
         }
@@ -436,9 +437,9 @@ export function useAcpSession({ wsUrl, autoConnect: autoConnectOpt = true }: Use
           console.log("[AcpSession] Sending initialize request:", JSON.stringify(initReq));
           send(JSON.stringify(initReq));
 
-          // 给 initialize 请求加 15 秒超时，避免 CLI 未启动时按钮永远置灰
+          // 给 initialize 请求加 2 分钟超时，CLI 启动可能较慢（如 K8s Pod 拉取镜像）
           const timeoutPromise = new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error("Initialize timeout")), 15000)
+            setTimeout(() => reject(new Error("Initialize timeout")), 120000)
           );
           const result = await Promise.race([trackRequest(initReq.id), timeoutPromise]);
           console.log("[AcpSession] Initialize response received:", result);

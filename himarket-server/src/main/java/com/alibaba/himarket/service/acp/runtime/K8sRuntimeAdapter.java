@@ -44,7 +44,6 @@ public class K8sRuntimeAdapter implements RuntimeAdapter {
 
     private static final Logger logger = LoggerFactory.getLogger(K8sRuntimeAdapter.class);
 
-    static final String DEFAULT_NAMESPACE = "himarket";
     static final String DEFAULT_SANDBOX_IMAGE =
             "opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/sandbox:latest";
     static final String IMAGE_PULL_SECRET = "";
@@ -79,7 +78,7 @@ public class K8sRuntimeAdapter implements RuntimeAdapter {
     private final ScheduledExecutorService healthChecker;
     private ScheduledFuture<?> healthCheckFuture;
     private ScheduledFuture<?> idleCheckFuture;
-    private PodFileSystemAdapter fileSystem;
+    private SidecarFileSystemAdapter fileSystem;
     private Disposable wsConnection;
     private ScheduledFuture<?> wsPingFuture;
     private final AtomicReference<org.springframework.web.reactive.socket.WebSocketSession>
@@ -98,17 +97,18 @@ public class K8sRuntimeAdapter implements RuntimeAdapter {
     private boolean reuseMode = false;
 
     /** Sidecar 允许启动的 CLI 命令白名单，逗号分隔 */
-    private String allowedCommands = "qodercli,qwen";
+    private String allowedCommands = "qodercli,qwen,npx,kiro-cli,opencode";
 
     /**
      * 使用默认配置创建适配器。
      *
      * @param k8sClient Fabric8 KubernetesClient 实例
+     * @param namespace Pod 所在的 K8s 命名空间
      */
-    public K8sRuntimeAdapter(KubernetesClient k8sClient) {
+    public K8sRuntimeAdapter(KubernetesClient k8sClient, String namespace) {
         this(
                 k8sClient,
-                DEFAULT_NAMESPACE,
+                namespace,
                 DEFAULT_POD_READY_TIMEOUT,
                 DEFAULT_HEALTH_CHECK_INTERVAL_SECONDS,
                 DEFAULT_IDLE_TIMEOUT_SECONDS,
@@ -158,7 +158,7 @@ public class K8sRuntimeAdapter implements RuntimeAdapter {
             throw new IllegalArgumentException("k8sClient must not be null");
         }
         this.k8sClient = k8sClient;
-        this.namespace = namespace != null ? namespace : DEFAULT_NAMESPACE;
+        this.namespace = namespace != null ? namespace : "himarket";
         this.podReadyTimeout =
                 podReadyTimeout != null ? podReadyTimeout : DEFAULT_POD_READY_TIMEOUT;
         this.healthCheckIntervalSeconds =
@@ -217,7 +217,7 @@ public class K8sRuntimeAdapter implements RuntimeAdapter {
             logger.info("Pod ready: name={}, ip={}, sidecarUri={}", podName, podIp, sidecarWsUri);
 
             // 5. 创建文件系统适配器（提前到 WebSocket 连接之前，以便调用方在连接前注入配置文件）
-            fileSystem = new PodFileSystemAdapter(k8sClient, podName, namespace);
+            fileSystem = new SidecarFileSystemAdapter(podIp);
 
             // 6. 建立 WebSocket 连接到 Sidecar（Sidecar 收到连接后会立即 spawn CLI 进程）
             connectToSidecarWebSocket(sidecarWsUri);
@@ -292,7 +292,7 @@ public class K8sRuntimeAdapter implements RuntimeAdapter {
                 sidecarWsUri);
 
         // 3. 创建文件系统适配器（调用方可在 connectAndStart 之前通过 fileSystem 注入配置）
-        fileSystem = new PodFileSystemAdapter(k8sClient, podName, namespace);
+        fileSystem = new SidecarFileSystemAdapter(accessIp);
 
         // 状态保持 CREATING，等待 connectAndStart 完成后变为 RUNNING
     }
@@ -1039,11 +1039,4 @@ public class K8sRuntimeAdapter implements RuntimeAdapter {
     void setLastActiveAt(Instant instant) {
         this.lastActiveAt = instant;
     }
-
-    /**
-     * @deprecated 使用 {@link RuntimeFaultNotification} 替代
-     */
-    @Deprecated
-    public record RuntimeFaultEvent(
-            String faultType, RuntimeType runtimeType, String description) {}
 }

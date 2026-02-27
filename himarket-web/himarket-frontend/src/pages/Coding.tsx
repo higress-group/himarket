@@ -258,7 +258,7 @@ function CodingContent() {
   useEffect(() => {
     if (!activeQuest?.cwd) return;
     setTreeLoading(true);
-    fetchDirectoryTree(activeQuest.cwd).then(nodes => {
+    fetchDirectoryTree(activeQuest.cwd, 5, currentRuntimeRef.current).then(nodes => {
       setTree(nodes);
       setTreeLoading(false);
     });
@@ -274,7 +274,7 @@ function CodingContent() {
       (lastMsg.status === "completed" || lastMsg.status === "failed") &&
       !READ_ONLY_KINDS.has(lastMsg.kind)
     ) {
-      fetchDirectoryTree(activeQuest.cwd).then(setTree);
+      fetchDirectoryTree(activeQuest.cwd, 5, currentRuntimeRef.current).then(setTree);
     }
   }, [messageCount, activeQuest?.cwd, activeQuest?.messages]);
 
@@ -285,10 +285,10 @@ function CodingContent() {
     const cwd = activeQuest.cwd;
     lastPollRef.current = Date.now();
     const interval = setInterval(async () => {
-      const changes = await fetchWorkspaceChanges(cwd, lastPollRef.current);
+      const changes = await fetchWorkspaceChanges(cwd, lastPollRef.current, 200, currentRuntimeRef.current);
       if (changes.length > 0) {
         lastPollRef.current = Date.now();
-        fetchDirectoryTree(cwd).then(setTree);
+        fetchDirectoryTree(cwd, 5, currentRuntimeRef.current).then(setTree);
       }
     }, 3000);
     return () => clearInterval(interval);
@@ -316,7 +316,7 @@ function CodingContent() {
         autoOpenedRef.current.add(key);
         const filePath = loc.path;
         const fileName = filePath.split("/").pop() ?? filePath;
-        fetchArtifactContent(filePath, { raw: true }).then(result => {
+        fetchArtifactContent(filePath, { raw: true, runtime: currentRuntimeRef.current }).then(result => {
           if (result.content !== null) {
             dispatch({
               type: "FILE_OPENED",
@@ -348,7 +348,7 @@ function CodingContent() {
         setActiveTab("code");
         return;
       }
-      const result = await fetchArtifactContent(node.path, { raw: true });
+      const result = await fetchArtifactContent(node.path, { raw: true, runtime: currentRuntimeRef.current });
       if (result.content !== null) {
         const file: OpenFile = {
           path: node.path,
@@ -387,7 +387,7 @@ function CodingContent() {
         setActiveTab("code");
         return;
       }
-      const result = await fetchArtifactContent(path, { raw: true });
+      const result = await fetchArtifactContent(path, { raw: true, runtime: currentRuntimeRef.current });
       if (result.content !== null) {
         const fileName = path.split(/[/\\]/).pop() ?? path;
         const file: OpenFile = {
@@ -420,21 +420,22 @@ function CodingContent() {
 
   // DEV: hardcode port 3000 for testing preview
   const previewPort = activeQuest?.previewPort ?? 3000;
+  const sandboxHost = state.sandboxStatus?.sandboxHost ?? null;
 
   const handleRefreshPreview = useCallback(() => {
     const iframe = document.querySelector<HTMLIFrameElement>(
       "#coding-preview-iframe"
     );
     if (iframe && previewPort) {
-      iframe.src = getPreviewUrl(previewPort);
+      iframe.src = getPreviewUrl(previewPort, sandboxHost);
     }
-  }, [previewPort]);
+  }, [previewPort, sandboxHost]);
 
   const handleOpenExternal = useCallback(() => {
     if (previewPort) {
-      window.open(getPreviewUrl(previewPort), "_blank");
+      window.open(getPreviewUrl(previewPort, sandboxHost), "_blank");
     }
-  }, [previewPort]);
+  }, [previewPort, sandboxHost]);
 
   const planEntries = activeQuest?.messages.find(
     (m): m is ChatItemPlan => m.type === "plan"
@@ -612,7 +613,7 @@ function CodingContent() {
               {/* Main content */}
               <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
                 {activeTab === "preview" ? (
-                  <PreviewPanel port={previewPort} />
+                  <PreviewPanel port={previewPort} sandboxHost={sandboxHost} />
                 ) : (
                   <EditorArea
                     openFiles={activeQuest?.openFiles ?? []}
@@ -640,6 +641,7 @@ function CodingContent() {
               height={terminalPanel.size}
               collapsed={terminalCollapsed}
               onToggleCollapse={toggleTerminalCollapse}
+              runtime={currentRuntimeRef.current}
             />
           </div>
         </div>

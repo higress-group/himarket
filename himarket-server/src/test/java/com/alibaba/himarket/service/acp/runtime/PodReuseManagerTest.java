@@ -78,7 +78,7 @@ class PodReuseManagerTest {
                                 .build());
 
         // 默认使用较短的空闲超时（1秒）方便测试，关闭 Service 访问模式避免 mock Service
-        manager = new PodReuseManager(k8sConfigService, 1, false);
+        manager = new PodReuseManager(k8sConfigService, "himarket", 1, false);
     }
 
     private RuntimeConfig buildConfig(String userId) {

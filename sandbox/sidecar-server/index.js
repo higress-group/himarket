@@ -159,6 +159,105 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // POST /files/list
+  if (req.method === 'POST' && req.url === '/files/list') {
+    let body;
+    try { body = await parseJsonBody(req); } catch { return sendJson(res, 400, { success: false, error: '无效的 JSON 请求体' }); }
+    const { path: dirPath, depth } = body;
+    if (!dirPath) {
+      return sendJson(res, 400, { success: false, error: '缺少 path 参数' });
+    }
+    const maxDepth = (typeof depth === 'number' && depth > 0) ? depth : 3;
+    try {
+      const fullPath = resolveSafePath(dirPath);
+      const stat = await fs.stat(fullPath);
+      if (!stat.isDirectory()) {
+        return sendJson(res, 400, { success: false, error: '指定路径不是目录' });
+      }
+
+      async function buildTree(currentPath, currentDepth) {
+        const entries = await fs.readdir(currentPath, { withFileTypes: true });
+        const result = [];
+        for (const entry of entries) {
+          if (entry.isFile()) {
+            result.push({ name: entry.name, type: 'file' });
+          } else if (entry.isDirectory()) {
+            const node = { name: entry.name, type: 'dir', children: [] };
+            if (currentDepth < maxDepth) {
+              node.children = await buildTree(path.join(currentPath, entry.name), currentDepth + 1);
+            }
+            result.push(node);
+          }
+        }
+        return result;
+      }
+
+      const tree = await buildTree(fullPath, 1);
+      sendJson(res, 200, tree);
+    } catch (err) {
+      if (err.message.startsWith('路径越界')) {
+        return sendJson(res, 403, { success: false, error: err.message });
+      }
+      if (err.code === 'ENOENT') {
+        return sendJson(res, 404, { success: false, error: '路径不存在: ' + dirPath });
+      }
+      sendJson(res, 500, { success: false, error: err.message });
+    }
+    return;
+  }
+
+  // POST /files/changes
+  if (req.method === 'POST' && req.url === '/files/changes') {
+    let body;
+    try { body = await parseJsonBody(req); } catch { return sendJson(res, 400, { success: false, error: '无效的 JSON 请求体' }); }
+    const { cwd: cwdPath, since } = body;
+    if (!cwdPath) {
+      return sendJson(res, 400, { success: false, error: '缺少 cwd 参数' });
+    }
+    const sinceMs = (typeof since === 'number' && since > 0) ? since : 0;
+    const MAX_DEPTH = 10;
+    const SKIP_DIRS = new Set(['node_modules', '.git', '.next', 'dist', '__pycache__', '.cache']);
+    try {
+      const fullPath = resolveSafePath(cwdPath);
+      const changes = [];
+
+      async function scan(dir, depth) {
+        if (depth > MAX_DEPTH) return;
+        let entries;
+        try { entries = await fs.readdir(dir, { withFileTypes: true }); } catch { return; }
+        for (const entry of entries) {
+          const entryPath = path.join(dir, entry.name);
+          if (entry.isDirectory()) {
+            if (!SKIP_DIRS.has(entry.name)) {
+              await scan(entryPath, depth + 1);
+            }
+          } else if (entry.isFile()) {
+            try {
+              const stat = await fs.stat(entryPath);
+              if (stat.mtimeMs > sinceMs) {
+                changes.push({
+                  path: path.relative(fullPath, entryPath),
+                  mtimeMs: stat.mtimeMs,
+                  size: stat.size,
+                  ext: path.extname(entry.name),
+                });
+              }
+            } catch { /* skip inaccessible files */ }
+          }
+        }
+      }
+
+      await scan(fullPath, 0);
+      sendJson(res, 200, { changes });
+    } catch (err) {
+      if (err.message.startsWith('路径越界')) {
+        return sendJson(res, 403, { success: false, error: err.message });
+      }
+      sendJson(res, 500, { success: false, error: err.message });
+    }
+    return;
+  }
+
   // POST /files/exists
   if (req.method === 'POST' && req.url === '/files/exists') {
     let body;

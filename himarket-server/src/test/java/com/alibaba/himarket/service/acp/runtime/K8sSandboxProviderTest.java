@@ -32,6 +32,7 @@ class K8sSandboxProviderTest {
     @BeforeEach
     void setUp() throws Exception {
         mockPodReuseManager = mock(PodReuseManager.class);
+        when(mockPodReuseManager.getNamespace()).thenReturn("himarket");
         mockK8sConfigService = mock(K8sConfigService.class);
         mockHttpClient = mock(HttpClient.class);
 

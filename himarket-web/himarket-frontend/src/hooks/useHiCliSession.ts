@@ -250,11 +250,12 @@ export function useHiCliSession(): UseHiCliSessionReturn {
       if (hasMethod && !hasId) {
         const notif = parsed as unknown as AcpNotification;
         if (notif.method === "sandbox/status") {
-          const params = notif.params as { status?: string; message?: string };
+          const params = notif.params as { status?: string; message?: string; sandboxHost?: string };
           dispatch({
             type: "SANDBOX_STATUS",
             status: (params?.status ?? "creating") as "creating" | "ready" | "error",
             message: params?.message ?? "",
+            sandboxHost: params?.sandboxHost,
           });
           return;
         }
@@ -382,9 +383,9 @@ export function useHiCliSession(): UseHiCliSessionReturn {
           const initReq = buildInitialize();
           sendWithLog(JSON.stringify(initReq));
 
-          // 给 initialize 请求加 15 秒超时，避免 Sidecar 未响应时永远卡住
+          // 给 initialize 请求加 2 分钟超时，CLI 启动可能较慢（如 K8s Pod 拉取镜像）
           const timeoutPromise = new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error("Initialize timeout")), 15000)
+            setTimeout(() => reject(new Error("Initialize timeout")), 120000)
           );
           const initResult = (await Promise.race([
             trackRequest(initReq.id),
@@ -497,7 +498,32 @@ export function useHiCliSession(): UseHiCliSessionReturn {
   const sendPrompt = useCallback(
     (text: string, attachments?: Attachment[]) => {
       const activeId = stateRef.current.activeQuestId;
-      if (!activeId) return { queued: false } as const;
+
+      // 无活跃 Quest 时：先创建会话再发送消息
+      if (!activeId) {
+        const cwd = stateRef.current.cwd || ".";
+        // 异步创建会话并发送消息，对调用方透明
+        createQuest(cwd)
+          .then((newQuestId) => {
+            startPrompt(newQuestId, text, attachments);
+          })
+          .catch((err: unknown) => {
+            console.error("Failed to create quest before sending prompt:", err);
+            const errObj = err as { message?: string; code?: number };
+            const message = errObj?.message || "会话创建失败";
+            const isAuthError = message.toLowerCase().includes("authentication") ||
+              message.toLowerCase().includes("auth") ||
+              errObj?.code === 32000;
+            dispatch({
+              type: "SANDBOX_STATUS",
+              status: "error",
+              message: isAuthError ? "该工具需要登录后使用，请在工具设置中配置访问凭据" : message,
+            });
+          });
+        // 同步返回 queued: true，表示消息正在排队处理（创建会话中）
+        return { queued: true } as const;
+      }
+
       const quest = stateRef.current.quests[activeId];
       if (!quest) return { queued: false } as const;
 
@@ -515,7 +541,7 @@ export function useHiCliSession(): UseHiCliSessionReturn {
       const requestId = startPrompt(activeId, text, attachments);
       return { queued: false, requestId } as const;
     },
-    [dispatch, startPrompt]
+    [dispatch, startPrompt, createQuest]
   );
 
   const cancelPrompt = useCallback(() => {

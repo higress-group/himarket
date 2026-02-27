@@ -57,7 +57,7 @@ export function HiCliSidebar({
         {questList.length === 0 ? (
           <div className="text-xs text-gray-400 text-center mt-8 px-4">
             {isConnected
-              ? "创建一个新的 Quest 开始调试"
+              ? "发送消息开始新对话"
               : "请先选择 CLI 工具并连接"}
           </div>
         ) : (

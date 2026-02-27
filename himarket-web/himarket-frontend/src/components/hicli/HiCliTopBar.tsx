@@ -133,7 +133,7 @@ export function HiCliTopBar({
           placement="bottomLeft"
           className="min-w-[100px] max-w-[180px]"
           popupMatchSelectWidth={false}
-          value={quest?.currentModeId || undefined}
+          value={quest?.currentModeId || hiCliState.currentModeId || undefined}
           onChange={onSetMode}
           options={modeOptions.map((m) => ({
             value: m.id,

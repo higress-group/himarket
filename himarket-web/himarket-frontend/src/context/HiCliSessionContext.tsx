@@ -38,6 +38,8 @@ export interface HiCliState extends QuestState {
   cwd: string;
   /** 当前运行时类型 */
   runtimeType: RuntimeType | null;
+  /** CLI 连接开始时间戳（用于展示等待计时） */
+  connectStartedAt: number | null;
 }
 
 export const hiCliInitialState: HiCliState = {
@@ -51,6 +53,7 @@ export const hiCliInitialState: HiCliState = {
   selectedCliId: null,
   cwd: "",
   runtimeType: null,
+  connectStartedAt: null,
 };
 
 // ===== HiCli Actions =====
@@ -94,6 +97,7 @@ export function hiCliReducer(
         selectedCliId: action.cliId,
         cwd: action.cwd,
         runtimeType: (action.runtime as RuntimeType) ?? "local",
+        connectStartedAt: Date.now(),
         // 切换 CLI 时清空调试状态
         rawMessages: [],
         aggregatedLogs: [],
@@ -121,10 +125,16 @@ export function hiCliReducer(
     case "RESET_STATE":
       return { ...hiCliInitialState };
 
-    default:
+    default: {
       // 委托给 questReducer 处理共享 action
+      const questResult = questReducer(state, action as QuestAction);
+      // PROTOCOL_INITIALIZED 完成后清除连接计时
+      const connectStartedAt =
+        (action as QuestAction).type === "PROTOCOL_INITIALIZED"
+          ? null
+          : state.connectStartedAt;
       return {
-        ...questReducer(state, action as QuestAction),
+        ...questResult,
         rawMessages: state.rawMessages,
         aggregatedLogs: state.aggregatedLogs,
         agentInfo: state.agentInfo,
@@ -134,7 +144,9 @@ export function hiCliReducer(
         selectedCliId: state.selectedCliId,
         cwd: state.cwd,
         runtimeType: state.runtimeType,
+        connectStartedAt,
       };
+    }
   }
 }
 
