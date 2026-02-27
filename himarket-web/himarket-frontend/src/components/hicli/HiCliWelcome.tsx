@@ -22,10 +22,10 @@ function formatElapsed(seconds: number): string {
 
 export function HiCliWelcome({
   onSelectCli,
-  onCreateQuest,
+  onCreateQuest: _onCreateQuest,
   isConnected,
   disabled,
-  creatingQuest,
+  creatingQuest: _creatingQuest,
 }: HiCliWelcomeProps) {
   const state = useHiCliState();
   const sandbox = state.sandboxStatus;

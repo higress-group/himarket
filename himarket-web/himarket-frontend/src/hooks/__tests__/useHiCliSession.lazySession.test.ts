@@ -7,7 +7,7 @@
  *
  * **Validates: Requirements 1.1, 1.2, 1.5, 2.1, 2.2, 2.5, 2.6**
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import fc from "fast-check";
 
 import {
@@ -45,7 +45,7 @@ function isBugCondition(input: BugConditionInput): boolean {
  */
 function simulateSendPrompt(
   state: { activeQuestId: string | null; quests: HiCliState["quests"] },
-  text: string,
+  _text: string,
 ): { queued: true; queuedPromptId?: string } | { queued: false; requestId?: string | number } {
   const activeId = state.activeQuestId;
 

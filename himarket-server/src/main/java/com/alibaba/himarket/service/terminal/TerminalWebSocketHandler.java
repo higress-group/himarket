@@ -112,7 +112,11 @@ public class TerminalWebSocketHandler extends TextWebSocketHandler {
                 }
 
                 K8sTerminalBackend k8sBackend =
-                        new K8sTerminalBackend(client, podEntry.getPodName(), podReuseManager.getNamespace(), "sandbox");
+                        new K8sTerminalBackend(
+                                client,
+                                podEntry.getPodName(),
+                                podReuseManager.getNamespace(),
+                                "sandbox");
                 logger.info(
                         "Created K8sTerminalBackend for user {}, pod={} (attempt={})",
                         userId,

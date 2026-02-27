@@ -49,7 +49,7 @@ function isBugCondition(input: BugConditionInput): boolean {
  */
 function simulateSendPrompt(
   state: { activeQuestId: string | null; quests: HiCliState["quests"] },
-  text: string,
+  _text: string,
 ): { queued: true; queuedPromptId?: string } | { queued: false; requestId?: string | number } {
   const activeId = state.activeQuestId;
   if (!activeId) return { queued: false } as const;
@@ -167,7 +167,7 @@ describe("保持性属性测试 - 非 bug 条件下的行为不变", () => {
         fc.property(
           messageTextArb,
           fc.constantFrom("native", "nodejs", "python"),
-          (message, runtimeCategory) => {
+          (message, _runtimeCategory) => {
             // 确认这不是 bug 条件
             const input: BugConditionInput = {
               event: "send_prompt",
@@ -329,8 +329,7 @@ describe("保持性属性测试 - 非 bug 条件下的行为不变", () => {
         fc.property(
           fc.integer({ min: 1, max: 5 }),
           cliProviderArb,
-          (existingCount, provider) => {
-            // 确认这不是 bug 条件（所有 Quest 都有消息，不存在空白 Quest）
+          (existingCount, _provider) => {
             const input: BugConditionInput = {
               event: "plus_button_clicked",
               hasActiveQuest: true,
@@ -410,7 +409,7 @@ describe("保持性属性测试 - 非 bug 条件下的行为不变", () => {
               quests,
               activeQuestId: activeId,
               selectedCliId: provider.cliId,
-              runtimeType: provider.runtimeCategory === "native" ? "local" : "K8S",
+              runtimeType: provider.runtimeCategory === "native" ? "local" : "k8s",
             };
 
             // 模拟 WS 断开
@@ -447,8 +446,7 @@ describe("保持性属性测试 - 非 bug 条件下的行为不变", () => {
           }),
           messageTextArb,
           cliProviderArb,
-          (questConfig, message, provider) => {
-            // 确认这不是 bug 条件
+          (questConfig, message, _provider) => {
             const input: BugConditionInput = {
               event: "send_prompt",
               hasActiveQuest: true,
@@ -621,7 +619,7 @@ describe("保持性属性测试 - 非 bug 条件下的行为不变", () => {
               ...hiCliInitialState,
               connected: true,
               initialized: true,
-              runtimeType: "K8S" as never,
+              runtimeType: "k8s",
             };
 
             state = hiCliReducer(state, {

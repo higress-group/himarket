@@ -454,7 +454,8 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
                                 : null;
                 sendSandboxStatus(session, "ready", "沙箱环境已就绪", sandboxHost);
                 sendInitProgress(session, "cli-ready", "completed", "沙箱环境已就绪", 100, 5, 5);
-                logger.info("[Sandbox-Init] 已发送 sandbox/status: ready, sandboxHost={}", sandboxHost);
+                logger.info(
+                        "[Sandbox-Init] 已发送 sandbox/status: ready, sandboxHost={}", sandboxHost);
 
                 // 通知前端实际使用的工作目录
                 String cwd = cwdMap.get(session.getId());
