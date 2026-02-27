@@ -278,7 +278,7 @@ public class AcpProperties {
          * K8s 命名空间，所有沙箱 Pod、Service、PVC 均创建在此命名空间下。
          * 默认 "himarket"。
          */
-        private String namespace = "himarket";
+        private String namespace = "default";
 
         /**
          * 用户级沙箱 Pod 空闲超时秒数。

@@ -82,19 +82,6 @@ public class TerminalWebSocketHandler extends TextWebSocketHandler {
 
         TerminalBackend backend;
         if (isK8s) {
-            // K8s 模式：从 PodReuseManager 获取用户的 Pod 信息
-            PodEntry podEntry = podReuseManager.getPodEntry(userId);
-            if (podEntry == null) {
-                logger.warn("Pod not found for user {}, closing terminal connection", userId);
-                String exitJson =
-                        objectMapper.writeValueAsString(Map.of("type", "exit", "code", -1));
-                synchronized (session) {
-                    session.sendMessage(new TextMessage(exitJson));
-                }
-                session.close(CloseStatus.SERVER_ERROR);
-                return;
-            }
-
             // 获取 K8s client
             List<K8sClusterInfo> clusters = k8sConfigService.listClusters();
             if (clusters.isEmpty()) {
@@ -109,24 +96,62 @@ public class TerminalWebSocketHandler extends TextWebSocketHandler {
             }
             KubernetesClient client = k8sConfigService.getClient(clusters.get(0).configId());
 
-            backend = new K8sTerminalBackend(client, podEntry.getPodName(), "himarket", "sandbox");
-            logger.info(
-                    "Created K8sTerminalBackend for user {}, pod={}",
-                    userId,
-                    podEntry.getPodName());
+            // K8s 模式：从 PodReuseManager 获取用户的健康 Pod 信息，exec 失败时重试一次
+            backend = null;
+            for (int attempt = 0; attempt < 2; attempt++) {
+                PodEntry podEntry = podReuseManager.getHealthyPodEntry(userId, client);
+                if (podEntry == null) {
+                    logger.warn("Pod not found for user {}, closing terminal connection", userId);
+                    String exitJson =
+                            objectMapper.writeValueAsString(Map.of("type", "exit", "code", -1));
+                    synchronized (session) {
+                        session.sendMessage(new TextMessage(exitJson));
+                    }
+                    session.close(CloseStatus.SERVER_ERROR);
+                    return;
+                }
+
+                K8sTerminalBackend k8sBackend =
+                        new K8sTerminalBackend(client, podEntry.getPodName(), podReuseManager.getNamespace(), "sandbox");
+                logger.info(
+                        "Created K8sTerminalBackend for user {}, pod={} (attempt={})",
+                        userId,
+                        podEntry.getPodName(),
+                        attempt);
+
+                try {
+                    k8sBackend.start(80, 24);
+                    backend = k8sBackend;
+                    break; // 成功，跳出重试循环
+                } catch (Exception e) {
+                    logger.warn(
+                            "Terminal exec failed for user {}, pod={}, evicting cache and retrying",
+                            userId,
+                            podEntry.getPodName());
+                    k8sBackend.close();
+                    // 清除缓存中的旧 pod，下次 getHealthyPodEntry 会通过 K8s API 重新查找
+                    podReuseManager.evictPod(userId);
+                    if (attempt == 1) {
+                        // 第二次也失败了，放弃
+                        logger.error("Failed to start terminal for user {} after retry", userId, e);
+                        session.close(CloseStatus.SERVER_ERROR);
+                        return;
+                    }
+                }
+            }
         } else {
             // 本地模式：保持现有行为
             String cwd = buildWorkspacePath(userId);
             backend = new LocalTerminalBackend(cwd);
             logger.info("Created LocalTerminalBackend for user {}, cwd={}", userId, cwd);
-        }
 
-        try {
-            backend.start(80, 24);
-        } catch (Exception e) {
-            logger.error("Failed to start terminal for user {}", userId, e);
-            session.close(CloseStatus.SERVER_ERROR);
-            return;
+            try {
+                backend.start(80, 24);
+            } catch (Exception e) {
+                logger.error("Failed to start terminal for user {}", userId, e);
+                session.close(CloseStatus.SERVER_ERROR);
+                return;
+            }
         }
 
         backendMap.put(session.getId(), backend);

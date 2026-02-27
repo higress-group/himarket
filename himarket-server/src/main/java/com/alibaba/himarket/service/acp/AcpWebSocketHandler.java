@@ -19,6 +19,7 @@ import com.alibaba.himarket.service.acp.runtime.RuntimeFactory;
 import com.alibaba.himarket.service.acp.runtime.RuntimeType;
 import com.alibaba.himarket.service.acp.runtime.SandboxAcquirePhase;
 import com.alibaba.himarket.service.acp.runtime.SandboxConfig;
+import com.alibaba.himarket.service.acp.runtime.SandboxInfo;
 import com.alibaba.himarket.service.acp.runtime.SandboxInitPipeline;
 import com.alibaba.himarket.service.acp.runtime.SandboxProvider;
 import com.alibaba.himarket.service.acp.runtime.SandboxProviderRegistry;
@@ -446,9 +447,14 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
                 subscriptionMap.put(session.getId(), subscription);
 
                 // 推送就绪通知
-                sendSandboxStatus(session, "ready", "沙箱环境已就绪");
+                SandboxInfo sInfo = context.getSandboxInfo();
+                String sandboxHost =
+                        sInfo != null && sInfo.host() != null && !sInfo.host().isBlank()
+                                ? sInfo.host()
+                                : null;
+                sendSandboxStatus(session, "ready", "沙箱环境已就绪", sandboxHost);
                 sendInitProgress(session, "cli-ready", "completed", "沙箱环境已就绪", 100, 5, 5);
-                logger.info("[Sandbox-Init] 已发送 sandbox/status: ready");
+                logger.info("[Sandbox-Init] 已发送 sandbox/status: ready, sandboxHost={}", sandboxHost);
 
                 // 通知前端实际使用的工作目录
                 String cwd = cwdMap.get(session.getId());
@@ -896,8 +902,12 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
             subscriptionMap.put(session.getId(), subscription);
 
             // 推送就绪通知
-            sendSandboxStatus(session, "ready", "沙箱环境已就绪");
-            logger.info("[K8s-Init] 已发送 sandbox/status: ready");
+            String sandboxHost =
+                    podInfo.serviceIp() != null && !podInfo.serviceIp().isBlank()
+                            ? podInfo.serviceIp()
+                            : podInfo.podIp();
+            sendSandboxStatus(session, "ready", "沙箱环境已就绪", sandboxHost);
+            logger.info("[K8s-Init] 已发送 sandbox/status: ready, sandboxHost={}", sandboxHost);
 
             // 通知前端实际使用的工作目录
             String cwd = cwdMap.get(session.getId());
@@ -1142,6 +1152,11 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
      * 格式：{"jsonrpc":"2.0","method":"sandbox/status","params":{"status":"...","message":"..."}}
      */
     private void sendSandboxStatus(WebSocketSession session, String status, String message) {
+        sendSandboxStatus(session, status, message, null);
+    }
+
+    private void sendSandboxStatus(
+            WebSocketSession session, String status, String message, String sandboxHost) {
         try {
             if (!session.isOpen()) return;
             ObjectNode notification = objectMapper.createObjectNode();
@@ -1150,6 +1165,9 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
             ObjectNode params = objectMapper.createObjectNode();
             params.put("status", status);
             params.put("message", message);
+            if (sandboxHost != null && !sandboxHost.isBlank()) {
+                params.put("sandboxHost", sandboxHost);
+            }
             notification.set("params", params);
             synchronized (session) {
                 session.sendMessage(new TextMessage(objectMapper.writeValueAsString(notification)));

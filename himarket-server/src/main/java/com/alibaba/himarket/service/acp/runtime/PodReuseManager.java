@@ -101,7 +101,7 @@ public class PodReuseManager {
     }
 
     public PodReuseManager(K8sConfigService k8sConfigService, long idleTimeoutSeconds) {
-        this(k8sConfigService, "himarket", idleTimeoutSeconds, true);
+        this(k8sConfigService, "default", idleTimeoutSeconds, true);
     }
 
     public PodReuseManager(
@@ -110,7 +110,7 @@ public class PodReuseManager {
             long idleTimeoutSeconds,
             boolean sandboxAccessViaService) {
         this.k8sConfigService = k8sConfigService;
-        this.namespace = namespace != null ? namespace : "himarket";
+        this.namespace = namespace != null ? namespace : "default";
         this.idleTimeoutSeconds =
                 idleTimeoutSeconds > 0 ? idleTimeoutSeconds : DEFAULT_IDLE_TIMEOUT_SECONDS;
         this.sandboxAccessViaService = sandboxAccessViaService;
@@ -294,6 +294,49 @@ public class PodReuseManager {
     public PodEntry getPodEntry(String userId) {
         return podCache.get(userId);
     }
+
+    /**
+     * 获取用户的健康 Pod 条目。
+     * <p>
+     * 与 {@link #getPodEntry(String)} 不同，此方法会验证缓存中的 Pod 是否仍然健康（Running）。
+     * 如果缓存中的 Pod 不健康（如 OOMKilled 后被重建），会通过 K8s API 回退查询找到当前
+     * 真正运行的 Pod 并更新缓存。
+     *
+     * @param userId 用户 ID
+     * @param client KubernetesClient 实例
+     * @return 健康的 PodEntry，如果找不到则返回 null
+     */
+    public PodEntry getHealthyPodEntry(String userId, KubernetesClient client) {
+        if (userId == null || userId.isBlank()) {
+            return null;
+        }
+
+        return podCache.compute(userId, (key, existing) -> {
+            // 1. 缓存命中 → 验证健康
+            if (existing != null) {
+                if (isPodHealthy(client, existing)) {
+                    return existing;
+                }
+                // Pod 不健康，通过 K8s API 回退查询找到当前运行的 Pod
+                log.warn("Terminal 连接发现缓存中的 Pod 不健康: userId={}, pod={}", userId, existing.getPodName());
+            }
+
+            // 2. 缓存未命中或不健康 → K8s API 回退查询
+            PodEntry found = queryPodFromK8sApi(client, userId);
+            if (found != null) {
+                log.info("K8s API 回退查询找到健康 Pod: userId={}, pod={}", userId, found.getPodName());
+                if (existing != null) {
+                    found.getConnectionCount().set(existing.getConnectionCount().get());
+                }
+                return found;
+            }
+
+            log.warn("未找到健康的 Pod: userId={}", userId);
+            return null;
+        });
+    }
+
+
 
     /**
      * 强制移除指定用户的 Pod 缓存并删除 K8s Pod。

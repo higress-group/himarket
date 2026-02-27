@@ -44,6 +44,7 @@ public class K8sRuntimeAdapter implements RuntimeAdapter {
 
     private static final Logger logger = LoggerFactory.getLogger(K8sRuntimeAdapter.class);
 
+    static final String DEFAULT_NAMESPACE = "default";
     static final String DEFAULT_SANDBOX_IMAGE =
             "opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/sandbox:latest";
     static final String IMAGE_PULL_SECRET = "";
@@ -158,7 +159,7 @@ public class K8sRuntimeAdapter implements RuntimeAdapter {
             throw new IllegalArgumentException("k8sClient must not be null");
         }
         this.k8sClient = k8sClient;
-        this.namespace = namespace != null ? namespace : "himarket";
+        this.namespace = namespace != null ? namespace : DEFAULT_NAMESPACE;
         this.podReadyTimeout =
                 podReadyTimeout != null ? podReadyTimeout : DEFAULT_POD_READY_TIMEOUT;
         this.healthCheckIntervalSeconds =
