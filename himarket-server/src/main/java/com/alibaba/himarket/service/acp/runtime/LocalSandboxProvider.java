@@ -195,7 +195,22 @@ public class LocalSandboxProvider implements SandboxProvider {
     public RuntimeAdapter connectSidecar(SandboxInfo info, RuntimeConfig config) {
         String command = config.getCommand();
         String args = config.getArgs() != null ? String.join(" ", config.getArgs()) : "";
-        URI wsUri = info.sidecarWsUri(command, args);
+        URI baseUri = info.sidecarWsUri(command, args);
+
+        // 将 RuntimeConfig 中的环境变量通过 query param 传递给 Sidecar，
+        // 以便 Sidecar 在 spawn CLI 子进程时注入（解决 Sidecar 进程复用时环境变量无法动态更新的问题）
+        URI wsUri = baseUri;
+        if (config.getEnv() != null && !config.getEnv().isEmpty()) {
+            try {
+                String envJson = new com.fasterxml.jackson.databind.ObjectMapper()
+                        .writeValueAsString(config.getEnv());
+                String encodedEnv = java.net.URLEncoder.encode(envJson, java.nio.charset.StandardCharsets.UTF_8);
+                String separator = baseUri.getRawQuery() != null ? "&" : "?";
+                wsUri = URI.create(baseUri.toString() + separator + "env=" + encodedEnv);
+            } catch (Exception e) {
+                logger.warn("[LocalSandboxProvider] 序列化 env 失败，跳过环境变量传递: {}", e.getMessage());
+            }
+        }
 
         LocalSidecarAdapter adapter = new LocalSidecarAdapter(wsUri);
         adapter.connect();

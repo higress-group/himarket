@@ -251,7 +251,7 @@ acp:
     qodercli:
       # ... 现有配置 ...
       auth-options: default,personal_access_token
-      auth-env-var: QODER_PAT
+      auth-env-var: QODER_PERSONAL_ACCESS_TOKEN
     claude-code:
       # ... 现有配置 ...
       auth-env-var: ANTHROPIC_API_KEY
@@ -355,7 +355,7 @@ graph LR
 
 | CLI 工具 | authOptions | authEnvVar | 沙箱认证 | 说明 |
 |---------|-------------|------------|---------|------|
-| QoderCli | ["default", "personal_access_token"] | QODER_PAT | ✅ | 默认/PAT 两种方案 |
+| QoderCli | ["default", "personal_access_token"] | QODER_PERSONAL_ACCESS_TOKEN | ✅ | 默认/PAT 两种方案 |
 | Claude Code | - | ANTHROPIC_API_KEY | ✅ | 沙箱模式需 API Key |
 | Kiro CLI | - | - | ❌ 待支持 | 仅支持 OAuth，沙箱无法完成 |
 | Qwen Code | - | - | ✅ | 通过自定义模型配置认证 |

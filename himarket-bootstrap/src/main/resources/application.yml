@@ -56,6 +56,8 @@ acp:
       runtime-category: native
       compatible-runtimes: LOCAL,K8S
       container-image: ${ACP_SANDBOX_IMAGE:opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/sandbox:latest}
+      auth-options: default,personal_access_token
+      auth-env-var: QODER_PERSONAL_ACCESS_TOKEN
     kiro-cli:
       display-name: Kiro CLI
       command: ${ACP_CLI_COMMAND_KIRO:kiro-cli}
@@ -68,6 +70,7 @@ acp:
       args: ${ACP_CLI_ARGS_CLAUDE:@zed-industries/claude-code-acp}
       runtime-category: nodejs
       compatible-runtimes: LOCAL,K8S
+      auth-env-var: ANTHROPIC_API_KEY
     codex:
       display-name: Codex CLI
       command: ${ACP_CLI_COMMAND_CODEX:npx}

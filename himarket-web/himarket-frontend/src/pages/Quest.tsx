@@ -37,43 +37,59 @@ function QuestContent() {
   // 自动创建 Quest 的标记
   const autoCreatedRef = useRef(false);
 
+  // 跟踪当前运行时类型
+  const currentRuntimeRef = useRef<string>("local");
+
   // 连接成功且初始化完成后，自动创建第一个 Quest
+  // K8s 运行时：等待 sandboxStatus.status === "ready" 后再创建
+  // 本地运行时：保持现有行为，连接成功后立即创建
   useEffect(() => {
-    if (
-      isConnected &&
-      state.initialized &&
-      Object.keys(state.quests).length === 0 &&
-      !autoCreatedRef.current
-    ) {
-      autoCreatedRef.current = true;
-      session.createQuest(".").catch((err) => {
-        console.error("Auto create quest failed:", err);
-        dispatch({
-          type: "SANDBOX_STATUS",
-          status: "error",
-          message: err?.message || "会话创建失败",
-        });
+    if (!isConnected || !state.initialized || Object.keys(state.quests).length > 0 || autoCreatedRef.current) {
+      // 断开连接时重置标记
+      if (!isConnected) {
+        autoCreatedRef.current = false;
+      }
+      return;
+    }
+
+    const isK8s = currentRuntimeRef.current === "k8s";
+
+    // K8s 运行时：sandboxStatus 为 creating 时不创建，等待 ready
+    if (isK8s && state.sandboxStatus?.status !== "ready") {
+      return;
+    }
+
+    autoCreatedRef.current = true;
+    session.createQuest(".").catch((err) => {
+      console.error("Auto create quest failed:", err);
+      dispatch({
+        type: "SANDBOX_STATUS",
+        status: "error",
+        message: err?.message || "会话创建失败",
       });
-    }
-    // 断开连接时重置标记
-    if (!isConnected) {
-      autoCreatedRef.current = false;
-    }
-  }, [isConnected, state.initialized, state.quests, session]);
+    });
+  }, [isConnected, state.initialized, state.quests, state.sandboxStatus, session, dispatch]);
 
   // CLI 工具选择 → 构建 wsUrl 触发连接
   const handleSelectCli = useCallback(
-    (cliId: string, _cwd: string, _runtime?: string, _providerObj?: ICliProvider) => {
+    (cliId: string, _cwd: string, runtime?: string, _providerObj?: ICliProvider, cliSessionConfig?: string) => {
       localStorage.setItem("hicoding:cliProvider", cliId);
       setCurrentProvider(cliId);
+      const isK8s = runtime === "k8s";
+      currentRuntimeRef.current = runtime || "local";
       const url = buildAcpWsUrl({
         token: localStorage.getItem("access_token") || undefined,
         provider: cliId || undefined,
-        runtime: "local",
+        runtime: runtime || "local",
+        sandboxMode: isK8s ? "user" : undefined,
+        cliSessionConfig,
       });
+      if (isK8s) {
+        dispatch({ type: "SANDBOX_STATUS", status: "creating", message: "正在连接沙箱环境..." });
+      }
       setCurrentWsUrl(url);
     },
-    []
+    [dispatch]
   );
 
   // 切换工具：断开连接 → RESET_STATE → 清空 wsUrl → 返回欢迎页

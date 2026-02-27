@@ -20,6 +20,9 @@ public class CliSessionConfig {
     /** 选中的 Skill 列表（可选） */
     private List<SkillEntry> skills;
 
+    /** 认证凭据（PAT / API Key），用于注入到 CLI 进程环境变量中（可选） */
+    private String authToken;
+
     @Data
     public static class McpServerEntry {
         /** MCP 服务名称 */

@@ -105,8 +105,13 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
         this.configGeneratorRegistry = new HashMap<>();
         OpenCodeConfigGenerator openCodeGenerator = new OpenCodeConfigGenerator(objectMapper);
         QwenCodeConfigGenerator qwenCodeGenerator = new QwenCodeConfigGenerator(objectMapper);
+        ClaudeCodeConfigGenerator claudeCodeGenerator = new ClaudeCodeConfigGenerator(objectMapper);
+        QoderCliConfigGenerator qoderCliGenerator = new QoderCliConfigGenerator(objectMapper);
         this.configGeneratorRegistry.put(openCodeGenerator.supportedProvider(), openCodeGenerator);
         this.configGeneratorRegistry.put(qwenCodeGenerator.supportedProvider(), qwenCodeGenerator);
+        this.configGeneratorRegistry.put(
+                claudeCodeGenerator.supportedProvider(), claudeCodeGenerator);
+        this.configGeneratorRegistry.put(qoderCliGenerator.supportedProvider(), qoderCliGenerator);
     }
 
     @Override
@@ -333,6 +338,23 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
 
             // 1. 获取 Provider
             SandboxProvider provider = sandboxProviderRegistry.getProvider(sandboxType);
+
+            // 1.5 注入 authToken 到 CLI 进程环境变量
+            if (sessionConfig != null && sessionConfig.getAuthToken() != null) {
+                if (providerConfig.getAuthEnvVar() != null) {
+                    config.getEnv()
+                            .put(providerConfig.getAuthEnvVar(), sessionConfig.getAuthToken());
+                    logger.info(
+                            "[Sandbox-Init] authToken injected to env var '{}' for provider '{}'",
+                            providerConfig.getAuthEnvVar(),
+                            providerKey);
+                } else {
+                    logger.warn(
+                            "Received authToken but authEnvVar is not configured for provider: {},"
+                                    + " ignoring authToken",
+                            providerKey);
+                }
+            }
 
             // 2. 构建 SandboxConfig
             SandboxConfig sandboxConfig =

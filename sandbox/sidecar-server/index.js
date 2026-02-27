@@ -218,8 +218,43 @@ server.on('upgrade', (req, socket, head) => {
     // 启动 CLI 子进程
     let cliProcess;
     try {
+      // 构建干净的基础环境变量（白名单），避免 Sidecar 进程复用时
+      // 上一次会话注入的认证凭据（如 QODER_PERSONAL_ACCESS_TOKEN）残留到后续会话
+      const BASE_ENV_KEYS = [
+        'PATH', 'HOME', 'USER', 'SHELL', 'LANG', 'LC_ALL', 'LC_CTYPE',
+        'TERM', 'TMPDIR', 'XDG_RUNTIME_DIR', 'XDG_CONFIG_HOME', 'XDG_DATA_HOME',
+        'NODE_PATH', 'NVM_DIR', 'FNM_DIR',
+      ];
+      const baseEnv = {};
+      for (const key of BASE_ENV_KEYS) {
+        if (process.env[key] !== undefined) {
+          baseEnv[key] = process.env[key];
+        }
+      }
+      // 保留 SIDECAR_ 和 WORKSPACE_ 前缀的变量（Sidecar 自身配置）
+      for (const [key, val] of Object.entries(process.env)) {
+        if (key.startsWith('SIDECAR_') || key.startsWith('WORKSPACE_') || key.startsWith('ALLOWED_')) {
+          baseEnv[key] = val;
+        }
+      }
+
+      // 合并通过 WebSocket URL 传入的额外环境变量（每次会话动态传递）
+      const envRaw = url.searchParams.get('env');
+      let extraEnv = {};
+      if (envRaw) {
+        try {
+          extraEnv = JSON.parse(decodeURIComponent(envRaw));
+          console.log(`[session:${sessionId}] injecting env vars: ${Object.keys(extraEnv).join(', ')}`);
+        } catch (e) {
+          console.warn(`[session:${sessionId}] failed to parse env param: ${e.message}`);
+        }
+      }
+
+      const spawnEnv = { ...baseEnv, ...extraEnv };
+
       cliProcess = spawn(command, args, {
         stdio: ['pipe', 'pipe', 'pipe'],
+        env: spawnEnv,
       });
     } catch (err) {
       console.error(`[session:${sessionId}] spawn failed:`, err.message);

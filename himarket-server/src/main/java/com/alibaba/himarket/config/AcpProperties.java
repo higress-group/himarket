@@ -137,6 +137,18 @@ public class AcpProperties {
          */
         private boolean supportsSkill = false;
 
+        /**
+         * 该 CLI 工具支持的认证方案列表（可选）。
+         * 如 ["default", "personal_access_token"]，前端根据此列表渲染认证方案选择 UI。
+         */
+        private List<String> authOptions;
+
+        /**
+         * 该 CLI 工具的 Token/API Key 对应的环境变量名（可选）。
+         * 如 QoderCli 对应 QODER_PERSONAL_ACCESS_TOKEN，Claude Code 对应 ANTHROPIC_API_KEY。
+         */
+        private String authEnvVar;
+
         public String getDisplayName() {
             return displayName;
         }
@@ -223,6 +235,22 @@ public class AcpProperties {
 
         public void setSupportsSkill(boolean supportsSkill) {
             this.supportsSkill = supportsSkill;
+        }
+
+        public List<String> getAuthOptions() {
+            return authOptions;
+        }
+
+        public void setAuthOptions(List<String> authOptions) {
+            this.authOptions = authOptions;
+        }
+
+        public String getAuthEnvVar() {
+            return authEnvVar;
+        }
+
+        public void setAuthEnvVar(String authEnvVar) {
+            this.authEnvVar = authEnvVar;
         }
     }
 

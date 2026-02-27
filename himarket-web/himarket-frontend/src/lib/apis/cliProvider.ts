@@ -18,6 +18,8 @@ export interface ICliProvider {
   supportsCustomModel?: boolean;
   supportsMcp?: boolean;
   supportsSkill?: boolean;
+  authOptions?: string[];    // 认证方案列表，如 ["default", "personal_access_token"]
+  authEnvVar?: string;       // Token/API Key 对应的环境变量名
 }
 
 // ============ API 函数 ============
@@ -102,6 +104,7 @@ export interface CliSessionConfig {
   customModelConfig?: import("../../components/hicli/CustomModelForm").CustomModelFormData;
   mcpServers?: McpServerEntry[];
   skills?: SkillEntry[];
+  authToken?: string;  // 认证凭据（PAT / API Key）
 }
 
 // ============ MCP 市场 API 函数 ============

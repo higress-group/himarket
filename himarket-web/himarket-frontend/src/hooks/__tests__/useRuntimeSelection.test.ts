@@ -1,7 +1,19 @@
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useRuntimeSelection } from '../useRuntimeSelection';
 import type { ICliProvider } from '../../lib/apis/cliProvider';
+
+// Mock getAvailableRuntimes API，让 local 和 k8s 都可用
+vi.mock('../../lib/apis/runtime', () => ({
+  getAvailableRuntimes: vi.fn(() =>
+    Promise.resolve({
+      data: [
+        { type: 'local', available: true },
+        { type: 'k8s', available: true },
+      ],
+    })
+  ),
+}));
 
 // Mock localStorage
 const localStorageMock = (() => {
@@ -87,10 +99,15 @@ describe('useRuntimeSelection', () => {
     expect(result.current.selectedRuntime).toBe('local');
   });
 
-  it('selectRuntime 更新选中状态并持久化到 localStorage', () => {
+  it('selectRuntime 更新选中状态并持久化到 localStorage', async () => {
     const { result } = renderHook(() =>
       useRuntimeSelection({ provider: nativeProvider })
     );
+
+    // 等待 API mock 返回，确保 k8s 被标记为 available
+    await waitFor(() => {
+      expect(result.current.compatibleRuntimes.find(r => r.type === 'k8s')?.available).toBe(true);
+    });
 
     act(() => {
       result.current.selectRuntime('k8s');

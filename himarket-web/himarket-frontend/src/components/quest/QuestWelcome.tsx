@@ -55,6 +55,7 @@ export function QuestWelcome({
       isConnected={isConnected}
       disabled={disabled}
       onSelectCli={onSelectCli}
+      showRuntimeSelector={true}
       connectedContent={connectedContent}
     />
   );

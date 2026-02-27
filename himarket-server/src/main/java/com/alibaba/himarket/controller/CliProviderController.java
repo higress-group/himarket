@@ -363,7 +363,9 @@ public class CliProviderController {
                             config.getContainerImage(),
                             config.isSupportsCustomModel(),
                             config.isSupportsMcp(),
-                            config.isSupportsSkill()));
+                            config.isSupportsSkill(),
+                            config.getAuthOptions(),
+                            config.getAuthEnvVar()));
         }
         return result;
     }
@@ -402,5 +404,7 @@ public class CliProviderController {
             String containerImage,
             boolean supportsCustomModel,
             boolean supportsMcp,
-            boolean supportsSkill) {}
+            boolean supportsSkill,
+            List<String> authOptions,
+            String authEnvVar) {}
 }

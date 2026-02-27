@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Button, Segmented } from "antd";
+import { Button, Segmented, Radio, Input } from "antd";
 import { Plug, RefreshCw, Loader2, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { getCliProviders, type ICliProvider, type McpServerEntry, type SkillEntry, type CliSessionConfig } from "../../lib/apis/cliProvider";
 import { RuntimeSelector } from "./RuntimeSelector";
@@ -35,7 +35,7 @@ export function CliSelector({ onSelect, disabled, showRuntimeSelector = false }:
   const selectedProvider = providers.find(p => p.key === selectedCliId) ?? null;
 
   // 运行时选择
-  const { selectedRuntime, compatibleRuntimes, selectRuntime } = useRuntimeSelection({
+  const { selectedRuntime, compatibleRuntimes, selectRuntime, sandboxMode } = useRuntimeSelection({
     provider: selectedProvider,
   });
 
@@ -48,6 +48,10 @@ export function CliSelector({ onSelect, disabled, showRuntimeSelector = false }:
   const [skillEnabled, setSkillEnabled] = useState(false);
   const [selectedMcps, setSelectedMcps] = useState<McpServerEntry[] | null>(null);
   const [selectedSkills, setSelectedSkills] = useState<SkillEntry[] | null>(null);
+
+  // 认证方案状态
+  const [selectedAuthOption, setSelectedAuthOption] = useState<string>("");
+  const [authTokenInput, setAuthTokenInput] = useState<string>("");
 
   // 使用 sortCliProviders 对 provider 列表排序
   const sortedProviders = useMemo(() => sortCliProviders(providers), [providers]);
@@ -72,6 +76,14 @@ export function CliSelector({ onSelect, disabled, showRuntimeSelector = false }:
     switch (currentStep.key) {
       case 'select-tool':
         return isStep1Complete;
+      case 'auth-config':
+        // 认证方案步骤：必须选择了认证方案
+        // 如果选择了 personal_access_token，需要输入 token
+        if (!selectedAuthOption) return false;
+        if (selectedAuthOption === 'personal_access_token') {
+          return authTokenInput.trim().length > 0;
+        }
+        return true;
       case 'model-config':
         // 模型配置步骤：始终可以继续（默认模型不需要额外配置）
         return true;
@@ -81,7 +93,7 @@ export function CliSelector({ onSelect, disabled, showRuntimeSelector = false }:
       default:
         return false;
     }
-  }, [currentStep, isStep1Complete]);
+  }, [currentStep, isStep1Complete, selectedAuthOption, authTokenInput]);
 
   // CustomModelForm 数据变化回调
   const handleCustomFormChange = useCallback((data: CustomModelFormData | null) => {
@@ -101,6 +113,8 @@ export function CliSelector({ onSelect, disabled, showRuntimeSelector = false }:
     setSkillEnabled(false);
     setSelectedMcps(null);
     setSelectedSkills(null);
+    setSelectedAuthOption("");
+    setAuthTokenInput("");
     setCurrentStepIndex(0);
   }, [selectedCliId]);
 
@@ -162,14 +176,22 @@ export function CliSelector({ onSelect, disabled, showRuntimeSelector = false }:
       sessionConfig.skills = selectedSkills;
     }
 
+    // 认证凭据
+    if (authTokenInput.trim()) {
+      sessionConfig.authToken = authTokenInput.trim();
+    }
+
     // 有任何配置时传递 cliSessionConfig
     const hasConfig = sessionConfig.customModelConfig
       || sessionConfig.mcpServers
-      || sessionConfig.skills;
+      || sessionConfig.skills
+      || sessionConfig.authToken;
     const configJson = hasConfig ? JSON.stringify(sessionConfig) : undefined;
 
+    // selectedRuntime 已通过 onSelect 第三个参数传递，调用方根据 runtime === "k8s" 判断是否附加 sandboxMode
+    // sandboxMode 当前固定为 "user"（由 useRuntimeSelection hook 管理）
     onSelect(selectedCliId, "", selectedRuntime, selectedProvider ?? undefined, configJson);
-  }, [selectedCliId, modelConfigMode, customModelData, mcpEnabled, selectedMcps, skillEnabled, selectedSkills, selectedRuntime, selectedProvider, onSelect]);
+  }, [selectedCliId, modelConfigMode, customModelData, mcpEnabled, selectedMcps, skillEnabled, selectedSkills, authTokenInput, selectedRuntime, selectedProvider, sandboxMode, onSelect]);
 
   // 选择 CLI 工具卡片
   const handleSelectProvider = useCallback((key: string) => {
@@ -237,6 +259,82 @@ export function CliSelector({ onSelect, disabled, showRuntimeSelector = false }:
 
   // ============ 步骤内容渲染 ============
 
+  // 认证方案显示名称映射
+  const AUTH_OPTION_LABELS: Record<string, string> = {
+    default: '默认',
+    personal_access_token: 'Personal Access Token',
+  };
+
+  // 判断是否为 Claude Code + K8s 运行时（需要直接展示 API Key 输入）
+  const isClaudeCodeK8s = selectedProvider?.authEnvVar && !selectedProvider?.authOptions?.length && selectedRuntime === 'k8s';
+
+  // 判断是否为 Kiro CLI + K8s 运行时（Kiro CLI 仅支持 OAuth 登录，沙箱中无法完成认证）
+  const isKiroCliK8sDisabled = selectedProvider?.key === 'kiro-cli' && selectedRuntime === 'k8s';
+
+  /** 步骤：认证方案选择 */
+  const renderAuthConfigStep = () => {
+    const authOptions = selectedProvider?.authOptions ?? [];
+    const authEnvVar = selectedProvider?.authEnvVar;
+
+    return (
+      <div className="flex flex-col gap-4 w-full">
+        {/* 有 authOptions 时：展示认证方案单选 */}
+        {authOptions.length > 0 && (
+          <div className="flex flex-col gap-2 w-full">
+            <label className="text-sm font-medium text-gray-600">认证方案</label>
+            <Radio.Group
+              value={selectedAuthOption}
+              onChange={(e) => {
+                setSelectedAuthOption(e.target.value);
+                setAuthTokenInput("");
+              }}
+              className="flex flex-col gap-2"
+            >
+              {authOptions.map((option) => (
+                <Radio key={option} value={option}>
+                  {AUTH_OPTION_LABELS[option] ?? option}
+                </Radio>
+              ))}
+            </Radio.Group>
+          </div>
+        )}
+
+        {/* 选择 Personal Access Token 时展示 PAT 输入框 */}
+        {selectedAuthOption === 'personal_access_token' && authEnvVar && (
+          <div className="flex flex-col gap-2 w-full">
+            <label className="text-sm font-medium text-gray-600">
+              Personal Access Token
+            </label>
+            <Input.Password
+              placeholder={`请输入 ${authEnvVar} 对应的 Token`}
+              value={authTokenInput}
+              onChange={(e) => setAuthTokenInput(e.target.value)}
+            />
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  /** 渲染 Claude Code + K8s 运行时的 API Key 输入表单（嵌入步骤一底部） */
+  const renderApiKeyInput = () => {
+    if (!isClaudeCodeK8s) return null;
+    const authEnvVar = selectedProvider?.authEnvVar ?? '';
+
+    return (
+      <div className="flex flex-col gap-2 w-full">
+        <label className="text-sm font-medium text-gray-600">
+          API Key（{authEnvVar}）
+        </label>
+        <Input.Password
+          placeholder={`请输入 ${authEnvVar}`}
+          value={authTokenInput}
+          onChange={(e) => setAuthTokenInput(e.target.value)}
+        />
+      </div>
+    );
+  };
+
   /** 步骤一：选择工具 + 运行时 */
   const renderStep1 = () => (
     <div className="flex flex-col gap-4 w-full">
@@ -273,6 +371,9 @@ export function CliSelector({ onSelect, disabled, showRuntimeSelector = false }:
           onSelect={selectRuntime}
         />
       )}
+
+      {/* Claude Code + K8s 运行时：直接在步骤一展示 API Key 输入 */}
+      {renderApiKeyInput()}
     </div>
   );
 
@@ -352,6 +453,8 @@ export function CliSelector({ onSelect, disabled, showRuntimeSelector = false }:
     switch (currentStep.key) {
       case 'select-tool':
         return renderStep1();
+      case 'auth-config':
+        return renderAuthConfigStep();
       case 'model-config':
         return renderStep2();
       case 'extension-config':
@@ -377,6 +480,14 @@ export function CliSelector({ onSelect, disabled, showRuntimeSelector = false }:
       {/* 当前步骤内容 */}
       {renderCurrentStep()}
 
+      {/* Kiro CLI + K8s 运行时禁用提示 */}
+      {isKiroCliK8sDisabled && (
+        <div className="flex items-center gap-2 text-amber-600 text-sm">
+          <AlertCircle size={16} className="flex-shrink-0" />
+          <span>Kiro CLI 沙箱认证待支持（仅支持 OAuth 登录）</span>
+        </div>
+      )}
+
       {/* 导航按钮 */}
       <div className="flex items-center justify-center gap-3 w-full">
         {/* 上一步按钮 - 仅在非第一步且有多步骤时显示 */}
@@ -396,7 +507,7 @@ export function CliSelector({ onSelect, disabled, showRuntimeSelector = false }:
             type="primary"
             icon={<Plug size={14} />}
             onClick={handleConnect}
-            disabled={disabled || !isStep1Complete}
+            disabled={disabled || !isStep1Complete || isKiroCliK8sDisabled}
             className="px-8"
           >
             连接
