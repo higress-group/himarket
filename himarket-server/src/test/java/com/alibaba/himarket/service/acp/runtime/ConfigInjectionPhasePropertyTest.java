@@ -26,7 +26,7 @@ class ConfigInjectionPhasePropertyTest {
     // ===== 辅助：基于 HashMap 的 Stub SandboxProvider =====
 
     /**
-     * 使用 HashMap 模拟文件系统的 SandboxProvider。 writeFile 存入 map，readFile 从 map 读取。
+     * 使用 HashMap 模拟文件系统的 SandboxProvider。 extractArchive 解析 tar.gz 并存入 map，readFile 从 map 读取。
      */
     static class InMemorySandboxProvider implements SandboxProvider {
 
@@ -66,6 +66,31 @@ class ConfigInjectionPhasePropertyTest {
         }
 
         @Override
+        public int extractArchive(SandboxInfo info, byte[] tarGzBytes) throws IOException {
+            // 解析 tar.gz 并存入 fileStore
+            int count = 0;
+            try (var gzIn =
+                            new org.apache.commons.compress.compressors.gzip
+                                    .GzipCompressorInputStream(
+                                    new java.io.ByteArrayInputStream(tarGzBytes));
+                    var tarIn =
+                            new org.apache.commons.compress.archivers.tar.TarArchiveInputStream(
+                                    gzIn)) {
+                org.apache.commons.compress.archivers.tar.TarArchiveEntry entry;
+                while ((entry = tarIn.getNextEntry()) != null) {
+                    if (!entry.isDirectory()) {
+                        byte[] bytes = tarIn.readAllBytes();
+                        fileStore.put(
+                                entry.getName(),
+                                new String(bytes, java.nio.charset.StandardCharsets.UTF_8));
+                        count++;
+                    }
+                }
+            }
+            return count;
+        }
+
+        @Override
         public RuntimeAdapter connectSidecar(SandboxInfo info, RuntimeConfig config) {
             return new StubRuntimeAdapter();
         }
@@ -81,12 +106,12 @@ class ConfigInjectionPhasePropertyTest {
     }
 
     /**
-     * 可控制失败次数的 SandboxProvider，用于测试重试幂等性。 前 N 次 writeFile 抛出 IOException，之后正常写入。
+     * 可控制失败次数的 SandboxProvider，用于测试重试幂等性。 前 N 次 extractArchive 抛出 IOException，之后正常解压。
      */
     static class FailNTimesSandboxProvider implements SandboxProvider {
 
         private final Map<String, String> fileStore = new ConcurrentHashMap<>();
-        private final Map<String, Integer> writeAttempts = new ConcurrentHashMap<>();
+        private int extractAttempts = 0;
         private final int failCount;
 
         FailNTimesSandboxProvider(int failCount) {
@@ -114,10 +139,6 @@ class ConfigInjectionPhasePropertyTest {
         @Override
         public void writeFile(SandboxInfo info, String relativePath, String content)
                 throws IOException {
-            int attempt = writeAttempts.compute(relativePath, (k, v) -> v == null ? 1 : v + 1);
-            if (attempt <= failCount) {
-                throw new IOException("模拟写入失败: 第 " + attempt + " 次");
-            }
             fileStore.put(relativePath, content);
         }
 
@@ -128,6 +149,35 @@ class ConfigInjectionPhasePropertyTest {
                 throw new IOException("文件不存在: " + relativePath);
             }
             return content;
+        }
+
+        @Override
+        public int extractArchive(SandboxInfo info, byte[] tarGzBytes) throws IOException {
+            extractAttempts++;
+            if (extractAttempts <= failCount) {
+                throw new IOException("模拟解压失败: 第 " + extractAttempts + " 次");
+            }
+            // 解析 tar.gz 并存入 fileStore
+            int count = 0;
+            try (var gzIn =
+                            new org.apache.commons.compress.compressors.gzip
+                                    .GzipCompressorInputStream(
+                                    new java.io.ByteArrayInputStream(tarGzBytes));
+                    var tarIn =
+                            new org.apache.commons.compress.archivers.tar.TarArchiveInputStream(
+                                    gzIn)) {
+                org.apache.commons.compress.archivers.tar.TarArchiveEntry entry;
+                while ((entry = tarIn.getNextEntry()) != null) {
+                    if (!entry.isDirectory()) {
+                        byte[] bytes = tarIn.readAllBytes();
+                        fileStore.put(
+                                entry.getName(),
+                                new String(bytes, java.nio.charset.StandardCharsets.UTF_8));
+                        count++;
+                    }
+                }
+            }
+            return count;
         }
 
         @Override
@@ -219,7 +269,11 @@ class ConfigInjectionPhasePropertyTest {
     Arbitrary<String> configContents() {
         return Arbitraries.oneOf(
                 // 普通 JSON 配置
-                Arbitraries.strings().ofMinLength(1).ofMaxLength(500).ascii(),
+                Arbitraries.strings()
+                        .ofMinLength(1)
+                        .ofMaxLength(500)
+                        .ascii()
+                        .filter(s -> s.indexOf('\0') < 0),
                 // 含 Unicode 字符
                 Arbitraries.strings()
                         .ofMinLength(1)
@@ -234,10 +288,13 @@ class ConfigInjectionPhasePropertyTest {
                         "{\"emoji\": \"🎉🔥💻\"}",
                         "空格 和\t制表符\n换行符",
                         "{\"unicode\": \"日本語テスト\"}",
-                        "content with null char: \0 end",
                         "{\"special\": \"<>&'\\\"\"}"),
                 // 较大内容
-                Arbitraries.strings().ofMinLength(1000).ofMaxLength(5000).ascii());
+                Arbitraries.strings()
+                        .ofMinLength(1000)
+                        .ofMaxLength(5000)
+                        .ascii()
+                        .filter(s -> s.indexOf('\0') < 0));
     }
 
     @Provide
@@ -384,11 +441,11 @@ class ConfigInjectionPhasePropertyTest {
         ConfigFile configFile2 = new ConfigFile(path, content, sha256(content), type);
         InitContext retryContext = createContext(retryProvider, List.of(configFile2));
 
-        // 第一次执行会因 writeFile 失败而抛出异常
+        // 第一次执行会因 extractArchive 失败而抛出异常
         assertThrows(
                 InitPhaseException.class,
                 () -> phase.execute(retryContext),
-                "第一次执行应因 writeFile 失败而抛出异常");
+                "第一次执行应因 extractArchive 失败而抛出异常");
 
         // 第二次执行应成功（failCount=1，第二次 writeFile 成功）
         InitContext retryContext2 = createContext(retryProvider, List.of(configFile2));

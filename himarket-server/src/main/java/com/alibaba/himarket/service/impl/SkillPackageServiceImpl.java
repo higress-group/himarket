@@ -222,8 +222,7 @@ public class SkillPackageServiceImpl implements SkillPackageService {
                 .ifPresentOrElse(
                         skillFile -> {
                             skillFile.setContent(content);
-                            skillFile.setSize(
-                                    (long) content.getBytes(StandardCharsets.UTF_8).length);
+                            skillFile.setSize(content.getBytes(StandardCharsets.UTF_8).length);
                             skillFileRepository.save(skillFile);
                         },
                         () -> {
@@ -233,10 +232,7 @@ public class SkillPackageServiceImpl implements SkillPackageService {
                                             .path("SKILL.md")
                                             .encoding("utf-8")
                                             .content(content)
-                                            .size(
-                                                    (long)
-                                                            content.getBytes(StandardCharsets.UTF_8)
-                                                                    .length)
+                                            .size(content.getBytes(StandardCharsets.UTF_8).length)
                                             .build();
                             skillFileRepository.save(skillFile);
                         });

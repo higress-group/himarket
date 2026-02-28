@@ -16,7 +16,13 @@ export interface WsUrlParams {
   sandboxMode?: string;
   /** JSON 序列化的自定义模型配置 */
   customModelConfig?: string;
-  /** JSON 序列化的统一会话配置（包含模型、MCP、Skill） */
+  /**
+   * JSON 序列化的统一会话配置（包含模型、MCP、Skill）。
+   *
+   * @deprecated 不再通过 URL query string 传递，改为 WebSocket 连接建立后
+   * 通过 session/config 消息发送，避免 URL 过长被 Nginx/代理层拒绝。
+   * 保留字段定义仅为向后兼容，新代码不应设置此字段。
+   */
   cliSessionConfig?: string;
 }
 
@@ -43,7 +49,8 @@ export function buildAcpWsUrl(
   if (params.runtime) searchParams.set("runtime", params.runtime);
   if (params.sandboxMode) searchParams.set("sandboxMode", params.sandboxMode);
   if (params.customModelConfig) searchParams.set("customModelConfig", params.customModelConfig);
-  if (params.cliSessionConfig) searchParams.set("cliSessionConfig", params.cliSessionConfig);
+  // cliSessionConfig 不再通过 URL 传递，改为 WebSocket 连接建立后通过 session/config 消息发送，
+  // 避免 URL 过长被 Nginx/代理层拒绝（skill/mcp 内容可达数十~数百 KB）。
 
   const qs = searchParams.toString();
   return qs ? `${base}?${qs}` : base;

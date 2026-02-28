@@ -353,7 +353,7 @@ class InitPhasesTest {
         }
 
         @Test
-        @DisplayName("execute: 写入后读回 SHA-256 一致时成功")
+        @DisplayName("execute: 写入后抽样读回验证成功")
         void execute_writeAndReadBackHashMatch_succeeds() throws IOException {
             String content = "{\"model\": \"gpt-4\"}";
             String hash = ConfigInjectionPhase.sha256(content);
@@ -362,17 +362,17 @@ class InitPhasesTest {
                             "settings.json", content, hash, ConfigFile.ConfigType.MODEL_SETTINGS);
             InitContext context = createContextForConfigInjection(List.of(config));
 
-            doNothing().when(mockProvider).writeFile(stubInfo, "settings.json", content);
+            when(mockProvider.extractArchive(eq(stubInfo), any(byte[].class))).thenReturn(1);
             when(mockProvider.readFile(stubInfo, "settings.json")).thenReturn(content);
 
             assertDoesNotThrow(() -> phase.execute(context));
-            verify(mockProvider).writeFile(stubInfo, "settings.json", content);
+            verify(mockProvider).extractArchive(eq(stubInfo), any(byte[].class));
             verify(mockProvider).readFile(stubInfo, "settings.json");
         }
 
         @Test
-        @DisplayName("execute: 写入后读回内容不一致时抛出可重试异常")
-        void execute_hashMismatch_throwsRetryableException() throws IOException {
+        @DisplayName("execute: 抽样读回为空时抛出可重试异常")
+        void execute_hashMismatch_autoFixWithRewrite() throws IOException {
             String content = "{\"model\": \"gpt-4\"}";
             String hash = ConfigInjectionPhase.sha256(content);
             ConfigFile config =
@@ -380,18 +380,57 @@ class InitPhasesTest {
                             "settings.json", content, hash, ConfigFile.ConfigType.MODEL_SETTINGS);
             InitContext context = createContextForConfigInjection(List.of(config));
 
-            doNothing().when(mockProvider).writeFile(stubInfo, "settings.json", content);
-            when(mockProvider.readFile(stubInfo, "settings.json")).thenReturn("corrupted-content");
+            when(mockProvider.extractArchive(eq(stubInfo), any(byte[].class))).thenReturn(1);
+            when(mockProvider.readFile(stubInfo, "settings.json")).thenReturn("");
 
             InitPhaseException ex =
                     assertThrows(InitPhaseException.class, () -> phase.execute(context));
             assertEquals("config-injection", ex.getPhaseName());
-            assertTrue(ex.isRetryable(), "哈希不一致应可重试");
-            assertTrue(ex.getMessage().contains("验证失败"));
+            assertTrue(ex.isRetryable());
+            assertTrue(ex.getMessage().contains("抽样验证失败"));
         }
 
         @Test
-        @DisplayName("execute: writeFile 抛出 IOException 时抛出可重试异常")
+        @DisplayName("execute: 抽样读回为 null 时抛出可重试异常")
+        void execute_secondVerifyFails_throwsRetryableException() throws IOException {
+            String content = "{\"model\": \"gpt-4\"}";
+            String hash = ConfigInjectionPhase.sha256(content);
+            ConfigFile config =
+                    new ConfigFile(
+                            "settings.json", content, hash, ConfigFile.ConfigType.MODEL_SETTINGS);
+            InitContext context = createContextForConfigInjection(List.of(config));
+
+            when(mockProvider.extractArchive(eq(stubInfo), any(byte[].class))).thenReturn(1);
+            when(mockProvider.readFile(stubInfo, "settings.json")).thenReturn(null);
+
+            InitPhaseException ex =
+                    assertThrows(InitPhaseException.class, () -> phase.execute(context));
+            assertTrue(ex.isRetryable());
+            assertTrue(ex.getMessage().contains("抽样验证失败"));
+        }
+
+        @Test
+        @DisplayName("execute: 抽样 readFile 抛 IOException 时抛出可重试异常")
+        void execute_readBackNull_throwsRetryableException() throws IOException {
+            String content = "{\"model\": \"gpt-4\"}";
+            String hash = ConfigInjectionPhase.sha256(content);
+            ConfigFile config =
+                    new ConfigFile(
+                            "settings.json", content, hash, ConfigFile.ConfigType.MODEL_SETTINGS);
+            InitContext context = createContextForConfigInjection(List.of(config));
+
+            when(mockProvider.extractArchive(eq(stubInfo), any(byte[].class))).thenReturn(1);
+            when(mockProvider.readFile(stubInfo, "settings.json"))
+                    .thenThrow(new IOException("read failed"));
+
+            InitPhaseException ex =
+                    assertThrows(InitPhaseException.class, () -> phase.execute(context));
+            assertTrue(ex.isRetryable());
+            assertTrue(ex.getMessage().contains("抽样验证失败"));
+        }
+
+        @Test
+        @DisplayName("execute: extractArchive 抛出 IOException 时抛出可重试异常")
         void execute_writeFileFails_throwsRetryableException() throws IOException {
             String content = "test-content";
             ConfigFile config =
@@ -402,9 +441,8 @@ class InitPhasesTest {
                             ConfigFile.ConfigType.MODEL_SETTINGS);
             InitContext context = createContextForConfigInjection(List.of(config));
 
-            doThrow(new IOException("Sidecar writeFile 失败"))
-                    .when(mockProvider)
-                    .writeFile(stubInfo, "settings.json", content);
+            when(mockProvider.extractArchive(eq(stubInfo), any(byte[].class)))
+                    .thenThrow(new IOException("Sidecar extractArchive 失败"));
 
             InitPhaseException ex =
                     assertThrows(InitPhaseException.class, () -> phase.execute(context));
@@ -413,7 +451,7 @@ class InitPhasesTest {
         }
 
         @Test
-        @DisplayName("execute: 多个配置文件全部成功注入")
+        @DisplayName("execute: 多个配置文件打包后一次传输成功")
         void execute_multipleConfigs_allSucceed() throws IOException {
             String content1 = "{\"model\": \"gpt-4\"}";
             String content2 = "{\"servers\": []}";
@@ -431,13 +469,13 @@ class InitPhasesTest {
                             ConfigFile.ConfigType.MCP_CONFIG);
             InitContext context = createContextForConfigInjection(List.of(config1, config2));
 
-            doNothing().when(mockProvider).writeFile(eq(stubInfo), anyString(), anyString());
+            when(mockProvider.extractArchive(eq(stubInfo), any(byte[].class))).thenReturn(2);
+            // 抽样验证读首尾文件
             when(mockProvider.readFile(stubInfo, "settings.json")).thenReturn(content1);
             when(mockProvider.readFile(stubInfo, ".kiro/mcp.json")).thenReturn(content2);
 
             assertDoesNotThrow(() -> phase.execute(context));
-            verify(mockProvider).writeFile(stubInfo, "settings.json", content1);
-            verify(mockProvider).writeFile(stubInfo, ".kiro/mcp.json", content2);
+            verify(mockProvider).extractArchive(eq(stubInfo), any(byte[].class));
         }
 
         @Test

@@ -129,10 +129,11 @@ const READ_ONLY_KINDS = new Set([
 function CodingContent() {
   // 延迟连接模式：初始 wsUrl 为空，不触发连接
   const [currentWsUrl, setCurrentWsUrl] = useState("");
+  const [currentCliSessionConfig, setCurrentCliSessionConfig] = useState<string | undefined>();
   const [, setCurrentProvider] = useState(
     () => localStorage.getItem("hicoding:cliProvider") || ""
   );
-  const session = useAcpSession({ wsUrl: currentWsUrl });
+  const session = useAcpSession({ wsUrl: currentWsUrl, cliSessionConfig: currentCliSessionConfig });
 
   const state = useQuestState();
   const activeQuest = useActiveQuest();
@@ -150,12 +151,13 @@ function CodingContent() {
       setCurrentProvider(cliId);
       const isK8s = runtime === "k8s";
       currentRuntimeRef.current = runtime || "local";
+      // cliSessionConfig 不再通过 URL 传递，改为 WebSocket 连接后通过 session/config 消息发送
+      setCurrentCliSessionConfig(cliSessionConfig);
       const url = buildAcpWsUrl({
         token: localStorage.getItem("access_token") || undefined,
         provider: cliId || undefined,
         runtime: runtime || "local",
         sandboxMode: isK8s ? "user" : undefined,
-        cliSessionConfig,
       });
       if (isK8s) {
         dispatch({ type: "SANDBOX_STATUS", status: "creating", message: "正在连接沙箱环境..." });

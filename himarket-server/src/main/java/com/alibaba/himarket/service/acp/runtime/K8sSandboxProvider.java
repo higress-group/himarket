@@ -2,8 +2,6 @@ package com.alibaba.himarket.service.acp.runtime;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.net.Socket;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -134,20 +132,69 @@ public class K8sSandboxProvider implements SandboxProvider {
 
     @Override
     public boolean healthCheck(SandboxInfo info) {
-        // TCP 连接探测：能建立连接即说明 sidecar 进程已就绪。
-        try (Socket socket = new Socket()) {
-            socket.connect(new InetSocketAddress(info.host(), info.sidecarPort()), 5000);
-            return true;
+        // HTTP 健康检查：通过 Sidecar 的 /health 端点验证 sidecar 真正可达。
+        // 仅 TCP 探测不够——当通过 LoadBalancer Service 访问时，TCP 连接到 SLB 会成功，
+        // 但 SLB 后端健康检查可能尚未通过，导致后续 HTTP 请求收到 SLB 的 404。
+        String url = sidecarBaseUrl(info) + "/health";
+        try {
+            HttpResponse<String> response =
+                    httpClient.send(
+                            HttpRequest.newBuilder(URI.create(url))
+                                    .GET()
+                                    .timeout(Duration.ofSeconds(5))
+                                    .build(),
+                            HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() == 200) {
+                return true;
+            }
+            logger.warn(
+                    "[K8sSandboxProvider] healthCheck HTTP 非 200 (Pod: {}, host: {}, status: {},"
+                            + " body: {})",
+                    info.sandboxId(),
+                    info.host(),
+                    response.statusCode(),
+                    response.body());
+            return false;
         } catch (Exception e) {
             logger.warn(
-                    "[K8sSandboxProvider] healthCheck TCP 连接失败 (Pod: {}, host: {}, port: {}): {} -"
-                            + " {}",
+                    "[K8sSandboxProvider] healthCheck HTTP 请求失败 (Pod: {}, host: {}, port: {}): {}"
+                            + " - {}",
                     info.sandboxId(),
                     info.host(),
                     info.sidecarPort(),
                     e.getClass().getSimpleName(),
-                    e.getMessage());
+                    e.getMessage() != null ? e.getMessage() : e.toString());
             return false;
+        }
+    }
+
+    @Override
+    public int extractArchive(SandboxInfo info, byte[] tarGzBytes) throws IOException {
+        String url = sidecarBaseUrl(info) + "/files/extract";
+        try {
+            HttpResponse<String> response =
+                    httpClient.send(
+                            HttpRequest.newBuilder(URI.create(url))
+                                    .POST(HttpRequest.BodyPublishers.ofByteArray(tarGzBytes))
+                                    .header("Content-Type", "application/gzip")
+                                    .timeout(Duration.ofSeconds(30))
+                                    .build(),
+                            HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() != 200) {
+                throw new IOException(
+                        "Sidecar extractArchive 失败 (Pod: "
+                                + info.sandboxId()
+                                + ", url: "
+                                + url
+                                + ", status: "
+                                + response.statusCode()
+                                + "): "
+                                + response.body());
+            }
+            return objectMapper.readTree(response.body()).get("fileCount").asInt();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("Sidecar extractArchive 被中断 (Pod: " + info.sandboxId() + ")", e);
         }
     }
 

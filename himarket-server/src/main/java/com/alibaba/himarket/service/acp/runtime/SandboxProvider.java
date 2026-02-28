@@ -39,6 +39,18 @@ public interface SandboxProvider {
     String readFile(SandboxInfo info, String relativePath) throws IOException;
 
     /**
+     * 将 tar.gz 压缩包解压到沙箱工作空间。 通过 Sidecar HTTP API（POST /files/extract）上传并解压。
+     * 用于批量注入配置文件，替代逐个 writeFile 调用。
+     *
+     * @param info 沙箱信息
+     * @param tarGzBytes tar.gz 压缩包的字节内容
+     * @return 解压的文件数量
+     */
+    default int extractArchive(SandboxInfo info, byte[] tarGzBytes) throws IOException {
+        throw new UnsupportedOperationException("extractArchive not implemented");
+    }
+
+    /**
      * 建立到 Sidecar 的 WebSocket 连接。 所有沙箱类型都通过 Sidecar WebSocket 桥接 CLI。
      */
     RuntimeAdapter connectSidecar(SandboxInfo info, RuntimeConfig config);

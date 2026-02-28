@@ -88,6 +88,20 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
     private final Map<String, java.util.Queue<String>> pendingMessageMap =
             new ConcurrentHashMap<>();
 
+    /**
+     * 延迟初始化上下文：当 WebSocket 握手时 URL 中没有 cliSessionConfig，
+     * 等待前端通过 session/config 消息发送配置后再启动 pipeline。
+     * 存储 afterConnectionEstablished 中解析好的参数，供 session/config 消息到达时使用。
+     */
+    private record DeferredInitParams(
+            String userId,
+            String providerKey,
+            RuntimeConfig config,
+            AcpProperties.CliProviderConfig providerConfig,
+            SandboxType sandboxType) {}
+
+    private final Map<String, DeferredInitParams> deferredInitMap = new ConcurrentHashMap<>();
+
     public AcpWebSocketHandler(
             AcpProperties properties,
             ObjectMapper objectMapper,
@@ -160,6 +174,8 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
                 buildRuntimeConfig(userId, providerKey, providerConfig, cwd, runtimeType);
 
         // 获取会话配置（配置注入由 ConfigInjectionPhase 统一处理）
+        // 优先从 URL query string 获取（向后兼容旧客户端），
+        // 新客户端不再通过 URL 传递，改为连接后发送 session/config 消息
         CliSessionConfig sessionConfig =
                 (CliSessionConfig) session.getAttributes().get("cliSessionConfig");
 
@@ -176,21 +192,34 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
         sandboxModeMap.put(session.getId(), sandboxMode != null ? sandboxMode : "");
         pendingMessageMap.put(session.getId(), new java.util.concurrent.ConcurrentLinkedQueue<>());
 
-        // All sandbox types go through unified async initialization via Pipeline + SandboxProvider
-        final String fProviderKey = providerKey;
-        final RuntimeConfig fConfig = config;
-        final CliProviderConfig fProviderConfig = providerConfig;
-        final CliSessionConfig fSessionConfig = sessionConfig;
-        podInitExecutor.submit(
-                () ->
-                        initSandboxAsync(
-                                session,
-                                userId,
-                                fProviderKey,
-                                fConfig,
-                                fProviderConfig,
-                                fSessionConfig,
-                                sandboxType));
+        if (sessionConfig != null) {
+            // 旧客户端：cliSessionConfig 在 URL 中，立即启动 pipeline
+            final String fProviderKey = providerKey;
+            final RuntimeConfig fConfig = config;
+            final CliProviderConfig fProviderConfig = providerConfig;
+            final CliSessionConfig fSessionConfig = sessionConfig;
+            podInitExecutor.submit(
+                    () ->
+                            initSandboxAsync(
+                                    session,
+                                    userId,
+                                    fProviderKey,
+                                    fConfig,
+                                    fProviderConfig,
+                                    fSessionConfig,
+                                    sandboxType));
+        } else {
+            // 新客户端：等待 session/config 消息到达后再启动 pipeline
+            // 存储解析好的参数供后续使用
+            deferredInitMap.put(
+                    session.getId(),
+                    new DeferredInitParams(
+                            userId, providerKey, config, providerConfig, sandboxType));
+            logger.info(
+                    "No cliSessionConfig in URL, deferring pipeline init until session/config"
+                            + " message: session={}",
+                    session.getId());
+        }
         // Non-blocking return for all sandbox types
     }
 
@@ -201,6 +230,60 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
         if (payload.isBlank()) {
             logger.trace("Ignoring blank message from session {}", session.getId());
             return;
+        }
+
+        // 拦截 session/config 消息：前端连接后发送的配置（替代 URL query string 传递）
+        // 必须在 pendingMessageMap 检查之前处理，因为此时 pipeline 尚未启动
+        DeferredInitParams deferred = deferredInitMap.remove(session.getId());
+        if (deferred != null) {
+            CliSessionConfig sessionConfig = null;
+            try {
+                JsonNode root = objectMapper.readTree(payload);
+                JsonNode methodNode = root.get("method");
+                if (methodNode != null && "session/config".equals(methodNode.asText())) {
+                    JsonNode params = root.get("params");
+                    if (params != null) {
+                        sessionConfig = objectMapper.treeToValue(params, CliSessionConfig.class);
+                        logger.info(
+                                "Received session/config via WebSocket message: session={},"
+                                        + " hasModel={}, mcpCount={}, skillCount={}",
+                                session.getId(),
+                                sessionConfig.getCustomModelConfig() != null,
+                                sessionConfig.getMcpServers() != null
+                                        ? sessionConfig.getMcpServers().size()
+                                        : 0,
+                                sessionConfig.getSkills() != null
+                                        ? sessionConfig.getSkills().size()
+                                        : 0);
+                    }
+                }
+            } catch (Exception e) {
+                logger.warn(
+                        "Failed to parse session/config message, proceeding with null config: {}",
+                        e.getMessage());
+            }
+
+            // 无论是否成功解析 session/config，都启动 pipeline（config 可以为 null）
+            // 如果第一条消息不是 session/config（旧客户端不发此消息），也正常启动
+            final CliSessionConfig fSessionConfig = sessionConfig;
+            final DeferredInitParams fDeferred = deferred;
+            podInitExecutor.submit(
+                    () ->
+                            initSandboxAsync(
+                                    session,
+                                    fDeferred.userId(),
+                                    fDeferred.providerKey(),
+                                    fDeferred.config(),
+                                    fDeferred.providerConfig(),
+                                    fSessionConfig,
+                                    fDeferred.sandboxType()));
+
+            // 如果这条消息是 session/config，已处理完毕，不需要转发给 CLI
+            // 如果不是 session/config（比如直接发了 initialize），需要缓存到 pendingQueue
+            if (sessionConfig != null) {
+                return;
+            }
+            // 不是 session/config 消息，fall through 到下面的 pendingQueue 缓存逻辑
         }
 
         // 如果 Pod 还在异步初始化中，缓存消息
@@ -248,6 +331,7 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
 
     private void cleanup(String sessionId) {
         pendingMessageMap.remove(sessionId);
+        deferredInitMap.remove(sessionId);
 
         Disposable subscription = subscriptionMap.remove(sessionId);
         if (subscription != null && !subscription.isDisposed()) {

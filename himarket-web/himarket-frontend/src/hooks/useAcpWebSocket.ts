@@ -5,6 +5,8 @@ export type WsStatus = "disconnected" | "connecting" | "connected";
 interface UseWebSocketOptions {
   url: string;
   onMessage: (data: string) => void;
+  /** Called once right after WebSocket connection is established, before status changes to "connected". */
+  onConnected?: (send: (data: string) => void) => void;
   autoConnect?: boolean;
   maxReconnectAttempts?: number;
 }
@@ -12,6 +14,7 @@ interface UseWebSocketOptions {
 export function useAcpWebSocket({
   url,
   onMessage,
+  onConnected,
   autoConnect = true,
   maxReconnectAttempts = 2,
 }: UseWebSocketOptions) {
@@ -20,7 +23,9 @@ export function useAcpWebSocket({
   const reconnectAttemptRef = useRef(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onMessageRef = useRef(onMessage);
+  const onConnectedRef = useRef(onConnected);
   onMessageRef.current = onMessage;
+  onConnectedRef.current = onConnected;
 
   const cleanup = useCallback(() => {
     if (reconnectTimerRef.current) {
@@ -44,6 +49,11 @@ export function useAcpWebSocket({
     ws.onopen = () => {
       if (wsRef.current !== ws) return;
       console.log("[AcpWebSocket] Connected successfully");
+      // Send any pending config before marking as connected,
+      // so the backend receives session/config before any user messages.
+      if (onConnectedRef.current) {
+        onConnectedRef.current((data: string) => ws.send(data));
+      }
       setStatus("connected");
       reconnectAttemptRef.current = 0;
     };

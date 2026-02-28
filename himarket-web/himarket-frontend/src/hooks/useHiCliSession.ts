@@ -83,6 +83,8 @@ export function useHiCliSession(): UseHiCliSessionReturn {
 
   // 动态 WebSocket URL 管理
   const [currentWsUrl, setCurrentWsUrl] = useState("");
+  // cliSessionConfig 不再通过 URL 传递，改为 WebSocket 连接后通过 session/config 消息发送
+  const cliSessionConfigRef = useRef<string | undefined>();
 
   // 日志聚合器
   const aggregatorRef = useRef<LogAggregator>(new LogAggregator());
@@ -343,6 +345,20 @@ export function useHiCliSession(): UseHiCliSessionReturn {
 
   // ===== WebSocket 连接 =====
 
+  // Send cliSessionConfig as the first WebSocket message after connection
+  const handleConnected = useCallback((wsSend: (data: string) => void) => {
+    const configJson = cliSessionConfigRef.current;
+    if (configJson) {
+      const msg = JSON.stringify({
+        jsonrpc: "2.0",
+        method: "session/config",
+        params: JSON.parse(configJson),
+      });
+      console.log("[HiCliSession] Sending session/config via WebSocket message");
+      wsSend(msg);
+    }
+  }, []);
+
   const {
     status,
     send: sendRaw,
@@ -351,6 +367,7 @@ export function useHiCliSession(): UseHiCliSessionReturn {
   } = useAcpWebSocket({
     url: currentWsUrl,
     onMessage: handleMessage,
+    onConnected: handleConnected,
     autoConnect: !!currentWsUrl, // 无 URL 时不自动连接
   });
 
@@ -601,10 +618,12 @@ export function useHiCliSession(): UseHiCliSessionReturn {
       }
       // 重置初始化状态
       initializedRef.current = false;
+      // cliSessionConfig 不再通过 URL 传递，改为 WebSocket 连接后通过 session/config 消息发送
+      cliSessionConfigRef.current = cliSessionConfig;
       // 构建新的 WebSocket URL 并触发连接
       // K8s 运行时附加 sandboxMode=user，本地运行时不附加
       const isK8s = runtime === "k8s" || runtime === "K8S";
-      const newUrl = buildHiCliWsUrl(cliId, runtime, cliSessionConfig, isK8s ? "user" : undefined);
+      const newUrl = buildHiCliWsUrl(cliId, runtime, undefined, isK8s ? "user" : undefined);
       setCurrentWsUrl(newUrl);
     },
     [dispatch]

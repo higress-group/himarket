@@ -185,7 +185,7 @@ function SkillDetail() {
       const { frontmatter, body } = parseSkillMd(fileContent.content);
       const fmEntries = Object.entries(frontmatter);
       return (
-        <div className="p-6 overflow-auto h-full">
+        <div className="p-8 overflow-auto h-full">
           {fmEntries.length > 0 && (
             <table className="mb-6 w-full text-[13px] border-collapse">
               <thead>
@@ -266,14 +266,14 @@ function SkillDetail() {
         {/* 左侧：GitHub 风格文件树 + 预览 */}
         <div className="w-full lg:w-[65%] order-2 lg:order-1">
           {hasFiles ? (
-            <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 overflow-hidden flex" style={{ height: 560 }}>
+            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden flex shadow-sm" style={{ height: 800 }}>
               {/* 文件树列 */}
-              <div className="flex-shrink-0 border-r border-gray-100 flex flex-col overflow-hidden" style={{ width: treeWidth }}>
-                <div className="flex items-center justify-between px-3 py-2.5 border-b border-gray-100 flex-shrink-0">
+              <div className="flex-shrink-0 border-r border-gray-200 bg-gray-50 flex flex-col overflow-hidden" style={{ width: treeWidth }}>
+                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 flex-shrink-0">
                   <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Files</span>
                   <span className="text-xs text-gray-400">{countFiles(fileTree)}</span>
                 </div>
-                <div className="flex-1 overflow-y-auto overflow-x-hidden py-1">
+                <div className="flex-1 overflow-y-auto overflow-x-hidden py-2 px-1">
                   <SkillFileTree
                     nodes={fileTree}
                     selectedPath={selectedFilePath}
@@ -287,9 +287,9 @@ function SkillDetail() {
                 className="w-1 flex-shrink-0 cursor-col-resize hover:bg-blue-200 transition-colors bg-transparent"
               />
               {/* 文件预览列 */}
-              <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
+              <div className="flex-1 min-w-0 flex flex-col overflow-hidden bg-white">
                 {selectedFilePath && (
-                  <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 flex-shrink-0">
+                  <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 flex-shrink-0">
                     <span className="text-sm font-medium text-gray-700 truncate">{selectedFilePath}</span>
                     <span className="text-xs text-gray-400 flex-shrink-0 ml-2">readonly</span>
                   </div>
@@ -300,7 +300,7 @@ function SkillDetail() {
               </div>
             </div>
           ) : (
-            <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-6">
+            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
               <div className="text-gray-500 text-center py-16">暂无文件</div>
             </div>
           )}

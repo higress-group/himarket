@@ -194,6 +194,35 @@ public class LocalSandboxProvider implements SandboxProvider {
     }
 
     @Override
+    public int extractArchive(SandboxInfo info, byte[] tarGzBytes) throws IOException {
+        String url = sidecarBaseUrl(info) + "/files/extract";
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.parseMediaType("application/gzip"));
+        try {
+            ResponseEntity<String> response =
+                    restTemplate.postForEntity(
+                            url, new HttpEntity<>(tarGzBytes, headers), String.class);
+            if (!response.getStatusCode().is2xxSuccessful()) {
+                throw new IOException(
+                        "Sidecar extractArchive 失败 (Local: "
+                                + info.sandboxId()
+                                + "): "
+                                + response.getBody());
+            }
+            return objectMapper.readTree(response.getBody()).get("fileCount").asInt();
+        } catch (IOException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new IOException(
+                    "Sidecar extractArchive 失败 (Local: "
+                            + info.sandboxId()
+                            + "): "
+                            + e.getMessage(),
+                    e);
+        }
+    }
+
+    @Override
     public RuntimeAdapter connectSidecar(SandboxInfo info, RuntimeConfig config) {
         String command = config.getCommand();
         String args = config.getArgs() != null ? String.join(" ", config.getArgs()) : "";

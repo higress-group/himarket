@@ -81,7 +81,8 @@ public class FileSystemReadyPhase implements InitPhase {
 
     @Override
     public RetryPolicy retryPolicy() {
-        // LB 规则下发通常需要 10~30s，使用更宽松的重试策略
-        return RetryPolicy.lbWarmup();
+        // SLB 后端就绪已在 PodReuseManager.createServiceForPod 中保证，
+        // 此处仅保留少量重试应对偶发网络抖动
+        return RetryPolicy.defaultPolicy();
     }
 }

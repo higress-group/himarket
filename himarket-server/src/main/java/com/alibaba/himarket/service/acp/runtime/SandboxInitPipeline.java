@@ -140,9 +140,10 @@ public class SandboxInitPipeline {
                             InitEvent.EventType.PHASE_RETRY,
                             "第 " + attempt + " 次失败，准备重试: " + e.getMessage());
                     logger.warn(
-                            "[Pipeline] 阶段 {} 第 {} 次失败，准备重试: {}",
+                            "[Pipeline] 阶段 {} 第 {}/{} 次失败，准备重试: {}",
                             phase.name(),
                             attempt,
+                            maxAttempts,
                             e.getMessage());
 
                     long delayMs =

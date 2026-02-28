@@ -41,6 +41,8 @@ export interface UseAcpSessionOptions {
   wsUrl: string;
   /** If false, WebSocket won't connect until `connect()` or `createQuest()` is called. Default true. */
   autoConnect?: boolean;
+  /** JSON string of CliSessionConfig, sent to backend via WebSocket message after connection (not via URL). */
+  cliSessionConfig?: string;
 }
 
 interface QueuedPromptItemInput {
@@ -50,7 +52,7 @@ interface QueuedPromptItemInput {
   createdAt: number;
 }
 
-export function useAcpSession({ wsUrl, autoConnect: autoConnectOpt = true }: UseAcpSessionOptions) {
+export function useAcpSession({ wsUrl, autoConnect: autoConnectOpt = true, cliSessionConfig }: UseAcpSessionOptions) {
   const dispatch = useQuestDispatch();
   const state = useQuestState();
   const stateRef = useRef(state);
@@ -59,6 +61,8 @@ export function useAcpSession({ wsUrl, autoConnect: autoConnectOpt = true }: Use
   const scanTriggeredRef = useRef<Set<string>>(new Set());
   const autoPermissionsRef = useRef<Record<string, "allow" | "reject">>({});
   const promptSeqRef = useRef(0);
+  const cliSessionConfigRef = useRef(cliSessionConfig);
+  cliSessionConfigRef.current = cliSessionConfig;
 
   // wsUrl 变化时（CLI provider 切换），重置初始化状态和 pending 请求
   useEffect(() => {
@@ -343,6 +347,21 @@ export function useAcpSession({ wsUrl, autoConnect: autoConnectOpt = true }: Use
     [dispatch]
   );
 
+  // Send cliSessionConfig as the first WebSocket message after connection,
+  // instead of passing it via URL query string (which hits Nginx header size limits).
+  const handleConnected = useCallback((wsSend: (data: string) => void) => {
+    const configJson = cliSessionConfigRef.current;
+    if (configJson) {
+      const msg = JSON.stringify({
+        jsonrpc: "2.0",
+        method: "session/config",
+        params: JSON.parse(configJson),
+      });
+      console.log("[AcpSession] Sending session/config via WebSocket message");
+      wsSend(msg);
+    }
+  }, []);
+
   const {
     status: wsStatus,
     send: sendRaw,
@@ -351,6 +370,7 @@ export function useAcpSession({ wsUrl, autoConnect: autoConnectOpt = true }: Use
   } = useAcpWebSocket({
     url: wsUrl,
     onMessage: handleMessage,
+    onConnected: handleConnected,
     autoConnect: autoConnectOpt && !!wsUrl,
   });
 

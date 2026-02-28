@@ -159,6 +159,50 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // POST /files/extract — 接收 tar.gz 二进制流，解压到工作空间
+  if (req.method === 'POST' && req.url === '/files/extract') {
+    const chunks = [];
+    req.on('data', (chunk) => chunks.push(chunk));
+    req.on('end', async () => {
+      try {
+        const buffer = Buffer.concat(chunks);
+        if (buffer.length === 0) {
+          return sendJson(res, 400, { success: false, error: '请求体为空' });
+        }
+        // 写入临时文件，用 tar 命令解压
+        const tmpFile = path.join(WORKSPACE_ROOT, '.tmp-extract-' + Date.now() + '.tar.gz');
+        await fs.writeFile(tmpFile, buffer);
+        try {
+          const { execSync } = require('child_process');
+          const output = execSync(`tar xzf "${tmpFile}" 2>&1`, {
+            cwd: WORKSPACE_ROOT,
+            timeout: 30000,
+            maxBuffer: 1024 * 1024,
+          });
+          // 统计解压的文件数
+          let fileCount = 0;
+          try {
+            const listOutput = execSync(`tar tzf "${tmpFile}" 2>/dev/null`, {
+              cwd: WORKSPACE_ROOT,
+              timeout: 10000,
+              maxBuffer: 1024 * 1024,
+            }).toString().trim();
+            fileCount = listOutput ? listOutput.split('\n').filter(l => !l.endsWith('/')).length : 0;
+          } catch { fileCount = -1; }
+          sendJson(res, 200, { success: true, fileCount });
+        } finally {
+          await fs.unlink(tmpFile).catch(() => {});
+        }
+      } catch (err) {
+        sendJson(res, 500, { success: false, error: err.message });
+      }
+    });
+    req.on('error', (err) => {
+      sendJson(res, 500, { success: false, error: err.message });
+    });
+    return;
+  }
+
   // POST /files/list
   if (req.method === 'POST' && req.url === '/files/list') {
     let body;

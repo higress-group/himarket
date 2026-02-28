@@ -17,6 +17,9 @@ import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.kubernetes.api.model.ServiceList;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -81,6 +84,12 @@ public class PodReuseManager {
 
     /** 轮询 Service 状态的间隔 */
     static final long SERVICE_STATUS_POLL_INTERVAL_MS = 3000;
+
+    /** 等待 SLB 后端健康检查通过的超时时间 */
+    static final Duration SLB_BACKEND_READY_TIMEOUT = Duration.ofSeconds(60);
+
+    /** 探测 SLB 后端就绪的间隔 */
+    static final long SLB_PROBE_INTERVAL_MS = 2000;
 
     private final ConcurrentHashMap<String, PodEntry> podCache = new ConcurrentHashMap<>();
     private final K8sConfigService k8sConfigService;
@@ -942,7 +951,14 @@ public class PodReuseManager {
         log.info("Service 已创建: namespace={}, name={}, pod={}", namespace, serviceName, podName);
 
         // 等待 LoadBalancer IP 分配
-        return waitForServiceExternalIp(client, serviceName);
+        String externalIp = waitForServiceExternalIp(client, serviceName);
+
+        // 等待 SLB 后端健康检查通过，确保流量真正可达 Pod
+        if (externalIp != null) {
+            waitForSlbBackendReady(externalIp, SIDECAR_PORT);
+        }
+
+        return externalIp;
     }
 
     /**
@@ -992,6 +1008,78 @@ public class PodReuseManager {
                 serviceName,
                 SERVICE_LB_TIMEOUT.getSeconds());
         return null;
+    }
+
+    /**
+     * 等待 SLB 后端健康检查通过，确保通过 External IP 能真正到达 Pod 的 sidecar。
+     * <p>
+     * 背景：SLB 分配 External IP 后，后端健康检查可能尚未通过（通常需要 10~30s），
+     * 此时 HTTP 请求会收到 ConnectException 或 SLB 的 502/404。
+     * 在此处阻塞等待，避免下游 Pipeline 依赖重试来处理这个确定性的延迟。
+     */
+    void waitForSlbBackendReady(String host, int port) {
+        String url = "http://" + host + ":" + port + "/health";
+        HttpClient probeClient =
+                HttpClient.newBuilder()
+                        .connectTimeout(Duration.ofSeconds(5))
+                        .version(HttpClient.Version.HTTP_1_1)
+                        .build();
+
+        long deadline = System.currentTimeMillis() + SLB_BACKEND_READY_TIMEOUT.toMillis();
+        int attempt = 0;
+
+        while (System.currentTimeMillis() < deadline) {
+            attempt++;
+            try {
+                HttpResponse<String> response =
+                        probeClient.send(
+                                HttpRequest.newBuilder(URI.create(url))
+                                        .GET()
+                                        .timeout(Duration.ofSeconds(5))
+                                        .build(),
+                                HttpResponse.BodyHandlers.ofString());
+                if (response.statusCode() == 200) {
+                    log.info(
+                            "SLB 后端就绪: host={}, port={}, 探测 {} 次",
+                            host,
+                            port,
+                            attempt);
+                    return;
+                }
+                log.debug(
+                        "SLB 后端未就绪 (status={}): host={}, port={}, 第 {} 次探测",
+                        response.statusCode(),
+                        host,
+                        port,
+                        attempt);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.warn("SLB 后端就绪探测被中断: host={}", host);
+                return;
+            } catch (Exception e) {
+                log.debug(
+                        "SLB 后端探测连接失败: host={}, port={}, 第 {} 次, {}",
+                        host,
+                        port,
+                        attempt,
+                        e.getClass().getSimpleName());
+            }
+
+            try {
+                Thread.sleep(SLB_PROBE_INTERVAL_MS);
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                log.warn("SLB 后端就绪探测等待被中断: host={}", host);
+                return;
+            }
+        }
+
+        log.warn(
+                "SLB 后端在 {}s 内未就绪: host={}, port={}, 共探测 {} 次",
+                SLB_BACKEND_READY_TIMEOUT.getSeconds(),
+                host,
+                port,
+                attempt);
     }
 
     /**

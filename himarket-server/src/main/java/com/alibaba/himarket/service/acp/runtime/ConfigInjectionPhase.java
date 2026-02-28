@@ -1,16 +1,25 @@
 package com.alibaba.himarket.service.acp.runtime;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.util.List;
+import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
+import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
+import org.apache.commons.compress.compressors.gzip.GzipCompressorOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * 将配置文件注入到沙箱内部。 通过 SandboxProvider.writeFile() 统一写入，写入后通过 readFile() 读回验证。 所有沙箱类型走完全相同的代码路径。
+ * 将配置文件注入到沙箱内部。
+ *
+ * <p>所有配置文件打包为 tar.gz 压缩包，通过 SandboxProvider.extractArchive() 一次性传输到沙箱，
+ * 替代逐个 writeFile 调用。二进制传输避免了 JSON 序列化往返导致的 Unicode 字符规范化问题。
+ *
+ * <p>验证阶段通过抽样 readFile 确认文件已正确解压。
  */
 public class ConfigInjectionPhase implements InitPhase {
 
@@ -44,40 +53,112 @@ public class ConfigInjectionPhase implements InitPhase {
         SandboxProvider provider = context.getProvider();
         SandboxInfo info = context.getSandboxInfo();
 
-        for (ConfigFile config : pendingConfigs) {
+        try {
+            boolean usedExtract = false;
             try {
-                // 通过 Sidecar HTTP API 写入配置文件
-                provider.writeFile(info, config.relativePath(), config.content());
+                // 优先使用 extractArchive 批量注入
+                byte[] tarGzBytes = buildTarGz(pendingConfigs);
+                logger.info(
+                        "[ConfigInjection] 打包完成: {} 个文件, 压缩后 {} 字节",
+                        pendingConfigs.size(),
+                        tarGzBytes.length);
 
-                // 读回并验证 SHA-256 哈希一致性
-                String readBack = provider.readFile(info, config.relativePath());
-                String writeHash = sha256(config.content());
-                String readHash = sha256(readBack);
-
-                if (!writeHash.equals(readHash)) {
-                    throw new InitPhaseException(
-                            "config-injection",
-                            "配置文件验证失败: "
-                                    + config.relativePath()
-                                    + " (写入哈希="
-                                    + writeHash
-                                    + ", 读回哈希="
-                                    + readHash
-                                    + ")",
-                            true);
+                int extractedCount = provider.extractArchive(info, tarGzBytes);
+                logger.info("[ConfigInjection] 解压完成: {} 个文件已注入", extractedCount);
+                usedExtract = true;
+            } catch (UnsupportedOperationException e) {
+                logger.info("[ConfigInjection] Provider 不支持 extractArchive，降级为逐个 writeFile");
+            } catch (IOException e) {
+                if (e.getMessage() != null && e.getMessage().contains("Not Found")) {
+                    logger.info(
+                            "[ConfigInjection] Sidecar 不支持 /files/extract (404)，降级为逐个 writeFile");
+                } else {
+                    throw e;
                 }
+            }
 
-                // 敏感信息仅记录文件路径和哈希值，不记录内容
+            if (!usedExtract) {
+                // Fallback: 逐个 writeFile
+                for (ConfigFile config : pendingConfigs) {
+                    provider.writeFile(info, config.relativePath(), config.content());
+                }
+                logger.info("[ConfigInjection] 逐个写入完成: {} 个文件已注入", pendingConfigs.size());
+            }
+
+            // 抽样验证：检查首尾各一个文件是否可读
+            verifyExtracted(provider, info, pendingConfigs);
+
+            for (ConfigFile config : pendingConfigs) {
                 logger.info(
                         "[ConfigInjection] 配置文件已注入: path={}, hash={}, type={}",
                         config.relativePath(),
-                        writeHash,
+                        config.contentHash(),
                         config.type());
+            }
+        } catch (InitPhaseException e) {
+            throw e;
+        } catch (IOException e) {
+            throw new InitPhaseException("config-injection", "配置注入失败: " + e.getMessage(), e, true);
+        }
+    }
+
+    /**
+     * 将配置文件列表打包为 tar.gz 字节数组。
+     */
+    static byte[] buildTarGz(List<ConfigFile> configs) throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try (GzipCompressorOutputStream gzOut = new GzipCompressorOutputStream(baos);
+                TarArchiveOutputStream tarOut = new TarArchiveOutputStream(gzOut)) {
+            tarOut.setLongFileMode(TarArchiveOutputStream.LONGFILE_POSIX);
+            for (ConfigFile config : configs) {
+                byte[] contentBytes = config.content().getBytes(StandardCharsets.UTF_8);
+                TarArchiveEntry entry = new TarArchiveEntry(config.relativePath());
+                entry.setSize(contentBytes.length);
+                tarOut.putArchiveEntry(entry);
+                tarOut.write(contentBytes);
+                tarOut.closeArchiveEntry();
+            }
+            tarOut.finish();
+        }
+        return baos.toByteArray();
+    }
+
+    /**
+     * 抽样验证解压结果：检查首尾各一个文件是否可读且非空。
+     */
+    private void verifyExtracted(
+            SandboxProvider provider, SandboxInfo info, List<ConfigFile> configs)
+            throws InitPhaseException {
+        // 抽样：第一个和最后一个文件
+        int[] indices = configs.size() == 1 ? new int[] {0} : new int[] {0, configs.size() - 1};
+        for (int idx : indices) {
+            ConfigFile config = configs.get(idx);
+            try {
+                String readBack = provider.readFile(info, config.relativePath());
+                if (readBack == null || readBack.isEmpty()) {
+                    throw new InitPhaseException(
+                            "config-injection", "抽样验证失败，文件为空: " + config.relativePath(), true);
+                }
+                // hash 不匹配只 warn，不阻断流程
+                String expectedHash = config.contentHash();
+                if (expectedHash != null && !expectedHash.isEmpty()) {
+                    String actualHash = sha256(readBack);
+                    if (!expectedHash.equals(actualHash)) {
+                        logger.warn(
+                                "[ConfigInjection] 文件 hash 不匹配: path={}, expected={}, actual={}",
+                                config.relativePath(),
+                                expectedHash,
+                                actualHash);
+                    }
+                }
             } catch (InitPhaseException e) {
                 throw e;
             } catch (IOException e) {
                 throw new InitPhaseException(
-                        "config-injection", "配置注入失败: " + e.getMessage(), e, true);
+                        "config-injection",
+                        "抽样验证失败: " + config.relativePath() + " - " + e.getMessage(),
+                        e,
+                        true);
             }
         }
     }

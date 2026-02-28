@@ -92,8 +92,8 @@ describe("buildAcpWsUrl", () => {
   });
 });
 
-describe("buildAcpWsUrl - cliSessionConfig", () => {
-  it("should include cliSessionConfig query parameter when provided", () => {
+describe("buildAcpWsUrl - cliSessionConfig no longer in URL", () => {
+  it("should NOT include cliSessionConfig in URL even when provided (now sent via WebSocket message)", () => {
     const config = JSON.stringify({ mcpServers: [{ name: "test", url: "http://example.com", transportType: "sse" }] });
     const url = buildAcpWsUrl(
       { provider: "qwen-code", cliSessionConfig: config },
@@ -101,7 +101,7 @@ describe("buildAcpWsUrl - cliSessionConfig", () => {
       ORIGIN,
     );
     const parsed = new URL(url);
-    expect(parsed.searchParams.get("cliSessionConfig")).toBe(config);
+    expect(parsed.searchParams.has("cliSessionConfig")).toBe(false);
   });
 
   it("should omit cliSessionConfig parameter when not provided", () => {
@@ -114,7 +114,7 @@ describe("buildAcpWsUrl - cliSessionConfig", () => {
     expect(parsed.searchParams.has("cliSessionConfig")).toBe(false);
   });
 
-  it("should include both customModelConfig and cliSessionConfig when both provided", () => {
+  it("should include customModelConfig but not cliSessionConfig when both provided", () => {
     const url = buildAcpWsUrl(
       { provider: "qwen-code", customModelConfig: '{"model":"x"}', cliSessionConfig: '{"skills":[]}' },
       "/ws/acp",
@@ -122,7 +122,7 @@ describe("buildAcpWsUrl - cliSessionConfig", () => {
     );
     const parsed = new URL(url);
     expect(parsed.searchParams.get("customModelConfig")).toBe('{"model":"x"}');
-    expect(parsed.searchParams.get("cliSessionConfig")).toBe('{"skills":[]}');
+    expect(parsed.searchParams.has("cliSessionConfig")).toBe(false);
   });
 });
 
