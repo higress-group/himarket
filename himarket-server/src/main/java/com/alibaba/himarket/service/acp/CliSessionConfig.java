@@ -43,7 +43,22 @@ public class CliSessionConfig {
         /** 技能名称 */
         private String name;
 
-        /** SKILL.md 文件内容 */
+        /** SKILL.md 文件内容（向后兼容，files 为空时使用） */
         private String skillMdContent;
+
+        /** 完整文件列表（非空时优先使用） */
+        private List<SkillFileEntry> files;
+
+        @Data
+        public static class SkillFileEntry {
+            /** 相对路径，如 SKILL.md、scripts/fetch.py */
+            private String path;
+
+            /** 文本内容或 Base64 字符串 */
+            private String content;
+
+            /** "text" 或 "base64" */
+            private String encoding;
+        }
     }
 }

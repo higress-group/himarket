@@ -200,6 +200,7 @@ export default function ApiProductFormModal({
 
       const { icon, iconUrl, categories, ...otherValues } = values;
 
+
       if (isEditMode) {
         let params = { ...otherValues };
         
@@ -281,13 +282,15 @@ export default function ApiProductFormModal({
           <Input placeholder="请输入API Product名称" />
         </Form.Item>
 
-        <Form.Item
-          label="描述"
-          name="description"
-          rules={[{ required: true, message: "请输入描述" }]}
-        >
-          <Input.TextArea placeholder="请输入描述" rows={3} />
-        </Form.Item>
+        {productType !== 'AGENT_SKILL' && (
+          <Form.Item
+            label="描述"
+            name="description"
+            rules={[{ required: true, message: "请输入描述" }]}
+          >
+            <Input.TextArea placeholder="请输入描述" rows={3} />
+          </Form.Item>
+        )}
 
         <Form.Item
           label="类型"
@@ -344,7 +347,7 @@ export default function ApiProductFormModal({
           </Select>
         </Form.Item>
 
-        <Form.Item
+        {productType !== 'AGENT_SKILL' && <Form.Item
           label="自动审批订阅"
           name="autoApprove"
           tooltip={{
@@ -374,9 +377,9 @@ export default function ApiProductFormModal({
           valuePropName="checked"
         >
           <Switch />
-        </Form.Item>
+        </Form.Item>}
 
-        <Form.Item label="Icon设置" style={{ marginBottom: '16px' }}>
+        {productType !== 'AGENT_SKILL' && <Form.Item label="Icon设置" style={{ marginBottom: '16px' }}>
           <Space direction="vertical" style={{ width: '100%' }}>
             <Radio.Group 
               value={iconMode} 
@@ -495,7 +498,7 @@ export default function ApiProductFormModal({
               </Form.Item>
             )}
           </Space>
-        </Form.Item>
+        </Form.Item>}
 
         {/* 图片预览弹窗 */}
         {previewImage && (
@@ -514,7 +517,7 @@ export default function ApiProductFormModal({
 
         {/* Feature Configuration */}
         {productType === 'MODEL_API' && <ModelFeatureForm initialExpanded={isEditMode && !!initialData?.feature} />}
-        {productType === 'AGENT_SKILL' && <SkillConfigForm initialExpanded={isEditMode && !!initialData?.skillConfig} />}
+        {productType === 'AGENT_SKILL' && <SkillConfigForm />}
       </Form>
     </Modal>
   );

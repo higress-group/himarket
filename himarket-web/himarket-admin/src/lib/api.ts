@@ -291,3 +291,21 @@ export const nacosApi = {
     return api.get(`/nacos/${nacosId}/namespaces`, { params })
   }
 }
+
+export const skillApi = {
+  uploadSkillPackage: (productId: string, file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api.post(`/skills/${productId}/package`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 60000,
+    })
+  },
+  getSkillFiles: (productId: string) => api.get(`/skills/${productId}/files`),
+  getSkillFileContent: (productId: string, filePath: string) =>
+    api.get(`/skills/${productId}/files/${filePath}`),
+  updateSkillMd: (productId: string, content: string) =>
+    api.put(`/skills/${productId}/skill-md`, content, {
+      headers: { 'Content-Type': 'text/plain' },
+    }),
+}

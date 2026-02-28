@@ -287,6 +287,13 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- Apache Commons Compress for TAR.GZ parsing -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-compress</artifactId>
+            <version>1.26.1</version>
+        </dependency>
+
     </dependencies>
 
 </project>

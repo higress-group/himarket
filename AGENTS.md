@@ -1,5 +1,3 @@
-Always respond in Chinese-simplified.
-
 ## 本地开发环境
 
 ### 数据库访问

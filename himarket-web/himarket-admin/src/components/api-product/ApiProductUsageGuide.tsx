@@ -6,7 +6,7 @@ import remarkGfm from 'remark-gfm';
 import MdEditor from 'react-markdown-editor-lite'
 import 'react-markdown-editor-lite/lib/index.css'
 import type { ApiProduct } from '@/types/api-product'
-import { apiProductApi } from '@/lib/api'
+import { apiProductApi, skillApi } from '@/lib/api'
 import SkillMdEditor from './SkillMdEditor'
 
 interface ApiProductUsageGuideProps {
@@ -57,6 +57,9 @@ export function ApiProductUsageGuide({ apiProduct, handleRefresh }: ApiProductUs
     apiProductApi.updateApiProduct(apiProduct.productId, {
       document: value,
       categories: categoryIds
+    }).then(() => {
+      // 同步更新 skill_file 表里的 SKILL.md
+      return skillApi.updateSkillMd(apiProduct.productId, value)
     }).then(() => {
       message.success('保存成功')
       setOriginalContent(value)

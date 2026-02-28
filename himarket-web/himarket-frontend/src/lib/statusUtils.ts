@@ -47,6 +47,7 @@ export const ProductTypeMap: Record<string, string> = {
   MCP_SERVER: 'MCP Server',
   AGENT_API: 'Agent API',
   MODEL_API: 'Model API',
+  AGENT_SKILL: 'Agent Skill',
 };
 
 // 获取状态信息

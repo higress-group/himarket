@@ -97,7 +97,8 @@ export interface McpServerEntry {
 
 export interface SkillEntry {
   name: string;
-  skillMdContent: string;
+  skillMdContent?: string;
+  files?: SkillFileEntry[];
 }
 
 export interface CliSessionConfig {
@@ -136,4 +137,64 @@ export function downloadSkill(productId: string) {
   return request.get<string, string>(
     `/skills/${productId}/download`
   );
+}
+
+// ============ Skill 文件树类型定义 ============
+
+export interface SkillFileTreeNode {
+  name: string;
+  path: string;
+  type: 'file' | 'directory';
+  encoding?: string;
+  size?: number;
+  children?: SkillFileTreeNode[];
+}
+
+export interface SkillFileContent {
+  path: string;
+  content: string;
+  encoding: string;
+  size: number;
+}
+
+export interface SkillFileEntry {
+  path: string;
+  content: string;
+  encoding: string;
+}
+
+// ============ Skill 文件 API 函数 ============
+
+/**
+ * 获取 Skill 文件树
+ */
+export function getSkillFiles(productId: string) {
+  return request.get<RespI<SkillFileTreeNode[]>, RespI<SkillFileTreeNode[]>>(
+    `/skills/${productId}/files`
+  );
+}
+
+/**
+ * 获取单个文件内容
+ */
+export function getSkillFileContent(productId: string, filePath: string) {
+  return request.get<RespI<SkillFileContent>, RespI<SkillFileContent>>(
+    `/skills/${productId}/files/${filePath}`
+  );
+}
+
+/**
+ * 获取所有文件（含内容）
+ */
+export function getSkillAllFiles(productId: string) {
+  return request.get<RespI<SkillFileContent[]>, RespI<SkillFileContent[]>>(
+    `/skills/${productId}/files/all`
+  );
+}
+
+/**
+ * 获取 Skill 包下载 URL
+ */
+export function getSkillPackageUrl(productId: string): string {
+  return `/api/v1/skills/${productId}/package`;
 }

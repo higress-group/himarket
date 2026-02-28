@@ -1,16 +1,29 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Layout } from "../components/Layout";
-import { Alert, Spin, Tag } from "antd";
-import { ArrowLeftOutlined } from "@ant-design/icons";
+import { Alert, Spin, Tag, Button } from "antd";
+import { ArrowLeftOutlined, DownloadOutlined } from "@ant-design/icons";
+import Editor from "@monaco-editor/react";
 import type { IProductDetail } from "../lib/apis";
 import type { ISkillConfig } from "../lib/apis/typing";
+import type { SkillFileTreeNode, SkillFileContent } from "../lib/apis/cliProvider";
 import APIs from "../lib/apis";
-import { getSkillMdBody } from "../lib/skillMdUtils";
+import { getSkillFiles, getSkillFileContent, getSkillPackageUrl } from "../lib/apis/cliProvider";
+import { parseSkillMd } from "../lib/skillMdUtils";
 import MarkdownRender from "../components/MarkdownRender";
-import InstallCommand from "../components/skill/InstallCommand";
-import SkillMdViewer from "../components/skill/SkillMdViewer";
+import SkillFileTree from "../components/skill/SkillFileTree";
 import RelatedSkills from "../components/skill/RelatedSkills";
+
+function inferLanguage(path: string): string {
+  const ext = path.split(".").pop()?.toLowerCase() ?? "";
+  const map: Record<string, string> = {
+    ts: "typescript", tsx: "typescript", js: "javascript", jsx: "javascript",
+    py: "python", java: "java", go: "go", rs: "rust", cpp: "cpp", c: "c",
+    sh: "shell", bash: "shell", yaml: "yaml", yml: "yaml", json: "json",
+    toml: "ini", xml: "xml", html: "html", css: "css", md: "markdown",
+  };
+  return map[ext] ?? "plaintext";
+}
 
 function SkillDetail() {
   const { skillProductId } = useParams<{ skillProductId: string }>();
@@ -20,20 +33,60 @@ function SkillDetail() {
   const [data, setData] = useState<IProductDetail>();
   const [skillConfig, setSkillConfig] = useState<ISkillConfig>();
 
+  const [fileTree, setFileTree] = useState<SkillFileTreeNode[]>([]);
+  const [selectedFilePath, setSelectedFilePath] = useState<string | undefined>();
+  const [fileContent, setFileContent] = useState<SkillFileContent | null>(null);
+  const [fileLoading, setFileLoading] = useState(false);
+  const [treeWidth, setTreeWidth] = useState(224);
+  const isDragging = useRef(false);
+
+  const handleDragStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    isDragging.current = true;
+    const startX = e.clientX;
+    const startWidth = treeWidth;
+    const onMove = (ev: MouseEvent) => {
+      if (!isDragging.current) return;
+      setTreeWidth(Math.min(520, Math.max(160, startWidth + ev.clientX - startX)));
+    };
+    const onUp = () => {
+      isDragging.current = false;
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  };
+
   useEffect(() => {
     const fetchDetail = async () => {
       if (!skillProductId) return;
       setLoading(true);
       setError("");
       try {
-        const response = await APIs.getProduct({ id: skillProductId });
-        if (response.code === "SUCCESS" && response.data) {
-          setData(response.data);
-          if (response.data.skillConfig) {
-            setSkillConfig(response.data.skillConfig);
+        const [productRes, filesRes] = await Promise.all([
+          APIs.getProduct({ id: skillProductId }),
+          getSkillFiles(skillProductId).catch(() => null),
+        ]);
+        if (productRes.code === "SUCCESS" && productRes.data) {
+          setData(productRes.data);
+          if (productRes.data.skillConfig) {
+            setSkillConfig(productRes.data.skillConfig);
           }
         } else {
-          setError(response.message || "数据加载失败");
+          setError(productRes.message || "数据加载失败");
+        }
+        if (filesRes?.code === "SUCCESS" && Array.isArray(filesRes.data) && filesRes.data.length > 0) {
+          setFileTree(filesRes.data);
+          // 默认选中并加载 SKILL.md
+          if (skillProductId) {
+            setSelectedFilePath("SKILL.md");
+            setFileLoading(true);
+            getSkillFileContent(skillProductId, "SKILL.md")
+              .then((r) => { if (r.code === "SUCCESS" && r.data) setFileContent(r.data); })
+              .catch(() => {})
+              .finally(() => setFileLoading(false));
+          }
         }
       } catch (err) {
         console.error("API请求失败:", err);
@@ -44,6 +97,45 @@ function SkillDetail() {
     };
     fetchDetail();
   }, [skillProductId]);
+
+  const handleSelectFile = useCallback(async (path: string) => {
+    if (!skillProductId) return;
+    setSelectedFilePath(path);
+    setFileLoading(true);
+    try {
+      const res = await getSkillFileContent(skillProductId, path);
+      if (res.code === "SUCCESS" && res.data) {
+        setFileContent(res.data);
+      }
+    } catch {
+      setFileContent(null);
+    } finally {
+      setFileLoading(false);
+    }
+  }, [skillProductId]);
+
+  const handleDownload = useCallback(async () => {
+    if (!skillProductId) return;
+    const url = fileTree.length > 0
+      ? getSkillPackageUrl(skillProductId)
+      : `/api/v1/skills/${skillProductId}/download`;
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("下载失败");
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      // 从 Content-Disposition 取文件名，fallback 用 skill 名
+      const disposition = res.headers.get("Content-Disposition") ?? "";
+      const match = disposition.match(/filename\*?=(?:UTF-8'')?["']?([^"';\n]+)/i);
+      a.download = match ? decodeURIComponent(match[1]) : (data?.name ?? "skill") + (fileTree.length > 0 ? ".zip" : ".md");
+      a.click();
+      URL.revokeObjectURL(blobUrl);
+    } catch {
+      // 静默失败，浏览器会有提示
+    }
+  }, [skillProductId, fileTree, data]);
 
   if (loading) {
     return (
@@ -67,25 +159,82 @@ function SkillDetail() {
 
   const { name, description } = data;
   const skillTags = skillConfig?.skillTags || [];
+  const hasFiles = fileTree.length > 0;
+
+  const countFiles = (nodes: SkillFileTreeNode[]): number =>
+    nodes.reduce((acc, n) => acc + (n.type === "directory" ? countFiles(n.children ?? []) : 1), 0);
+
+  const renderFilePreview = () => {
+    if (!selectedFilePath) {
+      return (
+        <div className="text-gray-400 text-center py-16 text-sm">点击左侧文件查看内容</div>
+      );
+    }
+    if (fileLoading) {
+      return <div className="flex justify-center py-16"><Spin /></div>;
+    }
+    if (!fileContent) {
+      return <div className="text-gray-400 text-center py-16 text-sm">加载失败</div>;
+    }
+    if (fileContent.encoding === "base64") {
+      return (
+        <div className="text-gray-400 text-center py-16 text-sm">二进制文件，不支持预览</div>
+      );
+    }
+    if (selectedFilePath.endsWith(".md")) {
+      const { frontmatter, body } = parseSkillMd(fileContent.content);
+      const fmEntries = Object.entries(frontmatter);
+      return (
+        <div className="p-6 overflow-auto h-full">
+          {fmEntries.length > 0 && (
+            <table className="mb-6 w-full text-[13px] border-collapse">
+              <thead>
+                <tr className="bg-[#f6f8fa]">
+                  {fmEntries.map(([k]) => (
+                    <th key={k} className="border border-[#d0d7de] px-3 py-1.5 text-left font-semibold text-[#1f2328]">{k}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  {fmEntries.map(([k, v]) => (
+                    <td key={k} className="border border-[#d0d7de] px-3 py-1.5 text-[#1f2328] align-top">{v}</td>
+                  ))}
+                </tr>
+              </tbody>
+            </table>
+          )}
+          <div className="markdown-body">
+            <MarkdownRender content={body} />
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div style={{ minHeight: 400 }}>
+        <Editor
+          height={Math.max(400, (fileContent.content.split("\n").length + 2) * 19)}
+          path={selectedFilePath}
+          language={inferLanguage(selectedFilePath)}
+          value={fileContent.content}
+          options={{ readOnly: true, minimap: { enabled: false }, scrollBeyondLastLine: false }}
+          theme="vs"
+        />
+      </div>
+    );
+  };
 
   return (
     <Layout>
-      {/* 头部 */}
       <div className="mb-8">
         <button
           onClick={() => navigate(-1)}
-          className="
-            flex items-center gap-2 mb-4 px-4 py-2 rounded-xl
-            text-gray-600 hover:text-colorPrimary
-            hover:bg-colorPrimaryBgHover
-            transition-all duration-200
-          "
+          className="flex items-center gap-2 mb-4 px-4 py-2 rounded-xl text-gray-600 hover:text-colorPrimary hover:bg-colorPrimaryBgHover transition-all duration-200"
         >
           <ArrowLeftOutlined />
           <span>返回</span>
         </button>
 
-        {/* 技能名称、描述、标签 */}
         <div className="flex items-center gap-4 mb-3">
           <div className="w-16 h-16 rounded-xl flex-shrink-0 flex items-center justify-center bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-200">
             <span className="text-3xl">⚡</span>
@@ -95,9 +244,7 @@ function SkillDetail() {
             {data.updatedAt && (
               <div className="text-sm text-gray-400">
                 {new Date(data.updatedAt).toLocaleDateString("zh-CN", {
-                  year: "numeric",
-                  month: "2-digit",
-                  day: "2-digit",
+                  year: "numeric", month: "2-digit", day: "2-digit",
                 }).replace(/\//g, ".")} updated
               </div>
             )}
@@ -115,37 +262,63 @@ function SkillDetail() {
         )}
       </div>
 
-      {/* 主要内容区域 - 左右布局 */}
       <div className="flex flex-col lg:flex-row gap-6">
-        {/* 左侧：SKILL.md 渲染内容 */}
+        {/* 左侧：GitHub 风格文件树 + 预览 */}
         <div className="w-full lg:w-[65%] order-2 lg:order-1">
-          <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-6">
-            <h3 className="text-base font-semibold text-gray-900 mb-4">使用说明</h3>
-            {data.document ? (
-              <div className="min-h-[400px] prose prose-lg">
-                <MarkdownRender content={getSkillMdBody(data.document)} />
+          {hasFiles ? (
+            <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 overflow-hidden flex" style={{ height: 560 }}>
+              {/* 文件树列 */}
+              <div className="flex-shrink-0 border-r border-gray-100 flex flex-col overflow-hidden" style={{ width: treeWidth }}>
+                <div className="flex items-center justify-between px-3 py-2.5 border-b border-gray-100 flex-shrink-0">
+                  <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Files</span>
+                  <span className="text-xs text-gray-400">{countFiles(fileTree)}</span>
+                </div>
+                <div className="flex-1 overflow-y-auto overflow-x-hidden py-1">
+                  <SkillFileTree
+                    nodes={fileTree}
+                    selectedPath={selectedFilePath}
+                    onSelect={handleSelectFile}
+                  />
+                </div>
               </div>
-            ) : (
-              <div className="text-gray-500 text-center py-16">
-                暂无使用说明
+              {/* 拖拽分隔条 */}
+              <div
+                onMouseDown={handleDragStart}
+                className="w-1 flex-shrink-0 cursor-col-resize hover:bg-blue-200 transition-colors bg-transparent"
+              />
+              {/* 文件预览列 */}
+              <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
+                {selectedFilePath && (
+                  <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 flex-shrink-0">
+                    <span className="text-sm font-medium text-gray-700 truncate">{selectedFilePath}</span>
+                    <span className="text-xs text-gray-400 flex-shrink-0 ml-2">readonly</span>
+                  </div>
+                )}
+                <div className="flex-1 overflow-auto">
+                  {renderFilePreview()}
+                </div>
               </div>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-6">
+              <div className="text-gray-500 text-center py-16">暂无文件</div>
+            </div>
+          )}
         </div>
 
-        {/* 右侧：安装命令 & SKILL.md 源码查看（占位） */}
+        {/* 右侧：下载 + 相关推荐 */}
         <div className="w-full lg:w-[35%] order-1 lg:order-2 space-y-6">
-          {/* InstallCommand 组件 */}
-          <InstallCommand
-            productId={skillProductId!}
-            skillName={name}
-            document={data.document || ""}
-          />
+          <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-4">
+            <Button
+              type="primary"
+              icon={<DownloadOutlined />}
+              onClick={handleDownload}
+              block
+            >
+              下载 Skill 包
+            </Button>
+          </div>
 
-          {/* SkillMdViewer 组件 */}
-          <SkillMdViewer document={data.document || ""} />
-
-          {/* 相关技能推荐 */}
           <RelatedSkills currentProductId={skillProductId!} />
         </div>
       </div>

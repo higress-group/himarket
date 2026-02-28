@@ -34,10 +34,7 @@ import lombok.*;
         uniqueConstraints = {
             @UniqueConstraint(
                     columnNames = {"product_id"},
-                    name = "uk_product_id"),
-            @UniqueConstraint(
-                    columnNames = {"name"},
-                    name = "uk_name")
+                    name = "uk_product_id")
         })
 @Data
 @EqualsAndHashCode(callSuper = true)
@@ -62,7 +59,7 @@ public class Product extends BaseEntity {
     @Enumerated(EnumType.STRING)
     private ProductType type;
 
-    @Column(name = "description", length = 256)
+    @Column(name = "description", length = 1000)
     private String description;
 
     @Column(name = "enable_consumer_auth")

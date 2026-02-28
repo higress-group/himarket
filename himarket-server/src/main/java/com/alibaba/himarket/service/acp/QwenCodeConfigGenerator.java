@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -93,7 +94,23 @@ public class QwenCodeConfigGenerator implements CliConfigGenerator {
             String dirName = toKebabCase(skill.getName());
             Path skillDir = Path.of(workingDirectory, QWEN_DIR, "skills", dirName);
             Files.createDirectories(skillDir);
-            Files.writeString(skillDir.resolve("SKILL.md"), skill.getSkillMdContent());
+
+            if (skill.getFiles() != null && !skill.getFiles().isEmpty()) {
+                // 新路径：写入完整目录结构
+                for (CliSessionConfig.SkillEntry.SkillFileEntry file : skill.getFiles()) {
+                    Path filePath = skillDir.resolve(file.getPath());
+                    Files.createDirectories(filePath.getParent());
+                    if ("base64".equals(file.getEncoding())) {
+                        byte[] bytes = Base64.getDecoder().decode(file.getContent());
+                        Files.write(filePath, bytes);
+                    } else {
+                        Files.writeString(filePath, file.getContent());
+                    }
+                }
+            } else {
+                // 向后兼容：只写 SKILL.md
+                Files.writeString(skillDir.resolve("SKILL.md"), skill.getSkillMdContent());
+            }
         }
     }
 

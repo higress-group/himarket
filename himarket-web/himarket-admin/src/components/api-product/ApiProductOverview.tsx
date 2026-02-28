@@ -132,7 +132,8 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
               <span className="col-span-2 text-xs text-gray-900">
                 {apiProduct.type === 'REST_API' ? 'REST API' : 
                  apiProduct.type === 'AGENT_API' ? 'Agent API' : 
-                 apiProduct.type === 'MODEL_API' ? 'Model API' : 'MCP Server'}
+                 apiProduct.type === 'MODEL_API' ? 'Model API' :
+                 apiProduct.type === 'AGENT_SKILL' ? 'Agent Skill' : 'MCP Server'}
               </span>
              <span className="text-xs text-gray-600">状态:</span>
               <div className="col-span-2 flex items-center">
@@ -148,22 +149,29 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
                 </span>
               </div>
             </div>
-            
-            <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
-              <span className="text-xs text-gray-600">自动审批订阅:</span>
-              <div className="col-span-2 flex items-center">
-                {apiProduct.autoApprove === true ? (
-                  <CheckCircleFilled className="text-green-500 mr-2" style={{fontSize: '10px'}} />
-                ) : (
-                  <MinusCircleFilled className="text-gray-400 mr-2" style={{fontSize: '10px'}} />
-                )}
-                <span className="text-xs text-gray-900">
-                 {apiProduct.autoApprove === true ? '已开启' : '已关闭'}
-                </span>
+
+            {apiProduct.type !== 'AGENT_SKILL' ? (
+              <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
+                <span className="text-xs text-gray-600">自动审批订阅:</span>
+                <div className="col-span-2 flex items-center">
+                  {apiProduct.autoApprove === true ? (
+                    <CheckCircleFilled className="text-green-500 mr-2" style={{fontSize: '10px'}} />
+                  ) : (
+                    <MinusCircleFilled className="text-gray-400 mr-2" style={{fontSize: '10px'}} />
+                  )}
+                  <span className="text-xs text-gray-900">
+                   {apiProduct.autoApprove === true ? '已开启' : '已关闭'}
+                  </span>
+                </div>
+                <span className="text-xs text-gray-600">创建时间:</span>
+                <span className="col-span-2 text-xs text-gray-700">{formatDateTime(apiProduct.createAt)}</span>
               </div>
-              <span className="text-xs text-gray-600">创建时间:</span>
-              <span className="col-span-2 text-xs text-gray-700">{formatDateTime(apiProduct.createAt)}</span>
-            </div>
+            ) : (
+              <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
+                <span className="text-xs text-gray-600">创建时间:</span>
+                <span className="col-span-2 text-xs text-gray-700">{formatDateTime(apiProduct.createAt)}</span>
+              </div>
+            )}
             
             <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
               <span className="text-xs text-gray-600">产品类别:</span>
@@ -230,49 +238,51 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
         </div>
       </Card>
 
-      {/* 统计数据 */}
-      <Row gutter={[16, 16]}>
-        <Col xs={24} sm={12} lg={8}>
-          <Card 
-            className="cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => {
-              navigate(`/api-products/detail?productId=${apiProduct.productId}&tab=portal`)
-            }}
-          >
-            <Statistic
-              title="发布的门户"
-              value={portalCount}
-              prefix={<GlobalOutlined className="text-blue-500" />}
-              valueStyle={{ color: '#1677ff', fontSize: '24px' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={8}>
-          <Card 
-            className="cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => {
-              navigate(`/api-products/detail?productId=${apiProduct.productId}&tab=link-api`)
-            }}
-          >
-            <Statistic
-              title="关联API"
-              value={getServiceName(linkedService) || '未关联'}
-              prefix={<ApiOutlined className="text-blue-500" />}
-              valueStyle={{ color: '#1677ff', fontSize: '24px' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={8}>
-          <Card className="hover:shadow-md transition-shadow">
-            <Statistic
-              title="订阅用户"
-              value={subscriberCount}
-              prefix={<TeamOutlined className="text-blue-500" />}
-              valueStyle={{ color: '#1677ff', fontSize: '24px' }}
-            />
-          </Card>
-        </Col>
-      </Row>
+      {/* 统计数据 - AGENT_SKILL 不展示 */}
+      {apiProduct.type !== 'AGENT_SKILL' && (
+        <Row gutter={[16, 16]}>
+          <Col xs={24} sm={12} lg={8}>
+            <Card 
+              className="cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => {
+                navigate(`/api-products/detail?productId=${apiProduct.productId}&tab=portal`)
+              }}
+            >
+              <Statistic
+                title="发布的门户"
+                value={portalCount}
+                prefix={<GlobalOutlined className="text-blue-500" />}
+                valueStyle={{ color: '#1677ff', fontSize: '24px' }}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} lg={8}>
+            <Card 
+              className="cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => {
+                navigate(`/api-products/detail?productId=${apiProduct.productId}&tab=link-api`)
+              }}
+            >
+              <Statistic
+                title="关联API"
+                value={getServiceName(linkedService) || '未关联'}
+                prefix={<ApiOutlined className="text-blue-500" />}
+                valueStyle={{ color: '#1677ff', fontSize: '24px' }}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} lg={8}>
+            <Card className="hover:shadow-md transition-shadow">
+              <Statistic
+                title="订阅用户"
+                value={subscriberCount}
+                prefix={<TeamOutlined className="text-blue-500" />}
+                valueStyle={{ color: '#1677ff', fontSize: '24px' }}
+              />
+            </Card>
+          </Col>
+        </Row>
+      )}
 
     </div>
   )

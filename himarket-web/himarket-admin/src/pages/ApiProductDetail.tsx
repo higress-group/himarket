@@ -7,19 +7,21 @@ import {
   EyeOutlined,
   LinkOutlined,
   BookOutlined,
-  GlobalOutlined
+  GlobalOutlined,
+  InboxOutlined
 } from '@ant-design/icons'
 import { ApiProductOverview } from '@/components/api-product/ApiProductOverview'
 import { ApiProductLinkApi } from '@/components/api-product/ApiProductLinkApi'
 import { ApiProductUsageGuide } from '@/components/api-product/ApiProductUsageGuide'
 import { ApiProductPortal } from '@/components/api-product/ApiProductPortal'
+import { ApiProductSkillPackage } from '@/components/api-product/ApiProductSkillPackage'
 // import { ApiProductDashboard } from '@/components/api-product/ApiProductDashboard'
 import { apiProductApi } from '@/lib/api';
 import type { ApiProduct, LinkedService } from '@/types/api-product';
 
 import ApiProductFormModal from '@/components/api-product/ApiProductFormModal';
 
-const menuItems = [
+const BASE_MENU_ITEMS = [
   {
     key: "overview",
     label: "Overview",
@@ -44,12 +46,6 @@ const menuItems = [
     description: "发布的门户",
     icon: GlobalOutlined
   },
-  // {
-  //   key: "dashboard",
-  //   label: "Dashboard",
-  //   description: "实时监控和统计",
-  //   icon: DashboardOutlined
-  // }
 ]
 
 export default function ApiProductDetail() {
@@ -59,6 +55,15 @@ export default function ApiProductDetail() {
   const [linkedService, setLinkedService] = useState<LinkedService | null>(null)
   const [, setLoading] = useState(true) // 添加 loading 状态
   
+  // 动态计算 menuItems（AGENT_SKILL 类型：隐藏 Link API，插入 Skill Package 到第二位）
+  const menuItems = apiProduct?.type === 'AGENT_SKILL'
+    ? [
+        BASE_MENU_ITEMS[0], // overview
+        { key: 'skill-package', label: 'Skill Package', description: '技能包管理', icon: InboxOutlined },
+        ...BASE_MENU_ITEMS.slice(2), // usage-guide, portal（跳过 link-api）
+      ]
+    : BASE_MENU_ITEMS;
+
   // 从URL query参数获取当前tab，默认为overview
   const currentTab = searchParams.get('tab') || 'overview'
   // 验证tab值是否有效，如果无效则使用默认值
@@ -100,8 +105,10 @@ export default function ApiProductDetail() {
 
   // 同步URL参数和activeTab状态
   useEffect(() => {
-    setActiveTab(validTab)
-  }, [validTab, searchParams])
+    const currentTab = searchParams.get('tab') || 'overview'
+    const valid = menuItems.some(item => item.key === currentTab) ? currentTab : 'overview'
+    setActiveTab(valid)
+  }, [searchParams, apiProduct])
 
   const handleBackToApiProducts = () => {
     navigate('/api-products')
@@ -134,6 +141,8 @@ export default function ApiProductDetail() {
         return <ApiProductUsageGuide apiProduct={apiProduct} handleRefresh={fetchApiProduct} />
       case "portal":
         return <ApiProductPortal apiProduct={apiProduct} />
+      case "skill-package":
+        return <ApiProductSkillPackage productId={apiProduct.productId} onUploadSuccess={fetchApiProduct} />
       // case "dashboard":
       //   return <ApiProductDashboard apiProduct={apiProduct} />
       default:

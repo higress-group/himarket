@@ -4,8 +4,10 @@ import { RefreshCw } from "lucide-react";
 import {
   getMarketSkills,
   downloadSkill,
+  getSkillAllFiles,
   type MarketSkillInfo,
   type SkillEntry,
+  type SkillFileEntry,
 } from "../../lib/apis/cliProvider";
 import { SelectableCard } from "../common/SelectableCard";
 import { SearchFilterInput } from "../common/SearchFilterInput";
@@ -89,16 +91,36 @@ export function MarketSkillSelector({ onChange }: MarketSkillSelectorProps) {
           return next;
         });
 
-        const newContent: Record<string, string> = {};
+        // key: productId, value: SkillEntry (files 优先，fallback skillMdContent)
+        const newEntries: Record<string, SkillEntry> = {};
         await Promise.all(
           toDownload.map(async (id) => {
+            const skill = skills.find((s) => s.productId === id);
+            if (!skill) return;
             try {
-              const res = await downloadSkill(id);
-              const content = typeof res === "string" ? res : (res as any)?.data ?? "";
-              newContent[id] = typeof content === "string" ? content : "";
+              // 优先尝试获取完整文件列表
+              const filesRes = await getSkillAllFiles(id);
+              const files: SkillFileEntry[] | undefined =
+                filesRes?.code === "SUCCESS" &&
+                Array.isArray(filesRes.data) &&
+                filesRes.data.length > 0
+                  ? filesRes.data.map((f) => ({
+                      path: f.path,
+                      content: f.content,
+                      encoding: f.encoding,
+                    }))
+                  : undefined;
+
+              if (files && files.length > 0) {
+                newEntries[id] = { name: skill.name, files };
+              } else {
+                // fallback：下载 SKILL.md 内容
+                const mdRes = await downloadSkill(id);
+                const md = typeof mdRes === "string" ? mdRes : (mdRes as any)?.data ?? "";
+                newEntries[id] = { name: skill.name, skillMdContent: typeof md === "string" ? md : "" };
+              }
             } catch {
-              // 下载失败时跳过该 Skill
-              newContent[id] = "";
+              newEntries[id] = { name: skill.name, skillMdContent: "" };
             }
           })
         );
@@ -110,30 +132,33 @@ export function MarketSkillSelector({ onChange }: MarketSkillSelectorProps) {
         });
 
         setDownloadedContent((prev) => {
-          const merged = { ...prev, ...newContent };
-          // 组装 SkillEntry 列表
-          const entries: SkillEntry[] = nextIds
-            .map((id) => {
+          // 将 skillMdContent 存入缓存（files 模式不需要缓存内容）
+          const mdCache: Record<string, string> = {};
+          for (const [id, entry] of Object.entries(newEntries)) {
+            if (entry.skillMdContent) mdCache[id] = entry.skillMdContent;
+          }
+          const merged = { ...prev, ...mdCache };
+
+          const entries = nextIds
+            .map((id): SkillEntry | null => {
               const skill = skills.find((s) => s.productId === id);
               if (!skill) return null;
-              const md = merged[id] ?? prev[id];
-              if (!md) return null;
-              return { name: skill.name, skillMdContent: md };
+              // 新下载的优先用 newEntries
+              if (newEntries[id]) return newEntries[id];
+              // 已缓存的用 skillMdContent
+              return { name: skill.name, skillMdContent: prev[id] ?? "" };
             })
             .filter((e): e is SkillEntry => e !== null);
           onChange(entries.length > 0 ? entries : null);
           return merged;
         });
       } else {
-        // 所有内容已缓存，直接组装
-        const entries: SkillEntry[] = nextIds
-          .map((id) => {
+        // 所有内容已缓存，直接组装（缓存中只有 skillMdContent）
+        const entries = nextIds
+          .map((id): SkillEntry | null => {
             const skill = skills.find((s) => s.productId === id);
             if (!skill) return null;
-            return {
-              name: skill.name,
-              skillMdContent: downloadedContent[id] ?? "",
-            };
+            return { name: skill.name, skillMdContent: downloadedContent[id] ?? "" };
           })
           .filter((e): e is SkillEntry => e !== null);
         onChange(entries.length > 0 ? entries : null);

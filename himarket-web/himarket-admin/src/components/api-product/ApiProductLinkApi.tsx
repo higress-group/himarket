@@ -275,6 +275,9 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
       } else if (apiProduct.type === 'MODEL_API') {
         // Model API 支持 APIG_AI 和 HIGRESS 网关
         result = res.data?.content?.filter?.((item: Gateway) => item.gatewayType === 'APIG_AI' || item.gatewayType === 'HIGRESS' || item.gatewayType === 'ADP_AI_GATEWAY');
+      } else if (apiProduct.type === 'AGENT_SKILL') {
+        // Agent Skill 不需要关联网关
+        result = [];
       } else {
         // MCP Server 支持 HIGRESS、APIG_AI、ADP_AI_GATEWAY
         result = res.data?.content?.filter?.((item: Gateway) => item.gatewayType === 'HIGRESS' || item.gatewayType === 'APIG_AI' || item.gatewayType === 'ADP_AI_GATEWAY' || item.gatewayType === 'APSARA_GATEWAY');
