@@ -263,7 +263,8 @@ public class PodReuseManager {
                                             userId,
                                             entry.getPodName());
                                     try {
-                                        KubernetesClient client = k8sConfigService.getClient(null);
+                                        KubernetesClient client =
+                                                k8sConfigService.getDefaultClient();
                                         client.pods()
                                                 .inNamespace(namespace)
                                                 .withName(entry.getPodName())
@@ -316,7 +317,7 @@ public class PodReuseManager {
      * @return 健康的 PodEntry，如果找不到则返回 null
      */
     public PodEntry getHealthyPodEntryWithDefaultClient(String userId) {
-        return getHealthyPodEntry(userId, k8sConfigService.getClient(null));
+        return getHealthyPodEntry(userId, k8sConfigService.getDefaultClient());
     }
 
     /**
@@ -390,7 +391,7 @@ public class PodReuseManager {
         cancelIdleTimer(entry);
 
         try {
-            KubernetesClient client = k8sConfigService.getClient(null);
+            KubernetesClient client = k8sConfigService.getDefaultClient();
             client.pods().inNamespace(namespace).withName(entry.getPodName()).delete();
             deleteServiceForPod(client, entry.getPodName());
             log.info("evictPod: 已删除 Pod: userId={}, pod={}", userId, entry.getPodName());

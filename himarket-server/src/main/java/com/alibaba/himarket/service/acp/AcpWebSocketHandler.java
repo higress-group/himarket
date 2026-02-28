@@ -1331,15 +1331,10 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
         if (runtimeType == RuntimeType.K8S) {
             config.setContainerImage(providerConfig.getContainerImage());
             // POC 阶段：自动使用第一个已注册的 K8s 集群
-            List<com.alibaba.himarket.service.acp.runtime.K8sClusterInfo> clusters =
-                    k8sConfigService.listClusters();
-            if (clusters.isEmpty()) {
-                throw new IllegalStateException("没有已注册的 K8s 集群，无法使用 K8S 运行时");
-            }
-            config.setK8sConfigId(clusters.get(0).configId());
+            config.setK8sConfigId(k8sConfigService.getDefaultConfigId());
             logger.info(
                     "K8s runtime: using cluster configId={}, image={}",
-                    clusters.get(0).configId(),
+                    config.getK8sConfigId(),
                     config.getContainerImage());
         }
 

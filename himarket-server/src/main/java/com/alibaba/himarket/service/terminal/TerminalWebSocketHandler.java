@@ -1,7 +1,6 @@
 package com.alibaba.himarket.service.terminal;
 
 import com.alibaba.himarket.config.AcpProperties;
-import com.alibaba.himarket.service.acp.runtime.K8sClusterInfo;
 import com.alibaba.himarket.service.acp.runtime.K8sConfigService;
 import com.alibaba.himarket.service.acp.runtime.PodEntry;
 import com.alibaba.himarket.service.acp.runtime.PodReuseManager;
@@ -16,7 +15,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Base64;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
@@ -82,19 +80,8 @@ public class TerminalWebSocketHandler extends TextWebSocketHandler {
 
         TerminalBackend backend;
         if (isK8s) {
-            // 获取 K8s client
-            List<K8sClusterInfo> clusters = k8sConfigService.listClusters();
-            if (clusters.isEmpty()) {
-                logger.error("No K8s cluster registered, cannot create K8s terminal");
-                String exitJson =
-                        objectMapper.writeValueAsString(Map.of("type", "exit", "code", -1));
-                synchronized (session) {
-                    session.sendMessage(new TextMessage(exitJson));
-                }
-                session.close(CloseStatus.SERVER_ERROR);
-                return;
-            }
-            KubernetesClient client = k8sConfigService.getClient(clusters.get(0).configId());
+            // 获取默认 K8s client
+            KubernetesClient client = k8sConfigService.getDefaultClient();
 
             // K8s 模式：从 PodReuseManager 获取用户的健康 Pod 信息，exec 失败时重试一次
             backend = null;

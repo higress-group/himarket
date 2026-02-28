@@ -174,6 +174,62 @@ public class K8sConfigService {
     }
 
     /**
+     * 获取默认的 K8s 客户端（POC 阶段使用第一个已注册的集群）。
+     * <p>
+     * 优先从内存缓存获取，避免每次查数据库。
+     * 适用于不关心具体集群的场景（如 Pod 清理、健康检查等）。
+     *
+     * @return KubernetesClient 实例
+     * @throws IllegalStateException 如果没有已注册的集群
+     */
+    public KubernetesClient getDefaultClient() {
+        // 优先从缓存取第一个
+        Map.Entry<String, KubernetesClient> first =
+                clientCache.entrySet().stream().findFirst().orElse(null);
+        if (first != null) {
+            return first.getValue();
+        }
+
+        // 缓存为空，尝试从数据库加载
+        List<K8sCluster> clusters = k8sClusterRepository.findAll();
+        if (clusters.isEmpty()) {
+            throw new IllegalStateException("没有已注册的 K8s 集群");
+        }
+
+        K8sCluster cluster = clusters.get(0);
+        KubernetesClient client = createClient(cluster.getKubeconfig());
+        clientCache.put(cluster.getConfigId(), client);
+        return client;
+    }
+
+    /**
+     * 获取默认集群的 configId（POC 阶段使用第一个已注册的集群）。
+     * <p>
+     * 优先从内存缓存获取，避免每次查数据库。
+     *
+     * @return 默认集群的 configId
+     * @throws IllegalStateException 如果没有已注册的集群
+     */
+    public String getDefaultConfigId() {
+        // 优先从缓存取第一个
+        String firstKey = clientCache.keySet().stream().findFirst().orElse(null);
+        if (firstKey != null) {
+            return firstKey;
+        }
+
+        // 缓存为空，尝试从数据库加载
+        List<K8sCluster> clusters = k8sClusterRepository.findAll();
+        if (clusters.isEmpty()) {
+            throw new IllegalStateException("没有已注册的 K8s 集群");
+        }
+
+        K8sCluster cluster = clusters.get(0);
+        KubernetesClient client = createClient(cluster.getKubeconfig());
+        clientCache.put(cluster.getConfigId(), client);
+        return cluster.getConfigId();
+    }
+
+    /**
      * 列出所有已注册的集群信息。
      *
      * @return 集群信息列表

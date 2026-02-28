@@ -49,7 +49,7 @@ class PodReuseManagerTest {
         k8sClient = mock(KubernetesClient.class);
         k8sConfigService = mock(K8sConfigService.class);
         when(k8sConfigService.getClient(anyString())).thenReturn(k8sClient);
-        when(k8sConfigService.getClient(isNull())).thenReturn(k8sClient);
+        when(k8sConfigService.getDefaultClient()).thenReturn(k8sClient);
 
         podsOp = mock(MixedOperation.class);
         when(k8sClient.pods()).thenReturn(podsOp);

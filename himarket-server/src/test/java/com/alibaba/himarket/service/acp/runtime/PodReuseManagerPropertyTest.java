@@ -203,7 +203,7 @@ class PodReuseManagerPropertyTest {
     private K8sConfigService buildEvictMockConfigService() {
         KubernetesClient client = mock(KubernetesClient.class);
         K8sConfigService configService = mock(K8sConfigService.class);
-        when(configService.getClient(isNull())).thenReturn(client);
+        when(configService.getDefaultClient()).thenReturn(client);
         when(configService.getClient(anyString())).thenReturn(client);
 
         MixedOperation<Pod, PodList, PodResource> podsOp = mock(MixedOperation.class);
