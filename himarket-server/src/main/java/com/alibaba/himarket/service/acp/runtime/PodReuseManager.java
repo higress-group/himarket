@@ -14,7 +14,6 @@ import io.fabric8.kubernetes.api.model.PodList;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
-import io.fabric8.kubernetes.api.model.ServiceList;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -76,7 +75,10 @@ public class PodReuseManager {
     static final String WORKSPACE_STORAGE_CLASS = "alicloud-disk-efficiency";
     static final String WORKSPACE_STORAGE_SIZE = "20Gi";
 
-    /** Service 名称前缀，格式: sandbox-svc-{userId}-{podNameSuffix} */
+    /** Pod 名称前缀，格式: sandbox-{userId} */
+    static final String POD_NAME_PREFIX = "sandbox-";
+
+    /** Service 名称前缀，格式: sandbox-svc-{userId} */
     static final String SERVICE_NAME_PREFIX = "sandbox-svc-";
 
     /** 等待 LoadBalancer IP 分配的超时时间 */
@@ -302,6 +304,19 @@ public class PodReuseManager {
      */
     public PodEntry getPodEntry(String userId) {
         return podCache.get(userId);
+    }
+
+    /**
+     * 获取用户的健康 Pod 条目（使用默认 K8s 客户端）。
+     * <p>
+     * 先查缓存，缓存未命中或 Pod 不健康时通过 K8s API 回退查询。
+     * 适用于不持有 KubernetesClient 引用的调用方（如 K8sWorkspaceService）。
+     *
+     * @param userId 用户 ID
+     * @return 健康的 PodEntry，如果找不到则返回 null
+     */
+    public PodEntry getHealthyPodEntryWithDefaultClient(String userId) {
+        return getHealthyPodEntry(userId, k8sConfigService.getClient(null));
     }
 
     /**
@@ -576,10 +591,12 @@ public class PodReuseManager {
             }
         }
 
+        String podName = podNameForUser(userId);
+
         PodBuilder podBuilder =
                 new PodBuilder()
                         .withNewMetadata()
-                        .withGenerateName("sandbox-" + userId + "-")
+                        .withName(podName)
                         .withNamespace(namespace)
                         .addToLabels("app", LABEL_APP)
                         .addToLabels("userId", userId)
@@ -631,8 +648,27 @@ public class PodReuseManager {
 
         Pod pod = podBuilder.build();
 
+        // 固定名字可能已存在残留的旧 Pod（如 Failed/Succeeded 状态），先删除再创建
+        try {
+            Pod existingPod = client.pods().inNamespace(namespace).withName(podName).get();
+            if (existingPod != null) {
+                String phase =
+                        existingPod.getStatus() != null
+                                ? existingPod.getStatus().getPhase()
+                                : "Unknown";
+                log.info("发现同名旧 Pod，先删除: name={}, phase={}", podName, phase);
+                client.pods().inNamespace(namespace).withName(podName).delete();
+                // 等待旧 Pod 完全删除
+                client.pods()
+                        .inNamespace(namespace)
+                        .withName(podName)
+                        .waitUntilCondition(p -> p == null, 30, TimeUnit.SECONDS);
+            }
+        } catch (Exception e) {
+            log.warn("删除同名旧 Pod 时异常（继续创建）: name={}, error={}", podName, e.getMessage());
+        }
+
         Pod created = client.pods().inNamespace(namespace).resource(pod).create();
-        String podName = created.getMetadata().getName();
         log.info("新 Pod 已创建: namespace={}, name={}, userId={}", namespace, podName, userId);
 
         // 等待 Pod Ready（两段式：先快速等 60s，未就绪则检查状态决定是否延长等待）
@@ -820,86 +856,37 @@ public class PodReuseManager {
      * @return Service 的 External IP，如果创建失败或超时则返回 null
      */
     String ensureServiceForPod(KubernetesClient client, String podName, String userId) {
-        // 1. 先按 podName 精确查找对应的 Service
-        String existingIp = getServiceIpForPod(client, podName);
-        if (existingIp != null) {
-            return existingIp;
-        }
-
-        // 2. 按 userId label 查找该用户已有的 Service，但必须验证其对应的 Pod 仍然存在
-        //    否则旧 Pod 删除后遗留的孤儿 Service 会被错误复用，导致流量打到已消失的 Pod
+        // Service 名字基于 userId，是确定性的，直接按名字查找
+        String serviceName = serviceNameForUser(userId);
         try {
-            ServiceList svcList =
-                    client.services()
-                            .inNamespace(namespace)
-                            .withLabels(Map.of("app", LABEL_APP, "userId", userId))
-                            .list();
-            if (svcList != null && svcList.getItems() != null) {
-                for (Service svc : svcList.getItems()) {
-                    // 检查 Service 绑定的 Pod 是否就是当前 podName
-                    String boundPod =
-                            svc.getMetadata().getLabels() != null
-                                    ? svc.getMetadata().getLabels().get("sandboxPod")
-                                    : null;
-                    if (!podName.equals(boundPod)) {
-                        // 绑定的是其他 Pod，检查该 Pod 是否还存在
-                        boolean podExists =
-                                boundPod != null
-                                        && client.pods()
-                                                        .inNamespace(namespace)
-                                                        .withName(boundPod)
-                                                        .get()
-                                                != null;
-                        if (!podExists) {
-                            // 孤儿 Service，直接删除
-                            log.warn(
-                                    "发现孤儿 Service（对应 Pod 已不存在），删除: service={}, boundPod={}",
-                                    svc.getMetadata().getName(),
-                                    boundPod);
-                            try {
-                                client.services()
-                                        .inNamespace(namespace)
-                                        .withName(svc.getMetadata().getName())
-                                        .delete();
-                            } catch (Exception ex) {
-                                log.warn("删除孤儿 Service 失败: {}", ex.getMessage());
-                            }
-                        }
-                        continue;
-                    }
-                    // Service 绑定的就是当前 podName，可以复用
-                    if (svc.getStatus() != null
-                            && svc.getStatus().getLoadBalancer() != null
-                            && svc.getStatus().getLoadBalancer().getIngress() != null
-                            && !svc.getStatus().getLoadBalancer().getIngress().isEmpty()) {
-                        String ip = svc.getStatus().getLoadBalancer().getIngress().get(0).getIp();
-                        if (ip != null && !ip.isBlank()) {
-                            log.info(
-                                    "复用用户已有 Service: userId={}, service={}, ip={}",
-                                    userId,
-                                    svc.getMetadata().getName(),
-                                    ip);
-                            return ip;
-                        }
-                        String hostname =
-                                svc.getStatus().getLoadBalancer().getIngress().get(0).getHostname();
-                        if (hostname != null && !hostname.isBlank()) {
-                            log.info(
-                                    "复用用户已有 Service: userId={}, service={}, hostname={}",
-                                    userId,
-                                    svc.getMetadata().getName(),
-                                    hostname);
-                            return hostname;
-                        }
-                    }
+            Service svc = client.services().inNamespace(namespace).withName(serviceName).get();
+            if (svc != null
+                    && svc.getStatus() != null
+                    && svc.getStatus().getLoadBalancer() != null
+                    && svc.getStatus().getLoadBalancer().getIngress() != null
+                    && !svc.getStatus().getLoadBalancer().getIngress().isEmpty()) {
+                String ip = svc.getStatus().getLoadBalancer().getIngress().get(0).getIp();
+                if (ip != null && !ip.isBlank()) {
+                    log.info("复用已有 Service: userId={}, service={}, ip={}", userId, serviceName, ip);
+                    return ip;
+                }
+                String hostname =
+                        svc.getStatus().getLoadBalancer().getIngress().get(0).getHostname();
+                if (hostname != null && !hostname.isBlank()) {
+                    log.info(
+                            "复用已有 Service: userId={}, service={}, hostname={}",
+                            userId,
+                            serviceName,
+                            hostname);
+                    return hostname;
                 }
             }
         } catch (Exception e) {
-            log.warn("按 userId 查找已有 Service 失败: userId={}, error={}", userId, e.getMessage());
+            log.warn("查找已有 Service 失败: userId={}, error={}", userId, e.getMessage());
         }
 
-        // 3. 都没找到，创建新 Service
-        log.info("Pod '{}' 未找到可复用的 Service，创建 LoadBalancer Service", podName);
+        // 不存在或未就绪，创建/更新 Service
+        log.info("userId '{}' 未找到可用 Service，创建 LoadBalancer Service", userId);
         return createServiceForPod(client, podName, userId);
     }
 
@@ -922,7 +909,7 @@ public class PodReuseManager {
      * @return Service 的 External IP，如果超时未分配则返回 null
      */
     String createServiceForPod(KubernetesClient client, String podName, String userId) {
-        String serviceName = serviceNameForPod(podName);
+        String serviceName = serviceNameForUser(userId);
 
         Service svc =
                 new ServiceBuilder()
@@ -931,7 +918,6 @@ public class PodReuseManager {
                         .withNamespace(namespace)
                         .addToLabels("app", LABEL_APP)
                         .addToLabels("userId", userId)
-                        .addToLabels("sandboxPod", podName)
                         .endMetadata()
                         .withNewSpec()
                         .withType("LoadBalancer")
@@ -947,8 +933,9 @@ public class PodReuseManager {
                         .endSpec()
                         .build();
 
-        client.services().inNamespace(namespace).resource(svc).create();
-        log.info("Service 已创建: namespace={}, name={}, pod={}", namespace, serviceName, podName);
+        client.services().inNamespace(namespace).resource(svc).createOrReplace();
+        log.info(
+                "Service 已创建/更新: namespace={}, name={}, userId={}", namespace, serviceName, userId);
 
         // 等待 LoadBalancer IP 分配
         String externalIp = waitForServiceExternalIp(client, serviceName);
@@ -1039,11 +1026,7 @@ public class PodReuseManager {
                                         .build(),
                                 HttpResponse.BodyHandlers.ofString());
                 if (response.statusCode() == 200) {
-                    log.info(
-                            "SLB 后端就绪: host={}, port={}, 探测 {} 次",
-                            host,
-                            port,
-                            attempt);
+                    log.info("SLB 后端就绪: host={}, port={}, 探测 {} 次", host, port, attempt);
                     return;
                 }
                 log.debug(
@@ -1083,12 +1066,17 @@ public class PodReuseManager {
     }
 
     /**
-     * 查询已有 Pod 对应的 Service External IP。
+     * 查询已有 Pod 对应的 Service External IP（基于 userId 确定性名称）。
      *
      * @return External IP，不存在或未就绪返回 null
      */
     String getServiceIpForPod(KubernetesClient client, String podName) {
-        String serviceName = serviceNameForPod(podName);
+        // 从 podName 提取 userId（podName 格式: sandbox-{userId}）
+        String userId =
+                podName.startsWith(POD_NAME_PREFIX)
+                        ? podName.substring(POD_NAME_PREFIX.length())
+                        : podName;
+        String serviceName = serviceNameForUser(userId);
         try {
             Service svc = client.services().inNamespace(namespace).withName(serviceName).get();
             if (svc != null
@@ -1114,10 +1102,15 @@ public class PodReuseManager {
     }
 
     /**
-     * 删除 Pod 对应的 Service（静默，异常只记日志）。
+     * 删除用户对应的 Service（静默，异常只记日志）。
      */
     void deleteServiceForPod(KubernetesClient client, String podName) {
-        String serviceName = serviceNameForPod(podName);
+        // 从 podName 提取 userId（podName 格式: sandbox-{userId}）
+        String userId =
+                podName.startsWith(POD_NAME_PREFIX)
+                        ? podName.substring(POD_NAME_PREFIX.length())
+                        : podName;
+        String serviceName = serviceNameForUser(userId);
         try {
             Service existing = client.services().inNamespace(namespace).withName(serviceName).get();
             if (existing != null) {
@@ -1130,7 +1123,22 @@ public class PodReuseManager {
     }
 
     /**
-     * 根据 Pod 名称生成对应的 Service 名称。
+     * 根据 userId 生成确定性的 Pod 名称。
+     */
+    static String podNameForUser(String userId) {
+        return POD_NAME_PREFIX + userId;
+    }
+
+    /**
+     * 根据 userId 生成确定性的 Service 名称。
+     */
+    static String serviceNameForUser(String userId) {
+        return SERVICE_NAME_PREFIX + userId;
+    }
+
+    /**
+     * 根据 Pod 名称生成对应的 Service 名称（兼容旧逻辑，内部提取 userId）。
+     * @deprecated 优先使用 {@link #serviceNameForUser(String)}
      */
     static String serviceNameForPod(String podName) {
         return SERVICE_NAME_PREFIX + podName;

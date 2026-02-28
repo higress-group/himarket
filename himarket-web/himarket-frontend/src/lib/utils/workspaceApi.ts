@@ -160,7 +160,7 @@ export async function fetchWorkspaceChanges(
  */
 export async function fetchDirectoryTree(
   cwd: string,
-  depth = 5,
+  depth = 10,
   runtime?: string
 ): Promise<FileNode[]> {
   try {

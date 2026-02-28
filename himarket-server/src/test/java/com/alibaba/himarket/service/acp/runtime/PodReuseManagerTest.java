@@ -139,6 +139,8 @@ class PodReuseManagerTest {
         Pod readyPod = buildRunningPod(podName, podIp);
         when(podResource.waitUntilReady(anyLong(), any())).thenReturn(readyPod);
         when(podResource.get()).thenReturn(readyPod);
+        // createNewPod 中固定名字会先检查旧 Pod 是否存在，存在则删除后等待消失
+        when(podResource.waitUntilCondition(any(), anyLong(), any())).thenReturn(null);
     }
 
     @SuppressWarnings("unchecked")
@@ -228,7 +230,7 @@ class PodReuseManagerTest {
     @DisplayName("缓存未命中 + K8s API 未找到 → 创建新 Pod")
     void acquirePod_cacheMiss_k8sApiMiss_createsNewPod() {
         String userId = "user4";
-        String newPodName = "sandbox-user4-new";
+        String newPodName = "sandbox-user4";
         String newPodIp = "10.0.0.4";
 
         mockLabelSelectorReturnsEmpty();
@@ -253,7 +255,7 @@ class PodReuseManagerTest {
         String userId = "user5";
         String oldPodName = "sandbox-user5-old";
         String oldPodIp = "10.0.0.5";
-        String newPodName = "sandbox-user5-new";
+        String newPodName = "sandbox-user5";
         String newPodIp = "10.0.0.55";
 
         // 预填充缓存（旧 Pod）
@@ -300,7 +302,7 @@ class PodReuseManagerTest {
     void acquirePod_cacheHitButPodGone_createsNewPod() {
         String userId = "user6";
         String oldPodName = "sandbox-user6-gone";
-        String newPodName = "sandbox-user6-new";
+        String newPodName = "sandbox-user6";
         String newPodIp = "10.0.0.6";
 
         PodEntry oldEntry = new PodEntry(oldPodName, "10.0.0.60");

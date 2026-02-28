@@ -1,6 +1,9 @@
 import path from "path"
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
+import monacoEditorModule from 'vite-plugin-monaco-editor'
+
+const monacoEditor = (monacoEditorModule as any).default || monacoEditorModule
 
 // https://vite.dev/config/
 const env = loadEnv(process.env.NODE_ENV || 'development', process.cwd(), '')
@@ -12,7 +15,7 @@ export default defineConfig({
     babel: {
       plugins: ['babel-plugin-react-compiler']
     }
-  })],
+  }), monacoEditor({})],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

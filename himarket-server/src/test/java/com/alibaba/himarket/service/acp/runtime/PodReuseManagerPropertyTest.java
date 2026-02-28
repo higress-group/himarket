@@ -126,6 +126,10 @@ class PodReuseManagerPropertyTest {
         when(podResource.waitUntilReady(anyLong(), any())).thenReturn(readyPod);
         when(podResource.get()).thenReturn(readyPod);
         when(podResource.delete()).thenReturn(List.of());
+        // createNewPod 中固定名字会先检查旧 Pod 是否存在，存在则删除后等待消失
+        // 第一次 get() 返回旧 Pod（触发删除），后续 get() 在 waitUntilCondition 中返回 null（表示已删除）
+        // 但由于 mock 的 get() 始终返回 readyPod，需要让 waitUntilCondition 直接通过
+        when(podResource.waitUntilCondition(any(), anyLong(), any())).thenReturn(null);
 
         // Mock PVC 操作（ensurePvcExists 需要）
         MixedOperation pvcOp = mock(MixedOperation.class);
@@ -232,7 +236,7 @@ class PodReuseManagerPropertyTest {
             @ForAll("validProviderKeys") String providerKey,
             @ForAll("containerImages") String image) {
 
-        String expectedPodName = "sandbox-" + userId + "-roundtrip";
+        String expectedPodName = "sandbox-" + userId;
         String expectedPodIp = "10.0.0.42";
 
         CreatePodMockContext ctx = buildCreatePodMock(expectedPodName, expectedPodIp);
@@ -267,7 +271,7 @@ class PodReuseManagerPropertyTest {
     @Property(tries = 100)
     void evictPod_thenGetPodEntry_returnsNull(@ForAll("validUserIds") String userId) {
 
-        String podName = "sandbox-" + userId + "-evict";
+        String podName = "sandbox-" + userId;
         String podIp = "10.0.1.100";
 
         K8sConfigService configService = buildEvictMockConfigService();
@@ -301,7 +305,7 @@ class PodReuseManagerPropertyTest {
             @ForAll("validProviderKeys") String providerKey,
             @ForAll("containerImages") String image) {
 
-        String podName = "sandbox-" + userId + "-labels";
+        String podName = "sandbox-" + userId;
         String podIp = "10.0.2.50";
 
         CreatePodMockContext ctx = buildCreatePodMock(podName, podIp);

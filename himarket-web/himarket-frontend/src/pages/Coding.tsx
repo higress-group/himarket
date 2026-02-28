@@ -260,7 +260,7 @@ function CodingContent() {
   useEffect(() => {
     if (!activeQuest?.cwd) return;
     setTreeLoading(true);
-    fetchDirectoryTree(activeQuest.cwd, 5, currentRuntimeRef.current).then(nodes => {
+    fetchDirectoryTree(activeQuest.cwd, 10, currentRuntimeRef.current).then(nodes => {
       setTree(nodes);
       setTreeLoading(false);
     });
@@ -276,7 +276,7 @@ function CodingContent() {
       (lastMsg.status === "completed" || lastMsg.status === "failed") &&
       !READ_ONLY_KINDS.has(lastMsg.kind)
     ) {
-      fetchDirectoryTree(activeQuest.cwd, 5, currentRuntimeRef.current).then(setTree);
+      fetchDirectoryTree(activeQuest.cwd, 10, currentRuntimeRef.current).then(setTree);
     }
   }, [messageCount, activeQuest?.cwd, activeQuest?.messages]);
 
@@ -290,7 +290,7 @@ function CodingContent() {
       const changes = await fetchWorkspaceChanges(cwd, lastPollRef.current, 200, currentRuntimeRef.current);
       if (changes.length > 0) {
         lastPollRef.current = Date.now();
-        fetchDirectoryTree(cwd, 5, currentRuntimeRef.current).then(setTree);
+        fetchDirectoryTree(cwd, 10, currentRuntimeRef.current).then(setTree);
       }
     }, 3000);
     return () => clearInterval(interval);

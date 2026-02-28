@@ -68,7 +68,7 @@ public class K8sWorkspaceService {
     public Map<String, Object> getDirectoryTree(String userId, String cwd, int depth)
             throws IOException {
         validatePath(cwd);
-        PodEntry podEntry = podReuseManager.getPodEntry(userId);
+        PodEntry podEntry = podReuseManager.getHealthyPodEntryWithDefaultClient(userId);
         if (podEntry == null) {
             throw new BusinessException(ErrorCode.SANDBOX_NOT_READY, userId);
         }
@@ -109,7 +109,7 @@ public class K8sWorkspaceService {
      */
     public String readFile(String userId, String filePath) throws IOException {
         validatePath(filePath);
-        PodEntry podEntry = podReuseManager.getPodEntry(userId);
+        PodEntry podEntry = podReuseManager.getHealthyPodEntryWithDefaultClient(userId);
         if (podEntry == null) {
             throw new BusinessException(ErrorCode.SANDBOX_NOT_READY, userId);
         }
@@ -143,7 +143,7 @@ public class K8sWorkspaceService {
     public List<Map<String, Object>> getChanges(String userId, String cwd, long since)
             throws IOException {
         validatePath(cwd);
-        PodEntry podEntry = podReuseManager.getPodEntry(userId);
+        PodEntry podEntry = podReuseManager.getHealthyPodEntryWithDefaultClient(userId);
         if (podEntry == null) {
             throw new BusinessException(ErrorCode.SANDBOX_NOT_READY, userId);
         }

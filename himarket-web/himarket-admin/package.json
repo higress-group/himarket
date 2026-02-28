@@ -67,7 +67,8 @@
     "typescript": "^5.6.3",
     "typescript-eslint": "^8.35.1",
     "url": "^0.11.4",
-    "vite": "^4.5.14"
+    "vite": "^4.5.14",
+    "vite-plugin-monaco-editor": "^1.1.0"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
