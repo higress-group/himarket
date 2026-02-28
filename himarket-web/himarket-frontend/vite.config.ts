@@ -47,7 +47,16 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
-    }
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-antd': ['antd', '@ant-design/icons'],
+          'vendor-markdown': ['react-markdown', 'remark-gfm', 'rehype-highlight', 'highlight.js'],
+          'vendor-swagger': ['swagger-ui-react'],
+          'vendor-xterm': ['@xterm/xterm', '@xterm/addon-fit'],
+        },
+      },
+    },
   },
   define: {
     'process.env': {}
