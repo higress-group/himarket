@@ -15,6 +15,7 @@ import { RightPanel } from "../components/quest/RightPanel";
 import { QuestInput } from "../components/quest/QuestInput";
 import { PermissionDialog } from "../components/quest/PermissionDialog";
 import { PlanDisplay } from "../components/quest/PlanDisplay";
+import { SandboxInitProgress } from "../components/hicli/SandboxInitProgress";
 import type { ChatItemPlan, ChatItemToolCall } from "../types/acp";
 import type { ICliProvider } from "../lib/apis/cliProvider";
 import { buildAcpWsUrl } from "../lib/utils/wsUrl";
@@ -188,6 +189,11 @@ function QuestContent() {
               onToggleCollapse={() => setPanelCollapsed(p => !p)}
             />
           )}
+        </div>
+      ) : isConnected && !state.initialized ? (
+        /* 已连接但未初始化：显示进度 */
+        <div className="flex-1 flex items-center justify-center">
+          <SandboxInitProgress />
         </div>
       ) : (
         <div className="flex-1 flex flex-col min-w-0">

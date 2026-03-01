@@ -182,6 +182,26 @@ export function useAcpSession({ wsUrl, autoConnect: autoConnectOpt = true, cliSe
           });
           return;
         }
+        if (notif.method === "sandbox/init-progress") {
+          const params = notif.params as {
+            phase?: string;
+            status?: "executing" | "completed";
+            message?: string;
+            progress?: number;
+            totalPhases?: number;
+            completedPhases?: number;
+          };
+          dispatch({
+            type: "INIT_PROGRESS",
+            phase: params?.phase ?? "",
+            status: params?.status ?? "executing",
+            message: params?.message ?? "",
+            progress: params?.progress ?? 0,
+            totalPhases: params?.totalPhases ?? 5,
+            completedPhases: params?.completedPhases ?? 0,
+          });
+          return;
+        }
         if (notif.method === ACP_METHODS.SESSION_UPDATE) {
           const update = extractSessionUpdate(notif);
           if (update) {

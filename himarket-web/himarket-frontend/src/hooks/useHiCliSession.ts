@@ -261,6 +261,26 @@ export function useHiCliSession(): UseHiCliSessionReturn {
           });
           return;
         }
+        if (notif.method === "sandbox/init-progress") {
+          const params = notif.params as {
+            phase?: string;
+            status?: "executing" | "completed";
+            message?: string;
+            progress?: number;
+            totalPhases?: number;
+            completedPhases?: number;
+          };
+          dispatch({
+            type: "INIT_PROGRESS",
+            phase: params?.phase ?? "",
+            status: params?.status ?? "executing",
+            message: params?.message ?? "",
+            progress: params?.progress ?? 0,
+            totalPhases: params?.totalPhases ?? 5,
+            completedPhases: params?.completedPhases ?? 0,
+          });
+          return;
+        }
         if (notif.method === "workspace/info") {
           const params = notif.params as { cwd?: string };
           if (params?.cwd) {

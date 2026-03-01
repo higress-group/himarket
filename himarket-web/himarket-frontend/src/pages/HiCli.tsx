@@ -12,6 +12,7 @@ import type { ICliProvider } from "../lib/apis/cliProvider";
 import { HiCliSidebar } from "../components/hicli/HiCliSidebar";
 import { HiCliTopBar } from "../components/hicli/HiCliTopBar";
 import { HiCliWelcome } from "../components/hicli/HiCliWelcome";
+import { SandboxInitProgress } from "../components/hicli/SandboxInitProgress";
 import { AcpLogPanel } from "../components/hicli/AcpLogPanel";
 import { AgentInfoCard } from "../components/hicli/AgentInfoCard";
 import { ChatStream } from "../components/quest/ChatStream";
@@ -167,15 +168,20 @@ function HiCliContent() {
         <div className="flex-1 flex min-h-0 overflow-hidden">
           {/* 左侧聊天区 */}
           <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-            {!isConnected || !state.initialized ? (
-              /* 未连接或未初始化：展示欢迎页 + CLI 选择器 / 沙箱创建状态 */
+            {!isConnected ? (
+              /* 未连接：展示欢迎页 + CLI 选择器 */
               <HiCliWelcome
                 onSelectCli={handleSelectCli}
                 onCreateQuest={handleCreateQuest}
-                isConnected={isConnected}
+                isConnected={false}
                 disabled={false}
                 creatingQuest={isCreatingQuest}
               />
+            ) : !state.initialized ? (
+              /* 已连接但未初始化：展示初始化进度（全屏居中） */
+              <div className="flex-1 flex items-center justify-center">
+                <SandboxInitProgress />
+              </div>
             ) : !hasActiveQuest ? (
               /* 已连接但无活跃 Quest：展示欢迎提示 + 输入框 */
               <>

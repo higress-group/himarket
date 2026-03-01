@@ -30,6 +30,7 @@ import type { ChatItemPlan } from "../types/acp";
 import type { ICliProvider } from "../lib/apis/cliProvider";
 import { buildAcpWsUrl } from "../lib/utils/wsUrl";
 import { WelcomePage } from "../components/common/WelcomePage";
+import { SandboxInitProgress } from "../components/hicli/SandboxInitProgress";
 
 const EXT_TO_LANG: Record<string, string> = {
   ts: "typescript",
@@ -451,8 +452,8 @@ function CodingContent() {
     (m): m is ChatItemPlan => m.type === "plan"
   )?.entries;
 
-  // 未连接时显示欢迎页，已连接时显示 IDE 界面
-  if (!isConnected || !activeQuest) {
+  // 未连接时显示欢迎页，连接中显示进度，已连接时显示 IDE 界面
+  if (!isConnected) {
     return (
       <div className="flex flex-1 min-h-0 overflow-hidden bg-white/50">
         <WelcomePage
@@ -464,6 +465,25 @@ function CodingContent() {
           onSelectCli={handleSelectCli}
           showRuntimeSelector={true}
         />
+
+        {/* Permission dialog */}
+        {state.pendingPermission && (
+          <PermissionDialog
+            permission={state.pendingPermission}
+            onRespond={session.respondPermission}
+          />
+        )}
+      </div>
+    );
+  }
+
+  // 已连接但未初始化：显示进度
+  if (!state.initialized || !activeQuest) {
+    return (
+      <div className="flex flex-1 min-h-0 overflow-hidden bg-white/50">
+        <div className="flex-1 flex items-center justify-center">
+          <SandboxInitProgress />
+        </div>
 
         {/* Permission dialog */}
         {state.pendingPermission && (

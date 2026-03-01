@@ -92,6 +92,15 @@ export interface QuestState {
     message: string;
     sandboxHost?: string;
   } | null;
+  /** 沙箱初始化进度：5阶段详细进度信息 */
+  initProgress: {
+    phase: "sandbox-acquire" | "filesystem-ready" | "config-injection" | "sidecar-connect" | "cli-ready";
+    status: "executing" | "completed";
+    message: string;
+    progress: number;
+    totalPhases: number;
+    completedPhases: number;
+  } | null;
   /** 全局当前 mode ID（由 PROTOCOL_INITIALIZED 设置，无活跃 Quest 时用于 TopBar 回退） */
   currentModeId: string;
 }
@@ -107,6 +116,7 @@ export const initialState: QuestState = {
   usage: null,
   pendingPermission: null,
   sandboxStatus: null,
+  initProgress: null,
   currentModeId: "",
 };
 
@@ -187,7 +197,16 @@ export type QuestAction =
   | { type: "TERMINAL_CREATED"; questId: string; terminalId: string }
   | { type: "TERMINAL_DATA"; questId: string; terminalId: string; data: string }
   | { type: "PREVIEW_PORT_DETECTED"; questId: string; port: number }
-  | { type: "SANDBOX_STATUS"; status: "creating" | "ready" | "error"; message: string; sandboxHost?: string };
+  | { type: "SANDBOX_STATUS"; status: "creating" | "ready" | "error"; message: string; sandboxHost?: string }
+  | {
+      type: "INIT_PROGRESS";
+      phase: string;
+      status: "executing" | "completed";
+      message: string;
+      progress: number;
+      totalPhases: number;
+      completedPhases: number;
+    };
 
 // ===== Helpers =====
 
@@ -592,6 +611,19 @@ export function questReducer(
           status: action.status,
           message: action.message,
           sandboxHost: action.sandboxHost ?? state.sandboxStatus?.sandboxHost,
+        },
+      };
+
+    case "INIT_PROGRESS":
+      return {
+        ...state,
+        initProgress: {
+          phase: action.phase as "sandbox-acquire" | "filesystem-ready" | "config-injection" | "sidecar-connect" | "cli-ready",
+          status: action.status,
+          message: action.message,
+          progress: action.progress,
+          totalPhases: action.totalPhases,
+          completedPhases: action.completedPhases,
         },
       };
 
