@@ -14,7 +14,7 @@ public interface RuntimeAdapter {
     /**
      * 获取运行时类型标识。
      */
-    RuntimeType getType();
+    SandboxType getType();
 
     /**
      * 启动运行时实例。

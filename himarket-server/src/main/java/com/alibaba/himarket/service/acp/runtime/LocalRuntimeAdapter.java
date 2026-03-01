@@ -77,8 +77,8 @@ public class LocalRuntimeAdapter implements RuntimeAdapter {
     }
 
     @Override
-    public RuntimeType getType() {
-        return RuntimeType.LOCAL;
+    public SandboxType getType() {
+        return SandboxType.LOCAL;
     }
 
     @Override
@@ -214,7 +214,7 @@ public class LocalRuntimeAdapter implements RuntimeAdapter {
             try {
                 faultListener.accept(
                         new RuntimeFaultNotification(
-                                faultType, RuntimeType.LOCAL, suggestedAction));
+                                faultType, SandboxType.LOCAL, suggestedAction));
             } catch (Exception e) {
                 logger.warn("Error notifying fault listener: {}", e.getMessage());
             }

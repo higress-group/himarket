@@ -21,7 +21,7 @@ import com.alibaba.himarket.service.ConsumerService;
 import com.alibaba.himarket.service.ProductService;
 import com.alibaba.himarket.service.acp.BaseUrlExtractor;
 import com.alibaba.himarket.service.acp.ProtocolTypeMapper;
-import com.alibaba.himarket.service.acp.runtime.RuntimeType;
+import com.alibaba.himarket.service.acp.runtime.SandboxType;
 import com.alibaba.himarket.support.chat.mcp.MCPTransportConfig;
 import com.alibaba.himarket.support.consumer.ApiKeyConfig;
 import com.alibaba.himarket.support.enums.MCPTransportMode;
@@ -348,7 +348,7 @@ public class CliProviderController {
             // 兼容 K8S 运行时的 Provider 可在沙箱中运行，无需本机安装命令
             boolean canRunInSandbox =
                     config.getCompatibleRuntimes() != null
-                            && config.getCompatibleRuntimes().contains(RuntimeType.K8S);
+                            && config.getCompatibleRuntimes().contains(SandboxType.K8S);
             boolean available = canRunInSandbox || isCommandAvailable(config.getCommand());
             result.add(
                     new CliProviderInfo(
@@ -400,7 +400,7 @@ public class CliProviderController {
             boolean isDefault,
             boolean available,
             String runtimeCategory,
-            List<RuntimeType> compatibleRuntimes,
+            List<SandboxType> compatibleRuntimes,
             String containerImage,
             boolean supportsCustomModel,
             boolean supportsMcp,

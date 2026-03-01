@@ -23,11 +23,25 @@ class RuntimeSelectorTest {
     }
 
     private RuntimeSelector createSelector(boolean k8sAvailable) {
-        return new RuntimeSelector(acpProperties, k8sAvailable);
+        K8sConfigService mockK8sConfigService = new K8sConfigService(null) {
+            @Override
+            public void init() {}
+
+            @Override
+            public boolean hasAnyCluster() {
+                return k8sAvailable;
+            }
+
+            @Override
+            public java.util.List<K8sClusterInfo> listClusters() {
+                return java.util.Collections.emptyList();
+            }
+        };
+        return new RuntimeSelector(acpProperties, mockK8sConfigService);
     }
 
     private CliProviderConfig createProvider(
-            String displayName, List<RuntimeType> compatibleRuntimes) {
+            String displayName, List<SandboxType> compatibleRuntimes) {
         CliProviderConfig config = new CliProviderConfig();
         config.setDisplayName(displayName);
         config.setCompatibleRuntimes(compatibleRuntimes);
@@ -47,14 +61,14 @@ class RuntimeSelectorTest {
         void returnsAllCompatibleRuntimes() {
             registerProvider(
                     "qodercli",
-                    createProvider("Qoder CLI", List.of(RuntimeType.LOCAL, RuntimeType.K8S)));
+                    createProvider("Qoder CLI", List.of(SandboxType.LOCAL, SandboxType.K8S)));
             RuntimeSelector selector = createSelector(true);
 
             List<RuntimeOption> options = selector.getAvailableRuntimes("qodercli");
 
             assertEquals(2, options.size());
-            assertEquals(RuntimeType.LOCAL, options.get(0).type());
-            assertEquals(RuntimeType.K8S, options.get(1).type());
+            assertEquals(SandboxType.LOCAL, options.get(0).type());
+            assertEquals(SandboxType.K8S, options.get(1).type());
         }
 
         @Test
@@ -98,14 +112,14 @@ class RuntimeSelectorTest {
         void k8sMarkedUnavailableWhenK8sNotConfigured() {
             registerProvider(
                     "qodercli",
-                    createProvider("Qoder CLI", List.of(RuntimeType.LOCAL, RuntimeType.K8S)));
+                    createProvider("Qoder CLI", List.of(SandboxType.LOCAL, SandboxType.K8S)));
             RuntimeSelector selector = createSelector(false);
 
             List<RuntimeOption> options = selector.getAvailableRuntimes("qodercli");
 
             RuntimeOption k8sOption =
                     options.stream()
-                            .filter(o -> o.type() == RuntimeType.K8S)
+                            .filter(o -> o.type() == SandboxType.K8S)
                             .findFirst()
                             .orElseThrow();
             assertFalse(k8sOption.available());
@@ -115,7 +129,7 @@ class RuntimeSelectorTest {
 
         @Test
         void localAlwaysAvailable() {
-            registerProvider("test", createProvider("Test", List.of(RuntimeType.LOCAL)));
+            registerProvider("test", createProvider("Test", List.of(SandboxType.LOCAL)));
             RuntimeSelector selector = createSelector(false);
 
             List<RuntimeOption> options = selector.getAvailableRuntimes("test");
@@ -136,36 +150,36 @@ class RuntimeSelectorTest {
             acpProperties.setDefaultRuntime("local");
             registerProvider(
                     "qodercli",
-                    createProvider("Qoder CLI", List.of(RuntimeType.LOCAL, RuntimeType.K8S)));
+                    createProvider("Qoder CLI", List.of(SandboxType.LOCAL, SandboxType.K8S)));
             RuntimeSelector selector = createSelector(true);
 
-            RuntimeType selected = selector.selectDefault("qodercli");
+            SandboxType selected = selector.selectDefault("qodercli");
 
-            assertEquals(RuntimeType.LOCAL, selected);
+            assertEquals(SandboxType.LOCAL, selected);
         }
 
         @Test
         void autoSelectsWhenOnlyOneAvailable() {
-            registerProvider("qodercli", createProvider("Qoder CLI", List.of(RuntimeType.K8S)));
+            registerProvider("qodercli", createProvider("Qoder CLI", List.of(SandboxType.K8S)));
             RuntimeSelector selector = createSelector(true);
 
-            RuntimeType selected = selector.selectDefault("qodercli");
+            SandboxType selected = selector.selectDefault("qodercli");
 
-            assertEquals(RuntimeType.K8S, selected);
+            assertEquals(SandboxType.K8S, selected);
         }
 
         @Test
         void autoSelectsOnlyAvailableRuntime() {
             registerProvider(
                     "qodercli",
-                    createProvider("Qoder CLI", List.of(RuntimeType.LOCAL, RuntimeType.K8S)));
+                    createProvider("Qoder CLI", List.of(SandboxType.LOCAL, SandboxType.K8S)));
             acpProperties.setDefaultRuntime("k8s");
             RuntimeSelector selector = createSelector(false);
 
-            RuntimeType selected = selector.selectDefault("qodercli");
+            SandboxType selected = selector.selectDefault("qodercli");
 
             // K8S 不可用，只剩 LOCAL
-            assertEquals(RuntimeType.LOCAL, selected);
+            assertEquals(SandboxType.LOCAL, selected);
         }
 
         @Test
@@ -189,7 +203,7 @@ class RuntimeSelectorTest {
 
         @Test
         void throwsWhenNoAvailableRuntimes() {
-            registerProvider("k8s-only", createProvider("K8s Only", List.of(RuntimeType.K8S)));
+            registerProvider("k8s-only", createProvider("K8s Only", List.of(SandboxType.K8S)));
             RuntimeSelector selector = createSelector(false);
 
             assertThrows(IllegalStateException.class, () -> selector.selectDefault("k8s-only"));
@@ -199,28 +213,28 @@ class RuntimeSelectorTest {
         void handlesInvalidDefaultRuntimeGracefully() {
             acpProperties.setDefaultRuntime("invalid_type");
             registerProvider(
-                    "test", createProvider("Test", List.of(RuntimeType.LOCAL, RuntimeType.K8S)));
+                    "test", createProvider("Test", List.of(SandboxType.LOCAL, SandboxType.K8S)));
             RuntimeSelector selector = createSelector(true);
 
-            RuntimeType selected = selector.selectDefault("test");
+            SandboxType selected = selector.selectDefault("test");
 
-            assertEquals(RuntimeType.LOCAL, selected);
+            assertEquals(SandboxType.LOCAL, selected);
         }
 
         @Test
         void handlesBlankDefaultRuntime() {
             acpProperties.setDefaultRuntime("  ");
             registerProvider(
-                    "test", createProvider("Test", List.of(RuntimeType.LOCAL, RuntimeType.K8S)));
+                    "test", createProvider("Test", List.of(SandboxType.LOCAL, SandboxType.K8S)));
             RuntimeSelector selector = createSelector(true);
 
-            RuntimeType selected = selector.selectDefault("test");
+            SandboxType selected = selector.selectDefault("test");
 
-            assertEquals(RuntimeType.LOCAL, selected);
+            assertEquals(SandboxType.LOCAL, selected);
         }
     }
 
-    // ===== isRuntimeAvailable =====
+    // ===== isSandboxAvailable =====
 
     @Nested
     class IsRuntimeAvailable {
@@ -228,19 +242,19 @@ class RuntimeSelectorTest {
         @Test
         void localAlwaysAvailable() {
             RuntimeSelector selector = createSelector(false);
-            assertTrue(selector.isRuntimeAvailable(RuntimeType.LOCAL));
+            assertTrue(selector.isSandboxAvailable(SandboxType.LOCAL));
         }
 
         @Test
         void k8sAvailableWhenK8sConfigured() {
             RuntimeSelector selector = createSelector(true);
-            assertTrue(selector.isRuntimeAvailable(RuntimeType.K8S));
+            assertTrue(selector.isSandboxAvailable(SandboxType.K8S));
         }
 
         @Test
         void k8sUnavailableWhenK8sNotConfigured() {
             RuntimeSelector selector = createSelector(false);
-            assertFalse(selector.isRuntimeAvailable(RuntimeType.K8S));
+            assertFalse(selector.isSandboxAvailable(SandboxType.K8S));
         }
     }
 
@@ -253,9 +267,9 @@ class RuntimeSelectorTest {
         void compatibleAndAvailableOption() {
             RuntimeSelector selector = createSelector(true);
 
-            RuntimeOption option = selector.toRuntimeOption(RuntimeType.LOCAL, true);
+            RuntimeOption option = selector.toRuntimeOption(SandboxType.LOCAL, true);
 
-            assertEquals(RuntimeType.LOCAL, option.type());
+            assertEquals(SandboxType.LOCAL, option.type());
             assertTrue(option.available());
             assertNull(option.unavailableReason());
             assertNotNull(option.label());
@@ -266,7 +280,7 @@ class RuntimeSelectorTest {
         void incompatibleOptionMarkedUnavailable() {
             RuntimeSelector selector = createSelector(true);
 
-            RuntimeOption option = selector.toRuntimeOption(RuntimeType.K8S, false);
+            RuntimeOption option = selector.toRuntimeOption(SandboxType.K8S, false);
 
             assertFalse(option.available());
             assertNotNull(option.unavailableReason());
@@ -277,7 +291,7 @@ class RuntimeSelectorTest {
         void compatibleButEnvironmentUnavailable() {
             RuntimeSelector selector = createSelector(false);
 
-            RuntimeOption option = selector.toRuntimeOption(RuntimeType.K8S, true);
+            RuntimeOption option = selector.toRuntimeOption(SandboxType.K8S, true);
 
             assertFalse(option.available());
             assertNotNull(option.unavailableReason());
@@ -288,8 +302,8 @@ class RuntimeSelectorTest {
         void eachTypeHasDistinctLabelAndDescription() {
             RuntimeSelector selector = createSelector(true);
 
-            RuntimeOption local = selector.toRuntimeOption(RuntimeType.LOCAL, true);
-            RuntimeOption k8s = selector.toRuntimeOption(RuntimeType.K8S, true);
+            RuntimeOption local = selector.toRuntimeOption(SandboxType.LOCAL, true);
+            RuntimeOption k8s = selector.toRuntimeOption(SandboxType.K8S, true);
 
             assertNotEquals(local.label(), k8s.label());
         }

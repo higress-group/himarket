@@ -19,10 +19,10 @@ class RuntimeFaultNotificationPropertyTest {
 
     // ===== 生成器 =====
 
-    /** 生成随机 RuntimeType 值（LOCAL、K8S） */
+    /** 生成随机 SandboxType 值（LOCAL、K8S） */
     @Provide
-    Arbitrary<RuntimeType> runtimeTypes() {
-        return Arbitraries.of(RuntimeType.values());
+    Arbitrary<SandboxType> runtimeTypes() {
+        return Arbitraries.of(SandboxType.LOCAL, SandboxType.K8S);
     }
 
     /** 生成随机故障类型，包含预定义常量和随机自定义类型 */
@@ -73,14 +73,14 @@ class RuntimeFaultNotificationPropertyTest {
     @Property(tries = 100)
     void allNotifications_containNonNullFields(
             @ForAll("faultTypes") String faultType,
-            @ForAll("runtimeTypes") RuntimeType runtimeType,
+            @ForAll("runtimeTypes") SandboxType runtimeType,
             @ForAll("suggestedActions") String suggestedAction) {
 
         RuntimeFaultNotification notification =
                 new RuntimeFaultNotification(faultType, runtimeType, suggestedAction);
 
         assertNotNull(notification.faultType(), "faultType 不应为 null");
-        assertNotNull(notification.runtimeType(), "runtimeType 不应为 null");
+        assertNotNull(notification.sandboxType(), "runtimeType 不应为 null");
         assertNotNull(notification.suggestedAction(), "suggestedAction 不应为 null");
     }
 
@@ -95,13 +95,13 @@ class RuntimeFaultNotificationPropertyTest {
     @Property(tries = 100)
     void notification_carriesCorrectRuntimeType(
             @ForAll("faultTypes") String faultType,
-            @ForAll("runtimeTypes") RuntimeType runtimeType,
+            @ForAll("runtimeTypes") SandboxType runtimeType,
             @ForAll("suggestedActions") String suggestedAction) {
 
         RuntimeFaultNotification notification =
                 new RuntimeFaultNotification(faultType, runtimeType, suggestedAction);
 
-        assertEquals(runtimeType, notification.runtimeType(), "通知中的 runtimeType 应与传入值一致");
+        assertEquals(runtimeType, notification.sandboxType(), "通知中的 runtimeType 应与传入值一致");
     }
 
     /**
@@ -114,7 +114,7 @@ class RuntimeFaultNotificationPropertyTest {
     @Property(tries = 100)
     void notification_carriesCorrectFaultTypeAndAction(
             @ForAll("faultTypes") String faultType,
-            @ForAll("runtimeTypes") RuntimeType runtimeType,
+            @ForAll("runtimeTypes") SandboxType runtimeType,
             @ForAll("suggestedActions") String suggestedAction) {
 
         RuntimeFaultNotification notification =
@@ -137,16 +137,16 @@ class RuntimeFaultNotificationPropertyTest {
             @ForAll("faultTypes") String faultType,
             @ForAll("suggestedActions") String suggestedAction) {
 
-        for (RuntimeType type : RuntimeType.values()) {
+        for (SandboxType type : SandboxType.values()) {
             RuntimeFaultNotification notification =
                     new RuntimeFaultNotification(faultType, type, suggestedAction);
 
             assertNotNull(notification.faultType());
-            assertNotNull(notification.runtimeType());
+            assertNotNull(notification.sandboxType());
             assertNotNull(notification.suggestedAction());
 
             assertEquals(faultType, notification.faultType());
-            assertEquals(type, notification.runtimeType());
+            assertEquals(type, notification.sandboxType());
             assertEquals(suggestedAction, notification.suggestedAction());
         }
     }
@@ -162,7 +162,7 @@ class RuntimeFaultNotificationPropertyTest {
     @Property(tries = 100)
     void sameInputs_produceEqualNotifications(
             @ForAll("faultTypes") String faultType,
-            @ForAll("runtimeTypes") RuntimeType runtimeType,
+            @ForAll("runtimeTypes") SandboxType runtimeType,
             @ForAll("suggestedActions") String suggestedAction) {
 
         RuntimeFaultNotification a =
@@ -187,7 +187,7 @@ class RuntimeFaultNotificationPropertyTest {
             @ForAll("faultTypes") String faultType,
             @ForAll("suggestedActions") String suggestedAction) {
 
-        RuntimeType[] types = RuntimeType.values();
+        SandboxType[] types = SandboxType.values();
         for (int i = 0; i < types.length; i++) {
             for (int j = i + 1; j < types.length; j++) {
                 RuntimeFaultNotification a =

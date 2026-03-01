@@ -7,13 +7,13 @@ package com.alibaba.himarket.service.acp.runtime;
  * 通过此记录向上层发送标准化的故障通知。
  *
  * @param faultType       故障类型（如 PROCESS_CRASHED、HEALTH_CHECK_FAILURE、IDLE_TIMEOUT、CONNECTION_LOST）
- * @param runtimeType     运行时类型（LOCAL、K8S）
+ * @param sandboxType     沙箱类型（LOCAL、K8S）
  * @param suggestedAction 建议操作（如 RECONNECT、RESTART、DESTROY）
  *
  * Requirements: 8.5
  */
 public record RuntimeFaultNotification(
-        String faultType, RuntimeType runtimeType, String suggestedAction) {
+        String faultType, SandboxType sandboxType, String suggestedAction) {
 
     /** 进程崩溃 */
     public static final String FAULT_PROCESS_CRASHED = "PROCESS_CRASHED";

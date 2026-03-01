@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.alibaba.himarket.config.AcpProperties;
 import com.alibaba.himarket.config.AcpProperties.CliProviderConfig;
-import com.alibaba.himarket.service.acp.runtime.RuntimeType;
+import com.alibaba.himarket.service.acp.runtime.SandboxType;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,7 +25,7 @@ class AcpPropertiesTest {
         qoder.setCommand("qodercli");
         qoder.setArgs("--acp");
         qoder.setRuntimeCategory("native");
-        qoder.setCompatibleRuntimes(List.of(RuntimeType.LOCAL, RuntimeType.K8S));
+        qoder.setCompatibleRuntimes(List.of(SandboxType.LOCAL, SandboxType.K8S));
         qoder.setContainerImage("himarket/sandbox:latest");
 
         CliProviderConfig kiro = new CliProviderConfig();
@@ -33,7 +33,7 @@ class AcpPropertiesTest {
         kiro.setCommand("kiro-cli");
         kiro.setArgs("acp");
         kiro.setRuntimeCategory("native");
-        kiro.setCompatibleRuntimes(List.of(RuntimeType.LOCAL));
+        kiro.setCompatibleRuntimes(List.of(SandboxType.LOCAL));
 
         CliProviderConfig claude = new CliProviderConfig();
         claude.setDisplayName("Claude Code");
@@ -41,14 +41,14 @@ class AcpPropertiesTest {
         claude.setArgs("claude-code-acp");
         claude.setEnv(Map.of("ANTHROPIC_API_KEY", "test-key"));
         claude.setRuntimeCategory("nodejs");
-        claude.setCompatibleRuntimes(List.of(RuntimeType.LOCAL));
+        claude.setCompatibleRuntimes(List.of(SandboxType.LOCAL));
 
         CliProviderConfig codex = new CliProviderConfig();
         codex.setDisplayName("Codex CLI");
         codex.setCommand("codex");
         codex.setArgs("--acp");
         codex.setRuntimeCategory("nodejs");
-        codex.setCompatibleRuntimes(List.of(RuntimeType.LOCAL));
+        codex.setCompatibleRuntimes(List.of(SandboxType.LOCAL));
 
         properties.setProviders(
                 Map.of(
@@ -124,8 +124,8 @@ class AcpPropertiesTest {
         CliProviderConfig qoder = properties.getProvider("qodercli");
         assertNotNull(qoder.getCompatibleRuntimes());
         assertEquals(2, qoder.getCompatibleRuntimes().size());
-        assertTrue(qoder.getCompatibleRuntimes().contains(RuntimeType.LOCAL));
-        assertTrue(qoder.getCompatibleRuntimes().contains(RuntimeType.K8S));
+        assertTrue(qoder.getCompatibleRuntimes().contains(SandboxType.LOCAL));
+        assertTrue(qoder.getCompatibleRuntimes().contains(SandboxType.K8S));
     }
 
     @Test
@@ -133,7 +133,7 @@ class AcpPropertiesTest {
         CliProviderConfig claude = properties.getProvider("claude-code");
         assertNotNull(claude.getCompatibleRuntimes());
         assertEquals(1, claude.getCompatibleRuntimes().size());
-        assertTrue(claude.getCompatibleRuntimes().contains(RuntimeType.LOCAL));
+        assertTrue(claude.getCompatibleRuntimes().contains(SandboxType.LOCAL));
     }
 
     @Test

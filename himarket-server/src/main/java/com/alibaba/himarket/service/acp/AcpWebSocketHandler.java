@@ -10,13 +10,10 @@ import com.alibaba.himarket.service.acp.runtime.InitConfig;
 import com.alibaba.himarket.service.acp.runtime.InitContext;
 import com.alibaba.himarket.service.acp.runtime.InitResult;
 import com.alibaba.himarket.service.acp.runtime.K8sConfigService;
-import com.alibaba.himarket.service.acp.runtime.K8sRuntimeAdapter;
-import com.alibaba.himarket.service.acp.runtime.PodInfo;
 import com.alibaba.himarket.service.acp.runtime.PodReuseManager;
 import com.alibaba.himarket.service.acp.runtime.RuntimeAdapter;
 import com.alibaba.himarket.service.acp.runtime.RuntimeConfig;
-import com.alibaba.himarket.service.acp.runtime.RuntimeFactory;
-import com.alibaba.himarket.service.acp.runtime.RuntimeType;
+import com.alibaba.himarket.service.acp.runtime.SandboxType;
 import com.alibaba.himarket.service.acp.runtime.SandboxAcquirePhase;
 import com.alibaba.himarket.service.acp.runtime.SandboxConfig;
 import com.alibaba.himarket.service.acp.runtime.SandboxInfo;
@@ -60,7 +57,6 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
 
     private final AcpProperties properties;
     private final ObjectMapper objectMapper;
-    private final RuntimeFactory runtimeFactory;
     private final K8sConfigService k8sConfigService;
     private final PodReuseManager podReuseManager;
     private final SandboxProviderRegistry sandboxProviderRegistry;
@@ -70,10 +66,6 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
     private final Map<String, String> cwdMap = new ConcurrentHashMap<>();
     private final Map<String, String> userIdMap = new ConcurrentHashMap<>();
     private final Map<String, String> sandboxModeMap = new ConcurrentHashMap<>();
-
-    /** 记录每个 session 生成的配置文件路径，用于启动失败时清理 */
-    private final Map<String, java.util.List<Path>> generatedConfigFilesMap =
-            new ConcurrentHashMap<>();
 
     /** K8s Pod 异步初始化线程池 */
     private final ExecutorService podInitExecutor =
@@ -105,13 +97,11 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
     public AcpWebSocketHandler(
             AcpProperties properties,
             ObjectMapper objectMapper,
-            RuntimeFactory runtimeFactory,
             K8sConfigService k8sConfigService,
             PodReuseManager podReuseManager,
             SandboxProviderRegistry sandboxProviderRegistry) {
         this.properties = properties;
         this.objectMapper = objectMapper;
-        this.runtimeFactory = runtimeFactory;
         this.k8sConfigService = k8sConfigService;
         this.podReuseManager = podReuseManager;
         this.sandboxProviderRegistry = sandboxProviderRegistry;
@@ -138,21 +128,21 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
             return;
         }
 
-        // Resolve runtime type from session attributes (set by AcpHandshakeInterceptor)
+        // Resolve sandbox type from session attributes (set by AcpHandshakeInterceptor)
         String runtimeParam = (String) session.getAttributes().get("runtime");
-        RuntimeType runtimeType = resolveRuntimeType(runtimeParam);
+        SandboxType sandboxType = resolveSandboxType(runtimeParam);
 
         // Build per-user working directory
         // K8s 运行时：CLI 在 Pod 内运行，cwd 使用 Pod 内路径 /workspace
         // 本地运行时：使用服务器本地路径
-        String cwd = runtimeType == RuntimeType.K8S ? "/workspace" : buildWorkspacePath(userId);
+        String cwd = sandboxType == SandboxType.K8S ? "/workspace" : buildWorkspacePath(userId);
 
         logger.info(
-                "WebSocket connected: id={}, userId={}, cwd={}, runtime={}",
+                "WebSocket connected: id={}, userId={}, cwd={}, sandboxType={}",
                 session.getId(),
                 userId,
                 cwd,
-                runtimeType);
+                sandboxType);
 
         // Resolve CLI provider: prefer query param, fallback to default
         String providerKey = (String) session.getAttributes().get("provider");
@@ -171,7 +161,7 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
 
         // Build RuntimeConfig from provider configuration
         RuntimeConfig config =
-                buildRuntimeConfig(userId, providerKey, providerConfig, cwd, runtimeType);
+                buildRuntimeConfig(userId, providerKey, providerConfig, cwd, sandboxType);
 
         // 获取会话配置（配置注入由 ConfigInjectionPhase 统一处理）
         // 优先从 URL query string 获取（向后兼容旧客户端），
@@ -181,10 +171,6 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
 
         // Resolve sandboxMode from session attributes (set by AcpHandshakeInterceptor)
         String sandboxMode = (String) session.getAttributes().get("sandboxMode");
-
-        // Map RuntimeType to SandboxType — 所有沙箱类型走统一的异步初始化路径
-        SandboxType sandboxType =
-                runtimeType == RuntimeType.K8S ? SandboxType.K8S : SandboxType.LOCAL;
 
         // Store session state
         cwdMap.put(session.getId(), cwd);
@@ -349,46 +335,9 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
             }
         }
 
-        // 清理生成的配置文件记录（不删除文件，仅清理 map 条目）
-        generatedConfigFilesMap.remove(sessionId);
-
         cwdMap.remove(sessionId);
         userIdMap.remove(sessionId);
         sandboxModeMap.remove(sessionId);
-    }
-
-    /**
-     * 根据 provider 类型获取生成的配置文件路径列表。
-     */
-    private java.util.List<Path> getGeneratedConfigFiles(String providerKey, String cwd) {
-        java.util.List<Path> files = new java.util.ArrayList<>();
-        if ("opencode".equals(providerKey)) {
-            files.add(Path.of(cwd, "opencode.json"));
-        } else if ("qwen-code".equals(providerKey)) {
-            files.add(Path.of(cwd, ".qwen", "settings.json"));
-        }
-        return files;
-    }
-
-    /**
-     * 清理已生成的配置文件，防止残留配置影响后续会话。
-     * 在 CLI 进程启动失败时调用。
-     */
-    private void cleanupGeneratedConfigFiles(String sessionId) {
-        java.util.List<Path> files = generatedConfigFilesMap.remove(sessionId);
-        if (files == null || files.isEmpty()) {
-            return;
-        }
-        for (Path file : files) {
-            try {
-                if (Files.deleteIfExists(file)) {
-                    logger.info("Cleaned up generated config file: {}", file);
-                }
-            } catch (IOException e) {
-                logger.warn(
-                        "Failed to clean up generated config file {}: {}", file, e.getMessage());
-            }
-        }
     }
 
     /**
@@ -863,357 +812,6 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
     }
 
     /**
-     * 异步初始化 K8s Pod，通过 WebSocket 向前端推送进度通知。
-     * <p>
-     * 流程：
-     * 1. 推送 "sandbox_creating" 通知
-     * 2. 调用 acquirePod（可能耗时数分钟）
-     * 3. 成功后创建 RuntimeAdapter，订阅 stdout，回放缓存消息
-     * 4. 失败则推送错误通知并关闭连接
-     * <p>
-     * @deprecated 已被 {@link #initSandboxAsync} 替代，保留供回退使用
-     */
-    @Deprecated
-    private void initK8sPodAsync(
-            WebSocketSession session,
-            String userId,
-            String providerKey,
-            RuntimeConfig config,
-            CliProviderConfig providerConfig,
-            CliSessionConfig sessionConfig) {
-        try {
-            logger.info("[K8s-Init] 开始异步 Pod 初始化: userId={}, session={}", userId, session.getId());
-            sendSandboxStatus(session, "creating", "正在准备沙箱环境...");
-
-            logger.info("[K8s-Init] 调用 acquirePod: userId={}", userId);
-            PodInfo podInfo = podReuseManager.acquirePod(userId, config);
-            logger.info(
-                    "[K8s-Init] acquirePod 完成: pod={}, podIp={}, serviceIp={}, sidecarUri={},"
-                            + " reused={}",
-                    podInfo.podName(),
-                    podInfo.podIp(),
-                    podInfo.serviceIp(),
-                    podInfo.sidecarWsUri(),
-                    podInfo.reused());
-
-            if (!session.isOpen()) {
-                logger.warn("WebSocket already closed during pod init: userId={}", userId);
-                return;
-            }
-
-            sendSandboxStatus(session, "connecting", "沙箱已就绪，正在连接...");
-
-            logger.info("[K8s-Init] 创建 K8sRuntimeAdapter: sidecarUri={}", podInfo.sidecarWsUri());
-            K8sRuntimeAdapter adapter =
-                    (K8sRuntimeAdapter) runtimeFactory.create(RuntimeType.K8S, config);
-            adapter.setReuseMode(true);
-
-            // 先初始化 Pod 基本信息和文件系统适配器（不建立 WebSocket 连接）
-            // startWithExistingPod 内部已将 fileSystem 创建提前到 connectToSidecarWebSocket 之前
-            // 但我们需要在 CLI 启动前注入配置，所以先手动准备 adapter 再注入配置
-            adapter.prepareForExistingPod(podInfo, config);
-
-            // K8s 运行时：在 CLI 启动前，通过 PodFileSystemAdapter 注入配置文件到 Pod 内部
-            // 必须在 connectToSidecarWebSocket 之前完成，因为 Sidecar 收到连接后会立即 spawn CLI
-            injectConfigIntoPod(adapter, providerKey, providerConfig, sessionConfig, config);
-
-            // 现在建立 WebSocket 连接，触发 Sidecar 启动 CLI 进程（此时配置文件已就位）
-            adapter.connectAndStart();
-            logger.info("[K8s-Init] Sidecar WebSocket 连接成功: pod={}", podInfo.podName());
-
-            runtimeMap.put(session.getId(), adapter);
-
-            logger.info(
-                    "Async pod init complete: userId={}, pod={}, reused={}",
-                    userId,
-                    podInfo.podName(),
-                    podInfo.reused());
-
-            // 订阅 stdout
-            Disposable subscription =
-                    adapter.stdout()
-                            .subscribe(
-                                    line -> {
-                                        logger.info(
-                                                "[K8s-Init] Sidecar 响应: {}",
-                                                line.length() > 300
-                                                        ? line.substring(0, 300) + "..."
-                                                        : line);
-                                        // 检测 CLI 返回的 JSON-RPC error 响应，记录有意义的告警日志
-                                        try {
-                                            JsonNode node = objectMapper.readTree(line);
-                                            if (node.has("error") && node.has("jsonrpc")) {
-                                                JsonNode error = node.get("error");
-                                                logger.warn(
-                                                        "[K8s-Init] CLI 返回错误响应: code={},"
-                                                                + " message={}, pod={}",
-                                                        error.path("code").asInt(),
-                                                        error.path("message").asText(),
-                                                        podInfo.podName());
-                                            }
-                                        } catch (Exception ignored) {
-                                            // 非 JSON 内容，忽略
-                                        }
-                                        try {
-                                            if (session.isOpen()) {
-                                                synchronized (session) {
-                                                    session.sendMessage(new TextMessage(line));
-                                                }
-                                            }
-                                        } catch (IOException e) {
-                                            logger.error("Error sending message to WebSocket", e);
-                                        }
-                                    },
-                                    error ->
-                                            logger.error(
-                                                    "Stdout stream error for session {}",
-                                                    session.getId(),
-                                                    error),
-                                    () -> {
-                                        logger.info(
-                                                "Stdout stream completed for session {}",
-                                                session.getId());
-                                        try {
-                                            if (session.isOpen()) {
-                                                session.close(CloseStatus.NORMAL);
-                                            }
-                                        } catch (IOException e) {
-                                            logger.debug(
-                                                    "Error closing WebSocket after stdout"
-                                                            + " completion",
-                                                    e);
-                                        }
-                                    });
-            subscriptionMap.put(session.getId(), subscription);
-
-            // 推送就绪通知
-            String sandboxHost =
-                    podInfo.serviceIp() != null && !podInfo.serviceIp().isBlank()
-                            ? podInfo.serviceIp()
-                            : podInfo.podIp();
-            sendSandboxStatus(session, "ready", "沙箱环境已就绪", sandboxHost);
-            logger.info("[K8s-Init] 已发送 sandbox/status: ready, sandboxHost={}", sandboxHost);
-
-            // 通知前端实际使用的工作目录
-            String cwd = cwdMap.get(session.getId());
-            if (cwd != null) {
-                sendWorkspaceInfo(session, cwd);
-            }
-
-            // 回放缓存的消息
-            java.util.Queue<String> pendingQueue = pendingMessageMap.remove(session.getId());
-            if (pendingQueue != null) {
-                int count = 0;
-                String queued;
-                while ((queued = pendingQueue.poll()) != null) {
-                    count++;
-                    logger.info(
-                            "[K8s-Init] 回放缓存消息 #{}: {}",
-                            count,
-                            queued.length() > 200 ? queued.substring(0, 200) + "..." : queued);
-                    String rewritten = rewriteSessionNewCwd(session.getId(), queued);
-                    try {
-                        adapter.send(rewritten);
-                    } catch (IOException e) {
-                        logger.error(
-                                "Error replaying queued message for session {}",
-                                session.getId(),
-                                e);
-                    }
-                }
-                logger.info("[K8s-Init] 回放完成，共 {} 条消息", count);
-            } else {
-                logger.warn("[K8s-Init] pendingQueue 为 null，没有缓存的消息可回放");
-            }
-
-            // 短暂等待后检查 Sidecar 连接是否存活
-            // Sidecar 可能在连接后立即关闭（进程未运行、端口不匹配等）
-            try {
-                Thread.sleep(2000);
-            } catch (InterruptedException ie) {
-                Thread.currentThread().interrupt();
-            }
-            if (!adapter.isAlive()
-                    || adapter.getStatus()
-                            == com.alibaba.himarket.service.acp.runtime.RuntimeStatus.ERROR) {
-                logger.error(
-                        "[K8s-Init] Sidecar 连接已断开，Pod 内 Sidecar 可能未正常运行: pod={}",
-                        podInfo.podName());
-                sendSandboxStatus(session, "error", "沙箱 Sidecar 连接失败，请检查 Pod 内 Sidecar 进程是否正常运行");
-            }
-
-        } catch (Exception e) {
-            logger.error("Async pod init failed for user {}: {}", userId, e.getMessage(), e);
-            pendingMessageMap.remove(session.getId());
-            sendSandboxStatus(session, "error", "沙箱创建失败: " + e.getMessage());
-            try {
-                if (session.isOpen()) {
-                    session.close(CloseStatus.SERVER_ERROR);
-                }
-            } catch (IOException closeEx) {
-                logger.debug("Error closing WebSocket after pod init failure", closeEx);
-            }
-        }
-    }
-
-    /**
-     * K8s 运行时：Pod Ready 后通过 PodFileSystemAdapter 将配置文件写入 Pod 内部。
-     * <p>
-     * 解决原有逻辑中在后端 JVM 本地写 /workspace 导致 Read-only file system 的问题。
-     * 配置生成仍复用 CliConfigGenerator 的内存逻辑，但最终通过 kubectl exec 写入 Pod。
-     */
-    private void injectConfigIntoPod(
-            K8sRuntimeAdapter adapter,
-            String providerKey,
-            CliProviderConfig providerConfig,
-            CliSessionConfig sessionConfig,
-            RuntimeConfig config) {
-        if (sessionConfig == null
-                || providerConfig == null
-                || !providerConfig.isSupportsCustomModel()) {
-            return;
-        }
-        CliConfigGenerator generator = configGeneratorRegistry.get(providerKey);
-        if (generator == null) {
-            return;
-        }
-
-        var fileSystem = adapter.getFileSystem();
-        if (fileSystem == null) {
-            logger.warn(
-                    "[K8s-Config] PodFileSystemAdapter not available, skipping config injection");
-            return;
-        }
-
-        String cwd = "/workspace";
-
-        // 使用同一个临时目录生成所有配置，避免 settings.json 互相覆盖
-        java.nio.file.Path sharedTempDir = null;
-        try {
-            sharedTempDir = java.nio.file.Files.createTempDirectory("k8s-config-all-");
-
-            // 1. 模型配置注入
-            if (sessionConfig.getCustomModelConfig() != null) {
-                try {
-                    Map<String, String> extraEnv =
-                            generator.generateConfig(
-                                    sharedTempDir.toString(), sessionConfig.getCustomModelConfig());
-                    config.getEnv().putAll(extraEnv);
-
-                    logger.info(
-                            "[K8s-Config] Custom model config generated for provider '{}': "
-                                    + "baseUrl={}, modelId={}",
-                            providerKey,
-                            sessionConfig.getCustomModelConfig().getBaseUrl(),
-                            sessionConfig.getCustomModelConfig().getModelId());
-                } catch (Exception e) {
-                    logger.error(
-                            "[K8s-Config] Failed to generate custom model config for provider '{}':"
-                                    + " {}",
-                            providerKey,
-                            e.getMessage(),
-                            e);
-                }
-            }
-
-            // 2. MCP 配置注入（读取已有 settings.json 后合并，不会丢失模型配置）
-            if (sessionConfig.getMcpServers() != null
-                    && !sessionConfig.getMcpServers().isEmpty()
-                    && providerConfig.isSupportsMcp()) {
-                try {
-                    generator.generateMcpConfig(
-                            sharedTempDir.toString(), sessionConfig.getMcpServers());
-                    logger.info(
-                            "[K8s-Config] MCP config generated for provider '{}': {}"
-                                    + " server(s)",
-                            providerKey,
-                            sessionConfig.getMcpServers().size());
-                } catch (Exception e) {
-                    logger.error(
-                            "[K8s-Config] Failed to generate MCP config for provider '{}': {}",
-                            providerKey,
-                            e.getMessage(),
-                            e);
-                }
-            }
-
-            // 3. Skill 配置注入
-            if (sessionConfig.getSkills() != null
-                    && !sessionConfig.getSkills().isEmpty()
-                    && providerConfig.isSupportsSkill()) {
-                try {
-                    generator.generateSkillConfig(
-                            sharedTempDir.toString(), sessionConfig.getSkills());
-                    logger.info(
-                            "[K8s-Config] Skill config generated for provider '{}': {}"
-                                    + " skill(s)",
-                            providerKey,
-                            sessionConfig.getSkills().size());
-                } catch (Exception e) {
-                    logger.error(
-                            "[K8s-Config] Failed to generate Skill config for provider '{}': {}",
-                            providerKey,
-                            e.getMessage(),
-                            e);
-                }
-            }
-
-            // 统一将临时目录中所有配置文件写入 Pod
-            copyTempConfigToPod(sharedTempDir, cwd, fileSystem);
-            logger.info(
-                    "[K8s-Config] All configs injected into pod for provider '{}'", providerKey);
-
-        } catch (Exception e) {
-            logger.error(
-                    "[K8s-Config] Failed to inject configs for provider '{}': {}",
-                    providerKey,
-                    e.getMessage(),
-                    e);
-        } finally {
-            if (sharedTempDir != null) {
-                deleteDirectory(sharedTempDir);
-            }
-        }
-    }
-
-    /**
-     * 将临时目录中生成的配置文件递归写入 Pod 内部。
-     *
-     * @param tempDir  本地临时目录（CliConfigGenerator 生成的配置文件所在目录）
-     * @param podCwd   Pod 内的目标根目录（如 /workspace）
-     * @param fileSystem PodFileSystemAdapter 实例
-     */
-    private void copyTempConfigToPod(
-            java.nio.file.Path tempDir,
-            String podCwd,
-            com.alibaba.himarket.service.acp.runtime.FileSystemAdapter fileSystem) {
-        try {
-            java.nio.file.Files.walk(tempDir)
-                    .filter(java.nio.file.Files::isRegularFile)
-                    .forEach(
-                            file -> {
-                                try {
-                                    // 计算相对路径：tempDir 下的相对路径即为 Pod 内 cwd 下的相对路径
-                                    String relativePath = tempDir.relativize(file).toString();
-                                    String content = java.nio.file.Files.readString(file);
-                                    // PodFileSystemAdapter.writeFile 接受相对于 basePath(/workspace) 的路径
-                                    fileSystem.writeFile(relativePath, content);
-                                    logger.debug(
-                                            "[K8s-Config] Written to pod: {}/{}",
-                                            podCwd,
-                                            relativePath);
-                                } catch (Exception e) {
-                                    logger.warn(
-                                            "[K8s-Config] Failed to write file to pod: {}",
-                                            e.getMessage());
-                                }
-                            });
-        } catch (IOException e) {
-            logger.warn("[K8s-Config] Failed to walk temp directory: {}", e.getMessage());
-        }
-    }
-
-    /**
      * 递归删除临时目录。
      */
     private void deleteDirectory(java.nio.file.Path dir) {
@@ -1288,15 +886,15 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
      * Resolve the runtime type from the query parameter string.
      * Defaults to LOCAL if the parameter is null, blank, or unrecognized (backward compatibility).
      */
-    RuntimeType resolveRuntimeType(String runtimeParam) {
+    SandboxType resolveSandboxType(String runtimeParam) {
         if (runtimeParam == null || runtimeParam.isBlank()) {
-            return RuntimeType.LOCAL;
+            return SandboxType.LOCAL;
         }
         try {
-            return RuntimeType.valueOf(runtimeParam.toUpperCase());
+            return SandboxType.fromValue(runtimeParam);
         } catch (IllegalArgumentException e) {
-            logger.warn("Unknown runtime type '{}', defaulting to LOCAL", runtimeParam);
-            return RuntimeType.LOCAL;
+            logger.warn("Unknown sandbox type '{}', defaulting to LOCAL", runtimeParam);
+            return SandboxType.LOCAL;
         }
     }
 
@@ -1308,7 +906,7 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
             String providerKey,
             CliProviderConfig providerConfig,
             String cwd,
-            RuntimeType runtimeType) {
+            SandboxType sandboxType) {
         // Build process environment: start from provider-level env config.
         // If isolateHome is enabled, override HOME so the CLI stores credentials
         // under the per-user workspace.
@@ -1328,7 +926,7 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
         config.setIsolateHome(providerConfig.isIsolateHome());
 
         // K8s 运行时：填充容器镜像和集群配置
-        if (runtimeType == RuntimeType.K8S) {
+        if (sandboxType == SandboxType.K8S) {
             config.setContainerImage(providerConfig.getContainerImage());
             // POC 阶段：自动使用第一个已注册的 K8s 集群
             config.setK8sConfigId(k8sConfigService.getDefaultConfigId());

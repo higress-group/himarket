@@ -177,8 +177,8 @@ class LocalSandboxProviderPropertyTest {
 
     static class StubAliveRuntimeAdapter implements RuntimeAdapter {
         @Override
-        public RuntimeType getType() {
-            return RuntimeType.LOCAL;
+        public SandboxType getType() {
+            return SandboxType.LOCAL;
         }
 
         @Override

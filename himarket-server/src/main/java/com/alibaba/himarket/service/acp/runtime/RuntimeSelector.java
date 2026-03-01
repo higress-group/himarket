@@ -23,44 +23,6 @@ public class RuntimeSelector {
     private final AcpProperties acpProperties;
     private final K8sConfigService k8sConfigService;
 
-    /**
-     * @deprecated 仅用于测试兼容，生产环境请使用带 K8sConfigService 的构造函数
-     */
-    @Deprecated
-    public RuntimeSelector(AcpProperties acpProperties, boolean k8sAvailable) {
-        this.acpProperties = acpProperties;
-        // 测试兼容：用一个简单的 stub
-        this.k8sConfigService = new StubK8sConfigService(k8sAvailable);
-    }
-
-    /**
-     * 测试用的 K8sConfigService 桩实现。
-     * 覆盖所有可能访问 repository 的方法，避免 NPE。
-     */
-    private static class StubK8sConfigService extends K8sConfigService {
-        private final boolean hasCluster;
-
-        StubK8sConfigService(boolean hasCluster) {
-            super(null);
-            this.hasCluster = hasCluster;
-        }
-
-        @Override
-        public void init() {
-            // 测试桩：跳过数据库加载
-        }
-
-        @Override
-        public boolean hasAnyCluster() {
-            return hasCluster;
-        }
-
-        @Override
-        public java.util.List<K8sClusterInfo> listClusters() {
-            return java.util.Collections.emptyList();
-        }
-    }
-
     public RuntimeSelector(AcpProperties acpProperties, K8sConfigService k8sConfigService) {
         this.acpProperties = acpProperties;
         this.k8sConfigService = k8sConfigService;
@@ -72,7 +34,7 @@ public class RuntimeSelector {
             throw new IllegalArgumentException("未知的 CLI Provider: " + providerKey);
         }
 
-        List<RuntimeType> compatible = provider.getCompatibleRuntimes();
+        List<SandboxType> compatible = provider.getCompatibleRuntimes();
         if (compatible == null || compatible.isEmpty()) {
             return Collections.emptyList();
         }
@@ -85,23 +47,24 @@ public class RuntimeSelector {
      * 前端在组件挂载时调用，用于获取全局运行时环境状态。
      */
     public List<RuntimeOption> getAllRuntimeAvailability() {
-        return java.util.Arrays.stream(RuntimeType.values())
+        return java.util.Arrays.stream(SandboxType.values())
+                .filter(type -> type != SandboxType.E2B) // E2B 尚未实现，不暴露给前端
                 .map(type -> toRuntimeOption(type, true))
                 .toList();
     }
 
-    public RuntimeType selectDefault(String providerKey) {
+    public SandboxType selectDefault(String providerKey) {
         CliProviderConfig provider = acpProperties.getProvider(providerKey);
         if (provider == null) {
             throw new IllegalArgumentException("未知的 CLI Provider: " + providerKey);
         }
 
-        List<RuntimeType> compatible = provider.getCompatibleRuntimes();
+        List<SandboxType> compatible = provider.getCompatibleRuntimes();
         if (compatible == null || compatible.isEmpty()) {
             throw new IllegalStateException("CLI Provider '" + providerKey + "' 没有配置兼容的运行时");
         }
 
-        List<RuntimeType> available = compatible.stream().filter(this::isRuntimeAvailable).toList();
+        List<SandboxType> available = compatible.stream().filter(this::isSandboxAvailable).toList();
 
         if (available.isEmpty()) {
             throw new IllegalStateException("CLI Provider '" + providerKey + "' 没有可用的运行时");
@@ -111,7 +74,7 @@ public class RuntimeSelector {
             return available.get(0);
         }
 
-        RuntimeType defaultType = resolveDefaultRuntimeType();
+        SandboxType defaultType = resolveDefaultSandboxType();
         if (defaultType != null && available.contains(defaultType)) {
             return defaultType;
         }
@@ -120,26 +83,28 @@ public class RuntimeSelector {
     }
 
     /**
-     * 检查指定运行时类型在当前环境中是否可用。
+     * 检查指定沙箱类型在当前环境中是否可用。
      * <ul>
-     *   <li>LOCAL: 始终可用</li>
+     *   <li>LOCAL: 仅当管理员启用时可用</li>
      *   <li>K8S: 仅当 K8s 集群已配置时可用</li>
+     *   <li>E2B: 尚未实现，始终不可用</li>
      * </ul>
      */
-    public boolean isRuntimeAvailable(RuntimeType type) {
+    public boolean isSandboxAvailable(SandboxType type) {
         return switch (type) {
             case LOCAL -> acpProperties.isLocalEnabled();
             case K8S -> k8sConfigService.hasAnyCluster();
+            case E2B -> false;
         };
     }
 
-    public RuntimeOption toRuntimeOption(RuntimeType type, boolean compatible) {
-        boolean available = compatible && isRuntimeAvailable(type);
+    public RuntimeOption toRuntimeOption(SandboxType type, boolean compatible) {
+        boolean available = compatible && isSandboxAvailable(type);
         String unavailableReason = null;
 
         if (!compatible) {
             unavailableReason = "该 CLI 工具不兼容此运行时";
-        } else if (!isRuntimeAvailable(type)) {
+        } else if (!isSandboxAvailable(type)) {
             unavailableReason = getUnavailableReason(type);
         }
 
@@ -151,36 +116,39 @@ public class RuntimeSelector {
                 unavailableReason);
     }
 
-    private RuntimeType resolveDefaultRuntimeType() {
+    private SandboxType resolveDefaultSandboxType() {
         String defaultRuntime = acpProperties.getDefaultRuntime();
         if (defaultRuntime == null || defaultRuntime.isBlank()) {
             return null;
         }
         try {
-            return RuntimeType.valueOf(defaultRuntime.toUpperCase());
+            return SandboxType.fromValue(defaultRuntime);
         } catch (IllegalArgumentException e) {
             return null;
         }
     }
 
-    private String getUnavailableReason(RuntimeType type) {
+    private String getUnavailableReason(SandboxType type) {
         return switch (type) {
             case LOCAL -> acpProperties.isLocalEnabled() ? null : "本地模式已被管理员禁用";
             case K8S -> "K8s 集群未配置，请联系平台管理员配置 kubeconfig";
+            case E2B -> "E2B 云沙箱尚未实现";
         };
     }
 
-    private String getLabelForType(RuntimeType type) {
+    private String getLabelForType(SandboxType type) {
         return switch (type) {
             case LOCAL -> "本地运行";
             case K8S -> "K8s 沙箱";
+            case E2B -> "E2B 云沙箱";
         };
     }
 
-    private String getDescriptionForType(RuntimeType type) {
+    private String getDescriptionForType(SandboxType type) {
         return switch (type) {
             case LOCAL -> "在服务器本地通过进程启动 CLI Agent，适用于开发调试";
             case K8S -> "通过 K8s 集群按需拉起 Pod，提供隔离的沙箱环境";
+            case E2B -> "通过 E2B SDK 管理远程云沙箱（未来扩展）";
         };
     }
 }

@@ -78,8 +78,8 @@ class SandboxInitPipelinePropertyTest {
     /** Stub RuntimeAdapter，模拟运行中的适配器。 */
     static class StubRuntimeAdapter implements RuntimeAdapter {
         @Override
-        public RuntimeType getType() {
-            return RuntimeType.LOCAL;
+        public SandboxType getType() {
+            return SandboxType.LOCAL;
         }
 
         @Override

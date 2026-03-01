@@ -26,7 +26,7 @@ import org.slf4j.LoggerFactory;
 public class SidecarFileSystemAdapter implements FileSystemAdapter {
 
     private static final Logger logger = LoggerFactory.getLogger(SidecarFileSystemAdapter.class);
-    private static final RuntimeType RUNTIME_TYPE = RuntimeType.K8S;
+    private static final SandboxType SANDBOX_TYPE = SandboxType.K8S;
     private static final int SIDECAR_PORT = 8080;
     private static final Duration HTTP_TIMEOUT = Duration.ofSeconds(30);
     private static final String DEFAULT_BASE_PATH = "/workspace";
@@ -70,13 +70,13 @@ public class SidecarFileSystemAdapter implements FileSystemAdapter {
         if (response.statusCode() == 404) {
             throw new FileSystemException(
                     FileSystemException.ErrorType.FILE_NOT_FOUND,
-                    RUNTIME_TYPE,
+                    SANDBOX_TYPE,
                     "文件不存在: " + relativePath);
         }
         if (response.statusCode() != 200) {
             throw new FileSystemException(
                     FileSystemException.ErrorType.IO_ERROR,
-                    RUNTIME_TYPE,
+                    SANDBOX_TYPE,
                     "读取文件失败: " + relativePath + " (status=" + response.statusCode() + ")");
         }
         JsonNode json = objectMapper.readTree(response.body());
@@ -92,7 +92,7 @@ public class SidecarFileSystemAdapter implements FileSystemAdapter {
         if (response.statusCode() != 200) {
             throw new FileSystemException(
                     FileSystemException.ErrorType.IO_ERROR,
-                    RUNTIME_TYPE,
+                    SANDBOX_TYPE,
                     "写入文件失败: " + relativePath + " (status=" + response.statusCode() + ")");
         }
     }
@@ -106,13 +106,13 @@ public class SidecarFileSystemAdapter implements FileSystemAdapter {
         if (response.statusCode() == 404) {
             throw new FileSystemException(
                     FileSystemException.ErrorType.FILE_NOT_FOUND,
-                    RUNTIME_TYPE,
+                    SANDBOX_TYPE,
                     "目录不存在: " + relativePath);
         }
         if (response.statusCode() != 200) {
             throw new FileSystemException(
                     FileSystemException.ErrorType.IO_ERROR,
-                    RUNTIME_TYPE,
+                    SANDBOX_TYPE,
                     "列举目录失败: " + relativePath + " (status=" + response.statusCode() + ")");
         }
         List<Map<String, Object>> items =
@@ -136,7 +136,7 @@ public class SidecarFileSystemAdapter implements FileSystemAdapter {
         if (response.statusCode() != 200) {
             throw new FileSystemException(
                     FileSystemException.ErrorType.IO_ERROR,
-                    RUNTIME_TYPE,
+                    SANDBOX_TYPE,
                     "创建目录失败: " + relativePath + " (status=" + response.statusCode() + ")");
         }
     }
@@ -145,14 +145,14 @@ public class SidecarFileSystemAdapter implements FileSystemAdapter {
     public void delete(String relativePath) throws IOException {
         // Sidecar 可能没有 delete 端点，暂时抛出不支持异常
         throw new FileSystemException(
-                FileSystemException.ErrorType.IO_ERROR, RUNTIME_TYPE, "Sidecar 不支持删除操作");
+                FileSystemException.ErrorType.IO_ERROR, SANDBOX_TYPE, "Sidecar 不支持删除操作");
     }
 
     @Override
     public FileInfo getFileInfo(String relativePath) throws IOException {
         // Sidecar 可能没有 stat 端点，暂时抛出不支持异常
         throw new FileSystemException(
-                FileSystemException.ErrorType.IO_ERROR, RUNTIME_TYPE, "Sidecar 不支持获取文件信息操作");
+                FileSystemException.ErrorType.IO_ERROR, SANDBOX_TYPE, "Sidecar 不支持获取文件信息操作");
     }
 
     // ===== 内部辅助方法 =====
@@ -162,7 +162,7 @@ public class SidecarFileSystemAdapter implements FileSystemAdapter {
             PathValidator.validatePath(basePath, relativePath);
         } catch (SecurityException e) {
             throw new FileSystemException(
-                    FileSystemException.ErrorType.PATH_TRAVERSAL, RUNTIME_TYPE, e.getMessage());
+                    FileSystemException.ErrorType.PATH_TRAVERSAL, SANDBOX_TYPE, e.getMessage());
         }
         return basePath + "/" + relativePath;
     }
@@ -184,7 +184,7 @@ public class SidecarFileSystemAdapter implements FileSystemAdapter {
             logger.error("Sidecar 不可达: {}", url, e);
             throw new FileSystemException(
                     FileSystemException.ErrorType.IO_ERROR,
-                    RUNTIME_TYPE,
+                    SANDBOX_TYPE,
                     "Sidecar 连接失败: " + url,
                     e);
         } catch (InterruptedException e) {

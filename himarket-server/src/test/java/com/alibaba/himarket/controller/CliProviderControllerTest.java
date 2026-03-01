@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.alibaba.himarket.config.AcpProperties;
 import com.alibaba.himarket.config.AcpProperties.CliProviderConfig;
-import com.alibaba.himarket.service.acp.runtime.RuntimeType;
+import com.alibaba.himarket.service.acp.runtime.SandboxType;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,7 +31,7 @@ class CliProviderControllerTest {
         qoder.setCommand("qodercli");
         qoder.setArgs("--acp");
         qoder.setRuntimeCategory("native");
-        qoder.setCompatibleRuntimes(List.of(RuntimeType.LOCAL, RuntimeType.K8S));
+        qoder.setCompatibleRuntimes(List.of(SandboxType.LOCAL, SandboxType.K8S));
         qoder.setContainerImage("himarket/sandbox:latest");
         providers.put("qodercli", qoder);
 
@@ -40,7 +40,7 @@ class CliProviderControllerTest {
         kiro.setCommand("kiro-cli");
         kiro.setArgs("acp");
         kiro.setRuntimeCategory("native");
-        kiro.setCompatibleRuntimes(List.of(RuntimeType.LOCAL));
+        kiro.setCompatibleRuntimes(List.of(SandboxType.LOCAL));
         providers.put("kiro-cli", kiro);
 
         // npx 通常在安装了 Node.js 的机器上可用
@@ -49,7 +49,7 @@ class CliProviderControllerTest {
         claude.setCommand("npx");
         claude.setArgs("@zed-industries/claude-code-acp");
         claude.setRuntimeCategory("nodejs");
-        claude.setCompatibleRuntimes(List.of(RuntimeType.LOCAL));
+        claude.setCompatibleRuntimes(List.of(SandboxType.LOCAL));
         providers.put("claude-code", claude);
 
         // 一个肯定不存在的命令
@@ -58,7 +58,7 @@ class CliProviderControllerTest {
         fake.setCommand("this-command-definitely-does-not-exist-xyz");
         fake.setArgs("--acp");
         fake.setRuntimeCategory("native");
-        fake.setCompatibleRuntimes(List.of(RuntimeType.LOCAL));
+        fake.setCompatibleRuntimes(List.of(SandboxType.LOCAL));
         providers.put("fake-cli", fake);
 
         properties.setProviders(providers);
@@ -167,14 +167,14 @@ class CliProviderControllerTest {
 
         CliProviderController.CliProviderInfo qoder =
                 result.stream().filter(p -> p.key().equals("qodercli")).findFirst().orElseThrow();
-        assertEquals(List.of(RuntimeType.LOCAL, RuntimeType.K8S), qoder.compatibleRuntimes());
+        assertEquals(List.of(SandboxType.LOCAL, SandboxType.K8S), qoder.compatibleRuntimes());
 
         CliProviderController.CliProviderInfo claude =
                 result.stream()
                         .filter(p -> p.key().equals("claude-code"))
                         .findFirst()
                         .orElseThrow();
-        assertEquals(List.of(RuntimeType.LOCAL), claude.compatibleRuntimes());
+        assertEquals(List.of(SandboxType.LOCAL), claude.compatibleRuntimes());
     }
 
     @Test

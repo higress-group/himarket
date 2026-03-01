@@ -4,9 +4,12 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.alibaba.himarket.config.AcpProperties;
 import com.alibaba.himarket.config.AcpProperties.CliProviderConfig;
+import com.alibaba.himarket.service.acp.runtime.K8sClusterInfo;
+import com.alibaba.himarket.service.acp.runtime.K8sConfigService;
 import com.alibaba.himarket.service.acp.runtime.RuntimeOption;
 import com.alibaba.himarket.service.acp.runtime.RuntimeSelector;
-import com.alibaba.himarket.service.acp.runtime.RuntimeType;
+import com.alibaba.himarket.service.acp.runtime.SandboxType;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,30 +35,39 @@ class RuntimeControllerTest {
         qoder.setDisplayName("Qoder CLI");
         qoder.setCommand("qodercli");
         qoder.setRuntimeCategory("native");
-        qoder.setCompatibleRuntimes(List.of(RuntimeType.LOCAL, RuntimeType.K8S));
+        qoder.setCompatibleRuntimes(List.of(SandboxType.LOCAL, SandboxType.K8S));
         providers.put("qodercli", qoder);
 
         CliProviderConfig claude = new CliProviderConfig();
         claude.setDisplayName("Claude Code");
         claude.setCommand("npx");
         claude.setRuntimeCategory("nodejs");
-        claude.setCompatibleRuntimes(List.of(RuntimeType.LOCAL, RuntimeType.K8S));
+        claude.setCompatibleRuntimes(List.of(SandboxType.LOCAL, SandboxType.K8S));
         providers.put("claude-code", claude);
 
         CliProviderConfig localOnly = new CliProviderConfig();
         localOnly.setDisplayName("Local Only CLI");
         localOnly.setCommand("local-cli");
         localOnly.setRuntimeCategory("native");
-        localOnly.setCompatibleRuntimes(List.of(RuntimeType.LOCAL));
+        localOnly.setCompatibleRuntimes(List.of(SandboxType.LOCAL));
         providers.put("local-only", localOnly);
 
         properties.setProviders(providers);
     }
 
+    private RuntimeSelector createSelector(boolean k8sAvailable) {
+        K8sConfigService mockK8s = new K8sConfigService(null) {
+            @Override public void init() {}
+            @Override public boolean hasAnyCluster() { return k8sAvailable; }
+            @Override public List<K8sClusterInfo> listClusters() { return Collections.emptyList(); }
+        };
+        return new RuntimeSelector(properties, mockK8s);
+    }
+
     @Test
     void testGetAvailableRuntimesForNativeProvider() {
         // K8s 不可用
-        RuntimeSelector selector = new RuntimeSelector(properties, false);
+        RuntimeSelector selector = createSelector(false);
         controller = new RuntimeController(selector);
 
         List<RuntimeOption> result = controller.getAvailableRuntimes("qodercli");
@@ -63,13 +75,13 @@ class RuntimeControllerTest {
 
         RuntimeOption local =
                 result.stream()
-                        .filter(r -> r.type() == RuntimeType.LOCAL)
+                        .filter(r -> r.type() == SandboxType.LOCAL)
                         .findFirst()
                         .orElseThrow();
         assertTrue(local.available());
 
         RuntimeOption k8sOption =
-                result.stream().filter(r -> r.type() == RuntimeType.K8S).findFirst().orElseThrow();
+                result.stream().filter(r -> r.type() == SandboxType.K8S).findFirst().orElseThrow();
         // K8s 不可用时 K8S 也标记为不可用
         assertFalse(k8sOption.available());
         assertNotNull(k8sOption.unavailableReason());
@@ -77,7 +89,7 @@ class RuntimeControllerTest {
 
     @Test
     void testGetAvailableRuntimesForNodejsProvider() {
-        RuntimeSelector selector = new RuntimeSelector(properties, true);
+        RuntimeSelector selector = createSelector(true);
         controller = new RuntimeController(selector);
 
         List<RuntimeOption> result = controller.getAvailableRuntimes("claude-code");
@@ -89,19 +101,19 @@ class RuntimeControllerTest {
 
     @Test
     void testGetAvailableRuntimesWithK8sEnabled() {
-        RuntimeSelector selector = new RuntimeSelector(properties, true);
+        RuntimeSelector selector = createSelector(true);
         controller = new RuntimeController(selector);
 
         List<RuntimeOption> result = controller.getAvailableRuntimes("qodercli");
         RuntimeOption k8sOption =
-                result.stream().filter(r -> r.type() == RuntimeType.K8S).findFirst().orElseThrow();
+                result.stream().filter(r -> r.type() == SandboxType.K8S).findFirst().orElseThrow();
         assertTrue(k8sOption.available());
         assertNull(k8sOption.unavailableReason());
     }
 
     @Test
     void testGetAvailableRuntimesForUnknownProvider() {
-        RuntimeSelector selector = new RuntimeSelector(properties, false);
+        RuntimeSelector selector = createSelector(false);
         controller = new RuntimeController(selector);
 
         assertThrows(
@@ -111,12 +123,12 @@ class RuntimeControllerTest {
 
     @Test
     void testGetAvailableRuntimesForLocalOnlyProvider() {
-        RuntimeSelector selector = new RuntimeSelector(properties, false);
+        RuntimeSelector selector = createSelector(false);
         controller = new RuntimeController(selector);
 
         List<RuntimeOption> result = controller.getAvailableRuntimes("local-only");
         assertEquals(1, result.size());
-        assertEquals(RuntimeType.LOCAL, result.get(0).type());
+        assertEquals(SandboxType.LOCAL, result.get(0).type());
         assertTrue(result.get(0).available());
     }
 }

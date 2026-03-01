@@ -132,8 +132,8 @@ class K8sSandboxProviderPropertyTest {
 
     static class StubAliveRuntimeAdapter implements RuntimeAdapter {
         @Override
-        public RuntimeType getType() {
-            return RuntimeType.K8S;
+        public SandboxType getType() {
+            return SandboxType.K8S;
         }
 
         @Override

@@ -19,8 +19,8 @@ import net.jqwik.api.*;
 class RuntimeAvailabilityPropertyTest {
 
     @Provide
-    Arbitrary<RuntimeType> runtimeTypes() {
-        return Arbitraries.of(RuntimeType.values());
+    Arbitrary<SandboxType> runtimeTypes() {
+        return Arbitraries.of(SandboxType.LOCAL, SandboxType.K8S);
     }
 
     @Provide
@@ -31,7 +31,12 @@ class RuntimeAvailabilityPropertyTest {
     private RuntimeSelector buildSelector(boolean k8sAvailable) {
         AcpProperties props = new AcpProperties();
         props.setDefaultRuntime("local");
-        return new RuntimeSelector(props, k8sAvailable);
+        K8sConfigService mockK8s = new K8sConfigService(null) {
+            @Override public void init() {}
+            @Override public boolean hasAnyCluster() { return k8sAvailable; }
+            @Override public java.util.List<K8sClusterInfo> listClusters() { return java.util.Collections.emptyList(); }
+        };
+        return new RuntimeSelector(props, mockK8s);
     }
 
     // ===== Property 7a: LOCAL 始终可用 =====
@@ -39,7 +44,7 @@ class RuntimeAvailabilityPropertyTest {
     @Property(tries = 200)
     void localRuntime_alwaysAvailable(@ForAll("k8sStates") boolean k8sAvailable) {
         RuntimeSelector selector = buildSelector(k8sAvailable);
-        assertTrue(selector.isRuntimeAvailable(RuntimeType.LOCAL));
+        assertTrue(selector.isSandboxAvailable(SandboxType.LOCAL));
     }
 
     // ===== Property 7b: K8S 可用性取决于 K8s 配置状态 =====
@@ -47,17 +52,17 @@ class RuntimeAvailabilityPropertyTest {
     @Property(tries = 200)
     void k8sAvailability_matchesK8sState(@ForAll("k8sStates") boolean k8sAvailable) {
         RuntimeSelector selector = buildSelector(k8sAvailable);
-        assertEquals(k8sAvailable, selector.isRuntimeAvailable(RuntimeType.K8S));
+        assertEquals(k8sAvailable, selector.isSandboxAvailable(SandboxType.K8S));
     }
 
     // ===== Property 7d: 可用性验证结果与 RuntimeOption 一致 =====
 
     @Property(tries = 200)
     void runtimeOption_availabilityMatchesIsRuntimeAvailable(
-            @ForAll("runtimeTypes") RuntimeType type, @ForAll("k8sStates") boolean k8sAvailable) {
+            @ForAll("runtimeTypes") SandboxType type, @ForAll("k8sStates") boolean k8sAvailable) {
 
         RuntimeSelector selector = buildSelector(k8sAvailable);
-        boolean directAvailability = selector.isRuntimeAvailable(type);
+        boolean directAvailability = selector.isSandboxAvailable(type);
         RuntimeOption option = selector.toRuntimeOption(type, true);
 
         assertEquals(directAvailability, option.available());
@@ -67,7 +72,7 @@ class RuntimeAvailabilityPropertyTest {
 
     @Property(tries = 200)
     void unavailableRuntime_returnsErrorMessageWithReason(
-            @ForAll("runtimeTypes") RuntimeType type, @ForAll("k8sStates") boolean k8sAvailable) {
+            @ForAll("runtimeTypes") SandboxType type, @ForAll("k8sStates") boolean k8sAvailable) {
 
         RuntimeSelector selector = buildSelector(k8sAvailable);
         RuntimeOption option = selector.toRuntimeOption(type, true);
@@ -85,7 +90,7 @@ class RuntimeAvailabilityPropertyTest {
     @Property(tries = 100)
     void k8sUnavailable_errorMessageContainsConfigGuidance() {
         RuntimeSelector selector = buildSelector(false);
-        RuntimeOption option = selector.toRuntimeOption(RuntimeType.K8S, true);
+        RuntimeOption option = selector.toRuntimeOption(SandboxType.K8S, true);
 
         assertFalse(option.available());
         assertNotNull(option.unavailableReason());
@@ -99,7 +104,7 @@ class RuntimeAvailabilityPropertyTest {
 
     @Property(tries = 200)
     void incompatibleRuntime_markedUnavailableWithReason(
-            @ForAll("runtimeTypes") RuntimeType type, @ForAll("k8sStates") boolean k8sAvailable) {
+            @ForAll("runtimeTypes") SandboxType type, @ForAll("k8sStates") boolean k8sAvailable) {
 
         RuntimeSelector selector = buildSelector(k8sAvailable);
         RuntimeOption option = selector.toRuntimeOption(type, false);

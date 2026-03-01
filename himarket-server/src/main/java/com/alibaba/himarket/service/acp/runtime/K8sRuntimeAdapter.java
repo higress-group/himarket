@@ -182,8 +182,8 @@ public class K8sRuntimeAdapter implements RuntimeAdapter {
     }
 
     @Override
-    public RuntimeType getType() {
-        return RuntimeType.K8S;
+    public SandboxType getType() {
+        return SandboxType.K8S;
     }
 
     @Override
@@ -940,7 +940,7 @@ public class K8sRuntimeAdapter implements RuntimeAdapter {
         if (faultListener != null) {
             try {
                 faultListener.accept(
-                        new RuntimeFaultNotification(faultType, RuntimeType.K8S, suggestedAction));
+                        new RuntimeFaultNotification(faultType, SandboxType.K8S, suggestedAction));
             } catch (Exception e) {
                 logger.warn("Error notifying fault listener: {}", e.getMessage());
             }

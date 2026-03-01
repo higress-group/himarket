@@ -282,17 +282,25 @@ function CodingContent() {
 
   // Poll for external file changes (e.g. user creates files via terminal)
   const lastPollRef = useRef<number>(0);
+  const pollingRef = useRef(false);
   useEffect(() => {
     if (!activeQuest?.cwd) return;
     const cwd = activeQuest.cwd;
     lastPollRef.current = Date.now();
+    const pollInterval = 10000;
     const interval = setInterval(async () => {
-      const changes = await fetchWorkspaceChanges(cwd, lastPollRef.current, 200, currentRuntimeRef.current);
-      if (changes.length > 0) {
-        lastPollRef.current = Date.now();
-        fetchDirectoryTree(cwd, 10, currentRuntimeRef.current).then(setTree);
+      if (pollingRef.current) return; // 上一次还没回来，跳过
+      pollingRef.current = true;
+      try {
+        const changes = await fetchWorkspaceChanges(cwd, lastPollRef.current, 200, currentRuntimeRef.current);
+        if (changes.length > 0) {
+          lastPollRef.current = Date.now();
+          fetchDirectoryTree(cwd, 10, currentRuntimeRef.current).then(setTree);
+        }
+      } finally {
+        pollingRef.current = false;
       }
-    }, 3000);
+    }, pollInterval);
     return () => clearInterval(interval);
   }, [activeQuest?.cwd]);
 

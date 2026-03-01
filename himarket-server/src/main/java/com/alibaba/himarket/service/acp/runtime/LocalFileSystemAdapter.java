@@ -27,7 +27,7 @@ import org.slf4j.LoggerFactory;
 public class LocalFileSystemAdapter implements FileSystemAdapter {
 
     private static final Logger logger = LoggerFactory.getLogger(LocalFileSystemAdapter.class);
-    private static final RuntimeType RUNTIME_TYPE = RuntimeType.LOCAL;
+    private static final SandboxType SANDBOX_TYPE = SandboxType.LOCAL;
 
     private final String basePath;
 
@@ -50,13 +50,13 @@ public class LocalFileSystemAdapter implements FileSystemAdapter {
             if (!Files.exists(resolved)) {
                 throw new FileSystemException(
                         FileSystemException.ErrorType.FILE_NOT_FOUND,
-                        RUNTIME_TYPE,
+                        SANDBOX_TYPE,
                         "文件不存在: " + relativePath);
             }
             if (Files.isDirectory(resolved)) {
                 throw new FileSystemException(
                         FileSystemException.ErrorType.NOT_A_FILE,
-                        RUNTIME_TYPE,
+                        SANDBOX_TYPE,
                         "路径是目录而非文件: " + relativePath);
             }
             return Files.readString(resolved);
@@ -65,13 +65,13 @@ public class LocalFileSystemAdapter implements FileSystemAdapter {
         } catch (AccessDeniedException e) {
             throw new FileSystemException(
                     FileSystemException.ErrorType.PERMISSION_DENIED,
-                    RUNTIME_TYPE,
+                    SANDBOX_TYPE,
                     "无权读取文件: " + relativePath,
                     e);
         } catch (IOException e) {
             throw new FileSystemException(
                     FileSystemException.ErrorType.IO_ERROR,
-                    RUNTIME_TYPE,
+                    SANDBOX_TYPE,
                     "读取文件失败: " + relativePath,
                     e);
         }
@@ -94,20 +94,20 @@ public class LocalFileSystemAdapter implements FileSystemAdapter {
         } catch (AccessDeniedException e) {
             throw new FileSystemException(
                     FileSystemException.ErrorType.PERMISSION_DENIED,
-                    RUNTIME_TYPE,
+                    SANDBOX_TYPE,
                     "无权写入文件: " + relativePath,
                     e);
         } catch (IOException e) {
             if (isDiskFullError(e)) {
                 throw new FileSystemException(
                         FileSystemException.ErrorType.DISK_FULL,
-                        RUNTIME_TYPE,
+                        SANDBOX_TYPE,
                         "磁盘空间不足: " + relativePath,
                         e);
             }
             throw new FileSystemException(
                     FileSystemException.ErrorType.IO_ERROR,
-                    RUNTIME_TYPE,
+                    SANDBOX_TYPE,
                     "写入文件失败: " + relativePath,
                     e);
         }
@@ -120,13 +120,13 @@ public class LocalFileSystemAdapter implements FileSystemAdapter {
             if (!Files.exists(resolved)) {
                 throw new FileSystemException(
                         FileSystemException.ErrorType.FILE_NOT_FOUND,
-                        RUNTIME_TYPE,
+                        SANDBOX_TYPE,
                         "目录不存在: " + relativePath);
             }
             if (!Files.isDirectory(resolved)) {
                 throw new FileSystemException(
                         FileSystemException.ErrorType.NOT_A_DIRECTORY,
-                        RUNTIME_TYPE,
+                        SANDBOX_TYPE,
                         "路径不是目录: " + relativePath);
             }
             try (Stream<Path> stream = Files.list(resolved)) {
@@ -137,13 +137,13 @@ public class LocalFileSystemAdapter implements FileSystemAdapter {
         } catch (AccessDeniedException e) {
             throw new FileSystemException(
                     FileSystemException.ErrorType.PERMISSION_DENIED,
-                    RUNTIME_TYPE,
+                    SANDBOX_TYPE,
                     "无权列举目录: " + relativePath,
                     e);
         } catch (IOException e) {
             throw new FileSystemException(
                     FileSystemException.ErrorType.IO_ERROR,
-                    RUNTIME_TYPE,
+                    SANDBOX_TYPE,
                     "列举目录失败: " + relativePath,
                     e);
         }
@@ -157,19 +157,19 @@ public class LocalFileSystemAdapter implements FileSystemAdapter {
         } catch (AccessDeniedException e) {
             throw new FileSystemException(
                     FileSystemException.ErrorType.PERMISSION_DENIED,
-                    RUNTIME_TYPE,
+                    SANDBOX_TYPE,
                     "无权创建目录: " + relativePath,
                     e);
         } catch (FileAlreadyExistsException e) {
             throw new FileSystemException(
                     FileSystemException.ErrorType.ALREADY_EXISTS,
-                    RUNTIME_TYPE,
+                    SANDBOX_TYPE,
                     "路径已存在且不是目录: " + relativePath,
                     e);
         } catch (IOException e) {
             throw new FileSystemException(
                     FileSystemException.ErrorType.IO_ERROR,
-                    RUNTIME_TYPE,
+                    SANDBOX_TYPE,
                     "创建目录失败: " + relativePath,
                     e);
         }
@@ -182,7 +182,7 @@ public class LocalFileSystemAdapter implements FileSystemAdapter {
             if (!Files.exists(resolved)) {
                 throw new FileSystemException(
                         FileSystemException.ErrorType.FILE_NOT_FOUND,
-                        RUNTIME_TYPE,
+                        SANDBOX_TYPE,
                         "文件或目录不存在: " + relativePath);
             }
             if (Files.isDirectory(resolved)) {
@@ -195,13 +195,13 @@ public class LocalFileSystemAdapter implements FileSystemAdapter {
         } catch (AccessDeniedException e) {
             throw new FileSystemException(
                     FileSystemException.ErrorType.PERMISSION_DENIED,
-                    RUNTIME_TYPE,
+                    SANDBOX_TYPE,
                     "无权删除: " + relativePath,
                     e);
         } catch (IOException e) {
             throw new FileSystemException(
                     FileSystemException.ErrorType.IO_ERROR,
-                    RUNTIME_TYPE,
+                    SANDBOX_TYPE,
                     "删除失败: " + relativePath,
                     e);
         }
@@ -214,7 +214,7 @@ public class LocalFileSystemAdapter implements FileSystemAdapter {
             if (!Files.exists(resolved)) {
                 throw new FileSystemException(
                         FileSystemException.ErrorType.FILE_NOT_FOUND,
-                        RUNTIME_TYPE,
+                        SANDBOX_TYPE,
                         "文件不存在: " + relativePath);
             }
             BasicFileAttributes attrs = Files.readAttributes(resolved, BasicFileAttributes.class);
@@ -230,13 +230,13 @@ public class LocalFileSystemAdapter implements FileSystemAdapter {
         } catch (AccessDeniedException e) {
             throw new FileSystemException(
                     FileSystemException.ErrorType.PERMISSION_DENIED,
-                    RUNTIME_TYPE,
+                    SANDBOX_TYPE,
                     "无权获取文件信息: " + relativePath,
                     e);
         } catch (IOException e) {
             throw new FileSystemException(
                     FileSystemException.ErrorType.IO_ERROR,
-                    RUNTIME_TYPE,
+                    SANDBOX_TYPE,
                     "获取文件信息失败: " + relativePath,
                     e);
         }
@@ -251,7 +251,7 @@ public class LocalFileSystemAdapter implements FileSystemAdapter {
             return PathValidator.validatePath(basePath, relativePath);
         } catch (SecurityException e) {
             throw new FileSystemException(
-                    FileSystemException.ErrorType.PATH_TRAVERSAL, RUNTIME_TYPE, e.getMessage());
+                    FileSystemException.ErrorType.PATH_TRAVERSAL, SANDBOX_TYPE, e.getMessage());
         }
     }
 

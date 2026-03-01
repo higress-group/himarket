@@ -17,11 +17,11 @@ class RuntimeFaultNotificationTest {
         RuntimeFaultNotification notification =
                 new RuntimeFaultNotification(
                         RuntimeFaultNotification.FAULT_PROCESS_CRASHED,
-                        RuntimeType.LOCAL,
+                        SandboxType.LOCAL,
                         RuntimeFaultNotification.ACTION_RESTART);
 
         assertEquals(RuntimeFaultNotification.FAULT_PROCESS_CRASHED, notification.faultType());
-        assertEquals(RuntimeType.LOCAL, notification.runtimeType());
+        assertEquals(SandboxType.LOCAL, notification.sandboxType());
         assertEquals(RuntimeFaultNotification.ACTION_RESTART, notification.suggestedAction());
     }
 
@@ -30,11 +30,11 @@ class RuntimeFaultNotificationTest {
         RuntimeFaultNotification notification =
                 new RuntimeFaultNotification(
                         RuntimeFaultNotification.FAULT_HEALTH_CHECK_FAILURE,
-                        RuntimeType.K8S,
+                        SandboxType.K8S,
                         RuntimeFaultNotification.ACTION_RECREATE);
 
         assertEquals(RuntimeFaultNotification.FAULT_HEALTH_CHECK_FAILURE, notification.faultType());
-        assertEquals(RuntimeType.K8S, notification.runtimeType());
+        assertEquals(SandboxType.K8S, notification.sandboxType());
         assertEquals(RuntimeFaultNotification.ACTION_RECREATE, notification.suggestedAction());
     }
 
@@ -43,7 +43,7 @@ class RuntimeFaultNotificationTest {
         RuntimeFaultNotification notification =
                 new RuntimeFaultNotification(
                         RuntimeFaultNotification.FAULT_IDLE_TIMEOUT,
-                        RuntimeType.K8S,
+                        SandboxType.K8S,
                         RuntimeFaultNotification.ACTION_RECREATE);
 
         assertEquals(RuntimeFaultNotification.FAULT_IDLE_TIMEOUT, notification.faultType());
@@ -54,7 +54,7 @@ class RuntimeFaultNotificationTest {
         RuntimeFaultNotification notification =
                 new RuntimeFaultNotification(
                         RuntimeFaultNotification.FAULT_CONNECTION_LOST,
-                        RuntimeType.K8S,
+                        SandboxType.K8S,
                         RuntimeFaultNotification.ACTION_RECONNECT);
 
         assertEquals(RuntimeFaultNotification.FAULT_CONNECTION_LOST, notification.faultType());
@@ -63,22 +63,22 @@ class RuntimeFaultNotificationTest {
 
     @Test
     void notification_equality() {
-        RuntimeFaultNotification a = new RuntimeFaultNotification("A", RuntimeType.LOCAL, "X");
-        RuntimeFaultNotification b = new RuntimeFaultNotification("A", RuntimeType.LOCAL, "X");
+        RuntimeFaultNotification a = new RuntimeFaultNotification("A", SandboxType.LOCAL, "X");
+        RuntimeFaultNotification b = new RuntimeFaultNotification("A", SandboxType.LOCAL, "X");
         assertEquals(a, b);
     }
 
     @Test
     void notification_inequality_differentFaultType() {
-        RuntimeFaultNotification a = new RuntimeFaultNotification("A", RuntimeType.LOCAL, "X");
-        RuntimeFaultNotification b = new RuntimeFaultNotification("B", RuntimeType.LOCAL, "X");
+        RuntimeFaultNotification a = new RuntimeFaultNotification("A", SandboxType.LOCAL, "X");
+        RuntimeFaultNotification b = new RuntimeFaultNotification("B", SandboxType.LOCAL, "X");
         assertNotEquals(a, b);
     }
 
     @Test
     void notification_inequality_differentRuntimeType() {
-        RuntimeFaultNotification a = new RuntimeFaultNotification("A", RuntimeType.LOCAL, "X");
-        RuntimeFaultNotification b = new RuntimeFaultNotification("A", RuntimeType.K8S, "X");
+        RuntimeFaultNotification a = new RuntimeFaultNotification("A", SandboxType.LOCAL, "X");
+        RuntimeFaultNotification b = new RuntimeFaultNotification("A", SandboxType.K8S, "X");
         assertNotEquals(a, b);
     }
 

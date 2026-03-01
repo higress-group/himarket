@@ -5,14 +5,14 @@ package com.alibaba.himarket.service.acp.runtime;
  * <p>
  * 用于前端 RuntimeSelector 组件展示可选运行时列表。
  *
- * @param type              运行时类型
+ * @param type              沙箱类型
  * @param label             显示名称
  * @param description       描述信息
  * @param available         当前环境是否可用
  * @param unavailableReason 不可用原因（available 为 true 时为 null）
  */
 public record RuntimeOption(
-        RuntimeType type,
+        SandboxType type,
         String label,
         String description,
         boolean available,

@@ -1137,11 +1137,4 @@ public class PodReuseManager {
         return SERVICE_NAME_PREFIX + userId;
     }
 
-    /**
-     * 根据 Pod 名称生成对应的 Service 名称（兼容旧逻辑，内部提取 userId）。
-     * @deprecated 优先使用 {@link #serviceNameForUser(String)}
-     */
-    static String serviceNameForPod(String podName) {
-        return SERVICE_NAME_PREFIX + podName;
-    }
 }

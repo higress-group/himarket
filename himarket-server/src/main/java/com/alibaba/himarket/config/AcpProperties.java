@@ -1,6 +1,6 @@
 package com.alibaba.himarket.config;
 
-import com.alibaba.himarket.service.acp.runtime.RuntimeType;
+import com.alibaba.himarket.service.acp.runtime.SandboxType;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -122,7 +122,7 @@ public class AcpProperties {
          * 该 CLI 工具兼容的运行时列表。
          * 用于运行时选择器过滤不兼容的运行时方案。
          */
-        private List<RuntimeType> compatibleRuntimes;
+        private List<SandboxType> compatibleRuntimes;
 
         /**
          * K8s 运行时使用的容器镜像地址。
@@ -204,11 +204,11 @@ public class AcpProperties {
             this.isolateHome = isolateHome;
         }
 
-        public List<RuntimeType> getCompatibleRuntimes() {
+        public List<SandboxType> getCompatibleRuntimes() {
             return compatibleRuntimes;
         }
 
-        public void setCompatibleRuntimes(List<RuntimeType> compatibleRuntimes) {
+        public void setCompatibleRuntimes(List<SandboxType> compatibleRuntimes) {
             this.compatibleRuntimes = compatibleRuntimes;
         }
 

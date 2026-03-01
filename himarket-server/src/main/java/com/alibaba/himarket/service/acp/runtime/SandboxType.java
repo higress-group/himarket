@@ -1,8 +1,12 @@
 package com.alibaba.himarket.service.acp.runtime;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
+
 /**
  * 沙箱类型枚举。
- * 替代原有的 RuntimeType（LOCAL/K8S），支持更多沙箱类型。
+ * 统一标识 CLI Agent 运行在哪种沙箱环境中。
+ * JSON 序列化为小写（"local"、"k8s"、"e2b"），与前端类型定义一致。
  */
 public enum SandboxType {
 
@@ -21,10 +25,12 @@ public enum SandboxType {
         this.value = value;
     }
 
+    @JsonValue
     public String getValue() {
         return value;
     }
 
+    @JsonCreator
     public static SandboxType fromValue(String value) {
         for (SandboxType type : values()) {
             if (type.value.equalsIgnoreCase(value) || type.name().equalsIgnoreCase(value)) {

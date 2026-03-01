@@ -198,8 +198,8 @@ class ConfigInjectionPhasePropertyTest {
     /** Stub RuntimeAdapter */
     static class StubRuntimeAdapter implements RuntimeAdapter {
         @Override
-        public RuntimeType getType() {
-            return RuntimeType.LOCAL;
+        public SandboxType getType() {
+            return SandboxType.LOCAL;
         }
 
         @Override

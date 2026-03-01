@@ -36,7 +36,7 @@ class LocalRuntimeAdapterTest {
     @Test
     void getType_returnsLocal() {
         LocalRuntimeAdapter adapter = new LocalRuntimeAdapter();
-        assertEquals(RuntimeType.LOCAL, adapter.getType());
+        assertEquals(SandboxType.LOCAL, adapter.getType());
     }
 
     // ===== 初始状态测试 =====
@@ -205,7 +205,7 @@ class LocalRuntimeAdapterTest {
         RuntimeFaultNotification notification = captured.get();
         assertNotNull(notification);
         assertEquals(RuntimeFaultNotification.FAULT_PROCESS_CRASHED, notification.faultType());
-        assertEquals(RuntimeType.LOCAL, notification.runtimeType());
+        assertEquals(SandboxType.LOCAL, notification.sandboxType());
         assertEquals(RuntimeFaultNotification.ACTION_RESTART, notification.suggestedAction());
         assertEquals(RuntimeStatus.ERROR, adapter.getStatus());
 

@@ -57,7 +57,7 @@ class LocalFileSystemAdapterTest {
         FileSystemException ex =
                 assertThrows(FileSystemException.class, () -> adapter.readFile("missing.txt"));
         assertEquals(FileSystemException.ErrorType.FILE_NOT_FOUND, ex.getErrorType());
-        assertEquals(RuntimeType.LOCAL, ex.getRuntimeType());
+        assertEquals(SandboxType.LOCAL, ex.getSandboxType());
     }
 
     @Test
@@ -66,7 +66,7 @@ class LocalFileSystemAdapterTest {
         FileSystemException ex =
                 assertThrows(FileSystemException.class, () -> adapter.readFile("adir"));
         assertEquals(FileSystemException.ErrorType.NOT_A_FILE, ex.getErrorType());
-        assertEquals(RuntimeType.LOCAL, ex.getRuntimeType());
+        assertEquals(SandboxType.LOCAL, ex.getSandboxType());
     }
 
     @Test
@@ -74,7 +74,7 @@ class LocalFileSystemAdapterTest {
         FileSystemException ex =
                 assertThrows(FileSystemException.class, () -> adapter.readFile("../etc/passwd"));
         assertEquals(FileSystemException.ErrorType.PATH_TRAVERSAL, ex.getErrorType());
-        assertEquals(RuntimeType.LOCAL, ex.getRuntimeType());
+        assertEquals(SandboxType.LOCAL, ex.getSandboxType());
     }
 
     // ===== writeFile 测试 =====
@@ -262,7 +262,7 @@ class LocalFileSystemAdapterTest {
         FileSystemException ex =
                 assertThrows(FileSystemException.class, () -> adapter.readFile("nonexistent.txt"));
         assertNotNull(ex.getErrorType());
-        assertNotNull(ex.getRuntimeType());
+        assertNotNull(ex.getSandboxType());
         assertTrue(ex.getMessage().contains("LOCAL"));
         assertTrue(ex.getMessage().contains("FILE_NOT_FOUND"));
     }
@@ -273,7 +273,7 @@ class LocalFileSystemAdapterTest {
                 assertThrows(
                         FileSystemException.class, () -> adapter.readFile("../../../etc/shadow"));
         assertEquals(FileSystemException.ErrorType.PATH_TRAVERSAL, ex.getErrorType());
-        assertEquals(RuntimeType.LOCAL, ex.getRuntimeType());
+        assertEquals(SandboxType.LOCAL, ex.getSandboxType());
         assertTrue(ex.getMessage().contains("LOCAL"));
         assertTrue(ex.getMessage().contains("PATH_TRAVERSAL"));
     }

@@ -84,7 +84,7 @@ class AcpHandshakeInterceptorSandboxModePropertyTest {
     /**
      * 模拟后端路由逻辑中的 sandboxMode 回退判断。
      * 参考 AcpWebSocketHandler.afterConnectionEstablished 中的逻辑：
-     * boolean isUserScoped = "user".equals(sandboxMode) || runtimeType == RuntimeType.K8S;
+     * boolean isUserScoped = "user".equals(sandboxMode) || sandboxType == SandboxType.K8S;
      * 当 sandboxMode 不是 "user" 时，对于 K8s 运行时仍回退到用户级沙箱。
      */
     private boolean isUserScopedFallback(String sandboxMode) {
@@ -187,7 +187,7 @@ class AcpHandshakeInterceptorSandboxModePropertyTest {
 
         // 路由逻辑回退验证：非 user/session 的值应回退到用户级沙箱
         // 参考 AcpWebSocketHandler: boolean isUserScoped = "user".equals(sandboxMode) || runtimeType
-        // == RuntimeType.K8S;
+        // == SandboxType.K8S;
         // 对于 K8s 运行时，即使 sandboxMode 不是 "user"，isUserScoped 仍为 true
         assertTrue(isUserScopedFallback(sandboxMode), "非 user/session 的 sandboxMode 值应回退到用户级沙箱模式");
     }

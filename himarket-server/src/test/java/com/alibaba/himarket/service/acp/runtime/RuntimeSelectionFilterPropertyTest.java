@@ -26,8 +26,8 @@ class RuntimeSelectionFilterPropertyTest {
     // ===== 生成器 =====
 
     @Provide
-    Arbitrary<List<RuntimeType>> nonEmptyCompatibleRuntimes() {
-        return Arbitraries.of(RuntimeType.values())
+    Arbitrary<List<SandboxType>> nonEmptyCompatibleRuntimes() {
+        return Arbitraries.of(SandboxType.LOCAL, SandboxType.K8S)
                 .list()
                 .ofMinSize(1)
                 .ofMaxSize(2)
@@ -36,8 +36,8 @@ class RuntimeSelectionFilterPropertyTest {
     }
 
     @Provide
-    Arbitrary<List<RuntimeType>> compatibleRuntimes() {
-        return Arbitraries.of(RuntimeType.values())
+    Arbitrary<List<SandboxType>> compatibleRuntimes() {
+        return Arbitraries.of(SandboxType.LOCAL, SandboxType.K8S)
                 .list()
                 .ofMinSize(0)
                 .ofMaxSize(2)
@@ -52,27 +52,32 @@ class RuntimeSelectionFilterPropertyTest {
     // ===== 辅助方法 =====
 
     private RuntimeSelector buildSelector(
-            List<RuntimeType> compatibleRuntimes, boolean k8sAvailable) {
+            List<SandboxType> compatibleRuntimes, boolean k8sAvailable) {
         AcpProperties props = new AcpProperties();
         props.setDefaultRuntime("local");
         CliProviderConfig config = new CliProviderConfig();
         config.setDisplayName("Test Provider");
         config.setCompatibleRuntimes(compatibleRuntimes);
         props.getProviders().put(PROVIDER_KEY, config);
-        return new RuntimeSelector(props, k8sAvailable);
+        K8sConfigService mockK8s = new K8sConfigService(null) {
+            @Override public void init() {}
+            @Override public boolean hasAnyCluster() { return k8sAvailable; }
+            @Override public java.util.List<K8sClusterInfo> listClusters() { return java.util.Collections.emptyList(); }
+        };
+        return new RuntimeSelector(props, mockK8s);
     }
 
     // ===== Property 6a: 仅展示兼容的运行时选项 =====
 
     @Property(tries = 200)
     void availableRuntimes_onlyContainCompatibleTypes(
-            @ForAll("compatibleRuntimes") List<RuntimeType> compatible,
+            @ForAll("compatibleRuntimes") List<SandboxType> compatible,
             @ForAll("k8sAvailability") boolean k8sAvailable) {
 
         RuntimeSelector selector = buildSelector(compatible, k8sAvailable);
         List<RuntimeOption> options = selector.getAvailableRuntimes(PROVIDER_KEY);
 
-        List<RuntimeType> returnedTypes = options.stream().map(RuntimeOption::type).toList();
+        List<SandboxType> returnedTypes = options.stream().map(RuntimeOption::type).toList();
         assertEquals(compatible.size(), returnedTypes.size(), "返回选项数量应与兼容列表一致");
         assertTrue(compatible.containsAll(returnedTypes), "返回的类型应全部在兼容列表中");
         assertTrue(returnedTypes.containsAll(compatible), "兼容列表中的类型应全部出现在返回结果中");
@@ -82,16 +87,16 @@ class RuntimeSelectionFilterPropertyTest {
 
     @Property(tries = 200)
     void selectDefault_autoSelectsWhenOnlyOneAvailable(
-            @ForAll("nonEmptyCompatibleRuntimes") List<RuntimeType> compatible,
+            @ForAll("nonEmptyCompatibleRuntimes") List<SandboxType> compatible,
             @ForAll("k8sAvailability") boolean k8sAvailable) {
 
         RuntimeSelector selector = buildSelector(compatible, k8sAvailable);
 
-        List<RuntimeType> availableTypes =
-                compatible.stream().filter(selector::isRuntimeAvailable).toList();
+        List<SandboxType> availableTypes =
+                compatible.stream().filter(selector::isSandboxAvailable).toList();
 
         if (availableTypes.size() == 1) {
-            RuntimeType selected = selector.selectDefault(PROVIDER_KEY);
+            SandboxType selected = selector.selectDefault(PROVIDER_KEY);
             assertEquals(availableTypes.get(0), selected, "仅有一个可用运行时时应自动选中该运行时");
         }
     }
@@ -106,9 +111,9 @@ class RuntimeSelectionFilterPropertyTest {
      */
     @Property(tries = 200)
     void k8sMarkedUnavailable_whenK8sNotConfigured(
-            @ForAll("nonEmptyCompatibleRuntimes") List<RuntimeType> compatible) {
+            @ForAll("nonEmptyCompatibleRuntimes") List<SandboxType> compatible) {
 
-        if (!compatible.contains(RuntimeType.K8S)) {
+        if (!compatible.contains(SandboxType.K8S)) {
             return;
         }
 
@@ -117,7 +122,7 @@ class RuntimeSelectionFilterPropertyTest {
 
         RuntimeOption k8sOption =
                 options.stream()
-                        .filter(o -> o.type() == RuntimeType.K8S)
+                        .filter(o -> o.type() == SandboxType.K8S)
                         .findFirst()
                         .orElseThrow(() -> new AssertionError("K8S 应出现在兼容列表的返回结果中"));
 
@@ -130,9 +135,9 @@ class RuntimeSelectionFilterPropertyTest {
 
     @Property(tries = 200)
     void k8sMarkedAvailable_whenK8sConfigured(
-            @ForAll("nonEmptyCompatibleRuntimes") List<RuntimeType> compatible) {
+            @ForAll("nonEmptyCompatibleRuntimes") List<SandboxType> compatible) {
 
-        if (!compatible.contains(RuntimeType.K8S)) {
+        if (!compatible.contains(SandboxType.K8S)) {
             return;
         }
 
@@ -140,7 +145,7 @@ class RuntimeSelectionFilterPropertyTest {
         List<RuntimeOption> options = selector.getAvailableRuntimes(PROVIDER_KEY);
 
         RuntimeOption k8sOption =
-                options.stream().filter(o -> o.type() == RuntimeType.K8S).findFirst().orElseThrow();
+                options.stream().filter(o -> o.type() == SandboxType.K8S).findFirst().orElseThrow();
 
         assertTrue(k8sOption.available(), "K8s 已配置时 K8S 应标记为可用");
         assertNull(k8sOption.unavailableReason(), "可用的 K8S 不应包含不可用原因");
@@ -150,13 +155,13 @@ class RuntimeSelectionFilterPropertyTest {
 
     @Property(tries = 200)
     void selectDefault_alwaysReturnsCompatibleAndAvailableRuntime(
-            @ForAll("nonEmptyCompatibleRuntimes") List<RuntimeType> compatible,
+            @ForAll("nonEmptyCompatibleRuntimes") List<SandboxType> compatible,
             @ForAll("k8sAvailability") boolean k8sAvailable) {
 
         RuntimeSelector selector = buildSelector(compatible, k8sAvailable);
 
-        List<RuntimeType> availableTypes =
-                compatible.stream().filter(selector::isRuntimeAvailable).toList();
+        List<SandboxType> availableTypes =
+                compatible.stream().filter(selector::isSandboxAvailable).toList();
 
         if (availableTypes.isEmpty()) {
             assertThrows(
@@ -164,9 +169,9 @@ class RuntimeSelectionFilterPropertyTest {
                     () -> selector.selectDefault(PROVIDER_KEY),
                     "没有可用运行时时应抛出 IllegalStateException");
         } else {
-            RuntimeType selected = selector.selectDefault(PROVIDER_KEY);
+            SandboxType selected = selector.selectDefault(PROVIDER_KEY);
             assertTrue(compatible.contains(selected), "选中的运行时必须在兼容列表中: " + selected);
-            assertTrue(selector.isRuntimeAvailable(selected), "选中的运行时必须在当前环境中可用: " + selected);
+            assertTrue(selector.isSandboxAvailable(selected), "选中的运行时必须在当前环境中可用: " + selected);
         }
     }
 
@@ -176,11 +181,16 @@ class RuntimeSelectionFilterPropertyTest {
     void localRuntime_alwaysAvailable(@ForAll("k8sAvailability") boolean k8sAvailable) {
 
         AcpProperties props = new AcpProperties();
-        RuntimeSelector selector = new RuntimeSelector(props, k8sAvailable);
+        K8sConfigService mockK8s = new K8sConfigService(null) {
+            @Override public void init() {}
+            @Override public boolean hasAnyCluster() { return k8sAvailable; }
+            @Override public java.util.List<K8sClusterInfo> listClusters() { return java.util.Collections.emptyList(); }
+        };
+        RuntimeSelector selector = new RuntimeSelector(props, mockK8s);
 
-        assertTrue(selector.isRuntimeAvailable(RuntimeType.LOCAL), "LOCAL 运行时应始终可用，无论 K8s 状态如何");
+        assertTrue(selector.isSandboxAvailable(SandboxType.LOCAL), "LOCAL 运行时应始终可用，无论 K8s 状态如何");
 
-        RuntimeOption option = selector.toRuntimeOption(RuntimeType.LOCAL, true);
+        RuntimeOption option = selector.toRuntimeOption(SandboxType.LOCAL, true);
         assertTrue(option.available());
         assertNull(option.unavailableReason());
     }

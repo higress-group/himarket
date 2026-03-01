@@ -201,7 +201,7 @@ class PathTraversalPropertyTest {
                         () -> adapter.readFile(maliciousPath),
                         "readFile 应拒绝遍历路径: " + sanitize(maliciousPath));
         assertEquals(FileSystemException.ErrorType.PATH_TRAVERSAL, ex.getErrorType());
-        assertEquals(RuntimeType.LOCAL, ex.getRuntimeType());
+        assertEquals(SandboxType.LOCAL, ex.getSandboxType());
     }
 
     /**
@@ -219,7 +219,7 @@ class PathTraversalPropertyTest {
                         () -> adapter.writeFile(maliciousPath, "malicious content"),
                         "writeFile 应拒绝遍历路径: " + sanitize(maliciousPath));
         assertEquals(FileSystemException.ErrorType.PATH_TRAVERSAL, ex.getErrorType());
-        assertEquals(RuntimeType.LOCAL, ex.getRuntimeType());
+        assertEquals(SandboxType.LOCAL, ex.getSandboxType());
     }
 
     /**
@@ -238,7 +238,7 @@ class PathTraversalPropertyTest {
                         () -> adapter.listDirectory(maliciousPath),
                         "listDirectory 应拒绝遍历路径: " + sanitize(maliciousPath));
         assertEquals(FileSystemException.ErrorType.PATH_TRAVERSAL, ex.getErrorType());
-        assertEquals(RuntimeType.LOCAL, ex.getRuntimeType());
+        assertEquals(SandboxType.LOCAL, ex.getSandboxType());
     }
 
     /**
@@ -256,7 +256,7 @@ class PathTraversalPropertyTest {
                         () -> adapter.delete(maliciousPath),
                         "delete 应拒绝遍历路径: " + sanitize(maliciousPath));
         assertEquals(FileSystemException.ErrorType.PATH_TRAVERSAL, ex.getErrorType());
-        assertEquals(RuntimeType.LOCAL, ex.getRuntimeType());
+        assertEquals(SandboxType.LOCAL, ex.getSandboxType());
     }
 
     private static String sanitize(String path) {
