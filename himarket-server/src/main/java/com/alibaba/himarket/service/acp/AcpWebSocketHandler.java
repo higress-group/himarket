@@ -13,7 +13,6 @@ import com.alibaba.himarket.service.acp.runtime.K8sConfigService;
 import com.alibaba.himarket.service.acp.runtime.PodReuseManager;
 import com.alibaba.himarket.service.acp.runtime.RuntimeAdapter;
 import com.alibaba.himarket.service.acp.runtime.RuntimeConfig;
-import com.alibaba.himarket.service.acp.runtime.SandboxType;
 import com.alibaba.himarket.service.acp.runtime.SandboxAcquirePhase;
 import com.alibaba.himarket.service.acp.runtime.SandboxConfig;
 import com.alibaba.himarket.service.acp.runtime.SandboxInfo;

@@ -23,20 +23,21 @@ class RuntimeSelectorTest {
     }
 
     private RuntimeSelector createSelector(boolean k8sAvailable) {
-        K8sConfigService mockK8sConfigService = new K8sConfigService(null) {
-            @Override
-            public void init() {}
+        K8sConfigService mockK8sConfigService =
+                new K8sConfigService(null) {
+                    @Override
+                    public void init() {}
 
-            @Override
-            public boolean hasAnyCluster() {
-                return k8sAvailable;
-            }
+                    @Override
+                    public boolean hasAnyCluster() {
+                        return k8sAvailable;
+                    }
 
-            @Override
-            public java.util.List<K8sClusterInfo> listClusters() {
-                return java.util.Collections.emptyList();
-            }
-        };
+                    @Override
+                    public java.util.List<K8sClusterInfo> listClusters() {
+                        return java.util.Collections.emptyList();
+                    }
+                };
         return new RuntimeSelector(acpProperties, mockK8sConfigService);
     }
 

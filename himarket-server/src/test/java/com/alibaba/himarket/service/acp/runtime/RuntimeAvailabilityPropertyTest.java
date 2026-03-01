@@ -31,11 +31,21 @@ class RuntimeAvailabilityPropertyTest {
     private RuntimeSelector buildSelector(boolean k8sAvailable) {
         AcpProperties props = new AcpProperties();
         props.setDefaultRuntime("local");
-        K8sConfigService mockK8s = new K8sConfigService(null) {
-            @Override public void init() {}
-            @Override public boolean hasAnyCluster() { return k8sAvailable; }
-            @Override public java.util.List<K8sClusterInfo> listClusters() { return java.util.Collections.emptyList(); }
-        };
+        K8sConfigService mockK8s =
+                new K8sConfigService(null) {
+                    @Override
+                    public void init() {}
+
+                    @Override
+                    public boolean hasAnyCluster() {
+                        return k8sAvailable;
+                    }
+
+                    @Override
+                    public java.util.List<K8sClusterInfo> listClusters() {
+                        return java.util.Collections.emptyList();
+                    }
+                };
         return new RuntimeSelector(props, mockK8s);
     }
 

@@ -56,11 +56,21 @@ class RuntimeControllerTest {
     }
 
     private RuntimeSelector createSelector(boolean k8sAvailable) {
-        K8sConfigService mockK8s = new K8sConfigService(null) {
-            @Override public void init() {}
-            @Override public boolean hasAnyCluster() { return k8sAvailable; }
-            @Override public List<K8sClusterInfo> listClusters() { return Collections.emptyList(); }
-        };
+        K8sConfigService mockK8s =
+                new K8sConfigService(null) {
+                    @Override
+                    public void init() {}
+
+                    @Override
+                    public boolean hasAnyCluster() {
+                        return k8sAvailable;
+                    }
+
+                    @Override
+                    public List<K8sClusterInfo> listClusters() {
+                        return Collections.emptyList();
+                    }
+                };
         return new RuntimeSelector(properties, mockK8s);
     }
 

@@ -59,11 +59,21 @@ class RuntimeSelectionFilterPropertyTest {
         config.setDisplayName("Test Provider");
         config.setCompatibleRuntimes(compatibleRuntimes);
         props.getProviders().put(PROVIDER_KEY, config);
-        K8sConfigService mockK8s = new K8sConfigService(null) {
-            @Override public void init() {}
-            @Override public boolean hasAnyCluster() { return k8sAvailable; }
-            @Override public java.util.List<K8sClusterInfo> listClusters() { return java.util.Collections.emptyList(); }
-        };
+        K8sConfigService mockK8s =
+                new K8sConfigService(null) {
+                    @Override
+                    public void init() {}
+
+                    @Override
+                    public boolean hasAnyCluster() {
+                        return k8sAvailable;
+                    }
+
+                    @Override
+                    public java.util.List<K8sClusterInfo> listClusters() {
+                        return java.util.Collections.emptyList();
+                    }
+                };
         return new RuntimeSelector(props, mockK8s);
     }
 
@@ -181,11 +191,21 @@ class RuntimeSelectionFilterPropertyTest {
     void localRuntime_alwaysAvailable(@ForAll("k8sAvailability") boolean k8sAvailable) {
 
         AcpProperties props = new AcpProperties();
-        K8sConfigService mockK8s = new K8sConfigService(null) {
-            @Override public void init() {}
-            @Override public boolean hasAnyCluster() { return k8sAvailable; }
-            @Override public java.util.List<K8sClusterInfo> listClusters() { return java.util.Collections.emptyList(); }
-        };
+        K8sConfigService mockK8s =
+                new K8sConfigService(null) {
+                    @Override
+                    public void init() {}
+
+                    @Override
+                    public boolean hasAnyCluster() {
+                        return k8sAvailable;
+                    }
+
+                    @Override
+                    public java.util.List<K8sClusterInfo> listClusters() {
+                        return java.util.Collections.emptyList();
+                    }
+                };
         RuntimeSelector selector = new RuntimeSelector(props, mockK8s);
 
         assertTrue(selector.isSandboxAvailable(SandboxType.LOCAL), "LOCAL 运行时应始终可用，无论 K8s 状态如何");
