@@ -507,7 +507,7 @@ public class MatrixPresetSqlRegistry {
                                 + " risklabel, COUNT(1) AS cnt FROM access_logs "
                                 + WHERE_PLACEHOLDER
                                 + " AND JSON_VALID(ai_log) AND JSON_UNQUOTE(JSON_EXTRACT(ai_log,"
-                                + " '$.safecheck_status')) = 'deny' GROUP BY risklabel ORDER BY cnt"
+                                + " '$.safecheck_status')) = 'reqeust deny' GROUP BY risklabel ORDER BY cnt"
                                 + " DESC",
                         null,
                         null));
@@ -520,7 +520,7 @@ public class MatrixPresetSqlRegistry {
                                 + " FROM access_logs "
                                 + WHERE_PLACEHOLDER
                                 + " AND JSON_VALID(ai_log) AND JSON_UNQUOTE(JSON_EXTRACT(ai_log,"
-                                + " '$.safecheck_status')) = 'deny' AND consumer IS NOT NULL GROUP"
+                                + " '$.safecheck_status')) = 'reqeust deny' AND consumer IS NOT NULL GROUP"
                                 + " BY consumer ORDER BY cnt DESC",
                         null,
                         null));
@@ -612,6 +612,8 @@ public class MatrixPresetSqlRegistry {
                         SlsPresetSqlRegistry.DisplayType.TABLE,
                         "SELECT DISTINCT route_name FROM access_logs "
                                 + WHERE_PLACEHOLDER
+                                + " "
+                                + BIZ_PLACEHOLDER
                                 + " AND route_name IS NOT NULL LIMIT 100",
                         null,
                         null));
