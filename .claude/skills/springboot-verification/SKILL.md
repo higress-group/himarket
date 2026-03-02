@@ -1,39 +1,59 @@
 ---
-inclusion: manual
+name: springboot-verification
+description: "Verification loop for Spring Boot projects: build, static analysis, tests with coverage, security scans, and diff review before release or PR."
+origin: ECC
 ---
 
-# Spring Boot 验证循环
+# Spring Boot Verification Loop
 
-在以下场景执行：PR 提交前、重大重构后、预发布验证。
+Run before PRs, after major changes, and pre-deploy.
 
-## Phase 1 — 构建
+## When to Activate
+
+- Before opening a pull request for a Spring Boot service
+- After major refactoring or dependency upgrades
+- Pre-deployment verification for staging or production
+- Running full build → lint → test → security scan pipeline
+- Validating test coverage meets thresholds
+
+## Phase 1: Build
 
 ```bash
 mvn -T 4 clean verify -DskipTests
-# 或
+# or
 ./gradlew clean assemble -x test
 ```
 
-构建失败立即停止，修复后再继续。
+If build fails, stop and fix.
 
-## Phase 2 — 静态分析
+## Phase 2: Static Analysis
 
+Maven (common plugins):
 ```bash
 mvn -T 4 spotbugs:check pmd:check checkstyle:check
-# 或
+```
+
+Gradle (if configured):
+```bash
 ./gradlew checkstyleMain pmdMain spotbugsMain
 ```
 
-## Phase 3 — 测试 + 覆盖率
+## Phase 3: Tests + Coverage
 
 ```bash
 mvn -T 4 test
-mvn jacoco:report   # 目标 80%+ 覆盖率
-# 或
+mvn jacoco:report   # verify 80%+ coverage
+# or
 ./gradlew test jacocoTestReport
 ```
 
-### 单元测试示例
+Report:
+- Total tests, passed/failed
+- Coverage % (lines/branches)
+
+### Unit Tests
+
+Test service logic in isolation with mocked dependencies:
 
 ```java
 @ExtendWith(MockitoExtension.class)
@@ -65,9 +85,9 @@ class UserServiceTest {
 }
 ```
 
-### Testcontainers 集成测试示例
+### Integration Tests with Testcontainers
 
-用真实数据库替代 H2，避免兼容性问题（项目使用 MySQL）：
+Test against a real database instead of H2:
 
 ```java
 @SpringBootTest
@@ -75,14 +95,14 @@ class UserServiceTest {
 class UserRepositoryIntegrationTest {
 
   @Container
-  static MySQLContainer<?> mysql = new MySQLContainer<>("mysql:8.0")
+  static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine")
       .withDatabaseName("testdb");
 
   @DynamicPropertySource
   static void configureProperties(DynamicPropertyRegistry registry) {
-    registry.add("spring.datasource.url", mysql::getJdbcUrl);
-    registry.add("spring.datasource.username", mysql::getUsername);
-    registry.add("spring.datasource.password", mysql::getPassword);
+    registry.add("spring.datasource.url", postgres::getJdbcUrl);
+    registry.add("spring.datasource.username", postgres::getUsername);
+    registry.add("spring.datasource.password", postgres::getPassword);
   }
 
   @Autowired private UserRepository userRepository;
@@ -90,13 +110,18 @@ class UserRepositoryIntegrationTest {
   @Test
   void findByEmail_existingUser_returnsUser() {
     userRepository.save(new User("Alice", "alice@example.com"));
+
     var found = userRepository.findByEmail("alice@example.com");
+
     assertThat(found).isPresent();
+    assertThat(found.get().getName()).isEqualTo("Alice");
   }
 }
 ```
 
-### MockMvc API 测试示例
+### API Tests with MockMvc
+
+Test controller layer with full Spring context:
 
 ```java
 @WebMvcTest(UserController.class)
@@ -131,49 +156,56 @@ class UserControllerTest {
 }
 ```
 
-## Phase 4 — 安全扫描
+## Phase 4: Security Scan
 
 ```bash
-# 依赖 CVE 扫描
+# Dependency CVEs
 mvn org.owasp:dependency-check-maven:check
-# 或
+# or
 ./gradlew dependencyCheckAnalyze
 
-# 检查硬编码密码
+# Secrets in source
 grep -rn "password\s*=\s*\"" src/ --include="*.java" --include="*.yml" --include="*.properties"
+grep -rn "sk-\|api_key\|secret" src/ --include="*.java" --include="*.yml"
 
-# 检查 System.out（应用日志应用 SLF4J）
+# Secrets (git history)
+git secrets --scan  # if configured
+```
+
+### Common Security Findings
+
+```
+# Check for System.out.println (use logger instead)
 grep -rn "System\.out\.print" src/main/ --include="*.java"
 
-# 检查异常信息直接返回给客户端
+# Check for raw exception messages in responses
 grep -rn "e\.getMessage()" src/main/ --include="*.java"
 
-# 检查 CORS 通配符
+# Check for wildcard CORS
 grep -rn "allowedOrigins.*\*" src/main/ --include="*.java"
 ```
 
-## Phase 5 — 格式化（可选）
+## Phase 5: Lint/Format (optional gate)
 
 ```bash
-mvn spotless:apply
-# 或
+mvn spotless:apply   # if using Spotless plugin
 ./gradlew spotlessApply
 ```
 
-## Phase 6 — Diff 审查
+## Phase 6: Diff Review
 
 ```bash
 git diff --stat
 git diff
 ```
 
-检查项：
-- 没有遗留调试日志（`System.out`、无条件 `log.debug`）
-- 错误处理和 HTTP 状态码正确
-- 需要事务的地方加了 `@Transactional`
-- 配置变更已记录
+Checklist:
+- No debugging logs left (`System.out`, `log.debug` without guards)
+- Meaningful errors and HTTP statuses
+- Transactions and validation present where needed
+- Config changes documented
 
-## 验证报告模板
+## Output Template
 
 ```
 VERIFICATION REPORT
@@ -190,3 +222,10 @@ Issues to Fix:
 1. ...
 2. ...
 ```
+
+## Continuous Mode
+
+- Re-run phases on significant changes or every 30–60 minutes in long sessions
+- Keep a short loop: `mvn -T 4 test` + spotbugs for quick feedback
+
+**Remember**: Fast feedback beats late surprises. Keep the gate strict—treat warnings as defects in production systems.
