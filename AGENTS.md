@@ -1,3 +1,5 @@
+**ALWAYS RESPOND IN CHINESE-SIMPLIFIED**
+
 ## 本地开发环境
 
 ### 数据库访问
@@ -26,21 +28,32 @@ mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USERNAME" -p"$DB_PASSWORD" "$DB_NAME" 
 
 ### 启动后端服务
 
-使用 `scripts/run.sh` 脚本启动 Java 后端：
+使用 `scripts/run.sh` 脚本编译并启动 Java 后端：
 
 ```bash
 ./scripts/run.sh
 ```
 
-脚本会自动：
-1. 加载 `~/.env` 环境变量
-2. 杀掉占用 8080 端口的旧进程
-3. 编译所有模块
-4. 启动 Spring Boot 应用
+脚本会自动完成：加载环境变量 → 优雅关闭旧进程 → 编译打包 → 后台启动 jar → 轮询等待就绪。
+脚本退出码为 0 表示启动成功，非 0 表示失败（编译错误或启动超时）。
 
-**调试接口时的工作流**：修改代码 → `./scripts/run.sh`（无需手动杀进程，脚本自动处理）
+### 修改代码后的验证（可选）
 
-等待日志出现 `Started HiMarketApplication` 后，服务即可访问。
+以下场景建议主动进行"重启 → 接口验证"闭环，而不是只改代码就结束：
+- 用户明确要求调试某个 bug 或修复接口问题
+- 新增或修改了 REST/WebSocket 接口
+- 用户要求端到端验证
+
+#### 判断是否需要重启
+
+修改 Java 源文件、Spring 配置（`application.yml`）、`pom.xml`、Flyway 迁移文件后需要重启。修改前端、文档、脚本等不需要。
+
+#### 验证流程
+
+1. `./scripts/run.sh` 重启，确认退出码为 0
+2. 用 curl 调用相关接口，检查返回结果
+3. 如果涉及数据变更，用 mysql CLI 查询确认
+4. 验证失败时读取 `~/himarket.log` 排查，修复后重试
 
 ### API 接口测试
 
@@ -51,27 +64,31 @@ mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USERNAME" -p"$DB_PASSWORD" "$DB_NAME" 
 #### 获取管理员 Token（后台管理）
 
 ```bash
-curl -s -X POST http://localhost:8080/admins/login \
+TOKEN=$(curl -s -X POST http://localhost:8080/admins/login \
   -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"admin"}' | jq -r '.data.access_token'
+  -d '{"username":"admin","password":"admin"}' | jq -r '.data.access_token')
 ```
 
 #### 获取开发者 Token（前台门户）
 
 ```bash
-curl -s -X POST http://localhost:8080/developers/login \
+TOKEN=$(curl -s -X POST http://localhost:8080/developers/login \
   -H "Content-Type: application/json" \
-  -d '{"username":"user","password":"123456"}' | jq -r '.data.access_token'
+  -d '{"username":"user","password":"123456"}' | jq -r '.data.access_token')
 ```
 
 #### 带认证请求示例
 
 ```bash
-TOKEN=$(curl -s -X POST http://localhost:8080/admins/login \
-  -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"admin"}' | jq -r '.data.access_token')
+curl -s -H "Authorization: Bearer $TOKEN" http://localhost:8080/your-endpoint | jq .
+```
 
-curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/your-endpoint
+#### WebSocket 接口验证
+
+对于 WebSocket 接口，使用 `websocat` 工具：
+
+```bash
+websocat -H "Authorization: Bearer $TOKEN" ws://localhost:8080/your-ws-endpoint
 ```
 
 #### 认证注解说明

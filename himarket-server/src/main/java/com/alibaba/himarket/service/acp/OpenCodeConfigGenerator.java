@@ -6,8 +6,10 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,12 +18,14 @@ import org.slf4j.LoggerFactory;
  * Open Code CLI 工具的配置文件生成器。
  * 生成 opencode.json 文件到工作目录，包含自定义 provider 定义和 model 指定。
  * 支持与已有 opencode.json 合并，保留用户已有的其他配置项。
+ * 支持 MCP Server 和 Skill 配置。
  */
 public class OpenCodeConfigGenerator implements CliConfigGenerator {
 
     private static final Logger logger = LoggerFactory.getLogger(OpenCodeConfigGenerator.class);
 
     private static final String CONFIG_FILE_NAME = "opencode.json";
+    private static final String OPENCODE_DIR = ".opencode";
     private static final String PROVIDER_KEY = "custom-provider";
     private static final String NPM_PACKAGE = "@ai-sdk/openai-compatible";
     private static final String API_KEY_ENV_REF = "{env:CUSTOM_MODEL_API_KEY}";
@@ -131,5 +135,140 @@ public class OpenCodeConfigGenerator implements CliConfigGenerator {
                         .with(SerializationFeature.INDENT_OUTPUT)
                         .writeValueAsString(root);
         Files.writeString(configPath, json);
+    }
+
+    @Override
+    public void generateMcpConfig(
+            String workingDirectory, List<CliSessionConfig.McpServerEntry> mcpServers)
+            throws IOException {
+        if (mcpServers == null || mcpServers.isEmpty()) return;
+
+        Path configPath = Path.of(workingDirectory, CONFIG_FILE_NAME);
+        Map<String, Object> root = readExistingConfig(configPath);
+        mergeMcpServers(root, mcpServers);
+        writeConfig(configPath, root);
+    }
+
+    @Override
+    public void generateSkillConfig(
+            String workingDirectory, List<CliSessionConfig.SkillEntry> skills) throws IOException {
+        if (skills == null || skills.isEmpty()) return;
+
+        // 创建 .opencode/skills/ 目录结构
+        Path skillsBaseDir = Path.of(workingDirectory, OPENCODE_DIR, "skills");
+        Files.createDirectories(skillsBaseDir);
+
+        for (CliSessionConfig.SkillEntry skill : skills) {
+            String dirName = toKebabCase(skill.getName());
+            Path skillDir = skillsBaseDir.resolve(dirName);
+            Files.createDirectories(skillDir);
+
+            if (skill.getFiles() != null && !skill.getFiles().isEmpty()) {
+                // 新路径：写入完整目录结构
+                for (CliSessionConfig.SkillEntry.SkillFileEntry file : skill.getFiles()) {
+                    Path filePath = skillDir.resolve(file.getPath());
+                    Files.createDirectories(filePath.getParent());
+                    if ("base64".equals(file.getEncoding())) {
+                        byte[] bytes = Base64.getDecoder().decode(file.getContent());
+                        Files.write(filePath, bytes);
+                    } else {
+                        Files.writeString(filePath, file.getContent());
+                    }
+                }
+            } else {
+                // 向后兼容：只写 SKILL.md
+                Files.writeString(skillDir.resolve("SKILL.md"), skill.getSkillMdContent());
+            }
+        }
+
+        // 更新 opencode.json 中的 skills.paths 配置
+        Path configPath = Path.of(workingDirectory, CONFIG_FILE_NAME);
+        Map<String, Object> root = readExistingConfig(configPath);
+        addSkillsPaths(root, skillsBaseDir.toString());
+        writeConfig(configPath, root);
+    }
+
+    /**
+     * 将名称转换为 kebab-case 格式。
+     * 规则：空格替换为 -，大写转小写，去除特殊字符，合并连续 -，去除首尾 -。
+     */
+    static String toKebabCase(String name) {
+        if (name == null || name.isBlank()) return "";
+
+        String result =
+                name.trim()
+                        .replaceAll("\\s+", "-")
+                        .toLowerCase()
+                        .replaceAll("[^a-z0-9\\-]", "")
+                        .replaceAll("-{2,}", "-")
+                        .replaceAll("^-|-$", "");
+        return result;
+    }
+
+    /**
+     * 将 MCP Server 列表合并到根配置的 mcp 段中。
+     * OpenCode 使用 "mcp" 字段（不是 "mcpServers"），格式为：
+     * {
+     *   "mcp": {
+     *     "server-name": {
+     *       "type": "remote",
+     *       "url": "https://...",
+     *       "headers": { ... }
+     *     }
+     *   }
+     * }
+     */
+    @SuppressWarnings("unchecked")
+    void mergeMcpServers(
+            Map<String, Object> root, List<CliSessionConfig.McpServerEntry> mcpServers) {
+        Map<String, Object> mcpMap =
+                root.containsKey("mcp")
+                        ? (Map<String, Object>) root.get("mcp")
+                        : new LinkedHashMap<>();
+
+        for (CliSessionConfig.McpServerEntry entry : mcpServers) {
+            Map<String, Object> serverConfig = new LinkedHashMap<>();
+            // OpenCode 使用 "remote" 类型表示远程 MCP 服务器
+            serverConfig.put("type", "remote");
+            serverConfig.put("url", entry.getUrl());
+            if (entry.getHeaders() != null && !entry.getHeaders().isEmpty()) {
+                serverConfig.put("headers", entry.getHeaders());
+            }
+            // 默认启用
+            serverConfig.put("enabled", true);
+            mcpMap.put(entry.getName(), serverConfig);
+        }
+
+        root.put("mcp", mcpMap);
+    }
+
+    /**
+     * 将 skills 目录路径添加到配置的 skills.paths 中。
+     * OpenCode 格式：
+     * {
+     *   "skills": {
+     *     "paths": [".opencode/skills"]
+     *   }
+     * }
+     */
+    @SuppressWarnings("unchecked")
+    void addSkillsPaths(Map<String, Object> root, String skillsPath) {
+        Map<String, Object> skillsConfig =
+                root.containsKey("skills")
+                        ? (Map<String, Object>) root.get("skills")
+                        : new LinkedHashMap<>();
+
+        List<String> paths =
+                skillsConfig.containsKey("paths")
+                        ? (List<String>) skillsConfig.get("paths")
+                        : new java.util.ArrayList<>();
+
+        // 避免重复添加
+        if (!paths.contains(skillsPath)) {
+            paths.add(skillsPath);
+        }
+
+        skillsConfig.put("paths", paths);
+        root.put("skills", skillsConfig);
     }
 }

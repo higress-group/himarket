@@ -231,7 +231,7 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
                         sessionConfig = objectMapper.treeToValue(params, CliSessionConfig.class);
                         logger.info(
                                 "Received session/config via WebSocket message: session={},"
-                                        + " hasModel={}, mcpCount={}, skillCount={}",
+                                    + " hasModel={}, mcpCount={}, skillCount={}, hasAuthToken={}",
                                 session.getId(),
                                 sessionConfig.getCustomModelConfig() != null,
                                 sessionConfig.getMcpServers() != null
@@ -239,7 +239,9 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
                                         : 0,
                                 sessionConfig.getSkills() != null
                                         ? sessionConfig.getSkills().size()
-                                        : 0);
+                                        : 0,
+                                sessionConfig.getAuthToken() != null
+                                        && !sessionConfig.getAuthToken().isEmpty());
                     }
                 }
             } catch (Exception e) {
@@ -375,12 +377,19 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
             // 1.5 注入 authToken 到 CLI 进程环境变量
             if (sessionConfig != null && sessionConfig.getAuthToken() != null) {
                 if (providerConfig.getAuthEnvVar() != null) {
-                    config.getEnv()
-                            .put(providerConfig.getAuthEnvVar(), sessionConfig.getAuthToken());
-                    logger.info(
-                            "[Sandbox-Init] authToken injected to env var '{}' for provider '{}'",
-                            providerConfig.getAuthEnvVar(),
-                            providerKey);
+                    if (config.getEnv() != null) {
+                        config.getEnv()
+                                .put(providerConfig.getAuthEnvVar(), sessionConfig.getAuthToken());
+                        logger.info(
+                                "[Sandbox-Init] authToken injected to env var '{}' for provider"
+                                        + " '{}', current env size: {}",
+                                providerConfig.getAuthEnvVar(),
+                                providerKey,
+                                config.getEnv().size());
+                    } else {
+                        logger.error(
+                                "[Sandbox-Init] config.getEnv() is null, cannot inject authToken");
+                    }
                 } else {
                     logger.warn(
                             "Received authToken but authEnvVar is not configured for provider: {},"
@@ -557,7 +566,12 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
                     Map<String, String> extraEnv =
                             generator.generateConfig(
                                     sharedTempDir.toString(), sessionConfig.getCustomModelConfig());
-                    config.getEnv().putAll(extraEnv);
+                    if (extraEnv != null && !extraEnv.isEmpty()) {
+                        if (config.getEnv() == null) {
+                            config.setEnv(new java.util.HashMap<>());
+                        }
+                        config.getEnv().putAll(extraEnv);
+                    }
 
                     logger.info(
                             "[Sandbox-Config] 模型配置已准备: provider={}, baseUrl={}, modelId={}",
@@ -909,7 +923,10 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
         // Build process environment: start from provider-level env config.
         // If isolateHome is enabled, override HOME so the CLI stores credentials
         // under the per-user workspace.
-        Map<String, String> processEnv = new HashMap<>(providerConfig.getEnv());
+        Map<String, String> processEnv =
+                providerConfig.getEnv() != null
+                        ? new HashMap<>(providerConfig.getEnv())
+                        : new HashMap<>();
         if (providerConfig.isIsolateHome()) {
             processEnv.put("HOME", cwd);
             logger.info("HOME isolated for provider '{}': {}", providerKey, cwd);

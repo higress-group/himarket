@@ -246,13 +246,23 @@ function CodingContent() {
       return;
     }
 
+    // Set flag BEFORE creation to prevent re-entry on failure
     autoCreatedRef.current = true;
+
+    // Add debug logging
+    console.log("[Coding] Auto-creating quest:", {
+      runtime: currentRuntimeRef.current,
+      sandboxStatus: state.sandboxStatus?.status,
+    });
+
     session.createQuest(".").catch(err => {
-      console.error("Auto create quest failed:", err);
+      console.error("[Coding] Auto create quest failed:", err);
+      // Keep autoCreatedRef = true to prevent infinite retry
+      // Show error to user via sandbox status
       dispatch({
         type: "SANDBOX_STATUS",
         status: "error",
-        message: err?.message || "会话创建失败",
+        message: err?.message || "会话创建失败，请重新连接",
       });
     });
   }, [isConnected, state.initialized, state.quests, state.sandboxStatus, session, dispatch]);
@@ -465,6 +475,36 @@ function CodingContent() {
           onSelectCli={handleSelectCli}
           showRuntimeSelector={true}
         />
+
+        {/* Permission dialog */}
+        {state.pendingPermission && (
+          <PermissionDialog
+            permission={state.pendingPermission}
+            onRespond={session.respondPermission}
+          />
+        )}
+      </div>
+    );
+  }
+
+  // 沙箱错误：显示错误信息和重连按钮
+  if (state.sandboxStatus?.status === "error") {
+    return (
+      <div className="flex flex-1 min-h-0 overflow-hidden bg-white/50">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-red-500 mb-4">{state.sandboxStatus.message}</p>
+            <button
+              onClick={() => {
+                autoCreatedRef.current = false;
+                setCurrentWsUrl("");
+              }}
+              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            >
+              重新连接
+            </button>
+          </div>
+        </div>
 
         {/* Permission dialog */}
         {state.pendingPermission && (

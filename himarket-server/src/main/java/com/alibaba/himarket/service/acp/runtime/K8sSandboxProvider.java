@@ -212,6 +212,26 @@ public class K8sSandboxProvider implements SandboxProvider {
         String command = config.getCommand();
         String args = config.getArgs() != null ? String.join(" ", config.getArgs()) : null;
 
+        // 构建 WebSocket URI，将 RuntimeConfig 中的环境变量通过 query param 传递给 Sidecar，
+        // 以便 Sidecar 在 spawn CLI 子进程时注入（解决 Pod 复用时环境变量无法动态更新的问题）
+        URI baseUri = info.sidecarWsUri(command, args != null ? args : "");
+        URI wsUri = baseUri;
+        if (config.getEnv() != null && !config.getEnv().isEmpty()) {
+            try {
+                String envJson = objectMapper.writeValueAsString(config.getEnv());
+                String encodedEnv =
+                        java.net.URLEncoder.encode(
+                                envJson, java.nio.charset.StandardCharsets.UTF_8);
+                String separator = baseUri.getRawQuery() != null ? "&" : "?";
+                wsUri = URI.create(baseUri.toString() + separator + "env=" + encodedEnv);
+                logger.info(
+                        "[K8sSandboxProvider] 环境变量已添加到 WebSocket URI: {} vars",
+                        config.getEnv().size());
+            } catch (Exception e) {
+                logger.warn("[K8sSandboxProvider] 序列化 env 失败，跳过环境变量传递: {}", e.getMessage());
+            }
+        }
+
         PodInfo podInfo =
                 new PodInfo(
                         info.sandboxId(),
@@ -219,7 +239,7 @@ public class K8sSandboxProvider implements SandboxProvider {
                         info.host().equals(info.metadata().getOrDefault("podIp", ""))
                                 ? null
                                 : info.host(),
-                        info.sidecarWsUri(command, args != null ? args : ""),
+                        wsUri,
                         info.reused());
 
         adapter.prepareForExistingPod(podInfo, config);

@@ -52,3 +52,4 @@ node_modules/
 
 ### Local docs ###
 /docs/acp
+.app.pid

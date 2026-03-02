@@ -259,6 +259,54 @@ export function useHiCliSession(): UseHiCliSessionReturn {
             message: params?.message ?? "",
             sandboxHost: params?.sandboxHost,
           });
+
+          // 沙箱就绪后，如果协议还未初始化，触发 initialize 请求
+          // 这样可以避免 initialize 请求在沙箱初始化期间被缓存导致的时序问题
+          if (params?.status === "ready" && !initializedRef.current && !stateRef.current.initialized) {
+            initializedRef.current = true;
+            (async () => {
+              try {
+                const initReq = buildInitialize();
+                sendWithLog(JSON.stringify(initReq));
+
+                const timeoutPromise = new Promise<never>((_, reject) =>
+                  setTimeout(() => reject(new Error("Initialize timeout")), 120000)
+                );
+                const initResult = (await Promise.race([
+                  trackRequest(initReq.id),
+                  timeoutPromise,
+                ])) as InitializeResult;
+
+                const initModes = initResult.modes?.availableModes ?? [];
+                const initCurrentModeId = initResult.modes?.currentModeId ?? "";
+
+                dispatch({
+                  type: "PROTOCOL_INITIALIZED",
+                  models: [],
+                  modes: initModes,
+                  currentModelId: "",
+                  currentModeId: initCurrentModeId,
+                });
+
+                dispatch({
+                  type: "DEBUG_PROTOCOL_INITIALIZED",
+                  agentInfo: initResult.agentInfo,
+                  authMethods: initResult.authMethods,
+                  agentCapabilities: initResult.agentCapabilities,
+                  modesSource: initModes.length > 0 ? "initialize" : null,
+                });
+              } catch (err) {
+                console.error("ACP initialization failed:", err);
+                dispatch({
+                  type: "PROTOCOL_INITIALIZED",
+                  models: [],
+                  modes: [],
+                  currentModelId: "",
+                  currentModeId: "",
+                });
+              }
+            })();
+          }
           return;
         }
         if (notif.method === "sandbox/init-progress") {
@@ -412,8 +460,21 @@ export function useHiCliSession(): UseHiCliSessionReturn {
 
   useEffect(() => {
     if (status === "connected" && !initializedRef.current) {
-      initializedRef.current = true;
       dispatch({ type: "WS_CONNECTED" });
+
+      // K8s 运行时：等待沙箱就绪后再发送 initialize 请求
+      // 本地运行时：立即发送 initialize 请求
+      const shouldWaitForSandbox = stateRef.current.runtimeType === "K8S";
+      const sandboxReady = !stateRef.current.sandboxStatus ||
+                          stateRef.current.sandboxStatus.status === "ready";
+
+      if (shouldWaitForSandbox && !sandboxReady) {
+        // K8s 模式且沙箱未就绪，等待 sandbox/status: ready 通知
+        return;
+      }
+
+      // 沙箱已就绪或本地模式，发送 initialize 请求
+      initializedRef.current = true;
 
       (async () => {
         try {

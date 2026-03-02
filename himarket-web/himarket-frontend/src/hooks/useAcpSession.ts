@@ -180,6 +180,46 @@ export function useAcpSession({ wsUrl, autoConnect: autoConnectOpt = true, cliSe
             message: params?.message ?? "",
             sandboxHost: params?.sandboxHost,
           });
+
+          // 沙箱就绪后，如果协议还未初始化，触发 initialize 请求
+          // 这样可以避免 initialize 请求在沙箱初始化期间被缓存导致的时序问题
+          if (params?.status === "ready" && !initializedRef.current && !stateRef.current.initialized) {
+            initializedRef.current = true;
+            console.log("[AcpSession] Sandbox ready, starting initialize...");
+            (async () => {
+              try {
+                const send = sendRawRef.current;
+                const initReq = buildInitialize();
+                console.log("[AcpSession] Sending initialize request:", JSON.stringify(initReq));
+                send(JSON.stringify(initReq));
+
+                const timeoutPromise = new Promise<never>((_, reject) =>
+                  setTimeout(() => reject(new Error("Initialize timeout")), 120000)
+                );
+                const result = await Promise.race([trackRequest(initReq.id), timeoutPromise]);
+                console.log("[AcpSession] Initialize response received:", result);
+
+                dispatch({
+                  type: "PROTOCOL_INITIALIZED",
+                  models: [],
+                  modes: [],
+                  currentModelId: "",
+                  currentModeId: "",
+                });
+                console.log("[AcpSession] PROTOCOL_INITIALIZED dispatched");
+              } catch (err) {
+                console.error("[AcpSession] ACP initialization failed:", err);
+                dispatch({
+                  type: "PROTOCOL_INITIALIZED",
+                  models: [],
+                  modes: [],
+                  currentModelId: "",
+                  currentModeId: "",
+                });
+                console.log("[AcpSession] PROTOCOL_INITIALIZED dispatched (fallback after error)");
+              }
+            })();
+          }
           return;
         }
         if (notif.method === "sandbox/init-progress") {
@@ -466,9 +506,23 @@ export function useAcpSession({ wsUrl, autoConnect: autoConnectOpt = true, cliSe
   // Auto-initialize protocol when connected
   useEffect(() => {
     if (status === "connected" && !initializedRef.current) {
-      initializedRef.current = true;
-      console.log("[AcpSession] WS connected, starting initialize...");
+      console.log("[AcpSession] WS connected");
       dispatch({ type: "WS_CONNECTED" });
+
+      // K8s 运行时：等待沙箱就绪后再发送 initialize 请求
+      // 本地运行时：立即发送 initialize 请求
+      const sandboxReady = !stateRef.current.sandboxStatus ||
+                          stateRef.current.sandboxStatus.status === "ready";
+
+      if (!sandboxReady) {
+        // K8s 模式且沙箱未就绪，等待 sandbox/status: ready 通知
+        console.log("[AcpSession] Waiting for sandbox ready before initialize");
+        return;
+      }
+
+      // 沙箱已就绪或本地模式，发送 initialize 请求
+      initializedRef.current = true;
+      console.log("[AcpSession] Starting initialize...");
 
       (async () => {
         try {

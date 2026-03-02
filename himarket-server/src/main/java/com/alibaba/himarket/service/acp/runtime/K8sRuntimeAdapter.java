@@ -278,14 +278,19 @@ public class K8sRuntimeAdapter implements RuntimeAdapter {
         this.podName = podInfo.podName();
         this.podIp = podInfo.podIp();
 
-        // 2. 使用 buildSidecarWsUri 构建带 CLI 参数的 WebSocket URI
-        String command = config.getCommand();
-        String args = config.getArgs() != null ? String.join(" ", config.getArgs()) : null;
+        // 2. 优先使用 PodInfo 中已构建好的 sidecarWsUri（可能包含 env 等额外参数），
+        //    仅在 PodInfo 未提供时才自行构建
         String accessIp =
                 podInfo.serviceIp() != null && !podInfo.serviceIp().isBlank()
                         ? podInfo.serviceIp()
                         : podInfo.podIp();
-        this.sidecarWsUri = buildSidecarWsUri(accessIp, command, args);
+        if (podInfo.sidecarWsUri() != null) {
+            this.sidecarWsUri = podInfo.sidecarWsUri();
+        } else {
+            String command = config.getCommand();
+            String args = config.getArgs() != null ? String.join(" ", config.getArgs()) : null;
+            this.sidecarWsUri = buildSidecarWsUri(accessIp, command, args);
+        }
         logger.info(
                 "Prepared existing pod: name={}, ip={}, sidecarUri={}",
                 podName,

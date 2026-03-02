@@ -1,5 +1,5 @@
 # HiMarket 统一沙箱镜像 (精简版)
-# 预装 Node.js + Python + qodercli + qwen-code
+# 预装 Node.js + Python + qodercli + qwen-code + opencode
 # 适用于 HiCoding / HiWork / HiCli 全场景
 # 单容器方案：Node.js Sidecar Server 桥接 WebSocket ↔ CLI Agent stdio
 #
@@ -114,9 +114,8 @@ RUN npm install -g @qwen-code/qwen-code@latest
 # TODO: 待适配
 # RUN npm install -g @openai/codex
 
-# --- opencode (native binary) ---
-# TODO: 待适配
-# RUN curl -fsSL https://example.com/opencode/install | bash
+# --- opencode (npm package) ---
+RUN npm install -g opencode-ai
 
 # ============================================================
 # 5. Sidecar Server — Node.js WebSocket 服务，支持多 CLI 进程

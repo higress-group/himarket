@@ -41,7 +41,7 @@ jwt:
   expiration: 7d
 
 acp:
-  local-enabled: ${ACP_LOCAL_ENABLED:false}
+  local-enabled: ${ACP_LOCAL_ENABLED:true}
   default-provider: ${ACP_DEFAULT_PROVIDER:qodercli}
   workspace-root: ${ACP_WORKSPACE_ROOT:${user.home}/.himarket/workspaces}
   default-runtime: ${ACP_DEFAULT_RUNTIME:local}
@@ -97,6 +97,8 @@ acp:
       runtime-category: native
       compatible-runtimes: LOCAL,K8S
       supports-custom-model: true
+      supports-mcp: true
+      supports-skill: true
 
 sls:
   # SLS服务端点（必填）
