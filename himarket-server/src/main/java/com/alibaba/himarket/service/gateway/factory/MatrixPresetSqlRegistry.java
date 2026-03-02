@@ -645,6 +645,16 @@ public class MatrixPresetSqlRegistry {
                                 + " AND mcp_tool IS NOT NULL LIMIT 100",
                         null,
                         null));
+        presets.put(
+                "filter_mcp_server_options",
+                new Preset(
+                        "filter_mcp_server_options",
+                        SlsPresetSqlRegistry.DisplayType.TABLE,
+                        "SELECT DISTINCT mcp_server FROM access_logs "
+                                + WHERE_PLACEHOLDER
+                                + " AND mcp_tool IS NOT NULL LIMIT 100",
+                        null,
+                        null));
     }
 
     private void addDurationPercentilePreset(String name, double p, String valueAlias) {

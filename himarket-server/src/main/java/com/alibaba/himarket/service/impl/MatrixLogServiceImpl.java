@@ -201,8 +201,7 @@ public class MatrixLogServiceImpl implements MatrixLogService {
                 request.getBizType() != null && request.getBizType().equals("MCP_SERVER");
 
         if (isMcp) {
-            return "AND JSON_VALID(ai_log) AND NULLIF(JSON_UNQUOTE(JSON_EXTRACT(ai_log,"
-                    + " '$.mcp_tool_name')), '') IS NOT NULL";
+            return "AND REGEXP_LIKE(path, '^/mcp-servers')";
         }
         return "AND JSON_VALID(ai_log)"
                 + " AND NULLIF(JSON_UNQUOTE(JSON_EXTRACT(ai_log, '$.model')), '') IS NOT NULL";

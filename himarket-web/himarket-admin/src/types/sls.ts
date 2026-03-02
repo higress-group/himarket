@@ -83,6 +83,7 @@ export interface FilterOptions {
   route_name?: string[];
   mcp_tool_name?: string[];
   upstream_cluster?: string[];
+  mcp_server?: string[];
 }
 
 /**
@@ -161,6 +162,7 @@ export const McpScenarios = {
   FILTER_SERVICE_OPTIONS: "filter_service_options",
   FILTER_ROUTE_OPTIONS: "filter_route_options",
   FILTER_MCP_TOOL_OPTIONS: "filter_mcp_tool_options",
+  FILTER_MCP_SERVER_OPTIONS: "filter_mcp_server_options",
   FILTER_CONSUMER_OPTIONS: "filter_consumer_options",
   FILTER_UPSTREAM_OPTIONS: "filter_upstream_options",
 } as const;

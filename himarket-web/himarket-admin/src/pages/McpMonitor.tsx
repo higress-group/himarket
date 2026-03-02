@@ -52,6 +52,7 @@ const McpMonitor: React.FC = () => {
     mcpToolNames: [] as string[],
     consumers: [] as string[],
     upstreamClusters: [] as string[],
+    mcpServers: [] as string[],
   });
 
   // KPI数据状态
@@ -131,6 +132,7 @@ const McpMonitor: React.FC = () => {
         mcpToolNames: options.mcp_tool_name || [],
         consumers: options.consumer || [],
         upstreamClusters: options.upstream_cluster || [],
+        mcpServers: options.mcp_server || [],
       });
     } catch (error) {
       console.error("加载过滤选项失败:", error);
@@ -463,7 +465,7 @@ const McpMonitor: React.FC = () => {
                   mode="tags"
                   placeholder="请选择"
                   style={{ width: "100%" }}
-                  options={filterOptions.routeNames.map(v => ({
+                  options={filterOptions.mcpServers.map(v => ({
                     label: v,
                     value: v,
                   }))}

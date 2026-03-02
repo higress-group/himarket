@@ -148,6 +148,7 @@ export async function fetchMcpFilterOptions(
     { ...baseParams, scenario: McpScenarios.FILTER_MCP_TOOL_OPTIONS },
     { ...baseParams, scenario: McpScenarios.FILTER_CONSUMER_OPTIONS },
     { ...baseParams, scenario: McpScenarios.FILTER_UPSTREAM_OPTIONS },
+    { ...baseParams, scenario: McpScenarios.FILTER_MCP_SERVER_OPTIONS },
   ];
 
   const responses = await batchQuerySlsStatistics(requests);
@@ -169,6 +170,7 @@ export async function fetchMcpFilterOptions(
     mcp_tool_name: extractField(responses[2], "mcp_tool_name"),
     consumer: extractField(responses[3], "consumer"),
     upstream_cluster: extractField(responses[4], "upstream_cluster"),
+    mcp_server: extractField(responses[5], "mcp_server"),
   };
 }
 
