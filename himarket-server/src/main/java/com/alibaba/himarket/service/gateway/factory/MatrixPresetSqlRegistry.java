@@ -557,6 +557,8 @@ public class MatrixPresetSqlRegistry {
                         "SELECT response_code_details AS status, COUNT(1) AS count"
                                 + " FROM access_logs "
                                 + WHERE_PLACEHOLDER
+                                + " "
+                                + BIZ_PLACEHOLDER
                                 + " AND response_code_details IS NOT NULL"
                                 + " GROUP BY status",
                         null,
