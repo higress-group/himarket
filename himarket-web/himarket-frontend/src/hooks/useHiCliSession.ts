@@ -464,7 +464,7 @@ export function useHiCliSession(): UseHiCliSessionReturn {
 
       // K8s 运行时：等待沙箱就绪后再发送 initialize 请求
       // 本地运行时：立即发送 initialize 请求
-      const shouldWaitForSandbox = stateRef.current.runtimeType === "K8S";
+      const shouldWaitForSandbox = stateRef.current.runtimeType === "k8s";
       const sandboxReady = !stateRef.current.sandboxStatus ||
                           stateRef.current.sandboxStatus.status === "ready";
 
@@ -690,7 +690,7 @@ export function useHiCliSession(): UseHiCliSessionReturn {
       // 记录选中的 CLI 工具（cwd 由后端决定，连接后通过 workspace/info 通知）
       dispatch({ type: "CLI_SELECTED", cliId, cwd: "", runtime });
       // K8s 运行时：立即显示沙箱创建中状态，让用户有即时反馈
-      if (runtime === "K8S") {
+      if (runtime === "k8s") {
         dispatch({
           type: "SANDBOX_STATUS",
           status: "creating",
@@ -703,7 +703,7 @@ export function useHiCliSession(): UseHiCliSessionReturn {
       cliSessionConfigRef.current = cliSessionConfig;
       // 构建新的 WebSocket URL 并触发连接
       // K8s 运行时附加 sandboxMode=user，本地运行时不附加
-      const isK8s = runtime === "k8s" || runtime === "K8S";
+      const isK8s = runtime === "k8s";
       const newUrl = buildHiCliWsUrl(cliId, runtime, undefined, isK8s ? "user" : undefined);
       setCurrentWsUrl(newUrl);
     },
