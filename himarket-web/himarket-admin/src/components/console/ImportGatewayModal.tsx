@@ -97,11 +97,14 @@ export default function ImportGatewayModal({ visible, gatewayType, onCancel, onS
   // 处理网关分页变化
   const handleGatewayPaginationChange = (page: number, pageSize: number) => {
     const values = importForm.getFieldsValue()
-    const data = JSON.parse(sessionStorage.getItem('importFormConfig') || '');
-    if (JSON.stringify(values) === '{}') {
-      fetchGateways({...data, gatewayType: gatewayType}, page, pageSize)
+    const data = JSON.parse(sessionStorage.getItem('importFormConfig') || '{}');
+    const config = JSON.stringify(values) === '{}' ? data : values;
+    if (gatewayType === 'APSARA_GATEWAY') {
+      fetchApsaraGateways({...config, gatewayType}, page, pageSize)
+    } else if (gatewayType === 'ADP_AI_GATEWAY') {
+      fetchAdpGateways({...config, gatewayType}, page, pageSize)
     } else {
-      fetchGateways({...values, gatewayType: gatewayType}, page, pageSize)
+      fetchGateways({...config, gatewayType}, page, pageSize)
     }
   }
 
@@ -296,7 +299,7 @@ export default function ImportGatewayModal({ visible, gatewayType, onCancel, onS
 
         {gatewayList.length === 0 && gatewayType === 'APSARA_GATEWAY' && (
           <div className="mb-4">
-            <h3 className="text-lg font-medium mb-3">Apsara 认证与路由</h3>
+            <h3 className="text-lg font-medium mb-3">认证信息</h3>
             <Form.Item label="RegionId" name="regionId" rules={[{ required: true, message: '请输入RegionId' }]}>
               <Input />
             </Form.Item>
@@ -306,7 +309,7 @@ export default function ImportGatewayModal({ visible, gatewayType, onCancel, onS
             <Form.Item label="AccessKeySecret" name="accessKeySecret" rules={[{ required: true, message: '请输入AccessKeySecret' }]}>
               <Input.Password />
             </Form.Item>
-            <Form.Item label="SecurityToken(可选)" name="securityToken">
+            <Form.Item label="SecurityToken" name="securityToken">
               <Input />
             </Form.Item>
             <Form.Item label="Domain" name="domain" rules={[{ required: true, message: '请输入Domain' }]}>
@@ -318,16 +321,16 @@ export default function ImportGatewayModal({ visible, gatewayType, onCancel, onS
             <Form.Item label="Version" name="version" rules={[{ required: true, message: '请输入Version' }]} initialValue="2023-02-06">
               <Input />
             </Form.Item>
-            <Form.Item label="x-acs-organizationid" name="xAcsOrganizationId" rules={[{ required: true, message: '请输入组织ID' }]}>
+            <Form.Item label="x-acs-organizationid" name="xAcsOrganizationId" rules={[{ message: '请输入组织ID' }]}>
               <Input />
             </Form.Item>
             <Form.Item label="x-acs-caller-sdk-source" name="xAcsCallerSdkSource">
               <Input />
             </Form.Item>
-            <Form.Item label="x-acs-resourcegroupid(可选)" name="xAcsResourceGroupId">
+            <Form.Item label="x-acs-resourcegroupid" name="xAcsResourceGroupId">
               <Input />
             </Form.Item>
-            <Form.Item label="x-acs-caller-type(可选)" name="xAcsCallerType">
+            <Form.Item label="x-acs-caller-type" name="xAcsCallerType">
               <Input />
             </Form.Item>
             <div className="flex gap-2">
@@ -347,7 +350,7 @@ export default function ImportGatewayModal({ visible, gatewayType, onCancel, onS
                   }
                 }}
               >
-                填充上次参数
+                使用上次配置
               </Button>
               <Button 
                 type="primary"
@@ -361,7 +364,7 @@ export default function ImportGatewayModal({ visible, gatewayType, onCancel, onS
                   })
                 }}
               >
-                使用以上配置继续
+                获取网关列表
               </Button>
             </div>
           </div>
