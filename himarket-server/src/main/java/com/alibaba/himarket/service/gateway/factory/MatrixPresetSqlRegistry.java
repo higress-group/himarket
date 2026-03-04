@@ -507,8 +507,8 @@ public class MatrixPresetSqlRegistry {
                                 + " risklabel, COUNT(1) AS cnt FROM access_logs "
                                 + WHERE_PLACEHOLDER
                                 + " AND JSON_VALID(ai_log) AND JSON_UNQUOTE(JSON_EXTRACT(ai_log,"
-                                + " '$.safecheck_status')) = 'reqeust deny' GROUP BY risklabel ORDER BY cnt"
-                                + " DESC",
+                                + " '$.safecheck_status')) = 'reqeust deny' GROUP BY risklabel"
+                                + " ORDER BY cnt DESC",
                         null,
                         null));
         presets.put(
@@ -520,8 +520,8 @@ public class MatrixPresetSqlRegistry {
                                 + " FROM access_logs "
                                 + WHERE_PLACEHOLDER
                                 + " AND JSON_VALID(ai_log) AND JSON_UNQUOTE(JSON_EXTRACT(ai_log,"
-                                + " '$.safecheck_status')) = 'reqeust deny' AND consumer IS NOT NULL GROUP"
-                                + " BY consumer ORDER BY cnt DESC",
+                                + " '$.safecheck_status')) = 'reqeust deny' AND consumer IS NOT"
+                                + " NULL GROUP BY consumer ORDER BY cnt DESC",
                         null,
                         null));
 

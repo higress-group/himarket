@@ -197,8 +197,7 @@ public class MatrixLogServiceImpl implements MatrixLogService {
      * </ul>
      */
     private String buildBizClause(GenericSlsQueryRequest request) {
-        boolean isMcp =
-                request.getBizType() != null && request.getBizType().equals("MCP_SERVER");
+        boolean isMcp = request.getBizType() != null && request.getBizType().equals("MCP_SERVER");
 
         if (isMcp) {
             return "AND REGEXP_LIKE(path, '^/mcp-servers')";
