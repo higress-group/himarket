@@ -1,8 +1,7 @@
 #!/bin/bash
 
 VERSION=latest
-export DOCKER_HOST=unix://$HOME/.lima/docker/sock/docker.sock
-export JAVA_HOME=/Users/terry/Library/Java/JavaVirtualMachines/corretto-17.0.14/Contents/Home
+
 set -e
 
 # 检查 Java 版本
