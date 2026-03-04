@@ -11,8 +11,6 @@ import ApiProductDetail from "@/pages/ApiProductDetail";
 import Login from "@/pages/Login";
 import ModelDashboard from "@/pages/ModelDashboard";
 import McpMonitor from "@/pages/McpMonitor";
-import McpMonitorForLogCollector from "@/pages/McpMonitorForLogCollector.tsx";
-import ModelDashboardForLogCollector from "@/pages/ModelDashboardForLogCollector.tsx";
 
 export const router = createBrowserRouter([
   {
@@ -74,14 +72,6 @@ export const router = createBrowserRouter([
       {
         path: "observability/mcp-monitor",
         element: <McpMonitor />,
-      },
-      {
-        path: "observability/model-dashboard-for-log-collector",
-        element: <ModelDashboardForLogCollector />,
-      },
-      {
-        path: "observability/mcp-monitor-for-log-collector",
-        element: <McpMonitorForLogCollector />,
       },
       {
         path: "*",
