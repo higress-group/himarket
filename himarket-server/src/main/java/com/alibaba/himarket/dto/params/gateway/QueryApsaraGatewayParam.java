@@ -55,7 +55,6 @@ public class QueryApsaraGatewayParam implements InputConverter<ApsaraGatewayConf
     @JsonProperty("version")
     private String version;
 
-    @NotBlank(message = "x-acs-organizationid不能为空")
     @JsonProperty("xAcsOrganizationId")
     private String xAcsOrganizationId;
 
