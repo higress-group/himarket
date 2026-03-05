@@ -26,9 +26,6 @@ export function MarketMcpSelector({ onChange }: MarketMcpSelectorProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mcpServers, setMcpServers] = useState<MarketMcpInfo[]>([]);
-  const [authHeaders, setAuthHeaders] = useState<Record<string, string> | null>(
-    null
-  );
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [searchKeyword, setSearchKeyword] = useState("");
 
@@ -39,7 +36,6 @@ export function MarketMcpSelector({ onChange }: MarketMcpSelectorProps) {
       const res = await getMarketMcps();
       const data = res.data;
       setMcpServers(data.mcpServers ?? []);
-      setAuthHeaders(data.authHeaders ?? null);
     } catch (err: any) {
       if (err?.response?.status === 401) {
         setError("请先登录以使用市场 MCP Server");
@@ -74,7 +70,7 @@ export function MarketMcpSelector({ onChange }: MarketMcpSelectorProps) {
           ? prev.filter((id) => id !== productId)
           : [...prev, productId];
 
-        // 组装 McpServerEntry 列表并回调
+        // 组装 McpServerEntry 列表并回调（仅传递标识符）
         if (next.length === 0) {
           onChange(null);
         } else {
@@ -82,15 +78,7 @@ export function MarketMcpSelector({ onChange }: MarketMcpSelectorProps) {
             .map((id) => {
               const mcp = mcpServers.find((m) => m.productId === id);
               if (!mcp) return null;
-              const entry: McpServerEntry = {
-                name: mcp.name,
-                url: mcp.url,
-                transportType: mcp.transportType,
-              };
-              if (authHeaders) {
-                entry.headers = { ...authHeaders };
-              }
-              return entry;
+              return { productId: mcp.productId, name: mcp.name };
             })
             .filter((e): e is McpServerEntry => e !== null);
           onChange(entries.length > 0 ? entries : null);
@@ -99,7 +87,7 @@ export function MarketMcpSelector({ onChange }: MarketMcpSelectorProps) {
         return next;
       });
     },
-    [mcpServers, authHeaders, onChange]
+    [mcpServers, onChange]
   );
 
   // 加载中

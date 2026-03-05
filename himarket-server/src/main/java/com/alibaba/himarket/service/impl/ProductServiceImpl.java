@@ -171,6 +171,11 @@ public class ProductServiceImpl implements ProductService {
             param.setPortalId(contextHolder.getPortal());
         }
 
+        // Non-admin users can only see published products
+        if (!contextHolder.isAdministrator()) {
+            param.setStatus(ProductStatus.PUBLISHED);
+        }
+
         if (param.getType() != null && param.hasFilter()) {
             return listProductsWithFilter(param, pageable);
         }

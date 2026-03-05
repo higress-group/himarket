@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import type { RuntimeType, SandboxMode } from '../types/runtime';
+import type { RuntimeType } from '../types/runtime';
 import type { RuntimeOption } from '../components/common/RuntimeSelector';
 import type { ICliProvider } from '../lib/apis/cliProvider';
 import { getAvailableRuntimes, type IRuntimeAvailability } from '../lib/apis/runtime';
@@ -22,7 +22,6 @@ const DEFAULT_RUNTIME_OPTIONS: Record<RuntimeType, Omit<RuntimeOption, 'availabl
 };
 
 const STORAGE_KEY = 'himarket:selectedRuntime';
-const SANDBOX_MODE_STORAGE_KEY = 'himarket:sandboxMode';
 
 interface UseRuntimeSelectionOptions {
   /** 当前选中的 CLI Provider（从 providers 列表中获取） */
@@ -36,10 +35,6 @@ interface UseRuntimeSelectionReturn {
   compatibleRuntimes: RuntimeOption[];
   /** 选择运行时 */
   selectRuntime: (type: string) => void;
-  /** 当前沙箱模式 */
-  sandboxMode: SandboxMode;
-  /** 设置沙箱模式 */
-  setSandboxMode: (mode: SandboxMode) => void;
 }
 
 /**
@@ -61,20 +56,7 @@ export function useRuntimeSelection({
     } catch {
       // ignore
     }
-    return 'local';
-  });
-
-  // 沙箱模式状态，从 localStorage 初始化，默认 'user'
-  const [sandboxMode, setSandboxModeState] = useState<SandboxMode>(() => {
-    try {
-      const stored = localStorage.getItem(SANDBOX_MODE_STORAGE_KEY);
-      if (stored === 'user' || stored === 'session') {
-        return stored;
-      }
-    } catch {
-      // ignore
-    }
-    return 'user';
+    return 'k8s';
   });
 
   // 后端返回的运行时可用性状态
@@ -90,10 +72,9 @@ export function useRuntimeSelection({
         }
       })
       .catch(() => {
-        // 获取失败时回退：仅 local 可用，K8s 标记为不可用
+        // 获取失败时回退：K8s 标记为不可用
         if (!cancelled) {
           setRuntimeAvailability([
-            { type: 'local', available: true },
             { type: 'k8s', available: false, unavailableReason: '无法获取运行时状态，请稍后重试' },
           ]);
         }
@@ -103,7 +84,7 @@ export function useRuntimeSelection({
 
   // 根据 CLI Provider 的 compatibleRuntimes 和后端可用性构建选项列表
   const compatibleRuntimes = useMemo<RuntimeOption[]>(() => {
-    const compatible = provider?.compatibleRuntimes ?? ['local'];
+    const compatible = provider?.compatibleRuntimes ?? ['k8s'];
 
     return compatible.map((type) => {
       const base = DEFAULT_RUNTIME_OPTIONS[type];
@@ -155,24 +136,9 @@ export function useRuntimeSelection({
     }
   }, []);
 
-  // sandboxMode 变化时持久化到 localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem(SANDBOX_MODE_STORAGE_KEY, sandboxMode);
-    } catch {
-      // ignore
-    }
-  }, [sandboxMode]);
-
-  const setSandboxMode = useCallback((mode: SandboxMode) => {
-    setSandboxModeState(mode);
-  }, []);
-
   return {
     selectedRuntime,
     compatibleRuntimes,
     selectRuntime,
-    sandboxMode,
-    setSandboxMode,
   };
 }

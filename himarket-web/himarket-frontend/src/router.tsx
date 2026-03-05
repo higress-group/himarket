@@ -14,7 +14,6 @@ import Callback from "./pages/Callback";
 import OidcCallback from "./pages/OidcCallback";
 import Square from "./pages/Square";
 import Chat from "./pages/Chat";
-import Quest from "./pages/Quest";
 import Coding from "./pages/Coding";
 import HiCli from "./pages/HiCli";
 import SkillDetail from "./pages/SkillDetail";
@@ -30,7 +29,7 @@ export function Router() {
         <Route path="/skills" element={<Square activeType="AGENT_SKILL" />} />
         <Route path="/skills/:skillProductId" element={<SkillDetail />} />
         <Route path="/chat" element={<Chat />} />
-        <Route path="/quest" element={<Quest />} />
+        <Route path="/quest" element={<Navigate to="/coding" />} />
         <Route path="/coding" element={<Coding />} />
         <Route path="/hicli" element={<HiCli />} />
         <Route path="/getting-started" element={<GettingStarted />} />

@@ -61,4 +61,7 @@
     <logger name="org.hibernate.SQL" level="INFO"/>
     <logger name="org.hibernate.type.descriptor.sql.BasicBinder" level="INFO"/>
 
+    <!-- Suppress repetitive K8s config file warning -->
+    <logger name="io.fabric8.kubernetes.client.Config" level="ERROR"/>
+
 </configuration>

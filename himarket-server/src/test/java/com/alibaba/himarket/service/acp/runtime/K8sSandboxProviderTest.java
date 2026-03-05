@@ -149,12 +149,14 @@ class K8sSandboxProviderTest {
     // ===== release (Requirement 3.6) =====
 
     @Test
-    void release_delegatesToPodReuseManager() {
+    void release_isNoOp() {
         SandboxInfo info = k8sSandboxInfo("pod-release", "10.0.0.1");
 
+        // release 不再调用 releasePod，Pod 生命周期与 WS 连接无关
         provider.release(info);
 
-        verify(mockPodReuseManager).releasePod("pod-release");
+        // release 方法内部不应调用 podReuseManager 的任何方法
+        verify(mockPodReuseManager, never()).evictPod(anyString());
     }
 
     // ===== writeFile: 通过 HTTP API (Requirement 3.2) =====

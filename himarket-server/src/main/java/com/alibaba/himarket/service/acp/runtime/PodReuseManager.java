@@ -24,9 +24,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,7 +68,6 @@ public class PodReuseManager {
                     "CreateContainerConfigError",
                     "CrashLoopBackOff");
 
-    static final long DEFAULT_IDLE_TIMEOUT_SECONDS = 1800;
     static final String WORKSPACE_STORAGE_CLASS = "alicloud-disk-efficiency";
     static final String WORKSPACE_STORAGE_SIZE = "20Gi";
 
@@ -95,43 +91,28 @@ public class PodReuseManager {
 
     private final ConcurrentHashMap<String, PodEntry> podCache = new ConcurrentHashMap<>();
     private final K8sConfigService k8sConfigService;
-    private final ScheduledExecutorService scheduler;
     private final String namespace;
-    private final long idleTimeoutSeconds;
     private final boolean sandboxAccessViaService;
-    private String allowedCommands = "qodercli,qwen,npx,kiro-cli,opencode";
+    private String allowedCommands = "qodercli,qwen,npx,opencode";
 
     @org.springframework.beans.factory.annotation.Autowired
     public PodReuseManager(K8sConfigService k8sConfigService, AcpProperties acpProperties) {
         this(
                 k8sConfigService,
                 acpProperties.getK8s().getNamespace(),
-                acpProperties.getK8s().getReusePodIdleTimeout(),
                 acpProperties.getK8s().isSandboxAccessViaService());
         this.allowedCommands = acpProperties.getK8s().getAllowedCommands();
     }
 
-    public PodReuseManager(K8sConfigService k8sConfigService, long idleTimeoutSeconds) {
-        this(k8sConfigService, "default", idleTimeoutSeconds, true);
+    public PodReuseManager(K8sConfigService k8sConfigService) {
+        this(k8sConfigService, "default", true);
     }
 
     public PodReuseManager(
-            K8sConfigService k8sConfigService,
-            String namespace,
-            long idleTimeoutSeconds,
-            boolean sandboxAccessViaService) {
+            K8sConfigService k8sConfigService, String namespace, boolean sandboxAccessViaService) {
         this.k8sConfigService = k8sConfigService;
         this.namespace = namespace != null ? namespace : "default";
-        this.idleTimeoutSeconds =
-                idleTimeoutSeconds > 0 ? idleTimeoutSeconds : DEFAULT_IDLE_TIMEOUT_SECONDS;
         this.sandboxAccessViaService = sandboxAccessViaService;
-        this.scheduler =
-                Executors.newSingleThreadScheduledExecutor(
-                        r -> {
-                            Thread t = new Thread(r, "pod-reuse-idle-timer");
-                            t.setDaemon(true);
-                            return t;
-                        });
     }
 
     public String getNamespace() {
@@ -164,16 +145,31 @@ public class PodReuseManager {
                 podCache.compute(
                         userId,
                         (key, existing) -> {
-                            // 1. 缓存命中 → 验证健康
+                            // 1. 缓存命中 → 验证健康和环境变量
                             if (existing != null) {
                                 if (isPodHealthy(client, existing)) {
+                                    // 检查环境变量是否匹配
+                                    if (config.getEnv() != null && !config.getEnv().isEmpty()) {
+                                        if (!isPodEnvMatching(
+                                                client, existing.getPodName(), config.getEnv())) {
+                                            log.warn(
+                                                    "缓存中的 Pod 环境变量不匹配，清理并重建: userId={}, pod={}",
+                                                    userId,
+                                                    existing.getPodName());
+                                            cleanupUnhealthyPod(client, existing);
+                                            // 继续创建新 Pod
+                                            log.info("环境变量不匹配，创建新 Pod: userId={}", userId);
+                                            PodEntry created = createNewPod(client, userId, config);
+                                            reused[0] = false;
+                                            return created;
+                                        }
+                                    }
+
                                     log.info(
                                             "缓存命中且 Pod 健康: userId={}, pod={}",
                                             userId,
                                             existing.getPodName());
                                     reused[0] = true;
-                                    cancelIdleTimer(existing);
-                                    existing.getConnectionCount().incrementAndGet();
                                     // 补创建 Service（如果开启了 Service 访问且 serviceIp 缺失）
                                     if (sandboxAccessViaService
                                             && (existing.getServiceIp() == null
@@ -196,12 +192,28 @@ public class PodReuseManager {
                             // 2. 缓存未命中（或不健康已清理）→ K8s API 回退查询
                             PodEntry found = queryPodFromK8sApi(client, userId);
                             if (found != null) {
+                                // 检查环境变量是否匹配
+                                if (config.getEnv() != null && !config.getEnv().isEmpty()) {
+                                    if (!isPodEnvMatching(
+                                            client, found.getPodName(), config.getEnv())) {
+                                        log.warn(
+                                                "K8s API 查询到的 Pod 环境变量不匹配，清理并重建: userId={}, pod={}",
+                                                userId,
+                                                found.getPodName());
+                                        cleanupUnhealthyPod(client, found);
+                                        // 继续创建新 Pod
+                                        log.info("环境变量不匹配，创建新 Pod: userId={}", userId);
+                                        PodEntry created = createNewPod(client, userId, config);
+                                        reused[0] = false;
+                                        return created;
+                                    }
+                                }
+
                                 log.info(
                                         "K8s API 回退查询命中: userId={}, pod={}",
                                         userId,
                                         found.getPodName());
                                 reused[0] = true;
-                                found.getConnectionCount().incrementAndGet();
                                 return found;
                             }
 
@@ -209,7 +221,6 @@ public class PodReuseManager {
                             log.info("未找到可复用 Pod，创建新 Pod: userId={}", userId);
                             PodEntry created = createNewPod(client, userId, config);
                             reused[0] = false;
-                            created.getConnectionCount().incrementAndGet();
                             return created;
                         });
 
@@ -221,81 +232,6 @@ public class PodReuseManager {
                 entry.getServiceIp(),
                 sidecarWsUri,
                 reused[0]);
-    }
-
-    /**
-     * 释放一个连接。递减连接计数，计数归零时启动空闲超时。
-     * （将在 task 2.2 中实现）
-     */
-    /**
-     * 释放一个连接。递减连接计数，计数归零时启动空闲超时。
-     * <p>
-     * 边界处理：
-     * - userId 不在缓存中：记录 warn 日志并返回
-     * - connectionCount 已为 0：不再递减，避免负数
-     * <p>
-     * Requirements: 5.2, 5.3, 5.4, 5.5
-     */
-    public void releasePod(String userId) {
-        if (userId == null || userId.isBlank()) {
-            log.warn("releasePod 调用时 userId 为空，忽略");
-            return;
-        }
-
-        PodEntry entry = podCache.get(userId);
-        if (entry == null) {
-            log.warn("releasePod: userId={} 不在缓存中，忽略", userId);
-            return;
-        }
-
-        int count = entry.getConnectionCount().updateAndGet(c -> Math.max(c - 1, 0));
-        log.info("releasePod: userId={}, pod={}, 剩余连接数={}", userId, entry.getPodName(), count);
-
-        if (count == 0) {
-            // 连接计数归零，启动空闲超时计时器
-            ScheduledFuture<?> timer =
-                    scheduler.schedule(
-                            () -> {
-                                // 超时回调：再次检查连接计数是否仍为 0
-                                if (entry.getConnectionCount().get() == 0) {
-                                    log.info(
-                                            "空闲超时到期，删除 Pod: userId={}, pod={}",
-                                            userId,
-                                            entry.getPodName());
-                                    try {
-                                        KubernetesClient client =
-                                                k8sConfigService.getDefaultClient();
-                                        client.pods()
-                                                .inNamespace(namespace)
-                                                .withName(entry.getPodName())
-                                                .delete();
-                                        deleteServiceForPod(client, entry.getPodName());
-                                        log.info("已删除空闲 Pod: {}", entry.getPodName());
-                                    } catch (Exception e) {
-                                        log.error(
-                                                "空闲超时删除 Pod 失败: pod={}, error={}",
-                                                entry.getPodName(),
-                                                e.getMessage(),
-                                                e);
-                                    }
-                                    podCache.remove(userId);
-                                } else {
-                                    log.info(
-                                            "空闲超时到期但连接计数非零，跳过删除: userId={}, count={}",
-                                            userId,
-                                            entry.getConnectionCount().get());
-                                }
-                            },
-                            idleTimeoutSeconds,
-                            TimeUnit.SECONDS);
-
-            entry.setIdleTimer(timer);
-            log.debug(
-                    "已启动空闲超时计时器: userId={}, pod={}, timeout={}s",
-                    userId,
-                    entry.getPodName(),
-                    idleTimeoutSeconds);
-        }
     }
 
     /**
@@ -358,9 +294,6 @@ public class PodReuseManager {
                                 "K8s API 回退查询找到健康 Pod: userId={}, pod={}",
                                 userId,
                                 found.getPodName());
-                        if (existing != null) {
-                            found.getConnectionCount().set(existing.getConnectionCount().get());
-                        }
                         return found;
                     }
 
@@ -387,8 +320,6 @@ public class PodReuseManager {
             log.warn("evictPod: userId={} 不在缓存中，忽略", userId);
             return;
         }
-
-        cancelIdleTimer(entry);
 
         try {
             KubernetesClient client = k8sConfigService.getDefaultClient();
@@ -427,13 +358,73 @@ public class PodReuseManager {
      * 清理不健康的 Pod（尝试删除 K8s Pod）。
      */
     private void cleanupUnhealthyPod(KubernetesClient client, PodEntry entry) {
-        cancelIdleTimer(entry);
         try {
             client.pods().inNamespace(namespace).withName(entry.getPodName()).delete();
             deleteServiceForPod(client, entry.getPodName());
             log.info("已删除不健康 Pod: {}", entry.getPodName());
         } catch (Exception e) {
             log.warn("删除不健康 Pod 失败: pod={}, error={}", entry.getPodName(), e.getMessage());
+        }
+    }
+
+    /**
+     * 检查 Pod 的环境变量是否与期望的环境变量匹配。
+     * 只检查期望环境变量中的 key 是否存在于 Pod 中，不检查 Pod 中的额外环境变量。
+     *
+     * @param client K8s 客户端
+     * @param podName Pod 名称
+     * @param expectedEnv 期望的环境变量 Map
+     * @return true 如果所有期望的环境变量都存在且值匹配，否则返回 false
+     */
+    private boolean isPodEnvMatching(
+            KubernetesClient client, String podName, Map<String, String> expectedEnv) {
+        try {
+            Pod pod = client.pods().inNamespace(namespace).withName(podName).get();
+            if (pod == null
+                    || pod.getSpec() == null
+                    || pod.getSpec().getContainers() == null
+                    || pod.getSpec().getContainers().isEmpty()) {
+                log.warn("无法获取 Pod 规格: podName={}", podName);
+                return false;
+            }
+
+            // 获取第一个容器的环境变量
+            var container = pod.getSpec().getContainers().get(0);
+            if (container.getEnv() == null) {
+                log.warn("Pod 容器没有环境变量: podName={}", podName);
+                return expectedEnv.isEmpty();
+            }
+
+            // 构建 Pod 当前的环境变量 Map
+            Map<String, String> podEnv = new java.util.HashMap<>();
+            for (var envVar : container.getEnv()) {
+                if (envVar.getName() != null && envVar.getValue() != null) {
+                    podEnv.put(envVar.getName(), envVar.getValue());
+                }
+            }
+
+            // 检查所有期望的环境变量是否存在且值匹配
+            for (Map.Entry<String, String> entry : expectedEnv.entrySet()) {
+                String key = entry.getKey();
+                String expectedValue = entry.getValue();
+                String actualValue = podEnv.get(key);
+
+                if (actualValue == null || !actualValue.equals(expectedValue)) {
+                    log.info(
+                            "环境变量不匹配e={}, key={}, expected={}, actual={}",
+                            podName,
+                            key,
+                            expectedValue != null ? "***" : null,
+                            actualValue != null ? "***" : null);
+                    return false;
+                }
+            }
+
+            log.debug("Pod 环境变量匹配: podName={}, checkedKeys={}", podName, expectedEnv.keySet());
+            return true;
+        } catch (Exception e) {
+            log.warn("检查 Pod 环境变量失败: podName={}, error={}", podName, e.getMessage());
+            return false;
         }
     }
 
@@ -594,6 +585,25 @@ public class PodReuseManager {
 
         String podName = podNameForUser(userId);
 
+        // 构建环境变量列表
+        List<io.fabric8.kubernetes.api.model.EnvVar> envVars = new java.util.ArrayList<>();
+        envVars.add(
+                new io.fabric8.kubernetes.api.model.EnvVarBuilder()
+                        .withName("ALLOWED_COMMANDS")
+                        .withValue(allowedCommands)
+                        .build());
+
+        // 添加 RuntimeConfig 中的环境变量（如 API keys）
+        if (config.getEnv() != null && !config.getEnv().isEmpty()) {
+            for (Map.Entry<String, String> entry : config.getEnv().entrySet()) {
+                envVars.add(
+                        new io.fabric8.kubernetes.api.model.EnvVarBuilder()
+                                .withName(entry.getKey())
+                                .withValue(entry.getValue())
+                                .build());
+            }
+        }
+
         PodBuilder podBuilder =
                 new PodBuilder()
                         .withNewMetadata()
@@ -609,10 +619,7 @@ public class PodReuseManager {
                         .withName("sandbox")
                         .withImage(sandboxImage)
                         .withImagePullPolicy("Always")
-                        .addNewEnv()
-                        .withName("ALLOWED_COMMANDS")
-                        .withValue(allowedCommands)
-                        .endEnv()
+                        .withEnv(envVars)
                         .addToPorts(
                                 new ContainerPortBuilder()
                                         .withContainerPort(SIDECAR_PORT)
@@ -812,34 +819,11 @@ public class PodReuseManager {
     /**
      * 取消空闲计时器。
      */
-    private void cancelIdleTimer(PodEntry entry) {
-        ScheduledFuture<?> timer = entry.getIdleTimer();
-        if (timer != null && !timer.isDone()) {
-            timer.cancel(false);
-            entry.setIdleTimer(null);
-            log.debug("已取消空闲计时器: pod={}", entry.getPodName());
-        }
-    }
-
     /**
      * 获取缓存（用于测试）。
      */
     ConcurrentHashMap<String, PodEntry> getPodCache() {
         return podCache;
-    }
-
-    /**
-     * 获取调度器（用于测试）。
-     */
-    ScheduledExecutorService getScheduler() {
-        return scheduler;
-    }
-
-    /**
-     * 获取空闲超时秒数。
-     */
-    public long getIdleTimeoutSeconds() {
-        return idleTimeoutSeconds;
     }
 
     /**

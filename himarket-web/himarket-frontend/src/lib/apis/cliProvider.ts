@@ -33,7 +33,6 @@ export function getCliProviders() {
   );
 }
 
-
 // ============ 模型市场类型定义 ============
 
 export interface MarketModelInfo {
@@ -47,7 +46,6 @@ export interface MarketModelInfo {
 
 export interface MarketModelsResponse {
   models: MarketModelInfo[];
-  apiKey: string | null;
 }
 
 // ============ 模型市场 API 函数 ============
@@ -60,7 +58,6 @@ export function getMarketModels() {
     "/cli-providers/market-models"
   );
 }
-
 
 // ============ MCP 市场类型定义 ============
 
@@ -89,20 +86,17 @@ export interface MarketSkillInfo {
 // ============ CliSessionConfig 类型定义 ============
 
 export interface McpServerEntry {
+  productId: string;
   name: string;
-  url: string;
-  transportType: string;
-  headers?: Record<string, string>;
 }
 
 export interface SkillEntry {
+  productId: string;
   name: string;
-  skillMdContent?: string;
-  files?: SkillFileEntry[];
 }
 
 export interface CliSessionConfig {
-  customModelConfig?: import("../../components/hicli/CustomModelForm").CustomModelFormData;
+  modelProductId?: string;
   mcpServers?: McpServerEntry[];
   skills?: SkillEntry[];
   authToken?: string;  // 认证凭据（PAT / API Key）
@@ -130,15 +124,6 @@ export function getMarketSkills() {
   );
 }
 
-/**
- * 下载指定 Skill 的 SKILL.md 内容
- */
-export function downloadSkill(productId: string) {
-  return request.get<string, string>(
-    `/skills/${productId}/download`
-  );
-}
-
 // ============ Skill 文件树类型定义 ============
 
 export interface SkillFileTreeNode {
@@ -155,12 +140,6 @@ export interface SkillFileContent {
   content: string;
   encoding: string;
   size: number;
-}
-
-export interface SkillFileEntry {
-  path: string;
-  content: string;
-  encoding: string;
 }
 
 // ============ Skill 文件 API 函数 ============
@@ -180,15 +159,6 @@ export function getSkillFiles(productId: string) {
 export function getSkillFileContent(productId: string, filePath: string) {
   return request.get<RespI<SkillFileContent>, RespI<SkillFileContent>>(
     `/skills/${productId}/files/${filePath}`
-  );
-}
-
-/**
- * 获取所有文件（含内容）
- */
-export function getSkillAllFiles(productId: string) {
-  return request.get<RespI<SkillFileContent[]>, RespI<SkillFileContent[]>>(
-    `/skills/${productId}/files/all`
   );
 }
 

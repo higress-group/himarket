@@ -12,8 +12,6 @@ export interface WsUrlParams {
   runtime?: string;
   /** 认证 token */
   token?: string;
-  /** 沙箱模式 (user | session) */
-  sandboxMode?: string;
   /** JSON 序列化的自定义模型配置 */
   customModelConfig?: string;
   /**
@@ -47,7 +45,6 @@ export function buildAcpWsUrl(
   if (params.token) searchParams.set("token", params.token);
   if (params.provider) searchParams.set("provider", params.provider);
   if (params.runtime) searchParams.set("runtime", params.runtime);
-  if (params.sandboxMode) searchParams.set("sandboxMode", params.sandboxMode);
   if (params.customModelConfig) searchParams.set("customModelConfig", params.customModelConfig);
   // cliSessionConfig 不再通过 URL 传递，改为 WebSocket 连接建立后通过 session/config 消息发送，
   // 避免 URL 过长被 Nginx/代理层拒绝（skill/mcp 内容可达数十~数百 KB）。

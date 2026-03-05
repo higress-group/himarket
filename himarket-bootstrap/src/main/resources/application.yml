@@ -49,7 +49,7 @@ acp:
     namespace: ${ACP_K8S_NAMESPACE:default}
     reuse-pod-idle-timeout: ${ACP_K8S_REUSE_POD_IDLE_TIMEOUT:1800}
     sandbox-access-via-service: ${ACP_K8S_SANDBOX_ACCESS_VIA_SERVICE:true}
-    allowed-commands: ${ACP_K8S_ALLOWED_COMMANDS:qodercli,qwen,npx,kiro-cli,opencode}
+    allowed-commands: ${ACP_K8S_ALLOWED_COMMANDS:qodercli,qwen,npx,opencode}
   providers:
     qodercli:
       display-name: Qoder CLI
@@ -60,12 +60,6 @@ acp:
       container-image: ${ACP_SANDBOX_IMAGE:opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/sandbox:latest}
       auth-options: default,personal_access_token
       auth-env-var: QODER_PERSONAL_ACCESS_TOKEN
-    kiro-cli:
-      display-name: Kiro CLI
-      command: ${ACP_CLI_COMMAND_KIRO:kiro-cli}
-      args: ${ACP_CLI_ARGS_KIRO:acp}
-      runtime-category: native
-      compatible-runtimes: LOCAL,K8S
     claude-code:
       display-name: Claude Code
       command: ${ACP_CLI_COMMAND_CLAUDE:npx}
@@ -73,12 +67,9 @@ acp:
       runtime-category: nodejs
       compatible-runtimes: LOCAL,K8S
       auth-env-var: ANTHROPIC_API_KEY
-    codex:
-      display-name: Codex CLI
-      command: ${ACP_CLI_COMMAND_CODEX:npx}
-      args: ${ACP_CLI_ARGS_CODEX:@zed-industries/codex-acp}
-      runtime-category: nodejs
-      compatible-runtimes: LOCAL,K8S
+      supports-custom-model: true
+      supports-mcp: true
+      supports-skill: true
     qwen-code:
       display-name: Qwen Code
       command: ${ACP_CLI_COMMAND_QWEN:qwen}

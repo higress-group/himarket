@@ -3,11 +3,8 @@ import { Alert, Spin, Button, Tag } from "antd";
 import { RefreshCw } from "lucide-react";
 import {
   getMarketSkills,
-  downloadSkill,
-  getSkillAllFiles,
   type MarketSkillInfo,
   type SkillEntry,
-  type SkillFileEntry,
 } from "../../lib/apis/cliProvider";
 import { SelectableCard } from "../common/SelectableCard";
 import { SearchFilterInput } from "../common/SearchFilterInput";
@@ -30,11 +27,6 @@ export function MarketSkillSelector({ onChange }: MarketSkillSelectorProps) {
   const [error, setError] = useState<string | null>(null);
   const [skills, setSkills] = useState<MarketSkillInfo[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [downloadingIds, setDownloadingIds] = useState<Set<string>>(new Set());
-  /** 缓存已下载的 SKILL.md 内容，避免重复下载 */
-  const [downloadedContent, setDownloadedContent] = useState<
-    Record<string, string>
-  >({});
   const [searchKeyword, setSearchKeyword] = useState("");
 
   const fetchSkills = useCallback(async () => {
@@ -56,7 +48,6 @@ export function MarketSkillSelector({ onChange }: MarketSkillSelectorProps) {
   // 组件挂载时获取数据
   useEffect(() => {
     setSelectedIds([]);
-    setDownloadedContent({});
     onChange(null);
     fetchSkills();
   }, [fetchSkills]);
@@ -67,9 +58,9 @@ export function MarketSkillSelector({ onChange }: MarketSkillSelectorProps) {
     [skills, searchKeyword]
   );
 
-  // 切换卡片选中状态，选中时下载 SKILL.md
+  // 切换卡片选中状态，仅传递 { productId, name }
   const handleToggle = useCallback(
-    async (productId: string) => {
+    (productId: string) => {
       const isSelected = selectedIds.includes(productId);
       const nextIds = isSelected
         ? selectedIds.filter((id) => id !== productId)
@@ -82,89 +73,16 @@ export function MarketSkillSelector({ onChange }: MarketSkillSelectorProps) {
         return;
       }
 
-      // 找出需要新下载的 Skill
-      const toDownload = nextIds.filter((id) => !downloadedContent[id]);
-      if (toDownload.length > 0) {
-        setDownloadingIds((prev) => {
-          const next = new Set(prev);
-          toDownload.forEach((id) => next.add(id));
-          return next;
-        });
-
-        // key: productId, value: SkillEntry (files 优先，fallback skillMdContent)
-        const newEntries: Record<string, SkillEntry> = {};
-        await Promise.all(
-          toDownload.map(async (id) => {
-            const skill = skills.find((s) => s.productId === id);
-            if (!skill) return;
-            try {
-              // 优先尝试获取完整文件列表
-              const filesRes = await getSkillAllFiles(id);
-              const files: SkillFileEntry[] | undefined =
-                filesRes?.code === "SUCCESS" &&
-                Array.isArray(filesRes.data) &&
-                filesRes.data.length > 0
-                  ? filesRes.data.map((f) => ({
-                      path: f.path,
-                      content: f.content,
-                      encoding: f.encoding,
-                    }))
-                  : undefined;
-
-              if (files && files.length > 0) {
-                newEntries[id] = { name: skill.name, files };
-              } else {
-                // fallback：下载 SKILL.md 内容
-                const mdRes = await downloadSkill(id);
-                const md = typeof mdRes === "string" ? mdRes : (mdRes as any)?.data ?? "";
-                newEntries[id] = { name: skill.name, skillMdContent: typeof md === "string" ? md : "" };
-              }
-            } catch {
-              newEntries[id] = { name: skill.name, skillMdContent: "" };
-            }
-          })
-        );
-
-        setDownloadingIds((prev) => {
-          const next = new Set(prev);
-          toDownload.forEach((id) => next.delete(id));
-          return next;
-        });
-
-        setDownloadedContent((prev) => {
-          // 将 skillMdContent 存入缓存（files 模式不需要缓存内容）
-          const mdCache: Record<string, string> = {};
-          for (const [id, entry] of Object.entries(newEntries)) {
-            if (entry.skillMdContent) mdCache[id] = entry.skillMdContent;
-          }
-          const merged = { ...prev, ...mdCache };
-
-          const entries = nextIds
-            .map((id): SkillEntry | null => {
-              const skill = skills.find((s) => s.productId === id);
-              if (!skill) return null;
-              // 新下载的优先用 newEntries
-              if (newEntries[id]) return newEntries[id];
-              // 已缓存的用 skillMdContent
-              return { name: skill.name, skillMdContent: prev[id] ?? "" };
-            })
-            .filter((e): e is SkillEntry => e !== null);
-          onChange(entries.length > 0 ? entries : null);
-          return merged;
-        });
-      } else {
-        // 所有内容已缓存，直接组装（缓存中只有 skillMdContent）
-        const entries = nextIds
-          .map((id): SkillEntry | null => {
-            const skill = skills.find((s) => s.productId === id);
-            if (!skill) return null;
-            return { name: skill.name, skillMdContent: downloadedContent[id] ?? "" };
-          })
-          .filter((e): e is SkillEntry => e !== null);
-        onChange(entries.length > 0 ? entries : null);
-      }
+      const entries = nextIds
+        .map((id): SkillEntry | null => {
+          const skill = skills.find((s) => s.productId === id);
+          if (!skill) return null;
+          return { productId: id, name: skill.name };
+        })
+        .filter((e): e is SkillEntry => e !== null);
+      onChange(entries.length > 0 ? entries : null);
     },
-    [skills, selectedIds, downloadedContent, onChange]
+    [skills, selectedIds, onChange]
   );
 
   // 加载中
@@ -235,10 +153,6 @@ export function MarketSkillSelector({ onChange }: MarketSkillSelectorProps) {
                   <span className="text-sm font-medium text-gray-800">
                     {skill.name}
                   </span>
-                  {/* 下载中显示加载指示器 */}
-                  {downloadingIds.has(skill.productId) && (
-                    <Spin size="small" />
-                  )}
                 </div>
                 {skill.description && (
                   <span className="text-xs text-gray-400 line-clamp-2">

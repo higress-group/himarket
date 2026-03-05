@@ -5,7 +5,7 @@ import { getCliProviders, type ICliProvider, type McpServerEntry, type SkillEntr
 import { RuntimeSelector } from "./RuntimeSelector";
 import { useRuntimeSelection } from "../../hooks/useRuntimeSelection";
 import { CustomModelForm, type CustomModelFormData } from "../hicli/CustomModelForm";
-import { MarketModelSelector } from "../hicli/MarketModelSelector";
+import { MarketModelSelector, type MarketModelSelection } from "../hicli/MarketModelSelector";
 import { MarketMcpSelector } from "../hicli/MarketMcpSelector";
 import { MarketSkillSelector } from "../hicli/MarketSkillSelector";
 import { SelectableCard } from "./SelectableCard";
@@ -35,13 +35,14 @@ export function CliSelector({ onSelect, disabled, showRuntimeSelector = false }:
   const selectedProvider = providers.find(p => p.key === selectedCliId) ?? null;
 
   // 运行时选择
-  const { selectedRuntime, compatibleRuntimes, selectRuntime, sandboxMode } = useRuntimeSelection({
+  const { selectedRuntime, compatibleRuntimes, selectRuntime } = useRuntimeSelection({
     provider: selectedProvider,
   });
 
   // 模型配置模式
   const [modelConfigMode, setModelConfigMode] = useState<ModelConfigMode>('market');
   const [customModelData, setCustomModelData] = useState<CustomModelFormData | null>(null);
+  const [marketModelSelection, setMarketModelSelection] = useState<MarketModelSelection | null>(null);
 
   // MCP 和 Skill 选择状态
   const [mcpEnabled, setMcpEnabled] = useState(false);
@@ -101,14 +102,15 @@ export function CliSelector({ onSelect, disabled, showRuntimeSelector = false }:
   }, []);
 
   // MarketModelSelector 数据变化回调
-  const handleMarketModelChange = useCallback((data: CustomModelFormData | null) => {
-    setCustomModelData(data);
+  const handleMarketModelChange = useCallback((data: MarketModelSelection | null) => {
+    setMarketModelSelection(data);
   }, []);
 
   // 切换 CLI 工具时重置模型配置模式和 MCP/Skill 选择状态，并回到步骤一
   useEffect(() => {
     setModelConfigMode('market');
     setCustomModelData(null);
+    setMarketModelSelection(null);
     setMcpEnabled(false);
     setSkillEnabled(false);
     setSelectedMcps(null);
@@ -163,9 +165,9 @@ export function CliSelector({ onSelect, disabled, showRuntimeSelector = false }:
 
     const sessionConfig: CliSessionConfig = {};
 
-    // 模型配置
-    if (modelConfigMode !== 'none' && customModelData) {
-      sessionConfig.customModelConfig = customModelData;
+    // 模型配置：市场模型传递 modelProductId，自定义模型暂不支持（CliSessionConfig 已移除 customModelConfig）
+    if (modelConfigMode === 'market' && marketModelSelection) {
+      sessionConfig.modelProductId = marketModelSelection.productId;
     }
 
     // MCP 配置
@@ -184,16 +186,15 @@ export function CliSelector({ onSelect, disabled, showRuntimeSelector = false }:
     }
 
     // 有任何配置时传递 cliSessionConfig
-    const hasConfig = sessionConfig.customModelConfig
+    const hasConfig = sessionConfig.modelProductId
       || sessionConfig.mcpServers
       || sessionConfig.skills
       || sessionConfig.authToken;
     const configJson = hasConfig ? JSON.stringify(sessionConfig) : undefined;
 
-    // selectedRuntime 已通过 onSelect 第三个参数传递，调用方根据 runtime === "k8s" 判断是否附加 sandboxMode
-    // sandboxMode 当前固定为 "user"（由 useRuntimeSelection hook 管理）
+    // selectedRuntime 已通过 onSelect 第三个参数传递
     onSelect(selectedCliId, "", selectedRuntime, selectedProvider ?? undefined, configJson);
-  }, [selectedCliId, modelConfigMode, customModelData, mcpEnabled, selectedMcps, skillEnabled, selectedSkills, authTokenInput, selectedRuntime, selectedProvider, sandboxMode, onSelect]);
+  }, [selectedCliId, modelConfigMode, marketModelSelection, mcpEnabled, selectedMcps, skillEnabled, selectedSkills, authTokenInput, selectedRuntime, selectedProvider, onSelect]);
 
   // 选择 CLI 工具卡片
   const handleSelectProvider = useCallback((key: string) => {
@@ -392,6 +393,7 @@ export function CliSelector({ onSelect, disabled, showRuntimeSelector = false }:
   const handleModelConfigModeChange = (value: ModelConfigMode) => {
     setModelConfigMode(value);
     setCustomModelData(null);
+    setMarketModelSelection(null);
   };
 
   const renderStep2 = () => (

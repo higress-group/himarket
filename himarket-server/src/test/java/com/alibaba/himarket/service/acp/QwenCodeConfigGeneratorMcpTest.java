@@ -49,7 +49,7 @@ class QwenCodeConfigGeneratorMcpTest {
 
     @Test
     void generateMcpConfig_singleServer_correctFormat() throws IOException {
-        CliSessionConfig.McpServerEntry entry = new CliSessionConfig.McpServerEntry();
+        ResolvedSessionConfig.ResolvedMcpEntry entry = new ResolvedSessionConfig.ResolvedMcpEntry();
         entry.setName("my-mcp");
         entry.setUrl("http://example.com/mcp/sse");
         entry.setTransportType("sse");
@@ -73,7 +73,7 @@ class QwenCodeConfigGeneratorMcpTest {
 
     @Test
     void generateMcpConfig_withHeaders_headersIncluded() throws IOException {
-        CliSessionConfig.McpServerEntry entry = new CliSessionConfig.McpServerEntry();
+        ResolvedSessionConfig.ResolvedMcpEntry entry = new ResolvedSessionConfig.ResolvedMcpEntry();
         entry.setName("auth-mcp");
         entry.setUrl("http://example.com/mcp");
         entry.setTransportType("streamable-http");
@@ -98,12 +98,14 @@ class QwenCodeConfigGeneratorMcpTest {
 
     @Test
     void generateMcpConfig_multipleServers_allPresent() throws IOException {
-        CliSessionConfig.McpServerEntry entry1 = new CliSessionConfig.McpServerEntry();
+        ResolvedSessionConfig.ResolvedMcpEntry entry1 =
+                new ResolvedSessionConfig.ResolvedMcpEntry();
         entry1.setName("server-a");
         entry1.setUrl("http://a.com/mcp/sse");
         entry1.setTransportType("sse");
 
-        CliSessionConfig.McpServerEntry entry2 = new CliSessionConfig.McpServerEntry();
+        ResolvedSessionConfig.ResolvedMcpEntry entry2 =
+                new ResolvedSessionConfig.ResolvedMcpEntry();
         entry2.setName("server-b");
         entry2.setUrl("http://b.com/mcp");
         entry2.setTransportType("streamable-http");
@@ -134,7 +136,8 @@ class QwenCodeConfigGeneratorMcpTest {
                 qwenDir.resolve("settings.json"), objectMapper.writeValueAsString(existing));
 
         // 注入新的 MCP Server
-        CliSessionConfig.McpServerEntry newEntry = new CliSessionConfig.McpServerEntry();
+        ResolvedSessionConfig.ResolvedMcpEntry newEntry =
+                new ResolvedSessionConfig.ResolvedMcpEntry();
         newEntry.setName("new-server");
         newEntry.setUrl("http://new.com/mcp");
         newEntry.setTransportType("streamable-http");
@@ -165,7 +168,8 @@ class QwenCodeConfigGeneratorMcpTest {
                 qwenDir.resolve("settings.json"), objectMapper.writeValueAsString(existing));
 
         // 注入同名的新 MCP Server
-        CliSessionConfig.McpServerEntry newEntry = new CliSessionConfig.McpServerEntry();
+        ResolvedSessionConfig.ResolvedMcpEntry newEntry =
+                new ResolvedSessionConfig.ResolvedMcpEntry();
         newEntry.setName("my-mcp");
         newEntry.setUrl("http://new.com/mcp");
         newEntry.setTransportType("streamable-http");
@@ -185,7 +189,7 @@ class QwenCodeConfigGeneratorMcpTest {
 
     @Test
     void generateMcpConfig_emptyHeaders_headersNotIncluded() throws IOException {
-        CliSessionConfig.McpServerEntry entry = new CliSessionConfig.McpServerEntry();
+        ResolvedSessionConfig.ResolvedMcpEntry entry = new ResolvedSessionConfig.ResolvedMcpEntry();
         entry.setName("no-headers");
         entry.setUrl("http://example.com/mcp/sse");
         entry.setTransportType("sse");

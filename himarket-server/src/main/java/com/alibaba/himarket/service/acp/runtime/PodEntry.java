@@ -1,14 +1,10 @@
 package com.alibaba.himarket.service.acp.runtime;
 
 import java.time.Instant;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Pod 缓存条目，存储用户级沙箱 Pod 的元信息。
- * <p>
- * connectionCount 使用 AtomicInteger 保证并发安全；
- * idleTimer 使用 volatile 保证可见性。
+ * Pod 生命周期与 WebSocket 连接无关，由 PodReuseManager 统一管理。
  */
 public class PodEntry {
 
@@ -16,8 +12,6 @@ public class PodEntry {
     private final String podIp;
     private volatile String serviceIp;
     private final Instant createdAt;
-    private final AtomicInteger connectionCount;
-    private volatile ScheduledFuture<?> idleTimer;
 
     public PodEntry(String podName, String podIp) {
         this(podName, podIp, null);
@@ -28,7 +22,6 @@ public class PodEntry {
         this.podIp = podIp;
         this.serviceIp = serviceIp;
         this.createdAt = Instant.now();
-        this.connectionCount = new AtomicInteger(0);
     }
 
     public String getPodName() {
@@ -49,17 +42,5 @@ public class PodEntry {
 
     public Instant getCreatedAt() {
         return createdAt;
-    }
-
-    public AtomicInteger getConnectionCount() {
-        return connectionCount;
-    }
-
-    public ScheduledFuture<?> getIdleTimer() {
-        return idleTimer;
-    }
-
-    public void setIdleTimer(ScheduledFuture<?> idleTimer) {
-        this.idleTimer = idleTimer;
     }
 }

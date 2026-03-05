@@ -19,5 +19,3 @@ export interface CliProviderWithRuntime {
   containerImage?: string;
 }
 
-export type SandboxMode = 'user' | 'session';
-

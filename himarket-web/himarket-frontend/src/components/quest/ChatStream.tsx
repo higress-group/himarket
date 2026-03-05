@@ -8,17 +8,30 @@ import { ThoughtBlock } from "./ThoughtBlock";
 import { ToolCallCard } from "./ToolCallCard";
 import { WorkUnitCard } from "./WorkUnitCard";
 import { PlanDisplay } from "./PlanDisplay";
-import type { ChatItemUser, ChatItemPlan, ChatItemError } from "../../types/acp";
+import { ArtifactPreview } from "./ArtifactPreview";
+import { DiffViewer } from "./DiffViewer";
+import { TerminalOutput } from "./TerminalOutput";
+import { InlineArtifact } from "../coding/InlineArtifact";
+import type {
+  ChatItem,
+  ChatItemUser,
+  ChatItemToolCall,
+  ChatItemPlan,
+  ChatItemError,
+  ToolCallContentDiffItem,
+} from "../../types/acp";
+import type { Artifact } from "../../types/artifact";
 import { ErrorMessage } from "./ErrorMessage";
 
 interface ChatStreamProps {
   onSelectToolCall: (toolCallId: string) => void;
   onOpenFile?: (path: string) => void;
+  onPreviewArtifact?: () => void;
 }
 
 const SCROLL_THRESHOLD = 24;
 
-export function ChatStream({ onSelectToolCall, onOpenFile }: ChatStreamProps) {
+export function ChatStream({ onSelectToolCall, onOpenFile, onPreviewArtifact }: ChatStreamProps) {
   const quest = useActiveQuest();
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -31,11 +44,95 @@ export function ChatStream({ onSelectToolCall, onOpenFile }: ChatStreamProps) {
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const messages = useMemo(() => quest?.messages ?? [], [quest?.messages]);
+  const artifacts = useMemo(() => quest?.artifacts ?? [], [quest?.artifacts]);
   const selectedToolCallId = quest?.selectedToolCallId ?? null;
   const isProcessing = quest?.isProcessing ?? false;
   const lastCompletedAt = quest?.lastCompletedAt ?? null;
   const lastStopReason = quest?.lastStopReason ?? null;
   const renderItems = useMemo(() => groupMessages(messages), [messages]);
+
+  // Extract inline blocks (artifacts, diffs, terminals) from a set of ChatItems
+  const getInlineBlocks = useCallback(
+    (items: ChatItem[]) => {
+      const blocks: React.ReactNode[] = [];
+      const seenArtifacts = new Set<string>();
+
+      for (const item of items) {
+        if (item.type !== "tool_call") continue;
+        const tc = item as ChatItemToolCall;
+
+        // Artifact: match by toolCallId
+        for (const artifact of artifacts) {
+          if (artifact.toolCallId === tc.toolCallId && !seenArtifacts.has(artifact.id)) {
+            seenArtifacts.add(artifact.id);
+            blocks.push(
+              <InlineArtifact
+                key={`artifact-${artifact.id}`}
+                type="artifact"
+                title={artifact.fileName}
+                onPreviewClick={onPreviewArtifact}
+              >
+                <ArtifactPreview artifact={artifact} />
+              </InlineArtifact>
+            );
+          }
+        }
+
+        // Diff: from tool_call content
+        const diffs = (tc.content ?? []).filter(
+          (c): c is ToolCallContentDiffItem =>
+            c.type === "diff" && (c.oldText !== undefined || c.newText !== undefined)
+        );
+        for (const diff of diffs) {
+          const path = diff.path ?? "unknown";
+          blocks.push(
+            <InlineArtifact
+              key={`diff-${tc.toolCallId}-${path}`}
+              type="diff"
+              title={path}
+            >
+              <DiffViewer path={path} oldText={diff.oldText} newText={diff.newText} />
+            </InlineArtifact>
+          );
+        }
+
+        // Terminal: from tool_call content
+        const terminals = (tc.content ?? []).filter(c => c.type === "terminal");
+        for (const term of terminals) {
+          if (term.type !== "terminal") continue;
+          const terminalId = term.terminalId;
+          // Extract text outputs from the same tool_call's content
+          const outputs = (tc.content ?? [])
+            .filter(
+              c =>
+                c.type === "content" &&
+                c.content?.type === "text" &&
+                typeof c.content.text === "string" &&
+                c.content.text.length > 0
+            )
+            .map(c => (c.type === "content" && c.content?.type === "text" ? c.content.text : ""))
+            .filter(Boolean);
+
+          blocks.push(
+            <InlineArtifact
+              key={`terminal-${tc.toolCallId}-${terminalId}`}
+              type="terminal"
+              title={tc.title || `Terminal ${terminalId}`}
+            >
+              {outputs.length > 0 ? (
+                outputs.map((text, idx) => <TerminalOutput key={idx} text={text} />)
+              ) : (
+                <div className="text-xs text-gray-400">终端输出暂不可用</div>
+              )}
+            </InlineArtifact>
+          );
+        }
+      }
+
+      return blocks;
+    },
+    [artifacts, onPreviewArtifact]
+  );
 
   // Track scroll position to determine if user is near bottom.
   // Only react to user-initiated scrolls (guarded by userInteractingRef)
@@ -198,17 +295,22 @@ export function ChatStream({ onSelectToolCall, onOpenFile }: ChatStreamProps) {
         {renderItems.map(ri => {
           if (ri.type === "work_unit") {
             const isLast = ri === lastRenderItem;
+            const inlineBlocks = getInlineBlocks(ri.items);
             return (
-              <WorkUnitCard
-                key={ri.id}
-                items={ri.items}
-                meta={ri.meta}
-                selectedToolCallId={selectedToolCallId}
-                onSelectToolCall={onSelectToolCall}
-                onOpenFile={onOpenFile}
-                isLastUnit={isLast}
-                isProcessing={isProcessing}
-              />
+              <div key={ri.id}>
+                <WorkUnitCard
+                  items={ri.items}
+                  meta={ri.meta}
+                  selectedToolCallId={selectedToolCallId}
+                  onSelectToolCall={onSelectToolCall}
+                  onOpenFile={onOpenFile}
+                  isLastUnit={isLast}
+                  isProcessing={isProcessing}
+                />
+                {inlineBlocks.length > 0 && (
+                  <div className="mt-1 space-y-1">{inlineBlocks}</div>
+                )}
+              </div>
             );
           }
           const item = ri.item;
@@ -242,15 +344,21 @@ export function ChatStream({ onSelectToolCall, onOpenFile }: ChatStreamProps) {
                 />
               );
             }
-            case "tool_call":
+            case "tool_call": {
+              const inlineBlocks = getInlineBlocks([item]);
               return (
-                <ToolCallCard
-                  key={item.id}
-                  item={item}
-                  selected={selectedToolCallId === item.toolCallId}
-                  onClick={() => onSelectToolCall(item.toolCallId)}
-                />
+                <div key={item.id}>
+                  <ToolCallCard
+                    item={item}
+                    selected={selectedToolCallId === item.toolCallId}
+                    onClick={() => onSelectToolCall(item.toolCallId)}
+                  />
+                  {inlineBlocks.length > 0 && (
+                    <div className="mt-1 space-y-1">{inlineBlocks}</div>
+                  )}
+                </div>
               );
+            }
             case "plan":
               return (
                 <PlanDisplay

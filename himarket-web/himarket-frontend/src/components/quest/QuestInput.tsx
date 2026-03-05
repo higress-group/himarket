@@ -76,6 +76,9 @@ interface QuestInputProps {
   queueSize: number;
   queuedPrompts: QueuedPromptItem[];
   disabled: boolean;
+  variant?: "default" | "welcome";
+  /** Extra elements rendered in the welcome toolbar, after the attachment button */
+  toolbarExtra?: React.ReactNode;
 }
 
 export function QuestInput({
@@ -87,6 +90,8 @@ export function QuestInput({
   queueSize,
   queuedPrompts,
   disabled,
+  variant = "default",
+  toolbarExtra,
 }: QuestInputProps) {
   const [text, setText] = useState("");
   const [showSlash, setShowSlash] = useState(false);
@@ -316,8 +321,11 @@ export function QuestInput({
 
   return (
     <div
-      className={`relative px-4 py-3 border-t border-gray-200/60 bg-white/30 backdrop-blur-sm
-        ${dragOver ? "ring-2 ring-blue-400 ring-inset bg-blue-50/30" : ""}`}
+      className={`relative ${
+        variant === "welcome"
+          ? "px-4 py-4"
+          : "px-4 py-3 border-t border-gray-200/60 bg-white/30 backdrop-blur-sm"
+      } ${dragOver ? "ring-2 ring-blue-400 ring-inset bg-blue-50/30" : ""}`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
@@ -455,74 +463,113 @@ export function QuestInput({
         </div>
       )}
 
-      <div className="flex items-end gap-2">
-        <div className="flex-1 flex items-end gap-1.5">
-          <button
-            className="flex items-center justify-center w-9 h-[40px] rounded-lg text-gray-400
-                       hover:text-gray-600 hover:bg-gray-100/60 transition-colors
-                       disabled:opacity-30 disabled:cursor-not-allowed"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={disabled || uploading || attachments.length >= MAX_ATTACHMENTS}
-            title="添加附件"
-          >
-            <Paperclip size={18} />
-          </button>
+      {variant === "welcome" ? (
+        /* Welcome 模式布局 */
+        <>
           <textarea
             ref={inputRef}
-            className="flex-1 resize-none rounded-xl border border-gray-200/80 bg-white/80 px-4 py-2.5
+            className="w-full resize-none rounded-xl border border-gray-200/80 bg-white/80 px-4 py-2.5
                        text-sm text-gray-700 placeholder-gray-400
                        outline-none focus:border-gray-300 focus:shadow-sm transition-all
-                       min-h-[40px] max-h-[160px] overflow-y-hidden"
+                       min-h-[80px] max-h-[200px] overflow-y-hidden"
             value={text}
             onChange={e => handleChange(e.target.value)}
             onKeyDown={handleKeyDown}
             onPaste={handlePaste}
-            placeholder={
-              disabled
-                ? "正在连接..."
-                : "输入消息… (Enter 发送)"
-            }
+            placeholder={disabled ? "正在连接..." : "输入消息… (Enter 发送)"}
             disabled={disabled}
-            rows={1}
+            rows={2}
           />
-        </div>
-        {isProcessing ? (
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
+            <div className="flex items-center gap-1">
+              <button
+                className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100/60 transition-colors
+                           disabled:opacity-30 disabled:cursor-not-allowed"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={disabled || uploading || attachments.length >= MAX_ATTACHMENTS}
+                title="添加附件"
+              >
+                <Paperclip size={16} />
+              </button>
+              {toolbarExtra}
+            </div>
+            <button
+              className="w-9 h-9 rounded-full bg-gray-800 text-white flex items-center justify-center
+                         hover:bg-gray-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              onClick={handleSend}
+              disabled={!canSend}
+            >
+              <Send size={14} />
+            </button>
+          </div>
+        </>
+      ) : (
+        /* Default 模式布局 */
+        <div className="flex items-end gap-2">
+          <div className="flex-1 flex items-end gap-1.5">
+            <button
+              className="flex items-center justify-center w-9 h-[40px] rounded-lg text-gray-400
+                         hover:text-gray-600 hover:bg-gray-100/60 transition-colors
+                         disabled:opacity-30 disabled:cursor-not-allowed"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={disabled || uploading || attachments.length >= MAX_ATTACHMENTS}
+              title="添加附件"
+            >
+              <Paperclip size={18} />
+            </button>
+            <textarea
+              ref={inputRef}
+              className="flex-1 resize-none rounded-xl border border-gray-200/80 bg-white/80 px-4 py-2.5
+                         text-sm text-gray-700 placeholder-gray-400
+                         outline-none focus:border-gray-300 focus:shadow-sm transition-all
+                         min-h-[40px] max-h-[160px] overflow-y-hidden"
+              value={text}
+              onChange={e => handleChange(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
+              placeholder={disabled ? "正在连接..." : "输入消息… (Enter 发送)"}
+              disabled={disabled}
+              rows={1}
+            />
+          </div>
+          {isProcessing ? (
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium
+                           bg-gray-800 text-white whitespace-nowrap flex-shrink-0
+                           hover:bg-gray-700 transition-colors
+                           disabled:opacity-40 disabled:cursor-not-allowed"
+                onClick={handleSend}
+                disabled={!canSend}
+              >
+                <Send size={14} className="flex-shrink-0" />
+                发送到队列
+              </button>
+              <button
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium
+                           bg-red-50 text-red-600 border border-red-200 whitespace-nowrap flex-shrink-0
+                           hover:bg-red-100 transition-colors"
+                onClick={onCancel}
+              >
+                <Square size={14} className="flex-shrink-0" />
+                停止
+              </button>
+            </div>
+          ) : (
             <button
               className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium
-                         bg-gray-800 text-white whitespace-nowrap flex-shrink-0
+                         bg-gray-800 text-white
                          hover:bg-gray-700 transition-colors
                          disabled:opacity-40 disabled:cursor-not-allowed"
               onClick={handleSend}
               disabled={!canSend}
             >
-              <Send size={14} className="flex-shrink-0" />
-              发送到队列
+              <Send size={14} />
+              发送
             </button>
-            <button
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium
-                         bg-red-50 text-red-600 border border-red-200 whitespace-nowrap flex-shrink-0
-                         hover:bg-red-100 transition-colors"
-              onClick={onCancel}
-            >
-              <Square size={14} className="flex-shrink-0" />
-              停止
-            </button>
-          </div>
-        ) : (
-          <button
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium
-                       bg-gray-800 text-white
-                       hover:bg-gray-700 transition-colors
-                       disabled:opacity-40 disabled:cursor-not-allowed"
-            onClick={handleSend}
-            disabled={!canSend}
-          >
-            <Send size={14} />
-            发送
-          </button>
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
       <input
         ref={fileInputRef}

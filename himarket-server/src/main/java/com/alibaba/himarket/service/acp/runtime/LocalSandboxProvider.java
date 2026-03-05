@@ -44,7 +44,7 @@ public class LocalSandboxProvider implements SandboxProvider {
     private static final Duration HTTP_TIMEOUT = Duration.ofSeconds(10);
     private static final Duration HEALTH_POLL_INTERVAL = Duration.ofMillis(500);
     private static final Duration SIDECAR_READY_TIMEOUT = Duration.ofSeconds(10);
-    private static final String DEFAULT_ALLOWED_COMMANDS = "qodercli,qwen,npx,kiro-cli,opencode";
+    private static final String DEFAULT_ALLOWED_COMMANDS = "qodercli,qwen,npx,opencode";
 
     /** 用户 → 本地 Sidecar 进程映射，支持复用 */
     private final ConcurrentHashMap<String, LocalSidecarProcess> sidecarProcesses =

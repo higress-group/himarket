@@ -2,6 +2,8 @@
 
 本文件为 Claude Code (claude.ai/code) 在处理本仓库代码时提供指导。
 
+**ALWAYS RESPOND IN CHINESE-SIMPLIFIED**
+
 ## 项目概述
 
 HiMarket 是基于 Higress AI 网关构建的企业级 AI 开放平台，帮助企业构建私有 AI 能力市场，管理和分发 AI 资源（LLM、MCP Server、Agent、Agent Skill）。
@@ -67,7 +69,7 @@ npm run preview     # 预览生产环境构建
 ### 数据库配置
 
 数据库连接可通过以下方式配置（优先级从高到低）：
-1. Shell 环境变量
+1. Shell 环境变量（直接 export 或写入 `~/.zshrc` / `~/.bashrc`）
 2. `~/.env` 文件（`scripts/run.sh` 自动加载）
 
 必需的环境变量：
@@ -79,27 +81,60 @@ DB_USERNAME=your_username
 DB_PASSWORD=your_password
 ```
 
+**查询数据库：**
+```bash
+mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USERNAME" -p"$DB_PASSWORD" "$DB_NAME" -e "YOUR_SQL_HERE"
+```
+
+注意事项：
+- 只执行 SELECT 查询，除非用户明确要求修改数据
+- 不要在回复中展示完整的密码、密钥等敏感字段
+- 数据库 schema 由 Flyway 管理，迁移文件在 `himarket-bootstrap/src/main/resources/db/migration/`
+
 ### API 认证
 
 所有 API 端点都需要 JWT Bearer Token 认证（登录/注册端点除外）。
 
+**接口返回格式：**
+```json
+{"code":"SUCCESS","data":{...}}
+```
+Token 在 `data.access_token` 中，有效期为 7 天。
+
 **获取管理员 Token：**
 ```bash
+# 基础方式
 curl -X POST http://localhost:8080/admins/login \
   -H "Content-Type: application/json" \
   -d '{"username":"admin","password":"admin"}'
+
+# 自动提取 token（推荐）
+TOKEN=$(curl -s -X POST http://localhost:8080/admins/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin"}' | jq -r '.data.access_token')
 ```
 
 **获取开发者 Token：**
 ```bash
+# 基础方式
 curl -X POST http://localhost:8080/developers/login \
   -H "Content-Type: application/json" \
   -d '{"username":"user","password":"123456"}'
+
+# 自动提取 token（推荐）
+TOKEN=$(curl -s -X POST http://localhost:8080/developers/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"user","password":"123456"}' | jq -r '.data.access_token')
 ```
 
 **使用 Token：**
 ```bash
-curl -H "Authorization: Bearer <token>" http://localhost:8080/your-endpoint
+curl -s -H "Authorization: Bearer $TOKEN" http://localhost:8080/your-endpoint | jq .
+```
+
+**WebSocket 接口验证：**
+```bash
+websocat -H "Authorization: Bearer $TOKEN" ws://localhost:8080/your-ws-endpoint
 ```
 
 ### 认证注解
@@ -109,6 +144,48 @@ curl -H "Authorization: Bearer <token>" http://localhost:8080/your-endpoint
 - `@DeveloperAuth` - 需要开发者 token
 - `@AdminOrDeveloperAuth` - 接受任意一种 token
 - 无注解 - 公开端点
+
+### 启动后端服务
+
+使用 `scripts/run.sh` 脚本编译并启动 Java 后端：
+
+```bash
+./scripts/run.sh
+```
+
+脚本会自动完成：加载环境变量 → 优雅关闭旧进程 → 编译打包 → 后台启动 jar → 轮询等待就绪。
+脚本退出码为 0 表示启动成功，非 0 表示失败（编译错误或启动超时）。
+
+### 修改代码后的验证
+
+以下场景建议主动进行"重启 → 接口验证"闭环，而不是只改代码就结束：
+- 用户明确要求调试某个 bug 或修复接口问题
+- 新增或修改了 REST/WebSocket 接口
+- 用户要求端到端验证
+- 完成 spec 任务的代码开发后，进行端到端功能验证
+
+**判断是否需要重启：**
+修改 Java 源文件、Spring 配置（`application.yml`）、`pom.xml`、Flyway 迁移文件后需要重启。修改前端、文档、脚本等不需要。
+
+**验证流程：**
+1. `./scripts/run.sh` 重启，确认退出码为 0
+2. 用 curl 调用相关接口，检查返回结果
+3. 如果涉及数据变更，用 mysql CLI 查询确认
+4. 验证失败时读取 `~/himarket.log` 排查，修复后重试
+
+**Spec 任务的端到端验证（建议）：**
+在 spec 任务的代码实现完成后，请评估该任务是否适合通过 curl、websocat、mysql CLI 等工具进行端到端验证。如果判断可以验证（例如涉及 REST 接口、WebSocket 接口、数据持久化等），应在完成代码后主动执行验证闭环：
+
+1. `./scripts/run.sh` 重启后端，确认退出码为 0
+2. 用 curl / websocat 验证相关接口的实际行为（覆盖正常和异常路径）
+3. 如涉及数据变更，用 mysql CLI 查询确认
+4. 验证失败时读取 `~/himarket.log` 排查，修复后重试
+
+如果任务不涉及可直接调用的接口（如纯重构、配置变更、前端改动等），可跳过端到端验证。
+
+### 应用日志
+
+本地运行时日志文件位于 `~/himarket.log`。排查后端问题时应主动读取该日志。
 
 ## 高层架构
 
@@ -189,27 +266,6 @@ Flyway 管理 `himarket-bootstrap/src/main/resources/db/migration/` 中的模式
 - TypeScript 严格模式
 - Prettier 格式化
 
-## 测试
-
-**后端：**
-- JUnit 5 用于单元测试
-- jqwik 用于基于属性的测试
-- 集成测试标记为 `@Tag("integration")`（默认排除）
-- 测试需要 JVM 参数：`--add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.lang.reflect=ALL-UNNAMED`
-
-**前端：**
-- Vitest 用于单元测试（开发者门户）
-
-## 部署选项
-
-1. **本地：** `./scripts/run.sh`
-2. **Docker Compose：** `deploy/docker/scripts/deploy.sh install`
-3. **Helm（K8s）：** `deploy/helm/scripts/deploy.sh install`
-4. **阿里云计算巢：** 一键部署
-
 ## 其他文档
 
-- 前端特定指南：`himarket-web/himarket-frontend/CLAUDE.md`
 - 用户指南：`USER_GUIDE.md`
-- Docker 部署：`deploy/docker/Docker部署脚本说明.md`
-- Helm 部署：`deploy/helm/Helm部署脚本说明.md`

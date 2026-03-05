@@ -78,7 +78,7 @@ public class K8sSandboxProvider implements SandboxProvider {
 
     @Override
     public void release(SandboxInfo info) {
-        podReuseManager.releasePod(info.sandboxId());
+        // Pod 生命周期与 WebSocket 连接无关，不做任何清理
     }
 
     @Override

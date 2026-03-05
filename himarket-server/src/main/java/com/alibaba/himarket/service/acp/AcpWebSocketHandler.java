@@ -2,6 +2,8 @@ package com.alibaba.himarket.service.acp;
 
 import com.alibaba.himarket.config.AcpProperties;
 import com.alibaba.himarket.config.AcpProperties.CliProviderConfig;
+import com.alibaba.himarket.dto.result.skill.SkillFileContentResult;
+import com.alibaba.himarket.service.SkillPackageService;
 import com.alibaba.himarket.service.acp.runtime.CliReadyPhase;
 import com.alibaba.himarket.service.acp.runtime.ConfigFile;
 import com.alibaba.himarket.service.acp.runtime.ConfigInjectionPhase;
@@ -59,6 +61,9 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
     private final K8sConfigService k8sConfigService;
     private final PodReuseManager podReuseManager;
     private final SandboxProviderRegistry sandboxProviderRegistry;
+    private final ModelConfigResolver modelConfigResolver;
+    private final McpConfigResolver mcpConfigResolver;
+    private final SkillPackageService skillPackageService;
     private final Map<String, CliConfigGenerator> configGeneratorRegistry;
     private final Map<String, RuntimeAdapter> runtimeMap = new ConcurrentHashMap<>();
     private final Map<String, Disposable> subscriptionMap = new ConcurrentHashMap<>();
@@ -98,12 +103,18 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
             ObjectMapper objectMapper,
             K8sConfigService k8sConfigService,
             PodReuseManager podReuseManager,
-            SandboxProviderRegistry sandboxProviderRegistry) {
+            SandboxProviderRegistry sandboxProviderRegistry,
+            ModelConfigResolver modelConfigResolver,
+            McpConfigResolver mcpConfigResolver,
+            SkillPackageService skillPackageService) {
         this.properties = properties;
         this.objectMapper = objectMapper;
         this.k8sConfigService = k8sConfigService;
         this.podReuseManager = podReuseManager;
         this.sandboxProviderRegistry = sandboxProviderRegistry;
+        this.modelConfigResolver = modelConfigResolver;
+        this.mcpConfigResolver = mcpConfigResolver;
+        this.skillPackageService = skillPackageService;
 
         // 初始化配置生成器注册表
         this.configGeneratorRegistry = new HashMap<>();
@@ -233,7 +244,7 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
                                 "Received session/config via WebSocket message: session={},"
                                     + " hasModel={}, mcpCount={}, skillCount={}, hasAuthToken={}",
                                 session.getId(),
-                                sessionConfig.getCustomModelConfig() != null,
+                                sessionConfig.getModelProductId() != null,
                                 sessionConfig.getMcpServers() != null
                                         ? sessionConfig.getMcpServers().size()
                                         : 0,
@@ -328,12 +339,6 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
         RuntimeAdapter runtime = runtimeMap.remove(sessionId);
         if (runtime != null) {
             runtime.close(); // 复用模式下只断开 WebSocket，不删除 Pod
-            // 释放 Pod 连接计数
-            String userId = userIdMap.get(sessionId);
-            String sandboxMode = sandboxModeMap.get(sessionId);
-            if ("user".equals(sandboxMode) && userId != null) {
-                podReuseManager.releasePod(userId);
-            }
         }
 
         cwdMap.remove(sessionId);
@@ -552,20 +557,108 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
             return;
         }
 
+        // --- 构建 ResolvedSessionConfig ---
+        ResolvedSessionConfig resolved = new ResolvedSessionConfig();
+        resolved.setAuthToken(sessionConfig.getAuthToken());
+
+        // 1. 模型配置：若 modelProductId 非空，调用 ModelConfigResolver 解析
+        if (sessionConfig.getModelProductId() != null
+                && !sessionConfig.getModelProductId().isBlank()) {
+            logger.info(
+                    "[Sandbox-Config] 开始解析模型配置: modelProductId={}",
+                    sessionConfig.getModelProductId());
+            try {
+                // 设置 Spring Security 上下文，以便 ModelConfigResolver 能获取当前用户
+                // principal 必须是 String 类型的 userId，因为 ContextHolder.getUser() 期望如此
+                org.springframework.security.core.context.SecurityContextHolder.getContext()
+                        .setAuthentication(
+                                new org.springframework.security.authentication
+                                        .UsernamePasswordAuthenticationToken(
+                                        context.getUserId(),
+                                        null,
+                                        java.util.Collections.emptyList()));
+
+                CustomModelConfig customModelConfig =
+                        modelConfigResolver.resolve(sessionConfig.getModelProductId());
+                if (customModelConfig != null) {
+                    resolved.setCustomModelConfig(customModelConfig);
+                    logger.info(
+                            "[Sandbox-Config] 模型配置解析成功: modelProductId={}, baseUrl={},"
+                                    + " hasApiKey={}",
+                            sessionConfig.getModelProductId(),
+                            customModelConfig.getBaseUrl(),
+                            customModelConfig.getApiKey() != null);
+                } else {
+                    logger.warn(
+                            "[Sandbox-Config] 模型配置解析返回 null: modelProductId={}",
+                            sessionConfig.getModelProductId());
+                }
+            } catch (Exception e) {
+                logger.error(
+                        "[Sandbox-Config] 模型配置解析失败: modelProductId={}, error={}",
+                        sessionConfig.getModelProductId(),
+                        e.getMessage(),
+                        e);
+            } finally {
+                // 清理 Security 上下文
+                org.springframework.security.core.context.SecurityContextHolder.clearContext();
+            }
+        } else {
+            logger.info("[Sandbox-Config] 未提供 modelProductId，跳过模型配置解析");
+        }
+
+        // 2. MCP 配置：若 mcpServers 非空，调用 McpConfigResolver 解析
+        if (sessionConfig.getMcpServers() != null && !sessionConfig.getMcpServers().isEmpty()) {
+            try {
+                List<ResolvedSessionConfig.ResolvedMcpEntry> resolvedMcpServers =
+                        mcpConfigResolver.resolve(sessionConfig.getMcpServers());
+                resolved.setMcpServers(resolvedMcpServers);
+            } catch (Exception e) {
+                logger.error("[Sandbox-Config] MCP 配置解析失败: error={}", e.getMessage(), e);
+            }
+        }
+
+        // 3. Skill 文件下载：遍历 skills，对每个有 productId 的条目下载文件
+        if (sessionConfig.getSkills() != null && !sessionConfig.getSkills().isEmpty()) {
+            List<ResolvedSessionConfig.ResolvedSkillEntry> resolvedSkills = new ArrayList<>();
+            for (CliSessionConfig.SkillEntry skillEntry : sessionConfig.getSkills()) {
+                if (skillEntry.getProductId() == null || skillEntry.getProductId().isBlank()) {
+                    continue;
+                }
+                try {
+                    List<SkillFileContentResult> files =
+                            skillPackageService.getAllFiles(skillEntry.getProductId());
+                    ResolvedSessionConfig.ResolvedSkillEntry resolvedSkill =
+                            new ResolvedSessionConfig.ResolvedSkillEntry();
+                    resolvedSkill.setName(skillEntry.getName());
+                    resolvedSkill.setFiles(files);
+                    resolvedSkills.add(resolvedSkill);
+                } catch (Exception e) {
+                    logger.error(
+                            "[Sandbox-Config] Skill 文件下载失败, 跳过: productId={}, name={},"
+                                    + " error={}",
+                            skillEntry.getProductId(),
+                            skillEntry.getName(),
+                            e.getMessage(),
+                            e);
+                }
+            }
+            resolved.setSkills(resolvedSkills);
+        }
+
+        // --- 使用 ResolvedSessionConfig 生成配置文件 ---
         List<ConfigFile> configFiles = new ArrayList<>();
 
-        // 使用同一个临时目录生成所有配置，避免 settings.json 互相覆盖
-        // （generateConfig 写入 modelProviders，generateMcpConfig 读取已有文件后合并 mcpServers）
         java.nio.file.Path sharedTempDir = null;
         try {
             sharedTempDir = java.nio.file.Files.createTempDirectory("sandbox-config-all-");
 
-            // 1. 模型配置（先写入 settings.json，包含 modelProviders + env）
-            if (sessionConfig.getCustomModelConfig() != null) {
+            // 1. 模型配置
+            if (resolved.getCustomModelConfig() != null) {
                 try {
                     Map<String, String> extraEnv =
                             generator.generateConfig(
-                                    sharedTempDir.toString(), sessionConfig.getCustomModelConfig());
+                                    sharedTempDir.toString(), resolved.getCustomModelConfig());
                     if (extraEnv != null && !extraEnv.isEmpty()) {
                         if (config.getEnv() == null) {
                             config.setEnv(new java.util.HashMap<>());
@@ -576,8 +669,8 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
                     logger.info(
                             "[Sandbox-Config] 模型配置已准备: provider={}, baseUrl={}, modelId={}",
                             providerKey,
-                            sessionConfig.getCustomModelConfig().getBaseUrl(),
-                            sessionConfig.getCustomModelConfig().getModelId());
+                            resolved.getCustomModelConfig().getBaseUrl(),
+                            resolved.getCustomModelConfig().getModelId());
                 } catch (Exception e) {
                     logger.error(
                             "[Sandbox-Config] 模型配置生成失败: provider={}, error={}",
@@ -587,18 +680,17 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
                 }
             }
 
-            // 2. MCP 配置（读取已有 settings.json 后合并 mcpServers，不会丢失模型配置）
-            if (sessionConfig.getMcpServers() != null
-                    && !sessionConfig.getMcpServers().isEmpty()
+            // 2. MCP 配置
+            if (resolved.getMcpServers() != null
+                    && !resolved.getMcpServers().isEmpty()
                     && providerConfig.isSupportsMcp()) {
                 try {
-                    generator.generateMcpConfig(
-                            sharedTempDir.toString(), sessionConfig.getMcpServers());
+                    generator.generateMcpConfig(sharedTempDir.toString(), resolved.getMcpServers());
 
                     logger.info(
                             "[Sandbox-Config] MCP 配置已准备: provider={}, {} server(s)",
                             providerKey,
-                            sessionConfig.getMcpServers().size());
+                            resolved.getMcpServers().size());
                 } catch (Exception e) {
                     logger.error(
                             "[Sandbox-Config] MCP 配置生成失败: provider={}, error={}",
@@ -608,18 +700,17 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
                 }
             }
 
-            // 3. Skill 配置（写入独立的 .qwen/skills/xxx/SKILL.md 文件，不影响 settings.json）
-            if (sessionConfig.getSkills() != null
-                    && !sessionConfig.getSkills().isEmpty()
+            // 3. Skill 配置
+            if (resolved.getSkills() != null
+                    && !resolved.getSkills().isEmpty()
                     && providerConfig.isSupportsSkill()) {
                 try {
-                    generator.generateSkillConfig(
-                            sharedTempDir.toString(), sessionConfig.getSkills());
+                    generator.generateSkillConfig(sharedTempDir.toString(), resolved.getSkills());
 
                     logger.info(
                             "[Sandbox-Config] Skill 配置已准备: provider={}, {} skill(s)",
                             providerKey,
-                            sessionConfig.getSkills().size());
+                            resolved.getSkills().size());
                 } catch (Exception e) {
                     logger.error(
                             "[Sandbox-Config] Skill 配置生成失败: provider={}, error={}",
@@ -789,14 +880,8 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
     private void replayPendingMessages(WebSocketSession session, RuntimeAdapter adapter) {
         java.util.Queue<String> pendingQueue = pendingMessageMap.remove(session.getId());
         if (pendingQueue != null) {
-            int count = 0;
             String queued;
             while ((queued = pendingQueue.poll()) != null) {
-                count++;
-                logger.info(
-                        "[Sandbox-Init] 回放缓存消息 #{}: {}",
-                        count,
-                        queued.length() > 200 ? queued.substring(0, 200) + "..." : queued);
                 String rewritten = rewriteSessionNewCwd(session.getId(), queued);
                 try {
                     adapter.send(rewritten);
@@ -805,9 +890,6 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
                             "Error replaying queued message for session {}", session.getId(), e);
                 }
             }
-            logger.info("[Sandbox-Init] 回放完成，共 {} 条消息", count);
-        } else {
-            logger.warn("[Sandbox-Init] pendingQueue 为 null，没有缓存的消息可回放");
         }
     }
 

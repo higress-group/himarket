@@ -60,7 +60,7 @@ public class AcpHandshakeInterceptor implements HandshakeInterceptor {
                 attributes.put("sandboxMode", sandboxMode);
             }
 
-            // 优先解析 cliSessionConfig（新参数）
+            // 解析 cliSessionConfig 参数
             String cliSessionConfigJson = params.getFirst("cliSessionConfig");
             if (StrUtil.isNotBlank(cliSessionConfigJson)) {
                 try {
@@ -69,51 +69,11 @@ public class AcpHandshakeInterceptor implements HandshakeInterceptor {
                     CliSessionConfig sessionConfig =
                             objectMapper.readValue(decoded, CliSessionConfig.class);
                     attributes.put("cliSessionConfig", sessionConfig);
-                    // 向后兼容：如果包含 customModelConfig，也设置到旧的 attribute key
-                    if (sessionConfig.getCustomModelConfig() != null) {
-                        attributes.put("customModelConfig", sessionConfig.getCustomModelConfig());
-                        logger.info(
-                                "cliSessionConfig parsed successfully with customModelConfig:"
-                                        + " modelId={}",
-                                sessionConfig.getCustomModelConfig().getModelId());
-                    } else {
-                        logger.info("cliSessionConfig parsed successfully (no customModelConfig)");
-                    }
+                    logger.info(
+                            "cliSessionConfig parsed successfully: modelProductId={}",
+                            sessionConfig.getModelProductId());
                 } catch (Exception e) {
                     logger.warn("Failed to parse cliSessionConfig: {}", e.getMessage());
-                }
-            }
-
-            // 向后兼容：如果没有 cliSessionConfig 但有 customModelConfig（旧客户端）
-            if (!attributes.containsKey("cliSessionConfig")) {
-                String customModelConfigJson = params.getFirst("customModelConfig");
-                logger.info(
-                        "customModelConfig raw param: {}",
-                        customModelConfigJson != null
-                                ? customModelConfigJson.substring(
-                                        0, Math.min(customModelConfigJson.length(), 100))
-                                : "null");
-                if (StrUtil.isNotBlank(customModelConfigJson)) {
-                    try {
-                        String decoded =
-                                URLDecoder.decode(customModelConfigJson, StandardCharsets.UTF_8);
-                        logger.info(
-                                "customModelConfig decoded: {}",
-                                decoded.substring(0, Math.min(decoded.length(), 100)));
-                        CustomModelConfig customModelConfig =
-                                objectMapper.readValue(decoded, CustomModelConfig.class);
-                        attributes.put("customModelConfig", customModelConfig);
-                        // 同时包装为 CliSessionConfig
-                        CliSessionConfig wrapper = new CliSessionConfig();
-                        wrapper.setCustomModelConfig(customModelConfig);
-                        attributes.put("cliSessionConfig", wrapper);
-                        logger.info(
-                                "customModelConfig parsed and wrapped as cliSessionConfig:"
-                                        + " modelId={}",
-                                customModelConfig.getModelId());
-                    } catch (Exception e) {
-                        logger.warn("Failed to parse customModelConfig: {}", e.getMessage());
-                    }
                 }
             }
         } catch (Exception e) {

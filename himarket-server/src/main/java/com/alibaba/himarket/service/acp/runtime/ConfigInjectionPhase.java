@@ -88,13 +88,19 @@ public class ConfigInjectionPhase implements InitPhase {
             // 抽样验证：检查首尾各一个文件是否可读
             verifyExtracted(provider, info, pendingConfigs);
 
-            for (ConfigFile config : pendingConfigs) {
-                logger.info(
-                        "[ConfigInjection] 配置文件已注入: path={}, hash={}, type={}",
-                        config.relativePath(),
-                        config.contentHash(),
-                        config.type());
-            }
+            // 统计各类型文件数量
+            long skillCount = pendingConfigs.stream().filter(c -> "skill".equals(c.type())).count();
+            long mcpCount = pendingConfigs.stream().filter(c -> "mcp".equals(c.type())).count();
+            long modelCount = pendingConfigs.stream().filter(c -> "model".equals(c.type())).count();
+            long otherCount = pendingConfigs.size() - skillCount - mcpCount - modelCount;
+
+            logger.info(
+                    "[ConfigInjection] 配置注入完成: 共 {} 个文件 (skill={}, mcp={}, model={}, other={})",
+                    pendingConfigs.size(),
+                    skillCount,
+                    mcpCount,
+                    modelCount,
+                    otherCount);
         } catch (InitPhaseException e) {
             throw e;
         } catch (IOException e) {

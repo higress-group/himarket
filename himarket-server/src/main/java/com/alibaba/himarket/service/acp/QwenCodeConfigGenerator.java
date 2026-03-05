@@ -1,5 +1,6 @@
 package com.alibaba.himarket.service.acp;
 
+import com.alibaba.himarket.dto.result.skill.SkillFileContentResult;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -72,7 +73,7 @@ public class QwenCodeConfigGenerator implements CliConfigGenerator {
 
     @Override
     public void generateMcpConfig(
-            String workingDirectory, List<CliSessionConfig.McpServerEntry> mcpServers)
+            String workingDirectory, List<ResolvedSessionConfig.ResolvedMcpEntry> mcpServers)
             throws IOException {
         if (mcpServers == null || mcpServers.isEmpty()) return;
 
@@ -87,29 +88,36 @@ public class QwenCodeConfigGenerator implements CliConfigGenerator {
 
     @Override
     public void generateSkillConfig(
-            String workingDirectory, List<CliSessionConfig.SkillEntry> skills) throws IOException {
+            String workingDirectory, List<ResolvedSessionConfig.ResolvedSkillEntry> skills)
+            throws IOException {
         if (skills == null || skills.isEmpty()) return;
 
-        for (CliSessionConfig.SkillEntry skill : skills) {
+        for (ResolvedSessionConfig.ResolvedSkillEntry skill : skills) {
+            // NPE 防护：跳过 name 为 null 的条目
+            if (skill == null || skill.getName() == null) {
+                logger.warn("跳过 SkillEntry：name 为 null");
+                continue;
+            }
+
+            // NPE 防护：跳过文件列表为空的条目
+            if (skill.getFiles() == null || skill.getFiles().isEmpty()) {
+                logger.warn("跳过 SkillEntry [{}]：文件列表为空", skill.getName());
+                continue;
+            }
+
             String dirName = toKebabCase(skill.getName());
             Path skillDir = Path.of(workingDirectory, QWEN_DIR, "skills", dirName);
             Files.createDirectories(skillDir);
 
-            if (skill.getFiles() != null && !skill.getFiles().isEmpty()) {
-                // 新路径：写入完整目录结构
-                for (CliSessionConfig.SkillEntry.SkillFileEntry file : skill.getFiles()) {
-                    Path filePath = skillDir.resolve(file.getPath());
-                    Files.createDirectories(filePath.getParent());
-                    if ("base64".equals(file.getEncoding())) {
-                        byte[] bytes = Base64.getDecoder().decode(file.getContent());
-                        Files.write(filePath, bytes);
-                    } else {
-                        Files.writeString(filePath, file.getContent());
-                    }
+            for (SkillFileContentResult file : skill.getFiles()) {
+                Path filePath = skillDir.resolve(file.getPath());
+                Files.createDirectories(filePath.getParent());
+                if ("base64".equals(file.getEncoding())) {
+                    byte[] bytes = Base64.getDecoder().decode(file.getContent());
+                    Files.write(filePath, bytes);
+                } else {
+                    Files.writeString(filePath, file.getContent());
                 }
-            } else {
-                // 向后兼容：只写 SKILL.md
-                Files.writeString(skillDir.resolve("SKILL.md"), skill.getSkillMdContent());
             }
         }
     }
@@ -137,13 +145,13 @@ public class QwenCodeConfigGenerator implements CliConfigGenerator {
      */
     @SuppressWarnings("unchecked")
     void mergeMcpServers(
-            Map<String, Object> root, List<CliSessionConfig.McpServerEntry> mcpServers) {
+            Map<String, Object> root, List<ResolvedSessionConfig.ResolvedMcpEntry> mcpServers) {
         Map<String, Object> mcpServersMap =
                 root.containsKey("mcpServers")
                         ? (Map<String, Object>) root.get("mcpServers")
                         : new LinkedHashMap<>();
 
-        for (CliSessionConfig.McpServerEntry entry : mcpServers) {
+        for (ResolvedSessionConfig.ResolvedMcpEntry entry : mcpServers) {
             Map<String, Object> serverConfig = new LinkedHashMap<>();
             serverConfig.put("url", entry.getUrl());
             serverConfig.put("type", entry.getTransportType());
@@ -216,14 +224,6 @@ public class QwenCodeConfigGenerator implements CliConfigGenerator {
         providerList.add(modelEntry);
         modelProviders.put(protocolType, providerList);
         root.put("modelProviders", modelProviders);
-
-        // 合并 env 字段
-        Map<String, Object> env =
-                root.containsKey("env")
-                        ? (Map<String, Object>) root.get("env")
-                        : new LinkedHashMap<>();
-        env.put(envKey, config.getApiKey());
-        root.put("env", env);
 
         // 设置 security.auth.selectedType，告诉 qwen CLI 已选择认证方式，跳过登录交互
         Map<String, Object> security =

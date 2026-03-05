@@ -1,7 +1,9 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { RefreshCw, ExternalLink, Code2, Eye } from "lucide-react";
+import { RefreshCw, ExternalLink, Code2, Eye, FolderOpen, Folder, Settings, Sparkles, Zap } from "lucide-react";
 import { message } from "antd";
 import { Header } from "../components/Header";
+import TextType from "../components/TextType";
+import bgImage from "../assets/bg.png";
 import {
   QuestSessionProvider,
   useQuestState,
@@ -10,7 +12,10 @@ import {
 } from "../context/QuestSessionContext";
 import { useAcpSession } from "../hooks/useAcpSession";
 import { useResizable } from "../hooks/useResizable";
-import { CodingTopBar } from "../components/coding/CodingTopBar";
+import { useCodingConfig } from "../hooks/useCodingConfig";
+import { SessionSidebar } from "../components/coding/SessionSidebar";
+import { ConfigSidebar } from "../components/coding/ConfigSidebar";
+import { ConversationTopBar } from "../components/coding/ConversationTopBar";
 import { FileTree } from "../components/coding/FileTree";
 import { EditorArea } from "../components/coding/EditorArea";
 import { TerminalPanel } from "../components/coding/TerminalPanel";
@@ -25,37 +30,17 @@ import {
   fetchWorkspaceChanges,
   getPreviewUrl,
 } from "../lib/utils/workspaceApi";
-import type { FileNode, OpenFile } from "../types/coding";
+import type { FileNode } from "../types/coding";
 import type { ChatItemPlan } from "../types/acp";
-import type { ICliProvider } from "../lib/apis/cliProvider";
 import { buildAcpWsUrl } from "../lib/utils/wsUrl";
-import { WelcomePage } from "../components/common/WelcomePage";
 import { SandboxInitProgress } from "../components/hicli/SandboxInitProgress";
 
 const EXT_TO_LANG: Record<string, string> = {
-  ts: "typescript",
-  tsx: "typescript",
-  js: "javascript",
-  jsx: "javascript",
-  json: "json",
-  html: "html",
-  css: "css",
-  scss: "scss",
-  less: "less",
-  md: "markdown",
-  py: "python",
-  java: "java",
-  xml: "xml",
-  yaml: "yaml",
-  yml: "yaml",
-  sh: "shell",
-  bash: "shell",
-  sql: "sql",
-  go: "go",
-  rs: "rust",
-  toml: "toml",
-  vue: "html",
-  svelte: "html",
+  ts: "typescript", tsx: "typescript", js: "javascript", jsx: "javascript",
+  json: "json", html: "html", css: "css", scss: "scss", less: "less",
+  md: "markdown", py: "python", java: "java", xml: "xml", yaml: "yaml",
+  yml: "yaml", sh: "shell", bash: "shell", sql: "sql", go: "go",
+  rs: "rust", toml: "toml", vue: "html", svelte: "html",
 };
 
 function inferLanguage(fileName: string): string {
@@ -63,32 +48,22 @@ function inferLanguage(fileName: string): string {
   return EXT_TO_LANG[ext] ?? "plaintext";
 }
 
-// buildWsUrl removed — wsUrl is now built lazily via handleSelectCli
-
 function readBool(key: string, fallback: boolean): boolean {
   try {
     const raw = localStorage.getItem(key);
     if (raw === "true") return true;
     if (raw === "false") return false;
-  } catch {
-    // ignore
-  }
+  } catch { /* ignore */ }
   return fallback;
 }
 
 function writeBool(key: string, value: boolean): void {
-  try {
-    localStorage.setItem(key, String(value));
-  } catch {
-    // ignore
-  }
+  try { localStorage.setItem(key, String(value)); } catch { /* ignore */ }
 }
 
 /* ─── Resize handle shared component ─── */
 function ResizeHandle({
-  direction,
-  isDragging,
-  onMouseDown,
+  direction, isDragging, onMouseDown,
 }: {
   direction: "horizontal" | "vertical";
   isDragging: boolean;
@@ -101,7 +76,7 @@ function ResizeHandle({
           ${isDragging ? "bg-blue-500/40" : "hover:bg-blue-500/30"}`}
         onMouseDown={onMouseDown}
       >
-        <div className={`absolute inset-y-0 -left-1 -right-1 z-10`} />
+        <div className="absolute inset-y-0 -left-1 -right-1 z-10" />
       </div>
     );
   }
@@ -111,29 +86,23 @@ function ResizeHandle({
         ${isDragging ? "bg-blue-500/40" : "hover:bg-blue-500/30"}`}
       onMouseDown={onMouseDown}
     >
-      <div className={`absolute inset-x-0 -top-1 -bottom-1 z-10`} />
+      <div className="absolute inset-x-0 -top-1 -bottom-1 z-10" />
     </div>
   );
 }
 
 type RightTab = "preview" | "code";
 
-// Kinds that are read-only and never create/modify/delete files
-const READ_ONLY_KINDS = new Set([
-  "read",
-  "search",
-  "think",
-  "fetch",
-  "switch_mode",
-]);
+const READ_ONLY_KINDS = new Set(["read", "search", "think", "fetch", "switch_mode"]);
 
 function CodingContent() {
-  // 延迟连接模式：初始 wsUrl 为空，不触发连接
+  // ===== 配置持久化 =====
+  const { config, setConfig, isFirstTime, isComplete } = useCodingConfig();
+  const [configOpen, setConfigOpen] = useState(false);
+
+  // ===== 延迟连接模式：初始 wsUrl 为空，不触发连接 =====
   const [currentWsUrl, setCurrentWsUrl] = useState("");
   const [currentCliSessionConfig, setCurrentCliSessionConfig] = useState<string | undefined>();
-  const [, setCurrentProvider] = useState(
-    () => localStorage.getItem("hicoding:cliProvider") || ""
-  );
   const session = useAcpSession({ wsUrl: currentWsUrl, cliSessionConfig: currentCliSessionConfig });
 
   const state = useQuestState();
@@ -142,39 +111,118 @@ function CodingContent() {
 
   const isConnected = session.status === "connected";
 
-  // 跟踪当前运行时类型
-  const currentRuntimeRef = useRef<string>("local");
+  // 跟踪当前运行时类型（HiCoding 仅支持沙箱模式）
+  const currentRuntimeRef = useRef<string>("k8s");
 
-  // CLI 工具选择 → 构建 wsUrl 触发连接
-  const handleSelectCli = useCallback(
-    (cliId: string, _cwd: string, runtime?: string, _providerObj?: ICliProvider, cliSessionConfig?: string) => {
-      localStorage.setItem("hicoding:cliProvider", cliId);
-      setCurrentProvider(cliId);
-      const isK8s = runtime === "k8s";
-      currentRuntimeRef.current = runtime || "local";
-      // cliSessionConfig 不再通过 URL 传递，改为 WebSocket 连接后通过 session/config 消息发送
-      setCurrentCliSessionConfig(cliSessionConfig);
+  // 暂存首条消息，等连接 + 会话就绪后自动发送
+  const pendingPromptRef = useRef<string | null>(null);
+
+  // ConfigSidebar 确认配置并连接
+  const handleConnect = useCallback(
+    (cfg: typeof config) => {
+      const cliId = cfg.cliProviderId ?? "";
+      currentRuntimeRef.current = "k8s";
+
+      setCurrentCliSessionConfig(cfg.cliSessionConfig);
+
       const url = buildAcpWsUrl({
         token: localStorage.getItem("access_token") || undefined,
         provider: cliId || undefined,
-        runtime: runtime || "local",
-        sandboxMode: isK8s ? "user" : undefined,
+        runtime: "k8s",
       });
-      if (isK8s) {
-        dispatch({ type: "SANDBOX_STATUS", status: "creating", message: "正在连接沙箱环境..." });
-      }
+
+      dispatch({ type: "SANDBOX_STATUS", status: "creating", message: "正在连接沙箱环境..." });
+
       setCurrentWsUrl(url);
+      setConfigOpen(false);
     },
     [dispatch]
   );
 
+  // 连接成功后设置模型
+  useEffect(() => {
+    if (isConnected && config.modelProductId) {
+      session.setModel(config.modelProductId);
+    }
+  }, [isConnected, config.modelProductId]);
 
-  const [activeTab, setActiveTab] = useState<RightTab>("code");
+  // ===== 自动创建 Quest =====
+  const autoCreatedRef = useRef(false);
+
+  useEffect(() => {
+    if (!isConnected || !state.initialized || Object.keys(state.quests).length > 0 || autoCreatedRef.current) {
+      if (!isConnected) {
+        autoCreatedRef.current = false;
+      }
+      return;
+    }
+
+    // 沙箱模式：等待 sandbox ready 后再创建会话
+    if (state.sandboxStatus?.status !== "ready") {
+      return;
+    }
+
+    autoCreatedRef.current = true;
+    session.createQuest(".").catch(err => {
+      console.error("[Coding] Auto create quest failed:", err);
+      dispatch({
+        type: "SANDBOX_STATUS",
+        status: "error",
+        message: err?.message || "会话创建失败，请重新连接",
+      });
+    });
+  }, [isConnected, state.initialized, state.quests, state.sandboxStatus, session, dispatch]);
+
+  // 会话就绪后自动发送暂存的首条消息
+  useEffect(() => {
+    if (activeQuest && pendingPromptRef.current) {
+      const prompt = pendingPromptRef.current;
+      pendingPromptRef.current = null;
+      session.sendPrompt(prompt);
+    }
+  }, [activeQuest, session]);
+
+  // 新建会话：断开连接，回到欢迎页
+  const handleNewQuest = useCallback(() => {
+    autoCreatedRef.current = false;
+    pendingPromptRef.current = null;
+    setCurrentWsUrl("");
+    setCurrentCliSessionConfig(undefined);
+  }, []);
+
+  // 欢迎页发送消息：如果未连接则先触发连接，暂存消息
+  const handleWelcomeSend = useCallback(
+    (text: string) => {
+      if (!isComplete) {
+        message.warning("请先完成配置");
+        setConfigOpen(true);
+        return { queued: false as const };
+      }
+
+      if (!isConnected) {
+        // 暂存消息，触发连接
+        pendingPromptRef.current = text;
+        handleConnect(config);
+        return { queued: true as const };
+      }
+
+      if (activeQuest) {
+        return session.sendPrompt(text);
+      }
+
+      // 已连接但会话还没创建好，暂存
+      pendingPromptRef.current = text;
+      return { queued: true as const };
+    },
+    [isComplete, isConnected, activeQuest, config, handleConnect, session]
+  );
+
+  // ===== IDE 面板状态 =====
+  const [activeTab, setActiveTab] = useState<RightTab>("preview");
   const [tree, setTree] = useState<FileNode[]>([]);
   const [treeLoading, setTreeLoading] = useState(false);
   const autoOpenedRef = useRef<Set<string>>(new Set());
 
-  // File tree visibility (persisted)
   const [fileTreeVisible, setFileTreeVisible] = useState(() =>
     readBool("hicoding:fileTreeVisible", true)
   );
@@ -186,7 +234,6 @@ function CodingContent() {
     });
   }, []);
 
-  // Terminal collapse (persisted)
   const [terminalCollapsed, setTerminalCollapsed] = useState(() =>
     readBool("hicoding:terminalCollapsed", false)
   );
@@ -198,76 +245,21 @@ function CodingContent() {
     });
   }, []);
 
-  // Resizable panels
-  const leftPanel = useResizable({
-    direction: "horizontal",
-    defaultSize: 420,
-    minSize: 320,
-    maxSize: 600,
-    storageKey: "hicoding:leftPanelWidth",
+  // ===== Resizable panels =====
+  const conversationPanel = useResizable({
+    direction: "horizontal", defaultSize: 420, minSize: 320, maxSize: 600,
+    storageKey: "hicoding:conversationWidth",
   });
-
   const fileTreePanel = useResizable({
-    direction: "horizontal",
-    defaultSize: 200,
-    minSize: 140,
-    maxSize: 400,
+    direction: "horizontal", defaultSize: 200, minSize: 140, maxSize: 400,
     storageKey: "hicoding:fileTreeWidth",
   });
-
   const terminalPanel = useResizable({
-    direction: "vertical",
-    defaultSize: 200,
-    minSize: 100,
-    maxSize: 500,
-    storageKey: "hicoding:terminalHeight",
-    reverse: true,
+    direction: "vertical", defaultSize: 200, minSize: 100, maxSize: 500,
+    storageKey: "hicoding:terminalHeight", reverse: true,
   });
 
-  // 自动创建 Quest 的标记
-  const autoCreatedRef = useRef(false);
-
-  // 连接成功且初始化完成后，自动创建第一个 Quest
-  // K8s 运行时：等待 sandboxStatus.status === "ready" 后再创建
-  // 本地运行时：保持现有行为，连接成功后立即创建
-  useEffect(() => {
-    if (!isConnected || !state.initialized || Object.keys(state.quests).length > 0 || autoCreatedRef.current) {
-      // 断开连接时重置标记
-      if (!isConnected) {
-        autoCreatedRef.current = false;
-      }
-      return;
-    }
-
-    const isK8s = currentRuntimeRef.current === "k8s";
-
-    // K8s 运行时：sandboxStatus 为 creating 时不创建，等待 ready
-    if (isK8s && state.sandboxStatus?.status !== "ready") {
-      return;
-    }
-
-    // Set flag BEFORE creation to prevent re-entry on failure
-    autoCreatedRef.current = true;
-
-    // Add debug logging
-    console.log("[Coding] Auto-creating quest:", {
-      runtime: currentRuntimeRef.current,
-      sandboxStatus: state.sandboxStatus?.status,
-    });
-
-    session.createQuest(".").catch(err => {
-      console.error("[Coding] Auto create quest failed:", err);
-      // Keep autoCreatedRef = true to prevent infinite retry
-      // Show error to user via sandbox status
-      dispatch({
-        type: "SANDBOX_STATUS",
-        status: "error",
-        message: err?.message || "会话创建失败，请重新连接",
-      });
-    });
-  }, [isConnected, state.initialized, state.quests, state.sandboxStatus, session, dispatch]);
-
-  // Load directory tree when quest is created
+  // ===== 文件树加载 =====
   useEffect(() => {
     if (!activeQuest?.cwd) return;
     setTreeLoading(true);
@@ -277,7 +269,6 @@ function CodingContent() {
     });
   }, [activeQuest?.cwd]);
 
-  // Refresh tree on tool call completion (file may have been created/modified)
   const messageCount = activeQuest?.messages.length ?? 0;
   useEffect(() => {
     if (!activeQuest?.cwd || messageCount === 0) return;
@@ -291,16 +282,14 @@ function CodingContent() {
     }
   }, [messageCount, activeQuest?.cwd, activeQuest?.messages]);
 
-  // Poll for external file changes (e.g. user creates files via terminal)
   const lastPollRef = useRef<number>(0);
   const pollingRef = useRef(false);
   useEffect(() => {
     if (!activeQuest?.cwd) return;
     const cwd = activeQuest.cwd;
     lastPollRef.current = Date.now();
-    const pollInterval = 10000;
     const interval = setInterval(async () => {
-      if (pollingRef.current) return; // 上一次还没回来，跳过
+      if (pollingRef.current) return;
       pollingRef.current = true;
       try {
         const changes = await fetchWorkspaceChanges(cwd, lastPollRef.current, 200, currentRuntimeRef.current);
@@ -308,27 +297,20 @@ function CodingContent() {
           lastPollRef.current = Date.now();
           fetchDirectoryTree(cwd, 10, currentRuntimeRef.current).then(setTree);
         }
-      } finally {
-        pollingRef.current = false;
-      }
-    }, pollInterval);
+      } finally { pollingRef.current = false; }
+    }, 10000);
     return () => clearInterval(interval);
   }, [activeQuest?.cwd]);
 
-  // Auto-switch to preview when port is detected
   useEffect(() => {
-    if (activeQuest?.previewPort) {
-      setActiveTab("preview");
-    }
+    if (activeQuest?.previewPort) setActiveTab("preview");
   }, [activeQuest?.previewPort]);
 
   // Auto-open files when Agent edits them
   useEffect(() => {
     if (!activeQuest || messageCount === 0) return;
     for (const msg of activeQuest.messages) {
-      if (msg.type !== "tool_call") continue;
-      if (msg.kind !== "edit") continue;
-      if (msg.status !== "completed") continue;
+      if (msg.type !== "tool_call" || msg.kind !== "edit" || msg.status !== "completed") continue;
       const locations = msg.locations;
       if (!locations || locations.length === 0) continue;
       for (const loc of locations) {
@@ -342,13 +324,7 @@ function CodingContent() {
             dispatch({
               type: "FILE_OPENED",
               questId: activeQuest.id,
-              file: {
-                path: filePath,
-                fileName,
-                content: result.content,
-                language: inferLanguage(fileName),
-                encoding: result.encoding ?? "utf-8",
-              },
+              file: { path: filePath, fileName, content: result.content, language: inferLanguage(fileName), encoding: result.encoding ?? "utf-8" },
             });
             setActiveTab("code");
           }
@@ -357,28 +333,18 @@ function CodingContent() {
     }
   }, [messageCount, activeQuest, dispatch]);
 
+  // ===== 文件操作回调 =====
   const handleFileSelect = useCallback(
     async (node: FileNode) => {
       if (node.type !== "file" || !activeQuest) return;
       if (activeQuest.openFiles.some(f => f.path === node.path)) {
-        dispatch({
-          type: "ACTIVE_FILE_CHANGED",
-          questId: activeQuest.id,
-          path: node.path,
-        });
+        dispatch({ type: "ACTIVE_FILE_CHANGED", questId: activeQuest.id, path: node.path });
         setActiveTab("code");
         return;
       }
       const result = await fetchArtifactContent(node.path, { raw: true, runtime: currentRuntimeRef.current });
       if (result.content !== null) {
-        const file: OpenFile = {
-          path: node.path,
-          fileName: node.name,
-          content: result.content,
-          language: inferLanguage(node.name),
-          encoding: result.encoding ?? "utf-8",
-        };
-        dispatch({ type: "FILE_OPENED", questId: activeQuest.id, file });
+        dispatch({ type: "FILE_OPENED", questId: activeQuest.id, file: { path: node.path, fileName: node.name, content: result.content, language: inferLanguage(node.name), encoding: result.encoding ?? "utf-8" } });
         setActiveTab("code");
       } else if (result.error) {
         message.warning(result.error.message);
@@ -398,27 +364,15 @@ function CodingContent() {
   const handleOpenFilePath = useCallback(
     async (path: string) => {
       if (!activeQuest) return;
-      // If already open, just switch to it
       if (activeQuest.openFiles.some(f => f.path === path)) {
-        dispatch({
-          type: "ACTIVE_FILE_CHANGED",
-          questId: activeQuest.id,
-          path,
-        });
+        dispatch({ type: "ACTIVE_FILE_CHANGED", questId: activeQuest.id, path });
         setActiveTab("code");
         return;
       }
       const result = await fetchArtifactContent(path, { raw: true, runtime: currentRuntimeRef.current });
       if (result.content !== null) {
         const fileName = path.split(/[/\\]/).pop() ?? path;
-        const file: OpenFile = {
-          path,
-          fileName,
-          content: result.content,
-          language: inferLanguage(fileName),
-          encoding: result.encoding ?? "utf-8",
-        };
-        dispatch({ type: "FILE_OPENED", questId: activeQuest.id, file });
+        dispatch({ type: "FILE_OPENED", questId: activeQuest.id, file: { path, fileName, content: result.content, language: inferLanguage(fileName), encoding: result.encoding ?? "utf-8" } });
         setActiveTab("code");
       } else if (result.error) {
         message.warning(result.error.message);
@@ -430,70 +384,162 @@ function CodingContent() {
   const handleSelectFile = useCallback(
     (path: string) => {
       if (!activeQuest) return;
-      dispatch({
-        type: "ACTIVE_FILE_CHANGED",
-        questId: activeQuest.id,
-        path,
-      });
+      dispatch({ type: "ACTIVE_FILE_CHANGED", questId: activeQuest.id, path });
     },
     [activeQuest, dispatch]
   );
 
-  // DEV: hardcode port 3000 for testing preview
   const previewPort = activeQuest?.previewPort ?? 3000;
   const sandboxHost = state.sandboxStatus?.sandboxHost ?? null;
 
   const handleRefreshPreview = useCallback(() => {
-    const iframe = document.querySelector<HTMLIFrameElement>(
-      "#coding-preview-iframe"
-    );
-    if (iframe && previewPort) {
-      iframe.src = getPreviewUrl(previewPort, sandboxHost);
-    }
+    const iframe = document.querySelector<HTMLIFrameElement>("#coding-preview-iframe");
+    if (iframe && previewPort) iframe.src = getPreviewUrl(previewPort, sandboxHost);
   }, [previewPort, sandboxHost]);
 
   const handleOpenExternal = useCallback(() => {
-    if (previewPort) {
-      window.open(getPreviewUrl(previewPort, sandboxHost), "_blank");
-    }
+    if (previewPort) window.open(getPreviewUrl(previewPort, sandboxHost), "_blank");
   }, [previewPort, sandboxHost]);
 
   const planEntries = activeQuest?.messages.find(
     (m): m is ChatItemPlan => m.type === "plan"
   )?.entries;
 
-  // 未连接时显示欢迎页，连接中显示进度，已连接时显示 IDE 界面
-  if (!isConnected) {
-    return (
-      <div className="flex flex-1 min-h-0 overflow-hidden bg-white/50">
-        <WelcomePage
-          icon={<Code2 size={48} />}
-          title="HiCoding"
-          description="选择一个 CLI 工具开始编码"
-          isConnected={false}
-          disabled={false}
-          onSelectCli={handleSelectCli}
-          showRuntimeSelector={true}
-        />
+  // ===== 渲染状态判断 =====
+  const showSandboxError = isConnected && state.sandboxStatus?.status === "error";
+  const showInitProgress = isConnected && (!state.initialized || !activeQuest) && !showSandboxError;
+  const showIDE = isConnected && state.initialized && activeQuest && !showSandboxError;
+  // 欢迎页：未连接，或者连接中但还没有活跃会话（且没有暂存消息正在等待）
+  const showWelcome = !isConnected && !pendingPromptRef.current;
 
-        {/* Permission dialog */}
-        {state.pendingPermission && (
-          <PermissionDialog
-            permission={state.pendingPermission}
-            onRespond={session.respondPermission}
+  // ===== 欢迎页：使用 HiChat 风格布局 =====
+  if (showWelcome) {
+    return (
+      <>
+        <div className="flex flex-1 min-h-0 overflow-hidden">
+          {/* HiChat 风格侧边栏 */}
+          <SessionSidebar
+            onSwitchQuest={session.switchQuest}
+            onCloseQuest={session.closeQuest}
+            onNewQuest={handleNewQuest}
           />
-        )}
-      </div>
+
+          {/* 居中欢迎页 */}
+          <div className="flex-1 flex flex-col">
+            <div className="flex-1 flex flex-col items-center justify-center px-4">
+              <div className="max-w-2xl w-full">
+                {/* 欢迎标题 */}
+                <div className="text-center mb-8">
+                  <div
+                    className="mx-auto mb-4 w-20 h-20 rounded-2xl flex items-center justify-center shadow-lg"
+                    style={{
+                      background: "linear-gradient(135deg, rgba(99,102,241,1) 0%, rgba(139,92,246,1) 100%)"
+                    }}
+                  >
+                    <Code2 size={40} className="text-white" />
+                  </div>
+                  <h1 className="text-2xl font-medium text-gray-900 mb-2">
+                    欢迎使用{" "}
+                    <span className="text-blue-500">
+                      <TextType
+                        text={["HiCoding"]}
+                        loop={false}
+                        typingSpeed={80}
+                        showCursor={true}
+                        cursorCharacter="_"
+                      />
+                    </span>
+                  </h1>
+                  <p className="text-sm text-gray-400">
+                    AI 驱动的编程助手，输入你的需求开始编程
+                  </p>
+                </div>
+
+                {/* 输入框 - 渐变边框包裹 */}
+                <div className="mb-4">
+                  <div
+                    className="p-[2px] rounded-2xl shadow-md"
+                    style={{
+                      background: "linear-gradient(256deg, rgba(234, 228, 248, 1) 36%, rgba(215, 229, 243, 1) 100%)"
+                    }}
+                  >
+                    <div className="rounded-2xl overflow-hidden bg-white/95">
+                      <QuestInput
+                        variant="welcome"
+                        onSend={handleWelcomeSend}
+                        onDropQueuedPrompt={() => {}}
+                        onCancel={() => {}}
+                        isProcessing={false}
+                        queueSize={0}
+                        queuedPrompts={[]}
+                        disabled={!isComplete}
+                        toolbarExtra={
+                          !isComplete ? (
+                            <button
+                              onClick={() => setConfigOpen(true)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full
+                                         border border-amber-300 bg-amber-50 text-amber-700
+                                         text-xs font-medium cursor-pointer
+                                         hover:border-amber-400 hover:bg-amber-100 transition-all"
+                            >
+                              <Settings size={12} />
+                              请先完成配置
+                            </button>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => setConfigOpen(true)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full
+                                           border border-gray-200 bg-white text-gray-600
+                                           text-xs font-medium cursor-pointer
+                                           hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50/50 transition-all"
+                              >
+                                <Sparkles size={12} className="text-blue-500" />
+                                <span className="text-gray-400">Model:</span>
+                                <span>{config.modelProductId}</span>
+                              </button>
+                              <button
+                                onClick={() => setConfigOpen(true)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full
+                                           border border-gray-200 bg-white text-gray-600
+                                           text-xs font-medium cursor-pointer
+                                           hover:border-violet-300 hover:text-violet-600 hover:bg-violet-50/50 transition-all"
+                              >
+                                <Zap size={12} className="text-violet-500" />
+                                <span className="text-gray-400">CLI:</span>
+                                <span>{config.cliProviderId}</span>
+                              </button>
+                            </>
+                          )
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ConfigSidebar 在欢迎页也需要 */}
+        <ConfigSidebar
+          open={configOpen}
+          onClose={() => setConfigOpen(false)}
+          config={config}
+          onConfigChange={setConfig}
+          isFirstTime={isFirstTime}
+        />
+      </>
     );
   }
 
-  // 沙箱错误：显示错误信息和重连按钮
-  if (state.sandboxStatus?.status === "error") {
-    return (
-      <div className="flex flex-1 min-h-0 overflow-hidden bg-white/50">
-        <div className="flex-1 flex items-center justify-center">
+  // ===== 非欢迎页：IDE 全屏布局 =====
+  return (
+    <div className="flex flex-1 min-h-0 overflow-hidden">
+      {showSandboxError ? (
+        <div className="flex-1 flex items-center justify-center bg-white/50">
           <div className="text-center">
-            <p className="text-red-500 mb-4">{state.sandboxStatus.message}</p>
+            <p className="text-red-500 mb-4">{state.sandboxStatus?.message}</p>
             <button
               onClick={() => {
                 autoCreatedRef.current = false;
@@ -505,219 +551,150 @@ function CodingContent() {
             </button>
           </div>
         </div>
-
-        {/* Permission dialog */}
-        {state.pendingPermission && (
-          <PermissionDialog
-            permission={state.pendingPermission}
-            onRespond={session.respondPermission}
-          />
-        )}
-      </div>
-    );
-  }
-
-  // 已连接但未初始化：显示进度
-  if (!state.initialized || !activeQuest) {
-    return (
-      <div className="flex flex-1 min-h-0 overflow-hidden bg-white/50">
-        <div className="flex-1 flex items-center justify-center">
+      ) : showInitProgress ? (
+        <div className="flex-1 flex items-center justify-center bg-white/50">
           <SandboxInitProgress />
         </div>
-
-        {/* Permission dialog */}
-        {state.pendingPermission && (
-          <PermissionDialog
-            permission={state.pendingPermission}
-            onRespond={session.respondPermission}
-          />
-        )}
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex flex-1 min-h-0 overflow-hidden">
-      {/* ===== Left Column: Conversation ===== */}
-      <div
-        className="flex flex-col border-r border-gray-200/60 bg-white/50 overflow-hidden flex-shrink-0"
-        style={{ width: leftPanel.size }}
-      >
-        <CodingTopBar
-          status={session.status}
-          onSetModel={session.setModel}
-          fileTreeVisible={fileTreeVisible}
-          onToggleFileTree={toggleFileTree}
-        />
-
-        <ChatStream
-          onSelectToolCall={toolCallId =>
-            dispatch({ type: "SELECT_TOOL_CALL", toolCallId })
-          }
-          onOpenFile={handleOpenFilePath}
-        />
-
-        {planEntries && planEntries.length > 0 && (
-          <div className="max-w-full px-3 pt-1 flex-shrink-0">
-            <PlanDisplay entries={planEntries} />
+      ) : showIDE ? (
+        /* ===== 三栏布局主体：Conversation_Panel + ResizeHandle + IDE_Panel ===== */
+        <>
+          {/* Conversation_Panel */}
+          <div
+            className="flex flex-col border-r border-gray-200/60 bg-white/50 overflow-hidden flex-shrink-0"
+            style={{ width: conversationPanel.size }}
+          >
+            <ConversationTopBar
+              status={session.status}
+              questTitle={activeQuest?.title ?? ""}
+              usage={state.usage ?? undefined}
+            />
+            <ChatStream
+              onSelectToolCall={toolCallId => dispatch({ type: "SELECT_TOOL_CALL", toolCallId })}
+              onOpenFile={handleOpenFilePath}
+              onPreviewArtifact={() => setActiveTab("preview")}
+            />
+            {planEntries && planEntries.length > 0 && (
+              <div className="max-w-full px-3 pt-1 flex-shrink-0">
+                <PlanDisplay entries={planEntries} />
+              </div>
+            )}
+            <div className="flex-shrink-0">
+              <QuestInput
+                onSend={session.sendPrompt}
+                onDropQueuedPrompt={session.dropQueuedPrompt}
+                onCancel={session.cancelPrompt}
+                isProcessing={activeQuest?.isProcessing ?? false}
+                queueSize={activeQuest?.promptQueue.length ?? 0}
+                queuedPrompts={activeQuest?.promptQueue ?? []}
+                disabled={!state.initialized || !activeQuest}
+              />
+            </div>
           </div>
-        )}
 
-        <div className="flex-shrink-0">
-          <QuestInput
-            onSend={session.sendPrompt}
-            onDropQueuedPrompt={session.dropQueuedPrompt}
-            onCancel={session.cancelPrompt}
-            isProcessing={activeQuest?.isProcessing ?? false}
-            queueSize={activeQuest?.promptQueue.length ?? 0}
-            queuedPrompts={activeQuest?.promptQueue ?? []}
-            disabled={!state.initialized || !activeQuest}
-          />
-        </div>
-      </div>
+          <ResizeHandle direction="horizontal" isDragging={conversationPanel.isDragging} onMouseDown={conversationPanel.handleMouseDown} />
 
-      {/* ===== Left-Right Resize Handle ===== */}
-      <ResizeHandle
-        direction="horizontal"
-        isDragging={leftPanel.isDragging}
-        onMouseDown={leftPanel.handleMouseDown}
-      />
-
-      {/* ===== Right Column: IDE ===== */}
-      <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
-        {/* Content area + Terminal */}
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-          {/* Upper: Content area */}
-          <div className="flex-1 flex min-h-0 overflow-hidden">
-            {/* File tree sidebar (middle section, collapsible) */}
-            {fileTreeVisible && (
-              <>
-                <div
-                  className="border-r border-gray-200/60 bg-white/50 overflow-hidden flex-shrink-0 flex flex-col"
-                  style={{ width: fileTreePanel.size }}
-                >
-                  {/* File tree header */}
-                  <div className="flex items-center px-3 py-2 border-b border-gray-200/60 bg-white/30">
-                    <span className="text-xs font-medium text-gray-600">
-                      文件
-                    </span>
-                  </div>
-                  {/* File tree content */}
-                  <div className="flex-1 overflow-hidden">
-                    {treeLoading ? (
-                      <div className="flex items-center justify-center h-full text-xs text-gray-400">
-                        加载中...
+          {/* IDE_Panel */}
+          <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
+            <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+              <div className="flex-1 flex min-h-0 overflow-hidden">
+                {fileTreeVisible && (
+                  <>
+                    <div
+                      className="border-r border-gray-200/60 bg-white/50 overflow-hidden flex-shrink-0 flex flex-col"
+                      style={{ width: fileTreePanel.size }}
+                    >
+                      <div className="flex items-center px-3 py-2 border-b border-gray-200/60 bg-white/30">
+                        <span className="text-xs font-medium text-gray-600">文件</span>
                       </div>
+                      <div className="flex-1 overflow-hidden">
+                        {treeLoading ? (
+                          <div className="flex items-center justify-center h-full text-xs text-gray-400">加载中...</div>
+                        ) : (
+                          <FileTree tree={tree} onFileSelect={handleFileSelect} selectedPath={activeQuest?.activeFilePath} />
+                        )}
+                      </div>
+                    </div>
+                    <ResizeHandle direction="horizontal" isDragging={fileTreePanel.isDragging} onMouseDown={fileTreePanel.handleMouseDown} />
+                  </>
+                )}
+
+                <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+                  <div className="flex items-center border-b border-gray-200/60 bg-white/30 flex-shrink-0">
+                    <button
+                      className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 flex items-center gap-1.5
+                        ${activeTab === "code" ? "text-blue-600 border-blue-500 bg-white/50" : "text-gray-500 border-transparent hover:text-gray-700 hover:bg-gray-50/50"}`}
+                      onClick={() => setActiveTab("code")}
+                    >
+                      <Code2 size={14} /> 代码
+                    </button>
+                    <button
+                      className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 flex items-center gap-1.5
+                        ${activeTab === "preview" ? "text-blue-600 border-blue-500 bg-white/50" : "text-gray-500 border-transparent hover:text-gray-700 hover:bg-gray-50/50"}`}
+                      onClick={() => setActiveTab("preview")}
+                    >
+                      <Eye size={14} /> 预览
+                    </button>
+                    <div className="flex-1" />
+                    {activeTab === "preview" && previewPort && (
+                      <div className="flex items-center gap-0.5 pr-2">
+                        <button className="w-7 h-7 flex items-center justify-center rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors" onClick={handleRefreshPreview} title="刷新预览">
+                          <RefreshCw size={14} />
+                        </button>
+                        <button className="w-7 h-7 flex items-center justify-center rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors" onClick={handleOpenExternal} title="在新窗口打开预览">
+                          <ExternalLink size={14} />
+                        </button>
+                      </div>
+                    )}
+                    <button
+                      className={`w-7 h-7 flex items-center justify-center rounded transition-colors mr-2
+                        ${fileTreeVisible ? "text-blue-600 bg-blue-50" : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"}`}
+                      onClick={toggleFileTree}
+                      title={fileTreeVisible ? "隐藏文件" : "显示文件"}
+                    >
+                      {fileTreeVisible ? <FolderOpen size={16} /> : <Folder size={16} />}
+                    </button>
+                  </div>
+                  <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+                    {activeTab === "preview" ? (
+                      <PreviewPanel port={previewPort} sandboxHost={sandboxHost} />
                     ) : (
-                      <FileTree
-                        tree={tree}
-                        onFileSelect={handleFileSelect}
-                        selectedPath={activeQuest?.activeFilePath}
+                      <EditorArea
+                        openFiles={activeQuest?.openFiles ?? []}
+                        activeFilePath={activeQuest?.activeFilePath ?? null}
+                        onSelectFile={handleSelectFile}
+                        onCloseFile={handleCloseFile}
                       />
                     )}
                   </div>
                 </div>
-                <ResizeHandle
-                  direction="horizontal"
-                  isDragging={fileTreePanel.isDragging}
-                  onMouseDown={fileTreePanel.handleMouseDown}
-                />
-              </>
-            )}
-
-            {/* Right section: Editor + Preview area */}
-            <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-              {/* Tab bar for code/preview toggle */}
-              <div className="flex items-center border-b border-gray-200/60 bg-white/30 flex-shrink-0">
-                <button
-                  className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 flex items-center gap-1.5
-                    ${
-                      activeTab === "code"
-                        ? "text-blue-600 border-blue-500 bg-white/50"
-                        : "text-gray-500 border-transparent hover:text-gray-700 hover:bg-gray-50/50"
-                    }`}
-                  onClick={() => setActiveTab("code")}
-                >
-                  <Code2 size={14} />
-                  代码
-                </button>
-                <button
-                  className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 flex items-center gap-1.5
-                    ${
-                      activeTab === "preview"
-                        ? "text-blue-600 border-blue-500 bg-white/50"
-                        : "text-gray-500 border-transparent hover:text-gray-700 hover:bg-gray-50/50"
-                    }`}
-                  onClick={() => setActiveTab("preview")}
-                >
-                  <Eye size={14} />
-                  预览
-                </button>
-
-                {/* Spacer */}
-                <div className="flex-1" />
-
-                {/* Preview tool buttons (only when preview tab active) */}
-                {activeTab === "preview" && previewPort && (
-                  <div className="flex items-center gap-0.5 pr-2">
-                    <button
-                      className="w-7 h-7 flex items-center justify-center rounded text-gray-400
-                        hover:text-gray-600 hover:bg-gray-100 transition-colors"
-                      onClick={handleRefreshPreview}
-                      title="刷新预览"
-                    >
-                      <RefreshCw size={14} />
-                    </button>
-                    <button
-                      className="w-7 h-7 flex items-center justify-center rounded text-gray-400
-                        hover:text-gray-600 hover:bg-gray-100 transition-colors"
-                      onClick={handleOpenExternal}
-                      title="在新窗口打开预览"
-                    >
-                      <ExternalLink size={14} />
-                    </button>
-                  </div>
-                )}
               </div>
 
-              {/* Main content */}
-              <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
-                {activeTab === "preview" ? (
-                  <PreviewPanel port={previewPort} sandboxHost={sandboxHost} />
-                ) : (
-                  <EditorArea
-                    openFiles={activeQuest?.openFiles ?? []}
-                    activeFilePath={activeQuest?.activeFilePath ?? null}
-                    onSelectFile={handleSelectFile}
-                    onCloseFile={handleCloseFile}
-                  />
-                )}
+              {!terminalCollapsed && (
+                <ResizeHandle direction="vertical" isDragging={terminalPanel.isDragging} onMouseDown={terminalPanel.handleMouseDown} />
+              )}
+              <div className="flex-shrink-0">
+                <TerminalPanel
+                  height={terminalPanel.size}
+                  collapsed={terminalCollapsed}
+                  onToggleCollapse={toggleTerminalCollapse}
+                  runtime={currentRuntimeRef.current}
+                />
               </div>
             </div>
           </div>
+        </>
+      ) : null}
 
-          {/* Terminal resize handle (only when expanded) */}
-          {!terminalCollapsed && (
-            <ResizeHandle
-              direction="vertical"
-              isDragging={terminalPanel.isDragging}
-              onMouseDown={terminalPanel.handleMouseDown}
-            />
-          )}
+      {/* ===== ConfigSidebar ===== */}
+      <ConfigSidebar
+        open={configOpen}
+        onClose={() => setConfigOpen(false)}
+        config={config}
+        onConfigChange={setConfig}
+        isFirstTime={isFirstTime}
+      />
 
-          {/* Lower: Terminal */}
-          <div className="flex-shrink-0">
-            <TerminalPanel
-              height={terminalPanel.size}
-              collapsed={terminalCollapsed}
-              onToggleCollapse={toggleTerminalCollapse}
-              runtime={currentRuntimeRef.current}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Permission dialog */}
+      {/* ===== Permission dialog ===== */}
       {state.pendingPermission && (
         <PermissionDialog
           permission={state.pendingPermission}
@@ -730,14 +707,50 @@ function CodingContent() {
 
 function Coding() {
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-gray-50/30">
+    <QuestSessionProvider>
+      <CodingShell />
+    </QuestSessionProvider>
+  );
+}
+
+/** 根据连接状态选择不同的外壳布局。
+ *  关键：CodingContent 必须始终在同一个 React 树位置渲染，
+ *  否则布局切换（欢迎页 → IDE）时组件会被卸载重建，
+ *  导致 WebSocket 连接、currentWsUrl 等内部状态丢失。
+ *  因此这里用同一个 DOM 结构 + CSS 切换来实现两种布局。
+ */
+function CodingShell() {
+  const state = useQuestState();
+  const activeQuest = useActiveQuest();
+
+  const isWelcomePhase = Object.keys(state.quests).length === 0 && !activeQuest;
+
+  return (
+    <div className={`flex flex-col overflow-hidden ${isWelcomePhase ? "min-h-screen" : "h-screen bg-gray-50/30"}`}>
+      {/* 背景层：仅欢迎页显示 */}
+      {isWelcomePhase && (
+        <>
+          <div
+            className="fixed w-full h-full z-[1]"
+            style={{
+              backgroundImage: `url(${bgImage})`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              backgroundRepeat: "no-repeat",
+              backgroundAttachment: "fixed",
+            }}
+          />
+          <div
+            className="fixed w-full h-full z-[2]"
+            style={{ backdropFilter: "blur(204px)" }}
+          />
+        </>
+      )}
       <div className="relative z-10 flex-shrink-0">
         <Header />
       </div>
-      <div className="flex-1 min-h-0 relative z-10 flex flex-col">
-        <QuestSessionProvider>
-          <CodingContent />
-        </QuestSessionProvider>
+      <div className={`flex-1 min-h-0 relative z-10 flex flex-col ${isWelcomePhase ? "px-8" : ""}`}>
+        <CodingContent />
       </div>
     </div>
   );

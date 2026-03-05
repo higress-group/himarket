@@ -1,11 +1,13 @@
 package com.alibaba.himarket.service.acp;
 
+import com.alibaba.himarket.dto.result.skill.SkillFileContentResult;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -45,7 +47,7 @@ public class QoderCliConfigGenerator implements CliConfigGenerator {
 
     @Override
     public void generateMcpConfig(
-            String workingDirectory, List<CliSessionConfig.McpServerEntry> mcpServers)
+            String workingDirectory, List<ResolvedSessionConfig.ResolvedMcpEntry> mcpServers)
             throws IOException {
         if (mcpServers == null || mcpServers.isEmpty()) return;
 
@@ -64,13 +66,13 @@ public class QoderCliConfigGenerator implements CliConfigGenerator {
      */
     @SuppressWarnings("unchecked")
     void mergeMcpServers(
-            Map<String, Object> root, List<CliSessionConfig.McpServerEntry> mcpServers) {
+            Map<String, Object> root, List<ResolvedSessionConfig.ResolvedMcpEntry> mcpServers) {
         Map<String, Object> mcpServersMap =
                 root.containsKey("mcpServers")
                         ? (Map<String, Object>) root.get("mcpServers")
                         : new LinkedHashMap<>();
 
-        for (CliSessionConfig.McpServerEntry entry : mcpServers) {
+        for (ResolvedSessionConfig.ResolvedMcpEntry entry : mcpServers) {
             Map<String, Object> serverConfig = new LinkedHashMap<>();
             serverConfig.put("url", entry.getUrl());
             serverConfig.put("type", entry.getTransportType());
@@ -114,5 +116,55 @@ public class QoderCliConfigGenerator implements CliConfigGenerator {
                         .with(SerializationFeature.INDENT_OUTPUT)
                         .writeValueAsString(root);
         Files.writeString(configPath, json);
+    }
+
+    @Override
+    public void generateSkillConfig(
+            String workingDirectory, List<ResolvedSessionConfig.ResolvedSkillEntry> skills)
+            throws IOException {
+        if (skills == null || skills.isEmpty()) return;
+
+        for (ResolvedSessionConfig.ResolvedSkillEntry skill : skills) {
+            if (skill.getName() == null || skill.getName().isBlank()) {
+                logger.warn("[QoderCli] Skill name is null or blank, skipping");
+                continue;
+            }
+            if (skill.getFiles() == null || skill.getFiles().isEmpty()) {
+                logger.warn("[QoderCli] Skill files are empty, skipping: name={}", skill.getName());
+                continue;
+            }
+
+            String dirName = toKebabCase(skill.getName());
+            Path skillDir = Path.of(workingDirectory, QODER_DIR, "skills", dirName);
+            Files.createDirectories(skillDir);
+
+            for (SkillFileContentResult file : skill.getFiles()) {
+                Path filePath = skillDir.resolve(file.getPath());
+                Files.createDirectories(filePath.getParent());
+                if ("base64".equals(file.getEncoding())) {
+                    byte[] bytes = Base64.getDecoder().decode(file.getContent());
+                    Files.write(filePath, bytes);
+                } else {
+                    Files.writeString(filePath, file.getContent());
+                }
+            }
+        }
+    }
+
+    /**
+     * 将名称转换为 kebab-case 格式。
+     * 规则：空格替换为 -，大写转小写，去除特殊字符，合并连续 -，去除首尾 -。
+     */
+    static String toKebabCase(String name) {
+        if (name == null || name.isBlank()) return "";
+
+        String result =
+                name.trim()
+                        .replaceAll("\\s+", "-")
+                        .toLowerCase()
+                        .replaceAll("[^a-z0-9\\-]", "")
+                        .replaceAll("-{2,}", "-")
+                        .replaceAll("^-|-$", "");
+        return result;
     }
 }

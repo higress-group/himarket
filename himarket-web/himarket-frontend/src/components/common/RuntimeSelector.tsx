@@ -5,7 +5,7 @@ import {
   Container,
   AlertCircle,
 } from 'lucide-react';
-import type { RuntimeType, SandboxMode } from '../../types/runtime';
+import type { RuntimeType } from '../../types/runtime';
 
 export interface RuntimeOption {
   type: RuntimeType;
@@ -20,8 +20,6 @@ export interface RuntimeSelectorProps {
   compatibleRuntimes: RuntimeOption[];
   selectedRuntime: string;
   onSelect: (runtimeType: string) => void;
-  sandboxMode?: SandboxMode;
-  onSandboxModeChange?: (mode: SandboxMode) => void;
 }
 
 const RUNTIME_ICONS: Record<RuntimeType, React.ReactNode> = {
@@ -40,8 +38,6 @@ export const RuntimeSelector: React.FC<RuntimeSelectorProps> = ({
   compatibleRuntimes,
   selectedRuntime,
   onSelect,
-  sandboxMode = 'user',
-  onSandboxModeChange,
 }) => {
   const availableRuntimes = compatibleRuntimes.filter((r) => r.available);
 
@@ -114,38 +110,6 @@ export const RuntimeSelector: React.FC<RuntimeSelectorProps> = ({
           })}
         </div>
       </Radio.Group>
-
-      {/* 沙箱模式子选项：仅当 K8s 运行时被选中且可用时展示 */}
-      {selectedRuntime === 'k8s' &&
-        compatibleRuntimes.some((r) => r.type === 'k8s' && r.available) && (
-          <div className="ml-6 mt-1 flex flex-col gap-1.5 w-full text-left">
-            <label className="text-xs font-medium text-gray-500">沙箱模式</label>
-            <Radio.Group
-              value={sandboxMode}
-              onChange={(e) => onSandboxModeChange?.(e.target.value)}
-            >
-              <div className="flex flex-col gap-1.5">
-                <Radio value="user">
-                  <span className="text-sm text-gray-800">用户级沙箱</span>
-                  <br />
-                  <span className="text-xs text-gray-500">
-                    常驻 Pod，多会话复用，适合调试开发
-                  </span>
-                </Radio>
-                <Radio value="session" disabled>
-                  <span className="text-sm text-gray-400">会话级沙箱</span>
-                  <Tag color="default" className="text-xs ml-2">
-                    即将推出
-                  </Tag>
-                  <br />
-                  <span className="text-xs text-gray-300">
-                    每会话独立 Pod，会话结束后自动销毁
-                  </span>
-                </Radio>
-              </div>
-            </Radio.Group>
-          </div>
-        )}
     </div>
   );
 };

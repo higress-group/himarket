@@ -2,6 +2,7 @@ package com.alibaba.himarket.service.acp;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.alibaba.himarket.dto.result.skill.SkillFileContentResult;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -46,9 +47,15 @@ class QwenCodeConfigGeneratorSkillTest {
 
     @Test
     void generateSkillConfig_singleSkill_createsSkillMdFile() throws IOException {
-        CliSessionConfig.SkillEntry skill = new CliSessionConfig.SkillEntry();
+        SkillFileContentResult file = new SkillFileContentResult();
+        file.setPath("SKILL.md");
+        file.setContent("# My Skill\nThis is a test skill.");
+        file.setEncoding("text");
+
+        ResolvedSessionConfig.ResolvedSkillEntry skill =
+                new ResolvedSessionConfig.ResolvedSkillEntry();
         skill.setName("My Skill");
-        skill.setSkillMdContent("# My Skill\nThis is a test skill.");
+        skill.setFiles(List.of(file));
 
         generator.generateSkillConfig(tempDir.toString(), List.of(skill));
 
@@ -59,13 +66,25 @@ class QwenCodeConfigGeneratorSkillTest {
 
     @Test
     void generateSkillConfig_multipleSkills_createsAllFiles() throws IOException {
-        CliSessionConfig.SkillEntry skill1 = new CliSessionConfig.SkillEntry();
-        skill1.setName("Skill One");
-        skill1.setSkillMdContent("Content one");
+        SkillFileContentResult file1 = new SkillFileContentResult();
+        file1.setPath("SKILL.md");
+        file1.setContent("Content one");
+        file1.setEncoding("text");
 
-        CliSessionConfig.SkillEntry skill2 = new CliSessionConfig.SkillEntry();
+        ResolvedSessionConfig.ResolvedSkillEntry skill1 =
+                new ResolvedSessionConfig.ResolvedSkillEntry();
+        skill1.setName("Skill One");
+        skill1.setFiles(List.of(file1));
+
+        SkillFileContentResult file2 = new SkillFileContentResult();
+        file2.setPath("SKILL.md");
+        file2.setContent("Content two");
+        file2.setEncoding("text");
+
+        ResolvedSessionConfig.ResolvedSkillEntry skill2 =
+                new ResolvedSessionConfig.ResolvedSkillEntry();
         skill2.setName("Skill Two");
-        skill2.setSkillMdContent("Content two");
+        skill2.setFiles(List.of(file2));
 
         generator.generateSkillConfig(tempDir.toString(), List.of(skill1, skill2));
 
@@ -84,9 +103,15 @@ class QwenCodeConfigGeneratorSkillTest {
         Files.createDirectories(skillDir);
         Files.writeString(skillDir.resolve("SKILL.md"), "Old content");
 
-        CliSessionConfig.SkillEntry skill = new CliSessionConfig.SkillEntry();
+        SkillFileContentResult file = new SkillFileContentResult();
+        file.setPath("SKILL.md");
+        file.setContent("New content");
+        file.setEncoding("text");
+
+        ResolvedSessionConfig.ResolvedSkillEntry skill =
+                new ResolvedSessionConfig.ResolvedSkillEntry();
         skill.setName("My Skill");
-        skill.setSkillMdContent("New content");
+        skill.setFiles(List.of(file));
 
         generator.generateSkillConfig(tempDir.toString(), List.of(skill));
 

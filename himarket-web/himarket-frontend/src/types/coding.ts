@@ -22,3 +22,26 @@ export interface TerminalSession {
   id: string;
   lines: string[]; // raw text lines including ANSI codes
 }
+
+// ===== Coding Config Types =====
+
+export interface CodingConfig {
+  modelProductId: string | null;
+  cliProviderId: string | null;
+  cliRuntime: string;
+  cliSessionConfig?: string;
+  skills: string[];
+  mcpServers: string[];
+}
+
+export const DEFAULT_CONFIG: CodingConfig = {
+  modelProductId: null,
+  cliProviderId: null,
+  cliRuntime: "k8s",
+  skills: [],
+  mcpServers: [],
+};
+
+export function isConfigComplete(config: CodingConfig): boolean {
+  return config.modelProductId !== null && config.cliProviderId !== null;
+}

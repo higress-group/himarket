@@ -55,6 +55,14 @@ public interface SandboxProvider {
      */
     RuntimeAdapter connectSidecar(SandboxInfo info, RuntimeConfig config);
 
-    /** 获取 Sidecar WebSocket URI。 */
-    URI getSidecarUri(SandboxInfo info, String command, String args);
+    /** 获取 Sidecar WebSocket URI（不带环境变量）。 */
+    default URI getSidecarUri(SandboxInfo info, String command, String args) {
+        return getSidecarUri(info, command, args, null);
+    }
+
+    /** 获取 Sidecar WebSocket URI（支持环境变量）。 */
+    default URI getSidecarUri(
+            SandboxInfo info, String command, String args, java.util.Map<String, String> env) {
+        return info.sidecarWsUri(command, args, env);
+    }
 }

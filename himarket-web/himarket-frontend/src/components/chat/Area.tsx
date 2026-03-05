@@ -65,6 +65,7 @@ export function ChatArea(props: ChatAreaProps) {
   const [addedMcps, setAddedMcps] = useState<IProductDetail[]>([]);
   const addedMcpsRef = useRef<IProductDetail[]>([]);
   const [mcpSubscripts, setMcpSubscripts] = useState<ISubscription[]>([]);
+  const [modelSubscriptions, setModelSubscriptions] = useState<ISubscription[]>([]);
   const [mcpEnabled, setMcpEnabled] = useState(() => {
     return safeJSONParse(window.localStorage.getItem("mcpEnabled") || "false", false)
   });
@@ -187,13 +188,19 @@ export function ChatArea(props: ChatAreaProps) {
     setMcpEnabled(enable);
   }
 
+  const subscribedModelList = useMemo(() => {
+    if (modelSubscriptions.length === 0) return [];
+    const approvedProductIds = new Set(modelSubscriptions.map(s => s.productId));
+    return modelList.filter(m => approvedProductIds.has(m.productId));
+  }, [modelList, modelSubscriptions]);
+
   const modelMap = useMemo(() => {
     const m = new Map<string, IProductDetail>;
-    modelList.forEach(model => {
+    subscribedModelList.forEach(model => {
       m.set(model.productId, model);
     });
     return m
-  }, [modelList])
+  }, [subscribedModelList])
 
   const showWebSearch = useMemo(() => {
     if (modelConversations.length === 0) {
@@ -220,6 +227,9 @@ export function ChatArea(props: ChatAreaProps) {
         APIs.getConsumerSubscriptions(data.consumerId, { size: 1000 })
           .then(({ data }) => {
             setMcpSubscripts(data.content);
+            setModelSubscriptions(data.content.filter(
+              (s: ISubscription) => s.status === 'APPROVED'
+            ));
           })
       })
   }, []);
@@ -231,7 +241,7 @@ export function ChatArea(props: ChatAreaProps) {
         {/* 主要内容区域 */}
         {
           modelConversations.map((model, index) => {
-            const currentModel = modelList.find(m => m.productId === model.id);
+            const currentModel = subscribedModelList.find(m => m.productId === model.id);
             return (
               <div
                 key={model.id}
@@ -244,7 +254,7 @@ export function ChatArea(props: ChatAreaProps) {
                         <ModelSelector
                           selectedModelId={model.id}
                           onSelectModel={onSelectProduct}
-                          modelList={modelList}
+                          modelList={subscribedModelList}
                           // loading={modelsLoading}
                           categories={categories}
                         // categoriesLoading={categoriesLoading}
@@ -273,7 +283,7 @@ export function ChatArea(props: ChatAreaProps) {
                       excludeModels={selectedModelIds}
                       onConfirm={handleSelectModels}
                       onCancel={() => setShowModelSelector(false)}
-                      modelList={modelList}
+                      modelList={subscribedModelList}
                     // loading={modelsLoading}
                     />
                   )
@@ -346,7 +356,7 @@ export function ChatArea(props: ChatAreaProps) {
                 <ModelSelector
                   selectedModelId={selectedModel?.productId || ""}
                   onSelectModel={onSelectProduct}
-                  modelList={modelList}
+                  modelList={subscribedModelList}
                   // loading={modelsLoading}
                   categories={categories}
                 // categoriesLoading={categoriesLoading}
@@ -370,7 +380,7 @@ export function ChatArea(props: ChatAreaProps) {
                     excludeModels={[]}
                     onConfirm={handleSelectModels}
                     onCancel={() => setShowModelSelector(false)}
-                    modelList={modelList}
+                    modelList={subscribedModelList}
                   // loading={modelsLoading}
                   />
                 )

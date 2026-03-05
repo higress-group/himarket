@@ -5,15 +5,20 @@ import {
   getMarketModels,
   type MarketModelInfo,
 } from "../../lib/apis/cliProvider";
-import type { CustomModelFormData } from "./CustomModelForm";
 
 // ============ 类型定义 ============
+
+/** 市场模型选择结果：仅包含标识符 */
+export interface MarketModelSelection {
+  productId: string;
+  name: string;
+}
 
 export interface MarketModelSelectorProps {
   /** 是否启用（开关状态） */
   enabled: boolean;
-  /** 选择模型后回调，data 为 null 表示未选择或数据不完整 */
-  onChange: (data: CustomModelFormData | null) => void;
+  /** 选择模型后回调，data 为 null 表示未选择 */
+  onChange: (data: MarketModelSelection | null) => void;
 }
 
 // ============ 组件 ============
@@ -25,7 +30,6 @@ export function MarketModelSelector({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [models, setModels] = useState<MarketModelInfo[]>([]);
-  const [apiKey, setApiKey] = useState<string | null>(null);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(
     null
   );
@@ -37,19 +41,14 @@ export function MarketModelSelector({
       const res = await getMarketModels();
       const data = res.data;
       const fetchedModels = data.models ?? [];
-      const fetchedApiKey = data.apiKey ?? null;
       setModels(fetchedModels);
-      setApiKey(fetchedApiKey);
       // 自动选中第一个模型
-      if (fetchedModels.length > 0 && fetchedApiKey) {
+      if (fetchedModels.length > 0) {
         const first = fetchedModels[0];
         setSelectedProductId(first.productId);
         onChange({
-          baseUrl: first.baseUrl,
-          apiKey: fetchedApiKey,
-          modelId: first.modelId,
-          modelName: first.name,
-          protocolType: first.protocolType as CustomModelFormData["protocolType"],
+          productId: first.productId,
+          name: first.name,
         });
       }
     } catch (err: any) {
@@ -75,24 +74,21 @@ export function MarketModelSelector({
     }
   }, [enabled, fetchModels]);
 
-  // 选择模型时组装 CustomModelFormData
+  // 选择模型时仅传递标识符
   const handleSelect = useCallback(
     (productId: string) => {
       setSelectedProductId(productId);
       const model = models.find((m) => m.productId === productId);
-      if (model && apiKey) {
+      if (model) {
         onChange({
-          baseUrl: model.baseUrl,
-          apiKey: apiKey,
-          modelId: model.modelId,
-          modelName: model.name,
-          protocolType: model.protocolType as CustomModelFormData["protocolType"],
+          productId: model.productId,
+          name: model.name,
         });
       } else {
         onChange(null);
       }
     },
-    [models, apiKey, onChange]
+    [models, onChange]
   );
 
   if (!enabled) {
@@ -124,18 +120,6 @@ export function MarketModelSelector({
     );
   }
 
-  // apiKey 为 null
-  if (apiKey === null) {
-    return (
-      <Alert
-        message="请先在模型市场中配置 Consumer 凭证"
-        type="warning"
-        showIcon
-        className="w-full"
-      />
-    );
-  }
-
   // 模型列表为空
   if (models.length === 0) {
     return (
@@ -161,7 +145,7 @@ export function MarketModelSelector({
         className="w-full"
         options={models.map((m) => ({
           value: m.productId,
-          label: `${m.name} (${m.modelId})`,
+          label: m.name,
         }))}
       />
     </div>

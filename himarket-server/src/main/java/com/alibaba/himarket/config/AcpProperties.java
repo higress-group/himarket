@@ -301,7 +301,7 @@ public class AcpProperties {
          * Sidecar Server 允许启动的 CLI 命令白名单，逗号分隔。
          * 传递给 Pod 的 ALLOWED_COMMANDS 环境变量。
          */
-        private String allowedCommands = "qodercli,qwen,npx,kiro-cli,opencode";
+        private String allowedCommands = "qodercli,qwen,npx,opencode";
 
         public String getNamespace() {
             return namespace;

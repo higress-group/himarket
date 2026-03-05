@@ -40,12 +40,11 @@ import { buildAcpWsUrl } from "../lib/utils/wsUrl";
 
 // ===== WebSocket URL 构建 =====
 
-function buildHiCliWsUrl(cliId: string, runtime?: string, cliSessionConfig?: string, sandboxMode?: string): string {
+function buildHiCliWsUrl(cliId: string, runtime?: string, cliSessionConfig?: string): string {
   return buildAcpWsUrl({
     token: localStorage.getItem("access_token") || undefined,
     provider: cliId || undefined,
     runtime,
-    sandboxMode,
     cliSessionConfig,
   });
 }
@@ -702,9 +701,7 @@ export function useHiCliSession(): UseHiCliSessionReturn {
       // cliSessionConfig 不再通过 URL 传递，改为 WebSocket 连接后通过 session/config 消息发送
       cliSessionConfigRef.current = cliSessionConfig;
       // 构建新的 WebSocket URL 并触发连接
-      // K8s 运行时附加 sandboxMode=user，本地运行时不附加
-      const isK8s = runtime === "k8s";
-      const newUrl = buildHiCliWsUrl(cliId, runtime, undefined, isK8s ? "user" : undefined);
+      const newUrl = buildHiCliWsUrl(cliId, runtime);
       setCurrentWsUrl(newUrl);
     },
     [dispatch]
