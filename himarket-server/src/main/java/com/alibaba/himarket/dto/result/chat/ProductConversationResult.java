@@ -20,6 +20,7 @@
 package com.alibaba.himarket.dto.result.chat;
 
 import com.alibaba.himarket.support.chat.ChatUsage;
+import com.alibaba.himarket.support.chat.ToolCallInfo;
 import com.alibaba.himarket.support.chat.attachment.ChatAttachmentConfig;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -58,5 +59,6 @@ public class ProductConversationResult {
         private String answerId;
         private String content;
         private ChatUsage usage;
+        private List<ToolCallInfo> toolCalls;
     }
 }

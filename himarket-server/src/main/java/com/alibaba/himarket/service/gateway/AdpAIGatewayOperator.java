@@ -19,6 +19,7 @@
 
 package com.alibaba.himarket.service.gateway;
 
+import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
@@ -529,7 +530,7 @@ public class AdpAIGatewayOperator extends GatewayOperator {
                         .aiProtocols(
                                 Collections.singletonList(
                                         mapProtocol(data.getProtocol()))) // 使用协议信息
-                        .modelCategory(data.getSceneType()) // 使用场景类型作为模型类别
+                        .modelCategory(mapSceneType(data.getSceneType())) // 映射场景类型为模型类别
                         .routes(buildRoutesFromAdpService(data, domains)) // 从ADP服务数据构建routes
                         .services(buildServicesFromAdpService(data)) // 从ADP服务数据构建services
                         .build();
@@ -543,22 +544,29 @@ public class AdpAIGatewayOperator extends GatewayOperator {
     /** 从ADP服务数据构建路由列表 */
     private List<HttpRouteResult> buildRoutesFromAdpService(
             AdpAiServiceDetailResult.AdpAiServiceDetail data, List<DomainResult> domains) {
-        if (data.getPathList() == null || data.getPathList().isEmpty()) {
+        if (data.getMethodPathList() == null || data.getMethodPathList().isEmpty()) {
             return Collections.emptyList();
         }
 
         List<HttpRouteResult> routes = new ArrayList<>();
-        for (String path : data.getPathList()) {
+        for (AdpAiServiceDetailResult.MethodPath methodPath : data.getMethodPathList()) {
             HttpRouteResult route = new HttpRouteResult();
 
             // 设置域名
             route.setDomains(domains);
 
             // 设置匹配规则，路径前面加上basePath
-            String fullPath = data.getBasePath() != null ? data.getBasePath() + path : path;
+            String fullPath =
+                    data.getBasePath() != null
+                            ? data.getBasePath() + methodPath.getPath()
+                            : methodPath.getPath();
             HttpRouteResult.RouteMatchResult matchResult =
                     HttpRouteResult.RouteMatchResult.builder()
-                            .methods(Collections.singletonList("POST")) // 默认使用POST方法
+                            .methods(
+                                    Collections.singletonList(
+                                            methodPath.getMethod() != null
+                                                    ? methodPath.getMethod()
+                                                    : "POST"))
                             .path(
                                     HttpRouteResult.RouteMatchPath.builder()
                                             .value(fullPath)
@@ -613,6 +621,18 @@ public class AdpAIGatewayOperator extends GatewayOperator {
             throw new BusinessException(ErrorCode.INVALID_PARAMETER, "ADP AI Gateway配置缺失");
         }
 
+        // 从 GatewayConfig 中获取 Gateway 实体，与 fetchMcpConfig 方法保持一致
+        Gateway gateway = config.getGateway();
+        if (gateway == null || gateway.getGatewayId() == null) {
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "网关实例ID缺失");
+        }
+
+        // 使用 developerId 后8位作为后缀，避免不同 developer 的 consumer 名称冲突
+        String mark =
+                consumer.getDeveloperId()
+                        .substring(Math.max(0, consumer.getDeveloperId().length() - 8));
+        String gwConsumerName = StrUtil.format("{}-{}", consumer.getName(), mark);
+
         AdpAIGatewayClient client = new AdpAIGatewayClient(adpConfig);
         try {
             // 构建请求参数
@@ -628,13 +648,7 @@ public class AdpAIGatewayOperator extends GatewayOperator {
                 requestData.set("key", key);
             }
 
-            requestData.set("appName", consumer.getName());
-
-            // 从 GatewayConfig 中获取 Gateway 实体，与 fetchMcpConfig 方法保持一致
-            Gateway gateway = config.getGateway();
-            if (gateway == null || gateway.getGatewayId() == null) {
-                throw new BusinessException(ErrorCode.INVALID_PARAMETER, "网关实例ID缺失");
-            }
+            requestData.set("appName", gwConsumerName);
             requestData.set("gwInstanceId", gateway.getGatewayId());
 
             String url = client.getFullUrl("/application/createApp");
@@ -650,7 +664,7 @@ public class AdpAIGatewayOperator extends GatewayOperator {
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 log.info("ADP gateway response: {}", response.getBody());
                 // 对于ADP AI网关，返回的data就是appName，可以直接用于后续的MCP授权
-                return extractConsumerIdFromResponse(response.getBody(), consumer.getName());
+                return extractConsumerIdFromResponse(response.getBody(), gwConsumerName);
             }
             throw new BusinessException(
                     ErrorCode.GATEWAY_ERROR, "Failed to create consumer in ADP gateway");
@@ -1473,6 +1487,22 @@ public class AdpAIGatewayOperator extends GatewayOperator {
         return protocol;
     }
 
+    /**
+     * 将 ADP SceneType 映射到 HiMarket ModelCategory
+     * ADP 使用 TEXT_GENERATION/IMAGE_GENERATION 等，HiMarket 使用 TEXT/Image 等
+     */
+    private String mapSceneType(String sceneType) {
+        if (sceneType == null) {
+            return null;
+        }
+        return switch (sceneType) {
+            case "TEXT_GENERATION" -> "TEXT";
+            case "IMAGE_GENERATION" -> "Image";
+            case "VIDEO_GENERATION" -> "Video";
+            default -> sceneType;
+        };
+    }
+
     // ==================== ADP AI 服务响应 DTO ====================
 
     @Data
@@ -1517,11 +1547,17 @@ public class AdpAIGatewayOperator extends GatewayOperator {
             private String apiName;
             private String description;
             private String basePath; // 服务地址
-            private List<String> pathList; // 路径列表
+            private Boolean basePathRemove; // 是否移除 basePath
+            private List<MethodPath> methodPathList; // 方法路径列表
             private List<String> domainNameList; // 域名列表
             private String protocol; // 协议类型
             private String sceneType; // 场景类型
-            // 根据实际接口补充其他字段
+        }
+
+        @Data
+        public static class MethodPath {
+            private String path;
+            private String method;
         }
     }
 

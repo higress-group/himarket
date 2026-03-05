@@ -388,6 +388,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
                                     .answerId(chat.getAnswerId())
                                     .content(chat.getAnswer())
                                     .usage(chat.getChatUsage())
+                                    .toolCalls(chat.getToolCalls())
                                     .build();
                         })
                 .collect(Collectors.toList());

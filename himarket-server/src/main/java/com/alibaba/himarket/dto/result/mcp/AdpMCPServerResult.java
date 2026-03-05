@@ -19,7 +19,7 @@
 
 package com.alibaba.himarket.dto.result.mcp;
 
-import com.aliyun.apsarastack.csb220230206.models.ListMcpServersResponseBody;
+import com.alibaba.himarket.dto.result.apsara.ListMcpServersResponse;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -53,8 +53,7 @@ public class AdpMCPServerResult extends GatewayMCPServerResult {
     }
 
     /** 从SDK的ListMcpServersResponseBodyDataRecords创建AdpMCPServerResult */
-    public static AdpMCPServerResult fromSdkRecord(
-            ListMcpServersResponseBody.ListMcpServersResponseBodyDataRecords record) {
+    public static AdpMCPServerResult fromSdkRecord(ListMcpServersResponse.Record record) {
         if (record == null) {
             return null;
         }
@@ -77,9 +76,6 @@ public class AdpMCPServerResult extends GatewayMCPServerResult {
                                     svc -> {
                                         Service service = new Service();
                                         service.setName(svc.getName());
-                                        service.setPort(svc.getPort());
-                                        service.setVersion(svc.getVersion());
-                                        service.setWeight(svc.getWeight());
                                         return service;
                                     })
                             .collect(Collectors.toList());

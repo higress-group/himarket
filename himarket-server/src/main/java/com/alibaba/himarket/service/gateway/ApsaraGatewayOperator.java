@@ -19,30 +19,37 @@
 
 package com.alibaba.himarket.service.gateway;
 
+import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
+import com.alibaba.himarket.dto.params.apsara.CreateAppRequest;
+import com.alibaba.himarket.dto.params.apsara.ModifyAppRequest;
 import com.alibaba.himarket.dto.params.gateway.QueryApsaraGatewayParam;
 import com.alibaba.himarket.dto.result.agent.AgentAPIResult;
+import com.alibaba.himarket.dto.result.apsara.*;
 import com.alibaba.himarket.dto.result.common.DomainResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.gateway.GatewayResult;
 import com.alibaba.himarket.dto.result.httpapi.APIResult;
+import com.alibaba.himarket.dto.result.httpapi.HttpRouteResult;
+import com.alibaba.himarket.dto.result.httpapi.ServiceResult;
 import com.alibaba.himarket.dto.result.mcp.AdpMCPServerResult;
 import com.alibaba.himarket.dto.result.mcp.GatewayMCPServerResult;
 import com.alibaba.himarket.dto.result.mcp.MCPConfigResult;
+import com.alibaba.himarket.dto.result.model.AIGWModelAPIResult;
 import com.alibaba.himarket.dto.result.model.GatewayModelAPIResult;
+import com.alibaba.himarket.dto.result.model.ModelConfigResult;
 import com.alibaba.himarket.entity.Consumer;
 import com.alibaba.himarket.entity.ConsumerCredential;
 import com.alibaba.himarket.entity.Gateway;
-import com.alibaba.himarket.service.gateway.client.ApsaraStackGatewayClient;
+import com.alibaba.himarket.service.gateway.client.ApsaraGatewayClient;
 import com.alibaba.himarket.support.consumer.AdpAIAuthConfig;
 import com.alibaba.himarket.support.consumer.ConsumerAuthConfig;
 import com.alibaba.himarket.support.enums.GatewayType;
 import com.alibaba.himarket.support.gateway.ApsaraGatewayConfig;
 import com.alibaba.himarket.support.gateway.GatewayConfig;
 import com.alibaba.himarket.support.product.APIGRefConfig;
-import com.aliyun.apsarastack.csb220230206.models.*;
 import com.aliyun.sdk.service.apig20240327.models.HttpApiApiInfo;
 import java.net.URI;
 import java.util.ArrayList;
@@ -54,7 +61,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 @Slf4j
-public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayClient> {
+public class ApsaraGatewayOperator extends GatewayOperator<ApsaraGatewayClient> {
 
     @Override
     public PageResult<APIResult> fetchHTTPAPIs(Gateway gateway, int page, int size) {
@@ -76,11 +83,11 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "Apsara gateway config is null");
         }
 
-        ApsaraStackGatewayClient client = new ApsaraStackGatewayClient(cfg);
+        ApsaraGatewayClient client = new ApsaraGatewayClient(cfg);
         try {
             // 使用SDK获取MCP服务器列表
             ListMcpServersResponse response =
-                    client.ListMcpServers(gateway.getGatewayId(), page, size);
+                    client.listMcpServers(gateway.getGatewayId(), page, size);
 
             if (response.getBody() == null) {
                 return PageResult.of(new ArrayList<>(), page, size, 0);
@@ -88,8 +95,7 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
 
             // 修复类型不兼容问题
             // 根据错误信息，getData()返回的是ListMcpServersResponseBodyData类型
-            ListMcpServersResponseBody.ListMcpServersResponseBodyData data =
-                    response.getBody().getData();
+            ListMcpServersResponse.ResponseData data = response.getBody().getData();
 
             if (data == null) {
                 return PageResult.of(new ArrayList<>(), page, size, 0);
@@ -123,7 +129,44 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
     @Override
     public PageResult<? extends GatewayModelAPIResult> fetchModelAPIs(
             Gateway gateway, int page, int size) {
-        return null;
+        ApsaraGatewayConfig cfg = gateway.getApsaraGatewayConfig();
+        if (cfg == null) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "Apsara gateway config is null");
+        }
+
+        ApsaraGatewayClient client = new ApsaraGatewayClient(cfg);
+
+        try {
+            // 使用Common Request的ListInstances方法获取网关实例列表
+            ListModelApisResponse response =
+                    client.listModelApis(gateway.getGatewayId(), page, size);
+            if (response == null || response.getBody() == null) {
+                return PageResult.of(new ArrayList<>(), page, size, 0);
+            }
+
+            ListModelApisResponse.ResponseData data = response.getBody().getData();
+
+            int total = data.getTotal() != null ? data.getTotal() : 0;
+
+            List<AIGWModelAPIResult> list = new ArrayList<>();
+            if (data.getRecords() != null) {
+                for (ListModelApisResponse.Record record : data.getRecords()) {
+                    AIGWModelAPIResult aigwModelAPIResult =
+                            AIGWModelAPIResult.builder()
+                                    .modelApiId(record.getId())
+                                    .modelApiName(record.getApiName())
+                                    .build();
+                    list.add(aigwModelAPIResult);
+                }
+            }
+
+            return PageResult.of(list, page, size, total);
+        } catch (Exception e) {
+            log.error("Error listing Apsara model apis ", e);
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, e.getMessage());
+        } finally {
+            client.close();
+        }
     }
 
     @Override
@@ -139,24 +182,23 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
             throw new BusinessException(ErrorCode.INVALID_PARAMETER, "Apsara Gateway 配置缺失");
         }
 
-        // 从conf参数中获取APIGRefConfig
+        // 从 conf 参数中获取 APIGRefConfig
         APIGRefConfig apigRefConfig = (APIGRefConfig) conf;
         if (apigRefConfig == null || apigRefConfig.getMcpServerName() == null) {
             throw new BusinessException(ErrorCode.INVALID_PARAMETER, "MCP Server 名称缺失");
         }
 
-        ApsaraStackGatewayClient client = new ApsaraStackGatewayClient(config);
+        ApsaraGatewayClient client = new ApsaraGatewayClient(config);
         try {
-            // 使用SDK获取MCP Server详情
+            // 使用 SDK 获取 MCP Server 详情
             GetMcpServerResponse response =
-                    client.GetMcpServer(gateway.getGatewayId(), apigRefConfig.getMcpServerName());
+                    client.getMcpServer(gateway.getGatewayId(), apigRefConfig.getMcpServerName());
 
             if (response.getBody() == null || response.getBody().getData() == null) {
-                throw new BusinessException(ErrorCode.GATEWAY_ERROR, "MCP Server不存在");
+                throw new BusinessException(ErrorCode.GATEWAY_ERROR, "MCP Server 不存在");
             }
 
-            GetMcpServerResponseBody.GetMcpServerResponseBodyData data =
-                    response.getBody().getData();
+            GetMcpServerResponse.ResponseData data = response.getBody().getData();
 
             return convertToMCPConfig(data, gateway.getGatewayId(), config);
         } catch (Exception e) {
@@ -177,7 +219,166 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
 
     @Override
     public String fetchModelConfig(Gateway gateway, Object conf) {
-        return "";
+        ApsaraGatewayConfig config = gateway.getApsaraGatewayConfig();
+        if (config == null) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "Apsara gateway config is null");
+        }
+        // 入参 conf 通常为 APIGRefConfig，包含选中的 apiId
+        APIGRefConfig refConfig = (APIGRefConfig) conf;
+        if (refConfig == null || refConfig.getModelApiId() == null) {
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "Model API ID 缺失");
+        }
+
+        ApsaraGatewayClient client = new ApsaraGatewayClient(config);
+        try {
+            // 使用 Common Request 获取 Model Config 详情
+            GetModelApiResponse response =
+                    client.getModelApi(gateway.getGatewayId(), refConfig.getModelApiId());
+
+            if (response.getBody() == null || response.getBody().getData() == null) {
+                throw new BusinessException(ErrorCode.GATEWAY_ERROR, "Model API 不存在");
+            }
+
+            GetModelApiResponse.ResponseData data = response.getBody().getData();
+
+            return convertToModelConfigJson(data, gateway, config);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /** 将 Apsara Model Config 模型详情转换为 ModelConfigResult JSON 字符串 */
+    private String convertToModelConfigJson(
+            GetModelApiResponse.ResponseData data, Gateway gateway, ApsaraGatewayConfig config) {
+        // 设置访问域名/地址
+        // 优先使用 getModelApi 返回的 domainNameList
+        List<DomainResult> domains = new ArrayList<>();
+        if (data.getDomainNameList() != null && !data.getDomainNameList().isEmpty()) {
+            domains =
+                    data.getDomainNameList().stream()
+                            .map(
+                                    domain ->
+                                            DomainResult.builder()
+                                                    .domain(domain)
+                                                    .protocol("http") // 默认使用http协议
+                                                    .build())
+                            .collect(Collectors.toList());
+        } else {
+            // 降级方案：使用网关入口信息
+            domains = getGatewayAccessDomains(gateway.getGatewayId(), config);
+        }
+
+        // 构建ModelAPIConfig
+        ModelConfigResult.ModelAPIConfig apiConfig =
+                ModelConfigResult.ModelAPIConfig.builder()
+                        .aiProtocols(
+                                Collections.singletonList(
+                                        mapProtocol(data.getProtocol()))) // 使用协议信息
+                        .modelCategory(mapSceneType(data.getSceneType())) // 映射场景类型为模型类别
+                        .routes(buildRoutesFromAdpService(data, domains)) // 从ADP服务数据构建routes
+                        .services(buildServicesFromAdpService(data)) // 从ADP服务数据构建services
+                        .build();
+
+        ModelConfigResult modelConfig = new ModelConfigResult();
+        modelConfig.setModelAPIConfig(apiConfig);
+
+        return JSONUtil.toJsonStr(modelConfig);
+    }
+
+    /** 从ADP服务数据构建服务列表 */
+    private List<ServiceResult> buildServicesFromAdpService(GetModelApiResponse.ResponseData data) {
+        if (data.getDomainNameList() == null || data.getDomainNameList().isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<ServiceResult> services = new ArrayList<>();
+        for (String domainName : data.getDomainNameList()) {
+            // 解析域名和端口
+            String[] parts = domainName.split(":");
+            String host = parts[0];
+            Integer port = parts.length > 1 ? Integer.parseInt(parts[1]) : 80;
+
+            ServiceResult service = new ServiceResult();
+            service.setName(host);
+            service.setPort(port);
+            service.setProtocol(data.getProtocol() != null ? data.getProtocol() : "http");
+            service.setWeight(100); // 默认权重
+
+            services.add(service);
+        }
+
+        return services;
+    }
+
+    /**
+     * 将协议字符串映射到AIProtocol枚举
+     * OPENAI_COMPATIBLE映射到OPENAI，因为它们本质上是同一个协议
+     */
+    private String mapProtocol(String protocol) {
+        if ("OPENAI_COMPATIBLE".equalsIgnoreCase(protocol)) {
+            return "OpenAI/V1"; // 对应AIProtocol.OPENAI
+        }
+        return protocol;
+    }
+
+    /**
+     * 将 ADP SceneType 映射到 HiMarket ModelCategory
+     * ADP 使用 TEXT_GENERATION/IMAGE_GENERATION 等，HiMarket 使用 TEXT/Image 等
+     */
+    private String mapSceneType(String sceneType) {
+        if (sceneType == null) {
+            return null;
+        }
+        return switch (sceneType) {
+            case "TEXT_GENERATION" -> "TEXT";
+            case "IMAGE_GENERATION" -> "Image";
+            case "VIDEO_GENERATION" -> "Video";
+            default -> sceneType;
+        };
+    }
+
+    /** 从ADP服务数据构建路由列表 */
+    private List<HttpRouteResult> buildRoutesFromAdpService(
+            GetModelApiResponse.ResponseData data, List<DomainResult> domains) {
+        if (data.getMethodPathList() == null || data.getMethodPathList().isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<HttpRouteResult> routes = new ArrayList<>();
+        for (GetModelApiResponse.MethodPath methodPath : data.getMethodPathList()) {
+            HttpRouteResult route = new HttpRouteResult();
+
+            // 设置域名
+            route.setDomains(domains);
+
+            // 设置匹配规则，路径前面加上basePath
+            String path = methodPath.getPath();
+            String fullPath = data.getBasePath() != null ? data.getBasePath() + path : path;
+            HttpRouteResult.RouteMatchResult matchResult =
+                    HttpRouteResult.RouteMatchResult.builder()
+                            .methods(
+                                    Collections.singletonList(
+                                            methodPath.getMethod() != null
+                                                    ? methodPath.getMethod()
+                                                    : "POST"))
+                            .path(
+                                    HttpRouteResult.RouteMatchPath.builder()
+                                            .value(fullPath)
+                                            .type("Exact") // 使用完全匹配
+                                            .build())
+                            .build();
+            route.setMatch(matchResult);
+
+            // 设置描述
+            route.setDescription(data.getDescription());
+
+            // 设置为非内置路由
+            route.setBuiltin(false);
+
+            routes.add(route);
+        }
+
+        return routes;
     }
 
     @Override
@@ -185,15 +386,15 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
         return null;
     }
 
-    /** 将Apsara MCP Server详情转换为MCPConfigResult格式 */
+    /** 将 Apsara MCP Server 详情转换为 MCPConfigResult 格式 */
     private String convertToMCPConfig(
-            GetMcpServerResponseBody.GetMcpServerResponseBodyData data,
+            GetMcpServerResponse.ResponseData data,
             String gwInstanceId,
             ApsaraGatewayConfig config) {
         MCPConfigResult mcpConfig = new MCPConfigResult();
         mcpConfig.setMcpServerName(data.getName());
 
-        // 设置MCP Server配置
+        // 设置 MCP Server 配置
         MCPConfigResult.MCPServerConfig serverConfig = new MCPConfigResult.MCPServerConfig();
         serverConfig.setPath("/mcp-servers/" + data.getName());
 
@@ -202,18 +403,19 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
         if (domains != null && !domains.isEmpty()) {
             serverConfig.setDomains(domains);
         } else {
-            // 如果无法获取网关访问信息，则使用原有的services信息作为备选
+            // 如果无法获取网关访问信息，则使用原有的 services 信息作为备选
             if (data.getServices() != null && !data.getServices().isEmpty()) {
-                List<DomainResult> fallbackDomains =
-                        data.getServices().stream()
-                                .map(
-                                        service ->
-                                                DomainResult.builder()
-                                                        .domain(service.getName())
-                                                        .port(service.getPort())
-                                                        .protocol("http")
-                                                        .build())
-                                .collect(Collectors.toList());
+                List<DomainResult> fallbackDomains = new ArrayList<>();
+                GetMcpServerResponse.Service service = data.getServices().get(0);
+                if (service.getName() != null) {
+                    DomainResult domain =
+                            DomainResult.builder()
+                                    .domain(service.getName())
+                                    .port(80)
+                                    .protocol("http")
+                                    .build();
+                    fallbackDomains.add(domain);
+                }
                 serverConfig.setDomains(fallbackDomains);
             }
         }
@@ -227,6 +429,13 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
         MCPConfigResult.McpMetadata meta = new MCPConfigResult.McpMetadata();
         meta.setSource(GatewayType.APSARA_GATEWAY.name());
         meta.setCreateFromType(data.getType());
+        if (data.getType().equalsIgnoreCase("DIRECT_ROUTE")) {
+            meta.setProtocol(
+                    data.getDirectRouteConfig().getTransportType().equalsIgnoreCase("streamable")
+                            ? "HTTP"
+                            : "SSE");
+        }
+
         mcpConfig.setMeta(meta);
 
         return JSONUtil.toJsonStr(mcpConfig);
@@ -235,17 +444,16 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
     /** 获取网关实例的访问信息并构建域名列表 */
     private List<DomainResult> getGatewayAccessDomains(
             String gwInstanceId, ApsaraGatewayConfig config) {
-        ApsaraStackGatewayClient client = new ApsaraStackGatewayClient(config);
+        ApsaraGatewayClient client = new ApsaraGatewayClient(config);
         try {
-            GetInstanceInfoResponse response = client.GetInstance(gwInstanceId);
+            GetInstanceInfoResponse response = client.getInstance(gwInstanceId);
 
             if (response.getBody() == null || response.getBody().getData() == null) {
                 log.warn("Gateway instance not found, instanceId={}", gwInstanceId);
                 return null;
             }
 
-            GetInstanceInfoResponseBody.GetInstanceInfoResponseBodyData instanceData =
-                    response.getBody().getData();
+            GetInstanceInfoResponse.ResponseData instanceData = response.getBody().getData();
             if (instanceData.getAccessMode() != null && !instanceData.getAccessMode().isEmpty()) {
                 return buildDomainsFromAccessModes(instanceData.getAccessMode());
             }
@@ -262,15 +470,13 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
 
     /** 根据网关实例访问信息构建域名列表 */
     private List<DomainResult> buildDomainsFromAccessModes(
-            List<GetInstanceInfoResponseBody.GetInstanceInfoResponseBodyDataAccessMode>
-                    accessModes) {
+            List<GetInstanceInfoResponse.AccessMode> accessModes) {
         List<DomainResult> domains = new ArrayList<>();
         if (accessModes == null || accessModes.isEmpty()) {
             return domains;
         }
 
-        GetInstanceInfoResponseBody.GetInstanceInfoResponseBodyDataAccessMode accessMode =
-                accessModes.get(0);
+        GetInstanceInfoResponse.AccessMode accessMode = accessModes.get(0);
 
         // 1) LoadBalancer: externalIps:80
         if ("LoadBalancer".equalsIgnoreCase(accessMode.getAccessModeType())) {
@@ -353,29 +559,26 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
         cfg.setXAcsCallerSdkSource(p.getXAcsCallerSdkSource());
         cfg.setXAcsResourceGroupId(p.getXAcsResourceGroupId());
         cfg.setXAcsCallerType(p.getXAcsCallerType());
-
-        ApsaraStackGatewayClient client = new ApsaraStackGatewayClient(cfg);
+        ApsaraGatewayClient client = new ApsaraGatewayClient(cfg);
 
         try {
-            // 使用SDK的ListInstances方法获取网关实例列表
-            // brokerEngineType默认为HIGRESS
+            // 使用 Common Request 的 ListInstances 方法获取网关实例列表
+            // brokerEngineType 默认为 HIGRESS
             String brokerEngineType =
                     p.getBrokerEngineType() != null ? p.getBrokerEngineType() : "HIGRESS";
-            ListInstancesResponse response = client.ListInstances(page, size, brokerEngineType);
+            ListInstancesResponse response = client.listInstances(page, size, brokerEngineType);
 
             if (response.getBody() == null || response.getBody().getData() == null) {
                 return PageResult.of(new ArrayList<>(), page, size, 0);
             }
 
-            ListInstancesResponseBody.ListInstancesResponseBodyData data =
-                    response.getBody().getData();
+            ListInstancesResponse.ResponseData data = response.getBody().getData();
 
             int total = data.getTotal() != null ? data.getTotal() : 0;
 
             List<GatewayResult> list = new ArrayList<>();
             if (data.getRecords() != null) {
-                for (ListInstancesResponseBody.ListInstancesResponseBodyDataRecords record :
-                        data.getRecords()) {
+                for (ListInstancesResponse.Record record : data.getRecords()) {
                     GatewayResult gr =
                             GatewayResult.builder()
                                     .gatewayId(record.getGwInstanceId())
@@ -400,38 +603,35 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
             Consumer consumer, ConsumerCredential credential, GatewayConfig config) {
         ApsaraGatewayConfig apsaraConfig = config.getApsaraGatewayConfig();
         if (apsaraConfig == null) {
-            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "Apsara Gateway配置缺失");
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "Apsara Gateway 配置缺失");
         }
 
         Gateway gateway = config.getGateway();
         if (gateway == null || gateway.getGatewayId() == null) {
-            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "网关实例ID缺失");
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "网关实例 ID 缺失");
         }
 
-        ApsaraStackGatewayClient client = new ApsaraStackGatewayClient(apsaraConfig);
+        // 使用 developerId 后 8 位作为后缀，避免不同 developer 的 consumer 名称冲突
+        String mark =
+                consumer.getDeveloperId()
+                        .substring(Math.max(0, consumer.getDeveloperId().length() - 8));
+        String gwConsumerName = StrUtil.format("{}-{}", consumer.getName(), mark);
+
+        ApsaraGatewayClient client = new ApsaraGatewayClient(apsaraConfig);
         try {
-            // 从凭证中获取API Key
-            String key = null;
-            if (credential.getApiKeyConfig() != null
-                    && credential.getApiKeyConfig().getCredentials() != null
-                    && !credential.getApiKeyConfig().getCredentials().isEmpty()) {
-                key = credential.getApiKeyConfig().getCredentials().get(0).getApiKey();
-            }
+            CreateAppRequest request = new CreateAppRequest();
+            request.setGwInstanceId(gateway.getGatewayId());
+            request.setAppName(gwConsumerName);
+            applyCredentialToRequest(credential, request);
 
             log.info(
                     "Creating consumer in Apsara gateway: gatewayId={}, consumerName={},"
-                            + " hasApiKey={}",
+                            + " authType={}",
                     gateway.getGatewayId(),
-                    consumer.getName(),
-                    key != null);
+                    gwConsumerName,
+                    request.getAuthType());
 
-            CreateAppResponse response =
-                    client.CreateApp(
-                            gateway.getGatewayId(),
-                            consumer.getName(),
-                            key,
-                            5 // authType: 5 = API_KEY
-                            );
+            CreateAppResponse response = client.createApp(request);
 
             // 检查响应
             if (response.getBody() != null) {
@@ -441,18 +641,14 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
                         response.getBody().getMsg(),
                         response.getBody().getData());
 
-                // 检查状态码
                 if (response.getBody().getCode() != null && response.getBody().getCode() == 200) {
                     if (response.getBody().getData() != null) {
-                        // SDK返回的data就是appName，直接返回
                         return extractConsumerIdFromResponse(
-                                response.getBody().getData(), consumer.getName());
+                                response.getBody().getData(), gwConsumerName);
                     }
-                    // 即使data为null，如果状态码是200，也认为创建成功，使用consumer name作为ID
-                    log.warn("CreateApp succeeded but data is null, using consumer name as ID");
-                    return consumer.getName();
+                    log.warn("CreateApp succeeded but data is null, using gwConsumerName as ID");
+                    return gwConsumerName;
                 }
-                // 状态码不是200，抛出详细错误信息
                 String errorMsg =
                         String.format(
                                 "Failed to create consumer in Apsara gateway: code=%d, message=%s",
@@ -491,41 +687,24 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
             String consumerId, ConsumerCredential credential, GatewayConfig config) {
         ApsaraGatewayConfig apsaraConfig = config.getApsaraGatewayConfig();
         if (apsaraConfig == null) {
-            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "Apsara Gateway配置缺失");
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "Apsara Gateway 配置缺失");
         }
 
         Gateway gateway = config.getGateway();
         if (gateway == null || gateway.getGatewayId() == null) {
-            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "网关实例ID缺失");
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "网关实例 ID 缺失");
         }
 
-        ApsaraStackGatewayClient client = new ApsaraStackGatewayClient(apsaraConfig);
+        ApsaraGatewayClient client = new ApsaraGatewayClient(apsaraConfig);
         try {
-            // 从凭证中提取API Key
-            String apiKey = null;
-            if (credential != null
-                    && credential.getApiKeyConfig() != null
-                    && credential.getApiKeyConfig().getCredentials() != null
-                    && !credential.getApiKeyConfig().getCredentials().isEmpty()) {
-                apiKey = credential.getApiKeyConfig().getCredentials().get(0).getApiKey();
-            }
+            ModifyAppRequest request = new ModifyAppRequest();
+            request.setGwInstanceId(gateway.getGatewayId());
+            request.setAppId(consumerId);
+            request.setAppName(consumerId);
+            request.setDescription("Consumer managed by Portal");
+            applyCredentialToRequest(credential, request);
 
-            // 明确各参数含义，避免重复使用consumerId带来的混淆
-            String appId = consumerId; // 应用ID，用于标识要更新的应用
-            String appName = consumerId; // 应用名称，通常与appId保持一致
-            String description = "Consumer managed by Portal"; // 语义化的描述信息
-            Integer authType = 5; // 认证类型：API_KEY
-            Boolean enable = true; // 启用状态
-
-            ModifyAppResponse response =
-                    client.ModifyApp(
-                            gateway.getGatewayId(),
-                            appId,
-                            appName,
-                            apiKey,
-                            authType,
-                            description,
-                            enable);
+            ModifyAppResponse response = client.modifyApp(request);
 
             if (response.getBody() != null && response.getBody().getCode() == 200) {
                 log.info(
@@ -534,7 +713,7 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
                         gateway.getGatewayId());
                 return;
             }
-            throw new BusinessException(ErrorCode.GATEWAY_ERROR, "更新Apsara网关消费者失败");
+            throw new BusinessException(ErrorCode.GATEWAY_ERROR, "更新 Apsara 网关消费者失败");
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
@@ -544,27 +723,93 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
                     gateway != null ? gateway.getGatewayId() : "unknown",
                     e);
             throw new BusinessException(
-                    ErrorCode.INTERNAL_ERROR, "更新Apsara网关消费者异常: " + e.getMessage());
+                    ErrorCode.INTERNAL_ERROR, "更新 Apsara 网关消费者异常：" + e.getMessage());
         } finally {
             client.close();
         }
+    }
+
+    /** 根据凭证类型设置认证参数到 CreateAppRequest */
+    private void applyCredentialToRequest(ConsumerCredential credential, CreateAppRequest request) {
+        if (credential != null
+                && credential.getApiKeyConfig() != null
+                && credential.getApiKeyConfig().getCredentials() != null
+                && !credential.getApiKeyConfig().getCredentials().isEmpty()) {
+            request.setAuthType(5);
+            request.setKey(credential.getApiKeyConfig().getCredentials().get(0).getApiKey());
+            request.setApiKeyLocationType(
+                    mapApiKeyLocationType(credential.getApiKeyConfig().getSource()));
+            if ("HEADER".equals(request.getApiKeyLocationType())
+                    || "QUERY".equals(request.getApiKeyLocationType())) {
+                request.setKeyName(credential.getApiKeyConfig().getKey());
+            }
+        } else if (credential != null
+                && credential.getHmacConfig() != null
+                && credential.getHmacConfig().getCredentials() != null
+                && !credential.getHmacConfig().getCredentials().isEmpty()) {
+            request.setAuthType(7);
+            request.setAccessKey(credential.getHmacConfig().getCredentials().get(0).getAk());
+            request.setSecretKey(credential.getHmacConfig().getCredentials().get(0).getSk());
+        } else {
+            request.setAuthType(5);
+            request.setApiKeyLocationType("BEARER");
+        }
+    }
+
+    /** 根据凭证类型设置认证参数到 ModifyAppRequest */
+    private void applyCredentialToRequest(ConsumerCredential credential, ModifyAppRequest request) {
+        if (credential != null
+                && credential.getApiKeyConfig() != null
+                && credential.getApiKeyConfig().getCredentials() != null
+                && !credential.getApiKeyConfig().getCredentials().isEmpty()) {
+            request.setAuthType(5);
+            request.setKey(credential.getApiKeyConfig().getCredentials().get(0).getApiKey());
+            request.setApiKeyLocationType(
+                    mapApiKeyLocationType(credential.getApiKeyConfig().getSource()));
+            if ("HEADER".equals(request.getApiKeyLocationType())
+                    || "QUERY".equals(request.getApiKeyLocationType())) {
+                request.setKeyName(credential.getApiKeyConfig().getKey());
+            }
+        } else if (credential != null
+                && credential.getHmacConfig() != null
+                && credential.getHmacConfig().getCredentials() != null
+                && !credential.getHmacConfig().getCredentials().isEmpty()) {
+            request.setAuthType(7);
+            request.setAccessKey(credential.getHmacConfig().getCredentials().get(0).getAk());
+            request.setSecretKey(credential.getHmacConfig().getCredentials().get(0).getSk());
+        } else {
+            request.setAuthType(5);
+            request.setApiKeyLocationType("BEARER");
+        }
+    }
+
+    private String mapApiKeyLocationType(String source) {
+        if (source == null) {
+            return "BEARER";
+        }
+        return switch (source) {
+            case "Header" -> "HEADER";
+            case "Query" -> "QUERY";
+            case "Bearer" -> "BEARER";
+            default -> "BEARER";
+        };
     }
 
     @Override
     public void deleteConsumer(String consumerId, GatewayConfig config) {
         ApsaraGatewayConfig apsaraConfig = config.getApsaraGatewayConfig();
         if (apsaraConfig == null) {
-            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "Apsara Gateway配置缺失");
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "Apsara Gateway 配置缺失");
         }
 
         Gateway gateway = config.getGateway();
         if (gateway == null || gateway.getGatewayId() == null) {
-            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "网关实例ID缺失");
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "网关实例 ID 缺失");
         }
 
-        ApsaraStackGatewayClient client = new ApsaraStackGatewayClient(apsaraConfig);
+        ApsaraGatewayClient client = new ApsaraGatewayClient(apsaraConfig);
         try {
-            BatchDeleteAppResponse response = client.DeleteApp(gateway.getGatewayId(), consumerId);
+            BatchDeleteAppResponse response = client.deleteApp(gateway.getGatewayId(), consumerId);
 
             if (response.getBody() != null && response.getBody().getCode() == 200) {
                 log.info(
@@ -573,7 +818,7 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
                         gateway.getGatewayId());
                 return;
             }
-            throw new BusinessException(ErrorCode.GATEWAY_ERROR, "删除Apsara网关消费者失败");
+            throw new BusinessException(ErrorCode.GATEWAY_ERROR, "删除 Apsara 网关消费者失败");
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
@@ -583,7 +828,7 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
                     gateway != null ? gateway.getGatewayId() : "unknown",
                     e);
             throw new BusinessException(
-                    ErrorCode.INTERNAL_ERROR, "删除Apsara网关消费者异常: " + e.getMessage());
+                    ErrorCode.INTERNAL_ERROR, "删除 Apsara 网关消费者异常：" + e.getMessage());
         } finally {
             client.close();
         }
@@ -593,33 +838,33 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
     public boolean isConsumerExists(String consumerId, GatewayConfig config) {
         ApsaraGatewayConfig apsaraConfig = config.getApsaraGatewayConfig();
         if (apsaraConfig == null) {
-            log.warn("Apsara Gateway配置缺失，无法检查消费者存在性");
+            log.warn("Apsara Gateway 配置缺失，无法检查消费者存在性");
             return false;
         }
 
         Gateway gateway = config.getGateway();
         if (gateway == null || gateway.getGatewayId() == null) {
-            log.warn("网关实例ID缺失，无法检查消费者存在性");
+            log.warn("网关实例 ID 缺失，无法检查消费者存在性");
             return false;
         }
 
-        ApsaraStackGatewayClient client = new ApsaraStackGatewayClient(apsaraConfig);
+        ApsaraGatewayClient client = new ApsaraGatewayClient(apsaraConfig);
         try {
             // 获取所有应用列表，然后在客户端筛选
             ListAppsByGwInstanceIdResponse response =
-                    client.ListAppsByGwInstanceId(
-                            gateway.getGatewayId(), (Integer) null // serviceType 为 null，获取所有类型
+                    client.listAppsByGwInstanceId(
+                            gateway.getGatewayId(), null // serviceType 为 null，获取所有类型
                             );
 
-            // data字段直接是List，不是包含records的对象
+            // data 字段直接是 List，不是包含 records 的对象
             if (response.getBody() != null && response.getBody().getData() != null) {
-                // 遍历应用列表，查找匹配的consumerId（appName）
+                // 遍历应用列表，查找匹配的 consumerId（appName）
                 return response.getBody().getData().stream()
                         .anyMatch(app -> consumerId.equals(app.getAppName()));
             }
             return false;
         } catch (Exception e) {
-            log.warn("检查Apsara网关消费者存在性失败: consumerId={}", consumerId, e);
+            log.warn("检查 Apsara 网关消费者存在性失败：consumerId={}", consumerId, e);
             return false;
         } finally {
             client.close();
@@ -631,24 +876,58 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
             Gateway gateway, String consumerId, Object refConfig) {
         ApsaraGatewayConfig apsaraConfig = gateway.getApsaraGatewayConfig();
         if (apsaraConfig == null) {
-            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "Apsara Gateway配置缺失");
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "Apsara Gateway 配置缺失");
         }
 
-        // 解析MCP Server配置
         APIGRefConfig apigRefConfig = (APIGRefConfig) refConfig;
-        if (apigRefConfig == null || apigRefConfig.getMcpServerName() == null) {
-            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "MCP Server名称缺失");
+        if (apigRefConfig == null) {
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "APIGRefConfig 配置缺失");
         }
 
-        ApsaraStackGatewayClient client = new ApsaraStackGatewayClient(apsaraConfig);
+        ConsumerAuthConfig result = null;
+
+        // 如果是 MCP Server 配置
+        if (apigRefConfig.getMcpServerName() != null) {
+            result = authorizeMcpServerConsumer(gateway, consumerId, apigRefConfig);
+        }
+
+        // 如果是 Model API 配置
+        if (apigRefConfig.getModelApiId() != null) {
+            authorizeModelApiConsumer(gateway, consumerId, apigRefConfig);
+            // Model API 授权不需要返回特定的 auth config
+        }
+
+        // 如果 result 为 null，说明是 Model API 的情况，返回通用配置
+        if (result == null) {
+            result =
+                    ConsumerAuthConfig.builder()
+                            .adpAIAuthConfig(
+                                    AdpAIAuthConfig.builder()
+                                            .modelApiId(apigRefConfig.getModelApiId())
+                                            .consumerId(consumerId)
+                                            .gwInstanceId(gateway.getGatewayId())
+                                            .build())
+                            .build();
+        }
+
+        return result;
+    }
+
+    /** 授权消费者到 MCP Server */
+    private ConsumerAuthConfig authorizeMcpServerConsumer(
+            Gateway gateway, String consumerId, APIGRefConfig apigRefConfig) {
+        ApsaraGatewayConfig apsaraConfig = gateway.getApsaraGatewayConfig();
+        if (apsaraConfig == null) {
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "Apsara Gateway 配置缺失");
+        }
+
+        ApsaraGatewayClient client = new ApsaraGatewayClient(apsaraConfig);
         try {
-            // 调用SDK添加MCP Server消费者授权
             AddMcpServerConsumersResponse response =
-                    client.AddMcpServerConsumers(
+                    client.addMcpServerConsumers(
                             gateway.getGatewayId(),
                             apigRefConfig.getMcpServerName(),
-                            Collections.singletonList(consumerId) // consumerId就是appName
-                            );
+                            Collections.singletonList(consumerId));
 
             if (response.getBody() != null && response.getBody().getCode() == 200) {
                 log.info(
@@ -656,7 +935,6 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
                         consumerId,
                         apigRefConfig.getMcpServerName());
 
-                // 构建授权配置返回结果
                 AdpAIAuthConfig authConfig =
                         AdpAIAuthConfig.builder()
                                 .mcpServerName(apigRefConfig.getMcpServerName())
@@ -685,6 +963,54 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
         }
     }
 
+    /** 授权消费者到 Model API */
+    private void authorizeModelApiConsumer(
+            Gateway gateway, String consumerId, APIGRefConfig apigRefConfig) {
+        ApsaraGatewayConfig apsaraConfig = gateway.getApsaraGatewayConfig();
+        if (apsaraConfig == null) {
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "Apsara Gateway 配置缺失");
+        }
+
+        ApsaraGatewayClient client = new ApsaraGatewayClient(apsaraConfig);
+        try {
+            BatchGrantModelApiResponse response =
+                    client.batchGrantModelApi(
+                            gateway.getGatewayId(),
+                            apigRefConfig.getModelApiId(),
+                            Collections.singletonList(consumerId));
+
+            if (response.getBody() != null
+                    && response.getBody().getCode() != null
+                    && response.getBody().getCode() == 200) {
+                log.info(
+                        "Successfully authorized consumer {} to Model API {}",
+                        consumerId,
+                        apigRefConfig.getModelApiId());
+                return;
+            }
+
+            String message = response.getBody() != null ? response.getBody().getMsg() : null;
+            throw new BusinessException(
+                    ErrorCode.GATEWAY_ERROR,
+                    "Failed to authorize consumer to Model API: "
+                            + (message != null ? message : "Unknown error"));
+        } catch (BusinessException e) {
+            log.error("Business error authorizing consumer to Model API", e);
+            throw e;
+        } catch (Exception e) {
+            log.error(
+                    "Error authorizing consumer {} to Model API {}",
+                    consumerId,
+                    apigRefConfig.getModelApiId(),
+                    e);
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR,
+                    "Error authorizing consumer to Model API: " + e.getMessage());
+        } finally {
+            client.close();
+        }
+    }
+
     @Override
     public HttpApiApiInfo fetchAPI(Gateway gateway, String apiId) {
         throw new UnsupportedOperationException("Apsara gateway not implemented for fetch api");
@@ -701,18 +1027,35 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
 
         ApsaraGatewayConfig apsaraConfig = gateway.getApsaraGatewayConfig();
         if (apsaraConfig == null) {
-            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "Apsara Gateway配置缺失");
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "Apsara Gateway 配置缺失");
         }
 
-        ApsaraStackGatewayClient client = new ApsaraStackGatewayClient(apsaraConfig);
+        // 如果是 MCP Server 授权，使用原有逻辑
+        if (adpAIAuthConfig.getMcpServerName() != null) {
+            revokeMcpServerConsumerAuthorization(gateway, consumerId, adpAIAuthConfig);
+        }
+
+        // 如果是 Model API 授权，使用新逻辑
+        if (adpAIAuthConfig.getModelApiId() != null) {
+            revokeModelApiConsumerAuthorization(gateway, consumerId, adpAIAuthConfig);
+        }
+    }
+
+    /** 撤销消费者对 MCP Server 的授权 */
+    private void revokeMcpServerConsumerAuthorization(
+            Gateway gateway, String consumerId, AdpAIAuthConfig adpAIAuthConfig) {
+        ApsaraGatewayConfig apsaraConfig = gateway.getApsaraGatewayConfig();
+        if (apsaraConfig == null) {
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "Apsara Gateway 配置缺失");
+        }
+
+        ApsaraGatewayClient client = new ApsaraGatewayClient(apsaraConfig);
         try {
-            // 调用SDK删除MCP Server消费者授权
             DeleteMcpServerConsumersResponse response =
-                    client.DeleteMcpServerConsumers(
+                    client.deleteMcpServerConsumers(
                             gateway.getGatewayId(),
                             adpAIAuthConfig.getMcpServerName(),
-                            Collections.singletonList(consumerId) // consumerId就是appName
-                            );
+                            Collections.singletonList(consumerId));
 
             if (response.getBody() != null && response.getBody().getCode() == 200) {
                 log.info(
@@ -722,7 +1065,6 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
                 return;
             }
 
-            // 获取错误信息
             String message =
                     response.getBody() != null ? response.getBody().getMsg() : "Unknown error";
 
@@ -757,6 +1099,112 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraStackGatewayCli
                     "Error revoking consumer authorization: " + e.getMessage());
         } finally {
             client.close();
+        }
+    }
+
+    /** 撤销消费者对 Model API 的授权 */
+    private void revokeModelApiConsumerAuthorization(
+            Gateway gateway, String consumerId, AdpAIAuthConfig adpAIAuthConfig) {
+        ApsaraGatewayConfig apsaraConfig = gateway.getApsaraGatewayConfig();
+        if (apsaraConfig == null) {
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "Apsara Gateway 配置缺失");
+        }
+
+        ApsaraGatewayClient client = new ApsaraGatewayClient(apsaraConfig);
+        try {
+            // 首先查询 authId
+            String authId =
+                    getAuthIdForModelApi(
+                            gateway, adpAIAuthConfig.getModelApiId(), consumerId, client);
+
+            if (authId == null) {
+                log.warn(
+                        "No authId found for consumer {} and model API {}, skipping revocation",
+                        consumerId,
+                        adpAIAuthConfig.getModelApiId());
+                return;
+            }
+
+            RevokeModelApiGrantResponse response =
+                    client.revokeModelApiGrant(gateway.getGatewayId(), authId);
+
+            if (response.getBody() != null) {
+                Integer code = response.getBody().getCode();
+                if (code != null && code == 200) {
+                    log.info(
+                            "Successfully revoked consumer {} authorization from Model API {}",
+                            consumerId,
+                            adpAIAuthConfig.getModelApiId());
+                    return;
+                }
+
+                String message = response.getBody().getMsg();
+
+                // 如果是资源不存在（已被删除），只记录警告，不抛异常
+                if (message != null
+                        && (message.contains("not found")
+                                || message.contains("不存在")
+                                || message.contains("NotFound")
+                                || (code != null && code == 404))) {
+                    log.warn(
+                            "Consumer authorization already removed or not found:"
+                                    + " consumerId={}, modelApiId={}, message={}",
+                            consumerId,
+                            adpAIAuthConfig.getModelApiId(),
+                            message);
+                    return;
+                }
+
+                String errorMsg =
+                        "Failed to revoke consumer authorization from Model API: " + message;
+                log.error(errorMsg);
+                throw new BusinessException(ErrorCode.GATEWAY_ERROR, errorMsg);
+            }
+
+            throw new BusinessException(
+                    ErrorCode.GATEWAY_ERROR,
+                    "Failed to revoke consumer authorization from Model API");
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error(
+                    "Error revoking consumer {} authorization from Model API {}",
+                    consumerId,
+                    adpAIAuthConfig.getModelApiId(),
+                    e);
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR,
+                    "Error revoking consumer authorization from Model API: " + e.getMessage());
+        } finally {
+            client.close();
+        }
+    }
+
+    /** 查询 Model API 的消费者授权列表，获取 authId */
+    private String getAuthIdForModelApi(
+            Gateway gateway, String modelApiId, String consumerId, ApsaraGatewayClient client) {
+        try {
+            ListModelApiConsumersResponse response =
+                    client.listModelApiConsumers(gateway.getGatewayId(), modelApiId, 1, 10);
+
+            if (response.getBody() != null
+                    && response.getBody().getCode() != null
+                    && response.getBody().getCode() == 200
+                    && response.getBody().getData() != null
+                    && response.getBody().getData().getRecords() != null) {
+                for (ListModelApiConsumersResponse.Record record :
+                        response.getBody().getData().getRecords()) {
+                    if (consumerId.equals(record.getAppId())) {
+                        return record.getAuthId();
+                    }
+                }
+            }
+
+            log.warn("Failed to get authId for model API consumer lookup");
+            return null;
+        } catch (Exception e) {
+            log.error("Error getting authId for model API", e);
+            return null;
         }
     }
 

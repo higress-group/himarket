@@ -40,13 +40,14 @@ interface ChatAreaProps {
   addModels: (ids: string[]) => void;
   closeModel: (modelId: string) => void;
   chatType?: "TEXT" | "Image";
+  onStop?: () => void;
 }
 
 export function ChatArea(props: ChatAreaProps) {
   const {
     modelConversations, onChangeActiveAnswer, onSendMessage,
     onSelectProduct, selectedModel, handleGenerateMessage, addModels, closeModel,
-    generating, isMcpExecuting, chatType = "TEXT"
+    generating, isMcpExecuting, chatType = "TEXT", onStop
   } = props;
 
   const isCompareMode = modelConversations.length > 1;
@@ -73,6 +74,24 @@ export function ChatArea(props: ChatAreaProps) {
   const [showModelSelector, setShowModelSelector] = useState(false);
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
   const [showMcpModal, setShowMcpModal] = useState(false);
+  const scrollContainerRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+
+  // 处理滚动事件，检测用户是否手动向上滚动
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+    const { scrollTop, scrollHeight, clientHeight } = target;
+    // 距离底部的阈值（像素）
+    const threshold = 100;
+    const isAtBottom = scrollHeight - scrollTop - clientHeight < threshold;
+
+    if (isAtBottom) {
+      // 用户滚动到底部，恢复自动滚动
+      setAutoScrollEnabled(true);
+    } else {
+      // 用户向上滚动，禁用自动滚动
+      setAutoScrollEnabled(false);
+    }
+  }, []);
 
 
   const handleMcpFilter = useCallback((id: string) => {
@@ -289,7 +308,13 @@ export function ChatArea(props: ChatAreaProps) {
                 }
 
                 {/* 消息列表 */}
-                <div className="h-full overflow-auto">
+                <div
+                  className="h-full overflow-auto"
+                  onScroll={handleScroll}
+                  ref={(el) => {
+                    if (el) scrollContainerRefs.current.set(model.id, el);
+                  }}
+                >
                   <Messages
                     conversations={model.conversations}
                     onChangeVersion={(...args) => onChangeActiveAnswer(model.id, ...args)}
@@ -390,6 +415,7 @@ export function ChatArea(props: ChatAreaProps) {
                   onWebSearchEnable={setEnableWebSearch}
                   webSearchEnabled={enableWebSearch}
                   enableMultiModal={enableMultiModal}
+                  onStop={onStop}
                 />
               </div>
 
@@ -418,6 +444,7 @@ export function ChatArea(props: ChatAreaProps) {
                 onWebSearchEnable={setEnableWebSearch}
                 webSearchEnabled={enableWebSearch}
                 enableMultiModal={enableMultiModal}
+                onStop={onStop}
               />
             </div>
           </div>

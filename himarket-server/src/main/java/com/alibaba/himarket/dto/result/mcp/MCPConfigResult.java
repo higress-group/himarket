@@ -69,11 +69,13 @@ public class MCPConfigResult {
                         .map(path -> baseUrl + path)
                         .orElse(baseUrl);
 
-        // Default: StreamableHTTP
+        // Default: SSE (most MCP servers use SSE protocol)
+        // Only use STREAMABLE_HTTP when explicitly configured as "HTTP" or "StreamableHTTP"
         MCPTransportMode transportMode =
-                "sse".equalsIgnoreCase(meta.getProtocol())
-                        ? MCPTransportMode.SSE
-                        : MCPTransportMode.STREAMABLE_HTTP;
+                ("HTTP".equalsIgnoreCase(meta.getProtocol())
+                                || "StreamableHTTP".equalsIgnoreCase(meta.getProtocol()))
+                        ? MCPTransportMode.STREAMABLE_HTTP
+                        : MCPTransportMode.SSE;
 
         if (transportMode == MCPTransportMode.SSE && !url.endsWith("/sse")) {
             url = url.endsWith("/") ? url + "sse" : url + "/sse";

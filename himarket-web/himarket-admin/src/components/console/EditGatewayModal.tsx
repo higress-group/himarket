@@ -338,8 +338,7 @@ export default function EditGatewayModal({ visible, gateway, onCancel, onSuccess
             </Form.Item>
             <Form.Item 
               label="x-acs-organizationid" 
-              name="xAcsOrganizationId" 
-              rules={[{ required: updateAuth, message: '请输入组织ID' }]}
+              name="xAcsOrganizationId"
             >
               <Input />
             </Form.Item>

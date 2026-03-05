@@ -2,6 +2,10 @@ package com.alibaba.himarket.service.hichat.support;
 
 import com.alibaba.himarket.dto.result.chat.LlmInvokeResult;
 import com.alibaba.himarket.support.chat.ChatUsage;
+import com.alibaba.himarket.support.chat.ToolCallInfo;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -44,6 +48,11 @@ public class ChatContext {
      * Tool name to tool metadata mapping
      */
     private Map<String, ToolMeta> toolMetas;
+
+    /**
+     * Tool call information map (keyed by tool call ID for matching with results)
+     */
+    private final Map<String, ToolCallInfo> toolCallMap = new LinkedHashMap<>();
 
     public ChatContext(String chatId) {
         this.chatId = chatId;
@@ -104,6 +113,33 @@ public class ChatContext {
                 }
                 break;
 
+            case TOOL_CALL:
+                // Collect tool call information
+                if (event.getContent() instanceof ChatEvent.ToolCallContent) {
+                    ChatEvent.ToolCallContent tc = (ChatEvent.ToolCallContent) event.getContent();
+                    ToolCallInfo toolCallInfo =
+                            ToolCallInfo.builder()
+                                    .id(tc.getId())
+                                    .name(tc.getName())
+                                    .arguments(tc.getArguments())
+                                    .mcpServerName(tc.getMcpServerName())
+                                    .build();
+                    toolCallMap.put(tc.getId(), toolCallInfo);
+                }
+                break;
+
+            case TOOL_RESULT:
+                // Update tool call with result
+                if (event.getContent() instanceof ChatEvent.ToolResultContent) {
+                    ChatEvent.ToolResultContent tr =
+                            (ChatEvent.ToolResultContent) event.getContent();
+                    ToolCallInfo toolCallInfo = toolCallMap.get(tr.getId());
+                    if (toolCallInfo != null) {
+                        toolCallInfo.setResult(tr.getResult());
+                    }
+                }
+                break;
+
             case DONE:
                 break;
 
@@ -116,7 +152,7 @@ public class ChatContext {
                 break;
 
             default:
-                // Ignore other event types (TOOL_CALL, TOOL_RESULT, START)
+                // Ignore other event types (START)
                 break;
         }
     }
@@ -152,12 +188,26 @@ public class ChatContext {
     }
 
     /**
+     * Get collected tool calls as a list
+     *
+     * @return List of tool call info, or null if empty
+     */
+    public List<ToolCallInfo> getToolCalls() {
+        return toolCallMap.isEmpty() ? null : new ArrayList<>(toolCallMap.values());
+    }
+
+    /**
      * Convert to LlmInvokeResult for database persistence
      *
      * @return LlmInvokeResult instance
      */
     public LlmInvokeResult toResult() {
-        return LlmInvokeResult.builder().success(success).answer(getAnswer()).usage(usage).build();
+        return LlmInvokeResult.builder()
+                .success(success)
+                .answer(getAnswer())
+                .usage(usage)
+                .toolCalls(getToolCalls())
+                .build();
     }
 
     public void fail() {
