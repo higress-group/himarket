@@ -8,8 +8,8 @@ afterEach(() => cleanup());
 
 const localRuntime: RuntimeOption = {
   type: 'local',
-  label: 'POC 本地启动',
-  description: '通过 ProcessBuilder 在本机启动 CLI 子进程',
+  label: '本地运行',
+  description: '在本地环境运行 CLI 进程',
   available: true,
 };
 
@@ -42,7 +42,7 @@ describe('RuntimeSelector', () => {
       />,
     );
 
-    expect(screen.getByText('POC 本地启动')).toBeInTheDocument();
+    expect(screen.getByText('本地运行')).toBeInTheDocument();
     expect(screen.getByText('K8s 沙箱')).toBeInTheDocument();
   });
 
@@ -190,7 +190,7 @@ describe('RuntimeSelector', () => {
     );
 
     expect(
-      screen.getByText('通过 ProcessBuilder 在本机启动 CLI 子进程'),
+      screen.getByText('在本地环境运行 CLI 进程'),
     ).toBeInTheDocument();
     expect(
       screen.getByText('通过 K8s Pod 提供隔离运行环境（生产部署）'),

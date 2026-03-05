@@ -2,6 +2,8 @@ package com.alibaba.himarket.controller;
 
 import com.alibaba.himarket.config.AcpProperties;
 import com.alibaba.himarket.core.annotation.AdminOrDeveloperAuth;
+import com.alibaba.himarket.core.exception.BusinessException;
+import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.service.acp.K8sWorkspaceService;
 import com.alibaba.himarket.service.document.DocumentConversionService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -426,7 +428,7 @@ public class WorkspaceController {
         if (auth != null && auth.getPrincipal() instanceof String principal) {
             return principal;
         }
-        return "anonymous";
+        throw new BusinessException(ErrorCode.UNAUTHORIZED, "用户未认证");
     }
 
     private static String getExtension(String fileName) {

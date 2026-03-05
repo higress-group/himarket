@@ -75,7 +75,7 @@ export function ConfigSidebar({
         const sorted = sortCliProviders(list);
         const first = sorted.find((p) => p.available);
         if (first) {
-          onConfigChange({ ...config, cliProviderId: first.key });
+          onConfigChange({ ...config, cliProviderId: first.key, cliProviderName: first.displayName });
         }
       }
     } catch {
@@ -136,7 +136,7 @@ export function ConfigSidebar({
     (key: string) => {
       const provider = sortedProviders.find((p) => p.key === key);
       if (provider?.available) {
-        onConfigChange({ ...config, cliProviderId: key });
+        onConfigChange({ ...config, cliProviderId: key, cliProviderName: provider.displayName });
       }
     },
     [sortedProviders, config, onConfigChange],
@@ -144,9 +144,10 @@ export function ConfigSidebar({
 
   const handleSelectModel = useCallback(
     (productId: string) => {
-      onConfigChange({ ...config, modelProductId: productId });
+      const model = marketModels.find((m) => m.productId === productId);
+      onConfigChange({ ...config, modelProductId: productId, modelName: model?.name ?? null });
     },
-    [config, onConfigChange],
+    [config, onConfigChange, marketModels],
   );
 
   const handleToggleMcp = useCallback(

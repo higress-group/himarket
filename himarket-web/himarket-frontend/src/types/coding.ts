@@ -27,7 +27,9 @@ export interface TerminalSession {
 
 export interface CodingConfig {
   modelProductId: string | null;
+  modelName?: string | null;
   cliProviderId: string | null;
+  cliProviderName?: string | null;
   cliRuntime: string;
   cliSessionConfig?: string;
   skills: string[];

@@ -129,17 +129,17 @@ class AcpHandshakeInterceptorTest {
         assertNull(attributes.get("provider"));
     }
 
-    // ===== 匿名访问（POC 模式） =====
+    // ===== 无 token 连接拒绝 =====
 
     @Test
-    void beforeHandshake_noToken_allowsAnonymous() throws Exception {
+    void beforeHandshake_noToken_rejectsConnection() throws Exception {
         Map<String, Object> attributes = new HashMap<>();
         ServerHttpRequest request = mockRequest("ws://localhost/acp?runtime=local");
 
         boolean result = interceptor.beforeHandshake(request, response, wsHandler, attributes);
 
-        assertTrue(result);
-        assertEquals("anonymous", attributes.get("userId"));
+        assertFalse(result);
+        assertNull(attributes.get("userId"));
     }
 
     // ===== Helper =====

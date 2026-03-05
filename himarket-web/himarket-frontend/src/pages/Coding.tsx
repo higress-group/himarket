@@ -34,6 +34,8 @@ import type { FileNode } from "../types/coding";
 import type { ChatItemPlan } from "../types/acp";
 import { buildAcpWsUrl } from "../lib/utils/wsUrl";
 import { SandboxInitProgress } from "../components/hicli/SandboxInitProgress";
+import { getMarketModels, getCliProviders } from "../lib/apis/cliProvider";
+import { sortCliProviders } from "../lib/utils/cliProviderSort";
 
 const EXT_TO_LANG: Record<string, string> = {
   ts: "typescript", tsx: "typescript", js: "javascript", jsx: "javascript",
@@ -113,6 +115,42 @@ function CodingContent() {
 
   // 跟踪当前运行时类型（HiCoding 仅支持沙箱模式）
   const currentRuntimeRef = useRef<string>("k8s");
+
+  // ===== 补全旧配置中缺失的名称字段 =====
+  useEffect(() => {
+    const needModelName = config.modelProductId && !config.modelName;
+    const needCliName = config.cliProviderId && !config.cliProviderName;
+    if (!needModelName && !needCliName) return;
+
+    let cancelled = false;
+    const patch: Partial<typeof config> = {};
+
+    const resolve = async () => {
+      if (needModelName) {
+        try {
+          const res = await getMarketModels();
+          const models = res.data.models ?? [];
+          const found = models.find((m) => m.productId === config.modelProductId);
+          if (found) patch.modelName = found.name;
+        } catch { /* ignore */ }
+      }
+      if (needCliName) {
+        try {
+          const res = await getCliProviders();
+          const list: any[] = Array.isArray(res.data) ? res.data : (res as any).data?.data ?? [];
+          const sorted = sortCliProviders(list);
+          const found = sorted.find((p) => p.key === config.cliProviderId);
+          if (found) patch.cliProviderName = found.displayName;
+        } catch { /* ignore */ }
+      }
+      if (!cancelled && Object.keys(patch).length > 0) {
+        setConfig({ ...config, ...patch });
+      }
+    };
+
+    resolve();
+    return () => { cancelled = true; };
+  }, [config.modelProductId, config.cliProviderId]);
 
   // 暂存首条消息，等连接 + 会话就绪后自动发送
   const pendingPromptRef = useRef<string | null>(null);
@@ -496,7 +534,7 @@ function CodingContent() {
                               >
                                 <Sparkles size={12} className="text-blue-500" />
                                 <span className="text-gray-400">Model:</span>
-                                <span>{config.modelProductId}</span>
+                                <span>{config.modelName || config.modelProductId}</span>
                               </button>
                               <button
                                 onClick={() => setConfigOpen(true)}
@@ -507,7 +545,7 @@ function CodingContent() {
                               >
                                 <Zap size={12} className="text-violet-500" />
                                 <span className="text-gray-400">CLI:</span>
-                                <span>{config.cliProviderId}</span>
+                                <span>{config.cliProviderName || config.cliProviderId}</span>
                               </button>
                             </>
                           )

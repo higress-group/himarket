@@ -547,13 +547,27 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
             CliProviderConfig providerConfig,
             CliSessionConfig sessionConfig,
             RuntimeConfig config) {
+        logger.info(
+                "[Sandbox-Config] prepareConfigFiles 调用: providerKey={}, hasSessionConfig={},"
+                        + " hasProviderConfig={}, supportsCustomModel={}",
+                providerKey,
+                sessionConfig != null,
+                providerConfig != null,
+                providerConfig != null ? providerConfig.isSupportsCustomModel() : false);
         if (sessionConfig == null
                 || providerConfig == null
                 || !providerConfig.isSupportsCustomModel()) {
+            logger.warn(
+                    "[Sandbox-Config] prepareConfigFiles 提前返回: sessionConfig={}, providerConfig={},"
+                            + " supportsCustomModel={}",
+                    sessionConfig != null,
+                    providerConfig != null,
+                    providerConfig != null ? providerConfig.isSupportsCustomModel() : false);
             return;
         }
         CliConfigGenerator generator = configGeneratorRegistry.get(providerKey);
         if (generator == null) {
+            logger.warn("[Sandbox-Config] 未找到 CliConfigGenerator: providerKey={}", providerKey);
             return;
         }
 
