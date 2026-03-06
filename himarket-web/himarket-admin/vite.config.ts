@@ -18,12 +18,6 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: path => path.replace(new RegExp(`^${apiPrefix}`), ""),
       },
-      // 指标收集器API代理
-      "/metrics": {
-        target: "http://localhost:8081",
-        changeOrigin: true,
-        rewrite: path => path.replace(new RegExp(`^/metrics`), ""),
-      },
     },
   },
   resolve: {
