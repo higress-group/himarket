@@ -1,4 +1,4 @@
-version: "3"
+version: '3'
 
 networks:
   himarket-network:
@@ -21,17 +21,7 @@ services:
     networks:
       - himarket-network
     healthcheck:
-      test:
-        [
-          "CMD",
-          "mysqladmin",
-          "ping",
-          "-h",
-          "localhost",
-          "-u",
-          "root",
-          "-p${MYSQL_ROOT_PASSWORD:-123456}",
-        ]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-123456}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -83,9 +73,9 @@ services:
     image: ${HIGRESS_IMAGE:-higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/all-in-one:latest}
     container_name: higress
     ports:
-      - "8001:8001" # Console
-      - "8082:8080" # Gateway HTTP
-      - "8443:8443" # Gateway HTTPS
+      - "8001:8001"  # Console
+      - "8082:8080"  # Gateway HTTP
+      - "8443:8443"  # Gateway HTTPS
     depends_on:
       - redis-stack-server
     networks:

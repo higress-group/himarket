@@ -30,7 +30,6 @@ build/
 
 ### VS Code ###
 .vscode/
-!.vscode/settings.json
 
 ### AI Coding Assistants ###
 .cursor/

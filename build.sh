@@ -1,8 +1,11 @@
 #!/bin/bash
 
 VERSION=latest
-
+export DOCKER_HOST=unix://$HOME/.lima/docker/sock/docker.sock
+export JAVA_HOME=/Users/terry/Library/Java/JavaVirtualMachines/corretto-17.0.14/Contents/Home
 set -e
+
+mvn spotless:apply
 
 # 检查 Java 版本
 JAVA_VERSION_OUTPUT=$(java -version 2>&1 | head -n 1 | cut -d'"' -f2)
