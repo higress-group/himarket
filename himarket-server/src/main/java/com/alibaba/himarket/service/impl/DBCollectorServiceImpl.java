@@ -21,8 +21,8 @@ package com.alibaba.himarket.service.impl;
 
 import com.alibaba.himarket.dto.params.sls.GenericSlsQueryRequest;
 import com.alibaba.himarket.dto.params.sls.GenericSlsQueryResponse;
-import com.alibaba.himarket.service.MatrixLogService;
-import com.alibaba.himarket.service.gateway.factory.MatrixPresetSqlRegistry;
+import com.alibaba.himarket.service.DBCollectorService;
+import com.alibaba.himarket.service.gateway.factory.DBCollectorPresetSqlRegistry;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -45,7 +45,7 @@ import org.springframework.util.StringUtils;
 @Service
 @Slf4j
 @RequiredArgsConstructor
-public class MatrixLogServiceImpl implements MatrixLogService {
+public class DBCollectorServiceImpl implements DBCollectorService {
 
     private static final int DEFAULT_LIMIT = 1000;
     private static final int MAX_LIMIT = 5000;
@@ -68,15 +68,15 @@ public class MatrixLogServiceImpl implements MatrixLogService {
             MapSqlParameterSource params = new MapSqlParameterSource();
             String where = buildWhereClause(request, params);
 
-            if (!sql.contains(MatrixPresetSqlRegistry.WHERE_PLACEHOLDER)) {
+            if (!sql.contains(DBCollectorPresetSqlRegistry.WHERE_PLACEHOLDER)) {
                 // 兜底：如果模板里没有占位符，就直接在末尾拼 WHERE（避免误改 SQL 结构）
                 sql = sql + " " + where;
             } else {
-                sql = sql.replace(MatrixPresetSqlRegistry.WHERE_PLACEHOLDER, where);
+                sql = sql.replace(DBCollectorPresetSqlRegistry.WHERE_PLACEHOLDER, where);
             }
 
-            if (sql.contains(MatrixPresetSqlRegistry.BIZ_PLACEHOLDER)) {
-                sql = sql.replace(MatrixPresetSqlRegistry.BIZ_PLACEHOLDER, buildBizClause(request));
+            if (sql.contains(DBCollectorPresetSqlRegistry.BIZ_PLACEHOLDER)) {
+                sql = sql.replace(DBCollectorPresetSqlRegistry.BIZ_PLACEHOLDER, buildBizClause(request));
             }
 
             // 可选 limit：仅当请求显式传入 pageSize 且 SQL 未显式 limit 时追加
@@ -104,7 +104,7 @@ public class MatrixLogServiceImpl implements MatrixLogService {
                     .elapsedMillis(System.currentTimeMillis() - start)
                     .build();
         } catch (Exception e) {
-            log.warn("[Matrix Query Failed] sql: {}, err: {}", originalSql, e.getMessage(), e);
+            log.warn("[DBCollector Query Failed] sql: {}, err: {}", originalSql, e.getMessage(), e);
             return GenericSlsQueryResponse.builder()
                     .success(false)
                     .processStatus("Complete")

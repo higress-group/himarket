@@ -22,8 +22,8 @@ package com.alibaba.himarket.service;
 import com.alibaba.himarket.dto.params.sls.GenericSlsQueryRequest;
 import com.alibaba.himarket.dto.params.sls.GenericSlsQueryResponse;
 
-/** Matrix 日志查询服务（基于数据库存储的 access_logs） */
-public interface MatrixLogService {
+/** DBCollector 日志查询服务（基于数据库存储的 access_logs） */
+public interface DBCollectorService {
 
     /**
      * 执行通用 SQL 查询（面向 access_logs 的场景化统计查询）

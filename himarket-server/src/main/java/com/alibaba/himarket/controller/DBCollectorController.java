@@ -24,8 +24,8 @@ import com.alibaba.himarket.dto.params.sls.GenericSlsQueryRequest;
 import com.alibaba.himarket.dto.params.sls.GenericSlsQueryResponse;
 import com.alibaba.himarket.dto.params.sls.ScenarioQueryResponse;
 import com.alibaba.himarket.dto.params.sls.TimeSeriesChartResponse;
-import com.alibaba.himarket.service.MatrixLogService;
-import com.alibaba.himarket.service.gateway.factory.MatrixPresetSqlRegistry;
+import com.alibaba.himarket.service.DBCollectorService;
+import com.alibaba.himarket.service.gateway.factory.DBCollectorPresetSqlRegistry;
 import com.alibaba.himarket.service.gateway.factory.SlsPresetSqlRegistry;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -40,24 +40,24 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-@Tag(name = "Matrix可观测", description = "基于数据库 access_logs 的可观测大盘查询能力、计量、日志检索")
+@Tag(name = "DBCollector可观测", description = "基于数据库 access_logs 的可观测大盘查询能力、计量、日志检索")
 @RestController
-@RequestMapping("/matrix")
+@RequestMapping("/db-collector")
 @Slf4j
 @RequiredArgsConstructor
-public class MatrixController {
+public class DBCollectorController {
 
-    private final MatrixLogService matrixLogService;
-    private final MatrixPresetSqlRegistry presetRegistry;
+    private final DBCollectorService DBCollectorService;
+    private final DBCollectorPresetSqlRegistry presetRegistry;
 
     @PostMapping("/statistics")
-    @Operation(summary = "日志转指标聚合查询（Matrix 存储）")
-    public ScenarioQueryResponse matrixScenarioQuery(
+    @Operation(summary = "日志转指标聚合查询（DBCollector 存储）")
+    public ScenarioQueryResponse DBCollectorScenarioQuery(
             @RequestBody @Validated GenericSlsQueryRequest request) {
-        MatrixPresetSqlRegistry.Preset preset = presetRegistry.getPreset(request.getScenario());
+        DBCollectorPresetSqlRegistry.Preset preset = presetRegistry.getPreset(request.getScenario());
         if (preset == null) {
             log.warn(
-                    "Matrix scenario not found, returning empty result. scenario: {}",
+                    "DBCollector scenario not found, returning empty result. scenario: {}",
                     request.getScenario());
             return buildEmptyResponse(request.getScenario());
         }
@@ -66,7 +66,7 @@ public class MatrixController {
         request.setSql(preset.getSqlTemplate());
 
         try {
-            GenericSlsQueryResponse response = matrixLogService.executeQuery(request);
+            GenericSlsQueryResponse response = DBCollectorService.executeQuery(request);
             Integer interval = request.getInterval() != null ? request.getInterval() : 60;
 
             switch (preset.getType()) {
@@ -116,7 +116,7 @@ public class MatrixController {
             }
         } catch (Exception e) {
             log.warn(
-                    "Matrix query failed, returning empty result. scenario: {}, err: {}",
+                    "DBCollector query failed, returning empty result. scenario: {}, err: {}",
                     request.getScenario(),
                     e.getMessage(),
                     e);
@@ -125,7 +125,7 @@ public class MatrixController {
     }
 
     private ScenarioQueryResponse buildEmptyResponse(String scenario) {
-        MatrixPresetSqlRegistry.Preset preset = presetRegistry.getPreset(scenario);
+        DBCollectorPresetSqlRegistry.Preset preset = presetRegistry.getPreset(scenario);
         if (preset == null) {
             return ScenarioQueryResponse.builder()
                     .type(SlsPresetSqlRegistry.DisplayType.CARD)

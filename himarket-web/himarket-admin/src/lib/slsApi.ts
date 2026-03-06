@@ -26,7 +26,7 @@ export async function querySlsStatistics(
 ): Promise<ScenarioQueryResponse> {
   const { data } = await api.post<
     ScenarioQueryResponse | ApiResponse<ScenarioQueryResponse>
-  >("/matrix/statistics", request);
+  >("/db-collector/statistics", request);
 
   // 解包后端响应，从 { code, message, data } 中提取 data
   if (isWrappedResponse<ScenarioQueryResponse>(data)) {

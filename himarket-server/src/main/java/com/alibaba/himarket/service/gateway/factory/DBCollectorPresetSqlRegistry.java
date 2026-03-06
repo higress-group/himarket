@@ -26,7 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 /**
- * Matrix 场景 SQL 注册表（MySQL/MariaDB 方言）
+ * DBCollector 场景 SQL 注册表（MySQL/MariaDB 方言）
  *
  * <p>说明：
  *
@@ -39,7 +39,7 @@ import org.springframework.stereotype.Component;
  */
 @Component
 @Slf4j
-public class MatrixPresetSqlRegistry {
+public class DBCollectorPresetSqlRegistry {
 
     public static final String WHERE_PLACEHOLDER = "/*WHERE*/";
     public static final String BIZ_PLACEHOLDER = "/*BIZ*/";
@@ -69,7 +69,7 @@ public class MatrixPresetSqlRegistry {
 
     private final Map<String, Preset> presets = new HashMap<>();
 
-    public MatrixPresetSqlRegistry() {
+    public DBCollectorPresetSqlRegistry() {
         // ===== CARD =====
         presets.put(
                 "pv",
@@ -694,7 +694,7 @@ public class MatrixPresetSqlRegistry {
         if (scenario == null) return null;
         Preset p = presets.get(scenario);
         if (p == null) {
-            log.warn("Unknown matrix scenario: {}", scenario);
+            log.warn("Unknown DBCollector scenario: {}", scenario);
         }
         return p;
     }
