@@ -116,3 +116,47 @@ Token 有效期为 7 天。Swagger 文档：`http://localhost:8080/portal/swagge
 ### 应用日志
 
 本地运行时日志文件位于 `~/himarket.log`。排查后端问题时应主动读取该日志。
+
+## OpenSandbox 集成
+
+HiMarket 集成了阿里巴巴开源的 OpenSandbox 项目，用于提供安全的代码执行沙箱环境。
+
+### 项目位置
+
+OpenSandbox 仓库位于 `OpenSandbox/` 目录（本地 clone，不提交到 git）。
+
+**首次设置：**
+```bash
+cd /Users/xujingfeng/IdeaProjects/himarket
+git clone https://github.com/alibaba/OpenSandbox.git
+```
+
+该目录已在 `.gitignore` 中配置，不会被提交到版本控制，但 AI Agent 可以正常访问和探索其中的源码和文档。
+
+### 渐进性探索指南
+
+当需要对接或调试 OpenSandbox 相关功能时，按以下顺序探索：
+
+1. **快速了解**：阅读 `OpenSandbox/README.md` 了解项目概述、核心功能和基本用法
+2. **开发指导**：
+   - `OpenSandbox/CLAUDE.md` - Claude Code 的开发指导（中文）
+   - `OpenSandbox/AGENTS.md` - AI Agent 的仓库指南
+3. **架构文档**：`OpenSandbox/docs/architecture.md` - 整体架构和设计理念
+4. **关键目录**：
+   - `OpenSandbox/server/` - Python FastAPI 沙箱生命周期管理服务
+   - `OpenSandbox/sdks/` - 多语言 SDK（Python、Java/Kotlin、TypeScript、C#）
+   - `OpenSandbox/components/execd/` - Go 执行守护进程
+   - `OpenSandbox/examples/` - 集成示例（包括 claude-code、kimi-cli 等）
+   - `OpenSandbox/specs/` - OpenAPI 规范文档
+   - `OpenSandbox/kubernetes/` - Kubernetes 部署和 Operator
+
+### 何时探索 OpenSandbox
+
+仅在以下场景需要深入探索 OpenSandbox 源码和文档：
+- 实现或调试沙箱创建、生命周期管理功能
+- 集成代码执行、命令执行、文件操作等沙箱能力
+- 排查沙箱相关的错误或性能问题
+- 扩展或定制沙箱运行时行为
+- 对接 OpenSandbox 的 API 或 SDK
+
+对于其他 HiMarket 功能开发，无需关注 OpenSandbox 目录。

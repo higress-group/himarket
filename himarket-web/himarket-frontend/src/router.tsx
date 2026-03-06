@@ -15,7 +15,6 @@ import OidcCallback from "./pages/OidcCallback";
 import Square from "./pages/Square";
 import Chat from "./pages/Chat";
 import Coding from "./pages/Coding";
-import HiCli from "./pages/HiCli";
 import SkillDetail from "./pages/SkillDetail";
 
 export function Router() {
@@ -31,7 +30,6 @@ export function Router() {
         <Route path="/chat" element={<Chat />} />
         <Route path="/quest" element={<Navigate to="/coding" />} />
         <Route path="/coding" element={<Coding />} />
-        <Route path="/hicli" element={<HiCli />} />
         <Route path="/getting-started" element={<GettingStarted />} />
         <Route path="/apis/:apiProductId" element={<ApiDetail />} />
         <Route path="/consumers/:consumerId" element={<ConsumerDetail />} />

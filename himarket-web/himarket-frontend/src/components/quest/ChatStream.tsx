@@ -20,7 +20,6 @@ import type {
   ChatItemError,
   ToolCallContentDiffItem,
 } from "../../types/acp";
-import type { Artifact } from "../../types/artifact";
 import { ErrorMessage } from "./ErrorMessage";
 
 interface ChatStreamProps {

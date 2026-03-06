@@ -1,4 +1,4 @@
-// Feature: hicli-module, Property 1: LogAggregator 流式消息聚合
+// Feature: poc-code-cleanup, Property 1: LogAggregator 流式消息聚合
 // **Validates: Requirements 5.2, 5.3, 5.8**
 
 import { describe, it, expect, beforeEach } from 'vitest';

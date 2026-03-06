@@ -1,4 +1,4 @@
-// Feature: hicli-module, Property 2: 日志过滤正确性
+// Feature: poc-code-cleanup, Property 2: 日志过滤正确性
 // **Validates: Requirements 5.7**
 
 import { describe, it, expect } from 'vitest';
@@ -60,7 +60,7 @@ const arbNonEmptyFilter = fc.string({ minLength: 1, maxLength: 30 });
 // ===== 属性测试 =====
 
 describe('日志过滤正确性属性测试', () => {
-  // Feature: hicli-module, Property 2: 日志过滤正确性
+  // Feature: poc-code-cleanup, Property 2: 日志过滤正确性
   // **Validates: Requirements 5.7**
 
   it('过滤结果中每条日志的 method 或 summary 应包含关键词（不区分大小写）', () => {

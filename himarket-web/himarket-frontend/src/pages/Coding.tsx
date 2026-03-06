@@ -33,7 +33,7 @@ import {
 import type { FileNode } from "../types/coding";
 import type { ChatItemPlan } from "../types/acp";
 import { buildAcpWsUrl } from "../lib/utils/wsUrl";
-import { SandboxInitProgress } from "../components/hicli/SandboxInitProgress";
+import { SandboxInitProgress } from "../components/common/SandboxInitProgress";
 import { getMarketModels, getCliProviders } from "../lib/apis/cliProvider";
 import { sortCliProviders } from "../lib/utils/cliProviderSort";
 

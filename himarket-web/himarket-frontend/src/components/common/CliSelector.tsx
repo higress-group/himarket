@@ -4,10 +4,10 @@ import { Plug, RefreshCw, Loader2, AlertCircle, ChevronLeft, ChevronRight } from
 import { getCliProviders, type ICliProvider, type McpServerEntry, type SkillEntry, type CliSessionConfig } from "../../lib/apis/cliProvider";
 import { RuntimeSelector } from "./RuntimeSelector";
 import { useRuntimeSelection } from "../../hooks/useRuntimeSelection";
-import { CustomModelForm, type CustomModelFormData } from "../hicli/CustomModelForm";
-import { MarketModelSelector, type MarketModelSelection } from "../hicli/MarketModelSelector";
-import { MarketMcpSelector } from "../hicli/MarketMcpSelector";
-import { MarketSkillSelector } from "../hicli/MarketSkillSelector";
+import { CustomModelForm, type CustomModelFormData } from "./CustomModelForm";
+import { MarketModelSelector, type MarketModelSelection } from "./MarketModelSelector";
+import { MarketMcpSelector } from "./MarketMcpSelector";
+import { MarketSkillSelector } from "./MarketSkillSelector";
 import { SelectableCard } from "./SelectableCard";
 import { sortCliProviders } from "../../lib/utils/cliProviderSort";
 import { getVisibleSteps, type StepConfig } from "./stepUtils";
@@ -19,7 +19,7 @@ export type ModelConfigMode = 'none' | 'custom' | 'market';
 export interface CliSelectorProps {
   onSelect: (cliId: string, cwd: string, runtime?: string, providerObj?: ICliProvider, cliSessionConfig?: string) => void;
   disabled: boolean;
-  showRuntimeSelector?: boolean; // 默认 false，HiCli 传 true
+  showRuntimeSelector?: boolean; // 默认 false
 }
 
 export function CliSelector({ onSelect, disabled, showRuntimeSelector = false }: CliSelectorProps) {
@@ -41,7 +41,7 @@ export function CliSelector({ onSelect, disabled, showRuntimeSelector = false }:
 
   // 模型配置模式
   const [modelConfigMode, setModelConfigMode] = useState<ModelConfigMode>('market');
-  const [customModelData, setCustomModelData] = useState<CustomModelFormData | null>(null);
+  const [, setCustomModelData] = useState<CustomModelFormData | null>(null);
   const [marketModelSelection, setMarketModelSelection] = useState<MarketModelSelection | null>(null);
 
   // MCP 和 Skill 选择状态

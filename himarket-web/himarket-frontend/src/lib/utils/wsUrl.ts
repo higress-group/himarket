@@ -1,7 +1,7 @@
 /**
  * WebSocket URL 构建工具函数
  *
- * 统一三个页面（HiWork/Quest、HiCoding/Coding、HiCli）的 WebSocket URL 构建逻辑，
+ * 统一两个页面（HiWork/Quest、HiCoding/Coding）的 WebSocket URL 构建逻辑，
  * 确保 provider、runtime 等查询参数一致地附加到 WebSocket URL 中。
  */
 

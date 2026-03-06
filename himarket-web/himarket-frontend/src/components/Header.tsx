@@ -18,7 +18,6 @@ export function Header() {
 
   const tabs = [
     { path: "/chat", label: "HiChat" },
-    { path: "/hicli", label: "HiCli" },
     { path: "/coding", label: "HiCoding" },
     { path: "/agents", label: "智能体" },
     { path: "/mcp", label: "MCP" },

@@ -22,7 +22,7 @@ export interface WelcomePageProps {
 
 /**
  * 统一欢迎页组件
- * 三个模块（HiWork、HiCoding、HiCli）共用的欢迎页布局：
+ * 两个模块（HiWork、HiCoding）共用的欢迎页布局：
  * 居中容器 → 模块图标 → 模块名称 → 描述文案 → CliSelector 或操作按钮
  */
 export function WelcomePage({

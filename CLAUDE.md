@@ -266,6 +266,66 @@ Flyway 管理 `himarket-bootstrap/src/main/resources/db/migration/` 中的模式
 - TypeScript 严格模式
 - Prettier 格式化
 
+## OpenSandbox 集成
+
+HiMarket 集成了阿里巴巴开源的 OpenSandbox 项目，为 AI 应用提供安全的沙箱执行环境。
+
+### 项目位置
+
+OpenSandbox 仓库位于 `OpenSandbox/` 目录（本地 clone，不提交到 git）。
+
+**首次设置：**
+```bash
+cd /Users/xujingfeng/IdeaProjects/himarket
+git clone https://github.com/alibaba/OpenSandbox.git
+```
+
+该目录已在 `.gitignore` 中配置，不会被提交到版本控制，但 Claude Code 可以正常访问和探索其中的源码和文档。
+
+### 渐进性探索指南
+
+**仅在需要对接或调试 OpenSandbox 功能时才探索此目录。** 按以下顺序渐进式学习：
+
+#### 第一层：快速了解
+- `OpenSandbox/README.md` - 项目概述、核心功能、快速开始
+
+#### 第二层：开发指导
+- `OpenSandbox/CLAUDE.md` - Claude Code 的详细开发指导（中文）
+- `OpenSandbox/AGENTS.md` - AI Agent 的仓库指南
+- `OpenSandbox/docs/architecture.md` - 整体架构和设计理念
+
+#### 第三层：核心组件（按需探索）
+- **Server**：`OpenSandbox/server/` - Python FastAPI 沙箱生命周期管理服务
+  - 配置：`~/.sandbox.toml`（从 `server/example.config.toml` 复制）
+  - 启动：`opensandbox-server` 或 `cd server && uv run python -m src.main`
+- **SDKs**：`OpenSandbox/sdks/` - 多语言客户端库
+  - `sdks/sandbox/` - 基础沙箱 SDK（生命周期、命令、文件）
+  - `sdks/code-interpreter/` - 代码解释器 SDK
+  - 支持语言：Python、Java/Kotlin、JavaScript/TypeScript、C#/.NET
+- **execd**：`OpenSandbox/components/execd/` - Go 执行守护进程
+  - 注入到沙箱容器中，提供代码执行、命令和文件操作
+- **Examples**：`OpenSandbox/examples/` - 集成示例
+  - `examples/claude-code/` - Claude Code 集成示例
+  - `examples/code-interpreter/` - 代码解释器示例
+  - `examples/kimi-cli/`、`examples/gemini-cli/` 等 - 其他 AI CLI 集成
+
+#### 第四层：高级主题（特定场景）
+- **Kubernetes**：`OpenSandbox/kubernetes/` - K8s 部署和自定义 Operator
+- **Specs**：`OpenSandbox/specs/` - OpenAPI 规范（沙箱生命周期 API、执行 API）
+- **Components**：`OpenSandbox/components/` - Ingress 网关、Egress 控制
+- **OSEPs**：`OpenSandbox/oseps/` - 架构提案和设计文档
+
+### 何时探索 OpenSandbox
+
+仅在以下场景需要深入探索：
+- 实现沙箱创建、启动、停止等生命周期管理
+- 集成代码执行、命令执行、文件操作等沙箱能力
+- 调试沙箱相关的错误或性能问题
+- 扩展或定制沙箱运行时行为
+- 对接 OpenSandbox 的 REST API 或使用其 SDK
+
+**对于其他 HiMarket 功能开发（产品管理、用户认证、网关配置等），无需关注 OpenSandbox 目录。**
+
 ## 其他文档
 
 - 用户指南：`USER_GUIDE.md`

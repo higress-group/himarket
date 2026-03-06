@@ -316,7 +316,7 @@ describe("端到端错误信息保真 property-based tests", () => {
           const errorFromResponse = acpErrorResponse.error!;
 
           // Step 3: Simulate Hook catch → dispatch PROMPT_ERROR → reducer
-          // (This mirrors what useAcpSession/useHiCliSession does in .catch())
+          // (This mirrors what useAcpSession does in .catch())
           let state = createQuestState();
           state = questReducer(state, {
             type: "PROMPT_STARTED",
