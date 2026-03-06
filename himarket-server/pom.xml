@@ -97,6 +97,41 @@
             <artifactId>nacos-maintainer-client</artifactId>
         </dependency>
 
+        <!-- ApsaraStack CSB SDK For Common Request V2.0-->
+        <dependency>
+            <groupId>com.aliyun</groupId>
+            <artifactId>tea-openapi</artifactId>
+            <version>0.3.10</version>
+        </dependency>
+
+        <!-- Aliyun Credentials - 新增依赖 -->
+        <dependency>
+            <groupId>com.aliyun</groupId>
+            <artifactId>credentials-java</artifactId>
+            <version>1.0.1</version>
+        </dependency>
+
+        <!-- Aliyun Tea Common -->
+        <dependency>
+            <groupId>com.aliyun</groupId>
+            <artifactId>tea-util</artifactId>
+            <version>0.2.23</version>
+        </dependency>
+
+        <!-- Aliyun Tea XML -->
+        <dependency>
+            <groupId>com.aliyun</groupId>
+            <artifactId>tea-xml</artifactId>
+            <version>0.1.6</version>
+        </dependency>
+
+        <!-- Aliyun OpenAPI Util -->
+        <dependency>
+            <groupId>com.aliyun</groupId>
+            <artifactId>openapiutil</artifactId>
+            <version>0.2.2</version>
+        </dependency>
+
         <dependency>
             <groupId>com.aliyun</groupId>
             <artifactId>mse20190531</artifactId>
@@ -173,15 +208,6 @@
         <dependency>
             <groupId>org.yaml</groupId>
             <artifactId>snakeyaml</artifactId>
-        </dependency>
-        
-        <!-- ApsaraStack CSB SDK -->
-        <dependency>
-            <groupId>com.aliyun.apsarastack</groupId>
-            <artifactId>csb220230206</artifactId>
-            <version>1.5.3-SNAPSHOT</version>
-            <scope>system</scope>
-            <systemPath>${project.basedir}/lib/csb220230206-1.5.3-cleaned.jar</systemPath>
         </dependency>
 
         <dependency>

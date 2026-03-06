@@ -169,6 +169,13 @@ export interface AdpAIGatewayModelItem {
   fromGatewayType: 'ADP_AI_GATEWAY';
 }
 
+// Apsara Gateway Model API 类型
+export interface ApsaraGatewayModelItem {
+  modelApiId: string;
+  modelApiName: string;
+  fromGatewayType: 'APSARA_GATEWAY';
+}
+
 // Nacos Agent 列表项
 export interface NacosAgentItem {
   agentName: string;          // Agent 名称（唯一标识）
@@ -189,7 +196,7 @@ export interface LinkedService {
   higressRefConfig?: HigressMCPItem;
   nacosRefConfig?: NacosMCPItem | NacosAgentItem;  // 扩展支持 Agent
   adpAIGatewayRefConfig?: APIGAIMCPItem | AdpAIGatewayModelItem;
-  apsaraGatewayRefConfig?: APIGAIMCPItem;
+  apsaraGatewayRefConfig?: APIGAIMCPItem | ApsaraGatewayModelItem;
 }
 
 // Product Feature Types
