@@ -7,6 +7,24 @@ import java.net.URI;
  * 统一沙箱提供者接口。
  *
  * <p>抽象不同沙箱环境（本地 Mac、K8s Pod、E2B）的差异， 为 SandboxInitPipeline 提供统一的操作契约。
+ *
+ * <h3>OpenSandbox 对接说明</h3>
+ * <p>若需对接 <a href="https://github.com/alibaba/OpenSandbox">OpenSandbox</a>，
+ * 创建 {@code OpenSandboxProvider} 实现本接口，关键适配点：
+ * <ul>
+ *   <li><b>acquire()</b>：调用 OpenSandbox Python FastAPI Server（POST /sandboxes）创建沙箱实例，
+ *       返回的 sandboxId 和 host 封装为 {@link SandboxInfo}</li>
+ *   <li><b>release()</b>：调用 DELETE /sandboxes/{id} 销毁沙箱</li>
+ *   <li><b>writeFile / readFile / healthCheck / extractArchive</b>：
+ *       OpenSandbox 的 execd 组件提供兼容的 /files/* HTTP API，
+ *       可直接复用 {@link SandboxHttpClient}，无需重复实现</li>
+ *   <li><b>connectSidecar()</b>：OpenSandbox 使用 HTTP + SSE 而非 WebSocket 桥接 CLI，
+ *       需要适配 {@link RuntimeAdapter} 的 stdout() 流为 SSE 事件流，
+ *       send() 方法改为 HTTP POST /command 调用</li>
+ * </ul>
+ *
+ * @see SandboxHttpClient 可复用的 HTTP 客户端（兼容 OpenSandbox execd /files/* API）
+ * @see SandboxType 沙箱类型枚举（需新增 OPEN_SANDBOX 值）
  */
 public interface SandboxProvider {
 

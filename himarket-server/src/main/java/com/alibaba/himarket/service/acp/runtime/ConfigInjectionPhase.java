@@ -1,5 +1,6 @@
 package com.alibaba.himarket.service.acp.runtime;
 
+import com.alibaba.himarket.service.acp.ConfigFileBuilder;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -25,6 +26,18 @@ public class ConfigInjectionPhase implements InitPhase {
 
     private static final Logger logger = LoggerFactory.getLogger(ConfigInjectionPhase.class);
 
+    private final ConfigFileBuilder configFileBuilder;
+
+    /** 无参构造函数，保持向后兼容。 */
+    public ConfigInjectionPhase() {
+        this.configFileBuilder = null;
+    }
+
+    /** 带 ConfigFileBuilder 的构造函数，支持从 ResolvedSessionConfig 动态生成配置文件。 */
+    public ConfigInjectionPhase(ConfigFileBuilder configFileBuilder) {
+        this.configFileBuilder = configFileBuilder;
+    }
+
     @Override
     public String name() {
         return "config-injection";
@@ -45,6 +58,20 @@ public class ConfigInjectionPhase implements InitPhase {
     @Override
     public void execute(InitContext context) throws InitPhaseException {
         List<ConfigFile> pendingConfigs = context.getInjectedConfigs();
+
+        // 如果 injectedConfigs 未被外部预填充，尝试从 resolvedSessionConfig 动态生成
+        if ((pendingConfigs == null || pendingConfigs.isEmpty())
+                && configFileBuilder != null
+                && context.getResolvedSessionConfig() != null) {
+            pendingConfigs =
+                    configFileBuilder.build(
+                            context.getResolvedSessionConfig(),
+                            context.getRuntimeConfig().getProviderKey(),
+                            context.getProviderConfig(),
+                            context.getRuntimeConfig());
+            context.setInjectedConfigs(pendingConfigs);
+        }
+
         if (pendingConfigs == null || pendingConfigs.isEmpty()) {
             logger.info("[ConfigInjection] 无配置文件需要注入");
             return;

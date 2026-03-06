@@ -1,6 +1,5 @@
 package com.alibaba.himarket.service.acp.runtime;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -14,18 +13,15 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestTemplate;
 
 /**
  * 本地沙箱提供者。
  *
  * <p>在本地 Mac 上启动 Sidecar Server（Node.js 进程）， 通过 WebSocket 桥接 CLI，通过 HTTP API 操作文件系统，
  * 使本地开发流程与 K8s 沙箱完全一致。
+ *
+ * <p>HTTP 调用委托给 {@link SandboxHttpClient}，消除与 K8sSandboxProvider 的代码重复。
  *
  * <p>关键设计决策：
  * <ul>
@@ -34,14 +30,13 @@ import org.springframework.web.client.RestTemplate;
  *   <li>首次 acquire() 时启动，后续复用存活进程</li>
  * </ul>
  *
- * <p>Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8
+ * <p>Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 3.7
  */
 @Component
 @ConditionalOnProperty(name = "acp.local-enabled", havingValue = "true", matchIfMissing = true)
 public class LocalSandboxProvider implements SandboxProvider {
 
     private static final Logger logger = LoggerFactory.getLogger(LocalSandboxProvider.class);
-    private static final Duration HTTP_TIMEOUT = Duration.ofSeconds(10);
     private static final Duration HEALTH_POLL_INTERVAL = Duration.ofMillis(500);
     private static final Duration SIDECAR_READY_TIMEOUT = Duration.ofSeconds(10);
     private static final String DEFAULT_ALLOWED_COMMANDS = "qodercli,qwen,npx,opencode";
@@ -50,16 +45,10 @@ public class LocalSandboxProvider implements SandboxProvider {
     private final ConcurrentHashMap<String, LocalSidecarProcess> sidecarProcesses =
             new ConcurrentHashMap<>();
 
-    private final RestTemplate restTemplate;
-    private final ObjectMapper objectMapper;
+    private final SandboxHttpClient sandboxHttpClient;
 
-    public LocalSandboxProvider() {
-        org.springframework.http.client.SimpleClientHttpRequestFactory factory =
-                new org.springframework.http.client.SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(3000);
-        factory.setReadTimeout(5000);
-        this.restTemplate = new RestTemplate(factory);
-        this.objectMapper = new ObjectMapper();
+    public LocalSandboxProvider(SandboxHttpClient sandboxHttpClient) {
+        this.sandboxHttpClient = sandboxHttpClient;
     }
 
     @Override
@@ -130,96 +119,22 @@ public class LocalSandboxProvider implements SandboxProvider {
     @Override
     public void writeFile(SandboxInfo info, String relativePath, String content)
             throws IOException {
-        String url = sidecarBaseUrl(info) + "/files/write";
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        String body =
-                objectMapper.writeValueAsString(Map.of("path", relativePath, "content", content));
-        try {
-            ResponseEntity<String> response =
-                    restTemplate.postForEntity(url, new HttpEntity<>(body, headers), String.class);
-            if (!response.getStatusCode().is2xxSuccessful()) {
-                throw new IOException(
-                        "Sidecar writeFile 失败 (Local: "
-                                + info.sandboxId()
-                                + "): "
-                                + response.getBody());
-            }
-        } catch (IOException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new IOException(
-                    "Sidecar writeFile 失败 (Local: " + info.sandboxId() + "): " + e.getMessage(), e);
-        }
+        sandboxHttpClient.writeFile(sidecarBaseUrl(info), info.sandboxId(), relativePath, content);
     }
 
     @Override
     public String readFile(SandboxInfo info, String relativePath) throws IOException {
-        String url = sidecarBaseUrl(info) + "/files/read";
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        String body = objectMapper.writeValueAsString(Map.of("path", relativePath));
-        try {
-            ResponseEntity<String> response =
-                    restTemplate.postForEntity(url, new HttpEntity<>(body, headers), String.class);
-            if (!response.getStatusCode().is2xxSuccessful()) {
-                throw new IOException(
-                        "Sidecar readFile 失败 (Local: "
-                                + info.sandboxId()
-                                + "): "
-                                + response.getBody());
-            }
-            return objectMapper.readTree(response.getBody()).get("content").asText();
-        } catch (IOException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new IOException(
-                    "Sidecar readFile 失败 (Local: " + info.sandboxId() + "): " + e.getMessage(), e);
-        }
+        return sandboxHttpClient.readFile(sidecarBaseUrl(info), info.sandboxId(), relativePath);
     }
 
     @Override
     public boolean healthCheck(SandboxInfo info) {
-        try {
-            String url = sidecarBaseUrl(info) + "/health";
-            ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
-            return response.getStatusCode().is2xxSuccessful();
-        } catch (Exception e) {
-            logger.warn(
-                    "[LocalSandboxProvider] healthCheck 失败 (Local: {}): {}",
-                    info.sandboxId(),
-                    e.getMessage());
-            return false;
-        }
+        return sandboxHttpClient.healthCheck(sidecarBaseUrl(info));
     }
 
     @Override
     public int extractArchive(SandboxInfo info, byte[] tarGzBytes) throws IOException {
-        String url = sidecarBaseUrl(info) + "/files/extract";
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.parseMediaType("application/gzip"));
-        try {
-            ResponseEntity<String> response =
-                    restTemplate.postForEntity(
-                            url, new HttpEntity<>(tarGzBytes, headers), String.class);
-            if (!response.getStatusCode().is2xxSuccessful()) {
-                throw new IOException(
-                        "Sidecar extractArchive 失败 (Local: "
-                                + info.sandboxId()
-                                + "): "
-                                + response.getBody());
-            }
-            return objectMapper.readTree(response.getBody()).get("fileCount").asInt();
-        } catch (IOException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new IOException(
-                    "Sidecar extractArchive 失败 (Local: "
-                            + info.sandboxId()
-                            + "): "
-                            + e.getMessage(),
-                    e);
-        }
+        return sandboxHttpClient.extractArchive(sidecarBaseUrl(info), info.sandboxId(), tarGzBytes);
     }
 
     @Override

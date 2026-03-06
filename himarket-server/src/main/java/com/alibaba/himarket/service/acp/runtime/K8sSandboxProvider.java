@@ -3,10 +3,6 @@ package com.alibaba.himarket.service.acp.runtime;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Duration;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,6 +14,8 @@ import org.springframework.stereotype.Component;
  * <p>复用现有的 PodReuseManager 管理 Pod 生命周期。 文件操作统一通过 Pod 内 Sidecar 的 HTTP API 完成，
  * 不再使用 kubectl exec 写文件，消除了 exec 通道的不稳定性。
  *
+ * <p>HTTP 调用委托给 {@link SandboxHttpClient}，消除与 LocalSandboxProvider 的代码重复。
+ *
  * <p>Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7
  */
 @Component
@@ -25,22 +23,21 @@ public class K8sSandboxProvider implements SandboxProvider {
 
     private static final Logger logger = LoggerFactory.getLogger(K8sSandboxProvider.class);
     private static final int SIDECAR_PORT = 8080;
-    private static final Duration HTTP_TIMEOUT = Duration.ofSeconds(10);
 
     private final PodReuseManager podReuseManager;
     private final K8sConfigService k8sConfigService;
-    private final HttpClient httpClient;
+    private final SandboxHttpClient sandboxHttpClient;
     private final ObjectMapper objectMapper;
 
-    public K8sSandboxProvider(PodReuseManager podReuseManager, K8sConfigService k8sConfigService) {
+    public K8sSandboxProvider(
+            PodReuseManager podReuseManager,
+            K8sConfigService k8sConfigService,
+            SandboxHttpClient sandboxHttpClient,
+            ObjectMapper objectMapper) {
         this.podReuseManager = podReuseManager;
         this.k8sConfigService = k8sConfigService;
-        this.httpClient =
-                HttpClient.newBuilder()
-                        .connectTimeout(HTTP_TIMEOUT)
-                        .version(HttpClient.Version.HTTP_1_1)
-                        .build();
-        this.objectMapper = new ObjectMapper();
+        this.sandboxHttpClient = sandboxHttpClient;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -84,118 +81,22 @@ public class K8sSandboxProvider implements SandboxProvider {
     @Override
     public void writeFile(SandboxInfo info, String relativePath, String content)
             throws IOException {
-        String url = sidecarBaseUrl(info) + "/files/write";
-        String body =
-                objectMapper.writeValueAsString(Map.of("path", relativePath, "content", content));
-        try {
-            HttpResponse<String> response =
-                    httpClient.send(
-                            HttpRequest.newBuilder(URI.create(url))
-                                    .POST(HttpRequest.BodyPublishers.ofString(body))
-                                    .header("Content-Type", "application/json")
-                                    .timeout(HTTP_TIMEOUT)
-                                    .build(),
-                            HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() != 200) {
-                throw new IOException(
-                        "Sidecar writeFile 失败 (Pod: " + info.sandboxId() + "): " + response.body());
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IOException("Sidecar writeFile 被中断 (Pod: " + info.sandboxId() + ")", e);
-        }
+        sandboxHttpClient.writeFile(sidecarBaseUrl(info), info.sandboxId(), relativePath, content);
     }
 
     @Override
     public String readFile(SandboxInfo info, String relativePath) throws IOException {
-        String url = sidecarBaseUrl(info) + "/files/read";
-        String body = objectMapper.writeValueAsString(Map.of("path", relativePath));
-        try {
-            HttpResponse<String> response =
-                    httpClient.send(
-                            HttpRequest.newBuilder(URI.create(url))
-                                    .POST(HttpRequest.BodyPublishers.ofString(body))
-                                    .header("Content-Type", "application/json")
-                                    .timeout(HTTP_TIMEOUT)
-                                    .build(),
-                            HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() != 200) {
-                throw new IOException(
-                        "Sidecar readFile 失败 (Pod: " + info.sandboxId() + "): " + response.body());
-            }
-            return objectMapper.readTree(response.body()).get("content").asText();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IOException("Sidecar readFile 被中断 (Pod: " + info.sandboxId() + ")", e);
-        }
+        return sandboxHttpClient.readFile(sidecarBaseUrl(info), info.sandboxId(), relativePath);
     }
 
     @Override
     public boolean healthCheck(SandboxInfo info) {
-        // HTTP 健康检查：通过 Sidecar 的 /health 端点验证 sidecar 真正可达。
-        // 仅 TCP 探测不够——当通过 LoadBalancer Service 访问时，TCP 连接到 SLB 会成功，
-        // 但 SLB 后端健康检查可能尚未通过，导致后续 HTTP 请求收到 SLB 的 404。
-        String url = sidecarBaseUrl(info) + "/health";
-        try {
-            HttpResponse<String> response =
-                    httpClient.send(
-                            HttpRequest.newBuilder(URI.create(url))
-                                    .GET()
-                                    .timeout(Duration.ofSeconds(5))
-                                    .build(),
-                            HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() == 200) {
-                return true;
-            }
-            logger.warn(
-                    "[K8sSandboxProvider] healthCheck HTTP 非 200 (Pod: {}, host: {}, status: {},"
-                            + " body: {})",
-                    info.sandboxId(),
-                    info.host(),
-                    response.statusCode(),
-                    response.body());
-            return false;
-        } catch (Exception e) {
-            logger.warn(
-                    "[K8sSandboxProvider] healthCheck HTTP 请求失败 (Pod: {}, host: {}, port: {}): {}"
-                            + " - {}",
-                    info.sandboxId(),
-                    info.host(),
-                    info.sidecarPort(),
-                    e.getClass().getSimpleName(),
-                    e.getMessage() != null ? e.getMessage() : e.toString());
-            return false;
-        }
+        return sandboxHttpClient.healthCheckWithLog(sidecarBaseUrl(info), info.sandboxId());
     }
 
     @Override
     public int extractArchive(SandboxInfo info, byte[] tarGzBytes) throws IOException {
-        String url = sidecarBaseUrl(info) + "/files/extract";
-        try {
-            HttpResponse<String> response =
-                    httpClient.send(
-                            HttpRequest.newBuilder(URI.create(url))
-                                    .POST(HttpRequest.BodyPublishers.ofByteArray(tarGzBytes))
-                                    .header("Content-Type", "application/gzip")
-                                    .timeout(Duration.ofSeconds(30))
-                                    .build(),
-                            HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() != 200) {
-                throw new IOException(
-                        "Sidecar extractArchive 失败 (Pod: "
-                                + info.sandboxId()
-                                + ", url: "
-                                + url
-                                + ", status: "
-                                + response.statusCode()
-                                + "): "
-                                + response.body());
-            }
-            return objectMapper.readTree(response.body()).get("fileCount").asInt();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IOException("Sidecar extractArchive 被中断 (Pod: " + info.sandboxId() + ")", e);
-        }
+        return sandboxHttpClient.extractArchive(sidecarBaseUrl(info), info.sandboxId(), tarGzBytes);
     }
 
     @Override

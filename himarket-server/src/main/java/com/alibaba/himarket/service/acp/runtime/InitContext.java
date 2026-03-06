@@ -2,6 +2,7 @@ package com.alibaba.himarket.service.acp.runtime;
 
 import com.alibaba.himarket.config.AcpProperties.CliProviderConfig;
 import com.alibaba.himarket.service.acp.CliSessionConfig;
+import com.alibaba.himarket.service.acp.ResolvedSessionConfig;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -28,6 +29,7 @@ public class InitContext {
     private SandboxInfo sandboxInfo;
     private RuntimeAdapter runtimeAdapter;
     private List<ConfigFile> injectedConfigs = new ArrayList<>();
+    private ResolvedSessionConfig resolvedSessionConfig;
 
     // 状态追踪
     private final Map<String, PhaseStatus> phaseStatuses = new ConcurrentHashMap<>();
@@ -93,6 +95,10 @@ public class InitContext {
         return injectedConfigs;
     }
 
+    public ResolvedSessionConfig getResolvedSessionConfig() {
+        return resolvedSessionConfig;
+    }
+
     public Map<String, PhaseStatus> getPhaseStatuses() {
         return phaseStatuses;
     }
@@ -117,6 +123,10 @@ public class InitContext {
 
     public void setInjectedConfigs(List<ConfigFile> injectedConfigs) {
         this.injectedConfigs = injectedConfigs;
+    }
+
+    public void setResolvedSessionConfig(ResolvedSessionConfig resolvedSessionConfig) {
+        this.resolvedSessionConfig = resolvedSessionConfig;
     }
 
     public void setLastError(String lastError) {
