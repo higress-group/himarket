@@ -6,6 +6,13 @@ const path = require('path');
 const { WebSocketServer } = require('ws');
 const { spawn } = require('child_process');
 const crypto = require('crypto');
+let pty;
+try {
+  pty = require('node-pty');
+} catch {
+  // node-pty 可选依赖，未安装时 /terminal 端点不可用
+  pty = null;
+}
 
 // ---------------------------------------------------------------------------
 // 配置 - 从环境变量读取
@@ -18,24 +25,31 @@ const ALLOWED_COMMANDS = new Set(
     .filter(Boolean)
 );
 const GRACEFUL_TIMEOUT_MS = parseInt(process.env.GRACEFUL_TIMEOUT_MS, 10) || 5000;
-const WORKSPACE_ROOT = process.env.WORKSPACE_ROOT || process.cwd();
 const SIDECAR_MODE = process.env.SIDECAR_MODE || 'k8s';
+
+// WORKSPACE_ROOT 仅用于兜底默认值（如 /files/extract 未指定 cwd 时），
+// 不再作为所有文件操作的路径基准。
+// 参考 OpenSandbox execd 设计：文件操作接收绝对路径，由调用方负责构建。
+const WORKSPACE_ROOT = process.env.WORKSPACE_ROOT || '/workspace';
 
 // ---------------------------------------------------------------------------
 // 路径安全校验
 // ---------------------------------------------------------------------------
 
 /**
- * 安全路径解析：确保所有文件操作限制在工作空间内。
- * 防止路径遍历攻击（如 ../../etc/passwd）。
+ * 解析并校验路径。
+ *
+ * 设计参考 OpenSandbox execd：接受绝对路径，由调用方负责构建正确路径。
+ * 安全边界由容器本身提供（沙箱隔离），不在应用层做路径限制。
+ *
+ * 对于相对路径，以 WORKSPACE_ROOT 为基准解析（向后兼容）。
  */
-function resolveSafePath(relativePath) {
-  const resolved = path.resolve(WORKSPACE_ROOT, relativePath);
-  const root = path.resolve(WORKSPACE_ROOT);
-  if (!resolved.startsWith(root + path.sep) && resolved !== root) {
-    throw new Error('路径越界: ' + relativePath);
+function resolvePath(inputPath) {
+  if (path.isAbsolute(inputPath)) {
+    return path.resolve(inputPath);
   }
-  return resolved;
+  // 向后兼容：相对路径以 WORKSPACE_ROOT 为基准
+  return path.resolve(WORKSPACE_ROOT, inputPath);
 }
 
 // ---------------------------------------------------------------------------
@@ -93,8 +107,10 @@ const server = http.createServer(async (req, res) => {
   }
 
   // --- 文件操作端点 ---
+  // 设计参考 OpenSandbox execd：所有路径参数接受绝对路径，
+  // 由调用方（后端 Java 服务）负责构建正确的用户隔离路径。
 
-  // POST /files/write
+  // POST /files/write — 写入文件（支持绝对路径）
   if (req.method === 'POST' && req.url === '/files/write') {
     let body;
     try { body = await parseJsonBody(req); } catch { return sendJson(res, 400, { success: false, error: '无效的 JSON 请求体' }); }
@@ -103,42 +119,42 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 400, { success: false, error: '缺少 path 或 content 参数' });
     }
     try {
-      const fullPath = resolveSafePath(filePath);
+      const fullPath = resolvePath(filePath);
       await fs.mkdir(path.dirname(fullPath), { recursive: true });
       await fs.writeFile(fullPath, content, 'utf-8');
       sendJson(res, 200, { success: true });
     } catch (err) {
-      if (err.message.startsWith('路径越界')) {
-        return sendJson(res, 403, { success: false, error: err.message });
-      }
       sendJson(res, 500, { success: false, error: err.message });
     }
     return;
   }
 
-  // POST /files/read
+  // POST /files/read — 读取文件（支持绝对路径）
+  // 支持 encoding 参数：'base64' 返回 base64 编码（用于二进制文件），默认 'utf-8'
   if (req.method === 'POST' && req.url === '/files/read') {
     let body;
     try { body = await parseJsonBody(req); } catch { return sendJson(res, 400, { success: false, error: '无效的 JSON 请求体' }); }
-    const { path: filePath } = body;
+    const { path: filePath, encoding: reqEncoding } = body;
     if (!filePath) {
       return sendJson(res, 400, { success: false, error: '缺少 path 参数' });
     }
     try {
-      const fullPath = resolveSafePath(filePath);
-      const content = await fs.readFile(fullPath, 'utf-8');
-      sendJson(res, 200, { content });
-    } catch (err) {
-      if (err.message.startsWith('路径越界')) {
-        return sendJson(res, 403, { success: false, error: err.message });
+      const fullPath = resolvePath(filePath);
+      if (reqEncoding === 'base64') {
+        const buffer = await fs.readFile(fullPath);
+        sendJson(res, 200, { content: buffer.toString('base64'), encoding: 'base64' });
+      } else {
+        const content = await fs.readFile(fullPath, 'utf-8');
+        sendJson(res, 200, { content, encoding: 'utf-8' });
       }
+    } catch (err) {
       const status = err.code === 'ENOENT' ? 404 : 500;
       sendJson(res, status, { success: false, error: err.message });
     }
     return;
   }
 
-  // POST /files/mkdir
+  // POST /files/mkdir — 创建目录（支持绝对路径）
   if (req.method === 'POST' && req.url === '/files/mkdir') {
     let body;
     try { body = await parseJsonBody(req); } catch { return sendJson(res, 400, { success: false, error: '无效的 JSON 请求体' }); }
@@ -147,20 +163,22 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 400, { success: false, error: '缺少 path 参数' });
     }
     try {
-      const fullPath = resolveSafePath(dirPath);
+      const fullPath = resolvePath(dirPath);
       await fs.mkdir(fullPath, { recursive: true });
       sendJson(res, 200, { success: true });
     } catch (err) {
-      if (err.message.startsWith('路径越界')) {
-        return sendJson(res, 403, { success: false, error: err.message });
-      }
       sendJson(res, 500, { success: false, error: err.message });
     }
     return;
   }
 
-  // POST /files/extract — 接收 tar.gz 二进制流，解压到工作空间
-  if (req.method === 'POST' && req.url === '/files/extract') {
+  // POST /files/extract — 接收 tar.gz 二进制流，解压到指定目录
+  // 支持 query 参数 ?cwd=/workspace/dev-xxx 指定解压目标目录
+  // 未指定时降级为 WORKSPACE_ROOT（向后兼容）
+  if (req.method === 'POST' && (req.url === '/files/extract' || req.url.startsWith('/files/extract?'))) {
+    const reqUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+    const extractCwd = reqUrl.searchParams.get('cwd') || WORKSPACE_ROOT;
+
     const chunks = [];
     req.on('data', (chunk) => chunks.push(chunk));
     req.on('end', async () => {
@@ -169,13 +187,20 @@ const server = http.createServer(async (req, res) => {
         if (buffer.length === 0) {
           return sendJson(res, 400, { success: false, error: '请求体为空' });
         }
+
+        // 确保目标目录存在
+        const fsSync = require('fs');
+        if (!fsSync.existsSync(extractCwd)) {
+          fsSync.mkdirSync(extractCwd, { recursive: true });
+        }
+
         // 写入临时文件，用 tar 命令解压
-        const tmpFile = path.join(WORKSPACE_ROOT, '.tmp-extract-' + Date.now() + '.tar.gz');
+        const tmpFile = path.join(extractCwd, '.tmp-extract-' + Date.now() + '.tar.gz');
         await fs.writeFile(tmpFile, buffer);
         try {
           const { execSync } = require('child_process');
-          const output = execSync(`tar xzf "${tmpFile}" 2>&1`, {
-            cwd: WORKSPACE_ROOT,
+          execSync(`tar xzf "${tmpFile}" 2>&1`, {
+            cwd: extractCwd,
             timeout: 30000,
             maxBuffer: 1024 * 1024,
           });
@@ -183,7 +208,7 @@ const server = http.createServer(async (req, res) => {
           let fileCount = 0;
           try {
             const listOutput = execSync(`tar tzf "${tmpFile}" 2>/dev/null`, {
-              cwd: WORKSPACE_ROOT,
+              cwd: extractCwd,
               timeout: 10000,
               maxBuffer: 1024 * 1024,
             }).toString().trim();
@@ -203,7 +228,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // POST /files/list
+  // POST /files/list — 列出目录内容（支持绝对路径）
   if (req.method === 'POST' && req.url === '/files/list') {
     let body;
     try { body = await parseJsonBody(req); } catch { return sendJson(res, 400, { success: false, error: '无效的 JSON 请求体' }); }
@@ -213,7 +238,7 @@ const server = http.createServer(async (req, res) => {
     }
     const maxDepth = (typeof depth === 'number' && depth > 0) ? depth : 3;
     try {
-      const fullPath = resolveSafePath(dirPath);
+      const fullPath = resolvePath(dirPath);
       const stat = await fs.stat(fullPath);
       if (!stat.isDirectory()) {
         return sendJson(res, 400, { success: false, error: '指定路径不是目录' });
@@ -239,9 +264,6 @@ const server = http.createServer(async (req, res) => {
       const tree = await buildTree(fullPath, 1);
       sendJson(res, 200, tree);
     } catch (err) {
-      if (err.message.startsWith('路径越界')) {
-        return sendJson(res, 403, { success: false, error: err.message });
-      }
       if (err.code === 'ENOENT') {
         return sendJson(res, 404, { success: false, error: '路径不存在: ' + dirPath });
       }
@@ -250,7 +272,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // POST /files/changes
+  // POST /files/changes — 查询文件变更（支持绝对路径）
   if (req.method === 'POST' && req.url === '/files/changes') {
     let body;
     try { body = await parseJsonBody(req); } catch { return sendJson(res, 400, { success: false, error: '无效的 JSON 请求体' }); }
@@ -262,7 +284,7 @@ const server = http.createServer(async (req, res) => {
     const MAX_DEPTH = 10;
     const SKIP_DIRS = new Set(['node_modules', '.git', '.next', 'dist', '__pycache__', '.cache']);
     try {
-      const fullPath = resolveSafePath(cwdPath);
+      const fullPath = resolvePath(cwdPath);
       const changes = [];
 
       async function scan(dir, depth) {
@@ -294,15 +316,12 @@ const server = http.createServer(async (req, res) => {
       await scan(fullPath, 0);
       sendJson(res, 200, { changes });
     } catch (err) {
-      if (err.message.startsWith('路径越界')) {
-        return sendJson(res, 403, { success: false, error: err.message });
-      }
       sendJson(res, 500, { success: false, error: err.message });
     }
     return;
   }
 
-  // POST /files/exists
+  // POST /files/exists — 检查文件是否存在（支持绝对路径）
   if (req.method === 'POST' && req.url === '/files/exists') {
     let body;
     try { body = await parseJsonBody(req); } catch { return sendJson(res, 400, { success: false, error: '无效的 JSON 请求体' }); }
@@ -311,13 +330,10 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 400, { success: false, error: '缺少 path 参数' });
     }
     try {
-      const fullPath = resolveSafePath(filePath);
+      const fullPath = resolvePath(filePath);
       const stat = await fs.stat(fullPath);
       sendJson(res, 200, { exists: true, isFile: stat.isFile(), isDirectory: stat.isDirectory() });
     } catch (err) {
-      if (err.message.startsWith('路径越界')) {
-        return sendJson(res, 403, { success: false, error: err.message });
-      }
       if (err.code === 'ENOENT') {
         sendJson(res, 200, { exists: false, isFile: false, isDirectory: false });
       } else {
@@ -337,14 +353,111 @@ const server = http.createServer(async (req, res) => {
 const wss = new WebSocketServer({ noServer: true });
 
 server.on('upgrade', (req, socket, head) => {
-  // 先完成 WebSocket 升级，再在回调中做校验
+  const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+
+  // --- /terminal 端点：交互式 PTY shell ---
+  if (url.pathname === '/terminal') {
+    if (!pty) {
+      socket.write('HTTP/1.1 501 Not Implemented\r\n\r\n');
+      socket.destroy();
+      return;
+    }
+    wss.handleUpgrade(req, socket, head, (ws) => {
+      const cols = parseInt(url.searchParams.get('cols'), 10) || 80;
+      const rows = parseInt(url.searchParams.get('rows'), 10) || 24;
+      const cwd = url.searchParams.get('cwd') || WORKSPACE_ROOT;
+      const sessionId = crypto.randomUUID();
+
+      console.log(`[terminal:${sessionId}] connected - cols=${cols} rows=${rows} cwd=${cwd}`);
+
+      // 确保 cwd 目录存在，避免 shell 因目录不存在而退出
+      try {
+        const fsSync = require('fs');
+        if (!fsSync.existsSync(cwd)) {
+          fsSync.mkdirSync(cwd, { recursive: true });
+          console.log(`[terminal:${sessionId}] created missing cwd: ${cwd}`);
+        }
+      } catch (mkdirErr) {
+        console.error(`[terminal:${sessionId}] failed to create cwd:`, mkdirErr.message);
+      }
+
+      let shell;
+      try {
+        shell = pty.spawn('/bin/sh', ['-l'], {
+          name: 'xterm-256color',
+          cols,
+          rows,
+          cwd,
+          env: { ...process.env, TERM: 'xterm-256color' },
+        });
+      } catch (err) {
+        console.error(`[terminal:${sessionId}] pty spawn failed:`, err.message);
+        ws.close(4500, 'PTY spawn failed');
+        return;
+      }
+
+      const session = {
+        id: sessionId,
+        ws,
+        process: shell,
+        command: '/bin/sh',
+        args: ['-l'],
+        createdAt: new Date(),
+      };
+      sessions.set(sessionId, session);
+
+      // PTY stdout → WebSocket (binary)
+      shell.onData((data) => {
+        if (ws.readyState === ws.OPEN) {
+          ws.send(data);
+        }
+      });
+
+      shell.onExit(({ exitCode, signal }) => {
+        console.log(`[terminal:${sessionId}] shell exited - code=${exitCode} signal=${signal}`);
+        if (ws.readyState === ws.OPEN) {
+          ws.close(1000, `Shell exited with code ${exitCode}`);
+        }
+        session.process = null;
+        sessions.delete(sessionId);
+      });
+
+      // WebSocket → PTY stdin / resize
+      ws.on('message', (data) => {
+        const msg = data.toString();
+        if (msg.startsWith('{')) {
+          try {
+            const parsed = JSON.parse(msg);
+            if (parsed.type === 'resize' && parsed.cols && parsed.rows) {
+              shell.resize(parsed.cols, parsed.rows);
+              return;
+            }
+          } catch { /* 不是 JSON，当作普通输入 */ }
+        }
+        shell.write(msg);
+      });
+
+      ws.on('close', () => {
+        console.log(`[terminal:${sessionId}] disconnected`);
+        if (session.process) {
+          shell.kill();
+        }
+        sessions.delete(sessionId);
+      });
+
+      ws.on('error', (err) => {
+        console.error(`[terminal:${sessionId}] WebSocket error:`, err.message);
+      });
+    });
+    return;
+  }
+
+  // --- 默认 CLI 端点：spawn CLI 子进程 ---
   wss.handleUpgrade(req, socket, head, (ws) => {
-    const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
     const command = url.searchParams.get('command');
     const argsRaw = url.searchParams.get('args') || '';
     const args = argsRaw ? argsRaw.split(' ').filter(Boolean) : [];
 
-    // 校验 command 参数 - 通过 WebSocket 关闭帧返回错误
     if (!command) {
       ws.close(4400, 'Missing command parameter');
       return;
@@ -356,13 +469,12 @@ server.on('upgrade', (req, socket, head) => {
     }
 
     const sessionId = crypto.randomUUID();
-    console.log(`[session:${sessionId}] connected - command=${command} args=[${args.join(', ')}]`);
+    const cliCwd = url.searchParams.get('cwd') || WORKSPACE_ROOT;
+    console.log(`[session:${sessionId}] connected - command=${command} args=[${args.join(', ')}] cwd=${cliCwd}`);
 
-    // 启动 CLI 子进程
     let cliProcess;
     try {
-      // 构建干净的基础环境变量（白名单），避免 Sidecar 进程复用时
-      // 上一次会话注入的认证凭据（如 QODER_PERSONAL_ACCESS_TOKEN）残留到后续会话
+      // 构建干净的基础环境变量（白名单）
       const BASE_ENV_KEYS = [
         'PATH', 'HOME', 'USER', 'SHELL', 'LANG', 'LC_ALL', 'LC_CTYPE',
         'TERM', 'TMPDIR', 'XDG_RUNTIME_DIR', 'XDG_CONFIG_HOME', 'XDG_DATA_HOME',
@@ -374,14 +486,13 @@ server.on('upgrade', (req, socket, head) => {
           baseEnv[key] = process.env[key];
         }
       }
-      // 保留 SIDECAR_ 和 WORKSPACE_ 前缀的变量（Sidecar 自身配置）
       for (const [key, val] of Object.entries(process.env)) {
         if (key.startsWith('SIDECAR_') || key.startsWith('WORKSPACE_') || key.startsWith('ALLOWED_')) {
           baseEnv[key] = val;
         }
       }
 
-      // 合并通过 WebSocket URL 传入的额外环境变量（每次会话动态传递）
+      // 合并通过 WebSocket URL 传入的额外环境变量
       const envRaw = url.searchParams.get('env');
       let extraEnv = {};
       if (envRaw) {
@@ -395,8 +506,16 @@ server.on('upgrade', (req, socket, head) => {
 
       const spawnEnv = { ...baseEnv, ...extraEnv };
 
+      // 确保 cwd 目录存在
+      const fsSync = require('fs');
+      if (!fsSync.existsSync(cliCwd)) {
+        fsSync.mkdirSync(cliCwd, { recursive: true });
+        console.log(`[session:${sessionId}] created missing cwd: ${cliCwd}`);
+      }
+
       cliProcess = spawn(command, args, {
         stdio: ['pipe', 'pipe', 'pipe'],
+        cwd: cliCwd,
         env: spawnEnv,
       });
     } catch (err) {
@@ -416,34 +535,25 @@ server.on('upgrade', (req, socket, head) => {
     };
     sessions.set(sessionId, session);
 
-    // --- 双向桥接 ---
-
-    // WebSocket 消息 → CLI stdin
     ws.on('message', (data) => {
       if (cliProcess.stdin && !cliProcess.stdin.destroyed) {
-        // JSON-RPC 消息以换行符分隔，确保每条消息后有 \n
         const msg = data.toString();
         cliProcess.stdin.write(msg.endsWith('\n') ? msg : msg + '\n');
       }
     });
 
-    // CLI stdout → WebSocket 消息
     cliProcess.stdout.on('data', (chunk) => {
       if (ws.readyState === ws.OPEN) {
         ws.send(chunk.toString());
       }
     });
 
-    // CLI stderr → WebSocket 消息
     cliProcess.stderr.on('data', (chunk) => {
       if (ws.readyState === ws.OPEN) {
         ws.send(chunk.toString());
       }
     });
 
-    // --- 生命周期管理 ---
-
-    // CLI 进程 spawn 错误（如命令不存在）
     cliProcess.on('error', (err) => {
       console.error(`[session:${sessionId}] process error:`, err.message);
       if (ws.readyState === ws.OPEN) {
@@ -453,7 +563,6 @@ server.on('upgrade', (req, socket, head) => {
       sessions.delete(sessionId);
     });
 
-    // CLI 进程退出 → 关闭 WebSocket
     cliProcess.on('close', (code, signal) => {
       console.log(`[session:${sessionId}] process exited - code=${code} signal=${signal}`);
       if (ws.readyState === ws.OPEN) {
@@ -463,11 +572,9 @@ server.on('upgrade', (req, socket, head) => {
       sessions.delete(sessionId);
     });
 
-    // WebSocket 关闭 → 终止 CLI 进程
     ws.on('close', () => {
       console.log(`[session:${sessionId}] disconnected`);
       if (session.process && !session.process.killed) {
-        // 先 SIGTERM，超时后 SIGKILL
         session.process.kill('SIGTERM');
         const killTimer = setTimeout(() => {
           if (session.process && !session.process.killed) {
@@ -475,7 +582,6 @@ server.on('upgrade', (req, socket, head) => {
             session.process.kill('SIGKILL');
           }
         }, GRACEFUL_TIMEOUT_MS);
-        // 进程退出后清除定时器
         session.process.on('exit', () => clearTimeout(killTimer));
       }
       sessions.delete(sessionId);
@@ -490,13 +596,9 @@ server.on('upgrade', (req, socket, head) => {
 });
 
 // ---------------------------------------------------------------------------
-// SIGTERM 信号处理 - 优雅关闭（Requirements 7.2）
+// SIGTERM 信号处理 - 优雅关闭
 // ---------------------------------------------------------------------------
 
-/**
- * 终止单个会话中的 CLI 子进程，先 SIGTERM 再 SIGKILL。
- * 返回一个 Promise，在进程退出后 resolve。
- */
 function killSessionProcess(session) {
   return new Promise((resolve) => {
     if (!session.process || session.process.killed) {
@@ -520,32 +622,26 @@ function killSessionProcess(session) {
 async function gracefulShutdown() {
   console.log('Received SIGTERM, shutting down gracefully...');
 
-  // 1. 终止所有活跃的 CLI 子进程
   const killPromises = [];
   for (const session of sessions.values()) {
     killPromises.push(killSessionProcess(session));
   }
 
-  // 2. 关闭所有 WebSocket 连接
   for (const session of sessions.values()) {
     if (session.ws.readyState === session.ws.OPEN) {
       session.ws.close(1001, 'Server shutting down');
     }
   }
 
-  // 等待所有子进程退出
   await Promise.all(killPromises);
 
-  // 3. 关闭 WebSocket 服务器（停止接受新连接）
   wss.close();
 
-  // 4. 关闭 HTTP 服务器
   server.close(() => {
     console.log('Server closed, exiting.');
     process.exit(0);
   });
 
-  // 安全兜底：如果 server.close 回调未触发，强制退出
   setTimeout(() => {
     console.error('Forced exit after shutdown timeout');
     process.exit(1);
@@ -567,4 +663,4 @@ server.listen(PORT, LISTEN_HOST, () => {
 // ---------------------------------------------------------------------------
 // 导出供测试使用
 // ---------------------------------------------------------------------------
-module.exports = { server, wss, sessions, ALLOWED_COMMANDS, GRACEFUL_TIMEOUT_MS, PORT, WORKSPACE_ROOT, SIDECAR_MODE, LISTEN_HOST, gracefulShutdown, resolveSafePath, parseJsonBody, sendJson };
+module.exports = { server, wss, sessions, ALLOWED_COMMANDS, GRACEFUL_TIMEOUT_MS, PORT, WORKSPACE_ROOT, SIDECAR_MODE, LISTEN_HOST, gracefulShutdown, resolvePath, parseJsonBody, sendJson };

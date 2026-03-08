@@ -4,12 +4,10 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.alibaba.himarket.config.AcpProperties;
 import com.alibaba.himarket.config.AcpProperties.CliProviderConfig;
-import com.alibaba.himarket.service.acp.runtime.K8sClusterInfo;
-import com.alibaba.himarket.service.acp.runtime.K8sConfigService;
+import com.alibaba.himarket.config.AcpProperties.RemoteConfig;
 import com.alibaba.himarket.service.acp.runtime.RuntimeOption;
 import com.alibaba.himarket.service.acp.runtime.RuntimeSelector;
 import com.alibaba.himarket.service.acp.runtime.SandboxType;
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,44 +32,34 @@ class RuntimeControllerTest {
         CliProviderConfig qoder = new CliProviderConfig();
         qoder.setDisplayName("Qoder CLI");
         qoder.setCommand("qodercli");
-        qoder.setRuntimeCategory("native");
-        qoder.setCompatibleRuntimes(List.of(SandboxType.LOCAL, SandboxType.K8S));
+        qoder.setCompatibleRuntimes(List.of(SandboxType.LOCAL, SandboxType.REMOTE));
         providers.put("qodercli", qoder);
 
         CliProviderConfig claude = new CliProviderConfig();
         claude.setDisplayName("Claude Code");
         claude.setCommand("npx");
-        claude.setRuntimeCategory("nodejs");
-        claude.setCompatibleRuntimes(List.of(SandboxType.LOCAL, SandboxType.K8S));
+        claude.setCompatibleRuntimes(List.of(SandboxType.LOCAL, SandboxType.REMOTE));
         providers.put("claude-code", claude);
 
         CliProviderConfig localOnly = new CliProviderConfig();
         localOnly.setDisplayName("Local Only CLI");
         localOnly.setCommand("local-cli");
-        localOnly.setRuntimeCategory("native");
         localOnly.setCompatibleRuntimes(List.of(SandboxType.LOCAL));
         providers.put("local-only", localOnly);
 
         properties.setProviders(providers);
     }
 
-    private RuntimeSelector createSelector(boolean k8sAvailable) {
-        K8sConfigService mockK8s =
-                new K8sConfigService(null) {
-                    @Override
-                    public void init() {}
-
-                    @Override
-                    public boolean hasAnyCluster() {
-                        return k8sAvailable;
-                    }
-
-                    @Override
-                    public List<K8sClusterInfo> listClusters() {
-                        return Collections.emptyList();
-                    }
-                };
-        return new RuntimeSelector(properties, mockK8s);
+    private RuntimeSelector createSelector(boolean remoteAvailable) {
+        RemoteConfig remoteConfig = new RemoteConfig();
+        if (remoteAvailable) {
+            remoteConfig.setHost("sandbox.example.com");
+            remoteConfig.setPort(8080);
+        } else {
+            remoteConfig.setHost("");
+        }
+        properties.setRemote(remoteConfig);
+        return new RuntimeSelector(properties);
     }
 
     @Test
@@ -91,7 +79,10 @@ class RuntimeControllerTest {
         assertTrue(local.available());
 
         RuntimeOption k8sOption =
-                result.stream().filter(r -> r.type() == SandboxType.K8S).findFirst().orElseThrow();
+                result.stream()
+                        .filter(r -> r.type() == SandboxType.REMOTE)
+                        .findFirst()
+                        .orElseThrow();
         // K8s 不可用时 K8S 也标记为不可用
         assertFalse(k8sOption.available());
         assertNotNull(k8sOption.unavailableReason());
@@ -116,7 +107,10 @@ class RuntimeControllerTest {
 
         List<RuntimeOption> result = controller.getAvailableRuntimes("qodercli");
         RuntimeOption k8sOption =
-                result.stream().filter(r -> r.type() == SandboxType.K8S).findFirst().orElseThrow();
+                result.stream()
+                        .filter(r -> r.type() == SandboxType.REMOTE)
+                        .findFirst()
+                        .orElseThrow();
         assertTrue(k8sOption.available());
         assertNull(k8sOption.unavailableReason());
     }

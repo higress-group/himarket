@@ -219,7 +219,7 @@ public class ConfigInjectionPhase implements InitPhase {
 
     @Override
     public RetryPolicy retryPolicy() {
-        return RetryPolicy.fileOperation();
+        return RetryPolicy.none();
     }
 
     static String sha256(String content) {

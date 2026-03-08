@@ -30,16 +30,13 @@ class CliProviderControllerTest {
         qoder.setDisplayName("Qoder CLI");
         qoder.setCommand("qodercli");
         qoder.setArgs("--acp");
-        qoder.setRuntimeCategory("native");
-        qoder.setCompatibleRuntimes(List.of(SandboxType.LOCAL, SandboxType.K8S));
-        qoder.setContainerImage("himarket/sandbox:latest");
+        qoder.setCompatibleRuntimes(List.of(SandboxType.LOCAL, SandboxType.REMOTE));
         providers.put("qodercli", qoder);
 
         CliProviderConfig kiro = new CliProviderConfig();
         kiro.setDisplayName("Kiro CLI");
         kiro.setCommand("kiro-cli");
         kiro.setArgs("acp");
-        kiro.setRuntimeCategory("native");
         kiro.setCompatibleRuntimes(List.of(SandboxType.LOCAL));
         providers.put("kiro-cli", kiro);
 
@@ -48,7 +45,6 @@ class CliProviderControllerTest {
         claude.setDisplayName("Claude Code");
         claude.setCommand("npx");
         claude.setArgs("@zed-industries/claude-code-acp");
-        claude.setRuntimeCategory("nodejs");
         claude.setCompatibleRuntimes(List.of(SandboxType.LOCAL));
         providers.put("claude-code", claude);
 
@@ -57,7 +53,6 @@ class CliProviderControllerTest {
         fake.setDisplayName("Fake CLI");
         fake.setCommand("this-command-definitely-does-not-exist-xyz");
         fake.setArgs("--acp");
-        fake.setRuntimeCategory("native");
         fake.setCompatibleRuntimes(List.of(SandboxType.LOCAL));
         providers.put("fake-cli", fake);
 
@@ -146,28 +141,12 @@ class CliProviderControllerTest {
     }
 
     @Test
-    void testRuntimeCategoryIncludedInResponse() {
-        List<CliProviderController.CliProviderInfo> result = controller.listProviders();
-
-        CliProviderController.CliProviderInfo qoder =
-                result.stream().filter(p -> p.key().equals("qodercli")).findFirst().orElseThrow();
-        assertEquals("native", qoder.runtimeCategory());
-
-        CliProviderController.CliProviderInfo claude =
-                result.stream()
-                        .filter(p -> p.key().equals("claude-code"))
-                        .findFirst()
-                        .orElseThrow();
-        assertEquals("nodejs", claude.runtimeCategory());
-    }
-
-    @Test
     void testCompatibleRuntimesIncludedInResponse() {
         List<CliProviderController.CliProviderInfo> result = controller.listProviders();
 
         CliProviderController.CliProviderInfo qoder =
                 result.stream().filter(p -> p.key().equals("qodercli")).findFirst().orElseThrow();
-        assertEquals(List.of(SandboxType.LOCAL, SandboxType.K8S), qoder.compatibleRuntimes());
+        assertEquals(List.of(SandboxType.LOCAL, SandboxType.REMOTE), qoder.compatibleRuntimes());
 
         CliProviderController.CliProviderInfo claude =
                 result.stream()
@@ -175,20 +154,6 @@ class CliProviderControllerTest {
                         .findFirst()
                         .orElseThrow();
         assertEquals(List.of(SandboxType.LOCAL), claude.compatibleRuntimes());
-    }
-
-    @Test
-    void testContainerImageIncludedInResponse() {
-        List<CliProviderController.CliProviderInfo> result = controller.listProviders();
-
-        CliProviderController.CliProviderInfo qoder =
-                result.stream().filter(p -> p.key().equals("qodercli")).findFirst().orElseThrow();
-        assertEquals("himarket/sandbox:latest", qoder.containerImage());
-
-        // fake-cli 没有设置 containerImage，应该为 null
-        CliProviderController.CliProviderInfo fake =
-                result.stream().filter(p -> p.key().equals("fake-cli")).findFirst().orElseThrow();
-        assertNull(fake.containerImage());
     }
 
     @Test
@@ -206,6 +171,5 @@ class CliProviderControllerTest {
                         .findFirst()
                         .orElseThrow();
         assertNull(noRuntimeInfo.compatibleRuntimes());
-        assertNull(noRuntimeInfo.runtimeCategory());
     }
 }

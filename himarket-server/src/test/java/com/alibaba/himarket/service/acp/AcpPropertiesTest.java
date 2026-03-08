@@ -24,15 +24,12 @@ class AcpPropertiesTest {
         qoder.setDisplayName("Qoder CLI");
         qoder.setCommand("qodercli");
         qoder.setArgs("--acp");
-        qoder.setRuntimeCategory("native");
-        qoder.setCompatibleRuntimes(List.of(SandboxType.LOCAL, SandboxType.K8S));
-        qoder.setContainerImage("himarket/sandbox:latest");
+        qoder.setCompatibleRuntimes(List.of(SandboxType.LOCAL, SandboxType.REMOTE));
 
         CliProviderConfig kiro = new CliProviderConfig();
         kiro.setDisplayName("Kiro CLI");
         kiro.setCommand("kiro-cli");
         kiro.setArgs("acp");
-        kiro.setRuntimeCategory("native");
         kiro.setCompatibleRuntimes(List.of(SandboxType.LOCAL));
 
         CliProviderConfig claude = new CliProviderConfig();
@@ -40,14 +37,12 @@ class AcpPropertiesTest {
         claude.setCommand("npx");
         claude.setArgs("claude-code-acp");
         claude.setEnv(Map.of("ANTHROPIC_API_KEY", "test-key"));
-        claude.setRuntimeCategory("nodejs");
         claude.setCompatibleRuntimes(List.of(SandboxType.LOCAL));
 
         CliProviderConfig codex = new CliProviderConfig();
         codex.setDisplayName("Codex CLI");
         codex.setCommand("codex");
         codex.setArgs("--acp");
-        codex.setRuntimeCategory("nodejs");
         codex.setCompatibleRuntimes(List.of(SandboxType.LOCAL));
 
         properties.setProviders(
@@ -110,13 +105,13 @@ class AcpPropertiesTest {
     @Test
     void testDefaultRuntimeDefaultValue() {
         AcpProperties fresh = new AcpProperties();
-        assertEquals("local", fresh.getDefaultRuntime());
+        assertEquals("remote", fresh.getDefaultRuntime());
     }
 
     @Test
     void testSetDefaultRuntime() {
-        properties.setDefaultRuntime("k8s");
-        assertEquals("k8s", properties.getDefaultRuntime());
+        properties.setDefaultRuntime("remote");
+        assertEquals("remote", properties.getDefaultRuntime());
     }
 
     @Test
@@ -125,7 +120,7 @@ class AcpPropertiesTest {
         assertNotNull(qoder.getCompatibleRuntimes());
         assertEquals(2, qoder.getCompatibleRuntimes().size());
         assertTrue(qoder.getCompatibleRuntimes().contains(SandboxType.LOCAL));
-        assertTrue(qoder.getCompatibleRuntimes().contains(SandboxType.K8S));
+        assertTrue(qoder.getCompatibleRuntimes().contains(SandboxType.REMOTE));
     }
 
     @Test
@@ -134,17 +129,5 @@ class AcpPropertiesTest {
         assertNotNull(claude.getCompatibleRuntimes());
         assertEquals(1, claude.getCompatibleRuntimes().size());
         assertTrue(claude.getCompatibleRuntimes().contains(SandboxType.LOCAL));
-    }
-
-    @Test
-    void testContainerImage() {
-        CliProviderConfig qoder = properties.getProvider("qodercli");
-        assertEquals("himarket/sandbox:latest", qoder.getContainerImage());
-    }
-
-    @Test
-    void testRuntimeCategory() {
-        assertEquals("native", properties.getProvider("qodercli").getRuntimeCategory());
-        assertEquals("nodejs", properties.getProvider("claude-code").getRuntimeCategory());
     }
 }

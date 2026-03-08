@@ -30,11 +30,11 @@ class RuntimeFaultNotificationTest {
         RuntimeFaultNotification notification =
                 new RuntimeFaultNotification(
                         RuntimeFaultNotification.FAULT_HEALTH_CHECK_FAILURE,
-                        SandboxType.K8S,
+                        SandboxType.REMOTE,
                         RuntimeFaultNotification.ACTION_RECREATE);
 
         assertEquals(RuntimeFaultNotification.FAULT_HEALTH_CHECK_FAILURE, notification.faultType());
-        assertEquals(SandboxType.K8S, notification.sandboxType());
+        assertEquals(SandboxType.REMOTE, notification.sandboxType());
         assertEquals(RuntimeFaultNotification.ACTION_RECREATE, notification.suggestedAction());
     }
 
@@ -43,7 +43,7 @@ class RuntimeFaultNotificationTest {
         RuntimeFaultNotification notification =
                 new RuntimeFaultNotification(
                         RuntimeFaultNotification.FAULT_IDLE_TIMEOUT,
-                        SandboxType.K8S,
+                        SandboxType.REMOTE,
                         RuntimeFaultNotification.ACTION_RECREATE);
 
         assertEquals(RuntimeFaultNotification.FAULT_IDLE_TIMEOUT, notification.faultType());
@@ -54,7 +54,7 @@ class RuntimeFaultNotificationTest {
         RuntimeFaultNotification notification =
                 new RuntimeFaultNotification(
                         RuntimeFaultNotification.FAULT_CONNECTION_LOST,
-                        SandboxType.K8S,
+                        SandboxType.REMOTE,
                         RuntimeFaultNotification.ACTION_RECONNECT);
 
         assertEquals(RuntimeFaultNotification.FAULT_CONNECTION_LOST, notification.faultType());
@@ -78,7 +78,7 @@ class RuntimeFaultNotificationTest {
     @Test
     void notification_inequality_differentRuntimeType() {
         RuntimeFaultNotification a = new RuntimeFaultNotification("A", SandboxType.LOCAL, "X");
-        RuntimeFaultNotification b = new RuntimeFaultNotification("A", SandboxType.K8S, "X");
+        RuntimeFaultNotification b = new RuntimeFaultNotification("A", SandboxType.REMOTE, "X");
         assertNotEquals(a, b);
     }
 

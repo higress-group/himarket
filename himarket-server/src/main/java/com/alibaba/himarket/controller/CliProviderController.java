@@ -348,7 +348,7 @@ public class CliProviderController {
             // 兼容 K8S 运行时的 Provider 可在沙箱中运行，无需本机安装命令
             boolean canRunInSandbox =
                     config.getCompatibleRuntimes() != null
-                            && config.getCompatibleRuntimes().contains(SandboxType.K8S);
+                            && config.getCompatibleRuntimes().contains(SandboxType.REMOTE);
             boolean available = canRunInSandbox || isCommandAvailable(config.getCommand());
             result.add(
                     new CliProviderInfo(
@@ -358,9 +358,7 @@ public class CliProviderController {
                                     : entry.getKey(),
                             entry.getKey().equals(defaultKey),
                             available,
-                            config.getRuntimeCategory(),
                             config.getCompatibleRuntimes(),
-                            config.getContainerImage(),
                             config.isSupportsCustomModel(),
                             config.isSupportsMcp(),
                             config.isSupportsSkill(),
@@ -399,9 +397,7 @@ public class CliProviderController {
             String displayName,
             boolean isDefault,
             boolean available,
-            String runtimeCategory,
             List<SandboxType> compatibleRuntimes,
-            String containerImage,
             boolean supportsCustomModel,
             boolean supportsMcp,
             boolean supportsSkill,

@@ -122,6 +122,7 @@ RUN npm install -g opencode-ai
 # ============================================================
 COPY sidecar-server/ /usr/local/lib/sidecar-server/
 RUN cd /usr/local/lib/sidecar-server && npm install --production
+# node-pty 需要编译原生模块，上面已安装 gcc/gcc-c++/make/python3
 
 # ============================================================
 # 6. 启动脚本

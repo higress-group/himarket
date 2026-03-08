@@ -95,13 +95,13 @@ start_app() {
   # 清空旧日志便于判断启动状态
   : > "$LOG_FILE"
 
-  # 后台启动 jar
+  # 后台启动 jar（日志由 logback LOCAL_FILE appender 写入 LOG_FILE，stdout 丢弃避免重复）
   nohup java \
     --add-opens java.base/java.util=ALL-UNNAMED \
     --add-opens java.base/java.lang=ALL-UNNAMED \
     --add-opens java.base/java.lang.reflect=ALL-UNNAMED \
     -jar "$JAR_PATH" \
-    >> "$LOG_FILE" 2>&1 &
+    > /dev/null 2>&1 &
 
   local app_pid=$!
   echo "$app_pid" > "$PID_FILE"

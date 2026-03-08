@@ -4,7 +4,6 @@ import com.alibaba.himarket.config.AcpProperties;
 import com.alibaba.himarket.config.AcpProperties.CliProviderConfig;
 import com.alibaba.himarket.service.acp.AcpConnectionManager.DeferredInitParams;
 import com.alibaba.himarket.service.acp.AcpSessionInitializer.InitializationResult;
-import com.alibaba.himarket.service.acp.runtime.K8sConfigService;
 import com.alibaba.himarket.service.acp.runtime.RuntimeAdapter;
 import com.alibaba.himarket.service.acp.runtime.RuntimeConfig;
 import com.alibaba.himarket.service.acp.runtime.SandboxInfo;
@@ -52,16 +51,15 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
 
     private final AcpProperties properties;
     private final ObjectMapper objectMapper;
-    private final K8sConfigService k8sConfigService;
     private final AcpSessionInitializer sessionInitializer;
     private final AcpMessageRouter messageRouter;
     private final AcpConnectionManager connectionManager;
 
-    /** K8s Pod 异步初始化线程池 */
+    /** 异步初始化线程池 */
     private final ExecutorService podInitExecutor =
             Executors.newCachedThreadPool(
                     r -> {
-                        Thread t = new Thread(r, "pod-init");
+                        Thread t = new Thread(r, "sandbox-init");
                         t.setDaemon(true);
                         return t;
                     });
@@ -69,13 +67,11 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
     public AcpWebSocketHandler(
             AcpProperties properties,
             ObjectMapper objectMapper,
-            K8sConfigService k8sConfigService,
             AcpSessionInitializer sessionInitializer,
             AcpMessageRouter messageRouter,
             AcpConnectionManager connectionManager) {
         this.properties = properties;
         this.objectMapper = objectMapper;
-        this.k8sConfigService = k8sConfigService;
         this.sessionInitializer = sessionInitializer;
         this.messageRouter = messageRouter;
         this.connectionManager = connectionManager;
@@ -95,9 +91,12 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
         SandboxType sandboxType = resolveSandboxType(runtimeParam);
 
         // Build per-user working directory
-        // K8s 运行时：CLI 在 Pod 内运行，cwd 使用 Pod 内路径 /workspace
+        // K8s 运行时：CLI 在 Pod 内运行，cwd 使用 Pod 内路径 /workspace/{userId}
         // 本地运行时：使用服务器本地路径
-        String cwd = sandboxType == SandboxType.K8S ? "/workspace" : buildWorkspacePath(userId);
+        String cwd =
+                sandboxType == SandboxType.REMOTE
+                        ? "/workspace/" + userId
+                        : buildWorkspacePath(userId);
 
         logger.info(
                 "WebSocket connected: id={}, userId={}, cwd={}, sandboxType={}",
@@ -350,15 +349,8 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
                 connectionManager.removePendingMessages(session.getId());
 
             } else {
-                // 发送详细错误信息（适配 InitializationResult）
+                // 发送详细错误信息，不主动关闭 WebSocket，由前端决定后续行为
                 sendSandboxError(session, result, sandboxType);
-                try {
-                    if (session.isOpen()) {
-                        session.close(CloseStatus.SERVER_ERROR);
-                    }
-                } catch (IOException closeEx) {
-                    logger.debug("Error closing WebSocket after sandbox init failure", closeEx);
-                }
             }
         } catch (Exception e) {
             logger.error("[Sandbox-Init] 沙箱初始化异常: userId={}, error={}", userId, e.getMessage(), e);
@@ -404,7 +396,7 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
                         "totalDuration",
                         String.format("%.1fs", result.totalDuration().toMillis() / 1000.0));
             }
-            diagnostics.put("suggestion", result.retryable() ? "请重试连接" : "请检查沙箱配置或联系管理员");
+            diagnostics.put("suggestion", buildSuggestion(result));
             params.set("diagnostics", diagnostics);
 
             notification.set("params", params);
@@ -419,6 +411,26 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
         } catch (Exception e) {
             logger.warn("Failed to send sandbox error notification: {}", e.getMessage());
         }
+    }
+
+    /**
+     * 根据失败阶段生成针对性的排查建议。
+     */
+    private String buildSuggestion(InitializationResult result) {
+        if (result.failedPhase() == null) {
+            return "请检查沙箱配置或联系管理员";
+        }
+        return switch (result.failedPhase()) {
+            case "filesystem-ready" ->
+                    "沙箱服务不可达，请检查: 1) sidecar 服务是否已启动 "
+                            + "2) ACP_REMOTE_HOST 和 ACP_REMOTE_PORT 配置是否正确 "
+                            + "3) 网络是否可达";
+            case "sandbox-acquire" -> "沙箱实例获取失败，请检查沙箱配置或联系管理员";
+            case "config-injection" -> "配置注入失败，请重试连接";
+            case "sidecar-connect" -> "Sidecar WebSocket 连接失败，请检查 sidecar 服务状态后重试";
+            case "cli-ready" -> "CLI 工具启动失败，请检查 CLI 命令配置是否正确";
+            default -> result.retryable() ? "请重试连接" : "请检查沙箱配置或联系管理员";
+        };
     }
 
     /**
@@ -531,11 +543,6 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
                 providerConfig.getEnv() != null
                         ? new HashMap<>(providerConfig.getEnv())
                         : new HashMap<>();
-        if (providerConfig.isIsolateHome()) {
-            processEnv.put("HOME", cwd);
-            logger.info("HOME isolated for provider '{}': {}", providerKey, cwd);
-        }
-
         RuntimeConfig config = new RuntimeConfig();
         config.setUserId(userId);
         config.setProviderKey(providerKey);
@@ -543,15 +550,9 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
         config.setArgs(List.of(providerConfig.getArgs()));
         config.setCwd(cwd);
         config.setEnv(processEnv);
-        config.setIsolateHome(providerConfig.isIsolateHome());
 
-        if (sandboxType == SandboxType.K8S) {
-            config.setContainerImage(providerConfig.getContainerImage());
-            config.setK8sConfigId(k8sConfigService.getDefaultConfigId());
-            logger.info(
-                    "K8s runtime: using cluster configId={}, image={}",
-                    config.getK8sConfigId(),
-                    config.getContainerImage());
+        if (sandboxType == SandboxType.REMOTE) {
+            logger.info("Remote runtime: host={}", properties.getRemote().getHost());
         }
 
         return config;

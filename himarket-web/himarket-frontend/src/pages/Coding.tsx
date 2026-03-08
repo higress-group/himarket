@@ -29,6 +29,7 @@ import {
   fetchArtifactContent,
   fetchWorkspaceChanges,
   getPreviewUrl,
+  setDefaultRuntime,
 } from "../lib/utils/workspaceApi";
 import type { FileNode } from "../types/coding";
 import type { ChatItemPlan } from "../types/acp";
@@ -116,6 +117,13 @@ function CodingContent() {
   // 跟踪当前运行时类型（HiCoding 仅支持沙箱模式）
   const currentRuntimeRef = useRef<string>("k8s");
 
+  // 设置全局默认 runtime，让 ArtifactPreview / FileRenderer 等组件
+  // 调用 fetchArtifactContent 时自动带上 runtime 参数
+  useEffect(() => {
+    setDefaultRuntime("k8s");
+    return () => setDefaultRuntime(undefined);
+  }, []);
+
   // ===== 补全旧配置中缺失的名称字段 =====
   useEffect(() => {
     const needModelName = config.modelProductId && !config.modelName;
@@ -177,12 +185,8 @@ function CodingContent() {
     [dispatch]
   );
 
-  // 连接成功后设置模型
-  useEffect(() => {
-    if (isConnected && config.modelProductId) {
-      session.setModel(config.modelProductId);
-    }
-  }, [isConnected, config.modelProductId]);
+  // 模型配置由 ConfigInjectionPhase 注入，createQuest 中会自动设置 CLI 模型
+  // 不需要额外的 setModel 调用（config.modelProductId 是平台产品 ID，CLI 不认识）
 
   // ===== 自动创建 Quest =====
   const autoCreatedRef = useRef(false);
@@ -224,9 +228,10 @@ function CodingContent() {
   const handleNewQuest = useCallback(() => {
     autoCreatedRef.current = false;
     pendingPromptRef.current = null;
+    dispatch({ type: "RESET_STATE" });
     setCurrentWsUrl("");
     setCurrentCliSessionConfig(undefined);
-  }, []);
+  }, [dispatch]);
 
   // 欢迎页发送消息：如果未连接则先触发连接，暂存消息
   const handleWelcomeSend = useCallback(
@@ -302,7 +307,7 @@ function CodingContent() {
     if (!activeQuest?.cwd) return;
     setTreeLoading(true);
     fetchDirectoryTree(activeQuest.cwd, 10, currentRuntimeRef.current).then(nodes => {
-      setTree(nodes);
+      if (nodes !== null) setTree(nodes);
       setTreeLoading(false);
     });
   }, [activeQuest?.cwd]);
@@ -316,7 +321,9 @@ function CodingContent() {
       (lastMsg.status === "completed" || lastMsg.status === "failed") &&
       !READ_ONLY_KINDS.has(lastMsg.kind)
     ) {
-      fetchDirectoryTree(activeQuest.cwd, 10, currentRuntimeRef.current).then(setTree);
+      fetchDirectoryTree(activeQuest.cwd, 10, currentRuntimeRef.current).then(nodes => {
+        if (nodes !== null) setTree(nodes);
+      });
     }
   }, [messageCount, activeQuest?.cwd, activeQuest?.messages]);
 
@@ -333,7 +340,9 @@ function CodingContent() {
         const changes = await fetchWorkspaceChanges(cwd, lastPollRef.current, 200, currentRuntimeRef.current);
         if (changes.length > 0) {
           lastPollRef.current = Date.now();
-          fetchDirectoryTree(cwd, 10, currentRuntimeRef.current).then(setTree);
+          fetchDirectoryTree(cwd, 10, currentRuntimeRef.current).then(nodes => {
+            if (nodes !== null) setTree(nodes);
+          });
         }
       } finally { pollingRef.current = false; }
     }, 10000);
@@ -579,10 +588,7 @@ function CodingContent() {
           <div className="text-center">
             <p className="text-red-500 mb-4">{state.sandboxStatus?.message}</p>
             <button
-              onClick={() => {
-                autoCreatedRef.current = false;
-                setCurrentWsUrl("");
-              }}
+              onClick={handleNewQuest}
               className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
             >
               重新连接

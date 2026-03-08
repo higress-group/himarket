@@ -16,7 +16,7 @@ import org.springframework.stereotype.Component;
  * 沙箱 Sidecar HTTP 客户端。
  *
  * <p>统一封装对 Sidecar HTTP API 的调用（writeFile / readFile / healthCheck / extractArchive），
- * 消除 K8sSandboxProvider 和 LocalSandboxProvider 中的代码重复。
+ * 消除 RemoteSandboxProvider 和 LocalSandboxProvider 中的代码重复。
  *
  * <h3>可复用性说明</h3>
  * <p>本组件设计为跨 Provider 可复用。OpenSandbox 的 execd 组件提供与 HiMarket Sidecar
@@ -31,7 +31,7 @@ import org.springframework.stereotype.Component;
  *       （端口默认 8080，可通过 OpenSandbox Server API 获取）</li>
  * </ul>
  *
- * @see K8sSandboxProvider
+ * @see RemoteSandboxProvider
  * @see LocalSandboxProvider
  * @see SandboxProvider OpenSandbox 对接说明
  */
@@ -169,7 +169,31 @@ public class SandboxHttpClient {
      */
     public int extractArchive(String baseUrl, String sandboxId, byte[] tarGzBytes)
             throws IOException {
+        return extractArchive(baseUrl, sandboxId, tarGzBytes, null);
+    }
+
+    /**
+     * 解压 tar.gz 归档到沙箱指定目录。
+     *
+     * <p>调用 Sidecar POST /files/extract?cwd={cwd}，Content-Type 为 application/gzip，超时 30 秒。
+     * 参考 OpenSandbox execd 设计，由调用方指定解压目标目录，实现多用户工作目录隔离。
+     *
+     * @param baseUrl    Sidecar 基础 URL
+     * @param sandboxId  沙箱标识（用于异常信息）
+     * @param tarGzBytes tar.gz 归档字节数组
+     * @param cwd        解压目标目录（绝对路径），为 null 时使用 Sidecar 默认目录
+     * @return 解压的文件数量
+     * @throws IOException 当 HTTP 响应非 200 或请求失败时
+     */
+    public int extractArchive(String baseUrl, String sandboxId, byte[] tarGzBytes, String cwd)
+            throws IOException {
         String url = baseUrl + "/files/extract";
+        if (cwd != null && !cwd.isBlank()) {
+            url +=
+                    "?cwd="
+                            + java.net.URLEncoder.encode(
+                                    cwd, java.nio.charset.StandardCharsets.UTF_8);
+        }
         try {
             HttpResponse<String> response =
                     httpClient.send(

@@ -26,7 +26,7 @@ import org.slf4j.LoggerFactory;
 public class SidecarFileSystemAdapter implements FileSystemAdapter {
 
     private static final Logger logger = LoggerFactory.getLogger(SidecarFileSystemAdapter.class);
-    private static final SandboxType SANDBOX_TYPE = SandboxType.K8S;
+    private static final SandboxType SANDBOX_TYPE = SandboxType.REMOTE;
     private static final int SIDECAR_PORT = 8080;
     private static final Duration HTTP_TIMEOUT = Duration.ofSeconds(30);
     private static final String DEFAULT_BASE_PATH = "/workspace";

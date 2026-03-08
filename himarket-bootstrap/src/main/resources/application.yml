@@ -42,42 +42,43 @@ jwt:
 
 acp:
   local-enabled: ${ACP_LOCAL_ENABLED:true}
-  default-provider: ${ACP_DEFAULT_PROVIDER:qodercli}
+  default-provider: ${ACP_DEFAULT_PROVIDER:qwen-code}
+  # 仅 LOCAL 模式使用：本机工作空间根目录，每个用户的 cwd = {workspace-root}/{userId}
+  # REMOTE 模式下 cwd 固定为 sandbox 容器内的 /workspace/{userId}，与此配置无关
   workspace-root: ${ACP_WORKSPACE_ROOT:${user.home}/.himarket/workspaces}
-  default-runtime: ${ACP_DEFAULT_RUNTIME:local}
-  k8s:
-    namespace: ${ACP_K8S_NAMESPACE:default}
-    reuse-pod-idle-timeout: ${ACP_K8S_REUSE_POD_IDLE_TIMEOUT:1800}
-    sandbox-access-via-service: ${ACP_K8S_SANDBOX_ACCESS_VIA_SERVICE:true}
-    allowed-commands: ${ACP_K8S_ALLOWED_COMMANDS:qodercli,qwen,npx,opencode}
+  # local: 在本机启动 sidecar 进程；remote: 连接远程 sandbox 容器
+  default-runtime: ${ACP_DEFAULT_RUNTIME:remote}
+  remote:
+    host: ${ACP_REMOTE_HOST:sandbox-shared}
+    port: ${ACP_REMOTE_PORT:8080}
   providers:
+    qwen-code:
+      display-name: Qwen Code
+      command: ${ACP_CLI_COMMAND_QWEN:qwen}
+      args: ${ACP_CLI_ARGS_QWEN:--acp}
+      compatible-runtimes:
+        - LOCAL
+        - REMOTE
+      supports-custom-model: true
+      supports-mcp: true
+      supports-skill: true
     qodercli:
       display-name: Qoder CLI
       command: ${ACP_CLI_COMMAND_QODERCLI:qodercli}
       args: ${ACP_CLI_ARGS_QODERCLI:--acp}
-      runtime-category: native
-      compatible-runtimes: LOCAL,K8S
-      container-image: ${ACP_SANDBOX_IMAGE:opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/sandbox:latest}
+      compatible-runtimes:
+        - LOCAL
+        - REMOTE
       auth-options: default,personal_access_token
       auth-env-var: QODER_PERSONAL_ACCESS_TOKEN
     claude-code:
       display-name: Claude Code
       command: ${ACP_CLI_COMMAND_CLAUDE:npx}
       args: ${ACP_CLI_ARGS_CLAUDE:@zed-industries/claude-code-acp}
-      runtime-category: nodejs
-      compatible-runtimes: LOCAL,K8S
+      compatible-runtimes:
+        - LOCAL
+        - REMOTE
       auth-env-var: ANTHROPIC_API_KEY
-      supports-custom-model: true
-      supports-mcp: true
-      supports-skill: true
-    qwen-code:
-      display-name: Qwen Code
-      command: ${ACP_CLI_COMMAND_QWEN:qwen}
-      args: ${ACP_CLI_ARGS_QWEN:--acp}
-      isolate-home: false
-      runtime-category: nodejs
-      compatible-runtimes: LOCAL,K8S
-      container-image: ${ACP_SANDBOX_IMAGE:opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/sandbox:latest}
       supports-custom-model: true
       supports-mcp: true
       supports-skill: true
@@ -85,8 +86,9 @@ acp:
       display-name: OpenCode
       command: ${ACP_CLI_COMMAND_OPENCODE:opencode}
       args: ${ACP_CLI_ARGS_OPENCODE:acp}
-      runtime-category: native
-      compatible-runtimes: LOCAL,K8S
+      compatible-runtimes:
+        - LOCAL
+        - REMOTE
       supports-custom-model: true
       supports-mcp: true
       supports-skill: true

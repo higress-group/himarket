@@ -12,6 +12,20 @@ export const ARTIFACT_SCAN_FALLBACK_ENABLED =
 export const PPT_PREVIEW_PREPARE_ENABLED =
   import.meta.env.VITE_PPT_PREPARE_PREVIEW !== "false";
 
+/**
+ * 全局默认 runtime，由 HiCoding 页面初始化时设置。
+ * 当 fetchArtifactContent 等函数未显式传入 runtime 时，自动使用此值。
+ */
+let _defaultRuntime: string | undefined;
+
+export function setDefaultRuntime(runtime: string | undefined) {
+  _defaultRuntime = runtime;
+}
+
+export function getDefaultRuntime(): string | undefined {
+  return _defaultRuntime;
+}
+
 export interface WorkspaceApiError {
   code: string;
   message: string;
@@ -92,11 +106,12 @@ export async function fetchArtifactContent(
   opts?: { raw?: boolean; runtime?: string }
 ): Promise<ArtifactContentResult> {
   try {
+    const runtime = opts?.runtime ?? _defaultRuntime;
     const resp: FileContentResponse = await request.get("/workspace/file", {
       params: {
         path: filePath,
         raw: opts?.raw === true,
-        ...(opts?.runtime ? { runtime: opts.runtime } : {}),
+        ...(runtime ? { runtime } : {}),
       },
     });
     return {
@@ -162,14 +177,14 @@ export async function fetchDirectoryTree(
   cwd: string,
   depth = 10,
   runtime?: string
-): Promise<FileNode[]> {
+): Promise<FileNode[] | null> {
   try {
     const resp: FileNode = await request.get("/workspace/tree", {
       params: { cwd, depth, ...(runtime ? { runtime } : {}) },
     });
     return resp.children ?? [];
   } catch {
-    return [];
+    return null;
   }
 }
 

@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.alibaba.himarket.config.AcpProperties;
 import com.alibaba.himarket.config.AcpProperties.CliProviderConfig;
+import com.alibaba.himarket.config.AcpProperties.RemoteConfig;
 import java.util.List;
 import net.jqwik.api.*;
 
@@ -17,7 +18,7 @@ import net.jqwik.api.*;
  * <p>对于任意 CLI Provider 及其 compatibleRuntimes 列表和当前环境可用性状态，RuntimeSelector 应该：
  * (a) 仅展示兼容且可用的运行时选项；
  * (b) 当兼容列表中仅有一个可用运行时时，自动选中该运行时；
- * (c) 当 K8s 未配置时，K8S 选项标记为不可用。
+ * (c) 当远程沙箱未配置时，REMOTE 选项标记为不可用。
  */
 class RuntimeSelectionFilterPropertyTest {
 
@@ -27,7 +28,7 @@ class RuntimeSelectionFilterPropertyTest {
 
     @Provide
     Arbitrary<List<SandboxType>> nonEmptyCompatibleRuntimes() {
-        return Arbitraries.of(SandboxType.LOCAL, SandboxType.K8S)
+        return Arbitraries.of(SandboxType.LOCAL, SandboxType.REMOTE)
                 .list()
                 .ofMinSize(1)
                 .ofMaxSize(2)
@@ -37,7 +38,7 @@ class RuntimeSelectionFilterPropertyTest {
 
     @Provide
     Arbitrary<List<SandboxType>> compatibleRuntimes() {
-        return Arbitraries.of(SandboxType.LOCAL, SandboxType.K8S)
+        return Arbitraries.of(SandboxType.LOCAL, SandboxType.REMOTE)
                 .list()
                 .ofMinSize(0)
                 .ofMaxSize(2)
@@ -45,36 +46,29 @@ class RuntimeSelectionFilterPropertyTest {
     }
 
     @Provide
-    Arbitrary<Boolean> k8sAvailability() {
+    Arbitrary<Boolean> remoteAvailability() {
         return Arbitraries.of(true, false);
     }
 
     // ===== 辅助方法 =====
 
     private RuntimeSelector buildSelector(
-            List<SandboxType> compatibleRuntimes, boolean k8sAvailable) {
+            List<SandboxType> compatibleRuntimes, boolean remoteAvailable) {
         AcpProperties props = new AcpProperties();
         props.setDefaultRuntime("local");
         CliProviderConfig config = new CliProviderConfig();
         config.setDisplayName("Test Provider");
         config.setCompatibleRuntimes(compatibleRuntimes);
         props.getProviders().put(PROVIDER_KEY, config);
-        K8sConfigService mockK8s =
-                new K8sConfigService(null) {
-                    @Override
-                    public void init() {}
-
-                    @Override
-                    public boolean hasAnyCluster() {
-                        return k8sAvailable;
-                    }
-
-                    @Override
-                    public java.util.List<K8sClusterInfo> listClusters() {
-                        return java.util.Collections.emptyList();
-                    }
-                };
-        return new RuntimeSelector(props, mockK8s);
+        RemoteConfig remoteConfig = new RemoteConfig();
+        if (remoteAvailable) {
+            remoteConfig.setHost("sandbox.example.com");
+            remoteConfig.setPort(8080);
+        } else {
+            remoteConfig.setHost("");
+        }
+        props.setRemote(remoteConfig);
+        return new RuntimeSelector(props);
     }
 
     // ===== Property 6a: 仅展示兼容的运行时选项 =====
@@ -82,9 +76,9 @@ class RuntimeSelectionFilterPropertyTest {
     @Property(tries = 200)
     void availableRuntimes_onlyContainCompatibleTypes(
             @ForAll("compatibleRuntimes") List<SandboxType> compatible,
-            @ForAll("k8sAvailability") boolean k8sAvailable) {
+            @ForAll("remoteAvailability") boolean remoteAvailable) {
 
-        RuntimeSelector selector = buildSelector(compatible, k8sAvailable);
+        RuntimeSelector selector = buildSelector(compatible, remoteAvailable);
         List<RuntimeOption> options = selector.getAvailableRuntimes(PROVIDER_KEY);
 
         List<SandboxType> returnedTypes = options.stream().map(RuntimeOption::type).toList();
@@ -98,9 +92,9 @@ class RuntimeSelectionFilterPropertyTest {
     @Property(tries = 200)
     void selectDefault_autoSelectsWhenOnlyOneAvailable(
             @ForAll("nonEmptyCompatibleRuntimes") List<SandboxType> compatible,
-            @ForAll("k8sAvailability") boolean k8sAvailable) {
+            @ForAll("remoteAvailability") boolean remoteAvailable) {
 
-        RuntimeSelector selector = buildSelector(compatible, k8sAvailable);
+        RuntimeSelector selector = buildSelector(compatible, remoteAvailable);
 
         List<SandboxType> availableTypes =
                 compatible.stream().filter(selector::isSandboxAvailable).toList();
@@ -111,54 +105,50 @@ class RuntimeSelectionFilterPropertyTest {
         }
     }
 
-    // ===== Property 6c: K8s 未配置时 K8S 标记为不可用 =====
+    // ===== Property 6c: 远程沙箱未配置时 REMOTE 标记为不可用 =====
 
-    /**
-     * <b>Validates: Requirements 10.4</b>
-     *
-     * <p>对于任意包含 K8S 的 compatibleRuntimes 列表，当 K8s 未配置时，
-     * K8S 选项应标记为不可用（available=false），且包含不可用原因。
-     */
     @Property(tries = 200)
-    void k8sMarkedUnavailable_whenK8sNotConfigured(
+    void remoteMarkedUnavailable_whenNotConfigured(
             @ForAll("nonEmptyCompatibleRuntimes") List<SandboxType> compatible) {
 
-        if (!compatible.contains(SandboxType.K8S)) {
+        if (!compatible.contains(SandboxType.REMOTE)) {
             return;
         }
 
         RuntimeSelector selector = buildSelector(compatible, false);
         List<RuntimeOption> options = selector.getAvailableRuntimes(PROVIDER_KEY);
 
-        RuntimeOption k8sOption =
+        RuntimeOption remoteOption =
                 options.stream()
-                        .filter(o -> o.type() == SandboxType.K8S)
+                        .filter(o -> o.type() == SandboxType.REMOTE)
                         .findFirst()
-                        .orElseThrow(() -> new AssertionError("K8S 应出现在兼容列表的返回结果中"));
+                        .orElseThrow(() -> new AssertionError("REMOTE 应出现在兼容列表的返回结果中"));
 
-        assertFalse(k8sOption.available(), "K8s 未配置时 K8S 应标记为不可用");
-        assertNotNull(k8sOption.unavailableReason(), "不可用的 K8S 应包含原因说明");
-        assertTrue(k8sOption.unavailableReason().contains("K8s"), "不可用原因应提及 K8s 配置");
+        assertFalse(remoteOption.available(), "远程沙箱未配置时 REMOTE 应标记为不可用");
+        assertNotNull(remoteOption.unavailableReason(), "不可用的 REMOTE 应包含原因说明");
     }
 
-    // ===== Property 6c 补充: K8s 已配置时 K8S 标记为可用 =====
+    // ===== Property 6c 补充: 远程沙箱已配置时 REMOTE 标记为可用 =====
 
     @Property(tries = 200)
-    void k8sMarkedAvailable_whenK8sConfigured(
+    void remoteMarkedAvailable_whenConfigured(
             @ForAll("nonEmptyCompatibleRuntimes") List<SandboxType> compatible) {
 
-        if (!compatible.contains(SandboxType.K8S)) {
+        if (!compatible.contains(SandboxType.REMOTE)) {
             return;
         }
 
         RuntimeSelector selector = buildSelector(compatible, true);
         List<RuntimeOption> options = selector.getAvailableRuntimes(PROVIDER_KEY);
 
-        RuntimeOption k8sOption =
-                options.stream().filter(o -> o.type() == SandboxType.K8S).findFirst().orElseThrow();
+        RuntimeOption remoteOption =
+                options.stream()
+                        .filter(o -> o.type() == SandboxType.REMOTE)
+                        .findFirst()
+                        .orElseThrow();
 
-        assertTrue(k8sOption.available(), "K8s 已配置时 K8S 应标记为可用");
-        assertNull(k8sOption.unavailableReason(), "可用的 K8S 不应包含不可用原因");
+        assertTrue(remoteOption.available(), "远程沙箱已配置时 REMOTE 应标记为可用");
+        assertNull(remoteOption.unavailableReason(), "可用的 REMOTE 不应包含不可用原因");
     }
 
     // ===== Property 6: selectDefault 返回的运行时必须是兼容且可用的 =====
@@ -166,9 +156,9 @@ class RuntimeSelectionFilterPropertyTest {
     @Property(tries = 200)
     void selectDefault_alwaysReturnsCompatibleAndAvailableRuntime(
             @ForAll("nonEmptyCompatibleRuntimes") List<SandboxType> compatible,
-            @ForAll("k8sAvailability") boolean k8sAvailable) {
+            @ForAll("remoteAvailability") boolean remoteAvailable) {
 
-        RuntimeSelector selector = buildSelector(compatible, k8sAvailable);
+        RuntimeSelector selector = buildSelector(compatible, remoteAvailable);
 
         List<SandboxType> availableTypes =
                 compatible.stream().filter(selector::isSandboxAvailable).toList();
@@ -188,27 +178,17 @@ class RuntimeSelectionFilterPropertyTest {
     // ===== Property 6: LOCAL 始终可用 =====
 
     @Property(tries = 100)
-    void localRuntime_alwaysAvailable(@ForAll("k8sAvailability") boolean k8sAvailable) {
+    void localRuntime_alwaysAvailable(@ForAll("remoteAvailability") boolean remoteAvailable) {
 
         AcpProperties props = new AcpProperties();
-        K8sConfigService mockK8s =
-                new K8sConfigService(null) {
-                    @Override
-                    public void init() {}
+        RemoteConfig remoteConfig = new RemoteConfig();
+        if (remoteAvailable) {
+            remoteConfig.setHost("sandbox.example.com");
+        }
+        props.setRemote(remoteConfig);
+        RuntimeSelector selector = new RuntimeSelector(props);
 
-                    @Override
-                    public boolean hasAnyCluster() {
-                        return k8sAvailable;
-                    }
-
-                    @Override
-                    public java.util.List<K8sClusterInfo> listClusters() {
-                        return java.util.Collections.emptyList();
-                    }
-                };
-        RuntimeSelector selector = new RuntimeSelector(props, mockK8s);
-
-        assertTrue(selector.isSandboxAvailable(SandboxType.LOCAL), "LOCAL 运行时应始终可用，无论 K8s 状态如何");
+        assertTrue(selector.isSandboxAvailable(SandboxType.LOCAL), "LOCAL 运行时应始终可用，无论远程沙箱状态如何");
 
         RuntimeOption option = selector.toRuntimeOption(SandboxType.LOCAL, true);
         assertTrue(option.available());

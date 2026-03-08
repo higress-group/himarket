@@ -1,9 +1,8 @@
 package com.alibaba.himarket.service.acp;
 
+import com.alibaba.himarket.config.AcpProperties;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
-import com.alibaba.himarket.service.acp.runtime.PodEntry;
-import com.alibaba.himarket.service.acp.runtime.PodReuseManager;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -26,33 +25,43 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 /**
- * K8s 沙箱文件操作服务。
+ * 远程沙箱文件操作服务。
  *
- * <p>封装通过 Sidecar HTTP API 操作 Pod 内文件的逻辑，
- * 供 WorkspaceController 在 runtime=k8s 时调用。
+ * <p>封装通过 Sidecar HTTP API 操作远程沙箱内文件的逻辑，
+ * 供 WorkspaceController 在 runtime=remote 时调用。
  *
- * <p>Requirements: 4.1, 4.2, 4.3, 4.4
+ * <p>使用 AcpProperties.remote 配置获取 Sidecar 地址。
  */
 @Service
 public class K8sWorkspaceService {
 
     private static final Logger log = LoggerFactory.getLogger(K8sWorkspaceService.class);
-    private static final int SIDECAR_PORT = 8080;
     private static final Duration HTTP_TIMEOUT = Duration.ofSeconds(10);
     private static final String WORKSPACE_ROOT = "/workspace";
 
-    private final PodReuseManager podReuseManager;
+    private final AcpProperties acpProperties;
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
 
-    public K8sWorkspaceService(PodReuseManager podReuseManager) {
-        this.podReuseManager = podReuseManager;
+    public K8sWorkspaceService(AcpProperties acpProperties) {
+        this.acpProperties = acpProperties;
         this.httpClient =
                 HttpClient.newBuilder()
                         .connectTimeout(HTTP_TIMEOUT)
                         .version(HttpClient.Version.HTTP_1_1)
                         .build();
         this.objectMapper = new ObjectMapper();
+    }
+
+    /**
+     * 获取远程 Sidecar 的地址。
+     */
+    private String getRemoteHost() {
+        return acpProperties.getRemote().getHost();
+    }
+
+    private int getRemotePort() {
+        return acpProperties.getRemote().getPort();
     }
 
     /**
@@ -68,12 +77,8 @@ public class K8sWorkspaceService {
     public Map<String, Object> getDirectoryTree(String userId, String cwd, int depth)
             throws IOException {
         validatePath(cwd);
-        PodEntry podEntry = podReuseManager.getHealthyPodEntryWithDefaultClient(userId);
-        if (podEntry == null) {
-            throw new BusinessException(ErrorCode.SANDBOX_NOT_READY, userId);
-        }
-        String host = resolveAccessHost(podEntry);
-        String url = "http://" + host + ":" + SIDECAR_PORT + "/files/list";
+        String host = getRemoteHost();
+        String url = "http://" + host + ":" + getRemotePort() + "/files/list";
         String body = objectMapper.writeValueAsString(Map.of("path", cwd, "depth", depth));
 
         HttpResponse<String> response = sendPost(url, body);
@@ -100,7 +105,7 @@ public class K8sWorkspaceService {
     }
 
     /**
-     * 读取 Pod 内的文件内容。
+     * 读取 Pod 内的文件内容（UTF-8 文本）。
      *
      * @param userId   用户 ID
      * @param filePath 文件路径
@@ -108,14 +113,27 @@ public class K8sWorkspaceService {
      * @throws IOException 网络或解析异常
      */
     public String readFile(String userId, String filePath) throws IOException {
+        return readFileWithEncoding(userId, filePath, "utf-8").get("content").toString();
+    }
+
+    /**
+     * 读取 Pod 内的文件内容，支持指定编码。
+     *
+     * @param userId   用户 ID
+     * @param filePath 文件路径
+     * @param encoding 编码方式："utf-8" 或 "base64"
+     * @return 包含 content 和 encoding 的 Map
+     * @throws IOException 网络或解析异常
+     */
+    public Map<String, Object> readFileWithEncoding(String userId, String filePath, String encoding)
+            throws IOException {
         validatePath(filePath);
-        PodEntry podEntry = podReuseManager.getHealthyPodEntryWithDefaultClient(userId);
-        if (podEntry == null) {
-            throw new BusinessException(ErrorCode.SANDBOX_NOT_READY, userId);
-        }
-        String host = resolveAccessHost(podEntry);
-        String url = "http://" + host + ":" + SIDECAR_PORT + "/files/read";
-        String body = objectMapper.writeValueAsString(Map.of("path", filePath));
+        String host = getRemoteHost();
+        String url = "http://" + host + ":" + getRemotePort() + "/files/read";
+        Map<String, Object> params = new HashMap<>();
+        params.put("path", filePath);
+        params.put("encoding", encoding);
+        String body = objectMapper.writeValueAsString(params);
 
         HttpResponse<String> response = sendPost(url, body);
         if (response.statusCode() != 200) {
@@ -128,7 +146,9 @@ public class K8sWorkspaceService {
         }
 
         JsonNode json = objectMapper.readTree(response.body());
-        return json.has("content") ? json.get("content").asText() : "";
+        String content = json.has("content") ? json.get("content").asText() : "";
+        String respEncoding = json.has("encoding") ? json.get("encoding").asText() : encoding;
+        return Map.of("content", content, "encoding", respEncoding);
     }
 
     /**
@@ -143,12 +163,8 @@ public class K8sWorkspaceService {
     public List<Map<String, Object>> getChanges(String userId, String cwd, long since)
             throws IOException {
         validatePath(cwd);
-        PodEntry podEntry = podReuseManager.getHealthyPodEntryWithDefaultClient(userId);
-        if (podEntry == null) {
-            throw new BusinessException(ErrorCode.SANDBOX_NOT_READY, userId);
-        }
-        String host = resolveAccessHost(podEntry);
-        String url = "http://" + host + ":" + SIDECAR_PORT + "/files/changes";
+        String host = getRemoteHost();
+        String url = "http://" + host + ":" + getRemotePort() + "/files/changes";
         String body = objectMapper.writeValueAsString(Map.of("cwd", cwd, "since", since));
 
         HttpResponse<String> response = sendPost(url, body);
@@ -193,20 +209,6 @@ public class K8sWorkspaceService {
         if (!normalized.startsWith(WORKSPACE_ROOT)) {
             throw new IllegalArgumentException("路径越界：不允许访问 /workspace 之外的目录");
         }
-    }
-
-    /**
-     * 解析 Pod 的访问地址。
-     * serviceIp 非空时优先使用，否则使用 podIp。
-     *
-     * @param podEntry Pod 缓存条目
-     * @return 访问地址
-     */
-    String resolveAccessHost(PodEntry podEntry) {
-        if (podEntry.getServiceIp() != null && !podEntry.getServiceIp().isBlank()) {
-            return podEntry.getServiceIp();
-        }
-        return podEntry.getPodIp();
     }
 
     /**

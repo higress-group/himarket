@@ -14,12 +14,6 @@ public class RuntimeConfig {
     private List<String> args;
     private String cwd;
     private Map<String, String> env;
-    private boolean isolateHome;
-
-    // K8s 专用
-    private String k8sConfigId;
-    private String containerImage;
-    private ResourceLimits resourceLimits;
 
     public String getUserId() {
         return userId;
@@ -67,71 +61,5 @@ public class RuntimeConfig {
 
     public void setEnv(Map<String, String> env) {
         this.env = env;
-    }
-
-    public boolean isIsolateHome() {
-        return isolateHome;
-    }
-
-    public void setIsolateHome(boolean isolateHome) {
-        this.isolateHome = isolateHome;
-    }
-
-    public String getK8sConfigId() {
-        return k8sConfigId;
-    }
-
-    public void setK8sConfigId(String k8sConfigId) {
-        this.k8sConfigId = k8sConfigId;
-    }
-
-    public String getContainerImage() {
-        return containerImage;
-    }
-
-    public void setContainerImage(String containerImage) {
-        this.containerImage = containerImage;
-    }
-
-    public ResourceLimits getResourceLimits() {
-        return resourceLimits;
-    }
-
-    public void setResourceLimits(ResourceLimits resourceLimits) {
-        this.resourceLimits = resourceLimits;
-    }
-
-    /**
-     * 资源限制配置（K8s Pod 使用）。
-     */
-    public static class ResourceLimits {
-
-        private String cpuLimit;
-        private String memoryLimit;
-        private String diskLimit;
-
-        public String getCpuLimit() {
-            return cpuLimit;
-        }
-
-        public void setCpuLimit(String cpuLimit) {
-            this.cpuLimit = cpuLimit;
-        }
-
-        public String getMemoryLimit() {
-            return memoryLimit;
-        }
-
-        public void setMemoryLimit(String memoryLimit) {
-            this.memoryLimit = memoryLimit;
-        }
-
-        public String getDiskLimit() {
-            return diskLimit;
-        }
-
-        public void setDiskLimit(String diskLimit) {
-            this.diskLimit = diskLimit;
-        }
     }
 }

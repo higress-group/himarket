@@ -34,14 +34,15 @@ public record SandboxInfo(
     }
 
     /**
-     * 构建 Sidecar WebSocket URI，支持传递环境变量。
+     * 构建 Sidecar WebSocket URI，支持传递环境变量和工作目录。
      *
      * @param command 要执行的命令
      * @param args    命令参数（可为 null 或空白）
      * @param env     环境变量 Map（可为 null）
-     * @return 完整的 WebSocket URI，args 和 env 部分经过 URL 编码
+     * @param cwd     工作目录路径（可为 null 或空白）
+     * @return 完整的 WebSocket URI，args、env 和 cwd 部分经过 URL 编码
      */
-    public URI sidecarWsUri(String command, String args, Map<String, String> env) {
+    public URI sidecarWsUri(String command, String args, Map<String, String> env, String cwd) {
         String query = "command=" + command;
         if (args != null && !args.isBlank()) {
             query += "&args=" + URLEncoder.encode(args, StandardCharsets.UTF_8);
@@ -54,6 +55,21 @@ public record SandboxInfo(
                 throw new RuntimeException("Failed to serialize env to JSON", e);
             }
         }
+        if (cwd != null && !cwd.isBlank()) {
+            query += "&cwd=" + URLEncoder.encode(cwd, StandardCharsets.UTF_8);
+        }
         return URI.create("ws://" + host + ":" + sidecarPort + "/?" + query);
+    }
+
+    /**
+     * 构建 Sidecar WebSocket URI，支持传递环境变量。
+     *
+     * @param command 要执行的命令
+     * @param args    命令参数（可为 null 或空白）
+     * @param env     环境变量 Map（可为 null）
+     * @return 完整的 WebSocket URI，args 和 env 部分经过 URL 编码
+     */
+    public URI sidecarWsUri(String command, String args, Map<String, String> env) {
+        return sidecarWsUri(command, args, env, null);
     }
 }

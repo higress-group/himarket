@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.alibaba.himarket.config.AcpProperties;
 import com.alibaba.himarket.config.AcpProperties.CliProviderConfig;
+import com.alibaba.himarket.config.AcpProperties.RemoteConfig;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
@@ -22,23 +23,20 @@ class RuntimeSelectorTest {
         acpProperties.setDefaultRuntime("local");
     }
 
-    private RuntimeSelector createSelector(boolean k8sAvailable) {
-        K8sConfigService mockK8sConfigService =
-                new K8sConfigService(null) {
-                    @Override
-                    public void init() {}
-
-                    @Override
-                    public boolean hasAnyCluster() {
-                        return k8sAvailable;
-                    }
-
-                    @Override
-                    public java.util.List<K8sClusterInfo> listClusters() {
-                        return java.util.Collections.emptyList();
-                    }
-                };
-        return new RuntimeSelector(acpProperties, mockK8sConfigService);
+    /**
+     * 创建 RuntimeSelector，通过 RemoteConfig.host 控制远程沙箱可用性。
+     * remoteAvailable=true 时设置 host 为非空值，false 时设置为空。
+     */
+    private RuntimeSelector createSelector(boolean remoteAvailable) {
+        RemoteConfig remoteConfig = new RemoteConfig();
+        if (remoteAvailable) {
+            remoteConfig.setHost("sandbox.example.com");
+            remoteConfig.setPort(8080);
+        } else {
+            remoteConfig.setHost("");
+        }
+        acpProperties.setRemote(remoteConfig);
+        return new RuntimeSelector(acpProperties);
     }
 
     private CliProviderConfig createProvider(
@@ -62,14 +60,14 @@ class RuntimeSelectorTest {
         void returnsAllCompatibleRuntimes() {
             registerProvider(
                     "qodercli",
-                    createProvider("Qoder CLI", List.of(SandboxType.LOCAL, SandboxType.K8S)));
+                    createProvider("Qoder CLI", List.of(SandboxType.LOCAL, SandboxType.REMOTE)));
             RuntimeSelector selector = createSelector(true);
 
             List<RuntimeOption> options = selector.getAvailableRuntimes("qodercli");
 
             assertEquals(2, options.size());
             assertEquals(SandboxType.LOCAL, options.get(0).type());
-            assertEquals(SandboxType.K8S, options.get(1).type());
+            assertEquals(SandboxType.REMOTE, options.get(1).type());
         }
 
         @Test
@@ -110,22 +108,21 @@ class RuntimeSelectorTest {
         }
 
         @Test
-        void k8sMarkedUnavailableWhenK8sNotConfigured() {
+        void remoteMarkedUnavailableWhenNotConfigured() {
             registerProvider(
                     "qodercli",
-                    createProvider("Qoder CLI", List.of(SandboxType.LOCAL, SandboxType.K8S)));
+                    createProvider("Qoder CLI", List.of(SandboxType.LOCAL, SandboxType.REMOTE)));
             RuntimeSelector selector = createSelector(false);
 
             List<RuntimeOption> options = selector.getAvailableRuntimes("qodercli");
 
-            RuntimeOption k8sOption =
+            RuntimeOption remoteOption =
                     options.stream()
-                            .filter(o -> o.type() == SandboxType.K8S)
+                            .filter(o -> o.type() == SandboxType.REMOTE)
                             .findFirst()
                             .orElseThrow();
-            assertFalse(k8sOption.available());
-            assertNotNull(k8sOption.unavailableReason());
-            assertTrue(k8sOption.unavailableReason().contains("K8s"));
+            assertFalse(remoteOption.available());
+            assertNotNull(remoteOption.unavailableReason());
         }
 
         @Test
@@ -151,7 +148,7 @@ class RuntimeSelectorTest {
             acpProperties.setDefaultRuntime("local");
             registerProvider(
                     "qodercli",
-                    createProvider("Qoder CLI", List.of(SandboxType.LOCAL, SandboxType.K8S)));
+                    createProvider("Qoder CLI", List.of(SandboxType.LOCAL, SandboxType.REMOTE)));
             RuntimeSelector selector = createSelector(true);
 
             SandboxType selected = selector.selectDefault("qodercli");
@@ -161,25 +158,25 @@ class RuntimeSelectorTest {
 
         @Test
         void autoSelectsWhenOnlyOneAvailable() {
-            registerProvider("qodercli", createProvider("Qoder CLI", List.of(SandboxType.K8S)));
+            registerProvider("qodercli", createProvider("Qoder CLI", List.of(SandboxType.REMOTE)));
             RuntimeSelector selector = createSelector(true);
 
             SandboxType selected = selector.selectDefault("qodercli");
 
-            assertEquals(SandboxType.K8S, selected);
+            assertEquals(SandboxType.REMOTE, selected);
         }
 
         @Test
         void autoSelectsOnlyAvailableRuntime() {
             registerProvider(
                     "qodercli",
-                    createProvider("Qoder CLI", List.of(SandboxType.LOCAL, SandboxType.K8S)));
-            acpProperties.setDefaultRuntime("k8s");
+                    createProvider("Qoder CLI", List.of(SandboxType.LOCAL, SandboxType.REMOTE)));
+            acpProperties.setDefaultRuntime("remote");
             RuntimeSelector selector = createSelector(false);
 
             SandboxType selected = selector.selectDefault("qodercli");
 
-            // K8S 不可用，只剩 LOCAL
+            // REMOTE 不可用，只剩 LOCAL
             assertEquals(SandboxType.LOCAL, selected);
         }
 
@@ -204,17 +201,18 @@ class RuntimeSelectorTest {
 
         @Test
         void throwsWhenNoAvailableRuntimes() {
-            registerProvider("k8s-only", createProvider("K8s Only", List.of(SandboxType.K8S)));
+            registerProvider(
+                    "remote-only", createProvider("Remote Only", List.of(SandboxType.REMOTE)));
             RuntimeSelector selector = createSelector(false);
 
-            assertThrows(IllegalStateException.class, () -> selector.selectDefault("k8s-only"));
+            assertThrows(IllegalStateException.class, () -> selector.selectDefault("remote-only"));
         }
 
         @Test
         void handlesInvalidDefaultRuntimeGracefully() {
             acpProperties.setDefaultRuntime("invalid_type");
             registerProvider(
-                    "test", createProvider("Test", List.of(SandboxType.LOCAL, SandboxType.K8S)));
+                    "test", createProvider("Test", List.of(SandboxType.LOCAL, SandboxType.REMOTE)));
             RuntimeSelector selector = createSelector(true);
 
             SandboxType selected = selector.selectDefault("test");
@@ -226,7 +224,7 @@ class RuntimeSelectorTest {
         void handlesBlankDefaultRuntime() {
             acpProperties.setDefaultRuntime("  ");
             registerProvider(
-                    "test", createProvider("Test", List.of(SandboxType.LOCAL, SandboxType.K8S)));
+                    "test", createProvider("Test", List.of(SandboxType.LOCAL, SandboxType.REMOTE)));
             RuntimeSelector selector = createSelector(true);
 
             SandboxType selected = selector.selectDefault("test");
@@ -247,15 +245,15 @@ class RuntimeSelectorTest {
         }
 
         @Test
-        void k8sAvailableWhenK8sConfigured() {
+        void remoteAvailableWhenConfigured() {
             RuntimeSelector selector = createSelector(true);
-            assertTrue(selector.isSandboxAvailable(SandboxType.K8S));
+            assertTrue(selector.isSandboxAvailable(SandboxType.REMOTE));
         }
 
         @Test
-        void k8sUnavailableWhenK8sNotConfigured() {
+        void remoteUnavailableWhenNotConfigured() {
             RuntimeSelector selector = createSelector(false);
-            assertFalse(selector.isSandboxAvailable(SandboxType.K8S));
+            assertFalse(selector.isSandboxAvailable(SandboxType.REMOTE));
         }
     }
 
@@ -281,7 +279,7 @@ class RuntimeSelectorTest {
         void incompatibleOptionMarkedUnavailable() {
             RuntimeSelector selector = createSelector(true);
 
-            RuntimeOption option = selector.toRuntimeOption(SandboxType.K8S, false);
+            RuntimeOption option = selector.toRuntimeOption(SandboxType.REMOTE, false);
 
             assertFalse(option.available());
             assertNotNull(option.unavailableReason());
@@ -292,11 +290,10 @@ class RuntimeSelectorTest {
         void compatibleButEnvironmentUnavailable() {
             RuntimeSelector selector = createSelector(false);
 
-            RuntimeOption option = selector.toRuntimeOption(SandboxType.K8S, true);
+            RuntimeOption option = selector.toRuntimeOption(SandboxType.REMOTE, true);
 
             assertFalse(option.available());
             assertNotNull(option.unavailableReason());
-            assertTrue(option.unavailableReason().contains("K8s"));
         }
 
         @Test
@@ -304,9 +301,9 @@ class RuntimeSelectorTest {
             RuntimeSelector selector = createSelector(true);
 
             RuntimeOption local = selector.toRuntimeOption(SandboxType.LOCAL, true);
-            RuntimeOption k8s = selector.toRuntimeOption(SandboxType.K8S, true);
+            RuntimeOption remote = selector.toRuntimeOption(SandboxType.REMOTE, true);
 
-            assertNotEquals(local.label(), k8s.label());
+            assertNotEquals(local.label(), remote.label());
         }
     }
 }

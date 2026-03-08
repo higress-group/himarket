@@ -11,8 +11,6 @@ public record SandboxConfig(
         SandboxType type,
         String workspacePath,
         Map<String, String> env,
-        // K8s 特有配置
-        String k8sConfigId,
         Map<String, String> resources,
         // E2B 特有配置（未来）
         String e2bTemplate,

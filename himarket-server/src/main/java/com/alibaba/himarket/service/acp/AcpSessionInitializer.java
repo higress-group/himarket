@@ -91,7 +91,6 @@ public class AcpSessionInitializer {
                             sandboxType,
                             runtimeConfig.getCwd(),
                             runtimeConfig.getEnv() != null ? runtimeConfig.getEnv() : Map.of(),
-                            runtimeConfig.getK8sConfigId(),
                             Map.of(),
                             null,
                             0);
@@ -115,8 +114,7 @@ public class AcpSessionInitializer {
                                     new SandboxAcquirePhase(),
                                     new FileSystemReadyPhase(),
                                     new ConfigInjectionPhase(configFileBuilder),
-                                    new SidecarConnectPhase(),
-                                    new CliReadyPhase()),
+                                    new SidecarConnectPhase()),
                             InitConfig.defaults());
 
             // 7. 执行 Pipeline
@@ -216,10 +214,7 @@ public class AcpSessionInitializer {
         if (phaseName == null) {
             return false;
         }
-        return switch (phaseName) {
-            case "filesystem-ready", "config-injection", "sidecar-connect" -> true;
-            case "sandbox-acquire", "cli-ready" -> false;
-            default -> false;
-        };
+        // 所有阶段失败都不自动重试，由用户手动决定
+        return false;
     }
 }

@@ -22,7 +22,7 @@ class RuntimeFaultNotificationPropertyTest {
     /** 生成随机 SandboxType 值（LOCAL、K8S） */
     @Provide
     Arbitrary<SandboxType> runtimeTypes() {
-        return Arbitraries.of(SandboxType.LOCAL, SandboxType.K8S);
+        return Arbitraries.of(SandboxType.LOCAL, SandboxType.REMOTE);
     }
 
     /** 生成随机故障类型，包含预定义常量和随机自定义类型 */

@@ -21,7 +21,7 @@ import org.springframework.stereotype.Component;
  * <p>在本地 Mac 上启动 Sidecar Server（Node.js 进程）， 通过 WebSocket 桥接 CLI，通过 HTTP API 操作文件系统，
  * 使本地开发流程与 K8s 沙箱完全一致。
  *
- * <p>HTTP 调用委托给 {@link SandboxHttpClient}，消除与 K8sSandboxProvider 的代码重复。
+ * <p>HTTP 调用委托给 {@link SandboxHttpClient}，消除与 RemoteSandboxProvider 的代码重复。
  *
  * <p>关键设计决策：
  * <ul>

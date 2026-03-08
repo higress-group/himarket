@@ -171,7 +171,7 @@ class SandboxInfoPropertyTest {
             @ForAll("sidecarPorts") int port) {
         SandboxInfo info =
                 new SandboxInfo(
-                        SandboxType.K8S, "pod-abc", host, port, "/workspace", false, Map.of());
+                        SandboxType.REMOTE, "pod-abc", host, port, "/workspace", false, Map.of());
 
         URI uri = info.sidecarWsUri(command, null);
 
@@ -225,9 +225,9 @@ class SandboxInfoPropertyTest {
         Map<String, String> metadata = Map.of("podName", podName, "namespace", namespace);
         SandboxInfo info =
                 new SandboxInfo(
-                        SandboxType.K8S, podName, host, port, "/workspace", false, metadata);
+                        SandboxType.REMOTE, podName, host, port, "/workspace", false, metadata);
 
-        assertEquals(SandboxType.K8S, info.type());
+        assertEquals(SandboxType.REMOTE, info.type());
         assertNotNull(info.metadata(), "K8S 类型 metadata 不应为 null");
         assertTrue(info.metadata().containsKey("podName"), "K8S metadata 应包含 podName");
         assertTrue(info.metadata().containsKey("namespace"), "K8S metadata 应包含 namespace");
@@ -250,7 +250,7 @@ class SandboxInfoPropertyTest {
             @ForAll("sidecarPorts") int port) {
         SandboxInfo info =
                 new SandboxInfo(
-                        SandboxType.K8S, "pod-test", host, port, "/workspace", false, Map.of());
+                        SandboxType.REMOTE, "pod-test", host, port, "/workspace", false, Map.of());
 
         URI uri = info.sidecarWsUri(command, args);
 

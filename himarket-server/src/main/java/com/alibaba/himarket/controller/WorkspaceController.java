@@ -126,8 +126,18 @@ public class WorkspaceController {
 
         if ("k8s".equalsIgnoreCase(runtime)) {
             try {
-                String content = k8sWorkspaceService.readFile(userId, path);
-                return ResponseEntity.ok(Map.of("content", content, "encoding", "utf-8"));
+                String ext = getExtension(Paths.get(path).getFileName().toString());
+                boolean isBinary =
+                        IMAGE_EXTENSIONS.contains(ext)
+                                || BINARY_EXTENSIONS.contains(ext)
+                                || CONVERTIBLE_EXTENSIONS.contains(ext);
+                String encoding = isBinary ? "base64" : "utf-8";
+                Map<String, Object> result =
+                        k8sWorkspaceService.readFileWithEncoding(userId, path, encoding);
+                return ResponseEntity.ok(
+                        Map.of(
+                                "content", result.get("content"),
+                                "encoding", result.get("encoding")));
             } catch (IOException e) {
                 log.error(
                         "Failed to read file from K8s sandbox: user={}, path={}", userId, path, e);

@@ -19,12 +19,19 @@ public class AcpProperties {
     /**
      * 默认使用的 CLI provider key（对应 providers map 中的 key）
      */
-    private String defaultProvider = "qodercli";
+    private String defaultProvider = "qwen-code";
 
+    /**
+     * 本地模式（LOCAL）的工作空间根目录。
+     * 每个用户的 cwd = {workspaceRoot}/{userId}。
+     *
+     * <p>仅 LOCAL 模式使用。REMOTE 模式下 cwd 固定为 sandbox 容器内的
+     * /workspace/{userId}，与此配置无关。
+     */
     private String workspaceRoot = "./workspaces";
 
     /**
-     * 默认运行时类型（local | k8s）。
+     * 默认运行时类型。
      * 当用户未主动选择运行时方案时使用此默认值。
      */
     private String defaultRuntime = "local";
@@ -36,9 +43,10 @@ public class AcpProperties {
     private Map<String, CliProviderConfig> providers = new LinkedHashMap<>();
 
     /**
-     * K8s 运行时相关配置。
+     * 远程沙箱运行时配置。
+     * 支持 K8s Service、Docker 容器、裸机部署等任意可达的 Sidecar 服务。
      */
-    private K8sConfig k8s = new K8sConfig();
+    private RemoteConfig remote = new RemoteConfig();
 
     public boolean isLocalEnabled() {
         return localEnabled;
@@ -80,12 +88,12 @@ public class AcpProperties {
         this.providers = providers;
     }
 
-    public K8sConfig getK8s() {
-        return k8s;
+    public RemoteConfig getRemote() {
+        return remote;
     }
 
-    public void setK8s(K8sConfig k8s) {
-        this.k8s = k8s;
+    public void setRemote(RemoteConfig remote) {
+        this.remote = remote;
     }
 
     /**
@@ -111,57 +119,11 @@ public class AcpProperties {
         private String command;
         private String args = "--acp";
         private Map<String, String> env = new LinkedHashMap<>();
-
-        /**
-         * 是否将 HOME 环境变量设为用户工作目录，实现凭证隔离。
-         * 开启后 CLI 工具的凭证文件会存储在 ~/.himarket/workspaces/{userId}/ 下。
-         */
-        private boolean isolateHome = false;
-
-        /**
-         * 该 CLI 工具兼容的运行时列表。
-         * 用于运行时选择器过滤不兼容的运行时方案。
-         */
         private List<SandboxType> compatibleRuntimes;
-
-        /**
-         * K8s 运行时使用的容器镜像地址。
-         */
-        private String containerImage;
-
-        /**
-         * 运行时分类：native（原生二进制）、nodejs（Node.js 生态）、python。
-         */
-        private String runtimeCategory;
-
-        /**
-         * 该 CLI 工具是否支持自定义模型配置。
-         * 开启后前端会展示自定义模型配置表单，允许用户配置自定义 LLM 接入点。
-         */
         private boolean supportsCustomModel = false;
-
-        /**
-         * 该 CLI 工具是否支持 MCP Server 配置注入。
-         * 开启后前端会展示 MCP Server 选择器，允许用户选择市场中已订阅的 MCP Server。
-         */
         private boolean supportsMcp = false;
-
-        /**
-         * 该 CLI 工具是否支持 Skill 配置注入。
-         * 开启后前端会展示 Skill 选择器，允许用户选择市场中已发布的 Skill。
-         */
         private boolean supportsSkill = false;
-
-        /**
-         * 该 CLI 工具支持的认证方案列表（可选）。
-         * 如 ["default", "personal_access_token"]，前端根据此列表渲染认证方案选择 UI。
-         */
         private List<String> authOptions;
-
-        /**
-         * 该 CLI 工具的 Token/API Key 对应的环境变量名（可选）。
-         * 如 QoderCli 对应 QODER_PERSONAL_ACCESS_TOKEN，Claude Code 对应 ANTHROPIC_API_KEY。
-         */
         private String authEnvVar;
 
         public String getDisplayName() {
@@ -196,36 +158,12 @@ public class AcpProperties {
             this.env = env;
         }
 
-        public boolean isIsolateHome() {
-            return isolateHome;
-        }
-
-        public void setIsolateHome(boolean isolateHome) {
-            this.isolateHome = isolateHome;
-        }
-
         public List<SandboxType> getCompatibleRuntimes() {
             return compatibleRuntimes;
         }
 
         public void setCompatibleRuntimes(List<SandboxType> compatibleRuntimes) {
             this.compatibleRuntimes = compatibleRuntimes;
-        }
-
-        public String getContainerImage() {
-            return containerImage;
-        }
-
-        public void setContainerImage(String containerImage) {
-            this.containerImage = containerImage;
-        }
-
-        public String getRuntimeCategory() {
-            return runtimeCategory;
-        }
-
-        public void setRuntimeCategory(String runtimeCategory) {
-            this.runtimeCategory = runtimeCategory;
         }
 
         public boolean isSupportsCustomModel() {
@@ -270,69 +208,48 @@ public class AcpProperties {
     }
 
     /**
-     * K8s 运行时相关配置项。
+     * 远程沙箱运行时配置。
+     * 不依赖 K8s API，只需 Sidecar 服务地址可达即可。
      */
-    public static class K8sConfig {
+    public static class RemoteConfig {
 
         /**
-         * K8s 命名空间，所有沙箱 Pod、Service、PVC 均创建在此命名空间下。
-         * 默认 "himarket"。
+         * Sidecar 服务地址。
+         * 可以是：
+         * - K8s Service DNS: sandbox-shared.default.svc.cluster.local
+         * - Docker 容器名: sandbox
+         * - IP 地址: 192.168.1.100
+         * - localhost（本地 Docker 部署）
+         * 留空表示未配置远程沙箱。
          */
-        private String namespace = "default";
+        private String host = "";
 
         /**
-         * 用户级沙箱 Pod 空闲超时秒数。
-         * 当 Pod 上所有连接断开后，经过此时间仍无新连接则自动删除 Pod。
-         * 默认 1800 秒（30 分钟）。
+         * Sidecar 服务端口，默认 8080。
          */
-        private long reusePodIdleTimeout = 1800;
+        private int port = 8080;
+
+        public String getHost() {
+            return host;
+        }
+
+        public void setHost(String host) {
+            this.host = host;
+        }
+
+        public int getPort() {
+            return port;
+        }
+
+        public void setPort(int port) {
+            this.port = port;
+        }
 
         /**
-         * 是否通过 LoadBalancer Service IP 访问沙箱 Pod。
-         * 开启后创建 Pod 时会同时创建 LoadBalancer 类型的 Service，
-         * 并通过 Service 的 External IP 构建 WebSocket URI。
-         * 适用于本地开发调试场景（Pod IP 在本地不可达）。
-         * 生产环境可关闭此选项，直接使用 Pod IP。
-         * 默认 true（通过 Service 访问）。
+         * 判断远程沙箱是否已配置（host 非空）。
          */
-        private boolean sandboxAccessViaService = true;
-
-        /**
-         * Sidecar Server 允许启动的 CLI 命令白名单，逗号分隔。
-         * 传递给 Pod 的 ALLOWED_COMMANDS 环境变量。
-         */
-        private String allowedCommands = "qodercli,qwen,npx,opencode";
-
-        public String getNamespace() {
-            return namespace;
-        }
-
-        public void setNamespace(String namespace) {
-            this.namespace = namespace;
-        }
-
-        public long getReusePodIdleTimeout() {
-            return reusePodIdleTimeout;
-        }
-
-        public void setReusePodIdleTimeout(long reusePodIdleTimeout) {
-            this.reusePodIdleTimeout = reusePodIdleTimeout;
-        }
-
-        public boolean isSandboxAccessViaService() {
-            return sandboxAccessViaService;
-        }
-
-        public void setSandboxAccessViaService(boolean sandboxAccessViaService) {
-            this.sandboxAccessViaService = sandboxAccessViaService;
-        }
-
-        public String getAllowedCommands() {
-            return allowedCommands;
-        }
-
-        public void setAllowedCommands(String allowedCommands) {
-            this.allowedCommands = allowedCommands;
+        public boolean isConfigured() {
+            return host != null && !host.isBlank();
         }
     }
 }

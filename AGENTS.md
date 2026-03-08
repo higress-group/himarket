@@ -45,27 +45,12 @@ mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USERNAME" -p"$DB_PASSWORD" "$DB_NAME" 
 - 用户要求端到端验证
 - 完成 spec 任务的代码开发后，进行端到端功能验证
 
-#### 判断是否需要重启
-
-修改 Java 源文件、Spring 配置（`application.yml`）、`pom.xml`、Flyway 迁移文件后需要重启。修改前端、文档、脚本等不需要。
-
 #### 验证流程
 
 1. `./scripts/run.sh` 重启，确认退出码为 0
 2. 用 curl 调用相关接口，检查返回结果
 3. 如果涉及数据变更，用 mysql CLI 查询确认
 4. 验证失败时读取 `~/himarket.log` 排查，修复后重试
-
-#### Spec 任务的端到端验证（建议）
-
-在 spec 任务的代码实现完成后，请评估该任务是否适合通过 curl、websocat、mysql CLI 等工具进行端到端验证。如果判断可以验证（例如涉及 REST 接口、WebSocket 接口、数据持久化等），应在完成代码后主动执行验证闭环：
-
-1. `./scripts/run.sh` 重启后端，确认退出码为 0
-2. 用 curl / websocat 验证相关接口的实际行为（覆盖正常和异常路径）
-3. 如涉及数据变更，用 mysql CLI 查询确认
-4. 验证失败时读取 `~/himarket.log` 排查，修复后重试
-
-如果任务不涉及可直接调用的接口（如纯重构、配置变更、前端改动等），可跳过端到端验证。
 
 ### API 接口测试
 

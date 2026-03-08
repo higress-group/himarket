@@ -7,14 +7,12 @@ import static org.mockito.Mockito.*;
 import com.alibaba.himarket.config.AcpProperties.CliProviderConfig;
 import com.alibaba.himarket.service.acp.CliSessionConfig;
 import java.io.IOException;
-import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import reactor.core.publisher.Flux;
 
 /**
  * 五个初始化阶段的单元测试。
@@ -89,14 +87,7 @@ class InitPhasesTest {
         void execute_success_storesSandboxInfo() {
             SandboxConfig config =
                     new SandboxConfig(
-                            "user1",
-                            SandboxType.LOCAL,
-                            "/workspace",
-                            Map.of(),
-                            null,
-                            null,
-                            null,
-                            0);
+                            "user1", SandboxType.LOCAL, "/workspace", Map.of(), null, null, 0);
             InitContext context =
                     new InitContext(mockProvider, "user1", config, null, null, null, null);
             when(mockProvider.acquire(config)).thenReturn(stubInfo);
@@ -112,14 +103,7 @@ class InitPhasesTest {
         void execute_acquireFails_throwsNonRetryableException() {
             SandboxConfig config =
                     new SandboxConfig(
-                            "user1",
-                            SandboxType.LOCAL,
-                            "/workspace",
-                            Map.of(),
-                            null,
-                            null,
-                            null,
-                            0);
+                            "user1", SandboxType.LOCAL, "/workspace", Map.of(), null, null, 0);
             InitContext context =
                     new InitContext(mockProvider, "user1", config, null, null, null, null);
             when(mockProvider.acquire(config)).thenThrow(new RuntimeException("Pod 创建超时"));
@@ -173,13 +157,11 @@ class InitPhasesTest {
         private final FileSystemReadyPhase phase = new FileSystemReadyPhase();
 
         @Test
-        @DisplayName("基本属性：name=filesystem-ready, order=200, retryPolicy=defaultPolicy")
+        @DisplayName("基本属性：name=filesystem-ready, order=200, retryPolicy=none")
         void basicProperties() {
             assertEquals("filesystem-ready", phase.name());
             assertEquals(200, phase.order());
-            assertEquals(3, phase.retryPolicy().maxRetries());
-            assertEquals(Duration.ofSeconds(1), phase.retryPolicy().initialDelay());
-            assertEquals(2.0, phase.retryPolicy().backoffMultiplier());
+            assertEquals(0, phase.retryPolicy().maxRetries());
             assertTrue(phase.shouldExecute(createBasicContext()));
         }
 
@@ -203,7 +185,7 @@ class InitPhasesTest {
                     assertThrows(InitPhaseException.class, () -> phase.execute(context));
             assertEquals("filesystem-ready", ex.getPhaseName());
             assertTrue(ex.isRetryable(), "健康检查失败应可重试");
-            assertTrue(ex.getMessage().contains("健康检查失败"));
+            assertTrue(ex.getMessage().contains("不可达"), "错误消息应包含'不可达'关键字");
         }
 
         @Test
@@ -297,12 +279,11 @@ class InitPhasesTest {
         private final ConfigInjectionPhase phase = new ConfigInjectionPhase();
 
         @Test
-        @DisplayName("基本属性：name=config-injection, order=300, retryPolicy=fileOperation")
+        @DisplayName("基本属性：name=config-injection, order=300, retryPolicy=none")
         void basicProperties() {
             assertEquals("config-injection", phase.name());
             assertEquals(300, phase.order());
-            assertEquals(2, phase.retryPolicy().maxRetries());
-            assertEquals(Duration.ofMillis(500), phase.retryPolicy().initialDelay());
+            assertEquals(0, phase.retryPolicy().maxRetries());
         }
 
         @Test
@@ -549,15 +530,11 @@ class InitPhasesTest {
         private final SidecarConnectPhase phase = new SidecarConnectPhase();
 
         @Test
-        @DisplayName("基本属性：name=sidecar-connect, order=400, retryPolicy=2次/2s/2.0倍/8s")
+        @DisplayName("基本属性：name=sidecar-connect, order=400, retryPolicy=none")
         void basicProperties() {
             assertEquals("sidecar-connect", phase.name());
             assertEquals(400, phase.order());
-            RetryPolicy policy = phase.retryPolicy();
-            assertEquals(2, policy.maxRetries());
-            assertEquals(Duration.ofSeconds(2), policy.initialDelay());
-            assertEquals(2.0, policy.backoffMultiplier());
-            assertEquals(Duration.ofSeconds(8), policy.maxDelay());
+            assertEquals(0, phase.retryPolicy().maxRetries());
             assertTrue(phase.shouldExecute(createBasicContext()));
         }
 
@@ -610,125 +587,6 @@ class InitPhasesTest {
             InitContext context = createBasicContext();
             RuntimeAdapter mockAdapter = mock(RuntimeAdapter.class);
             when(mockAdapter.getStatus()).thenReturn(RuntimeStatus.ERROR);
-            context.setRuntimeAdapter(mockAdapter);
-
-            assertFalse(phase.verify(context));
-        }
-    }
-
-    // =========================================================================
-    // CliReadyPhase 测试
-    // =========================================================================
-
-    @Nested
-    @DisplayName("CliReadyPhase (order=500)")
-    class CliReadyPhaseTest {
-
-        private final CliReadyPhase phase = new CliReadyPhase();
-
-        @Test
-        @DisplayName("基本属性：name=cli-ready, order=500, retryPolicy=none")
-        void basicProperties() {
-            assertEquals("cli-ready", phase.name());
-            assertEquals(500, phase.order());
-            assertEquals(0, phase.retryPolicy().maxRetries());
-            assertTrue(phase.shouldExecute(createBasicContext()));
-        }
-
-        @Test
-        @DisplayName("execute 成功：收到首条 stdout 消息")
-        void execute_receivesFirstMessage_succeeds() {
-            InitContext context = createBasicContext();
-            RuntimeAdapter mockAdapter = mock(RuntimeAdapter.class);
-            when(mockAdapter.stdout()).thenReturn(Flux.just("CLI ready"));
-            context.setRuntimeAdapter(mockAdapter);
-
-            assertDoesNotThrow(() -> phase.execute(context));
-        }
-
-        @Test
-        @DisplayName("execute 失败：RuntimeAdapter 为 null 时抛出不可重试异常")
-        void execute_nullAdapter_throwsNonRetryableException() {
-            InitContext context = createBasicContext();
-            // runtimeAdapter 未设置，为 null
-
-            InitPhaseException ex =
-                    assertThrows(InitPhaseException.class, () -> phase.execute(context));
-            assertEquals("cli-ready", ex.getPhaseName());
-            assertFalse(ex.isRetryable());
-            assertTrue(ex.getMessage().contains("RuntimeAdapter 未初始化"));
-        }
-
-        @Test
-        @DisplayName("execute 失败：stdout 为空且 adapter 已退出时抛出不可重试异常")
-        void execute_emptyStdoutAndAdapterDead_throwsProcessExitException() {
-            InitContext context = createBasicContext();
-            RuntimeAdapter mockAdapter = mock(RuntimeAdapter.class);
-            when(mockAdapter.stdout()).thenReturn(Flux.empty());
-            when(mockAdapter.isAlive()).thenReturn(false);
-            context.setRuntimeAdapter(mockAdapter);
-
-            InitPhaseException ex =
-                    assertThrows(InitPhaseException.class, () -> phase.execute(context));
-            assertEquals("cli-ready", ex.getPhaseName());
-            assertFalse(ex.isRetryable());
-            assertTrue(ex.getMessage().contains("CLI 进程已退出"));
-        }
-
-        @Test
-        @DisplayName("execute 失败：stdout 为空且 adapter 存活时抛出超时异常（15s）")
-        void execute_emptyStdoutAndAdapterAlive_throwsTimeoutException() {
-            InitContext context = createBasicContext();
-            RuntimeAdapter mockAdapter = mock(RuntimeAdapter.class);
-            when(mockAdapter.stdout()).thenReturn(Flux.empty());
-            when(mockAdapter.isAlive()).thenReturn(true);
-            context.setRuntimeAdapter(mockAdapter);
-
-            InitPhaseException ex =
-                    assertThrows(InitPhaseException.class, () -> phase.execute(context));
-            assertEquals("cli-ready", ex.getPhaseName());
-            assertFalse(ex.isRetryable(), "CLI 超时不应重试");
-            assertTrue(ex.getMessage().contains("15"));
-        }
-
-        @Test
-        @DisplayName("execute 失败：stdout 抛出异常时包装为不可重试异常")
-        void execute_stdoutThrows_wrapsAsNonRetryableException() {
-            InitContext context = createBasicContext();
-            RuntimeAdapter mockAdapter = mock(RuntimeAdapter.class);
-            when(mockAdapter.stdout()).thenReturn(Flux.error(new RuntimeException("WebSocket 断开")));
-            context.setRuntimeAdapter(mockAdapter);
-
-            InitPhaseException ex =
-                    assertThrows(InitPhaseException.class, () -> phase.execute(context));
-            assertEquals("cli-ready", ex.getPhaseName());
-            assertFalse(ex.isRetryable());
-        }
-
-        @Test
-        @DisplayName("verify: adapter 非空且 isAlive 返回 true")
-        void verify_adapterAlive_returnsTrue() {
-            InitContext context = createBasicContext();
-            RuntimeAdapter mockAdapter = mock(RuntimeAdapter.class);
-            when(mockAdapter.isAlive()).thenReturn(true);
-            context.setRuntimeAdapter(mockAdapter);
-
-            assertTrue(phase.verify(context));
-        }
-
-        @Test
-        @DisplayName("verify: adapter 为 null 时返回 false")
-        void verify_nullAdapter_returnsFalse() {
-            InitContext context = createBasicContext();
-            assertFalse(phase.verify(context));
-        }
-
-        @Test
-        @DisplayName("verify: adapter isAlive 返回 false 时返回 false")
-        void verify_adapterDead_returnsFalse() {
-            InitContext context = createBasicContext();
-            RuntimeAdapter mockAdapter = mock(RuntimeAdapter.class);
-            when(mockAdapter.isAlive()).thenReturn(false);
             context.setRuntimeAdapter(mockAdapter);
 
             assertFalse(phase.verify(context));

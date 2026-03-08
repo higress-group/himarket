@@ -165,7 +165,7 @@ export function QuestInput({
     setFilesLoading(true);
     try {
       const tree = await fetchDirectoryTree(activeQuest.cwd, 10);
-      const flattened = flattenFileTree(tree, activeQuest.cwd);
+      const flattened = flattenFileTree(tree ?? [], activeQuest.cwd);
       setFlatFiles(flattened);
     } catch {
       setFlatFiles([]);

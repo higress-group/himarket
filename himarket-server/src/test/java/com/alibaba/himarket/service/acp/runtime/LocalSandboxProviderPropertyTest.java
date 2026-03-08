@@ -270,8 +270,7 @@ class LocalSandboxProviderPropertyTest {
         InMemoryLocalSandboxProvider provider = new InMemoryLocalSandboxProvider(10000);
 
         SandboxConfig config =
-                new SandboxConfig(
-                        userId, SandboxType.LOCAL, workspace, Map.of(), null, null, null, 0);
+                new SandboxConfig(userId, SandboxType.LOCAL, workspace, Map.of(), null, null, 0);
 
         SandboxInfo info = provider.acquire(config);
 
@@ -306,8 +305,7 @@ class LocalSandboxProviderPropertyTest {
         InMemoryLocalSandboxProvider provider = new InMemoryLocalSandboxProvider(10000);
 
         SandboxConfig config =
-                new SandboxConfig(
-                        userId, SandboxType.LOCAL, workspace, Map.of(), null, null, null, 0);
+                new SandboxConfig(userId, SandboxType.LOCAL, workspace, Map.of(), null, null, 0);
 
         SandboxInfo first = provider.acquire(config);
         assertFalse(first.reused(), "首次 acquire 应返回 reused=false");
@@ -334,10 +332,10 @@ class LocalSandboxProviderPropertyTest {
 
         SandboxConfig config1 =
                 new SandboxConfig(
-                        userId1, SandboxType.LOCAL, "/workspace", Map.of(), null, null, null, 0);
+                        userId1, SandboxType.LOCAL, "/workspace", Map.of(), null, null, 0);
         SandboxConfig config2 =
                 new SandboxConfig(
-                        userId2, SandboxType.LOCAL, "/workspace", Map.of(), null, null, null, 0);
+                        userId2, SandboxType.LOCAL, "/workspace", Map.of(), null, null, 0);
 
         SandboxInfo info1 = provider.acquire(config1);
         SandboxInfo info2 = provider.acquire(config2);
@@ -359,8 +357,7 @@ class LocalSandboxProviderPropertyTest {
         InMemoryLocalSandboxProvider provider = new InMemoryLocalSandboxProvider(10000);
 
         SandboxConfig config =
-                new SandboxConfig(
-                        userId, SandboxType.LOCAL, workspace, Map.of(), null, null, null, 0);
+                new SandboxConfig(userId, SandboxType.LOCAL, workspace, Map.of(), null, null, 0);
 
         SandboxInfo info = provider.acquire(config);
         assertTrue(provider.healthCheck(info), "acquire 后 healthCheck 应为 true");
@@ -384,8 +381,7 @@ class LocalSandboxProviderPropertyTest {
         InMemoryLocalSandboxProvider provider = new InMemoryLocalSandboxProvider(10000);
 
         SandboxConfig config =
-                new SandboxConfig(
-                        userId, SandboxType.LOCAL, workspace, Map.of(), null, null, null, 0);
+                new SandboxConfig(userId, SandboxType.LOCAL, workspace, Map.of(), null, null, 0);
 
         SandboxInfo first = provider.acquire(config);
         int firstPort = first.sidecarPort();
@@ -417,8 +413,7 @@ class LocalSandboxProviderPropertyTest {
         InMemoryLocalSandboxProvider provider = new InMemoryLocalSandboxProvider(20000);
 
         SandboxConfig config =
-                new SandboxConfig(
-                        userId, SandboxType.LOCAL, workspace, Map.of(), null, null, null, 0);
+                new SandboxConfig(userId, SandboxType.LOCAL, workspace, Map.of(), null, null, 0);
 
         SandboxInfo info = provider.acquire(config);
 
@@ -441,8 +436,7 @@ class LocalSandboxProviderPropertyTest {
         InMemoryLocalSandboxProvider provider = new InMemoryLocalSandboxProvider(20000);
 
         SandboxConfig config =
-                new SandboxConfig(
-                        userId, SandboxType.LOCAL, "/workspace", Map.of(), null, null, null, 0);
+                new SandboxConfig(userId, SandboxType.LOCAL, "/workspace", Map.of(), null, null, 0);
 
         SandboxInfo info = provider.acquire(config);
 
@@ -468,8 +462,7 @@ class LocalSandboxProviderPropertyTest {
         InMemoryLocalSandboxProvider provider = new InMemoryLocalSandboxProvider(20000);
 
         SandboxConfig config =
-                new SandboxConfig(
-                        userId, SandboxType.LOCAL, "/workspace", Map.of(), null, null, null, 0);
+                new SandboxConfig(userId, SandboxType.LOCAL, "/workspace", Map.of(), null, null, 0);
 
         SandboxInfo info = provider.acquire(config);
 
@@ -498,8 +491,7 @@ class LocalSandboxProviderPropertyTest {
 
         // Step 1: acquire
         SandboxConfig config =
-                new SandboxConfig(
-                        userId, SandboxType.LOCAL, workspace, Map.of(), null, null, null, 0);
+                new SandboxConfig(userId, SandboxType.LOCAL, workspace, Map.of(), null, null, 0);
         SandboxInfo info = provider.acquire(config);
         assertNotNull(info, "acquire 应返回非空 SandboxInfo");
         assertEquals(SandboxType.LOCAL, info.type());
@@ -546,10 +538,10 @@ class LocalSandboxProviderPropertyTest {
 
         SandboxConfig config1 =
                 new SandboxConfig(
-                        userId1, SandboxType.LOCAL, "/workspace", Map.of(), null, null, null, 0);
+                        userId1, SandboxType.LOCAL, "/workspace", Map.of(), null, null, 0);
         SandboxConfig config2 =
                 new SandboxConfig(
-                        userId2, SandboxType.LOCAL, "/workspace", Map.of(), null, null, null, 0);
+                        userId2, SandboxType.LOCAL, "/workspace", Map.of(), null, null, 0);
 
         SandboxInfo info1 = provider.acquire(config1);
         SandboxInfo info2 = provider.acquire(config2);

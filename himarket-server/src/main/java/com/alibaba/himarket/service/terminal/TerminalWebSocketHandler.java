@@ -1,15 +1,11 @@
 package com.alibaba.himarket.service.terminal;
 
 import com.alibaba.himarket.config.AcpProperties;
-import com.alibaba.himarket.service.acp.runtime.K8sConfigService;
-import com.alibaba.himarket.service.acp.runtime.PodEntry;
-import com.alibaba.himarket.service.acp.runtime.PodReuseManager;
-import com.alibaba.himarket.service.acp.terminal.K8sTerminalBackend;
 import com.alibaba.himarket.service.acp.terminal.LocalTerminalBackend;
+import com.alibaba.himarket.service.acp.terminal.RemoteTerminalBackend;
 import com.alibaba.himarket.service.acp.terminal.TerminalBackend;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.fabric8.kubernetes.client.KubernetesClient;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -27,15 +23,10 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 import reactor.core.Disposable;
 
 /**
- * WebSocket handler that provides an interactive shell terminal.
- * Each WebSocket connection spawns a terminal backend (local PTY or K8s Pod shell)
- * based on the runtime parameter in session attributes.
- *
- * Protocol:
- *   Client → Server: { "type": "input", "data": "..." }
- *   Client → Server: { "type": "resize", "cols": N, "rows": N }
- *   Server → Client: { "type": "output", "data": "..." }
- *   Server → Client: { "type": "exit", "code": N }
+ * Terminal WebSocket handler。
+ * 根据 runtime 参数选择终端后端：
+ * - local：本地 PTY（pty4j）
+ * - remote/k8s/shared-k8s：通过 WebSocket 连接 Sidecar 的 /terminal 端点（node-pty）
  */
 @Component
 public class TerminalWebSocketHandler extends TextWebSocketHandler {
@@ -44,20 +35,12 @@ public class TerminalWebSocketHandler extends TextWebSocketHandler {
 
     private final AcpProperties acpProperties;
     private final ObjectMapper objectMapper;
-    private final PodReuseManager podReuseManager;
-    private final K8sConfigService k8sConfigService;
     private final Map<String, TerminalBackend> backendMap = new ConcurrentHashMap<>();
     private final Map<String, Disposable> subscriptionMap = new ConcurrentHashMap<>();
 
-    public TerminalWebSocketHandler(
-            AcpProperties acpProperties,
-            ObjectMapper objectMapper,
-            PodReuseManager podReuseManager,
-            K8sConfigService k8sConfigService) {
+    public TerminalWebSocketHandler(AcpProperties acpProperties, ObjectMapper objectMapper) {
         this.acpProperties = acpProperties;
         this.objectMapper = objectMapper;
-        this.podReuseManager = podReuseManager;
-        this.k8sConfigService = k8sConfigService;
     }
 
     @Override
@@ -70,7 +53,11 @@ public class TerminalWebSocketHandler extends TextWebSocketHandler {
         }
 
         String runtimeParam = (String) session.getAttributes().get("runtime");
-        boolean isK8s = "k8s".equalsIgnoreCase(runtimeParam);
+        boolean isRemote =
+                "k8s".equalsIgnoreCase(runtimeParam)
+                        || "shared-k8s".equalsIgnoreCase(runtimeParam)
+                        || "shared_k8s".equalsIgnoreCase(runtimeParam)
+                        || "remote".equalsIgnoreCase(runtimeParam);
 
         logger.info(
                 "Terminal WebSocket connected: id={}, userId={}, runtime={}",
@@ -79,59 +66,26 @@ public class TerminalWebSocketHandler extends TextWebSocketHandler {
                 runtimeParam);
 
         TerminalBackend backend;
-        if (isK8s) {
-            // 获取默认 K8s client
-            KubernetesClient client = k8sConfigService.getDefaultClient();
+        if (isRemote && acpProperties.getRemote().isConfigured()) {
+            // 远程终端模式：通过 WebSocket 连接 Sidecar 的 /terminal 端点
+            String host = acpProperties.getRemote().getHost();
+            int port = acpProperties.getRemote().getPort();
+            String cwd = "/workspace/" + userId;
 
-            // K8s 模式：从 PodReuseManager 获取用户的健康 Pod 信息，exec 失败时重试一次
-            backend = null;
-            for (int attempt = 0; attempt < 2; attempt++) {
-                PodEntry podEntry = podReuseManager.getHealthyPodEntry(userId, client);
-                if (podEntry == null) {
-                    logger.warn("Pod not found for user {}, closing terminal connection", userId);
-                    String exitJson =
-                            objectMapper.writeValueAsString(Map.of("type", "exit", "code", -1));
-                    synchronized (session) {
-                        session.sendMessage(new TextMessage(exitJson));
-                    }
-                    session.close(CloseStatus.SERVER_ERROR);
-                    return;
-                }
+            logger.info("Creating RemoteTerminalBackend: host={}:{}, cwd={}", host, port, cwd);
+            backend = new RemoteTerminalBackend(host, port, cwd);
 
-                K8sTerminalBackend k8sBackend =
-                        new K8sTerminalBackend(
-                                client,
-                                podEntry.getPodName(),
-                                podReuseManager.getNamespace(),
-                                "sandbox");
-                logger.info(
-                        "Created K8sTerminalBackend for user {}, pod={} (attempt={})",
-                        userId,
-                        podEntry.getPodName(),
-                        attempt);
-
-                try {
-                    k8sBackend.start(80, 24);
-                    backend = k8sBackend;
-                    break; // 成功，跳出重试循环
-                } catch (Exception e) {
-                    logger.warn(
-                            "Terminal exec failed for user {}, pod={}, evicting cache and retrying",
-                            userId,
-                            podEntry.getPodName());
-                    k8sBackend.close();
-                    // 清除缓存中的旧 pod，下次 getHealthyPodEntry 会通过 K8s API 重新查找
-                    podReuseManager.evictPod(userId);
-                    if (attempt == 1) {
-                        // 第二次也失败了，放弃
-                        logger.error("Failed to start terminal for user {} after retry", userId, e);
-                        session.close(CloseStatus.SERVER_ERROR);
-                        return;
-                    }
-                }
+            try {
+                backend.start(80, 24);
+            } catch (Exception e) {
+                logger.warn(
+                        "Remote terminal not available, falling back to local: {}", e.getMessage());
+                String localCwd = buildWorkspacePath(userId);
+                backend = new LocalTerminalBackend(localCwd);
+                backend.start(80, 24);
             }
         } else {
-            // 本地模式：保持现有行为
+            // 本地模式
             String cwd = buildWorkspacePath(userId);
             backend = new LocalTerminalBackend(cwd);
             logger.info("Created LocalTerminalBackend for user {}, cwd={}", userId, cwd);
@@ -147,7 +101,6 @@ public class TerminalWebSocketHandler extends TextWebSocketHandler {
 
         backendMap.put(session.getId(), backend);
 
-        // Subscribe to terminal output → send to WebSocket as JSON
         Disposable subscription =
                 backend.output()
                         .subscribe(
@@ -166,30 +119,19 @@ public class TerminalWebSocketHandler extends TextWebSocketHandler {
                                             }
                                         }
                                     } catch (IOException e) {
-                                        logger.error(
-                                                "Error sending terminal output to WebSocket", e);
+                                        logger.error("Error sending terminal output", e);
                                     }
                                 },
                                 error ->
                                         logger.error(
-                                                "Terminal output stream error for session {}",
+                                                "Terminal output error for session {}",
                                                 session.getId(),
                                                 error),
                                 () -> {
-                                    logger.info(
-                                            "Terminal process exited for session {}",
-                                            session.getId());
+                                    logger.info("Terminal exited for session {}", session.getId());
                                     try {
                                         if (session.isOpen()) {
                                             int exitCode = 0;
-                                            try {
-                                                TerminalBackend tb =
-                                                        backendMap.get(session.getId());
-                                                if (tb != null && !tb.isAlive()) {
-                                                    exitCode = 0;
-                                                }
-                                            } catch (Exception ignored) {
-                                            }
                                             String json =
                                                     objectMapper.writeValueAsString(
                                                             Map.of(
@@ -211,75 +153,55 @@ public class TerminalWebSocketHandler extends TextWebSocketHandler {
     protected void handleTextMessage(WebSocketSession session, TextMessage message)
             throws Exception {
         TerminalBackend backend = backendMap.get(session.getId());
-        if (backend == null) {
-            logger.warn("No terminal backend for session {}", session.getId());
-            return;
-        }
+        if (backend == null) return;
 
         String payload = message.getPayload();
         if (payload.isBlank()) return;
 
-        try {
-            JsonNode root = objectMapper.readTree(payload);
-            String type = root.has("type") ? root.get("type").asText() : "";
+        JsonNode root = objectMapper.readTree(payload);
+        String type = root.has("type") ? root.get("type").asText() : "";
 
-            switch (type) {
-                case "input" -> {
-                    String data = root.has("data") ? root.get("data").asText() : "";
-                    if (!data.isEmpty()) {
-                        backend.write(data);
-                    }
-                }
-                case "resize" -> {
-                    int cols = root.has("cols") ? root.get("cols").asInt(80) : 80;
-                    int rows = root.has("rows") ? root.get("rows").asInt(24) : 24;
-                    backend.resize(cols, rows);
-                }
-                default -> logger.debug("Unknown terminal message type: {}", type);
+        switch (type) {
+            case "input" -> {
+                String data = root.has("data") ? root.get("data").asText() : "";
+                if (!data.isEmpty()) backend.write(data);
             }
-        } catch (Exception e) {
-            logger.error("Error handling terminal message for session {}", session.getId(), e);
+            case "resize" -> {
+                int cols = root.has("cols") ? root.get("cols").asInt(80) : 80;
+                int rows = root.has("rows") ? root.get("rows").asInt(24) : 24;
+                backend.resize(cols, rows);
+            }
         }
     }
 
     @Override
-    public void afterConnectionClosed(WebSocketSession session, CloseStatus status)
-            throws Exception {
-        logger.info("Terminal WebSocket closed: id={}, status={}", session.getId(), status);
+    public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
+        logger.info("Terminal closed: id={}, status={}", session.getId(), status);
         cleanup(session.getId());
     }
 
     @Override
-    public void handleTransportError(WebSocketSession session, Throwable exception)
-            throws Exception {
-        logger.error(
-                "Terminal WebSocket transport error for session {}", session.getId(), exception);
+    public void handleTransportError(WebSocketSession session, Throwable exception) {
+        logger.error("Terminal transport error for session {}", session.getId(), exception);
         cleanup(session.getId());
     }
 
     private void cleanup(String sessionId) {
         Disposable subscription = subscriptionMap.remove(sessionId);
-        if (subscription != null && !subscription.isDisposed()) {
-            subscription.dispose();
-        }
-
+        if (subscription != null && !subscription.isDisposed()) subscription.dispose();
         TerminalBackend backend = backendMap.remove(sessionId);
-        if (backend != null) {
-            backend.close();
-        }
+        if (backend != null) backend.close();
     }
 
     private String buildWorkspacePath(String userId) {
         String sanitized = userId.replaceAll("[^a-zA-Z0-9_-]", "_");
         Path workspacePath =
                 Paths.get(acpProperties.getWorkspaceRoot(), sanitized).toAbsolutePath().normalize();
-
         try {
             Files.createDirectories(workspacePath);
         } catch (IOException e) {
             logger.error("Failed to create workspace directory: {}", workspacePath, e);
         }
-
         return workspacePath.toString();
     }
 }

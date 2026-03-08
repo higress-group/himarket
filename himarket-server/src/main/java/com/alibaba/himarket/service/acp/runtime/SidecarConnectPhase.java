@@ -1,7 +1,5 @@
 package com.alibaba.himarket.service.acp.runtime;
 
-import java.time.Duration;
-
 /**
  * 建立到 Sidecar Server 的 WebSocket 连接。
  * 所有沙箱类型都通过 Sidecar WebSocket 桥接 CLI，逻辑完全一致。
@@ -44,6 +42,6 @@ public class SidecarConnectPhase implements InitPhase {
 
     @Override
     public RetryPolicy retryPolicy() {
-        return new RetryPolicy(2, Duration.ofSeconds(2), 2.0, Duration.ofSeconds(8));
+        return RetryPolicy.none();
     }
 }

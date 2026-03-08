@@ -195,7 +195,7 @@ class SandboxInitPipelinePropertyTest {
 
     @Provide
     Arbitrary<SandboxType> sandboxTypes() {
-        return Arbitraries.of(SandboxType.LOCAL, SandboxType.K8S, SandboxType.E2B);
+        return Arbitraries.of(SandboxType.LOCAL, SandboxType.REMOTE, SandboxType.E2B);
     }
 
     @Provide

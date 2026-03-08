@@ -15,4 +15,9 @@ data:
   DB_USERNAME: {{ .Values.database.username | quote }}
   DB_PASSWORD: {{ .Values.database.password | quote }}
 {{- end }}
+  # ACP 沙箱配置
+  ACP_REMOTE_HOST: {{ .Values.sandbox.remoteHost | default "sandbox-shared" | quote }}
+  ACP_REMOTE_PORT: {{ .Values.sandbox.remotePort | default "8080" | quote }}
+  ACP_DEFAULT_RUNTIME: {{ .Values.sandbox.defaultRuntime | default "remote" | quote }}
+  ACP_LOCAL_ENABLED: {{ .Values.sandbox.localEnabled | default "false" | quote }}
   # 其他非敏感配置可以在这里添加
