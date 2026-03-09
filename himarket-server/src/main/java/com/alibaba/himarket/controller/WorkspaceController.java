@@ -202,8 +202,7 @@ public class WorkspaceController {
     @Operation(summary = "Download file from workspace as binary stream")
     @GetMapping("/download")
     public ResponseEntity<byte[]> downloadFile(
-            @RequestParam String path,
-            @RequestParam(required = false) String runtime) {
+            @RequestParam String path, @RequestParam(required = false) String runtime) {
         String userId = getCurrentUserId();
         String fileName = Paths.get(path).getFileName().toString();
         String ext = getExtension(fileName);
@@ -245,8 +244,7 @@ public class WorkspaceController {
             case ".docx" ->
                     "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
             case ".doc" -> "application/msword";
-            case ".xlsx" ->
-                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+            case ".xlsx" -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
             case ".xls" -> "application/vnd.ms-excel";
             case ".pdf" -> "application/pdf";
             case ".zip" -> "application/zip";

@@ -333,7 +333,7 @@ export function questReducer(
       return { ...state, connected: true };
 
     case "WS_DISCONNECTED":
-      return { ...state, connected: false, initialized: false, sandboxStatus: undefined, initProgress: undefined };
+      return { ...state, connected: false, initialized: false, sandboxStatus: null, initProgress: null };
 
     case "RESET_STATE":
       return { ...initialState };

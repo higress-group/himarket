@@ -42,7 +42,7 @@ export async function downloadWorkspaceFile(
     responseType: "blob",
     timeout: 60000,
   });
-  const blob = resp instanceof Blob ? resp : new Blob([resp]);
+  const blob = resp instanceof Blob ? resp : new Blob([resp as unknown as BlobPart]);
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;

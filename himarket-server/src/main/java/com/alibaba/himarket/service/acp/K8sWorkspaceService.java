@@ -162,19 +162,24 @@ public class K8sWorkspaceService {
         String host = getRemoteHost();
 
         // 方案 1：GET /files/download — 直接返回原始字节流，无 JSON 包装
-        String encodedPath = java.net.URLEncoder.encode(filePath, java.nio.charset.StandardCharsets.UTF_8);
-        String downloadUrl = "http://" + host + ":" + getRemotePort() + "/files/download?path=" + encodedPath;
+        String encodedPath =
+                java.net.URLEncoder.encode(filePath, java.nio.charset.StandardCharsets.UTF_8);
+        String downloadUrl =
+                "http://" + host + ":" + getRemotePort() + "/files/download?path=" + encodedPath;
         try {
-            HttpResponse<byte[]> dlResp = httpClient.send(
-                    HttpRequest.newBuilder(URI.create(downloadUrl))
-                            .GET()
-                            .timeout(Duration.ofSeconds(30))
-                            .build(),
-                    HttpResponse.BodyHandlers.ofByteArray());
+            HttpResponse<byte[]> dlResp =
+                    httpClient.send(
+                            HttpRequest.newBuilder(URI.create(downloadUrl))
+                                    .GET()
+                                    .timeout(Duration.ofSeconds(30))
+                                    .build(),
+                            HttpResponse.BodyHandlers.ofByteArray());
             if (dlResp.statusCode() == 200) {
                 return dlResp.body();
             }
-            log.info("Sidecar /files/download status={}, fallback to /files/read", dlResp.statusCode());
+            log.info(
+                    "Sidecar /files/download status={}, fallback to /files/read",
+                    dlResp.statusCode());
         } catch (ConnectException | HttpConnectTimeoutException e) {
             log.error("Sidecar 不可达: {}", downloadUrl, e);
             throw new BusinessException(ErrorCode.SANDBOX_CONNECTION_FAILED, downloadUrl, e);

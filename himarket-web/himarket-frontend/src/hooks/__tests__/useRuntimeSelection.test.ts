@@ -53,13 +53,6 @@ const localOnlyProvider: ICliProvider = {
   runtimeCategory: 'native',
 };
 
-const noRuntimeProvider: ICliProvider = {
-  key: 'legacy-cli',
-  displayName: 'Legacy CLI',
-  isDefault: false,
-  available: true,
-};
-
 // ===== 测试 =====
 
 describe('useRuntimeSelection', () => {
