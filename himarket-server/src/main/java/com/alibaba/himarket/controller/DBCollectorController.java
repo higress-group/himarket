@@ -54,7 +54,8 @@ public class DBCollectorController {
     @Operation(summary = "日志转指标聚合查询（DBCollector 存储）")
     public ScenarioQueryResponse DBCollectorScenarioQuery(
             @RequestBody @Validated GenericSlsQueryRequest request) {
-        DBCollectorPresetSqlRegistry.Preset preset = presetRegistry.getPreset(request.getScenario());
+        DBCollectorPresetSqlRegistry.Preset preset =
+                presetRegistry.getPreset(request.getScenario());
         if (preset == null) {
             log.warn(
                     "DBCollector scenario not found, returning empty result. scenario: {}",

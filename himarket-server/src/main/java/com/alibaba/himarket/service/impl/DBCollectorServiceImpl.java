@@ -76,7 +76,10 @@ public class DBCollectorServiceImpl implements DBCollectorService {
             }
 
             if (sql.contains(DBCollectorPresetSqlRegistry.BIZ_PLACEHOLDER)) {
-                sql = sql.replace(DBCollectorPresetSqlRegistry.BIZ_PLACEHOLDER, buildBizClause(request));
+                sql =
+                        sql.replace(
+                                DBCollectorPresetSqlRegistry.BIZ_PLACEHOLDER,
+                                buildBizClause(request));
             }
 
             // 可选 limit：仅当请求显式传入 pageSize 且 SQL 未显式 limit 时追加
