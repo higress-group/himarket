@@ -211,7 +211,7 @@ export function ConfigSidebar({
     const hasConfig = Object.keys(sessionConfig).length > 0;
     return {
       ...config,
-      cliRuntime: "k8s",
+      cliRuntime: config.cliRuntime,
       cliSessionConfig: hasConfig ? JSON.stringify(sessionConfig) : undefined,
     };
   }, [config, mcpServers, skills, marketModels]);

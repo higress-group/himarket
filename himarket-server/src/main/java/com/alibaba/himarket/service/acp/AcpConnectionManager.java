@@ -28,6 +28,7 @@ import reactor.core.Disposable;
  *   <li>sandboxModeMap — session → 沙箱模式
  *   <li>pendingMessageMap — session → 待转发消息队列（初始化期间缓存）
  *   <li>deferredInitMap — session → 延迟初始化参数
+ *   <li>userSandboxHostMap — userId → 沙箱 host 地址（DevProxy 反向代理路由）
  * </ul>
  */
 @Component
@@ -44,6 +45,9 @@ public class AcpConnectionManager {
             new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, DeferredInitParams> deferredInitMap =
             new ConcurrentHashMap<>();
+
+    /** userId → sandboxHost（Remote 模式下沙箱地址，用于 DevProxy 反向代理路由） */
+    private final ConcurrentHashMap<String, String> userSandboxHostMap = new ConcurrentHashMap<>();
 
     /**
      * 延迟初始化上下文：当 WebSocket 握手时 URL 中没有 cliSessionConfig， 等待前端通过 session/config
@@ -89,7 +93,7 @@ public class AcpConnectionManager {
      * 清理连接资源。在 WebSocket 连接关闭时调用，释放该 session 关联的所有资源。
      *
      * <p>清理顺序：pendingMessages → deferredInit → subscription（dispose） → runtime（close） → cwd
-     * → userId → sandboxMode
+     * → sandboxHost（通过 userId 反查） → userId → sandboxMode
      *
      * @param sessionId WebSocket session ID
      */
@@ -108,8 +112,34 @@ public class AcpConnectionManager {
         }
 
         cwdMap.remove(sessionId);
-        userIdMap.remove(sessionId);
+
+        // 根据 sessionId 反查 userId，清理对应的 sandboxHost 映射
+        String userId = userIdMap.remove(sessionId);
+        if (userId != null) {
+            userSandboxHostMap.remove(userId);
+        }
+
         sandboxModeMap.remove(sessionId);
+    }
+
+    /**
+     * 设置用户对应的沙箱 host 地址。在沙箱初始化成功后调用，用于 DevProxy 反向代理路由。
+     *
+     * @param userId 用户 ID
+     * @param host 沙箱 host 地址
+     */
+    public void setSandboxHost(String userId, String host) {
+        userSandboxHostMap.put(userId, host);
+    }
+
+    /**
+     * 获取用户对应的沙箱 host 地址。
+     *
+     * @param userId 用户 ID
+     * @return 沙箱 host 地址，未设置时返回 null
+     */
+    public String getSandboxHost(String userId) {
+        return userSandboxHostMap.get(userId);
     }
 
     /**

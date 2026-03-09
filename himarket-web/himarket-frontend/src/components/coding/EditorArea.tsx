@@ -1,9 +1,11 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Editor from "@monaco-editor/react";
-import { X, Download, FileBox, Maximize2 } from "lucide-react";
+import { X, Download, FileBox, Loader2 } from "lucide-react";
 import type { OpenFile } from "../../types/coding";
 import { ImageRenderer } from "../quest/renderers/ImageRenderer";
-import { PdfRenderer } from "../quest/renderers/PdfRenderer";
+import { downloadWorkspaceFile } from "../../lib/utils/workspaceApi";
+import request from "../../lib/request";
+import { getDefaultRuntime } from "../../lib/utils/workspaceApi";
 
 interface EditorAreaProps {
   openFiles: OpenFile[];
@@ -23,26 +25,6 @@ function getExt(fileName: string): string {
   return fileName.split(".").pop()?.toLowerCase() ?? "";
 }
 
-function decodeBase64ToBlob(content: string, mime: string): Blob {
-  const bin = atob(content);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return new Blob([bytes], { type: mime });
-}
-
-const EXT_MIME: Record<string, string> = {
-  pdf: "application/pdf",
-  png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg",
-  gif: "image/gif", webp: "image/webp",
-  pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  ppt: "application/vnd.ms-powerpoint",
-  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  zip: "application/zip",
-  mp4: "video/mp4",
-  mp3: "audio/mpeg",
-};
-
 const EXT_LABELS: Record<string, string> = {
   pptx: "PowerPoint", ppt: "PowerPoint",
   docx: "Word", doc: "Word",
@@ -52,56 +34,76 @@ const EXT_LABELS: Record<string, string> = {
   mp3: "Audio", wav: "Audio",
 };
 
+/** 通过后端下载接口获取 PDF blob 并用 iframe 渲染 */
+function PdfPreview({ file }: { file: OpenFile }) {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+
+    const params: Record<string, string> = { path: file.path };
+    const rt = getDefaultRuntime();
+    if (rt) params.runtime = rt;
+
+    request
+      .get("/workspace/download", { params, responseType: "blob", timeout: 60000 })
+      .then((resp: unknown) => {
+        if (cancelled) return;
+        const blob = resp instanceof Blob ? resp : new Blob([resp as BlobPart]);
+        setBlobUrl(URL.createObjectURL(blob));
+      })
+      .catch((e: Error) => {
+        if (!cancelled) setError(e.message ?? "PDF 加载失败");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+      setBlobUrl(prev => { if (prev) URL.revokeObjectURL(prev); return null; });
+    };
+  }, [file.path]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full text-gray-400 text-sm gap-2">
+        <Loader2 size={16} className="animate-spin" />
+        加载 PDF...
+      </div>
+    );
+  }
+  if (error || !blobUrl) {
+    return (
+      <div className="flex items-center justify-center h-full text-sm text-gray-400">
+        PDF 预览失败：{error ?? "未知错误"}
+      </div>
+    );
+  }
+  return <iframe src={blobUrl} className="w-full h-full border-none" title="PDF Preview" />;
+}
+
 /** 下载工具栏：显示在预览内容上方 */
 function DownloadBar({ file }: { file: OpenFile }) {
-  const ext = getExt(file.fileName);
-  const mime = EXT_MIME[ext] ?? "application/octet-stream";
-
-  const handleDownload = () => {
-    const blob =
-      file.encoding === "base64"
-        ? decodeBase64ToBlob(file.content, mime)
-        : new Blob([file.content], { type: mime });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = file.fileName;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const handleOpenTab = () => {
-    const blob =
-      file.encoding === "base64"
-        ? decodeBase64ToBlob(file.content, mime)
-        : new Blob([file.content], { type: mime });
-    const url = URL.createObjectURL(blob);
-    window.open(url, "_blank");
-  };
+  const handleDownload = () => downloadWorkspaceFile(file.path, file.fileName);
 
   return (
     <div className="flex items-center justify-between px-3 py-1.5 border-b border-gray-200/60 bg-white/80 flex-shrink-0">
       <span className="text-xs text-gray-500 truncate">{file.fileName}</span>
-      <div className="flex items-center gap-1">
-        <button
-          className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded
-                     border border-gray-200 text-gray-600
-                     hover:bg-gray-50 hover:border-gray-300 transition-colors"
-          onClick={handleDownload}
-          title="下载文件"
-        >
-          <Download size={13} />
-          下载
-        </button>
-        <button
-          className="w-7 h-7 flex items-center justify-center rounded text-gray-400
-                     hover:text-gray-600 hover:bg-gray-100 transition-colors"
-          onClick={handleOpenTab}
-          title="在新标签页打开"
-        >
-          <Maximize2 size={14} />
-        </button>
-      </div>
+      <button
+        className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded
+                   border border-gray-200 text-gray-600
+                   hover:bg-gray-50 hover:border-gray-300 transition-colors"
+        onClick={handleDownload}
+        title="下载文件"
+      >
+        <Download size={13} />
+        下载
+      </button>
     </div>
   );
 }
@@ -110,20 +112,7 @@ function DownloadBar({ file }: { file: OpenFile }) {
 function BinaryFilePlaceholder({ file }: { file: OpenFile }) {
   const ext = getExt(file.fileName);
   const label = EXT_LABELS[ext] ?? ext.toUpperCase();
-  const mime = EXT_MIME[ext] ?? "application/octet-stream";
-
-  const handleDownload = () => {
-    const blob =
-      file.encoding === "base64"
-        ? decodeBase64ToBlob(file.content, mime)
-        : new Blob([file.content], { type: mime });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = file.fileName;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+  const handleDownload = () => downloadWorkspaceFile(file.path, file.fileName);
 
   return (
     <div className="flex items-center justify-center h-full p-6">
@@ -215,7 +204,7 @@ export function EditorArea({
       <div className="flex-1 min-h-0 relative">
         {activeFile && isPdf ? (
           <div className="absolute inset-0">
-            <PdfRenderer content={activeFile.content} />
+            <PdfPreview file={activeFile} />
           </div>
         ) : activeFile && isImage ? (
           <div className="absolute inset-0">

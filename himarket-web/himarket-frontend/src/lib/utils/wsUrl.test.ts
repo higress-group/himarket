@@ -15,14 +15,14 @@ describe("buildAcpWsUrl", () => {
     expect(parsed.searchParams.get("provider")).toBe("qodercli");
   });
 
-  it("should include runtime=k8s for K8s runtime", () => {
+  it("should include runtime=remote for remote sandbox", () => {
     const url = buildAcpWsUrl(
-      { provider: "kiro-cli", runtime: "k8s" },
+      { provider: "kiro-cli", runtime: "remote" },
       "/ws/acp",
       ORIGIN,
     );
     const parsed = new URL(url);
-    expect(parsed.searchParams.get("runtime")).toBe("k8s");
+    expect(parsed.searchParams.get("runtime")).toBe("remote");
   });
 
   it("should omit runtime parameter when not provided", () => {

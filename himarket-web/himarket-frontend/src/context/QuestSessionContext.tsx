@@ -29,9 +29,15 @@ import type { OpenFile, TerminalSession } from "../types/coding";
 import {
   detectArtifacts,
   detectArtifactsFromPaths,
+  normalizePath,
 } from "../lib/utils/artifactDetector";
 
 // ===== Quest Data =====
+
+export interface PreviewPortState {
+  ports: number[];
+  selectedPort: number | null;
+}
 
 export interface QuestData {
   id: string;
@@ -56,7 +62,7 @@ export interface QuestData {
   openFiles: OpenFile[];
   activeFilePath: string | null;
   terminals: TerminalSession[];
-  previewPort: number | null;
+  previewPorts: PreviewPortState;
 }
 
 export interface QueuedPromptItem {
@@ -197,6 +203,8 @@ export type QuestAction =
   | { type: "TERMINAL_CREATED"; questId: string; terminalId: string }
   | { type: "TERMINAL_DATA"; questId: string; terminalId: string; data: string }
   | { type: "PREVIEW_PORT_DETECTED"; questId: string; port: number }
+  | { type: "PREVIEW_PORT_SELECTED"; questId: string; port: number }
+  | { type: "PREVIEW_PORT_ADDED"; questId: string; port: number }
   | { type: "SANDBOX_STATUS"; status: "creating" | "ready" | "error"; message: string; sandboxHost?: string }
   | {
       type: "INIT_PROGRESS";
@@ -251,23 +259,25 @@ function upsertDetectedArtifacts(
   let activeArtifactId = q.activeArtifactId;
 
   for (const artifact of detected) {
-    const existingIdx = artifacts.findIndex(a => a.path === artifact.path);
+    const normalizedArtifact = { ...artifact, path: normalizePath(artifact.path) };
+    const existingIdx = artifacts.findIndex(a => normalizePath(a.path) === normalizedArtifact.path);
 
     if (existingIdx >= 0) {
       artifacts = artifacts.map((a, i) =>
         i === existingIdx
           ? {
               ...a,
-              content: artifact.content,
-              updatedAt: artifact.updatedAt,
-              toolCallId: artifact.toolCallId,
+              path: normalizedArtifact.path,
+              content: normalizedArtifact.content,
+              updatedAt: normalizedArtifact.updatedAt,
+              toolCallId: normalizedArtifact.toolCallId,
             }
           : a
       );
       activeArtifactId = artifacts[existingIdx].id;
     } else {
-      artifacts = [...artifacts, artifact];
-      activeArtifactId = artifact.id;
+      artifacts = [...artifacts, normalizedArtifact];
+      activeArtifactId = normalizedArtifact.id;
     }
   }
 
@@ -366,7 +376,7 @@ export function questReducer(
         openFiles: [],
         activeFilePath: null,
         terminals: [],
-        previewPort: null,
+        previewPorts: { ports: [], selectedPort: null },
       };
       return {
         ...state,
@@ -598,11 +608,46 @@ export function questReducer(
         return { ...q, terminals };
       });
 
-    case "PREVIEW_PORT_DETECTED":
+    case "PREVIEW_PORT_DETECTED": {
+      const port = action.port;
+      if (port < 1024 || port > 65535) return state;
       return updateQuestById(state, action.questId, q => ({
         ...q,
-        previewPort: action.port,
+        previewPorts: {
+          ports: q.previewPorts.ports.includes(port)
+            ? q.previewPorts.ports
+            : [...q.previewPorts.ports, port],
+          selectedPort: q.previewPorts.selectedPort ?? port,
+        },
       }));
+    }
+
+    case "PREVIEW_PORT_SELECTED": {
+      return updateQuestById(state, action.questId, q => {
+        if (!q.previewPorts.ports.includes(action.port)) return q;
+        return {
+          ...q,
+          previewPorts: {
+            ...q.previewPorts,
+            selectedPort: action.port,
+          },
+        };
+      });
+    }
+
+    case "PREVIEW_PORT_ADDED": {
+      const port = action.port;
+      if (port < 1024 || port > 65535) return state;
+      return updateQuestById(state, action.questId, q => ({
+        ...q,
+        previewPorts: {
+          ports: q.previewPorts.ports.includes(port)
+            ? q.previewPorts.ports
+            : [...q.previewPorts.ports, port],
+          selectedPort: port,
+        },
+      }));
+    }
 
     case "SANDBOX_STATUS":
       return {
@@ -815,7 +860,7 @@ function handleSessionUpdate(
         const reachedTerminal =
           mergedToolCall?.status === "completed" ||
           mergedToolCall?.status === "failed";
-        if ((reachedTerminal || hasLocationsField) && mergedToolCall) {
+        if (reachedTerminal && mergedToolCall) {
           updated = applyArtifactDetection(updated, mergedToolCall);
         }
         return updated;

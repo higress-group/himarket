@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, useCallback } from "react";
+import { useRef, useEffect, useState, useCallback, forwardRef, useImperativeHandle } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { ChevronDown, ChevronUp, Terminal as TerminalIcon } from "lucide-react";
@@ -27,12 +27,16 @@ interface TerminalPanelProps {
   runtime?: string;
 }
 
-export function TerminalPanel({
+export interface TerminalPanelHandle {
+  reconnect: () => void;
+}
+
+export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>(function TerminalPanel({
   height,
   collapsed,
   onToggleCollapse,
   runtime,
-}: TerminalPanelProps) {
+}, ref) {
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -48,11 +52,15 @@ export function TerminalPanel({
   const onOutputRef = useRef<(data: Uint8Array) => void>(() => {});
   const onExitRef = useRef<(code: number) => void>(() => {});
 
-  const { status, sendInput, sendResize } = useTerminalWebSocket({
+  const { status, sendInput, sendResize, reconnect: terminalReconnect } = useTerminalWebSocket({
     url: wsUrl,
     onOutput: (data: Uint8Array) => onOutputRef.current(data),
     onExit: (code: number) => onExitRef.current(code),
   });
+
+  useImperativeHandle(ref, () => ({
+    reconnect: terminalReconnect,
+  }), [terminalReconnect]);
 
   // Initialize xterm
   useEffect(() => {
@@ -189,13 +197,13 @@ export function TerminalPanel({
       />
     </div>
   );
-}
+});
 
 function StatusDot({ status }: { status: TerminalWsStatus }) {
   const color =
     status === "connected"
       ? "bg-green-400"
-      : status === "connecting"
+      : status === "connecting" || status === "reconnecting"
         ? "bg-yellow-400"
         : "bg-red-400";
   return <span className={`w-1.5 h-1.5 rounded-full ${color} ml-1.5`} />;

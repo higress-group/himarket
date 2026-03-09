@@ -5,6 +5,7 @@ import com.alibaba.himarket.core.annotation.AdminOrDeveloperAuth;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.service.acp.K8sWorkspaceService;
+import com.alibaba.himarket.service.acp.runtime.SandboxType;
 import com.alibaba.himarket.service.document.DocumentConversionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -124,7 +125,7 @@ public class WorkspaceController {
             @RequestParam(required = false) String runtime) {
         String userId = getCurrentUserId();
 
-        if ("k8s".equalsIgnoreCase(runtime)) {
+        if (isRemoteRuntime(runtime)) {
             try {
                 String ext = getExtension(Paths.get(path).getFileName().toString());
                 boolean isBinary =
@@ -198,6 +199,63 @@ public class WorkspaceController {
         }
     }
 
+    @Operation(summary = "Download file from workspace as binary stream")
+    @GetMapping("/download")
+    public ResponseEntity<byte[]> downloadFile(
+            @RequestParam String path,
+            @RequestParam(required = false) String runtime) {
+        String userId = getCurrentUserId();
+        String fileName = Paths.get(path).getFileName().toString();
+        String ext = getExtension(fileName);
+        String mime = getMimeType(ext);
+
+        try {
+            byte[] bytes;
+            if (isRemoteRuntime(runtime)) {
+                bytes = k8sWorkspaceService.readFileBytes(userId, path);
+            } else {
+                Path workspaceRoot = getWorkspaceRootForUser(userId);
+                Path filePath =
+                        Paths.get(path).isAbsolute()
+                                ? Paths.get(path).toAbsolutePath().normalize()
+                                : workspaceRoot.resolve(path).toAbsolutePath().normalize();
+                if (!Files.exists(filePath) || !Files.isRegularFile(filePath)) {
+                    return ResponseEntity.notFound().build();
+                }
+                bytes = Files.readAllBytes(filePath);
+            }
+            return ResponseEntity.ok()
+                    .header(
+                            "Content-Disposition",
+                            "attachment; filename=\"" + sanitizeFileName(fileName) + "\"")
+                    .contentType(MediaType.parseMediaType(mime))
+                    .contentLength(bytes.length)
+                    .body(bytes);
+        } catch (IOException e) {
+            log.error("Failed to download file {} for user {}", path, userId, e);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    private static String getMimeType(String ext) {
+        return switch (ext) {
+            case ".pptx" ->
+                    "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+            case ".ppt" -> "application/vnd.ms-powerpoint";
+            case ".docx" ->
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+            case ".doc" -> "application/msword";
+            case ".xlsx" ->
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+            case ".xls" -> "application/vnd.ms-excel";
+            case ".pdf" -> "application/pdf";
+            case ".zip" -> "application/zip";
+            case ".mp4" -> "video/mp4";
+            case ".mp3" -> "audio/mpeg";
+            default -> "application/octet-stream";
+        };
+    }
+
     @Operation(summary = "Prepare preview for convertible documents")
     @PostMapping(value = "/preview/prepare", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> preparePreview(@RequestBody PreparePreviewRequest request) {
@@ -266,7 +324,7 @@ public class WorkspaceController {
             @RequestParam(required = false) String runtime) {
         String userId = getCurrentUserId();
 
-        if ("k8s".equalsIgnoreCase(runtime)) {
+        if (isRemoteRuntime(runtime)) {
             try {
                 List<Map<String, Object>> changes =
                         k8sWorkspaceService.getChanges(userId, cwd, since);
@@ -475,7 +533,7 @@ public class WorkspaceController {
             @RequestParam(required = false) String runtime) {
         String userId = getCurrentUserId();
 
-        if ("k8s".equalsIgnoreCase(runtime)) {
+        if (isRemoteRuntime(runtime)) {
             try {
                 Map<String, Object> tree = k8sWorkspaceService.getDirectoryTree(userId, cwd, depth);
                 return ResponseEntity.ok(tree);
@@ -578,5 +636,20 @@ public class WorkspaceController {
 
         node.put("children", children);
         return node;
+    }
+
+    /**
+     * 判断 runtime 参数是否指向远程沙箱（非本地文件系统）。
+     * 解析为 SandboxType 枚举，LOCAL 或无法识别的值使用本地文件系统，其余走远程 Sidecar。
+     */
+    private static boolean isRemoteRuntime(String runtime) {
+        if (runtime == null || runtime.isBlank()) {
+            return false;
+        }
+        try {
+            return SandboxType.fromValue(runtime) != SandboxType.LOCAL;
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
     }
 }

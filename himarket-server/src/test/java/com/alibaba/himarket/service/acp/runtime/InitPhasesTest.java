@@ -201,70 +201,10 @@ class InitPhasesTest {
         }
 
         @Test
-        @DisplayName("verify: 写入并读回临时文件成功时返回 true")
-        void verify_writeAndReadBackMatch_returnsTrue() throws IOException {
+        @DisplayName("verify: 始终返回 true（不再执行文件系统验证）")
+        void verify_alwaysReturnsTrue() {
             InitContext context = createContextWithSandboxInfo();
-            // writeFile 不抛异常，readFile 返回匹配内容
-            doNothing()
-                    .when(mockProvider)
-                    .writeFile(eq(stubInfo), eq(".sandbox-health-check"), anyString());
-            when(mockProvider.readFile(eq(stubInfo), eq(".sandbox-health-check")))
-                    .thenAnswer(
-                            invocation -> {
-                                // 需要返回与写入相同的内容，但我们无法直接获取
-                                // 使用 ArgumentCaptor 来捕获写入的内容
-                                return null; // 先返回 null 触发 false
-                            });
-
-            // 更精确的方式：捕获写入内容并在读取时返回
-            doAnswer(
-                            invocation -> {
-                                String content = invocation.getArgument(2);
-                                when(mockProvider.readFile(stubInfo, ".sandbox-health-check"))
-                                        .thenReturn(content);
-                                return null;
-                            })
-                    .when(mockProvider)
-                    .writeFile(eq(stubInfo), eq(".sandbox-health-check"), anyString());
-
             assertTrue(phase.verify(context));
-        }
-
-        @Test
-        @DisplayName("verify: 读回内容不匹配时返回 false")
-        void verify_readBackMismatch_returnsFalse() throws IOException {
-            InitContext context = createContextWithSandboxInfo();
-            doNothing()
-                    .when(mockProvider)
-                    .writeFile(eq(stubInfo), eq(".sandbox-health-check"), anyString());
-            when(mockProvider.readFile(stubInfo, ".sandbox-health-check"))
-                    .thenReturn("different-content");
-
-            assertFalse(phase.verify(context));
-        }
-
-        @Test
-        @DisplayName("verify: writeFile 抛出 IOException 时返回 false")
-        void verify_writeFileThrows_returnsFalse() throws IOException {
-            InitContext context = createContextWithSandboxInfo();
-            doThrow(new IOException("写入失败"))
-                    .when(mockProvider)
-                    .writeFile(eq(stubInfo), eq(".sandbox-health-check"), anyString());
-
-            assertFalse(phase.verify(context));
-        }
-
-        @Test
-        @DisplayName("verify: readFile 抛出 IOException 时返回 false")
-        void verify_readFileThrows_returnsFalse() throws IOException {
-            InitContext context = createContextWithSandboxInfo();
-            doNothing()
-                    .when(mockProvider)
-                    .writeFile(eq(stubInfo), eq(".sandbox-health-check"), anyString());
-            when(mockProvider.readFile(stubInfo, ".sandbox-health-check"))
-                    .thenThrow(new IOException("读取失败"));
-
-            assertFalse(phase.verify(context));
         }
     }
 
@@ -334,80 +274,19 @@ class InitPhasesTest {
         }
 
         @Test
-        @DisplayName("execute: 写入后抽样读回验证成功")
+        @DisplayName("execute: extractArchive 成功后不再调用 readFile 验证")
         void execute_writeAndReadBackHashMatch_succeeds() throws IOException {
             String content = "{\"model\": \"gpt-4\"}";
-            String hash = ConfigInjectionPhase.sha256(content);
             ConfigFile config =
                     new ConfigFile(
-                            "settings.json", content, hash, ConfigFile.ConfigType.MODEL_SETTINGS);
+                            "settings.json", content, null, ConfigFile.ConfigType.MODEL_SETTINGS);
             InitContext context = createContextForConfigInjection(List.of(config));
 
             when(mockProvider.extractArchive(eq(stubInfo), any(byte[].class))).thenReturn(1);
-            when(mockProvider.readFile(stubInfo, "settings.json")).thenReturn(content);
 
             assertDoesNotThrow(() -> phase.execute(context));
             verify(mockProvider).extractArchive(eq(stubInfo), any(byte[].class));
-            verify(mockProvider).readFile(stubInfo, "settings.json");
-        }
-
-        @Test
-        @DisplayName("execute: 抽样读回为空时抛出可重试异常")
-        void execute_hashMismatch_autoFixWithRewrite() throws IOException {
-            String content = "{\"model\": \"gpt-4\"}";
-            String hash = ConfigInjectionPhase.sha256(content);
-            ConfigFile config =
-                    new ConfigFile(
-                            "settings.json", content, hash, ConfigFile.ConfigType.MODEL_SETTINGS);
-            InitContext context = createContextForConfigInjection(List.of(config));
-
-            when(mockProvider.extractArchive(eq(stubInfo), any(byte[].class))).thenReturn(1);
-            when(mockProvider.readFile(stubInfo, "settings.json")).thenReturn("");
-
-            InitPhaseException ex =
-                    assertThrows(InitPhaseException.class, () -> phase.execute(context));
-            assertEquals("config-injection", ex.getPhaseName());
-            assertTrue(ex.isRetryable());
-            assertTrue(ex.getMessage().contains("抽样验证失败"));
-        }
-
-        @Test
-        @DisplayName("execute: 抽样读回为 null 时抛出可重试异常")
-        void execute_secondVerifyFails_throwsRetryableException() throws IOException {
-            String content = "{\"model\": \"gpt-4\"}";
-            String hash = ConfigInjectionPhase.sha256(content);
-            ConfigFile config =
-                    new ConfigFile(
-                            "settings.json", content, hash, ConfigFile.ConfigType.MODEL_SETTINGS);
-            InitContext context = createContextForConfigInjection(List.of(config));
-
-            when(mockProvider.extractArchive(eq(stubInfo), any(byte[].class))).thenReturn(1);
-            when(mockProvider.readFile(stubInfo, "settings.json")).thenReturn(null);
-
-            InitPhaseException ex =
-                    assertThrows(InitPhaseException.class, () -> phase.execute(context));
-            assertTrue(ex.isRetryable());
-            assertTrue(ex.getMessage().contains("抽样验证失败"));
-        }
-
-        @Test
-        @DisplayName("execute: 抽样 readFile 抛 IOException 时抛出可重试异常")
-        void execute_readBackNull_throwsRetryableException() throws IOException {
-            String content = "{\"model\": \"gpt-4\"}";
-            String hash = ConfigInjectionPhase.sha256(content);
-            ConfigFile config =
-                    new ConfigFile(
-                            "settings.json", content, hash, ConfigFile.ConfigType.MODEL_SETTINGS);
-            InitContext context = createContextForConfigInjection(List.of(config));
-
-            when(mockProvider.extractArchive(eq(stubInfo), any(byte[].class))).thenReturn(1);
-            when(mockProvider.readFile(stubInfo, "settings.json"))
-                    .thenThrow(new IOException("read failed"));
-
-            InitPhaseException ex =
-                    assertThrows(InitPhaseException.class, () -> phase.execute(context));
-            assertTrue(ex.isRetryable());
-            assertTrue(ex.getMessage().contains("抽样验证失败"));
+            verify(mockProvider, never()).readFile(any(), anyString());
         }
 
         @Test
@@ -416,10 +295,7 @@ class InitPhasesTest {
             String content = "test-content";
             ConfigFile config =
                     new ConfigFile(
-                            "settings.json",
-                            content,
-                            ConfigInjectionPhase.sha256(content),
-                            ConfigFile.ConfigType.MODEL_SETTINGS);
+                            "settings.json", content, null, ConfigFile.ConfigType.MODEL_SETTINGS);
             InitContext context = createContextForConfigInjection(List.of(config));
 
             when(mockProvider.extractArchive(eq(stubInfo), any(byte[].class)))
@@ -438,82 +314,22 @@ class InitPhasesTest {
             String content2 = "{\"servers\": []}";
             ConfigFile config1 =
                     new ConfigFile(
-                            "settings.json",
-                            content1,
-                            ConfigInjectionPhase.sha256(content1),
-                            ConfigFile.ConfigType.MODEL_SETTINGS);
+                            "settings.json", content1, null, ConfigFile.ConfigType.MODEL_SETTINGS);
             ConfigFile config2 =
                     new ConfigFile(
-                            ".kiro/mcp.json",
-                            content2,
-                            ConfigInjectionPhase.sha256(content2),
-                            ConfigFile.ConfigType.MCP_CONFIG);
+                            ".kiro/mcp.json", content2, null, ConfigFile.ConfigType.MCP_CONFIG);
             InitContext context = createContextForConfigInjection(List.of(config1, config2));
 
             when(mockProvider.extractArchive(eq(stubInfo), any(byte[].class))).thenReturn(2);
-            // 抽样验证读首尾文件
-            when(mockProvider.readFile(stubInfo, "settings.json")).thenReturn(content1);
-            when(mockProvider.readFile(stubInfo, ".kiro/mcp.json")).thenReturn(content2);
 
             assertDoesNotThrow(() -> phase.execute(context));
             verify(mockProvider).extractArchive(eq(stubInfo), any(byte[].class));
+            verify(mockProvider, never()).readFile(any(), anyString());
         }
 
         @Test
-        @DisplayName("verify: 所有配置文件可读回时返回 true")
-        void verify_allConfigsReadable_returnsTrue() throws IOException {
-            String content = "test";
-            ConfigFile config =
-                    new ConfigFile(
-                            "settings.json",
-                            content,
-                            ConfigInjectionPhase.sha256(content),
-                            ConfigFile.ConfigType.MODEL_SETTINGS);
-            InitContext context = createContextForConfigInjection(List.of(config));
-
-            when(mockProvider.readFile(stubInfo, "settings.json")).thenReturn(content);
-
-            assertTrue(phase.verify(context));
-        }
-
-        @Test
-        @DisplayName("verify: readFile 返回 null 时返回 false")
-        void verify_readFileReturnsNull_returnsFalse() throws IOException {
-            String content = "test";
-            ConfigFile config =
-                    new ConfigFile(
-                            "settings.json",
-                            content,
-                            ConfigInjectionPhase.sha256(content),
-                            ConfigFile.ConfigType.MODEL_SETTINGS);
-            InitContext context = createContextForConfigInjection(List.of(config));
-
-            when(mockProvider.readFile(stubInfo, "settings.json")).thenReturn(null);
-
-            assertFalse(phase.verify(context));
-        }
-
-        @Test
-        @DisplayName("verify: readFile 抛出 IOException 时返回 false")
-        void verify_readFileThrows_returnsFalse() throws IOException {
-            String content = "test";
-            ConfigFile config =
-                    new ConfigFile(
-                            "settings.json",
-                            content,
-                            ConfigInjectionPhase.sha256(content),
-                            ConfigFile.ConfigType.MODEL_SETTINGS);
-            InitContext context = createContextForConfigInjection(List.of(config));
-
-            when(mockProvider.readFile(stubInfo, "settings.json"))
-                    .thenThrow(new IOException("文件不存在"));
-
-            assertFalse(phase.verify(context));
-        }
-
-        @Test
-        @DisplayName("verify: 无配置文件时返回 true")
-        void verify_noConfigs_returnsTrue() {
+        @DisplayName("verify: 始终返回 true（不再执行文件读回验证）")
+        void verify_alwaysReturnsTrue() {
             InitContext context = createContextForConfigInjection(List.of());
             assertTrue(phase.verify(context));
         }

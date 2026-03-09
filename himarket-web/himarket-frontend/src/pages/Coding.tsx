@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { RefreshCw, ExternalLink, Code2, Eye, FolderOpen, Folder, Settings, Sparkles, Zap } from "lucide-react";
+import { Code2, Eye, FolderOpen, Folder, Settings, Sparkles, Zap } from "lucide-react";
 import { message } from "antd";
 import { Header } from "../components/Header";
 import TextType from "../components/TextType";
@@ -13,13 +13,14 @@ import {
 import { useAcpSession } from "../hooks/useAcpSession";
 import { useResizable } from "../hooks/useResizable";
 import { useCodingConfig } from "../hooks/useCodingConfig";
-import { SessionSidebar } from "../components/coding/SessionSidebar";
 import { ConfigSidebar } from "../components/coding/ConfigSidebar";
 import { ConversationTopBar } from "../components/coding/ConversationTopBar";
 import { FileTree } from "../components/coding/FileTree";
 import { EditorArea } from "../components/coding/EditorArea";
 import { TerminalPanel } from "../components/coding/TerminalPanel";
+import type { TerminalPanelHandle } from "../components/coding/TerminalPanel";
 import { PreviewPanel } from "../components/coding/PreviewPanel";
+import { ConnectionBanner } from "../components/coding/ConnectionBanner";
 import { ChatStream } from "../components/quest/ChatStream";
 import { QuestInput } from "../components/quest/QuestInput";
 import { PermissionDialog } from "../components/quest/PermissionDialog";
@@ -113,16 +114,43 @@ function CodingContent() {
   const dispatch = useQuestDispatch();
 
   const isConnected = session.status === "connected";
+  // reconnecting 时仍视为"活跃"，保持 IDE 视图不跳回欢迎页
+  const isActiveSession = session.status === "connected" || session.status === "reconnecting";
+
+  // ===== 终端重连联动 =====
+  const terminalPanelRef = useRef<TerminalPanelHandle>(null);
+  const prevAcpStatusRef = useRef(session.status);
+
+  useEffect(() => {
+    const prevStatus = prevAcpStatusRef.current;
+    prevAcpStatusRef.current = session.status;
+
+    if (session.status === "connected" && prevStatus === "reconnecting") {
+      // ACP 重连成功 — 后端已销毁旧 session，需要重新走完整流程
+      console.log("[Coding] ACP reconnected, resetting state for re-initialization");
+
+      // 清空旧 quests（后端 session 已不存在），重置自动创建标记
+      autoCreatedRef.current = false;
+      dispatch({ type: "RESET_STATE" });
+      // RESET_STATE 会清空 initialized/quests/sandboxStatus，
+      // useAcpSession 的 status=connected + !initializedRef 会重新触发 initialize，
+      // 后端会重新发 sandbox/status: ready → 自动创建 Quest → 终端也会跟着重建
+
+      // 触发终端重连
+      terminalPanelRef.current?.reconnect();
+    }
+  }, [session.status, dispatch]);
 
   // 跟踪当前运行时类型（HiCoding 仅支持沙箱模式）
-  const currentRuntimeRef = useRef<string>("k8s");
+  const currentRuntimeRef = useRef<string>(config.cliRuntime);
 
   // 设置全局默认 runtime，让 ArtifactPreview / FileRenderer 等组件
-  // 调用 fetchArtifactContent 时自动带上 runtime 参数
+  // 调用 workspace API 时自动带上 runtime 参数
   useEffect(() => {
-    setDefaultRuntime("k8s");
+    currentRuntimeRef.current = config.cliRuntime;
+    setDefaultRuntime(config.cliRuntime);
     return () => setDefaultRuntime(undefined);
-  }, []);
+  }, [config.cliRuntime]);
 
   // ===== 补全旧配置中缺失的名称字段 =====
   useEffect(() => {
@@ -167,14 +195,14 @@ function CodingContent() {
   const handleConnect = useCallback(
     (cfg: typeof config) => {
       const cliId = cfg.cliProviderId ?? "";
-      currentRuntimeRef.current = "k8s";
+      currentRuntimeRef.current = cfg.cliRuntime;
 
       setCurrentCliSessionConfig(cfg.cliSessionConfig);
 
       const url = buildAcpWsUrl({
         token: localStorage.getItem("access_token") || undefined,
         provider: cliId || undefined,
-        runtime: "k8s",
+        runtime: cfg.cliRuntime,
       });
 
       dispatch({ type: "SANDBOX_STATUS", status: "creating", message: "正在连接沙箱环境..." });
@@ -350,8 +378,8 @@ function CodingContent() {
   }, [activeQuest?.cwd]);
 
   useEffect(() => {
-    if (activeQuest?.previewPort) setActiveTab("preview");
-  }, [activeQuest?.previewPort]);
+    if (activeQuest?.previewPorts.selectedPort) setActiveTab("preview");
+  }, [activeQuest?.previewPorts.selectedPort]);
 
   // Auto-open files when Agent edits them
   useEffect(() => {
@@ -436,41 +464,33 @@ function CodingContent() {
     [activeQuest, dispatch]
   );
 
-  const previewPort = activeQuest?.previewPort ?? 3000;
-  const sandboxHost = state.sandboxStatus?.sandboxHost ?? null;
+  const previewPort = activeQuest?.previewPorts.selectedPort ?? null;
 
   const handleRefreshPreview = useCallback(() => {
     const iframe = document.querySelector<HTMLIFrameElement>("#coding-preview-iframe");
-    if (iframe && previewPort) iframe.src = getPreviewUrl(previewPort, sandboxHost);
-  }, [previewPort, sandboxHost]);
+    if (iframe && previewPort) iframe.src = getPreviewUrl(previewPort);
+  }, [previewPort]);
 
   const handleOpenExternal = useCallback(() => {
-    if (previewPort) window.open(getPreviewUrl(previewPort, sandboxHost), "_blank");
-  }, [previewPort, sandboxHost]);
+    if (previewPort) window.open(getPreviewUrl(previewPort), "_blank");
+  }, [previewPort]);
 
   const planEntries = activeQuest?.messages.find(
     (m): m is ChatItemPlan => m.type === "plan"
   )?.entries;
 
   // ===== 渲染状态判断 =====
-  const showSandboxError = isConnected && state.sandboxStatus?.status === "error";
-  const showInitProgress = isConnected && (!state.initialized || !activeQuest) && !showSandboxError;
-  const showIDE = isConnected && state.initialized && activeQuest && !showSandboxError;
-  // 欢迎页：未连接，或者连接中但还没有活跃会话（且没有暂存消息正在等待）
-  const showWelcome = !isConnected && !pendingPromptRef.current;
+  const showSandboxError = isActiveSession && state.sandboxStatus?.status === "error";
+  const showInitProgress = isActiveSession && (!state.initialized || !activeQuest) && !showSandboxError;
+  const showIDE = isActiveSession && state.initialized && activeQuest && !showSandboxError;
+  // 欢迎页：未连接（reconnecting 不算），或者连接中但还没有活跃会话（且没有暂存消息正在等待）
+  const showWelcome = !isActiveSession && !pendingPromptRef.current;
 
   // ===== 欢迎页：使用 HiChat 风格布局 =====
   if (showWelcome) {
     return (
       <>
         <div className="flex flex-1 min-h-0 overflow-hidden">
-          {/* HiChat 风格侧边栏 */}
-          <SessionSidebar
-            onSwitchQuest={session.switchQuest}
-            onCloseQuest={session.closeQuest}
-            onNewQuest={handleNewQuest}
-          />
-
           {/* 居中欢迎页 */}
           <div className="flex-1 flex flex-col">
             <div className="flex-1 flex flex-col items-center justify-center px-4">
@@ -582,7 +602,14 @@ function CodingContent() {
 
   // ===== 非欢迎页：IDE 全屏布局 =====
   return (
-    <div className="flex flex-1 min-h-0 overflow-hidden">
+    <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+      {/* 断连提示横幅 — 固定在顶部，推挤布局 */}
+      <ConnectionBanner
+        acpStatus={session.status}
+        reconnectAttempt={session.reconnectAttempt}
+        onManualReconnect={session.manualReconnect}
+      />
+      <div className="flex flex-1 min-h-0 overflow-hidden">
       {showSandboxError ? (
         <div className="flex-1 flex items-center justify-center bg-white/50">
           <div className="text-center">
@@ -679,16 +706,6 @@ function CodingContent() {
                       <Eye size={14} /> 预览
                     </button>
                     <div className="flex-1" />
-                    {activeTab === "preview" && previewPort && (
-                      <div className="flex items-center gap-0.5 pr-2">
-                        <button className="w-7 h-7 flex items-center justify-center rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors" onClick={handleRefreshPreview} title="刷新预览">
-                          <RefreshCw size={14} />
-                        </button>
-                        <button className="w-7 h-7 flex items-center justify-center rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors" onClick={handleOpenExternal} title="在新窗口打开预览">
-                          <ExternalLink size={14} />
-                        </button>
-                      </div>
-                    )}
                     <button
                       className={`w-7 h-7 flex items-center justify-center rounded transition-colors mr-2
                         ${fileTreeVisible ? "text-blue-600 bg-blue-50" : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"}`}
@@ -700,7 +717,17 @@ function CodingContent() {
                   </div>
                   <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
                     {activeTab === "preview" ? (
-                      <PreviewPanel port={previewPort} sandboxHost={sandboxHost} />
+                      <PreviewPanel
+                        sessionId={activeQuest?.id ?? null}
+                        previewPorts={activeQuest?.previewPorts ?? { ports: [], selectedPort: null }}
+                        artifacts={activeQuest?.artifacts ?? []}
+                        activeArtifactId={activeQuest?.activeArtifactId ?? null}
+                        onPortSelect={(port) => activeQuest && dispatch({ type: "PREVIEW_PORT_SELECTED", questId: activeQuest.id, port })}
+                        onAddPort={(port) => activeQuest && dispatch({ type: "PREVIEW_PORT_ADDED", questId: activeQuest.id, port })}
+                        onSelectArtifact={(artifactId) => dispatch({ type: "SELECT_ARTIFACT", artifactId })}
+                        onRefresh={handleRefreshPreview}
+                        onOpenExternal={handleOpenExternal}
+                      />
                     ) : (
                       <EditorArea
                         openFiles={activeQuest?.openFiles ?? []}
@@ -718,6 +745,7 @@ function CodingContent() {
               )}
               <div className="flex-shrink-0">
                 <TerminalPanel
+                  ref={terminalPanelRef}
                   height={terminalPanel.size}
                   collapsed={terminalCollapsed}
                   onToggleCollapse={toggleTerminalCollapse}
@@ -745,6 +773,7 @@ function CodingContent() {
           onRespond={session.respondPermission}
         />
       )}
+      </div>
     </div>
   );
 }

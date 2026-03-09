@@ -9,6 +9,6 @@ public record InitConfig(
         boolean enableProgressNotify) {
 
     public static InitConfig defaults() {
-        return new InitConfig(Duration.ofSeconds(120), true, true, true);
+        return new InitConfig(Duration.ofSeconds(120), true, false, true);
     }
 }

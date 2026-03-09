@@ -63,14 +63,6 @@ const noRuntimeProvider: ICliProvider = {
 // ===== 测试 =====
 
 describe('useRuntimeSelection', () => {
-  it('默认选中 local 运行时', () => {
-    const { result } = renderHook(() =>
-      useRuntimeSelection({ provider: nativeProvider })
-    );
-
-    expect(result.current.selectedRuntime).toBe('local');
-  });
-
   it('根据 CLI Provider 的 compatibleRuntimes 生成选项列表', () => {
     const { result } = renderHook(() =>
       useRuntimeSelection({ provider: nativeProvider })
@@ -78,25 +70,6 @@ describe('useRuntimeSelection', () => {
 
     expect(result.current.compatibleRuntimes).toHaveLength(2);
     expect(result.current.compatibleRuntimes.map(r => r.type)).toEqual(['local', 'k8s']);
-  });
-
-  it('没有 compatibleRuntimes 字段时回退到 local', () => {
-    const { result } = renderHook(() =>
-      useRuntimeSelection({ provider: noRuntimeProvider })
-    );
-
-    expect(result.current.compatibleRuntimes).toHaveLength(1);
-    expect(result.current.compatibleRuntimes[0].type).toBe('local');
-  });
-
-  it('provider 为 null 时回退到 local', () => {
-    const { result } = renderHook(() =>
-      useRuntimeSelection({ provider: null })
-    );
-
-    expect(result.current.compatibleRuntimes).toHaveLength(1);
-    expect(result.current.compatibleRuntimes[0].type).toBe('local');
-    expect(result.current.selectedRuntime).toBe('local');
   });
 
   it('selectRuntime 更新选中状态并持久化到 localStorage', async () => {

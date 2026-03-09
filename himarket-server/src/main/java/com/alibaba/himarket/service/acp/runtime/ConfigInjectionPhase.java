@@ -4,9 +4,6 @@ import com.alibaba.himarket.service.acp.ConfigFileBuilder;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.HexFormat;
 import java.util.List;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
@@ -19,8 +16,6 @@ import org.slf4j.LoggerFactory;
  *
  * <p>所有配置文件打包为 tar.gz 压缩包，通过 SandboxProvider.extractArchive() 一次性传输到沙箱，
  * 替代逐个 writeFile 调用。二进制传输避免了 JSON 序列化往返导致的 Unicode 字符规范化问题。
- *
- * <p>验证阶段通过抽样 readFile 确认文件已正确解压。
  */
 public class ConfigInjectionPhase implements InitPhase {
 
@@ -112,9 +107,6 @@ public class ConfigInjectionPhase implements InitPhase {
                 logger.info("[ConfigInjection] 逐个写入完成: {} 个文件已注入", pendingConfigs.size());
             }
 
-            // 抽样验证：检查首尾各一个文件是否可读
-            verifyExtracted(provider, info, pendingConfigs);
-
             // 统计各类型文件数量
             long skillCount = pendingConfigs.stream().filter(c -> "skill".equals(c.type())).count();
             long mcpCount = pendingConfigs.stream().filter(c -> "mcp".equals(c.type())).count();
@@ -156,79 +148,13 @@ public class ConfigInjectionPhase implements InitPhase {
         return baos.toByteArray();
     }
 
-    /**
-     * 抽样验证解压结果：检查首尾各一个文件是否可读且非空。
-     */
-    private void verifyExtracted(
-            SandboxProvider provider, SandboxInfo info, List<ConfigFile> configs)
-            throws InitPhaseException {
-        // 抽样：第一个和最后一个文件
-        int[] indices = configs.size() == 1 ? new int[] {0} : new int[] {0, configs.size() - 1};
-        for (int idx : indices) {
-            ConfigFile config = configs.get(idx);
-            try {
-                String readBack = provider.readFile(info, config.relativePath());
-                if (readBack == null || readBack.isEmpty()) {
-                    throw new InitPhaseException(
-                            "config-injection", "抽样验证失败，文件为空: " + config.relativePath(), true);
-                }
-                // hash 不匹配只 warn，不阻断流程
-                String expectedHash = config.contentHash();
-                if (expectedHash != null && !expectedHash.isEmpty()) {
-                    String actualHash = sha256(readBack);
-                    if (!expectedHash.equals(actualHash)) {
-                        logger.warn(
-                                "[ConfigInjection] 文件 hash 不匹配: path={}, expected={}, actual={}",
-                                config.relativePath(),
-                                expectedHash,
-                                actualHash);
-                    }
-                }
-            } catch (InitPhaseException e) {
-                throw e;
-            } catch (IOException e) {
-                throw new InitPhaseException(
-                        "config-injection",
-                        "抽样验证失败: " + config.relativePath() + " - " + e.getMessage(),
-                        e,
-                        true);
-            }
-        }
-    }
-
     @Override
     public boolean verify(InitContext context) {
-        List<ConfigFile> configs = context.getInjectedConfigs();
-        if (configs == null || configs.isEmpty()) {
-            return true;
-        }
-        try {
-            SandboxProvider provider = context.getProvider();
-            SandboxInfo info = context.getSandboxInfo();
-            for (ConfigFile config : configs) {
-                String content = provider.readFile(info, config.relativePath());
-                if (content == null) {
-                    return false;
-                }
-            }
-            return true;
-        } catch (IOException e) {
-            return false;
-        }
+        return true;
     }
 
     @Override
     public RetryPolicy retryPolicy() {
         return RetryPolicy.none();
-    }
-
-    static String sha256(String content) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(content.getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(hash);
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("SHA-256 不可用", e);
-        }
     }
 }

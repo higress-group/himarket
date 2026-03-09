@@ -25,7 +25,7 @@ export function CodingTopBar({
   const statusColor =
     status === "connected"
       ? "bg-green-500"
-      : status === "connecting"
+      : status === "connecting" || status === "reconnecting"
         ? "bg-yellow-500 animate-pulse"
         : "bg-gray-400";
   const modelOptions =

@@ -17,6 +17,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -149,6 +150,53 @@ public class K8sWorkspaceService {
         String content = json.has("content") ? json.get("content").asText() : "";
         String respEncoding = json.has("encoding") ? json.get("encoding").asText() : encoding;
         return Map.of("content", content, "encoding", respEncoding);
+    }
+
+    /**
+     * 从远程沙箱下载文件的原始字节。
+     * 优先尝试 Sidecar GET /files/download（原始二进制流，兼容 OpenSandbox execd），
+     * 若 404 则降级为 POST /files/read + base64 解码。
+     */
+    public byte[] readFileBytes(String userId, String filePath) throws IOException {
+        validatePath(filePath);
+        String host = getRemoteHost();
+
+        // 方案 1：GET /files/download — 直接返回原始字节流，无 JSON 包装
+        String encodedPath = java.net.URLEncoder.encode(filePath, java.nio.charset.StandardCharsets.UTF_8);
+        String downloadUrl = "http://" + host + ":" + getRemotePort() + "/files/download?path=" + encodedPath;
+        try {
+            HttpResponse<byte[]> dlResp = httpClient.send(
+                    HttpRequest.newBuilder(URI.create(downloadUrl))
+                            .GET()
+                            .timeout(Duration.ofSeconds(30))
+                            .build(),
+                    HttpResponse.BodyHandlers.ofByteArray());
+            if (dlResp.statusCode() == 200) {
+                return dlResp.body();
+            }
+            log.info("Sidecar /files/download status={}, fallback to /files/read", dlResp.statusCode());
+        } catch (ConnectException | HttpConnectTimeoutException e) {
+            log.error("Sidecar 不可达: {}", downloadUrl, e);
+            throw new BusinessException(ErrorCode.SANDBOX_CONNECTION_FAILED, downloadUrl, e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("Sidecar 请求被中断: " + downloadUrl, e);
+        }
+
+        // 方案 2：POST /files/read + base64 解码
+        Map<String, Object> result = readFileWithEncoding(userId, filePath, "base64");
+        String content = result.get("content").toString();
+        String encoding = result.get("encoding").toString();
+        if ("base64".equals(encoding)) {
+            // 清理空白字符，修复 padding
+            String cleaned = content.replaceAll("[\\s\\r\\n]", "");
+            int mod = cleaned.length() % 4;
+            if (mod != 0) {
+                cleaned = cleaned + "=".repeat(4 - mod);
+            }
+            return Base64.getMimeDecoder().decode(cleaned);
+        }
+        return content.getBytes(java.nio.charset.StandardCharsets.UTF_8);
     }
 
     /**

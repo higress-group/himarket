@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { FileBox, Download, Loader2 } from "lucide-react";
-import { fetchArtifactContent } from "../../../lib/utils/workspaceApi";
+import { downloadWorkspaceFile } from "../../../lib/utils/workspaceApi";
 
 interface FileRendererProps {
   fileName: string;
@@ -38,25 +38,7 @@ export function FileRenderer({ fileName, path }: FileRendererProps) {
   const handleDownload = async () => {
     setDownloading(true);
     try {
-      const raw = await fetchArtifactContent(path, { raw: true });
-      if (!raw.content) return;
-
-      const blob =
-        raw.encoding === "base64"
-          ? (() => {
-              const bin = atob(raw.content!);
-              const bytes = new Uint8Array(bin.length);
-              for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-              return new Blob([bytes], { type: "application/octet-stream" });
-            })()
-          : new Blob([raw.content], { type: "text/plain" });
-
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = fileName;
-      a.click();
-      URL.revokeObjectURL(url);
+      await downloadWorkspaceFile(path, fileName);
     } finally {
       setDownloading(false);
     }

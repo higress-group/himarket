@@ -11,6 +11,26 @@ export function getArtifactType(filePath: string): ArtifactType | null {
   const ext = filePath.slice(lastDot).toLowerCase();
   return ARTIFACT_EXTENSIONS[ext] ?? "file";
 }
+/**
+ * 归一化文件路径，消除格式差异：
+ * - 移除 "./" 前缀
+ * - 合并连续的 "/"
+ * - 移除末尾 "/"
+ */
+export function normalizePath(filePath: string): string {
+  let p = filePath;
+  // 移除 "./" 前缀（可能多次出现如 "././"）
+  while (p.startsWith("./")) {
+    p = p.slice(2);
+  }
+  // 合并连续的 "/"
+  p = p.replace(/\/+/g, "/");
+  // 移除末尾 "/"（但保留单独的 "/"）
+  if (p.length > 1 && p.endsWith("/")) {
+    p = p.slice(0, -1);
+  }
+  return p;
+}
 
 /** Collect all unique file paths from a tool call (rawInput + locations). */
 function extractAllPaths(toolCall: ChatItemToolCall): string[] {
@@ -25,18 +45,24 @@ function extractAllPaths(toolCall: ChatItemToolCall): string[] {
         : typeof toolCall.rawInput.path === "string"
           ? toolCall.rawInput.path
           : null;
-    if (fp && !seen.has(fp)) {
-      paths.push(fp);
-      seen.add(fp);
+    if (fp) {
+      const normalized = normalizePath(fp);
+      if (!seen.has(normalized)) {
+        paths.push(normalized);
+        seen.add(normalized);
+      }
     }
   }
 
   // Priority 2: all entries in locations (Bash / other tools that create files)
   if (toolCall.locations) {
     for (const loc of toolCall.locations) {
-      if (loc.path && !seen.has(loc.path)) {
-        paths.push(loc.path);
-        seen.add(loc.path);
+      if (loc.path) {
+        const normalized = normalizePath(loc.path);
+        if (!seen.has(normalized)) {
+          paths.push(normalized);
+          seen.add(normalized);
+        }
       }
     }
   }

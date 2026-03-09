@@ -14,7 +14,7 @@ export const PPT_PREVIEW_PREPARE_ENABLED =
 
 /**
  * 全局默认 runtime，由 HiCoding 页面初始化时设置。
- * 当 fetchArtifactContent 等函数未显式传入 runtime 时，自动使用此值。
+ * 当 workspace API 函数未显式传入 runtime 时，自动使用此值。
  */
 let _defaultRuntime: string | undefined;
 
@@ -24,6 +24,31 @@ export function setDefaultRuntime(runtime: string | undefined) {
 
 export function getDefaultRuntime(): string | undefined {
   return _defaultRuntime;
+}
+
+/**
+ * 通过后端 /workspace/download 接口下载文件（二进制流），自动触发浏览器下载。
+ */
+export async function downloadWorkspaceFile(
+  filePath: string,
+  fileName: string,
+  runtime?: string
+): Promise<void> {
+  const rt = runtime ?? _defaultRuntime;
+  const params: Record<string, string> = { path: filePath };
+  if (rt) params.runtime = rt;
+  const resp = await request.get("/workspace/download", {
+    params,
+    responseType: "blob",
+    timeout: 60000,
+  });
+  const blob = resp instanceof Blob ? resp : new Blob([resp]);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 export interface WorkspaceApiError {
@@ -156,10 +181,11 @@ export async function fetchWorkspaceChanges(
   runtime?: string
 ): Promise<WorkspaceChange[]> {
   try {
+    const effectiveRuntime = runtime ?? _defaultRuntime;
     const resp: WorkspaceChangesResponse = await request.get(
       "/workspace/changes",
       {
-        params: { cwd, since, limit, ...(runtime ? { runtime } : {}) },
+        params: { cwd, since, limit, ...(effectiveRuntime ? { runtime: effectiveRuntime } : {}) },
       }
     );
     return resp.changes ?? [];
@@ -179,8 +205,9 @@ export async function fetchDirectoryTree(
   runtime?: string
 ): Promise<FileNode[] | null> {
   try {
+    const effectiveRuntime = runtime ?? _defaultRuntime;
     const resp: FileNode = await request.get("/workspace/tree", {
-      params: { cwd, depth, ...(runtime ? { runtime } : {}) },
+      params: { cwd, depth, ...(effectiveRuntime ? { runtime: effectiveRuntime } : {}) },
     });
     return resp.children ?? [];
   } catch {
@@ -190,10 +217,8 @@ export async function fetchDirectoryTree(
 
 /**
  * Build preview URL for a dev server running on the given port.
- * When sandboxHost is provided (K8s sandbox), use it as the host.
- * Otherwise fall back to localhost (local development).
+ * All requests go through the backend reverse proxy.
  */
-export function getPreviewUrl(port: number, sandboxHost?: string | null): string {
-  const host = sandboxHost || "localhost";
-  return `http://${host}:${port}/`;
+export function getPreviewUrl(port: number): string {
+  return `/workspace/proxy/${port}/`;
 }

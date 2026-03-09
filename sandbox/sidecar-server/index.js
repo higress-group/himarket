@@ -154,6 +154,36 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // GET /files/download?path=xxx — 下载文件原始二进制流
+  // 兼容 OpenSandbox execd 的 /files/download 端点设计，
+  // 直接返回文件原始字节，不经过 JSON/base64 编码，适用于二进制文件下载。
+  if (req.method === 'GET' && (req.url === '/files/download' || req.url.startsWith('/files/download?'))) {
+    const reqUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+    const filePath = reqUrl.searchParams.get('path');
+    if (!filePath) {
+      return sendJson(res, 400, { success: false, error: "missing query parameter 'path'" });
+    }
+    try {
+      const fullPath = resolvePath(filePath);
+      const stat = await fs.stat(fullPath);
+      if (!stat.isFile()) {
+        return sendJson(res, 400, { success: false, error: '指定路径不是文件' });
+      }
+      const fileName = path.basename(fullPath);
+      res.writeHead(200, {
+        'Content-Type': 'application/octet-stream',
+        'Content-Disposition': `attachment; filename="${fileName}"`,
+        'Content-Length': stat.size,
+      });
+      const { createReadStream } = require('fs');
+      createReadStream(fullPath).pipe(res);
+    } catch (err) {
+      const status = err.code === 'ENOENT' ? 404 : 500;
+      sendJson(res, status, { success: false, error: err.message });
+    }
+    return;
+  }
+
   // POST /files/mkdir — 创建目录（支持绝对路径）
   if (req.method === 'POST' && req.url === '/files/mkdir') {
     let body;

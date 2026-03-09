@@ -324,6 +324,15 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
                         sInfo != null && sInfo.host() != null && !sInfo.host().isBlank()
                                 ? sInfo.host()
                                 : null;
+
+                // 记录 userId → sandboxHost 映射，供 DevProxy 反向代理路由使用
+                String effectiveHost = sandboxHost != null ? sandboxHost : "localhost";
+                connectionManager.setSandboxHost(userId, effectiveHost);
+                logger.info(
+                        "[Sandbox-Init] 已记录 sandboxHost 映射: userId={}, host={}",
+                        userId,
+                        effectiveHost);
+
                 sendSandboxStatus(session, "ready", "沙箱环境已就绪", sandboxHost);
                 sendInitProgress(session, "cli-ready", "completed", "沙箱环境已就绪", 100, 5, 5);
                 logger.info(

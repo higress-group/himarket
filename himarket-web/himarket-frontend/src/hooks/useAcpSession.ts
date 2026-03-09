@@ -272,10 +272,10 @@ export function useAcpSession({ wsUrl, autoConnect: autoConnectOpt = true, cliSe
               data,
             });
 
-            const portMatch = data.match(
-              /(?:https?:\/\/)?(?:localhost|127\.0\.0\.1):(\d{4,5})/
+            const portMatches = data.matchAll(
+              /(?:https?:\/\/)?(?:localhost|127\.0\.0\.1):(\d{4,5})(?!\d)/g
             );
-            if (portMatch) {
+            for (const portMatch of portMatches) {
               const port = parseInt(portMatch[1], 10);
               if (port >= 1024 && port <= 65535) {
                 dispatch({
@@ -378,10 +378,10 @@ export function useAcpSession({ wsUrl, autoConnect: autoConnectOpt = true, cliSe
             });
 
             // Detect localhost port from terminal output for preview
-            const portMatch = data.match(
-              /(?:https?:\/\/)?(?:localhost|127\.0\.0\.1):(\d{4,5})/
+            const portMatches2 = data.matchAll(
+              /(?:https?:\/\/)?(?:localhost|127\.0\.0\.1):(\d{4,5})(?!\d)/g
             );
-            if (portMatch) {
+            for (const portMatch of portMatches2) {
               const port = parseInt(portMatch[1], 10);
               if (port >= 1024 && port <= 65535) {
                 dispatch({
@@ -424,9 +424,11 @@ export function useAcpSession({ wsUrl, autoConnect: autoConnectOpt = true, cliSe
 
   const {
     status: wsStatus,
+    reconnectAttempt,
     send: sendRaw,
     connect: wsConnect,
     disconnect: wsDisconnect,
+    manualReconnect,
   } = useAcpWebSocket({
     url: wsUrl,
     onMessage: handleMessage,
@@ -559,6 +561,15 @@ export function useAcpSession({ wsUrl, autoConnect: autoConnectOpt = true, cliSe
           console.log("[AcpSession] PROTOCOL_INITIALIZED dispatched (fallback after error)");
         }
       })();
+    }
+
+    // 重连中：后端在 WebSocket 关闭时已销毁 runtime/sandbox 资源，
+    // 需要重置前端初始化状态，让重连成功后重新走完整的 initialize → session/new 流程。
+    if (status === "reconnecting") {
+      console.log("[AcpSession] Reconnecting — resetting init state for full re-initialization");
+      initializedRef.current = false;
+      clearPendingRequests();
+      resetNextId();
     }
 
     if (status === "disconnected") {
@@ -762,11 +773,13 @@ export function useAcpSession({ wsUrl, autoConnect: autoConnectOpt = true, cliSe
 
   return {
     status: status as WsStatus,
+    reconnectAttempt,
     creatingQuest,
     runtimeError: null,
     connect,
     disconnect,
     reconnect: connect,
+    manualReconnect,
     createQuest,
     switchQuest,
     closeQuest,

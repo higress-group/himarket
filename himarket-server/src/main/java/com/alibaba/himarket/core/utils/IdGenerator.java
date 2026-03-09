@@ -51,7 +51,6 @@ public class IdGenerator {
     private static final String CHAT_ATTACHMENT_PREFIX = "attachment-";
     private static final String SUBSCRIPTION_PREFIX = "subscription-";
     private static final String PUBLICATION_PREFIX = "publication-";
-    private static final String CODING_SESSION_PREFIX = "coding-";
 
     public static String genHigressGatewayId() {
         return HIGRESS_PREFIX + ObjectId.next();
@@ -107,9 +106,5 @@ public class IdGenerator {
 
     public static String genChatAttachmentId() {
         return CHAT_ATTACHMENT_PREFIX + ObjectId.next();
-    }
-
-    public static String genCodingSessionId() {
-        return CODING_SESSION_PREFIX + ObjectId.next();
     }
 }

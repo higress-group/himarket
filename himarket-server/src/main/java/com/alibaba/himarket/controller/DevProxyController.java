@@ -1,6 +1,9 @@
 package com.alibaba.himarket.controller;
 
 import com.alibaba.himarket.core.annotation.AdminOrDeveloperAuth;
+import com.alibaba.himarket.core.exception.BusinessException;
+import com.alibaba.himarket.core.exception.ErrorCode;
+import com.alibaba.himarket.service.acp.AcpConnectionManager;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -10,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -30,8 +34,10 @@ public class DevProxyController {
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
 
     private final WebClient webClient;
+    private final AcpConnectionManager connectionManager;
 
-    public DevProxyController(WebClient.Builder webClientBuilder) {
+    public DevProxyController(
+            WebClient.Builder webClientBuilder, AcpConnectionManager connectionManager) {
         this.webClient =
                 webClientBuilder
                         .codecs(
@@ -40,9 +46,10 @@ public class DevProxyController {
                                                 .defaultCodecs()
                                                 .maxInMemorySize(10 * 1024 * 1024))
                         .build();
+        this.connectionManager = connectionManager;
     }
 
-    @Operation(summary = "Proxy requests to localhost dev server")
+    @Operation(summary = "Proxy requests to dev server running in user's sandbox")
     @RequestMapping("/{port}/**")
     public Mono<ResponseEntity<byte[]>> proxy(
             @PathVariable int port,
@@ -62,6 +69,12 @@ public class DevProxyController {
                                             .getBytes()));
         }
 
+        String userId = getCurrentUserId();
+        String sandboxHost = connectionManager.getSandboxHost(userId);
+        if (sandboxHost == null) {
+            return Mono.just(ResponseEntity.status(404).body("No active sandbox found".getBytes()));
+        }
+
         String requestUri = request.getRequestURI();
         String prefix = "/workspace/proxy/" + port;
         String remainingPath =
@@ -74,7 +87,7 @@ public class DevProxyController {
         URI targetUri =
                 UriComponentsBuilder.newInstance()
                         .scheme("http")
-                        .host("localhost")
+                        .host(sandboxHost)
                         .port(port)
                         .path(remainingPath)
                         .query(queryString)
@@ -127,11 +140,23 @@ public class DevProxyController {
                 .timeout(TIMEOUT)
                 .onErrorResume(
                         ex -> {
-                            log.warn("Proxy error for port {}: {}", port, ex.getMessage());
+                            log.warn(
+                                    "Proxy error for user {} port {}: {}",
+                                    userId,
+                                    port,
+                                    ex.getMessage());
                             return Mono.just(
                                     ResponseEntity.status(502)
                                             .body(("Proxy error: " + ex.getMessage()).getBytes()));
                         });
+    }
+
+    private String getCurrentUserId() {
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof String principal) {
+            return principal;
+        }
+        throw new BusinessException(ErrorCode.UNAUTHORIZED, "用户未认证");
     }
 
     private static void copyHeaders(HttpServletRequest request, HttpHeaders target) {
