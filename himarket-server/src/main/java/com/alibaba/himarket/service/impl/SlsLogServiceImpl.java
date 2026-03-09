@@ -497,9 +497,24 @@ public class SlsLogServiceImpl implements SlsLogService {
             filters.add(buildOrFilter("route_name", request.getRoute()));
         }
 
+        // route_name => route_name(兼容MCP监控前端传参)
+        if (request.getRouteName() != null && request.getRouteName().length > 0) {
+            filters.add(buildOrFilter("route_name", request.getRouteName()));
+        }
+
         // service => upstream_cluster(精确匹配,支持OR)
         if (request.getService() != null && request.getService().length > 0) {
             filters.add(buildOrFilter("upstream_cluster", request.getService()));
+        }
+
+        // upstream_cluster => upstream_cluster(兼容MCP监控前端传参)
+        if (request.getUpstreamCluster() != null && request.getUpstreamCluster().length > 0) {
+            filters.add(buildOrFilter("upstream_cluster", request.getUpstreamCluster()));
+        }
+
+        // mcp_tool_name => ai_log.mcp_tool_name(兼容MCP监控前端传参)
+        if (request.getMcpToolName() != null && request.getMcpToolName().length > 0) {
+            filters.add(buildOrFilter("ai_log.mcp_tool_name", request.getMcpToolName()));
         }
 
         String merged = StringUtils.hasText(searchPart) ? searchPart : "(*)";
