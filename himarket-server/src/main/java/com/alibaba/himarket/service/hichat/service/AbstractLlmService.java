@@ -177,7 +177,7 @@ public abstract class AbstractLlmService implements LlmService {
 
         return ModelFeature.builder()
                 .model(StrUtil.blankToDefault(modelFeature.getModel(), "qwen-max"))
-                .maxTokens(ObjectUtil.defaultIfNull(modelFeature.getMaxTokens(), 5000))
+                .maxTokens(modelFeature.getMaxTokens())
                 .temperature(ObjectUtil.defaultIfNull(modelFeature.getTemperature(), 0.9))
                 .streaming(ObjectUtil.defaultIfNull(modelFeature.getStreaming(), true))
                 .webSearch(ObjectUtil.defaultIfNull(modelFeature.getWebSearch(), false))
