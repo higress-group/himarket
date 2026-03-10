@@ -120,7 +120,12 @@ function SkillDetail() {
       ? getSkillPackageUrl(skillProductId)
       : `/api/v1/skills/${skillProductId}/download`;
     try {
-      const res = await fetch(url);
+      const headers: Record<string, string> = {};
+      const token = localStorage.getItem("access_token");
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+      const res = await fetch(url, { headers });
       if (!res.ok) throw new Error("下载失败");
       const blob = await res.blob();
       const blobUrl = URL.createObjectURL(blob);

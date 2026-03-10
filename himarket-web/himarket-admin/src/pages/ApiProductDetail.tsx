@@ -214,16 +214,20 @@ export default function ApiProductDetail() {
         {/* API Product 信息 */}
         <div className="p-4 border-b">
           <div className="flex items-center justify-between mb-2">
-            <h2 className="text-lg font-semibold">{apiProduct?.name || 'Loading...'}</h2>
+            {apiProduct ? (
+              <h2 className="text-lg font-semibold">{apiProduct.name}</h2>
+            ) : (
+              <div className="h-6 bg-gray-200 rounded animate-pulse w-32" />
+            )}
             <Dropdown menu={{ items: dropdownItems }} trigger={['click']}>
               <Button type="text" icon={<MoreOutlined />} />
             </Dropdown>
           </div>
         </div>
 
-        {/* 导航菜单 */}
+        {/* 导航菜单 - 等待产品数据加载后再渲染，避免菜单项闪烁 */}
         <nav className="flex-1 p-4 space-y-1">
-          {menuItems.map((item) => {
+          {apiProduct ? menuItems.map((item) => {
             const Icon = item.icon;
             return (
               <button
@@ -242,7 +246,19 @@ export default function ApiProductDetail() {
                 </div>
               </button>
             );
-          })}
+          }) : (
+            <div className="space-y-2">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="flex items-center gap-3 px-3 py-2">
+                  <div className="w-4 h-4 rounded bg-gray-200 animate-pulse flex-shrink-0" />
+                  <div className="flex-1 space-y-1">
+                    <div className="h-4 bg-gray-200 rounded animate-pulse w-20" />
+                    <div className="h-3 bg-gray-100 rounded animate-pulse w-14" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </nav>
       </div>
 

@@ -32,7 +32,28 @@ function InstallCommand({ productId, skillName, document }: InstallCommandProps)
   const dirName = fm.name || skillName.toLowerCase().replace(/\s+/g, "-");
   const skillPath = author ? `${author}/${dirName}` : dirName;
 
-  const downloadUrl = `${window.location.origin}/api/skills/${productId}/download`;
+  const handleDownloadPackage = async () => {
+    try {
+      const headers: Record<string, string> = {};
+      const token = localStorage.getItem("access_token");
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+      const res = await fetch(`/api/v1/skills/${productId}/download`, { headers });
+      if (!res.ok) throw new Error("下载失败");
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = window.document.createElement("a");
+      a.href = blobUrl;
+      const disposition = res.headers.get("Content-Disposition") ?? "";
+      const match = disposition.match(/filename\*?=(?:UTF-8'')?["']?([^"';\n]+)/i);
+      a.download = match ? decodeURIComponent(match[1]) : `${dirName}.zip`;
+      a.click();
+      URL.revokeObjectURL(blobUrl);
+    } catch {
+      message.error("下载失败");
+    }
+  };
 
   const installCommands: Record<PackageManager, string> = {
     npx: `npx skills add ${skillPath}`,
@@ -176,9 +197,8 @@ function InstallCommand({ productId, skillName, document }: InstallCommandProps)
         </div>
 
         <div className="space-y-2">
-          <a
-            href={downloadUrl}
-            download
+          <button
+            onClick={handleDownloadPackage}
             className="
               flex items-center justify-center gap-2 w-full px-4 py-2.5
               rounded-lg text-sm font-medium text-white
@@ -189,7 +209,7 @@ function InstallCommand({ productId, skillName, document }: InstallCommandProps)
           >
             <DownloadOutlined />
             <span>下载技能包</span>
-          </a>
+          </button>
 
           <button
             onClick={() => handleCopy(document, "content")}

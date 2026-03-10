@@ -54,6 +54,16 @@ if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
 fi
 echo "✅ token 获取成功"
 
+# ── 获取默认门户（用于上传后自动发布）────────────────────────
+PORTAL_ID=$(curl_t "$API_TIMEOUT" -s -H "Authorization: Bearer $TOKEN" \
+  "$BASE_URL/portals?size=1" | jq -r '.data.content[0].portalId // empty')
+
+if [ -n "$PORTAL_ID" ]; then
+  echo "🌐 默认门户: $PORTAL_ID"
+else
+  echo "⚠️  未找到门户，上传后不会自动发布"
+fi
+
 # ── 获取已有 skill 名称列表（避免重复创建）──────────────────
 EXISTING=$(curl_t "$API_TIMEOUT" -s -H "Authorization: Bearer $TOKEN" \
   "$BASE_URL/products?type=AGENT_SKILL&size=200" | jq -r '.data.content[].name' 2>/dev/null || echo "")
@@ -181,6 +191,20 @@ for skill_dir in "$SKILLS_DIR"/*/; do
 
   if $uploaded; then
     ((success++)) || true
+
+    # 上传成功后自动发布到门户
+    if [ -n "$PORTAL_ID" ]; then
+      pub_resp=$(curl_t "$API_TIMEOUT" -s -X POST "$BASE_URL/products/$product_id/publications" \
+        -H "Authorization: Bearer $TOKEN" \
+        -H "Content-Type: application/json" \
+        -d "{\"portalId\":\"$PORTAL_ID\"}")
+      pub_code=$(echo "$pub_resp" | jq -r '.code // empty')
+      if [ "$pub_code" = "SUCCESS" ]; then
+        echo "  🌐 已发布到门户"
+      else
+        echo "  ⚠️  发布失败: $(echo "$pub_resp" | jq -r '.message // .')"
+      fi
+    fi
   else
     ((fail++)) || true
   fi

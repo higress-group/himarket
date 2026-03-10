@@ -131,7 +131,10 @@ public final class SkillZipParser {
             String type;
             String resourceName;
 
-            if (parts.length == 2 && parts[0].equals(skillName)) {
+            if (parts.length == 1) {
+                type = "";
+                resourceName = parts[0];
+            } else if (parts.length == 2 && parts[0].equals(skillName)) {
                 type = "";
                 resourceName = parts[1];
             } else if (parts.length >= 3 && parts[0].equals(skillName)) {
