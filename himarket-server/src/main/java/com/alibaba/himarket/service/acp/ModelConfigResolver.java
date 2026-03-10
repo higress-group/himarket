@@ -40,16 +40,16 @@ public class ModelConfigResolver {
      * 根据市场产品 ID 解析完整模型配置。
      *
      * @param modelProductId 市场产品 ID
+     * @param userId 开发者 ID（用于异步线程上下文，避免依赖 SecurityContextHolder）
      * @return 解析后的 CustomModelConfig，解析失败时返回 null
      */
-    public CustomModelConfig resolve(String modelProductId) {
+    public CustomModelConfig resolve(String modelProductId, String userId) {
         log.info("[ModelConfigResolver] ===== 开始解析 ===== modelProductId={}", modelProductId);
 
         // 1. 获取 Primary Consumer
         ConsumerResult consumer;
         try {
-            // 从 Spring Security 上下文获取
-            consumer = consumerService.getPrimaryConsumer();
+            consumer = consumerService.getPrimaryConsumer(userId);
             log.info(
                     "[ModelConfigResolver] Primary Consumer 获取成功: consumerId={}",
                     consumer.getConsumerId());

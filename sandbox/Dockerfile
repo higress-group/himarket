@@ -117,6 +117,10 @@ RUN npm install -g @qwen-code/qwen-code@latest
 # --- opencode (npm package) ---
 RUN npm install -g opencode-ai
 
+# --- nacos-cli (Nacos 命令行工具，用于沙箱内下载 Skill) ---
+RUN curl -fsSL https://nacos.io/nacos-installer.sh | bash -s -- --cli -v 0.0.9 && \
+    nacos-cli --version || echo "[sandbox] WARNING: nacos-cli not found after install"
+
 # ============================================================
 # 5. Sidecar Server — Node.js WebSocket 服务，支持多 CLI 进程
 # ============================================================

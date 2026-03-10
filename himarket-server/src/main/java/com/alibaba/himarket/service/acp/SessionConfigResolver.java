@@ -7,13 +7,10 @@ import com.alibaba.himarket.service.NacosService;
 import com.alibaba.himarket.support.product.ProductFeature;
 import com.alibaba.himarket.support.product.SkillConfig;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 /**
@@ -49,12 +46,8 @@ public class SessionConfigResolver {
         }
         logger.info("[Sandbox-Config] 开始解析模型配置: modelProductId={}", config.getModelProductId());
         try {
-            SecurityContextHolder.getContext()
-                    .setAuthentication(
-                            new UsernamePasswordAuthenticationToken(
-                                    userId, null, Collections.emptyList()));
             CustomModelConfig customModelConfig =
-                    modelConfigResolver.resolve(config.getModelProductId());
+                    modelConfigResolver.resolve(config.getModelProductId(), userId);
             if (customModelConfig != null) {
                 resolved.setCustomModelConfig(customModelConfig);
                 logger.info(
@@ -73,8 +66,6 @@ public class SessionConfigResolver {
                     config.getModelProductId(),
                     e.getMessage(),
                     e);
-        } finally {
-            SecurityContextHolder.clearContext();
         }
     }
 

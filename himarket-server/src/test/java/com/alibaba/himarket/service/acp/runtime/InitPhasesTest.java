@@ -274,7 +274,7 @@ class InitPhasesTest {
         }
 
         @Test
-        @DisplayName("execute: extractArchive 成功后不再调用 readFile 验证")
+        @DisplayName("execute: writeFile 逐个写入成功")
         void execute_writeAndReadBackHashMatch_succeeds() throws IOException {
             String content = "{\"model\": \"gpt-4\"}";
             ConfigFile config =
@@ -282,15 +282,12 @@ class InitPhasesTest {
                             "settings.json", content, null, ConfigFile.ConfigType.MODEL_SETTINGS);
             InitContext context = createContextForConfigInjection(List.of(config));
 
-            when(mockProvider.extractArchive(eq(stubInfo), any(byte[].class))).thenReturn(1);
-
             assertDoesNotThrow(() -> phase.execute(context));
-            verify(mockProvider).extractArchive(eq(stubInfo), any(byte[].class));
-            verify(mockProvider, never()).readFile(any(), anyString());
+            verify(mockProvider).writeFile(stubInfo, "settings.json", content);
         }
 
         @Test
-        @DisplayName("execute: extractArchive 抛出 IOException 时抛出可重试异常")
+        @DisplayName("execute: writeFile 抛出 IOException 时抛出可重试异常")
         void execute_writeFileFails_throwsRetryableException() throws IOException {
             String content = "test-content";
             ConfigFile config =
@@ -298,8 +295,9 @@ class InitPhasesTest {
                             "settings.json", content, null, ConfigFile.ConfigType.MODEL_SETTINGS);
             InitContext context = createContextForConfigInjection(List.of(config));
 
-            when(mockProvider.extractArchive(eq(stubInfo), any(byte[].class)))
-                    .thenThrow(new IOException("Sidecar extractArchive 失败"));
+            doThrow(new IOException("Sidecar writeFile 失败"))
+                    .when(mockProvider)
+                    .writeFile(eq(stubInfo), anyString(), anyString());
 
             InitPhaseException ex =
                     assertThrows(InitPhaseException.class, () -> phase.execute(context));
@@ -308,7 +306,7 @@ class InitPhasesTest {
         }
 
         @Test
-        @DisplayName("execute: 多个配置文件打包后一次传输成功")
+        @DisplayName("execute: 多个配置文件逐个 writeFile 成功")
         void execute_multipleConfigs_allSucceed() throws IOException {
             String content1 = "{\"model\": \"gpt-4\"}";
             String content2 = "{\"servers\": []}";
@@ -320,11 +318,9 @@ class InitPhasesTest {
                             ".kiro/mcp.json", content2, null, ConfigFile.ConfigType.MCP_CONFIG);
             InitContext context = createContextForConfigInjection(List.of(config1, config2));
 
-            when(mockProvider.extractArchive(eq(stubInfo), any(byte[].class))).thenReturn(2);
-
             assertDoesNotThrow(() -> phase.execute(context));
-            verify(mockProvider).extractArchive(eq(stubInfo), any(byte[].class));
-            verify(mockProvider, never()).readFile(any(), anyString());
+            verify(mockProvider).writeFile(stubInfo, "settings.json", content1);
+            verify(mockProvider).writeFile(stubInfo, ".kiro/mcp.json", content2);
         }
 
         @Test

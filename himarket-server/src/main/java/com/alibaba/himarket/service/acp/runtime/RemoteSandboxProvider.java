@@ -96,14 +96,15 @@ public class RemoteSandboxProvider implements SandboxProvider {
         return sandboxHttpClient.readFile(sidecarBaseUrl(info), info.sandboxId(), absolutePath);
     }
 
-    /**
-     * 解压 tar.gz 归档到沙箱。指定 workspacePath 作为解压目标目录，
-     * 确保配置文件解压到用户隔离的工作目录下。
-     */
     @Override
-    public int extractArchive(SandboxInfo info, byte[] tarGzBytes) throws IOException {
-        return sandboxHttpClient.extractArchive(
-                sidecarBaseUrl(info), info.sandboxId(), tarGzBytes, info.workspacePath());
+    public ExecResult exec(
+            SandboxInfo info,
+            String command,
+            java.util.List<String> args,
+            java.time.Duration timeout)
+            throws IOException {
+        return sandboxHttpClient.exec(
+                sidecarBaseUrl(info), info.sandboxId(), command, args, timeout);
     }
 
     @Override

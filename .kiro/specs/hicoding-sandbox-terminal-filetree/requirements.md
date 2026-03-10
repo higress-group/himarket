@@ -11,7 +11,7 @@ HiCoding（Coding 页面）在选择 K8s 沙箱运行时后，终端（TerminalP
 - **LocalTerminalBackend**：本地终端后端实现，封装 pty4j PTY 进程
 - **K8sTerminalBackend**：K8s 终端后端实现，通过 fabric8 K8s Exec API 在 Pod 内执行交互式 shell
 - **WorkspaceController**：后端控制器，提供文件树、文件内容读取、文件变更等 REST API
-- **K8sWorkspaceService**：新增的后端 Service，封装通过 Sidecar HTTP API 操作 Pod 内文件的逻辑
+- **RemoteWorkspaceService**：新增的后端 Service，封装通过 Sidecar HTTP API 操作 Pod 内文件的逻辑
 - **Sidecar_HTTP_API**：Pod 内 Sidecar 容器提供的 HTTP 接口，用于文件读写和目录树获取
 - **PodReuseManager**：后端 Pod 复用管理器，负责获取用户关联的 Pod 信息（podName、podIp、namespace）
 - **TerminalPanel**：前端终端面板组件，基于 xterm.js 渲染终端界面
@@ -50,23 +50,23 @@ HiCoding（Coding 页面）在选择 K8s 沙箱运行时后，终端（TerminalP
 
 #### 验收标准
 
-1. WHEN 请求 /workspace/tree 且 runtime 参数为 "k8s", THE WorkspaceController SHALL 通过 K8sWorkspaceService 从 Sidecar_HTTP_API 获取 Pod 内目录树
+1. WHEN 请求 /workspace/tree 且 runtime 参数为 "k8s", THE WorkspaceController SHALL 通过 RemoteWorkspaceService 从 Sidecar_HTTP_API 获取 Pod 内目录树
 2. WHEN 请求 /workspace/tree 且 runtime 参数为 "local" 或缺失, THE WorkspaceController SHALL 从本地文件系统获取目录树，保持现有行为不变
-3. WHEN 请求 /workspace/file 且 runtime 参数为 "k8s", THE WorkspaceController SHALL 通过 K8sWorkspaceService 从 Sidecar_HTTP_API 读取 Pod 内文件内容
+3. WHEN 请求 /workspace/file 且 runtime 参数为 "k8s", THE WorkspaceController SHALL 通过 RemoteWorkspaceService 从 Sidecar_HTTP_API 读取 Pod 内文件内容
 4. WHEN 请求 /workspace/file 且 runtime 参数为 "local" 或缺失, THE WorkspaceController SHALL 从本地文件系统读取文件内容，保持现有行为不变
-5. WHEN 请求 /workspace/changes 且 runtime 参数为 "k8s", THE WorkspaceController SHALL 通过 K8sWorkspaceService 从 Sidecar_HTTP_API 获取 Pod 内文件变更
+5. WHEN 请求 /workspace/changes 且 runtime 参数为 "k8s", THE WorkspaceController SHALL 通过 RemoteWorkspaceService 从 Sidecar_HTTP_API 获取 Pod 内文件变更
 6. WHEN 请求 /workspace/changes 且 runtime 参数为 "local" 或缺失, THE WorkspaceController SHALL 从本地文件系统获取文件变更，保持现有行为不变
 
-### 需求 4：K8sWorkspaceService 实现
+### 需求 4：RemoteWorkspaceService 实现
 
 **用户故事：** 作为开发者，我希望 K8s 文件操作逻辑封装在独立 Service 中，以便 WorkspaceController 保持简洁且文件操作逻辑可复用。
 
 #### 验收标准
 
-1. WHEN K8sWorkspaceService 的 getDirectoryTree 方法被调用, THE K8sWorkspaceService SHALL 通过 PodReuseManager 获取用户 Pod 信息，并调用 Sidecar_HTTP_API 的 /files/list 端点获取目录树
-2. WHEN K8sWorkspaceService 的 readFile 方法被调用, THE K8sWorkspaceService SHALL 通过 PodReuseManager 获取用户 Pod 信息，并调用 Sidecar_HTTP_API 的 /files/read 端点读取文件内容
-3. THE K8sWorkspaceService SHALL 将 Sidecar_HTTP_API 返回的文件列表转换为前端期望的树形结构格式
-4. WHEN PodReuseManager 返回的 PodEntry 包含 serviceIp, THE K8sWorkspaceService SHALL 优先使用 serviceIp 作为 Sidecar 访问地址；否则使用 podIp
+1. WHEN RemoteWorkspaceService 的 getDirectoryTree 方法被调用, THE RemoteWorkspaceService SHALL 通过 PodReuseManager 获取用户 Pod 信息，并调用 Sidecar_HTTP_API 的 /files/list 端点获取目录树
+2. WHEN RemoteWorkspaceService 的 readFile 方法被调用, THE RemoteWorkspaceService SHALL 通过 PodReuseManager 获取用户 Pod 信息，并调用 Sidecar_HTTP_API 的 /files/read 端点读取文件内容
+3. THE RemoteWorkspaceService SHALL 将 Sidecar_HTTP_API 返回的文件列表转换为前端期望的树形结构格式
+4. WHEN PodReuseManager 返回的 PodEntry 包含 serviceIp, THE RemoteWorkspaceService SHALL 优先使用 serviceIp 作为 Sidecar 访问地址；否则使用 podIp
 
 ### 需求 5：Sidecar /files/list 端点扩展
 
@@ -119,7 +119,7 @@ HiCoding（Coding 页面）在选择 K8s 沙箱运行时后，终端（TerminalP
 
 1. IF PodReuseManager 返回 null（Pod 未就绪）且当前为终端连接, THEN THE TerminalWebSocketHandler SHALL 关闭 WebSocket 连接并发送 exit 消息（code=-1）
 2. IF PodReuseManager 返回 null（Pod 未就绪）且当前为文件 API 请求, THEN THE WorkspaceController SHALL 返回 HTTP 503 状态码和错误信息"沙箱未就绪"
-3. IF Sidecar_HTTP_API 不可达, THEN THE K8sWorkspaceService SHALL 返回 HTTP 502 状态码和错误信息"沙箱连接失败"
+3. IF Sidecar_HTTP_API 不可达, THEN THE RemoteWorkspaceService SHALL 返回 HTTP 502 状态码和错误信息"沙箱连接失败"
 4. IF K8s Exec 连接建立失败, THEN THE K8sTerminalBackend SHALL 关闭相关资源并通过 output 流发送错误通知
 5. IF K8s Exec 连接在使用过程中断开, THEN THE K8sTerminalBackend SHALL 触发 output 流完成信号，前端显示 "[Shell exited]"
 
@@ -150,5 +150,5 @@ HiCoding（Coding 页面）在选择 K8s 沙箱运行时后，终端（TerminalP
 
 #### 验收标准
 
-1. WHEN K8s 模式下文件操作的路径参数包含路径遍历字符（如 "../"）, THE K8sWorkspaceService SHALL 拒绝该请求并返回错误
-2. THE K8sWorkspaceService SHALL 验证所有文件操作路径位于 /workspace 目录范围内
+1. WHEN K8s 模式下文件操作的路径参数包含路径遍历字符（如 "../"）, THE RemoteWorkspaceService SHALL 拒绝该请求并返回错误
+2. THE RemoteWorkspaceService SHALL 验证所有文件操作路径位于 /workspace 目录范围内

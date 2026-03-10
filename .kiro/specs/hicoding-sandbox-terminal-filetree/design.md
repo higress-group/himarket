@@ -278,13 +278,13 @@ private ResponseEntity<?> readFileFromK8s(String userId, String path) {
 }
 ```
 
-#### 3. K8sWorkspaceService（新增）
+#### 3. RemoteWorkspaceService（新增）
 
 抽取 K8s 文件操作为独立 Service，供 WorkspaceController 调用，避免 Controller 直接处理 HTTP 调用逻辑。
 
 ```java
 @Service
-public class K8sWorkspaceService {
+public class RemoteWorkspaceService {
     private final PodReuseManager podReuseManager;
     private final K8sConfigService k8sConfigService;
     private final HttpClient httpClient;
@@ -538,7 +538,7 @@ fetchWorkspaceChanges(cwd, lastPollRef.current, 200, currentRuntimeRef.current)
 | `K8sTerminalBackendTest` | K8s exec 启动、输入输出转发、resize、关闭 |
 | `LocalTerminalBackendTest` | 封装后的本地 PTY 行为不变 |
 | `TerminalWebSocketHandlerTest` | runtime 参数解析、本地/K8s 分支选择 |
-| `K8sWorkspaceServiceTest` | Sidecar API 调用、exec 文件树构建、错误处理 |
+| `RemoteWorkspaceServiceTest` | Sidecar API 调用、exec 文件树构建、错误处理 |
 | `WorkspaceControllerTest` | runtime 参数路由、本地/K8s 分支 |
 
 #### 前端
@@ -600,7 +600,7 @@ fetchWorkspaceChanges(cwd, lastPollRef.current, 200, currentRuntimeRef.current)
 
 ### Property 2: 文件 API runtime 路由正确性
 
-*对于任意* WorkspaceController 端点（/workspace/tree、/workspace/file、/workspace/changes）和任意 runtime 参数值，当 runtime 为 "k8s" 时应通过 K8sWorkspaceService 获取数据；当 runtime 为 "local"、null 或缺失时应从本地文件系统获取数据。路由决策仅取决于 runtime 参数值。
+*对于任意* WorkspaceController 端点（/workspace/tree、/workspace/file、/workspace/changes）和任意 runtime 参数值，当 runtime 为 "k8s" 时应通过 RemoteWorkspaceService 获取数据；当 runtime 为 "local"、null 或缺失时应从本地文件系统获取数据。路由决策仅取决于 runtime 参数值。
 
 **Validates: Requirements 3.1, 3.2, 3.3, 3.4, 3.5, 3.6**
 
@@ -624,7 +624,7 @@ fetchWorkspaceChanges(cwd, lastPollRef.current, 200, currentRuntimeRef.current)
 
 ### Property 6: Sidecar 文件列表转换完整性
 
-*对于任意* Sidecar /files/list 返回的合法 JSON 文件列表，K8sWorkspaceService 转换后的树形结构应保留所有文件和目录条目，不丢失任何条目，且目录层级关系与原始数据一致。
+*对于任意* Sidecar /files/list 返回的合法 JSON 文件列表，RemoteWorkspaceService 转换后的树形结构应保留所有文件和目录条目，不丢失任何条目，且目录层级关系与原始数据一致。
 
 **Validates: Requirement 4.3**
 
@@ -636,6 +636,6 @@ fetchWorkspaceChanges(cwd, lastPollRef.current, 200, currentRuntimeRef.current)
 
 ### Property 8: K8s 文件路径安全验证
 
-*对于任意* 文件操作路径字符串，K8sWorkspaceService 应验证路径解析后位于 /workspace 目录范围内。包含路径遍历字符（如 "../"）且解析后超出 /workspace 范围的路径应被拒绝。
+*对于任意* 文件操作路径字符串，RemoteWorkspaceService 应验证路径解析后位于 /workspace 目录范围内。包含路径遍历字符（如 "../"）且解析后超出 /workspace 范围的路径应被拒绝。
 
 **Validates: Requirements 12.1, 12.2**

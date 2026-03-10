@@ -34,9 +34,9 @@ import org.springframework.stereotype.Service;
  * <p>使用 AcpProperties.remote 配置获取 Sidecar 地址。
  */
 @Service
-public class K8sWorkspaceService {
+public class RemoteWorkspaceService {
 
-    private static final Logger log = LoggerFactory.getLogger(K8sWorkspaceService.class);
+    private static final Logger log = LoggerFactory.getLogger(RemoteWorkspaceService.class);
     private static final Duration HTTP_TIMEOUT = Duration.ofSeconds(10);
     private static final String WORKSPACE_ROOT = "/workspace";
 
@@ -44,7 +44,7 @@ public class K8sWorkspaceService {
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
 
-    public K8sWorkspaceService(AcpProperties acpProperties) {
+    public RemoteWorkspaceService(AcpProperties acpProperties) {
         this.acpProperties = acpProperties;
         this.httpClient =
                 HttpClient.newBuilder()

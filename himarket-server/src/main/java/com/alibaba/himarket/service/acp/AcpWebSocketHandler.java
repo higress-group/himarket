@@ -116,43 +116,19 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
         RuntimeConfig config =
                 buildRuntimeConfig(userId, providerKey, providerConfig, cwd, sandboxType);
 
-        // 获取会话配置（配置注入由 ConfigInjectionPhase 统一处理）
-        CliSessionConfig sessionConfig =
-                (CliSessionConfig) session.getAttributes().get("cliSessionConfig");
-
         // Resolve sandboxMode from session attributes (set by AcpHandshakeInterceptor)
         String sandboxMode = (String) session.getAttributes().get("sandboxMode");
 
         // 注册连接
         connectionManager.registerConnection(session.getId(), userId, cwd, sandboxMode);
 
-        if (sessionConfig != null) {
-            // 旧客户端：cliSessionConfig 在 URL 中，立即启动 pipeline
-            final String fProviderKey = providerKey;
-            final RuntimeConfig fConfig = config;
-            final CliProviderConfig fProviderConfig = providerConfig;
-            final CliSessionConfig fSessionConfig = sessionConfig;
-            podInitExecutor.submit(
-                    () ->
-                            doInitialize(
-                                    session,
-                                    userId,
-                                    fProviderKey,
-                                    fConfig,
-                                    fProviderConfig,
-                                    fSessionConfig,
-                                    sandboxType));
-        } else {
-            // 新客户端：等待 session/config 消息到达后再启动 pipeline
-            connectionManager.setDeferredInit(
-                    session.getId(),
-                    new DeferredInitParams(
-                            userId, providerKey, config, providerConfig, sandboxType));
-            logger.info(
-                    "No cliSessionConfig in URL, deferring pipeline init until session/config"
-                            + " message: session={}",
-                    session.getId());
-        }
+        // 等待 session/config 消息到达后再启动 pipeline
+        connectionManager.setDeferredInit(
+                session.getId(),
+                new DeferredInitParams(userId, providerKey, config, providerConfig, sandboxType));
+        logger.info(
+                "Deferring pipeline init until session/config message: session={}",
+                session.getId());
         // Non-blocking return for all sandbox types
     }
 
@@ -564,6 +540,10 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
      * absolute workspace path so that the ACP CLI knows the real directory.
      */
     private String rewriteSessionNewCwd(String sessionId, String payload) {
+        // Fast-path: skip JSON parsing for messages that clearly aren't session/new
+        if (!payload.contains(SESSION_NEW_METHOD)) {
+            return payload;
+        }
         String cwd = connectionManager.getCwd(sessionId);
         if (cwd == null) {
             return payload;

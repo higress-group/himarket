@@ -507,60 +507,11 @@ export function useAcpSession({ wsUrl, autoConnect: autoConnectOpt = true, cliSe
 
   // Auto-initialize protocol when connected
   useEffect(() => {
-    if (status === "connected" && !initializedRef.current) {
+    if (status === "connected") {
       console.log("[AcpSession] WS connected");
       dispatch({ type: "WS_CONNECTED" });
-
-      // K8s 运行时：等待沙箱就绪后再发送 initialize 请求
-      // 本地运行时：立即发送 initialize 请求
-      const sandboxReady = !stateRef.current.sandboxStatus ||
-                          stateRef.current.sandboxStatus.status === "ready";
-
-      if (!sandboxReady) {
-        // K8s 模式且沙箱未就绪，等待 sandbox/status: ready 通知
-        console.log("[AcpSession] Waiting for sandbox ready before initialize");
-        return;
-      }
-
-      // 沙箱已就绪或本地模式，发送 initialize 请求
-      initializedRef.current = true;
-      console.log("[AcpSession] Starting initialize...");
-
-      (async () => {
-        try {
-          const send = sendRawRef.current;
-          const initReq = buildInitialize();
-          console.log("[AcpSession] Sending initialize request:", JSON.stringify(initReq));
-          send(JSON.stringify(initReq));
-
-          // 给 initialize 请求加 2 分钟超时，CLI 启动可能较慢（如 K8s Pod 拉取镜像）
-          const timeoutPromise = new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error("Initialize timeout")), 120000)
-          );
-          const result = await Promise.race([trackRequest(initReq.id), timeoutPromise]);
-          console.log("[AcpSession] Initialize response received:", result);
-
-          dispatch({
-            type: "PROTOCOL_INITIALIZED",
-            models: [],
-            modes: [],
-            currentModelId: "",
-            currentModeId: "",
-          });
-          console.log("[AcpSession] PROTOCOL_INITIALIZED dispatched");
-        } catch (err) {
-          console.error("[AcpSession] ACP initialization failed:", err);
-          // 超时或失败时也标记为已初始化，让用户能看到错误而不是永远置灰
-          dispatch({
-            type: "PROTOCOL_INITIALIZED",
-            models: [],
-            modes: [],
-            currentModelId: "",
-            currentModeId: "",
-          });
-          console.log("[AcpSession] PROTOCOL_INITIALIZED dispatched (fallback after error)");
-        }
-      })();
+      // initialize 请求统一由 handleMessage 收到 sandbox/status: ready 后触发，
+      // 避免双路径竞争。
     }
 
     // 重连中：后端在 WebSocket 关闭时已销毁 runtime/sandbox 资源，
@@ -579,10 +530,6 @@ export function useAcpSession({ wsUrl, autoConnect: autoConnectOpt = true, cliSe
       dispatch({ type: "WS_DISCONNECTED" });
     }
   }, [status, dispatch]);
-
-  // Default model / mode to apply after quest creation
-  const DEFAULT_MODEL_NAME = "Kimi-K2.5";
-  const DEFAULT_MODE_NAME = "Bypass Permissions";
 
   const creatingQuestRef = useRef(false);
   const [creatingQuest, setCreatingQuest] = useState(false);
@@ -637,31 +584,6 @@ export function useAcpSession({ wsUrl, autoConnect: autoConnectOpt = true, cliSe
           currentModelId: result.models?.currentModelId,
           currentModeId: result.modes?.currentModeId,
         });
-
-        // Auto-set default model if available
-        const targetModel = result.models?.availableModels?.find(
-          m => m.name === DEFAULT_MODEL_NAME
-        );
-        if (
-          targetModel &&
-          targetModel.modelId !== result.models?.currentModelId
-        ) {
-          dispatch({ type: "SET_MODEL", modelId: targetModel.modelId });
-          const req = buildSetModel(result.sessionId, targetModel.modelId);
-          send(JSON.stringify(req));
-          trackRequest(req.id).catch(() => {});
-        }
-
-        // Auto-set default mode if available
-        const targetMode = result.modes?.availableModes?.find(
-          m => m.name === DEFAULT_MODE_NAME
-        );
-        if (targetMode && targetMode.id !== result.modes?.currentModeId) {
-          dispatch({ type: "SET_MODE", modeId: targetMode.id });
-          const req = buildSetMode(result.sessionId, targetMode.id);
-          send(JSON.stringify(req));
-          trackRequest(req.id).catch(() => {});
-        }
 
         return result.sessionId;
       } finally {

@@ -3,7 +3,7 @@ package com.alibaba.himarket.controller;
 import com.alibaba.himarket.core.annotation.AdminOrDeveloperAuth;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
-import com.alibaba.himarket.service.acp.K8sWorkspaceService;
+import com.alibaba.himarket.service.acp.RemoteWorkspaceService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.io.IOException;
@@ -38,7 +38,7 @@ public class WorkspaceController {
 
     private static final Set<String> CONVERTIBLE_EXTENSIONS = Set.of(".pptx", ".ppt");
 
-    private final K8sWorkspaceService k8sWorkspaceService;
+    private final RemoteWorkspaceService remoteWorkspaceService;
 
     @Operation(summary = "Upload file to workspace")
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -63,7 +63,7 @@ public class WorkspaceController {
                             || CONVERTIBLE_EXTENSIONS.contains(ext);
             String encoding = isBinary ? "base64" : "utf-8";
             Map<String, Object> result =
-                    k8sWorkspaceService.readFileWithEncoding(userId, path, encoding);
+                    remoteWorkspaceService.readFileWithEncoding(userId, path, encoding);
             return ResponseEntity.ok(
                     Map.of(
                             "content", result.get("content"),
@@ -85,7 +85,7 @@ public class WorkspaceController {
         String mime = getMimeType(ext);
 
         try {
-            byte[] bytes = k8sWorkspaceService.readFileBytes(userId, path);
+            byte[] bytes = remoteWorkspaceService.readFileBytes(userId, path);
             return ResponseEntity.ok()
                     .header(
                             "Content-Disposition",
@@ -135,7 +135,8 @@ public class WorkspaceController {
         String userId = getCurrentUserId();
 
         try {
-            List<Map<String, Object>> changes = k8sWorkspaceService.getChanges(userId, cwd, since);
+            List<Map<String, Object>> changes =
+                    remoteWorkspaceService.getChanges(userId, cwd, since);
             return ResponseEntity.ok(Map.of("changes", changes));
         } catch (IOException e) {
             log.error("Failed to get changes from sandbox: user={}, cwd={}", userId, cwd, e);
@@ -155,7 +156,7 @@ public class WorkspaceController {
         String userId = getCurrentUserId();
 
         try {
-            Map<String, Object> tree = k8sWorkspaceService.getDirectoryTree(userId, cwd, depth);
+            Map<String, Object> tree = remoteWorkspaceService.getDirectoryTree(userId, cwd, depth);
             return ResponseEntity.ok(tree);
         } catch (IOException e) {
             log.error("Failed to get directory tree from sandbox: user={}, cwd={}", userId, cwd, e);

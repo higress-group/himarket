@@ -119,9 +119,9 @@
     - 文件：`himarket-server/src/main/java/com/alibaba/himarket/service/terminal/TerminalWebSocketHandler.java`
     - _需求：8.2_
 
-  - [x] 7.3 迁移 K8sWorkspaceService 中的 PodReuseManager 引用
+  - [x] 7.3 迁移 RemoteWorkspaceService 中的 PodReuseManager 引用
     - 将 `PodReuseManager.getHealthyPodEntryWithDefaultClient()` 改为使用共享 Pod 的固定地址
-    - 文件：`himarket-server/src/main/java/com/alibaba/himarket/service/acp/K8sWorkspaceService.java`
+    - 文件：`himarket-server/src/main/java/com/alibaba/himarket/service/acp/RemoteWorkspaceService.java`
     - _需求：8.3_
 
   - [x] 7.4 更新所有引用 SandboxType.K8S 的测试代码

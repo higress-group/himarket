@@ -758,7 +758,11 @@ public class ConsumerServiceImpl implements ConsumerService {
 
     @Override
     public ConsumerResult getPrimaryConsumer() {
-        String developerId = contextHolder.getUser();
+        return getPrimaryConsumer(contextHolder.getUser());
+    }
+
+    @Override
+    public ConsumerResult getPrimaryConsumer(String developerId) {
         return consumerRepository
                 .findByDeveloperIdAndIsPrimary(developerId, true)
                 .map(

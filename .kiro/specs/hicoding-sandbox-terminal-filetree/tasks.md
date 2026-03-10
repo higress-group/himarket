@@ -81,9 +81,9 @@
     - path 不存在时返回 404 和描述性错误信息
     - _需求：5.1, 5.2, 5.3_
 
-- [x] 6. K8sWorkspaceService 实现
-  - [x] 6.1 创建 `K8sWorkspaceService`，封装通过 Sidecar HTTP API 操作 Pod 内文件的逻辑
-    - 新建文件：`himarket-server/src/main/java/com/alibaba/himarket/service/acp/K8sWorkspaceService.java`
+- [x] 6. RemoteWorkspaceService 实现
+  - [x] 6.1 创建 `RemoteWorkspaceService`，封装通过 Sidecar HTTP API 操作 Pod 内文件的逻辑
+    - 新建文件：`himarket-server/src/main/java/com/alibaba/himarket/service/acp/RemoteWorkspaceService.java`
     - 注入 PodReuseManager、HttpClient、ObjectMapper
     - `getDirectoryTree(userId, cwd, depth)` — 调用 Sidecar `/files/list`，转换为前端期望的树形结构
     - `readFile(userId, filePath)` — 调用 Sidecar `/files/read`
@@ -96,13 +96,13 @@
     - 包含路径遍历字符（如 "../"）且解析后超出 /workspace 范围的路径拒绝并返回错误
     - _需求：12.1, 12.2_
 
-  - [x] 6.3 实现 K8sWorkspaceService 错误处理
+  - [x] 6.3 实现 RemoteWorkspaceService 错误处理
     - PodReuseManager 返回 null 时抛出异常（由 Controller 转为 503）
     - Sidecar 不可达时返回 502 "沙箱连接失败"
     - Sidecar 返回错误时透传错误信息和状态码
     - _需求：9.2, 9.3_
 
-  - [ ]* 6.4 编写 K8sWorkspaceService 属性测试
+  - [ ]* 6.4 编写 RemoteWorkspaceService 属性测试
     - **Property 6: Sidecar 文件列表转换完整性**
     - **验证：需求 4.3**
     - 使用 jqwik 生成随机 Sidecar 文件列表 JSON，验证转换后不丢失条目且层级关系一致
@@ -120,25 +120,25 @@
 - [x] 7. WorkspaceController 改造 — runtime 路由
   - [x] 7.1 改造 `/workspace/tree` 端点，新增 runtime 查询参数
     - 修改文件：`WorkspaceController.java`
-    - runtime 为 "k8s" 时通过 K8sWorkspaceService 获取目录树
+    - runtime 为 "k8s" 时通过 RemoteWorkspaceService 获取目录树
     - runtime 为 "local" 或缺失时保持现有本地文件系统逻辑不变
     - Pod 未就绪时返回 503 "沙箱未就绪"
     - _需求：3.1, 3.2, 9.2, 11.2_
 
   - [x] 7.2 改造 `/workspace/file` 端点，新增 runtime 查询参数
-    - runtime 为 "k8s" 时通过 K8sWorkspaceService 读取文件
+    - runtime 为 "k8s" 时通过 RemoteWorkspaceService 读取文件
     - runtime 为 "local" 或缺失时保持现有逻辑不变
     - _需求：3.3, 3.4, 11.3_
 
   - [x] 7.3 改造 `/workspace/changes` 端点，新增 runtime 查询参数
-    - runtime 为 "k8s" 时通过 K8sWorkspaceService 获取文件变更
+    - runtime 为 "k8s" 时通过 RemoteWorkspaceService 获取文件变更
     - runtime 为 "local" 或缺失时保持现有逻辑不变
     - _需求：3.5, 3.6, 11.4_
 
   - [ ]* 7.4 编写 WorkspaceController runtime 路由属性测试
     - **Property 2: 文件 API runtime 路由正确性**
     - **验证：需求 3.1, 3.2, 3.3, 3.4, 3.5, 3.6**
-    - 使用 jqwik 生成任意 runtime 参数值，验证 "k8s" 路由到 K8sWorkspaceService，其他值路由到本地文件系统
+    - 使用 jqwik 生成任意 runtime 参数值，验证 "k8s" 路由到 RemoteWorkspaceService，其他值路由到本地文件系统
 
 - [x] 8. 检查点 — 后端文件操作改造验证
   - 确保所有后端文件操作相关测试通过，如有问题请询问用户。

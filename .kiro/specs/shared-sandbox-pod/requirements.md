@@ -122,7 +122,7 @@
 
 1. THE 代码库 SHALL 移除 K8sSandboxProvider 类
 2. THE TerminalWebSocketHandler SHALL 将对 PodReuseManager 的引用改为通过 SharedK8sSandboxProvider 获取共享 Pod 信息
-3. THE K8sWorkspaceService SHALL 将对 PodReuseManager.getHealthyPodEntryWithDefaultClient() 的引用改为使用共享 Pod 的固定地址
+3. THE RemoteWorkspaceService SHALL 将对 PodReuseManager.getHealthyPodEntryWithDefaultClient() 的引用改为使用共享 Pod 的固定地址
 4. THE CliProviderConfig.compatibleRuntimes 配置中的 "k8s" 值 SHALL 改为 "shared-k8s"
 5. THE 所有引用 SandboxType.K8S 的测试代码 SHALL 更新为使用新的枚举值
 6. THE K8sSandboxProviderPropertyTest SHALL 重写为 SharedK8sSandboxProviderPropertyTest

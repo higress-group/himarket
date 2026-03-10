@@ -15,7 +15,7 @@ import java.net.URI;
  *   <li><b>acquire()</b>：调用 OpenSandbox Python FastAPI Server（POST /sandboxes）创建沙箱实例，
  *       返回的 sandboxId 和 host 封装为 {@link SandboxInfo}</li>
  *   <li><b>release()</b>：调用 DELETE /sandboxes/{id} 销毁沙箱</li>
- *   <li><b>writeFile / readFile / healthCheck / extractArchive</b>：
+ *   <li><b>writeFile / readFile / healthCheck / exec</b>：
  *       OpenSandbox 的 execd 组件提供兼容的 /files/* HTTP API，
  *       可直接复用 {@link SandboxHttpClient}，无需重复实现</li>
  *   <li><b>connectSidecar()</b>：OpenSandbox 使用 HTTP + SSE 而非 WebSocket 桥接 CLI，
@@ -57,15 +57,22 @@ public interface SandboxProvider {
     String readFile(SandboxInfo info, String relativePath) throws IOException;
 
     /**
-     * 将 tar.gz 压缩包解压到沙箱工作空间。 通过 Sidecar HTTP API（POST /files/extract）上传并解压。
-     * 用于批量注入配置文件，替代逐个 writeFile 调用。
+     * 在沙箱内执行命令。
+     * 默认抛出 UnsupportedOperationException。
      *
-     * @param info 沙箱信息
-     * @param tarGzBytes tar.gz 压缩包的字节内容
-     * @return 解压的文件数量
+     * @param info    沙箱信息
+     * @param command 要执行的命令
+     * @param args    命令参数列表
+     * @param timeout 超时时间
+     * @return 命令执行结果
      */
-    default int extractArchive(SandboxInfo info, byte[] tarGzBytes) throws IOException {
-        throw new UnsupportedOperationException("extractArchive not implemented");
+    default ExecResult exec(
+            SandboxInfo info,
+            String command,
+            java.util.List<String> args,
+            java.time.Duration timeout)
+            throws java.io.IOException {
+        throw new UnsupportedOperationException("exec not implemented");
     }
 
     /**

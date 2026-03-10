@@ -3,7 +3,6 @@ package com.alibaba.himarket.service.acp;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
@@ -25,7 +24,7 @@ class AcpHandshakeInterceptorTest {
 
     @BeforeEach
     void setUp() {
-        interceptor = new AcpHandshakeInterceptor(new ObjectMapper());
+        interceptor = new AcpHandshakeInterceptor();
         response = mock(ServerHttpResponse.class);
         wsHandler = mock(WebSocketHandler.class);
     }

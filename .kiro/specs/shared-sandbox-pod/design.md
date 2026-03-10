@@ -878,7 +878,7 @@ acp:
 
 - **移除的依赖**：
   - `K8sSandboxProvider`（整个类移除）
-  - `PodReuseManager`（不再被沙箱 Provider 使用，但 `TerminalWebSocketHandler` 和 `K8sWorkspaceService` 仍有引用，需要后续迁移）
+  - `PodReuseManager`（不再被沙箱 Provider 使用，但 `TerminalWebSocketHandler` 和 `RemoteWorkspaceService` 仍有引用，需要后续迁移）
   - StorageClass（不再需要动态 PVC）
   - LoadBalancer（不再需要外部 Service IP）
   - ServiceAccount 的 Pod/PVC/Service CRUD 权限
@@ -890,7 +890,7 @@ acp:
 以下代码引用了旧的 `SandboxType.K8S` 或 `K8sSandboxProvider`，需要在实现时同步修改：
 
 1. **`TerminalWebSocketHandler`**：引用了 `PodReuseManager`，需要改为通过 `SharedK8sSandboxProvider` 获取共享 Pod 信息
-2. **`K8sWorkspaceService`**：引用了 `PodReuseManager.getHealthyPodEntryWithDefaultClient()`，需要改为使用共享 Pod 的固定地址
+2. **`RemoteWorkspaceService`**：引用了 `PodReuseManager.getHealthyPodEntryWithDefaultClient()`，需要改为使用共享 Pod 的固定地址
 3. **`CliProviderConfig.compatibleRuntimes`**：配置文件中的 `k8s` 值需要改为 `shared-k8s`
 4. **`RuntimeSelector`**：所有 `switch` 语句需要覆盖四种新类型
 5. **`RuntimeSelectorTest` / `SandboxProviderRegistryTest`**：测试中的 `SandboxType.K8S` 引用需要更新

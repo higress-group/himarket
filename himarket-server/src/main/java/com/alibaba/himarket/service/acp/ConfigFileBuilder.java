@@ -193,6 +193,10 @@ public class ConfigFileBuilder {
      * 根据文件相对路径推断配置类型。
      */
     static ConfigFile.ConfigType inferConfigType(String relativePath) {
+        // .nacos/ 目录下的 yaml 文件识别为 SKILL_CONFIG
+        if (relativePath.startsWith(".nacos/") && relativePath.endsWith(".yaml")) {
+            return ConfigFile.ConfigType.SKILL_CONFIG;
+        }
         if (relativePath.contains("skills") && relativePath.endsWith("SKILL.md")) {
             return ConfigFile.ConfigType.SKILL_CONFIG;
         }

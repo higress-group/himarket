@@ -7,6 +7,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,7 +16,7 @@ import org.springframework.stereotype.Component;
 /**
  * 沙箱 Sidecar HTTP 客户端。
  *
- * <p>统一封装对 Sidecar HTTP API 的调用（writeFile / readFile / healthCheck / extractArchive），
+ * <p>统一封装对 Sidecar HTTP API 的调用（writeFile / readFile / healthCheck / exec），
  * 消除 RemoteSandboxProvider 和 LocalSandboxProvider 中的代码重复。
  *
  * <h3>可复用性说明</h3>
@@ -41,8 +42,6 @@ public class SandboxHttpClient {
     private static final Logger logger = LoggerFactory.getLogger(SandboxHttpClient.class);
     private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(10);
     private static final Duration HEALTH_CHECK_TIMEOUT = Duration.ofSeconds(5);
-    private static final Duration EXTRACT_TIMEOUT = Duration.ofSeconds(30);
-
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
 
@@ -156,69 +155,39 @@ public class SandboxHttpClient {
     }
 
     /**
-     * 解压 tar.gz 归档到沙箱。
+     * 在沙箱内执行命令。
      *
-     * <p>调用 Sidecar POST /files/extract，Content-Type 为 application/gzip，超时 30 秒。
-     * 从响应 JSON 中解析 {@code fileCount} 字段作为解压文件数。
+     * <p>调用 Sidecar POST /exec，请求体为 {"command": command, "args": args}。
+     * 使用调用方传入的 timeout 作为 HTTP 请求超时时间。
      *
-     * @param baseUrl    Sidecar 基础 URL
-     * @param sandboxId  沙箱标识（用于异常信息）
-     * @param tarGzBytes tar.gz 归档字节数组
-     * @return 解压的文件数量
+     * @param baseUrl   Sidecar 基础 URL
+     * @param sandboxId 沙箱标识（用于异常信息）
+     * @param command   要执行的命令
+     * @param args      命令参数列表
+     * @param timeout   HTTP 请求超时时间
+     * @return 命令执行结果
      * @throws IOException 当 HTTP 响应非 200 或请求失败时
      */
-    public int extractArchive(String baseUrl, String sandboxId, byte[] tarGzBytes)
+    public ExecResult exec(
+            String baseUrl, String sandboxId, String command, List<String> args, Duration timeout)
             throws IOException {
-        return extractArchive(baseUrl, sandboxId, tarGzBytes, null);
-    }
-
-    /**
-     * 解压 tar.gz 归档到沙箱指定目录。
-     *
-     * <p>调用 Sidecar POST /files/extract?cwd={cwd}，Content-Type 为 application/gzip，超时 30 秒。
-     * 参考 OpenSandbox execd 设计，由调用方指定解压目标目录，实现多用户工作目录隔离。
-     *
-     * @param baseUrl    Sidecar 基础 URL
-     * @param sandboxId  沙箱标识（用于异常信息）
-     * @param tarGzBytes tar.gz 归档字节数组
-     * @param cwd        解压目标目录（绝对路径），为 null 时使用 Sidecar 默认目录
-     * @return 解压的文件数量
-     * @throws IOException 当 HTTP 响应非 200 或请求失败时
-     */
-    public int extractArchive(String baseUrl, String sandboxId, byte[] tarGzBytes, String cwd)
-            throws IOException {
-        String url = baseUrl + "/files/extract";
-        if (cwd != null && !cwd.isBlank()) {
-            url +=
-                    "?cwd="
-                            + java.net.URLEncoder.encode(
-                                    cwd, java.nio.charset.StandardCharsets.UTF_8);
+        String url = baseUrl + "/exec";
+        String body = objectMapper.writeValueAsString(Map.of("command", command, "args", args));
+        HttpResponse<String> response = doPost(url, body, timeout);
+        if (response.statusCode() != 200) {
+            throw new IOException(
+                    "Sidecar exec 失败 (sandbox: "
+                            + sandboxId
+                            + ", status: "
+                            + response.statusCode()
+                            + "): "
+                            + response.body());
         }
-        try {
-            HttpResponse<String> response =
-                    httpClient.send(
-                            HttpRequest.newBuilder(URI.create(url))
-                                    .POST(HttpRequest.BodyPublishers.ofByteArray(tarGzBytes))
-                                    .header("Content-Type", "application/gzip")
-                                    .timeout(EXTRACT_TIMEOUT)
-                                    .build(),
-                            HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() != 200) {
-                throw new IOException(
-                        "Sidecar extractArchive 失败 (sandbox: "
-                                + sandboxId
-                                + ", url: "
-                                + url
-                                + ", status: "
-                                + response.statusCode()
-                                + "): "
-                                + response.body());
-            }
-            return objectMapper.readTree(response.body()).get("fileCount").asInt();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IOException("HTTP 请求被中断: " + url, e);
-        }
+        var tree = objectMapper.readTree(response.body());
+        return new ExecResult(
+                tree.get("exitCode").asInt(),
+                tree.get("stdout").asText(),
+                tree.get("stderr").asText());
     }
 
     // ===== 内部 HTTP 调用方法 =====

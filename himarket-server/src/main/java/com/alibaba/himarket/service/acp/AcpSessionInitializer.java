@@ -113,6 +113,7 @@ public class AcpSessionInitializer {
                                     new SandboxAcquirePhase(),
                                     new FileSystemReadyPhase(),
                                     new ConfigInjectionPhase(configFileBuilder),
+                                    new SkillDownloadPhase(),
                                     new SidecarConnectPhase()),
                             InitConfig.defaults());
 
@@ -193,7 +194,6 @@ public class AcpSessionInitializer {
         }
 
         InitErrorCode errorCode = InitErrorCode.fromPhaseName(result.failedPhase());
-        boolean retryable = isPhaseRetryable(result.failedPhase());
 
         return new InitializationResult(
                 false,
@@ -202,18 +202,7 @@ public class AcpSessionInitializer {
                 errorCode,
                 result.errorMessage(),
                 result.failedPhase(),
-                retryable,
+                false,
                 result.totalDuration());
-    }
-
-    /**
-     * 判断失败阶段是否可重试。
-     */
-    private boolean isPhaseRetryable(String phaseName) {
-        if (phaseName == null) {
-            return false;
-        }
-        // 所有阶段失败都不自动重试，由用户手动决定
-        return false;
     }
 }

@@ -44,8 +44,19 @@ public interface CliConfigGenerator {
     }
 
     /**
-     * 生成 Skill 配置（默认空实现）。
-     * 子类按需覆盖以实现具体的 Skill 配置注入逻辑。
+     * 返回该 CLI 工具的 skills 目录路径（相对于工作目录）。
+     * 用于 SkillDownloadPhase 确定 nacos-cli 的输出目录。
+     *
+     * @return skills 目录相对路径，如 ".qoder/skills/"
+     */
+    default String skillsDirectory() {
+        return "skills/";
+    }
+
+    /**
+     * 生成 Skill 配置（默认实现：生成 nacos-env.yaml）。
+     * 按 nacosId 分组，为每个 Nacos 实例生成独立的 .nacos/nacos-env-{nacosId}.yaml 文件。
+     * 子类不再需要覆写此方法。
      *
      * @param workingDirectory CLI 进程的工作目录
      * @param skills 解析后的 Skill 列表（含 Nacos 坐标和凭证）
@@ -54,6 +65,7 @@ public interface CliConfigGenerator {
     default void generateSkillConfig(
             String workingDirectory, List<ResolvedSessionConfig.ResolvedSkillEntry> skills)
             throws IOException {
-        // 默认不执行任何操作，子类按需覆盖
+        if (skills == null || skills.isEmpty()) return;
+        NacosEnvGenerator.generateNacosEnvFiles(workingDirectory, skills);
     }
 }

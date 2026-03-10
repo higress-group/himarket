@@ -3,9 +3,6 @@ package com.alibaba.himarket.service.acp;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.core.utils.TokenUtil;
 import com.alibaba.himarket.support.common.User;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,12 +18,6 @@ import org.springframework.web.util.UriComponentsBuilder;
 public class AcpHandshakeInterceptor implements HandshakeInterceptor {
 
     private static final Logger logger = LoggerFactory.getLogger(AcpHandshakeInterceptor.class);
-
-    private final ObjectMapper objectMapper;
-
-    public AcpHandshakeInterceptor(ObjectMapper objectMapper) {
-        this.objectMapper = objectMapper;
-    }
 
     @Override
     public boolean beforeHandshake(
@@ -58,23 +49,6 @@ public class AcpHandshakeInterceptor implements HandshakeInterceptor {
             String sandboxMode = params.getFirst("sandboxMode");
             if (StrUtil.isNotBlank(sandboxMode)) {
                 attributes.put("sandboxMode", sandboxMode);
-            }
-
-            // 解析 cliSessionConfig 参数
-            String cliSessionConfigJson = params.getFirst("cliSessionConfig");
-            if (StrUtil.isNotBlank(cliSessionConfigJson)) {
-                try {
-                    String decoded =
-                            URLDecoder.decode(cliSessionConfigJson, StandardCharsets.UTF_8);
-                    CliSessionConfig sessionConfig =
-                            objectMapper.readValue(decoded, CliSessionConfig.class);
-                    attributes.put("cliSessionConfig", sessionConfig);
-                    logger.info(
-                            "cliSessionConfig parsed successfully: modelProductId={}",
-                            sessionConfig.getModelProductId());
-                } catch (Exception e) {
-                    logger.warn("Failed to parse cliSessionConfig: {}", e.getMessage());
-                }
             }
         } catch (Exception e) {
             logger.debug("Failed to parse token from query param", e);

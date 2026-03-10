@@ -6,7 +6,6 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -86,34 +85,8 @@ public class QwenCodeConfigGenerator implements CliConfigGenerator {
     }
 
     @Override
-    public void generateSkillConfig(
-            String workingDirectory, List<ResolvedSessionConfig.ResolvedSkillEntry> skills)
-            throws IOException {
-        if (skills == null || skills.isEmpty()) return;
-
-        Path qwenDir = Path.of(workingDirectory, QWEN_DIR);
-        Path configPath = qwenDir.resolve(CONFIG_FILE_NAME);
-        Files.createDirectories(qwenDir);
-
-        Map<String, Object> root = readExistingConfig(configPath);
-
-        List<Map<String, Object>> skillsList = new ArrayList<>();
-        for (ResolvedSessionConfig.ResolvedSkillEntry skill : skills) {
-            Map<String, Object> entry = new LinkedHashMap<>();
-            entry.put("name", skill.getName());
-            entry.put("nacosId", skill.getNacosId());
-            entry.put("namespace", skill.getNamespace());
-            entry.put("skillName", skill.getSkillName());
-            entry.put("serverAddr", skill.getServerAddr());
-            entry.put("username", skill.getUsername());
-            entry.put("password", skill.getPassword());
-            if (skill.getAccessKey() != null) entry.put("accessKey", skill.getAccessKey());
-            if (skill.getSecretKey() != null) entry.put("secretKey", skill.getSecretKey());
-            skillsList.add(entry);
-        }
-        root.put("skills", skillsList);
-
-        writeConfig(configPath, root);
+    public String skillsDirectory() {
+        return ".qwen/skills/";
     }
 
     /**

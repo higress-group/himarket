@@ -96,8 +96,8 @@ public class NacosServiceImpl implements NacosService {
 
     @PostConstruct
     void initNacosClientTimeout() {
-        ParamUtil.setReadTimeout(30_000);
-        log.info("Nacos maintainer-client read timeout set to 30s");
+        ParamUtil.setReadTimeout(90_000);
+        log.info("Nacos maintainer-client read timeout set to 90s");
     }
 
     @Override

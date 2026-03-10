@@ -1,21 +1,16 @@
 package com.alibaba.himarket.service.acp.runtime;
 
 import com.alibaba.himarket.service.acp.ConfigFileBuilder;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
-import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
-import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
-import org.apache.commons.compress.compressors.gzip.GzipCompressorOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * 将配置文件注入到沙箱内部。
  *
- * <p>所有配置文件打包为 tar.gz 压缩包，通过 SandboxProvider.extractArchive() 一次性传输到沙箱，
- * 替代逐个 writeFile 调用。二进制传输避免了 JSON 序列化往返导致的 Unicode 字符规范化问题。
+ * <p>逐个 writeFile 注入配置文件。Skill 文件改由 nacos-cli 在沙箱内下载，
+ * 剩余配置文件数量很少，无需压缩解压。
  */
 public class ConfigInjectionPhase implements InitPhase {
 
@@ -76,36 +71,10 @@ public class ConfigInjectionPhase implements InitPhase {
         SandboxInfo info = context.getSandboxInfo();
 
         try {
-            boolean usedExtract = false;
-            try {
-                // 优先使用 extractArchive 批量注入
-                byte[] tarGzBytes = buildTarGz(pendingConfigs);
-                logger.info(
-                        "[ConfigInjection] 打包完成: {} 个文件, 压缩后 {} 字节",
-                        pendingConfigs.size(),
-                        tarGzBytes.length);
-
-                int extractedCount = provider.extractArchive(info, tarGzBytes);
-                logger.info("[ConfigInjection] 解压完成: {} 个文件已注入", extractedCount);
-                usedExtract = true;
-            } catch (UnsupportedOperationException e) {
-                logger.info("[ConfigInjection] Provider 不支持 extractArchive，降级为逐个 writeFile");
-            } catch (IOException e) {
-                if (e.getMessage() != null && e.getMessage().contains("Not Found")) {
-                    logger.info(
-                            "[ConfigInjection] Sidecar 不支持 /files/extract (404)，降级为逐个 writeFile");
-                } else {
-                    throw e;
-                }
+            for (ConfigFile config : pendingConfigs) {
+                provider.writeFile(info, config.relativePath(), config.content());
             }
-
-            if (!usedExtract) {
-                // Fallback: 逐个 writeFile
-                for (ConfigFile config : pendingConfigs) {
-                    provider.writeFile(info, config.relativePath(), config.content());
-                }
-                logger.info("[ConfigInjection] 逐个写入完成: {} 个文件已注入", pendingConfigs.size());
-            }
+            logger.info("[ConfigInjection] 逐个写入完成: {} 个文件已注入", pendingConfigs.size());
 
             // 统计各类型文件数量
             long skillCount = pendingConfigs.stream().filter(c -> "skill".equals(c.type())).count();
@@ -120,32 +89,9 @@ public class ConfigInjectionPhase implements InitPhase {
                     mcpCount,
                     modelCount,
                     otherCount);
-        } catch (InitPhaseException e) {
-            throw e;
         } catch (IOException e) {
             throw new InitPhaseException("config-injection", "配置注入失败: " + e.getMessage(), e, true);
         }
-    }
-
-    /**
-     * 将配置文件列表打包为 tar.gz 字节数组。
-     */
-    static byte[] buildTarGz(List<ConfigFile> configs) throws IOException {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        try (GzipCompressorOutputStream gzOut = new GzipCompressorOutputStream(baos);
-                TarArchiveOutputStream tarOut = new TarArchiveOutputStream(gzOut)) {
-            tarOut.setLongFileMode(TarArchiveOutputStream.LONGFILE_POSIX);
-            for (ConfigFile config : configs) {
-                byte[] contentBytes = config.content().getBytes(StandardCharsets.UTF_8);
-                TarArchiveEntry entry = new TarArchiveEntry(config.relativePath());
-                entry.setSize(contentBytes.length);
-                tarOut.putArchiveEntry(entry);
-                tarOut.write(contentBytes);
-                tarOut.closeArchiveEntry();
-            }
-            tarOut.finish();
-        }
-        return baos.toByteArray();
     }
 
     @Override
