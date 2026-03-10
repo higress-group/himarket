@@ -1,31 +1,51 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
- */
-
 package com.alibaba.himarket.service;
 
+import com.alibaba.himarket.dto.result.skill.SkillFileContentResult;
+import com.alibaba.himarket.dto.result.skill.SkillFileTreeNode;
+import com.alibaba.nacos.api.ai.model.skills.Skill;
+import com.alibaba.nacos.api.ai.model.skills.SkillBasicInfo;
+import com.alibaba.nacos.api.model.Page;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.List;
+
+/**
+ * Nacos Skill SDK 透传服务。
+ * 所有操作通过 NacosService.getAiMaintainerService(nacosId) 获取 SDK 实例。
+ */
 public interface SkillService {
 
-    /**
-     * 下载技能 SKILL.md 内容并递增下载计数
-     *
-     * @param productId 产品ID
-     * @return SKILL.md 原始文本内容
-     */
-    String downloadSkill(String productId);
+    /** 创建 Skill → SDK registerSkill() */
+    String createSkill(String nacosId, String namespace, Skill skill);
+
+    /** 查询 Skill 详情 → SDK getSkillDetail() */
+    Skill getSkillDetail(String nacosId, String namespace, String skillName);
+
+    /** 更新 Skill → SDK updateSkill() */
+    void updateSkill(String nacosId, String namespace, Skill skill);
+
+    /** 删除 Skill → SDK deleteSkill() */
+    void deleteSkill(String nacosId, String namespace, String skillName);
+
+    /** 分页列表 → SDK listSkills() */
+    Page<SkillBasicInfo> listSkills(
+            String nacosId, String namespace, String search, int pageNo, int pageSize);
+
+    /** 获取 SKILL.md 文档（拼装 frontmatter + instruction） */
+    String getSkillDocument(String nacosId, String namespace, String skillName);
+
+    /** 获取文件树 */
+    List<SkillFileTreeNode> getFileTree(String nacosId, String namespace, String skillName);
+
+    /** 获取所有文件内容 */
+    List<SkillFileContentResult> getAllFiles(String nacosId, String namespace, String skillName);
+
+    /** 获取单文件内容 */
+    SkillFileContentResult getFileContent(
+            String nacosId, String namespace, String skillName, String path);
+
+    /** ZIP 流式下载 */
+    void downloadZip(
+            String nacosId, String namespace, String skillName, HttpServletResponse response)
+            throws IOException;
 }

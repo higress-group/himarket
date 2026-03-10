@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
-import { Upload, message, Spin, Tooltip } from 'antd'
+import { Upload, message, Spin, Tooltip, Alert, Button as AntButton } from 'antd'
 import { InboxOutlined, FolderOutlined, FolderOpenOutlined, FileOutlined } from '@ant-design/icons'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeHighlight from 'rehype-highlight'
-import Editor from '@monaco-editor/react'
+import MonacoEditor from 'react-monaco-editor'
 import { skillApi } from '@/lib/api'
 import 'github-markdown-css/github-markdown-light.css'
 import 'highlight.js/styles/github.css'
@@ -26,7 +26,7 @@ interface FileContent {
 }
 
 interface ApiProductSkillPackageProps {
-  productId: string
+  apiProduct: import('@/types/api-product').ApiProduct
   onUploadSuccess?: () => void
 }
 
@@ -111,7 +111,9 @@ function findNode(nodes: SkillFileTreeNode[], path: string): SkillFileTreeNode |
   return null
 }
 
-export function ApiProductSkillPackage({ productId, onUploadSuccess }: ApiProductSkillPackageProps) {
+export function ApiProductSkillPackage({ apiProduct, onUploadSuccess }: ApiProductSkillPackageProps) {
+  const productId = apiProduct.productId
+  const hasNacos = !!(apiProduct.skillConfig?.nacosId)
   const [fileTree, setFileTree] = useState<SkillFileTreeNode[]>([])
   const [selectedPath, setSelectedPath] = useState<string | undefined>()
   const [selectedFile, setSelectedFile] = useState<FileContent | null>(null)
@@ -231,10 +233,17 @@ export function ApiProductSkillPackage({ productId, onUploadSuccess }: ApiProduc
       )
     }
 
+    const lang = (() => {
+      const ext = selectedFile.path.split('.').pop()?.toLowerCase() ?? ''
+      const map: Record<string, string> = { py: 'python', js: 'javascript', ts: 'typescript', tsx: 'typescript', jsx: 'javascript', json: 'json', yaml: 'yaml', yml: 'yaml', sh: 'shell', bash: 'shell', css: 'css', html: 'html', xml: 'xml', sql: 'sql', java: 'java', go: 'go', rs: 'rust', rb: 'ruby', kt: 'kotlin', swift: 'swift', c: 'c', cpp: 'cpp', h: 'c', hpp: 'cpp' }
+      return map[ext] || 'plaintext'
+    })()
+
     return (
-      <Editor
+      <MonacoEditor
+        width="100%"
         height="100%"
-        path={selectedFile.path}
+        language={lang}
         value={selectedFile.content}
         options={{ readOnly: true, minimap: { enabled: false }, scrollBeyondLastLine: false, fontSize: 13, lineHeight: 20 }}
         theme="vs"
@@ -249,7 +258,21 @@ export function ApiProductSkillPackage({ productId, onUploadSuccess }: ApiProduc
         <p className="text-gray-600">上传并管理技能包文件</p>
       </div>
 
-      <Upload.Dragger accept=".zip,.tar.gz" customRequest={customRequest} showUploadList={false} disabled={uploading} style={{ padding: '8px 0' }}>
+      {!hasNacos && (
+        <Alert
+          type="warning"
+          showIcon
+          message="尚未关联 Nacos 实例"
+          description="请先在 Link Nacos 页面关联 Nacos 实例后，才能上传和管理技能包。如果还没有导入 Nacos 实例，请前往 Nacos 实例管理页面导入。"
+          action={
+            <AntButton size="small" type="primary" href="/nacos-consoles">
+              前往 Nacos 管理
+            </AntButton>
+          }
+        />
+      )}
+
+      <Upload.Dragger accept=".zip,.tar.gz" customRequest={customRequest} showUploadList={false} disabled={uploading || !hasNacos} style={{ padding: '8px 0' }}>
         <p className="ant-upload-drag-icon"><InboxOutlined /></p>
         <p className="ant-upload-text">点击或拖拽上传 Skill 包</p>
         <p className="ant-upload-hint">支持 .zip 和 .tar.gz 格式，最大 50MB</p>

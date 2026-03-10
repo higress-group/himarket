@@ -211,11 +211,15 @@ export interface ModelFeature {
 
 export interface ProductFeature {
   modelFeature?: ModelFeature;
+  skillConfig?: ApiProductSkillConfig;
 }
 
 export interface ApiProductSkillConfig {
   skillTags?: string[];
   downloadCount?: number;
+  nacosId?: string;
+  namespace?: string;
+  skillName?: string;
 }
 
 export interface ApiProduct {

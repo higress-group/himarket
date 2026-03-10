@@ -155,8 +155,8 @@ function Square(props: { activeType: string }) {
   const filteredModels = products.filter((product) => {
     const matchesSearch =
       searchQuery === "" ||
-      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.description.toLowerCase().includes(searchQuery.toLowerCase());
+      product.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      product.description?.toLowerCase().includes(searchQuery.toLowerCase());
 
     return matchesSearch;
   });

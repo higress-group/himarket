@@ -1,7 +1,11 @@
 package com.alibaba.himarket.service.acp;
 
-import com.alibaba.himarket.dto.result.skill.SkillFileContentResult;
-import com.alibaba.himarket.service.SkillPackageService;
+import com.alibaba.himarket.entity.NacosInstance;
+import com.alibaba.himarket.entity.Product;
+import com.alibaba.himarket.repository.ProductRepository;
+import com.alibaba.himarket.service.NacosService;
+import com.alibaba.himarket.support.product.ProductFeature;
+import com.alibaba.himarket.support.product.SkillConfig;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -16,9 +20,6 @@ import org.springframework.stereotype.Service;
  * 会话配置解析服务。
  *
  * <p>将前端传入的标识符（{@link CliSessionConfig}）解析为完整的配置信息（{@link ResolvedSessionConfig}）。
- *
- * <p>从 {@code AcpWebSocketHandler.prepareConfigFiles()} 中提取，使配置解析可独立测试。
- * 封装了模型配置查询、MCP 连接信息解析、Skill 文件下载等数据库/远程调用。
  */
 @Service
 @RequiredArgsConstructor
@@ -28,37 +29,18 @@ public class SessionConfigResolver {
 
     private final ModelConfigResolver modelConfigResolver;
     private final McpConfigResolver mcpConfigResolver;
-    private final SkillPackageService skillPackageService;
+    private final ProductRepository productRepository;
+    private final NacosService nacosService;
 
-    /**
-     * 解析会话配置。
-     *
-     * @param sessionConfig 前端传入的配置（仅含 productId 等标识符）
-     * @param userId 当前用户 ID（用于设置 Security 上下文）
-     * @return 已解析的完整配置
-     */
     public ResolvedSessionConfig resolve(CliSessionConfig sessionConfig, String userId) {
         ResolvedSessionConfig resolved = new ResolvedSessionConfig();
         resolved.setAuthToken(sessionConfig.getAuthToken());
-
-        // 1. 模型配置解析
         resolveModelConfig(sessionConfig, userId, resolved);
-
-        // 2. MCP 配置解析
         resolveMcpConfig(sessionConfig, resolved);
-
-        // 3. Skill 文件下载
         resolveSkillConfig(sessionConfig, resolved);
-
         return resolved;
     }
 
-    /**
-     * 解析模型配置。
-     *
-     * <p>设置 Spring Security 上下文 → 调用 {@link ModelConfigResolver#resolve(String)} →
-     * 清理 Security 上下文。异常时记录错误日志但不抛出，customModelConfig 保持 null。
-     */
     private void resolveModelConfig(
             CliSessionConfig config, String userId, ResolvedSessionConfig resolved) {
         if (config.getModelProductId() == null || config.getModelProductId().isBlank()) {
@@ -67,20 +49,16 @@ public class SessionConfigResolver {
         }
         logger.info("[Sandbox-Config] 开始解析模型配置: modelProductId={}", config.getModelProductId());
         try {
-            // 设置 Spring Security 上下文，以便 ModelConfigResolver 能获取当前用户
-            // principal 必须是 String 类型的 userId，因为 ContextHolder.getUser() 期望如此
             SecurityContextHolder.getContext()
                     .setAuthentication(
                             new UsernamePasswordAuthenticationToken(
                                     userId, null, Collections.emptyList()));
-
             CustomModelConfig customModelConfig =
                     modelConfigResolver.resolve(config.getModelProductId());
             if (customModelConfig != null) {
                 resolved.setCustomModelConfig(customModelConfig);
                 logger.info(
-                        "[Sandbox-Config] 模型配置解析成功: modelProductId={}, baseUrl={},"
-                                + " hasApiKey={}",
+                        "[Sandbox-Config] 模型配置解析成功: modelProductId={}, baseUrl={}, hasApiKey={}",
                         config.getModelProductId(),
                         customModelConfig.getBaseUrl(),
                         customModelConfig.getApiKey() != null);
@@ -96,17 +74,10 @@ public class SessionConfigResolver {
                     e.getMessage(),
                     e);
         } finally {
-            // 清理 Security 上下文
             SecurityContextHolder.clearContext();
         }
     }
 
-    /**
-     * 解析 MCP 配置。
-     *
-     * <p>调用 {@link McpConfigResolver#resolve(List)} 解析 MCP Server 连接信息。
-     * 异常时记录错误日志并跳过。
-     */
     private void resolveMcpConfig(CliSessionConfig config, ResolvedSessionConfig resolved) {
         if (config.getMcpServers() == null || config.getMcpServers().isEmpty()) {
             return;
@@ -121,11 +92,7 @@ public class SessionConfigResolver {
     }
 
     /**
-     * 解析 Skill 配置（下载文件内容）。
-     *
-     * <p>遍历 skills 列表，对每个有 productId 的条目调用
-     * {@link SkillPackageService#getAllFiles(String)} 下载文件。
-     * 单项失败时记录错误日志并跳过该项，继续处理其余项。
+     * 解析 Skill 配置：从 Product 读取 SkillConfig 坐标 + 从 NacosInstance 提取凭证。
      */
     private void resolveSkillConfig(CliSessionConfig config, ResolvedSessionConfig resolved) {
         if (config.getSkills() == null || config.getSkills().isEmpty()) {
@@ -137,16 +104,43 @@ public class SessionConfigResolver {
                 continue;
             }
             try {
-                List<SkillFileContentResult> files =
-                        skillPackageService.getAllFiles(skillEntry.getProductId());
+                Product product = productRepository.findByProductId(skillEntry.getProductId())
+                        .orElse(null);
+                if (product == null) {
+                    logger.warn("[Sandbox-Config] Skill Product 不存在, 跳过: productId={}",
+                            skillEntry.getProductId());
+                    continue;
+                }
+                ProductFeature feature = product.getFeature();
+                if (feature == null || feature.getSkillConfig() == null) {
+                    logger.warn("[Sandbox-Config] Skill Product 无 SkillConfig, 跳过: productId={}",
+                            skillEntry.getProductId());
+                    continue;
+                }
+                SkillConfig skillConfig = feature.getSkillConfig();
+                if (skillConfig.getNacosId() == null || skillConfig.getSkillName() == null) {
+                    logger.warn("[Sandbox-Config] SkillConfig 坐标不完整, 跳过: productId={}",
+                            skillEntry.getProductId());
+                    continue;
+                }
+
+                NacosInstance nacos = nacosService.findNacosInstanceById(skillConfig.getNacosId());
+
                 ResolvedSessionConfig.ResolvedSkillEntry resolvedSkill =
                         new ResolvedSessionConfig.ResolvedSkillEntry();
                 resolvedSkill.setName(skillEntry.getName());
-                resolvedSkill.setFiles(files);
+                resolvedSkill.setNacosId(skillConfig.getNacosId());
+                resolvedSkill.setNamespace(skillConfig.getNamespace());
+                resolvedSkill.setSkillName(skillConfig.getSkillName());
+                resolvedSkill.setServerAddr(nacos.getServerUrl());
+                resolvedSkill.setUsername(nacos.getUsername());
+                resolvedSkill.setPassword(nacos.getPassword());
+                resolvedSkill.setAccessKey(nacos.getAccessKey());
+                resolvedSkill.setSecretKey(nacos.getSecretKey());
                 resolvedSkills.add(resolvedSkill);
             } catch (Exception e) {
                 logger.error(
-                        "[Sandbox-Config] Skill 文件下载失败, 跳过: productId={}, name={}," + " error={}",
+                        "[Sandbox-Config] Skill 坐标解析失败, 跳过: productId={}, name={}, error={}",
                         skillEntry.getProductId(),
                         skillEntry.getName(),
                         e.getMessage(),

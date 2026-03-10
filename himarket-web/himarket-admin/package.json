@@ -34,6 +34,7 @@
     "react-monaco-editor": "^0.59.0",
     "react-router-dom": "^6.28.0",
     "rehype-highlight": "^7.0.2",
+    "remark-frontmatter": "^5.0.0",
     "remark-gfm": "^4.0.1",
     "swagger-ui-react": "^5.29.0",
     "tailwind-merge": "^3.3.1",

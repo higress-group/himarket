@@ -1,6 +1,5 @@
 package com.alibaba.himarket.service.acp;
 
-import com.alibaba.himarket.dto.result.skill.SkillFileContentResult;
 import java.util.List;
 import java.util.Map;
 import lombok.Data;
@@ -18,7 +17,7 @@ public class ResolvedSessionConfig {
     /** 解析后的 MCP Server 列表（含完整连接信息） */
     private List<ResolvedMcpEntry> mcpServers;
 
-    /** 解析后的 Skill 列表（含文件内容） */
+    /** 解析后的 Skill 列表（含坐标+凭证） */
     private List<ResolvedSkillEntry> skills;
 
     /** 认证凭据（直接透传） */
@@ -44,7 +43,16 @@ public class ResolvedSessionConfig {
         /** Skill 名称 */
         private String name;
 
-        /** 完整文件列表 */
-        private List<SkillFileContentResult> files;
+        // Skill 坐标
+        private String nacosId;
+        private String namespace;
+        private String skillName;
+
+        // Nacos 凭证
+        private String serverAddr;
+        private String username;
+        private String password;
+        private String accessKey;
+        private String secretKey;
     }
 }

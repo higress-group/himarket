@@ -41,5 +41,9 @@ public class NacosResult implements OutputConverter<NacosResult, NacosInstance> 
 
     private String adminId;
 
+    private Boolean isDefault;
+
+    private String defaultNamespace;
+
     private LocalDateTime createAt;
 }

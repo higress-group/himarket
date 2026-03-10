@@ -41,7 +41,7 @@ export function SkillCard({
       {/* 底部：标签 + 下载数 + 日期 */}
       <div className="flex items-center justify-between mt-2 gap-2">
         <div className="flex items-center gap-1 flex-1 min-w-0 overflow-hidden">
-          {skillTags.slice(0, 3).map((tag) => (
+          {(skillTags ?? []).slice(0, 3).map((tag) => (
             <span
               key={tag}
               className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-500 whitespace-nowrap"

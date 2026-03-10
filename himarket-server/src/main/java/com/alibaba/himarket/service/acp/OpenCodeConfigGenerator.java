@@ -1,13 +1,12 @@
 package com.alibaba.himarket.service.acp;
 
-import com.alibaba.himarket.dto.result.skill.SkillFileContentResult;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Base64;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -156,61 +155,26 @@ public class OpenCodeConfigGenerator implements CliConfigGenerator {
             throws IOException {
         if (skills == null || skills.isEmpty()) return;
 
-        // 创建 .opencode/skills/ 目录结构
-        Path skillsBaseDir = Path.of(workingDirectory, OPENCODE_DIR, "skills");
-        Files.createDirectories(skillsBaseDir);
-
-        for (ResolvedSessionConfig.ResolvedSkillEntry skill : skills) {
-            // NPE 防护：跳过 name 为 null 的条目
-            if (skill == null || skill.getName() == null) {
-                logger.warn("跳过 SkillEntry：name 为 null");
-                continue;
-            }
-
-            // NPE 防护：跳过文件列表为空的条目
-            if (skill.getFiles() == null || skill.getFiles().isEmpty()) {
-                logger.warn("跳过 SkillEntry [{}]：文件列表为空", skill.getName());
-                continue;
-            }
-
-            String dirName = toKebabCase(skill.getName());
-            Path skillDir = skillsBaseDir.resolve(dirName);
-            Files.createDirectories(skillDir);
-
-            for (SkillFileContentResult file : skill.getFiles()) {
-                Path filePath = skillDir.resolve(file.getPath());
-                Files.createDirectories(filePath.getParent());
-                if ("base64".equals(file.getEncoding())) {
-                    byte[] bytes = Base64.getDecoder().decode(file.getContent());
-                    Files.write(filePath, bytes);
-                } else {
-                    Files.writeString(filePath, file.getContent());
-                }
-            }
-        }
-
-        // 更新 opencode.json 中的 skills.paths 配置
         Path configPath = Path.of(workingDirectory, CONFIG_FILE_NAME);
         Map<String, Object> root = readExistingConfig(configPath);
-        addSkillsPaths(root, skillsBaseDir.toString());
+
+        List<Map<String, Object>> skillsList = new ArrayList<>();
+        for (ResolvedSessionConfig.ResolvedSkillEntry skill : skills) {
+            Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put("name", skill.getName());
+            entry.put("nacosId", skill.getNacosId());
+            entry.put("namespace", skill.getNamespace());
+            entry.put("skillName", skill.getSkillName());
+            entry.put("serverAddr", skill.getServerAddr());
+            entry.put("username", skill.getUsername());
+            entry.put("password", skill.getPassword());
+            if (skill.getAccessKey() != null) entry.put("accessKey", skill.getAccessKey());
+            if (skill.getSecretKey() != null) entry.put("secretKey", skill.getSecretKey());
+            skillsList.add(entry);
+        }
+        root.put("skills", skillsList);
+
         writeConfig(configPath, root);
-    }
-
-    /**
-     * 将名称转换为 kebab-case 格式。
-     * 规则：空格替换为 -，大写转小写，去除特殊字符，合并连续 -，去除首尾 -。
-     */
-    static String toKebabCase(String name) {
-        if (name == null || name.isBlank()) return "";
-
-        String result =
-                name.trim()
-                        .replaceAll("\\s+", "-")
-                        .toLowerCase()
-                        .replaceAll("[^a-z0-9\\-]", "")
-                        .replaceAll("-{2,}", "-")
-                        .replaceAll("^-|-$", "");
-        return result;
     }
 
     /**
@@ -250,33 +214,4 @@ public class OpenCodeConfigGenerator implements CliConfigGenerator {
         root.put("mcp", mcpMap);
     }
 
-    /**
-     * 将 skills 目录路径添加到配置的 skills.paths 中。
-     * OpenCode 格式：
-     * {
-     *   "skills": {
-     *     "paths": [".opencode/skills"]
-     *   }
-     * }
-     */
-    @SuppressWarnings("unchecked")
-    void addSkillsPaths(Map<String, Object> root, String skillsPath) {
-        Map<String, Object> skillsConfig =
-                root.containsKey("skills")
-                        ? (Map<String, Object>) root.get("skills")
-                        : new LinkedHashMap<>();
-
-        List<String> paths =
-                skillsConfig.containsKey("paths")
-                        ? (List<String>) skillsConfig.get("paths")
-                        : new java.util.ArrayList<>();
-
-        // 避免重复添加
-        if (!paths.contains(skillsPath)) {
-            paths.add(skillsPath);
-        }
-
-        skillsConfig.put("paths", paths);
-        root.put("skills", skillsConfig);
-    }
 }

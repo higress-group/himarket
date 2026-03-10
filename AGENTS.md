@@ -145,3 +145,58 @@ git clone https://github.com/alibaba/OpenSandbox.git
 - 对接 OpenSandbox 的 API 或 SDK
 
 对于其他 HiMarket 功能开发，无需关注 OpenSandbox 目录。
+
+## Nacos 集成
+
+HiMarket 使用阿里巴巴开源的 Nacos 作为服务发现和配置管理基础设施。本地通过符号链接引入了 Nacos 源码仓库，方便 AI Agent 理解 Nacos 内部实现。
+
+### 项目位置
+
+Nacos 源码位于 `nacos/` 目录（本地符号链接，指向 `/Users/xujingfeng/AIProjects/nacos`，不提交到 git）。
+
+**首次设置：**
+```bash
+cd /Users/xujingfeng/IdeaProjects/himarket
+ln -s /Users/xujingfeng/AIProjects/nacos nacos
+```
+
+该目录已在 `.gitignore` 中配置，不会被提交到版本控制，但 AI Agent 可以正常访问和探索其中的源码和文档。
+
+### 渐进性探索指南
+
+当需要对接或调试 Nacos 相关功能时，按以下顺序探索：
+
+1. **快速了解**：阅读 `nacos/README.md` 了解项目概述（动态服务发现、配置管理、DNS 服务）
+2. **架构文档**：`nacos/doc/` 目录下的设计文档
+3. **关键模块**：
+   - `nacos/api/` - Nacos 公共 API 定义（SPI 接口、模型类）
+   - `nacos/client/` - Java 客户端 SDK（服务注册/发现、配置监听）
+   - `nacos/naming/` - 服务注册与发现核心实现
+   - `nacos/config/` - 配置管理核心实现
+   - `nacos/server/` - Nacos Server 启动入口
+   - `nacos/console/` - 管理控制台后端
+   - `nacos/console-ui/` - 管理控制台前端
+   - `nacos/core/` - 核心通用模块（集群、鉴权、分布式协议）
+   - `nacos/consistency/` - 一致性协议（Raft/Distro）
+   - `nacos/auth/` - 认证鉴权模块
+   - `nacos/plugin/` - 插件体系（鉴权、配置加密、数据源等）
+   - `nacos/persistence/` - 持久化层
+   - `nacos/distribution/` - 打包和发布配置
+4. **高级主题**（特定场景）：
+   - `nacos/mcp-registry-adaptor/` - MCP 注册适配器
+   - `nacos/istio/` - Istio 集成（MCP/xDS 协议）
+   - `nacos/k8s-sync/` - Kubernetes 服务同步
+   - `nacos/ai/` - AI 相关能力
+   - `nacos/skills/` - Skill 市场能力
+
+### 何时探索 Nacos
+
+仅在以下场景需要深入探索 Nacos 源码和文档：
+- 实现或调试 HiMarket 与 Nacos 的服务注册/发现集成
+- 对接 Nacos 配置管理能力（动态配置推送、监听）
+- 排查 Nacos 客户端连接、心跳、同步等问题
+- 理解 Nacos 的一致性协议（Raft/Distro）实现细节
+- 扩展 Nacos 插件（鉴权、数据源、配置加密等）
+- 对接 Nacos 的 Open API 或使用其 Java SDK
+
+对于其他 HiMarket 功能开发，无需关注 Nacos 目录。

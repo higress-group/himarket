@@ -28,7 +28,9 @@ import com.alibaba.himarket.dto.result.mcp.NacosMCPServerResult;
 import com.alibaba.himarket.dto.result.nacos.MseNacosResult;
 import com.alibaba.himarket.dto.result.nacos.NacosNamespaceResult;
 import com.alibaba.himarket.dto.result.nacos.NacosResult;
+import com.alibaba.himarket.entity.NacosInstance;
 import com.alibaba.himarket.support.product.NacosRefConfig;
+import com.alibaba.nacos.maintainer.client.ai.AiMaintainerService;
 import org.springframework.data.domain.Pageable;
 
 /** Nacos服务接口，定义Nacos实例管理和MCP服务器配置相关操作 */
@@ -136,4 +138,48 @@ public interface NacosService {
      * @return Agent 配置的 JSON 字符串
      */
     String fetchAgentConfig(String nacosId, NacosRefConfig nacosRefConfig);
+
+    // ==================== Skill 相关 ====================
+
+    /**
+     * 根据 nacosId 获取缓存的 AiMaintainerService 实例。
+     * 复用已有的 buildDynamicAiService + ConcurrentHashMap 缓存机制。
+     *
+     * @param nacosId nacos_instance 表主键
+     * @return AiMaintainerService 实例
+     * @throws BusinessException nacosId 不存在或连接失败
+     */
+    AiMaintainerService getAiMaintainerService(String nacosId);
+
+    /**
+     * 根据 nacosId 查询 NacosInstance 记录（用于提取凭证信息）。
+     *
+     * @param nacosId nacos_instance 表主键
+     * @return NacosInstance 实体
+     * @throws BusinessException nacosId 不存在
+     */
+    NacosInstance findNacosInstanceById(String nacosId);
+
+    /**
+     * 获取默认 Nacos 实例。
+     *
+     * @return 默认实例信息，不存在时返回 null
+     */
+    NacosResult getDefaultNacosInstance();
+
+    /**
+     * 设置指定 Nacos 实例为默认。
+     *
+     * @param nacosId 要设为默认的实例 ID
+     */
+    void setDefaultNacosInstance(String nacosId);
+
+    /**
+     * 设置指定 Nacos 实例的默认命名空间。
+     * 会先用已保存的认证信息连接 Nacos 验证命名空间是否存在，再保存。
+     *
+     * @param nacosId Nacos 实例 ID
+     * @param namespaceId 要设为默认的命名空间 ID
+     */
+    void setDefaultNamespace(String nacosId, String namespaceId);
 }

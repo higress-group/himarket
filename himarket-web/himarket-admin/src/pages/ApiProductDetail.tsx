@@ -15,6 +15,7 @@ import { ApiProductLinkApi } from '@/components/api-product/ApiProductLinkApi'
 import { ApiProductUsageGuide } from '@/components/api-product/ApiProductUsageGuide'
 import { ApiProductPortal } from '@/components/api-product/ApiProductPortal'
 import { ApiProductSkillPackage } from '@/components/api-product/ApiProductSkillPackage'
+import { ApiProductLinkNacos } from '@/components/api-product/ApiProductLinkNacos'
 // import { ApiProductDashboard } from '@/components/api-product/ApiProductDashboard'
 import { apiProductApi } from '@/lib/api';
 import type { ApiProduct, LinkedService } from '@/types/api-product';
@@ -55,12 +56,13 @@ export default function ApiProductDetail() {
   const [linkedService, setLinkedService] = useState<LinkedService | null>(null)
   const [, setLoading] = useState(true) // 添加 loading 状态
   
-  // 动态计算 menuItems（AGENT_SKILL 类型：隐藏 Link API，插入 Skill Package 到第二位）
+  // 动态计算 menuItems（AGENT_SKILL 类型：隐藏 Link API 和 Usage Guide，插入 Skill Package 和 Link Nacos）
   const menuItems = apiProduct?.type === 'AGENT_SKILL'
     ? [
         BASE_MENU_ITEMS[0], // overview
         { key: 'skill-package', label: 'Skill Package', description: '技能包管理', icon: InboxOutlined },
-        ...BASE_MENU_ITEMS.slice(2), // usage-guide, portal（跳过 link-api）
+        { key: 'link-nacos', label: 'Link Nacos', description: 'Nacos 关联', icon: LinkOutlined },
+        BASE_MENU_ITEMS[3], // portal（跳过 link-api 和 usage-guide）
       ]
     : BASE_MENU_ITEMS;
 
@@ -142,7 +144,9 @@ export default function ApiProductDetail() {
       case "portal":
         return <ApiProductPortal apiProduct={apiProduct} />
       case "skill-package":
-        return <ApiProductSkillPackage productId={apiProduct.productId} onUploadSuccess={fetchApiProduct} />
+        return <ApiProductSkillPackage apiProduct={apiProduct} onUploadSuccess={fetchApiProduct} />
+      case "link-nacos":
+        return <ApiProductLinkNacos apiProduct={apiProduct} handleRefresh={fetchApiProduct} />
       // case "dashboard":
       //   return <ApiProductDashboard apiProduct={apiProduct} />
       default:

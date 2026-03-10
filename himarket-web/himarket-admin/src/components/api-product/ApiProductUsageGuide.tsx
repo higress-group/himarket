@@ -1,13 +1,12 @@
 import { Card, Button, Space, message } from 'antd'
 import { SaveOutlined, UploadOutlined, FileMarkdownOutlined, EditOutlined } from '@ant-design/icons'
-import { useEffect, useState, useRef } from 'react'
+import { useState, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm';
 import MdEditor from 'react-markdown-editor-lite'
 import 'react-markdown-editor-lite/lib/index.css'
 import type { ApiProduct } from '@/types/api-product'
-import { apiProductApi, skillApi } from '@/lib/api'
-import SkillMdEditor from './SkillMdEditor'
+import { apiProductApi } from '@/lib/api'
 
 interface ApiProductUsageGuideProps {
   apiProduct: ApiProduct
@@ -20,14 +19,6 @@ export function ApiProductUsageGuide({ apiProduct, handleRefresh }: ApiProductUs
   const [originalContent, setOriginalContent] = useState(apiProduct.document || '')
   const [saving, setSaving] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
-
-  const isAgentSkill = apiProduct.type === 'AGENT_SKILL'
-
-  useEffect(() => {
-    const doc = apiProduct.document || ''
-    setContent(doc)
-    setOriginalContent(doc)
-  }, [apiProduct.document])
 
   const handleEdit = () => {
     setIsEditing(true)
@@ -44,25 +35,6 @@ export function ApiProductUsageGuide({ apiProduct, handleRefresh }: ApiProductUs
       message.success('保存成功')
       setIsEditing(false)
       setOriginalContent(content)
-      handleRefresh();
-    }).finally(() => {
-      setSaving(false)
-    })
-  }
-
-  const handleSkillMdSave = (value: string) => {
-    const categoryIds = apiProduct.categories?.map(cat => cat.categoryId) || [];
-
-    setSaving(true)
-    apiProductApi.updateApiProduct(apiProduct.productId, {
-      document: value,
-      categories: categoryIds
-    }).then(() => {
-      // 同步更新 skill_file 表里的 SKILL.md
-      return skillApi.updateSkillMd(apiProduct.productId, value)
-    }).then(() => {
-      message.success('保存成功')
-      setOriginalContent(value)
       handleRefresh();
     }).finally(() => {
       setSaving(false)
@@ -102,24 +74,6 @@ export function ApiProductUsageGuide({ apiProduct, handleRefresh }: ApiProductUs
 
   const triggerFileInput = () => {
     fileInputRef.current?.click()
-  }
-
-  // AGENT_SKILL 类型使用 SkillMdEditor
-  if (isAgentSkill) {
-    return (
-      <div className="p-6 space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold mb-2">SKILL.md 编辑</h1>
-          <p className="text-gray-600">编辑技能的 SKILL.md 描述文件</p>
-        </div>
-        <SkillMdEditor
-          value={content}
-          onChange={setContent}
-          onSave={handleSkillMdSave}
-          saving={saving}
-        />
-      </div>
-    )
   }
 
   return (

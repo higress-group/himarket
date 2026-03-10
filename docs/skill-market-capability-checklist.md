@@ -276,3 +276,13 @@ Nacos 作为 Skill 管理组件，需要覆盖以下 10 个能力域：
 | 9 | CLI 友好接口 | 精简列表接口，返回 skillId、name、description、skillTags |
 | 10 | 安全约束 | 文件大小/数量限制、路径穿越防护、隐藏文件过滤、编码自动检测 |
 | 11 | CLI 工具 | 提供 nacos-cli，支持在沙箱/开发环境中列出、搜索、安装 Skill 到指定目录 |
+
+
+
+
+
+\1. /api/v1/nacos/{nacosId}/skills/... 这个路径不对，不应该包含 nacos，skill 是 himarket 的一等公民
+
+\2. ConfigFileBuilder 为什么下边是 QoderCliConfigGenerator，是因为 QoderCli 有什么特殊逻辑吗？qwen code/claude code/open code 应该是相同的逻辑啊
+
+\3. 阅读下 nacos 的源码，现在上传 zip 包的这个逻辑应该不在 

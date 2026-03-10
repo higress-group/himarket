@@ -34,4 +34,19 @@ public class SkillConfig {
      * 下载次数
      */
     private Long downloadCount;
+
+    /**
+     * 关联的 Nacos 实例 ID（nacos_instance.nacos_id）
+     */
+    private String nacosId;
+
+    /**
+     * Nacos 命名空间，默认 "public"
+     */
+    private String namespace;
+
+    /**
+     * Nacos Skill name（唯一标识）
+     */
+    private String skillName;
 }

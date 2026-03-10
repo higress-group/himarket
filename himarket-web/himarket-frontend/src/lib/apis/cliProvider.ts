@@ -166,5 +166,5 @@ export function getSkillFileContent(productId: string, filePath: string) {
  * 获取 Skill 包下载 URL
  */
 export function getSkillPackageUrl(productId: string): string {
-  return `/api/v1/skills/${productId}/package`;
+  return `/api/v1/skills/${productId}/download`;
 }

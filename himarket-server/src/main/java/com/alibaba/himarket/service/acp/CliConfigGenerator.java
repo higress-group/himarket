@@ -48,7 +48,7 @@ public interface CliConfigGenerator {
      * 子类按需覆盖以实现具体的 Skill 配置注入逻辑。
      *
      * @param workingDirectory CLI 进程的工作目录
-     * @param skills 解析后的 Skill 列表（含文件内容）
+     * @param skills 解析后的 Skill 列表（含 Nacos 坐标和凭证）
      * @throws IOException 配置文件写入失败时抛出
      */
     default void generateSkillConfig(

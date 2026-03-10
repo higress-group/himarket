@@ -37,6 +37,7 @@ import com.alibaba.himarket.dto.result.ProductCategoryResult;
 import com.alibaba.himarket.dto.result.agent.AgentConfigResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.consumer.CredentialContext;
+import com.alibaba.himarket.dto.result.nacos.NacosResult;
 import com.alibaba.himarket.dto.result.gateway.GatewayResult;
 import com.alibaba.himarket.dto.result.httpapi.APIConfigResult;
 import com.alibaba.himarket.dto.result.mcp.MCPConfigResult;
@@ -56,6 +57,8 @@ import com.alibaba.himarket.support.enums.ProductStatus;
 import com.alibaba.himarket.support.enums.ProductType;
 import com.alibaba.himarket.support.enums.SourceType;
 import com.alibaba.himarket.support.product.NacosRefConfig;
+import com.alibaba.himarket.support.product.ProductFeature;
+import com.alibaba.himarket.support.product.SkillConfig;
 import com.github.benmanes.caffeine.cache.Cache;
 import io.agentscope.core.tool.mcp.McpClientWrapper;
 import jakarta.persistence.criteria.Predicate;
@@ -129,6 +132,22 @@ public class ProductServiceImpl implements ProductService {
         // AGENT_SKILL products are immediately ready (no gateway/nacos binding needed)
         if (param.getType() == ProductType.AGENT_SKILL) {
             product.setStatus(ProductStatus.READY);
+            // 自动绑定默认 Nacos 实例
+            NacosResult defaultNacos = nacosService.getDefaultNacosInstance();
+            if (defaultNacos != null) {
+                ProductFeature feature = product.getFeature();
+                if (feature == null) {
+                    feature = new ProductFeature();
+                    product.setFeature(feature);
+                }
+                SkillConfig skillConfig = feature.getSkillConfig();
+                if (skillConfig == null) {
+                    skillConfig = new SkillConfig();
+                    feature.setSkillConfig(skillConfig);
+                }
+                skillConfig.setNacosId(defaultNacos.getNacosId());
+                skillConfig.setNamespace(defaultNacos.getDefaultNamespace());
+            }
         }
 
         productRepository.save(product);
@@ -552,6 +571,31 @@ public class ProductServiceImpl implements ProductService {
         result.setTools(mcpClientWrapper.listTools().block());
         return result;
     }
+
+    @Override
+    public void updateSkillNacos(String productId, String nacosId, String namespace) {
+        Product product = findProduct(productId);
+        if (product.getType() != ProductType.AGENT_SKILL) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "Only AGENT_SKILL products can update skill nacos");
+        }
+        // Verify nacos instance exists
+        nacosService.getNacosInstance(nacosId);
+
+        ProductFeature feature = product.getFeature();
+        if (feature == null) {
+            feature = new ProductFeature();
+            product.setFeature(feature);
+        }
+        SkillConfig skillConfig = feature.getSkillConfig();
+        if (skillConfig == null) {
+            skillConfig = new SkillConfig();
+            feature.setSkillConfig(skillConfig);
+        }
+        skillConfig.setNacosId(nacosId);
+        skillConfig.setNamespace(namespace);
+        productRepository.save(product);
+    }
+
 
     private void syncConfig(Product product, ProductRef productRef) {
         SourceType sourceType = productRef.getSourceType();

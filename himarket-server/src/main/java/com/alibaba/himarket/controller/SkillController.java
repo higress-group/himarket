@@ -1,120 +1,201 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
- */
-
 package com.alibaba.himarket.controller;
 
 import com.alibaba.himarket.core.annotation.AdminAuth;
+import com.alibaba.himarket.core.annotation.AdminOrDeveloperAuth;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
+import com.alibaba.himarket.core.skill.SkillZipParser;
 import com.alibaba.himarket.dto.result.skill.SkillFileContentResult;
 import com.alibaba.himarket.dto.result.skill.SkillFileTreeNode;
-import com.alibaba.himarket.dto.result.skill.SkillPackageUploadResult;
-import com.alibaba.himarket.service.SkillPackageService;
+import com.alibaba.himarket.entity.Product;
+import com.alibaba.himarket.repository.ProductRepository;
 import com.alibaba.himarket.service.SkillService;
+import com.alibaba.himarket.support.product.ProductFeature;
+import com.alibaba.himarket.support.product.SkillConfig;
+import com.alibaba.nacos.api.ai.model.skills.Skill;
+import com.alibaba.nacos.api.ai.model.skills.SkillBasicInfo;
+import com.alibaba.nacos.api.model.Page;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.text.ParseException;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-@Tag(name = "技能管理", description = "提供技能下载等功能")
+@Tag(name = "Skill 管理", description = "Skill CRUD 操作和视图查询")
 @RestController
 @RequestMapping("/skills")
 @Slf4j
 @RequiredArgsConstructor
 public class SkillController {
 
+    private static final long MAX_ZIP_SIZE = 10 * 1024 * 1024;
+
     private final SkillService skillService;
-    private final SkillPackageService skillPackageService;
+    private final ProductRepository productRepository;
 
-    @Operation(summary = "下载技能 SKILL.md 内容")
-    @GetMapping("/{productId}/download")
-    public ResponseEntity<String> downloadSkill(@PathVariable String productId) {
-        String content = skillService.downloadSkill(productId);
-        return ResponseEntity.ok()
-                .contentType(MediaType.parseMediaType("text/markdown"))
-                .body(content);
-    }
+    // ==================== 通过 productId 解析 Nacos 坐标的接口（前端使用） ====================
 
-    @Operation(summary = "上传 Skill 包（zip 或 tar.gz）")
-    @PostMapping("/{productId}/package")
-    @AdminAuth
-    public SkillPackageUploadResult uploadSkillPackage(
-            @PathVariable String productId, @RequestParam("file") MultipartFile file) {
-        try {
-            return skillPackageService.uploadPackage(productId, file);
-        } catch (ParseException e) {
-            throw new BusinessException(ErrorCode.INVALID_PARAMETER, e.getMessage());
-        } catch (IOException e) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, e.getMessage());
+    /**
+     * 从 Product 的 skillConfig 中解析 nacosId、namespace、skillName。
+     */
+    private SkillCoordinate resolveSkillCoordinate(String productId) {
+        Product product = productRepository.findByProductId(productId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Product", productId));
+        ProductFeature feature = product.getFeature();
+        if (feature == null || feature.getSkillConfig() == null) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "该产品未关联 Nacos 实例，请先在 Link Nacos 页面关联");
         }
+        SkillConfig sc = feature.getSkillConfig();
+        if (sc.getNacosId() == null || sc.getNacosId().isBlank()) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "该产品未关联 Nacos 实例，请先在 Link Nacos 页面关联");
+        }
+        String namespace = sc.getNamespace() != null ? sc.getNamespace() : "public";
+        return new SkillCoordinate(sc.getNacosId(), namespace, sc.getSkillName());
     }
 
-    @Operation(summary = "获取 Skill 文件树（不含内容）")
-    @GetMapping("/{productId}/files")
-    public List<SkillFileTreeNode> getSkillFileTree(@PathVariable String productId) {
-        return skillPackageService.getFileTree(productId);
-    }
+    private record SkillCoordinate(String nacosId, String namespace, String skillName) {}
 
-    @Operation(summary = "获取所有 Skill 文件（含内容）")
-    @GetMapping("/{productId}/files/all")
-    public List<SkillFileContentResult> getAllSkillFiles(@PathVariable String productId) {
-        return skillPackageService.getAllFiles(productId);
-    }
-
-    @Operation(summary = "获取单个 Skill 文件内容")
-    @GetMapping("/{productId}/files/**")
-    public SkillFileContentResult getSkillFileContent(
-            @PathVariable String productId, HttpServletRequest request) {
-        String requestPath = request.getRequestURI();
-        String prefix = "/skills/" + productId + "/files/";
-        int idx = requestPath.indexOf(prefix);
-        String filePath = idx >= 0 ? requestPath.substring(idx + prefix.length()) : "";
-        return skillPackageService.getFileContent(productId, filePath);
-    }
-
-    @Operation(summary = "下载完整 Skill 包（zip）")
-    @GetMapping("/{productId}/package")
-    public void downloadSkillPackage(@PathVariable String productId, HttpServletResponse response)
-            throws IOException {
-        skillPackageService.downloadPackage(productId, response);
-    }
-
-    @Operation(summary = "更新 SKILL.md 内容（同步 skill_file 表和 product.document）")
-    @PutMapping("/{productId}/skill-md")
+    @Operation(summary = "ZIP 上传 Skill（通过 productId）")
+    @PostMapping(value = "/{productId}/package", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @AdminAuth
-    public void updateSkillMd(@PathVariable String productId, @RequestBody String content) {
-        skillPackageService.updateSkillMd(productId, content);
+    public String uploadSkillByProduct(
+            @PathVariable String productId,
+            @RequestParam("file") MultipartFile file) throws IOException {
+        if (file.isEmpty()) {
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "ZIP 文件不能为空");
+        }
+        if (file.getSize() > MAX_ZIP_SIZE) {
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "ZIP 文件大小不能超过 10MB");
+        }
+        SkillCoordinate coord = resolveSkillCoordinate(productId);
+        Skill skill = SkillZipParser.parseSkillFromZip(file.getBytes(), coord.namespace());
+        String skillName = skillService.createSkill(coord.nacosId(), coord.namespace(), skill);
+
+        // 回写 skillName 到 product.feature.skillConfig
+        Product product = productRepository.findByProductId(productId).orElseThrow();
+        product.getFeature().getSkillConfig().setSkillName(skillName);
+        productRepository.save(product);
+
+        return skillName;
+    }
+
+    @Operation(summary = "获取文件树（通过 productId）")
+    @GetMapping("/{productId}/files")
+    @AdminOrDeveloperAuth
+    public List<SkillFileTreeNode> getFileTreeByProduct(
+            @PathVariable String productId) {
+        SkillCoordinate coord = resolveSkillCoordinate(productId);
+        if (coord.skillName() == null || coord.skillName().isBlank()) {
+            return List.of();
+        }
+        return skillService.getFileTree(coord.nacosId(), coord.namespace(), coord.skillName());
+    }
+
+    @Operation(summary = "获取单文件内容（通过 productId）")
+    @GetMapping("/{productId}/files/{*filePath}")
+    @AdminOrDeveloperAuth
+    public SkillFileContentResult getFileContentByProduct(
+            @PathVariable String productId,
+            @PathVariable String filePath) {
+        SkillCoordinate coord = resolveSkillCoordinate(productId);
+        if (coord.skillName() == null || coord.skillName().isBlank()) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "Skill 尚未上传");
+        }
+        // 去掉前导斜杠
+        String path = filePath.startsWith("/") ? filePath.substring(1) : filePath;
+        return skillService.getFileContent(coord.nacosId(), coord.namespace(), coord.skillName(), path);
+    }
+
+
+
+    @Operation(summary = "ZIP 下载 Skill（通过 productId）")
+    @GetMapping("/{productId}/download")
+    @AdminOrDeveloperAuth
+    public void downloadSkillByProduct(
+            @PathVariable String productId,
+            HttpServletResponse response) throws IOException {
+        SkillCoordinate coord = resolveSkillCoordinate(productId);
+        if (coord.skillName() == null || coord.skillName().isBlank()) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "Skill 尚未上传");
+        }
+        skillService.downloadZip(coord.nacosId(), coord.namespace(), coord.skillName(), response);
+    }
+
+    // ==================== 直接通过 nacosId 操作的接口（高级管理） ====================
+
+    @Operation(summary = "创建 Skill（直接 Nacos）")
+    @PostMapping("/nacos")
+    @AdminAuth
+    public String createSkill(
+            @RequestParam String nacosId,
+            @RequestParam(defaultValue = "public") String namespace,
+            @RequestBody Skill skill) {
+        return skillService.createSkill(nacosId, namespace, skill);
+    }
+
+    @Operation(summary = "ZIP 上传创建 Skill（直接 Nacos）")
+    @PostMapping(value = "/nacos/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @AdminAuth
+    public String uploadSkill(
+            @RequestParam String nacosId,
+            @RequestParam(defaultValue = "public") String namespace,
+            @RequestParam("file") MultipartFile file) throws IOException {
+        if (file.isEmpty()) {
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "ZIP 文件不能为空");
+        }
+        if (file.getSize() > MAX_ZIP_SIZE) {
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "ZIP 文件大小不能超过 10MB");
+        }
+        Skill skill = SkillZipParser.parseSkillFromZip(file.getBytes(), namespace);
+        return skillService.createSkill(nacosId, namespace, skill);
+    }
+
+    @Operation(summary = "分页查询 Skill 列表（直接 Nacos）")
+    @GetMapping("/nacos")
+    @AdminAuth
+    public Page<SkillBasicInfo> listSkills(
+            @RequestParam String nacosId,
+            @RequestParam(defaultValue = "public") String namespace,
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "1") int pageNo,
+            @RequestParam(defaultValue = "20") int pageSize) {
+        return skillService.listSkills(nacosId, namespace, search, pageNo, pageSize);
+    }
+
+    @Operation(summary = "查询 Skill 详情（直接 Nacos）")
+    @GetMapping("/nacos/{name}")
+    @AdminAuth
+    public Skill getSkillDetail(
+            @RequestParam String nacosId,
+            @RequestParam(defaultValue = "public") String namespace,
+            @PathVariable String name) {
+        return skillService.getSkillDetail(nacosId, namespace, name);
+    }
+
+    @Operation(summary = "更新 Skill（直接 Nacos）")
+    @PutMapping("/nacos/{name}")
+    @AdminAuth
+    public void updateSkill(
+            @RequestParam String nacosId,
+            @RequestParam(defaultValue = "public") String namespace,
+            @PathVariable String name,
+            @RequestBody Skill skill) {
+        skill.setName(name);
+        skillService.updateSkill(nacosId, namespace, skill);
+    }
+
+    @Operation(summary = "删除 Skill（直接 Nacos）")
+    @DeleteMapping("/nacos/{name}")
+    @AdminAuth
+    public void deleteSkill(
+            @RequestParam String nacosId,
+            @RequestParam(defaultValue = "public") String namespace,
+            @PathVariable String name) {
+        skillService.deleteSkill(nacosId, namespace, name);
     }
 }
