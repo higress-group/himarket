@@ -6,13 +6,6 @@ afterEach(() => cleanup());
 
 // ===== 测试数据 =====
 
-const localRuntime: RuntimeOption = {
-  type: 'local',
-  label: '本地运行',
-  description: '在本地环境运行 CLI 进程',
-  available: true,
-};
-
 const k8sRuntime: RuntimeOption = {
   type: 'k8s',
   label: 'K8s 沙箱',
@@ -36,30 +29,28 @@ describe('RuntimeSelector', () => {
     render(
       <RuntimeSelector
         cliProvider="claude-code"
-        compatibleRuntimes={[localRuntime, k8sRuntime]}
+        compatibleRuntimes={[k8sRuntime]}
         selectedRuntime=""
         onSelect={onSelect}
       />,
     );
 
-    expect(screen.getByText('本地运行')).toBeInTheDocument();
     expect(screen.getByText('K8s 沙箱')).toBeInTheDocument();
   });
 
-  it('不兼容的运行时标记为 disabled 并显示"不可用"标签', () => {
+  it('不可用的运行时标记为 disabled 并显示"不可用"标签', () => {
     const onSelect = vi.fn();
     render(
       <RuntimeSelector
         cliProvider="qodercli"
-        compatibleRuntimes={[localRuntime, k8sUnavailable]}
-        selectedRuntime="local"
+        compatibleRuntimes={[k8sUnavailable]}
+        selectedRuntime=""
         onSelect={onSelect}
       />,
     );
 
     expect(screen.getByText('不可用')).toBeInTheDocument();
 
-    // K8s 的 radio 应该是 disabled
     const radios = screen.getAllByRole('radio');
     const k8sRadio = radios.find(
       (r) => r.getAttribute('value') === 'k8s',
@@ -72,28 +63,13 @@ describe('RuntimeSelector', () => {
     render(
       <RuntimeSelector
         cliProvider="qodercli"
-        compatibleRuntimes={[localRuntime]}
+        compatibleRuntimes={[k8sRuntime]}
         selectedRuntime=""
         onSelect={onSelect}
       />,
     );
 
-    expect(onSelect).toHaveBeenCalledWith('local');
-  });
-
-  it('单一可用运行时时自动选中（忽略不可用的）', () => {
-    const onSelect = vi.fn();
-    render(
-      <RuntimeSelector
-        cliProvider="qodercli"
-        compatibleRuntimes={[localRuntime, k8sUnavailable]}
-        selectedRuntime=""
-        onSelect={onSelect}
-      />,
-    );
-
-    // 只有 local 可用，应自动选中
-    expect(onSelect).toHaveBeenCalledWith('local');
+    expect(onSelect).toHaveBeenCalledWith('k8s');
   });
 
   it('已选中正确运行时时不重复触发 onSelect', () => {
@@ -101,33 +77,13 @@ describe('RuntimeSelector', () => {
     render(
       <RuntimeSelector
         cliProvider="qodercli"
-        compatibleRuntimes={[localRuntime]}
-        selectedRuntime="local"
+        compatibleRuntimes={[k8sRuntime]}
+        selectedRuntime="k8s"
         onSelect={onSelect}
       />,
     );
 
-    // 已经选中 local，不应再次调用
     expect(onSelect).not.toHaveBeenCalled();
-  });
-
-  it('点击可用运行时触发 onSelect', () => {
-    const onSelect = vi.fn();
-    render(
-      <RuntimeSelector
-        cliProvider="claude-code"
-        compatibleRuntimes={[localRuntime, k8sRuntime]}
-        selectedRuntime="local"
-        onSelect={onSelect}
-      />,
-    );
-
-    const radios = screen.getAllByRole('radio');
-    const k8sRadio = radios.find(
-      (r) => r.getAttribute('value') === 'k8s',
-    );
-    fireEvent.click(k8sRadio!);
-    expect(onSelect).toHaveBeenCalledWith('k8s');
   });
 
   it('空兼容列表时显示提示信息', () => {
@@ -149,33 +105,15 @@ describe('RuntimeSelector', () => {
     render(
       <RuntimeSelector
         cliProvider="qodercli"
-        compatibleRuntimes={[localRuntime, k8sUnavailable]}
-        selectedRuntime="local"
-        onSelect={onSelect}
-      />,
-    );
-
-    // 不可用标签存在
-    expect(screen.getByText('不可用')).toBeInTheDocument();
-    // 描述文本仍然渲染
-    expect(screen.getByText('通过 K8s Pod 提供隔离运行环境（生产部署）')).toBeInTheDocument();
-    // 不可用原因内联显示
-    expect(screen.getByText('请先配置 K8s 集群')).toBeInTheDocument();
-  });
-
-  it('多个可用运行时时不自动选中', () => {
-    const onSelect = vi.fn();
-    render(
-      <RuntimeSelector
-        cliProvider="claude-code"
-        compatibleRuntimes={[localRuntime, k8sRuntime]}
+        compatibleRuntimes={[k8sUnavailable]}
         selectedRuntime=""
         onSelect={onSelect}
       />,
     );
 
-    // 多个可用运行时，不应自动选中
-    expect(onSelect).not.toHaveBeenCalled();
+    expect(screen.getByText('不可用')).toBeInTheDocument();
+    expect(screen.getByText('通过 K8s Pod 提供隔离运行环境（生产部署）')).toBeInTheDocument();
+    expect(screen.getByText('请先配置 K8s 集群')).toBeInTheDocument();
   });
 
   it('渲染运行时描述信息', () => {
@@ -183,18 +121,14 @@ describe('RuntimeSelector', () => {
     render(
       <RuntimeSelector
         cliProvider="claude-code"
-        compatibleRuntimes={[localRuntime, k8sRuntime]}
-        selectedRuntime="local"
+        compatibleRuntimes={[k8sRuntime]}
+        selectedRuntime="k8s"
         onSelect={onSelect}
       />,
     );
 
     expect(
-      screen.getByText('在本地环境运行 CLI 进程'),
-    ).toBeInTheDocument();
-    expect(
       screen.getByText('通过 K8s Pod 提供隔离运行环境（生产部署）'),
     ).toBeInTheDocument();
   });
-
 });

@@ -6,12 +6,12 @@ const ORIGIN = "wss://example.com";
 describe("buildAcpWsUrl", () => {
   it("should include runtime query parameter when provided", () => {
     const url = buildAcpWsUrl(
-      { provider: "qodercli", runtime: "local" },
+      { provider: "qodercli", runtime: "k8s" },
       "/ws/acp",
       ORIGIN,
     );
     const parsed = new URL(url);
-    expect(parsed.searchParams.get("runtime")).toBe("local");
+    expect(parsed.searchParams.get("runtime")).toBe("k8s");
     expect(parsed.searchParams.get("provider")).toBe("qodercli");
   });
 
@@ -37,7 +37,7 @@ describe("buildAcpWsUrl", () => {
 
   it("should include token when provided", () => {
     const url = buildAcpWsUrl(
-      { provider: "qodercli", runtime: "local", token: "abc123" },
+      { provider: "qodercli", runtime: "k8s", token: "abc123" },
       "/ws/acp",
       ORIGIN,
     );
@@ -47,7 +47,7 @@ describe("buildAcpWsUrl", () => {
 
   it("should not include cwd parameter (cwd is determined by backend)", () => {
     const url = buildAcpWsUrl(
-      { provider: "kiro-cli", runtime: "local" },
+      { provider: "kiro-cli", runtime: "k8s" },
       "/ws/acp",
       ORIGIN,
     );
@@ -62,13 +62,13 @@ describe("buildAcpWsUrl", () => {
 
   it("should use default basePath /ws/acp", () => {
     const url = buildAcpWsUrl(
-      { runtime: "local" },
+      { runtime: "k8s" },
       undefined,
       ORIGIN,
     );
     expect(url).toContain("/ws/acp");
     const parsed = new URL(url);
-    expect(parsed.searchParams.get("runtime")).toBe("local");
+    expect(parsed.searchParams.get("runtime")).toBe("k8s");
   });
 
 });

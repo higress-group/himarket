@@ -37,12 +37,12 @@ import com.alibaba.himarket.dto.result.ProductCategoryResult;
 import com.alibaba.himarket.dto.result.agent.AgentConfigResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.consumer.CredentialContext;
-import com.alibaba.himarket.dto.result.nacos.NacosResult;
 import com.alibaba.himarket.dto.result.gateway.GatewayResult;
 import com.alibaba.himarket.dto.result.httpapi.APIConfigResult;
 import com.alibaba.himarket.dto.result.mcp.MCPConfigResult;
 import com.alibaba.himarket.dto.result.mcp.McpToolListResult;
 import com.alibaba.himarket.dto.result.model.ModelConfigResult;
+import com.alibaba.himarket.dto.result.nacos.NacosResult;
 import com.alibaba.himarket.dto.result.portal.PortalResult;
 import com.alibaba.himarket.dto.result.product.ProductPublicationResult;
 import com.alibaba.himarket.dto.result.product.ProductRefResult;
@@ -576,7 +576,8 @@ public class ProductServiceImpl implements ProductService {
     public void updateSkillNacos(String productId, String nacosId, String namespace) {
         Product product = findProduct(productId);
         if (product.getType() != ProductType.AGENT_SKILL) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "Only AGENT_SKILL products can update skill nacos");
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST, "Only AGENT_SKILL products can update skill nacos");
         }
         // Verify nacos instance exists
         nacosService.getNacosInstance(nacosId);
@@ -595,7 +596,6 @@ public class ProductServiceImpl implements ProductService {
         skillConfig.setNamespace(namespace);
         productRepository.save(product);
     }
-
 
     private void syncConfig(Product product, ProductRef productRef) {
         SourceType sourceType = productRef.getSourceType();

@@ -3,12 +3,11 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useRuntimeSelection } from '../useRuntimeSelection';
 import type { ICliProvider } from '../../lib/apis/cliProvider';
 
-// Mock getAvailableRuntimes API，让 local 和 k8s 都可用
+// Mock getAvailableRuntimes API，让 k8s 可用
 vi.mock('../../lib/apis/runtime', () => ({
   getAvailableRuntimes: vi.fn(() =>
     Promise.resolve({
       data: [
-        { type: 'local', available: true },
         { type: 'k8s', available: true },
       ],
     })
@@ -40,16 +39,7 @@ const nativeProvider: ICliProvider = {
   displayName: 'Qoder CLI',
   isDefault: true,
   available: true,
-  compatibleRuntimes: ['local', 'k8s'],
-  runtimeCategory: 'native',
-};
-
-const localOnlyProvider: ICliProvider = {
-  key: 'test-cli',
-  displayName: 'Test CLI',
-  isDefault: false,
-  available: true,
-  compatibleRuntimes: ['local'],
+  compatibleRuntimes: ['k8s'],
   runtimeCategory: 'native',
 };
 
@@ -61,8 +51,8 @@ describe('useRuntimeSelection', () => {
       useRuntimeSelection({ provider: nativeProvider })
     );
 
-    expect(result.current.compatibleRuntimes).toHaveLength(2);
-    expect(result.current.compatibleRuntimes.map(r => r.type)).toEqual(['local', 'k8s']);
+    expect(result.current.compatibleRuntimes).toHaveLength(1);
+    expect(result.current.compatibleRuntimes.map(r => r.type)).toEqual(['k8s']);
   });
 
   it('selectRuntime 更新选中状态并持久化到 localStorage', async () => {
@@ -83,14 +73,14 @@ describe('useRuntimeSelection', () => {
     expect(localStorageMock.setItem).toHaveBeenCalledWith('himarket:selectedRuntime', 'k8s');
   });
 
-  it('当选中的运行时不在兼容列表中时自动切换到第一个可用的', () => {
-    localStorageMock.setItem('himarket:selectedRuntime', 'k8s');
+  it('localStorage 中旧的 local 值向后兼容映射为 k8s', () => {
+    localStorageMock.setItem('himarket:selectedRuntime', 'local');
 
     const { result } = renderHook(() =>
-      useRuntimeSelection({ provider: localOnlyProvider })
+      useRuntimeSelection({ provider: nativeProvider })
     );
 
-    expect(result.current.selectedRuntime).toBe('local');
+    expect(result.current.selectedRuntime).toBe('k8s');
   });
 
   it('所有运行时选项都有 label 和 description', () => {

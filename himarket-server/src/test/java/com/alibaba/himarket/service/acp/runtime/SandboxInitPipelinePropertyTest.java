@@ -79,7 +79,7 @@ class SandboxInitPipelinePropertyTest {
     static class StubRuntimeAdapter implements RuntimeAdapter {
         @Override
         public SandboxType getType() {
-            return SandboxType.LOCAL;
+            return SandboxType.REMOTE;
         }
 
         @Override
@@ -195,7 +195,7 @@ class SandboxInitPipelinePropertyTest {
 
     @Provide
     Arbitrary<SandboxType> sandboxTypes() {
-        return Arbitraries.of(SandboxType.LOCAL, SandboxType.REMOTE, SandboxType.E2B);
+        return Arbitraries.of(SandboxType.REMOTE, SandboxType.OPEN_SANDBOX, SandboxType.E2B);
     }
 
     @Provide
@@ -272,21 +272,21 @@ class SandboxInitPipelinePropertyTest {
         }
 
         // 验证所有类型的执行日志完全一致
-        List<String> referenceLog = logsByType.get(SandboxType.LOCAL);
+        List<String> referenceLog = logsByType.get(SandboxType.REMOTE);
         for (SandboxType type : SandboxType.values()) {
             assertEquals(
                     referenceLog,
                     logsByType.get(type),
-                    "SandboxType " + type + " 的执行日志应与 LOCAL 一致");
+                    "SandboxType " + type + " 的执行日志应与 REMOTE 一致");
         }
 
         // 验证所有类型的结果一致
-        boolean referenceSuccess = resultsByType.get(SandboxType.LOCAL).success();
+        boolean referenceSuccess = resultsByType.get(SandboxType.REMOTE).success();
         for (SandboxType type : SandboxType.values()) {
             assertEquals(
                     referenceSuccess,
                     resultsByType.get(type).success(),
-                    "SandboxType " + type + " 的成功状态应与 LOCAL 一致");
+                    "SandboxType " + type + " 的成功状态应与 REMOTE 一致");
         }
     }
 
@@ -331,12 +331,12 @@ class SandboxInitPipelinePropertyTest {
             logsByType.put(type, executionLog);
         }
 
-        List<String> referenceLog = logsByType.get(SandboxType.LOCAL);
+        List<String> referenceLog = logsByType.get(SandboxType.REMOTE);
         for (SandboxType type : SandboxType.values()) {
             assertEquals(
                     referenceLog,
                     logsByType.get(type),
-                    "含跳过阶段时，SandboxType " + type + " 的执行日志应与 LOCAL 一致");
+                    "含跳过阶段时，SandboxType " + type + " 的执行日志应与 REMOTE 一致");
         }
     }
 
@@ -371,7 +371,7 @@ class SandboxInitPipelinePropertyTest {
 
         InitConfig config = new InitConfig(Duration.ofSeconds(30), true, true, false);
         SandboxInitPipeline pipeline = new SandboxInitPipeline(phases, config);
-        InitContext context = createContext(new StubSandboxProvider(SandboxType.LOCAL));
+        InitContext context = createContext(new StubSandboxProvider(SandboxType.REMOTE));
 
         InitResult result = pipeline.execute(context);
         assertTrue(result.success(), "所有阶段应成功执行");
@@ -448,7 +448,7 @@ class SandboxInitPipelinePropertyTest {
 
         InitConfig config = new InitConfig(Duration.ofSeconds(30), true, true, false);
         SandboxInitPipeline pipeline = new SandboxInitPipeline(phases, config);
-        InitContext context = createContext(new StubSandboxProvider(SandboxType.LOCAL));
+        InitContext context = createContext(new StubSandboxProvider(SandboxType.REMOTE));
 
         InitResult result = pipeline.execute(context);
         assertTrue(result.success());
@@ -530,7 +530,7 @@ class SandboxInitPipelinePropertyTest {
 
         InitConfig config = new InitConfig(Duration.ofSeconds(30), true, true, false);
         SandboxInitPipeline pipeline = new SandboxInitPipeline(phases, config);
-        InitContext context = createContext(new StubSandboxProvider(SandboxType.LOCAL));
+        InitContext context = createContext(new StubSandboxProvider(SandboxType.REMOTE));
 
         InitResult result = pipeline.execute(context);
 
@@ -620,7 +620,7 @@ class SandboxInitPipelinePropertyTest {
 
         InitConfig config = new InitConfig(Duration.ofSeconds(30), true, true, false);
         SandboxInitPipeline pipeline = new SandboxInitPipeline(phases, config);
-        InitContext context = createContext(new StubSandboxProvider(SandboxType.LOCAL));
+        InitContext context = createContext(new StubSandboxProvider(SandboxType.REMOTE));
 
         InitResult result = pipeline.execute(context);
         assertFalse(result.success());
@@ -735,7 +735,7 @@ class SandboxInitPipelinePropertyTest {
 
         InitConfig config = new InitConfig(totalTimeout, true, true, false);
         SandboxInitPipeline pipeline = new SandboxInitPipeline(phases, config);
-        InitContext context = createContext(new StubSandboxProvider(SandboxType.LOCAL));
+        InitContext context = createContext(new StubSandboxProvider(SandboxType.REMOTE));
 
         long startMs = System.currentTimeMillis();
         InitResult result = pipeline.execute(context);
@@ -823,7 +823,7 @@ class SandboxInitPipelinePropertyTest {
 
         InitConfig config = new InitConfig(totalTimeout, true, true, false);
         SandboxInitPipeline pipeline = new SandboxInitPipeline(phases, config);
-        InitContext context = createContext(new StubSandboxProvider(SandboxType.LOCAL));
+        InitContext context = createContext(new StubSandboxProvider(SandboxType.REMOTE));
 
         InitResult result = pipeline.execute(context);
 

@@ -92,8 +92,7 @@ public class AcpSessionInitializer {
                             runtimeConfig.getCwd(),
                             runtimeConfig.getEnv() != null ? runtimeConfig.getEnv() : Map.of(),
                             Map.of(),
-                            null,
-                            0);
+                            null);
 
             // 5. 构建 InitContext（设置 resolvedSessionConfig）
             InitContext context =

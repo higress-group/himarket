@@ -44,15 +44,22 @@ public class SkillController {
      * 从 Product 的 skillConfig 中解析 nacosId、namespace、skillName。
      */
     private SkillCoordinate resolveSkillCoordinate(String productId) {
-        Product product = productRepository.findByProductId(productId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Product", productId));
+        Product product =
+                productRepository
+                        .findByProductId(productId)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                ErrorCode.NOT_FOUND, "Product", productId));
         ProductFeature feature = product.getFeature();
         if (feature == null || feature.getSkillConfig() == null) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "该产品未关联 Nacos 实例，请先在 Link Nacos 页面关联");
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST, "该产品未关联 Nacos 实例，请先在 Link Nacos 页面关联");
         }
         SkillConfig sc = feature.getSkillConfig();
         if (sc.getNacosId() == null || sc.getNacosId().isBlank()) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "该产品未关联 Nacos 实例，请先在 Link Nacos 页面关联");
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST, "该产品未关联 Nacos 实例，请先在 Link Nacos 页面关联");
         }
         String namespace = sc.getNamespace() != null ? sc.getNamespace() : "public";
         return new SkillCoordinate(sc.getNacosId(), namespace, sc.getSkillName());
@@ -64,8 +71,8 @@ public class SkillController {
     @PostMapping(value = "/{productId}/package", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @AdminAuth
     public String uploadSkillByProduct(
-            @PathVariable String productId,
-            @RequestParam("file") MultipartFile file) throws IOException {
+            @PathVariable String productId, @RequestParam("file") MultipartFile file)
+            throws IOException {
         if (file.isEmpty()) {
             throw new BusinessException(ErrorCode.INVALID_PARAMETER, "ZIP 文件不能为空");
         }
@@ -87,8 +94,7 @@ public class SkillController {
     @Operation(summary = "获取文件树（通过 productId）")
     @GetMapping("/{productId}/files")
     @AdminOrDeveloperAuth
-    public List<SkillFileTreeNode> getFileTreeByProduct(
-            @PathVariable String productId) {
+    public List<SkillFileTreeNode> getFileTreeByProduct(@PathVariable String productId) {
         SkillCoordinate coord = resolveSkillCoordinate(productId);
         if (coord.skillName() == null || coord.skillName().isBlank()) {
             return List.of();
@@ -100,25 +106,22 @@ public class SkillController {
     @GetMapping("/{productId}/files/{*filePath}")
     @AdminOrDeveloperAuth
     public SkillFileContentResult getFileContentByProduct(
-            @PathVariable String productId,
-            @PathVariable String filePath) {
+            @PathVariable String productId, @PathVariable String filePath) {
         SkillCoordinate coord = resolveSkillCoordinate(productId);
         if (coord.skillName() == null || coord.skillName().isBlank()) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "Skill 尚未上传");
         }
         // 去掉前导斜杠
         String path = filePath.startsWith("/") ? filePath.substring(1) : filePath;
-        return skillService.getFileContent(coord.nacosId(), coord.namespace(), coord.skillName(), path);
+        return skillService.getFileContent(
+                coord.nacosId(), coord.namespace(), coord.skillName(), path);
     }
-
-
 
     @Operation(summary = "ZIP 下载 Skill（通过 productId）")
     @GetMapping("/{productId}/download")
     @AdminOrDeveloperAuth
-    public void downloadSkillByProduct(
-            @PathVariable String productId,
-            HttpServletResponse response) throws IOException {
+    public void downloadSkillByProduct(@PathVariable String productId, HttpServletResponse response)
+            throws IOException {
         SkillCoordinate coord = resolveSkillCoordinate(productId);
         if (coord.skillName() == null || coord.skillName().isBlank()) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "Skill 尚未上传");
@@ -144,7 +147,8 @@ public class SkillController {
     public String uploadSkill(
             @RequestParam String nacosId,
             @RequestParam(defaultValue = "public") String namespace,
-            @RequestParam("file") MultipartFile file) throws IOException {
+            @RequestParam("file") MultipartFile file)
+            throws IOException {
         if (file.isEmpty()) {
             throw new BusinessException(ErrorCode.INVALID_PARAMETER, "ZIP 文件不能为空");
         }

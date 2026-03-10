@@ -6,12 +6,9 @@ import com.fasterxml.jackson.annotation.JsonValue;
 /**
  * 沙箱类型枚举。
  * 统一标识 CLI Agent 运行在哪种沙箱环境中。
- * JSON 序列化值分别为 "local"、"remote"、"open-sandbox"、"e2b"，与前端类型定义一致。
+ * JSON 序列化值分别为 "remote"、"open-sandbox"、"e2b"，与前端类型定义一致。
  */
 public enum SandboxType {
-
-    /** 本地 Mac 沙箱：本地启动 Sidecar + CLI */
-    LOCAL("local"),
 
     /** 远程沙箱：连接远程 Sidecar 服务（K8s / Docker / 裸机均可） */
     REMOTE("remote"),
@@ -36,7 +33,8 @@ public enum SandboxType {
     @JsonCreator
     public static SandboxType fromValue(String value) {
         // 兼容旧值
-        if ("k8s".equalsIgnoreCase(value)
+        if ("local".equalsIgnoreCase(value)
+                || "k8s".equalsIgnoreCase(value)
                 || "shared-k8s".equalsIgnoreCase(value)
                 || "shared_k8s".equalsIgnoreCase(value)) {
             return REMOTE;

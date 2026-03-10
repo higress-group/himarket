@@ -196,5 +196,4 @@ public interface ProductService {
      * @param namespace
      */
     void updateSkillNacos(String productId, String nacosId, String namespace);
-
 }

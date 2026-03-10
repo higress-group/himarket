@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import { Radio, Tag } from 'antd';
 import {
-  Monitor,
   Container,
   AlertCircle,
 } from 'lucide-react';
@@ -23,7 +22,6 @@ export interface RuntimeSelectorProps {
 }
 
 const RUNTIME_ICONS: Record<RuntimeType, React.ReactNode> = {
-  local: <Monitor size={16} />,
   k8s: <Container size={16} />,
 };
 

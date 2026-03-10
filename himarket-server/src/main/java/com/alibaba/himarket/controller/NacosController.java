@@ -70,13 +70,11 @@ public class NacosController {
     public void setDefaultNacosInstance(@PathVariable String nacosId) {
         nacosService.setDefaultNacosInstance(nacosId);
     }
-    @Operation(
-            summary = "设置默认命名空间",
-            description = "用已保存的认证信息连接 Nacos 验证命名空间存在后，设置为该实例的默认命名空间")
+
+    @Operation(summary = "设置默认命名空间", description = "用已保存的认证信息连接 Nacos 验证命名空间存在后，设置为该实例的默认命名空间")
     @PutMapping("/{nacosId}/default-namespace")
     public void setDefaultNamespace(
-            @PathVariable String nacosId,
-            @RequestParam("namespaceId") String namespaceId) {
+            @PathVariable String nacosId, @RequestParam("namespaceId") String namespaceId) {
         nacosService.setDefaultNamespace(nacosId, namespaceId);
     }
 

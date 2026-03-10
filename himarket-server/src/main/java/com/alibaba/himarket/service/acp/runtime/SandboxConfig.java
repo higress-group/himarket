@@ -13,6 +13,4 @@ public record SandboxConfig(
         Map<String, String> env,
         Map<String, String> resources,
         // E2B 特有配置（未来）
-        String e2bTemplate,
-        // 本地特有配置
-        int localSidecarPort) {}
+        String e2bTemplate) {}

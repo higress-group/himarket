@@ -116,7 +116,6 @@ services:
       - ACP_REMOTE_HOST=${ACP_REMOTE_HOST:-sandbox-shared}
       - ACP_REMOTE_PORT=${ACP_REMOTE_PORT:-8080}
       - ACP_DEFAULT_RUNTIME=${ACP_DEFAULT_RUNTIME:-remote}
-      - ACP_LOCAL_ENABLED=${ACP_LOCAL_ENABLED:-false}
     ports:
       - "8081:8080"
     depends_on:

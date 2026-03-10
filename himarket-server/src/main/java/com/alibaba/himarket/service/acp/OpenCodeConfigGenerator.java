@@ -213,5 +213,4 @@ public class OpenCodeConfigGenerator implements CliConfigGenerator {
 
         root.put("mcp", mcpMap);
     }
-
 }

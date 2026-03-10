@@ -31,9 +31,9 @@ class InitPhasesTest {
         mockProvider = mock(SandboxProvider.class);
         stubInfo =
                 new SandboxInfo(
-                        SandboxType.LOCAL,
-                        "local-8080",
-                        "localhost",
+                        SandboxType.REMOTE,
+                        "remote-8080",
+                        "sandbox.example.com",
                         8080,
                         "/workspace",
                         false,
@@ -87,15 +87,15 @@ class InitPhasesTest {
         void execute_success_storesSandboxInfo() {
             SandboxConfig config =
                     new SandboxConfig(
-                            "user1", SandboxType.LOCAL, "/workspace", Map.of(), null, null, 0);
+                            "user1", SandboxType.REMOTE, "/workspace", Map.of(), null, null);
             InitContext context =
                     new InitContext(mockProvider, "user1", config, null, null, null, null);
             when(mockProvider.acquire(config)).thenReturn(stubInfo);
 
             assertDoesNotThrow(() -> phase.execute(context));
             assertNotNull(context.getSandboxInfo());
-            assertEquals("localhost", context.getSandboxInfo().host());
-            assertEquals("local-8080", context.getSandboxInfo().sandboxId());
+            assertEquals("sandbox.example.com", context.getSandboxInfo().host());
+            assertEquals("remote-8080", context.getSandboxInfo().sandboxId());
         }
 
         @Test
@@ -103,7 +103,7 @@ class InitPhasesTest {
         void execute_acquireFails_throwsNonRetryableException() {
             SandboxConfig config =
                     new SandboxConfig(
-                            "user1", SandboxType.LOCAL, "/workspace", Map.of(), null, null, 0);
+                            "user1", SandboxType.REMOTE, "/workspace", Map.of(), null, null);
             InitContext context =
                     new InitContext(mockProvider, "user1", config, null, null, null, null);
             when(mockProvider.acquire(config)).thenThrow(new RuntimeException("Pod 创建超时"));
@@ -135,8 +135,8 @@ class InitPhasesTest {
             InitContext context = createBasicContext();
             context.setSandboxInfo(
                     new SandboxInfo(
-                            SandboxType.LOCAL,
-                            "local-8080",
+                            SandboxType.REMOTE,
+                            "remote-8080",
                             "  ",
                             8080,
                             "/workspace",

@@ -74,7 +74,6 @@ public class RuntimeSelector {
      */
     public boolean isSandboxAvailable(SandboxType type) {
         return switch (type) {
-            case LOCAL -> acpProperties.isLocalEnabled();
             case REMOTE -> acpProperties.getRemote().isConfigured();
             case OPEN_SANDBOX -> false;
             case E2B -> false;
@@ -113,7 +112,6 @@ public class RuntimeSelector {
 
     private String getUnavailableReason(SandboxType type) {
         return switch (type) {
-            case LOCAL -> acpProperties.isLocalEnabled() ? null : "本地模式已被管理员禁用";
             case REMOTE -> "远程沙箱未配置，请设置 acp.remote.host";
             case OPEN_SANDBOX -> "OpenSandbox 沙箱尚未实现";
             case E2B -> "E2B 云沙箱尚未实现";
@@ -122,7 +120,6 @@ public class RuntimeSelector {
 
     private String getLabelForType(SandboxType type) {
         return switch (type) {
-            case LOCAL -> "本地运行";
             case REMOTE -> "远程沙箱";
             case OPEN_SANDBOX -> "OpenSandbox";
             case E2B -> "E2B 云沙箱";
@@ -131,7 +128,6 @@ public class RuntimeSelector {
 
     private String getDescriptionForType(SandboxType type) {
         return switch (type) {
-            case LOCAL -> "在服务器本地通过进程启动 CLI Agent，适用于开发调试";
             case REMOTE -> "连接远程 Sidecar 服务提供沙箱环境（支持 K8s / Docker / 裸机部署）";
             case OPEN_SANDBOX -> "通过 OpenSandbox Server 管理沙箱实例（未实现）";
             case E2B -> "通过 E2B SDK 管理远程云沙箱（未实现）";

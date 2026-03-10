@@ -20,7 +20,7 @@ class RuntimeSelectorTest {
     @BeforeEach
     void setUp() {
         acpProperties = new AcpProperties();
-        acpProperties.setDefaultRuntime("local");
+        acpProperties.setDefaultRuntime("remote");
     }
 
     /**
@@ -60,14 +60,15 @@ class RuntimeSelectorTest {
         void returnsAllCompatibleRuntimes() {
             registerProvider(
                     "qodercli",
-                    createProvider("Qoder CLI", List.of(SandboxType.LOCAL, SandboxType.REMOTE)));
+                    createProvider(
+                            "Qoder CLI", List.of(SandboxType.REMOTE, SandboxType.OPEN_SANDBOX)));
             RuntimeSelector selector = createSelector(true);
 
             List<RuntimeOption> options = selector.getAvailableRuntimes("qodercli");
 
             assertEquals(2, options.size());
-            assertEquals(SandboxType.LOCAL, options.get(0).type());
-            assertEquals(SandboxType.REMOTE, options.get(1).type());
+            assertEquals(SandboxType.REMOTE, options.get(0).type());
+            assertEquals(SandboxType.OPEN_SANDBOX, options.get(1).type());
         }
 
         @Test
@@ -109,9 +110,7 @@ class RuntimeSelectorTest {
 
         @Test
         void remoteMarkedUnavailableWhenNotConfigured() {
-            registerProvider(
-                    "qodercli",
-                    createProvider("Qoder CLI", List.of(SandboxType.LOCAL, SandboxType.REMOTE)));
+            registerProvider("qodercli", createProvider("Qoder CLI", List.of(SandboxType.REMOTE)));
             RuntimeSelector selector = createSelector(false);
 
             List<RuntimeOption> options = selector.getAvailableRuntimes("qodercli");
@@ -124,18 +123,6 @@ class RuntimeSelectorTest {
             assertFalse(remoteOption.available());
             assertNotNull(remoteOption.unavailableReason());
         }
-
-        @Test
-        void localAlwaysAvailable() {
-            registerProvider("test", createProvider("Test", List.of(SandboxType.LOCAL)));
-            RuntimeSelector selector = createSelector(false);
-
-            List<RuntimeOption> options = selector.getAvailableRuntimes("test");
-
-            assertEquals(1, options.size());
-            assertTrue(options.get(0).available());
-            assertNull(options.get(0).unavailableReason());
-        }
     }
 
     // ===== selectDefault =====
@@ -145,15 +132,16 @@ class RuntimeSelectorTest {
 
         @Test
         void returnsConfiguredDefaultWhenAvailable() {
-            acpProperties.setDefaultRuntime("local");
+            acpProperties.setDefaultRuntime("remote");
             registerProvider(
                     "qodercli",
-                    createProvider("Qoder CLI", List.of(SandboxType.LOCAL, SandboxType.REMOTE)));
+                    createProvider(
+                            "Qoder CLI", List.of(SandboxType.REMOTE, SandboxType.OPEN_SANDBOX)));
             RuntimeSelector selector = createSelector(true);
 
             SandboxType selected = selector.selectDefault("qodercli");
 
-            assertEquals(SandboxType.LOCAL, selected);
+            assertEquals(SandboxType.REMOTE, selected);
         }
 
         @Test
@@ -170,14 +158,15 @@ class RuntimeSelectorTest {
         void autoSelectsOnlyAvailableRuntime() {
             registerProvider(
                     "qodercli",
-                    createProvider("Qoder CLI", List.of(SandboxType.LOCAL, SandboxType.REMOTE)));
-            acpProperties.setDefaultRuntime("remote");
-            RuntimeSelector selector = createSelector(false);
+                    createProvider(
+                            "Qoder CLI", List.of(SandboxType.REMOTE, SandboxType.OPEN_SANDBOX)));
+            acpProperties.setDefaultRuntime("open-sandbox");
+            RuntimeSelector selector = createSelector(true);
 
             SandboxType selected = selector.selectDefault("qodercli");
 
-            // REMOTE 不可用，只剩 LOCAL
-            assertEquals(SandboxType.LOCAL, selected);
+            // OPEN_SANDBOX 不可用，只剩 REMOTE
+            assertEquals(SandboxType.REMOTE, selected);
         }
 
         @Test
@@ -212,24 +201,28 @@ class RuntimeSelectorTest {
         void handlesInvalidDefaultRuntimeGracefully() {
             acpProperties.setDefaultRuntime("invalid_type");
             registerProvider(
-                    "test", createProvider("Test", List.of(SandboxType.LOCAL, SandboxType.REMOTE)));
+                    "test",
+                    createProvider("Test", List.of(SandboxType.REMOTE, SandboxType.OPEN_SANDBOX)));
             RuntimeSelector selector = createSelector(true);
 
             SandboxType selected = selector.selectDefault("test");
 
-            assertEquals(SandboxType.LOCAL, selected);
+            // invalid default → fallback to first available = REMOTE
+            assertEquals(SandboxType.REMOTE, selected);
         }
 
         @Test
         void handlesBlankDefaultRuntime() {
             acpProperties.setDefaultRuntime("  ");
             registerProvider(
-                    "test", createProvider("Test", List.of(SandboxType.LOCAL, SandboxType.REMOTE)));
+                    "test",
+                    createProvider("Test", List.of(SandboxType.REMOTE, SandboxType.OPEN_SANDBOX)));
             RuntimeSelector selector = createSelector(true);
 
             SandboxType selected = selector.selectDefault("test");
 
-            assertEquals(SandboxType.LOCAL, selected);
+            // blank default → fallback to first available = REMOTE
+            assertEquals(SandboxType.REMOTE, selected);
         }
     }
 
@@ -237,12 +230,6 @@ class RuntimeSelectorTest {
 
     @Nested
     class IsRuntimeAvailable {
-
-        @Test
-        void localAlwaysAvailable() {
-            RuntimeSelector selector = createSelector(false);
-            assertTrue(selector.isSandboxAvailable(SandboxType.LOCAL));
-        }
 
         @Test
         void remoteAvailableWhenConfigured() {
@@ -266,9 +253,9 @@ class RuntimeSelectorTest {
         void compatibleAndAvailableOption() {
             RuntimeSelector selector = createSelector(true);
 
-            RuntimeOption option = selector.toRuntimeOption(SandboxType.LOCAL, true);
+            RuntimeOption option = selector.toRuntimeOption(SandboxType.REMOTE, true);
 
-            assertEquals(SandboxType.LOCAL, option.type());
+            assertEquals(SandboxType.REMOTE, option.type());
             assertTrue(option.available());
             assertNull(option.unavailableReason());
             assertNotNull(option.label());
@@ -300,10 +287,10 @@ class RuntimeSelectorTest {
         void eachTypeHasDistinctLabelAndDescription() {
             RuntimeSelector selector = createSelector(true);
 
-            RuntimeOption local = selector.toRuntimeOption(SandboxType.LOCAL, true);
             RuntimeOption remote = selector.toRuntimeOption(SandboxType.REMOTE, true);
+            RuntimeOption openSandbox = selector.toRuntimeOption(SandboxType.OPEN_SANDBOX, true);
 
-            assertNotEquals(local.label(), remote.label());
+            assertNotEquals(remote.label(), openSandbox.label());
         }
     }
 }

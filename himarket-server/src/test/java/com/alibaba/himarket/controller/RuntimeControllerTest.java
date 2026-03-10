@@ -25,27 +25,27 @@ class RuntimeControllerTest {
     @BeforeEach
     void setUp() {
         properties = new AcpProperties();
-        properties.setDefaultRuntime("local");
+        properties.setDefaultRuntime("remote");
 
         Map<String, CliProviderConfig> providers = new LinkedHashMap<>();
 
         CliProviderConfig qoder = new CliProviderConfig();
         qoder.setDisplayName("Qoder CLI");
         qoder.setCommand("qodercli");
-        qoder.setCompatibleRuntimes(List.of(SandboxType.LOCAL, SandboxType.REMOTE));
+        qoder.setCompatibleRuntimes(List.of(SandboxType.REMOTE, SandboxType.OPEN_SANDBOX));
         providers.put("qodercli", qoder);
 
         CliProviderConfig claude = new CliProviderConfig();
         claude.setDisplayName("Claude Code");
         claude.setCommand("npx");
-        claude.setCompatibleRuntimes(List.of(SandboxType.LOCAL, SandboxType.REMOTE));
+        claude.setCompatibleRuntimes(List.of(SandboxType.REMOTE));
         providers.put("claude-code", claude);
 
-        CliProviderConfig localOnly = new CliProviderConfig();
-        localOnly.setDisplayName("Local Only CLI");
-        localOnly.setCommand("local-cli");
-        localOnly.setCompatibleRuntimes(List.of(SandboxType.LOCAL));
-        providers.put("local-only", localOnly);
+        CliProviderConfig remoteOnly = new CliProviderConfig();
+        remoteOnly.setDisplayName("Remote Only CLI");
+        remoteOnly.setCommand("remote-cli");
+        remoteOnly.setCompatibleRuntimes(List.of(SandboxType.REMOTE));
+        providers.put("remote-only", remoteOnly);
 
         properties.setProviders(providers);
     }
@@ -64,28 +64,21 @@ class RuntimeControllerTest {
 
     @Test
     void testGetAvailableRuntimesForNativeProvider() {
-        // K8s 不可用
+        // 远程沙箱不可用
         RuntimeSelector selector = createSelector(false);
         controller = new RuntimeController(selector);
 
         List<RuntimeOption> result = controller.getAvailableRuntimes("qodercli");
         assertEquals(2, result.size());
 
-        RuntimeOption local =
-                result.stream()
-                        .filter(r -> r.type() == SandboxType.LOCAL)
-                        .findFirst()
-                        .orElseThrow();
-        assertTrue(local.available());
-
-        RuntimeOption k8sOption =
+        RuntimeOption remoteOption =
                 result.stream()
                         .filter(r -> r.type() == SandboxType.REMOTE)
                         .findFirst()
                         .orElseThrow();
-        // K8s 不可用时 K8S 也标记为不可用
-        assertFalse(k8sOption.available());
-        assertNotNull(k8sOption.unavailableReason());
+        // 远程沙箱不可用时 REMOTE 标记为不可用
+        assertFalse(remoteOption.available());
+        assertNotNull(remoteOption.unavailableReason());
     }
 
     @Test
@@ -94,10 +87,12 @@ class RuntimeControllerTest {
         controller = new RuntimeController(selector);
 
         List<RuntimeOption> result = controller.getAvailableRuntimes("claude-code");
-        assertEquals(2, result.size());
+        assertEquals(1, result.size());
 
-        // 所有运行时都应该可用（K8s 已配置）
-        assertTrue(result.stream().allMatch(RuntimeOption::available));
+        // REMOTE 已配置，应该可用
+        RuntimeOption remoteOption = result.get(0);
+        assertEquals(SandboxType.REMOTE, remoteOption.type());
+        assertTrue(remoteOption.available());
     }
 
     @Test
@@ -106,13 +101,13 @@ class RuntimeControllerTest {
         controller = new RuntimeController(selector);
 
         List<RuntimeOption> result = controller.getAvailableRuntimes("qodercli");
-        RuntimeOption k8sOption =
+        RuntimeOption remoteOption =
                 result.stream()
                         .filter(r -> r.type() == SandboxType.REMOTE)
                         .findFirst()
                         .orElseThrow();
-        assertTrue(k8sOption.available());
-        assertNull(k8sOption.unavailableReason());
+        assertTrue(remoteOption.available());
+        assertNull(remoteOption.unavailableReason());
     }
 
     @Test
@@ -126,13 +121,13 @@ class RuntimeControllerTest {
     }
 
     @Test
-    void testGetAvailableRuntimesForLocalOnlyProvider() {
-        RuntimeSelector selector = createSelector(false);
+    void testGetAvailableRuntimesForRemoteOnlyProvider() {
+        RuntimeSelector selector = createSelector(true);
         controller = new RuntimeController(selector);
 
-        List<RuntimeOption> result = controller.getAvailableRuntimes("local-only");
+        List<RuntimeOption> result = controller.getAvailableRuntimes("remote-only");
         assertEquals(1, result.size());
-        assertEquals(SandboxType.LOCAL, result.get(0).type());
+        assertEquals(SandboxType.REMOTE, result.get(0).type());
         assertTrue(result.get(0).available());
     }
 }

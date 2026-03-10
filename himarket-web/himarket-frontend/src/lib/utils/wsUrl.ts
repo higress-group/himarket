@@ -8,7 +8,7 @@
 export interface WsUrlParams {
   /** CLI provider key */
   provider?: string;
-  /** 运行时类型 (local | k8s) */
+  /** 运行时类型 (k8s) */
   runtime?: string;
   /** 认证 token */
   token?: string;

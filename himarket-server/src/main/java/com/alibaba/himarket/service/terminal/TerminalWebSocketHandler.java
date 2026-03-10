@@ -1,15 +1,11 @@
 package com.alibaba.himarket.service.terminal;
 
 import com.alibaba.himarket.config.AcpProperties;
-import com.alibaba.himarket.service.acp.terminal.LocalTerminalBackend;
 import com.alibaba.himarket.service.acp.terminal.RemoteTerminalBackend;
 import com.alibaba.himarket.service.acp.terminal.TerminalBackend;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Base64;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -24,9 +20,7 @@ import reactor.core.Disposable;
 
 /**
  * Terminal WebSocket handler。
- * 根据 runtime 参数选择终端后端：
- * - local：本地 PTY（pty4j）
- * - remote/k8s/shared-k8s：通过 WebSocket 连接 Sidecar 的 /terminal 端点（node-pty）
+ * 通过 WebSocket 连接远程 Sidecar 的 /terminal 端点提供终端功能。
  */
 @Component
 public class TerminalWebSocketHandler extends TextWebSocketHandler {
@@ -53,11 +47,6 @@ public class TerminalWebSocketHandler extends TextWebSocketHandler {
         }
 
         String runtimeParam = (String) session.getAttributes().get("runtime");
-        boolean isRemote =
-                "k8s".equalsIgnoreCase(runtimeParam)
-                        || "shared-k8s".equalsIgnoreCase(runtimeParam)
-                        || "shared_k8s".equalsIgnoreCase(runtimeParam)
-                        || "remote".equalsIgnoreCase(runtimeParam);
 
         logger.info(
                 "Terminal WebSocket connected: id={}, userId={}, runtime={}",
@@ -65,38 +54,25 @@ public class TerminalWebSocketHandler extends TextWebSocketHandler {
                 userId,
                 runtimeParam);
 
-        TerminalBackend backend;
-        if (isRemote && acpProperties.getRemote().isConfigured()) {
-            // 远程终端模式：通过 WebSocket 连接 Sidecar 的 /terminal 端点
-            String host = acpProperties.getRemote().getHost();
-            int port = acpProperties.getRemote().getPort();
-            String cwd = "/workspace/" + userId;
+        if (!acpProperties.getRemote().isConfigured()) {
+            logger.error("Remote sandbox not configured, cannot create terminal");
+            session.close(CloseStatus.SERVER_ERROR);
+            return;
+        }
 
-            logger.info("Creating RemoteTerminalBackend: host={}:{}, cwd={}", host, port, cwd);
-            backend = new RemoteTerminalBackend(host, port, cwd);
+        String host = acpProperties.getRemote().getHost();
+        int port = acpProperties.getRemote().getPort();
+        String cwd = "/workspace/" + userId;
 
-            try {
-                backend.start(80, 24);
-            } catch (Exception e) {
-                logger.warn(
-                        "Remote terminal not available, falling back to local: {}", e.getMessage());
-                String localCwd = buildWorkspacePath(userId);
-                backend = new LocalTerminalBackend(localCwd);
-                backend.start(80, 24);
-            }
-        } else {
-            // 本地模式
-            String cwd = buildWorkspacePath(userId);
-            backend = new LocalTerminalBackend(cwd);
-            logger.info("Created LocalTerminalBackend for user {}, cwd={}", userId, cwd);
+        logger.info("Creating RemoteTerminalBackend: host={}:{}, cwd={}", host, port, cwd);
+        TerminalBackend backend = new RemoteTerminalBackend(host, port, cwd);
 
-            try {
-                backend.start(80, 24);
-            } catch (Exception e) {
-                logger.error("Failed to start terminal for user {}", userId, e);
-                session.close(CloseStatus.SERVER_ERROR);
-                return;
-            }
+        try {
+            backend.start(80, 24);
+        } catch (Exception e) {
+            logger.error("Failed to start remote terminal for user {}", userId, e);
+            session.close(CloseStatus.SERVER_ERROR);
+            return;
         }
 
         backendMap.put(session.getId(), backend);
@@ -191,17 +167,5 @@ public class TerminalWebSocketHandler extends TextWebSocketHandler {
         if (subscription != null && !subscription.isDisposed()) subscription.dispose();
         TerminalBackend backend = backendMap.remove(sessionId);
         if (backend != null) backend.close();
-    }
-
-    private String buildWorkspacePath(String userId) {
-        String sanitized = userId.replaceAll("[^a-zA-Z0-9_-]", "_");
-        Path workspacePath =
-                Paths.get(acpProperties.getWorkspaceRoot(), sanitized).toAbsolutePath().normalize();
-        try {
-            Files.createDirectories(workspacePath);
-        } catch (IOException e) {
-            logger.error("Failed to create workspace directory: {}", workspacePath, e);
-        }
-        return workspacePath.toString();
     }
 }

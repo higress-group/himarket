@@ -33,13 +33,13 @@ class AcpHandshakeInterceptorTest {
     // ===== runtime 参数提取 =====
 
     @Test
-    void beforeHandshake_runtimeLocal_storedInAttributes() throws Exception {
+    void beforeHandshake_runtimeRemote_storedInAttributes() throws Exception {
         Map<String, Object> attributes = new HashMap<>();
-        ServerHttpRequest request = mockRequest("ws://localhost/acp?runtime=local");
+        ServerHttpRequest request = mockRequest("ws://localhost/acp?runtime=remote");
 
         interceptor.beforeHandshake(request, response, wsHandler, attributes);
 
-        assertEquals("local", attributes.get("runtime"));
+        assertEquals("remote", attributes.get("runtime"));
     }
 
     @Test
@@ -99,12 +99,12 @@ class AcpHandshakeInterceptorTest {
     void beforeHandshake_allParams_allStored() throws Exception {
         Map<String, Object> attributes = new HashMap<>();
         ServerHttpRequest request =
-                mockRequest("ws://localhost/acp?token=sometoken&provider=qodercli&runtime=local");
+                mockRequest("ws://localhost/acp?token=sometoken&provider=qodercli&runtime=remote");
 
         interceptor.beforeHandshake(request, response, wsHandler, attributes);
 
         assertEquals("qodercli", attributes.get("provider"));
-        assertEquals("local", attributes.get("runtime"));
+        assertEquals("remote", attributes.get("runtime"));
     }
 
     // ===== provider 参数提取（回归测试） =====
@@ -134,7 +134,7 @@ class AcpHandshakeInterceptorTest {
     @Test
     void beforeHandshake_noToken_rejectsConnection() throws Exception {
         Map<String, Object> attributes = new HashMap<>();
-        ServerHttpRequest request = mockRequest("ws://localhost/acp?runtime=local");
+        ServerHttpRequest request = mockRequest("ws://localhost/acp?runtime=remote");
 
         boolean result = interceptor.beforeHandshake(request, response, wsHandler, attributes);
 

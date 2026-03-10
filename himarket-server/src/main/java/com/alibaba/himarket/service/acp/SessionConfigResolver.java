@@ -104,22 +104,25 @@ public class SessionConfigResolver {
                 continue;
             }
             try {
-                Product product = productRepository.findByProductId(skillEntry.getProductId())
-                        .orElse(null);
+                Product product =
+                        productRepository.findByProductId(skillEntry.getProductId()).orElse(null);
                 if (product == null) {
-                    logger.warn("[Sandbox-Config] Skill Product 不存在, 跳过: productId={}",
+                    logger.warn(
+                            "[Sandbox-Config] Skill Product 不存在, 跳过: productId={}",
                             skillEntry.getProductId());
                     continue;
                 }
                 ProductFeature feature = product.getFeature();
                 if (feature == null || feature.getSkillConfig() == null) {
-                    logger.warn("[Sandbox-Config] Skill Product 无 SkillConfig, 跳过: productId={}",
+                    logger.warn(
+                            "[Sandbox-Config] Skill Product 无 SkillConfig, 跳过: productId={}",
                             skillEntry.getProductId());
                     continue;
                 }
                 SkillConfig skillConfig = feature.getSkillConfig();
                 if (skillConfig.getNacosId() == null || skillConfig.getSkillName() == null) {
-                    logger.warn("[Sandbox-Config] SkillConfig 坐标不完整, 跳过: productId={}",
+                    logger.warn(
+                            "[Sandbox-Config] SkillConfig 坐标不完整, 跳过: productId={}",
                             skillEntry.getProductId());
                     continue;
                 }

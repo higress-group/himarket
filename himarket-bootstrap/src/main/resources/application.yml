@@ -41,12 +41,7 @@ jwt:
   expiration: 7d
 
 acp:
-  local-enabled: ${ACP_LOCAL_ENABLED:true}
   default-provider: ${ACP_DEFAULT_PROVIDER:qwen-code}
-  # 仅 LOCAL 模式使用：本机工作空间根目录，每个用户的 cwd = {workspace-root}/{userId}
-  # REMOTE 模式下 cwd 固定为 sandbox 容器内的 /workspace/{userId}，与此配置无关
-  workspace-root: ${ACP_WORKSPACE_ROOT:${user.home}/.himarket/workspaces}
-  # local: 在本机启动 sidecar 进程；remote: 连接远程 sandbox 容器
   default-runtime: ${ACP_DEFAULT_RUNTIME:remote}
   remote:
     host: ${ACP_REMOTE_HOST:sandbox-shared}
@@ -57,7 +52,6 @@ acp:
       command: ${ACP_CLI_COMMAND_QWEN:qwen}
       args: ${ACP_CLI_ARGS_QWEN:--acp}
       compatible-runtimes:
-        - LOCAL
         - REMOTE
       supports-custom-model: true
       supports-mcp: true
@@ -67,7 +61,6 @@ acp:
       command: ${ACP_CLI_COMMAND_QODERCLI:qodercli}
       args: ${ACP_CLI_ARGS_QODERCLI:--acp}
       compatible-runtimes:
-        - LOCAL
         - REMOTE
       auth-options: default,personal_access_token
       auth-env-var: QODER_PERSONAL_ACCESS_TOKEN
@@ -76,7 +69,6 @@ acp:
       command: ${ACP_CLI_COMMAND_CLAUDE:npx}
       args: ${ACP_CLI_ARGS_CLAUDE:@zed-industries/claude-code-acp}
       compatible-runtimes:
-        - LOCAL
         - REMOTE
       auth-env-var: ANTHROPIC_API_KEY
       supports-custom-model: true
@@ -87,7 +79,6 @@ acp:
       command: ${ACP_CLI_COMMAND_OPENCODE:opencode}
       args: ${ACP_CLI_ARGS_OPENCODE:acp}
       compatible-runtimes:
-        - LOCAL
         - REMOTE
       supports-custom-model: true
       supports-mcp: true

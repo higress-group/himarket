@@ -21,7 +21,7 @@ class RuntimeAvailabilityPropertyTest {
 
     @Provide
     Arbitrary<SandboxType> runtimeTypes() {
-        return Arbitraries.of(SandboxType.LOCAL, SandboxType.REMOTE);
+        return Arbitraries.of(SandboxType.REMOTE, SandboxType.OPEN_SANDBOX);
     }
 
     @Provide
@@ -31,7 +31,7 @@ class RuntimeAvailabilityPropertyTest {
 
     private RuntimeSelector buildSelector(boolean remoteAvailable) {
         AcpProperties props = new AcpProperties();
-        props.setDefaultRuntime("local");
+        props.setDefaultRuntime("remote");
         RemoteConfig remoteConfig = new RemoteConfig();
         if (remoteAvailable) {
             remoteConfig.setHost("sandbox.example.com");
@@ -41,14 +41,6 @@ class RuntimeAvailabilityPropertyTest {
         }
         props.setRemote(remoteConfig);
         return new RuntimeSelector(props);
-    }
-
-    // ===== Property 7a: LOCAL 始终可用 =====
-
-    @Property(tries = 200)
-    void localRuntime_alwaysAvailable(@ForAll("remoteStates") boolean remoteAvailable) {
-        RuntimeSelector selector = buildSelector(remoteAvailable);
-        assertTrue(selector.isSandboxAvailable(SandboxType.LOCAL));
     }
 
     // ===== Property 7b: REMOTE 可用性取决于配置状态 =====

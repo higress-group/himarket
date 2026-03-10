@@ -50,5 +50,4 @@ public class UpdateNacosParam implements InputConverter<NacosInstance> {
 
     @Size(max = 512, message = "Description cannot exceed 512 characters")
     private String description;
-
 }

@@ -25,12 +25,11 @@ export interface TerminalSession {
 
 /**
  * 沙箱类型，与后端 SandboxType 枚举对应。
- * - local: 本地 Mac 开发模式
  * - remote: 远程沙箱（K8s / Docker / 裸机）
  * - open-sandbox: OpenSandbox 沙箱
  * - e2b: E2B 云沙箱
  */
-export type SandboxRuntime = "local" | "remote" | "open-sandbox" | "e2b";
+export type SandboxRuntime = "remote" | "open-sandbox" | "e2b";
 
 // ===== Coding Config Types =====
 

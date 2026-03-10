@@ -9,11 +9,6 @@ import { getAvailableRuntimes, type IRuntimeAvailability } from '../lib/apis/run
  * 后端 /api/runtime/available 接口可覆盖 available 状态
  */
 const DEFAULT_RUNTIME_OPTIONS: Record<RuntimeType, Omit<RuntimeOption, 'available' | 'unavailableReason'>> = {
-  local: {
-    type: 'local',
-    label: '本地运行',
-    description: '在服务器本地启动 CLI 进程（开发调试）',
-  },
   k8s: {
     type: 'k8s',
     label: 'K8s 沙箱',
@@ -50,8 +45,9 @@ export function useRuntimeSelection({
   const [selectedRuntime, setSelectedRuntime] = useState<RuntimeType>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored === 'local' || stored === 'k8s') {
-        return stored;
+      // 向后兼容：旧版本可能存储了 'local'，统一映射为 'k8s'
+      if (stored === 'k8s' || stored === 'local') {
+        return 'k8s';
       }
     } catch {
       // ignore

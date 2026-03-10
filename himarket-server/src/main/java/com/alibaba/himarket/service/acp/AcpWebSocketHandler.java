@@ -12,9 +12,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -90,13 +87,8 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
         String runtimeParam = (String) session.getAttributes().get("runtime");
         SandboxType sandboxType = resolveSandboxType(runtimeParam);
 
-        // Build per-user working directory
-        // K8s 运行时：CLI 在 Pod 内运行，cwd 使用 Pod 内路径 /workspace/{userId}
-        // 本地运行时：使用服务器本地路径
-        String cwd =
-                sandboxType == SandboxType.REMOTE
-                        ? "/workspace/" + userId
-                        : buildWorkspacePath(userId);
+        // Build per-user working directory (always remote sandbox path)
+        String cwd = "/workspace/" + userId;
 
         logger.info(
                 "WebSocket connected: id={}, userId={}, cwd={}, sandboxType={}",
@@ -525,17 +517,17 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
 
     /**
      * Resolve the runtime type from the query parameter string.
-     * Defaults to LOCAL if the parameter is null, blank, or unrecognized (backward compatibility).
+     * Defaults to REMOTE if the parameter is null, blank, or unrecognized.
      */
     SandboxType resolveSandboxType(String runtimeParam) {
         if (runtimeParam == null || runtimeParam.isBlank()) {
-            return SandboxType.LOCAL;
+            return SandboxType.REMOTE;
         }
         try {
             return SandboxType.fromValue(runtimeParam);
         } catch (IllegalArgumentException e) {
-            logger.warn("Unknown sandbox type '{}', defaulting to LOCAL", runtimeParam);
-            return SandboxType.LOCAL;
+            logger.warn("Unknown sandbox type '{}', defaulting to REMOTE", runtimeParam);
+            return SandboxType.REMOTE;
         }
     }
 
@@ -592,19 +584,5 @@ public class AcpWebSocketHandler extends TextWebSocketHandler {
             logger.debug("Failed to rewrite session/new cwd, forwarding original payload", e);
             return payload;
         }
-    }
-
-    private String buildWorkspacePath(String userId) {
-        String sanitized = userId.replaceAll("[^a-zA-Z0-9_-]", "_");
-        Path workspacePath =
-                Paths.get(properties.getWorkspaceRoot(), sanitized).toAbsolutePath().normalize();
-
-        try {
-            Files.createDirectories(workspacePath);
-        } catch (IOException e) {
-            logger.error("Failed to create workspace directory: {}", workspacePath, e);
-        }
-
-        return workspacePath.toString();
     }
 }

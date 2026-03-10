@@ -43,7 +43,6 @@ import com.alibaba.himarket.dto.result.nacos.NacosResult;
 import com.alibaba.himarket.entity.NacosInstance;
 import com.alibaba.himarket.repository.NacosInstanceRepository;
 import com.alibaba.himarket.service.NacosService;
-import org.springframework.transaction.annotation.Transactional;
 import com.alibaba.himarket.support.enums.SourceType;
 import com.alibaba.himarket.support.product.NacosRefConfig;
 import com.alibaba.nacos.api.PropertyKeyConst;
@@ -63,6 +62,7 @@ import com.aliyun.mse20190531.models.ListClustersRequest;
 import com.aliyun.mse20190531.models.ListClustersResponse;
 import com.aliyun.mse20190531.models.ListClustersResponseBody;
 import com.aliyun.teautil.models.RuntimeOptions;
+import jakarta.annotation.PostConstruct;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -71,12 +71,12 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
-import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Slf4j
@@ -181,8 +181,7 @@ public class NacosServiceImpl implements NacosService {
     public void deleteNacosInstance(String nacosId) {
         NacosInstance nacosInstance = findNacosInstance(nacosId);
         if (Boolean.TRUE.equals(nacosInstance.getIsDefault())) {
-            throw new BusinessException(
-                    ErrorCode.INVALID_PARAMETER, "默认 Nacos 实例不允许删除，请先切换默认实例");
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "默认 Nacos 实例不允许删除，请先切换默认实例");
         }
         // 从缓存中移除相关条目
         String cacheKey = buildCacheKey(nacosInstance);
@@ -823,6 +822,7 @@ public class NacosServiceImpl implements NacosService {
         newDefault.setIsDefault(true);
         nacosInstanceRepository.save(newDefault);
     }
+
     @Override
     public void setDefaultNamespace(String nacosId, String namespaceId) {
         NacosInstance instance = findNacosInstance(nacosId);
@@ -831,31 +831,39 @@ public class NacosServiceImpl implements NacosService {
         NamingMaintainerService namingService = buildDynamicNamingService(instance, "");
         try {
             List<?> namespaces = namingService.getNamespaceList();
-            boolean exists = namespaces != null && namespaces.stream().anyMatch(ns -> {
-                try {
-                    java.lang.reflect.Method getId = ns.getClass().getMethod("getNamespace");
-                    Object id = getId.invoke(ns);
-                    // Nacos 中 public namespace 的 ID 为空字符串
-                    if ("public".equals(namespaceId)) {
-                        return id == null || "".equals(id) || "public".equals(id);
-                    }
-                    return namespaceId.equals(id);
-                } catch (Exception e) {
-                    return false;
-                }
-            });
+            boolean exists =
+                    namespaces != null
+                            && namespaces.stream()
+                                    .anyMatch(
+                                            ns -> {
+                                                try {
+                                                    java.lang.reflect.Method getId =
+                                                            ns.getClass().getMethod("getNamespace");
+                                                    Object id = getId.invoke(ns);
+                                                    // Nacos 中 public namespace 的 ID 为空字符串
+                                                    if ("public".equals(namespaceId)) {
+                                                        return id == null
+                                                                || "".equals(id)
+                                                                || "public".equals(id);
+                                                    }
+                                                    return namespaceId.equals(id);
+                                                } catch (Exception e) {
+                                                    return false;
+                                                }
+                                            });
             if (!exists) {
-                throw new BusinessException(
-                        ErrorCode.NOT_FOUND, "命名空间不存在: " + namespaceId);
+                throw new BusinessException(ErrorCode.NOT_FOUND, "命名空间不存在: " + namespaceId);
             }
         } catch (BusinessException e) {
             throw e;
         } catch (NacosException e) {
-            log.error("Error verifying namespace from Nacos: nacosId={}, namespaceId={}",
-                    nacosId, namespaceId, e);
+            log.error(
+                    "Error verifying namespace from Nacos: nacosId={}, namespaceId={}",
+                    nacosId,
+                    namespaceId,
+                    e);
             throw new BusinessException(
-                    ErrorCode.INTERNAL_ERROR,
-                    "连接 Nacos 验证命名空间失败: " + e.getErrMsg());
+                    ErrorCode.INTERNAL_ERROR, "连接 Nacos 验证命名空间失败: " + e.getErrMsg());
         }
 
         instance.setDefaultNamespace(namespaceId);

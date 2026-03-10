@@ -18,32 +18,31 @@ class AcpPropertiesTest {
     void setUp() {
         properties = new AcpProperties();
         properties.setDefaultProvider("qodercli");
-        properties.setWorkspaceRoot("/tmp/workspaces");
 
         CliProviderConfig qoder = new CliProviderConfig();
         qoder.setDisplayName("Qoder CLI");
         qoder.setCommand("qodercli");
         qoder.setArgs("--acp");
-        qoder.setCompatibleRuntimes(List.of(SandboxType.LOCAL, SandboxType.REMOTE));
+        qoder.setCompatibleRuntimes(List.of(SandboxType.REMOTE, SandboxType.OPEN_SANDBOX));
 
         CliProviderConfig kiro = new CliProviderConfig();
         kiro.setDisplayName("Kiro CLI");
         kiro.setCommand("kiro-cli");
         kiro.setArgs("acp");
-        kiro.setCompatibleRuntimes(List.of(SandboxType.LOCAL));
+        kiro.setCompatibleRuntimes(List.of(SandboxType.REMOTE));
 
         CliProviderConfig claude = new CliProviderConfig();
         claude.setDisplayName("Claude Code");
         claude.setCommand("npx");
         claude.setArgs("claude-code-acp");
         claude.setEnv(Map.of("ANTHROPIC_API_KEY", "test-key"));
-        claude.setCompatibleRuntimes(List.of(SandboxType.LOCAL));
+        claude.setCompatibleRuntimes(List.of(SandboxType.REMOTE));
 
         CliProviderConfig codex = new CliProviderConfig();
         codex.setDisplayName("Codex CLI");
         codex.setCommand("codex");
         codex.setArgs("--acp");
-        codex.setCompatibleRuntimes(List.of(SandboxType.LOCAL));
+        codex.setCompatibleRuntimes(List.of(SandboxType.REMOTE));
 
         properties.setProviders(
                 Map.of(
@@ -119,8 +118,8 @@ class AcpPropertiesTest {
         CliProviderConfig qoder = properties.getProvider("qodercli");
         assertNotNull(qoder.getCompatibleRuntimes());
         assertEquals(2, qoder.getCompatibleRuntimes().size());
-        assertTrue(qoder.getCompatibleRuntimes().contains(SandboxType.LOCAL));
         assertTrue(qoder.getCompatibleRuntimes().contains(SandboxType.REMOTE));
+        assertTrue(qoder.getCompatibleRuntimes().contains(SandboxType.OPEN_SANDBOX));
     }
 
     @Test
@@ -128,6 +127,6 @@ class AcpPropertiesTest {
         CliProviderConfig claude = properties.getProvider("claude-code");
         assertNotNull(claude.getCompatibleRuntimes());
         assertEquals(1, claude.getCompatibleRuntimes().size());
-        assertTrue(claude.getCompatibleRuntimes().contains(SandboxType.LOCAL));
+        assertTrue(claude.getCompatibleRuntimes().contains(SandboxType.REMOTE));
     }
 }

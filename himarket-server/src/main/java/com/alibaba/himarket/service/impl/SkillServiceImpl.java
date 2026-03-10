@@ -98,8 +98,7 @@ public class SkillServiceImpl implements SkillService {
     }
 
     @Override
-    public List<SkillFileTreeNode> getFileTree(
-            String nacosId, String namespace, String skillName) {
+    public List<SkillFileTreeNode> getFileTree(String nacosId, String namespace, String skillName) {
         Skill skill = getSkillDetail(nacosId, namespace, skillName);
         return FileTreeBuilder.build(skill);
     }
@@ -170,9 +169,7 @@ public class SkillServiceImpl implements SkillService {
                     result.setEncoding(isBinary ? "base64" : "text");
                     result.setSize(
                             resource.getContent() != null
-                                    ? resource.getContent()
-                                            .getBytes(StandardCharsets.UTF_8)
-                                            .length
+                                    ? resource.getContent().getBytes(StandardCharsets.UTF_8).length
                                     : 0);
                     return result;
                 }
@@ -188,8 +185,7 @@ public class SkillServiceImpl implements SkillService {
         Skill skill = getSkillDetail(nacosId, namespace, skillName);
 
         response.setContentType("application/zip");
-        response.setHeader(
-                "Content-Disposition", "attachment; filename=\"" + skillName + ".zip\"");
+        response.setHeader("Content-Disposition", "attachment; filename=\"" + skillName + ".zip\"");
 
         try (ZipOutputStream zos = new ZipOutputStream(response.getOutputStream())) {
             // SKILL.md

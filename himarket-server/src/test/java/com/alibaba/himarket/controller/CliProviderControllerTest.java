@@ -30,14 +30,14 @@ class CliProviderControllerTest {
         qoder.setDisplayName("Qoder CLI");
         qoder.setCommand("qodercli");
         qoder.setArgs("--acp");
-        qoder.setCompatibleRuntimes(List.of(SandboxType.LOCAL, SandboxType.REMOTE));
+        qoder.setCompatibleRuntimes(List.of(SandboxType.REMOTE, SandboxType.OPEN_SANDBOX));
         providers.put("qodercli", qoder);
 
         CliProviderConfig kiro = new CliProviderConfig();
         kiro.setDisplayName("Kiro CLI");
         kiro.setCommand("kiro-cli");
         kiro.setArgs("acp");
-        kiro.setCompatibleRuntimes(List.of(SandboxType.LOCAL));
+        kiro.setCompatibleRuntimes(List.of(SandboxType.REMOTE));
         providers.put("kiro-cli", kiro);
 
         // npx 通常在安装了 Node.js 的机器上可用
@@ -45,7 +45,7 @@ class CliProviderControllerTest {
         claude.setDisplayName("Claude Code");
         claude.setCommand("npx");
         claude.setArgs("@zed-industries/claude-code-acp");
-        claude.setCompatibleRuntimes(List.of(SandboxType.LOCAL));
+        claude.setCompatibleRuntimes(List.of(SandboxType.REMOTE));
         providers.put("claude-code", claude);
 
         // 一个肯定不存在的命令
@@ -53,7 +53,7 @@ class CliProviderControllerTest {
         fake.setDisplayName("Fake CLI");
         fake.setCommand("this-command-definitely-does-not-exist-xyz");
         fake.setArgs("--acp");
-        fake.setCompatibleRuntimes(List.of(SandboxType.LOCAL));
+        // 不设置 compatibleRuntimes，确保不会因为 canRunInSandbox 短路为 available
         providers.put("fake-cli", fake);
 
         properties.setProviders(providers);
@@ -146,14 +146,15 @@ class CliProviderControllerTest {
 
         CliProviderController.CliProviderInfo qoder =
                 result.stream().filter(p -> p.key().equals("qodercli")).findFirst().orElseThrow();
-        assertEquals(List.of(SandboxType.LOCAL, SandboxType.REMOTE), qoder.compatibleRuntimes());
+        assertEquals(
+                List.of(SandboxType.REMOTE, SandboxType.OPEN_SANDBOX), qoder.compatibleRuntimes());
 
         CliProviderController.CliProviderInfo claude =
                 result.stream()
                         .filter(p -> p.key().equals("claude-code"))
                         .findFirst()
                         .orElseThrow();
-        assertEquals(List.of(SandboxType.LOCAL), claude.compatibleRuntimes());
+        assertEquals(List.of(SandboxType.REMOTE), claude.compatibleRuntimes());
     }
 
     @Test

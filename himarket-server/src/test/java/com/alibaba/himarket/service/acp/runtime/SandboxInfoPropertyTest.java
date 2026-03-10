@@ -16,7 +16,7 @@ import net.jqwik.api.*;
  * <p><b>Validates: Requirements 10.2, 10.4, 10.5</b>
  *
  * <p>对任意 command 和 args 组合，{@code sidecarWsUri()} 构建的 URI 包含正确的 host、port、command 和 URL
- * 编码的 args；LOCAL 类型 host 为 "localhost"，sandboxId 格式为 "local-{port}"；K8S 类型 metadata 包含
+ * 编码的 args；REMOTE 类型 host 可为任意可达地址；K8S 类型 metadata 包含
  * podName 和 namespace。
  */
 class SandboxInfoPropertyTest {
@@ -102,9 +102,9 @@ class SandboxInfoPropertyTest {
             @ForAll("sidecarPorts") int port) {
         SandboxInfo info =
                 new SandboxInfo(
-                        SandboxType.LOCAL,
-                        "local-" + port,
-                        "localhost",
+                        SandboxType.REMOTE,
+                        "sandbox-" + port,
+                        "sandbox.example.com",
                         port,
                         "/workspace",
                         false,
@@ -113,7 +113,7 @@ class SandboxInfoPropertyTest {
         URI uri = info.sidecarWsUri(command, args);
 
         assertEquals("ws", uri.getScheme(), "URI scheme 应为 ws");
-        assertEquals("localhost", uri.getHost(), "URI host 应与 SandboxInfo.host 一致");
+        assertEquals("sandbox.example.com", uri.getHost(), "URI host 应与 SandboxInfo.host 一致");
         assertEquals(port, uri.getPort(), "URI port 应与 SandboxInfo.sidecarPort 一致");
         assertEquals("/", uri.getPath(), "URI path 应为 /");
 
@@ -141,9 +141,9 @@ class SandboxInfoPropertyTest {
             @ForAll("sidecarPorts") int port) {
         SandboxInfo info =
                 new SandboxInfo(
-                        SandboxType.LOCAL,
-                        "local-" + port,
-                        "localhost",
+                        SandboxType.REMOTE,
+                        "sandbox-" + port,
+                        "sandbox.example.com",
                         port,
                         "/workspace",
                         false,
@@ -180,41 +180,12 @@ class SandboxInfoPropertyTest {
         assertEquals("ws://" + host + ":" + port + "/?command=" + command, uri.toString());
     }
 
-    // ===== Property 11: LOCAL 类型 host 和 sandboxId 约束 =====
-
-    /**
-     * <b>Validates: Requirements 10.4</b>
-     *
-     * <p>当 SandboxType 为 LOCAL 时，host 应为 "localhost"，sandboxId 格式为 "local-{port}"。
-     */
-    @Property(tries = 200)
-    void localSandboxInfo_hasLocalhostAndCorrectId(@ForAll("sidecarPorts") int port) {
-        SandboxInfo info =
-                new SandboxInfo(
-                        SandboxType.LOCAL,
-                        "local-" + port,
-                        "localhost",
-                        port,
-                        "/workspace",
-                        false,
-                        Map.of());
-
-        assertEquals(SandboxType.LOCAL, info.type());
-        assertEquals("localhost", info.host(), "LOCAL 类型 host 应为 localhost");
-        assertEquals("local-" + port, info.sandboxId(), "LOCAL 类型 sandboxId 格式应为 local-{port}");
-
-        // 验证 sidecarWsUri 使用 localhost
-        URI uri = info.sidecarWsUri("node", null);
-        assertEquals("localhost", uri.getHost());
-        assertEquals(port, uri.getPort());
-    }
-
-    // ===== Property 11: K8S 类型 metadata 包含 podName 和 namespace =====
+    // ===== Property 11: REMOTE 类型 metadata 包含 podName 和 namespace =====
 
     /**
      * <b>Validates: Requirements 10.5</b>
      *
-     * <p>当 SandboxType 为 K8S 时，metadata 应包含 podName 和 namespace。
+     * <p>当 SandboxType 为 REMOTE 时，metadata 应包含 podName 和 namespace。
      */
     @Property(tries = 200)
     void k8sSandboxInfo_metadataContainsPodNameAndNamespace(

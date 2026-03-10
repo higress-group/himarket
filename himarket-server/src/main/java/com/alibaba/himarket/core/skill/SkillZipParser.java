@@ -71,16 +71,14 @@ public final class SkillZipParser {
             String skillMdContent = null;
             for (ZipEntryData entry : entries) {
                 if (isMacOsMetadataFile(entry.name)) continue;
-                if (SKILL_MD_FILE.equals(entry.name)
-                        || entry.name.endsWith("/" + SKILL_MD_FILE)) {
+                if (SKILL_MD_FILE.equals(entry.name) || entry.name.endsWith("/" + SKILL_MD_FILE)) {
                     skillMdContent = new String(entry.data, StandardCharsets.UTF_8);
                     break;
                 }
             }
 
             if (skillMdContent == null || skillMdContent.isBlank()) {
-                throw new BusinessException(
-                        ErrorCode.INVALID_PARAMETER, "ZIP 包中未找到 SKILL.md 文件");
+                throw new BusinessException(ErrorCode.INVALID_PARAMETER, "ZIP 包中未找到 SKILL.md 文件");
             }
 
             Skill skill = parseSkillMarkdown(skillMdContent, namespaceId);
@@ -91,8 +89,7 @@ public final class SkillZipParser {
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
-            throw new BusinessException(
-                    ErrorCode.INVALID_PARAMETER, "ZIP 解析失败: " + e.getMessage());
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "ZIP 解析失败: " + e.getMessage());
         }
     }
 
@@ -203,8 +200,7 @@ public final class SkillZipParser {
 
         String instruction = extractInstruction(instructionContent);
         if (instruction == null || instruction.isBlank()) {
-            throw new BusinessException(
-                    ErrorCode.INVALID_PARAMETER, "SKILL.md 中缺少 instruction 内容");
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "SKILL.md 中缺少 instruction 内容");
         }
 
         Skill skill = new Skill();

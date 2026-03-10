@@ -1,6 +1,6 @@
 // ===== Runtime Types =====
 
-export type RuntimeType = 'local' | 'k8s';
+export type RuntimeType = 'k8s';
 
 export interface RuntimeInfo {
   type: RuntimeType;

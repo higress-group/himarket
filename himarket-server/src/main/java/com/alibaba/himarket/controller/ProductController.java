@@ -179,8 +179,8 @@ public class ProductController {
     @AdminAuth
     public void updateSkillNacos(
             @PathVariable String productId,
-            @RequestBody @Valid com.alibaba.himarket.dto.params.product.UpdateSkillNacosParam param) {
+            @RequestBody @Valid
+                    com.alibaba.himarket.dto.params.product.UpdateSkillNacosParam param) {
         productService.updateSkillNacos(productId, param.getNacosId(), param.getNamespace());
     }
-
 }

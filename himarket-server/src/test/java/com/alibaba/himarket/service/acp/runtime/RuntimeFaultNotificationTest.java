@@ -17,11 +17,11 @@ class RuntimeFaultNotificationTest {
         RuntimeFaultNotification notification =
                 new RuntimeFaultNotification(
                         RuntimeFaultNotification.FAULT_PROCESS_CRASHED,
-                        SandboxType.LOCAL,
+                        SandboxType.REMOTE,
                         RuntimeFaultNotification.ACTION_RESTART);
 
         assertEquals(RuntimeFaultNotification.FAULT_PROCESS_CRASHED, notification.faultType());
-        assertEquals(SandboxType.LOCAL, notification.sandboxType());
+        assertEquals(SandboxType.REMOTE, notification.sandboxType());
         assertEquals(RuntimeFaultNotification.ACTION_RESTART, notification.suggestedAction());
     }
 
@@ -63,22 +63,23 @@ class RuntimeFaultNotificationTest {
 
     @Test
     void notification_equality() {
-        RuntimeFaultNotification a = new RuntimeFaultNotification("A", SandboxType.LOCAL, "X");
-        RuntimeFaultNotification b = new RuntimeFaultNotification("A", SandboxType.LOCAL, "X");
+        RuntimeFaultNotification a = new RuntimeFaultNotification("A", SandboxType.REMOTE, "X");
+        RuntimeFaultNotification b = new RuntimeFaultNotification("A", SandboxType.REMOTE, "X");
         assertEquals(a, b);
     }
 
     @Test
     void notification_inequality_differentFaultType() {
-        RuntimeFaultNotification a = new RuntimeFaultNotification("A", SandboxType.LOCAL, "X");
-        RuntimeFaultNotification b = new RuntimeFaultNotification("B", SandboxType.LOCAL, "X");
+        RuntimeFaultNotification a = new RuntimeFaultNotification("A", SandboxType.REMOTE, "X");
+        RuntimeFaultNotification b = new RuntimeFaultNotification("B", SandboxType.REMOTE, "X");
         assertNotEquals(a, b);
     }
 
     @Test
     void notification_inequality_differentRuntimeType() {
-        RuntimeFaultNotification a = new RuntimeFaultNotification("A", SandboxType.LOCAL, "X");
-        RuntimeFaultNotification b = new RuntimeFaultNotification("A", SandboxType.REMOTE, "X");
+        RuntimeFaultNotification a = new RuntimeFaultNotification("A", SandboxType.REMOTE, "X");
+        RuntimeFaultNotification b =
+                new RuntimeFaultNotification("A", SandboxType.OPEN_SANDBOX, "X");
         assertNotEquals(a, b);
     }
 

@@ -62,9 +62,10 @@ class QwenCodeConfigGeneratorSkillTest {
         Path configPath = tempDir.resolve(".qwen/settings.json");
         assertTrue(Files.exists(configPath));
 
-        Map<String, Object> root = objectMapper.readValue(
-                Files.readString(configPath),
-                new TypeReference<LinkedHashMap<String, Object>>() {});
+        Map<String, Object> root =
+                objectMapper.readValue(
+                        Files.readString(configPath),
+                        new TypeReference<LinkedHashMap<String, Object>>() {});
         List<Map<String, Object>> skills = (List<Map<String, Object>>) root.get("skills");
         assertNotNull(skills);
         assertEquals(1, skills.size());
@@ -99,9 +100,10 @@ class QwenCodeConfigGeneratorSkillTest {
         generator.generateSkillConfig(tempDir.toString(), List.of(skill));
 
         Path configPath = tempDir.resolve(".qwen/settings.json");
-        Map<String, Object> root = objectMapper.readValue(
-                Files.readString(configPath),
-                new TypeReference<LinkedHashMap<String, Object>>() {});
+        Map<String, Object> root =
+                objectMapper.readValue(
+                        Files.readString(configPath),
+                        new TypeReference<LinkedHashMap<String, Object>>() {});
         List<Map<String, Object>> skills = (List<Map<String, Object>>) root.get("skills");
         Map<String, Object> entry = skills.get(0);
         assertEquals("ak123", entry.get("accessKey"));

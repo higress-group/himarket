@@ -28,7 +28,7 @@ class RuntimeSelectionFilterPropertyTest {
 
     @Provide
     Arbitrary<List<SandboxType>> nonEmptyCompatibleRuntimes() {
-        return Arbitraries.of(SandboxType.LOCAL, SandboxType.REMOTE)
+        return Arbitraries.of(SandboxType.REMOTE, SandboxType.OPEN_SANDBOX)
                 .list()
                 .ofMinSize(1)
                 .ofMaxSize(2)
@@ -38,7 +38,7 @@ class RuntimeSelectionFilterPropertyTest {
 
     @Provide
     Arbitrary<List<SandboxType>> compatibleRuntimes() {
-        return Arbitraries.of(SandboxType.LOCAL, SandboxType.REMOTE)
+        return Arbitraries.of(SandboxType.REMOTE, SandboxType.OPEN_SANDBOX)
                 .list()
                 .ofMinSize(0)
                 .ofMaxSize(2)
@@ -55,7 +55,7 @@ class RuntimeSelectionFilterPropertyTest {
     private RuntimeSelector buildSelector(
             List<SandboxType> compatibleRuntimes, boolean remoteAvailable) {
         AcpProperties props = new AcpProperties();
-        props.setDefaultRuntime("local");
+        props.setDefaultRuntime("remote");
         CliProviderConfig config = new CliProviderConfig();
         config.setDisplayName("Test Provider");
         config.setCompatibleRuntimes(compatibleRuntimes);
@@ -173,25 +173,5 @@ class RuntimeSelectionFilterPropertyTest {
             assertTrue(compatible.contains(selected), "选中的运行时必须在兼容列表中: " + selected);
             assertTrue(selector.isSandboxAvailable(selected), "选中的运行时必须在当前环境中可用: " + selected);
         }
-    }
-
-    // ===== Property 6: LOCAL 始终可用 =====
-
-    @Property(tries = 100)
-    void localRuntime_alwaysAvailable(@ForAll("remoteAvailability") boolean remoteAvailable) {
-
-        AcpProperties props = new AcpProperties();
-        RemoteConfig remoteConfig = new RemoteConfig();
-        if (remoteAvailable) {
-            remoteConfig.setHost("sandbox.example.com");
-        }
-        props.setRemote(remoteConfig);
-        RuntimeSelector selector = new RuntimeSelector(props);
-
-        assertTrue(selector.isSandboxAvailable(SandboxType.LOCAL), "LOCAL 运行时应始终可用，无论远程沙箱状态如何");
-
-        RuntimeOption option = selector.toRuntimeOption(SandboxType.LOCAL, true);
-        assertTrue(option.available());
-        assertNull(option.unavailableReason());
     }
 }

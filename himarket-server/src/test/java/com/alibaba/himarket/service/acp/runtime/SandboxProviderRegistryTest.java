@@ -19,29 +19,30 @@ class SandboxProviderRegistryTest {
 
     @Test
     void getProvider_registeredType_returnsCorrectProvider() {
-        SandboxProvider localProvider = mockProvider(SandboxType.LOCAL);
-        SandboxProvider k8sProvider = mockProvider(SandboxType.REMOTE);
+        SandboxProvider openSandboxProvider = mockProvider(SandboxType.OPEN_SANDBOX);
+        SandboxProvider remoteProvider = mockProvider(SandboxType.REMOTE);
         SandboxProviderRegistry registry =
-                new SandboxProviderRegistry(List.of(localProvider, k8sProvider));
+                new SandboxProviderRegistry(List.of(openSandboxProvider, remoteProvider));
 
-        assertSame(localProvider, registry.getProvider(SandboxType.LOCAL));
-        assertSame(k8sProvider, registry.getProvider(SandboxType.REMOTE));
+        assertSame(openSandboxProvider, registry.getProvider(SandboxType.OPEN_SANDBOX));
+        assertSame(remoteProvider, registry.getProvider(SandboxType.REMOTE));
     }
 
     @Test
     void getProvider_singleProvider_returnsIt() {
-        SandboxProvider k8sProvider = mockProvider(SandboxType.REMOTE);
-        SandboxProviderRegistry registry = new SandboxProviderRegistry(List.of(k8sProvider));
+        SandboxProvider remoteProvider = mockProvider(SandboxType.REMOTE);
+        SandboxProviderRegistry registry = new SandboxProviderRegistry(List.of(remoteProvider));
 
-        assertSame(k8sProvider, registry.getProvider(SandboxType.REMOTE));
+        assertSame(remoteProvider, registry.getProvider(SandboxType.REMOTE));
     }
 
     // ===== getProvider 未注册类型抛异常 =====
 
     @Test
     void getProvider_unregisteredType_throwsIllegalArgumentException() {
-        SandboxProvider localProvider = mockProvider(SandboxType.LOCAL);
-        SandboxProviderRegistry registry = new SandboxProviderRegistry(List.of(localProvider));
+        SandboxProvider openSandboxProvider = mockProvider(SandboxType.OPEN_SANDBOX);
+        SandboxProviderRegistry registry =
+                new SandboxProviderRegistry(List.of(openSandboxProvider));
 
         IllegalArgumentException ex =
                 assertThrows(
@@ -54,20 +55,21 @@ class SandboxProviderRegistryTest {
     void getProvider_emptyRegistry_throwsIllegalArgumentException() {
         SandboxProviderRegistry registry = new SandboxProviderRegistry(List.of());
 
-        assertThrows(IllegalArgumentException.class, () -> registry.getProvider(SandboxType.LOCAL));
+        assertThrows(
+                IllegalArgumentException.class, () -> registry.getProvider(SandboxType.REMOTE));
     }
 
     // ===== supportedTypes =====
 
     @Test
     void supportedTypes_returnsAllRegisteredTypes() {
-        SandboxProvider localProvider = mockProvider(SandboxType.LOCAL);
-        SandboxProvider k8sProvider = mockProvider(SandboxType.REMOTE);
+        SandboxProvider openSandboxProvider = mockProvider(SandboxType.OPEN_SANDBOX);
+        SandboxProvider remoteProvider = mockProvider(SandboxType.REMOTE);
         SandboxProviderRegistry registry =
-                new SandboxProviderRegistry(List.of(localProvider, k8sProvider));
+                new SandboxProviderRegistry(List.of(openSandboxProvider, remoteProvider));
 
         Set<SandboxType> types = registry.supportedTypes();
-        assertEquals(Set.of(SandboxType.LOCAL, SandboxType.REMOTE), types);
+        assertEquals(Set.of(SandboxType.OPEN_SANDBOX, SandboxType.REMOTE), types);
     }
 
     @Test

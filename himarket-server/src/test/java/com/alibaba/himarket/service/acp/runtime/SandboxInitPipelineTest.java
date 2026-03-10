@@ -80,7 +80,7 @@ class SandboxInitPipelineTest {
     static class StubRuntimeAdapter implements RuntimeAdapter {
         @Override
         public SandboxType getType() {
-            return SandboxType.LOCAL;
+            return SandboxType.REMOTE;
         }
 
         @Override
@@ -299,7 +299,7 @@ class SandboxInitPipelineTest {
                                 log));
 
         SandboxInitPipeline pipeline = new SandboxInitPipeline(phases, defaultConfig());
-        InitContext context = createContext(new StubSandboxProvider(SandboxType.LOCAL));
+        InitContext context = createContext(new StubSandboxProvider(SandboxType.REMOTE));
 
         InitResult result = pipeline.execute(context);
 
@@ -336,7 +336,7 @@ class SandboxInitPipelineTest {
                                 log));
 
         SandboxInitPipeline pipeline = new SandboxInitPipeline(phases, defaultConfig());
-        InitContext context = createContext(new StubSandboxProvider(SandboxType.LOCAL));
+        InitContext context = createContext(new StubSandboxProvider(SandboxType.REMOTE));
 
         InitResult result = pipeline.execute(context);
 
@@ -364,7 +364,7 @@ class SandboxInitPipelineTest {
                                 log));
 
         SandboxInitPipeline pipeline = new SandboxInitPipeline(phases, defaultConfig());
-        InitContext context = createContext(new StubSandboxProvider(SandboxType.LOCAL));
+        InitContext context = createContext(new StubSandboxProvider(SandboxType.REMOTE));
 
         InitResult result = pipeline.execute(context);
 
@@ -413,7 +413,7 @@ class SandboxInitPipelineTest {
                                 log));
 
         SandboxInitPipeline pipeline = new SandboxInitPipeline(phases, defaultConfig());
-        InitContext context = createContext(new StubSandboxProvider(SandboxType.LOCAL));
+        InitContext context = createContext(new StubSandboxProvider(SandboxType.REMOTE));
 
         InitResult result = pipeline.execute(context);
 
@@ -466,7 +466,7 @@ class SandboxInitPipelineTest {
                                 log));
 
         SandboxInitPipeline pipeline = new SandboxInitPipeline(phases, defaultConfig());
-        InitContext context = createContext(new StubSandboxProvider(SandboxType.LOCAL));
+        InitContext context = createContext(new StubSandboxProvider(SandboxType.REMOTE));
 
         InitResult result = pipeline.execute(context);
 
@@ -495,7 +495,7 @@ class SandboxInitPipelineTest {
                                 log));
 
         SandboxInitPipeline pipeline = new SandboxInitPipeline(phases, defaultConfig());
-        InitContext context = createContext(new StubSandboxProvider(SandboxType.LOCAL));
+        InitContext context = createContext(new StubSandboxProvider(SandboxType.REMOTE));
 
         InitResult result = pipeline.execute(context);
 
@@ -537,7 +537,7 @@ class SandboxInitPipelineTest {
                                 log));
 
         SandboxInitPipeline pipeline = new SandboxInitPipeline(phases, defaultConfig());
-        InitContext context = createContext(new StubSandboxProvider(SandboxType.LOCAL));
+        InitContext context = createContext(new StubSandboxProvider(SandboxType.REMOTE));
 
         InitResult result = pipeline.execute(context);
 
@@ -586,7 +586,7 @@ class SandboxInitPipelineTest {
                                 log));
 
         SandboxInitPipeline pipeline = new SandboxInitPipeline(phases, defaultConfig());
-        InitContext context = createContext(new StubSandboxProvider(SandboxType.LOCAL));
+        InitContext context = createContext(new StubSandboxProvider(SandboxType.REMOTE));
 
         InitResult result = pipeline.execute(context);
 
@@ -616,7 +616,7 @@ class SandboxInitPipelineTest {
                                 log));
 
         SandboxInitPipeline pipeline = new SandboxInitPipeline(phases, defaultConfig());
-        InitContext context = createContext(new StubSandboxProvider(SandboxType.LOCAL));
+        InitContext context = createContext(new StubSandboxProvider(SandboxType.REMOTE));
 
         InitResult result = pipeline.execute(context);
 
@@ -658,7 +658,7 @@ class SandboxInitPipelineTest {
                                 log));
 
         SandboxInitPipeline pipeline = new SandboxInitPipeline(phases, defaultConfig());
-        InitContext context = createContext(new StubSandboxProvider(SandboxType.LOCAL));
+        InitContext context = createContext(new StubSandboxProvider(SandboxType.REMOTE));
 
         InitResult result = pipeline.execute(context);
 
@@ -686,7 +686,7 @@ class SandboxInitPipelineTest {
                                 log));
 
         SandboxInitPipeline pipeline = new SandboxInitPipeline(phases, defaultConfig());
-        InitContext context = createContext(new StubSandboxProvider(SandboxType.LOCAL));
+        InitContext context = createContext(new StubSandboxProvider(SandboxType.REMOTE));
 
         InitResult result = pipeline.execute(context);
 
@@ -707,7 +707,7 @@ class SandboxInitPipelineTest {
 
         SandboxInitPipeline pipeline =
                 new SandboxInitPipeline(List.of(retryPhase), defaultConfig());
-        InitContext context = createContext(new StubSandboxProvider(SandboxType.LOCAL));
+        InitContext context = createContext(new StubSandboxProvider(SandboxType.REMOTE));
 
         InitResult result = pipeline.execute(context);
 
@@ -725,7 +725,7 @@ class SandboxInitPipelineTest {
 
         SandboxInitPipeline pipeline =
                 new SandboxInitPipeline(List.of(retryPhase), defaultConfig());
-        InitContext context = createContext(new StubSandboxProvider(SandboxType.LOCAL));
+        InitContext context = createContext(new StubSandboxProvider(SandboxType.REMOTE));
 
         InitResult result = pipeline.execute(context);
 
@@ -742,7 +742,7 @@ class SandboxInitPipelineTest {
 
         SandboxInitPipeline pipeline =
                 new SandboxInitPipeline(List.of(retryPhase), defaultConfig());
-        InitContext context = createContext(new StubSandboxProvider(SandboxType.LOCAL));
+        InitContext context = createContext(new StubSandboxProvider(SandboxType.REMOTE));
 
         InitResult result = pipeline.execute(context);
 
@@ -759,7 +759,7 @@ class SandboxInitPipelineTest {
 
         SandboxInitPipeline pipeline =
                 new SandboxInitPipeline(List.of(retryPhase), defaultConfig());
-        InitContext context = createContext(new StubSandboxProvider(SandboxType.LOCAL));
+        InitContext context = createContext(new StubSandboxProvider(SandboxType.REMOTE));
 
         InitResult result = pipeline.execute(context);
 
@@ -792,7 +792,7 @@ class SandboxInitPipelineTest {
                                 log));
 
         SandboxInitPipeline pipeline = new SandboxInitPipeline(phases, defaultConfig());
-        InitContext context = createContext(new StubSandboxProvider(SandboxType.LOCAL));
+        InitContext context = createContext(new StubSandboxProvider(SandboxType.REMOTE));
 
         InitResult result = pipeline.execute(context);
 
@@ -819,7 +819,7 @@ class SandboxInitPipelineTest {
                                 log));
 
         SandboxInitPipeline pipeline = new SandboxInitPipeline(phases, defaultConfig());
-        InitContext context = createContext(new StubSandboxProvider(SandboxType.LOCAL));
+        InitContext context = createContext(new StubSandboxProvider(SandboxType.REMOTE));
 
         InitResult result = pipeline.execute(context);
 
@@ -890,7 +890,7 @@ class SandboxInitPipelineTest {
 
         SandboxInitPipeline pipeline =
                 new SandboxInitPipeline(List.of(slowPhase, afterPhase), config);
-        InitContext context = createContext(new StubSandboxProvider(SandboxType.LOCAL));
+        InitContext context = createContext(new StubSandboxProvider(SandboxType.REMOTE));
 
         InitResult result = pipeline.execute(context);
 
@@ -949,7 +949,7 @@ class SandboxInitPipelineTest {
 
         SandboxInitPipeline pipeline =
                 new SandboxInitPipeline(List.of(slowPhase, nextPhase), config);
-        InitContext context = createContext(new StubSandboxProvider(SandboxType.LOCAL));
+        InitContext context = createContext(new StubSandboxProvider(SandboxType.REMOTE));
 
         InitResult result = pipeline.execute(context);
 
@@ -1000,7 +1000,7 @@ class SandboxInitPipelineTest {
                                 log));
 
         SandboxInitPipeline pipeline = new SandboxInitPipeline(phases, defaultConfig());
-        InitContext context = createContext(new StubSandboxProvider(SandboxType.LOCAL));
+        InitContext context = createContext(new StubSandboxProvider(SandboxType.REMOTE));
 
         InitResult result = pipeline.resumeFrom(context, "phase-2");
 
@@ -1039,7 +1039,7 @@ class SandboxInitPipelineTest {
                                 log));
 
         SandboxInitPipeline pipeline = new SandboxInitPipeline(phases, defaultConfig());
-        InitContext context = createContext(new StubSandboxProvider(SandboxType.LOCAL));
+        InitContext context = createContext(new StubSandboxProvider(SandboxType.REMOTE));
 
         InitResult result = pipeline.resumeFrom(context, "phase-2");
 
@@ -1075,7 +1075,7 @@ class SandboxInitPipelineTest {
                                 log));
 
         SandboxInitPipeline pipeline = new SandboxInitPipeline(phases, defaultConfig());
-        InitContext context = createContext(new StubSandboxProvider(SandboxType.LOCAL));
+        InitContext context = createContext(new StubSandboxProvider(SandboxType.REMOTE));
 
         // 不存在的阶段名，应从头开始
         InitResult result = pipeline.resumeFrom(context, "nonexistent");
@@ -1092,7 +1092,7 @@ class SandboxInitPipelineTest {
     @Test
     void execute_emptyPhaseList_returnsSuccess() {
         SandboxInitPipeline pipeline = new SandboxInitPipeline(List.of(), defaultConfig());
-        InitContext context = createContext(new StubSandboxProvider(SandboxType.LOCAL));
+        InitContext context = createContext(new StubSandboxProvider(SandboxType.REMOTE));
 
         InitResult result = pipeline.execute(context);
 
@@ -1124,7 +1124,7 @@ class SandboxInitPipelineTest {
                                 log));
 
         SandboxInitPipeline pipeline = new SandboxInitPipeline(phases, config);
-        InitContext context = createContext(new StubSandboxProvider(SandboxType.LOCAL));
+        InitContext context = createContext(new StubSandboxProvider(SandboxType.REMOTE));
 
         InitResult result = pipeline.execute(context);
 

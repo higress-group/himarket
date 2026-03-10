@@ -10,31 +10,15 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class AcpProperties {
 
     /**
-     * 是否启用本地沙箱模式（LocalSandboxProvider）。
-     * 服务端部署时应设为 false 以禁用本地 Sidecar 进程启动。
-     * 默认 true，适用于本地开发。
-     */
-    private boolean localEnabled = true;
-
-    /**
      * 默认使用的 CLI provider key（对应 providers map 中的 key）
      */
     private String defaultProvider = "qwen-code";
 
     /**
-     * 本地模式（LOCAL）的工作空间根目录。
-     * 每个用户的 cwd = {workspaceRoot}/{userId}。
-     *
-     * <p>仅 LOCAL 模式使用。REMOTE 模式下 cwd 固定为 sandbox 容器内的
-     * /workspace/{userId}，与此配置无关。
-     */
-    private String workspaceRoot = "./workspaces";
-
-    /**
      * 默认运行时类型。
      * 当用户未主动选择运行时方案时使用此默认值。
      */
-    private String defaultRuntime = "local";
+    private String defaultRuntime = "remote";
 
     /**
      * CLI provider 注册表，支持多种 ACP 兼容的 CLI 工具。
@@ -48,28 +32,12 @@ public class AcpProperties {
      */
     private RemoteConfig remote = new RemoteConfig();
 
-    public boolean isLocalEnabled() {
-        return localEnabled;
-    }
-
-    public void setLocalEnabled(boolean localEnabled) {
-        this.localEnabled = localEnabled;
-    }
-
     public String getDefaultProvider() {
         return defaultProvider;
     }
 
     public void setDefaultProvider(String defaultProvider) {
         this.defaultProvider = defaultProvider;
-    }
-
-    public String getWorkspaceRoot() {
-        return workspaceRoot;
-    }
-
-    public void setWorkspaceRoot(String workspaceRoot) {
-        this.workspaceRoot = workspaceRoot;
     }
 
     public String getDefaultRuntime() {
