@@ -1,5 +1,5 @@
 import { Loader2, CheckCircle, Circle } from "lucide-react";
-import { useQuestState } from "../../context/QuestSessionContext";
+import { useCodingState } from "../../context/CodingSessionContext";
 
 /** 阶段顺序 */
 const PHASE_ORDER = [
@@ -70,7 +70,7 @@ function PhaseCard({ phaseName, status }: PhaseCardProps) {
 }
 
 export function SandboxInitProgress() {
-  const state = useQuestState();
+  const state = useCodingState();
   const progress = state.initProgress;
 
   // 计算每个阶段的状态

@@ -1,4 +1,4 @@
-import type { JsonRpcId, PermissionRequest } from "../../types/acp";
+import type { JsonRpcId, PermissionRequest } from "../../types/coding-protocol";
 
 interface PermissionDialogProps {
   permission: { id: JsonRpcId; request: PermissionRequest };

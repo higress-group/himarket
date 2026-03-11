@@ -1,4 +1,4 @@
-import type { ChatItemToolCall } from "../../types/acp";
+import type { ChatItemToolCall } from "../../types/coding-protocol";
 import {
   ARTIFACT_EXTENSIONS,
   type Artifact,

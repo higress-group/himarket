@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { calcReconnectDelay } from "./useAcpWebSocket";
+import { calcReconnectDelay } from "./useCodingWebSocket";
 
 export type TerminalWsStatus = "disconnected" | "connecting" | "connected" | "reconnecting";
 

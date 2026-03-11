@@ -2,15 +2,15 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ChangesView } from "./ChangesView";
 
-const useActiveQuestMock = vi.fn();
+const useActiveCodingSessionMock = vi.fn();
 
-vi.mock("../../context/QuestSessionContext", () => ({
-  useActiveQuest: () => useActiveQuestMock(),
+vi.mock("../../context/CodingSessionContext", () => ({
+  useActiveCodingSession: () => useActiveCodingSessionMock(),
 }));
 
 describe("ChangesView", () => {
   it("includes delete-style diff where newText is empty string", () => {
-    useActiveQuestMock.mockReturnValue({
+    useActiveCodingSessionMock.mockReturnValue({
       id: "q1",
       messages: [
         {

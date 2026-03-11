@@ -1,6 +1,6 @@
 import { useRef, useEffect, useMemo, useState, useCallback } from "react";
 import { MessageCircle, ArrowDown } from "lucide-react";
-import { useActiveQuest } from "../../context/QuestSessionContext";
+import { useActiveCodingSession } from "../../context/CodingSessionContext";
 import { groupMessages } from "../../lib/utils/groupMessages";
 import { UserMessage } from "./UserMessage";
 import { AgentMessage } from "./AgentMessage";
@@ -11,7 +11,7 @@ import { PlanDisplay } from "./PlanDisplay";
 import { ArtifactPreview } from "./ArtifactPreview";
 import { DiffViewer } from "./DiffViewer";
 import { TerminalOutput } from "./TerminalOutput";
-import { InlineArtifact } from "../coding/InlineArtifact";
+import { InlineArtifact } from "./InlineArtifact";
 import type {
   ChatItem,
   ChatItemUser,
@@ -19,7 +19,7 @@ import type {
   ChatItemPlan,
   ChatItemError,
   ToolCallContentDiffItem,
-} from "../../types/acp";
+} from "../../types/coding-protocol";
 import { ErrorMessage } from "./ErrorMessage";
 
 interface ChatStreamProps {
@@ -35,7 +35,7 @@ export function ChatStream({
   onOpenFile,
   onPreviewArtifact,
 }: ChatStreamProps) {
-  const quest = useActiveQuest();
+  const quest = useActiveCodingSession();
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const lastScrollTopRef = useRef(0);

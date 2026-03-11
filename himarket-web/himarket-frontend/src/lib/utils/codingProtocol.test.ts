@@ -4,8 +4,8 @@ import {
   trackRequest,
   resolveResponse,
 
-} from "./acp";
-import type { AcpResponse } from "../../types/acp";
+} from "./codingProtocol";
+import type { CodingResponse } from "../../types/coding-protocol";
 
 describe("resolveResponse error propagation", () => {
   // Feature: acp-error-response-handling, Property 4: resolveResponse 正确传递错误对象
@@ -28,7 +28,7 @@ describe("resolveResponse error propagation", () => {
           // 先注册一个 pending request
           const promise = trackRequest(id);
 
-          // 构造含 error 字段的 AcpResponse
+          // 构造含 error 字段的 CodingResponse
           const errorObj: { code: number; message: string; data?: Record<string, unknown> } = {
             code,
             message,
@@ -37,7 +37,7 @@ describe("resolveResponse error propagation", () => {
             errorObj.data = data as Record<string, unknown>;
           }
 
-          const response: AcpResponse = {
+          const response: CodingResponse = {
             jsonrpc: "2.0",
             id,
             error: errorObj,

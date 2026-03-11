@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { Zap, Terminal } from "lucide-react";
-import type { Command } from "../../types/acp";
+import type { Command } from "../../types/coding-protocol";
 
 interface SlashMenuProps {
   commands: Command[];

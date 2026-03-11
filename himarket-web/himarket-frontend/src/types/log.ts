@@ -1,7 +1,6 @@
 // 日志聚合相关类型定义
-// 从 acp-demo 迁移，与 himarket 类型体系对齐
 
-import type { JsonRpcId } from './acp';
+import type { JsonRpcId } from './coding-protocol';
 
 /**
  * 原始消息方向

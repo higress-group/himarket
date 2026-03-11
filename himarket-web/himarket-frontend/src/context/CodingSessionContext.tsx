@@ -23,7 +23,7 @@ import type {
   JsonRpcId,
   ToolKind,
   ContentBlock,
-} from "../types/acp";
+} from "../types/coding-protocol";
 import type { Artifact } from "../types/artifact";
 import type { OpenFile, TerminalSession } from "../types/coding";
 import {
@@ -32,14 +32,14 @@ import {
   normalizePath,
 } from "../lib/utils/artifactDetector";
 
-// ===== Quest Data =====
+// ===== Session Data =====
 
 export interface PreviewPortState {
   ports: number[];
   selectedPort: number | null;
 }
 
-export interface QuestData {
+export interface CodingSessionData {
   id: string;
   title: string;
   cwd: string;
@@ -74,11 +74,11 @@ export interface QueuedPromptItem {
 
 // ===== App State =====
 
-export interface QuestState {
+export interface CodingState {
   connected: boolean;
   initialized: boolean;
-  quests: Record<string, QuestData>;
-  activeQuestId: string | null;
+  sessions: Record<string, CodingSessionData>;
+  activeSessionId: string | null;
   models: Model[];
   modes: Mode[];
   commands: Command[];
@@ -107,15 +107,17 @@ export interface QuestState {
     totalPhases: number;
     completedPhases: number;
   } | null;
-  /** 全局当前 mode ID（由 PROTOCOL_INITIALIZED 设置，无活跃 Quest 时用于 TopBar 回退） */
+  /** 全局当前 mode ID（由 PROTOCOL_INITIALIZED 设置，无活跃 Session 时用于 TopBar 回退） */
   currentModeId: string;
+  /** 后端通过 workspace/info 通知推送的实际工作目录（如 /workspace/{userId}） */
+  workspaceCwd: string | null;
 }
 
-export const initialState: QuestState = {
+export const initialState: CodingState = {
   connected: false,
   initialized: false,
-  quests: {},
-  activeQuestId: null,
+  sessions: {},
+  activeSessionId: null,
   models: [],
   modes: [],
   commands: [],
@@ -124,11 +126,12 @@ export const initialState: QuestState = {
   sandboxStatus: null,
   initProgress: null,
   currentModeId: "",
+  workspaceCwd: null,
 };
 
 // ===== Actions =====
 
-export type QuestAction =
+export type CodingAction =
   | { type: "WS_CONNECTED" }
   | { type: "WS_DISCONNECTED" }
   | { type: "RESET_STATE" }
@@ -140,7 +143,7 @@ export type QuestAction =
       currentModeId: string;
     }
   | {
-      type: "QUEST_CREATED";
+      type: "SESSION_CREATED";
       sessionId: string;
       cwd: string;
       models?: Model[];
@@ -148,15 +151,15 @@ export type QuestAction =
       currentModelId?: string;
       currentModeId?: string;
     }
-  | { type: "QUEST_SWITCHED"; questId: string }
-  | { type: "QUEST_CLOSED"; questId: string }
-  | { type: "QUEST_TITLE_UPDATED"; questId: string; title: string }
+  | { type: "SESSION_SWITCHED"; sessionId: string }
+  | { type: "SESSION_CLOSED"; sessionId: string }
+  | { type: "SESSION_TITLE_UPDATED"; sessionId: string; title: string }
   | { type: "SESSION_UPDATE"; sessionId: string; update: SessionUpdate }
-  | { type: "PROMPT_ENQUEUED"; questId: string; item: QueuedPromptItem }
-  | { type: "PROMPT_DEQUEUED"; questId: string; promptId: string }
+  | { type: "PROMPT_ENQUEUED"; sessionId: string; item: QueuedPromptItem }
+  | { type: "PROMPT_DEQUEUED"; sessionId: string; promptId: string }
   | {
       type: "PROMPT_STARTED";
-      questId: string;
+      sessionId: string;
       requestId: JsonRpcId;
       text: string;
       attachments?: Attachment[];
@@ -164,13 +167,13 @@ export type QuestAction =
     }
   | {
       type: "PROMPT_COMPLETED";
-      questId: string;
+      sessionId: string;
       requestId?: JsonRpcId;
       stopReason: string;
     }
   | {
       type: "PROMPT_ERROR";
-      questId: string;
+      sessionId: string;
       requestId: JsonRpcId;
       code: number;
       message: string;
@@ -191,20 +194,20 @@ export type QuestAction =
   | { type: "UPDATE_ARTIFACT_CONTENT"; artifactId: string; content: string }
   | {
       type: "UPSERT_ARTIFACTS_FROM_PATHS";
-      questId: string;
+      sessionId: string;
       toolCallId: string;
       paths: string[];
     }
-  | { type: "SET_ARTIFACT_SCAN_CURSOR"; questId: string; cursor: number }
+  | { type: "SET_ARTIFACT_SCAN_CURSOR"; sessionId: string; cursor: number }
   // Coding IDE actions
-  | { type: "FILE_OPENED"; questId: string; file: OpenFile }
-  | { type: "FILE_CLOSED"; questId: string; path: string }
-  | { type: "ACTIVE_FILE_CHANGED"; questId: string; path: string | null }
-  | { type: "TERMINAL_CREATED"; questId: string; terminalId: string }
-  | { type: "TERMINAL_DATA"; questId: string; terminalId: string; data: string }
-  | { type: "PREVIEW_PORT_DETECTED"; questId: string; port: number }
-  | { type: "PREVIEW_PORT_SELECTED"; questId: string; port: number }
-  | { type: "PREVIEW_PORT_ADDED"; questId: string; port: number }
+  | { type: "FILE_OPENED"; sessionId: string; file: OpenFile }
+  | { type: "FILE_CLOSED"; sessionId: string; path: string }
+  | { type: "ACTIVE_FILE_CHANGED"; sessionId: string; path: string | null }
+  | { type: "TERMINAL_CREATED"; sessionId: string; terminalId: string }
+  | { type: "TERMINAL_DATA"; sessionId: string; terminalId: string; data: string }
+  | { type: "PREVIEW_PORT_DETECTED"; sessionId: string; port: number }
+  | { type: "PREVIEW_PORT_SELECTED"; sessionId: string; port: number }
+  | { type: "PREVIEW_PORT_ADDED"; sessionId: string; port: number }
   | { type: "SANDBOX_STATUS"; status: "creating" | "ready" | "error"; message: string; sandboxHost?: string }
   | {
       type: "INIT_PROGRESS";
@@ -214,7 +217,8 @@ export type QuestAction =
       progress: number;
       totalPhases: number;
       completedPhases: number;
-    };
+    }
+  | { type: "WORKSPACE_INFO"; cwd: string };
 
 // ===== Helpers =====
 
@@ -223,36 +227,36 @@ function chatItemId(): string {
   return `ci-${++_chatItemId}`;
 }
 
-function getActiveQuest(state: QuestState): QuestData | null {
-  if (!state.activeQuestId) return null;
-  return state.quests[state.activeQuestId] ?? null;
+function getActiveSession(state: CodingState): CodingSessionData | null {
+  if (!state.activeSessionId) return null;
+  return state.sessions[state.activeSessionId] ?? null;
 }
 
-function updateActiveQuest(
-  state: QuestState,
-  updater: (q: QuestData) => QuestData
-): QuestState {
-  const quest = getActiveQuest(state);
-  if (!quest) return state;
-  return { ...state, quests: { ...state.quests, [quest.id]: updater(quest) } };
+function updateActiveSession(
+  state: CodingState,
+  updater: (s: CodingSessionData) => CodingSessionData
+): CodingState {
+  const session = getActiveSession(state);
+  if (!session) return state;
+  return { ...state, sessions: { ...state.sessions, [session.id]: updater(session) } };
 }
 
-function updateQuestById(
-  state: QuestState,
-  questId: string,
-  updater: (q: QuestData) => QuestData
-): QuestState {
-  const quest = state.quests[questId];
-  if (!quest) return state;
-  return { ...state, quests: { ...state.quests, [questId]: updater(quest) } };
+function updateSessionById(
+  state: CodingState,
+  sessionId: string,
+  updater: (s: CodingSessionData) => CodingSessionData
+): CodingState {
+  const session = state.sessions[sessionId];
+  if (!session) return state;
+  return { ...state, sessions: { ...state.sessions, [sessionId]: updater(session) } };
 }
 
 // ===== Artifact Helpers =====
 
 function upsertDetectedArtifacts(
-  q: QuestData,
+  q: CodingSessionData,
   detected: Artifact[]
-): QuestData {
+): CodingSessionData {
   if (detected.length === 0) return q;
 
   let artifacts = q.artifacts;
@@ -285,18 +289,18 @@ function upsertDetectedArtifacts(
 }
 
 function applyArtifactDetection(
-  q: QuestData,
+  q: CodingSessionData,
   toolCall: ChatItemToolCall
-): QuestData {
+): CodingSessionData {
   const detected = detectArtifacts(toolCall);
   return upsertDetectedArtifacts(q, detected);
 }
 
 function applyArtifactPaths(
-  q: QuestData,
+  q: CodingSessionData,
   paths: string[],
   toolCallId: string
-): QuestData {
+): CodingSessionData {
   const detected = detectArtifactsFromPaths(paths, toolCallId);
   return upsertDetectedArtifacts(q, detected);
 }
@@ -324,10 +328,10 @@ function extractTextFromContentBlock(
 
 // ===== Reducer =====
 
-export function questReducer(
-  state: QuestState,
-  action: QuestAction
-): QuestState {
+export function codingReducer(
+  state: CodingState,
+  action: CodingAction
+): CodingState {
   switch (action.type) {
     case "WS_CONNECTED":
       return { ...state, connected: true };
@@ -347,16 +351,16 @@ export function questReducer(
         currentModeId: action.currentModeId || state.currentModeId,
       };
 
-    case "QUEST_CREATED": {
+    case "SESSION_CREATED": {
       const newModels =
         action.models && action.models.length > 0
           ? action.models
           : state.models;
       const newModes =
         action.modes && action.modes.length > 0 ? action.modes : state.modes;
-      const quest: QuestData = {
+      const session: CodingSessionData = {
         id: action.sessionId,
-        title: `Quest ${Object.keys(state.quests).length + 1}`,
+        title: `Session ${Object.keys(state.sessions).length + 1}`,
         cwd: action.cwd,
         messages: [],
         availableModels: newModels,
@@ -380,54 +384,54 @@ export function questReducer(
       };
       return {
         ...state,
-        quests: { ...state.quests, [action.sessionId]: quest },
-        activeQuestId: action.sessionId,
+        sessions: { ...state.sessions, [action.sessionId]: session },
+        activeSessionId: action.sessionId,
         models: newModels,
         modes: newModes,
       };
     }
 
-    case "QUEST_SWITCHED":
-      return state.quests[action.questId]
-        ? { ...state, activeQuestId: action.questId }
+    case "SESSION_SWITCHED":
+      return state.sessions[action.sessionId]
+        ? { ...state, activeSessionId: action.sessionId }
         : state;
 
-    case "QUEST_CLOSED": {
+    case "SESSION_CLOSED": {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { [action.questId]: _removed, ...rest } = state.quests;
+      const { [action.sessionId]: _removed, ...rest } = state.sessions;
       const newActive =
-        state.activeQuestId === action.questId
+        state.activeSessionId === action.sessionId
           ? (Object.keys(rest)[0] ?? null)
-          : state.activeQuestId;
-      return { ...state, quests: rest, activeQuestId: newActive };
+          : state.activeSessionId;
+      return { ...state, sessions: rest, activeSessionId: newActive };
     }
 
-    case "QUEST_TITLE_UPDATED":
-      return updateQuestById(state, action.questId, q => ({
-        ...q,
+    case "SESSION_TITLE_UPDATED":
+      return updateSessionById(state, action.sessionId, s => ({
+        ...s,
         title: action.title,
       }));
 
     case "PROMPT_ENQUEUED":
-      return updateQuestById(state, action.questId, q => ({
-        ...q,
-        promptQueue: [...q.promptQueue, action.item],
+      return updateSessionById(state, action.sessionId, s => ({
+        ...s,
+        promptQueue: [...s.promptQueue, action.item],
       }));
 
     case "PROMPT_DEQUEUED":
-      return updateQuestById(state, action.questId, q => ({
-        ...q,
-        promptQueue: q.promptQueue.filter(item => item.id !== action.promptId),
+      return updateSessionById(state, action.sessionId, s => ({
+        ...s,
+        promptQueue: s.promptQueue.filter(item => item.id !== action.promptId),
       }));
 
     case "PROMPT_STARTED":
-      return updateQuestById(state, action.questId, q => ({
-        ...q,
+      return updateSessionById(state, action.sessionId, s => ({
+        ...s,
         promptQueue: action.promptId
-          ? q.promptQueue.filter(item => item.id !== action.promptId)
-          : q.promptQueue,
+          ? s.promptQueue.filter(item => item.id !== action.promptId)
+          : s.promptQueue,
         messages: [
-          ...q.messages,
+          ...s.messages,
           {
             type: "user",
             id: chatItemId(),
@@ -442,16 +446,16 @@ export function questReducer(
       }));
 
     case "PROMPT_COMPLETED":
-      return updateQuestById(state, action.questId, q => {
+      return updateSessionById(state, action.sessionId, s => {
         if (
           action.requestId !== undefined &&
-          q.inflightPromptId !== null &&
-          q.inflightPromptId !== action.requestId
+          s.inflightPromptId !== null &&
+          s.inflightPromptId !== action.requestId
         ) {
-          return q;
+          return s;
         }
         return {
-          ...q,
+          ...s,
           isProcessing: false,
           inflightPromptId: null,
           lastStopReason: action.stopReason,
@@ -460,13 +464,13 @@ export function questReducer(
       });
 
     case "PROMPT_ERROR":
-      return updateQuestById(state, action.questId, q => {
+      return updateSessionById(state, action.sessionId, s => {
         if (
           action.requestId !== undefined &&
-          q.inflightPromptId !== null &&
-          q.inflightPromptId !== action.requestId
+          s.inflightPromptId !== null &&
+          s.inflightPromptId !== action.requestId
         ) {
-          return q;
+          return s;
         }
         const errorItem: ChatItemError = {
           type: "error",
@@ -476,8 +480,8 @@ export function questReducer(
           ...(action.data ? { data: action.data } : {}),
         };
         return {
-          ...q,
-          messages: [...q.messages, errorItem],
+          ...s,
+          messages: [...s.messages, errorItem],
           isProcessing: false,
           inflightPromptId: null,
           lastStopReason: "error",
@@ -486,33 +490,33 @@ export function questReducer(
       });
 
     case "SET_MODEL":
-      return updateActiveQuest(state, q => ({
-        ...q,
+      return updateActiveSession(state, s => ({
+        ...s,
         currentModelId: action.modelId,
       }));
 
     case "SET_MODE":
-      return updateActiveQuest(state, q => ({
-        ...q,
+      return updateActiveSession(state, s => ({
+        ...s,
         currentModeId: action.modeId,
       }));
 
     case "SELECT_TOOL_CALL":
-      return updateActiveQuest(state, q => ({
-        ...q,
+      return updateActiveSession(state, s => ({
+        ...s,
         selectedToolCallId: action.toolCallId,
       }));
 
     case "SELECT_ARTIFACT":
-      return updateActiveQuest(state, q => ({
-        ...q,
+      return updateActiveSession(state, s => ({
+        ...s,
         activeArtifactId: action.artifactId,
       }));
 
     case "UPDATE_ARTIFACT_CONTENT":
-      return updateActiveQuest(state, q => ({
-        ...q,
-        artifacts: q.artifacts.map(a =>
+      return updateActiveSession(state, s => ({
+        ...s,
+        artifacts: s.artifacts.map(a =>
           a.id === action.artifactId
             ? { ...a, content: action.content, updatedAt: Date.now() }
             : a
@@ -520,13 +524,13 @@ export function questReducer(
       }));
 
     case "UPSERT_ARTIFACTS_FROM_PATHS":
-      return updateQuestById(state, action.questId, q =>
-        applyArtifactPaths(q, action.paths, action.toolCallId)
+      return updateSessionById(state, action.sessionId, s =>
+        applyArtifactPaths(s, action.paths, action.toolCallId)
       );
 
     case "SET_ARTIFACT_SCAN_CURSOR":
-      return updateQuestById(state, action.questId, q => ({
-        ...q,
+      return updateSessionById(state, action.sessionId, s => ({
+        ...s,
         lastArtifactScanAt: action.cursor,
       }));
 
@@ -552,83 +556,83 @@ export function questReducer(
     // ===== Coding IDE Actions =====
 
     case "FILE_OPENED":
-      return updateQuestById(state, action.questId, q => {
-        const exists = q.openFiles.some(f => f.path === action.file.path);
+      return updateSessionById(state, action.sessionId, s => {
+        const exists = s.openFiles.some(f => f.path === action.file.path);
         return {
-          ...q,
+          ...s,
           openFiles: exists
-            ? q.openFiles.map(f =>
+            ? s.openFiles.map(f =>
                 f.path === action.file.path ? action.file : f
               )
-            : [...q.openFiles, action.file],
+            : [...s.openFiles, action.file],
           activeFilePath: action.file.path,
         };
       });
 
     case "FILE_CLOSED":
-      return updateQuestById(state, action.questId, q => {
-        const newFiles = q.openFiles.filter(f => f.path !== action.path);
-        let newActive = q.activeFilePath;
-        if (q.activeFilePath === action.path) {
+      return updateSessionById(state, action.sessionId, s => {
+        const newFiles = s.openFiles.filter(f => f.path !== action.path);
+        let newActive = s.activeFilePath;
+        if (s.activeFilePath === action.path) {
           newActive =
             newFiles.length > 0 ? newFiles[newFiles.length - 1].path : null;
         }
-        return { ...q, openFiles: newFiles, activeFilePath: newActive };
+        return { ...s, openFiles: newFiles, activeFilePath: newActive };
       });
 
     case "ACTIVE_FILE_CHANGED":
-      return updateQuestById(state, action.questId, q => ({
-        ...q,
+      return updateSessionById(state, action.sessionId, s => ({
+        ...s,
         activeFilePath: action.path,
       }));
 
     case "TERMINAL_CREATED":
-      return updateQuestById(state, action.questId, q => {
-        const exists = q.terminals.some(t => t.id === action.terminalId);
-        if (exists) return q;
+      return updateSessionById(state, action.sessionId, s => {
+        const exists = s.terminals.some(t => t.id === action.terminalId);
+        if (exists) return s;
         return {
-          ...q,
-          terminals: [...q.terminals, { id: action.terminalId, lines: [] }],
+          ...s,
+          terminals: [...s.terminals, { id: action.terminalId, lines: [] }],
         };
       });
 
     case "TERMINAL_DATA":
-      return updateQuestById(state, action.questId, q => {
-        const hasTerminal = q.terminals.some(t => t.id === action.terminalId);
+      return updateSessionById(state, action.sessionId, s => {
+        const hasTerminal = s.terminals.some(t => t.id === action.terminalId);
         const terminals = hasTerminal
-          ? q.terminals.map(t =>
+          ? s.terminals.map(t =>
               t.id === action.terminalId
                 ? { ...t, lines: [...t.lines, action.data] }
                 : t
             )
           : [
-              ...q.terminals,
+              ...s.terminals,
               { id: action.terminalId, lines: [action.data] },
             ];
-        return { ...q, terminals };
+        return { ...s, terminals };
       });
 
     case "PREVIEW_PORT_DETECTED": {
       const port = action.port;
       if (port < 1024 || port > 65535) return state;
-      return updateQuestById(state, action.questId, q => ({
-        ...q,
+      return updateSessionById(state, action.sessionId, s => ({
+        ...s,
         previewPorts: {
-          ports: q.previewPorts.ports.includes(port)
-            ? q.previewPorts.ports
-            : [...q.previewPorts.ports, port],
-          selectedPort: q.previewPorts.selectedPort ?? port,
+          ports: s.previewPorts.ports.includes(port)
+            ? s.previewPorts.ports
+            : [...s.previewPorts.ports, port],
+          selectedPort: s.previewPorts.selectedPort ?? port,
         },
       }));
     }
 
     case "PREVIEW_PORT_SELECTED": {
-      return updateQuestById(state, action.questId, q => {
-        if (!q.previewPorts.ports.includes(action.port)) return q;
+      return updateSessionById(state, action.sessionId, s => {
+        if (!s.previewPorts.ports.includes(action.port)) return s;
         return {
-          ...q,
+          ...s,
           previewPorts: {
-            ...q.previewPorts,
+            ...s.previewPorts,
             selectedPort: action.port,
           },
         };
@@ -638,12 +642,12 @@ export function questReducer(
     case "PREVIEW_PORT_ADDED": {
       const port = action.port;
       if (port < 1024 || port > 65535) return state;
-      return updateQuestById(state, action.questId, q => ({
-        ...q,
+      return updateSessionById(state, action.sessionId, s => ({
+        ...s,
         previewPorts: {
-          ports: q.previewPorts.ports.includes(port)
-            ? q.previewPorts.ports
-            : [...q.previewPorts.ports, port],
+          ports: s.previewPorts.ports.includes(port)
+            ? s.previewPorts.ports
+            : [...s.previewPorts.ports, port],
           selectedPort: port,
         },
       }));
@@ -672,16 +676,19 @@ export function questReducer(
         },
       };
 
+    case "WORKSPACE_INFO":
+      return { ...state, workspaceCwd: action.cwd };
+
     default:
       return state;
   }
 }
 
 function handleSessionUpdate(
-  state: QuestState,
+  state: CodingState,
   sessionId: string,
   update: SessionUpdate
-): QuestState {
+): CodingState {
   const variant = update.update.sessionUpdate;
 
   switch (variant) {
@@ -691,8 +698,8 @@ function handleSessionUpdate(
           ? (update.update as { content?: ContentBlock }).content
           : undefined;
       const text = extractTextFromContentBlock(contentBlock);
-      return updateQuestById(state, sessionId, q => {
-        const msgs = [...q.messages];
+      return updateSessionById(state, sessionId, s => {
+        const msgs = [...s.messages];
         const last = msgs[msgs.length - 1];
         if (last && last.type === "agent") {
           msgs[msgs.length - 1] = {
@@ -703,7 +710,7 @@ function handleSessionUpdate(
           msgs.push({ type: "agent", id: chatItemId(), text, complete: false });
         }
 
-        let updated = { ...q, messages: msgs };
+        let updated = { ...s, messages: msgs };
 
         // Detect artifacts from resource_link content blocks
         if (
@@ -728,8 +735,8 @@ function handleSessionUpdate(
               (update.update as { content?: ContentBlock }).content
             )
           : "";
-      return updateQuestById(state, sessionId, q => {
-        const msgs = [...q.messages];
+      return updateSessionById(state, sessionId, s => {
+        const msgs = [...s.messages];
         const last = msgs[msgs.length - 1];
         if (last && last.type === "thought") {
           msgs[msgs.length - 1] = {
@@ -739,7 +746,7 @@ function handleSessionUpdate(
         } else {
           msgs.push({ type: "thought", id: chatItemId(), text });
         }
-        return { ...q, messages: msgs };
+        return { ...s, messages: msgs };
       });
     }
 
@@ -757,8 +764,8 @@ function handleSessionUpdate(
         content?: ToolCallContentItem[];
         locations?: { path: string }[];
       };
-      return updateQuestById(state, sessionId, q => {
-        const msgs = [...q.messages];
+      return updateSessionById(state, sessionId, s => {
+        const msgs = [...s.messages];
         const last = msgs[msgs.length - 1];
         if (last && last.type === "agent") {
           msgs[msgs.length - 1] = { ...last, complete: true } as ChatItemAgent;
@@ -789,8 +796,8 @@ function handleSessionUpdate(
           msgs.push(toolCallItem);
         }
 
-        let updated: QuestData = {
-          ...q,
+        let updated: CodingSessionData = {
+          ...s,
           messages: msgs,
           selectedToolCallId: u.toolCallId,
         };
@@ -812,7 +819,7 @@ function handleSessionUpdate(
         content?: ToolCallContentItem[] | null;
         locations?: { path: string }[] | null;
       };
-      return updateQuestById(state, sessionId, q => {
+      return updateSessionById(state, sessionId, s => {
         const hasLocationsField = hasOwn(u, "locations");
         const hasContentField = hasOwn(u, "content");
         const hasRawInputField = hasOwn(u, "rawInput");
@@ -820,7 +827,7 @@ function handleSessionUpdate(
         const hasTitleField = hasOwn(u, "title");
         const hasStatusField = hasOwn(u, "status");
 
-        const msgs = q.messages.map(m => {
+        const msgs = s.messages.map(m => {
           if (m.type === "tool_call" && m.toolCallId === u.toolCallId) {
             const tc: ChatItemToolCall = { ...m };
 
@@ -856,7 +863,7 @@ function handleSessionUpdate(
           m => m.type === "tool_call" && m.toolCallId === u.toolCallId
         ) as ChatItemToolCall | undefined;
 
-        let updated = { ...q, messages: msgs };
+        let updated = { ...s, messages: msgs };
         const reachedTerminal =
           mergedToolCall?.status === "completed" ||
           mergedToolCall?.status === "failed";
@@ -872,8 +879,8 @@ function handleSessionUpdate(
         sessionUpdate: "plan";
         entries: ChatItemPlan["entries"];
       };
-      return updateQuestById(state, sessionId, q => {
-        const msgs = [...q.messages];
+      return updateSessionById(state, sessionId, s => {
+        const msgs = [...s.messages];
         const planIdx = msgs.findIndex(m => m.type === "plan");
         const planItem: ChatItemPlan = {
           type: "plan",
@@ -885,7 +892,7 @@ function handleSessionUpdate(
         } else {
           msgs.push(planItem);
         }
-        return { ...q, messages: msgs };
+        return { ...s, messages: msgs };
       });
     }
 
@@ -902,8 +909,8 @@ function handleSessionUpdate(
         sessionUpdate: "current_mode_update";
         mode: string;
       };
-      return updateQuestById(state, sessionId, q => ({
-        ...q,
+      return updateSessionById(state, sessionId, s => ({
+        ...s,
         currentModeId: u.mode,
       }));
     }
@@ -917,8 +924,8 @@ function handleSessionUpdate(
         title?: string;
       };
       if (u.title) {
-        return updateQuestById(state, sessionId, q => ({
-          ...q,
+        return updateSessionById(state, sessionId, s => ({
+          ...s,
           title: u.title!,
         }));
       }
@@ -928,7 +935,7 @@ function handleSessionUpdate(
     case "usage_update": {
       const u = update.update as {
         sessionUpdate: "usage_update";
-        usage: QuestState["usage"];
+        usage: CodingState["usage"];
       };
       return { ...state, usage: u.usage };
     }
@@ -940,37 +947,37 @@ function handleSessionUpdate(
 
 // ===== Context =====
 
-const QuestStateContext = createContext<QuestState>(initialState);
-const QuestDispatchContext = createContext<Dispatch<QuestAction>>(() => {});
+const CodingStateContext = createContext<CodingState>(initialState);
+const CodingDispatchContext = createContext<Dispatch<CodingAction>>(() => {});
 
-export { QuestStateContext, QuestDispatchContext };
+export { CodingStateContext, CodingDispatchContext };
 
-export function QuestSessionProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(questReducer, initialState);
+export function CodingSessionProvider({ children }: { children: ReactNode }) {
+  const [state, dispatch] = useReducer(codingReducer, initialState);
   return (
-    <QuestStateContext.Provider value={state}>
-      <QuestDispatchContext.Provider value={dispatch}>
+    <CodingStateContext.Provider value={state}>
+      <CodingDispatchContext.Provider value={dispatch}>
         {children}
-      </QuestDispatchContext.Provider>
-    </QuestStateContext.Provider>
+      </CodingDispatchContext.Provider>
+    </CodingStateContext.Provider>
   );
 }
 
-export function useQuestState(): QuestState {
-  return useContext(QuestStateContext);
+export function useCodingState(): CodingState {
+  return useContext(CodingStateContext);
 }
 
-export function useQuestDispatch(): Dispatch<QuestAction> {
-  return useContext(QuestDispatchContext);
+export function useCodingDispatch(): Dispatch<CodingAction> {
+  return useContext(CodingDispatchContext);
 }
 
-export function useActiveQuest(): QuestData | null {
-  const state = useQuestState();
-  if (!state.activeQuestId) return null;
-  return state.quests[state.activeQuestId] ?? null;
+export function useActiveCodingSession(): CodingSessionData | null {
+  const state = useCodingState();
+  if (!state.activeSessionId) return null;
+  return state.sessions[state.activeSessionId] ?? null;
 }
 
 export function useActiveArtifacts(): Artifact[] {
-  const quest = useActiveQuest();
-  return quest?.artifacts ?? [];
+  const session = useActiveCodingSession();
+  return session?.artifacts ?? [];
 }

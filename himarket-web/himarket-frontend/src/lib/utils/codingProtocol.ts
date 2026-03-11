@@ -1,16 +1,16 @@
 import {
   JSONRPC_VERSION,
-  ACP_METHODS,
+  CODING_METHODS,
   type JsonRpcId,
-  type AcpRequest,
-  type AcpResponse,
-  type AcpNotification,
-  type AcpMessage,
+  type CodingRequest,
+  type CodingResponse,
+  type CodingNotification,
+  type CodingMessage,
   type SessionUpdate,
   type PermissionRequest,
   type ContentBlock,
   type Attachment,
-} from "../../types/acp";
+} from "../../types/coding-protocol";
 
 // ===== Request ID Management =====
 
@@ -29,25 +29,25 @@ export function resetNextId(): void {
 export function buildRequest(
   method: string,
   params?: Record<string, unknown>
-): AcpRequest {
+): CodingRequest {
   return { jsonrpc: JSONRPC_VERSION, id: nextId(), method, params };
 }
 
 export function buildNotification(
   method: string,
   params?: Record<string, unknown>
-): AcpNotification {
+): CodingNotification {
   return { jsonrpc: JSONRPC_VERSION, method, params };
 }
 
-export function buildResponse(id: JsonRpcId, result: unknown): AcpResponse {
+export function buildResponse(id: JsonRpcId, result: unknown): CodingResponse {
   return { jsonrpc: JSONRPC_VERSION, id, result };
 }
 
 // ===== Shortcut Builders =====
 
-export function buildInitialize(): AcpRequest {
-  return buildRequest(ACP_METHODS.INITIALIZE, {
+export function buildInitialize(): CodingRequest {
+  return buildRequest(CODING_METHODS.INITIALIZE, {
     protocolVersion: 1,
     clientCapabilities: {
       fs: { readTextFile: false, writeTextFile: false },
@@ -55,15 +55,15 @@ export function buildInitialize(): AcpRequest {
   });
 }
 
-export function buildSessionNew(cwd: string): AcpRequest {
-  return buildRequest(ACP_METHODS.SESSION_NEW, { cwd, mcpServers: [] });
+export function buildSessionNew(cwd: string): CodingRequest {
+  return buildRequest(CODING_METHODS.SESSION_NEW, { cwd, mcpServers: [] });
 }
 
 export function buildPrompt(
   sessionId: string,
   text: string,
   attachments?: Attachment[]
-): AcpRequest {
+): CodingRequest {
   const prompt: ContentBlock[] = [];
 
   if (attachments && attachments.length > 0) {
@@ -84,67 +84,67 @@ export function buildPrompt(
     prompt.push({ type: "text", text });
   }
 
-  return buildRequest(ACP_METHODS.SESSION_PROMPT, { sessionId, prompt });
+  return buildRequest(CODING_METHODS.SESSION_PROMPT, { sessionId, prompt });
 }
 
-export function buildCancel(sessionId: string): AcpNotification {
-  return buildNotification(ACP_METHODS.SESSION_CANCEL, { sessionId });
+export function buildCancel(sessionId: string): CodingNotification {
+  return buildNotification(CODING_METHODS.SESSION_CANCEL, { sessionId });
 }
 
-export function buildSetModel(sessionId: string, modelId: string): AcpRequest {
-  return buildRequest(ACP_METHODS.SESSION_SET_MODEL, { sessionId, modelId });
+export function buildSetModel(sessionId: string, modelId: string): CodingRequest {
+  return buildRequest(CODING_METHODS.SESSION_SET_MODEL, { sessionId, modelId });
 }
 
-export function buildSetMode(sessionId: string, modeId: string): AcpRequest {
-  return buildRequest(ACP_METHODS.SESSION_SET_MODE, { sessionId, modeId });
+export function buildSetMode(sessionId: string, modeId: string): CodingRequest {
+  return buildRequest(CODING_METHODS.SESSION_SET_MODE, { sessionId, modeId });
 }
 
 // ===== Message Classification =====
 
-export function isResponse(msg: AcpMessage): msg is AcpResponse {
+export function isResponse(msg: CodingMessage): msg is CodingResponse {
   return (
     "id" in msg && ("result" in msg || "error" in msg) && !("method" in msg)
   );
 }
 
-export function isRequest(msg: AcpMessage): msg is AcpRequest {
+export function isRequest(msg: CodingMessage): msg is CodingRequest {
   return "id" in msg && "method" in msg;
 }
 
-export function isNotification(msg: AcpMessage): msg is AcpNotification {
+export function isNotification(msg: CodingMessage): msg is CodingNotification {
   return !("id" in msg) && "method" in msg;
 }
 
 // ===== Session Update Parsing =====
 
-export function isSessionUpdateNotification(msg: AcpMessage): boolean {
-  return isNotification(msg) && msg.method === ACP_METHODS.SESSION_UPDATE;
+export function isSessionUpdateNotification(msg: CodingMessage): boolean {
+  return isNotification(msg) && msg.method === CODING_METHODS.SESSION_UPDATE;
 }
 
 export function extractSessionUpdate(
-  msg: AcpNotification
+  msg: CodingNotification
 ): SessionUpdate | null {
-  if (msg.method !== ACP_METHODS.SESSION_UPDATE || !msg.params) return null;
+  if (msg.method !== CODING_METHODS.SESSION_UPDATE || !msg.params) return null;
   return msg.params as unknown as SessionUpdate;
 }
 
-export function isPermissionRequest(msg: AcpMessage): boolean {
-  return isRequest(msg) && msg.method === ACP_METHODS.REQUEST_PERMISSION;
+export function isPermissionRequest(msg: CodingMessage): boolean {
+  return isRequest(msg) && msg.method === CODING_METHODS.REQUEST_PERMISSION;
 }
 
 export function extractPermissionRequest(
-  msg: AcpRequest
+  msg: CodingRequest
 ): PermissionRequest | null {
-  if (msg.method !== ACP_METHODS.REQUEST_PERMISSION || !msg.params) return null;
+  if (msg.method !== CODING_METHODS.REQUEST_PERMISSION || !msg.params) return null;
   return msg.params as unknown as PermissionRequest;
 }
 
-export function isFileReadRequest(msg: AcpMessage): boolean {
-  return isRequest(msg) && msg.method === ACP_METHODS.READ_TEXT_FILE;
+export function isFileReadRequest(msg: CodingMessage): boolean {
+  return isRequest(msg) && msg.method === CODING_METHODS.READ_TEXT_FILE;
 }
 
-export function isFileWriteRequest(msg: AcpMessage): boolean {
-  return isRequest(msg) && msg.method === ACP_METHODS.WRITE_TEXT_FILE;
+export function isFileWriteRequest(msg: CodingMessage): boolean {
+  return isRequest(msg) && msg.method === CODING_METHODS.WRITE_TEXT_FILE;
 }
 
 // ===== Pending Request Tracker =====
@@ -162,7 +162,7 @@ export function trackRequest(id: JsonRpcId): Promise<unknown> {
   });
 }
 
-export function resolveResponse(response: AcpResponse): boolean {
+export function resolveResponse(response: CodingResponse): boolean {
   const pending = pendingRequests.get(response.id);
   if (!pending) return false;
   pendingRequests.delete(response.id);

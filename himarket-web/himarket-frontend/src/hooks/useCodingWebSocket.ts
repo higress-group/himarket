@@ -33,7 +33,7 @@ interface UseWebSocketReturn {
   manualReconnect: () => void;
 }
 
-export function useAcpWebSocket({
+export function useCodingWebSocket({
   url,
   onMessage,
   onConnected,
@@ -73,7 +73,7 @@ export function useAcpWebSocket({
     const delay = calcReconnectDelay(attempt);
     reconnectAttemptRef.current = attempt + 1;
     setReconnectAttempt(attempt + 1);
-    console.log(`[AcpWebSocket] Scheduling reconnect #${attempt + 1} in ${delay}ms`);
+    console.log(`[CodingWebSocket] Scheduling reconnect #${attempt + 1} in ${delay}ms`);
     reconnectTimerRef.current = setTimeout(() => {
       reconnectTimerRef.current = null;
       doConnectRef.current();
@@ -95,13 +95,13 @@ export function useAcpWebSocket({
     if (intentionalDisconnectRef.current) return;
 
     setStatus("connecting");
-    console.log("[AcpWebSocket] Connecting to:", urlRef.current);
+    console.log("[CodingWebSocket] Connecting to:", urlRef.current);
     const ws = new WebSocket(urlRef.current);
     wsRef.current = ws;
 
     ws.onopen = () => {
       if (wsRef.current !== ws) return;
-      console.log("[AcpWebSocket] Connected successfully");
+      console.log("[CodingWebSocket] Connected successfully");
       if (onConnectedRef.current) {
         onConnectedRef.current((data: string) => ws.send(data));
       }
@@ -116,11 +116,11 @@ export function useAcpWebSocket({
     };
 
     ws.onerror = (e) => {
-      console.error("[AcpWebSocket] Error:", e);
+      console.error("[CodingWebSocket] Error:", e);
     };
 
     ws.onclose = (e) => {
-      console.log("[AcpWebSocket] Closed:", e.code, e.reason);
+      console.log("[CodingWebSocket] Closed:", e.code, e.reason);
       if (wsRef.current !== ws) return;
       wsRef.current = null;
 

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { WifiOff, Wifi, RefreshCw } from "lucide-react";
-import type { WsStatus } from "../../hooks/useAcpWebSocket";
+import type { WsStatus } from "../../hooks/useCodingWebSocket";
 
 interface ConnectionBannerProps {
   acpStatus: WsStatus;

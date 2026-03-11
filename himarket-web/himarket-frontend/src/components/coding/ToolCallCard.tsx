@@ -16,7 +16,7 @@ import {
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
-import type { ChatItemToolCall, ToolCallContentItem } from "../../types/acp";
+import type { ChatItemToolCall, ToolCallContentItem } from "../../types/coding-protocol";
 import { Mcp } from "../icon";
 import { DiffViewer } from "./DiffViewer";
 

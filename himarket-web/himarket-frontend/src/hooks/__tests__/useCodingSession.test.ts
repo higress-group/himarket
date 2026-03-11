@@ -3,27 +3,27 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // ===== Mocks =====
 
-// Mock QuestSessionContext
+// Mock CodingSessionContext
 const mockDispatch = vi.fn();
 const mockState = {
   initialized: false,
-  quests: {},
-  activeQuestId: null,
+  sessions: {},
+  activeSessionId: null,
   pendingPermission: null,
 };
-vi.mock("../../context/QuestSessionContext", () => ({
-  useQuestDispatch: () => mockDispatch,
-  useQuestState: () => mockState,
+vi.mock("../../context/CodingSessionContext", () => ({
+  useCodingDispatch: () => mockDispatch,
+  useCodingState: () => mockState,
 }));
 
-// Mock useAcpWebSocket
+// Mock useCodingWebSocket
 const mockWsSend = vi.fn();
 const mockWsConnect = vi.fn();
 const mockWsDisconnect = vi.fn();
 let mockWsStatus = "disconnected";
 let mockWsAutoConnect: boolean | undefined;
-vi.mock("../useAcpWebSocket", () => ({
-  useAcpWebSocket: (opts: { url: string; onMessage: (d: string) => void; autoConnect?: boolean }) => {
+vi.mock("../useCodingWebSocket", () => ({
+  useCodingWebSocket: (opts: { url: string; onMessage: (d: string) => void; autoConnect?: boolean }) => {
     mockWsAutoConnect = opts.autoConnect;
     return {
       status: mockWsStatus,
@@ -34,8 +34,8 @@ vi.mock("../useAcpWebSocket", () => ({
   },
 }));
 
-// Mock acp utils
-vi.mock("../../lib/utils/acp", () => ({
+// Mock coding protocol utils
+vi.mock("../../lib/utils/codingProtocol", () => ({
   buildInitialize: vi.fn(() => ({ id: 1, method: "initialize", jsonrpc: "2.0" })),
   buildSessionNew: vi.fn(),
   buildPrompt: vi.fn(),
@@ -51,7 +51,7 @@ vi.mock("../../lib/utils/acp", () => ({
   resetNextId: vi.fn(),
 }));
 
-vi.mock("../../lib/utils/acpNormalize", () => ({
+vi.mock("../../lib/utils/codingNormalize", () => ({
   normalizeIncomingMessage: (m: unknown) => m,
 }));
 
@@ -60,7 +60,7 @@ vi.mock("../../lib/utils/workspaceApi", () => ({
   fetchWorkspaceChanges: vi.fn(),
 }));
 
-import { useAcpSession } from "../useAcpSession";
+import { useCodingSession } from "../useCodingSession";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -68,32 +68,32 @@ beforeEach(() => {
   mockWsAutoConnect = undefined;
 });
 
-// ===== 测试 =====
+// ===== Tests =====
 
-describe("useAcpSession WebSocket 通信", () => {
-  it("默认使用 WebSocket 通信", () => {
-    renderHook(() => useAcpSession({ wsUrl: "ws://localhost/ws/acp" }));
+describe("useCodingSession WebSocket communication", () => {
+  it("defaults to WebSocket communication", () => {
+    renderHook(() => useCodingSession({ wsUrl: "ws://localhost/ws/coding" }));
 
     expect(mockWsAutoConnect).toBe(true);
   });
 
-  it("wsUrl 为空时不自动连接", () => {
-    renderHook(() => useAcpSession({ wsUrl: "" }));
+  it("does not auto-connect when wsUrl is empty", () => {
+    renderHook(() => useCodingSession({ wsUrl: "" }));
 
     expect(mockWsAutoConnect).toBe(false);
   });
 
-  it("autoConnect 为 false 时不自动连接", () => {
+  it("does not auto-connect when autoConnect is false", () => {
     renderHook(() =>
-      useAcpSession({ wsUrl: "ws://localhost/ws/acp", autoConnect: false })
+      useCodingSession({ wsUrl: "ws://localhost/ws/coding", autoConnect: false })
     );
 
     expect(mockWsAutoConnect).toBe(false);
   });
 
-  it("runtimeError 始终为 null", () => {
+  it("runtimeError is always null", () => {
     const { result } = renderHook(() =>
-      useAcpSession({ wsUrl: "ws://localhost/ws/acp" })
+      useCodingSession({ wsUrl: "ws://localhost/ws/coding" })
     );
 
     expect(result.current.runtimeError).toBeNull();

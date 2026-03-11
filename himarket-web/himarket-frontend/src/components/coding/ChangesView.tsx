@@ -1,7 +1,7 @@
 import { useMemo } from "react";
-import { useActiveQuest } from "../../context/QuestSessionContext";
+import { useActiveCodingSession } from "../../context/CodingSessionContext";
 import { DiffViewer } from "./DiffViewer";
-import type { ChatItemToolCall } from "../../types/acp";
+import type { ChatItemToolCall } from "../../types/coding-protocol";
 
 interface DiffEntry {
   path: string;
@@ -11,7 +11,7 @@ interface DiffEntry {
 }
 
 export function ChangesView() {
-  const quest = useActiveQuest();
+  const quest = useActiveCodingSession();
   const messages = quest?.messages;
 
   const diffs = useMemo<DiffEntry[]>(() => {

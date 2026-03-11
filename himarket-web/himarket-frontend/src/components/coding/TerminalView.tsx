@@ -1,4 +1,4 @@
-import type { ChatItemToolCall } from "../../types/acp";
+import type { ChatItemToolCall } from "../../types/coding-protocol";
 import { TerminalOutput } from "./TerminalOutput";
 
 interface TerminalViewProps {

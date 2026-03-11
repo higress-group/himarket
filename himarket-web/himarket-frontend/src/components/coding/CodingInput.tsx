@@ -16,7 +16,7 @@ import {
   FileText,
   Loader2,
 } from "lucide-react";
-import { useQuestState, useActiveQuest } from "../../context/QuestSessionContext";
+import { useCodingState, useActiveCodingSession } from "../../context/CodingSessionContext";
 import { SlashMenu } from "./SlashMenu";
 import { FileMentionMenu } from "./FileMentionMenu";
 import {
@@ -28,8 +28,8 @@ import {
   filterFiles,
   type FlatFileItem,
 } from "../../lib/utils/fileTreeUtils";
-import type { Attachment, FilePathAttachment } from "../../types/acp";
-import type { QueuedPromptItem } from "../../context/QuestSessionContext";
+import type { Attachment, FilePathAttachment } from "../../types/coding-protocol";
+import type { QueuedPromptItem } from "../../context/CodingSessionContext";
 
 const MAX_ATTACHMENTS = 10;
 const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
@@ -62,7 +62,7 @@ function nextAttId(): string {
   return `att-${++_attId}-${Date.now()}`;
 }
 
-interface QuestInputProps {
+interface CodingInputProps {
   onSend: (
     text: string,
     attachments?: Attachment[]
@@ -81,7 +81,7 @@ interface QuestInputProps {
   toolbarExtra?: React.ReactNode;
 }
 
-export function QuestInput({
+export function CodingInput({
   onSend,
   onSendQueued,
   onDropQueuedPrompt,
@@ -92,7 +92,7 @@ export function QuestInput({
   disabled,
   variant = "default",
   toolbarExtra,
-}: QuestInputProps) {
+}: CodingInputProps) {
   const [text, setText] = useState("");
   const [showSlash, setShowSlash] = useState(false);
   const [showMentionMenu, setShowMentionMenu] = useState(false);
@@ -105,8 +105,8 @@ export function QuestInput({
   const [mentionedFiles, setMentionedFiles] = useState<FlatFileItem[]>([]);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const state = useQuestState();
-  const activeQuest = useActiveQuest();
+  const state = useCodingState();
+  const activeQuest = useActiveCodingSession();
 
   // Upload files to backend and create FilePathAttachment entries
   const addFiles = useCallback(

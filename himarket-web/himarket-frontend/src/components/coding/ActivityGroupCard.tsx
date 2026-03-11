@@ -18,7 +18,7 @@ import type {
   ChatItemToolCall,
   ChatItemThought,
   ChatItemAgent,
-} from "../../types/acp";
+} from "../../types/coding-protocol";
 import type { ActivityGroup } from "../../lib/utils/groupMessages";
 import { ThoughtBlock } from "./ThoughtBlock";
 import { AgentMessage } from "./AgentMessage";

@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { ToolCallCard } from "./ToolCallCard";
-import type { ToolKind } from "../../types/acp";
+import type { ToolKind } from "../../types/coding-protocol";
 
 const KINDS: ToolKind[] = [
   "read",

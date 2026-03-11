@@ -5,7 +5,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import * as fc from 'fast-check';
 import { LogAggregator, _resetEntryCounter } from '../logAggregator';
 import type { AggregatedLogEntry } from '../../../types/log';
-import { JSONRPC_VERSION, ACP_METHODS } from '../../../types/acp';
+import { JSONRPC_VERSION, CODING_METHODS } from '../../../types/coding-protocol';
 
 // ===== Arbitraries =====
 
@@ -19,7 +19,7 @@ const arbChunkText = fc.string({ minLength: 0, maxLength: 50 });
 function arbAgentMessageChunk(sessionId: string, text: string) {
   return {
     jsonrpc: JSONRPC_VERSION,
-    method: ACP_METHODS.SESSION_UPDATE,
+    method: CODING_METHODS.SESSION_UPDATE,
     params: {
       sessionId,
       update: {
@@ -34,7 +34,7 @@ function arbAgentMessageChunk(sessionId: string, text: string) {
 function arbAgentThoughtChunk(sessionId: string, text: string) {
   return {
     jsonrpc: JSONRPC_VERSION,
-    method: ACP_METHODS.SESSION_UPDATE,
+    method: CODING_METHODS.SESSION_UPDATE,
     params: {
       sessionId,
       update: {
@@ -73,7 +73,7 @@ const arbNonStreamingMessage = fc.oneof(
   // Non-chunk session/update notification (e.g. tool_call)
   fc.record({
     jsonrpc: fc.constant(JSONRPC_VERSION),
-    method: fc.constant(ACP_METHODS.SESSION_UPDATE),
+    method: fc.constant(CODING_METHODS.SESSION_UPDATE),
     params: fc.record({
       sessionId: arbSessionId,
       update: fc.record({

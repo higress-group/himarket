@@ -1,4 +1,4 @@
-import type { Attachment } from "../../types/acp";
+import type { Attachment } from "../../types/coding-protocol";
 import { Image, FileText } from "lucide-react";
 
 interface UserMessageProps {

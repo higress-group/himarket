@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { ChevronRight, ChevronDown } from "lucide-react";
-import { useActiveQuest } from "../../context/QuestSessionContext";
+import { useActiveCodingSession } from "../../context/CodingSessionContext";
 import { DiffViewer } from "./DiffViewer";
 import { TerminalOutput } from "./TerminalOutput";
-import type { ChatItemToolCall } from "../../types/acp";
+import type { ChatItemToolCall } from "../../types/coding-protocol";
 
 export function ToolDetails() {
-  const quest = useActiveQuest();
+  const quest = useActiveCodingSession();
   const [jsonExpanded, setJsonExpanded] = useState(false);
 
   const selectedTool = quest?.selectedToolCallId

@@ -6,8 +6,8 @@ import {
   isNotification,
   isSessionUpdateNotification,
   extractSessionUpdate,
-} from './acp';
-import type { AcpMessage, AcpNotification } from '../../types/acp';
+} from './codingProtocol';
+import type { CodingMessage, CodingNotification } from '../../types/coding-protocol';
 
 /** 日志条目 ID 计数器 */
 let entryCounter = 0;
@@ -25,7 +25,7 @@ export function _resetEntryCounter(): void {
 }
 
 /**
- * 从 ACP 消息中提取 method 字段
+ * 从协议消息中提取 method 字段
  */
 function extractMethod(data: unknown): string | undefined {
   if (typeof data === 'object' && data !== null && 'method' in data) {
@@ -65,10 +65,10 @@ function extractChunkInfo(
   data: unknown
 ): { type: 'agent_message' | 'agent_thought'; sessionId: string; text: string } | null {
   // data 必须是 session/update 通知
-  const msg = data as AcpMessage;
+  const msg = data as CodingMessage;
   if (!isNotification(msg) || !isSessionUpdateNotification(msg)) return null;
 
-  const update = extractSessionUpdate(msg as AcpNotification);
+  const update = extractSessionUpdate(msg as CodingNotification);
   if (!update) return null;
 
   const sessionUpdate = update.update.sessionUpdate;
@@ -111,7 +111,7 @@ export class LogAggregator {
   private buffers: Map<string, ChunkBuffer> = new Map();
 
   /**
-   * 处理一条 ACP 消息
+   * 处理一条协议消息
    * @param direction 消息方向
    * @param data 原始消息数据
    */

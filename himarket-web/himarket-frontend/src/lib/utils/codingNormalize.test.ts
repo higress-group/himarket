@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeIncomingMessage } from "./acpNormalize";
+import { normalizeIncomingMessage } from "./codingNormalize";
 
 describe("normalizeIncomingMessage", () => {
   it("normalizes tool kinds, preserves empty diff newText, and keeps string id", () => {

@@ -2,15 +2,15 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ChatStream } from "./ChatStream";
 
-const useActiveQuestMock = vi.fn();
+const useActiveCodingSessionMock = vi.fn();
 
-vi.mock("../../context/QuestSessionContext", () => ({
-  useActiveQuest: () => useActiveQuestMock(),
+vi.mock("../../context/CodingSessionContext", () => ({
+  useActiveCodingSession: () => useActiveCodingSessionMock(),
 }));
 
 describe("ChatStream plan rendering", () => {
   it("renders plan/todo card only once for one plan message", () => {
-    useActiveQuestMock.mockReturnValue({
+    useActiveCodingSessionMock.mockReturnValue({
       id: "q1",
       messages: [
         {

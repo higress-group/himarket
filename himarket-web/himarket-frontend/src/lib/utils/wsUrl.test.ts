@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { buildAcpWsUrl } from "./wsUrl";
+import { buildCodingWsUrl } from "./wsUrl";
 
 const ORIGIN = "wss://example.com";
 
-describe("buildAcpWsUrl", () => {
+describe("buildCodingWsUrl", () => {
   it("should include runtime query parameter when provided", () => {
-    const url = buildAcpWsUrl(
+    const url = buildCodingWsUrl(
       { provider: "qodercli", runtime: "k8s" },
       "/ws/acp",
       ORIGIN,
@@ -16,7 +16,7 @@ describe("buildAcpWsUrl", () => {
   });
 
   it("should include runtime=remote for remote sandbox", () => {
-    const url = buildAcpWsUrl(
+    const url = buildCodingWsUrl(
       { provider: "kiro-cli", runtime: "remote" },
       "/ws/acp",
       ORIGIN,
@@ -26,7 +26,7 @@ describe("buildAcpWsUrl", () => {
   });
 
   it("should omit runtime parameter when not provided", () => {
-    const url = buildAcpWsUrl(
+    const url = buildCodingWsUrl(
       { provider: "qodercli" },
       "/ws/acp",
       ORIGIN,
@@ -36,7 +36,7 @@ describe("buildAcpWsUrl", () => {
   });
 
   it("should include token when provided", () => {
-    const url = buildAcpWsUrl(
+    const url = buildCodingWsUrl(
       { provider: "qodercli", runtime: "k8s", token: "abc123" },
       "/ws/acp",
       ORIGIN,
@@ -46,7 +46,7 @@ describe("buildAcpWsUrl", () => {
   });
 
   it("should not include cwd parameter (cwd is determined by backend)", () => {
-    const url = buildAcpWsUrl(
+    const url = buildCodingWsUrl(
       { provider: "kiro-cli", runtime: "k8s" },
       "/ws/acp",
       ORIGIN,
@@ -56,12 +56,12 @@ describe("buildAcpWsUrl", () => {
   });
 
   it("should return base URL without query string when no params provided", () => {
-    const url = buildAcpWsUrl({}, "/ws/acp", ORIGIN);
+    const url = buildCodingWsUrl({}, "/ws/acp", ORIGIN);
     expect(url).toBe("wss://example.com/ws/acp");
   });
 
   it("should use default basePath /ws/acp", () => {
-    const url = buildAcpWsUrl(
+    const url = buildCodingWsUrl(
       { runtime: "k8s" },
       undefined,
       ORIGIN,
@@ -73,10 +73,10 @@ describe("buildAcpWsUrl", () => {
 
 });
 
-describe("buildAcpWsUrl - cliSessionConfig no longer in URL", () => {
+describe("buildCodingWsUrl - cliSessionConfig no longer in URL", () => {
   it("should NOT include cliSessionConfig in URL even when provided (now sent via WebSocket message)", () => {
     const config = JSON.stringify({ mcpServers: [{ name: "test", url: "http://example.com", transportType: "sse" }] });
-    const url = buildAcpWsUrl(
+    const url = buildCodingWsUrl(
       { provider: "qwen-code", cliSessionConfig: config },
       "/ws/acp",
       ORIGIN,
@@ -86,7 +86,7 @@ describe("buildAcpWsUrl - cliSessionConfig no longer in URL", () => {
   });
 
   it("should omit cliSessionConfig parameter when not provided", () => {
-    const url = buildAcpWsUrl(
+    const url = buildCodingWsUrl(
       { provider: "qwen-code" },
       "/ws/acp",
       ORIGIN,
@@ -96,7 +96,7 @@ describe("buildAcpWsUrl - cliSessionConfig no longer in URL", () => {
   });
 
   it("should include customModelConfig but not cliSessionConfig when both provided", () => {
-    const url = buildAcpWsUrl(
+    const url = buildCodingWsUrl(
       { provider: "qwen-code", customModelConfig: '{"model":"x"}', cliSessionConfig: '{"skills":[]}' },
       "/ws/acp",
       ORIGIN,
@@ -106,4 +106,3 @@ describe("buildAcpWsUrl - cliSessionConfig no longer in URL", () => {
     expect(parsed.searchParams.has("cliSessionConfig")).toBe(false);
   });
 });
-

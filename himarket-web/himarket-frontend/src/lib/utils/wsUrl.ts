@@ -1,7 +1,7 @@
 /**
  * WebSocket URL 构建工具函数
  *
- * 统一两个页面（HiWork/Quest、HiCoding/Coding）的 WebSocket URL 构建逻辑，
+ * 统一 HiCoding/Coding 页面的 WebSocket URL 构建逻辑，
  * 确保 provider、runtime 等查询参数一致地附加到 WebSocket URL 中。
  */
 
@@ -17,13 +17,13 @@ export interface WsUrlParams {
 }
 
 /**
- * 构建 ACP WebSocket URL，附加 provider、runtime 等查询参数。
+ * 构建 Coding WebSocket URL，附加 provider、runtime 等查询参数。
  *
  * @param basePath WebSocket 基础路径，默认 "/ws/acp"
  * @param params   查询参数
  * @param origin   协议+主机，默认从 window.location 推导
  */
-export function buildAcpWsUrl(
+export function buildCodingWsUrl(
   params: WsUrlParams,
   basePath = "/ws/acp",
   origin?: string,

@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { ChevronRight, ChevronDown } from "lucide-react";
-import { useActiveQuest } from "../../context/QuestSessionContext";
+import { useActiveCodingSession } from "../../context/CodingSessionContext";
 import { DiffViewer } from "./DiffViewer";
 import { TerminalOutput } from "./TerminalOutput";
-import type { ChatItemToolCall } from "../../types/acp";
+import type { ChatItemToolCall } from "../../types/coding-protocol";
 
 interface ToolPanelProps {
   collapsed: boolean;
@@ -11,7 +11,7 @@ interface ToolPanelProps {
 }
 
 export function ToolPanel({ collapsed, onToggleCollapse }: ToolPanelProps) {
-  const quest = useActiveQuest();
+  const quest = useActiveCodingSession();
   const [jsonExpanded, setJsonExpanded] = useState(false);
 
   const selectedTool = quest?.selectedToolCallId

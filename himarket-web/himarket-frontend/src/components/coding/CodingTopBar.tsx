@@ -1,10 +1,10 @@
 import { FolderOpen, Folder } from "lucide-react";
 import { Select } from "antd";
 import {
-  useQuestState,
-  useActiveQuest,
-} from "../../context/QuestSessionContext";
-import type { WsStatus } from "../../hooks/useAcpWebSocket";
+  useCodingState,
+  useActiveCodingSession,
+} from "../../context/CodingSessionContext";
+import type { WsStatus } from "../../hooks/useCodingWebSocket";
 
 interface CodingTopBarProps {
   status: WsStatus;
@@ -19,8 +19,8 @@ export function CodingTopBar({
   fileTreeVisible,
   onToggleFileTree,
 }: CodingTopBarProps) {
-  const state = useQuestState();
-  const quest = useActiveQuest();
+  const state = useCodingState();
+  const quest = useActiveCodingSession();
 
   const statusColor =
     status === "connected"

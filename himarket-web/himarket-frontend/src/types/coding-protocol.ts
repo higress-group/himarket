@@ -3,27 +3,27 @@
 export const JSONRPC_VERSION = "2.0" as const;
 export type JsonRpcId = number | string;
 
-export interface AcpRequest {
+export interface CodingRequest {
   jsonrpc: typeof JSONRPC_VERSION;
   id: JsonRpcId;
   method: string;
   params?: Record<string, unknown>;
 }
 
-export interface AcpResponse {
+export interface CodingResponse {
   jsonrpc: typeof JSONRPC_VERSION;
   id: JsonRpcId;
   result?: unknown;
   error?: { code: number; message: string; data?: Record<string, unknown> };
 }
 
-export interface AcpNotification {
+export interface CodingNotification {
   jsonrpc: typeof JSONRPC_VERSION;
   method: string;
   params?: Record<string, unknown>;
 }
 
-export type AcpMessage = AcpRequest | AcpResponse | AcpNotification;
+export type CodingMessage = CodingRequest | CodingResponse | CodingNotification;
 
 // ===== ContentBlock =====
 
@@ -98,7 +98,7 @@ export interface Command {
   input?: { hint?: string } | null;
 }
 
-// ===== Agent Info (migrated from acp-demo) =====
+// ===== Agent Info =====
 
 export interface AgentInfo {
   name?: string;
@@ -337,19 +337,19 @@ export interface PermissionRequest {
 
 // ===== Agent → Client Requests =====
 
-export interface FileReadRequest extends AcpRequest {
+export interface FileReadRequest extends CodingRequest {
   method: "fs/read_text_file";
   params: { path: string; sessionId?: string };
 }
 
-export interface FileWriteRequest extends AcpRequest {
+export interface FileWriteRequest extends CodingRequest {
   method: "fs/write_text_file";
   params: { path: string; content: string; sessionId?: string };
 }
 
-// ===== ACP Protocol Methods =====
+// ===== Coding Protocol Methods =====
 
-export const ACP_METHODS = {
+export const CODING_METHODS = {
   INITIALIZE: "initialize",
   SESSION_NEW: "session/new",
   SESSION_PROMPT: "session/prompt",

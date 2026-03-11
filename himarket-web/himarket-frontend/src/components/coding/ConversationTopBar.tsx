@@ -1,14 +1,14 @@
-import type { WsStatus } from "../../hooks/useAcpWebSocket";
+import type { WsStatus } from "../../hooks/useCodingWebSocket";
 
 interface ConversationTopBarProps {
   status: WsStatus;
-  questTitle: string;
+  sessionTitle: string;
   usage?: { used: number; size: number; cost?: { amount: number } };
 }
 
 export function ConversationTopBar({
   status,
-  questTitle,
+  sessionTitle,
   usage,
 }: ConversationTopBarProps) {
   const statusColor =
@@ -21,7 +21,7 @@ export function ConversationTopBar({
   return (
     <div className="flex items-center gap-3 px-4 py-2 border-b border-gray-200/60 bg-white/30 backdrop-blur-sm flex-shrink-0">
       <div className="text-sm font-medium text-gray-700 truncate max-w-[200px]">
-        {questTitle || "HiCoding"}
+        {sessionTitle || "HiCoding"}
       </div>
 
       <div className="flex-1" />

@@ -5,12 +5,12 @@ import { Header } from "../components/Header";
 import TextType from "../components/TextType";
 import bgImage from "../assets/bg.png";
 import {
-  QuestSessionProvider,
-  useQuestState,
-  useActiveQuest,
-  useQuestDispatch,
-} from "../context/QuestSessionContext";
-import { useAcpSession } from "../hooks/useAcpSession";
+  CodingSessionProvider,
+  useCodingState,
+  useActiveCodingSession,
+  useCodingDispatch,
+} from "../context/CodingSessionContext";
+import { useCodingSession } from "../hooks/useCodingSession";
 import { useResizable } from "../hooks/useResizable";
 import { useCodingConfig } from "../hooks/useCodingConfig";
 import { ConfigSidebar } from "../components/coding/ConfigSidebar";
@@ -21,10 +21,10 @@ import { TerminalPanel } from "../components/coding/TerminalPanel";
 import type { TerminalPanelHandle } from "../components/coding/TerminalPanel";
 import { PreviewPanel } from "../components/coding/PreviewPanel";
 import { ConnectionBanner } from "../components/coding/ConnectionBanner";
-import { ChatStream } from "../components/quest/ChatStream";
-import { QuestInput } from "../components/quest/QuestInput";
-import { PermissionDialog } from "../components/quest/PermissionDialog";
-import { PlanDisplay } from "../components/quest/PlanDisplay";
+import { ChatStream } from "../components/coding/ChatStream";
+import { CodingInput } from "../components/coding/CodingInput";
+import { PermissionDialog } from "../components/coding/PermissionDialog";
+import { PlanDisplay } from "../components/coding/PlanDisplay";
 import {
   fetchDirectoryTree,
   fetchArtifactContent,
@@ -33,8 +33,8 @@ import {
   setDefaultRuntime,
 } from "../lib/utils/workspaceApi";
 import type { FileNode } from "../types/coding";
-import type { ChatItemPlan } from "../types/acp";
-import { buildAcpWsUrl } from "../lib/utils/wsUrl";
+import type { ChatItemPlan } from "../types/coding-protocol";
+import { buildCodingWsUrl } from "../lib/utils/wsUrl";
 import { SandboxInitProgress } from "../components/common/SandboxInitProgress";
 import { getMarketModels, getCliProviders } from "../lib/apis/cliProvider";
 import { sortCliProviders } from "../lib/utils/cliProviderSort";
@@ -107,11 +107,11 @@ function CodingContent() {
   // ===== 延迟连接模式：初始 wsUrl 为空，不触发连接 =====
   const [currentWsUrl, setCurrentWsUrl] = useState("");
   const [currentCliSessionConfig, setCurrentCliSessionConfig] = useState<string | undefined>();
-  const session = useAcpSession({ wsUrl: currentWsUrl, cliSessionConfig: currentCliSessionConfig });
+  const session = useCodingSession({ wsUrl: currentWsUrl, cliSessionConfig: currentCliSessionConfig });
 
-  const state = useQuestState();
-  const activeQuest = useActiveQuest();
-  const dispatch = useQuestDispatch();
+  const state = useCodingState();
+  const activeSession = useActiveCodingSession();
+  const dispatch = useCodingDispatch();
 
   const isConnected = session.status === "connected";
   // reconnecting 时仍视为"活跃"，保持 IDE 视图不跳回欢迎页
@@ -129,12 +129,12 @@ function CodingContent() {
       // ACP 重连成功 — 后端已销毁旧 session，需要重新走完整流程
       console.log("[Coding] ACP reconnected, resetting state for re-initialization");
 
-      // 清空旧 quests（后端 session 已不存在），重置自动创建标记
+      // 清空旧 sessions（后端 session 已不存在），重置自动创建标记
       autoCreatedRef.current = false;
       dispatch({ type: "RESET_STATE" });
-      // RESET_STATE 会清空 initialized/quests/sandboxStatus，
-      // useAcpSession 的 status=connected + !initializedRef 会重新触发 initialize，
-      // 后端会重新发 sandbox/status: ready → 自动创建 Quest → 终端也会跟着重建
+      // RESET_STATE 会清空 initialized/sessions/sandboxStatus，
+      // useCodingSession 的 status=connected + !initializedRef 会重新触发 initialize，
+      // 后端会重新发 sandbox/status: ready → 自动创建 Session → 终端也会跟着重建
 
       // 触发终端重连
       terminalPanelRef.current?.reconnect();
@@ -199,7 +199,7 @@ function CodingContent() {
 
       setCurrentCliSessionConfig(cfg.cliSessionConfig);
 
-      const url = buildAcpWsUrl({
+      const url = buildCodingWsUrl({
         token: localStorage.getItem("access_token") || undefined,
         provider: cliId || undefined,
         runtime: cfg.cliRuntime,
@@ -213,14 +213,14 @@ function CodingContent() {
     [dispatch]
   );
 
-  // 模型配置由 ConfigInjectionPhase 注入，createQuest 中会自动设置 CLI 模型
+  // 模型配置由 ConfigInjectionPhase 注入，createSession 中会自动设置 CLI 模型
   // 不需要额外的 setModel 调用（config.modelProductId 是平台产品 ID，CLI 不认识）
 
-  // ===== 自动创建 Quest =====
+  // ===== 自动创建 Session =====
   const autoCreatedRef = useRef(false);
 
   useEffect(() => {
-    if (!isConnected || !state.initialized || Object.keys(state.quests).length > 0 || autoCreatedRef.current) {
+    if (!isConnected || !state.initialized || Object.keys(state.sessions).length > 0 || autoCreatedRef.current) {
       if (!isConnected) {
         autoCreatedRef.current = false;
       }
@@ -232,28 +232,33 @@ function CodingContent() {
       return;
     }
 
+    // 等待 workspace/info 通知推送实际 cwd（如 /workspace/{userId}）
+    if (!state.workspaceCwd) {
+      return;
+    }
+
     autoCreatedRef.current = true;
-    session.createQuest(".").catch(err => {
-      console.error("[Coding] Auto create quest failed:", err);
+    session.createSession(state.workspaceCwd).catch(err => {
+      console.error("[Coding] Auto create session failed:", err);
       dispatch({
         type: "SANDBOX_STATUS",
         status: "error",
         message: err?.message || "会话创建失败，请重新连接",
       });
     });
-  }, [isConnected, state.initialized, state.quests, state.sandboxStatus, session, dispatch]);
+  }, [isConnected, state.initialized, state.sessions, state.sandboxStatus, state.workspaceCwd, session, dispatch]);
 
   // 会话就绪后自动发送暂存的首条消息
   useEffect(() => {
-    if (activeQuest && pendingPromptRef.current) {
+    if (activeSession && pendingPromptRef.current) {
       const prompt = pendingPromptRef.current;
       pendingPromptRef.current = null;
       session.sendPrompt(prompt);
     }
-  }, [activeQuest, session]);
+  }, [activeSession, session]);
 
   // 新建会话：断开连接，回到欢迎页
-  const handleNewQuest = useCallback(() => {
+  const handleNewSession = useCallback(() => {
     autoCreatedRef.current = false;
     pendingPromptRef.current = null;
     dispatch({ type: "RESET_STATE" });
@@ -277,7 +282,7 @@ function CodingContent() {
         return { queued: true as const };
       }
 
-      if (activeQuest) {
+      if (activeSession) {
         return session.sendPrompt(text);
       }
 
@@ -285,7 +290,7 @@ function CodingContent() {
       pendingPromptRef.current = text;
       return { queued: true as const };
     },
-    [isComplete, isConnected, activeQuest, config, handleConnect, session]
+    [isComplete, isConnected, activeSession, config, handleConnect, session]
   );
 
   // ===== IDE 面板状态 =====
@@ -332,34 +337,34 @@ function CodingContent() {
 
   // ===== 文件树加载 =====
   useEffect(() => {
-    if (!activeQuest?.cwd) return;
+    if (!activeSession?.cwd) return;
     setTreeLoading(true);
-    fetchDirectoryTree(activeQuest.cwd, 10, currentRuntimeRef.current).then(nodes => {
+    fetchDirectoryTree(activeSession.cwd, 10, currentRuntimeRef.current).then(nodes => {
       if (nodes !== null) setTree(nodes);
       setTreeLoading(false);
     });
-  }, [activeQuest?.cwd]);
+  }, [activeSession?.cwd]);
 
-  const messageCount = activeQuest?.messages.length ?? 0;
+  const messageCount = activeSession?.messages.length ?? 0;
   useEffect(() => {
-    if (!activeQuest?.cwd || messageCount === 0) return;
-    const lastMsg = activeQuest.messages[messageCount - 1];
+    if (!activeSession?.cwd || messageCount === 0) return;
+    const lastMsg = activeSession.messages[messageCount - 1];
     if (
       lastMsg?.type === "tool_call" &&
       (lastMsg.status === "completed" || lastMsg.status === "failed") &&
       !READ_ONLY_KINDS.has(lastMsg.kind)
     ) {
-      fetchDirectoryTree(activeQuest.cwd, 10, currentRuntimeRef.current).then(nodes => {
+      fetchDirectoryTree(activeSession.cwd, 10, currentRuntimeRef.current).then(nodes => {
         if (nodes !== null) setTree(nodes);
       });
     }
-  }, [messageCount, activeQuest?.cwd, activeQuest?.messages]);
+  }, [messageCount, activeSession?.cwd, activeSession?.messages]);
 
   const lastPollRef = useRef<number>(0);
   const pollingRef = useRef(false);
   useEffect(() => {
-    if (!activeQuest?.cwd) return;
-    const cwd = activeQuest.cwd;
+    if (!activeSession?.cwd) return;
+    const cwd = activeSession.cwd;
     lastPollRef.current = Date.now();
     const interval = setInterval(async () => {
       if (pollingRef.current) return;
@@ -375,21 +380,21 @@ function CodingContent() {
       } finally { pollingRef.current = false; }
     }, 10000);
     return () => clearInterval(interval);
-  }, [activeQuest?.cwd]);
+  }, [activeSession?.cwd]);
 
   useEffect(() => {
-    if (activeQuest?.previewPorts.selectedPort) setActiveTab("preview");
-  }, [activeQuest?.previewPorts.selectedPort]);
+    if (activeSession?.previewPorts.selectedPort) setActiveTab("preview");
+  }, [activeSession?.previewPorts.selectedPort]);
 
   // Auto-open files when Agent edits them
   useEffect(() => {
-    if (!activeQuest || messageCount === 0) return;
-    for (const msg of activeQuest.messages) {
+    if (!activeSession || messageCount === 0) return;
+    for (const msg of activeSession.messages) {
       if (msg.type !== "tool_call" || msg.kind !== "edit" || msg.status !== "completed") continue;
       const locations = msg.locations;
       if (!locations || locations.length === 0) continue;
       for (const loc of locations) {
-        const key = `${activeQuest.id}:${msg.toolCallId}:${loc.path}`;
+        const key = `${activeSession.id}:${msg.toolCallId}:${loc.path}`;
         if (autoOpenedRef.current.has(key)) continue;
         autoOpenedRef.current.add(key);
         const filePath = loc.path;
@@ -398,7 +403,7 @@ function CodingContent() {
           if (result.content !== null) {
             dispatch({
               type: "FILE_OPENED",
-              questId: activeQuest.id,
+              sessionId: activeSession.id,
               file: { path: filePath, fileName, content: result.content, language: inferLanguage(fileName), encoding: result.encoding ?? "utf-8" },
             });
             setActiveTab("code");
@@ -406,65 +411,65 @@ function CodingContent() {
         });
       }
     }
-  }, [messageCount, activeQuest, dispatch]);
+  }, [messageCount, activeSession, dispatch]);
 
   // ===== 文件操作回调 =====
   const handleFileSelect = useCallback(
     async (node: FileNode) => {
-      if (node.type !== "file" || !activeQuest) return;
-      if (activeQuest.openFiles.some(f => f.path === node.path)) {
-        dispatch({ type: "ACTIVE_FILE_CHANGED", questId: activeQuest.id, path: node.path });
+      if (node.type !== "file" || !activeSession) return;
+      if (activeSession.openFiles.some(f => f.path === node.path)) {
+        dispatch({ type: "ACTIVE_FILE_CHANGED", sessionId: activeSession.id, path: node.path });
         setActiveTab("code");
         return;
       }
       const result = await fetchArtifactContent(node.path, { raw: true, runtime: currentRuntimeRef.current });
       if (result.content !== null) {
-        dispatch({ type: "FILE_OPENED", questId: activeQuest.id, file: { path: node.path, fileName: node.name, content: result.content, language: inferLanguage(node.name), encoding: result.encoding ?? "utf-8" } });
+        dispatch({ type: "FILE_OPENED", sessionId: activeSession.id, file: { path: node.path, fileName: node.name, content: result.content, language: inferLanguage(node.name), encoding: result.encoding ?? "utf-8" } });
         setActiveTab("code");
       } else if (result.error) {
         message.warning(result.error.message);
       }
     },
-    [activeQuest, dispatch]
+    [activeSession, dispatch]
   );
 
   const handleCloseFile = useCallback(
     (path: string) => {
-      if (!activeQuest) return;
-      dispatch({ type: "FILE_CLOSED", questId: activeQuest.id, path });
+      if (!activeSession) return;
+      dispatch({ type: "FILE_CLOSED", sessionId: activeSession.id, path });
     },
-    [activeQuest, dispatch]
+    [activeSession, dispatch]
   );
 
   const handleOpenFilePath = useCallback(
     async (path: string) => {
-      if (!activeQuest) return;
-      if (activeQuest.openFiles.some(f => f.path === path)) {
-        dispatch({ type: "ACTIVE_FILE_CHANGED", questId: activeQuest.id, path });
+      if (!activeSession) return;
+      if (activeSession.openFiles.some(f => f.path === path)) {
+        dispatch({ type: "ACTIVE_FILE_CHANGED", sessionId: activeSession.id, path });
         setActiveTab("code");
         return;
       }
       const result = await fetchArtifactContent(path, { raw: true, runtime: currentRuntimeRef.current });
       if (result.content !== null) {
         const fileName = path.split(/[/\\]/).pop() ?? path;
-        dispatch({ type: "FILE_OPENED", questId: activeQuest.id, file: { path, fileName, content: result.content, language: inferLanguage(fileName), encoding: result.encoding ?? "utf-8" } });
+        dispatch({ type: "FILE_OPENED", sessionId: activeSession.id, file: { path, fileName, content: result.content, language: inferLanguage(fileName), encoding: result.encoding ?? "utf-8" } });
         setActiveTab("code");
       } else if (result.error) {
         message.warning(result.error.message);
       }
     },
-    [activeQuest, dispatch]
+    [activeSession, dispatch]
   );
 
   const handleSelectFile = useCallback(
     (path: string) => {
-      if (!activeQuest) return;
-      dispatch({ type: "ACTIVE_FILE_CHANGED", questId: activeQuest.id, path });
+      if (!activeSession) return;
+      dispatch({ type: "ACTIVE_FILE_CHANGED", sessionId: activeSession.id, path });
     },
-    [activeQuest, dispatch]
+    [activeSession, dispatch]
   );
 
-  const previewPort = activeQuest?.previewPorts.selectedPort ?? null;
+  const previewPort = activeSession?.previewPorts.selectedPort ?? null;
 
   const handleRefreshPreview = useCallback(() => {
     const iframe = document.querySelector<HTMLIFrameElement>("#coding-preview-iframe");
@@ -475,14 +480,14 @@ function CodingContent() {
     if (previewPort) window.open(getPreviewUrl(previewPort), "_blank");
   }, [previewPort]);
 
-  const planEntries = activeQuest?.messages.find(
+  const planEntries = activeSession?.messages.find(
     (m): m is ChatItemPlan => m.type === "plan"
   )?.entries;
 
   // ===== 渲染状态判断 =====
   const showSandboxError = isActiveSession && state.sandboxStatus?.status === "error";
-  const showInitProgress = isActiveSession && (!state.initialized || !activeQuest) && !showSandboxError;
-  const showIDE = isActiveSession && state.initialized && activeQuest && !showSandboxError;
+  const showInitProgress = isActiveSession && (!state.initialized || !activeSession) && !showSandboxError;
+  const showIDE = isActiveSession && state.initialized && activeSession && !showSandboxError;
   // 欢迎页：未连接（reconnecting 不算），或者连接中但还没有活跃会话（且没有暂存消息正在等待）
   const showWelcome = !isActiveSession && !pendingPromptRef.current;
 
@@ -531,7 +536,7 @@ function CodingContent() {
                     }}
                   >
                     <div className="rounded-2xl overflow-hidden bg-white/95">
-                      <QuestInput
+                      <CodingInput
                         variant="welcome"
                         onSend={handleWelcomeSend}
                         onDropQueuedPrompt={() => {}}
@@ -615,7 +620,7 @@ function CodingContent() {
           <div className="text-center">
             <p className="text-red-500 mb-4">{state.sandboxStatus?.message}</p>
             <button
-              onClick={handleNewQuest}
+              onClick={handleNewSession}
               className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
             >
               重新连接
@@ -636,7 +641,7 @@ function CodingContent() {
           >
             <ConversationTopBar
               status={session.status}
-              questTitle={activeQuest?.title ?? ""}
+              sessionTitle={activeSession?.title ?? ""}
               usage={state.usage ?? undefined}
             />
             <ChatStream
@@ -650,14 +655,14 @@ function CodingContent() {
               </div>
             )}
             <div className="flex-shrink-0">
-              <QuestInput
+              <CodingInput
                 onSend={session.sendPrompt}
                 onDropQueuedPrompt={session.dropQueuedPrompt}
                 onCancel={session.cancelPrompt}
-                isProcessing={activeQuest?.isProcessing ?? false}
-                queueSize={activeQuest?.promptQueue.length ?? 0}
-                queuedPrompts={activeQuest?.promptQueue ?? []}
-                disabled={!state.initialized || !activeQuest}
+                isProcessing={activeSession?.isProcessing ?? false}
+                queueSize={activeSession?.promptQueue.length ?? 0}
+                queuedPrompts={activeSession?.promptQueue ?? []}
+                disabled={!state.initialized || !activeSession}
               />
             </div>
           </div>
@@ -681,7 +686,7 @@ function CodingContent() {
                         {treeLoading ? (
                           <div className="flex items-center justify-center h-full text-xs text-gray-400">加载中...</div>
                         ) : (
-                          <FileTree tree={tree} onFileSelect={handleFileSelect} selectedPath={activeQuest?.activeFilePath} />
+                          <FileTree tree={tree} onFileSelect={handleFileSelect} selectedPath={activeSession?.activeFilePath} />
                         )}
                       </div>
                     </div>
@@ -718,20 +723,20 @@ function CodingContent() {
                   <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
                     {activeTab === "preview" ? (
                       <PreviewPanel
-                        sessionId={activeQuest?.id ?? null}
-                        previewPorts={activeQuest?.previewPorts ?? { ports: [], selectedPort: null }}
-                        artifacts={activeQuest?.artifacts ?? []}
-                        activeArtifactId={activeQuest?.activeArtifactId ?? null}
-                        onPortSelect={(port) => activeQuest && dispatch({ type: "PREVIEW_PORT_SELECTED", questId: activeQuest.id, port })}
-                        onAddPort={(port) => activeQuest && dispatch({ type: "PREVIEW_PORT_ADDED", questId: activeQuest.id, port })}
+                        sessionId={activeSession?.id ?? null}
+                        previewPorts={activeSession?.previewPorts ?? { ports: [], selectedPort: null }}
+                        artifacts={activeSession?.artifacts ?? []}
+                        activeArtifactId={activeSession?.activeArtifactId ?? null}
+                        onPortSelect={(port) => activeSession && dispatch({ type: "PREVIEW_PORT_SELECTED", sessionId: activeSession.id, port })}
+                        onAddPort={(port) => activeSession && dispatch({ type: "PREVIEW_PORT_ADDED", sessionId: activeSession.id, port })}
                         onSelectArtifact={(artifactId) => dispatch({ type: "SELECT_ARTIFACT", artifactId })}
                         onRefresh={handleRefreshPreview}
                         onOpenExternal={handleOpenExternal}
                       />
                     ) : (
                       <EditorArea
-                        openFiles={activeQuest?.openFiles ?? []}
-                        activeFilePath={activeQuest?.activeFilePath ?? null}
+                        openFiles={activeSession?.openFiles ?? []}
+                        activeFilePath={activeSession?.activeFilePath ?? null}
                         onSelectFile={handleSelectFile}
                         onCloseFile={handleCloseFile}
                       />
@@ -780,9 +785,9 @@ function CodingContent() {
 
 function Coding() {
   return (
-    <QuestSessionProvider>
+    <CodingSessionProvider>
       <CodingShell />
-    </QuestSessionProvider>
+    </CodingSessionProvider>
   );
 }
 
@@ -793,10 +798,10 @@ function Coding() {
  *  因此这里用同一个 DOM 结构 + CSS 切换来实现两种布局。
  */
 function CodingShell() {
-  const state = useQuestState();
-  const activeQuest = useActiveQuest();
+  const state = useCodingState();
+  const activeSession = useActiveCodingSession();
 
-  const isWelcomePhase = Object.keys(state.quests).length === 0 && !activeQuest;
+  const isWelcomePhase = Object.keys(state.sessions).length === 0 && !activeSession;
 
   return (
     <div className={`flex flex-col overflow-hidden ${isWelcomePhase ? "min-h-screen" : "h-screen bg-gray-50/30"}`}>

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import Editor from "@monaco-editor/react";
 import { X, Download, FileBox, Loader2 } from "lucide-react";
 import type { OpenFile } from "../../types/coding";
-import { ImageRenderer } from "../quest/renderers/ImageRenderer";
+import { ImageRenderer } from "./renderers/ImageRenderer";
 import { downloadWorkspaceFile } from "../../lib/utils/workspaceApi";
 import request from "../../lib/request";
 import { getDefaultRuntime } from "../../lib/utils/workspaceApi";

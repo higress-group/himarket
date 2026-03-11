@@ -3,7 +3,7 @@ import type {
   ToolKind,
   ToolCallContentItem,
   ToolCallLocationItem,
-} from "../../types/acp";
+} from "../../types/coding-protocol";
 
 type ToolCallTextContent = Extract<ToolCallContentItem, { type: "content" }>["content"];
 

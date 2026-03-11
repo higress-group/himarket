@@ -11,9 +11,9 @@ import {
   Check,
 } from "lucide-react";
 import { getPreviewUrl } from "../../lib/utils/workspaceApi";
-import type { PreviewPortState } from "../../context/QuestSessionContext";
+import type { PreviewPortState } from "../../context/CodingSessionContext";
 import type { Artifact } from "../../types/artifact";
-import { ArtifactPreview } from "../quest/ArtifactPreview";
+import { ArtifactPreview } from "./ArtifactPreview";
 
 // ===== Types =====
 
