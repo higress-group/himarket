@@ -2,8 +2,8 @@ package com.alibaba.himarket.controller;
 
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
-import com.alibaba.himarket.service.acp.runtime.K8sClusterInfo;
-import com.alibaba.himarket.service.acp.runtime.K8sConfigService;
+import com.alibaba.himarket.service.hicoding.sandbox.K8sClusterInfo;
+import com.alibaba.himarket.service.hicoding.sandbox.K8sConfigService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;

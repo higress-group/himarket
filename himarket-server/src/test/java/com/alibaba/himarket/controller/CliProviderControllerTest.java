@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.alibaba.himarket.config.AcpProperties;
 import com.alibaba.himarket.config.AcpProperties.CliProviderConfig;
-import com.alibaba.himarket.service.acp.runtime.SandboxType;
+import com.alibaba.himarket.service.hicoding.sandbox.SandboxType;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;

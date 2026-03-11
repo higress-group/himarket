@@ -1,6 +1,6 @@
 package com.alibaba.himarket.config;
 
-import com.alibaba.himarket.service.acp.runtime.SandboxType;
+import com.alibaba.himarket.service.hicoding.sandbox.SandboxType;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;

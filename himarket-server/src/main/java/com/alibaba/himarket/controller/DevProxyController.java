@@ -3,7 +3,7 @@ package com.alibaba.himarket.controller;
 import com.alibaba.himarket.core.annotation.AdminOrDeveloperAuth;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
-import com.alibaba.himarket.service.acp.AcpConnectionManager;
+import com.alibaba.himarket.service.hicoding.websocket.HiCodingConnectionManager;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -34,10 +34,10 @@ public class DevProxyController {
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
 
     private final WebClient webClient;
-    private final AcpConnectionManager connectionManager;
+    private final HiCodingConnectionManager connectionManager;
 
     public DevProxyController(
-            WebClient.Builder webClientBuilder, AcpConnectionManager connectionManager) {
+            WebClient.Builder webClientBuilder, HiCodingConnectionManager connectionManager) {
         this.webClient =
                 webClientBuilder
                         .codecs(

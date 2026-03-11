@@ -1,6 +1,6 @@
 package com.alibaba.himarket.config;
 
-import com.alibaba.himarket.service.acp.runtime.RuntimeSelector;
+import com.alibaba.himarket.service.hicoding.runtime.RuntimeSelector;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 

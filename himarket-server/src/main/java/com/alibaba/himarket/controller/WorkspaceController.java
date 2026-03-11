@@ -3,7 +3,7 @@ package com.alibaba.himarket.controller;
 import com.alibaba.himarket.core.annotation.AdminOrDeveloperAuth;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
-import com.alibaba.himarket.service.acp.RemoteWorkspaceService;
+import com.alibaba.himarket.service.hicoding.RemoteWorkspaceService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.io.IOException;

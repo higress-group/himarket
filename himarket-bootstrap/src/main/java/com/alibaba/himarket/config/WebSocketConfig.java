@@ -1,8 +1,8 @@
 package com.alibaba.himarket.config;
 
-import com.alibaba.himarket.service.acp.AcpHandshakeInterceptor;
-import com.alibaba.himarket.service.acp.AcpWebSocketHandler;
-import com.alibaba.himarket.service.terminal.TerminalWebSocketHandler;
+import com.alibaba.himarket.service.hicoding.terminal.TerminalWebSocketHandler;
+import com.alibaba.himarket.service.hicoding.websocket.HiCodingHandshakeInterceptor;
+import com.alibaba.himarket.service.hicoding.websocket.HiCodingWebSocketHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,17 +16,17 @@ import org.springframework.web.socket.server.standard.ServletServerContainerFact
 @RequiredArgsConstructor
 public class WebSocketConfig implements WebSocketConfigurer {
 
-    private final AcpWebSocketHandler acpWebSocketHandler;
+    private final HiCodingWebSocketHandler hiCodingWebSocketHandler;
     private final TerminalWebSocketHandler terminalWebSocketHandler;
-    private final AcpHandshakeInterceptor acpHandshakeInterceptor;
+    private final HiCodingHandshakeInterceptor hiCodingHandshakeInterceptor;
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        registry.addHandler(acpWebSocketHandler, "/ws/acp")
-                .addInterceptors(acpHandshakeInterceptor)
+        registry.addHandler(hiCodingWebSocketHandler, "/ws/acp")
+                .addInterceptors(hiCodingHandshakeInterceptor)
                 .setAllowedOrigins("*");
         registry.addHandler(terminalWebSocketHandler, "/ws/terminal")
-                .addInterceptors(acpHandshakeInterceptor)
+                .addInterceptors(hiCodingHandshakeInterceptor)
                 .setAllowedOrigins("*");
     }
 
