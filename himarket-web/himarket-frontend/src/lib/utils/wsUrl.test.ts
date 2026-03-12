@@ -77,7 +77,7 @@ describe("buildCodingWsUrl - cliSessionConfig no longer in URL", () => {
   it("should NOT include cliSessionConfig in URL even when provided (now sent via WebSocket message)", () => {
     const config = JSON.stringify({ mcpServers: [{ name: "test", url: "http://example.com", transportType: "sse" }] });
     const url = buildCodingWsUrl(
-      { provider: "qwen-code", cliSessionConfig: config },
+      { provider: "qwen-code", cliSessionConfig: config } as any,
       "/ws/acp",
       ORIGIN,
     );
@@ -97,7 +97,7 @@ describe("buildCodingWsUrl - cliSessionConfig no longer in URL", () => {
 
   it("should include customModelConfig but not cliSessionConfig when both provided", () => {
     const url = buildCodingWsUrl(
-      { provider: "qwen-code", customModelConfig: '{"model":"x"}', cliSessionConfig: '{"skills":[]}' },
+      { provider: "qwen-code", customModelConfig: '{"model":"x"}', cliSessionConfig: '{"skills":[]}' } as any,
       "/ws/acp",
       ORIGIN,
     );
