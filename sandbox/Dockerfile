@@ -102,10 +102,6 @@ RUN curl -fsSL https://qoder.com/install | bash && \
 # --- qwen-code (npm package) ---
 RUN npm install -g @qwen-code/qwen-code@latest
 
-# --- kiro-cli (native binary) ---
-# TODO: 待适配
-# RUN curl -fsSL https://example.com/kiro-cli/install | bash
-
 # --- claude-code (npm package) ---
 # TODO: 待适配
 # RUN npm install -g @anthropic-ai/claude-code
@@ -119,7 +115,7 @@ RUN npm install -g opencode-ai
 
 # --- nacos-cli (Nacos 命令行工具，用于沙箱内下载 Skill) ---
 RUN curl -fsSL https://nacos.io/nacos-installer.sh | bash -s -- --cli -v 0.0.9 && \
-    nacos-cli --version || echo "[sandbox] WARNING: nacos-cli not found after install"
+    nacos-cli help
 
 # ============================================================
 # 5. Sidecar Server — Node.js WebSocket 服务，支持多 CLI 进程

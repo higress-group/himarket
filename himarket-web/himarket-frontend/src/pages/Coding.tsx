@@ -100,7 +100,7 @@ type RightTab = "preview" | "code";
 const READ_ONLY_KINDS = new Set(["read", "search", "think", "fetch", "switch_mode"]);
 
 function CodingContent() {
-  // ===== 配置持久化 =====
+  // ===== 配置（纯内存，不持久化） =====
   const { config, setConfig, isFirstTime, isComplete } = useCodingConfig();
   const [configOpen, setConfigOpen] = useState(false);
 
@@ -152,39 +152,45 @@ function CodingContent() {
     return () => setDefaultRuntime(undefined);
   }, [config.cliRuntime]);
 
-  // ===== 补全旧配置中缺失的名称字段 =====
+  // ===== 页面加载时自动选择默认 CLI + 第一个模型 =====
   useEffect(() => {
-    const needModelName = config.modelProductId && !config.modelName;
-    const needCliName = config.cliProviderId && !config.cliProviderName;
-    if (!needModelName && !needCliName) return;
-
     let cancelled = false;
-    const patch: Partial<typeof config> = {};
 
-    const resolve = async () => {
-      if (needModelName) {
+    const autoSelect = async () => {
+      const patch: Partial<typeof config> = {};
+
+      // 自动选择第一个可用的 CLI Provider
+      if (!config.cliProviderId) {
+        try {
+          const res = await getCliProviders();
+          const list = Array.isArray(res.data) ? res.data : (res as any).data?.data ?? [];
+          const sorted = sortCliProviders(list);
+          const first = sorted.find((p) => p.available);
+          if (first) {
+            patch.cliProviderId = first.key;
+            patch.cliProviderName = first.displayName;
+          }
+        } catch { /* ignore */ }
+      }
+
+      // 自动选择第一个模型
+      if (!config.modelProductId) {
         try {
           const res = await getMarketModels();
           const models = res.data.models ?? [];
-          const found = models.find((m) => m.productId === config.modelProductId);
-          if (found) patch.modelName = found.name;
+          if (models.length > 0) {
+            patch.modelProductId = models[0].productId;
+            patch.modelName = models[0].name;
+          }
         } catch { /* ignore */ }
       }
-      if (needCliName) {
-        try {
-          const res = await getCliProviders();
-          const list: any[] = Array.isArray(res.data) ? res.data : (res as any).data?.data ?? [];
-          const sorted = sortCliProviders(list);
-          const found = sorted.find((p) => p.key === config.cliProviderId);
-          if (found) patch.cliProviderName = found.displayName;
-        } catch { /* ignore */ }
-      }
+
       if (!cancelled && Object.keys(patch).length > 0) {
         setConfig({ ...config, ...patch });
       }
     };
 
-    resolve();
+    autoSelect();
     return () => { cancelled = true; };
   }, [config.modelProductId, config.cliProviderId]);
 
@@ -197,7 +203,13 @@ function CodingContent() {
       const cliId = cfg.cliProviderId ?? "";
       currentRuntimeRef.current = cfg.cliRuntime;
 
-      setCurrentCliSessionConfig(cfg.cliSessionConfig);
+      // 如果 cliSessionConfig 为空（用户未打开 ConfigSidebar 直接发消息），
+      // 就地构建最小的 session config，确保后端至少能收到 modelProductId
+      let sessionConfig = cfg.cliSessionConfig;
+      if (!sessionConfig && cfg.modelProductId) {
+        sessionConfig = JSON.stringify({ modelProductId: cfg.modelProductId });
+      }
+      setCurrentCliSessionConfig(sessionConfig);
 
       const url = buildCodingWsUrl({
         token: localStorage.getItem("access_token") || undefined,

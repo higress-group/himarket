@@ -69,15 +69,6 @@ export function ConfigSidebar({
         ? res.data
         : (res as any).data?.data ?? [];
       setProviders(list);
-
-      // 如果当前没有选中 CLI，自动选中第一个可用的
-      if (!config.cliProviderId && list.length > 0) {
-        const sorted = sortCliProviders(list);
-        const first = sorted.find((p) => p.available);
-        if (first) {
-          onConfigChange({ ...config, cliProviderId: first.key, cliProviderName: first.displayName });
-        }
-      }
     } catch {
       setCliError("获取 CLI 工具列表失败");
     } finally {

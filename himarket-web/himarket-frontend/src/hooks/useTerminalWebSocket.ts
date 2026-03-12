@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { calcReconnectDelay } from "./useCodingWebSocket";
 
-export type TerminalWsStatus = "disconnected" | "connecting" | "connected" | "reconnecting";
+export type TerminalWsStatus =
+  | "disconnected"
+  | "connecting"
+  | "connected"
+  | "reconnecting";
 
 interface UseTerminalWebSocketOptions {
   url: string;

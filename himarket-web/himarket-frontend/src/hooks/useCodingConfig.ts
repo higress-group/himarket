@@ -2,8 +2,6 @@ import { useState, useCallback, useMemo } from "react";
 import type { CodingConfig } from "../types/coding";
 import { DEFAULT_CONFIG, isConfigComplete } from "../types/coding";
 
-const STORAGE_KEY = "hicoding:config";
-
 interface UseCodingConfigReturn {
   config: CodingConfig;
   setConfig: (config: CodingConfig) => void;
@@ -11,50 +9,27 @@ interface UseCodingConfigReturn {
   isComplete: boolean;
 }
 
-function readConfig(): { config: CodingConfig; isFirstTime: boolean } {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw === null) {
-      return { config: DEFAULT_CONFIG, isFirstTime: true };
-    }
-    const parsed = JSON.parse(raw) as CodingConfig;
-    return { config: parsed, isFirstTime: false };
-  } catch {
-    // 数据损坏，清除并返回默认配置
-    try {
-      localStorage.removeItem(STORAGE_KEY);
-    } catch {
-      // ignore
-    }
-    return { config: DEFAULT_CONFIG, isFirstTime: true };
-  }
-}
-
-function writeConfig(config: CodingConfig): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
-  } catch {
-    // ignore
-  }
-}
-
+/**
+ * HiCoding 配置 hook（纯内存状态，不持久化到 localStorage）。
+ *
+ * 每次页面加载从 DEFAULT_CONFIG 开始，由 Coding.tsx 负责自动填充默认 CLI 和模型。
+ */
 export function useCodingConfig(): UseCodingConfigReturn {
-  const [state, setState] = useState(() => readConfig());
+  const [config, setConfigState] = useState<CodingConfig>(DEFAULT_CONFIG);
 
   const setConfig = useCallback((newConfig: CodingConfig) => {
-    writeConfig(newConfig);
-    setState({ config: newConfig, isFirstTime: false });
+    setConfigState(newConfig);
   }, []);
 
   const isComplete = useMemo(
-    () => isConfigComplete(state.config),
-    [state.config]
+    () => isConfigComplete(config),
+    [config]
   );
 
   return {
-    config: state.config,
+    config,
     setConfig,
-    isFirstTime: state.isFirstTime,
+    isFirstTime: false,
     isComplete,
   };
 }

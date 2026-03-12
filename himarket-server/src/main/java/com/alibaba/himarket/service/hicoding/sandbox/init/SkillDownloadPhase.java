@@ -56,6 +56,9 @@ public class SkillDownloadPhase implements InitPhase {
         SandboxProvider provider = context.getProvider();
         SandboxInfo info = context.getSandboxInfo();
 
+        // exec 不会自动转换相对路径，需要使用绝对路径（writeFile 会做转换，exec 不会）
+        String workspacePath = info.workspacePath();
+
         // 按 nacosId 分组
         Map<String, List<ResolvedSessionConfig.ResolvedSkillEntry>> byNacosId =
                 skills.stream()
@@ -79,7 +82,11 @@ public class SkillDownloadPhase implements InitPhase {
                     entry.getValue().stream()
                             .map(ResolvedSessionConfig.ResolvedSkillEntry::getSkillName)
                             .toList();
-            String nacosEnvPath = NACOS_ENV_DIR + "/nacos-env-" + nacosId + ".yaml";
+            // 使用绝对路径，因为 exec 的 cwd 可能不是用户的 workspace 目录
+            String nacosEnvPath =
+                    toAbsolutePath(
+                            workspacePath, NACOS_ENV_DIR + "/nacos-env-" + nacosId + ".yaml");
+            String absoluteSkillsDir = toAbsolutePath(workspacePath, skillsDir);
 
             // 构建参数: skill-get skill1 skill2 ... --config path -o dir
             List<String> args = new ArrayList<>();
@@ -88,7 +95,7 @@ public class SkillDownloadPhase implements InitPhase {
             args.add("--config");
             args.add(nacosEnvPath);
             args.add("-o");
-            args.add(skillsDir);
+            args.add(absoluteSkillsDir);
 
             try {
                 ExecResult result = provider.exec(info, "nacos-cli", args, EXEC_TIMEOUT);
@@ -128,5 +135,24 @@ public class SkillDownloadPhase implements InitPhase {
     @Override
     public RetryPolicy retryPolicy() {
         return RetryPolicy.none();
+    }
+
+    /**
+     * 将相对路径转换为基于 workspacePath 的绝对路径。
+     * 与 RemoteSandboxProvider.toAbsolutePath 逻辑一致。
+     */
+    private static String toAbsolutePath(String workspacePath, String relativePath) {
+        if (workspacePath == null || workspacePath.isEmpty()) {
+            return relativePath;
+        }
+        String cleaned = relativePath;
+        if (cleaned.startsWith("./")) {
+            cleaned = cleaned.substring(2);
+        } else if (cleaned.startsWith("/")) {
+            return cleaned;
+        }
+        return workspacePath.endsWith("/")
+                ? workspacePath + cleaned
+                : workspacePath + "/" + cleaned;
     }
 }

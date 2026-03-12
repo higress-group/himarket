@@ -7,7 +7,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -36,7 +35,6 @@ public class RemoteRuntimeAdapter implements RuntimeAdapter {
     private static final Logger logger = LoggerFactory.getLogger(RemoteRuntimeAdapter.class);
 
     static final long WS_PING_INTERVAL_SECONDS = 10;
-    static final long DEFAULT_IDLE_TIMEOUT_SECONDS = 600;
 
     private final String host;
     private final int port;
@@ -49,13 +47,10 @@ public class RemoteRuntimeAdapter implements RuntimeAdapter {
     private SidecarFileSystemAdapter fileSystem;
     private Disposable wsConnection;
     private ScheduledFuture<?> wsPingFuture;
-    private ScheduledFuture<?> idleCheckFuture;
     private final AtomicReference<org.springframework.web.reactive.socket.WebSocketSession>
             wsSessionRef = new AtomicReference<>();
     private final ScheduledExecutorService scheduler;
 
-    private volatile Instant lastActiveAt;
-    private long idleTimeoutSeconds = DEFAULT_IDLE_TIMEOUT_SECONDS;
     private Consumer<RuntimeFaultNotification> faultListener;
 
     public RemoteRuntimeAdapter(String host, int port) {
@@ -96,8 +91,6 @@ public class RemoteRuntimeAdapter implements RuntimeAdapter {
         try {
             connectWebSocket(wsUri);
             startWsPing();
-            startIdleCheck();
-            lastActiveAt = Instant.now();
             status = RuntimeStatus.RUNNING;
         } catch (Exception e) {
             status = RuntimeStatus.ERROR;
@@ -110,7 +103,6 @@ public class RemoteRuntimeAdapter implements RuntimeAdapter {
         if (status != RuntimeStatus.RUNNING) {
             throw new IOException("Remote runtime is not running, current status: " + status);
         }
-        lastActiveAt = Instant.now();
         Sinks.EmitResult result = wsSendSink.tryEmitNext(jsonLine);
         if (result.isFailure()) {
             throw new IOException("Failed to send message to sidecar, emit result: " + result);
@@ -154,10 +146,6 @@ public class RemoteRuntimeAdapter implements RuntimeAdapter {
             wsPingFuture.cancel(false);
             wsPingFuture = null;
         }
-        if (idleCheckFuture != null) {
-            idleCheckFuture.cancel(false);
-            idleCheckFuture = null;
-        }
 
         wsSendSink.tryEmitComplete();
         if (wsConnection != null) {
@@ -181,16 +169,8 @@ public class RemoteRuntimeAdapter implements RuntimeAdapter {
 
     // ===== 公共方法 =====
 
-    public void touchActivity() {
-        lastActiveAt = Instant.now();
-    }
-
     public void setFaultListener(Consumer<RuntimeFaultNotification> listener) {
         this.faultListener = listener;
-    }
-
-    public void setIdleTimeoutSeconds(long seconds) {
-        this.idleTimeoutSeconds = seconds;
     }
 
     // ===== 内部方法 =====
@@ -236,7 +216,6 @@ public class RemoteRuntimeAdapter implements RuntimeAdapter {
                                                                                                 300)
                                                                                         + "..."
                                                                                 : text);
-                                                                lastActiveAt = Instant.now();
                                                                 stdoutSink.tryEmitNext(text);
                                                             })
                                                     .doOnError(
@@ -343,37 +322,6 @@ public class RemoteRuntimeAdapter implements RuntimeAdapter {
                         TimeUnit.SECONDS);
     }
 
-    private void startIdleCheck() {
-        idleCheckFuture =
-                scheduler.scheduleAtFixedRate(
-                        () -> {
-                            try {
-                                if (status != RuntimeStatus.RUNNING || lastActiveAt == null) {
-                                    return;
-                                }
-                                long idleSeconds =
-                                        Duration.between(lastActiveAt, Instant.now()).getSeconds();
-                                if (idleSeconds >= idleTimeoutSeconds) {
-                                    logger.info(
-                                            "Remote sidecar idle for {}s (threshold: {}s),"
-                                                    + " notifying fault",
-                                            idleSeconds,
-                                            idleTimeoutSeconds);
-                                    status = RuntimeStatus.STOPPED;
-                                    notifyFault(
-                                            RuntimeFaultNotification.FAULT_IDLE_TIMEOUT,
-                                            RuntimeFaultNotification.ACTION_RECREATE);
-                                    stdoutSink.tryEmitComplete();
-                                }
-                            } catch (Exception e) {
-                                logger.warn("Idle check error: {}", e.getMessage());
-                            }
-                        },
-                        30,
-                        30,
-                        TimeUnit.SECONDS);
-    }
-
     private void notifyFault(String faultType, String suggestedAction) {
         if (faultListener != null) {
             try {
@@ -390,9 +338,5 @@ public class RemoteRuntimeAdapter implements RuntimeAdapter {
 
     URI getSidecarWsUri() {
         return sidecarWsUri;
-    }
-
-    Instant getLastActiveAt() {
-        return lastActiveAt;
     }
 }

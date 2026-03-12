@@ -545,6 +545,26 @@ public class AdpAIGatewayOperator extends GatewayOperator {
     private List<HttpRouteResult> buildRoutesFromAdpService(
             AdpAiServiceDetailResult.AdpAiServiceDetail data, List<DomainResult> domains) {
         if (data.getMethodPathList() == null || data.getMethodPathList().isEmpty()) {
+            // MODEL_API 场景下，部分模型（如 qwen-plus）不返回 methodPathList，
+            // 此时使用 basePath + 默认路径构建兜底路由，以确保 BaseUrlExtractor 能提取 baseUrl
+            if (domains != null && !domains.isEmpty()) {
+                String defaultPath =
+                        (data.getBasePath() != null ? data.getBasePath() : "")
+                                + "/v1/chat/completions";
+                HttpRouteResult route = new HttpRouteResult();
+                route.setDomains(domains);
+                route.setMatch(
+                        HttpRouteResult.RouteMatchResult.builder()
+                                .methods(Collections.singletonList("POST"))
+                                .path(
+                                        HttpRouteResult.RouteMatchPath.builder()
+                                                .value(defaultPath)
+                                                .type("Exact")
+                                                .build())
+                                .build());
+                route.setBuiltin(false);
+                return Collections.singletonList(route);
+            }
             return Collections.emptyList();
         }
 
