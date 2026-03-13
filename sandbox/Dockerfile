@@ -102,9 +102,8 @@ RUN curl -fsSL https://qoder.com/install | bash && \
 # --- qwen-code (npm package) ---
 RUN npm install -g @qwen-code/qwen-code@latest
 
-# --- claude-code (npm package) ---
-# TODO: 待适配
-# RUN npm install -g @anthropic-ai/claude-code
+# --- claude-agent-acp (Claude Code ACP 协议适配层) ---
+RUN npm install -g @zed-industries/claude-agent-acp
 
 # --- codex (npm package) ---
 # TODO: 待适配

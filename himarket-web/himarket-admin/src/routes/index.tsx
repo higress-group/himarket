@@ -75,10 +75,6 @@ export const router = createBrowserRouter([
         element: <McpMonitor />,
       },
       {
-        path: 'settings/k8s-cluster',
-        element: <K8sCluster />,
-      },
-      {
         path: '*',
         element: <Navigate to="/portals" replace />,
       },

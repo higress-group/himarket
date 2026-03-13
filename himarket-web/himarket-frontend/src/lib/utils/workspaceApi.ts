@@ -214,11 +214,3 @@ export async function fetchDirectoryTree(
     return null;
   }
 }
-
-/**
- * Build preview URL for a dev server running on the given port.
- * All requests go through the backend reverse proxy.
- */
-export function getPreviewUrl(port: number): string {
-  return `/workspace/proxy/${port}/`;
-}

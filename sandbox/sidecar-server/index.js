@@ -504,6 +504,10 @@ server.on('upgrade', (req, socket, head) => {
               shell.resize(parsed.cols, parsed.rows);
               return;
             }
+            if (parsed.type === 'heartbeat') {
+              // 心跳消息，忽略不转发给 pty
+              return;
+            }
           } catch { /* 不是 JSON，当作普通输入 */ }
         }
         shell.write(msg);

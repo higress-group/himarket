@@ -70,7 +70,7 @@ describe('sortCliProviders', () => {
     expect(sorted.map(p => p.key)).toEqual(['cursor', 'vscode', 'windsurf']);
   });
 
-  it('排序不改变列表长度', () => {
+  it('可见 provider 排序后长度不变', () => {
     const providers = [
       makeProvider('a', true),
       makeProvider('qwen-cli', true),
@@ -78,6 +78,31 @@ describe('sortCliProviders', () => {
       makeProvider('c', true),
     ];
     expect(sortCliProviders(providers)).toHaveLength(providers.length);
+  });
+
+  it('隐藏 claude-code 和 qodercli', () => {
+    const providers = [
+      makeProvider('qwen-code', true),
+      makeProvider('claude-code', true),
+      makeProvider('qodercli', true),
+      makeProvider('cursor', true),
+    ];
+    const sorted = sortCliProviders(providers);
+    const keys = sorted.map(p => p.key);
+    expect(keys).not.toContain('claude-code');
+    expect(keys).not.toContain('qodercli');
+    expect(keys).toEqual(['qwen-code', 'cursor']);
+  });
+
+  it('隐藏的 provider 即使不可用也会被过滤', () => {
+    const providers = [
+      makeProvider('qwen-code', true),
+      makeProvider('claude-code', false),
+      makeProvider('qodercli', false),
+    ];
+    const sorted = sortCliProviders(providers);
+    expect(sorted).toHaveLength(1);
+    expect(sorted[0].key).toBe('qwen-code');
   });
 
   it('key 大小写不敏感匹配 qwen', () => {

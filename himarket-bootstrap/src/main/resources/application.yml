@@ -66,8 +66,8 @@ acp:
       auth-env-var: QODER_PERSONAL_ACCESS_TOKEN
     claude-code:
       display-name: Claude Code
-      command: ${ACP_CLI_COMMAND_CLAUDE:npx}
-      args: ${ACP_CLI_ARGS_CLAUDE:@zed-industries/claude-code-acp}
+      command: ${ACP_CLI_COMMAND_CLAUDE:claude-agent-acp}
+      args: ${ACP_CLI_ARGS_CLAUDE:}
       compatible-runtimes:
         - REMOTE
       auth-env-var: ANTHROPIC_API_KEY

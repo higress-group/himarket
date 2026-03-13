@@ -303,11 +303,11 @@ export default function ApiProductFormModal({
               form.setFieldValue('feature', undefined);
             }}
           >
-            <Select.Option value="REST_API">REST API</Select.Option>
-            <Select.Option value="MCP_SERVER">MCP Server</Select.Option>
-            <Select.Option value="AGENT_API">Agent API</Select.Option>
             <Select.Option value="MODEL_API">Model API</Select.Option>
+            <Select.Option value="MCP_SERVER">MCP Server</Select.Option>
             <Select.Option value="AGENT_SKILL">Agent Skill</Select.Option>
+            <Select.Option value="AGENT_API">Agent API</Select.Option>
+            <Select.Option value="REST_API">REST API</Select.Option>
           </Select>
         </Form.Item>
 
@@ -516,7 +516,7 @@ export default function ApiProductFormModal({
         )}
 
         {/* Feature Configuration */}
-        {productType === 'MODEL_API' && <ModelFeatureForm initialExpanded={isEditMode && !!initialData?.feature} />}
+        {productType === 'MODEL_API' && <ModelFeatureForm />}
         {productType === 'AGENT_SKILL' && <SkillConfigForm />}
       </Form>
     </Modal>

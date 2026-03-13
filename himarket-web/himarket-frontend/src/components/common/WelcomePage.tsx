@@ -15,7 +15,6 @@ export interface WelcomePageProps {
     providerObj?: ICliProvider,
     cliSessionConfig?: string,
   ) => void;
-  showRuntimeSelector?: boolean;
   // 已连接后的操作内容
   connectedContent?: React.ReactNode;
 }
@@ -32,7 +31,6 @@ export function WelcomePage({
   isConnected,
   disabled,
   onSelectCli,
-  showRuntimeSelector = false,
   connectedContent,
 }: WelcomePageProps) {
   return (
@@ -53,7 +51,6 @@ export function WelcomePage({
             <CliSelector
               onSelect={onSelectCli}
               disabled={disabled}
-              showRuntimeSelector={showRuntimeSelector}
             />
           </>
         )}

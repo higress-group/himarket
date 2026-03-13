@@ -44,7 +44,7 @@ class CliProviderControllerTest {
         CliProviderConfig claude = new CliProviderConfig();
         claude.setDisplayName("Claude Code");
         claude.setCommand("npx");
-        claude.setArgs("@zed-industries/claude-code-acp");
+        claude.setArgs("@zed-industries/claude-agent-acp");
         claude.setCompatibleRuntimes(List.of(SandboxType.REMOTE));
         providers.put("claude-code", claude);
 

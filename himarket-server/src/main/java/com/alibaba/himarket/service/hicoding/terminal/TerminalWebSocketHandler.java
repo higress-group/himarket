@@ -1,6 +1,7 @@
 package com.alibaba.himarket.service.hicoding.terminal;
 
 import com.alibaba.himarket.config.AcpProperties;
+import com.alibaba.himarket.service.hicoding.websocket.WebSocketPingScheduler;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
@@ -27,12 +28,17 @@ public class TerminalWebSocketHandler extends TextWebSocketHandler {
 
     private final AcpProperties acpProperties;
     private final ObjectMapper objectMapper;
+    private final WebSocketPingScheduler pingScheduler;
     private final Map<String, TerminalBackend> backendMap = new ConcurrentHashMap<>();
     private final Map<String, Disposable> subscriptionMap = new ConcurrentHashMap<>();
 
-    public TerminalWebSocketHandler(AcpProperties acpProperties, ObjectMapper objectMapper) {
+    public TerminalWebSocketHandler(
+            AcpProperties acpProperties,
+            ObjectMapper objectMapper,
+            WebSocketPingScheduler pingScheduler) {
         this.acpProperties = acpProperties;
         this.objectMapper = objectMapper;
+        this.pingScheduler = pingScheduler;
     }
 
     @Override
@@ -74,6 +80,9 @@ public class TerminalWebSocketHandler extends TextWebSocketHandler {
         }
 
         backendMap.put(session.getId(), backend);
+
+        // 启动 WebSocket 协议级 ping 定时器，保持前端连接活跃
+        pingScheduler.startPing(session);
 
         Disposable subscription =
                 backend.output()
@@ -161,6 +170,7 @@ public class TerminalWebSocketHandler extends TextWebSocketHandler {
     }
 
     private void cleanup(String sessionId) {
+        pingScheduler.stopPing(sessionId);
         Disposable subscription = subscriptionMap.remove(sessionId);
         if (subscription != null && !subscription.isDisposed()) subscription.dispose();
         TerminalBackend backend = backendMap.remove(sessionId);

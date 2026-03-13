@@ -3,7 +3,6 @@
  */
 
 import request, { type RespI } from "../request";
-import type { RuntimeType } from "../../types/runtime";
 
 // ============ 类型定义 ============
 
@@ -12,7 +11,7 @@ export interface ICliProvider {
   displayName: string;
   isDefault: boolean;
   available: boolean;
-  compatibleRuntimes?: RuntimeType[];
+  compatibleRuntimes?: string[];
   runtimeCategory?: 'native' | 'nodejs' | 'python';
   containerImage?: string;
   supportsCustomModel?: boolean;

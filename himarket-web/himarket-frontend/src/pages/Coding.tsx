@@ -29,7 +29,6 @@ import {
   fetchDirectoryTree,
   fetchArtifactContent,
   fetchWorkspaceChanges,
-  getPreviewUrl,
   setDefaultRuntime,
 } from "../lib/utils/workspaceApi";
 import type { FileNode } from "../types/coding";
@@ -394,10 +393,6 @@ function CodingContent() {
     return () => clearInterval(interval);
   }, [activeSession?.cwd]);
 
-  useEffect(() => {
-    if (activeSession?.previewPorts.selectedPort) setActiveTab("preview");
-  }, [activeSession?.previewPorts.selectedPort]);
-
   // Auto-open files when Agent edits them
   useEffect(() => {
     if (!activeSession || messageCount === 0) return;
@@ -480,17 +475,6 @@ function CodingContent() {
     },
     [activeSession, dispatch]
   );
-
-  const previewPort = activeSession?.previewPorts.selectedPort ?? null;
-
-  const handleRefreshPreview = useCallback(() => {
-    const iframe = document.querySelector<HTMLIFrameElement>("#coding-preview-iframe");
-    if (iframe && previewPort) iframe.src = getPreviewUrl(previewPort);
-  }, [previewPort]);
-
-  const handleOpenExternal = useCallback(() => {
-    if (previewPort) window.open(getPreviewUrl(previewPort), "_blank");
-  }, [previewPort]);
 
   const planEntries = activeSession?.messages.find(
     (m): m is ChatItemPlan => m.type === "plan"
@@ -735,15 +719,9 @@ function CodingContent() {
                   <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
                     {activeTab === "preview" ? (
                       <PreviewPanel
-                        sessionId={activeSession?.id ?? null}
-                        previewPorts={activeSession?.previewPorts ?? { ports: [], selectedPort: null }}
                         artifacts={activeSession?.artifacts ?? []}
                         activeArtifactId={activeSession?.activeArtifactId ?? null}
-                        onPortSelect={(port) => activeSession && dispatch({ type: "PREVIEW_PORT_SELECTED", sessionId: activeSession.id, port })}
-                        onAddPort={(port) => activeSession && dispatch({ type: "PREVIEW_PORT_ADDED", sessionId: activeSession.id, port })}
                         onSelectArtifact={(artifactId) => dispatch({ type: "SELECT_ARTIFACT", artifactId })}
-                        onRefresh={handleRefreshPreview}
-                        onOpenExternal={handleOpenExternal}
                       />
                     ) : (
                       <EditorArea

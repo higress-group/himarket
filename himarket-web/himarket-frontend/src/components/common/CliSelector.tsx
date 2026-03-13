@@ -2,8 +2,6 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { Button, Segmented, Radio, Input } from "antd";
 import { Plug, RefreshCw, Loader2, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { getCliProviders, type ICliProvider, type McpServerEntry, type SkillEntry, type CliSessionConfig } from "../../lib/apis/cliProvider";
-import { RuntimeSelector } from "./RuntimeSelector";
-import { useRuntimeSelection } from "../../hooks/useRuntimeSelection";
 import { CustomModelForm, type CustomModelFormData } from "./CustomModelForm";
 import { MarketModelSelector, type MarketModelSelection } from "./MarketModelSelector";
 import { MarketMcpSelector } from "./MarketMcpSelector";
@@ -19,10 +17,9 @@ export type ModelConfigMode = 'none' | 'custom' | 'market';
 export interface CliSelectorProps {
   onSelect: (cliId: string, cwd: string, runtime?: string, providerObj?: ICliProvider, cliSessionConfig?: string) => void;
   disabled: boolean;
-  showRuntimeSelector?: boolean; // 默认 false
 }
 
-export function CliSelector({ onSelect, disabled, showRuntimeSelector = false }: CliSelectorProps) {
+export function CliSelector({ onSelect, disabled }: CliSelectorProps) {
   const [providers, setProviders] = useState<ICliProvider[]>([]);
   const [selectedCliId, setSelectedCliId] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(true);
@@ -33,11 +30,6 @@ export function CliSelector({ onSelect, disabled, showRuntimeSelector = false }:
 
   // 当前选中的 provider 对象
   const selectedProvider = providers.find(p => p.key === selectedCliId) ?? null;
-
-  // 运行时选择
-  const { selectedRuntime, compatibleRuntimes, selectRuntime } = useRuntimeSelection({
-    provider: selectedProvider,
-  });
 
   // 模型配置模式
   const [modelConfigMode, setModelConfigMode] = useState<ModelConfigMode>('market');
@@ -192,9 +184,8 @@ export function CliSelector({ onSelect, disabled, showRuntimeSelector = false }:
       || sessionConfig.authToken;
     const configJson = hasConfig ? JSON.stringify(sessionConfig) : undefined;
 
-    // selectedRuntime 已通过 onSelect 第三个参数传递
-    onSelect(selectedCliId, "", selectedRuntime, selectedProvider ?? undefined, configJson);
-  }, [selectedCliId, modelConfigMode, marketModelSelection, mcpEnabled, selectedMcps, skillEnabled, selectedSkills, authTokenInput, selectedRuntime, selectedProvider, onSelect]);
+    onSelect(selectedCliId, "", undefined, selectedProvider ?? undefined, configJson);
+  }, [selectedCliId, modelConfigMode, marketModelSelection, mcpEnabled, selectedMcps, skillEnabled, selectedSkills, authTokenInput, selectedProvider, onSelect]);
 
   // 选择 CLI 工具卡片
   const handleSelectProvider = useCallback((key: string) => {
@@ -268,15 +259,6 @@ export function CliSelector({ onSelect, disabled, showRuntimeSelector = false }:
     personal_access_token: 'Personal Access Token',
   };
 
-  // 判断是否为 Claude Code + K8s 运行时（需要直接展示 API Key 输入）
-  const isClaudeCodeK8s = selectedProvider?.authEnvVar && !selectedProvider?.authOptions?.length && selectedRuntime === 'k8s';
-
-  // 判断是否为不支持沙箱的 CLI + K8s 运行时
-  // - Kiro CLI：仅支持 OAuth 登录，沙箱中无法完成认证
-  // - Claude Code / Codex CLI：沙箱调试尚未完成
-  const sandboxDisabledClis = new Set(['kiro-cli', 'claude-code', 'codex']);
-  const isKiroCliK8sDisabled = sandboxDisabledClis.has(selectedProvider?.key ?? '') && selectedRuntime === 'k8s';
-
   /** 步骤：认证方案选择 */
   const renderAuthConfigStep = () => {
     const authOptions = selectedProvider?.authOptions ?? [];
@@ -322,26 +304,7 @@ export function CliSelector({ onSelect, disabled, showRuntimeSelector = false }:
     );
   };
 
-  /** 渲染 Claude Code + K8s 运行时的 API Key 输入表单（嵌入步骤一底部） */
-  const renderApiKeyInput = () => {
-    if (!isClaudeCodeK8s) return null;
-    const authEnvVar = selectedProvider?.authEnvVar ?? '';
-
-    return (
-      <div className="flex flex-col gap-2 w-full">
-        <label className="text-sm font-medium text-gray-600">
-          API Key（{authEnvVar}）
-        </label>
-        <Input.Password
-          placeholder={`请输入 ${authEnvVar}`}
-          value={authTokenInput}
-          onChange={(e) => setAuthTokenInput(e.target.value)}
-        />
-      </div>
-    );
-  };
-
-  /** 步骤一：选择工具 + 运行时 */
+  /** 步骤一：选择工具 */
   const renderStep1 = () => (
     <div className="flex flex-col gap-4 w-full">
       {/* CLI 工具卡片式单选 */}
@@ -367,19 +330,6 @@ export function CliSelector({ onSelect, disabled, showRuntimeSelector = false }:
           ))}
         </div>
       </div>
-
-      {/* 运行时选择 - 仅在 showRuntimeSelector 为 true 且有兼容运行时时显示 */}
-      {showRuntimeSelector && compatibleRuntimes.length > 0 && (
-        <RuntimeSelector
-          cliProvider={selectedCliId}
-          compatibleRuntimes={compatibleRuntimes}
-          selectedRuntime={selectedRuntime}
-          onSelect={selectRuntime}
-        />
-      )}
-
-      {/* Claude Code + K8s 运行时：直接在步骤一展示 API Key 输入 */}
-      {renderApiKeyInput()}
     </div>
   );
 
@@ -487,14 +437,6 @@ export function CliSelector({ onSelect, disabled, showRuntimeSelector = false }:
       {/* 当前步骤内容 */}
       {renderCurrentStep()}
 
-      {/* CLI + K8s 运行时禁用提示 */}
-      {isKiroCliK8sDisabled && (
-        <div className="flex items-center gap-2 text-amber-600 text-sm">
-          <AlertCircle size={16} className="flex-shrink-0" />
-          <span>{selectedProvider?.displayName} 沙箱模式暂不可用</span>
-        </div>
-      )}
-
       {/* 导航按钮 */}
       <div className="flex items-center justify-center gap-3 w-full">
         {/* 上一步按钮 - 仅在非第一步且有多步骤时显示 */}
@@ -514,7 +456,7 @@ export function CliSelector({ onSelect, disabled, showRuntimeSelector = false }:
             type="primary"
             icon={<Plug size={14} />}
             onClick={handleConnect}
-            disabled={disabled || !isStep1Complete || isKiroCliK8sDisabled}
+            disabled={disabled || !isStep1Complete}
             className="px-8"
           >
             连接

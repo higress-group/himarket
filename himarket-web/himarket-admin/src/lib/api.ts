@@ -196,6 +196,10 @@ export const apiProductApi = {
   updateSkillNacos: (productId: string, data: { nacosId: string; namespace: string }) => {
     return api.put(`/products/${productId}/skill-nacos`, data)
   },
+  // 获取产品的订阅列表
+  getProductSubscriptions: (productId: string, params?: { page?: number; size?: number; status?: string }) => {
+    return api.get(`/products/${productId}/subscriptions`, { params })
+  },
 }
 
 // Gateway相关API

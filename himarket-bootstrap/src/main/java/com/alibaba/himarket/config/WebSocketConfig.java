@@ -36,6 +36,8 @@ public class WebSocketConfig implements WebSocketConfigurer {
         // 10MB — matches the frontend 5MB file-size cap after base64 expansion + JSON overhead
         container.setMaxTextMessageBufferSize(10 * 1024 * 1024);
         container.setMaxBinaryMessageBufferSize(10 * 1024 * 1024);
+        // 120秒空闲超时，配合30秒ping间隔，允许连续丢失2-3个ping仍不超时
+        container.setMaxSessionIdleTimeout(120_000L);
         return container;
     }
 }

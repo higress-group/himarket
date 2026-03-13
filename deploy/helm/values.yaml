@@ -107,4 +107,4 @@ sandbox:
     limits:
       cpu: "4"
       memory: "8Gi"
-  allowedCommands: "qodercli,qwen,npx,opencode"
+  allowedCommands: "qodercli,qwen,claude-agent-acp,opencode"

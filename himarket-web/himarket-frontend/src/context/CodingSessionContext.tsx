@@ -34,11 +34,6 @@ import {
 
 // ===== Session Data =====
 
-export interface PreviewPortState {
-  ports: number[];
-  selectedPort: number | null;
-}
-
 export interface CodingSessionData {
   id: string;
   title: string;
@@ -62,7 +57,6 @@ export interface CodingSessionData {
   openFiles: OpenFile[];
   activeFilePath: string | null;
   terminals: TerminalSession[];
-  previewPorts: PreviewPortState;
 }
 
 export interface QueuedPromptItem {
@@ -205,9 +199,6 @@ export type CodingAction =
   | { type: "ACTIVE_FILE_CHANGED"; sessionId: string; path: string | null }
   | { type: "TERMINAL_CREATED"; sessionId: string; terminalId: string }
   | { type: "TERMINAL_DATA"; sessionId: string; terminalId: string; data: string }
-  | { type: "PREVIEW_PORT_DETECTED"; sessionId: string; port: number }
-  | { type: "PREVIEW_PORT_SELECTED"; sessionId: string; port: number }
-  | { type: "PREVIEW_PORT_ADDED"; sessionId: string; port: number }
   | { type: "SANDBOX_STATUS"; status: "creating" | "ready" | "error"; message: string; sandboxHost?: string }
   | {
       type: "INIT_PROGRESS";
@@ -380,7 +371,6 @@ export function codingReducer(
         openFiles: [],
         activeFilePath: null,
         terminals: [],
-        previewPorts: { ports: [], selectedPort: null },
       };
       return {
         ...state,
@@ -611,47 +601,6 @@ export function codingReducer(
             ];
         return { ...s, terminals };
       });
-
-    case "PREVIEW_PORT_DETECTED": {
-      const port = action.port;
-      if (port < 1024 || port > 65535) return state;
-      return updateSessionById(state, action.sessionId, s => ({
-        ...s,
-        previewPorts: {
-          ports: s.previewPorts.ports.includes(port)
-            ? s.previewPorts.ports
-            : [...s.previewPorts.ports, port],
-          selectedPort: s.previewPorts.selectedPort ?? port,
-        },
-      }));
-    }
-
-    case "PREVIEW_PORT_SELECTED": {
-      return updateSessionById(state, action.sessionId, s => {
-        if (!s.previewPorts.ports.includes(action.port)) return s;
-        return {
-          ...s,
-          previewPorts: {
-            ...s.previewPorts,
-            selectedPort: action.port,
-          },
-        };
-      });
-    }
-
-    case "PREVIEW_PORT_ADDED": {
-      const port = action.port;
-      if (port < 1024 || port > 65535) return state;
-      return updateSessionById(state, action.sessionId, s => ({
-        ...s,
-        previewPorts: {
-          ports: s.previewPorts.ports.includes(port)
-            ? s.previewPorts.ports
-            : [...s.previewPorts.ports, port],
-          selectedPort: port,
-        },
-      }));
-    }
 
     case "SANDBOX_STATUS":
       return {

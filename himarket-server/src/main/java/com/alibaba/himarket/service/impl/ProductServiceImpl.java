@@ -150,6 +150,8 @@ public class ProductServiceImpl implements ProductService {
             }
         }
 
+        validateModelFeature(product.getType(), product.getFeature());
+
         productRepository.save(product);
 
         // Set product categories
@@ -230,6 +232,8 @@ public class ProductServiceImpl implements ProductService {
             param.setFeature(null);
         }
         param.update(product);
+
+        validateModelFeature(product.getType(), product.getFeature());
 
         productRepository.saveAndFlush(product);
 
@@ -345,6 +349,17 @@ public class ProductServiceImpl implements ProductService {
 
         // Asynchronously clean up product resources
         SpringUtil.getApplicationContext().publishEvent(new ProductDeletingEvent(productId));
+    }
+
+    private void validateModelFeature(ProductType type, ProductFeature feature) {
+        if (type == ProductType.MODEL_API) {
+            if (feature == null
+                    || feature.getModelFeature() == null
+                    || StrUtil.isBlank(feature.getModelFeature().getModel())) {
+                throw new BusinessException(
+                        ErrorCode.INVALID_REQUEST, "MODEL_API product must specify a model name");
+            }
+        }
     }
 
     private Product findProduct(String productId) {

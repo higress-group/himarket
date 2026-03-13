@@ -100,7 +100,7 @@ USE_COMMERCIAL_NACOS=false
 #### 5. Nacos 配置
 ```bash
 # 开源 Nacos 版本
-NACOS_VERSION=v3.1.1
+NACOS_VERSION=v3.2.0-BETA
 NACOS_ADMIN_PASSWORD=nacos
 
 # 商业化 Nacos 配置（当 USE_COMMERCIAL_NACOS=true 时必填）

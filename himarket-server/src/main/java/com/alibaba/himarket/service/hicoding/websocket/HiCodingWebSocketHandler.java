@@ -53,6 +53,7 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
     private final SessionInitializer sessionInitializer;
     private final HiCodingMessageRouter messageRouter;
     private final HiCodingConnectionManager connectionManager;
+    private final WebSocketPingScheduler pingScheduler;
 
     /** 异步初始化线程池 */
     private final ExecutorService podInitExecutor =
@@ -68,12 +69,14 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
             ObjectMapper objectMapper,
             SessionInitializer sessionInitializer,
             HiCodingMessageRouter messageRouter,
-            HiCodingConnectionManager connectionManager) {
+            HiCodingConnectionManager connectionManager,
+            WebSocketPingScheduler pingScheduler) {
         this.properties = properties;
         this.objectMapper = objectMapper;
         this.sessionInitializer = sessionInitializer;
         this.messageRouter = messageRouter;
         this.connectionManager = connectionManager;
+        this.pingScheduler = pingScheduler;
     }
 
     @Override
@@ -132,6 +135,9 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
                 "Deferring pipeline init until session/config message: session={}",
                 session.getId());
         // Non-blocking return for all sandbox types
+
+        // 启动 WebSocket 协议级 ping 定时器，保持前端连接活跃
+        pingScheduler.startPing(session);
     }
 
     @Override
@@ -230,6 +236,7 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status)
             throws Exception {
         logger.info("WebSocket closed: id={}, status={}", session.getId(), status);
+        pingScheduler.stopPing(session.getId());
         connectionManager.cleanup(session.getId());
     }
 
@@ -237,6 +244,7 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
     public void handleTransportError(WebSocketSession session, Throwable exception)
             throws Exception {
         logger.error("WebSocket transport error for session {}", session.getId(), exception);
+        pingScheduler.stopPing(session.getId());
         connectionManager.cleanup(session.getId());
     }
 
@@ -294,14 +302,6 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
                         sInfo != null && sInfo.host() != null && !sInfo.host().isBlank()
                                 ? sInfo.host()
                                 : null;
-
-                // 记录 userId → sandboxHost 映射，供 DevProxy 反向代理路由使用
-                String effectiveHost = sandboxHost != null ? sandboxHost : "localhost";
-                connectionManager.setSandboxHost(userId, effectiveHost);
-                logger.info(
-                        "[Sandbox-Init] 已记录 sandboxHost 映射: userId={}, host={}",
-                        userId,
-                        effectiveHost);
 
                 sendSandboxStatus(session, "ready", "沙箱环境已就绪", sandboxHost);
                 sendInitProgress(session, "cli-ready", "completed", "沙箱环境已就绪", 100, 5, 5);

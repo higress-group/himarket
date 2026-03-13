@@ -83,9 +83,10 @@ public class SkillController {
         Skill skill = SkillZipParser.parseSkillFromZip(file.getBytes(), coord.namespace());
         String skillName = skillService.createSkill(coord.nacosId(), coord.namespace(), skill);
 
-        // 回写 skillName 到 product.feature.skillConfig
+        // 回写 skillName 和 description 到 product
         Product product = productRepository.findByProductId(productId).orElseThrow();
         product.getFeature().getSkillConfig().setSkillName(skillName);
+        product.setDescription(skill.getDescription());
         productRepository.save(product);
 
         return skillName;

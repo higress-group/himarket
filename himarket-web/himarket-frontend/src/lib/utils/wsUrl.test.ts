@@ -6,12 +6,12 @@ const ORIGIN = "wss://example.com";
 describe("buildCodingWsUrl", () => {
   it("should include runtime query parameter when provided", () => {
     const url = buildCodingWsUrl(
-      { provider: "qodercli", runtime: "k8s" },
+      { provider: "qodercli", runtime: "remote" },
       "/ws/acp",
       ORIGIN,
     );
     const parsed = new URL(url);
-    expect(parsed.searchParams.get("runtime")).toBe("k8s");
+    expect(parsed.searchParams.get("runtime")).toBe("remote");
     expect(parsed.searchParams.get("provider")).toBe("qodercli");
   });
 
@@ -37,7 +37,7 @@ describe("buildCodingWsUrl", () => {
 
   it("should include token when provided", () => {
     const url = buildCodingWsUrl(
-      { provider: "qodercli", runtime: "k8s", token: "abc123" },
+      { provider: "qodercli", runtime: "remote", token: "abc123" },
       "/ws/acp",
       ORIGIN,
     );
@@ -47,7 +47,7 @@ describe("buildCodingWsUrl", () => {
 
   it("should not include cwd parameter (cwd is determined by backend)", () => {
     const url = buildCodingWsUrl(
-      { provider: "kiro-cli", runtime: "k8s" },
+      { provider: "kiro-cli", runtime: "remote" },
       "/ws/acp",
       ORIGIN,
     );
@@ -62,13 +62,13 @@ describe("buildCodingWsUrl", () => {
 
   it("should use default basePath /ws/acp", () => {
     const url = buildCodingWsUrl(
-      { runtime: "k8s" },
+      { runtime: "remote" },
       undefined,
       ORIGIN,
     );
     expect(url).toContain("/ws/acp");
     const parsed = new URL(url);
-    expect(parsed.searchParams.get("runtime")).toBe("k8s");
+    expect(parsed.searchParams.get("runtime")).toBe("remote");
   });
 
 });

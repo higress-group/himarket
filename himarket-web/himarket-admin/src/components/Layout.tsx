@@ -67,15 +67,6 @@ const Layout: React.FC = () => {
         { name: 'MCP监控', cn: 'MCP监控', href: '/observability/mcp-monitor', icon: MonitorOutlined },
       ]
     },
-    {
-      name: '系统设置',
-      cn: '系统设置',
-      href: '/settings',
-      icon: SettingOutlined,
-      children: [
-        { name: 'K8s 集群', cn: 'K8s 集群', href: '/settings/k8s-cluster', icon: CloudServerOutlined },
-      ]
-    },
   ]
 
   const toggleSidebar = () => {

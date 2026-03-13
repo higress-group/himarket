@@ -278,20 +278,6 @@ export function useCodingSession({ wsUrl, autoConnect: autoConnectOpt = true, cl
               terminalId,
               data,
             });
-
-            const portMatches = data.matchAll(
-              /(?:https?:\/\/)?(?:localhost|127\.0\.0\.1):(\d{4,5})(?!\d)/g
-            );
-            for (const portMatch of portMatches) {
-              const port = parseInt(portMatch[1], 10);
-              if (port >= 1024 && port <= 65535) {
-                dispatch({
-                  type: "PREVIEW_PORT_DETECTED",
-                  sessionId: sessionId,
-                  port,
-                });
-              }
-            }
           }
         } else if (notif.method === CODING_METHODS.TERMINAL_CREATE) {
           // terminal/create as notification — auto-register terminal
@@ -383,21 +369,6 @@ export function useCodingSession({ wsUrl, autoConnect: autoConnectOpt = true, cl
               terminalId,
               data,
             });
-
-            // Detect localhost port from terminal output for preview
-            const portMatches2 = data.matchAll(
-              /(?:https?:\/\/)?(?:localhost|127\.0\.0\.1):(\d{4,5})(?!\d)/g
-            );
-            for (const portMatch of portMatches2) {
-              const port = parseInt(portMatch[1], 10);
-              if (port >= 1024 && port <= 65535) {
-                dispatch({
-                  type: "PREVIEW_PORT_DETECTED",
-                  sessionId: sessionId,
-                  port,
-                });
-              }
-            }
           }
           send(
             JSON.stringify(

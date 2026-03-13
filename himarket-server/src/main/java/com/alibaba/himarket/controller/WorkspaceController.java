@@ -117,14 +117,6 @@ public class WorkspaceController {
         };
     }
 
-    @Operation(summary = "Prepare preview for convertible documents")
-    @PostMapping(value = "/preview/prepare", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> preparePreview() {
-        // 文档预览转换依赖本地文件系统，远程沙箱暂不支持
-        return ResponseEntity.status(501)
-                .body(Map.of("status", "unsupported", "reason", "远程沙箱暂不支持文档预览转换"));
-    }
-
     @Operation(summary = "List changed files in workspace directory")
     @GetMapping("/changes")
     public ResponseEntity<?> listWorkspaceChanges(

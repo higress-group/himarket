@@ -20,7 +20,6 @@
 package com.alibaba.himarket;
 
 import com.alibaba.himarket.config.AcpProperties;
-import com.alibaba.himarket.config.K8sProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -28,7 +27,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 
 @SpringBootApplication
 @EnableJpaAuditing
-@EnableConfigurationProperties({AcpProperties.class, K8sProperties.class})
+@EnableConfigurationProperties({AcpProperties.class})
 public class HiMarketApplication {
 
     public static void main(String[] args) {

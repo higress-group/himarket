@@ -28,7 +28,7 @@ interface ApiProductOverviewProps {
 export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiProductOverviewProps) {
 
   const [portalCount, setPortalCount] = useState(0)
-  const [subscriberCount] = useState(0)
+  const [subscriberCount, setSubscriberCount] = useState(0)
   const [productCategories, setProductCategories] = useState<ProductCategory[]>([])
 
   const navigate = useNavigate()
@@ -37,6 +37,7 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
     if (apiProduct.productId) {
       fetchPublishedPortals()
       fetchProductCategories()
+      fetchSubscriberCount()
     }
   }, [apiProduct.productId, apiProduct])
 
@@ -46,6 +47,14 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
       setPortalCount(res.data.content?.length || 0)
     } catch (error) {
     } finally {
+    }
+  }
+
+  const fetchSubscriberCount = async () => {
+    try {
+      const res = await apiProductApi.getProductSubscriptions(apiProduct.productId, { page: 0, size: 1 })
+      setSubscriberCount(res.data.totalElements || 0)
+    } catch (error) {
     }
   }
 
@@ -208,6 +217,7 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
                           apiProduct.feature.modelFeature.maxTokens && `${apiProduct.feature.modelFeature.maxTokens} tokens`,
                           apiProduct.feature.modelFeature.temperature !== null && apiProduct.feature.modelFeature.temperature !== undefined && `temperature ${apiProduct.feature.modelFeature.temperature}`,
                           apiProduct.feature.modelFeature.webSearch && '联网搜索',
+                          apiProduct.feature.modelFeature.enableThinking && '深度思考',
                           apiProduct.feature.modelFeature.enableMultiModal && '多模态'
                         ].filter(Boolean).map((param, index, array) => (
                           <span key={index}>

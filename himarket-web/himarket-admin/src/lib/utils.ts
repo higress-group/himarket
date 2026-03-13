@@ -26,34 +26,32 @@ export const getStatusBadgeVariant = (status: string) => {
 }
 
 export const getServiceName = (linkedServiceParam: any) => {  
-  
-  if (linkedServiceParam?.sourceType === 'NACOS') {
-    return linkedServiceParam.nacosRefConfig?.mcpServerName||'Nacos MCP服务'
+  if (!linkedServiceParam) {
+    return null
+  }
+
+  if (linkedServiceParam.sourceType === 'NACOS') {
+    return linkedServiceParam.nacosRefConfig?.mcpServerName
+      || linkedServiceParam.nacosRefConfig?.agentName
+      || 'Nacos服务'
   }    
-  if (linkedServiceParam?.apigRefConfig) {
-    if ('apiName' in linkedServiceParam.apigRefConfig && linkedServiceParam.apigRefConfig.apiName) {
-      return linkedServiceParam.apigRefConfig.apiName
-    }
-    if ('mcpServerName' in linkedServiceParam.apigRefConfig && linkedServiceParam.apigRefConfig.mcpServerName) {
-      return linkedServiceParam.apigRefConfig.mcpServerName
-    }
-    if ('agentApiName' in linkedServiceParam.apigRefConfig && linkedServiceParam.apigRefConfig.agentApiName) {
-      return linkedServiceParam.apigRefConfig.agentApiName
-    }
-    if ('modelApiName' in linkedServiceParam.apigRefConfig && linkedServiceParam.apigRefConfig.modelApiName) {
-      return linkedServiceParam.apigRefConfig.modelApiName
-    }
+  if (linkedServiceParam.apigRefConfig) {
+    const cfg = linkedServiceParam.apigRefConfig
+    return cfg.apiName || cfg.mcpServerName || cfg.agentApiName || cfg.modelApiName || null
   }
-  if (linkedServiceParam?.higressRefConfig) {
-    return linkedServiceParam.higressRefConfig.mcpServerName
+  if (linkedServiceParam.higressRefConfig) {
+    const cfg = linkedServiceParam.higressRefConfig
+    return cfg.mcpServerName || cfg.modelRouteName || null
   }
-  if (linkedServiceParam?.adpAIGatewayRefConfig) {
-    // ADP_AI_GATEWAY 只支持 MCP Server，不支持 Agent API
-    if ('mcpServerName' in linkedServiceParam.adpAIGatewayRefConfig && linkedServiceParam.adpAIGatewayRefConfig.mcpServerName) {
-      return linkedServiceParam.adpAIGatewayRefConfig.mcpServerName
-    }
+  if (linkedServiceParam.adpAIGatewayRefConfig) {
+    const cfg = linkedServiceParam.adpAIGatewayRefConfig
+    return cfg.mcpServerName || cfg.modelApiName || null
   }
-  return '未知服务'
+  if (linkedServiceParam.apsaraGatewayRefConfig) {
+    const cfg = linkedServiceParam.apsaraGatewayRefConfig
+    return cfg.mcpServerName || cfg.modelApiName || null
+  }
+  return null
 }
 
 /**

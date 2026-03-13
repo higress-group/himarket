@@ -266,13 +266,6 @@
                 <version>${google-genai.version}</version>
             </dependency>
 
-            <!-- Fabric8 Kubernetes Client -->
-            <dependency>
-                <groupId>io.fabric8</groupId>
-                <artifactId>kubernetes-client</artifactId>
-                <version>${fabric8.version}</version>
-            </dependency>
-
             <!-- jqwik Property-Based Testing -->
             <dependency>
                 <groupId>net.jqwik</groupId>

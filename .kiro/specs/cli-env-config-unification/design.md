@@ -156,7 +156,7 @@ acp:
     claude-code:
       display-name: Claude Code
       command: ${ACP_CLI_COMMAND_CLAUDE:npx}
-      args: ${ACP_CLI_ARGS_CLAUDE:@zed-industries/claude-code-acp}
+      args: ${ACP_CLI_ARGS_CLAUDE:@zed-industries/claude-agent-acp}
       runtime-category: nodejs
       compatible-runtimes: LOCAL,K8S
       auth-env-var: ANTHROPIC_API_KEY

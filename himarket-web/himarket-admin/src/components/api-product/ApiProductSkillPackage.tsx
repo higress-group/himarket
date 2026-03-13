@@ -173,7 +173,7 @@ export function ApiProductSkillPackage({ apiProduct, onUploadSuccess }: ApiProdu
     setUploading(true)
     try {
       const res: any = await skillApi.uploadSkillPackage(productId, file)
-      message.success(`上传成功，共 ${res.data?.fileCount ?? 0} 个文件`)
+      message.success('上传成功')
       onSuccess(res)
       await fetchFileTree()
       onUploadSuccess?.()
