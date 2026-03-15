@@ -1,10 +1,14 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, type ReactNode } from "react";
 import {
   ChevronRight,
   ChevronDown,
   File,
   Folder,
   FolderOpen,
+  Braces,
+  FileCode,
+  FileText,
+  Image,
 } from "lucide-react";
 import type { FileNode } from "../../types/coding";
 
@@ -19,6 +23,62 @@ interface TreeNodeProps {
   depth: number;
   onFileSelect: (node: FileNode) => void;
   selectedPath?: string | null;
+}
+
+const JSON_EXTS = new Set(["json"]);
+const CODE_EXTS = new Set([
+  "ts",
+  "tsx",
+  "js",
+  "jsx",
+  "py",
+  "java",
+  "go",
+  "rs",
+  "rb",
+  "php",
+  "c",
+  "cpp",
+  "h",
+  "hpp",
+  "cs",
+  "swift",
+  "kt",
+  "html",
+  "htm",
+  "css",
+  "scss",
+  "less",
+  "vue",
+  "svelte",
+  "sh",
+  "bash",
+  "sql",
+]);
+const IMAGE_EXTS = new Set(["png", "jpg", "jpeg", "gif", "webp", "svg", "ico"]);
+const TEXT_EXTS = new Set([
+  "md",
+  "txt",
+  "log",
+  "yml",
+  "yaml",
+  "toml",
+  "ini",
+  "cfg",
+  "conf",
+]);
+
+function getFileIcon(name: string): ReactNode {
+  const ext = name.split(".").pop()?.toLowerCase() ?? "";
+  if (JSON_EXTS.has(ext))
+    return <Braces size={14} className="text-amber-500" />;
+  if (CODE_EXTS.has(ext))
+    return <FileCode size={14} className="text-blue-400" />;
+  if (IMAGE_EXTS.has(ext))
+    return <Image size={14} className="text-green-400" />;
+  if (TEXT_EXTS.has(ext))
+    return <FileText size={14} className="text-gray-400" />;
+  return <File size={14} className="text-gray-400" />;
 }
 
 function TreeNode({ node, depth, onFileSelect, selectedPath }: TreeNodeProps) {
@@ -37,8 +97,12 @@ function TreeNode({ node, depth, onFileSelect, selectedPath }: TreeNodeProps) {
   return (
     <div>
       <button
-        className={`flex items-center w-full text-left px-1 py-[3px] text-[13px] hover:bg-gray-100/80
-          rounded-sm transition-colors group ${isSelected ? "bg-blue-50 text-blue-700" : "text-gray-600"}`}
+        className={`flex items-center w-full text-left py-[3px] text-[13px] transition-colors group
+          border-l-[3px] ${
+            isSelected
+              ? "bg-purple-50/80 text-purple-700 border-purple-400"
+              : "text-gray-600 hover:bg-gray-50 border-transparent"
+          }`}
         style={{ paddingLeft: `${depth * 12 + 4}px` }}
         onClick={handleClick}
       >
@@ -61,7 +125,7 @@ function TreeNode({ node, depth, onFileSelect, selectedPath }: TreeNodeProps) {
               <Folder size={14} className="text-amber-500" />
             )
           ) : (
-            <File size={14} className="text-gray-400" />
+            getFileIcon(node.name)
           )}
         </span>
         <span className="truncate">{node.name}</span>

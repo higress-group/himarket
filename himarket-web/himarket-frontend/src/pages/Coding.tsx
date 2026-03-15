@@ -581,6 +581,28 @@ function CodingContent() {
     [activeSession, dispatch]
   );
 
+  const handleRefreshFile = useCallback(
+    async (path: string) => {
+      if (!activeSession) return;
+      const result = await fetchArtifactContent(path, { raw: true, runtime: currentRuntimeRef.current });
+      if (result.content !== null) {
+        const fileName = path.split(/[/\\]/).pop() ?? path;
+        dispatch({
+          type: "FILE_OPENED",
+          sessionId: activeSession.id,
+          file: {
+            path,
+            fileName,
+            content: result.content,
+            language: inferLanguage(fileName),
+            encoding: result.encoding ?? "utf-8",
+          },
+        });
+      }
+    },
+    [activeSession, dispatch]
+  );
+
   const planEntries = activeSession?.messages.find(
     (m): m is ChatItemPlan => m.type === "plan"
   )?.entries;
@@ -796,6 +818,7 @@ function CodingContent() {
                         activeFilePath={activeSession?.activeFilePath ?? null}
                         onSelectFile={handleSelectFile}
                         onCloseFile={handleCloseFile}
+                        onRefreshFile={handleRefreshFile}
                       />
                     )}
                   </div>

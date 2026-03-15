@@ -2,18 +2,14 @@
   "name": "sidecar-server",
   "version": "1.0.0",
   "description": "WebSocket sidecar server for K8s sandbox pods - manages multiple CLI processes",
+  "type": "module",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
-    "test": "jest"
+    "start": "node index.js"
   },
   "dependencies": {
     "node-pty": "^1.0.0",
     "ws": "^8.18.0"
-  },
-  "devDependencies": {
-    "jest": "^29.7.0",
-    "fast-check": "^3.22.0"
   },
   "engines": {
     "node": ">=18.0.0"
