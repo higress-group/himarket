@@ -12,6 +12,8 @@ export interface ICodingSession {
   cliSessionId: string;
   title: string;
   providerKey: string;
+  modelProductId?: string;
+  modelName?: string;
   cwd: string;
   createdAt: string;
   updatedAt: string;
@@ -21,6 +23,8 @@ interface CreateCodingSessionData {
   cliSessionId: string;
   title?: string;
   providerKey: string;
+  modelProductId?: string;
+  modelName?: string;
   cwd: string;
 }
 

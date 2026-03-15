@@ -3,8 +3,11 @@ package com.alibaba.himarket.service.hicoding.runtime;
 import com.alibaba.himarket.service.hicoding.filesystem.FileSystemAdapter;
 import com.alibaba.himarket.service.hicoding.filesystem.SidecarFileSystemAdapter;
 import com.alibaba.himarket.service.hicoding.sandbox.SandboxType;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
@@ -25,14 +28,17 @@ import reactor.core.publisher.Sinks;
 
 /**
  * 远程 Sidecar 运行时适配器。
- * <p>
- * 通过 WebSocket 连接远程 Sidecar 服务与 CLI 进程通信。
- * 不依赖 K8s API，健康状态完全基于 WebSocket 连接状态判断。
- * Sidecar 可以部署在 K8s、Docker、裸机等任意环境。
+ *
+ * <p>通过 WebSocket 连接远程 Sidecar 服务与 CLI 进程通信。 不依赖 K8s API，健康状态完全基于 WebSocket
+ * 连接状态判断。 Sidecar 可以部署在 K8s、Docker、裸机等任意环境。
+ *
+ * <p>支持 detach/reconnect 语义：WebSocket 断开时进入 DETACHED 状态， sidecar 端的 CLI
+ * 进程继续运行并缓冲输出，后续可通过 reconnect() 重新连接。
  */
 public class RemoteRuntimeAdapter implements RuntimeAdapter {
 
     private static final Logger logger = LoggerFactory.getLogger(RemoteRuntimeAdapter.class);
+    private static final ObjectMapper CONTROL_MSG_MAPPER = new ObjectMapper();
 
     static final long WS_PING_INTERVAL_SECONDS = 10;
 
@@ -41,8 +47,9 @@ public class RemoteRuntimeAdapter implements RuntimeAdapter {
 
     private final Sinks.Many<String> stdoutSink =
             Sinks.many().multicast().onBackpressureBuffer(256, false);
-    private final Sinks.Many<String> wsSendSink = Sinks.many().unicast().onBackpressureBuffer();
+    private Sinks.Many<String> wsSendSink = Sinks.many().unicast().onBackpressureBuffer();
     private volatile RuntimeStatus status = RuntimeStatus.CREATING;
+    private volatile String sidecarSessionId;
     private URI sidecarWsUri;
     private SidecarFileSystemAdapter fileSystem;
     private Disposable wsConnection;
@@ -98,6 +105,90 @@ public class RemoteRuntimeAdapter implements RuntimeAdapter {
         }
     }
 
+    /**
+     * 获取 sidecar 分配的会话 ID。 通过 sidecar 的 session_meta 控制消息获取，首次连接后可用。
+     */
+    public String getSidecarSessionId() {
+        return sidecarSessionId;
+    }
+
+    /**
+     * 将适配器从 RUNNING 状态切换到 DETACHED 状态。 关闭 WebSocket 连接和 ping，但保留 stdoutSink
+     * 以供后续 reattach。
+     */
+    public void detach() {
+        if (status != RuntimeStatus.RUNNING) {
+            logger.warn("Cannot detach: current status is {}", status);
+            return;
+        }
+        logger.info(
+                "Detaching RemoteRuntimeAdapter: host={}:{}, sidecarSessionId={}",
+                host,
+                port,
+                sidecarSessionId);
+
+        // 先设置状态，使得 WS 关闭触发的 doOnError/doOnComplete 不会误判为异常
+        status = RuntimeStatus.DETACHED;
+
+        if (wsPingFuture != null) {
+            wsPingFuture.cancel(false);
+            wsPingFuture = null;
+        }
+
+        wsSendSink.tryEmitComplete();
+
+        if (wsConnection != null) {
+            wsConnection.dispose();
+            wsConnection = null;
+        }
+        var wsSession = wsSessionRef.getAndSet(null);
+        if (wsSession != null) {
+            wsSession.close().subscribe();
+        }
+        // 注意：不 complete stdoutSink，保持它可用于 reattach
+    }
+
+    /**
+     * 从 DETACHED 状态重新连接到 sidecar，使用已存储的 sidecarSessionId。
+     */
+    public void reconnect() {
+        if (sidecarSessionId == null) {
+            throw new RuntimeException("Cannot reconnect: no sidecarSessionId available");
+        }
+        URI attachUri =
+                URI.create(
+                        "ws://"
+                                + host
+                                + ":"
+                                + port
+                                + "/?sessionId="
+                                + URLEncoder.encode(sidecarSessionId, StandardCharsets.UTF_8));
+        reconnect(attachUri);
+    }
+
+    /**
+     * 从 DETACHED 状态重新连接到指定的 sidecar WebSocket URI。
+     */
+    public void reconnect(URI wsUri) {
+        if (status != RuntimeStatus.DETACHED) {
+            throw new RuntimeException("Cannot reconnect: current status is " + status);
+        }
+        logger.info("Reconnecting RemoteRuntimeAdapter to: {}", wsUri);
+
+        this.sidecarWsUri = wsUri;
+        this.wsSendSink = Sinks.many().unicast().onBackpressureBuffer();
+
+        try {
+            connectWebSocket(wsUri);
+            startWsPing();
+            status = RuntimeStatus.RUNNING;
+        } catch (Exception e) {
+            status = RuntimeStatus.ERROR;
+            throw new RuntimeException(
+                    "Failed to reconnect to remote sidecar: " + e.getMessage(), e);
+        }
+    }
+
     @Override
     public void send(String jsonLine) throws IOException {
         if (status != RuntimeStatus.RUNNING) {
@@ -116,7 +207,6 @@ public class RemoteRuntimeAdapter implements RuntimeAdapter {
 
     @Override
     public RuntimeStatus getStatus() {
-        // 纯粹基于 WebSocket 连接状态判断
         if (status == RuntimeStatus.RUNNING) {
             var session = wsSessionRef.get();
             if (session == null || !session.isOpen()) {
@@ -208,6 +298,13 @@ public class RemoteRuntimeAdapter implements RuntimeAdapter {
                                                                 }
                                                                 String text =
                                                                         msg.getPayloadAsText();
+
+                                                                // 拦截 sidecar 控制消息
+                                                                if (isControlMessage(text)) {
+                                                                    handleControlMessage(text);
+                                                                    return;
+                                                                }
+
                                                                 logger.info(
                                                                         "[WS-Remote] Received: {}",
                                                                         text.length() > 300
@@ -220,6 +317,16 @@ public class RemoteRuntimeAdapter implements RuntimeAdapter {
                                                             })
                                                     .doOnError(
                                                             err -> {
+                                                                // detach 期间 WS 关闭是预期行为
+                                                                if (status
+                                                                        == RuntimeStatus.DETACHED) {
+                                                                    logger.debug(
+                                                                            "[WS-Remote] WS error"
+                                                                                + " during detach"
+                                                                                + " (expected): {}",
+                                                                            err.getMessage());
+                                                                    return;
+                                                                }
                                                                 logger.warn(
                                                                         "[WS-Remote] Receive error:"
                                                                                 + " {}",
@@ -233,6 +340,15 @@ public class RemoteRuntimeAdapter implements RuntimeAdapter {
                                                             })
                                                     .doOnComplete(
                                                             () -> {
+                                                                if (status
+                                                                        == RuntimeStatus.DETACHED) {
+                                                                    logger.debug(
+                                                                            "[WS-Remote] WS"
+                                                                                + " completed"
+                                                                                + " during detach"
+                                                                                + " (expected)");
+                                                                    return;
+                                                                }
                                                                 logger.warn(
                                                                         "[WS-Remote] Receive stream"
                                                                             + " completed (sidecar"
@@ -287,6 +403,57 @@ public class RemoteRuntimeAdapter implements RuntimeAdapter {
                     "Failed to establish WebSocket connection to sidecar at " + wsUri);
         }
         logger.info("WebSocket connected to remote sidecar: {}", wsUri);
+    }
+
+    /**
+     * 判断是否为 sidecar 控制消息（session_meta、buffer_truncated、process_exited）。
+     */
+    private boolean isControlMessage(String text) {
+        return text.contains("\"type\":")
+                && (text.contains("\"session_meta\"")
+                        || text.contains("\"buffer_truncated\"")
+                        || text.contains("\"process_exited\""));
+    }
+
+    /**
+     * 处理 sidecar 控制消息，不转发到 stdoutSink（process_exited 除外）。
+     */
+    private void handleControlMessage(String text) {
+        try {
+            JsonNode node = CONTROL_MSG_MAPPER.readTree(text);
+            String type = node.has("type") ? node.get("type").asText() : null;
+
+            if ("session_meta".equals(type)) {
+                if (node.has("sessionId")) {
+                    sidecarSessionId = node.get("sessionId").asText();
+                }
+                logger.info(
+                        "[WS-Remote] session_meta: sidecarSessionId={}, state={}",
+                        sidecarSessionId,
+                        node.has("state") ? node.get("state").asText() : "unknown");
+                return;
+            }
+
+            if ("buffer_truncated".equals(type)) {
+                long dropped = node.has("droppedBytes") ? node.get("droppedBytes").asLong() : 0;
+                logger.warn("[WS-Remote] Buffer truncated: droppedBytes={}", dropped);
+                return;
+            }
+
+            if ("process_exited".equals(type)) {
+                int code = node.has("code") ? node.get("code").asInt(-1) : -1;
+                String signal = node.has("signal") ? node.get("signal").asText(null) : null;
+                logger.info("[WS-Remote] Process exited: code={}, signal={}", code, signal);
+                // 转发给前端，让前端感知 CLI 进程退出
+                stdoutSink.tryEmitNext(text);
+                return;
+            }
+        } catch (Exception e) {
+            logger.debug(
+                    "Failed to parse control message, forwarding as stdout: {}", e.getMessage());
+        }
+        // 无法解析为控制消息，作为普通 stdout 转发
+        stdoutSink.tryEmitNext(text);
     }
 
     private void startWsPing() {

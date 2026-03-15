@@ -39,4 +39,10 @@ public class CodingSession extends BaseEntity {
 
     @Column(name = "cwd", length = 512)
     private String cwd;
+
+    @Column(name = "model_product_id", length = 64)
+    private String modelProductId;
+
+    @Column(name = "model_name", length = 128)
+    private String modelName;
 }

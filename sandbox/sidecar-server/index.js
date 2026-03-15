@@ -26,11 +26,56 @@ const ALLOWED_COMMANDS = new Set(
 );
 const GRACEFUL_TIMEOUT_MS = parseInt(process.env.GRACEFUL_TIMEOUT_MS, 10) || 5000;
 const SIDECAR_MODE = process.env.SIDECAR_MODE || 'k8s';
+const DETACH_TTL_MS = parseInt(process.env.DETACH_TTL_MS, 10) || 300000; // 5 min
+const OUTPUT_BUFFER_MAX_BYTES = parseInt(process.env.OUTPUT_BUFFER_MAX_BYTES, 10) || 1048576; // 1 MB
+const ZOMBIE_TTL_MS = 60000; // CLI 退出后 session 保留 60 秒供 replay
 
 // WORKSPACE_ROOT 仅用于兜底默认值（如 /files/extract 未指定 cwd 时），
 // 不再作为所有文件操作的路径基准。
 // 参考 OpenSandbox execd 设计：文件操作接收绝对路径，由调用方负责构建。
 const WORKSPACE_ROOT = process.env.WORKSPACE_ROOT || '/workspace';
+
+// ---------------------------------------------------------------------------
+// RingBuffer - detach 期间缓冲 CLI 输出
+// ---------------------------------------------------------------------------
+
+class RingBuffer {
+  constructor(maxBytes) {
+    this._maxBytes = maxBytes;
+    this._chunks = [];
+    this._totalBytes = 0;
+    this._droppedBytes = 0;
+  }
+
+  push(chunk) {
+    const len = Buffer.byteLength(chunk, 'utf-8');
+    this._chunks.push(chunk);
+    this._totalBytes += len;
+    while (this._totalBytes > this._maxBytes && this._chunks.length > 1) {
+      const removed = this._chunks.shift();
+      const removedLen = Buffer.byteLength(removed, 'utf-8');
+      this._totalBytes -= removedLen;
+      this._droppedBytes += removedLen;
+    }
+  }
+
+  drain() {
+    const result = { chunks: this._chunks, droppedBytes: this._droppedBytes };
+    this._chunks = [];
+    this._totalBytes = 0;
+    this._droppedBytes = 0;
+    return result;
+  }
+
+  clear() {
+    this._chunks = [];
+    this._totalBytes = 0;
+    this._droppedBytes = 0;
+  }
+
+  get totalBytes() { return this._totalBytes; }
+  get droppedBytes() { return this._droppedBytes; }
+}
 
 // ---------------------------------------------------------------------------
 // 路径安全校验
@@ -88,8 +133,173 @@ function sendJson(res, statusCode, data) {
 // 服务器状态
 // ---------------------------------------------------------------------------
 
-/** @type {Map<string, {id: string, ws: import('ws'), process: import('child_process').ChildProcess|null, command: string, args: string[], createdAt: Date}>} */
+/**
+ * Session registry — CLI 进程生命周期与 WebSocket 解耦。
+ *
+ * 每个 session 可处于以下状态之一：
+ *   attached   — 有 WS 连接，CLI 输出实时转发
+ *   detached   — WS 断开，CLI 继续运行，输出写入 outputBuffer
+ *   destroying — 正在清理（TTL 超时 / 手动销毁）
+ *
+ * @type {Map<string, {
+ *   id: string,
+ *   state: 'attached'|'detached'|'destroying',
+ *   ws: import('ws')|null,
+ *   process: import('child_process').ChildProcess|null,
+ *   command: string,
+ *   args: string[],
+ *   env: object,
+ *   cwd: string,
+ *   createdAt: Date,
+ *   lastActivityAt: Date,
+ *   outputBuffer: RingBuffer,
+ *   detachTimer: ReturnType<typeof setTimeout>|null,
+ * }>}
+ */
 const sessions = new Map();
+
+// ---------------------------------------------------------------------------
+// Session 生命周期管理
+// ---------------------------------------------------------------------------
+
+/**
+ * 将 CLI stdout/stderr 输出路由到当前 WS 或 outputBuffer。
+ */
+function routeOutput(session, chunk) {
+  const str = chunk.toString();
+  if (session.state === 'attached' && session.ws && session.ws.readyState === 1 /* OPEN */) {
+    session.ws.send(str);
+  } else if (session.state === 'detached') {
+    session.outputBuffer.push(str);
+  }
+  // destroying 状态丢弃
+}
+
+/**
+ * 将 WS 消息路由到 CLI stdin。
+ */
+function routeInput(session, data) {
+  if (session.process && session.process.stdin && !session.process.stdin.destroyed) {
+    const msg = data.toString();
+    session.process.stdin.write(msg.endsWith('\n') ? msg : msg + '\n');
+  }
+  session.lastActivityAt = new Date();
+}
+
+/**
+ * Attach WS 到 session（绑定事件、replay 缓冲）。
+ * 调用前已确保 session.ws = ws, session.state = 'attached'。
+ */
+function attachWs(session, ws) {
+  // 绑定 WS → stdin
+  ws.on('message', (data) => routeInput(session, data));
+  ws.on('close', () => detachSession(session));
+  ws.on('error', (err) => {
+    console.error(`[session:${session.id}] WebSocket error:`, err.message);
+  });
+}
+
+/**
+ * Detach: WS 断开，CLI 继续运行，启动 TTL 定时器。
+ */
+function detachSession(session) {
+  if (session.state === 'destroying') return;
+  console.log(`[session:${session.id}] detached, TTL=${DETACH_TTL_MS}ms`);
+  session.ws = null;
+  session.state = 'detached';
+  session.detachTimer = setTimeout(() => destroySession(session.id, 'TTL expired'), DETACH_TTL_MS);
+}
+
+/**
+ * 销毁 session：kill 进程，清理资源，从 Map 删除。
+ */
+function destroySession(sessionId, reason) {
+  const session = sessions.get(sessionId);
+  if (!session) return;
+  if (session.state === 'destroying') return;
+  session.state = 'destroying';
+  console.log(`[session:${sessionId}] destroying (reason: ${reason || 'unknown'})`);
+
+  if (session.detachTimer) {
+    clearTimeout(session.detachTimer);
+    session.detachTimer = null;
+  }
+
+  if (session.ws && session.ws.readyState === 1 /* OPEN */) {
+    session.ws.close(1001, reason || 'Session destroyed');
+  }
+  session.ws = null;
+
+  const proc = session.process;
+  if (proc && !proc.killed) {
+    proc.kill('SIGTERM');
+    const killTimer = setTimeout(() => {
+      if (!proc.killed) {
+        console.log(`[session:${sessionId}] force killing process`);
+        proc.kill('SIGKILL');
+      }
+    }, GRACEFUL_TIMEOUT_MS);
+    proc.on('exit', () => clearTimeout(killTimer));
+  }
+
+  session.outputBuffer.clear();
+  sessions.delete(sessionId);
+}
+
+/**
+ * CLI 进程退出处理。
+ */
+function handleProcessExit(session, code, signal) {
+  console.log(`[session:${session.id}] process exited - code=${code} signal=${signal}`);
+  session.process = null;
+
+  const exitMsg = JSON.stringify({ type: 'process_exited', code, signal: signal || null });
+
+  if (session.state === 'attached' && session.ws && session.ws.readyState === 1) {
+    session.ws.send(exitMsg);
+    session.ws.close(1000, `Process exited with code ${code}`);
+    sessions.delete(session.id);
+  } else if (session.state === 'detached') {
+    // 进程已退出，将退出信息写入缓冲，短 TTL 保留供 replay
+    session.outputBuffer.push(exitMsg);
+    if (session.detachTimer) {
+      clearTimeout(session.detachTimer);
+    }
+    session.detachTimer = setTimeout(() => destroySession(session.id, 'Zombie TTL expired'), ZOMBIE_TTL_MS);
+    console.log(`[session:${session.id}] process exited while detached, zombie TTL=${ZOMBIE_TTL_MS}ms`);
+  } else {
+    sessions.delete(session.id);
+  }
+}
+
+/**
+ * CLI 进程错误处理。
+ */
+function handleProcessError(session, err) {
+  console.error(`[session:${session.id}] process error:`, err.message);
+  if (session.state === 'attached' && session.ws && session.ws.readyState === 1) {
+    session.ws.send(JSON.stringify({ error: `Process error: ${err.message}` }));
+    session.ws.close(4500, 'Process error');
+  }
+  sessions.delete(session.id);
+}
+
+/**
+ * 序列化 session 为 JSON-safe 对象（用于 HTTP 管理端点）。
+ */
+function serializeSession(session) {
+  return {
+    id: session.id,
+    state: session.state,
+    command: session.command,
+    args: session.args,
+    cwd: session.cwd,
+    createdAt: session.createdAt.toISOString(),
+    lastActivityAt: session.lastActivityAt.toISOString(),
+    processAlive: !!(session.process && !session.process.killed),
+    bufferBytes: session.outputBuffer.totalBytes,
+  };
+}
 
 // ---------------------------------------------------------------------------
 // HTTP 服务器
@@ -97,12 +307,49 @@ const sessions = new Map();
 const server = http.createServer(async (req, res) => {
   // --- 健康检查 ---
   if (req.method === 'GET' && req.url === '/health') {
-    const activeProcesses = Array.from(sessions.values()).filter(s => s.process !== null).length;
+    const allSessions = Array.from(sessions.values());
+    const attached = allSessions.filter(s => s.state === 'attached').length;
+    const detached = allSessions.filter(s => s.state === 'detached').length;
+    const processes = allSessions.filter(s => s.process !== null && !s.process.killed).length;
+    const bufferBytes = allSessions.reduce((sum, s) => sum + s.outputBuffer.totalBytes, 0);
     sendJson(res, 200, {
       status: 'ok',
-      connections: sessions.size,
-      processes: activeProcesses,
+      sessions: { total: sessions.size, attached, detached },
+      processes,
+      bufferBytes,
     });
+    return;
+  }
+
+  // --- Session 管理端点 ---
+
+  // GET /sessions — 列出所有 CLI session
+  if (req.method === 'GET' && req.url === '/sessions') {
+    const list = Array.from(sessions.values()).map(serializeSession);
+    sendJson(res, 200, list);
+    return;
+  }
+
+  // GET /sessions/:id — 查询单个 session
+  if (req.method === 'GET' && req.url.startsWith('/sessions/') && !req.url.includes('/', '/sessions/'.length)) {
+    const id = req.url.slice('/sessions/'.length);
+    const session = sessions.get(id);
+    if (!session) {
+      return sendJson(res, 404, { error: 'Session not found' });
+    }
+    sendJson(res, 200, serializeSession(session));
+    return;
+  }
+
+  // DELETE /sessions/:id — 强制销毁 session
+  if (req.method === 'DELETE' && req.url.startsWith('/sessions/') && !req.url.includes('/', '/sessions/'.length)) {
+    const id = req.url.slice('/sessions/'.length);
+    const session = sessions.get(id);
+    if (!session) {
+      return sendJson(res, 404, { error: 'Session not found' });
+    }
+    destroySession(id, 'Manual DELETE');
+    sendJson(res, 200, { success: true });
     return;
   }
 
@@ -533,8 +780,66 @@ server.on('upgrade', (req, socket, head) => {
     return;
   }
 
-  // --- 默认 CLI 端点：spawn CLI 子进程 ---
+  // --- 默认 CLI 端点：session 管理 (新建 / attach) ---
   wss.handleUpgrade(req, socket, head, (ws) => {
+    const requestedSessionId = url.searchParams.get('sessionId');
+
+    // ========== Attach 到已有 session ==========
+    if (requestedSessionId) {
+      const session = sessions.get(requestedSessionId);
+      if (!session) {
+        ws.close(4404, 'Session not found');
+        return;
+      }
+      if (session.state === 'destroying') {
+        ws.close(4410, 'Session is being destroyed');
+        return;
+      }
+
+      console.log(`[session:${requestedSessionId}] attach requested, current state=${session.state}`);
+
+      // 如果已有旧 WS 连接，踢掉旧连接
+      if (session.ws && session.ws.readyState === 1 /* OPEN */) {
+        console.log(`[session:${requestedSessionId}] kicking old WS connection`);
+        session.ws.removeAllListeners('close');
+        session.ws.removeAllListeners('message');
+        session.ws.close(4409, 'Replaced by new connection');
+      }
+
+      // 清除 detach 定时器
+      if (session.detachTimer) {
+        clearTimeout(session.detachTimer);
+        session.detachTimer = null;
+      }
+
+      // 绑定新 WS
+      session.ws = ws;
+      session.state = 'attached';
+      session.lastActivityAt = new Date();
+
+      // 发送 session 元信息
+      ws.send(JSON.stringify({ type: 'session_meta', sessionId: session.id, replayed: true }));
+
+      // Replay 缓冲的输出
+      const { chunks, droppedBytes } = session.outputBuffer.drain();
+      if (droppedBytes > 0) {
+        ws.send(JSON.stringify({ type: 'buffer_truncated', droppedBytes }));
+      }
+      for (const chunk of chunks) {
+        if (ws.readyState === 1) {
+          ws.send(chunk);
+        }
+      }
+
+      // 绑定 WS 事件
+      attachWs(session, ws);
+
+      console.log(`[session:${requestedSessionId}] attached, replayed ${chunks.length} chunks (dropped ${droppedBytes} bytes)`);
+      wss.emit('connection', ws, req);
+      return;
+    }
+
+    // ========== 新建 session ==========
     const command = url.searchParams.get('command');
     const argsRaw = url.searchParams.get('args') || '';
     const args = argsRaw ? argsRaw.split(' ').filter(Boolean) : [];
@@ -551,9 +856,10 @@ server.on('upgrade', (req, socket, head) => {
 
     const sessionId = crypto.randomUUID();
     const cliCwd = url.searchParams.get('cwd') || WORKSPACE_ROOT;
-    console.log(`[session:${sessionId}] connected - command=${command} args=[${args.join(', ')}] cwd=${cliCwd}`);
+    console.log(`[session:${sessionId}] new session - command=${command} args=[${args.join(', ')}] cwd=${cliCwd}`);
 
     let cliProcess;
+    let spawnEnv;
     try {
       // 构建干净的基础环境变量（白名单）
       const BASE_ENV_KEYS = [
@@ -585,7 +891,7 @@ server.on('upgrade', (req, socket, head) => {
         }
       }
 
-      const spawnEnv = { ...baseEnv, ...extraEnv };
+      spawnEnv = { ...baseEnv, ...extraEnv };
 
       // 确保 cwd 目录存在
       const fsSync = require('fs');
@@ -606,71 +912,36 @@ server.on('upgrade', (req, socket, head) => {
       return;
     }
 
+    const now = new Date();
     const session = {
       id: sessionId,
+      state: 'attached',
       ws,
       process: cliProcess,
       command,
       args,
-      createdAt: new Date(),
+      env: spawnEnv,
+      cwd: cliCwd,
+      createdAt: now,
+      lastActivityAt: now,
+      outputBuffer: new RingBuffer(OUTPUT_BUFFER_MAX_BYTES),
+      detachTimer: null,
     };
     sessions.set(sessionId, session);
 
-    ws.on('message', (data) => {
-      if (cliProcess.stdin && !cliProcess.stdin.destroyed) {
-        const msg = data.toString();
-        cliProcess.stdin.write(msg.endsWith('\n') ? msg : msg + '\n');
-      }
-    });
+    // CLI stdout/stderr → routeOutput
+    cliProcess.stdout.on('data', (chunk) => routeOutput(session, chunk));
+    cliProcess.stderr.on('data', (chunk) => routeOutput(session, chunk));
 
-    cliProcess.stdout.on('data', (chunk) => {
-      if (ws.readyState === ws.OPEN) {
-        ws.send(chunk.toString());
-      }
-    });
+    // CLI 进程退出/错误 → 生命周期处理
+    cliProcess.on('close', (code, signal) => handleProcessExit(session, code, signal));
+    cliProcess.on('error', (err) => handleProcessError(session, err));
 
-    cliProcess.stderr.on('data', (chunk) => {
-      if (ws.readyState === ws.OPEN) {
-        ws.send(chunk.toString());
-      }
-    });
+    // 绑定 WS 事件
+    attachWs(session, ws);
 
-    cliProcess.on('error', (err) => {
-      console.error(`[session:${sessionId}] process error:`, err.message);
-      if (ws.readyState === ws.OPEN) {
-        ws.send(JSON.stringify({ error: `Process error: ${err.message}` }));
-        ws.close(4500, 'Process error');
-      }
-      sessions.delete(sessionId);
-    });
-
-    cliProcess.on('close', (code, signal) => {
-      console.log(`[session:${sessionId}] process exited - code=${code} signal=${signal}`);
-      if (ws.readyState === ws.OPEN) {
-        ws.close(1000, `Process exited with code ${code}`);
-      }
-      session.process = null;
-      sessions.delete(sessionId);
-    });
-
-    ws.on('close', () => {
-      console.log(`[session:${sessionId}] disconnected`);
-      if (session.process && !session.process.killed) {
-        session.process.kill('SIGTERM');
-        const killTimer = setTimeout(() => {
-          if (session.process && !session.process.killed) {
-            console.log(`[session:${sessionId}] force killing process`);
-            session.process.kill('SIGKILL');
-          }
-        }, GRACEFUL_TIMEOUT_MS);
-        session.process.on('exit', () => clearTimeout(killTimer));
-      }
-      sessions.delete(sessionId);
-    });
-
-    ws.on('error', (err) => {
-      console.error(`[session:${sessionId}] WebSocket error:`, err.message);
-    });
+    // 向客户端发送 session 元信息（客户端据此获取 sessionId 用于重连）
+    ws.send(JSON.stringify({ type: 'session_meta', sessionId, replayed: false }));
 
     wss.emit('connection', ws, req);
   });
@@ -703,13 +974,20 @@ function killSessionProcess(session) {
 async function gracefulShutdown() {
   console.log('Received SIGTERM, shutting down gracefully...');
 
+  // 清除所有 detach 定时器，kill 所有进程
   const killPromises = [];
   for (const session of sessions.values()) {
+    if (session.detachTimer) {
+      clearTimeout(session.detachTimer);
+      session.detachTimer = null;
+    }
+    session.outputBuffer.clear();
     killPromises.push(killSessionProcess(session));
   }
 
+  // 关闭所有 WS 连接（attached 和 detached 都处理）
   for (const session of sessions.values()) {
-    if (session.ws.readyState === session.ws.OPEN) {
+    if (session.ws && session.ws.readyState === 1 /* OPEN */) {
       session.ws.close(1001, 'Server shutting down');
     }
   }
@@ -738,10 +1016,16 @@ const LISTEN_HOST = SIDECAR_MODE === 'local' ? '127.0.0.1' : '0.0.0.0';
 server.listen(PORT, LISTEN_HOST, () => {
   console.log(`Sidecar server listening on ${LISTEN_HOST}:${PORT} (mode: ${SIDECAR_MODE})`);
   console.log(`Allowed commands: [${Array.from(ALLOWED_COMMANDS).join(', ')}]`);
-  console.log(`Graceful timeout: ${GRACEFUL_TIMEOUT_MS}ms`);
+  console.log(`Graceful timeout: ${GRACEFUL_TIMEOUT_MS}ms, Detach TTL: ${DETACH_TTL_MS}ms, Buffer max: ${OUTPUT_BUFFER_MAX_BYTES} bytes`);
 });
 
 // ---------------------------------------------------------------------------
 // 导出供测试使用
 // ---------------------------------------------------------------------------
-module.exports = { server, wss, sessions, ALLOWED_COMMANDS, GRACEFUL_TIMEOUT_MS, PORT, WORKSPACE_ROOT, SIDECAR_MODE, LISTEN_HOST, gracefulShutdown, resolvePath, parseJsonBody, sendJson };
+module.exports = {
+  server, wss, sessions, ALLOWED_COMMANDS, GRACEFUL_TIMEOUT_MS, PORT, WORKSPACE_ROOT,
+  SIDECAR_MODE, LISTEN_HOST, DETACH_TTL_MS, OUTPUT_BUFFER_MAX_BYTES, ZOMBIE_TTL_MS,
+  gracefulShutdown, resolvePath, parseJsonBody, sendJson,
+  RingBuffer, destroySession, detachSession, attachWs, routeOutput, routeInput,
+  handleProcessExit, handleProcessError, serializeSession,
+};

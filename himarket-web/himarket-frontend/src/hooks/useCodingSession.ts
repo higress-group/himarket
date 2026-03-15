@@ -299,6 +299,14 @@ export function useCodingSession({ wsUrl, autoConnect: autoConnectOpt = true, cl
           }
           return;
         }
+        if (notif.method === "sandbox/reattached") {
+          const params = notif.params as { sidecarSessionId?: string; reattached?: boolean };
+          console.log(
+            "[CodingSession] Session reattached to existing sidecar session:",
+            params?.sidecarSessionId
+          );
+          return;
+        }
         if (notif.method === CODING_METHODS.SESSION_UPDATE) {
           const update = extractSessionUpdate(notif);
           if (update) {
@@ -324,7 +332,7 @@ export function useCodingSession({ wsUrl, autoConnect: autoConnectOpt = true, cl
           if (sessionId && terminalId && data) {
             dispatch({
               type: "TERMINAL_DATA",
-              sessionId: sessionId,
+              sessionId,
               terminalId,
               data,
             });
@@ -340,7 +348,7 @@ export function useCodingSession({ wsUrl, autoConnect: autoConnectOpt = true, cl
           if (sessionId) {
             dispatch({
               type: "TERMINAL_CREATED",
-              sessionId: sessionId,
+              sessionId,
               terminalId,
             });
           }
@@ -398,7 +406,7 @@ export function useCodingSession({ wsUrl, autoConnect: autoConnectOpt = true, cl
           if (sessionId) {
             dispatch({
               type: "TERMINAL_CREATED",
-              sessionId: sessionId,
+              sessionId,
               terminalId,
             });
           }
@@ -415,7 +423,7 @@ export function useCodingSession({ wsUrl, autoConnect: autoConnectOpt = true, cl
           if (sessionId && terminalId && data) {
             dispatch({
               type: "TERMINAL_DATA",
-              sessionId: sessionId,
+              sessionId,
               terminalId,
               data,
             });
@@ -630,9 +638,6 @@ export function useCodingSession({ wsUrl, autoConnect: autoConnectOpt = true, cl
         return Promise.reject(new Error("Session loading already in progress"));
       }
       loadingSessionRef.current = true;
-      // Track the current session key so the catch block can clean up the
-      // correct entry even after a migration.
-      let activeKey = cliSessionId;
       try {
         // If not yet initialized, trigger connection and wait for init
         if (!stateRef.current.initialized) {
@@ -651,58 +656,23 @@ export function useCodingSession({ wsUrl, autoConnect: autoConnectOpt = true, cl
         });
 
         const send = sendRawRef.current;
+
+        // session/load: ACP 协议规定返回 null 即为成功（会话上下文已恢复），
+        // 原始 cliSessionId 仍然有效，无需回退到 session/new。
         const loadReq = buildSessionLoad(cliSessionId, cwd);
         send(JSON.stringify(loadReq));
-
-        // Wait for the CLI to finish replaying history and return the result.
-        // The CLI may return a different sessionId than the one we requested
-        // (e.g. when the sandbox was recycled and a new session was created).
-        // In that case we must re-key the session in state so that future
-        // prompts use the correct (new) sessionId.
-        // If the CLI returns null (e.g. Qwen Code replays history via
-        // notifications but doesn't hold an active session), we fall back to
-        // creating a brand-new session so the user can keep chatting.
-        const result = (await trackRequest(loadReq.id)) as SessionNewResult | null;
-        let loadedSessionId: string;
-        let needsHistoryInjection = false;
-
-        if (result?.sessionId) {
-          loadedSessionId = result.sessionId;
-        } else {
-          // CLI didn't return a valid session — create a fresh one.
-          // The new session has no conversation context, so we mark it for
-          // history injection: the first prompt will prepend the replayed
-          // conversation history so the LLM retains prior context.
-          const newReq = buildSessionNew(cwd);
-          send(JSON.stringify(newReq));
-          const newResult = (await trackRequest(newReq.id)) as SessionNewResult;
-          loadedSessionId = newResult.sessionId;
-          needsHistoryInjection = true;
-        }
-
-        // If the returned sessionId differs from the original cliSessionId,
-        // re-key the placeholder session (which already has replayed messages)
-        // so that all future operations use the correct sessionId.
-        if (loadedSessionId !== cliSessionId) {
-          dispatch({
-            type: "SESSION_MIGRATED",
-            oldSessionId: cliSessionId,
-            newSessionId: loadedSessionId,
-          });
-          activeKey = loadedSessionId;
-        }
+        await trackRequest(loadReq.id);
 
         // Mark session as fully loaded
         dispatch({
           type: "SESSION_LOADED",
-          sessionId: loadedSessionId,
-          needsHistoryInjection,
+          sessionId: cliSessionId,
         });
 
-        return loadedSessionId;
+        return cliSessionId;
       } catch (err) {
         // If loading fails, remove the placeholder session
-        dispatch({ type: "SESSION_CLOSED", sessionId: activeKey });
+        dispatch({ type: "SESSION_CLOSED", sessionId: cliSessionId });
         throw err;
       } finally {
         loadingSessionRef.current = false;

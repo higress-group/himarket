@@ -18,6 +18,10 @@ public class CodingSessionResult implements OutputConverter<CodingSessionResult,
 
     private String cwd;
 
+    private String modelProductId;
+
+    private String modelName;
+
     private LocalDateTime createAt;
 
     private LocalDateTime updatedAt;

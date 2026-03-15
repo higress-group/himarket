@@ -16,4 +16,8 @@ public class CreateCodingSessionParam implements InputConverter<CodingSession> {
     private String providerKey;
 
     private String cwd;
+
+    private String modelProductId;
+
+    private String modelName;
 }

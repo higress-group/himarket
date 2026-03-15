@@ -11,6 +11,9 @@ public enum RuntimeStatus {
     /** 运行中 */
     RUNNING,
 
+    /** WS 已断开，但 sidecar session 可能仍存活 */
+    DETACHED,
+
     /** 已停止 */
     STOPPED,
 

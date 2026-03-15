@@ -202,13 +202,17 @@ function CodingContent() {
   const pendingPromptRef = useRef<string | null>(null);
 
   // 暂存从欢迎页点击的历史会话，等连接 + 初始化就绪后自动加载
-  const pendingLoadSessionRef = useRef<{ cliSessionId: string; cwd: string; title: string; platformSessionId: string } | null>(null);
+  const pendingLoadSessionRef = useRef<{ cliSessionId: string; cwd: string; title: string; platformSessionId: string; providerKey: string } | null>(null);
+
+  // 跟踪当前 WebSocket 连接使用的 provider，用于判断加载历史会话时是否需要重连
+  const connectedProviderRef = useRef<string>("");
 
   // 确认配置并连接
   const handleConnect = useCallback(
     (cfg: typeof config) => {
       const cliId = cfg.cliProviderId ?? "";
       currentRuntimeRef.current = cfg.cliRuntime;
+      connectedProviderRef.current = cliId;
 
       // 如果 cliSessionConfig 为空（用户未通过下拉菜单选择），
       // 就地构建最小的 session config，确保后端至少能收到 modelProductId
@@ -243,14 +247,7 @@ function CodingContent() {
     pendingLoadSessionRef.current = null;
     autoCreatedRef.current = true; // 防止自动创建新会话
 
-    session.loadSession(cliSessionId, cwd, title, platformSessionId).then(loadedSessionId => {
-      if (loadedSessionId !== cliSessionId && platformSessionId) {
-        // CLI 会话 ID 发生迁移，同步新 ID 到数据库
-        updateCodingSession(platformSessionId, { cliSessionId: loadedSessionId }).catch(err =>
-          console.warn("[Coding] Failed to update cliSessionId after migration:", err)
-        );
-      }
-    }).catch(err => {
+    session.loadSession(cliSessionId, cwd, title, platformSessionId).catch(err => {
       console.error("[Coding] Load pending session failed:", err);
       message.error("会话恢复失败: " + (err?.message || "未知错误"));
       // 加载失败后重置标记，允许自动创建新会话来恢复 UI
@@ -290,6 +287,8 @@ function CodingContent() {
       createCodingSession({
         cliSessionId,
         providerKey: config.cliProviderId ?? "",
+        modelProductId: config.modelProductId ?? undefined,
+        modelName: config.modelName ?? undefined,
         cwd: state.workspaceCwd!,
       }).then((res) => {
         const platformId = res.data?.sessionId;
@@ -331,35 +330,42 @@ function CodingContent() {
 
   // Handle loading a historical session from sidebar
   const handleLoadSession = useCallback(
-    (cliSessionId: string, cwd: string, title: string, platformSessionId: string) => {
-      if (!isComplete) {
-        message.warning("请先完成配置");
-        return;
-      }
+    (cliSessionId: string, cwd: string, title: string, platformSessionId: string, providerKey: string) => {
+      // 使用历史会话的 providerKey；若旧数据为空则降级为当前选择
+      const effectiveProvider = providerKey || config.cliProviderId || "";
 
       if (!isConnected) {
-        // 未连接时暂存会话信息，触发连接后由 effect 自动加载
-        pendingLoadSessionRef.current = { cliSessionId, cwd, title, platformSessionId };
-        handleConnect(config);
+        // 未连接时暂存会话信息，用历史 provider 建连
+        pendingLoadSessionRef.current = { cliSessionId, cwd, title, platformSessionId, providerKey: effectiveProvider };
+        const overriddenConfig = { ...config, cliProviderId: effectiveProvider };
+        handleConnect(overriddenConfig);
         return;
       }
 
-      // 已连接 — 直接加载
-      session.loadSession(cliSessionId, cwd, title, platformSessionId).then(loadedSessionId => {
-        if (loadedSessionId !== cliSessionId && platformSessionId) {
-          // CLI 会话 ID 发生迁移，同步新 ID 到数据库
-          updateCodingSession(platformSessionId, { cliSessionId: loadedSessionId }).catch(err =>
-            console.warn("[Coding] Failed to update cliSessionId after migration:", err)
-          );
-        }
-      }).catch(err => {
+      // 已连接但 provider 不匹配 — 需要断开重连到正确的 provider
+      if (effectiveProvider && effectiveProvider !== connectedProviderRef.current) {
+        pendingLoadSessionRef.current = { cliSessionId, cwd, title, platformSessionId, providerKey: effectiveProvider };
+        autoCreatedRef.current = false;
+        dispatch({ type: "RESET_STATE" });
+        setCurrentWsUrl("");
+        setCurrentCliSessionConfig(undefined);
+        // 延迟一帧让状态清理完成后再重新连接
+        setTimeout(() => {
+          const overriddenConfig = { ...config, cliProviderId: effectiveProvider };
+          handleConnect(overriddenConfig);
+        }, 0);
+        return;
+      }
+
+      // 已连接且 provider 匹配 — 直接加载
+      session.loadSession(cliSessionId, cwd, title, platformSessionId).catch(err => {
         console.error("[Coding] Load session failed:", err);
         message.error("会话恢复失败: " + (err?.message || "未知错误"));
         // 加载失败后，如果没有其他活跃会话，重置标记以允许自动创建
         autoCreatedRef.current = false;
       });
     },
-    [isComplete, isConnected, config, handleConnect, session, dispatch]
+    [isConnected, config, handleConnect, session, dispatch]
   );
 
   // 新会话：断开连接，回到欢迎页

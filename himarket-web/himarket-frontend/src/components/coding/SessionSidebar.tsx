@@ -22,7 +22,7 @@ import {
 export interface SessionSidebarProps {
   activeCliSessionId: string | null;
   agentSupportsLoadSession: boolean;
-  onLoadSession: (cliSessionId: string, cwd: string, title: string, platformSessionId: string) => void;
+  onLoadSession: (cliSessionId: string, cwd: string, title: string, platformSessionId: string, providerKey: string) => void;
   onNewSession: () => void;
   /** External trigger to refresh the session list (increment to trigger) */
   refreshTrigger?: number;
@@ -36,6 +36,8 @@ interface SessionItem {
   cliSessionId: string;
   title: string;
   cwd: string;
+  providerKey: string;
+  modelName?: string;
   timestamp: Date;
 }
 
@@ -46,6 +48,8 @@ function toSessionItems(sessions: ICodingSession[]): SessionItem[] {
     cliSessionId: s.cliSessionId,
     title: s.title || "未命名会话",
     cwd: s.cwd,
+    providerKey: s.providerKey || "",
+    modelName: s.modelName || undefined,
     timestamp: new Date(s.updatedAt || s.createdAt),
   }));
 }
@@ -376,7 +380,7 @@ export function SessionSidebar({
                   ) : (
                     /* 正常模式 */
                     <div
-                      className="flex items-center gap-2 group"
+                      className="group"
                       onClick={() => {
                         if (activeCliSessionId !== null && !agentSupportsLoadSession) return;
                         onLoadSession(
@@ -384,33 +388,41 @@ export function SessionSidebar({
                           session.cwd,
                           session.title,
                           session.sessionId,
+                          session.providerKey,
                         );
                       }}
                     >
-                      <span className="truncate flex-1">{session.title}</span>
-                      <Dropdown
-                        menu={getSessionMenu(session)}
-                        trigger={["click"]}
-                        placement="bottomRight"
-                        classNames={{
-                          root: "coding-session-menu-dropdown",
-                        }}
-                        popupRender={(menu) => (
-                          <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-lg border border-white/40 overflow-hidden">
-                            {menu}
-                          </div>
-                        )}
-                      >
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
+                      <div className="flex items-center gap-2">
+                        <span className="truncate flex-1">{session.title}</span>
+                        <Dropdown
+                          menu={getSessionMenu(session)}
+                          trigger={["click"]}
+                          placement="bottomRight"
+                          classNames={{
+                            root: "coding-session-menu-dropdown",
                           }}
-                          className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-colorPrimary hover:bg-gray-200 rounded transition-all"
-                          title="更多操作"
+                          popupRender={(menu) => (
+                            <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-lg border border-white/40 overflow-hidden">
+                              {menu}
+                            </div>
+                          )}
                         >
-                          <MoreOutlined className="text-base" />
-                        </button>
-                      </Dropdown>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                            }}
+                            className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-colorPrimary hover:bg-gray-200 rounded transition-all"
+                            title="更多操作"
+                          >
+                            <MoreOutlined className="text-base" />
+                          </button>
+                        </Dropdown>
+                      </div>
+                      {(session.providerKey || session.modelName) && (
+                        <div className="text-[11px] text-gray-400 truncate mt-0.5">
+                          {[session.providerKey, session.modelName].filter(Boolean).join(" · ")}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

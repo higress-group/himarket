@@ -2,6 +2,7 @@ package com.alibaba.himarket.service.hicoding.websocket;
 
 import com.alibaba.himarket.config.AcpProperties;
 import com.alibaba.himarket.config.AcpProperties.CliProviderConfig;
+import com.alibaba.himarket.service.hicoding.runtime.RemoteRuntimeAdapter;
 import com.alibaba.himarket.service.hicoding.runtime.RuntimeAdapter;
 import com.alibaba.himarket.service.hicoding.runtime.RuntimeConfig;
 import com.alibaba.himarket.service.hicoding.sandbox.SandboxInfo;
@@ -10,6 +11,7 @@ import com.alibaba.himarket.service.hicoding.session.CliSessionConfig;
 import com.alibaba.himarket.service.hicoding.session.SessionInitializer;
 import com.alibaba.himarket.service.hicoding.session.SessionInitializer.InitializationResult;
 import com.alibaba.himarket.service.hicoding.websocket.HiCodingConnectionManager.DeferredInitParams;
+import com.alibaba.himarket.service.hicoding.websocket.HiCodingConnectionManager.DetachedSessionInfo;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -262,6 +264,28 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
             CliSessionConfig sessionConfig,
             SandboxType sandboxType) {
         try {
+            // 优先尝试 reattach 到已有的 detached 会话
+            DetachedSessionInfo detached = connectionManager.takeDetachedSession(userId);
+            if (detached != null
+                    && detached.adapter() instanceof RemoteRuntimeAdapter remoteAdapter) {
+                try {
+                    doReattach(session, userId, detached, remoteAdapter);
+                    return;
+                } catch (Exception e) {
+                    logger.warn(
+                            "[Sandbox-Init] Reattach 失败，回退到完整初始化: userId={}, error={}",
+                            userId,
+                            e.getMessage());
+                    try {
+                        remoteAdapter.close();
+                    } catch (Exception closeEx) {
+                        logger.debug("Error closing failed reattach adapter", closeEx);
+                    }
+                }
+            } else if (detached != null) {
+                detached.adapter().close();
+            }
+
             logger.info(
                     "[Sandbox-Init] 开始异步沙箱初始化: userId={}, session={}, type={}",
                     userId,
@@ -344,6 +368,71 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
                 logger.debug("Error closing WebSocket after sandbox init failure", closeEx);
             }
         }
+    }
+
+    /**
+     * 重新连接到已 detach 的 sidecar 会话。
+     * 跳过完整的沙箱初始化流程（acquire、config injection 等），
+     * 直接调用 adapter.reconnect() 恢复 WebSocket 连接。
+     */
+    private void doReattach(
+            WebSocketSession session,
+            String userId,
+            DetachedSessionInfo detached,
+            RemoteRuntimeAdapter remoteAdapter) {
+        logger.info(
+                "[Sandbox-Init] 尝试 reattach: userId={}, sidecarSessionId={}",
+                userId,
+                detached.sidecarSessionId());
+
+        sendSandboxStatus(session, "reattaching", "正在恢复已有会话...");
+
+        // 重新连接到 sidecar（使用 sessionId attach 模式）
+        remoteAdapter.reconnect();
+
+        if (!session.isOpen()) {
+            logger.warn("[Sandbox-Init] WebSocket 已关闭，放弃 reattach: userId={}", userId);
+            remoteAdapter.detach();
+            // 放回 detachedSessionMap 以便下次重试
+            connectionManager.takeDetachedSession(userId); // 确保没有残留
+            return;
+        }
+
+        // 订阅 stdout 并转发到前端
+        Disposable subscription = messageRouter.subscribeAndForward(remoteAdapter, session);
+
+        // 注册运行时资源
+        connectionManager.registerRuntime(session.getId(), remoteAdapter, subscription);
+
+        // 通知前端：已恢复连接
+        sendSandboxStatus(session, "ready", "已恢复已有会话");
+        sendInitProgress(session, "cli-ready", "completed", "已恢复已有会话", 100, 5, 5);
+
+        // 通知前端实际使用的工作目录
+        String cwd = connectionManager.getCwd(session.getId());
+        if (cwd != null) {
+            sendWorkspaceInfo(session, cwd);
+        }
+
+        // 通知前端这是一次 reattach
+        sendReattachNotification(session, detached.sidecarSessionId());
+
+        // 回放缓存的消息
+        Queue<String> pendingQueue = connectionManager.getPendingMessages(session.getId());
+        if (pendingQueue != null) {
+            Queue<String> rewrittenQueue = new ConcurrentLinkedQueue<>();
+            String queued;
+            while ((queued = pendingQueue.poll()) != null) {
+                rewrittenQueue.add(rewriteSessionCwd(session.getId(), queued));
+            }
+            messageRouter.replayPendingMessages(session, remoteAdapter, rewrittenQueue);
+        }
+        connectionManager.removePendingMessages(session.getId());
+
+        logger.info(
+                "[Sandbox-Init] Reattach 成功: userId={}, sidecarSessionId={}",
+                userId,
+                detached.sidecarSessionId());
     }
 
     /**
@@ -491,6 +580,27 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
             }
         } catch (Exception e) {
             logger.warn("Failed to send workspace info notification: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * 向前端推送 reattach 通知，告知前端此次连接恢复了已有的 sidecar 会话。
+     */
+    private void sendReattachNotification(WebSocketSession session, String sidecarSessionId) {
+        try {
+            if (!session.isOpen()) return;
+            ObjectNode notification = objectMapper.createObjectNode();
+            notification.put("jsonrpc", "2.0");
+            notification.put("method", "sandbox/reattached");
+            ObjectNode params = objectMapper.createObjectNode();
+            params.put("sidecarSessionId", sidecarSessionId);
+            params.put("reattached", true);
+            notification.set("params", params);
+            synchronized (session) {
+                session.sendMessage(new TextMessage(objectMapper.writeValueAsString(notification)));
+            }
+        } catch (Exception e) {
+            logger.warn("Failed to send reattach notification: {}", e.getMessage());
         }
     }
 

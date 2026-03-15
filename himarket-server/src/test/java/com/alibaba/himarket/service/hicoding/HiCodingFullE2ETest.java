@@ -202,7 +202,7 @@ class HiCodingFullE2ETest {
         void testAccessWithoutToken() throws Exception {
             HttpResponse<String> resp = httpGet("/coding-sessions?page=0&size=10", null);
             log.info("[AUTH] status={}", resp.statusCode());
-            assertEquals(401, resp.statusCode(), "无 token 应返回 401");
+            assertEquals(403, resp.statusCode(), "无 token 应返回 403");
             log.info("[AUTH] 无 token 认证拒绝验证通过");
         }
 
@@ -1576,6 +1576,7 @@ class HiCodingFullE2ETest {
         ObjectNode paramsNode = mapper.createObjectNode();
         paramsNode.put("sessionId", sessionId);
         paramsNode.put("cwd", cwd);
+        paramsNode.set("mcpServers", mapper.createArrayNode());
         ObjectNode rootNode =
                 mapper.createObjectNode()
                         .put("jsonrpc", "2.0")

@@ -84,6 +84,8 @@
 
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
+
+        <surefire.excludedGroups>integration</surefire.excludedGroups>
     </properties>
 
     <!-- Dependency Management -->
@@ -302,7 +304,7 @@
                     <artifactId>maven-surefire-plugin</artifactId>
                     <version>${maven-surefire-plugin.version}</version>
                     <configuration>
-                        <excludedGroups>integration</excludedGroups>
+                        <excludedGroups>${surefire.excludedGroups}</excludedGroups>
                         <argLine>
                             --add-opens java.base/java.util=ALL-UNNAMED
                             --add-opens java.base/java.lang=ALL-UNNAMED
