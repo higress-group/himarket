@@ -1,5 +1,5 @@
-import * as echarts from 'echarts';
-import { DataPoint } from '../types/sls';
+import * as echarts from "echarts";
+import { DataPoint } from "../types/sls";
 
 /**
  * ECharts通用配置选项
@@ -21,71 +21,77 @@ export function generateLineChartOption(
   dataPoints: DataPoint[],
   options: ChartBaseOptions & { seriesName?: string } = {}
 ): echarts.EChartsOption {
-  const { title, xAxisLabel, yAxisLabel, isPercentage = false, seriesName } = options;
+  const {
+    title,
+    xAxisLabel,
+    yAxisLabel,
+    isPercentage = false,
+    seriesName,
+  } = options;
 
   // 提取时间戳和值
   const timestamps = dataPoints.map(p => p.timestamp);
   const values = dataPoints.map(p => {
-    const val = typeof p.value === 'string' ? parseFloat(p.value) : p.value;
+    const val = typeof p.value === "string" ? parseFloat(p.value) : p.value;
     const numVal = isNaN(val) ? 0 : val;
     // 如果是百分比，将0-1的小数转换为0-100的百分比
     return isPercentage ? numVal * 100 : numVal;
   });
 
   return {
-    title: title ? { text: title, left: 'center' } : undefined,
+    title: title ? { text: title, left: "center" } : undefined,
     tooltip: {
-      trigger: 'axis',
-      formatter: (params: any) => {
-        if (!Array.isArray(params) || params.length === 0) return '';
+      trigger: "axis",
+      formatter: params => {
+        if (!Array.isArray(params) || params.length === 0) return "";
         const param = params[0];
         const value = isPercentage
-          ? `${param.value.toFixed(2)}%`
-          : param.value.toLocaleString();
-        return `${param.axisValue}<br/>${param.marker}${param.seriesName}: ${value}`;
-      }
+          ? `${Number(param.value || 0).toFixed(2)}%`
+          : Number(param.value || 0).toLocaleString();
+        return `${param.name || ""}<br/>${param.marker}${param.seriesName}: ${value}`;
+      },
     },
     legend: {
-      top: 'top',
-      left: 'center'
+      top: "top",
+      left: "center",
     },
     grid: {
       left: 40,
       right: 56,
       top: 40,
       bottom: 32,
-      containLabel: true
+      containLabel: true,
     },
     xAxis: {
-      type: 'category',
+      type: "category",
       data: timestamps,
       name: xAxisLabel,
       axisLabel: {
         rotate: 45,
         formatter: (value: string) => {
           // 简化时间显示：只显示时分秒
-          const parts = value.split(' ');
+          const parts = value.split(" ");
           return parts.length > 1 ? parts[1] : value;
-        }
-      }
+        },
+      },
     },
     yAxis: {
-      type: 'value',
+      type: "value",
       name: yAxisLabel,
       axisLabel: {
-        formatter: isPercentage ? '{value}%' : '{value}'
-      }
+        formatter: isPercentage ? "{value}%" : "{value}",
+      },
     },
     series: [
       {
-        name: seriesName || '数值',
-        type: 'line' as const,
+        name: seriesName || "数值",
+        type: "line" as const,
         smooth: true,
         showSymbol: false,
         areaStyle: {},
-        data: values
-      }
-    ]
+        data: values,
+      },
+    ],
   };
 }
 
@@ -110,7 +116,7 @@ export function generateMultiLineChartOption(
 
   const series = seriesData.map(s => {
     const values = s.dataPoints.map(p => {
-      const val = typeof p.value === 'string' ? parseFloat(p.value) : p.value;
+      const val = typeof p.value === "string" ? parseFloat(p.value) : p.value;
       const numVal = isNaN(val) ? 0 : val;
       // 如果是百分比，将0-1的小数转换为0-100的百分比
       return isPercentage ? numVal * 100 : numVal;
@@ -118,61 +124,61 @@ export function generateMultiLineChartOption(
 
     return {
       name: s.name,
-      type: 'line' as const,
+      type: "line" as const,
       smooth: true,
       showSymbol: false,
       areaStyle: {},
-      data: values
+      data: values,
     };
   });
 
   return {
-    title: title ? { text: title, left: 'center' } : undefined,
+    title: title ? { text: title, left: "center" } : undefined,
     tooltip: {
-      trigger: 'axis',
-      formatter: (params: any) => {
-        if (!Array.isArray(params) || params.length === 0) return '';
-        let result = `${params[0].axisValue}<br/>`;
-        params.forEach((param: any) => {
+      trigger: "axis",
+      formatter: params => {
+        if (!Array.isArray(params) || params.length === 0) return "";
+        let result = `${params[0].name || ""}<br/>`;
+        params.forEach(param => {
           const value = isPercentage
-            ? `${param.value.toFixed(2)}%`
-            : param.value.toLocaleString();
+            ? `${Number(param.value || 0).toFixed(2)}%`
+            : Number(param.value || 0).toLocaleString();
           result += `${param.marker}${param.seriesName}: ${value}<br/>`;
         });
         return result;
-      }
+      },
     },
     legend: {
-      top: 'top',
-      left: 'center'
+      top: "top",
+      left: "center",
     },
     grid: {
       left: 40,
       right: 56,
       top: 40,
       bottom: 32,
-      containLabel: true
+      containLabel: true,
     },
     xAxis: {
-      type: 'category',
+      type: "category",
       data: timestamps,
       name: xAxisLabel,
       axisLabel: {
         rotate: 45,
         formatter: (value: string) => {
-          const parts = value.split(' ');
+          const parts = value.split(" ");
           return parts.length > 1 ? parts[1] : value;
-        }
-      }
+        },
+      },
     },
     yAxis: {
-      type: 'value',
+      type: "value",
       name: yAxisLabel,
       axisLabel: {
-        formatter: isPercentage ? '{value}%' : '{value}'
-      }
+        formatter: isPercentage ? "{value}%" : "{value}",
+      },
     },
-    series: series as any
+    series: series,
   };
 }
 
@@ -181,28 +187,35 @@ export function generateMultiLineChartOption(
  * @param message 提示消息
  * @returns ECharts配置对象
  */
-export function generateEmptyChartOption(message: string = '暂无数据'): echarts.EChartsOption {
+export function generateEmptyChartOption(
+  message: string = "暂无数据"
+): echarts.EChartsOption {
   return {
     title: {
       text: message,
-      left: 'center',
-      top: 'middle',
+      left: "center",
+      top: "middle",
       textStyle: {
-        color: '#999',
-        fontSize: 14
-      }
+        color: "#999",
+        fontSize: 14,
+      },
     },
     xAxis: { show: false },
-    yAxis: { show: false }
+    yAxis: { show: false },
   };
 }
 
 /**
  * 从表格数据动态生成列定义
- * @param data 表格数据
+ * @param data表格数据
  * @returns Ant Design Table的列定义
  */
-export function generateTableColumns(data: Record<string, any>[]): any[] {
+export function generateTableColumns(data: Record<string, unknown>[]): Array<{
+  title: string;
+  dataIndex: string;
+  key: string;
+  render: (text: unknown) => React.ReactNode;
+}> {
   if (!data || data.length === 0) return [];
 
   const firstRow = data[0];
@@ -212,12 +225,12 @@ export function generateTableColumns(data: Record<string, any>[]): any[] {
     title: key,
     dataIndex: key,
     key: key,
-    render: (text: any) => {
+    render: (text: unknown) => {
       // 如果是数字，格式化显示
-      if (typeof text === 'number') {
-        return text.toLocaleString('en-US');
+      if (typeof text === "number") {
+        return text.toLocaleString("en-US");
       }
-      return text;
-    }
+      return text as React.ReactNode;
+    },
   }));
 }

@@ -46,6 +46,10 @@ node_modules/
 
 .clinerules/
 
+# Local / deploy scripts (do not commit)
+.env
+push-himarket.sh
+
 /workspace/
 /workspaces/
 
