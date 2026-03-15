@@ -8,8 +8,6 @@ import { ThoughtBlock } from "./ThoughtBlock";
 import { ToolCallCard } from "./ToolCallCard";
 import { ActivityGroupCard } from "./ActivityGroupCard";
 import { PlanDisplay } from "./PlanDisplay";
-import { ArtifactPreview } from "./ArtifactPreview";
-import { DiffViewer } from "./DiffViewer";
 import { TerminalOutput } from "./TerminalOutput";
 import { InlineArtifact } from "./InlineArtifact";
 import type {
@@ -18,14 +16,15 @@ import type {
   ChatItemToolCall,
   ChatItemPlan,
   ChatItemError,
-  ToolCallContentDiffItem,
 } from "../../types/coding-protocol";
 import { ErrorMessage } from "./ErrorMessage";
+import { SandboxStatusCard } from "./SandboxStatusCard";
 
 interface ChatStreamProps {
   onSelectToolCall: (toolCallId: string) => void;
   onOpenFile?: (path: string) => void;
   onPreviewArtifact?: () => void;
+  onSandboxRetry?: () => void;
 }
 
 const SCROLL_THRESHOLD = 24;
@@ -34,6 +33,7 @@ export function ChatStream({
   onSelectToolCall,
   onOpenFile,
   onPreviewArtifact,
+  onSandboxRetry,
 }: ChatStreamProps) {
   const quest = useActiveCodingSession();
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -67,7 +67,7 @@ export function ChatStream({
         if (item.type !== "tool_call") continue;
         const tc = item as ChatItemToolCall;
 
-        // Artifact: match by toolCallId
+        // Artifact: match by toolCallId (compact card, preview in right panel)
         for (const artifact of artifacts) {
           if (
             artifact.toolCallId === tc.toolCallId &&
@@ -80,34 +80,9 @@ export function ChatStream({
                 type="artifact"
                 title={artifact.fileName}
                 onPreviewClick={onPreviewArtifact}
-              >
-                <ArtifactPreview artifact={artifact} />
-              </InlineArtifact>
+              />
             );
           }
-        }
-
-        // Diff: from tool_call content
-        const diffs = (tc.content ?? []).filter(
-          (c): c is ToolCallContentDiffItem =>
-            c.type === "diff" &&
-            (c.oldText !== undefined || c.newText !== undefined)
-        );
-        for (const diff of diffs) {
-          const path = diff.path ?? "unknown";
-          blocks.push(
-            <InlineArtifact
-              key={`diff-${tc.toolCallId}-${path}`}
-              type="diff"
-              title={path}
-            >
-              <DiffViewer
-                path={path}
-                oldText={diff.oldText}
-                newText={diff.newText}
-              />
-            </InlineArtifact>
-          );
         }
 
         // Terminal: from tool_call content
@@ -136,6 +111,7 @@ export function ChatStream({
               key={`terminal-${tc.toolCallId}-${terminalId}`}
               type="terminal"
               title={tc.title || `Terminal ${terminalId}`}
+              defaultExpanded={false}
             >
               {outputs.length > 0 ? (
                 outputs.map((text, idx) => (
@@ -294,24 +270,36 @@ export function ChatStream({
     };
   }, []);
 
-  if (messages.length === 0) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="text-center text-gray-400">
-          <MessageCircle size={32} className="mx-auto mb-2 opacity-40" />
-          <span className="text-sm">在下方输入消息开始对话</span>
-        </div>
-      </div>
-    );
-  }
+  const isLoading = quest?.isLoading ?? false;
 
   // Check if original last message is an agent message (for streaming indicator)
-  const lastMsg = messages[messages.length - 1];
+  const lastMsg = messages.length > 0 ? messages[messages.length - 1] : null;
 
   return (
     <div className="flex-1 overflow-y-auto relative" ref={scrollContainerRef}>
       <div className="max-w-3xl mx-auto px-4 py-4 space-y-3">
-        {renderItems.map(ri => {
+        {/* 沙箱状态卡片 - 始终在对话流顶部 */}
+        <SandboxStatusCard onRetry={onSandboxRetry} />
+
+        {messages.length === 0 ? (
+          /* 空态占位 */
+          <div className="flex items-center justify-center py-16">
+            <div className="text-center text-gray-400">
+              {isLoading ? (
+                <>
+                  <div className="mx-auto mb-3 w-6 h-6 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                  <span className="text-sm">正在恢复会话历史...</span>
+                </>
+              ) : (
+                <>
+                  <MessageCircle size={32} className="mx-auto mb-2 opacity-40" />
+                  <span className="text-sm">在下方输入消息开始对话</span>
+                </>
+              )}
+            </div>
+          </div>
+        ) : (
+        renderItems.map(ri => {
           if (ri.type === "activity_group") {
             const { group } = ri;
 
@@ -452,7 +440,8 @@ export function ChatStream({
             default:
               return null;
           }
-        })}
+        })
+        )}
         <div ref={bottomRef} />
       </div>
 

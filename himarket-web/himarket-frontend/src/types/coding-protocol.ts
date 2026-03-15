@@ -352,6 +352,7 @@ export interface FileWriteRequest extends CodingRequest {
 export const CODING_METHODS = {
   INITIALIZE: "initialize",
   SESSION_NEW: "session/new",
+  SESSION_LOAD: "session/load",
   SESSION_PROMPT: "session/prompt",
   SESSION_CANCEL: "session/cancel",
   SESSION_SET_MODEL: "session/set_model",

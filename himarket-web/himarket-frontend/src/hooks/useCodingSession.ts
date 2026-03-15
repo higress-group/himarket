@@ -9,9 +9,11 @@ import type {
   CodingResponse,
   CodingNotification,
   SessionNewResult,
+  InitializeResult,
   SessionUpdate,
   PermissionRequest,
   Attachment,
+  ChatItem,
   ChatItemToolCall,
   JsonRpcId,
 } from "../types/coding-protocol";
@@ -19,6 +21,7 @@ import { CODING_METHODS } from "../types/coding-protocol";
 import {
   buildInitialize,
   buildSessionNew,
+  buildSessionLoad,
   buildPrompt,
   buildCancel,
   buildSetModel,
@@ -52,6 +55,46 @@ interface QueuedPromptItemInput {
   createdAt: number;
 }
 
+/** 最大注入历史字符数，避免 prompt 过长 */
+const MAX_HISTORY_CHARS = 8000;
+
+/**
+ * 将会话中已有的消息列表序列化为纯文本摘要，
+ * 用于在 CLI 无法原生恢复 session 时注入到首条 prompt 中，
+ * 使 LLM 保留先前对话的上下文。
+ */
+function buildConversationHistory(messages: ChatItem[]): string {
+  const lines: string[] = [];
+  for (const msg of messages) {
+    if (msg.type === "user") {
+      lines.push(`Human: ${msg.text}`);
+    } else if (msg.type === "agent" && msg.text) {
+      lines.push(`Assistant: ${msg.text}`);
+    } else if (msg.type === "tool_call") {
+      const tc = msg as ChatItemToolCall;
+      lines.push(`[Tool ${tc.kind}: ${tc.title} → ${tc.status}]`);
+    }
+    // Skip thought / plan / error for brevity
+  }
+  if (lines.length === 0) return "";
+
+  let body = lines.join("\n");
+  if (body.length > MAX_HISTORY_CHARS) {
+    body = body.slice(body.length - MAX_HISTORY_CHARS);
+    // 截断到第一个完整行
+    const idx = body.indexOf("\n");
+    if (idx > 0) body = body.slice(idx + 1);
+    body = "...(earlier messages truncated)\n" + body;
+  }
+  return (
+    "<conversation_history>\n" +
+    body +
+    "\n</conversation_history>\n" +
+    "[Above is the history of our previous conversation in this session. " +
+    "Please take it into account when responding to the following message.]"
+  );
+}
+
 export function useCodingSession({ wsUrl, autoConnect: autoConnectOpt = true, cliSessionConfig }: UseCodingSessionOptions) {
   const dispatch = useCodingDispatch();
   const state = useCodingState();
@@ -80,9 +123,12 @@ export function useCodingSession({ wsUrl, autoConnect: autoConnectOpt = true, cl
       sessionId: string,
       text: string,
       attachments?: Attachment[],
-      promptId?: string
+      promptId?: string,
+      /** If provided, this text is sent to the CLI instead of `text`.
+       *  `text` is still used for the UI message display. */
+      textForCli?: string
     ): JsonRpcId => {
-      const req = buildPrompt(sessionId, text, attachments);
+      const req = buildPrompt(sessionId, textForCli ?? text, attachments);
       dispatch({
         type: "PROMPT_STARTED",
         sessionId,
@@ -199,12 +245,16 @@ export function useCodingSession({ wsUrl, autoConnect: autoConnectOpt = true, cl
                 const result = await Promise.race([trackRequest(initReq.id), timeoutPromise]);
                 console.log("[CodingSession] Initialize response received:", result);
 
+                const initResult = result as InitializeResult | undefined;
+                const supportsLoad = initResult?.agentCapabilities?.loadSession === true;
+
                 dispatch({
                   type: "PROTOCOL_INITIALIZED",
                   models: [],
                   modes: [],
                   currentModelId: "",
                   currentModeId: "",
+                  agentSupportsLoadSession: supportsLoad,
                 });
                 console.log("[CodingSession] PROTOCOL_INITIALIZED dispatched");
               } catch (err) {
@@ -572,6 +622,95 @@ export function useCodingSession({ wsUrl, autoConnect: autoConnectOpt = true, cl
     [dispatch, connect, getInitPromise]
   );
 
+  const loadingSessionRef = useRef(false);
+
+  const loadSession = useCallback(
+    async (cliSessionId: string, cwd: string, title?: string, platformSessionId?: string): Promise<string> => {
+      if (loadingSessionRef.current) {
+        return Promise.reject(new Error("Session loading already in progress"));
+      }
+      loadingSessionRef.current = true;
+      // Track the current session key so the catch block can clean up the
+      // correct entry even after a migration.
+      let activeKey = cliSessionId;
+      try {
+        // If not yet initialized, trigger connection and wait for init
+        if (!stateRef.current.initialized) {
+          const { promise } = getInitPromise();
+          connect();
+          await promise;
+        }
+
+        // Dispatch SESSION_LOADING to create UI placeholder
+        dispatch({
+          type: "SESSION_LOADING",
+          sessionId: cliSessionId,
+          cwd,
+          title,
+          platformSessionId,
+        });
+
+        const send = sendRawRef.current;
+        const loadReq = buildSessionLoad(cliSessionId, cwd);
+        send(JSON.stringify(loadReq));
+
+        // Wait for the CLI to finish replaying history and return the result.
+        // The CLI may return a different sessionId than the one we requested
+        // (e.g. when the sandbox was recycled and a new session was created).
+        // In that case we must re-key the session in state so that future
+        // prompts use the correct (new) sessionId.
+        // If the CLI returns null (e.g. Qwen Code replays history via
+        // notifications but doesn't hold an active session), we fall back to
+        // creating a brand-new session so the user can keep chatting.
+        const result = (await trackRequest(loadReq.id)) as SessionNewResult | null;
+        let loadedSessionId: string;
+        let needsHistoryInjection = false;
+
+        if (result?.sessionId) {
+          loadedSessionId = result.sessionId;
+        } else {
+          // CLI didn't return a valid session — create a fresh one.
+          // The new session has no conversation context, so we mark it for
+          // history injection: the first prompt will prepend the replayed
+          // conversation history so the LLM retains prior context.
+          const newReq = buildSessionNew(cwd);
+          send(JSON.stringify(newReq));
+          const newResult = (await trackRequest(newReq.id)) as SessionNewResult;
+          loadedSessionId = newResult.sessionId;
+          needsHistoryInjection = true;
+        }
+
+        // If the returned sessionId differs from the original cliSessionId,
+        // re-key the placeholder session (which already has replayed messages)
+        // so that all future operations use the correct sessionId.
+        if (loadedSessionId !== cliSessionId) {
+          dispatch({
+            type: "SESSION_MIGRATED",
+            oldSessionId: cliSessionId,
+            newSessionId: loadedSessionId,
+          });
+          activeKey = loadedSessionId;
+        }
+
+        // Mark session as fully loaded
+        dispatch({
+          type: "SESSION_LOADED",
+          sessionId: loadedSessionId,
+          needsHistoryInjection,
+        });
+
+        return loadedSessionId;
+      } catch (err) {
+        // If loading fails, remove the placeholder session
+        dispatch({ type: "SESSION_CLOSED", sessionId: activeKey });
+        throw err;
+      } finally {
+        loadingSessionRef.current = false;
+      }
+    },
+    [dispatch, connect, getInitPromise]
+  );
+
   const switchSession = useCallback(
     (sessionId: string) => {
       dispatch({ type: "SESSION_SWITCHED", sessionId });
@@ -604,7 +743,19 @@ export function useCodingSession({ wsUrl, autoConnect: autoConnectOpt = true, cl
         return { queued: true, queuedPromptId: item.id } as const;
       }
 
-      const requestId = startPrompt(activeId, text, attachments);
+      // When the session was restored via fallback (CLI couldn't load the
+      // original session), inject the replayed conversation history into
+      // the first prompt so the LLM retains prior context.
+      let textForCli: string | undefined;
+      if (session.needsHistoryInjection && session.messages.length > 0) {
+        const historyContext = buildConversationHistory(session.messages);
+        if (historyContext) {
+          textForCli = historyContext + "\n\n" + text;
+        }
+        dispatch({ type: "HISTORY_INJECTED", sessionId: activeId });
+      }
+
+      const requestId = startPrompt(activeId, text, attachments, undefined, textForCli);
       return { queued: false, requestId } as const;
     },
     [dispatch, startPrompt]
@@ -681,6 +832,7 @@ export function useCodingSession({ wsUrl, autoConnect: autoConnectOpt = true, cl
     reconnect: connect,
     manualReconnect,
     createSession,
+    loadSession,
     switchSession,
     closeSession,
     sendPrompt,

@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { ChevronDown, ChevronRight, Eye, FileCode, GitCompare, Terminal } from "lucide-react";
+import { ChevronDown, ChevronRight, Eye, FileCode, Terminal } from "lucide-react";
 
-export type InlineBlockType = "artifact" | "diff" | "terminal";
+export type InlineBlockType = "artifact" | "terminal";
 
 interface InlineArtifactProps {
   type: InlineBlockType;
   title: string;
-  children: React.ReactNode;
+  children?: React.ReactNode;
   defaultExpanded?: boolean;
   onPreviewClick?: () => void;
 }
@@ -16,11 +16,6 @@ const TYPE_CONFIG: Record<InlineBlockType, { label: string; icon: React.ReactNod
     label: "Artifact",
     icon: <FileCode size={14} />,
     color: "text-blue-600 bg-blue-50 border-blue-200",
-  },
-  diff: {
-    label: "Changes",
-    icon: <GitCompare size={14} />,
-    color: "text-orange-600 bg-orange-50 border-orange-200",
   },
   terminal: {
     label: "Terminal",
@@ -36,17 +31,20 @@ export function InlineArtifact({
   defaultExpanded = true,
   onPreviewClick,
 }: InlineArtifactProps) {
-  const [expanded, setExpanded] = useState(defaultExpanded);
+  const hasContent = children != null;
+  const [expanded, setExpanded] = useState(hasContent ? defaultExpanded : false);
   const config = TYPE_CONFIG[type];
 
   return (
     <div className={`my-2 rounded-lg border ${config.color} overflow-hidden`}>
       {/* Header */}
       <div
-        className="flex items-center gap-2 px-3 py-1.5 cursor-pointer select-none"
-        onClick={() => setExpanded(prev => !prev)}
+        className={`flex items-center gap-2 px-3 py-1.5 select-none${hasContent ? " cursor-pointer" : ""}`}
+        onClick={hasContent ? () => setExpanded(prev => !prev) : undefined}
       >
-        {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+        {hasContent ? (
+          expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />
+        ) : null}
         {config.icon}
         <span className="text-xs font-medium">{config.label}</span>
         <span className="text-xs text-gray-500 truncate">{title}</span>
@@ -67,7 +65,7 @@ export function InlineArtifact({
       </div>
 
       {/* Content */}
-      {expanded && (
+      {hasContent && expanded && (
         <div className="border-t border-inherit px-3 py-2 bg-white/60">
           {children}
         </div>

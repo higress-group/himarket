@@ -47,6 +47,7 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(HiCodingWebSocketHandler.class);
     private static final String SESSION_NEW_METHOD = "session/new";
+    private static final String SESSION_LOAD_METHOD = "session/load";
 
     private final AcpProperties properties;
     private final ObjectMapper objectMapper;
@@ -222,8 +223,8 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
                 session.getId(),
                 payload.length() > 200 ? payload.substring(0, 200) + "..." : payload);
 
-        // Rewrite cwd in session/new requests to the absolute workspace path
-        payload = rewriteSessionNewCwd(session.getId(), payload);
+        // Rewrite cwd in session/new and session/load requests to the absolute workspace path
+        payload = rewriteSessionCwd(session.getId(), payload);
 
         try {
             messageRouter.forwardToCliAgent(runtime, payload);
@@ -314,13 +315,13 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
                     sendWorkspaceInfo(session, cwd);
                 }
 
-                // 回放缓存的消息（先对每条消息做 rewriteSessionNewCwd 变换）
+                // 回放缓存的消息（先对每条消息做 rewriteSessionCwd 变换）
                 Queue<String> pendingQueue = connectionManager.getPendingMessages(session.getId());
                 if (pendingQueue != null) {
                     Queue<String> rewrittenQueue = new ConcurrentLinkedQueue<>();
                     String queued;
                     while ((queued = pendingQueue.poll()) != null) {
-                        rewrittenQueue.add(rewriteSessionNewCwd(session.getId(), queued));
+                        rewrittenQueue.add(rewriteSessionCwd(session.getId(), queued));
                     }
                     messageRouter.replayPendingMessages(session, adapter, rewrittenQueue);
                 }
@@ -538,12 +539,12 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
     }
 
     /**
-     * Intercept session/new requests and replace the cwd parameter with the
-     * absolute workspace path so that the ACP CLI knows the real directory.
+     * Intercept session/new and session/load requests and replace the cwd parameter
+     * with the absolute workspace path so that the ACP CLI knows the real directory.
      */
-    private String rewriteSessionNewCwd(String sessionId, String payload) {
-        // Fast-path: skip JSON parsing for messages that clearly aren't session/new
-        if (!payload.contains(SESSION_NEW_METHOD)) {
+    private String rewriteSessionCwd(String sessionId, String payload) {
+        // Fast-path: skip JSON parsing for messages that clearly aren't session/new or session/load
+        if (!payload.contains(SESSION_NEW_METHOD) && !payload.contains(SESSION_LOAD_METHOD)) {
             return payload;
         }
         String cwd = connectionManager.getCwd(sessionId);
@@ -553,7 +554,11 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
         try {
             JsonNode root = objectMapper.readTree(payload);
             JsonNode methodNode = root.get("method");
-            if (methodNode == null || !SESSION_NEW_METHOD.equals(methodNode.asText())) {
+            if (methodNode == null) {
+                return payload;
+            }
+            String method = methodNode.asText();
+            if (!SESSION_NEW_METHOD.equals(method) && !SESSION_LOAD_METHOD.equals(method)) {
                 return payload;
             }
             JsonNode params = root.get("params");
@@ -563,7 +568,7 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
             ((ObjectNode) params).put("cwd", cwd);
             return objectMapper.writeValueAsString(root);
         } catch (Exception e) {
-            logger.debug("Failed to rewrite session/new cwd, forwarding original payload", e);
+            logger.debug("Failed to rewrite session cwd, forwarding original payload", e);
             return payload;
         }
     }

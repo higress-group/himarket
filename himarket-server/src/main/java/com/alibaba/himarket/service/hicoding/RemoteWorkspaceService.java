@@ -38,6 +38,7 @@ public class RemoteWorkspaceService {
 
     private static final Logger log = LoggerFactory.getLogger(RemoteWorkspaceService.class);
     private static final Duration HTTP_TIMEOUT = Duration.ofSeconds(10);
+    private static final Duration UPLOAD_TIMEOUT = Duration.ofSeconds(30);
     private static final String WORKSPACE_ROOT = "/workspace";
 
     private final AcpProperties acpProperties;
@@ -128,11 +129,12 @@ public class RemoteWorkspaceService {
      */
     public Map<String, Object> readFileWithEncoding(String userId, String filePath, String encoding)
             throws IOException {
-        validatePath(filePath);
+        String resolved = resolvePathForUser(userId, filePath);
+        validatePath(resolved);
         String host = getRemoteHost();
         String url = "http://" + host + ":" + getRemotePort() + "/files/read";
         Map<String, Object> params = new HashMap<>();
-        params.put("path", filePath);
+        params.put("path", resolved);
         params.put("encoding", encoding);
         String body = objectMapper.writeValueAsString(params);
 
@@ -158,12 +160,13 @@ public class RemoteWorkspaceService {
      * 若 404 则降级为 POST /files/read + base64 解码。
      */
     public byte[] readFileBytes(String userId, String filePath) throws IOException {
-        validatePath(filePath);
+        String resolved = resolvePathForUser(userId, filePath);
+        validatePath(resolved);
         String host = getRemoteHost();
 
         // 方案 1：GET /files/download — 直接返回原始字节流，无 JSON 包装
         String encodedPath =
-                java.net.URLEncoder.encode(filePath, java.nio.charset.StandardCharsets.UTF_8);
+                java.net.URLEncoder.encode(resolved, java.nio.charset.StandardCharsets.UTF_8);
         String downloadUrl =
                 "http://" + host + ":" + getRemotePort() + "/files/download?path=" + encodedPath;
         try {
@@ -248,6 +251,28 @@ public class RemoteWorkspaceService {
     }
 
     /**
+     * 将文件路径解析为用户工作空间下的绝对路径。
+     *
+     * <p>沙箱内每个用户的工作目录为 /workspace/{userId}/，但前端传入的路径可能是
+     * 相对路径（如 "skills/foo.html"），需要补全为 /workspace/{userId}/skills/foo.html。
+     *
+     * @param userId   用户 ID
+     * @param filePath 原始文件路径（可能是绝对或相对路径）
+     * @return 解析后的绝对路径
+     */
+    private String resolvePathForUser(String userId, String filePath) {
+        if (filePath == null || filePath.isBlank()) {
+            return filePath;
+        }
+        // 已经是绝对路径 → 保持原样（可能已包含 userId 或指向共享目录）
+        if (filePath.startsWith("/")) {
+            return filePath;
+        }
+        // 相对路径 → 解析到用户工作空间
+        return WORKSPACE_ROOT + "/" + userId + "/" + filePath;
+    }
+
+    /**
      * 验证文件操作路径是否位于 /workspace 目录范围内。
      * 将路径规范化后检查是否以 /workspace 开头，防止路径遍历攻击。
      *
@@ -265,17 +290,76 @@ public class RemoteWorkspaceService {
     }
 
     /**
+     * 上传文件到远程沙箱。
+     * 通过 Sidecar HTTP API POST /files/write 实现，文件内容以 base64 编码传输。
+     *
+     * @param userId           用户 ID
+     * @param originalFilename 原始文件名
+     * @param fileData         文件内容字节数组
+     * @return 文件在沙箱中的绝对路径
+     * @throws IOException 网络或解析异常
+     */
+    public String uploadFile(String userId, String originalFilename, byte[] fileData)
+            throws IOException {
+        String sanitized = sanitizeUploadFileName(originalFilename);
+        String targetPath = WORKSPACE_ROOT + "/" + userId + "/uploads/" + sanitized;
+        validatePath(targetPath);
+
+        String base64Content = Base64.getEncoder().encodeToString(fileData);
+        String url = "http://" + getRemoteHost() + ":" + getRemotePort() + "/files/write";
+        String body =
+                objectMapper.writeValueAsString(
+                        Map.of("path", targetPath, "content", base64Content, "encoding", "base64"));
+
+        HttpResponse<String> response = sendPost(url, body, UPLOAD_TIMEOUT);
+        if (response.statusCode() != 200) {
+            throw new BusinessException(
+                    ErrorCode.SANDBOX_ERROR,
+                    "Sidecar /files/write 失败 (status="
+                            + response.statusCode()
+                            + "): "
+                            + response.body());
+        }
+        log.info("File uploaded to sandbox: user={}, path={}", userId, targetPath);
+        return targetPath;
+    }
+
+    /**
+     * 清洗上传文件名：去除路径分隔符，替换非安全字符。
+     */
+    private static String sanitizeUploadFileName(String originalName) {
+        if (originalName == null || originalName.isBlank()) {
+            return "unnamed";
+        }
+        String baseName = originalName;
+        int lastSlash = Math.max(baseName.lastIndexOf('/'), baseName.lastIndexOf('\\'));
+        if (lastSlash >= 0) {
+            baseName = baseName.substring(lastSlash + 1);
+        }
+        String sanitized = baseName.replaceAll("[^a-zA-Z0-9._-]", "_");
+        return sanitized.isBlank() ? "unnamed" : sanitized;
+    }
+
+    /**
+     * 发送 POST 请求到 Sidecar（使用默认超时）。
+     */
+    private HttpResponse<String> sendPost(String url, String body) throws IOException {
+        return sendPost(url, body, HTTP_TIMEOUT);
+    }
+
+    /**
      * 发送 POST 请求到 Sidecar。
      * 捕获网络连接异常（ConnectException、HttpConnectTimeoutException），
      * 包装为 BusinessException(SANDBOX_CONNECTION_FAILED)。
      */
-    private HttpResponse<String> sendPost(String url, String body) throws IOException {
+    private HttpResponse<String> sendPost(String url, String body, Duration timeout)
+            throws IOException {
         try {
             return httpClient.send(
                     HttpRequest.newBuilder(URI.create(url))
                             .POST(HttpRequest.BodyPublishers.ofString(body))
                             .header("Content-Type", "application/json")
-                            .timeout(HTTP_TIMEOUT)
+                            .timeout(timeout)
                             .build(),
                     HttpResponse.BodyHandlers.ofString());
         } catch (ConnectException | HttpConnectTimeoutException e) {

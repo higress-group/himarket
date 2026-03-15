@@ -324,7 +324,7 @@ export function CodingInput({
       className={`relative ${
         variant === "welcome"
           ? "px-4 py-4"
-          : "px-4 py-3 border-t border-gray-200/60 bg-white/30 backdrop-blur-sm"
+          : "px-5 py-4 bg-white/60 backdrop-blur-md shadow-[0_-4px_16px_rgba(0,0,0,0.06)] border-t border-gray-100/80"
       } ${dragOver ? "ring-2 ring-blue-400 ring-inset bg-blue-50/30" : ""}`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
@@ -505,10 +505,10 @@ export function CodingInput({
         </>
       ) : (
         /* Default 模式布局 */
-        <div className="flex items-end gap-2">
+        <div className="flex items-end gap-3">
           <div className="flex-1 flex items-end gap-1.5">
             <button
-              className="flex items-center justify-center w-9 h-[40px] rounded-lg text-gray-400
+              className="flex items-center justify-center w-9 h-[44px] rounded-lg text-gray-400
                          hover:text-gray-600 hover:bg-gray-100/60 transition-colors
                          disabled:opacity-30 disabled:cursor-not-allowed"
               onClick={() => fileInputRef.current?.click()}
@@ -519,10 +519,10 @@ export function CodingInput({
             </button>
             <textarea
               ref={inputRef}
-              className="flex-1 resize-none rounded-xl border border-gray-200/80 bg-white/80 px-4 py-2.5
+              className="flex-1 resize-none rounded-2xl border border-gray-200 bg-white/90 px-5 py-3
                          text-sm text-gray-700 placeholder-gray-400
-                         outline-none focus:border-gray-300 focus:shadow-sm transition-all
-                         min-h-[40px] max-h-[160px] overflow-y-hidden"
+                         outline-none focus:border-gray-300 focus:shadow-md focus:ring-2 focus:ring-gray-100 transition-all
+                         min-h-[44px] max-h-[160px] overflow-y-hidden"
               value={text}
               onChange={e => handleChange(e.target.value)}
               onKeyDown={handleKeyDown}
@@ -535,7 +535,7 @@ export function CodingInput({
           {isProcessing ? (
             <div className="flex items-center gap-2 flex-shrink-0">
               <button
-                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl text-sm font-medium
                            bg-gray-800 text-white whitespace-nowrap flex-shrink-0
                            hover:bg-gray-700 transition-colors
                            disabled:opacity-40 disabled:cursor-not-allowed"
@@ -546,7 +546,7 @@ export function CodingInput({
                 发送到队列
               </button>
               <button
-                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl text-sm font-medium
                            bg-red-50 text-red-600 border border-red-200 whitespace-nowrap flex-shrink-0
                            hover:bg-red-100 transition-colors"
                 onClick={onCancel}
@@ -557,7 +557,7 @@ export function CodingInput({
             </div>
           ) : (
             <button
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl text-sm font-medium
                          bg-gray-800 text-white
                          hover:bg-gray-700 transition-colors
                          disabled:opacity-40 disabled:cursor-not-allowed"

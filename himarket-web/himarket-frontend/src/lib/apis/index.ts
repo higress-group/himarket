@@ -4,6 +4,7 @@ import * as developer from "./developer";
 import * as category from "./category";
 import * as chat from "./chat";
 import * as cliProvider from "./cliProvider";
+import * as codingSession from "./codingSession";
 
 
 const APIs = {
@@ -13,6 +14,7 @@ const APIs = {
   ...category,
   ...chat,
   ...cliProvider,
+  ...codingSession,
 }
 export default APIs;
 
@@ -23,3 +25,4 @@ export * from "./developer";
 export * from "./category";
 export * from "./chat";
 export * from "./cliProvider";
+export * from "./codingSession";

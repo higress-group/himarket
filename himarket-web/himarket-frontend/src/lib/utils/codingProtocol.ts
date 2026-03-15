@@ -59,6 +59,10 @@ export function buildSessionNew(cwd: string): CodingRequest {
   return buildRequest(CODING_METHODS.SESSION_NEW, { cwd, mcpServers: [] });
 }
 
+export function buildSessionLoad(sessionId: string, cwd: string): CodingRequest {
+  return buildRequest(CODING_METHODS.SESSION_LOAD, { sessionId, cwd, mcpServers: [] });
+}
+
 export function buildPrompt(
   sessionId: string,
   text: string,

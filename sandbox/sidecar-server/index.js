@@ -111,17 +111,22 @@ const server = http.createServer(async (req, res) => {
   // 由调用方（后端 Java 服务）负责构建正确的用户隔离路径。
 
   // POST /files/write — 写入文件（支持绝对路径）
+  // 支持 encoding 参数：'base64' 时将 content 从 base64 解码后写入（用于二进制文件），默认 'utf-8'
   if (req.method === 'POST' && req.url === '/files/write') {
     let body;
     try { body = await parseJsonBody(req); } catch { return sendJson(res, 400, { success: false, error: '无效的 JSON 请求体' }); }
-    const { path: filePath, content } = body;
+    const { path: filePath, content, encoding: reqEncoding } = body;
     if (!filePath || content === undefined || content === null) {
       return sendJson(res, 400, { success: false, error: '缺少 path 或 content 参数' });
     }
     try {
       const fullPath = resolvePath(filePath);
       await fs.mkdir(path.dirname(fullPath), { recursive: true });
-      await fs.writeFile(fullPath, content, 'utf-8');
+      if (reqEncoding === 'base64') {
+        await fs.writeFile(fullPath, Buffer.from(content, 'base64'));
+      } else {
+        await fs.writeFile(fullPath, content, 'utf-8');
+      }
       sendJson(res, 200, { success: true });
     } catch (err) {
       sendJson(res, 500, { success: false, error: err.message });

@@ -95,7 +95,7 @@ Coding (页面入口)
     └── QuestSessionProvider
         └── CodingContent (核心逻辑)
             ├── Session_Sidebar (固定 240px)
-            │   ├── 新建会话按钮
+            │   ├── 新会话按钮
             │   ├── 会话列表 (按创建时间倒序)
             │   ├── 连接状态指示器
             │   └── ConfigSidebar 入口按钮
@@ -618,7 +618,7 @@ interface CodingSessionResult {
 3. **Session_Sidebar 测试**
    - 固定宽度 240px（需求 2.1, 7.5）
    - 会话列表按创建时间倒序排列（需求 2.2）
-   - 新建会话按钮调用 createQuest（需求 2.3）
+   - 新会话按钮调用 createQuest（需求 2.3）
    - 点击会话切换活跃会话（需求 2.4）
    - 关闭会话从列表移除（需求 2.5）
    - 会话条目显示标题和创建时间（需求 2.6）

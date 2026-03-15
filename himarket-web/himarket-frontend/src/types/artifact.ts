@@ -14,8 +14,6 @@ export interface Artifact {
 export const ARTIFACT_EXTENSIONS: Record<string, ArtifactType> = {
   ".html": "html",
   ".htm": "html",
-  ".md": "markdown",
-  ".mdx": "markdown",
   ".svg": "svg",
   ".png": "image",
   ".jpg": "image",

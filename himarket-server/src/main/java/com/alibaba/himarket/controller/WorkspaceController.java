@@ -43,8 +43,22 @@ public class WorkspaceController {
     @Operation(summary = "Upload file to workspace")
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> uploadFile(@RequestParam("file") MultipartFile file) {
-        // 远程沙箱暂不支持文件上传
-        return ResponseEntity.status(501).body(Map.of("error", "文件上传功能暂不支持远程沙箱"));
+        if (file.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "文件不能为空"));
+        }
+        if (file.getSize() > 5 * 1024 * 1024) {
+            return ResponseEntity.badRequest().body(Map.of("error", "文件大小不能超过 5MB"));
+        }
+        String userId = getCurrentUserId();
+        try {
+            String filePath =
+                    remoteWorkspaceService.uploadFile(
+                            userId, file.getOriginalFilename(), file.getBytes());
+            return ResponseEntity.ok(Map.of("filePath", filePath));
+        } catch (IOException e) {
+            log.error("Failed to upload file to sandbox: user={}", userId, e);
+            return ResponseEntity.internalServerError().body(Map.of("error", "文件上传失败"));
+        }
     }
 
     @Operation(summary = "Read file content from workspace")

@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { Code2, Eye, FolderOpen, Folder, Settings, Sparkles, Zap } from "lucide-react";
+import { Code2, Eye, FolderOpen, Folder } from "lucide-react";
 import { message } from "antd";
 import { Header } from "../components/Header";
 import TextType from "../components/TextType";
@@ -13,7 +13,8 @@ import {
 import { useCodingSession } from "../hooks/useCodingSession";
 import { useResizable } from "../hooks/useResizable";
 import { useCodingConfig } from "../hooks/useCodingConfig";
-import { ConfigSidebar } from "../components/coding/ConfigSidebar";
+import { ConfigDropdowns, ModelSelector } from "../components/coding/ConfigDropdowns";
+import { SessionSidebar } from "../components/coding/SessionSidebar";
 import { ConversationTopBar } from "../components/coding/ConversationTopBar";
 import { FileTree } from "../components/coding/FileTree";
 import { EditorArea } from "../components/coding/EditorArea";
@@ -34,9 +35,13 @@ import {
 import type { FileNode } from "../types/coding";
 import type { ChatItemPlan } from "../types/coding-protocol";
 import { buildCodingWsUrl } from "../lib/utils/wsUrl";
-import { SandboxInitProgress } from "../components/common/SandboxInitProgress";
+
 import { getMarketModels, getCliProviders } from "../lib/apis/cliProvider";
 import { sortCliProviders } from "../lib/utils/cliProviderSort";
+import {
+  createCodingSession,
+  updateCodingSession,
+} from "../lib/apis/codingSession";
 
 const EXT_TO_LANG: Record<string, string> = {
   ts: "typescript", tsx: "typescript", js: "javascript", jsx: "javascript",
@@ -100,8 +105,8 @@ const READ_ONLY_KINDS = new Set(["read", "search", "think", "fetch", "switch_mod
 
 function CodingContent() {
   // ===== 配置（纯内存，不持久化） =====
-  const { config, setConfig, isFirstTime, isComplete } = useCodingConfig();
-  const [configOpen, setConfigOpen] = useState(false);
+  const { config, setConfig, isComplete } = useCodingConfig();
+  const [sessionRefreshTrigger, setSessionRefreshTrigger] = useState(0);
 
   // ===== 延迟连接模式：初始 wsUrl 为空，不触发连接 =====
   const [currentWsUrl, setCurrentWsUrl] = useState("");
@@ -196,13 +201,16 @@ function CodingContent() {
   // 暂存首条消息，等连接 + 会话就绪后自动发送
   const pendingPromptRef = useRef<string | null>(null);
 
-  // ConfigSidebar 确认配置并连接
+  // 暂存从欢迎页点击的历史会话，等连接 + 初始化就绪后自动加载
+  const pendingLoadSessionRef = useRef<{ cliSessionId: string; cwd: string; title: string; platformSessionId: string } | null>(null);
+
+  // 确认配置并连接
   const handleConnect = useCallback(
     (cfg: typeof config) => {
       const cliId = cfg.cliProviderId ?? "";
       currentRuntimeRef.current = cfg.cliRuntime;
 
-      // 如果 cliSessionConfig 为空（用户未打开 ConfigSidebar 直接发消息），
+      // 如果 cliSessionConfig 为空（用户未通过下拉菜单选择），
       // 就地构建最小的 session config，确保后端至少能收到 modelProductId
       let sessionConfig = cfg.cliSessionConfig;
       if (!sessionConfig && cfg.modelProductId) {
@@ -219,13 +227,36 @@ function CodingContent() {
       dispatch({ type: "SANDBOX_STATUS", status: "creating", message: "正在连接沙箱环境..." });
 
       setCurrentWsUrl(url);
-      setConfigOpen(false);
     },
     [dispatch]
   );
 
   // 模型配置由 ConfigInjectionPhase 注入，createSession 中会自动设置 CLI 模型
   // 不需要额外的 setModel 调用（config.modelProductId 是平台产品 ID，CLI 不认识）
+
+  // ===== 连接就绪后自动加载暂存的历史会话 =====
+  useEffect(() => {
+    if (!isConnected || !state.initialized || !pendingLoadSessionRef.current) return;
+    if (state.sandboxStatus?.status !== "ready") return;
+
+    const { cliSessionId, cwd, title, platformSessionId } = pendingLoadSessionRef.current;
+    pendingLoadSessionRef.current = null;
+    autoCreatedRef.current = true; // 防止自动创建新会话
+
+    session.loadSession(cliSessionId, cwd, title, platformSessionId).then(loadedSessionId => {
+      if (loadedSessionId !== cliSessionId && platformSessionId) {
+        // CLI 会话 ID 发生迁移，同步新 ID 到数据库
+        updateCodingSession(platformSessionId, { cliSessionId: loadedSessionId }).catch(err =>
+          console.warn("[Coding] Failed to update cliSessionId after migration:", err)
+        );
+      }
+    }).catch(err => {
+      console.error("[Coding] Load pending session failed:", err);
+      message.error("会话恢复失败: " + (err?.message || "未知错误"));
+      // 加载失败后重置标记，允许自动创建新会话来恢复 UI
+      autoCreatedRef.current = false;
+    });
+  }, [isConnected, state.initialized, state.sandboxStatus, session]);
 
   // ===== 自动创建 Session =====
   const autoCreatedRef = useRef(false);
@@ -248,8 +279,26 @@ function CodingContent() {
       return;
     }
 
+    // 有暂存的历史会话加载请求时，不自动创建新会话
+    if (pendingLoadSessionRef.current) {
+      return;
+    }
+
     autoCreatedRef.current = true;
-    session.createSession(state.workspaceCwd).catch(err => {
+    session.createSession(state.workspaceCwd).then(cliSessionId => {
+      // Persist session to backend
+      createCodingSession({
+        cliSessionId,
+        providerKey: config.cliProviderId ?? "",
+        cwd: state.workspaceCwd!,
+      }).then((res) => {
+        const platformId = res.data?.sessionId;
+        if (platformId) {
+          dispatch({ type: "SET_PLATFORM_SESSION_ID", sessionId: cliSessionId, platformSessionId: platformId });
+        }
+        setSessionRefreshTrigger(n => n + 1);
+      }).catch(err => console.warn("[Coding] Failed to persist session:", err));
+    }).catch(err => {
       console.error("[Coding] Auto create session failed:", err);
       dispatch({
         type: "SANDBOX_STATUS",
@@ -268,10 +317,56 @@ function CodingContent() {
     }
   }, [activeSession, session]);
 
-  // 新建会话：断开连接，回到欢迎页
+  // Persist session title to backend when CLI updates it
+  const lastPersistedTitleRef = useRef<string>("");
+  useEffect(() => {
+    if (!activeSession || !activeSession.title) return;
+    if (!activeSession.platformSessionId) return;
+    const title = activeSession.title;
+    if (title === lastPersistedTitleRef.current) return;
+    if (title === "Loading...") return;
+    lastPersistedTitleRef.current = title;
+    updateCodingSession(activeSession.platformSessionId, { title }).catch(() => {});
+  }, [activeSession?.id, activeSession?.title, activeSession?.platformSessionId]);
+
+  // Handle loading a historical session from sidebar
+  const handleLoadSession = useCallback(
+    (cliSessionId: string, cwd: string, title: string, platformSessionId: string) => {
+      if (!isComplete) {
+        message.warning("请先完成配置");
+        return;
+      }
+
+      if (!isConnected) {
+        // 未连接时暂存会话信息，触发连接后由 effect 自动加载
+        pendingLoadSessionRef.current = { cliSessionId, cwd, title, platformSessionId };
+        handleConnect(config);
+        return;
+      }
+
+      // 已连接 — 直接加载
+      session.loadSession(cliSessionId, cwd, title, platformSessionId).then(loadedSessionId => {
+        if (loadedSessionId !== cliSessionId && platformSessionId) {
+          // CLI 会话 ID 发生迁移，同步新 ID 到数据库
+          updateCodingSession(platformSessionId, { cliSessionId: loadedSessionId }).catch(err =>
+            console.warn("[Coding] Failed to update cliSessionId after migration:", err)
+          );
+        }
+      }).catch(err => {
+        console.error("[Coding] Load session failed:", err);
+        message.error("会话恢复失败: " + (err?.message || "未知错误"));
+        // 加载失败后，如果没有其他活跃会话，重置标记以允许自动创建
+        autoCreatedRef.current = false;
+      });
+    },
+    [isComplete, isConnected, config, handleConnect, session, dispatch]
+  );
+
+  // 新会话：断开连接，回到欢迎页
   const handleNewSession = useCallback(() => {
     autoCreatedRef.current = false;
     pendingPromptRef.current = null;
+    pendingLoadSessionRef.current = null;
     dispatch({ type: "RESET_STATE" });
     setCurrentWsUrl("");
     setCurrentCliSessionConfig(undefined);
@@ -282,7 +377,6 @@ function CodingContent() {
     (text: string) => {
       if (!isComplete) {
         message.warning("请先完成配置");
-        setConfigOpen(true);
         return { queued: false as const };
       }
 
@@ -306,6 +400,7 @@ function CodingContent() {
 
   // ===== IDE 面板状态 =====
   const [activeTab, setActiveTab] = useState<RightTab>("preview");
+  const isPreviewMode = activeTab === "preview";
   const [tree, setTree] = useState<FileNode[]>([]);
   const [treeLoading, setTreeLoading] = useState(false);
   const autoOpenedRef = useRef<Set<string>>(new Set());
@@ -331,6 +426,10 @@ function CodingContent() {
       return next;
     });
   }, []);
+
+  // Derived visibility: hide file tree and terminal in preview mode
+  const showFileTree = fileTreeVisible && !isPreviewMode;
+  const showTerminal = !isPreviewMode;
 
   // ===== Resizable panels =====
   const conversationPanel = useResizable({
@@ -481,17 +580,31 @@ function CodingContent() {
   )?.entries;
 
   // ===== 渲染状态判断 =====
-  const showSandboxError = isActiveSession && state.sandboxStatus?.status === "error";
-  const showInitProgress = isActiveSession && (!state.initialized || !activeSession) && !showSandboxError;
-  const showIDE = isActiveSession && state.initialized && activeSession && !showSandboxError;
-  // 欢迎页：未连接（reconnecting 不算），或者连接中但还没有活跃会话（且没有暂存消息正在等待）
-  const showWelcome = !isActiveSession && !pendingPromptRef.current;
+  // 欢迎页：未连接（reconnecting 不算），或者连接中但还没有活跃会话（且没有暂存消息/会话正在等待）
+  const showWelcome = !isActiveSession && !pendingPromptRef.current && !pendingLoadSessionRef.current;
+  // IDE 布局：一旦触发连接就立即显示，沙箱状态在对话流中以卡片形式展示
+  const showIDELayout = !showWelcome;
+
+  // ===== 常驻侧栏 =====
+  const sessionSidebar = (
+    <SessionSidebar
+      activeCliSessionId={activeSession?.id ?? null}
+      agentSupportsLoadSession={state.agentSupportsLoadSession}
+      onLoadSession={handleLoadSession}
+      onNewSession={handleNewSession}
+      refreshTrigger={sessionRefreshTrigger}
+      defaultCollapsed={!showWelcome}
+    />
+  );
 
   // ===== 欢迎页：使用 HiChat 风格布局 =====
   if (showWelcome) {
     return (
       <>
         <div className="flex flex-1 min-h-0 overflow-hidden">
+          {/* 左侧常驻会话侧栏 */}
+          {sessionSidebar}
+
           {/* 居中欢迎页 */}
           <div className="flex-1 flex flex-col">
             <div className="flex-1 flex flex-col items-center justify-center px-4">
@@ -532,6 +645,10 @@ function CodingContent() {
                     }}
                   >
                     <div className="rounded-2xl overflow-hidden bg-white/95">
+                      {/* 模型选择器 - 对话框左上角 */}
+                      <div className="px-4 pt-3 pb-0">
+                        <ModelSelector config={config} onConfigChange={setConfig} />
+                      </div>
                       <CodingInput
                         variant="welcome"
                         onSend={handleWelcomeSend}
@@ -542,43 +659,7 @@ function CodingContent() {
                         queuedPrompts={[]}
                         disabled={!isComplete}
                         toolbarExtra={
-                          !isComplete ? (
-                            <button
-                              onClick={() => setConfigOpen(true)}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full
-                                         border border-amber-300 bg-amber-50 text-amber-700
-                                         text-xs font-medium cursor-pointer
-                                         hover:border-amber-400 hover:bg-amber-100 transition-all"
-                            >
-                              <Settings size={12} />
-                              请先完成配置
-                            </button>
-                          ) : (
-                            <>
-                              <button
-                                onClick={() => setConfigOpen(true)}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full
-                                           border border-gray-200 bg-white text-gray-600
-                                           text-xs font-medium cursor-pointer
-                                           hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50/50 transition-all"
-                              >
-                                <Sparkles size={12} className="text-blue-500" />
-                                <span className="text-gray-400">Model:</span>
-                                <span>{config.modelName || config.modelProductId}</span>
-                              </button>
-                              <button
-                                onClick={() => setConfigOpen(true)}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full
-                                           border border-gray-200 bg-white text-gray-600
-                                           text-xs font-medium cursor-pointer
-                                           hover:border-violet-300 hover:text-violet-600 hover:bg-violet-50/50 transition-all"
-                              >
-                                <Zap size={12} className="text-violet-500" />
-                                <span className="text-gray-400">CLI:</span>
-                                <span>{config.cliProviderName || config.cliProviderId}</span>
-                              </button>
-                            </>
-                          )
+                          <ConfigDropdowns config={config} onConfigChange={setConfig} hideModel />
                         }
                       />
                     </div>
@@ -588,15 +669,6 @@ function CodingContent() {
             </div>
           </div>
         </div>
-
-        {/* ConfigSidebar 在欢迎页也需要 */}
-        <ConfigSidebar
-          open={configOpen}
-          onClose={() => setConfigOpen(false)}
-          config={config}
-          onConfigChange={setConfig}
-          isFirstTime={isFirstTime}
-        />
       </>
     );
   }
@@ -611,23 +683,10 @@ function CodingContent() {
         onManualReconnect={session.manualReconnect}
       />
       <div className="flex flex-1 min-h-0 overflow-hidden">
-      {showSandboxError ? (
-        <div className="flex-1 flex items-center justify-center bg-white/50">
-          <div className="text-center">
-            <p className="text-red-500 mb-4">{state.sandboxStatus?.message}</p>
-            <button
-              onClick={handleNewSession}
-              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-            >
-              重新连接
-            </button>
-          </div>
-        </div>
-      ) : showInitProgress ? (
-        <div className="flex-1 flex items-center justify-center bg-white/50">
-          <SandboxInitProgress />
-        </div>
-      ) : showIDE ? (
+      {/* 左侧常驻会话侧栏 */}
+      {sessionSidebar}
+
+      {showIDELayout ? (
         /* ===== 三栏布局主体：Conversation_Panel + ResizeHandle + IDE_Panel ===== */
         <>
           {/* Conversation_Panel */}
@@ -636,7 +695,6 @@ function CodingContent() {
             style={{ width: conversationPanel.size }}
           >
             <ConversationTopBar
-              status={session.status}
               sessionTitle={activeSession?.title ?? ""}
               usage={state.usage ?? undefined}
             />
@@ -644,6 +702,7 @@ function CodingContent() {
               onSelectToolCall={toolCallId => dispatch({ type: "SELECT_TOOL_CALL", toolCallId })}
               onOpenFile={handleOpenFilePath}
               onPreviewArtifact={() => setActiveTab("preview")}
+              onSandboxRetry={handleNewSession}
             />
             {planEntries && planEntries.length > 0 && (
               <div className="max-w-full px-3 pt-1 flex-shrink-0">
@@ -669,7 +728,7 @@ function CodingContent() {
           <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
             <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
               <div className="flex-1 flex min-h-0 overflow-hidden">
-                {fileTreeVisible && (
+                {showFileTree && (
                   <>
                     <div
                       className="border-r border-gray-200/60 bg-white/50 overflow-hidden flex-shrink-0 flex flex-col"
@@ -707,14 +766,16 @@ function CodingContent() {
                       <Eye size={14} /> 预览
                     </button>
                     <div className="flex-1" />
-                    <button
-                      className={`w-7 h-7 flex items-center justify-center rounded transition-colors mr-2
-                        ${fileTreeVisible ? "text-blue-600 bg-blue-50" : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"}`}
-                      onClick={toggleFileTree}
-                      title={fileTreeVisible ? "隐藏文件" : "显示文件"}
-                    >
-                      {fileTreeVisible ? <FolderOpen size={16} /> : <Folder size={16} />}
-                    </button>
+                    {!isPreviewMode && (
+                      <button
+                        className={`w-7 h-7 flex items-center justify-center rounded transition-colors mr-2
+                          ${fileTreeVisible ? "text-blue-600 bg-blue-50" : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"}`}
+                        onClick={toggleFileTree}
+                        title={fileTreeVisible ? "隐藏文件" : "显示文件"}
+                      >
+                        {fileTreeVisible ? <FolderOpen size={16} /> : <Folder size={16} />}
+                      </button>
+                    )}
                   </div>
                   <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
                     {activeTab === "preview" ? (
@@ -735,10 +796,10 @@ function CodingContent() {
                 </div>
               </div>
 
-              {!terminalCollapsed && (
+              {!terminalCollapsed && showTerminal && (
                 <ResizeHandle direction="vertical" isDragging={terminalPanel.isDragging} onMouseDown={terminalPanel.handleMouseDown} />
               )}
-              <div className="flex-shrink-0">
+              <div className="flex-shrink-0" style={{ display: showTerminal ? undefined : "none" }}>
                 <TerminalPanel
                   ref={terminalPanelRef}
                   height={terminalPanel.size}
@@ -751,15 +812,6 @@ function CodingContent() {
           </div>
         </>
       ) : null}
-
-      {/* ===== ConfigSidebar ===== */}
-      <ConfigSidebar
-        open={configOpen}
-        onClose={() => setConfigOpen(false)}
-        config={config}
-        onConfigChange={setConfig}
-        isFirstTime={isFirstTime}
-      />
 
       {/* ===== Permission dialog ===== */}
       {state.pendingPermission && (
@@ -794,26 +846,22 @@ function CodingShell() {
   const isWelcomePhase = Object.keys(state.sessions).length === 0 && !activeSession;
 
   return (
-    <div className={`flex flex-col overflow-hidden ${isWelcomePhase ? "min-h-screen" : "h-screen bg-gray-50/30"}`}>
-      {/* 背景层：仅欢迎页显示 */}
-      {isWelcomePhase && (
-        <>
-          <div
-            className="fixed w-full h-full z-[1]"
-            style={{
-              backgroundImage: `url(${bgImage})`,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-              backgroundRepeat: "no-repeat",
-              backgroundAttachment: "fixed",
-            }}
-          />
-          <div
-            className="fixed w-full h-full z-[2]"
-            style={{ backdropFilter: "blur(204px)" }}
-          />
-        </>
-      )}
+    <div className={`flex flex-col overflow-hidden ${isWelcomePhase ? "min-h-screen" : "h-screen"}`}>
+      {/* 背景层：始终显示，保持统一视觉效果 */}
+      <div
+        className="fixed w-full h-full z-[1]"
+        style={{
+          backgroundImage: `url(${bgImage})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+          backgroundAttachment: "fixed",
+        }}
+      />
+      <div
+        className="fixed w-full h-full z-[2]"
+        style={{ backdropFilter: "blur(204px)" }}
+      />
       <div className="relative z-10 flex-shrink-0">
         <Header />
       </div>

@@ -36,6 +36,8 @@ import {
 
 export interface CodingSessionData {
   id: string;
+  /** 后端平台生成的 sessionId，用于 REST API 调用（CRUD） */
+  platformSessionId?: string;
   title: string;
   cwd: string;
   messages: ChatItem[];
@@ -44,6 +46,7 @@ export interface CodingSessionData {
   currentModelId: string;
   currentModeId: string;
   isProcessing: boolean;
+  isLoading: boolean;
   inflightPromptId: JsonRpcId | null;
   promptQueue: QueuedPromptItem[];
   lastStopReason: string | null;
@@ -53,6 +56,12 @@ export interface CodingSessionData {
   activeArtifactId: string | null;
   lastArtifactScanAt: number;
   createdAt: number;
+  /**
+   * 会话恢复后需要注入历史上下文。
+   * 当 session/load fallback 到 session/new 时设为 true，
+   * 第一条 prompt 发送后清除。
+   */
+  needsHistoryInjection: boolean;
   // Coding IDE state
   openFiles: OpenFile[];
   activeFilePath: string | null;
@@ -105,6 +114,8 @@ export interface CodingState {
   currentModeId: string;
   /** 后端通过 workspace/info 通知推送的实际工作目录（如 /workspace/{userId}） */
   workspaceCwd: string | null;
+  /** Agent 是否支持 session/load（由 PROTOCOL_INITIALIZED 从 agentCapabilities 设置） */
+  agentSupportsLoadSession: boolean;
 }
 
 export const initialState: CodingState = {
@@ -121,6 +132,7 @@ export const initialState: CodingState = {
   initProgress: null,
   currentModeId: "",
   workspaceCwd: null,
+  agentSupportsLoadSession: false,
 };
 
 // ===== Actions =====
@@ -135,6 +147,7 @@ export type CodingAction =
       modes: Mode[];
       currentModelId: string;
       currentModeId: string;
+      agentSupportsLoadSession?: boolean;
     }
   | {
       type: "SESSION_CREATED";
@@ -148,7 +161,17 @@ export type CodingAction =
   | { type: "SESSION_SWITCHED"; sessionId: string }
   | { type: "SESSION_CLOSED"; sessionId: string }
   | { type: "SESSION_TITLE_UPDATED"; sessionId: string; title: string }
+  | {
+      type: "SESSION_LOADING";
+      sessionId: string;
+      cwd: string;
+      title?: string;
+      platformSessionId?: string;
+    }
+  | { type: "SESSION_LOADED"; sessionId: string; needsHistoryInjection?: boolean }
+  | { type: "SESSION_MIGRATED"; oldSessionId: string; newSessionId: string }
   | { type: "SESSION_UPDATE"; sessionId: string; update: SessionUpdate }
+  | { type: "HISTORY_INJECTED"; sessionId: string }
   | { type: "PROMPT_ENQUEUED"; sessionId: string; item: QueuedPromptItem }
   | { type: "PROMPT_DEQUEUED"; sessionId: string; promptId: string }
   | {
@@ -209,7 +232,8 @@ export type CodingAction =
       totalPhases: number;
       completedPhases: number;
     }
-  | { type: "WORKSPACE_INFO"; cwd: string };
+  | { type: "WORKSPACE_INFO"; cwd: string }
+  | { type: "SET_PLATFORM_SESSION_ID"; sessionId: string; platformSessionId: string };
 
 // ===== Helpers =====
 
@@ -244,6 +268,17 @@ function updateSessionById(
 
 // ===== Artifact Helpers =====
 
+/**
+ * 将产物路径解析为绝对路径。
+ * 沙箱内 agent 的 cwd 为 /workspace/{userId}，工具调用中报告的路径可能是
+ * 相对路径（如 "skills/foo.html"），需要补全为 /workspace/{userId}/skills/foo.html。
+ */
+function resolveArtifactPath(filePath: string, cwd: string): string {
+  if (!cwd || filePath.startsWith("/")) return filePath;
+  const base = cwd.endsWith("/") ? cwd : cwd + "/";
+  return base + filePath;
+}
+
 function upsertDetectedArtifacts(
   q: CodingSessionData,
   detected: Artifact[]
@@ -254,7 +289,8 @@ function upsertDetectedArtifacts(
   let activeArtifactId = q.activeArtifactId;
 
   for (const artifact of detected) {
-    const normalizedArtifact = { ...artifact, path: normalizePath(artifact.path) };
+    const resolvedPath = resolveArtifactPath(normalizePath(artifact.path), q.cwd);
+    const normalizedArtifact = { ...artifact, path: resolvedPath };
     const existingIdx = artifacts.findIndex(a => normalizePath(a.path) === normalizedArtifact.path);
 
     if (existingIdx >= 0) {
@@ -340,6 +376,7 @@ export function codingReducer(
         models: action.models,
         modes: action.modes,
         currentModeId: action.currentModeId || state.currentModeId,
+        agentSupportsLoadSession: action.agentSupportsLoadSession ?? false,
       };
 
     case "SESSION_CREATED": {
@@ -359,6 +396,7 @@ export function codingReducer(
         currentModelId: action.currentModelId ?? newModels[0]?.modelId ?? "",
         currentModeId: action.currentModeId ?? newModes[0]?.id ?? "",
         isProcessing: false,
+        isLoading: false,
         inflightPromptId: null,
         promptQueue: [],
         lastStopReason: null,
@@ -368,6 +406,7 @@ export function codingReducer(
         activeArtifactId: null,
         lastArtifactScanAt: Date.now(),
         createdAt: Date.now(),
+        needsHistoryInjection: false,
         openFiles: [],
         activeFilePath: null,
         terminals: [],
@@ -378,6 +417,63 @@ export function codingReducer(
         activeSessionId: action.sessionId,
         models: newModels,
         modes: newModes,
+      };
+    }
+
+    case "SESSION_LOADING": {
+      const loadingSession: CodingSessionData = {
+        id: action.sessionId,
+        platformSessionId: action.platformSessionId,
+        title: action.title ?? "Loading...",
+        cwd: action.cwd,
+        messages: [],
+        availableModels: state.models,
+        availableModes: state.modes,
+        currentModelId: state.models[0]?.modelId ?? "",
+        currentModeId: state.modes[0]?.id ?? "",
+        isProcessing: true,
+        isLoading: true,
+        inflightPromptId: null,
+        promptQueue: [],
+        lastStopReason: null,
+        lastCompletedAt: null,
+        selectedToolCallId: null,
+        artifacts: [],
+        activeArtifactId: null,
+        lastArtifactScanAt: Date.now(),
+        createdAt: Date.now(),
+        needsHistoryInjection: false,
+        openFiles: [],
+        activeFilePath: null,
+        terminals: [],
+      };
+      return {
+        ...state,
+        sessions: { ...state.sessions, [action.sessionId]: loadingSession },
+        activeSessionId: action.sessionId,
+      };
+    }
+
+    case "SESSION_LOADED":
+      return updateSessionById(state, action.sessionId, s => ({
+        ...s,
+        isLoading: false,
+        isProcessing: false,
+        needsHistoryInjection: action.needsHistoryInjection ?? false,
+      }));
+
+    case "SESSION_MIGRATED": {
+      const oldSession = state.sessions[action.oldSessionId];
+      if (!oldSession) return state;
+      const { [action.oldSessionId]: _, ...rest } = state.sessions;
+      const migrated = { ...oldSession, id: action.newSessionId };
+      return {
+        ...state,
+        sessions: { ...rest, [action.newSessionId]: migrated },
+        activeSessionId:
+          state.activeSessionId === action.oldSessionId
+            ? action.newSessionId
+            : state.activeSessionId,
       };
     }
 
@@ -415,25 +511,35 @@ export function codingReducer(
       }));
 
     case "PROMPT_STARTED":
-      return updateSessionById(state, action.sessionId, s => ({
-        ...s,
-        promptQueue: action.promptId
-          ? s.promptQueue.filter(item => item.id !== action.promptId)
-          : s.promptQueue,
-        messages: [
-          ...s.messages,
-          {
-            type: "user",
-            id: chatItemId(),
-            text: action.text,
-            ...(action.attachments && action.attachments.length > 0
-              ? { attachments: action.attachments }
-              : {}),
-          } as ChatItem,
-        ],
-        isProcessing: true,
-        inflightPromptId: action.requestId,
-      }));
+      return updateSessionById(state, action.sessionId, s => {
+        // Use the first user message as the session title when it's still "Session N"
+        const isDefaultTitle = /^Session \d+$/.test(s.title);
+        const hasNoUserMessages = !s.messages.some(m => m.type === "user");
+        const newTitle =
+          isDefaultTitle && hasNoUserMessages
+            ? action.text.slice(0, 50)
+            : s.title;
+        return {
+          ...s,
+          title: newTitle,
+          promptQueue: action.promptId
+            ? s.promptQueue.filter(item => item.id !== action.promptId)
+            : s.promptQueue,
+          messages: [
+            ...s.messages,
+            {
+              type: "user",
+              id: chatItemId(),
+              text: action.text,
+              ...(action.attachments && action.attachments.length > 0
+                ? { attachments: action.attachments }
+                : {}),
+            } as ChatItem,
+          ],
+          isProcessing: true,
+          inflightPromptId: action.requestId,
+        };
+      });
 
     case "PROMPT_COMPLETED":
       return updateSessionById(state, action.sessionId, s => {
@@ -543,6 +649,12 @@ export function codingReducer(
     case "SESSION_UPDATE":
       return handleSessionUpdate(state, action.sessionId, action.update);
 
+    case "HISTORY_INJECTED":
+      return updateSessionById(state, action.sessionId, s => ({
+        ...s,
+        needsHistoryInjection: false,
+      }));
+
     // ===== Coding IDE Actions =====
 
     case "FILE_OPENED":
@@ -627,6 +739,12 @@ export function codingReducer(
 
     case "WORKSPACE_INFO":
       return { ...state, workspaceCwd: action.cwd };
+
+    case "SET_PLATFORM_SESSION_ID":
+      return updateSessionById(state, action.sessionId, s => ({
+        ...s,
+        platformSessionId: action.platformSessionId,
+      }));
 
     default:
       return state;

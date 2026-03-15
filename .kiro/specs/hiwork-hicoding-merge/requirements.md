@@ -37,7 +37,7 @@
 
 1. THE Session_Sidebar SHALL 显示在 HiCoding_Page 的左侧区域，固定宽度为 240px，不可拖拽调整宽度
 2. THE Session_Sidebar SHALL 展示所有已创建会话的列表，按创建时间倒序排列
-3. WHEN 用户点击 Session_Sidebar 中的"新建会话"按钮时，THE HiCoding_Page SHALL 创建一个新的 ACP_Session 会话
+3. WHEN 用户点击 Session_Sidebar 中的"新会话"按钮时，THE HiCoding_Page SHALL 创建一个新的 ACP_Session 会话
 4. WHEN 用户点击 Session_Sidebar 中的某个会话条目时，THE HiCoding_Page SHALL 切换到该会话，并在 Conversation_Panel 中显示对应的消息历史
 5. WHEN 用户在 Session_Sidebar 中关闭某个会话时，THE HiCoding_Page SHALL 关闭该 ACP_Session 并从列表中移除
 6. THE Session_Sidebar SHALL 显示每个会话的标题和创建时间
