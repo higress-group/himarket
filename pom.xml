@@ -281,9 +281,9 @@
     <!-- Repositories for dependencies not available in Maven Central -->
     <repositories>
         <repository>
-            <id>jetbrains</id>
-            <name>JetBrains Repository</name>
-            <url>https://cache-redirector.jetbrains.com/maven.pkg.jetbrains.space/public/p/pty4j/maven</url>
+            <id>jetbrains-intellij-dependencies</id>
+            <name>JetBrains IntelliJ Dependencies</name>
+            <url>https://cache-redirector.jetbrains.com/intellij-dependencies</url>
         </repository>
     </repositories>
 
