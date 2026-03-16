@@ -62,3 +62,6 @@ push-himarket.sh
 
 ### Nacos (local symlink/clone, not committed) ###
 /nacos
+
+### Kiro (AWS Kira AI coding agent) ###
+.kiro/
