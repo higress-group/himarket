@@ -143,6 +143,7 @@ jobs:
 
       - name: Generate test report
         if: always() && steps.check-reports.outputs.reports_exist == 'true'
+        continue-on-error: true
         uses: dorny/test-reporter@v1
         with:
           name: Backend Test Report
