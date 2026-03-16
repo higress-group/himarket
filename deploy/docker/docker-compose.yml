@@ -98,7 +98,7 @@ services:
     environment:
       - ALLOWED_COMMANDS=${SANDBOX_ALLOWED_COMMANDS:-qodercli,qwen,claude-agent-acp,opencode}
     volumes:
-      - sandbox-workspace:/workspace
+      - ./data/sandbox-workspace:/workspace
     networks:
       - himarket-network
     restart: always
@@ -152,5 +152,4 @@ services:
       - himarket-network
     restart: always
 
-volumes:
-  sandbox-workspace:
+

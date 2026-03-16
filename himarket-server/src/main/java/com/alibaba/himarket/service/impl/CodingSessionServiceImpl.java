@@ -15,6 +15,7 @@ import com.alibaba.himarket.service.CodingSessionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -79,13 +80,16 @@ public class CodingSessionServiceImpl implements CodingSessionService {
     }
 
     private void cleanupExtraSessions() {
-        int count = sessionRepository.countByUserId(contextHolder.getUser());
+        String userId = contextHolder.getUser();
+        int count = sessionRepository.countByUserId(userId);
         if (count > MAX_SESSIONS_PER_USER) {
+            // Keep the newest MAX_SESSIONS_PER_USER sessions, delete the rest.
+            // Results are ordered by updatedAt DESC (newest first).
+            // Page 0 = newest 50 (keep), page 1+ = older (delete).
             sessionRepository
                     .findByUserIdOrderByUpdatedAtDesc(
-                            contextHolder.getUser(),
-                            Pageable.ofSize(1).withPage(MAX_SESSIONS_PER_USER))
-                    .forEach(session -> sessionRepository.delete(session));
+                            userId, PageRequest.of(1, MAX_SESSIONS_PER_USER))
+                    .forEach(sessionRepository::delete);
         }
     }
 }

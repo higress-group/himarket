@@ -78,7 +78,7 @@ public class RemoteWorkspaceService {
      */
     public Map<String, Object> getDirectoryTree(String userId, String cwd, int depth)
             throws IOException {
-        validatePath(cwd);
+        validateUserPath(userId, cwd);
         String host = getRemoteHost();
         String url = "http://" + host + ":" + getRemotePort() + "/files/list";
         String body = objectMapper.writeValueAsString(Map.of("path", cwd, "depth", depth));
@@ -130,7 +130,6 @@ public class RemoteWorkspaceService {
     public Map<String, Object> readFileWithEncoding(String userId, String filePath, String encoding)
             throws IOException {
         String resolved = resolvePathForUser(userId, filePath);
-        validatePath(resolved);
         String host = getRemoteHost();
         String url = "http://" + host + ":" + getRemotePort() + "/files/read";
         Map<String, Object> params = new HashMap<>();
@@ -161,7 +160,6 @@ public class RemoteWorkspaceService {
      */
     public byte[] readFileBytes(String userId, String filePath) throws IOException {
         String resolved = resolvePathForUser(userId, filePath);
-        validatePath(resolved);
         String host = getRemoteHost();
 
         // 方案 1：GET /files/download — 直接返回原始字节流，无 JSON 包装
@@ -218,7 +216,7 @@ public class RemoteWorkspaceService {
      */
     public List<Map<String, Object>> getChanges(String userId, String cwd, long since)
             throws IOException {
-        validatePath(cwd);
+        validateUserPath(userId, cwd);
         String host = getRemoteHost();
         String url = "http://" + host + ":" + getRemotePort() + "/files/changes";
         String body = objectMapper.writeValueAsString(Map.of("cwd", cwd, "since", since));
@@ -273,19 +271,21 @@ public class RemoteWorkspaceService {
     }
 
     /**
-     * 验证文件操作路径是否位于 /workspace 目录范围内。
-     * 将路径规范化后检查是否以 /workspace 开头，防止路径遍历攻击。
+     * 验证文件操作路径是否位于 /workspace/{userId} 目录范围内。
+     * 将路径规范化后检查是否以用户专属工作空间开头，防止路径遍历和跨用户访问。
      *
-     * @param path 待验证的路径
-     * @throws IllegalArgumentException 如果路径超出 /workspace 范围
+     * @param userId 当前用户 ID
+     * @param path   待验证的路径
+     * @throws IllegalArgumentException 如果路径超出用户工作空间范围
      */
-    private void validatePath(String path) {
+    private void validateUserPath(String userId, String path) {
         if (path == null || path.isBlank()) {
-            throw new IllegalArgumentException("路径越界：不允许访问 /workspace 之外的目录");
+            throw new IllegalArgumentException("路径不能为空");
         }
-        Path normalized = Paths.get(WORKSPACE_ROOT).resolve(path).normalize();
-        if (!normalized.startsWith(WORKSPACE_ROOT)) {
-            throw new IllegalArgumentException("路径越界：不允许访问 /workspace 之外的目录");
+        String userRoot = WORKSPACE_ROOT + "/" + userId;
+        Path normalized = Paths.get(path).normalize();
+        if (!normalized.startsWith(Paths.get(userRoot).normalize())) {
+            throw new IllegalArgumentException("路径越界：不允许访问其他用户的工作空间");
         }
     }
 
@@ -303,7 +303,7 @@ public class RemoteWorkspaceService {
             throws IOException {
         String sanitized = sanitizeUploadFileName(originalFilename);
         String targetPath = WORKSPACE_ROOT + "/" + userId + "/uploads/" + sanitized;
-        validatePath(targetPath);
+        validateUserPath(userId, targetPath);
 
         String base64Content = Base64.getEncoder().encodeToString(fileData);
         String url = "http://" + getRemoteHost() + ":" + getRemotePort() + "/files/write";

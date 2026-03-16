@@ -6,6 +6,8 @@ import com.alibaba.himarket.service.hicoding.runtime.RuntimeAdapter;
 import com.alibaba.himarket.service.hicoding.runtime.RuntimeConfig;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -140,14 +142,22 @@ public class RemoteSandboxProvider implements SandboxProvider {
         if (wp == null || wp.isEmpty()) {
             return relativePath;
         }
-        // 去掉 relativePath 开头的 ./ 或 /
         String cleaned = relativePath;
         if (cleaned.startsWith("./")) {
             cleaned = cleaned.substring(2);
         } else if (cleaned.startsWith("/")) {
-            // 已经是绝对路径，直接返回
-            return cleaned;
+            // 绝对路径：校验是否在 workspacePath 范围内
+            Path normalized = Paths.get(cleaned).normalize();
+            if (!normalized.startsWith(Paths.get(wp).normalize())) {
+                throw new SecurityException("路径越界: " + relativePath);
+            }
+            return normalized.toString();
         }
-        return wp.endsWith("/") ? wp + cleaned : wp + "/" + cleaned;
+        String full = wp.endsWith("/") ? wp + cleaned : wp + "/" + cleaned;
+        Path normalized = Paths.get(full).normalize();
+        if (!normalized.startsWith(Paths.get(wp).normalize())) {
+            throw new SecurityException("路径越界: " + relativePath);
+        }
+        return normalized.toString();
     }
 }

@@ -1,0 +1,21 @@
+{{- if and .Values.sandbox.enabled .Values.sandbox.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sandbox-workspace-pvc
+  labels:
+    app: sandbox-shared
+spec:
+  accessModes:
+    - {{ .Values.sandbox.persistence.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.sandbox.persistence.size }}
+  {{- if .Values.sandbox.persistence.storageClass }}
+  {{- if (eq "-" .Values.sandbox.persistence.storageClass) }}
+  storageClassName: ""
+  {{- else }}
+  storageClassName: {{ .Values.sandbox.persistence.storageClass | quote }}
+  {{- end }}
+  {{- end }}
+{{- end }}

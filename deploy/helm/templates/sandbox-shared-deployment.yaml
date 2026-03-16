@@ -39,5 +39,10 @@ spec:
           {{- end }}
       volumes:
         - name: workspace
+          {{- if .Values.sandbox.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: sandbox-workspace-pvc
+          {{- else }}
           emptyDir: {}
+          {{- end }}
 {{- end }}

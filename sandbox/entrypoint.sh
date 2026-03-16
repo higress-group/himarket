@@ -9,7 +9,7 @@
 set -e
 
 SIDECAR_PORT="${SIDECAR_PORT:-8080}"
-ALLOWED_COMMANDS="${ALLOWED_COMMANDS:-qodercli,qwen}"
+ALLOWED_COMMANDS="${ALLOWED_COMMANDS:-qodercli,qwen,opencode,claude-agent-acp}"
 
 export SIDECAR_PORT
 export ALLOWED_COMMANDS

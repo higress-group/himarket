@@ -193,11 +193,14 @@ export function useCodingSession({ wsUrl, autoConnect: autoConnectOpt = true, cl
       try {
         parsed = JSON.parse(data);
       } catch {
-        console.warn("[CodingSession] Failed to parse message:", data.substring(0, 200));
+        console.warn(
+          "[CodingSession] Failed to parse message (len=" + data.length + "):",
+          data
+        );
         return;
       }
       parsed = normalizeIncomingMessage(parsed);
-      console.log("[CodingSession] Received message:", JSON.stringify(parsed).substring(0, 300));
+      console.log("[CodingSession] Received message:", JSON.stringify(parsed));
 
       // Debug: log all terminal-related messages
       const method = parsed.method as string | undefined;
@@ -312,6 +315,22 @@ export function useCodingSession({ wsUrl, autoConnect: autoConnectOpt = true, cl
           if (update) {
             const sessionId =
               (notif.params as { sessionId?: string })?.sessionId ?? "";
+            const variant =
+              (update as { update?: { sessionUpdate?: string } }).update
+                ?.sessionUpdate ?? "unknown";
+            const sessionExists = !!stateRef.current.sessions[sessionId];
+            const isLoading =
+              stateRef.current.sessions[sessionId]?.isLoading ?? false;
+            console.log(
+              "[CodingSession] session/update:",
+              variant,
+              "| sessionId:",
+              sessionId.substring(0, 8) + "...",
+              "| sessionExists:",
+              sessionExists,
+              "| isLoading:",
+              isLoading
+            );
             dispatch({
               type: "SESSION_UPDATE",
               sessionId,

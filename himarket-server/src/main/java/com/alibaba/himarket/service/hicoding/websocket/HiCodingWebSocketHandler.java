@@ -15,6 +15,7 @@ import com.alibaba.himarket.service.hicoding.websocket.HiCodingConnectionManager
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import jakarta.annotation.PreDestroy;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -23,7 +24,9 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -58,14 +61,20 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
     private final HiCodingConnectionManager connectionManager;
     private final WebSocketPingScheduler pingScheduler;
 
-    /** 异步初始化线程池 */
+    /** 异步初始化线程池（有界） */
     private final ExecutorService podInitExecutor =
-            Executors.newCachedThreadPool(
+            new ThreadPoolExecutor(
+                    4,
+                    32,
+                    60L,
+                    TimeUnit.SECONDS,
+                    new LinkedBlockingQueue<>(256),
                     r -> {
                         Thread t = new Thread(r, "sandbox-init");
                         t.setDaemon(true);
                         return t;
-                    });
+                    },
+                    new ThreadPoolExecutor.CallerRunsPolicy());
 
     public HiCodingWebSocketHandler(
             AcpProperties properties,
@@ -80,6 +89,11 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
         this.messageRouter = messageRouter;
         this.connectionManager = connectionManager;
         this.pingScheduler = pingScheduler;
+    }
+
+    @PreDestroy
+    void shutdown() {
+        podInitExecutor.shutdownNow();
     }
 
     @Override
@@ -220,10 +234,7 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
             return;
         }
 
-        logger.debug(
-                "Inbound [{}]: {}",
-                session.getId(),
-                payload.length() > 200 ? payload.substring(0, 200) + "..." : payload);
+        logger.debug("Inbound [{}]: {}", session.getId(), payload);
 
         // Rewrite cwd in session/new and session/load requests to the absolute workspace path
         payload = rewriteSessionCwd(session.getId(), payload);
@@ -390,6 +401,21 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
         // 重新连接到 sidecar（使用 sessionId attach 模式）
         remoteAdapter.reconnect();
 
+        // 等待片刻让 reactor 线程处理可能的立即关闭信号
+        // （sidecar 会话过期时会在握手后立即关闭连接）
+        try {
+            Thread.sleep(500);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
+        // 验证重连后连接是否仍然存活
+        if (!remoteAdapter.isAlive()) {
+            throw new RuntimeException(
+                    "Sidecar connection closed immediately after reattach,"
+                            + " session may have expired on sidecar side");
+        }
+
         if (!session.isOpen()) {
             logger.warn("[Sandbox-Init] WebSocket 已关闭，放弃 reattach: userId={}", userId);
             remoteAdapter.detach();
@@ -398,13 +424,7 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
             return;
         }
 
-        // 订阅 stdout 并转发到前端
-        Disposable subscription = messageRouter.subscribeAndForward(remoteAdapter, session);
-
-        // 注册运行时资源
-        connectionManager.registerRuntime(session.getId(), remoteAdapter, subscription);
-
-        // 通知前端：已恢复连接
+        // 先通知前端：已恢复连接（在订阅 stdout 之前，确保前端先收到状态通知）
         sendSandboxStatus(session, "ready", "已恢复已有会话");
         sendInitProgress(session, "cli-ready", "completed", "已恢复已有会话", 100, 5, 5);
 
@@ -416,6 +436,13 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
 
         // 通知前端这是一次 reattach
         sendReattachNotification(session, detached.sidecarSessionId());
+
+        // 订阅 stdout 并转发到前端
+        // 放在所有通知之后：避免 sidecar 残留消息在前端未就绪时到达
+        Disposable subscription = messageRouter.subscribeAndForward(remoteAdapter, session);
+
+        // 注册运行时资源
+        connectionManager.registerRuntime(session.getId(), remoteAdapter, subscription);
 
         // 回放缓存的消息
         Queue<String> pendingQueue = connectionManager.getPendingMessages(session.getId());
@@ -633,6 +660,9 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
                 providerConfig.getEnv() != null
                         ? new HashMap<>(providerConfig.getEnv())
                         : new HashMap<>();
+        // 将 HOME 指向用户工作目录，确保 CLI 工具的会话文件（JSONL 等）
+        // 存储在持久化卷上，而非容器临时文件系统的 /root 下
+        processEnv.put("HOME", cwd);
         RuntimeConfig config = new RuntimeConfig();
         config.setUserId(userId);
         config.setProviderKey(providerKey);

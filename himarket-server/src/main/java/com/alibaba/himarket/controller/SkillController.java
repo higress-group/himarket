@@ -120,7 +120,6 @@ public class SkillController {
 
     @Operation(summary = "ZIP 下载 Skill（通过 productId）")
     @GetMapping("/{productId}/download")
-    @AdminOrDeveloperAuth
     public void downloadSkillByProduct(@PathVariable String productId, HttpServletResponse response)
             throws IOException {
         SkillCoordinate coord = resolveSkillCoordinate(productId);

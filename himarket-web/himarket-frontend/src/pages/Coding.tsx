@@ -133,17 +133,15 @@ function CodingContent() {
       // ACP 重连成功 — 后端已销毁旧 session，需要重新走完整流程
       console.log("[Coding] ACP reconnected, resetting state for re-initialization");
 
-      // 清空旧 sessions（后端 session 已不存在），重置自动创建标记
+      // 清空旧 sessions（后端 session 已不存在），重置自动创建标记。
+      // 不恢复旧会话：重连后直接创建新的空会话，避免 CLI 回放完整对话历史。
       autoCreatedRef.current = false;
       dispatch({ type: "RESET_STATE" });
-      // RESET_STATE 会清空 initialized/sessions/sandboxStatus，
-      // useCodingSession 的 status=connected + !initializedRef 会重新触发 initialize，
-      // 后端会重新发 sandbox/status: ready → 自动创建 Session → 终端也会跟着重建
 
       // 触发终端重连
       terminalPanelRef.current?.reconnect();
     }
-  }, [session.status, dispatch]);
+  }, [session.status, dispatch, activeSession]);
 
   // 跟踪当前运行时类型（HiCoding 仅支持沙箱模式）
   const currentRuntimeRef = useRef<string>(config.cliRuntime);
@@ -249,9 +247,7 @@ function CodingContent() {
 
     session.loadSession(cliSessionId, cwd, title, platformSessionId).catch(err => {
       console.error("[Coding] Load pending session failed:", err);
-      message.error("会话恢复失败: " + (err?.message || "未知错误"));
-      // 加载失败后重置标记，允许自动创建新会话来恢复 UI
-      autoCreatedRef.current = false;
+      message.warning("会话已过期，请选择其他会话或创建新会话");
     });
   }, [isConnected, state.initialized, state.sandboxStatus, session]);
 
@@ -360,9 +356,7 @@ function CodingContent() {
       // 已连接且 provider 匹配 — 直接加载
       session.loadSession(cliSessionId, cwd, title, platformSessionId).catch(err => {
         console.error("[Coding] Load session failed:", err);
-        message.error("会话恢复失败: " + (err?.message || "未知错误"));
-        // 加载失败后，如果没有其他活跃会话，重置标记以允许自动创建
-        autoCreatedRef.current = false;
+        message.warning("会话已过期，请选择其他会话或创建新会话");
       });
     },
     [isConnected, config, handleConnect, session, dispatch]

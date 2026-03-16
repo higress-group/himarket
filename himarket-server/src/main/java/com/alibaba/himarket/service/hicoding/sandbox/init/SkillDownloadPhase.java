@@ -4,6 +4,8 @@ import com.alibaba.himarket.service.hicoding.sandbox.ExecResult;
 import com.alibaba.himarket.service.hicoding.sandbox.SandboxInfo;
 import com.alibaba.himarket.service.hicoding.sandbox.SandboxProvider;
 import com.alibaba.himarket.service.hicoding.session.ResolvedSessionConfig;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -149,10 +151,20 @@ public class SkillDownloadPhase implements InitPhase {
         if (cleaned.startsWith("./")) {
             cleaned = cleaned.substring(2);
         } else if (cleaned.startsWith("/")) {
-            return cleaned;
+            Path normalized = Paths.get(cleaned).normalize();
+            if (!normalized.startsWith(Paths.get(workspacePath).normalize())) {
+                throw new SecurityException("路径越界: " + relativePath);
+            }
+            return normalized.toString();
         }
-        return workspacePath.endsWith("/")
-                ? workspacePath + cleaned
-                : workspacePath + "/" + cleaned;
+        String full =
+                workspacePath.endsWith("/")
+                        ? workspacePath + cleaned
+                        : workspacePath + "/" + cleaned;
+        Path normalized = Paths.get(full).normalize();
+        if (!normalized.startsWith(Paths.get(workspacePath).normalize())) {
+            throw new SecurityException("路径越界: " + relativePath);
+        }
+        return normalized.toString();
     }
 }

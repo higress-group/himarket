@@ -99,9 +99,7 @@ async function gracefulShutdown() {
       clearTimeout(session.detachTimer);
       session.detachTimer = null;
     }
-    if (session.outputBuffer) {
-      session.outputBuffer.clear();
-    }
+    session.outputBuffer.clear();
     killPromises.push(killSessionProcess(session));
   }
 

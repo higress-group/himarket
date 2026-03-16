@@ -26,7 +26,7 @@ public class WebSocketPingScheduler {
 
     private final ScheduledExecutorService scheduler =
             Executors.newScheduledThreadPool(
-                    1,
+                    2,
                     r -> {
                         Thread t = new Thread(r, "ws-ping-scheduler");
                         t.setDaemon(true);

@@ -817,8 +817,24 @@ function handleSessionUpdate(
       });
     }
 
-    case "user_message_chunk":
-      return state;
+    case "user_message_chunk": {
+      // session/load 回放历史时，sidecar 会重播 user_message_chunk；
+      // 仅当会话处于 isLoading 状态时才追加（正常对话中用户消息已由 PROMPT_STARTED 添加）。
+      const session = state.sessions[sessionId];
+      if (!session || !session.isLoading) return state;
+
+      const userContent =
+        "content" in update.update
+          ? (update.update as { content?: ContentBlock }).content
+          : undefined;
+      const userText = extractTextFromContentBlock(userContent);
+      if (!userText) return state;
+
+      return updateSessionById(state, sessionId, s => ({
+        ...s,
+        messages: [...s.messages, { type: "user" as const, id: chatItemId(), text: userText }],
+      }));
+    }
 
     case "tool_call": {
       const u = update.update as {

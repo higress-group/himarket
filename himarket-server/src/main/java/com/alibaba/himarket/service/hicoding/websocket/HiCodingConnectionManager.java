@@ -5,9 +5,14 @@ import com.alibaba.himarket.service.hicoding.runtime.RemoteRuntimeAdapter;
 import com.alibaba.himarket.service.hicoding.runtime.RuntimeAdapter;
 import com.alibaba.himarket.service.hicoding.runtime.RuntimeConfig;
 import com.alibaba.himarket.service.hicoding.sandbox.SandboxType;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -36,6 +41,7 @@ import reactor.core.Disposable;
 public class HiCodingConnectionManager {
 
     private static final Logger logger = LoggerFactory.getLogger(HiCodingConnectionManager.class);
+    private static final long DETACH_TTL_MILLIS = 10 * 60 * 1000L; // 10 分钟
 
     private final ConcurrentHashMap<String, RuntimeAdapter> runtimeMap = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Disposable> subscriptionMap = new ConcurrentHashMap<>();
@@ -50,6 +56,15 @@ public class HiCodingConnectionManager {
     /** userId → 已 detach 但可 reattach 的会话信息。 */
     private final ConcurrentHashMap<String, DetachedSessionInfo> detachedSessionMap =
             new ConcurrentHashMap<>();
+
+    /** 定期清理过期 detached 会话的调度器。 */
+    private final ScheduledExecutorService cleanupScheduler =
+            Executors.newSingleThreadScheduledExecutor(
+                    r -> {
+                        Thread t = new Thread(r, "detach-cleanup");
+                        t.setDaemon(true);
+                        return t;
+                    });
 
     /**
      * 延迟初始化上下文：当 WebSocket 握手时 URL 中没有 cliSessionConfig， 等待前端通过 session/config
@@ -68,7 +83,39 @@ public class HiCodingConnectionManager {
      * 查找并 reattach。
      */
     public record DetachedSessionInfo(
-            String sidecarSessionId, RuntimeAdapter adapter, String cwd, String sandboxMode) {}
+            String sidecarSessionId,
+            RuntimeAdapter adapter,
+            String cwd,
+            String sandboxMode,
+            long detachedAtMillis) {}
+
+    @PostConstruct
+    void startCleanup() {
+        cleanupScheduler.scheduleAtFixedRate(
+                this::cleanupExpiredDetachedSessions, 1, 1, TimeUnit.MINUTES);
+    }
+
+    @PreDestroy
+    void shutdown() {
+        cleanupScheduler.shutdownNow();
+    }
+
+    private void cleanupExpiredDetachedSessions() {
+        long now = System.currentTimeMillis();
+        detachedSessionMap.forEach(
+                (userId, info) -> {
+                    if (now - info.detachedAtMillis() > DETACH_TTL_MILLIS) {
+                        DetachedSessionInfo removed = detachedSessionMap.remove(userId);
+                        if (removed != null && removed.adapter() != null) {
+                            removed.adapter().close();
+                            logger.info(
+                                    "Cleaned up expired detached session: userId={}, age={}s",
+                                    userId,
+                                    (now - removed.detachedAtMillis()) / 1000);
+                        }
+                    }
+                });
+    }
 
     /**
      * 注册新连接。在 WebSocket 连接建立时调用，初始化该 session 的所有状态映射。
@@ -135,7 +182,8 @@ public class HiCodingConnectionManager {
                             remoteAdapter.getSidecarSessionId(),
                             runtime,
                             cwd,
-                            sandboxMode != null ? sandboxMode : ""));
+                            sandboxMode != null ? sandboxMode : "",
+                            System.currentTimeMillis()));
             logger.info(
                     "Session detached for userId={}, sidecarSessionId={}",
                     userId,

@@ -1,7 +1,8 @@
 import crypto from 'node:crypto';
 import fsSync from 'node:fs';
-import { WORKSPACE_ROOT } from '../config.js';
-import { sessions } from '../lib/session.js';
+import { WORKSPACE_ROOT, OUTPUT_BUFFER_MAX_BYTES } from '../config.js';
+import { RingBuffer } from '../lib/ring-buffer.js';
+import { sessions, destroySession } from '../lib/session.js';
 
 // ---------------------------------------------------------------------------
 // node-pty 可选导入
@@ -71,13 +72,19 @@ export function handleTerminalUpgrade(wss, req, socket, head, url) {
       return;
     }
 
+    const now = new Date();
     const session = {
       id: sessionId,
+      state: 'attached',
       ws,
       process: shell,
       command: '/bin/sh',
       args: ['-l'],
-      createdAt: new Date(),
+      cwd,
+      createdAt: now,
+      lastActivityAt: now,
+      outputBuffer: new RingBuffer(OUTPUT_BUFFER_MAX_BYTES),
+      detachTimer: null,
     };
     sessions.set(sessionId, session);
 
@@ -96,7 +103,7 @@ export function handleTerminalUpgrade(wss, req, socket, head, url) {
         ws.close(1000, `Shell exited with code ${exitCode}`);
       }
       session.process = null;
-      sessions.delete(sessionId);
+      destroySession(sessionId, `Shell exited with code ${exitCode}`);
     });
 
     // WebSocket -> PTY stdin / resize
@@ -125,7 +132,7 @@ export function handleTerminalUpgrade(wss, req, socket, head, url) {
       if (session.process) {
         shell.kill();
       }
-      sessions.delete(sessionId);
+      destroySession(sessionId, 'WebSocket closed');
     });
 
     ws.on('error', (err) => {

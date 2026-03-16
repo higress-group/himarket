@@ -299,21 +299,22 @@ public class RemoteRuntimeAdapter implements RuntimeAdapter {
                                                                 String text =
                                                                         msg.getPayloadAsText();
 
-                                                                // 拦截 sidecar 控制消息
-                                                                if (isControlMessage(text)) {
-                                                                    handleControlMessage(text);
-                                                                    return;
+                                                                // Sidecar 可能在单个 WebSocket
+                                                                // 帧中发送多条 JSONL
+                                                                // 消息（换行分隔），
+                                                                // 需逐行拆分后分别处理，
+                                                                // 否则前端 JSON.parse 会失败
+                                                                if (text.indexOf('\n') < 0) {
+                                                                    processReceivedLine(text);
+                                                                } else {
+                                                                    for (String line :
+                                                                            text.split("\n")) {
+                                                                        if (!line.isBlank()) {
+                                                                            processReceivedLine(
+                                                                                    line);
+                                                                        }
+                                                                    }
                                                                 }
-
-                                                                logger.info(
-                                                                        "[WS-Remote] Received: {}",
-                                                                        text.length() > 300
-                                                                                ? text.substring(
-                                                                                                0,
-                                                                                                300)
-                                                                                        + "..."
-                                                                                : text);
-                                                                stdoutSink.tryEmitNext(text);
                                                             })
                                                     .doOnError(
                                                             err -> {
@@ -354,6 +355,11 @@ public class RemoteRuntimeAdapter implements RuntimeAdapter {
                                                                             + " completed (sidecar"
                                                                             + " closed)");
                                                                 status = RuntimeStatus.ERROR;
+                                                                notifyFault(
+                                                                        RuntimeFaultNotification
+                                                                                .FAULT_CONNECTION_LOST,
+                                                                        RuntimeFaultNotification
+                                                                                .ACTION_RECONNECT);
                                                             })
                                                     .then();
 
@@ -367,14 +373,7 @@ public class RemoteRuntimeAdapter implements RuntimeAdapter {
                                                                                     "[WS-Remote]"
                                                                                         + " Sending:"
                                                                                         + " {}",
-                                                                                    msg.length()
-                                                                                                    > 300
-                                                                                            ? msg
-                                                                                                            .substring(
-                                                                                                                    0,
-                                                                                                                    300)
-                                                                                                    + "..."
-                                                                                            : msg))
+                                                                                    msg))
                                                             .map(session::textMessage));
 
                                     connectedLatch.countDown();
@@ -403,6 +402,18 @@ public class RemoteRuntimeAdapter implements RuntimeAdapter {
                     "Failed to establish WebSocket connection to sidecar at " + wsUri);
         }
         logger.info("WebSocket connected to remote sidecar: {}", wsUri);
+    }
+
+    /**
+     * 处理单条接收到的消息行：拦截控制消息或转发到 stdoutSink。
+     */
+    private void processReceivedLine(String line) {
+        if (isControlMessage(line)) {
+            handleControlMessage(line);
+            return;
+        }
+        logger.info("[WS-Remote] Received: {}", line);
+        stdoutSink.tryEmitNext(line);
     }
 
     /**
