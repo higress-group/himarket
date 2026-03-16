@@ -61,7 +61,6 @@ public abstract class AbstractLlmService implements LlmService {
 
         try {
             LlmChatRequest request = composeRequest(param);
-            //            request.tryResolveDns();
 
             Model chatModel = newChatModel(request);
             ChatBot chatBot = chatBotManager.getOrCreateChatBot(request, chatModel);
@@ -176,7 +175,7 @@ public abstract class AbstractLlmService implements LlmService {
                         .orElseGet(() -> ModelFeature.builder().build());
 
         return ModelFeature.builder()
-                .model(StrUtil.blankToDefault(modelFeature.getModel(), "qwen-max"))
+                .model(modelFeature.getModel())
                 .maxTokens(ObjectUtil.defaultIfNull(modelFeature.getMaxTokens(), 5000))
                 .temperature(ObjectUtil.defaultIfNull(modelFeature.getTemperature(), 0.9))
                 .streaming(ObjectUtil.defaultIfNull(modelFeature.getStreaming(), true))

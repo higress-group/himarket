@@ -72,9 +72,12 @@ HIGRESS_REPO_NAME="${HIGRESS_REPO_NAME:-higress.io}"
 HIGRESS_REPO_URL="${HIGRESS_REPO_URL:-https://higress.cn/helm-charts}"
 HIGRESS_CHART_REF="${HIGRESS_CHART_REF:-higress.io/higress}"
 
-NACOS_REPO_NAME="${NACOS_REPO_NAME:-ygqygq2}"
-NACOS_REPO_URL="${NACOS_REPO_URL:-https://ygqygq2.github.io/charts/}"
-NACOS_CHART_REF="${NACOS_CHART_REF:-ygqygq2/nacos}"
+# Nacos 本地 Chart 路径
+NACOS_CHART_PATH="${PROJECT_ROOT}/charts/nacos"
+NACOS_INIT_DB_SCRIPT="${NACOS_CHART_PATH}/init-db.sh"
+
+# Nacos 数据库名（可在 .env 中覆盖，默认 nacos）
+NACOS_DB_NAME="${NACOS_DB_NAME:-nacos}"
 
 # Nacos 版本号（可在 .env 中覆盖）
 NACOS_VERSION="${NACOS_VERSION}"
@@ -82,17 +85,11 @@ NACOS_VERSION="${NACOS_VERSION}"
 # Nacos 镜像配置（可在 .env 中覆盖）
 NACOS_IMAGE_REGISTRY="${NACOS_IMAGE_REGISTRY:-}"
 NACOS_IMAGE_REPOSITORY="${NACOS_IMAGE_REPOSITORY:-}"
-NACOS_PLUGIN_IMAGE_REGISTRY="${NACOS_PLUGIN_IMAGE_REGISTRY:-}"
-NACOS_PLUGIN_IMAGE_REPOSITORY="${NACOS_PLUGIN_IMAGE_REPOSITORY:-}"
-NACOS_PLUGIN_IMAGE_TAG="${NACOS_PLUGIN_IMAGE_TAG:-}"
-NACOS_INITDB_IMAGE_REGISTRY="${NACOS_INITDB_IMAGE_REGISTRY:-}"
-NACOS_INITDB_IMAGE_REPOSITORY="${NACOS_INITDB_IMAGE_REPOSITORY:-}"
-NACOS_INITDB_IMAGE_TAG="${NACOS_INITDB_IMAGE_TAG:-}"
 
-# Nacos MySQL 镜像配置（可在 .env 中覆盖）
-NACOS_MYSQL_IMAGE_REGISTRY="${NACOS_MYSQL_IMAGE_REGISTRY:-}"
-NACOS_MYSQL_IMAGE_REPOSITORY="${NACOS_MYSQL_IMAGE_REPOSITORY:-}"
-NACOS_MYSQL_IMAGE_TAG="${NACOS_MYSQL_IMAGE_TAG:-}"
+# Nacos Auth 配置（可在 .env 中覆盖，不设置则使用 Helm values.yaml 默认值）
+NACOS_AUTH_IDENTITY_KEY="${NACOS_AUTH_IDENTITY_KEY:-}"
+NACOS_AUTH_IDENTITY_VALUE="${NACOS_AUTH_IDENTITY_VALUE:-}"
+NACOS_AUTH_TOKEN="${NACOS_AUTH_TOKEN:-}"
 
 # Higress Console 用户名密码（可在 .env 中覆盖）
 HIGRESS_USERNAME="${HIGRESS_USERNAME:-admin}"
@@ -325,9 +322,7 @@ cluster_preflight() {
 
 add_repos() {
   helm repo add "$HIGRESS_REPO_NAME" "$HIGRESS_REPO_URL"
-  helm repo add "$NACOS_REPO_NAME" "$NACOS_REPO_URL"
   helm repo update "$HIGRESS_REPO_NAME"
-  helm repo update "$NACOS_REPO_NAME"
 }
 
 deploy_all() {
@@ -380,25 +375,49 @@ deploy_all() {
     log "商业化 Nacos 将在 post_ready 阶段进行初始化"
   else
     log "部署开源 Nacos..."
+
+    # 复用 HiMarket 数据库连接信息，仅库名不同
+    local nacos_db_host nacos_db_port nacos_db_user nacos_db_pass
+    if [[ "${HIMARKET_MYSQL_ENABLED}" == "true" ]]; then
+      nacos_db_host="mysql-headless-svc"
+      nacos_db_port="3306"
+      nacos_db_user="root"
+      nacos_db_pass=$(kubectl get secret mysql-secret -n "$NS" -o jsonpath='{.data.MYSQL_ROOT_PASSWORD}' 2>/dev/null | base64 -d 2>/dev/null || echo "")
+    else
+      nacos_db_host="${EXTERNAL_DB_HOST}"
+      nacos_db_port="${EXTERNAL_DB_PORT}"
+      nacos_db_user="${EXTERNAL_DB_USERNAME}"
+      nacos_db_pass="${EXTERNAL_DB_PASSWORD}"
+    fi
+
+    # 初始化 Nacos 数据库（建库 + 建表，幂等可重复执行）
+    log "初始化 Nacos 数据库: ${NACOS_DB_NAME}..."
+    if [[ -x "$NACOS_INIT_DB_SCRIPT" ]]; then
+      bash "$NACOS_INIT_DB_SCRIPT" \
+        -h "$nacos_db_host" \
+        -P "$nacos_db_port" \
+        -u "$nacos_db_user" \
+        -p "$nacos_db_pass" \
+        -d "$NACOS_DB_NAME"
+    else
+      log "警告：init-db.sh 不存在或不可执行，跳过数据库初始化: ${NACOS_INIT_DB_SCRIPT}"
+    fi
+
     local nacos_args=()
-    nacos_args+=("--set" "service.type=LoadBalancer")
-    nacos_args+=("--set" "mysql.enabled=true")
-    
-    [[ -n "${NACOS_MYSQL_IMAGE_REGISTRY}" ]] && nacos_args+=("--set" "mysql.image.registry=${NACOS_MYSQL_IMAGE_REGISTRY}")
-    [[ -n "${NACOS_MYSQL_IMAGE_REPOSITORY}" ]] && nacos_args+=("--set" "mysql.image.repository=${NACOS_MYSQL_IMAGE_REPOSITORY}")
-    [[ -n "${NACOS_MYSQL_IMAGE_TAG}" ]] && nacos_args+=("--set" "mysql.image.tag=${NACOS_MYSQL_IMAGE_TAG}")
+    nacos_args+=("--set" "database.host=${nacos_db_host}")
+    nacos_args+=("--set" "database.port=${nacos_db_port}")
+    nacos_args+=("--set" "database.name=${NACOS_DB_NAME}")
+    nacos_args+=("--set" "database.username=${nacos_db_user}")
+    nacos_args+=("--set" "database.password=${nacos_db_pass}")
     [[ -n "${NACOS_IMAGE_REGISTRY}" ]] && nacos_args+=("--set" "image.registry=${NACOS_IMAGE_REGISTRY}")
     [[ -n "${NACOS_IMAGE_REPOSITORY}" ]] && nacos_args+=("--set" "image.repository=${NACOS_IMAGE_REPOSITORY}")
     [[ -n "${NACOS_VERSION}" ]] && nacos_args+=("--set" "image.tag=${NACOS_VERSION}")
-    [[ -n "${NACOS_PLUGIN_IMAGE_REGISTRY}" ]] && nacos_args+=("--set" "plugin.image.registry=${NACOS_PLUGIN_IMAGE_REGISTRY}")
-    [[ -n "${NACOS_PLUGIN_IMAGE_REPOSITORY}" ]] && nacos_args+=("--set" "plugin.image.repository=${NACOS_PLUGIN_IMAGE_REPOSITORY}")
-    [[ -n "${NACOS_PLUGIN_IMAGE_TAG}" ]] && nacos_args+=("--set" "plugin.image.tag=${NACOS_PLUGIN_IMAGE_TAG}")
-    [[ -n "${NACOS_INITDB_IMAGE_REGISTRY}" ]] && nacos_args+=("--set" "initDB.image.registry=${NACOS_INITDB_IMAGE_REGISTRY}")
-    [[ -n "${NACOS_INITDB_IMAGE_REPOSITORY}" ]] && nacos_args+=("--set" "initDB.image.repository=${NACOS_INITDB_IMAGE_REPOSITORY}")
-    [[ -n "${NACOS_INITDB_IMAGE_TAG}" ]] && nacos_args+=("--set" "initDB.image.tag=${NACOS_INITDB_IMAGE_TAG}")
-    
-    helm_upsert "nacos" "$NS" "$NACOS_CHART_REF" "${nacos_args[@]}"
-    wait_rollout "$NS" "statefulset" "nacos" 900
+    [[ -n "${NACOS_AUTH_IDENTITY_KEY}" ]] && nacos_args+=("--set" "auth.identityKey=${NACOS_AUTH_IDENTITY_KEY}")
+    [[ -n "${NACOS_AUTH_IDENTITY_VALUE}" ]] && nacos_args+=("--set" "auth.identityValue=${NACOS_AUTH_IDENTITY_VALUE}")
+    [[ -n "${NACOS_AUTH_TOKEN}" ]] && nacos_args+=("--set" "auth.token=${NACOS_AUTH_TOKEN}")
+
+    helm_upsert "nacos" "$NS" "$NACOS_CHART_PATH" "${nacos_args[@]}"
+    wait_rollout "$NS" "deployment" "nacos" 900
   fi
 
   # 3) 部署 Higress（根据开关决定是否部署）

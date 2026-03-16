@@ -173,4 +173,14 @@ public class ProductController {
     public McpToolListResult listMcpTools(@PathVariable String productId) {
         return productService.listMcpTools(productId);
     }
+
+    @Operation(summary = "更新 Skill 的 Nacos 关联")
+    @PutMapping("/{productId}/skill-nacos")
+    @AdminAuth
+    public void updateSkillNacos(
+            @PathVariable String productId,
+            @RequestBody @Valid
+                    com.alibaba.himarket.dto.params.product.UpdateSkillNacosParam param) {
+        productService.updateSkillNacos(productId, param.getNacosId(), param.getNamespace());
+    }
 }

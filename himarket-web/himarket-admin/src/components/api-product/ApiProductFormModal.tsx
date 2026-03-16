@@ -17,6 +17,7 @@ import { getProductCategories } from "@/lib/productCategoryApi";
 import type { ApiProduct } from "@/types/api-product";
 import type { ProductCategory } from "@/types/product-category";
 import ModelFeatureForm from "./ModelFeatureForm";
+import SkillConfigForm from "./SkillConfigForm";
 
 interface ApiProductFormModalProps {
   visible: boolean;
@@ -71,6 +72,7 @@ export default function ApiProductFormModal({
         type: initialData.type,
         autoApprove: initialData.autoApprove,
             feature: initialData.feature,
+            skillConfig: initialData.skillConfig,
           });
         }, 300);
 
@@ -198,6 +200,7 @@ export default function ApiProductFormModal({
 
       const { icon, iconUrl, categories, ...otherValues } = values;
 
+
       if (isEditMode) {
         let params = { ...otherValues };
         
@@ -279,13 +282,15 @@ export default function ApiProductFormModal({
           <Input placeholder="请输入API Product名称" />
         </Form.Item>
 
-        <Form.Item
-          label="描述"
-          name="description"
-          rules={[{ required: true, message: "请输入描述" }]}
-        >
-          <Input.TextArea placeholder="请输入描述" rows={3} />
-        </Form.Item>
+        {productType !== 'AGENT_SKILL' && (
+          <Form.Item
+            label="描述"
+            name="description"
+            rules={[{ required: true, message: "请输入描述" }]}
+          >
+            <Input.TextArea placeholder="请输入描述" rows={3} />
+          </Form.Item>
+        )}
 
         <Form.Item
           label="类型"
@@ -298,10 +303,11 @@ export default function ApiProductFormModal({
               form.setFieldValue('feature', undefined);
             }}
           >
-            <Select.Option value="REST_API">REST API</Select.Option>
-            <Select.Option value="MCP_SERVER">MCP Server</Select.Option>
-            <Select.Option value="AGENT_API">Agent API</Select.Option>
             <Select.Option value="MODEL_API">Model API</Select.Option>
+            <Select.Option value="MCP_SERVER">MCP Server</Select.Option>
+            <Select.Option value="AGENT_SKILL">Agent Skill</Select.Option>
+            <Select.Option value="AGENT_API">Agent API</Select.Option>
+            <Select.Option value="REST_API">REST API</Select.Option>
           </Select>
         </Form.Item>
 
@@ -341,7 +347,7 @@ export default function ApiProductFormModal({
           </Select>
         </Form.Item>
 
-        <Form.Item
+        {productType !== 'AGENT_SKILL' && <Form.Item
           label="自动审批订阅"
           name="autoApprove"
           tooltip={{
@@ -371,9 +377,9 @@ export default function ApiProductFormModal({
           valuePropName="checked"
         >
           <Switch />
-        </Form.Item>
+        </Form.Item>}
 
-        <Form.Item label="Icon设置" style={{ marginBottom: '16px' }}>
+        {productType !== 'AGENT_SKILL' && <Form.Item label="Icon设置" style={{ marginBottom: '16px' }}>
           <Space direction="vertical" style={{ width: '100%' }}>
             <Radio.Group 
               value={iconMode} 
@@ -492,7 +498,7 @@ export default function ApiProductFormModal({
               </Form.Item>
             )}
           </Space>
-        </Form.Item>
+        </Form.Item>}
 
         {/* 图片预览弹窗 */}
         {previewImage && (
@@ -510,7 +516,8 @@ export default function ApiProductFormModal({
         )}
 
         {/* Feature Configuration */}
-        {productType === 'MODEL_API' && <ModelFeatureForm initialExpanded={isEditMode && !!initialData?.feature} />}
+        {productType === 'MODEL_API' && <ModelFeatureForm />}
+        {productType === 'AGENT_SKILL' && <SkillConfigForm />}
       </Form>
     </Modal>
   );

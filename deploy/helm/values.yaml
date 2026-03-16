@@ -92,3 +92,25 @@ resources:
   requests:
     cpu: 1
     memory: 1000Mi
+
+# 共享沙箱配置
+sandbox:
+  enabled: true
+  image:
+    repository: sandbox
+    tag: "latest"
+    pullPolicy: Always
+  resources:
+    requests:
+      cpu: "1"
+      memory: "1Gi"
+    limits:
+      cpu: "4"
+      memory: "8Gi"
+  allowedCommands: "qodercli,qwen,claude-agent-acp,opencode"
+  # 工作空间持久化配置
+  persistence:
+    enabled: true
+    storageClass: "alicloud-disk-essd"  # 根据实际环境调整
+    size: 50Gi
+    accessMode: ReadWriteOnce

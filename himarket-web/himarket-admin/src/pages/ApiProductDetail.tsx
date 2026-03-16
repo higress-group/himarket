@@ -7,19 +7,22 @@ import {
   EyeOutlined,
   LinkOutlined,
   BookOutlined,
-  GlobalOutlined
+  GlobalOutlined,
+  InboxOutlined
 } from '@ant-design/icons'
 import { ApiProductOverview } from '@/components/api-product/ApiProductOverview'
 import { ApiProductLinkApi } from '@/components/api-product/ApiProductLinkApi'
 import { ApiProductUsageGuide } from '@/components/api-product/ApiProductUsageGuide'
 import { ApiProductPortal } from '@/components/api-product/ApiProductPortal'
+import { ApiProductSkillPackage } from '@/components/api-product/ApiProductSkillPackage'
+import { ApiProductLinkNacos } from '@/components/api-product/ApiProductLinkNacos'
 // import { ApiProductDashboard } from '@/components/api-product/ApiProductDashboard'
 import { apiProductApi } from '@/lib/api';
 import type { ApiProduct, LinkedService } from '@/types/api-product';
 
 import ApiProductFormModal from '@/components/api-product/ApiProductFormModal';
 
-const menuItems = [
+const BASE_MENU_ITEMS = [
   {
     key: "overview",
     label: "Overview",
@@ -44,12 +47,6 @@ const menuItems = [
     description: "发布的门户",
     icon: GlobalOutlined
   },
-  // {
-  //   key: "dashboard",
-  //   label: "Dashboard",
-  //   description: "实时监控和统计",
-  //   icon: DashboardOutlined
-  // }
 ]
 
 export default function ApiProductDetail() {
@@ -59,6 +56,16 @@ export default function ApiProductDetail() {
   const [linkedService, setLinkedService] = useState<LinkedService | null>(null)
   const [, setLoading] = useState(true) // 添加 loading 状态
   
+  // 动态计算 menuItems（AGENT_SKILL 类型：隐藏 Link API 和 Usage Guide，插入 Skill Package 和 Link Nacos）
+  const menuItems = apiProduct?.type === 'AGENT_SKILL'
+    ? [
+        BASE_MENU_ITEMS[0], // overview
+        { key: 'skill-package', label: 'Skill Package', description: '技能包管理', icon: InboxOutlined },
+        { key: 'link-nacos', label: 'Link Nacos', description: 'Nacos 关联', icon: LinkOutlined },
+        BASE_MENU_ITEMS[3], // portal（跳过 link-api 和 usage-guide）
+      ]
+    : BASE_MENU_ITEMS;
+
   // 从URL query参数获取当前tab，默认为overview
   const currentTab = searchParams.get('tab') || 'overview'
   // 验证tab值是否有效，如果无效则使用默认值
@@ -100,8 +107,10 @@ export default function ApiProductDetail() {
 
   // 同步URL参数和activeTab状态
   useEffect(() => {
-    setActiveTab(validTab)
-  }, [validTab, searchParams])
+    const currentTab = searchParams.get('tab') || 'overview'
+    const valid = menuItems.some(item => item.key === currentTab) ? currentTab : 'overview'
+    setActiveTab(valid)
+  }, [searchParams, apiProduct])
 
   const handleBackToApiProducts = () => {
     navigate('/api-products')
@@ -134,6 +143,10 @@ export default function ApiProductDetail() {
         return <ApiProductUsageGuide apiProduct={apiProduct} handleRefresh={fetchApiProduct} />
       case "portal":
         return <ApiProductPortal apiProduct={apiProduct} />
+      case "skill-package":
+        return <ApiProductSkillPackage apiProduct={apiProduct} onUploadSuccess={fetchApiProduct} />
+      case "link-nacos":
+        return <ApiProductLinkNacos apiProduct={apiProduct} handleRefresh={fetchApiProduct} />
       // case "dashboard":
       //   return <ApiProductDashboard apiProduct={apiProduct} />
       default:
@@ -201,16 +214,20 @@ export default function ApiProductDetail() {
         {/* API Product 信息 */}
         <div className="p-4 border-b">
           <div className="flex items-center justify-between mb-2">
-            <h2 className="text-lg font-semibold">{apiProduct?.name || 'Loading...'}</h2>
+            {apiProduct ? (
+              <h2 className="text-lg font-semibold">{apiProduct.name}</h2>
+            ) : (
+              <div className="h-6 bg-gray-200 rounded animate-pulse w-32" />
+            )}
             <Dropdown menu={{ items: dropdownItems }} trigger={['click']}>
               <Button type="text" icon={<MoreOutlined />} />
             </Dropdown>
           </div>
         </div>
 
-        {/* 导航菜单 */}
+        {/* 导航菜单 - 等待产品数据加载后再渲染，避免菜单项闪烁 */}
         <nav className="flex-1 p-4 space-y-1">
-          {menuItems.map((item) => {
+          {apiProduct ? menuItems.map((item) => {
             const Icon = item.icon;
             return (
               <button
@@ -229,7 +246,19 @@ export default function ApiProductDetail() {
                 </div>
               </button>
             );
-          })}
+          }) : (
+            <div className="space-y-2">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="flex items-center gap-3 px-3 py-2">
+                  <div className="w-4 h-4 rounded bg-gray-200 animate-pulse flex-shrink-0" />
+                  <div className="flex-1 space-y-1">
+                    <div className="h-4 bg-gray-200 rounded animate-pulse w-20" />
+                    <div className="h-3 bg-gray-100 rounded animate-pulse w-14" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </nav>
       </div>
 

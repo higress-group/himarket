@@ -1,0 +1,19 @@
+spring:
+  datasource:
+    url: jdbc:h2:file:${H2_DB_PATH:${user.home}/.himarket/h2db};MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;AUTO_RECONNECT=TRUE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+  flyway:
+    enabled: false
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+app:
+  flyway:
+    enabled: false

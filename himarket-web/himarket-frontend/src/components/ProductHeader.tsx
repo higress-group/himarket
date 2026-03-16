@@ -18,7 +18,7 @@ interface ProductHeaderProps {
   mcpConfig?: IMCPConfig;
   agentConfig?: IAgentConfig;
   updatedAt?: string;
-  productType?: 'REST_API' | 'MCP_SERVER' | 'AGENT_API' | 'MODEL_API';
+  productType?: 'REST_API' | 'MCP_SERVER' | 'AGENT_API' | 'MODEL_API' | 'AGENT_SKILL';
 }
 
 type UnwrapPromise<T> = T extends Promise<infer U> ? U : T;

@@ -1,6 +1,9 @@
 import path from "path"
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
+import monacoEditorModule from 'vite-plugin-monaco-editor'
+
+const monacoEditor = (monacoEditorModule as any).default || monacoEditorModule
 
 // https://vite.dev/config/
 const env = loadEnv(process.env.NODE_ENV || 'development', process.cwd(), '')
@@ -12,7 +15,7 @@ export default defineConfig({
     babel: {
       plugins: ['babel-plugin-react-compiler']
     }
-  })],
+  }), monacoEditor({})],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
@@ -23,6 +26,16 @@ export default defineConfig({
     allowedHosts: true,
     port: 5173,
     proxy: {
+      '/ws/acp': {
+        target: tempApiUrl,
+        ws: true,
+        changeOrigin: true,
+      },
+      '/ws/terminal': {
+        target: tempApiUrl,
+        ws: true,
+        changeOrigin: true,
+      },
       [apiPrefix]: {
         target: tempApiUrl,
         changeOrigin: true,
@@ -34,9 +47,18 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
-    }
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-antd': ['antd', '@ant-design/icons'],
+          'vendor-markdown': ['react-markdown', 'remark-gfm', 'rehype-highlight', 'highlight.js'],
+          'vendor-swagger': ['swagger-ui-react'],
+          'vendor-xterm': ['@xterm/xterm', '@xterm/addon-fit'],
+        },
+      },
+    },
   },
   define: {
     'process.env': {}
-  }
+  },
 })

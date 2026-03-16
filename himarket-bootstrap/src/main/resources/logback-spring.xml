@@ -29,10 +29,18 @@
         </appender>
     </springProfile>
 
-    <!-- Default: console only (local environment) -->
+    <!-- Default: console + file (local environment) -->
     <springProfile name="!prod">
+        <appender name="LOCAL_FILE" class="ch.qos.logback.core.FileAppender">
+            <file>${user.home}/himarket.log</file>
+            <encoder>
+                <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n</pattern>
+                <charset>UTF-8</charset>
+            </encoder>
+        </appender>
         <root level="INFO">
             <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="LOCAL_FILE"/>
         </root>
     </springProfile>
 
@@ -52,5 +60,8 @@
     <logger name="org.hibernate" level="INFO"/>
     <logger name="org.hibernate.SQL" level="INFO"/>
     <logger name="org.hibernate.type.descriptor.sql.BasicBinder" level="INFO"/>
+
+    <!-- Suppress repetitive K8s config file warning -->
+    <logger name="io.fabric8.kubernetes.client.Config" level="ERROR"/>
 
 </configuration>

@@ -38,7 +38,51 @@ springdoc:
 
 jwt:
   secret: YourJWTSecret
-  expiration: 2h
+  expiration: 7d
+
+acp:
+  default-provider: ${ACP_DEFAULT_PROVIDER:qwen-code}
+  default-runtime: ${ACP_DEFAULT_RUNTIME:remote}
+  remote:
+    host: ${ACP_REMOTE_HOST:sandbox-shared}
+    port: ${ACP_REMOTE_PORT:8080}
+  providers:
+    qwen-code:
+      display-name: Qwen Code
+      command: ${ACP_CLI_COMMAND_QWEN:qwen}
+      args: ${ACP_CLI_ARGS_QWEN:--acp}
+      compatible-runtimes:
+        - REMOTE
+      supports-custom-model: true
+      supports-mcp: true
+      supports-skill: true
+    qodercli:
+      display-name: Qoder CLI
+      command: ${ACP_CLI_COMMAND_QODERCLI:qodercli}
+      args: ${ACP_CLI_ARGS_QODERCLI:--acp}
+      compatible-runtimes:
+        - REMOTE
+      auth-options: default,personal_access_token
+      auth-env-var: QODER_PERSONAL_ACCESS_TOKEN
+    claude-code:
+      display-name: Claude Code
+      command: ${ACP_CLI_COMMAND_CLAUDE:claude-agent-acp}
+      args: ${ACP_CLI_ARGS_CLAUDE:}
+      compatible-runtimes:
+        - REMOTE
+      auth-env-var: ANTHROPIC_API_KEY
+      supports-custom-model: true
+      supports-mcp: true
+      supports-skill: true
+    opencode:
+      display-name: OpenCode
+      command: ${ACP_CLI_COMMAND_OPENCODE:opencode}
+      args: ${ACP_CLI_ARGS_OPENCODE:acp}
+      compatible-runtimes:
+        - REMOTE
+      supports-custom-model: true
+      supports-mcp: true
+      supports-skill: true
 
 sls:
   # SLS服务端点（必填）

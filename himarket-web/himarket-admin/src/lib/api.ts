@@ -191,7 +191,15 @@ export const apiProductApi = {
   // 获取产品关联的类别
   getProductCategories: (productId: string) => {
     return api.get(`/products/${productId}/categories`)
-  }
+  },
+  // 更新 Skill 的 Nacos 关联
+  updateSkillNacos: (productId: string, data: { nacosId: string; namespace: string }) => {
+    return api.put(`/products/${productId}/skill-nacos`, data)
+  },
+  // 获取产品的订阅列表
+  getProductSubscriptions: (productId: string, params?: { page?: number; size?: number; status?: string }) => {
+    return api.get(`/products/${productId}/subscriptions`, { params })
+  },
 }
 
 // Gateway相关API
@@ -289,5 +297,32 @@ export const nacosApi = {
   // 获取指定 Nacos 实例的命名空间列表
   getNamespaces: (nacosId: string, params?: { page?: number; size?: number }) => {
     return api.get(`/nacos/${nacosId}/namespaces`, { params })
-  }
+  },
+  // 获取默认 Nacos 实例
+  getDefaultNacos: () => {
+    return api.get(`/nacos/default`)
+  },
+  // 设置默认 Nacos 实例
+  setDefaultNacos: (nacosId: string) => {
+    return api.put(`/nacos/${nacosId}/default`)
+  },
+  // 设置默认命名空间
+  setDefaultNamespace: (nacosId: string, namespaceId: string) => {
+    return api.put(`/nacos/${nacosId}/default-namespace`, null, { params: { namespaceId } })
+  },
+}
+
+export const skillApi = {
+  uploadSkillPackage: (productId: string, file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api.post(`/skills/${productId}/package`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 60000,
+    })
+  },
+  getSkillFiles: (productId: string) => api.get(`/skills/${productId}/files`),
+  getSkillFileContent: (productId: string, filePath: string) =>
+    api.get(`/skills/${productId}/files/${filePath}`),
+
 }

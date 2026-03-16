@@ -67,4 +67,12 @@ public class NacosInstance extends BaseEntity {
 
     @Column(name = "description", length = 512)
     private String description;
+
+    @Column(name = "is_default", nullable = false)
+    @Builder.Default
+    private Boolean isDefault = false;
+
+    @Column(name = "default_namespace", length = 128, nullable = false)
+    @Builder.Default
+    private String defaultNamespace = "public";
 }

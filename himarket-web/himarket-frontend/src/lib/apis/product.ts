@@ -3,7 +3,7 @@
  */
 
 import request, { type RespI } from "../request";
-import type { IAgentConfig, IAPIConfig, IInputSchema, IMCPConfig, IModelConfig, IProductIcon } from "./typing";
+import type { IAgentConfig, IAPIConfig, IInputSchema, IMCPConfig, IModelConfig, IProductIcon, ISkillConfig } from "./typing";
 
 export interface IProductDetail {
   productId: string;
@@ -32,6 +32,7 @@ export interface IProductDetail {
   agentConfig: IAgentConfig;
   mcpConfig: IMCPConfig;
   modelConfig?: IModelConfig;
+  skillConfig?: ISkillConfig;
   enabled: boolean;
   feature?: {
     modelFeature: {

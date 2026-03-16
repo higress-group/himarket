@@ -31,7 +31,7 @@ services:
 
   # Nacos Server - 仅在未启用商业化 Nacos 时部署
   nacos:
-    image: ${NACOS_IMAGE:-nacos-registry.cn-hangzhou.cr.aliyuncs.com/nacos/nacos-server:v3.1.1}
+    image: ${NACOS_IMAGE:-nacos-registry.cn-hangzhou.cr.aliyuncs.com/nacos/nacos-server:v3.2.0-BETA}
     container_name: nacos-standalone
     environment:
       - PREFER_HOST_MODE=hostname
@@ -91,6 +91,18 @@ services:
     profiles:
       - higress-gateway
 
+  # Sandbox Shared (远程沙箱)
+  sandbox-shared:
+    image: ${SANDBOX_IMAGE:-opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/sandbox:latest}
+    container_name: sandbox-shared
+    environment:
+      - ALLOWED_COMMANDS=${SANDBOX_ALLOWED_COMMANDS:-qodercli,qwen,claude-agent-acp,opencode}
+    volumes:
+      - ./data/sandbox-workspace:/workspace
+    networks:
+      - himarket-network
+    restart: always
+
   # Himarket Server
   himarket-server:
     image: ${HIMARKET_SERVER_IMAGE:-opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-server:latest}
@@ -101,8 +113,13 @@ services:
       - DB_NAME=${DB_NAME:-portal_db}
       - DB_USERNAME=${DB_USERNAME:-portal_user}
       - DB_PASSWORD=${DB_PASSWORD:-portal_pass}
+      - ACP_REMOTE_HOST=${ACP_REMOTE_HOST:-sandbox-shared}
+      - ACP_REMOTE_PORT=${ACP_REMOTE_PORT:-8080}
+      - ACP_DEFAULT_RUNTIME=${ACP_DEFAULT_RUNTIME:-remote}
     ports:
       - "8081:8080"
+    depends_on:
+      - sandbox-shared
     networks:
       - himarket-network
     restart: always
@@ -134,3 +151,5 @@ services:
     networks:
       - himarket-network
     restart: always
+
+

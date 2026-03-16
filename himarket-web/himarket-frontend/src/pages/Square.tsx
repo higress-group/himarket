@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import { CategoryMenu } from "../components/square/CategoryMenu";
 import { ModelCard } from "../components/square/ModelCard";
+import { SkillCard } from "../components/square/SkillCard";
 import APIs, { type ICategory } from "../lib/apis";
 import { getIconString } from "../lib/iconUtils";
 import type { IProductDetail } from "../lib/apis/product";
@@ -154,8 +155,8 @@ function Square(props: { activeType: string }) {
   const filteredModels = products.filter((product) => {
     const matchesSearch =
       searchQuery === "" ||
-      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.description.toLowerCase().includes(searchQuery.toLowerCase());
+      product.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      product.description?.toLowerCase().includes(searchQuery.toLowerCase());
 
     return matchesSearch;
   });
@@ -179,6 +180,9 @@ function Square(props: { activeType: string }) {
         break;
       case "REST_API":
         navigate(`/apis/${product.productId}`);
+        break;
+      case "AGENT_SKILL":
+        navigate(`/skills/${product.productId}`);
         break;
       default:
         console.log("未知的产品类型", product.type);
@@ -234,15 +238,27 @@ function Square(props: { activeType: string }) {
                 <>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {filteredModels.map((product) => (
-                      <ModelCard
-                        key={product.productId}
-                        icon={getIconString(product.icon)}
-                        name={product.name}
-                        description={product.description}
-                        releaseDate={dayjs(product.createAt).format("YYYY-MM-DD HH:mm:ss")}
-                        onClick={() => handleViewDetail(product)}
-                        onTryNow={activeType === "MODEL_API" ? () => handleTryNow(product) : undefined}
-                      />
+                      product.type === 'AGENT_SKILL' ? (
+                        <SkillCard
+                          key={product.productId}
+                          name={product.name}
+                          description={product.description}
+                          releaseDate={dayjs(product.createAt).format("YYYY-MM-DD HH:mm:ss")}
+                          skillTags={product.skillConfig?.skillTags}
+                          downloadCount={product.skillConfig?.downloadCount}
+                          onClick={() => handleViewDetail(product)}
+                        />
+                      ) : (
+                        <ModelCard
+                          key={product.productId}
+                          icon={getIconString(product.icon)}
+                          name={product.name}
+                          description={product.description}
+                          releaseDate={dayjs(product.createAt).format("YYYY-MM-DD HH:mm:ss")}
+                          onClick={() => handleViewDetail(product)}
+                          onTryNow={activeType === "MODEL_API" ? () => handleTryNow(product) : undefined}
+                        />
+                      )
                     ))}
                     {!loading && filteredModels.length === 0 && (
                       <div className="col-span-full flex items-center justify-center py-20 text-gray-400">

@@ -41,4 +41,11 @@ public interface NacosInstanceRepository extends BaseRepository<NacosInstance, L
      * @return the Nacos instance if found
      */
     Optional<NacosInstance> findByNacosName(String nacosName);
+
+    /**
+     * Find the default Nacos instance
+     *
+     * @return the default Nacos instance if found
+     */
+    Optional<NacosInstance> findByIsDefaultTrue();
 }

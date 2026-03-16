@@ -34,6 +34,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 /**
  * Unified response wrapper
@@ -66,7 +67,8 @@ public class ResponseAdvice implements ResponseBodyAdvice<Object> {
         return !type.equals(ResponseEntity.class)
                 && !type.equals(Response.class)
                 && !type.equals(SseEmitter.class)
-                && !type.equals(Flux.class);
+                && !type.equals(Flux.class)
+                && !type.equals(Mono.class);
     }
 
     @Override

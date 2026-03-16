@@ -221,7 +221,7 @@ export function Sidebar({
             );
             antdMessage.success("删除成功");
 
-            // 如果删除的是当前选中的会话，触发新建会话
+            // 如果删除的是当前选中的会话，触发新会话
             if (currentSessionId === sessionId) {
               onNewChat();
             }

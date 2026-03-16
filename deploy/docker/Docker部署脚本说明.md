@@ -58,7 +58,7 @@ vi .env
 #### 1. 镜像配置
 ```bash
 # Nacos
-NACOS_IMAGE=nacos-registry.cn-hangzhou.cr.aliyuncs.com/nacos/nacos-server:v3.1.1-slim
+NACOS_IMAGE=nacos-registry.cn-hangzhou.cr.aliyuncs.com/nacos/nacos-server:v3.2.0-BETA-slim
 
 # Higress
 HIGRESS_IMAGE=higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/all-in-one:latest

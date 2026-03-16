@@ -1,0 +1,33 @@
+image:
+  registry: nacos-registry.cn-hangzhou.cr.aliyuncs.com
+  repository: nacos/nacos-server
+  tag: "v3.2.0-BETA"
+  pullPolicy: Always
+
+imagePullSecrets: []
+
+service:
+  type: LoadBalancer
+
+# 数据库连接（由 deploy.sh 通过 --set 注入，这里仅定义结构）
+database:
+  platform: "mysql"
+  host: ""
+  port: "3306"
+  name: "nacos"
+  username: ""
+  password: ""
+
+# Auth 凭证（提供开箱即用的默认值，生产环境务必通过 --set 覆盖）
+auth:
+  identityKey: "serverIdentity"
+  identityValue: "security"
+  token: "VGhpc0lzTXlDdXN0b21TZWNyZXRLZXkwMTIzNDU2Nzg="
+
+resources:
+  requests:
+    cpu: "500m"
+    memory: "1Gi"
+  limits:
+    cpu: "2"
+    memory: "4Gi"

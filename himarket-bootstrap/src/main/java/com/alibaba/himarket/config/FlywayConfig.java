@@ -24,12 +24,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.FlywayException;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 
 @Slf4j
 @Configuration
+@ConditionalOnProperty(name = "app.flyway.enabled", havingValue = "true", matchIfMissing = true)
 public class FlywayConfig {
 
     @Value("${app.flyway.auto-repair:true}")
