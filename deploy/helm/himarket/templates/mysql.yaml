@@ -1,0 +1,160 @@
+{{- $existingSecret := (lookup "v1" "Secret" .Release.Namespace "mysql-secret") }}
+{{- $rootPassword := "" }}
+{{- $userPassword := "" }}
+{{- if $existingSecret }}
+  {{- $rootPassword = (index $existingSecret.data "MYSQL_ROOT_PASSWORD" | b64dec) }}
+  {{- $userPassword = (index $existingSecret.data "MYSQL_PASSWORD" | b64dec) }}
+{{- else }}
+  {{- if .Values.mysql.auth.rootPassword }}
+    {{- $rootPassword = .Values.mysql.auth.rootPassword }}
+  {{- else }}
+    {{- $rootPassword = randAlphaNum 16 }}
+  {{- end }}
+  {{- if .Values.mysql.auth.password }}
+    {{- $userPassword = .Values.mysql.auth.password }}
+  {{- else }}
+    {{- $userPassword = randAlphaNum 16 }}
+  {{- end }}
+{{- end }}
+---
+# MySQL Secret: 存储敏感的数据库凭据（自动生成随机密码）
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mysql-secret
+type: Opaque
+stringData:
+  MYSQL_ROOT_PASSWORD: {{ $rootPassword | quote }}
+  MYSQL_ROOT_HOST: "%"
+  MYSQL_DATABASE: {{ .Values.mysql.auth.database | quote }}
+  MYSQL_USER: {{ .Values.mysql.auth.username | quote }}
+  MYSQL_PASSWORD: {{ $userPassword | quote }}
+
+---
+# Himarket Server Secret: 应用专用敏感配置（使用相同的密码）
+apiVersion: v1
+kind: Secret
+metadata:
+  name: himarket-server-secret
+  labels:
+    app: himarket-server
+type: Opaque
+stringData:
+  # 使用相同的 MySQL 密码变量，确保一致性
+  DB_HOST: "mysql-headless-svc"
+  DB_PORT: "3306"
+  DB_NAME: {{ .Values.mysql.auth.database | quote }}
+  DB_USERNAME: {{ .Values.mysql.auth.username | quote }}
+  DB_PASSWORD: {{ $userPassword | quote }}
+
+---
+# MySQL Headless Service: 为 StatefulSet 提供稳定的网络域
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-headless-svc
+spec:
+  ports:
+    - port: 3306
+      name: mysql
+  clusterIP: None
+  selector:
+    app: mysql
+
+---
+# MySQL External Service: 暴露数据库给外部访问（可选）
+{{- if .Values.mysql.service.external.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-external-svc
+spec:
+  type: {{ .Values.mysql.service.external.type }}
+  ports:
+    - port: 3306
+      targetPort: 3306
+      protocol: TCP
+  selector:
+    app: mysql
+{{- end }}
+
+---
+# MySQL StatefulSet: 部署 MySQL 应用
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql
+  labels:
+    app: mysql
+spec:
+  replicas: {{ .Values.mysql.replicaCount }}
+  selector:
+    matchLabels:
+      app: mysql
+  serviceName: "mysql-headless-svc"
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      serviceAccountName: {{ include "himarket.serviceAccountName" . }}
+      containers:
+        - name: mysql
+          image: "{{ .Values.hub }}/{{ .Values.mysql.image.repository }}:{{ .Values.mysql.image.tag }}"
+          imagePullPolicy: {{ .Values.mysql.image.pullPolicy }}
+          ports:
+            - containerPort: 3306
+              name: mysql
+          envFrom:
+            - secretRef:
+                name: mysql-secret
+          volumeMounts:
+            - name: mysql-data
+              mountPath: /var/lib/mysql
+          {{- with .Values.mysql.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          # 健康检查
+          livenessProbe:
+            exec:
+              command:
+                - mysqladmin
+                - ping
+                - -h
+                - localhost
+                - -u{{ .Values.mysql.auth.username }}
+                - -p{{ $userPassword }}
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+          readinessProbe:
+            exec:
+              command:
+                - mysql
+                - -h
+                - localhost
+                - -u{{ .Values.mysql.auth.username }}
+                - -p{{ $userPassword }}
+                - -e
+                - "SELECT 1"
+            initialDelaySeconds: 1
+            periodSeconds: 1
+            timeoutSeconds: 5
+
+  volumeClaimTemplates:
+    - metadata:
+        name: mysql-data
+      spec:
+        accessModes: 
+          - {{ .Values.mysql.persistence.accessMode }}
+        resources:
+          requests:
+            storage: {{ .Values.mysql.persistence.size }}
+        {{- if .Values.mysql.persistence.storageClass }}
+        {{- if (eq "-" .Values.mysql.persistence.storageClass) }}
+        storageClassName: ""
+        {{- else }}
+        storageClassName: {{ .Values.mysql.persistence.storageClass | quote }}
+        {{- end }}
+        {{- end }}
