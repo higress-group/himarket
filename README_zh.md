@@ -25,25 +25,30 @@
   </p>
 </div>
 
-## 目录
-
-- [HiMarket 是什么？](#himarket-是什么)
-- [系统架构](#系统架构)
-- [快速开始](#快速开始)
-- [文档](#文档)
-- [社区](#社区)
-- [贡献者](#贡献者)
-- [Star History](#star-history)
-
 ## HiMarket 是什么？
 
-HiMarket 是基于 Higress AI 网关构建的企业级 AI 开放平台，帮助企业构建私有 AI 能力市场，统一管理和分发 LLM、MCP Server、Agent、Agent Skill 等 AI 资源。平台将分散的 AI 能力封装为标准化的 API 产品，支持多版本管理和灰度发布，提供自助式开发者门户，并具备安全管控、观测分析、计量计费等完整的企业级运营能力，让 AI 资源的共享和复用变得高效便捷。
+HiMarket 是基于 Higress AI 网关构建的企业级 AI 开放平台，帮助企业构建私有 AI 能力市场，统一管理和分发 LLM、MCP Server、Agent、Agent Skill 等 AI 资源。平台将分散的 AI 能力封装为标准化的 API 产品，支持多版本管理和灰度发布，内置 Skills 市场供开发者浏览和安装 Agent Skill，提供 HiChat AI 对话和 HiCoding 在线编程等自助式开发者体验，并具备安全管控、观测分析、计量计费等完整的企业级运营能力，让 AI 资源的共享和复用变得高效便捷。
 
 <div align="center">
-  <img src="https://github.com/user-attachments/assets/db49ea33-c914-424d-8e3b-4ba75ec7a746" alt="HiMarket 核心能力" width="700px" />
-  <br/>
   <b>核心能力</b>
 </div>
+
+| 类别 | 功能 | 说明 |
+|------|------|------|
+| **AI 能力市场** | Model 市场 | 接入各类 Model，提供内容安全、Token 限流等防护能力 |
+| | MCP 市场 | 接入各平台 MCP Server，支持外部 API 转换为标准 MCP Server |
+| | Agent 市场 | 打包上架 Agent 应用，对接 AgentScope 等 Agent 构建平台 |
+| | Skills 市场 | 上传和分发 Agent Skill，开发者可浏览、订阅和安装 Skill 包 |
+| **AI 体验中心** | HiChat 对话调试 | 单模型对话与多模型对比，结合 MCP 进行工具调用测试，支持联网问答等增强功能 |
+| | HiCoding 在线编程 | 集成安全沙箱环境，支持 Vibe Coding 和人机协作开发，实时查看文件变更与代码预览 |
+| **企业级管理** | 产品管理 | 认证鉴权、流量控制、调用配额等防护能力 |
+| | 观测分析 | 全链路监控、调用追踪、热力图、异常告警 |
+| | 计量计费 | 基于 Token 调用次数、自动统计成本费用 |
+| | 版本管理 | 多版本并行、灰度发布、快速回滚 |
+| **灵活定制** | 门户品牌 | 自定义域名、Logo、配色、页面布局 |
+| | 身份认证 | 支持接入第三方 OIDC，对接企业用户身份体系 |
+| | 审批流程 | 按照订阅、产品订阅等场景可配置自动/人工审批 |
+| | 产品目录 | 自定义类别标签，支持浏览、筛选、搜索 |
 
 ## 系统架构
 
@@ -57,7 +62,7 @@ HiMarket 系统架构分为三层：
 
 1. **基础设施**：由 AI 网关、API 网关、Higress 和 Nacos 组成。HiMarket 基于这些组件对底层 AI 资源进行抽象封装，形成可对外开放的标准 API 产品。
 2. **AI 开放平台后台**：面向管理员的管理平台，管理员可以创建和定制门户，管理 MCP Server、Model、Agent、Agent Skill 等 AI 资源，例如设置鉴权策略、订阅审批流程等。后台还提供可观测大盘，帮助管理员实时了解 AI 资源的使用和运行状态。
-3. **AI 开放平台前台**：面向外部开发者的门户站点，也称为 AI 市场或 AI 中台，提供一站式自助服务，开发者可以完成身份注册、凭证申请、浏览订阅产品、在线调试等操作。
+3. **AI 开放平台前台**：面向外部开发者的门户站点，也称为 AI 市场或 AI 中台，提供一站式自助服务，开发者可以完成身份注册、凭证申请、浏览订阅产品、在线调试等操作，还可以通过 HiChat 与模型和 MCP Server 交互对话，通过 HiCoding 在安全沙箱中进行在线 AI 编程。
 
 <table>
   <tr>
@@ -124,29 +129,31 @@ npm run dev
 
 <br/>
 
-使用 `deploy.sh` 脚本完成 HiMarket、Higress、Nacos 全栈部署和数据初始化。
+**环境依赖：** Docker、Docker Compose
+
+**脚本部署：** 使用交互式 `install.sh` 脚本一键部署全栈服务（HiMarket、Higress、Nacos、MySQL），脚本会引导完成所有配置。
 
 ```bash
-# 克隆项目
 git clone https://github.com/higress-group/himarket.git
-cd himarket/deploy/docker/scripts
-
-# 部署全栈服务并初始化
-./deploy.sh install
-
-# 或仅部署 HiMarket 服务（不含 Nacos/Higress）
-./deploy.sh himarket-only
-
-# 卸载所有服务
-./deploy.sh uninstall
-
-# 服务地址
-# 管理后台地址：http://localhost:5174
-# 开发者门户地址：http://localhost:5173
-# 后端 API 地址：http://localhost:8081
+cd himarket/deploy/docker
+./install.sh
 ```
 
-> 详细的 Docker 部署说明请参考 [Docker 部署文档](./deploy/docker/Docker部署脚本说明.md)
+**AI 部署（推荐）：** 如果担心部署过程中遇到环境兼容性等问题，推荐使用 Cursor、Qoder、Claude Code 等 AI Coding 工具进行部署，AI 可以自动识别和解决环境问题。clone 项目后在 AI 工具中输入：
+
+> 阅读 deploy 目录下的部署文档，帮我用 Docker Compose 部署 HiMarket
+
+详细文档请参考 [部署文档](./deploy/DEPLOYMENT_zh.md)。
+
+**部署完成后的服务地址：**
+- 管理后台：http://localhost:5174
+- 开发者门户：http://localhost:5173
+- 后端 API：http://localhost:8081
+
+**卸载：**
+```bash
+./install.sh --uninstall
+```
 
 </details>
 
@@ -155,24 +162,26 @@ cd himarket/deploy/docker/scripts
 
 <br/>
 
-使用 `deploy.sh` 脚本将 HiMarket 部署到 Kubernetes 集群。
+**环境依赖：** kubectl（已连接 K8s 集群）、Helm
+
+**脚本部署：** 使用交互式 `install.sh` 脚本将 HiMarket 部署到 Kubernetes 集群，脚本会引导完成所有配置。
 
 ```bash
-# 克隆项目
 git clone https://github.com/higress-group/himarket.git
-cd himarket/deploy/helm/scripts
-
-# 部署全栈服务并初始化
-./deploy.sh install
-
-# 或仅部署 HiMarket 服务（不含 Nacos/Higress）
-./deploy.sh himarket-only
-
-# 卸载
-./deploy.sh uninstall
+cd himarket/deploy/helm
+./install.sh
 ```
 
-> 详细的 Helm 部署说明请参考 [Helm 部署文档](./deploy/helm/Helm部署脚本说明.md)
+**AI 部署（推荐）：** 如果担心部署过程中遇到环境兼容性等问题，推荐使用 Cursor、Qoder、Claude Code 等 AI Coding 工具进行部署，AI 可以自动识别和解决环境问题。clone 项目后在 AI 工具中输入：
+
+> 阅读 deploy 目录下的部署文档，帮我用 Helm Chart 部署 HiMarket 到 K8s 集群
+
+详细文档请参考 [部署文档](./deploy/DEPLOYMENT_zh.md)。
+
+**卸载：**
+```bash
+./install.sh --uninstall
+```
 
 </details>
 
@@ -223,5 +232,4 @@ cd himarket/deploy/helm/scripts
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=higress-group/himarket&type=Date)](https://star-history.com/#higress-group/himarket&Date)
-
 
