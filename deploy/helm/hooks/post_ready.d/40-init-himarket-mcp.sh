@@ -8,9 +8,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HELM_DIR="${SCRIPT_DIR}/../.."
-DATA_DIR="${HELM_DIR}/data"
-HIGRESS_MCP_CONFIG="${DATA_DIR}/higress-mcp.json"
-NACOS_MCP_CONFIG="${DATA_DIR}/nacos-mcp.json"
+SHARED_DATA_DIR="${SHARED_DATA_DIR:-$(cd "${SCRIPT_DIR}/../../../data" && pwd)}"
+HIGRESS_MCP_CONFIG="${SHARED_DATA_DIR}/higress-mcp.json"
+NACOS_MCP_CONFIG="${SHARED_DATA_DIR}/nacos-mcp.json"
 
 # 从 .env 加载环境变量
 if [[ -f "${HELM_DIR}/.env" ]]; then

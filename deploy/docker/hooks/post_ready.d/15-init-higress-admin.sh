@@ -4,14 +4,10 @@
 # 功能：初始化 Higress Console 的 admin 用户
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DATA_DIR="${SCRIPT_DIR}/../../data"
-
-# 从 .env 加载环境变量
-if [[ -f "${DATA_DIR}/.env" ]]; then
-  set -a
-  . "${DATA_DIR}/.env"
-  set +a
+# 从 ~/himarket-install.env 加载环境变量
+ENV_FILE="${HOME}/himarket-install.env"
+if [[ -f "${ENV_FILE}" ]]; then
+  set -a; . "${ENV_FILE}"; set +a
 fi
 
 # 从环境变量读取密码，默认值为 admin

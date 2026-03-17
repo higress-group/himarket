@@ -6,17 +6,29 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DATA_DIR="${SCRIPT_DIR}/../../data"
-HIGRESS_MCP_CONFIG="${DATA_DIR}/higress-mcp.json"
-NACOS_MCP_CONFIG="${DATA_DIR}/nacos-mcp.json"
+# 保存从父进程继承的控制变量（优先级高于 env 文件）
+_INHERITED_SKIP_MCP_INIT="${SKIP_MCP_INIT:-}"
 
-# 从 .env 加载环境变量
-if [[ -f "${DATA_DIR}/.env" ]]; then
-  set -a
-  . "${DATA_DIR}/.env"
-  set +a
+# 从 ~/himarket-install.env 加载环境变量
+ENV_FILE="${HOME}/himarket-install.env"
+if [[ -f "${ENV_FILE}" ]]; then
+  set -a; . "${ENV_FILE}"; set +a
 fi
+
+# 恢复继承变量（install.sh 导出值优先于 env 文件）
+[[ -n "$_INHERITED_SKIP_MCP_INIT" ]] && SKIP_MCP_INIT="$_INHERITED_SKIP_MCP_INIT"
+
+# 跳过 MCP 初始化（非交互模式或用户选择跳过时）
+if [[ "${SKIP_MCP_INIT:-false}" == "true" ]]; then
+  echo "[init-himarket-mcp] SKIP_MCP_INIT=true，跳过 Himarket MCP 初始化"
+  exit 0
+fi
+
+# 共享数据目录（由 install.sh 传入，或自动推导）
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SHARED_DATA_DIR="${SHARED_DATA_DIR:-$(cd "${SCRIPT_DIR}/../../../data" && pwd)}"
+HIGRESS_MCP_CONFIG="${SHARED_DATA_DIR}/higress-mcp.json"
+NACOS_MCP_CONFIG="${SHARED_DATA_DIR}/nacos-mcp.json"
 
 # 默认登录凭据
 ADMIN_USERNAME="${ADMIN_USERNAME:-admin}"
@@ -33,9 +45,6 @@ err() { echo "[ERROR] $*" >&2; }
 AUTH_TOKEN=""
 HIMARKET_HOST="localhost:5174"
 FRONTEND_HOST="localhost:5173"
-# 是否商业化 Nacos 配置
-USE_COMMERCIAL_NACOS="${USE_COMMERCIAL_NACOS:-false}"
-COMMERCIAL_NACOS_NAME="${COMMERCIAL_NACOS_NAME:-}"
 
 # 缓存 ID 映射 (使用普通变量兼容 Bash 3.2)
 # 格式: PORTAL_ID_MAP_<name>=<id>
@@ -269,38 +278,26 @@ get_or_create_nacos() {
   local nacos_name="nacos-demo"
   local nacos_id=""
   
-  # 如果使用商业化 Nacos，使用商业化配置查询
-  if [[ "$USE_COMMERCIAL_NACOS" == "true" ]]; then
-    log "查询商业化 Nacos 实例" >&2
-    
-    if [[ -z "$COMMERCIAL_NACOS_NAME" ]]; then
-      err "商业化 Nacos 配置不完整（缺少 COMMERCIAL_NACOS_NAME）"
-      return 1
-    fi
-    
-    nacos_name="$COMMERCIAL_NACOS_NAME"
-  else
-    # 开源 Nacos，先尝试创建
-    log "创建开源 Nacos 实例" >&2
-    
-    # 使用 jq 构建 JSON 请求体
-    local body=$(jq -n \
-      --arg nacosName "$nacos_name" \
-      --arg serverUrl "http://nacos:8848" \
-      --arg username "nacos" \
-      --arg password "nacos" \
-      '{
-        nacosName: $nacosName,
-        serverUrl: $serverUrl,
-        username: $username,
-        password: $password
-      }')
+  # 开源 Nacos，先尝试创建
+  log "创建开源 Nacos 实例" >&2
+  
+  # 使用 jq 构建 JSON 请求体
+  local body=$(jq -n \
+    --arg nacosName "$nacos_name" \
+    --arg serverUrl "http://nacos:8848" \
+    --arg username "nacos" \
+    --arg password "nacos" \
+    '{
+      nacosName: $nacosName,
+      serverUrl: $serverUrl,
+      username: $username,
+      password: $password
+    }')
 
-    # 尝试创建
-    call_api "插入Nacos" "POST" "/api/v1/nacos" "$body" >/dev/null 2>&1 || true
-  fi
+  # 尝试创建
+  call_api "插入Nacos" "POST" "/api/v1/nacos" "$body" >/dev/null 2>&1 || true
 
-  # 查询获取 ID（开源和商业化通用）
+  # 查询获取 ID
   call_api "查询Nacos列表" "GET" "/api/v1/nacos" "" >/dev/null 2>&1
   
   # 从响应中提取 Nacos ID
@@ -724,22 +721,13 @@ main() {
   # 确保 Gateway 和 Nacos 存在
   log "初始化基础设施..."
   
-  # 根据配置决定是否注册开源 Nacos
-  if [[ "$USE_COMMERCIAL_NACOS" != "true" ]]; then
-    log "使用开源 Nacos，注册到 Himarket..."
-    get_or_create_nacos >/dev/null 2>&1 || true
-  else
-    log "使用商业化 Nacos，跳过开源 Nacos 注册"
-  fi
+  # 注册开源 Nacos
+  log "使用开源 Nacos，注册到 Himarket..."
+  get_or_create_nacos >/dev/null 2>&1 || true
 
-  # 根据配置决定是否注册 Higress Gateway
-  local use_ai_gateway="${USE_AI_GATEWAY:-false}"
-  if [[ "$use_ai_gateway" != "true" ]]; then
-    log "使用 Higress 网关，注册到 Himarket..."
-    get_or_create_gateway >/dev/null 2>&1 || true
-  else
-    log "使用 AI 网关，跳过 Higress Gateway 注册"
-  fi
+  # 注册 Higress Gateway
+  log "使用 Higress 网关，注册到 Himarket..."
+  get_or_create_gateway >/dev/null 2>&1 || true
   
   # 读取 Higress MCP 配置列表
   local higress_mcp_count=0
@@ -759,8 +747,8 @@ main() {
   local failed_count=0
   local failed_list=""
   
-  # 遍历处理每个 Higress MCP（仅在未启用 AI 网关时处理）
-  if [[ "$use_ai_gateway" != "true" ]] && [ "$higress_mcp_count" -gt 0 ]; then
+  # 遍历处理每个 Higress MCP
+  if [ "$higress_mcp_count" -gt 0 ]; then
     log "处理 Higress MCP 配置..."
     for i in $(seq 0 $((higress_mcp_count - 1))); do
       local mcp_config=$(jq ".[$i]" "$HIGRESS_MCP_CONFIG")
@@ -773,8 +761,6 @@ main() {
         failed_list="${failed_list}  - ${mcp_name} (Higress)\n"
       fi
     done
-  elif [[ "$use_ai_gateway" == "true" ]] && [ "$higress_mcp_count" -gt 0 ]; then
-    log "已启用 AI 网关，跳过 ${higress_mcp_count} 个 Higress MCP 配置"
   fi
   
   # 遍历处理每个 Nacos MCP

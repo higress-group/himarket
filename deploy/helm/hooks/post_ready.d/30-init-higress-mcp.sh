@@ -12,8 +12,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HELM_DIR="${SCRIPT_DIR}/../.."
-DATA_DIR="${HELM_DIR}/data"
-MCP_CONFIG="${DATA_DIR}/higress-mcp.json"
+SHARED_DATA_DIR="${SHARED_DATA_DIR:-$(cd "${SCRIPT_DIR}/../../../data" && pwd)}"
+MCP_CONFIG="${SHARED_DATA_DIR}/higress-mcp.json"
 
 # 从 .env 读取 Higress 密码与其他配置
 if [[ -f "${HELM_DIR}/.env" ]]; then
@@ -230,7 +230,7 @@ process_openapi_mcp() {
   log "处理 OpenAPI MCP: ${mcp_name}"
   
   # 检查 YAML 文件是否存在
-  local yaml_path="${DATA_DIR}/${yaml_file}"
+  local yaml_path="${SHARED_DATA_DIR}/${yaml_file}"
   if [ ! -f "$yaml_path" ]; then
     err "YAML 文件不存在: $yaml_path"
     return 1

@@ -6,7 +6,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HELM_DIR="${SCRIPT_DIR}/../.."
-DATA_DIR="${HELM_DIR}/data"
+SHARED_DATA_DIR="${SHARED_DATA_DIR:-$(cd "${SCRIPT_DIR}/../../../data" && pwd)}"
 
 # 从 .env 加载环境变量
 if [[ -f "${HELM_DIR}/.env" ]]; then
@@ -16,7 +16,7 @@ if [[ -f "${HELM_DIR}/.env" ]]; then
 fi
 
 NS="${NAMESPACE:-himarket}"
-MCP_JSON_FILE="${DATA_DIR}/nacos-mcp.json"
+MCP_JSON_FILE="${SHARED_DATA_DIR}/nacos-mcp.json"
 
 # 允许通过环境变量跳过 MCP 初始化（默认不跳过）
 if [[ "${SKIP_MCP_INIT:-false}" == "true" ]]; then

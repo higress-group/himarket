@@ -4,14 +4,10 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DATA_DIR="${SCRIPT_DIR}/../../data"
-
-# 从 .env 加载凭据
-if [[ -f "${DATA_DIR}/.env" ]]; then
-  set -a
-  . "${DATA_DIR}/.env"
-  set +a
+# 从 ~/himarket-install.env 加载环境变量
+ENV_FILE="${HOME}/himarket-install.env"
+if [[ -f "${ENV_FILE}" ]]; then
+  set -a; . "${ENV_FILE}"; set +a
 fi
 
 # 默认凭据
@@ -19,13 +15,42 @@ FRONT_USERNAME="${FRONT_USERNAME:-demo}"
 FRONT_PASSWORD="${FRONT_PASSWORD:-demo123}"
 
 # 最大重试次数
-MAX_RETRIES=3
+MAX_RETRIES=5
 
 log() { echo "[init-himarket-front $(date +'%H:%M:%S')] $*"; }
 err() { echo "[ERROR] $*" >&2; }
 
 # 全局变量
 FRONTEND_HOST="localhost:5173"
+
+########################################
+# 等待前台 API 代理就绪
+########################################
+wait_for_frontend_api() {
+  local max_wait=60
+  local waited=0
+  local interval=5
+
+  log "等待前台 API 代理就绪 (http://${FRONTEND_HOST})..."
+
+  while (( waited < max_wait )); do
+    local http_code
+    http_code=$(curl -sS -o /dev/null -w '%{http_code}' \
+      --connect-timeout 3 --max-time 5 \
+      "http://${FRONTEND_HOST}/api/v1/admins/need-init" 2>/dev/null || echo "000")
+
+    if [[ "$http_code" =~ ^[23] ]]; then
+      log "前台 API 代理就绪 (HTTP ${http_code})"
+      return 0
+    fi
+
+    sleep $interval
+    waited=$((waited + interval))
+  done
+
+  err "前台 API 代理在 ${max_wait} 秒内未就绪"
+  return 1
+}
 
 ########################################
 # 调用 API 通用函数
@@ -124,6 +149,12 @@ main() {
   log "========================================"
   log "开始初始化 Himarket 前台开发者账号"
   log "========================================"
+  
+  # 等待前台 API 代理就绪
+  if ! wait_for_frontend_api; then
+    err "前台 API 代理未就绪，无法继续"
+    exit 1
+  fi
   
   # 注册前台开发者账号
   if register_developer_account; then

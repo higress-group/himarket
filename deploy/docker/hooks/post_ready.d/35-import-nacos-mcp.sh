@@ -3,17 +3,28 @@
 # 由 deploy.sh 在部署就绪后自动调用
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DATA_DIR="${SCRIPT_DIR}/../../data"
+# 保存从父进程继承的控制变量（优先级高于 env 文件）
+_INHERITED_SKIP_MCP_INIT="${SKIP_MCP_INIT:-}"
 
-# 从 .env 加载环境变量
-if [[ -f "${DATA_DIR}/.env" ]]; then
-  set -a
-  . "${DATA_DIR}/.env"
-  set +a
+# 从 ~/himarket-install.env 加载环境变量
+ENV_FILE="${HOME}/himarket-install.env"
+if [[ -f "${ENV_FILE}" ]]; then
+  set -a; . "${ENV_FILE}"; set +a
 fi
 
-MCP_JSON_FILE="${DATA_DIR}/nacos-mcp.json"
+# 恢复继承变量（install.sh 导出值优先于 env 文件）
+[[ -n "$_INHERITED_SKIP_MCP_INIT" ]] && SKIP_MCP_INIT="$_INHERITED_SKIP_MCP_INIT"
+
+# 跳过 MCP 初始化（非交互模式或用户选择跳过时）
+if [[ "${SKIP_MCP_INIT:-false}" == "true" ]]; then
+  echo "[import-mcp] SKIP_MCP_INIT=true，跳过 Nacos MCP 导入"
+  exit 0
+fi
+
+# 共享数据目录（由 install.sh 传入，或自动推导）
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SHARED_DATA_DIR="${SHARED_DATA_DIR:-$(cd "${SCRIPT_DIR}/../../../data" && pwd)}"
+MCP_JSON_FILE="${SHARED_DATA_DIR}/nacos-mcp.json"
 
 # Nacos 默认用户名密码
 NACOS_USERNAME="${NACOS_USERNAME:-nacos}"
@@ -21,12 +32,6 @@ NACOS_PASSWORD="${NACOS_PASSWORD:-nacos}"
 
 # 固定配置
 NAMESPACE_ID="public"
-
-# 商业化 Nacos 配置
-USE_COMMERCIAL_NACOS="${USE_COMMERCIAL_NACOS:-false}"
-COMMERCIAL_NACOS_SERVER_URL="${COMMERCIAL_NACOS_SERVER_URL:-}"
-COMMERCIAL_NACOS_USERNAME="${COMMERCIAL_NACOS_USERNAME:-}"
-COMMERCIAL_NACOS_PASSWORD="${COMMERCIAL_NACOS_PASSWORD:-}"
 
 log() { echo "[import-mcp $(date +'%H:%M:%S')] $*"; }
 err() { echo "[ERROR] $*" >&2; }
@@ -51,24 +56,8 @@ fi
 ########################################
 # 2. Docker 环境使用 localhost
 ########################################
-IS_COMMERCIAL=false
-if [ "$USE_COMMERCIAL_NACOS" = "true" ] && [ -n "$COMMERCIAL_NACOS_SERVER_URL" ]; then
-  # 使用商业化 Nacos
-  HOST="$COMMERCIAL_NACOS_SERVER_URL"
-  IS_COMMERCIAL=true
-  log "使用商业化 Nacos 地址: ${HOST}"
-
-  # 商业化 Nacos 优先使用商业化配置的用户名密码
-  if [ -n "$COMMERCIAL_NACOS_USERNAME" ]; then
-    NACOS_USERNAME="$COMMERCIAL_NACOS_USERNAME"
-  fi
-  if [ -n "$COMMERCIAL_NACOS_PASSWORD" ]; then
-    NACOS_PASSWORD="$COMMERCIAL_NACOS_PASSWORD"
-  fi
-else
-  HOST="localhost"
-  log "Nacos Service 地址: ${HOST}:8848"
-fi
+HOST="localhost"
+log "Nacos Service 地址: ${HOST}:8848"
 
 ########################################
 # URL 编码函数
@@ -161,26 +150,39 @@ log "登录 Nacos 获取 accessToken..."
 
 LOGIN_URL="http://${HOST}:8848/nacos/v1/auth/login"
 
-LOGIN_RESP=$(curl -sS -X POST "$LOGIN_URL" \
-  -d "username=${NACOS_USERNAME}" \
-  -d "password=${NACOS_PASSWORD}")
+ACCESS_TOKEN=""
+LOGIN_MAX_RETRIES=5
+LOGIN_ATTEMPT=1
 
-ACCESS_TOKEN=$(echo "$LOGIN_RESP" | sed -n 's/.*"accessToken"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+while (( LOGIN_ATTEMPT <= LOGIN_MAX_RETRIES )); do
+  log "尝试登录 Nacos (第 ${LOGIN_ATTEMPT}/${LOGIN_MAX_RETRIES} 次)..."
+
+  LOGIN_RESP=$(curl -sS -X POST "$LOGIN_URL" \
+    -d "username=${NACOS_USERNAME}" \
+    -d "password=${NACOS_PASSWORD}" \
+    --connect-timeout 5 --max-time 10 2>/dev/null || echo "")
+
+  ACCESS_TOKEN=$(echo "$LOGIN_RESP" | sed -n 's/.*"accessToken"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+
+  if [ -n "$ACCESS_TOKEN" ]; then
+    log "登录成功，accessToken = $ACCESS_TOKEN"
+    break
+  fi
+
+  if (( LOGIN_ATTEMPT < LOGIN_MAX_RETRIES )); then
+    log "登录失败，5秒后重试... 响应: ${LOGIN_RESP}"
+    sleep 5
+  fi
+
+  LOGIN_ATTEMPT=$((LOGIN_ATTEMPT + 1))
+done
 
 if [ -z "$ACCESS_TOKEN" ]; then
-  err "登录失败，未能从响应中解析 accessToken。原始响应："
+  err "登录失败，未能从响应中解析 accessToken。最后响应："
   err "$LOGIN_RESP"
-  
-  # 如果是商业化 Nacos，登录失败则跳过
-  if [ "$IS_COMMERCIAL" = "true" ]; then
-    log "商业化 Nacos 登录失败，跳过 MCP 导入"
-    exit 0
-  fi
-  
   exit 1
 fi
 
-log "登录成功，accessToken = $ACCESS_TOKEN"
 log ""
 
 ########################################
@@ -234,13 +236,7 @@ if [ "$IS_ARRAY" = "true" ]; then
   log "所有 MCP 创建请求已发送完成。"
   log "成功: $SUCCESS_COUNT, 失败: $FAIL_COUNT"
   
-  # 如果是商业化 Nacos 且有失败，跳过错误
-  if [ "$IS_COMMERCIAL" = "true" ] && [ $FAIL_COUNT -gt 0 ]; then
-    log "商业化 Nacos 部分 MCP 创建失败，但继续执行后续流程"
-    exit 0
-  fi
-  
-  # 开源 Nacos 如果有失败则报错
+  # 如果有失败则报错
   if [ $FAIL_COUNT -gt 0 ]; then
     exit 1
   fi
@@ -269,11 +265,6 @@ else
   if create_single_mcp "$MCP_NAME" "$SERVER_SPEC" "$TOOL_SPEC" "$ENDPOINT_SPEC"; then
     log "MCP 创建成功"
   else
-    # 如果是商业化 Nacos 且创建失败，跳过错误
-    if [ "$IS_COMMERCIAL" = "true" ]; then
-      log "商业化 Nacos MCP 创建失败，但继续执行后续流程"
-      exit 0
-    fi
     exit 1
   fi
 fi

@@ -1,31 +1,33 @@
 #!/usr/bin/env bash
-# Himarket Skill 批量初始化钩子
+# Himarket Skill 批量初始化钩子 (Docker 环境)
 # 将 data/skills/ 目录下的 Skill 批量上传到 HiMarket 并发布到门户
 # 依赖: 20-init-himarket-admin.sh (管理员账号已注册)
 #        40-init-himarket-mcp.sh   (Nacos 已注册, Portal 已创建)
-# 继承环境变量: NS, ADMIN_USERNAME, ADMIN_PASSWORD
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-HELM_DIR="${SCRIPT_DIR}/../.."
-SHARED_DATA_DIR="${SHARED_DATA_DIR:-$(cd "${SCRIPT_DIR}/../../../data" && pwd)}"
-SKILLS_DIR="${SHARED_DATA_DIR}/skills"
+# 保存从父进程继承的控制变量（优先级高于 env 文件）
+_INHERITED_SKIP_SKILL_INIT="${SKIP_SKILL_INIT:-}"
 
-# 从 .env 加载环境变量
-if [[ -f "${HELM_DIR}/.env" ]]; then
-  set -a
-  . "${HELM_DIR}/.env"
-  set +a
+# 从 ~/himarket-install.env 加载环境变量
+ENV_FILE="${HOME}/himarket-install.env"
+if [[ -f "${ENV_FILE}" ]]; then
+  set -a; . "${ENV_FILE}"; set +a
 fi
 
-NS="${NAMESPACE:-himarket}"
+# 恢复继承变量（install.sh 导出值优先于 env 文件）
+[[ -n "$_INHERITED_SKIP_SKILL_INIT" ]] && SKIP_SKILL_INIT="$_INHERITED_SKIP_SKILL_INIT"
 
 # 允许通过环境变量跳过 Skill 初始化（默认不跳过）
 if [[ "${SKIP_SKILL_INIT:-false}" == "true" ]]; then
   echo "[init-himarket-skills] SKIP_SKILL_INIT=true，跳过 Skill 初始化"
   exit 0
 fi
+
+# 共享数据目录（由 install.sh 传入，或自动推导）
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SHARED_DATA_DIR="${SHARED_DATA_DIR:-$(cd "${SCRIPT_DIR}/../../../data" && pwd)}"
+SKILLS_DIR="${SHARED_DATA_DIR}/skills"
 
 # 默认登录凭据
 ADMIN_USERNAME="${ADMIN_USERNAME:-admin}"
@@ -44,7 +46,7 @@ err() { echo "[ERROR] $*" >&2; }
 
 # 全局变量
 AUTH_TOKEN=""
-HIMARKET_HOST=""
+HIMARKET_HOST="localhost:5174"
 PORTAL_ID=""
 
 # 临时目录
@@ -61,7 +63,7 @@ cleanup() {
 trap cleanup EXIT
 
 ########################################
-# 等待服务可用（避免 LoadBalancer 连接不稳定）
+# 等待服务可用
 ########################################
 wait_for_service() {
   local max_wait=90
@@ -143,26 +145,7 @@ parse_front_matter() {
 }
 
 ########################################
-# 获取 Himarket Admin Service 地址
-########################################
-get_himarket_admin_host() {
-  log "获取 Himarket Admin Service 地址..." >&2
-
-  local host
-  host=$(kubectl get svc himarket-admin -n "${NS}" -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
-
-  if [[ -z "$host" ]]; then
-    log "未检测到 LoadBalancer IP，使用 ClusterIP 模式" >&2
-    host="himarket-admin.${NS}.svc.cluster.local"
-  fi
-
-  log "Himarket Admin 地址: ${host}" >&2
-  echo "$host"
-}
-
-########################################
 # 调用 API 通用函数 (JSON)
-# 使用数组传递 curl 参数，避免 eval 导致特殊字符问题
 ########################################
 call_api() {
   local api_name="$1"
@@ -322,7 +305,6 @@ get_default_portal_id() {
 ########################################
 # 获取或创建 Product (AGENT_SKILL)
 # 返回码: 0=新建成功, 3=已存在, 1=失败
-# stdout 输出 product ID
 ########################################
 get_or_create_skill_product() {
   local name="$1"
@@ -378,7 +360,6 @@ get_or_create_skill_product() {
       log "[${name}] 产品已存在: ${retry_id}"
       echo "$retry_id"
       return 3
-      return 0
     fi
   fi
 
@@ -585,9 +566,6 @@ main() {
 
   # 创建临时目录
   TMPDIR_BASE=$(mktemp -d)
-
-  # 获取服务地址
-  HIMARKET_HOST=$(get_himarket_admin_host)
 
   # 登录
   if ! login_admin; then

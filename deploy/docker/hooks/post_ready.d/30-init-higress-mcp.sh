@@ -6,16 +6,28 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DATA_DIR="${SCRIPT_DIR}/../../data"
-MCP_CONFIG="${DATA_DIR}/higress-mcp.json"
+# 保存从父进程继承的控制变量（优先级高于 env 文件）
+_INHERITED_SKIP_MCP_INIT="${SKIP_MCP_INIT:-}"
 
-# 从 .env 读取 Higress 密码与其他配置
-if [[ -f "${DATA_DIR}/.env" ]]; then
-  set -a
-  . "${DATA_DIR}/.env"
-  set +a
+# 从 ~/himarket-install.env 加载环境变量
+ENV_FILE="${HOME}/himarket-install.env"
+if [[ -f "${ENV_FILE}" ]]; then
+  set -a; . "${ENV_FILE}"; set +a
 fi
+
+# 恢复继承变量（install.sh 导出值优先于 env 文件）
+[[ -n "$_INHERITED_SKIP_MCP_INIT" ]] && SKIP_MCP_INIT="$_INHERITED_SKIP_MCP_INIT"
+
+# 跳过 MCP 初始化（非交互模式或用户选择跳过时）
+if [[ "${SKIP_MCP_INIT:-false}" == "true" ]]; then
+  echo "[init-higress-mcp] SKIP_MCP_INIT=true，跳过 Higress MCP 初始化"
+  exit 0
+fi
+
+# 共享数据目录（由 install.sh 传入，或自动推导）
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SHARED_DATA_DIR="${SHARED_DATA_DIR:-$(cd "${SCRIPT_DIR}/../../../data" && pwd)}"
+MCP_CONFIG="${SHARED_DATA_DIR}/higress-mcp.json"
 
 HIGRESS_PASSWORD="${HIGRESS_PASSWORD:-admin}"
 
@@ -201,7 +213,7 @@ process_openapi_mcp() {
   log "处理 OpenAPI MCP: ${mcp_name}"
   
   # 检查 YAML 文件是否存在
-  local yaml_path="${DATA_DIR}/${yaml_file}"
+  local yaml_path="${SHARED_DATA_DIR}/${yaml_file}"
   if [ ! -f "$yaml_path" ]; then
     err "YAML 文件不存在: $yaml_path"
     return 1
