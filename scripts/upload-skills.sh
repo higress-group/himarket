@@ -1,11 +1,19 @@
 #!/usr/bin/env bash
 # 批量上传 skills 到本地 HiMarket
 # 用法: ./scripts/upload-skills.sh [skills目录] [HiMarket地址]
-# 默认: ~/Downloads/skills  http://localhost:8080
+# 默认: deploy/helm/data/skills  http://localhost:8080
 
 set -e
 
-SKILLS_DIR="${1:-$HOME/Downloads/skills}"
+# 自动检测默认 skills 目录（优先使用项目内的 deploy/helm/data/skills）
+_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_PROJECT_DIR="$(cd "${_SCRIPT_DIR}/.." && pwd)"
+_DEFAULT_SKILLS_DIR="${_PROJECT_DIR}/deploy/helm/data/skills"
+if [ ! -d "$_DEFAULT_SKILLS_DIR" ]; then
+  _DEFAULT_SKILLS_DIR="$HOME/Downloads/skills"
+fi
+
+SKILLS_DIR="${1:-$_DEFAULT_SKILLS_DIR}"
 BASE_URL="${2:-http://localhost:8080}"
 
 # ── 超时配置（秒）──────────────────────────────────────────

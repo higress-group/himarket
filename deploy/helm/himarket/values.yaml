@@ -1,0 +1,106 @@
+hub: opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group
+
+frontend:
+  image:
+    repository: himarket-frontend
+    tag: "latest"
+    pullPolicy: Always
+  service:
+    type: LoadBalancer
+    port: 80
+  replicaCount: 1
+  serverPort: 8000
+
+admin:
+  image:
+    repository: himarket-admin
+    tag: "latest"
+    pullPolicy: Always
+  service:
+    type: LoadBalancer
+    port: 80
+  replicaCount: 1
+  serverPort: 8000
+
+server:
+  image:
+    repository: himarket-server
+    tag: "latest"
+    pullPolicy: Always
+  service:
+    type: ClusterIP
+    port: 80
+  replicaCount: 1
+  serverPort: 8080
+
+# MySQL 数据库配置（始终部署内置 MySQL）
+mysql:
+  image:
+    repository: mysql
+    tag: "latest"
+    pullPolicy: Always
+  
+  # 数据库配置
+  auth:
+    database: "himarket_db"
+    username: "himarket_user"
+    # 可选：设置固定密码（留空则自动生成随机密码）
+    rootPassword: ""  # 设置root密码，如 "myRootPass123"
+    password: ""      # 设置应用用户密码，如 "myAppPass123"
+  
+  # Service 配置
+  service:
+    external:
+      enabled: false  # 建议生产环境设为 false
+      type: LoadBalancer
+  
+  # 存储配置
+  persistence:
+    storageClass: "alicloud-disk-essd"  # 根据实际环境调整
+    size: 50Gi
+    accessMode: ReadWriteOnce
+  
+  # 资源配置
+  resources:
+    requests:
+      cpu: "1"
+      memory: "1Gi"
+    limits:
+      cpu: "2"
+      memory: "2Gi"
+  
+  # StatefulSet 副本数
+  replicaCount: 1
+
+serviceAccount:
+  name: "himarket"
+
+resources:
+  limits:
+    cpu: 2
+    memory: 2000Mi
+  requests:
+    cpu: 1
+    memory: 1000Mi
+
+# 共享沙箱配置
+sandbox:
+  enabled: true
+  image:
+    repository: sandbox
+    tag: "latest"
+    pullPolicy: Always
+  resources:
+    requests:
+      cpu: "1"
+      memory: "1Gi"
+    limits:
+      cpu: "4"
+      memory: "8Gi"
+  allowedCommands: "qodercli,qwen,claude-agent-acp,opencode"
+  # 工作空间持久化配置
+  persistence:
+    enabled: true
+    storageClass: "alicloud-disk-essd"  # 根据实际环境调整
+    size: 50Gi
+    accessMode: ReadWriteOnce

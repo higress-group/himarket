@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nacos
+  labels:
+    app: nacos
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nacos
+  template:
+    metadata:
+      labels:
+        app: nacos
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: nacos
+          image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              export JAVA_OPT="${JAVA_OPT} --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.lang.reflect=ALL-UNNAMED"
+              exec /home/nacos/bin/docker-startup.sh
+          ports:
+            - name: console
+              containerPort: 8080
+              protocol: TCP
+            - name: api
+              containerPort: 8848
+              protocol: TCP
+            - name: grpc
+              containerPort: 9848
+              protocol: TCP
+          env:
+            - name: MODE
+              value: "standalone"
+            - name: PREFER_HOST_MODE
+              value: "hostname"
+            - name: SPRING_DATASOURCE_PLATFORM
+              value: {{ .Values.database.platform | quote }}
+            - name: MYSQL_SERVICE_HOST
+              value: {{ .Values.database.host | quote }}
+            - name: MYSQL_SERVICE_PORT
+              value: {{ .Values.database.port | quote }}
+            - name: MYSQL_SERVICE_DB_NAME
+              value: {{ .Values.database.name | quote }}
+            - name: MYSQL_SERVICE_USER
+              value: {{ .Values.database.username | quote }}
+            - name: MYSQL_SERVICE_PASSWORD
+              value: {{ .Values.database.password | quote }}
+            - name: MYSQL_SERVICE_DB_PARAM
+              value: "characterEncoding=utf8&connectTimeout=10000&socketTimeout=30000&autoReconnect=true&useSSL=false&allowPublicKeyRetrieval=true"
+            {{- if .Values.auth.identityKey }}
+            - name: NACOS_AUTH_IDENTITY_KEY
+              value: {{ .Values.auth.identityKey | quote }}
+            {{- end }}
+            {{- if .Values.auth.identityValue }}
+            - name: NACOS_AUTH_IDENTITY_VALUE
+              value: {{ .Values.auth.identityValue | quote }}
+            {{- end }}
+            {{- if .Values.auth.token }}
+            - name: NACOS_AUTH_TOKEN
+              value: {{ .Values.auth.token | quote }}
+            {{- end }}
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          readinessProbe:
+            tcpSocket:
+              port: 8848
+            initialDelaySeconds: 60
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 8848
+            initialDelaySeconds: 120
+            periodSeconds: 10

@@ -65,3 +65,7 @@ push-himarket.sh
 
 ### Kiro (AWS Kira AI coding agent) ###
 .kiro/
+
+### Docker deploy data (should live outside project) ###
+deploy/docker/data/
+deploy/docker/standalone-logs/

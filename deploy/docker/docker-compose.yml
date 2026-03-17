@@ -1,57 +1,85 @@
-version: '3'
-
 networks:
   himarket-network:
     driver: bridge
 
 services:
-  # MySQL 数据库(Himarket) - 仅当 USE_BUILTIN_MYSQL=true 时部署
+  # ============================================================
+  # 第一层：基础设施（MySQL, Redis）—— 同时启动
+  # ============================================================
+
+  # MySQL 数据库(Himarket + Nacos) - 内置 MySQL，始终启动
   mysql:
     image: ${MYSQL_IMAGE:-opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/mysql:latest}
     container_name: himarket-mysql
     environment:
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-123456}
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-himarket_root_2024}
       - MYSQL_DATABASE=${MYSQL_DATABASE:-portal_db}
       - MYSQL_USER=${MYSQL_USER:-portal_user}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-portal_pass}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-himarket_app_2024}
     ports:
       - "3306:3306"
     volumes:
-      - ./data/mysql:/var/lib/mysql
+      - ${HOME}/himarket-data/data/mysql:/var/lib/mysql
+      - ./init-nacos-db.sh:/docker-entrypoint-initdb.d/02-init-nacos-db.sh:ro
+      - ../helm/nacos/sql:/nacos-sql:ro
     networks:
       - himarket-network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-123456}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-himarket_root_2024}"]
       interval: 10s
       timeout: 5s
       retries: 5
     restart: always
-    profiles:
-      - builtin-mysql
 
-  # Nacos Server - 仅在未启用商业化 Nacos 时部署
+  # ============================================================
+  # 第二层：Nacos —— 等 MySQL healthy 后启动（与 Helm 对齐，使用 MySQL 存储）
+  # ============================================================
+
+  # Nacos Server - 使用 MySQL 作为数据源（与 Helm 部署一致）
   nacos:
     image: ${NACOS_IMAGE:-nacos-registry.cn-hangzhou.cr.aliyuncs.com/nacos/nacos-server:v3.2.0-BETA}
     container_name: nacos-standalone
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        export JAVA_OPT="$${JAVA_OPT} --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.lang.reflect=ALL-UNNAMED"
+        exec /home/nacos/bin/docker-startup.sh
     environment:
       - PREFER_HOST_MODE=hostname
       - MODE=standalone
+      - SPRING_DATASOURCE_PLATFORM=mysql
+      - MYSQL_SERVICE_HOST=mysql
+      - MYSQL_SERVICE_PORT=3306
+      - MYSQL_SERVICE_DB_NAME=nacos
+      - MYSQL_SERVICE_USER=root
+      - MYSQL_SERVICE_PASSWORD=${MYSQL_ROOT_PASSWORD:-himarket_root_2024}
+      - MYSQL_SERVICE_DB_PARAM=characterEncoding=utf8&connectTimeout=10000&socketTimeout=30000&autoReconnect=true&useSSL=false&allowPublicKeyRetrieval=true
       - NACOS_AUTH_IDENTITY_KEY=${NACOS_AUTH_IDENTITY_KEY:-serverIdentity}
       - NACOS_AUTH_IDENTITY_VALUE=${NACOS_AUTH_IDENTITY_VALUE:-security}
       - NACOS_AUTH_TOKEN=${NACOS_AUTH_TOKEN:-VGhpc0lzTXlDdXN0b21TZWNyZXRLZXkwMTIzNDU2Nzg=}
     volumes:
-      - ./standalone-logs/:/home/nacos/logs
+      - ${HOME}/himarket-data/standalone-logs/:/home/nacos/logs
     ports:
       - "8080:8080"
       - "8848:8848"
       - "9848:9848"
+    depends_on:
+      mysql:
+        condition: service_healthy
     networks:
       - himarket-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/v3/console/health/readiness"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
     restart: always
     profiles:
       - opensource-nacos
 
-  # Redis Stack Server(for Higress MCP) - 仅在未启用 AI 网关时部署
+  # Redis Stack Server(for Higress MCP)
   redis-stack-server:
     image: ${REDIS_IMAGE:-higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/redis-stack-server:7.4.0-v3}
     container_name: redis-stack-server
@@ -68,7 +96,11 @@ services:
     profiles:
       - higress-gateway
 
-  # Higress All-in-One (Gateway + Console) - 仅在未启用 AI 网关时部署
+  # ============================================================
+  # 第三层：网关 + 沙箱 —— 等 Redis healthy 后启动
+  # ============================================================
+
+  # Higress All-in-One (Gateway + Console)
   higress:
     image: ${HIGRESS_IMAGE:-higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/all-in-one:latest}
     container_name: higress
@@ -77,16 +109,18 @@ services:
       - "8082:8080"  # Gateway HTTP
       - "8443:8443"  # Gateway HTTPS
     depends_on:
-      - redis-stack-server
+      redis-stack-server:
+        condition: service_healthy
     networks:
       - himarket-network
     volumes:
-      - ./data/higress:/data
+      - ${HOME}/himarket-data/data/higress:/data
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/"]
       interval: 15s
       timeout: 10s
       retries: 10
+      start_period: 15s
     restart: always
     profiles:
       - higress-gateway
@@ -98,10 +132,14 @@ services:
     environment:
       - ALLOWED_COMMANDS=${SANDBOX_ALLOWED_COMMANDS:-qodercli,qwen,claude-agent-acp,opencode}
     volumes:
-      - ./data/sandbox-workspace:/workspace
+      - ${HOME}/himarket-data/data/sandbox-workspace:/workspace
     networks:
       - himarket-network
     restart: always
+
+  # ============================================================
+  # 第四层：业务后端 —— 等 MySQL healthy 后启动
+  # ============================================================
 
   # Himarket Server
   himarket-server:
@@ -112,17 +150,30 @@ services:
       - DB_PORT=${DB_PORT:-3306}
       - DB_NAME=${DB_NAME:-portal_db}
       - DB_USERNAME=${DB_USERNAME:-portal_user}
-      - DB_PASSWORD=${DB_PASSWORD:-portal_pass}
+      - DB_PASSWORD=${DB_PASSWORD:-himarket_app_2024}
       - ACP_REMOTE_HOST=${ACP_REMOTE_HOST:-sandbox-shared}
       - ACP_REMOTE_PORT=${ACP_REMOTE_PORT:-8080}
       - ACP_DEFAULT_RUNTIME=${ACP_DEFAULT_RUNTIME:-remote}
     ports:
       - "8081:8080"
     depends_on:
-      - sandbox-shared
+      mysql:
+        condition: service_healthy
+      sandbox-shared:
+        condition: service_started
     networks:
       - himarket-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/admins/need-init || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 60s
     restart: always
+
+  # ============================================================
+  # 第五层：前端 —— 等 Server healthy 后启动
+  # ============================================================
 
   # Himarket Admin
   himarket-admin:
@@ -133,9 +184,16 @@ services:
     ports:
       - "5174:8000"
     depends_on:
-      - himarket-server
+      himarket-server:
+        condition: service_healthy
     networks:
       - himarket-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/api/v1/admins/need-init > /dev/null || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
     restart: always
 
   # Himarket Frontend
@@ -147,9 +205,14 @@ services:
     ports:
       - "5173:8000"
     depends_on:
-      - himarket-server
+      himarket-server:
+        condition: service_healthy
     networks:
       - himarket-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/api/v1/admins/need-init > /dev/null || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
     restart: always
-
-

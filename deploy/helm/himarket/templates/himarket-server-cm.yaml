@@ -1,0 +1,14 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  labels:
+    app: himarket-server
+  name: himarket-server
+data:
+  # 应用基本配置（非敏感信息）
+  SERVER_PORT: "8080"
+  # ACP 沙箱配置
+  ACP_REMOTE_HOST: {{ .Values.sandbox.remoteHost | default "sandbox-shared" | quote }}
+  ACP_REMOTE_PORT: {{ .Values.sandbox.remotePort | default "8080" | quote }}
+  ACP_DEFAULT_RUNTIME: {{ .Values.sandbox.defaultRuntime | default "remote" | quote }}
+  # 其他非敏感配置可以在这里添加
