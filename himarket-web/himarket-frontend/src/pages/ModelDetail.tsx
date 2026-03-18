@@ -200,10 +200,12 @@ function ModelDetail() {
     const baseUrl = `${selectedDomain.protocol.toLowerCase()}://${formattedDomain}`;
     const fullUrl = `${baseUrl}${firstRoute.match.path.value}`;
 
+    const modelName = data?.feature?.modelFeature?.model || "{{model_name}}";
+
     return `curl --location '${fullUrl}' \\
   --header 'Content-Type: application/json' \\
   --data '{
-    "model": "{{model_name}}",
+    "model": "${modelName}",
     "stream": true,
     "max_tokens": 1024,
     "top_p": 0.95,
@@ -544,9 +546,11 @@ function ModelDetail() {
                               }}
                             />
                           </div>
-                          <div className="text-xs text-gray-500 bg-blue-50 px-3 py-2 rounded-lg">
-                            💡 将 <code className="bg-white px-1.5 py-0.5 rounded text-blue-600">{"{{model_name}}"}</code> 替换为实际的模型名称
-                          </div>
+                          {!data?.feature?.modelFeature?.model && (
+                            <div className="text-xs text-gray-500 bg-blue-50 px-3 py-2 rounded-lg">
+                              💡 将 <code className="bg-white px-1.5 py-0.5 rounded text-blue-600">{"{{model_name}}"}</code> 替换为实际的模型名称
+                            </div>
+                          )}
                         </>
                       ) : (
                         <div className="text-gray-400 text-center py-8">

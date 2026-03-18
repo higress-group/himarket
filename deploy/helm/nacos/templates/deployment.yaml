@@ -22,12 +22,6 @@ spec:
         - name: nacos
           image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command:
-            - /bin/sh
-            - -c
-            - |
-              export JAVA_OPT="${JAVA_OPT} --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.lang.reflect=ALL-UNNAMED"
-              exec /home/nacos/bin/docker-startup.sh
           ports:
             - name: console
               containerPort: 8080
