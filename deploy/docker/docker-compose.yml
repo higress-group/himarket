@@ -39,12 +39,6 @@ services:
   nacos:
     image: ${NACOS_IMAGE:-nacos-registry.cn-hangzhou.cr.aliyuncs.com/nacos/nacos-server:v3.2.0-BETA}
     container_name: nacos-standalone
-    entrypoint:
-      - /bin/sh
-      - -c
-      - |
-        export JAVA_OPT="$${JAVA_OPT} --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.lang.reflect=ALL-UNNAMED"
-        exec /home/nacos/bin/docker-startup.sh
     environment:
       - PREFER_HOST_MODE=hostname
       - MODE=standalone

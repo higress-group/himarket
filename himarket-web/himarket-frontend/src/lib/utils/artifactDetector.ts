@@ -9,7 +9,7 @@ export function getArtifactType(filePath: string): ArtifactType | null {
   const lastDot = filePath.lastIndexOf(".");
   if (lastDot === -1) return null;
   const ext = filePath.slice(lastDot).toLowerCase();
-  return ARTIFACT_EXTENSIONS[ext] ?? "file";
+  return ARTIFACT_EXTENSIONS[ext] ?? null;
 }
 /**
  * 归一化文件路径，消除格式差异：
