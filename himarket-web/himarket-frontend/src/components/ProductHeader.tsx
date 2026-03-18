@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useImperativeHandle, forwardRef } from "react";
 import { Typography, Button, Modal, Select, message, Popconfirm, Input, Pagination, Spin } from "antd";
 import { ApiOutlined, CheckCircleFilled, ClockCircleFilled, ExclamationCircleFilled, PlusOutlined, RobotOutlined, BulbOutlined } from "@ant-design/icons";
 import { useParams } from "react-router-dom";
@@ -10,6 +10,10 @@ import APIs, { getProductSubscriptionStatus, type ISubscription } from "../lib/a
 const { Title, Paragraph } = Typography;
 const { Search } = Input;
 
+export interface ProductHeaderHandle {
+  showManageModal: () => void;
+}
+
 interface ProductHeaderProps {
   name: string;
   description: string;
@@ -19,6 +23,7 @@ interface ProductHeaderProps {
   agentConfig?: IAgentConfig;
   updatedAt?: string;
   productType?: 'REST_API' | 'MCP_SERVER' | 'AGENT_API' | 'MODEL_API' | 'AGENT_SKILL';
+  onSubscriptionStatusChange?: (hasSubscription: boolean) => void;
 }
 
 type UnwrapPromise<T> = T extends Promise<infer U> ? U : T;
@@ -42,7 +47,7 @@ const getIconUrl = (icon?: IProductIcon, defaultIcon?: string): string => {
   }
 };
 
-export const ProductHeader: React.FC<ProductHeaderProps> = ({
+export const ProductHeader = forwardRef<ProductHeaderHandle, ProductHeaderProps>(({
   name,
   description,
   icon,
@@ -51,7 +56,8 @@ export const ProductHeader: React.FC<ProductHeaderProps> = ({
   agentConfig,
   updatedAt,
   productType,
-}) => {
+  onSubscriptionStatusChange,
+}, ref) => {
   const { 
     apiProductId, 
     mcpProductId, 
@@ -121,6 +127,18 @@ export const ProductHeader: React.FC<ProductHeaderProps> = ({
       setSubscriptionLoading(false);
     }
   }, [productId, shouldShowSubscribeButton]);
+
+  // 暴露给父组件的方法
+  useImperativeHandle(ref, () => ({
+    showManageModal,
+  }));
+
+  // 订阅状态变化时通知父组件
+  useEffect(() => {
+    if (subscriptionStatus !== undefined && onSubscriptionStatusChange) {
+      onSubscriptionStatusChange(subscriptionStatus.hasSubscription);
+    }
+  }, [subscriptionStatus, onSubscriptionStatusChange]);
 
   // 获取订阅详情（用于管理弹窗）
   const fetchSubscriptionDetails = async (page: number = 1, search: string = ''): Promise<void> => {
@@ -589,4 +607,4 @@ export const ProductHeader: React.FC<ProductHeaderProps> = ({
       </Modal>
     </>
   );
-}; 
+}); 
