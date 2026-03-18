@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import { ProductHeader } from "../components/ProductHeader";
+import type { ProductHeaderHandle } from "../components/ProductHeader";
 import {
   Alert,
   Button,
@@ -29,6 +30,12 @@ function ModelDetail() {
   const [data, setData] = useState<IProductDetail>();
   const [modelConfig, setModelConfig] = useState<IModelConfig>();
   const [selectedModelDomainIndex, setSelectedModelDomainIndex] = useState<number>(0);
+  const [hasSubscription, setHasSubscription] = useState(false);
+  const headerRef = useRef<ProductHeaderHandle>(null);
+
+  const handleSubscriptionStatusChange = useCallback((subscribed: boolean) => {
+    setHasSubscription(subscribed);
+  }, []);
 
 
   useEffect(() => {
@@ -260,11 +267,13 @@ function ModelDetail() {
         </button>
 
         <ProductHeader
+          ref={headerRef}
           name={data.name}
           description={data.description}
           icon={data.icon}
           updatedAt={data.updatedAt}
           productType="MODEL_API"
+          onSubscriptionStatusChange={handleSubscriptionStatusChange}
         />
       </div>
 
@@ -510,10 +519,15 @@ function ModelDetail() {
                         icon={<MessageOutlined />}
                         className="rounded-lg mt-4"
                         onClick={() => {
-                          navigate("/chat", { state: { selectedProduct: data } });
+                          if (hasSubscription) {
+                            navigate("/chat", { state: { selectedProduct: data } });
+                          } else {
+                            message.warning('请先订阅该产品后再进行对话测试');
+                            headerRef.current?.showManageModal();
+                          }
                         }}
                       >
-                        开始对话测试
+                        {hasSubscription ? '开始对话测试' : '订阅并开始对话'}
                       </Button>
                     </div>
                   ),
