@@ -398,7 +398,11 @@ step_6_get_subscription_info() {
       
       if call_api "查询Consumers列表" "GET" "${FRONTEND_HOST}" "/api/v1/consumers?page=1&size=100" "" "$extra_args"; then
         # 从列表中提取第一个 consumerId
-        CONSUMER_ID=$(extract_json_field "$API_RESPONSE" "consumerId")
+        # API 返回格式: {"code":"SUCCESS","data":{"content":[{"consumerId":"xxx",...}],...}}
+        CONSUMER_ID=$(echo "$API_RESPONSE" | jq -r '.data.content[0]?.consumerId // empty' 2>/dev/null || echo "")
+        if [[ -z "$CONSUMER_ID" ]]; then
+          CONSUMER_ID=$(extract_json_field "$API_RESPONSE" "consumerId")
+        fi
         
         if [[ -z "$CONSUMER_ID" ]]; then
           err "无法从响应中提取 consumerId"
@@ -440,8 +444,9 @@ step_6_get_subscription_info() {
     
     if call_api "查询产品列表" "GET" "${FRONTEND_HOST}" "/api/v1/products" "" "$extra_args"; then
       # 从列表中提取所有产品ID（使用 jq 处理）
-      local product_ids=$(echo "$API_RESPONSE" | jq -r '.[] | .productId // empty' 2>/dev/null || echo "")
-      
+      # API 返回格式: {"code":"SUCCESS","data":{"content":[{"productId":"xxx",...}],...}}
+      local product_ids=$(echo "$API_RESPONSE" | jq -r '.data.content[]? | .productId // empty' 2>/dev/null || echo "")
+
       if [[ -z "$product_ids" ]]; then
         # 如果 jq 失败，尝试手动提取
         product_ids=$(echo "$API_RESPONSE" | grep -o '"productId":"[^"]*"' | sed 's/"productId":"//' | sed 's/"//')
@@ -522,6 +527,14 @@ step_7_subscribe_products() {
         # 检查是否是不支持订阅的产品（HTTP 400 且包含特定错误消息）
         if [[ "$API_HTTP_CODE" == "400" ]] && (echo "$API_RESPONSE" | grep -qi "does not support subscription\|不支持订阅"); then
           log "产品 ${product_id} 不支持订阅，跳过"
+          skipped_count=$((skipped_count + 1))
+          skipped_products+=("$product_id")
+          break
+        fi
+
+        # 检查是否是 AGENT_SKILL 等未关联网关的产品（HTTP 500 且包含 "not associated"）
+        if [[ "$API_HTTP_CODE" == "500" ]] && (echo "$API_RESPONSE" | grep -qi "not associated with any API"); then
+          log "产品 ${product_id} 未关联网关，不支持订阅，跳过"
           skipped_count=$((skipped_count + 1))
           skipped_products+=("$product_id")
           break

@@ -455,7 +455,11 @@ step_6_get_subscription_info() {
 
       if call_api "查询Consumers列表" "GET" "${FRONTEND_HOST}" "/api/v1/consumers?page=1&size=100" "" "$extra_args"; then
         # 从列表中提取第一个 consumerId
-        CONSUMER_ID=$(extract_json_field "$API_RESPONSE" "consumerId")
+        # API 返回格式: {"code":"SUCCESS","data":{"content":[{"consumerId":"xxx",...}],...}}
+        CONSUMER_ID=$(echo "$API_RESPONSE" | jq -r '.data.content[0]?.consumerId // empty' 2>/dev/null || echo "")
+        if [[ -z "$CONSUMER_ID" ]]; then
+          CONSUMER_ID=$(extract_json_field "$API_RESPONSE" "consumerId")
+        fi
 
         if [[ -z "$CONSUMER_ID" ]]; then
           err "无法从响应中提取 consumerId"
@@ -497,7 +501,8 @@ step_6_get_subscription_info() {
 
     if call_api "查询产品列表" "GET" "${FRONTEND_HOST}" "/api/v1/products" "" "$extra_args"; then
       # 从列表中提取所有产品ID（使用 jq 处理）
-      local product_ids=$(echo "$API_RESPONSE" | jq -r '.[] | .productId // empty' 2>/dev/null || echo "")
+      # API 返回格式: {"code":"SUCCESS","data":{"content":[{"productId":"xxx",...}],...}}
+      local product_ids=$(echo "$API_RESPONSE" | jq -r '.data.content[]? | .productId // empty' 2>/dev/null || echo "")
 
       if [[ -z "$product_ids" ]]; then
         # 如果 jq 失败，尝试手动提取

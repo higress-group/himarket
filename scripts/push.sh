@@ -11,11 +11,10 @@
 #   HIMARKET_NAMESPACE   - 镜像命名空间
 
 # 镜像版本
-VERSION="cli-interation"
+VERSION="latest"
 
 # 目标构建平台 (多架构)
-PLATFORMS="linux/amd64"
-# PLATFORMS="linux/amd64,linux/arm64"
+PLATFORMS="linux/amd64,linux/arm64"
 
 
 # ==============================================================================

@@ -11,7 +11,7 @@
 #   HIMARKET_NAMESPACE   - 镜像命名空间
 
 # 镜像版本
-VERSION="cli-interation"
+VERSION="latest"
 
 # 目标构建平台 (多架构)
 PLATFORMS="linux/amd64,linux/arm64"
@@ -78,8 +78,9 @@ build_and_push_manifest() {
     echo "🔨 Building multi-arch image: $IMAGE_TAG"
     echo "   Platforms: $PLATFORMS"
 
-    # 清理可能残留的同名 manifest
+    # 清理可能残留的同名 manifest 和镜像
     podman manifest rm "$IMAGE_TAG" 2>/dev/null || true
+    podman rmi "$IMAGE_TAG" 2>/dev/null || true
 
     # 创建 manifest list
     podman manifest create "$IMAGE_TAG"
