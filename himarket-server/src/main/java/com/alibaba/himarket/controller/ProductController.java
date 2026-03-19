@@ -29,11 +29,13 @@ import com.alibaba.himarket.dto.params.product.QueryProductSubscriptionParam;
 import com.alibaba.himarket.dto.params.product.UpdateProductParam;
 import com.alibaba.himarket.dto.result.ProductCategoryResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
+import com.alibaba.himarket.dto.result.mcp.McpMetaResult;
 import com.alibaba.himarket.dto.result.mcp.McpToolListResult;
 import com.alibaba.himarket.dto.result.product.ProductPublicationResult;
 import com.alibaba.himarket.dto.result.product.ProductRefResult;
 import com.alibaba.himarket.dto.result.product.ProductResult;
 import com.alibaba.himarket.dto.result.product.SubscriptionResult;
+import com.alibaba.himarket.service.McpServerService;
 import com.alibaba.himarket.service.ProductCategoryService;
 import com.alibaba.himarket.service.ProductService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -55,6 +57,8 @@ public class ProductController {
     private final ProductService productService;
 
     private final ProductCategoryService productCategoryService;
+
+    private final McpServerService mcpServerService;
 
     @Operation(summary = "创建API产品")
     @PostMapping
@@ -126,6 +130,12 @@ public class ProductController {
     @GetMapping("/{productId}/ref")
     public ProductRefResult getProductRef(@PathVariable String productId) {
         return productService.getProductRef(productId);
+    }
+
+    @Operation(summary = "获取产品关联的 MCP 元信息")
+    @GetMapping("/{productId}/mcp-meta")
+    public List<McpMetaResult> listMcpMeta(@PathVariable String productId) {
+        return mcpServerService.listMetaByProduct(productId);
     }
 
     @Operation(summary = "删除API产品关联的API或MCP Server")

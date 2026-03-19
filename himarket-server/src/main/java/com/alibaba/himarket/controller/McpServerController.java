@@ -1,0 +1,173 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+package com.alibaba.himarket.controller;
+
+import com.alibaba.himarket.core.annotation.AdminAuth;
+import com.alibaba.himarket.dto.params.mcp.RegisterMcpParam;
+import com.alibaba.himarket.dto.params.mcp.SaveMcpEndpointParam;
+import com.alibaba.himarket.dto.params.mcp.SaveMcpMetaParam;
+import com.alibaba.himarket.dto.result.common.PageResult;
+import com.alibaba.himarket.dto.result.mcp.McpEndpointResult;
+import com.alibaba.himarket.dto.result.mcp.McpMetaResult;
+import com.alibaba.himarket.dto.result.mcp.MyEndpointResult;
+import com.alibaba.himarket.dto.result.sandbox.SandboxSimpleResult;
+import com.alibaba.himarket.service.McpServerService;
+import com.alibaba.himarket.service.SandboxService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import java.util.List;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.web.bind.annotation.*;
+
+@Tag(name = "MCP Server 管理")
+@RestController
+@RequestMapping("/mcp-servers")
+@RequiredArgsConstructor
+public class McpServerController {
+
+    private final McpServerService mcpServerService;
+    private final SandboxService sandboxService;
+
+    // ==================== 管理接口（需要 Admin 权限） ====================
+
+    @Operation(summary = "保存 MCP 元信息（创建/更新）")
+    @PostMapping("/meta")
+    @AdminAuth
+    public McpMetaResult saveMeta(@RequestBody @Valid SaveMcpMetaParam param) {
+        return mcpServerService.saveMeta(param);
+    }
+
+    @Operation(summary = "删除 MCP 元信息及关联 endpoint")
+    @DeleteMapping("/meta/{mcpServerId}")
+    @AdminAuth
+    public void deleteMeta(@PathVariable String mcpServerId) {
+        mcpServerService.deleteMeta(mcpServerId);
+    }
+
+    @Operation(summary = "删除产品下所有 MCP 配置（meta + endpoint + ref + 重置状态）")
+    @DeleteMapping("/meta/by-product/{productId}")
+    @AdminAuth
+    public void deleteMetaByProduct(@PathVariable String productId) {
+        mcpServerService.deleteMetaByProduct(productId);
+    }
+
+    @Operation(summary = "保存 endpoint")
+    @PostMapping("/endpoints")
+    @AdminAuth
+    public McpEndpointResult saveEndpoint(@RequestBody @Valid SaveMcpEndpointParam param) {
+        return mcpServerService.saveEndpoint(param);
+    }
+
+    @Operation(summary = "删除 endpoint")
+    @DeleteMapping("/endpoints/{endpointId}")
+    @AdminAuth
+    public void deleteEndpoint(@PathVariable String endpointId) {
+        mcpServerService.deleteEndpoint(endpointId);
+    }
+
+    // ==================== 查询接口（Portal 可访问） ====================
+
+    @Operation(summary = "获取 MCP 元信息")
+    @GetMapping("/meta/{mcpServerId}")
+    public McpMetaResult getMeta(@PathVariable String mcpServerId) {
+        return mcpServerService.getMeta(mcpServerId);
+    }
+
+    @Operation(summary = "获取产品下所有 MCP 元信息")
+    @GetMapping("/meta")
+    public List<McpMetaResult> listMetaByProduct(@RequestParam String productId) {
+        return mcpServerService.listMetaByProduct(productId);
+    }
+
+    @Operation(summary = "批量获取多个产品的 MCP 元信息（含公共 endpoint 热数据）")
+    @GetMapping("/meta/batch")
+    public List<McpMetaResult> listMetaByProductIds(@RequestParam List<String> productIds) {
+        return mcpServerService.listMetaByProductIds(productIds);
+    }
+
+    @Operation(summary = "刷新工具列表（连接 endpoint 获取 tools/list）")
+    @PostMapping("/meta/{mcpServerId}/refresh-tools")
+    @AdminAuth
+    public McpMetaResult refreshTools(@PathVariable String mcpServerId) {
+        return mcpServerService.refreshTools(mcpServerId);
+    }
+
+    @Operation(summary = "更新服务介绍")
+    @PutMapping("/meta/{mcpServerId}/service-intro")
+    @AdminAuth
+    public McpMetaResult updateServiceIntro(
+            @PathVariable String mcpServerId, @RequestBody java.util.Map<String, String> body) {
+        return mcpServerService.updateServiceIntro(mcpServerId, body.get("serviceIntro"));
+    }
+
+    @Operation(summary = "管理员手动部署沙箱（为已保存的 MCP 配置部署沙箱 endpoint）")
+    @PostMapping("/meta/{mcpServerId}/deploy-sandbox")
+    @AdminAuth
+    public McpMetaResult deploySandbox(
+            @PathVariable String mcpServerId, @RequestBody java.util.Map<String, String> body) {
+        SaveMcpMetaParam param = new SaveMcpMetaParam();
+        param.setSandboxId(body.get("sandboxId"));
+        param.setTransportType(body.get("transportType"));
+        param.setAuthType(body.get("authType"));
+        param.setParamValues(body.get("paramValues"));
+        param.setNamespace(body.get("namespace"));
+        param.setResourceSpec(body.get("resourceSpec"));
+        return mcpServerService.deploySandbox(mcpServerId, param);
+    }
+
+    @Operation(summary = "管理员取消沙箱托管（删除沙箱 CRD 和 endpoint）")
+    @DeleteMapping("/meta/{mcpServerId}/deploy-sandbox")
+    @AdminAuth
+    public McpMetaResult undeploySandbox(@PathVariable String mcpServerId) {
+        return mcpServerService.undeploySandbox(mcpServerId);
+    }
+
+    @Operation(summary = "获取 MCP Server 的所有 endpoint")
+    @GetMapping("/endpoints")
+    public List<McpEndpointResult> listEndpoints(@RequestParam String mcpServerId) {
+        return mcpServerService.listEndpoints(mcpServerId);
+    }
+
+    @Operation(summary = "市场列表：已发布且公开的 MCP Server")
+    @GetMapping("/published")
+    public PageResult<McpMetaResult> listPublished(Pageable pageable) {
+        return mcpServerService.listPublishedMcpServers(pageable);
+    }
+
+    @Operation(summary = "可用沙箱列表（Portal 端，只返回支持 MCP 托管且状态正常的沙箱）")
+    @GetMapping("/sandboxes")
+    public List<SandboxSimpleResult> listMcpCapableSandboxes() {
+        return sandboxService.listMcpCapableSandboxes();
+    }
+
+    @Operation(summary = "我的 MCP：查询当前用户拥有的所有 endpoint")
+    @GetMapping("/my-endpoints")
+    public List<MyEndpointResult> listMyEndpoints() {
+        return mcpServerService.listMyEndpoints();
+    }
+
+    @Operation(summary = "用户注册 MCP Server（Portal 端，需登录）")
+    @PostMapping("/register")
+    public McpMetaResult register(@RequestBody @Valid RegisterMcpParam param) {
+        return mcpServerService.registerMcp(param);
+    }
+}

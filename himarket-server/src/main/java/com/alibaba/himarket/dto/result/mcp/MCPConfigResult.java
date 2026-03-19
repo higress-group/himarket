@@ -40,6 +40,12 @@ public class MCPConfigResult {
     protected McpMetadata meta;
 
     public MCPTransportConfig toTransportConfig() {
+        if (mcpServerConfig == null
+                || mcpServerConfig.getDomains() == null
+                || mcpServerConfig.getDomains().isEmpty()) {
+            return null;
+        }
+
         DomainResult domain =
                 mcpServerConfig.getDomains().stream()
                         .filter(d -> !StrUtil.equalsIgnoreCase(d.getNetworkType(), "intranet"))

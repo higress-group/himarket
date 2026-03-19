@@ -84,6 +84,9 @@ acp:
       supports-mcp: true
       supports-skill: true
 
+open-api:
+  api-key: ${OPEN_API_KEY:himarket-open-api-key}
+
 sls:
   # SLS服务端点（必填）
   # cn-chengdu.log.aliyuncs.com

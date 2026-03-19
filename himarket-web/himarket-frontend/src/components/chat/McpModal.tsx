@@ -15,6 +15,8 @@ interface McpModal extends ModalProps {
   onRemove: (product: IProductDetail) => void;
   onRemoveAll: () => void;
   subscripts: ISubscription[];
+  /** 来自"我的MCP" endpoint 的已订阅 productId 集合，优先用于判断订阅状态 */
+  subscribedProductIds?: Set<string>;
   enabled?: boolean;
   onEnabled: (enabled: boolean) => void;
   onClose: () => void;
@@ -28,6 +30,7 @@ function McpModal(props: McpModal) {
     onAdd, subscripts, onEnabled,
     enabled, onRemove, onClose,
     onQuickSubscribe, onRemoveAll,
+    subscribedProductIds,
     ...modalProps
   } = props;
   const [searchText, setSearchText] = useState("");
@@ -35,8 +38,14 @@ function McpModal(props: McpModal) {
   const [active, setActive] = useState("all");
 
   const scbscriptsIds = useMemo(() => {
-    return subscripts.map(v => v.productId);
-  }, [subscripts]);
+    // 合并两个数据源：endpoint 热数据 + consumer subscription
+    const ids = new Set<string>();
+    if (subscribedProductIds) {
+      subscribedProductIds.forEach(id => ids.add(id));
+    }
+    subscripts.forEach(v => ids.add(v.productId));
+    return [...ids];
+  }, [subscribedProductIds, subscripts]);
 
   const addedIds = useMemo(() => {
     return added.map(v => v.productId);

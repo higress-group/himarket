@@ -1,16 +1,17 @@
-import { createBrowserRouter, Navigate } from "react-router-dom";
-import LayoutWrapper from "@/components/LayoutWrapper";
-import Portals from "@/pages/Portals";
-import ApiProducts from "@/pages/ApiProducts";
-import ProductCategories from "@/pages/ProductCategories";
-import ProductCategoryDetail from "@/pages/ProductCategoryDetail";
-import GatewayConsoles from "@/pages/GatewayConsoles";
-import NacosConsoles from "@/pages/NacosConsoles";
-import PortalDetail from "@/pages/PortalDetail";
-import ApiProductDetail from "@/pages/ApiProductDetail";
-import Login from "@/pages/Login";
-import ModelDashboard from "@/pages/ModelDashboard";
-import McpMonitor from "@/pages/McpMonitor";
+import { createBrowserRouter, Navigate } from 'react-router-dom';
+import LayoutWrapper from '@/components/LayoutWrapper';
+import Portals from '@/pages/Portals';
+import ApiProducts from '@/pages/ApiProducts';
+import ProductCategories from '@/pages/ProductCategories';
+import ProductCategoryDetail from '@/pages/ProductCategoryDetail';
+import GatewayConsoles from '@/pages/GatewayConsoles';
+import NacosConsoles from '@/pages/NacosConsoles';
+import PortalDetail from '@/pages/PortalDetail';
+import ApiProductDetail from '@/pages/ApiProductDetail';
+import Login from '@/pages/Login';
+import ModelDashboard from '@/pages/ModelDashboard';
+import McpMonitor from '@/pages/McpMonitor';
+import SandboxConsoles from '@/pages/SandboxConsoles';
 
 export const router = createBrowserRouter([
   {
@@ -62,7 +63,11 @@ export const router = createBrowserRouter([
         element: <NacosConsoles />,
       },
       {
-        path: "observability",
+        path: 'consoles/sandbox',
+        element: <SandboxConsoles />,
+      },
+      {
+        path: 'observability',
         element: <Navigate to="/observability/model-dashboard" replace />,
       },
       {

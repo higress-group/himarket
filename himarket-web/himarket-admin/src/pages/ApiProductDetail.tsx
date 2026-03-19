@@ -64,6 +64,13 @@ export default function ApiProductDetail() {
         { key: 'link-nacos', label: 'Link Nacos', description: 'Nacos 关联', icon: LinkOutlined },
         BASE_MENU_ITEMS[3], // portal（跳过 link-api 和 usage-guide）
       ]
+    : apiProduct?.type === 'MCP_SERVER'
+    ? [
+        BASE_MENU_ITEMS[0], // overview
+        { key: 'link-api', label: '配置MCP', description: 'MCP Server 配置', icon: LinkOutlined },
+        BASE_MENU_ITEMS[2], // usage-guide
+        BASE_MENU_ITEMS[3], // portal
+      ]
     : BASE_MENU_ITEMS;
 
   // 从URL query参数获取当前tab，默认为overview

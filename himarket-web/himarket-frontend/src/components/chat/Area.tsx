@@ -65,6 +65,12 @@ export function ChatArea(props: ChatAreaProps) {
   const [addedMcps, setAddedMcps] = useState<IProductDetail[]>([]);
   const addedMcpsRef = useRef<IProductDetail[]>([]);
   const [mcpSubscripts, setMcpSubscripts] = useState<ISubscription[]>([]);
+  const [mcpEndpointProductIds, setMcpEndpointProductIds] = useState<Set<string>>(new Set());
+  // 从 consumer subscriptions 派生已订阅的 MCP productId 集合
+  useEffect(() => {
+    const ids = new Set(mcpSubscripts.filter(s => s.status === 'APPROVED').map(s => s.productId));
+    setMcpEndpointProductIds(ids);
+  }, [mcpSubscripts]);
   const [modelSubscriptions, setModelSubscriptions] = useState<ISubscription[]>([]);
   const [mcpEnabled, setMcpEnabled] = useState(() => {
     return safeJSONParse(window.localStorage.getItem("mcpEnabled") || "false", false)
@@ -165,22 +171,13 @@ export function ChatArea(props: ChatAreaProps) {
     addedMcpsRef.current = []
   }, [])
 
-  const handleQuickSubscribe = useCallback((product: IProductDetail) => {
+  const handleQuickSubscribe = useCallback((_product: IProductDetail) => {
     if (!primaryConsumer.current) return;
-    APIs.subscribeProduct(primaryConsumer.current.consumerId, product.productId)
+    // 弹窗内已完成产品订阅，这里只刷新订阅列表
+    APIs.getConsumerSubscriptions(primaryConsumer.current.consumerId, { size: 1000 })
       .then(({ data }) => {
-        if (data) {
-          message.success("订阅成功")
-          APIs.getConsumerSubscriptions(data.consumerId, { size: 1000 })
-            .then(({ data }) => {
-              setMcpSubscripts(data.content);
-            })
-        } else {
-          message.error("订阅失败")
-        }
-      }).catch(() => {
-        message.error("订阅失败")
-      })
+        setMcpSubscripts(data.content);
+      }).catch(() => {});
   }, []);
 
   const handleMcpEnable = (enable: boolean) => {
@@ -469,6 +466,7 @@ export function ChatArea(props: ChatAreaProps) {
         mcpLoading={mcpListLoading}
         added={addedMcps}
         subscripts={mcpSubscripts}
+        subscribedProductIds={mcpEndpointProductIds}
         onAdd={handleAddMcp}
         onEnabled={handleMcpEnable}
         enabled={mcpEnabled}

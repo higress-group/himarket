@@ -32,6 +32,13 @@ public enum SandboxType {
 
     @JsonCreator
     public static SandboxType fromValue(String value) {
+        // 兼容旧值
+        if ("local".equalsIgnoreCase(value)
+                || "k8s".equalsIgnoreCase(value)
+                || "shared-k8s".equalsIgnoreCase(value)
+                || "shared_k8s".equalsIgnoreCase(value)) {
+            return REMOTE;
+        }
         for (SandboxType type : values()) {
             if (type.value.equalsIgnoreCase(value) || type.name().equalsIgnoreCase(value)) {
                 return type;

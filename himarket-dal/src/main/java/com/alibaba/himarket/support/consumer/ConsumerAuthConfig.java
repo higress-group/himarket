@@ -40,4 +40,9 @@ public class ConsumerAuthConfig {
      * For ADP AI Gateway
      */
     private AdpAIAuthConfig adpAIAuthConfig;
+
+    /**
+     * For MCP sandbox (bearer auth)
+     */
+    private McpAuthConfig mcpAuthConfig;
 }

@@ -296,16 +296,6 @@ public class ConsumerServiceImpl implements ConsumerService {
 
         ProductResult product = productService.getProduct(param.getProductId());
         ProductRefResult productRef = productService.getProductRef(param.getProductId());
-        if (productRef == null) {
-            throw new BusinessException(
-                    ErrorCode.INTERNAL_ERROR, "API product is not associated with any API");
-        }
-
-        // Only gateway source type is supported
-        if (productRef.getSourceType() != SourceType.GATEWAY) {
-            throw new BusinessException(
-                    ErrorCode.INVALID_REQUEST, "API product does not support subscription");
-        }
 
         ConsumerCredential credential = findCredential(consumerId);
 
@@ -313,25 +303,31 @@ public class ConsumerServiceImpl implements ConsumerService {
         subscription.setSubscriptionId(IdGenerator.genSubscriptionId());
         subscription.setConsumerId(consumerId);
 
-        boolean autoApprove;
-        if (product.getAutoApprove() != null) {
-            autoApprove = product.getAutoApprove();
-        } else {
-            PortalResult portal = portalService.getPortal(consumer.getPortalId());
-            autoApprove =
-                    portal.getPortalSettingConfig() != null
-                            && BooleanUtil.isTrue(
-                                    portal.getPortalSettingConfig().getAutoApproveSubscriptions());
-        }
+        // 网关来源：需要同步授权到网关
+        if (productRef != null && productRef.getSourceType() == SourceType.GATEWAY) {
+            boolean autoApprove;
+            if (product.getAutoApprove() != null) {
+                autoApprove = product.getAutoApprove();
+            } else {
+                PortalResult portal = portalService.getPortal(consumer.getPortalId());
+                autoApprove =
+                        portal.getPortalSettingConfig() != null
+                                && BooleanUtil.isTrue(
+                                        portal.getPortalSettingConfig()
+                                                .getAutoApproveSubscriptions());
+            }
 
-        // If autoApprove is true, immediately authorize and set status to APPROVED
-        if (autoApprove) {
-            ConsumerAuthConfig consumerAuthConfig =
-                    authorizeConsumer(consumer, credential, productRef);
-            subscription.setConsumerAuthConfig(consumerAuthConfig);
-            subscription.setStatus(SubscriptionStatus.APPROVED);
+            if (autoApprove) {
+                ConsumerAuthConfig consumerAuthConfig =
+                        authorizeConsumer(consumer, credential, productRef);
+                subscription.setConsumerAuthConfig(consumerAuthConfig);
+                subscription.setStatus(SubscriptionStatus.APPROVED);
+            } else {
+                subscription.setStatus(SubscriptionStatus.PENDING);
+            }
         } else {
-            subscription.setStatus(SubscriptionStatus.PENDING);
+            // 非网关来源（自定义 MCP、Nacos 等）：直接 APPROVED
+            subscription.setStatus(SubscriptionStatus.APPROVED);
         }
 
         subscriptionRepository.save(subscription);
