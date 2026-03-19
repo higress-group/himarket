@@ -20,7 +20,7 @@
 package com.alibaba.himarket.controller;
 
 import com.alibaba.himarket.core.annotation.AdminAuth;
-import com.alibaba.himarket.core.annotation.AdminOrDeveloperAuth;
+import com.alibaba.himarket.core.annotation.PublicAccess;
 import com.alibaba.himarket.dto.params.category.CreateProductCategoryParam;
 import com.alibaba.himarket.dto.params.category.QueryProductCategoryParam;
 import com.alibaba.himarket.dto.params.category.UpdateProductCategoryParam;
@@ -55,7 +55,7 @@ public class ProductCategoryController {
 
     @Operation(summary = "获取产品类别列表")
     @GetMapping
-    @AdminOrDeveloperAuth
+    @PublicAccess
     public PageResult<ProductCategoryResult> listProductCategories(
             QueryProductCategoryParam param, Pageable pageable) {
         return productCategoryService.listProductCategories(param, pageable);
@@ -71,7 +71,7 @@ public class ProductCategoryController {
 
     @Operation(summary = "获取产品类别详情")
     @GetMapping("/{categoryId}")
-    @AdminOrDeveloperAuth
+    @PublicAccess
     public ProductCategoryResult getProductCategory(@PathVariable String categoryId) {
         return productCategoryService.getProductCategory(categoryId);
     }

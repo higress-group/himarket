@@ -6,6 +6,7 @@ import { getConsumers, subscribeProduct, unsubscribeProduct, getProductSubscript
 import type { Consumer } from "../types/consumer";
 import type { IMCPConfig, IProductIcon, IAgentConfig } from "../lib/apis/typing";
 import APIs, { getProductSubscriptionStatus, type ISubscription } from "../lib/apis";
+import { LoginPrompt } from "./LoginPrompt";
 
 const { Title, Paragraph } = Typography;
 const { Search } = Input;
@@ -65,6 +66,8 @@ export const ProductHeader = forwardRef<ProductHeaderHandle, ProductHeaderProps>
     modelProductId 
   } = useParams();
   
+  const isLoggedIn = !!localStorage.getItem('access_token');
+  const [loginPromptOpen, setLoginPromptOpen] = useState(false);
   const [isManageModalVisible, setIsManageModalVisible] = useState(false);
   const [isApplyingSubscription, setIsApplyingSubscription] = useState(false);
   const [selectedConsumerId, setSelectedConsumerId] = useState<string>('');
@@ -359,7 +362,15 @@ export const ProductHeader = forwardRef<ProductHeaderHandle, ProductHeaderProps>
         {/* 第三行：徽章式订阅状态 + 管理按钮，与左边框对齐 */}
         {shouldShowSubscribeButton && (
           <div className="flex items-center gap-4">
-            {subscriptionLoading ? (
+            {!isLoggedIn ? (
+              <Button
+                type="primary"
+                className="rounded-xl"
+                onClick={() => setLoginPromptOpen(true)}
+              >
+                登录后订阅
+              </Button>
+            ) : subscriptionLoading ? (
               <Button loading>加载中...</Button>
             ) : (
               <>
@@ -605,6 +616,11 @@ export const ProductHeader = forwardRef<ProductHeaderHandle, ProductHeaderProps>
           </div>
         </div>
       </Modal>
+      <LoginPrompt
+        open={loginPromptOpen}
+        onClose={() => setLoginPromptOpen(false)}
+        contextMessage="登录后即可订阅产品，获取 API 访问凭证"
+      />
     </>
   );
 }); 

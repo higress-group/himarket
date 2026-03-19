@@ -47,22 +47,31 @@ request.interceptors.response.use(
   },
   (error) => {
     const status = error.response?.status;
+
+    // 公开浏览页面路径前缀列表 — 这些页面允许匿名访问，401/403 不跳转登录页
+    const PUBLIC_PATH_PREFIXES = ['/models', '/mcp', '/agents', '/apis', '/skills', '/chat', '/coding', '/quest'];
+    const currentPath = window.location.pathname;
+    const isPublicPage = currentPath === '/' || PUBLIC_PATH_PREFIXES.some(prefix => currentPath.startsWith(prefix));
+
     switch (status) {
       case 401:
+        if (isPublicPage) {
+          // 公开页面静默处理，不跳转、不清除 Token
+          break;
+        }
         message.error('未登录或登录已过期，请重新登录');
-        // 清除token信息
         localStorage.removeItem('access_token');
         if (window.location.pathname !== '/login') {
-          // 将当前页面路径作为returnUrl参数传递给登录页
           const returnUrl = encodeURIComponent(window.location.pathname + window.location.search + window.location.hash);
           window.location.href = `/login?returnUrl=${returnUrl}`;
         }
         break;
       case 403:
-        // 清除token信息
+        if (isPublicPage) {
+          break;
+        }
         localStorage.removeItem('access_token');
         if (window.location.pathname !== '/login') {
-          // 将当前页面路径作为returnUrl参数传递给登录页
           const returnUrl = encodeURIComponent(window.location.pathname + window.location.search + window.location.hash);
           window.location.href = `/login?returnUrl=${returnUrl}`;
         }

@@ -16,11 +16,12 @@ import Square from "./pages/Square";
 import Chat from "./pages/Chat";
 import Coding from "./pages/Coding";
 import SkillDetail from "./pages/SkillDetail";
+import { RequireAuth } from "./components/RequireAuth";
 
 export function Router() {
   return (
     <Routes>
-        <Route path="/" element={<Navigate to="/chat" />} />
+        <Route path="/" element={<Navigate to="/models" />} />
         <Route path="/models" element={<Square activeType="MODEL_API" />} />
         <Route path="/mcp" element={<Square activeType="MCP_SERVER" />} />
         <Route path="/agents" element={<Square activeType="AGENT_API" />} />
@@ -32,15 +33,15 @@ export function Router() {
         <Route path="/coding" element={<Coding />} />
         <Route path="/getting-started" element={<GettingStarted />} />
         <Route path="/apis/:apiProductId" element={<ApiDetail />} />
-        <Route path="/consumers/:consumerId" element={<ConsumerDetail />} />
-        <Route path="/consumers" element={<Consumers />} />
+        <Route path="/consumers/:consumerId" element={<RequireAuth><ConsumerDetail /></RequireAuth>} />
+        <Route path="/consumers" element={<RequireAuth><Consumers /></RequireAuth>} />
         <Route path="/mcp/:mcpProductId" element={<McpDetail />} />
         <Route path="/agents" element={<Agent />} />
         <Route path="/agents/:agentProductId" element={<AgentDetail />} />
         <Route path="/models/:modelProductId" element={<ModelDetail />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/profile" element={<Profile />} />
+        <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
         <Route path="/callback" element={<Callback />} />
         <Route path="/oidc/callback" element={<OidcCallback />} />
 
