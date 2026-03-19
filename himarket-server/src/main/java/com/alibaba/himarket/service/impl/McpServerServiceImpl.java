@@ -1088,16 +1088,18 @@ public class McpServerServiceImpl implements McpServerService {
             final String asyncMcpServerId = meta.getMcpServerId();
             final String asyncMcpName = meta.getMcpName();
             final String asyncTransportType = transportType;
-            taskExecutor.execute(() -> {
-                try {
-                    fetchAndSaveToolsListOrThrow(asyncMcpServerId, asyncEndpointUrl, asyncTransportType);
-                } catch (Exception toolEx) {
-                    log.warn(
-                            "沙箱部署后异步获取工具列表失败（不影响部署）: mcpName={}, error={}",
-                            asyncMcpName,
-                            toolEx.getMessage());
-                }
-            });
+            taskExecutor.execute(
+                    () -> {
+                        try {
+                            fetchAndSaveToolsListOrThrow(
+                                    asyncMcpServerId, asyncEndpointUrl, asyncTransportType);
+                        } catch (Exception toolEx) {
+                            log.warn(
+                                    "沙箱部署后异步获取工具列表失败（不影响部署）: mcpName={}, error={}",
+                                    asyncMcpName,
+                                    toolEx.getMessage());
+                        }
+                    });
 
         } catch (Exception e) {
             log.error(
@@ -1144,8 +1146,7 @@ public class McpServerServiceImpl implements McpServerService {
      */
     private void fetchAndSaveToolsListOrThrow(
             String mcpServerId, String endpointUrl, String transportType) {
-        McpServerMeta meta = metaRepository.findByMcpServerId(mcpServerId)
-                .orElse(null);
+        McpServerMeta meta = metaRepository.findByMcpServerId(mcpServerId).orElse(null);
         if (meta == null) {
             log.warn("异步获取工具列表时 meta 已不存在: mcpServerId={}", mcpServerId);
             return;
