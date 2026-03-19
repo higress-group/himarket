@@ -9,6 +9,16 @@ export interface RespI<T> {
   data: T;
 }
 
+/** Public page paths that allow anonymous access — 401/403 errors are silently ignored */
+const PUBLIC_PATHS = ['/models', '/mcp', '/agents', '/apis', '/skills', '/chat', '/coding', '/quest'];
+
+/** Check if current page is a public page that allows anonymous browsing */
+function isPublicPage(): boolean {
+  const pathname = window.location.pathname;
+  if (pathname === '/') return true;
+  return PUBLIC_PATHS.some(path => pathname === path || pathname.startsWith(path + '/'));
+}
+
 const request: AxiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
   timeout: 10000,
@@ -48,14 +58,9 @@ request.interceptors.response.use(
   (error) => {
     const status = error.response?.status;
 
-    // 公开浏览页面路径前缀列表 — 这些页面允许匿名访问，401/403 不跳转登录页
-    const PUBLIC_PATH_PREFIXES = ['/models', '/mcp', '/agents', '/apis', '/skills', '/chat', '/coding', '/quest'];
-    const currentPath = window.location.pathname;
-    const isPublicPage = currentPath === '/' || PUBLIC_PATH_PREFIXES.some(prefix => currentPath.startsWith(prefix));
-
     switch (status) {
       case 401:
-        if (isPublicPage) {
+        if (isPublicPage()) {
           // 公开页面静默处理，不跳转、不清除 Token
           break;
         }
@@ -67,7 +72,7 @@ request.interceptors.response.use(
         }
         break;
       case 403:
-        if (isPublicPage) {
+        if (isPublicPage()) {
           break;
         }
         localStorage.removeItem('access_token');

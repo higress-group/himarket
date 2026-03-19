@@ -28,7 +28,7 @@ export function LoginPrompt({
   };
 
   return (
-    <Modal open={open} onCancel={onClose} footer={null} centered width={420}>
+    <Modal open={open} onCancel={onClose} footer={null} centered width={420} destroyOnClose>
       <div className="text-center py-4">
         <div className="text-2xl font-semibold mb-3">登录以继续</div>
         <p className="text-gray-500 mb-6 text-sm leading-relaxed">

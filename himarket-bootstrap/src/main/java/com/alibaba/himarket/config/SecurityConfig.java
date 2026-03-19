@@ -21,8 +21,10 @@ package com.alibaba.himarket.config;
 
 import com.alibaba.himarket.core.security.JwtAuthenticationFilter;
 import com.alibaba.himarket.core.security.PublicAccessPathScanner;
+import com.alibaba.himarket.core.security.PublicAccessPathScanner.PublicAccessEndpoint;
 import jakarta.servlet.DispatcherType;
 import java.util.Collections;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
@@ -78,7 +80,8 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        String[] publicPaths = publicAccessPathScanner.getPublicAccessPaths();
+        List<PublicAccessEndpoint> publicEndpoints =
+                publicAccessPathScanner.getPublicAccessEndpoints();
         http.cors(Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(
@@ -104,9 +107,15 @@ public class SecurityConfig {
                                     // Permit system endpoints
                                     .requestMatchers(SYSTEM_WHITELIST)
                                     .permitAll();
-                            // Permit @PublicAccess annotated endpoints
-                            if (publicPaths.length > 0) {
-                                auth.requestMatchers(publicPaths).permitAll();
+                            // Permit @PublicAccess annotated endpoints with HTTP method precision
+                            for (PublicAccessEndpoint endpoint : publicEndpoints) {
+                                if (endpoint.httpMethod() != null) {
+                                    auth.requestMatchers(endpoint.httpMethod(), endpoint.path())
+                                            .permitAll();
+                                } else {
+                                    // null httpMethod means all methods
+                                    auth.requestMatchers(endpoint.path()).permitAll();
+                                }
                             }
                             auth.anyRequest().authenticated();
                         })

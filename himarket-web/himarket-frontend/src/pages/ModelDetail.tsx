@@ -20,6 +20,7 @@ import APIs from "../lib/apis";
 import MarkdownRender from "../components/MarkdownRender";
 import { copyToClipboard, formatDomainWithPort } from "../lib/utils";
 import { LoginPrompt } from "../components/LoginPrompt";
+import { useAuth } from "../hooks/useAuth";
 
 const { Panel } = Collapse;
 
@@ -33,7 +34,7 @@ function ModelDetail() {
   const [selectedModelDomainIndex, setSelectedModelDomainIndex] = useState<number>(0);
   const [hasSubscription, setHasSubscription] = useState(false);
   const headerRef = useRef<ProductHeaderHandle>(null);
-  const isLoggedIn = !!localStorage.getItem('access_token');
+  const { isLoggedIn } = useAuth();
   const [loginPromptOpen, setLoginPromptOpen] = useState(false);
 
   const handleSubscriptionStatusChange = useCallback((subscribed: boolean) => {

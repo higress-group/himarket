@@ -24,6 +24,18 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+/**
+ * Marks a controller method or class as publicly accessible without authentication.
+ *
+ * <p>When applied at the <b>method level</b>, only that specific endpoint is public.
+ * When applied at the <b>class level</b>, all endpoints in the controller are public
+ * unless overridden by an auth annotation on individual methods.
+ *
+ * <p><b>Priority rule:</b> Auth annotations ({@code @AdminAuth}, {@code @DeveloperAuth},
+ * {@code @AdminOrDeveloperAuth}) always take precedence over {@code @PublicAccess}.
+ * If a method carries both {@code @PublicAccess} and an auth annotation, the endpoint
+ * will still require authentication.
+ */
 @Target({ElementType.METHOD, ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 public @interface PublicAccess {}

@@ -7,6 +7,7 @@ import type { Consumer } from "../types/consumer";
 import type { IMCPConfig, IProductIcon, IAgentConfig } from "../lib/apis/typing";
 import APIs, { getProductSubscriptionStatus, type ISubscription } from "../lib/apis";
 import { LoginPrompt } from "./LoginPrompt";
+import { useAuth } from "../hooks/useAuth";
 
 const { Title, Paragraph } = Typography;
 const { Search } = Input;
@@ -66,7 +67,7 @@ export const ProductHeader = forwardRef<ProductHeaderHandle, ProductHeaderProps>
     modelProductId 
   } = useParams();
   
-  const isLoggedIn = !!localStorage.getItem('access_token');
+  const { isLoggedIn } = useAuth();
   const [loginPromptOpen, setLoginPromptOpen] = useState(false);
   const [isManageModalVisible, setIsManageModalVisible] = useState(false);
   const [isApplyingSubscription, setIsApplyingSubscription] = useState(false);

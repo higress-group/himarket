@@ -8,6 +8,7 @@ import { ModelCard } from "../components/square/ModelCard";
 import { SkillCard } from "../components/square/SkillCard";
 import { EmptyState } from "../components/EmptyState";
 import { LoginPrompt } from "../components/LoginPrompt";
+import { useAuth } from "../hooks/useAuth";
 import APIs, { type ICategory } from "../lib/apis";
 import { getIconString } from "../lib/iconUtils";
 import type { IProductDetail } from "../lib/apis/product";
@@ -17,7 +18,7 @@ import BackToTopButton from "../components/scroll-to-top";
 function Square(props: { activeType: string }) {
   const { activeType } = props;
   const navigate = useNavigate();
-  const isLoggedIn = !!localStorage.getItem('access_token');
+  const { isLoggedIn } = useAuth();
   const [loginPromptOpen, setLoginPromptOpen] = useState(false);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);

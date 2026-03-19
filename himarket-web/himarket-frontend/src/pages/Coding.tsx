@@ -5,6 +5,7 @@ import { Header } from "../components/Header";
 import TextType from "../components/TextType";
 import bgImage from "../assets/bg.png";
 import { WelcomeView } from "../components/WelcomeView";
+import { useAuth } from "../hooks/useAuth";
 import {
   CodingSessionProvider,
   useCodingState,
@@ -850,7 +851,7 @@ function CodingContent() {
 }
 
 function Coding() {
-  const isLoggedIn = !!localStorage.getItem('access_token');
+  const { isLoggedIn } = useAuth();
 
   if (!isLoggedIn) {
     return (

@@ -24,13 +24,15 @@ import com.alibaba.himarket.core.annotation.AdminOrDeveloperAuth;
 import com.alibaba.himarket.core.annotation.DeveloperAuth;
 import com.alibaba.himarket.core.annotation.PublicAccess;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.core.annotation.AnnotatedElementUtils;
+import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
@@ -39,15 +41,18 @@ import org.springframework.web.bind.annotation.*;
 @Component
 public class PublicAccessPathScanner implements ApplicationContextAware {
 
-    private String[] publicAccessPaths = new String[0];
+    /** Represents a public endpoint with its HTTP method and path pattern. */
+    public record PublicAccessEndpoint(HttpMethod httpMethod, String path) {}
+
+    private Set<PublicAccessEndpoint> publicAccessEndpoints = Set.of();
 
     @Override
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
         try {
-            List<String> paths = new ArrayList<>();
+            Set<PublicAccessEndpoint> endpoints = new HashSet<>();
             String[] beanNames = applicationContext.getBeanNamesForAnnotation(RestController.class);
             for (String beanName : beanNames) {
-                scanController(applicationContext.getType(beanName), paths);
+                scanController(applicationContext.getType(beanName), endpoints);
             }
             String[] controllerBeanNames =
                     applicationContext.getBeanNamesForAnnotation(Controller.class);
@@ -55,26 +60,35 @@ public class PublicAccessPathScanner implements ApplicationContextAware {
                 Class<?> beanType = applicationContext.getType(beanName);
                 if (beanType != null
                         && !AnnotatedElementUtils.hasAnnotation(beanType, RestController.class)) {
-                    scanController(beanType, paths);
+                    scanController(beanType, endpoints);
                 }
             }
-            publicAccessPaths = paths.toArray(new String[0]);
-            if (publicAccessPaths.length > 0) {
+            publicAccessEndpoints = endpoints;
+            if (!publicAccessEndpoints.isEmpty()) {
                 log.info(
-                        "Discovered {} @PublicAccess paths: {}",
-                        publicAccessPaths.length,
-                        List.of(publicAccessPaths));
+                        "Discovered {} @PublicAccess endpoints: {}",
+                        publicAccessEndpoints.size(),
+                        publicAccessEndpoints);
             }
         } catch (Exception e) {
             log.warn("Failed to scan @PublicAccess paths, no public paths will be registered", e);
         }
     }
 
-    public String[] getPublicAccessPaths() {
-        return publicAccessPaths;
+    /** Returns the list of public access endpoints with HTTP method information. */
+    public List<PublicAccessEndpoint> getPublicAccessEndpoints() {
+        return List.copyOf(publicAccessEndpoints);
     }
 
-    private void scanController(Class<?> controllerClass, List<String> paths) {
+    /** Returns the public access paths (for backward compatibility). */
+    public String[] getPublicAccessPaths() {
+        return publicAccessEndpoints.stream()
+                .map(PublicAccessEndpoint::path)
+                .distinct()
+                .toArray(String[]::new);
+    }
+
+    private void scanController(Class<?> controllerClass, Set<PublicAccessEndpoint> endpoints) {
         if (controllerClass == null) {
             return;
         }
@@ -86,7 +100,7 @@ public class PublicAccessPathScanner implements ApplicationContextAware {
             if (!hasRequestMapping(method)) {
                 continue;
             }
-            boolean hasAuthAnnotation = hasAuthAnnotation(method);
+            boolean hasAuthAnnotation = hasAuthAnnotation(method, controllerClass);
             boolean methodLevelPublic =
                     AnnotatedElementUtils.hasAnnotation(method, PublicAccess.class);
 
@@ -96,10 +110,14 @@ public class PublicAccessPathScanner implements ApplicationContextAware {
             }
 
             if (methodLevelPublic || classLevelPublic) {
+                HttpMethod[] httpMethods = getHttpMethods(method);
                 String[] methodPaths = getMethodLevelPaths(method);
                 for (String classPath : classLevelPaths) {
                     for (String methodPath : methodPaths) {
-                        paths.add(normalizePath(classPath + methodPath));
+                        String normalizedPath = normalizePath(classPath, methodPath);
+                        for (HttpMethod httpMethod : httpMethods) {
+                            endpoints.add(new PublicAccessEndpoint(httpMethod, normalizedPath));
+                        }
                     }
                 }
             }
@@ -124,17 +142,39 @@ public class PublicAccessPathScanner implements ApplicationContextAware {
         return new String[] {""};
     }
 
+    private HttpMethod[] getHttpMethods(Method method) {
+        RequestMapping methodMapping =
+                AnnotatedElementUtils.findMergedAnnotation(method, RequestMapping.class);
+        if (methodMapping != null && methodMapping.method().length > 0) {
+            return java.util.Arrays.stream(methodMapping.method())
+                    .map(rm -> HttpMethod.valueOf(rm.name()))
+                    .toArray(HttpMethod[]::new);
+        }
+        // No specific method means all methods; use null to indicate "any"
+        return new HttpMethod[] {null};
+    }
+
     private boolean hasRequestMapping(Method method) {
         return AnnotatedElementUtils.hasAnnotation(method, RequestMapping.class);
     }
 
-    private boolean hasAuthAnnotation(Method method) {
-        return AnnotatedElementUtils.hasAnnotation(method, AdminAuth.class)
-                || AnnotatedElementUtils.hasAnnotation(method, DeveloperAuth.class)
-                || AnnotatedElementUtils.hasAnnotation(method, AdminOrDeveloperAuth.class);
+    private boolean hasAuthAnnotation(Method method, Class<?> controllerClass) {
+        // Check method-level auth annotations
+        boolean methodHasAuth =
+                AnnotatedElementUtils.hasAnnotation(method, AdminAuth.class)
+                        || AnnotatedElementUtils.hasAnnotation(method, DeveloperAuth.class)
+                        || AnnotatedElementUtils.hasAnnotation(method, AdminOrDeveloperAuth.class);
+        if (methodHasAuth) {
+            return true;
+        }
+        // Check class-level auth annotations
+        return AnnotatedElementUtils.hasAnnotation(controllerClass, AdminAuth.class)
+                || AnnotatedElementUtils.hasAnnotation(controllerClass, DeveloperAuth.class)
+                || AnnotatedElementUtils.hasAnnotation(controllerClass, AdminOrDeveloperAuth.class);
     }
 
-    private String normalizePath(String path) {
+    private String normalizePath(String classPath, String methodPath) {
+        String path = classPath + methodPath;
         if (path.isEmpty()) {
             return "/";
         }
@@ -143,8 +183,6 @@ public class PublicAccessPathScanner implements ApplicationContextAware {
         }
         // Replace path variables like {productId} with *
         path = path.replaceAll("\\{[^}]+}", "*");
-        // Handle Spring's {*filePath} catch-all pattern → **
-        path = path.replace("/**/", "/**/");
         return path;
     }
 }
