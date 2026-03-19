@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS `config_info` (
                                `encrypted_data_key` varchar(1024) NOT NULL DEFAULT '' COMMENT '密钥',
                                PRIMARY KEY (`id`),
                                UNIQUE KEY `uk_configinfo_datagrouptenant` (`data_id`,`group_id`,`tenant_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='config_info';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='config_info';
 
 /******************************************/
 /*   表名称 = config_info  since 2.5.0                */
@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS `config_info_gray` (
                                     UNIQUE KEY `uk_configinfogray_datagrouptenantgray` (`data_id`,`group_id`,`tenant_id`,`gray_name`),
                                     KEY `idx_dataid_gmt_modified` (`data_id`,`gmt_modified`),
                                     KEY `idx_gmt_modified` (`gmt_modified`)
-) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8 COMMENT='config_info_gray';
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='config_info_gray';
 
 /******************************************/
 /*   表名称 = config_tags_relation         */
@@ -77,7 +77,7 @@ CREATE TABLE IF NOT EXISTS `config_tags_relation` (
                                         PRIMARY KEY (`nid`),
                                         UNIQUE KEY `uk_configtagrelation_configidtag` (`id`,`tag_name`,`tag_type`),
                                         KEY `idx_tenant_id` (`tenant_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='config_tag_relation';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='config_tag_relation';
 
 /******************************************/
 /*   表名称 = group_capacity               */
@@ -95,7 +95,7 @@ CREATE TABLE IF NOT EXISTS `group_capacity` (
                                   `gmt_modified` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '修改时间',
                                   PRIMARY KEY (`id`),
                                   UNIQUE KEY `uk_group_id` (`group_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='集群、各Group容量信息表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='集群、各Group容量信息表';
 
 /******************************************/
 /*   表名称 = his_config_info              */
@@ -122,7 +122,7 @@ CREATE TABLE IF NOT EXISTS `his_config_info` (
                                    KEY `idx_gmt_create` (`gmt_create`),
                                    KEY `idx_gmt_modified` (`gmt_modified`),
                                    KEY `idx_did` (`data_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='多租户改造';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='多租户改造';
 
 
 /******************************************/
@@ -141,7 +141,7 @@ CREATE TABLE IF NOT EXISTS `tenant_capacity` (
                                    `gmt_modified` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '修改时间',
                                    PRIMARY KEY (`id`),
                                    UNIQUE KEY `uk_tenant_id` (`tenant_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='租户容量信息表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='租户容量信息表';
 
 
 CREATE TABLE IF NOT EXISTS `tenant_info` (
@@ -156,7 +156,7 @@ CREATE TABLE IF NOT EXISTS `tenant_info` (
                                PRIMARY KEY (`id`),
                                UNIQUE KEY `uk_tenant_info_kptenantid` (`kp`,`tenant_id`),
                                KEY `idx_tenant_id` (`tenant_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='tenant_info';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='tenant_info';
 
 CREATE TABLE IF NOT EXISTS `users` (
                          `username` varchar(50) NOT NULL PRIMARY KEY COMMENT 'username',
