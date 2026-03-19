@@ -3,6 +3,9 @@ import { useLocation } from "react-router-dom";
 import { message as antdMessage } from "antd";
 import { Layout } from "../components/Layout";
 import { Sidebar } from "../components/chat/Sidebar";
+import { WelcomeView } from "../components/WelcomeView";
+import { LoginPrompt } from "../components/LoginPrompt";
+import { useAuth } from "../hooks/useAuth";
 import { generateConversationId, generateQuestionId } from "../lib/uuid";
 import { handleSSEStream, } from "../lib/sse";
 import APIs, { type IProductConversations, type IProductDetail, type IAttachment } from "../lib/apis";
@@ -12,6 +15,8 @@ import { ChatArea } from "../components/chat/Area";
 
 function Chat() {
   const location = useLocation();
+  const { isLoggedIn } = useAuth();
+  const [loginPromptOpen, setLoginPromptOpen] = useState(false);
   const [currentSessionId, setCurrentSessionId] = useState<string>();
   const [selectedModel, setSelectedModel] = useState<IProductDetail>();
   const [useStream] = useState(true); // 默认使用流式响应
@@ -927,34 +932,45 @@ function Chat() {
 
   return (
     <Layout>
-      <div className="flex h-[calc(100vh-96px)] bg-transparent">
-        <Sidebar
-          currentSessionId={currentSessionId}
-          onNewChat={handleNewChat}
-          onSelectSession={handleSelectSession}
-          refreshTrigger={sidebarRefreshTrigger}
-          selectedType={chatType}
-          onSelectType={(type) => {
-            setChatType(type);
-            handleNewChat();
-          }}
-        />
-        <ChatArea
-          isMcpExecuting={isMcpExecuting}
-          modelConversations={modelConversation}
-          currentSessionId={currentSessionId}
-          onChangeActiveAnswer={onChangeActiveAnswer}
-          onSendMessage={handleSendMessage}
-          onSelectProduct={handleSelectProduct}
-          selectedModel={selectedModel}
-          handleGenerateMessage={handleGenerateMessage}
-          addModels={addModels}
-          closeModel={closeModel}
-          generating={generating}
-          chatType={chatType}
-          onStop={handleStop}
-        />
-      </div>
+      {!isLoggedIn ? (
+        <>
+          <WelcomeView type="chat" />
+          <LoginPrompt
+            open={loginPromptOpen}
+            onClose={() => setLoginPromptOpen(false)}
+            contextMessage="登录后即可与 AI 模型对话，体验智能问答能力"
+          />
+        </>
+      ) : (
+        <div className="flex h-[calc(100vh-96px)] bg-transparent">
+          <Sidebar
+            currentSessionId={currentSessionId}
+            onNewChat={handleNewChat}
+            onSelectSession={handleSelectSession}
+            refreshTrigger={sidebarRefreshTrigger}
+            selectedType={chatType}
+            onSelectType={(type) => {
+              setChatType(type);
+              handleNewChat();
+            }}
+          />
+          <ChatArea
+            isMcpExecuting={isMcpExecuting}
+            modelConversations={modelConversation}
+            currentSessionId={currentSessionId}
+            onChangeActiveAnswer={onChangeActiveAnswer}
+            onSendMessage={handleSendMessage}
+            onSelectProduct={handleSelectProduct}
+            selectedModel={selectedModel}
+            handleGenerateMessage={handleGenerateMessage}
+            addModels={addModels}
+            closeModel={closeModel}
+            generating={generating}
+            chatType={chatType}
+            onStop={handleStop}
+          />
+        </div>
+      )}
     </Layout>
   );
 }

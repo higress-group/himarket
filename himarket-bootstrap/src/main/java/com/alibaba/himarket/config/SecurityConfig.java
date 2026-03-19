@@ -20,8 +20,11 @@
 package com.alibaba.himarket.config;
 
 import com.alibaba.himarket.core.security.JwtAuthenticationFilter;
+import com.alibaba.himarket.core.security.PublicAccessPathScanner;
+import com.alibaba.himarket.core.security.PublicAccessPathScanner.PublicAccessEndpoint;
 import jakarta.servlet.DispatcherType;
 import java.util.Collections;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
@@ -45,6 +48,8 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @Slf4j
 @EnableMethodSecurity
 public class SecurityConfig {
+
+    private final PublicAccessPathScanner publicAccessPathScanner;
 
     // Auth endpoints
     private static final String[] AUTH_WHITELIST = {
@@ -75,33 +80,45 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        List<PublicAccessEndpoint> publicEndpoints =
+                publicAccessPathScanner.getPublicAccessEndpoints();
         http.cors(Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(
                         session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(
-                        auth ->
-                                auth
-                                        // Permit async dispatch for SSE/streaming
-                                        .dispatcherTypeMatchers(DispatcherType.ASYNC)
-                                        .permitAll()
-                                        // Permit OPTIONS
-                                        .requestMatchers(HttpMethod.OPTIONS, "/**")
-                                        .permitAll()
-                                        // Permit developer registration (POST /developers)
-                                        .requestMatchers(HttpMethod.POST, "/developers")
-                                        .permitAll()
-                                        // Permit auth endpoints
-                                        .requestMatchers(AUTH_WHITELIST)
-                                        .permitAll()
-                                        // Permit Swagger endpoints
-                                        .requestMatchers(SWAGGER_WHITELIST)
-                                        .permitAll()
-                                        // Permit system endpoints
-                                        .requestMatchers(SYSTEM_WHITELIST)
-                                        .permitAll()
-                                        .anyRequest()
-                                        .authenticated())
+                        auth -> {
+                            auth
+                                    // Permit async dispatch for SSE/streaming
+                                    .dispatcherTypeMatchers(DispatcherType.ASYNC)
+                                    .permitAll()
+                                    // Permit OPTIONS
+                                    .requestMatchers(HttpMethod.OPTIONS, "/**")
+                                    .permitAll()
+                                    // Permit developer registration (POST /developers)
+                                    .requestMatchers(HttpMethod.POST, "/developers")
+                                    .permitAll()
+                                    // Permit auth endpoints
+                                    .requestMatchers(AUTH_WHITELIST)
+                                    .permitAll()
+                                    // Permit Swagger endpoints
+                                    .requestMatchers(SWAGGER_WHITELIST)
+                                    .permitAll()
+                                    // Permit system endpoints
+                                    .requestMatchers(SYSTEM_WHITELIST)
+                                    .permitAll();
+                            // Permit @PublicAccess annotated endpoints with HTTP method precision
+                            for (PublicAccessEndpoint endpoint : publicEndpoints) {
+                                if (endpoint.httpMethod() != null) {
+                                    auth.requestMatchers(endpoint.httpMethod(), endpoint.path())
+                                            .permitAll();
+                                } else {
+                                    // null httpMethod means all methods
+                                    auth.requestMatchers(endpoint.path()).permitAll();
+                                }
+                            }
+                            auth.anyRequest().authenticated();
+                        })
                 .addFilterBefore(
                         new JwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
         return http.build();

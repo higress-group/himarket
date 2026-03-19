@@ -4,6 +4,8 @@ import { message } from "antd";
 import { Header } from "../components/Header";
 import TextType from "../components/TextType";
 import bgImage from "../assets/bg.png";
+import { WelcomeView } from "../components/WelcomeView";
+import { useAuth } from "../hooks/useAuth";
 import {
   CodingSessionProvider,
   useCodingState,
@@ -849,6 +851,35 @@ function CodingContent() {
 }
 
 function Coding() {
+  const { isLoggedIn } = useAuth();
+
+  if (!isLoggedIn) {
+    return (
+      <div className="flex flex-col min-h-screen">
+        <div
+          className="fixed w-full h-full z-[1]"
+          style={{
+            backgroundImage: `url(${bgImage})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            backgroundRepeat: "no-repeat",
+            backgroundAttachment: "fixed",
+          }}
+        />
+        <div
+          className="fixed w-full h-full z-[2]"
+          style={{ backdropFilter: "blur(204px)" }}
+        />
+        <div className="relative z-10 flex-shrink-0">
+          <Header />
+        </div>
+        <div className="flex-1 relative z-10 px-8">
+          <WelcomeView type="coding" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <CodingSessionProvider>
       <CodingShell />

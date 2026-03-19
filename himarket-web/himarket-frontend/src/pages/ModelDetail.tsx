@@ -19,6 +19,8 @@ import type { IModelConfig, IRoute } from "../lib/apis/typing";
 import APIs from "../lib/apis";
 import MarkdownRender from "../components/MarkdownRender";
 import { copyToClipboard, formatDomainWithPort } from "../lib/utils";
+import { LoginPrompt } from "../components/LoginPrompt";
+import { useAuth } from "../hooks/useAuth";
 
 const { Panel } = Collapse;
 
@@ -32,6 +34,8 @@ function ModelDetail() {
   const [selectedModelDomainIndex, setSelectedModelDomainIndex] = useState<number>(0);
   const [hasSubscription, setHasSubscription] = useState(false);
   const headerRef = useRef<ProductHeaderHandle>(null);
+  const { isLoggedIn } = useAuth();
+  const [loginPromptOpen, setLoginPromptOpen] = useState(false);
 
   const handleSubscriptionStatusChange = useCallback((subscribed: boolean) => {
     setHasSubscription(subscribed);
@@ -521,6 +525,10 @@ function ModelDetail() {
                         icon={<MessageOutlined />}
                         className="rounded-lg mt-4"
                         onClick={() => {
+                          if (!isLoggedIn) {
+                            setLoginPromptOpen(true);
+                            return;
+                          }
                           if (hasSubscription) {
                             navigate("/chat", { state: { selectedProduct: data } });
                           } else {
@@ -529,7 +537,7 @@ function ModelDetail() {
                           }
                         }}
                       >
-                        {hasSubscription ? '开始对话测试' : '订阅并开始对话'}
+                        {!isLoggedIn ? '登录后开始对话' : hasSubscription ? '开始对话测试' : '订阅并开始对话'}
                       </Button>
                     </div>
                   ),
@@ -583,6 +591,11 @@ function ModelDetail() {
           </div>
         </div>
       </div>
+      <LoginPrompt
+        open={loginPromptOpen}
+        onClose={() => setLoginPromptOpen(false)}
+        contextMessage="登录后即可订阅模型并开始对话测试"
+      />
     </Layout>
   );
 }
