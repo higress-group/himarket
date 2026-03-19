@@ -390,6 +390,9 @@ public class RemoteWorkspaceService {
 
         for (Map<String, Object> item : sidecarItems) {
             String name = (String) item.get("name");
+            if (name != null && name.startsWith(".")) {
+                continue;
+            }
             String type = (String) item.get("type");
             String childPath =
                     parentPath.endsWith("/") ? parentPath + name : parentPath + "/" + name;

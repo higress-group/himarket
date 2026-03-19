@@ -1,4 +1,5 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 import ApiDetail from "./pages/ApiDetail";
 import Consumers from "./pages/Consumers";
 import ConsumerDetail from "./pages/ConsumerDetail";
@@ -17,11 +18,48 @@ import Chat from "./pages/Chat";
 import Coding from "./pages/Coding";
 import SkillDetail from "./pages/SkillDetail";
 import { RequireAuth } from "./components/RequireAuth";
+import { usePortalConfig } from "./context/PortalConfigContext";
+
+function DynamicHome() {
+  const { firstVisiblePath } = usePortalConfig();
+  return <Navigate to={firstVisiblePath} replace />;
+}
+
+function MenuRedirectGuard() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { isMenuVisible, firstVisiblePath, loading } = usePortalConfig();
+
+  useEffect(() => {
+    if (loading) return;
+
+    const pathToKeyMap: Record<string, string> = {
+      "/chat": "chat",
+      "/coding": "coding",
+      "/agents": "agents",
+      "/mcp": "mcp",
+      "/models": "models",
+      "/apis": "apis",
+      "/skills": "skills",
+    };
+
+    const currentPath = location.pathname;
+    // 仅拦截顶级菜单路径，不拦截子路径（如 /models/xxx）
+    const menuKey = pathToKeyMap[currentPath];
+    if (menuKey && !isMenuVisible(menuKey)) {
+      navigate(firstVisiblePath, { replace: true });
+    }
+  }, [location.pathname, isMenuVisible, firstVisiblePath, loading, navigate]);
+
+  return null;
+}
 
 export function Router() {
   return (
-    <Routes>
-        <Route path="/" element={<Navigate to="/models" />} />
+    <>
+      <MenuRedirectGuard />
+      <Routes>
+        <Route path="/" element={<DynamicHome />} />
         <Route path="/models" element={<Square activeType="MODEL_API" />} />
         <Route path="/mcp" element={<Square activeType="MCP_SERVER" />} />
         <Route path="/agents" element={<Square activeType="AGENT_API" />} />
@@ -47,5 +85,6 @@ export function Router() {
 
         {/* 其他页面可继续添加 */}
       </Routes>
+    </>
   );
 }

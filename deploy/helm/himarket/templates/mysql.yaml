@@ -1,6 +1,8 @@
 {{- $existingSecret := (lookup "v1" "Secret" .Release.Namespace "mysql-secret") }}
+{{- $existingServerSecret := (lookup "v1" "Secret" .Release.Namespace "himarket-server-secret") }}
 {{- $rootPassword := "" }}
 {{- $userPassword := "" }}
+{{- $jwtSecret := "" }}
 {{- if $existingSecret }}
   {{- $rootPassword = (index $existingSecret.data "MYSQL_ROOT_PASSWORD" | b64dec) }}
   {{- $userPassword = (index $existingSecret.data "MYSQL_PASSWORD" | b64dec) }}
@@ -14,6 +16,15 @@
     {{- $userPassword = .Values.mysql.auth.password }}
   {{- else }}
     {{- $userPassword = randAlphaNum 16 }}
+  {{- end }}
+{{- end }}
+{{- if $existingServerSecret }}
+  {{- $jwtSecret = (index $existingServerSecret.data "JWT_SECRET" | b64dec) }}
+{{- else }}
+  {{- if .Values.server.jwtSecret }}
+    {{- $jwtSecret = .Values.server.jwtSecret }}
+  {{- else }}
+    {{- $jwtSecret = randAlphaNum 32 }}
   {{- end }}
 {{- end }}
 ---
@@ -46,6 +57,7 @@ stringData:
   DB_NAME: {{ .Values.mysql.auth.database | quote }}
   DB_USERNAME: {{ .Values.mysql.auth.username | quote }}
   DB_PASSWORD: {{ $userPassword | quote }}
+  JWT_SECRET: {{ $jwtSecret | quote }}
 
 ---
 # MySQL Headless Service: 为 StatefulSet 提供稳定的网络域
