@@ -10,11 +10,11 @@ interface PortalMenuSettingsProps {
 const MENU_ITEMS = [
     {key: "chat", label: "HiChat"},
     {key: "coding", label: "HiCoding"},
-    {key: "agents", label: "智能体"},
-    {key: "mcp", label: "MCP"},
     {key: "models", label: "模型"},
-    {key: "apis", label: "API"},
     {key: "skills", label: "Skills"},
+    {key: "mcp", label: "MCP"},
+    {key: "apis", label: "API"},
+    {key: "agents", label: "智能体"},
 ]
 
 export function PortalMenuSettings({portal, onRefresh}: PortalMenuSettingsProps) {
