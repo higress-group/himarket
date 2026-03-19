@@ -21,6 +21,7 @@ package com.alibaba.himarket.support.gateway;
 
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.support.common.Encrypted;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 @Data
@@ -42,11 +43,19 @@ public class ApsaraGatewayConfig {
     private String version;
 
     /** 业务头 */
+    @JsonProperty("xAcsOrganizationId")
     private String xAcsOrganizationId;
 
+    @JsonProperty("xAcsCallerSdkSource")
     private String xAcsCallerSdkSource;
+
+    @JsonProperty("xAcsResourceGroupId")
     private String xAcsResourceGroupId;
+
+    @JsonProperty("xAcsCallerType")
     private String xAcsCallerType;
+
+    @JsonProperty("xAcsRoleId")
     private String xAcsRoleId;
 
     public String buildUniqueKey() {
