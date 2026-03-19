@@ -464,6 +464,9 @@ public class ApsaraGatewayClient extends GatewayClient {
 
         Map<String, String> headers = new HashMap<>();
         headers.put("Accept", "application/json");
+        if (config.getRegionId() != null) {
+            headers.put("x-acs-regionId", config.getRegionId());
+        }
         if (config.getXAcsCallerSdkSource() != null) {
             headers.put("x-acs-caller-sdk-source", config.getXAcsCallerSdkSource());
         }

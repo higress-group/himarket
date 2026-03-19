@@ -6,6 +6,9 @@ import { Layout } from "../components/Layout";
 import { CategoryMenu } from "../components/square/CategoryMenu";
 import { ModelCard } from "../components/square/ModelCard";
 import { SkillCard } from "../components/square/SkillCard";
+import { EmptyState } from "../components/EmptyState";
+import { LoginPrompt } from "../components/LoginPrompt";
+import { useAuth } from "../hooks/useAuth";
 import APIs, { type ICategory } from "../lib/apis";
 import { getIconString } from "../lib/iconUtils";
 import type { IProductDetail } from "../lib/apis/product";
@@ -15,6 +18,8 @@ import BackToTopButton from "../components/scroll-to-top";
 function Square(props: { activeType: string }) {
   const { activeType } = props;
   const navigate = useNavigate();
+  const { isLoggedIn } = useAuth();
+  const [loginPromptOpen, setLoginPromptOpen] = useState(false);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [activeCategory, setActiveCategory] = useState("all");
@@ -162,6 +167,10 @@ function Square(props: { activeType: string }) {
   });
 
   const handleTryNow = (product: IProductDetail) => {
+    if (!isLoggedIn) {
+      setLoginPromptOpen(true);
+      return;
+    }
     // 跳转到 Chat 页面并传递选中的模型 ID
     navigate("/chat", { state: { selectedProduct: product } });
   };
@@ -261,9 +270,7 @@ function Square(props: { activeType: string }) {
                       )
                     ))}
                     {!loading && filteredModels.length === 0 && (
-                      <div className="col-span-full flex items-center justify-center py-20 text-gray-400">
-                        暂无数据
-                      </div>
+                      <EmptyState productType={activeType} />
                     )}
                   </div>
 
@@ -288,6 +295,11 @@ function Square(props: { activeType: string }) {
         </div>
       </div>
       <BackToTopButton container={scrollContainerRef.current!} />
+      <LoginPrompt
+        open={loginPromptOpen}
+        onClose={() => setLoginPromptOpen(false)}
+        contextMessage="登录后即可试用 AI 模型，体验智能对话能力"
+      />
     </Layout>
   );
 }
