@@ -2,10 +2,12 @@ import { Link, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { UserInfo } from "./UserInfo";
 import { HiMarket, Logo } from "./icon";
+import { usePortalConfig } from "../context/PortalConfigContext";
 
 export function Header() {
   const location = useLocation();
   const [isScrolled, setIsScrolled] = useState(false);
+  const { visibleTabs } = usePortalConfig();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -15,16 +17,6 @@ export function Header() {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
-
-  const tabs = [
-    { path: "/chat", label: "HiChat" },
-    { path: "/coding", label: "HiCoding" },
-    { path: "/agents", label: "智能体" },
-    { path: "/mcp", label: "MCP" },
-    { path: "/models", label: "模型" },
-    { path: "/apis", label: "API" },
-    { path: "/skills", label: "Skills" },
-  ];
 
   const isActiveTab = (path: string) => {
     return (
@@ -59,7 +51,7 @@ export function Header() {
             <div className="h-6 w-[1px] bg-gray-200 mx-5"></div>
             {/* Tab 区域 */}
             <div className="flex items-center gap-1.5">
-              {tabs.map(tab => (
+              {visibleTabs.map(tab => (
                 <Link key={tab.path} to={tab.path}>
                   <div
                     className={`

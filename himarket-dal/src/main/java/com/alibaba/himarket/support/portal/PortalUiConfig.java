@@ -19,6 +19,7 @@
 
 package com.alibaba.himarket.support.portal;
 
+import java.util.Map;
 import lombok.Data;
 
 @Data
@@ -27,4 +28,6 @@ public class PortalUiConfig {
     private String logo;
 
     private String icon;
+
+    private Map<String, Boolean> menuVisibility;
 }

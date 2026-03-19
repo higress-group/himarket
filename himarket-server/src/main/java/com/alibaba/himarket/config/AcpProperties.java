@@ -10,6 +10,12 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class AcpProperties {
 
     /**
+     * 是否启用终端功能。
+     * 设为 false 时后端拒绝 Terminal WebSocket 连接，前端隐藏终端面板。
+     */
+    private boolean terminalEnabled = true;
+
+    /**
      * 默认使用的 CLI provider key（对应 providers map 中的 key）
      */
     private String defaultProvider = "qwen-code";
@@ -31,6 +37,14 @@ public class AcpProperties {
      * 支持 K8s Service、Docker 容器、裸机部署等任意可达的 Sidecar 服务。
      */
     private RemoteConfig remote = new RemoteConfig();
+
+    public boolean isTerminalEnabled() {
+        return terminalEnabled;
+    }
+
+    public void setTerminalEnabled(boolean terminalEnabled) {
+        this.terminalEnabled = terminalEnabled;
+    }
 
     public String getDefaultProvider() {
         return defaultProvider;

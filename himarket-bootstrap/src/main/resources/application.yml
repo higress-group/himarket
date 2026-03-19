@@ -37,10 +37,11 @@ springdoc:
   packages-to-scan: com.alibaba.himarket.controller
 
 jwt:
-  secret: YourJWTSecret
+  secret: ${JWT_SECRET:YourJWTSecret}
   expiration: 7d
 
 acp:
+  terminal-enabled: ${ACP_TERMINAL_ENABLED:false}
   default-provider: ${ACP_DEFAULT_PROVIDER:qwen-code}
   default-runtime: ${ACP_DEFAULT_RUNTIME:remote}
   remote:

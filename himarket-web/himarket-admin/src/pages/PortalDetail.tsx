@@ -8,7 +8,8 @@ import {
   ApiOutlined,
   TeamOutlined,
   SafetyOutlined,
-  CloudOutlined
+  CloudOutlined,
+  AppstoreOutlined
 } from '@ant-design/icons'
 import { PortalOverview } from '@/components/portal/PortalOverview'
 import { PortalPublishedApis } from '@/components/portal/PortalPublishedApis'
@@ -17,6 +18,7 @@ import { PortalConsumers } from '@/components/portal/PortalConsumers'
 import { PortalDashboard } from '@/components/portal/PortalDashboard'
 import { PortalSecurity } from '@/components/portal/PortalSecurity'
 import { PortalDomain } from '@/components/portal/PortalDomain'
+import { PortalMenuSettings } from '@/components/portal/PortalMenuSettings'
 import PortalFormModal from '@/components/portal/PortalFormModal'
 import { portalApi } from '@/lib/api'
 import { Portal } from '@/types'
@@ -51,6 +53,12 @@ const menuItems = [
     label: "Domain",
     icon: CloudOutlined,
     description: "域名管理"
+  },
+  {
+    key: "menu",
+    label: "Menu",
+    icon: AppstoreOutlined,
+    description: "菜单显隐管理"
   },
   // {
   //   key: "consumers",
@@ -137,6 +145,8 @@ export default function PortalDetail() {
         return <PortalSecurity portal={portal} onRefresh={fetchPortalData} />
       case "domain":
         return <PortalDomain portal={portal} onRefresh={fetchPortalData} />
+      case "menu":
+        return <PortalMenuSettings portal={portal} onRefresh={fetchPortalData} />
       case "consumers":
         return <PortalConsumers portal={portal} />
       case "dashboard":

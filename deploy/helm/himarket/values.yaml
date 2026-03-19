@@ -32,6 +32,8 @@ server:
     port: 80
   replicaCount: 1
   serverPort: 8080
+  # JWT Secret（留空则自动生成随机值）
+  jwtSecret: ""
 
 # MySQL 数据库配置（始终部署内置 MySQL）
 mysql:
@@ -86,6 +88,7 @@ resources:
 # 共享沙箱配置
 sandbox:
   enabled: true
+  terminalEnabled: false
   image:
     repository: sandbox
     tag: "latest"
