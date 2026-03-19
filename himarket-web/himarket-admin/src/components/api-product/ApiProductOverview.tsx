@@ -289,7 +289,7 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
               </div>
               <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
                 <span className="text-xs text-gray-600">来源:</span>
-                <span className="col-span-2 text-xs text-gray-900">{meta.origin || 'ADMIN'}</span>
+                <span className="col-span-2 text-xs text-gray-900">{meta.origin === 'GATEWAY' ? '网关导入' : meta.origin === 'NACOS' ? 'Nacos导入' : meta.origin === 'AGENTRUNTIME' ? 'AgentRuntime导入' : '管理员配置'}</span>
                 <span className="text-xs text-gray-600">可见性:</span>
                 <span className="col-span-2 text-xs text-gray-900">{meta.visibility === 'PUBLIC' ? '公开' : '私有'}</span>
               </div>

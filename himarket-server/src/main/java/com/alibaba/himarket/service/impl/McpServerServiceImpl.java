@@ -66,10 +66,12 @@ import com.alibaba.himarket.support.product.NacosRefConfig;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.agentscope.core.tool.mcp.McpClientWrapper;
 import io.modelcontextprotocol.spec.McpSchema;
+import jakarta.annotation.Resource;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -97,6 +99,9 @@ public class McpServerServiceImpl implements McpServerService {
     private final McpSandboxDeployService mcpSandboxDeployService;
     private final ToolManager toolManager;
     private final ObjectMapper objectMapper;
+
+    @Resource(name = "taskExecutor")
+    private Executor taskExecutor;
 
     @Override
     @Transactional
@@ -1078,15 +1083,21 @@ public class McpServerServiceImpl implements McpServerService {
                     sandboxId,
                     endpointUrl);
 
-            // Step 3: 自动获取工具列表（失败不影响部署结果）
-            try {
-                fetchAndSaveToolsListOrThrow(meta, endpointUrl, transportType);
-            } catch (Exception toolEx) {
-                log.warn(
-                        "沙箱部署后自动获取工具列表失败（不影响部署）: mcpName={}, error={}",
-                        meta.getMcpName(),
-                        toolEx.getMessage());
-            }
+            // Step 3: 异步获取工具列表（不阻塞部署响应）
+            final String asyncEndpointUrl = endpointUrl;
+            final String asyncMcpServerId = meta.getMcpServerId();
+            final String asyncMcpName = meta.getMcpName();
+            final String asyncTransportType = transportType;
+            taskExecutor.execute(() -> {
+                try {
+                    fetchAndSaveToolsListOrThrow(asyncMcpServerId, asyncEndpointUrl, asyncTransportType);
+                } catch (Exception toolEx) {
+                    log.warn(
+                            "沙箱部署后异步获取工具列表失败（不影响部署）: mcpName={}, error={}",
+                            asyncMcpName,
+                            toolEx.getMessage());
+                }
+            });
 
         } catch (Exception e) {
             log.error(
@@ -1126,6 +1137,20 @@ public class McpServerServiceImpl implements McpServerService {
             throw new BusinessException(
                     ErrorCode.INTERNAL_ERROR, "沙箱预部署失败[" + currentStep + "]: " + errMsg);
         }
+    }
+
+    /**
+     * 异步版本：通过 mcpServerId 重新加载 meta，避免跨线程使用 detached entity。
+     */
+    private void fetchAndSaveToolsListOrThrow(
+            String mcpServerId, String endpointUrl, String transportType) {
+        McpServerMeta meta = metaRepository.findByMcpServerId(mcpServerId)
+                .orElse(null);
+        if (meta == null) {
+            log.warn("异步获取工具列表时 meta 已不存在: mcpServerId={}", mcpServerId);
+            return;
+        }
+        fetchAndSaveToolsListOrThrow(meta, endpointUrl, transportType);
     }
 
     /**
