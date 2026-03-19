@@ -10,11 +10,11 @@ export interface TabItem {
 const ALL_TABS: TabItem[] = [
   { key: "chat", path: "/chat", label: "HiChat" },
   { key: "coding", path: "/coding", label: "HiCoding" },
-  { key: "models", path: "/models", label: "模型" },
-  { key: "skills", path: "/skills", label: "Skills" },
-  { key: "mcp", path: "/mcp", label: "MCP" },
-  { key: "apis", path: "/apis", label: "API" },
   { key: "agents", path: "/agents", label: "智能体" },
+  { key: "mcp", path: "/mcp", label: "MCP" },
+  { key: "models", path: "/models", label: "模型" },
+  { key: "apis", path: "/apis", label: "API" },
+  { key: "skills", path: "/skills", label: "Skills" },
 ];
 
 interface PortalConfigContextValue {
