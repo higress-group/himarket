@@ -179,3 +179,8 @@ export interface ITool {
   description: string;
   inputSchema: IInputSchema;
 }
+
+export interface ISkillConfig {
+  skillTags?: string[];
+  downloadCount?: number;
+}

@@ -55,6 +55,8 @@ export interface NacosInstance {
   secretKey?: string
   description: string
   adminId: string
+  isDefault?: boolean
+  defaultNamespace?: string
   createAt?: string | number
 }
 

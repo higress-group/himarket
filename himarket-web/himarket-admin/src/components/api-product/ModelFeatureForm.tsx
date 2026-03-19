@@ -1,107 +1,94 @@
-import { useState, useEffect } from "react";
-import { Form, Input, InputNumber, Switch, Collapse, Row, Col } from "antd";
+import { Form, Input, InputNumber, Switch, Row, Col, Divider } from "antd";
 
-const { Panel } = Collapse;
+const tooltipStyle = {
+  overlayInnerStyle: {
+    backgroundColor: '#000',
+    color: '#fff',
+  }
+};
 
-interface ModelFeatureFormProps {
-  initialExpanded?: boolean;
-}
-
-export default function ModelFeatureForm({ initialExpanded = false }: ModelFeatureFormProps) {
-  const [activeKey, setActiveKey] = useState<string[]>([]);
-  
-  const tooltipStyle = {
-    overlayInnerStyle: {
-      backgroundColor: '#000',
-      color: '#fff',
-    }
-  };
-
-  useEffect(() => {
-    setActiveKey(initialExpanded ? ['1'] : []);
-  }, [initialExpanded]);
-
+export default function ModelFeatureForm() {
   return (
-    <Collapse 
-      ghost 
-      activeKey={activeKey} 
-      onChange={(keys) => setActiveKey(keys as string[])}
-      style={{ marginBottom: 16 }}
-    >
-      <Panel header="模型参数" key="1" forceRender>
-        <Row gutter={16}>
-          <Col span={8}>
-            <Form.Item 
-              label="Model" 
-              name={['feature', 'modelFeature', 'model']}
-              tooltip={{ title: "模型名称，如 qwen-max", ...tooltipStyle }}
-              style={{ marginBottom: 0 }}
-            >
-              <Input placeholder="qwen-max" size="small" />
-            </Form.Item>
-          </Col>
-          <Col span={8}>
-            <Form.Item 
-              label="Max Tokens" 
-              name={['feature', 'modelFeature', 'maxTokens']}
-              tooltip={{ title: "1-8192", ...tooltipStyle }}
-              style={{ marginBottom: 0 }}
-            >
-              <InputNumber 
-                min={1} 
-                max={8192} 
-                style={{ width: '100%' }}
-                placeholder="5120"
-                size="small"
-              />
-            </Form.Item>
-          </Col>
-          <Col span={8}>
-            <Form.Item 
-              label="Temperature" 
-              name={['feature', 'modelFeature', 'temperature']}
-              tooltip={{ title: "0.0-2.0", ...tooltipStyle }}
-              style={{ marginBottom: 0 }}
-            >
-              <InputNumber 
-                min={0} 
-                max={2} 
-                step={0.1}
-                style={{ width: '100%' }}
-                placeholder="0.9"
-                size="small"
-              />
-            </Form.Item>
-          </Col>
-        </Row>
-        <Row gutter={16} style={{ marginTop: 16 }}>
-          <Col span={8}>
-            <Form.Item 
-              label="Web Search" 
-              name={['feature', 'modelFeature', 'webSearch']}
-              tooltip={{ title: "是否启用网络搜索能力", ...tooltipStyle }}
-              valuePropName="checked"
-              initialValue={true}
-              style={{ marginBottom: 0 }}
-            >
-              <Switch />
-            </Form.Item>
-          </Col>
-          <Col span={8}>
-            <Form.Item 
-              label="Enable MultiModal" 
-              name={['feature', 'modelFeature', 'enableMultiModal']}
-              tooltip={{ title: "支持多模态", ...tooltipStyle }}
-              valuePropName="checked"
-              initialValue={false}
-              style={{ marginBottom: 0 }}
-            >
-              <Switch />
-            </Form.Item>
-          </Col>
-        </Row>
-      </Panel>
-    </Collapse>
+    <>
+      <Divider orientation="left" style={{ marginTop: 0, marginBottom: 16 }}>模型参数</Divider>
+      <Row gutter={16}>
+        <Col span={24}>
+          <Form.Item
+            label="Model"
+            name={['feature', 'modelFeature', 'model']}
+            tooltip={{ title: "模型名称，如 qwen-max", ...tooltipStyle }}
+            rules={[{ required: true, message: '请输入模型名称' }]}
+          >
+            <Input placeholder="qwen-max" />
+          </Form.Item>
+        </Col>
+      </Row>
+      <Row gutter={16}>
+        <Col span={12}>
+          <Form.Item
+            label="Max Tokens"
+            name={['feature', 'modelFeature', 'maxTokens']}
+            tooltip={{ title: "1-8192", ...tooltipStyle }}
+          >
+            <InputNumber
+              min={1}
+              max={8192}
+              style={{ width: '100%' }}
+              placeholder="5000"
+            />
+          </Form.Item>
+        </Col>
+        <Col span={12}>
+          <Form.Item
+            label="Temperature"
+            name={['feature', 'modelFeature', 'temperature']}
+            tooltip={{ title: "0.0-2.0", ...tooltipStyle }}
+          >
+            <InputNumber
+              min={0}
+              max={2}
+              step={0.1}
+              style={{ width: '100%' }}
+              placeholder="0.9"
+            />
+          </Form.Item>
+        </Col>
+      </Row>
+      <Row gutter={16}>
+        <Col span={8}>
+          <Form.Item
+            label="Web Search"
+            name={['feature', 'modelFeature', 'webSearch']}
+            tooltip={{ title: "是否启用网络搜索能力", ...tooltipStyle }}
+            valuePropName="checked"
+            initialValue={true}
+          >
+            <Switch />
+          </Form.Item>
+        </Col>
+        <Col span={8}>
+          <Form.Item
+            label="Enable Thinking"
+            name={['feature', 'modelFeature', 'enableThinking']}
+            tooltip={{ title: "是否启用深度思考", ...tooltipStyle }}
+            valuePropName="checked"
+            initialValue={false}
+          >
+            <Switch />
+          </Form.Item>
+        </Col>
+        <Col span={8}>
+          <Form.Item
+            label="Enable MultiModal"
+            name={['feature', 'modelFeature', 'enableMultiModal']}
+            tooltip={{ title: "支持多模态", ...tooltipStyle }}
+            valuePropName="checked"
+            initialValue={false}
+          >
+            <Switch />
+          </Form.Item>
+        </Col>
+      </Row>
+    </>
   );
 }
-

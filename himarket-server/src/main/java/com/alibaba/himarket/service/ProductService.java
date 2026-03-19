@@ -187,4 +187,13 @@ public interface ProductService {
      * @param productId
      */
     McpToolListResult listMcpTools(String productId);
+
+    /**
+     * Update Skill's Nacos binding (nacosId + namespace)
+     *
+     * @param productId
+     * @param nacosId
+     * @param namespace
+     */
+    void updateSkillNacos(String productId, String nacosId, String namespace);
 }

@@ -25,4 +25,6 @@ import lombok.Data;
 public class ProductFeature {
 
     private ModelFeature modelFeature;
+
+    private SkillConfig skillConfig;
 }

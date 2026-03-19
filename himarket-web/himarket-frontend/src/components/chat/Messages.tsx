@@ -116,7 +116,7 @@ function Message({
              <AttachmentPreview attachments={question.attachments as PreviewAttachment[]} className="mb-1 justify-end" />
           )}
           <div className="bg-colorPrimaryBgHover px-4 py-3 rounded-lg">
-            <div className="whitespace-pre-wrap leading-relaxed">
+            <div className="whitespace-pre-wrap leading-relaxed text-[15px] tracking-[-0.01em]">
               {question.content}
             </div>
           </div>
@@ -211,7 +211,7 @@ function Message({
           {(
             <div className="flex items-center justify-between mt-2 px-1">
               {/* 左侧：统计信息 */}
-              <div className="flex items-center gap-2 text-xs text-gray-400">
+              <div className="flex items-center gap-3 text-xs text-gray-400 tabular-nums">
                 <span>首字： {formatTime(activeAnswer?.firstTokenTime)}</span>
                 <span>耗时： {formatTime(activeAnswer?.totalTime)}</span>
                 <span>输入 Token： {activeAnswer?.inputTokens ?? "-"}</span>

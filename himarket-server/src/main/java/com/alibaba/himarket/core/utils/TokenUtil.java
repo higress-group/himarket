@@ -66,7 +66,12 @@ public class TokenUtil {
             }
 
             if (expiration.matches("\\d+[smhd]")) {
-                JWT_EXPIRE_MILLIS = Duration.parse("PT" + expiration.toUpperCase()).toMillis();
+                String upper = expiration.toUpperCase();
+                if (upper.endsWith("D")) {
+                    JWT_EXPIRE_MILLIS = Duration.parse("P" + upper).toMillis();
+                } else {
+                    JWT_EXPIRE_MILLIS = Duration.parse("PT" + upper).toMillis();
+                }
             } else {
                 JWT_EXPIRE_MILLIS = Long.parseLong(expiration);
             }

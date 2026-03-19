@@ -42,6 +42,7 @@ import com.alibaba.himarket.dto.result.httpapi.APIConfigResult;
 import com.alibaba.himarket.dto.result.mcp.MCPConfigResult;
 import com.alibaba.himarket.dto.result.mcp.McpToolListResult;
 import com.alibaba.himarket.dto.result.model.ModelConfigResult;
+import com.alibaba.himarket.dto.result.nacos.NacosResult;
 import com.alibaba.himarket.dto.result.portal.PortalResult;
 import com.alibaba.himarket.dto.result.product.ProductPublicationResult;
 import com.alibaba.himarket.dto.result.product.ProductRefResult;
@@ -56,6 +57,8 @@ import com.alibaba.himarket.support.enums.ProductStatus;
 import com.alibaba.himarket.support.enums.ProductType;
 import com.alibaba.himarket.support.enums.SourceType;
 import com.alibaba.himarket.support.product.NacosRefConfig;
+import com.alibaba.himarket.support.product.ProductFeature;
+import com.alibaba.himarket.support.product.SkillConfig;
 import com.github.benmanes.caffeine.cache.Cache;
 import io.agentscope.core.tool.mcp.McpClientWrapper;
 import jakarta.persistence.criteria.Predicate;
@@ -126,6 +129,29 @@ public class ProductServiceImpl implements ProductService {
         product.setProductId(productId);
         product.setAdminId(contextHolder.getUser());
 
+        // AGENT_SKILL products are immediately ready (no gateway/nacos binding needed)
+        if (param.getType() == ProductType.AGENT_SKILL) {
+            product.setStatus(ProductStatus.READY);
+            // 自动绑定默认 Nacos 实例
+            NacosResult defaultNacos = nacosService.getDefaultNacosInstance();
+            if (defaultNacos != null) {
+                ProductFeature feature = product.getFeature();
+                if (feature == null) {
+                    feature = new ProductFeature();
+                    product.setFeature(feature);
+                }
+                SkillConfig skillConfig = feature.getSkillConfig();
+                if (skillConfig == null) {
+                    skillConfig = new SkillConfig();
+                    feature.setSkillConfig(skillConfig);
+                }
+                skillConfig.setNacosId(defaultNacos.getNacosId());
+                skillConfig.setNamespace(defaultNacos.getDefaultNamespace());
+            }
+        }
+
+        validateModelFeature(product.getType(), product.getFeature());
+
         productRepository.save(product);
 
         // Set product categories
@@ -166,6 +192,11 @@ public class ProductServiceImpl implements ProductService {
             param.setPortalId(contextHolder.getPortal());
         }
 
+        // Non-admin users can only see published products
+        if (!contextHolder.isAdministrator()) {
+            param.setStatus(ProductStatus.PUBLISHED);
+        }
+
         if (param.getType() != null && param.hasFilter()) {
             return listProductsWithFilter(param, pageable);
         }
@@ -202,6 +233,8 @@ public class ProductServiceImpl implements ProductService {
         }
         param.update(product);
 
+        validateModelFeature(product.getType(), product.getFeature());
+
         productRepository.saveAndFlush(product);
 
         // Set product categories
@@ -220,8 +253,8 @@ public class ProductServiceImpl implements ProductService {
         Product product = findProduct(productId);
         product.setStatus(ProductStatus.PUBLISHED);
 
-        // Cannot publish if not linked
-        if (getProductRef(productId) == null) {
+        // AGENT_SKILL products don't require a ProductRef (no gateway/nacos binding needed)
+        if (product.getType() != ProductType.AGENT_SKILL && getProductRef(productId) == null) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "API product not linked to API");
         }
 
@@ -316,6 +349,17 @@ public class ProductServiceImpl implements ProductService {
 
         // Asynchronously clean up product resources
         SpringUtil.getApplicationContext().publishEvent(new ProductDeletingEvent(productId));
+    }
+
+    private void validateModelFeature(ProductType type, ProductFeature feature) {
+        if (type == ProductType.MODEL_API) {
+            if (feature == null
+                    || feature.getModelFeature() == null
+                    || StrUtil.isBlank(feature.getModelFeature().getModel())) {
+                throw new BusinessException(
+                        ErrorCode.INVALID_REQUEST, "MODEL_API product must specify a model name");
+            }
+        }
     }
 
     private Product findProduct(String productId) {
@@ -543,6 +587,31 @@ public class ProductServiceImpl implements ProductService {
         return result;
     }
 
+    @Override
+    public void updateSkillNacos(String productId, String nacosId, String namespace) {
+        Product product = findProduct(productId);
+        if (product.getType() != ProductType.AGENT_SKILL) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST, "Only AGENT_SKILL products can update skill nacos");
+        }
+        // Verify nacos instance exists
+        nacosService.getNacosInstance(nacosId);
+
+        ProductFeature feature = product.getFeature();
+        if (feature == null) {
+            feature = new ProductFeature();
+            product.setFeature(feature);
+        }
+        SkillConfig skillConfig = feature.getSkillConfig();
+        if (skillConfig == null) {
+            skillConfig = new SkillConfig();
+            feature.setSkillConfig(skillConfig);
+        }
+        skillConfig.setNacosId(nacosId);
+        skillConfig.setNamespace(namespace);
+        productRepository.save(product);
+    }
+
     private void syncConfig(Product product, ProductRef productRef) {
         SourceType sourceType = productRef.getSourceType();
 
@@ -666,6 +735,11 @@ public class ProductServiceImpl implements ProductService {
             ProductRef productRef = productRefMap.get(productId);
             if (productRef != null) {
                 fillProductConfig(product, productRef);
+            }
+
+            // Fill skill config from feature
+            if (product.getFeature() != null && product.getFeature().getSkillConfig() != null) {
+                product.setSkillConfig(product.getFeature().getSkillConfig());
             }
         }
     }

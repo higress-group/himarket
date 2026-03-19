@@ -3,6 +3,9 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 
+### jqwik ###
+.jqwik-database
+
 ### IntelliJ IDEA ###
 .idea
 *.iws
@@ -31,10 +34,6 @@ build/
 ### VS Code ###
 .vscode/
 
-### AI Coding Assistants ###
-.cursor/
-.qoder/
-
 ### Mac OS ###
 .DS_Store
 
@@ -42,8 +41,31 @@ build/
 
 package-lock.json
 
+### Node modules ###
+node_modules/
+
 .clinerules/
 
 # Local / deploy scripts (do not commit)
 .env
 push-himarket.sh
+
+/workspace/
+/workspaces/
+
+### Local docs ###
+/docs/acp
+.app.pid
+
+### OpenSandbox (local clone, not committed) ###
+/OpenSandbox/
+
+### Nacos (local symlink/clone, not committed) ###
+/nacos
+
+### Kiro (AWS Kira AI coding agent) ###
+.kiro/
+
+### Docker deploy data (should live outside project) ###
+deploy/docker/data/
+deploy/docker/standalone-logs/

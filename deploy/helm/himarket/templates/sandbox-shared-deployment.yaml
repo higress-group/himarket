@@ -1,0 +1,48 @@
+{{- if .Values.sandbox.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sandbox-shared
+  labels:
+    app: sandbox-shared
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sandbox-shared
+  template:
+    metadata:
+      labels:
+        app: sandbox-shared
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: sandbox
+          image: "{{ .Values.hub }}/{{ .Values.sandbox.image.repository }}:{{ .Values.sandbox.image.tag }}"
+          imagePullPolicy: {{ .Values.sandbox.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: ALLOWED_COMMANDS
+              value: {{ .Values.sandbox.allowedCommands | quote }}
+          volumeMounts:
+            - name: workspace
+              mountPath: /workspace
+          {{- with .Values.sandbox.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      volumes:
+        - name: workspace
+          {{- if .Values.sandbox.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: sandbox-workspace-pvc
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+{{- end }}
