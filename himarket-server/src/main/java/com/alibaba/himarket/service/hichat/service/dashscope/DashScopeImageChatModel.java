@@ -206,7 +206,7 @@ public class DashScopeImageChatModel extends ChatModelBase {
     public static class DashScopeImageHttpClient extends DashScopeHttpClient {
 
         public DashScopeImageHttpClient(HttpTransport transport, String apiKey, String baseUrl) {
-            super(transport, apiKey, baseUrl);
+            super(transport, apiKey, baseUrl, null, null);
         }
 
         /**
