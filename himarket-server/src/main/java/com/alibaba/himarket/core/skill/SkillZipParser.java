@@ -179,6 +179,9 @@ public final class SkillZipParser {
     }
 
     private static Skill parseSkillMarkdown(String markdownContent, String namespaceId) {
+        if (markdownContent.startsWith("\uFEFF")) {
+            markdownContent = markdownContent.substring(1);
+        }
         Matcher matcher = YAML_FRONT_MATTER.matcher(markdownContent);
         if (!matcher.matches()) {
             throw new BusinessException(
