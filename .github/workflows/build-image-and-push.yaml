@@ -356,9 +356,9 @@ jobs:
             if (allPassed) {
               summary += '🎉 **All images built and pushed successfully!**\n\n';
               summary += '### 📦 Images\n\n';
-              summary += `- Backend: \`${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/himarket-server:latest\`\n';
-              summary += `- Admin Portal: \`${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/himarket-admin:latest\`\n';
-              summary += `- Developer Portal: \`${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/himarket-frontend:latest\`\n';
+              summary += `- Backend: \`${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/himarket-server:latest\`\n`;
+              summary += `- Admin Portal: \`${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/himarket-admin:latest\`\n`;
+              summary += `- Developer Portal: \`${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/himarket-frontend:latest\`\n`;
               summary += `- Sandbox: \`${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/sandbox:latest\`\n`;
             } else {
               summary += '⚠️ **Some image builds failed.** Please check the logs above.\n';
