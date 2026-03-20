@@ -111,6 +111,12 @@ const Layout: React.FC = () => {
         },
       ],
     },
+    {
+      name: "产品统计",
+      cn: "产品统计",
+      href: "/product-summary",
+      icon: BarChartOutlined,
+    },
   ];
 
   const toggleSidebar = () => {

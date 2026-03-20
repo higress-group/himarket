@@ -27,6 +27,7 @@ import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.event.PortalDeletingEvent;
 import com.alibaba.himarket.core.event.ProductConfigReloadEvent;
 import com.alibaba.himarket.core.event.ProductDeletingEvent;
+import com.alibaba.himarket.core.event.ProductUpdateEvent;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.core.security.ContextHolder;
@@ -70,6 +71,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -100,6 +102,8 @@ public class ProductServiceImpl implements ProductService {
     private final ConsumerRepository consumerRepository;
 
     private final NacosService nacosService;
+
+    private final ApplicationEventPublisher eventPublisher;
 
     private final ProductCategoryService productCategoryService;
 
@@ -239,6 +243,7 @@ public class ProductServiceImpl implements ProductService {
 
         // Set product categories
         setProductCategories(product.getProductId(), param.getCategories());
+        SpringUtil.getApplicationContext().publishEvent(new ProductUpdateEvent(productId));
 
         return getProduct(product.getProductId());
     }
@@ -265,6 +270,7 @@ public class ProductServiceImpl implements ProductService {
 
         publicationRepository.save(productPublication);
         productRepository.save(product);
+        SpringUtil.getApplicationContext().publishEvent(new ProductUpdateEvent(productId));
     }
 
     @Override

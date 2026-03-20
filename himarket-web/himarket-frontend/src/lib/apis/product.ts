@@ -40,7 +40,10 @@ export interface IProductDetail {
       webSearch: boolean;
       enableMultiModal: boolean;
     }
-  }
+  };
+  subscriptionCount?: number;
+  usageCount?: number;
+  likesCount?: number;
 }
 
 interface GetProductsResp {
@@ -57,15 +60,17 @@ export function getProducts(params: {
   page?: number;
   size?: number;
   ["modelFilter.category"]?: "Image" | "TEXT";
+  sortBy?: "likes" | "subscriptions";
 }) {
-  return request.get<RespI<GetProductsResp>, RespI<GetProductsResp>>('/products', {
+  return request.get<RespI<GetProductsResp>, RespI<GetProductsResp>>('/product-summary', {
     params: {
       name: params.name,
       type: params.type,
       categoryIds: params.categoryIds,
       page: params.page || 0,
-      size: params.size || 100,
+      size: params.size || 30,
       ["modelFilter.category"]: params["modelFilter.category"],
+      sort: params.sortBy === "likes" ? "likesCount,DESC" : params.sortBy === "subscriptions" ? "subscriptionCount,DESC" : "createAt,DESC",
     },
   });
 }
@@ -73,6 +78,30 @@ export function getProducts(params: {
 
 export function getProduct(params: { id: string }) {
   return request.get<RespI<IProductDetail>, RespI<IProductDetail>>('/products/' + params.id)
+}
+
+export interface ToggleLikeParams {
+  productId: string;
+}
+
+export function toggleProductLike(params: ToggleLikeParams) {
+  return request.post<RespI<any>, RespI<any>>('/product-like', {
+    productId: params.productId,
+  });
+}
+
+export interface ProductLikeStatus {
+  liked: boolean;
+  productId?: string;
+  developerId?: string;
+  status?: string;
+}
+
+// 查询用户是否已点赞
+export function getProductLikeStatus(params: { productId: string }) {
+  return request.get<RespI<ProductLikeStatus>, RespI<ProductLikeStatus>>(
+    `/product-like/${params.productId}/status`
+  );
 }
 
 // MCP 工具列表相关类型

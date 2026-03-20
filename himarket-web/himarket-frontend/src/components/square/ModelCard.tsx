@@ -6,11 +6,13 @@ interface ModelCardProps {
   description: string;
   company?: string;
   releaseDate: string;
+  productId?: string;
+  likesCount?: number;
   onClick?: () => void;
   onTryNow?: () => void;
 }
 
-export function ModelCard({ icon, name, description, company, releaseDate, onClick, onTryNow }: ModelCardProps) {
+export function ModelCard({ icon, name, description, company, releaseDate, likesCount, onClick, onTryNow }: ModelCardProps) {
   return (
     <div
       onClick={onClick}
@@ -41,12 +43,22 @@ export function ModelCard({ icon, name, description, company, releaseDate, onCli
         {description}
       </p>
 
-      {/* 底部：公司和发布日期 - 只有在有按钮时才在 hover 时淡出 */}
+      {/* 底部：公司、发布日期和互动数据 */}
       <div className={`h-10 flex items-center justify-between text-xs transition-opacity duration-300 ${onTryNow ? 'group-hover:opacity-0' : ''}`}>
-        {company ? (
-          <span className="truncate text-[#a3a3a3]" >{company}</span>
-        ) : null}
-        <span className="flex-shrink-0 text-[#a3a3a3]" >{releaseDate}</span>
+        <div className="flex items-center gap-3 flex-1">
+          {company ? (
+            <span className="truncate text-[#a3a3a3]">{company}</span>
+          ) : null}
+          <span className="flex-shrink-0 text-[#a3a3a3]">{releaseDate}</span>
+          {likesCount !== undefined && (
+            <div className="flex items-center gap-3 ml-auto">
+              <span className="flex items-center gap-1 text-[#a3a3a3]">
+                <span style={{ fontSize: '14px' }}>👍</span>
+                {likesCount}
+              </span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* 底部按钮组 - hover 时淡入 + 轻微上移 */}

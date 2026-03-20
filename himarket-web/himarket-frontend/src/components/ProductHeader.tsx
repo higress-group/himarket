@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useImperativeHandle, forwardRef } from "react";
 import { Typography, Button, Modal, Select, message, Popconfirm, Input, Pagination, Spin } from "antd";
-import { ApiOutlined, CheckCircleFilled, ClockCircleFilled, ExclamationCircleFilled, PlusOutlined, RobotOutlined, BulbOutlined } from "@ant-design/icons";
+import { ApiOutlined, CheckCircleFilled, ClockCircleFilled, ExclamationCircleFilled, PlusOutlined, RobotOutlined, BulbOutlined, LikeOutlined, LikeFilled } from "@ant-design/icons";
 import { useParams } from "react-router-dom";
 import { getConsumers, subscribeProduct, unsubscribeProduct, getProductSubscriptions } from "../lib/api";
 import type { Consumer } from "../types/consumer";
@@ -8,6 +8,7 @@ import type { IMCPConfig, IProductIcon, IAgentConfig } from "../lib/apis/typing"
 import APIs, { getProductSubscriptionStatus, type ISubscription } from "../lib/apis";
 import { LoginPrompt } from "./LoginPrompt";
 import { useAuth } from "../hooks/useAuth";
+import { toggleProductLike, getProductLikeStatus } from "../lib/apis/product";
 
 const { Title, Paragraph } = Typography;
 const { Search } = Input;
@@ -83,9 +84,13 @@ export const ProductHeader = forwardRef<ProductHeaderHandle, ProductHeaderProps>
   const [submitLoading, setSubmitLoading] = useState(false);
   const [imageLoadFailed, setImageLoadFailed] = useState(false);
 
-  // 订阅状态相关的state
+  // 订阅状态相关的 state
   const [subscriptionStatus, setSubscriptionStatus] = useState<UnwrapPromise<ReturnType<typeof getProductSubscriptionStatus>>>();
   const [subscriptionLoading, setSubscriptionLoading] = useState(false);
+    
+  // 点赞状态相关的 state
+  const [isLiked, setIsLiked] = useState(false);
+  const [likeLoading, setLikeLoading] = useState(false);
   
   // 订阅详情分页数据（用于管理弹窗）
   const [subscriptionDetails, setSubscriptionDetails] = useState<{
@@ -132,6 +137,23 @@ export const ProductHeader = forwardRef<ProductHeaderHandle, ProductHeaderProps>
     }
   }, [productId, shouldShowSubscribeButton]);
 
+  // 查询点赞状态
+  const fetchLikeStatus = React.useCallback(async () => {
+    if (!productId) return;
+    
+    setLikeLoading(true);
+    try {
+      const response = await getProductLikeStatus({ productId });
+      if (response.code === "SUCCESS" && response.data?.status !== undefined) {
+        setIsLiked(response.data.status === 'LIKED');
+      }
+    } catch (error) {
+      console.error('获取点赞状态失败:', error);
+    } finally {
+      setLikeLoading(false);
+    }
+  }, [productId]);
+
   // 暴露给父组件的方法
   useImperativeHandle(ref, () => ({
     showManageModal,
@@ -171,7 +193,8 @@ export const ProductHeader = forwardRef<ProductHeaderHandle, ProductHeaderProps>
 
   useEffect(() => {
     fetchSubscriptionStatus();
-  }, [fetchSubscriptionStatus]);
+    fetchLikeStatus();
+  }, [fetchSubscriptionStatus, fetchLikeStatus]);
 
   // 获取消费者列表
   const fetchConsumers = async () => {
@@ -303,10 +326,35 @@ export const ProductHeader = forwardRef<ProductHeaderHandle, ProductHeaderProps>
     }
   };
 
+  // 处理点赞/取消点赞
+  const handleToggleLike = async () => {
+    if (!isLoggedIn) {
+      message.warning('请先登录');
+      setLoginPromptOpen(true);
+      return;
+    }
+
+    setLikeLoading(true);
+    try {
+      const response = await toggleProductLike({ productId });
+      if (response.code === "SUCCESS") {
+        const newIsLiked = !isLiked;
+        setIsLiked(newIsLiked);
+        message.success(newIsLiked ? "点赞成功" : "已取消点赞");
+      } else {
+        message.error(response.message || "操作失败");
+      }
+    } catch (error) {
+      console.error("Failed to toggle like:", error);
+      message.error("操作失败，请重试");
+    } finally {
+      setLikeLoading(false);
+    }
+  };
+
   return (
     <>
       <div className="mb-2">
-        {/* 第一行：图标和标题信息 */}
         <div className="flex items-center gap-4 mb-3">
           {(!icon || imageLoadFailed) && (productType === 'REST_API' || productType === 'AGENT_API' || productType === 'MODEL_API') ? (
             <div className="w-16 h-16 rounded-xl flex-shrink-0 flex items-center justify-center bg-gray-50 border border-gray-200">
@@ -360,48 +408,68 @@ export const ProductHeader = forwardRef<ProductHeaderHandle, ProductHeaderProps>
           {description}
         </Paragraph>
         
-        {/* 第三行：徽章式订阅状态 + 管理按钮，与左边框对齐 */}
-        {shouldShowSubscribeButton && (
-          <div className="flex items-center gap-4">
-            {!isLoggedIn ? (
-              <Button
-                type="primary"
-                className="rounded-xl"
-                onClick={() => setLoginPromptOpen(true)}
-              >
-                登录后订阅
-              </Button>
-            ) : subscriptionLoading ? (
-              <Button loading>加载中...</Button>
-            ) : (
-              <>
-                {/* 订阅状态徽章 */}
-                <div className="flex items-center">
-                  {subscriptionStatus?.hasSubscription ? (
-                    <>
-                      <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                      <span className="text-sm text-gray-600 font-medium">已订阅</span>
-                    </>
-                  ) : (
-                    <>
-                      <div className="w-2 h-2 bg-gray-400 rounded-full mr-2"></div>
-                      <span className="text-sm text-gray-600">未订阅</span>
-                    </>
-                  )}
-                </div>
-                
-                {/* 管理按钮 */}
+        {/* 第三行：徽章式订阅状态 + 管理按钮 + 点赞按钮，与左边框对齐 */}
+        <div className="flex items-center gap-4">
+          {shouldShowSubscribeButton && (
+            <>
+              {!isLoggedIn ? (
                 <Button
                   type="primary"
                   className="rounded-xl"
-                  onClick={showManageModal}
+                  onClick={() => setLoginPromptOpen(true)}
                 >
-                  管理订阅
+                  登录后订阅
                 </Button>
-              </>
-            )}
-          </div>
-        )}
+              ) : subscriptionLoading ? (
+                <Button loading>加载中...</Button>
+              ) : (
+                <>
+                  {/* 订阅状态徽章 */}
+                  <div className="flex items-center">
+                    {subscriptionStatus?.hasSubscription ? (
+                      <>
+                        <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                        <span className="text-sm text-gray-600 font-medium">已订阅</span>
+                      </>
+                    ) : (
+                      <>
+                        <div className="w-2 h-2 bg-gray-400 rounded-full mr-2"></div>
+                        <span className="text-sm text-gray-600">未订阅</span>
+                      </>
+                    )}
+                  </div>
+                  
+                  {/* 管理按钮 */}
+                  <Button
+                    type="primary"
+                    className="rounded-xl"
+                    onClick={showManageModal}
+                  >
+                    管理订阅
+                  </Button>
+                </>
+              )}
+            </>
+          )}
+          
+          {/* 点赞按钮 */}
+          {productId && (
+            <Button
+              icon={isLiked ? <LikeFilled /> : <LikeOutlined />}
+              onClick={handleToggleLike}
+              loading={likeLoading}
+              type={isLiked ? "primary" : "default"}
+              className="rounded-xl"
+              style={{
+                backgroundColor: isLiked ? '#1677ff' : 'transparent',
+                borderColor: isLiked ? '#1677ff' : '#d9d9d9',
+                color: isLiked ? '#fff' : 'rgba(0, 0, 0, 0.88)'
+              }}
+            >
+              {isLiked ? "已点赞" : "点赞"}
+            </Button>
+          )}
+        </div>
       </div>
 
 
