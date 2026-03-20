@@ -21,7 +21,7 @@ permissions:
 env:
   # Default registry (can be overridden by repository variables)
   IMAGE_REGISTRY: ${{ vars.IMAGE_REGISTRY || 'opensource-registry.cn-hangzhou.cr.aliyuncs.com' }}
-  IMAGE_NAMESPACE: ${{ vars.IMAGE_NAMESPACE || 'himarket' }}
+  IMAGE_NAMESPACE: ${{ vars.IMAGE_NAMESPACE || 'higress-group' }}
 
 jobs:
   # ===========================================
@@ -66,7 +66,7 @@ jobs:
         id: docker-meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/himarket-backend
+          images: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/himarket-server
           tags: |
             type=sha
             type=ref,event=tag
@@ -89,7 +89,7 @@ jobs:
         run: |
           echo "## 🐳 Backend Image Build" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Image**: \`${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/himarket-backend\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Image**: \`${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/himarket-server\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Tags**:" >> $GITHUB_STEP_SUMMARY
           echo "${{ steps.docker-meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
@@ -273,7 +273,7 @@ jobs:
         id: docker-meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/himarket-sandbox
+          images: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/sandbox
           tags: |
             type=sha
             type=ref,event=tag
@@ -296,7 +296,7 @@ jobs:
         run: |
           echo "## 🐳 Sandbox Image Build" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Image**: \`${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/himarket-sandbox\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Image**: \`${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/sandbox\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Tags**:" >> $GITHUB_STEP_SUMMARY
           echo "${{ steps.docker-meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
@@ -356,10 +356,10 @@ jobs:
             if (allPassed) {
               summary += '🎉 **All images built and pushed successfully!**\n\n';
               summary += '### 📦 Images\n\n';
-              summary += `- Backend: \`${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/himarket-backend:latest\`\n';
-              summary += `- Admin Portal: \`${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/himarket-admin:latest\`\n';
-              summary += `- Developer Portal: \`${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/himarket-frontend:latest\`\n';
-              summary += `- Sandbox: \`${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/himarket-sandbox:latest\`\n`;
+              summary += `- Backend: \`${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/himarket-server:latest\`\n`;
+              summary += `- Admin Portal: \`${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/himarket-admin:latest\`\n`;
+              summary += `- Developer Portal: \`${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/himarket-frontend:latest\`\n`;
+              summary += `- Sandbox: \`${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/sandbox:latest\`\n`;
             } else {
               summary += '⚠️ **Some image builds failed.** Please check the logs above.\n';
             }
