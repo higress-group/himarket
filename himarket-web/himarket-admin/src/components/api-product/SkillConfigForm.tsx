@@ -8,7 +8,7 @@ export default function SkillConfigForm() {
   return (
     <Form.Item
       label="技能标签"
-      name={['skillConfig', 'skillTags']}
+      name={['feature', 'skillConfig', 'skillTags']}
       tooltip="为技能添加分类标签，便于开发者搜索和筛选"
     >
       <Select

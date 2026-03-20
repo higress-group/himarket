@@ -1145,6 +1145,11 @@ deploy_all() {
         --set "sandbox.persistence.size=${SANDBOX_STORAGE_SIZE}" \
         --set "server.jwtSecret=${JWT_SECRET}"
 
+    # 6.1 等待 HiMarket 核心组件就绪
+    wait_rollout "${NS}" "deployment" "himarket-server" 300
+    wait_rollout "${NS}" "deployment" "himarket-admin" 300
+    wait_rollout "${NS}" "deployment" "himarket-frontend" 300
+
     # 7. 等待 MySQL Pod 就绪 + 初始化 Nacos 数据库
     init_nacos_db_in_cluster "${NS}" "${MYSQL_ROOT_PASSWORD}" "${NACOS_DB_NAME}"
 
