@@ -85,6 +85,9 @@ acp:
       supports-mcp: true
       supports-skill: true
 
+observability:
+  log-source: ${OBSERVABILITY_LOG_SOURCE:SLS}
+
 sls:
   # SLS服务端点（必填）
   # cn-chengdu.log.aliyuncs.com
