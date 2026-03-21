@@ -19,6 +19,7 @@
 
 package com.alibaba.himarket.controller;
 
+import com.alibaba.himarket.core.annotation.DeveloperAuth;
 import com.alibaba.himarket.dto.params.product.CreateProductLikeParam;
 import com.alibaba.himarket.dto.result.product.ProductLikeResult;
 import com.alibaba.himarket.service.ProductLikeService;
@@ -32,6 +33,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+@DeveloperAuth
 @RestController
 @RequestMapping("/product-like")
 @Tag(name = "产品点赞", description = "产品点赞相关接口")

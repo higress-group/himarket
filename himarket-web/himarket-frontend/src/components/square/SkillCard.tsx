@@ -6,6 +6,7 @@ interface SkillCardProps {
   releaseDate: string;
   skillTags?: string[];
   downloadCount?: number;
+  likesCount?: number;
   onClick?: () => void;
 }
 
@@ -15,6 +16,7 @@ export function SkillCard({
   releaseDate,
   skillTags = [],
   downloadCount,
+  likesCount,
   onClick,
 }: SkillCardProps) {
   return (
@@ -55,13 +57,21 @@ export function SkillCard({
           </div>
         )}
 
-        <div className="flex items-center justify-end gap-2 text-[#a3a3a3] text-xs">
-          {downloadCount != null && downloadCount > 0 && (
-            <span className="flex items-center gap-0.5">
-              <DownloadOutlined className="text-[10px]" />
-              {downloadCount}
-            </span>
-          )}
+        <div className="flex items-center justify-between gap-2 text-[#a3a3a3] text-xs">
+          <div className="flex items-center gap-2">
+            {downloadCount != null && downloadCount > 0 && (
+              <span className="flex items-center gap-0.5">
+                <DownloadOutlined className="text-[10px]" />
+                {downloadCount}
+              </span>
+            )}
+            {likesCount !== undefined && (
+              <span className="flex items-center gap-1">
+                <span style={{ fontSize: '14px' }}>👍</span>
+                {likesCount}
+              </span>
+            )}
+          </div>
           <span>{releaseDate}</span>
         </div>
       </div>

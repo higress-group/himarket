@@ -1,6 +1,7 @@
 package com.alibaba.himarket.controller;
 
 import com.alibaba.himarket.core.annotation.AdminAuth;
+import com.alibaba.himarket.core.annotation.PublicAccess;
 import com.alibaba.himarket.dto.params.product.QueryProductParam;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.product.ProductSummaryResult;
@@ -25,6 +26,7 @@ public class ProductSummaryController {
 
     @Operation(summary = "获取API产品列表")
     @GetMapping
+    @PublicAccess
     public PageResult<ProductSummaryResult> listProducts(
             @Valid QueryProductParam param, Pageable pageable) {
         return productSummaryService.listProducts(param, pageable);

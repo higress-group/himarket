@@ -27,6 +27,7 @@ import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.event.PortalDeletingEvent;
 import com.alibaba.himarket.core.event.ProductConfigReloadEvent;
 import com.alibaba.himarket.core.event.ProductDeletingEvent;
+import com.alibaba.himarket.core.event.ProductSummaryDeleteEvent;
 import com.alibaba.himarket.core.event.ProductUpdateEvent;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
@@ -338,6 +339,7 @@ public class ProductServiceImpl implements ProductService {
 
         publicationRepository.delete(publication);
         productRepository.save(product);
+        SpringUtil.getApplicationContext().publishEvent(new ProductSummaryDeleteEvent(productId));
     }
 
     @Override

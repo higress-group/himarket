@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Layout } from "../components/Layout";
-import { Alert, Spin, Tag, Button } from "antd";
-import { ArrowLeftOutlined, DownloadOutlined } from "@ant-design/icons";
+import { Alert, Spin, Tag, Button, message } from "antd";
+import { ArrowLeftOutlined, DownloadOutlined, LikeOutlined, LikeFilled } from "@ant-design/icons";
 import Editor from "@monaco-editor/react";
 import type { IProductDetail } from "../lib/apis";
 import type { ISkillConfig } from "../lib/apis/typing";
@@ -13,6 +13,7 @@ import { parseSkillMd } from "../lib/skillMdUtils";
 import MarkdownRender from "../components/MarkdownRender";
 import SkillFileTree from "../components/skill/SkillFileTree";
 import RelatedSkills from "../components/skill/RelatedSkills";
+import { toggleProductLike, getProductLikeStatus } from "../lib/apis/product";
 
 function inferLanguage(path: string): string {
   const ext = path.split(".").pop()?.toLowerCase() ?? "";
@@ -32,6 +33,10 @@ function SkillDetail() {
   const [error, setError] = useState("");
   const [data, setData] = useState<IProductDetail>();
   const [skillConfig, setSkillConfig] = useState<ISkillConfig>();
+
+  // 点赞相关状态
+  const [isLiked, setIsLiked] = useState(false);
+  const [likeLoading, setLikeLoading] = useState(false);
 
   const [fileTree, setFileTree] = useState<SkillFileTreeNode[]>([]);
   const [selectedFilePath, setSelectedFilePath] = useState<string | undefined>();
@@ -72,6 +77,16 @@ function SkillDetail() {
           setData(productRes.data);
           if (productRes.data.skillConfig) {
             setSkillConfig(productRes.data.skillConfig);
+          }
+            
+          // 获取点赞状态
+          try {
+            const likeRes = await getProductLikeStatus({ productId: skillProductId });
+            if (likeRes.code === "SUCCESS" && likeRes.data) {
+              setIsLiked(likeRes.data.status === 'LIKED');
+            }
+          } catch (err) {
+            console.error("获取点赞状态失败:", err);
           }
         } else {
           setError(productRes.message || "数据加载失败");
@@ -141,6 +156,32 @@ function SkillDetail() {
       // 静默失败，浏览器会有提示
     }
   }, [skillProductId, fileTree, data]);
+
+  // 处理点赞/取消点赞
+  const handleToggleLike = async () => {
+    const token = localStorage.getItem("access_token");
+    if (!token) {
+      message.warning("请先登录");
+      return;
+    }
+  
+    setLikeLoading(true);
+    try {
+      const response = await toggleProductLike({ productId: skillProductId! });
+      if (response.code === "SUCCESS") {
+        const newIsLiked = !isLiked;
+        setIsLiked(newIsLiked);
+        message.success(newIsLiked ? "点赞成功" : "已取消点赞");
+      } else {
+        message.error(response.message || "操作失败");
+      }
+    } catch (error) {
+      console.error("Failed to toggle like:", error);
+      message.error("操作失败，请重试");
+    } finally {
+      setLikeLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -254,6 +295,21 @@ function SkillDetail() {
               </div>
             )}
           </div>
+          {/* 点赞按钮 */}
+          <Button
+            icon={isLiked ? <LikeFilled /> : <LikeOutlined />}
+            onClick={handleToggleLike}
+            loading={likeLoading}
+            type={isLiked ? "primary" : "default"}
+            className="rounded-xl"
+            style={{
+              backgroundColor: isLiked ? '#1677ff' : 'transparent',
+              borderColor: isLiked ? '#1677ff' : '#d9d9d9',
+              color: isLiked ? '#fff' : 'rgba(0, 0, 0, 0.88)'
+            }}
+          >
+            {isLiked ? "已点赞" : "点赞"}
+          </Button>
         </div>
 
         <p className="text-gray-600 text-sm leading-relaxed mb-3">{description}</p>

@@ -34,7 +34,7 @@ public class ProductSummary extends BaseEntity {
     @Enumerated(EnumType.STRING)
     private ProductType type;
 
-    @Column(name = "description", length = 256)
+    @Column(name = "description", length = 1000)
     private String description;
 
     @Column(name = "icon", columnDefinition = "json")

@@ -246,16 +246,19 @@ function Square(props: { activeType: string }) {
               >
                 👍 点赞量
               </button>
-              <button
-                onClick={() => setSortBy("subscriptions")}
-                className={`px-3 py-1 rounded-full text-sm transition-colors ${
-                  sortBy === "subscriptions"
-                    ? "bg-black text-white"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                }`}
-              >
-                📦 订阅量
-              </button>
+              {/* 智能体和 Skill 不显示订阅量排序 */}
+              {activeType !== "AGENT_API" && activeType !== "AGENT_SKILL" && (
+                  <button
+                      onClick={() => setSortBy("subscriptions")}
+                      className={`px-3 py-1 rounded-full text-sm transition-colors ${
+                          sortBy === "subscriptions"
+                              ? "bg-black text-white"
+                              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                      }`}
+                  >
+                    📦 订阅量
+                  </button>
+              )}
             </div>
 
             {/* 右侧搜索框 */}
@@ -295,6 +298,7 @@ function Square(props: { activeType: string }) {
                           releaseDate={dayjs(product.createAt).format("YYYY-MM-DD HH:mm:ss")}
                           skillTags={product.skillConfig?.skillTags}
                           downloadCount={product.skillConfig?.downloadCount}
+                          likesCount={product.likesCount}
                           onClick={() => handleViewDetail(product)}
                         />
                       ) : (

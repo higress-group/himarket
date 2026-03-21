@@ -4,11 +4,11 @@ import lombok.Getter;
 import org.springframework.context.ApplicationEvent;
 
 @Getter
-public class ProductSummaryUpdateEvent extends ApplicationEvent {
+public class ProductSummaryDeleteEvent extends ApplicationEvent {
 
     private final String productId;
 
-    public ProductSummaryUpdateEvent(String productId) {
+    public ProductSummaryDeleteEvent(String productId) {
         super(productId);
         this.productId = productId;
     }

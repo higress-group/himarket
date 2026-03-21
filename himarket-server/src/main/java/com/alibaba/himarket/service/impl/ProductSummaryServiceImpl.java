@@ -2,7 +2,7 @@ package com.alibaba.himarket.service.impl;
 
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
-import com.alibaba.himarket.core.event.ProductDeletingEvent;
+import com.alibaba.himarket.core.event.ProductSummaryDeleteEvent;
 import com.alibaba.himarket.core.event.ProductSummaryUpdateEvent;
 import com.alibaba.himarket.core.event.ProductUpdateEvent;
 import com.alibaba.himarket.core.security.ContextHolder;
@@ -229,9 +229,6 @@ public class ProductSummaryServiceImpl implements ProductSummaryService {
         if (contextHolder.isDeveloper()) {
             param.setPortalId(contextHolder.getPortal());
         }
-        if (productSummaryRepository.count() != productRepository.count()) {
-            syncAllProductSummary();
-        }
         Page<ProductSummary> products =
                 productSummaryRepository.findAll(buildSpecificationSummary(param), pageable);
         return new PageResult<ProductSummaryResult>()
@@ -265,10 +262,6 @@ public class ProductSummaryServiceImpl implements ProductSummaryService {
 
             if (param.getType() != null) {
                 predicates.add(cb.equal(root.get("type"), param.getType()));
-            }
-
-            if (param.getStatus() != null) {
-                predicates.add(cb.equal(root.get("status"), param.getStatus()));
             }
 
             if (StrUtil.isNotBlank(param.getName())) {
@@ -368,7 +361,16 @@ public class ProductSummaryServiceImpl implements ProductSummaryService {
     @EventListener
     @Async("taskExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void handleProductSummaryDeletion(ProductDeletingEvent event) {
+    public void handleProductSummaryDeletionByProduct(ProductSummaryDeleteEvent event) {
+        String productId = event.getProductId();
+        log.info("Handling product deletion for product {}", productId);
+        productSummaryRepository.deleteByProductId(productId);
+    }
+
+    @EventListener
+    @Async("taskExecutor")
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void handleProductSummaryDeletion(ProductSummaryDeleteEvent event) {
         String productId = event.getProductId();
         log.info("Handling product deletion for product {}", productId);
         productSummaryRepository.deleteByProductId(productId);

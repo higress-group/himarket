@@ -343,11 +343,7 @@ public class ConsumerServiceImpl implements ConsumerService {
         r.setProductType(product.getType());
 
         SpringUtil.getApplicationContext()
-                .publishEvent(
-                        new ProductSummaryUpdateEvent(
-                                this,
-                                param.getProductId(),
-                                ProductSummaryUpdateEvent.UpdateType.SUBSCRIPTION_COUNT));
+                .publishEvent(new ProductSummaryUpdateEvent(param.getProductId()));
         return r;
     }
 
@@ -381,11 +377,7 @@ public class ConsumerServiceImpl implements ConsumerService {
                 consumerId, subscription.getProductId());
 
         SpringUtil.getApplicationContext()
-                .publishEvent(
-                        new ProductSummaryUpdateEvent(
-                                this,
-                                subscription.getProductId(),
-                                ProductSummaryUpdateEvent.UpdateType.SUBSCRIPTION_COUNT));
+                .publishEvent(new ProductSummaryUpdateEvent(subscription.getProductId()));
     }
 
     private ProductSubscription findBySubscriptionIdOrProductId(

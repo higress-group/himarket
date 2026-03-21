@@ -19,6 +19,7 @@
 
 package com.alibaba.himarket.service.impl;
 
+import cn.hutool.extra.spring.SpringUtil;
 import com.alibaba.himarket.core.event.ProductDeletingEvent;
 import com.alibaba.himarket.core.event.ProductSummaryUpdateEvent;
 import com.alibaba.himarket.core.security.ContextHolder;
@@ -31,7 +32,6 @@ import com.alibaba.himarket.support.enums.LikeStatus;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -47,7 +47,6 @@ public class ProductLikeServiceImpl implements ProductLikeService {
 
     private final ProductLikeRepository productLikeRepository;
     private final ContextHolder contextHolder;
-    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     public ProductLikeResult toggleLike(String productId) {
@@ -73,10 +72,8 @@ public class ProductLikeServiceImpl implements ProductLikeService {
             like.setPortalId(contextHolder.getPortal());
             like.setStatus(LikeStatus.LIKED);
         }
-        eventPublisher.publishEvent(
-                new ProductSummaryUpdateEvent(
-                        this, productId, ProductSummaryUpdateEvent.UpdateType.LIKES_COUNT));
         ProductLike save = productLikeRepository.save(like);
+        SpringUtil.getApplicationContext().publishEvent(new ProductSummaryUpdateEvent(productId));
         return new ProductLikeResult().convertFrom(save);
     }
 
