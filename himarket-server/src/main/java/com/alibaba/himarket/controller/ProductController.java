@@ -30,6 +30,7 @@ import com.alibaba.himarket.dto.params.product.QueryProductSubscriptionParam;
 import com.alibaba.himarket.dto.params.product.UpdateProductParam;
 import com.alibaba.himarket.dto.result.ProductCategoryResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
+import com.alibaba.himarket.dto.result.mcp.McpMetaPublicResult;
 import com.alibaba.himarket.dto.result.mcp.McpMetaResult;
 import com.alibaba.himarket.dto.result.mcp.McpToolListResult;
 import com.alibaba.himarket.dto.result.product.ProductPublicationResult;
@@ -140,6 +141,15 @@ public class ProductController {
     @GetMapping("/{productId}/mcp-meta")
     public List<McpMetaResult> listMcpMeta(@PathVariable String productId) {
         return mcpServerService.listMetaByProduct(productId);
+    }
+
+    @Operation(summary = "获取产品关联的 MCP 公开信息（匿名可访问，脱敏）")
+    @GetMapping("/{productId}/mcp-meta/public")
+    @PublicAccess
+    public List<McpMetaPublicResult> listMcpMetaPublic(@PathVariable String productId) {
+        return mcpServerService.listMetaByProduct(productId).stream()
+                .map(McpMetaPublicResult::fromFull)
+                .collect(java.util.stream.Collectors.toList());
     }
 
     @Operation(summary = "删除API产品关联的API或MCP Server")

@@ -7,10 +7,12 @@ import { Input, Spin, message, Button } from "antd";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import { CategoryMenu } from "../components/square/CategoryMenu";
+import { EmptyState } from "../components/EmptyState";
+import { useAuth } from "../hooks/useAuth";
 import APIs, { type ICategory } from "../lib/apis";
 import { getIconString } from "../lib/iconUtils";
 import type { IProductDetail, IMcpMeta } from "../lib/apis/product";
-import { getProductMcpMetaBatch } from "../lib/apis/product";
+import { getProductMcpMetaBatch, getProductMcpMetaBatchPublic } from "../lib/apis/product";
 import { ProductIconRenderer } from "../components/icon/ProductIconRenderer";
 import dayjs from "dayjs";
 import BackToTopButton from "../components/scroll-to-top";
@@ -22,6 +24,7 @@ interface McpProductItem {
 
 function McpSquare() {
   const navigate = useNavigate();
+  const { isLoggedIn } = useAuth();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [activeTab, setActiveTab] = useState<"market" | "my">("market");
 
@@ -60,7 +63,8 @@ function McpSquare() {
     if (products.length === 0) return [];
     const productIds = products.map(p => p.productId);
     try {
-      const res = await getProductMcpMetaBatch(productIds);
+      const fetchFn = isLoggedIn ? getProductMcpMetaBatch : getProductMcpMetaBatchPublic;
+      const res = await fetchFn(productIds);
       const metaList = res.code === "SUCCESS" ? (res.data || []) : [];
       // 按 productId 分组，取每个产品的第一条 meta
       const metaByProduct = new Map<string, IMcpMeta>();
@@ -153,13 +157,14 @@ function McpSquare() {
 
   // 页面初始化时获取订阅状态（用于广场"已订阅"标记）+ 我的MCP数据（用于数量显示）
   useEffect(() => {
+    if (!isLoggedIn) return;
     fetchSubscribedProducts();
     fetchMyMcps();
-  }, [fetchSubscribedProducts, fetchMyMcps]);
+  }, [fetchSubscribedProducts, fetchMyMcps, isLoggedIn]);
 
   useEffect(() => {
-    if (activeTab === "my") fetchMyMcps();
-  }, [activeTab, fetchMyMcps]);
+    if (activeTab === "my" && isLoggedIn) fetchMyMcps();
+  }, [activeTab, fetchMyMcps, isLoggedIn]);
 
   const loadMoreProducts = useCallback(async () => {
     if (loadingMore || !hasMore) return;
@@ -258,6 +263,7 @@ function McpSquare() {
               >
                 <AppstoreOutlined className="mr-1.5" />MCP 广场
               </button>
+              {isLoggedIn && (
               <button
                 onClick={() => setActiveTab("my")}
                 className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-1.5 ${
@@ -273,8 +279,10 @@ function McpSquare() {
                   </span>
                 )}
               </button>
+              )}
             </div>
             <div className="flex items-center gap-3">
+              {isLoggedIn && (
               <Button
                 type="primary"
                 icon={<PlusOutlined />}
@@ -283,6 +291,7 @@ function McpSquare() {
               >
                 创建 MCP
               </Button>
+              )}
               <Input
               placeholder="搜索 MCP Server..."
               prefix={<SearchOutlined className="text-gray-400" />}
@@ -307,6 +316,7 @@ function McpSquare() {
                   loadingMore={loadingMore}
                   items={filteredItems}
                   subscribedProductIds={subscribedProductIds}
+                  isLoggedIn={isLoggedIn}
                   onViewDetail={(pid) => navigate(`/mcp/${pid}`)}
                   onSubscribe={handleSubscribe}
                   onUnsubscribe={handleUnsubscribe}
@@ -329,11 +339,12 @@ function McpSquare() {
 }
 
 /* ==================== 广场内容 ==================== */
-function MarketContent({ loading, loadingMore, items, subscribedProductIds, onViewDetail, onSubscribe, onUnsubscribe }: {
+function MarketContent({ loading, loadingMore, items, subscribedProductIds, isLoggedIn, onViewDetail, onSubscribe, onUnsubscribe }: {
   loading: boolean;
   loadingMore: boolean;
   items: McpProductItem[];
   subscribedProductIds: Set<string>;
+  isLoggedIn: boolean;
   onViewDetail: (productId: string) => void;
   onSubscribe: (productId: string) => Promise<void>;
   onUnsubscribe: (productId: string) => Promise<void>;
@@ -343,7 +354,7 @@ function MarketContent({ loading, loadingMore, items, subscribedProductIds, onVi
   }
 
   if (items.length === 0) {
-    return <div className="col-span-full flex items-center justify-center py-20 text-gray-400">暂无数据</div>;
+    return <EmptyState productType="MCP_SERVER" />;
   }
 
   return (
@@ -354,6 +365,7 @@ function MarketContent({ loading, loadingMore, items, subscribedProductIds, onVi
             key={item.product.productId}
             item={item}
             subscribed={subscribedProductIds.has(item.product.productId)}
+            isLoggedIn={isLoggedIn}
             onViewDetail={() => onViewDetail(item.product.productId)}
             onSubscribe={() => onSubscribe(item.product.productId)}
             onUnsubscribe={() => onUnsubscribe(item.product.productId)}
@@ -368,9 +380,10 @@ function MarketContent({ loading, loadingMore, items, subscribedProductIds, onVi
 }
 
 /* ==================== MCP 卡片（匹配 ModelCard 风格） ==================== */
-function McpCard({ item, subscribed, onViewDetail, onSubscribe, onUnsubscribe }: {
+function McpCard({ item, subscribed, isLoggedIn, onViewDetail, onSubscribe, onUnsubscribe }: {
   item: McpProductItem;
   subscribed: boolean;
+  isLoggedIn: boolean;
   onViewDetail: () => void;
   onSubscribe: () => Promise<void>;
   onUnsubscribe: () => Promise<void>;
@@ -450,7 +463,7 @@ function McpCard({ item, subscribed, onViewDetail, onSubscribe, onUnsubscribe }:
       "
     >
       {/* 已订阅角标 */}
-      {subscribed && (
+      {isLoggedIn && subscribed && (
         <div className="absolute top-3 right-3 z-10">
           <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-green-50 text-green-600 border border-green-100">
             已订阅
@@ -519,11 +532,11 @@ function McpCard({ item, subscribed, onViewDetail, onSubscribe, onUnsubscribe }:
         <div className="flex gap-3">
           <button
             onClick={(e) => { e.stopPropagation(); onViewDetail(); }}
-            className="flex-1 px-4 py-2.5 rounded-xl border border-gray-300 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 shadow-sm"
+            className={`${isLoggedIn ? 'flex-1' : 'w-full'} px-4 py-2.5 rounded-xl border border-gray-300 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 shadow-sm`}
           >
             查看详情
           </button>
-          {subscribed ? (
+          {isLoggedIn && (subscribed ? (
             <button
               disabled={actionLoading}
               onClick={handleUnsubscribeClick}
@@ -539,7 +552,7 @@ function McpCard({ item, subscribed, onViewDetail, onSubscribe, onUnsubscribe }:
             >
               {actionLoading ? "处理中..." : "立即订阅"}
             </button>
-          )}
+          ))}
         </div>
       </div>
     </div>

@@ -12,14 +12,17 @@ import {
 } from "@ant-design/icons";
 import APIs from "../lib/apis";
 import type { IProductDetail, IMcpMeta } from "../lib/apis/product";
+import { getProductMcpMetaPublic } from "../lib/apis/product";
 import { ProductIconRenderer } from "../components/icon/ProductIconRenderer";
 import { getIconString } from "../lib/iconUtils";
 import MarkdownRender from "../components/MarkdownRender";
+import { useAuth } from "../hooks/useAuth";
 import dayjs from "dayjs";
 
 function McpDetail() {
   const { mcpProductId } = useParams();
   const navigate = useNavigate();
+  const { isLoggedIn, login } = useAuth();
   const [loading, setLoading] = useState(true);
   const [product, setProduct] = useState<IProductDetail | null>(null);
   const [meta, setMeta] = useState<IMcpMeta | null>(null);
@@ -46,7 +49,9 @@ function McpDetail() {
           setProduct(prodRes.data);
           // 获取 MCP meta
           try {
-            const metaRes = await APIs.getProductMcpMeta(mcpProductId);
+            const metaRes = isLoggedIn
+              ? await APIs.getProductMcpMeta(mcpProductId)
+              : await getProductMcpMetaPublic(mcpProductId);
             if (metaRes.code === "SUCCESS" && metaRes.data?.length > 0) {
               setMeta(metaRes.data[0]);
             }
@@ -519,7 +524,14 @@ function McpDetail() {
                   <LinkOutlined className="text-green-500" />
                   连接配置
                 </h3>
-                {(() => {
+                {!isLoggedIn ? (
+                  <div className="text-center py-6">
+                    <div className="text-sm text-gray-400 mb-3">请登录后查看连接信息及订阅</div>
+                    <Button type="primary" size="small" onClick={() => login()}>
+                      去登录
+                    </Button>
+                  </div>
+                ) : (() => {
                   const hasCold = !!(resolvedSseJson || resolvedHttpJson || coldLocalJson);
 
                   if (!hasCold) {
@@ -609,8 +621,6 @@ function McpDetail() {
                   );
                 })()}
               </div>
-
-              {/* 基本信息 */}
               <div className="bg-white/70 backdrop-blur-sm rounded-2xl border border-white/50 p-5">
                 <h3 className="text-sm font-semibold text-gray-900 mb-3">基本信息</h3>
                 <Descriptions column={1} size="small">

@@ -116,9 +116,21 @@ export function getProductMcpMeta(productId: string) {
   return request.get<RespI<IMcpMeta[]>, RespI<IMcpMeta[]>>(`/products/${productId}/mcp-meta`);
 }
 
+// 获取产品关联的 MCP 公开信息（匿名可访问，脱敏）
+export function getProductMcpMetaPublic(productId: string) {
+  return request.get<RespI<IMcpMeta[]>, RespI<IMcpMeta[]>>(`/products/${productId}/mcp-meta/public`);
+}
+
 // 批量获取多个产品的 MCP 元信息（一次请求替代 N 次）
 export function getProductMcpMetaBatch(productIds: string[]) {
   return request.get<RespI<IMcpMeta[]>, RespI<IMcpMeta[]>>('/mcp-servers/meta/batch', {
+    params: { productIds: productIds.join(',') },
+  });
+}
+
+// 批量获取多个产品的 MCP 公开信息（匿名可访问，脱敏）
+export function getProductMcpMetaBatchPublic(productIds: string[]) {
+  return request.get<RespI<IMcpMeta[]>, RespI<IMcpMeta[]>>('/mcp-servers/meta/batch/public', {
     params: { productIds: productIds.join(',') },
   });
 }

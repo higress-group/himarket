@@ -540,6 +540,23 @@ public class McpServerServiceImpl implements McpServerService {
 
     @Override
     @Transactional
+    public void forceDeleteMetaByProduct(String productId) {
+        List<McpServerMeta> metas = metaRepository.findByProductId(productId);
+        if (metas.isEmpty()) {
+            return;
+        }
+
+        for (McpServerMeta meta : metas) {
+            undeploySandboxEndpoints(meta);
+            endpointRepository.deleteByMcpServerId(meta.getMcpServerId());
+            metaRepository.delete(meta);
+        }
+
+        productRefRepository.deleteByProductId(productId);
+    }
+
+    @Override
+    @Transactional
     public McpEndpointResult saveEndpoint(SaveMcpEndpointParam param) {
         // 校验 mcpServerId 存在
         McpServerMeta meta = findMeta(param.getMcpServerId());

@@ -109,6 +109,10 @@ public class ProductServiceImpl implements ProductService {
 
     private final McpServerMetaRepository mcpServerMetaRepository;
 
+    private final McpServerEndpointRepository mcpServerEndpointRepository;
+
+    private final McpServerService mcpServerService;
+
     /**
      * Cache to prevent duplicate sync within interval (5 minutes default)
      */
@@ -348,6 +352,11 @@ public class ProductServiceImpl implements ProductService {
         // Clear product category relationships
         clearProductCategoryRelations(productId);
 
+        // MCP 产品：级联删除 mcp_server_meta、mcp_server_endpoint 及沙箱资源
+        if (product.getType() == ProductType.MCP_SERVER) {
+            mcpServerService.forceDeleteMetaByProduct(productId);
+        }
+
         productRepository.delete(product);
         productRefRepository.deleteByProductId(productId);
 
@@ -431,14 +440,12 @@ public class ProductServiceImpl implements ProductService {
                                                 ErrorCode.INVALID_REQUEST,
                                                 "API product not linked to API"));
 
-        // MCP 产品：同步删除 mcp_server_meta 记录
+        // MCP 产品：级联删除 mcp_server_meta、mcp_server_endpoint 及沙箱资源
         if (product.getType() == ProductType.MCP_SERVER) {
-            mcpServerMetaRepository
-                    .findByProductId(productId)
-                    .forEach(mcpServerMetaRepository::delete);
+            mcpServerService.forceDeleteMetaByProduct(productId);
+        } else {
+            productRefRepository.delete(productRef);
         }
-
-        productRefRepository.delete(productRef);
         product.setStatus(ProductStatus.PENDING);
         productRepository.save(product);
         productSyncCache.invalidate(productId);

@@ -53,6 +53,12 @@ public interface McpServerService {
     /** 删除产品下所有 MCP 元信息、endpoint、ProductRef，并重置产品状态 */
     void deleteMetaByProduct(String productId);
 
+    /**
+     * 强制删除产品下所有 MCP 资源（跳过发布检查）。
+     * 供 ProductService 删除产品时调用，此时 publication 已被清理。
+     */
+    void forceDeleteMetaByProduct(String productId);
+
     /** 保存 endpoint（创建或更新） */
     McpEndpointResult saveEndpoint(SaveMcpEndpointParam param);
 

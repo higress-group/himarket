@@ -20,11 +20,13 @@
 package com.alibaba.himarket.controller;
 
 import com.alibaba.himarket.core.annotation.AdminAuth;
+import com.alibaba.himarket.core.annotation.PublicAccess;
 import com.alibaba.himarket.dto.params.mcp.RegisterMcpParam;
 import com.alibaba.himarket.dto.params.mcp.SaveMcpEndpointParam;
 import com.alibaba.himarket.dto.params.mcp.SaveMcpMetaParam;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.mcp.McpEndpointResult;
+import com.alibaba.himarket.dto.result.mcp.McpMetaPublicResult;
 import com.alibaba.himarket.dto.result.mcp.McpMetaResult;
 import com.alibaba.himarket.dto.result.mcp.MyEndpointResult;
 import com.alibaba.himarket.dto.result.sandbox.SandboxSimpleResult;
@@ -102,6 +104,16 @@ public class McpServerController {
     @GetMapping("/meta/batch")
     public List<McpMetaResult> listMetaByProductIds(@RequestParam List<String> productIds) {
         return mcpServerService.listMetaByProductIds(productIds);
+    }
+
+    @Operation(summary = "批量获取多个产品的 MCP 公开信息（匿名可访问，脱敏）")
+    @GetMapping("/meta/batch/public")
+    @PublicAccess
+    public List<McpMetaPublicResult> listMetaByProductIdsPublic(
+            @RequestParam List<String> productIds) {
+        return mcpServerService.listMetaByProductIds(productIds).stream()
+                .map(McpMetaPublicResult::fromFull)
+                .collect(java.util.stream.Collectors.toList());
     }
 
     @Operation(summary = "刷新工具列表（连接 endpoint 获取 tools/list）")
