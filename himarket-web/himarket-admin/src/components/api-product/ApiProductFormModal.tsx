@@ -71,9 +71,8 @@ export default function ApiProductFormModal({
         description: initialData.description,
         type: initialData.type,
         autoApprove: initialData.autoApprove,
-            feature: initialData.feature,
-            skillConfig: initialData.skillConfig,
-          });
+        feature: initialData.feature,
+      });
         }, 300);
 
       // 处理 icon 字段

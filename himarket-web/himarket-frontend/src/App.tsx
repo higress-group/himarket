@@ -5,6 +5,7 @@ import zhCN from 'antd/locale/zh_CN';
 import './App.css'
 import "./styles/table.css";
 import aliyunThemeToken from './aliyunThemeToken.ts';
+import { PortalConfigProvider } from './context/PortalConfigContext';
 
 function App() {
   return (
@@ -15,7 +16,9 @@ function App() {
       }}
     >
       <BrowserRouter>
-        <Router />
+        <PortalConfigProvider>
+          <Router />
+        </PortalConfigProvider>
       </BrowserRouter>
     </ConfigProvider>
   );

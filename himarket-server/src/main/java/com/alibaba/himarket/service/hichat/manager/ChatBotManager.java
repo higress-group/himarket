@@ -294,8 +294,12 @@ public class ChatBotManager {
      */
     private void registerTool(Toolkit toolkit, McpClientWrapper client, McpSchema.Tool tool) {
         try {
+            java.util.Set<String> required =
+                    tool.inputSchema() != null && tool.inputSchema().required() != null
+                            ? new java.util.HashSet<>(tool.inputSchema().required())
+                            : java.util.Collections.emptySet();
             Map<String, Object> parameters =
-                    McpTool.convertMcpSchemaToParameters(tool.inputSchema());
+                    McpTool.convertMcpSchemaToParameters(tool.inputSchema(), required);
             McpTool mcpTool =
                     new McpTool(
                             tool.name(),

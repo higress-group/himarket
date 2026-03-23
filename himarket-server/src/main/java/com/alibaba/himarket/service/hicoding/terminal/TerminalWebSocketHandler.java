@@ -43,6 +43,12 @@ public class TerminalWebSocketHandler extends TextWebSocketHandler {
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
+        if (!acpProperties.isTerminalEnabled()) {
+            logger.info("Terminal feature is disabled, closing connection: id={}", session.getId());
+            session.close(CloseStatus.NORMAL);
+            return;
+        }
+
         String userId = (String) session.getAttributes().get("userId");
         if (userId == null) {
             logger.error("No userId in session attributes, closing terminal connection");

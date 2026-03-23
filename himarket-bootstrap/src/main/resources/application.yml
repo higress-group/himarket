@@ -37,10 +37,11 @@ springdoc:
   packages-to-scan: com.alibaba.himarket.controller
 
 jwt:
-  secret: YourJWTSecret
+  secret: ${JWT_SECRET:YourJWTSecret}
   expiration: 7d
 
 acp:
+  terminal-enabled: ${ACP_TERMINAL_ENABLED:false}
   default-provider: ${ACP_DEFAULT_PROVIDER:qwen-code}
   default-runtime: ${ACP_DEFAULT_RUNTIME:remote}
   remote:
@@ -86,6 +87,9 @@ acp:
 
 open-api:
   api-key: ${OPEN_API_KEY:himarket-open-api-key}
+
+observability:
+  log-source: ${OBSERVABILITY_LOG_SOURCE:SLS}
 
 sls:
   # SLS服务端点（必填）

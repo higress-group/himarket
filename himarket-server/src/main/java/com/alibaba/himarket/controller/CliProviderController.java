@@ -338,6 +338,12 @@ public class CliProviderController {
                 .build();
     }
 
+    @Operation(summary = "获取 HiCoding 功能开关状态")
+    @GetMapping("/features")
+    public Map<String, Boolean> getFeatures() {
+        return Map.of("terminalEnabled", acpProperties.isTerminalEnabled());
+    }
+
     @Operation(summary = "获取可用的 CLI Provider 列表（含运行时兼容性信息）")
     @GetMapping
     public List<CliProviderInfo> listProviders() {

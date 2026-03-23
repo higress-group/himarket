@@ -522,6 +522,7 @@ load_config() {
                NACOS_VERSION NACOS_IMAGE_REGISTRY NACOS_IMAGE_REPOSITORY \
                HIGRESS_REPO_NAME HIGRESS_REPO_URL HIGRESS_CHART_REF \
                MYSQL_ROOT_PASSWORD MYSQL_PASSWORD \
+               JWT_SECRET \
                NACOS_ADMIN_PASSWORD HIGRESS_USERNAME HIGRESS_PASSWORD \
                ADMIN_USERNAME ADMIN_PASSWORD FRONT_USERNAME FRONT_PASSWORD \
                MYSQL_STORAGE_CLASS MYSQL_STORAGE_SIZE SANDBOX_STORAGE_CLASS SANDBOX_STORAGE_SIZE \
@@ -753,6 +754,10 @@ interactive_config() {
         NACOS_IMAGE_REPOSITORY="${NACOS_IMAGE_REPOSITORY:-nacos/nacos-server}"
         MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:-himarket_root_2024}"
         MYSQL_PASSWORD="${MYSQL_PASSWORD:-himarket_app_2024}"
+        # JWT Secret: 升级时沿用已有值，全新安装时自动生成
+        if [[ -z "${JWT_SECRET:-}" ]]; then
+            JWT_SECRET="$(openssl rand -base64 32)"
+        fi
         NACOS_ADMIN_PASSWORD="${NACOS_ADMIN_PASSWORD:-nacos}"
         HIGRESS_USERNAME="${HIGRESS_USERNAME:-admin}"
         HIGRESS_PASSWORD="${HIGRESS_PASSWORD:-admin}"
@@ -807,6 +812,11 @@ interactive_config() {
     log "$(msg section.db)"
     prompt MYSQL_ROOT_PASSWORD "MySQL root password" "himarket_root_2024"
     prompt MYSQL_PASSWORD "MySQL app password" "himarket_app_2024"
+
+    # JWT Secret: 自动生成随机值（无需用户交互）
+    if [[ -z "${JWT_SECRET:-}" ]]; then
+        JWT_SECRET="$(openssl rand -base64 32)"
+    fi
 
     log ""
     log "$(msg section.credential)"
@@ -1008,6 +1018,9 @@ HIGRESS_CHART_REF="${HIGRESS_CHART_REF}"
 MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD}"
 MYSQL_PASSWORD="${MYSQL_PASSWORD}"
 
+# ========== JWT Secret ==========
+JWT_SECRET="${JWT_SECRET}"
+
 # ========== 服务凭证 ==========
 NACOS_ADMIN_PASSWORD="${NACOS_ADMIN_PASSWORD}"
 HIGRESS_USERNAME="${HIGRESS_USERNAME}"
@@ -1129,7 +1142,13 @@ deploy_all() {
         --set "mysql.persistence.storageClass=${MYSQL_STORAGE_CLASS}" \
         --set "mysql.persistence.size=${MYSQL_STORAGE_SIZE}" \
         --set "sandbox.persistence.storageClass=${SANDBOX_STORAGE_CLASS}" \
-        --set "sandbox.persistence.size=${SANDBOX_STORAGE_SIZE}"
+        --set "sandbox.persistence.size=${SANDBOX_STORAGE_SIZE}" \
+        --set "server.jwtSecret=${JWT_SECRET}"
+
+    # 6.1 等待 HiMarket 核心组件就绪
+    wait_rollout "${NS}" "deployment" "himarket-server" 300
+    wait_rollout "${NS}" "deployment" "himarket-admin" 300
+    wait_rollout "${NS}" "deployment" "himarket-frontend" 300
 
     # 7. 等待 MySQL Pod 就绪 + 初始化 Nacos 数据库
     init_nacos_db_in_cluster "${NS}" "${MYSQL_ROOT_PASSWORD}" "${NACOS_DB_NAME}"
