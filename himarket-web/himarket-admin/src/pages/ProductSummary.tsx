@@ -20,16 +20,17 @@ const ProductSummary: React.FC = () => {
   const fetchData = async (params: any = {}) => {
     try {
       setLoading(true);
+      const currentPage = params.current ?? pagination.current;
       const response = await productSummaryApi.getProductSummaryList({
-        page: (params.current || pagination.current) - 1, // 后端页码从0开始
-        size: params.pageSize || pagination.pageSize,
+        page: currentPage,
+        size: params.pageSize ?? pagination.pageSize,
         name: filters.name,
         sort: params.sort && params.sortOrder ? `${params.sort},${params.sortOrder}` : undefined,
       });
       setData(response.data.content || []);
       setPagination({
         ...pagination,
-        current: response.data.number + 1, // 前端页码从1开始
+        current: currentPage,
         pageSize: response.data.size,
         total: response.data.totalElements,
       });

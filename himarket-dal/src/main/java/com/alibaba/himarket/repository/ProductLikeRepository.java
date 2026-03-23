@@ -23,6 +23,7 @@ import com.alibaba.himarket.entity.ProductLike;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -68,4 +69,28 @@ public interface ProductLikeRepository extends JpaRepository<ProductLike, Long> 
             "SELECT pl.productId, COUNT(pl) FROM ProductLike pl WHERE pl.status ="
                     + " com.alibaba.himarket.support.enums.LikeStatus.LIKED GROUP BY pl.productId")
     List<Object[]> countLikesGroupedByProductId();
+
+    /**
+     * Atomically upsert a like record using INSERT ... ON DUPLICATE KEY UPDATE.
+     * When the record already exists, toggles the status between LIKED and UNLIKED.
+     *
+     * @param likeId      unique identifier for a new like record
+     * @param productId   the product identifier
+     * @param developerId the developer identifier
+     * @param portalId    the portal identifier
+     */
+    @Modifying
+    @Query(
+            value =
+                    "INSERT INTO product_like (like_id, product_id, developer_id, portal_id,"
+                        + " status, created_at, updated_at) VALUES (:likeId, :productId,"
+                        + " :developerId, :portalId, 'LIKED', NOW(), NOW()) ON DUPLICATE KEY UPDATE"
+                        + " status = CASE WHEN status = 'LIKED' THEN 'UNLIKED' ELSE 'LIKED' END,"
+                        + " updated_at = NOW()",
+            nativeQuery = true)
+    int upsertLike(
+            @Param("likeId") String likeId,
+            @Param("productId") String productId,
+            @Param("developerId") String developerId,
+            @Param("portalId") String portalId);
 }

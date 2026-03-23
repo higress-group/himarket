@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS `product_summary` (
     `icon` json DEFAULT NULL,
     `usage_count` bigint NOT NULL,
     `likes_count` bigint NOT NULL,
-    `subscription_count` int NOT NULL,
+    `subscription_count` bigint NOT NULL,
     `created_at` datetime(3) DEFAULT CURRENT_TIMESTAMP(3),
     `updated_at` datetime(3) DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
     PRIMARY KEY (`id`)

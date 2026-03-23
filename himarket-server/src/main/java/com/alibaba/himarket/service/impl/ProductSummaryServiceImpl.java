@@ -2,6 +2,7 @@ package com.alibaba.himarket.service.impl;
 
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
+import com.alibaba.himarket.core.event.ProductDeletingEvent;
 import com.alibaba.himarket.core.event.ProductSummaryDeleteEvent;
 import com.alibaba.himarket.core.event.ProductSummaryUpdateEvent;
 import com.alibaba.himarket.core.event.ProductUpdateEvent;
@@ -20,6 +21,7 @@ import com.alibaba.himarket.repository.ProductSummaryRepository;
 import com.alibaba.himarket.repository.SubscriptionRepository;
 import com.alibaba.himarket.service.ProductCategoryService;
 import com.alibaba.himarket.service.ProductSummaryService;
+import com.alibaba.himarket.support.enums.ProductStatus;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
@@ -33,6 +35,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.scheduling.annotation.Async;
@@ -104,12 +107,12 @@ public class ProductSummaryServiceImpl implements ProductSummaryService {
     }
 
     /**
-     * Batch update statistics table to ensure consistency between statistics and product table
+     * Batch update statistics table to ensure consistency between statistics and product table.
+     * Processes products in pages to avoid full table scan and large memory footprint.
      */
     @Override
     public void syncAllProductSummary() {
-        List<Product> allProducts = productRepository.findAll();
-        // Get statistics data for all products
+        // Get statistics data for all products (aggregated queries, not per-product)
         Map<String, Long> subscriptionCounts = getSubscriptionCounts();
         Map<String, Long> usageCounts = getUsageCounts();
         Map<String, Long> likesCounts = getLikesCounts();
@@ -119,52 +122,62 @@ public class ProductSummaryServiceImpl implements ProductSummaryService {
                 existingStats.stream()
                         .collect(Collectors.toMap(ProductSummary::getProductId, s -> s));
 
-        // Prepare list of records to update
-        List<ProductSummary> productSummaries = new ArrayList<>();
+        // Process products in pages to avoid full table scan
+        final int pageSize = 100;
+        int pageNumber = 0;
+        List<String> processedProductIds = new ArrayList<>();
 
-        // Create or update ProductSummary for each product
-        for (Product product : allProducts) {
-            String productId = product.getProductId();
-            ProductSummary summary = existingStatsMap.getOrDefault(productId, new ProductSummary());
+        while (true) {
+            Page<Product> productPage =
+                    productRepository.findAllByStatus(
+                            ProductStatus.PUBLISHED, PageRequest.of(pageNumber, pageSize));
+            if (productPage.isEmpty()) {
+                break;
+            }
 
-            // Synchronize all product fields
-            summary.setProductId(product.getProductId());
-            summary.setName(product.getName());
-            summary.setType(product.getType());
-            summary.setDescription(product.getDescription());
-            summary.setIcon(product.getIcon());
-            summary.setCreateAt(product.getCreateAt());
-            summary.setUpdatedAt(product.getUpdatedAt());
+            List<ProductSummary> productSummaries = new ArrayList<>();
+            for (Product product : productPage.getContent()) {
+                String productId = product.getProductId();
+                processedProductIds.add(productId);
+                ProductSummary summary =
+                        existingStatsMap.getOrDefault(productId, new ProductSummary());
 
-            // Set subscription count (default to 0 if no subscriptions)
-            Long subscriptionCount = subscriptionCounts.getOrDefault(productId, 0L);
-            summary.setSubscriptionCount(subscriptionCount);
+                // Synchronize all product fields
+                summary.setProductId(product.getProductId());
+                summary.setName(product.getName());
+                summary.setType(product.getType());
+                summary.setDescription(product.getDescription());
+                summary.setIcon(product.getIcon());
+                summary.setCreateAt(product.getCreateAt());
+                summary.setUpdatedAt(product.getUpdatedAt());
 
-            // Set usage count (default to 0 if no usage records)
-            Long usageCount = usageCounts.getOrDefault(productId, 0L);
-            summary.setUsageCount(usageCount);
+                // Set subscription count (default to 0 if no subscriptions)
+                summary.setSubscriptionCount(subscriptionCounts.getOrDefault(productId, 0L));
+                // Set usage count (default to 0 if no usage records)
+                summary.setUsageCount(usageCounts.getOrDefault(productId, 0L));
+                // Set like count (default to 0 if no like records)
+                summary.setLikesCount(likesCounts.getOrDefault(productId, 0L));
 
-            // Set like count (default to 0 if no like records)
-            Long likesCount = likesCounts.getOrDefault(productId, 0L);
-            summary.setLikesCount(likesCount);
+                productSummaries.add(summary);
+            }
 
-            productSummaries.add(summary);
-        }
-
-        // Batch save updates
-        if (!productSummaries.isEmpty()) {
             // Batch save to avoid large transactions
             saveProductSummaryBatch(productSummaries);
-            log.info("Updated {} product statistics records", productSummaries.size());
+            log.info(
+                    "Updated {} product statistics records (page {})",
+                    productSummaries.size(),
+                    pageNumber);
+
+            if (!productPage.hasNext()) {
+                break;
+            }
+            pageNumber++;
         }
 
         // Delete statistics records for products that no longer exist
-        List<String> allProductIds =
-                allProducts.stream().map(Product::getProductId).collect(Collectors.toList());
-
         List<ProductSummary> statsToDelete =
                 existingStats.stream()
-                        .filter(summary -> !allProductIds.contains(summary.getProductId()))
+                        .filter(summary -> !processedProductIds.contains(summary.getProductId()))
                         .collect(Collectors.toList());
 
         if (!statsToDelete.isEmpty()) {
@@ -361,7 +374,7 @@ public class ProductSummaryServiceImpl implements ProductSummaryService {
     @EventListener
     @Async("taskExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void handleProductSummaryDeletionByProduct(ProductSummaryDeleteEvent event) {
+    public void handleProductSummaryDeletionOnProductDeleted(ProductDeletingEvent event) {
         String productId = event.getProductId();
         log.info("Handling product deletion for product {}", productId);
         productSummaryRepository.deleteByProductId(productId);
@@ -370,7 +383,7 @@ public class ProductSummaryServiceImpl implements ProductSummaryService {
     @EventListener
     @Async("taskExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void handleProductSummaryDeletion(ProductSummaryDeleteEvent event) {
+    public void handleProductSummaryDeletionOnUnpublished(ProductSummaryDeleteEvent event) {
         String productId = event.getProductId();
         log.info("Handling product deletion for product {}", productId);
         productSummaryRepository.deleteByProductId(productId);
