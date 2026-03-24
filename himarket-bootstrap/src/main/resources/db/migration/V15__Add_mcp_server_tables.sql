@@ -5,20 +5,14 @@ CREATE TABLE IF NOT EXISTS `mcp_server_meta` (
     `id` bigint NOT NULL AUTO_INCREMENT,
     `mcp_server_id` varchar(64) NOT NULL,
     `product_id` varchar(64) NOT NULL,
-    `display_name` varchar(128) NOT NULL,
     `mcp_name` varchar(128) NOT NULL,
-    `description` varchar(512) DEFAULT NULL,
     `repo_url` varchar(512) DEFAULT NULL,
     `source_type` varchar(32) DEFAULT NULL COMMENT 'npm / docker / git / config',
     `origin` varchar(32) NOT NULL DEFAULT 'ADMIN' COMMENT 'ADMIN / GATEWAY / USER / THIRD_PARTY',
     `tags` json DEFAULT NULL,
-    `icon` json DEFAULT NULL,
     `protocol_type` varchar(32) NOT NULL COMMENT 'stdio / sse / http',
     `connection_config` json NOT NULL,
     `extra_params` json DEFAULT NULL,
-    `service_intro` longtext DEFAULT NULL,
-    `visibility` varchar(16) NOT NULL DEFAULT 'PUBLIC' COMMENT 'PUBLIC / PRIVATE',
-    `publish_status` varchar(32) NOT NULL DEFAULT 'DRAFT' COMMENT 'DRAFT / PUBLISHED',
     `tools_config` json DEFAULT NULL,
     `created_by` varchar(64) DEFAULT NULL,
     `sandbox_required` tinyint(1) DEFAULT NULL,
@@ -27,7 +21,6 @@ CREATE TABLE IF NOT EXISTS `mcp_server_meta` (
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_mcp_server_id` (`mcp_server_id`),
     UNIQUE KEY `uk_product_mcp_name` (`product_id`, `mcp_name`),
-    KEY `idx_publish_status` (`publish_status`),
     KEY `idx_product_id` (`product_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

@@ -61,4 +61,17 @@ public interface ProductRepository extends BaseRepository<Product, Long> {
      * @return the list of products
      */
     List<Product> findAllByType(ProductType type);
+
+    /**
+     * Find products by type and status (paginated)
+     *
+     * @param type the product type
+     * @param status the product status
+     * @param pageable pagination info
+     * @return the page of products
+     */
+    org.springframework.data.domain.Page<Product> findByTypeAndStatus(
+            ProductType type,
+            com.alibaba.himarket.support.enums.ProductStatus status,
+            org.springframework.data.domain.Pageable pageable);
 }

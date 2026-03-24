@@ -280,18 +280,8 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
                     {meta.protocolType?.toUpperCase()}
                   </Tag>
                 </div>
-                <span className="text-xs text-gray-600">发布状态:</span>
-                <div className="col-span-2">
-                  <Tag color={meta.publishStatus === 'PUBLISHED' ? 'green' : 'default'} className="m-0">
-                    {meta.publishStatus === 'PUBLISHED' ? '已发布' : '草稿'}
-                  </Tag>
-                </div>
-              </div>
-              <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
                 <span className="text-xs text-gray-600">来源:</span>
-                <span className="col-span-2 text-xs text-gray-900">{meta.origin === 'GATEWAY' ? '网关导入' : meta.origin === 'NACOS' ? 'Nacos导入' : meta.origin === 'AGENTRUNTIME' ? 'AgentRuntime导入' : '管理员配置'}</span>
-                <span className="text-xs text-gray-600">可见性:</span>
-                <span className="col-span-2 text-xs text-gray-900">{meta.visibility === 'PUBLIC' ? '公开' : '私有'}</span>
+                <span className="col-span-2 text-xs text-gray-900">{meta.origin === 'GATEWAY' ? '网关导入' : meta.origin === 'NACOS' ? 'Nacos导入' : meta.origin === 'AGENTRUNTIME' ? 'AgentRuntime导入' : meta.origin === 'OPEN_API' ? 'Open API 导入' : '管理员配置'}</span>
               </div>
               {meta.repoUrl && (
                 <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
@@ -322,6 +312,21 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
                   <span className="col-span-5 text-xs text-gray-700 leading-relaxed">{meta.description}</span>
                 </div>
               )}
+
+              <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
+                {meta.createdBy && (
+                  <>
+                    <span className="text-xs text-gray-600">创建人:</span>
+                    <span className="col-span-2 text-xs text-gray-900">{meta.createdBy}</span>
+                  </>
+                )}
+                {meta.createAt && (
+                  <>
+                    <span className="text-xs text-gray-600">创建时间:</span>
+                    <span className="col-span-2 text-xs text-gray-700">{formatDateTime(meta.createAt)}</span>
+                  </>
+                )}
+              </div>
               {meta.sandboxRequired && meta.endpointUrl && (
                 <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
                   <span className="text-xs text-gray-600">沙箱连接点:</span>

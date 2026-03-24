@@ -24,8 +24,10 @@ import jakarta.persistence.*;
 import lombok.*;
 
 /**
- * MCP Server 元信息（冷数据）。
- * 存储 MCP 的完整配置、展示信息和文档，由管理员在后台配置。
+ * MCP Server 技术配置（冷数据）。
+ *
+ * <p>只存储 MCP 独有的技术字段（协议、连接、工具等）。
+ * 展示信息（名称、描述、图标、文档）统一由关联的 Product 管理。
  */
 @Entity
 @Table(
@@ -55,14 +57,8 @@ public class McpServerMeta extends BaseEntity {
     @Column(name = "product_id", length = 64, nullable = false)
     private String productId;
 
-    @Column(name = "display_name", length = 128, nullable = false)
-    private String displayName;
-
     @Column(name = "mcp_name", length = 128, nullable = false)
     private String mcpName;
-
-    @Column(name = "description", length = 512)
-    private String description;
 
     @Column(name = "repo_url", length = 512)
     private String repoUrl;
@@ -76,9 +72,6 @@ public class McpServerMeta extends BaseEntity {
     @Column(name = "tags", columnDefinition = "json")
     private String tags;
 
-    @Column(name = "icon", columnDefinition = "json")
-    private String icon;
-
     @Column(name = "protocol_type", length = 32, nullable = false)
     private String protocolType;
 
@@ -88,23 +81,14 @@ public class McpServerMeta extends BaseEntity {
     @Column(name = "extra_params", columnDefinition = "json")
     private String extraParams;
 
-    @Column(name = "service_intro", columnDefinition = "longtext")
-    private String serviceIntro;
-
-    @Column(name = "visibility", length = 16, nullable = false)
-    private String visibility;
-
-    @Column(name = "publish_status", length = 32, nullable = false)
-    private String publishStatus;
-
     @Column(name = "tools_config", columnDefinition = "json")
     private String toolsConfig;
 
-    @Column(name = "created_by", length = 64)
-    private String createdBy;
-
     @Column(name = "sandbox_required")
     private Boolean sandboxRequired;
+
+    @Column(name = "created_by", length = 64)
+    private String createdBy;
 
     /** 持久化前将空字符串的 JSON 列置为 null，避免 MySQL JSON 列写入非法值 */
     @PrePersist
@@ -112,7 +96,6 @@ public class McpServerMeta extends BaseEntity {
     private void sanitizeJsonFields() {
         if (StrUtil.isBlank(toolsConfig)) toolsConfig = null;
         if (StrUtil.isBlank(tags)) tags = null;
-        if (StrUtil.isBlank(icon)) icon = null;
         if (StrUtil.isBlank(extraParams)) extraParams = null;
     }
 }

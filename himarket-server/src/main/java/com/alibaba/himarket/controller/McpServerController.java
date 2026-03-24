@@ -177,7 +177,7 @@ public class McpServerController {
         return mcpServerService.listMyEndpoints();
     }
 
-    @Operation(summary = "用户注册 MCP Server（Portal 端，需登录）")
+    @Operation(summary = "用户注册 MCP Server（Portal 端，登录用户即可调用）")
     @PostMapping("/register")
     public McpMetaResult register(@RequestBody @Valid RegisterMcpParam param) {
         return mcpServerService.registerMcp(param);

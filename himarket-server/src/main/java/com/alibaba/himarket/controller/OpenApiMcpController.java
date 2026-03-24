@@ -99,7 +99,11 @@ public class OpenApiMcpController {
     // @DeleteMapping("/meta/{mcpServerId}")
 
     private void verifyApiKey(String key) {
-        if (!apiKey.equals(key)) {
+        if (key == null
+                || key.length() != apiKey.length()
+                || !java.security.MessageDigest.isEqual(
+                        apiKey.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                        key.getBytes(java.nio.charset.StandardCharsets.UTF_8))) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED, "Invalid API Key");
         }
     }

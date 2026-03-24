@@ -2,19 +2,23 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import {
-  Spin, Tag, Button, message, Tabs, Alert, Descriptions, Tooltip,
+  Spin, Tag, Button, message, Tabs, Alert, Descriptions, Tooltip, Modal, Select, Popconfirm,
 } from "antd";
 import {
   ArrowLeftOutlined, AppstoreOutlined,
   CopyOutlined, ToolOutlined, CodeOutlined,
   LinkOutlined, ThunderboltOutlined,
-  RightOutlined,
+  RightOutlined, PlusOutlined,
+  CheckCircleFilled, ClockCircleFilled, ExclamationCircleFilled,
 } from "@ant-design/icons";
 import APIs from "../lib/apis";
 import type { IProductDetail, IMcpMeta } from "../lib/apis/product";
 import { getProductMcpMetaPublic } from "../lib/apis/product";
+import { getConsumers, subscribeProduct, unsubscribeProduct, getProductSubscriptions } from "../lib/api";
+import type { Consumer } from "../types/consumer";
+import type { ISubscription } from "../lib/apis/consumer";
 import { ProductIconRenderer } from "../components/icon/ProductIconRenderer";
-import { getIconString } from "../lib/iconUtils";
+import { getIconString, parseMetaIcon } from "../lib/iconUtils";
 import MarkdownRender from "../components/MarkdownRender";
 import { useAuth } from "../hooks/useAuth";
 import dayjs from "dayjs";
@@ -30,12 +34,17 @@ function McpDetail() {
   const [activeTab, setActiveTab] = useState<string>("intro");
   const [subscribing, setSubscribing] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
-  const [unsubscribing, setUnsubscribing] = useState(false);
-  // 冷数据连接配置（从 product.mcpConfig 生成）
-  const [coldLocalJson, setColdLocalJson] = useState("");
-  // 统一连接配置（后端 resolvedConfig，或前端 fallback）
-  const [resolvedSseJson, setResolvedSseJson] = useState("");
-  const [resolvedHttpJson, setResolvedHttpJson] = useState("");
+  // 订阅管理弹窗
+  const [subscribeModalOpen, setSubscribeModalOpen] = useState(false);
+  const [consumers, setConsumers] = useState<Consumer[]>([]);
+  const [consumersLoading, setConsumersLoading] = useState(false);
+  const [selectedConsumerId, setSelectedConsumerId] = useState<string>("");
+  const [isApplyingSubscription, setIsApplyingSubscription] = useState(false);
+  // 订阅列表
+  const [subscriptionList, setSubscriptionList] = useState<ISubscription[]>([]);
+  const [subscriptionListLoading, setSubscriptionListLoading] = useState(false);
+  // 连接配置 tabs（由 useEffect 统一计算）
+  const [configTabs, setConfigTabs] = useState<{ key: string; label: string; json: string }[]>([]);
 
   useEffect(() => {
     const fetchDetail = async () => {
@@ -77,7 +86,7 @@ function McpDetail() {
       }
     };
     fetchDetail();
-  }, [mcpProductId]);
+  }, [mcpProductId, isLoggedIn]);
 
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -115,7 +124,15 @@ function McpDetail() {
   })();
   const origin = meta?.origin || "";
   const repoUrl = meta?.repoUrl || "";
-  const tags = meta?.tags ? meta.tags.split(",").map(t => t.trim()).filter(Boolean) : [];
+  const tags = (() => {
+    if (!meta?.tags) return [];
+    try {
+      const parsed = JSON.parse(meta.tags);
+      return Array.isArray(parsed) ? parsed : meta.tags.split(",").map((t: string) => t.trim()).filter(Boolean);
+    } catch {
+      return meta.tags.split(",").map((t: string) => t.trim()).filter(Boolean);
+    }
+  })();
   const serviceIntro = meta?.serviceIntro || "";
 
   // 解析 tools：优先 meta.toolsConfig，fallback 到 product.mcpConfig.tools
@@ -140,19 +157,57 @@ function McpDetail() {
   };
   const originTag = origin ? (originMap[origin] || { text: origin, color: "default" }) : null;
 
-  // 订阅 MCP（走正常的产品订阅流程）
-  const handleSubscribe = async () => {
+  // 获取订阅列表
+  const fetchSubscriptionList = async () => {
     if (!mcpProductId) return;
+    setSubscriptionListLoading(true);
+    try {
+      const res = await getProductSubscriptions(mcpProductId, { size: 100 });
+      const list = res.data?.content || [];
+      setSubscriptionList(list);
+      setSubscribed(list.some((s: ISubscription) => s.status === "APPROVED"));
+    } catch {
+      // ignore
+    } finally {
+      setSubscriptionListLoading(false);
+    }
+  };
+
+  // 打开管理订阅弹窗
+  const openSubscribeModal = async () => {
+    setSubscribeModalOpen(true);
+    setIsApplyingSubscription(false);
+    setSelectedConsumerId("");
+    await fetchSubscriptionList();
+  };
+
+  // 开始新增订阅流程
+  const startApplyingSubscription = async () => {
+    setIsApplyingSubscription(true);
+    setSelectedConsumerId("");
+    setConsumersLoading(true);
+    try {
+      const res = await getConsumers({}, { page: 1, size: 100 });
+      if (res.data) {
+        setConsumers(res.data.content || res.data);
+      }
+    } catch {
+      message.error("获取消费者列表失败");
+    } finally {
+      setConsumersLoading(false);
+    }
+  };
+
+  // 确认订阅
+  const handleSubscribe = async () => {
+    if (!mcpProductId || !selectedConsumerId) return;
     setSubscribing(true);
     try {
-      const consumerRes = await APIs.getPrimaryConsumer();
-      if (consumerRes.code !== "SUCCESS" || !consumerRes.data) {
-        message.error("获取消费者信息失败");
-        return;
-      }
-      await APIs.subscribeProduct(consumerRes.data.consumerId, mcpProductId);
-      setSubscribed(true);
+      await subscribeProduct(selectedConsumerId, mcpProductId);
       message.success("订阅成功");
+      setIsApplyingSubscription(false);
+      setSelectedConsumerId("");
+      await fetchSubscriptionList();
     } catch (e: any) {
       const msg = e?.response?.data?.message || e?.message || "订阅失败";
       message.error(msg);
@@ -161,86 +216,125 @@ function McpDetail() {
     }
   };
 
-  // 取消订阅（走正常的产品取消订阅流程）
-  const handleUnsubscribe = async () => {
+  // 取消某个消费者的订阅
+  const handleUnsubscribeConsumer = async (consumerId: string) => {
     if (!mcpProductId) return;
-    setUnsubscribing(true);
     try {
-      const consumerRes = await APIs.getPrimaryConsumer();
-      if (consumerRes.code !== "SUCCESS" || !consumerRes.data) {
-        message.error("获取消费者信息失败");
-        return;
-      }
-      await APIs.unsubscribeProduct(consumerRes.data.consumerId, mcpProductId);
-      setSubscribed(false);
+      await unsubscribeProduct(consumerId, mcpProductId);
       message.success("已取消订阅");
+      await fetchSubscriptionList();
     } catch (e: any) {
       message.error(e?.response?.data?.message || "取消订阅失败");
-    } finally {
-      setUnsubscribing(false);
     }
   };
 
-  // ==================== 连接配置（优先使用后端 resolvedConfig，fallback 前端解析） ====================
+  // ==================== 连接配置（统一解析为 configTabs） ====================
   useEffect(() => {
-    setColdLocalJson(""); setResolvedSseJson(""); setResolvedHttpJson("");
+    const tabs: { key: string; label: string; json: string }[] = [];
 
-    // 1. 冷数据：stdio 本地配置（rawConfig），始终填充（不 return，允许热数据共存）
-    const rawConfig = product?.mcpConfig?.mcpServerConfig?.rawConfig;
-    if (rawConfig && Object.keys(rawConfig).length > 0) {
-      setColdLocalJson(JSON.stringify(rawConfig, null, 2));
-    }
+    // 辅助：检测协议类型，优先用 meta.protocolType，fallback 到 JSON 内容推断
+    const detectProtoFromEntry = (entry: any): "stdio" | "sse" | "http" => {
+      if (entry?.command) return "stdio";
+      if (entry?.type === "sse") return "sse";
+      if (entry?.type === "streamable-http") return "http";
+      if (entry?.url) return "http";
+      return "stdio";
+    };
+    const normalizeProto = (raw: string): "stdio" | "sse" | "http" | null => {
+      const lower = raw.trim().toLowerCase();
+      if (lower === "stdio") return "stdio";
+      if (lower === "sse") return "sse";
+      if (lower.includes("http")) return "http";
+      return null;
+    };
+    const protoLabel: Record<string, string> = { stdio: "Stdio", sse: "SSE", http: "Streamable HTTP" };
 
-    // 2. 热数据优先：使用后端 resolvedConfig（已合并冷热数据）
+    // 1. 热数据：resolvedConfig
+    let hotProto: string | null = null;
     if (meta?.resolvedConfig) {
       try {
         const parsed = JSON.parse(meta.resolvedConfig);
-        const servers = parsed?.mcpServers;
-        if (servers) {
-          const firstEntry = Object.values(servers)[0] as any;
-          if (firstEntry) {
-            const json = JSON.stringify(parsed, null, 2);
-            if (firstEntry.type === "sse") {
-              setResolvedSseJson(json);
-            } else if (firstEntry.type === "streamable-http") {
-              setResolvedHttpJson(json);
-            } else {
-              // 未知 type fallback 到 HTTP
-              setResolvedHttpJson(json);
-            }
-            return;
-          }
+        const firstEntry = Object.values(parsed?.mcpServers || {})[0] as any;
+        if (firstEntry) {
+          const proto = normalizeProto(meta?.endpointProtocol || "") || detectProtoFromEntry(firstEntry);
+          hotProto = proto;
+          tabs.push({ key: proto, label: protoLabel[proto], json: JSON.stringify(parsed, null, 2) });
         }
-      } catch { /* fallback to manual parsing below */ }
+      } catch { /* fallback below */ }
     }
 
-    // 3. Fallback：前端自行从冷数据解析（兼容 resolvedConfig 不存在的情况）
-    if (!product?.mcpConfig?.mcpServerConfig) return;
-    const mcpConfig = product.mcpConfig;
-    const serverName = meta?.mcpName || product.name;
-    const domains = mcpConfig.mcpServerConfig.domains;
-    const path = mcpConfig.mcpServerConfig.path;
-    const protocol = mcpConfig.meta?.protocol;
+    // 2. 冷数据：meta.connectionConfig（原始配置）
+    //    协议与热数据不同时追加；协议相同时热数据已覆盖，不重复展示
+    if (meta?.connectionConfig) {
+      try {
+        const serverName = meta.mcpName || product?.name || "mcp-server";
+        const parsed = JSON.parse(meta.connectionConfig);
+        // 优先用 meta.protocolType 判断协议，fallback 到 JSON 内容推断
+        const servers = parsed?.mcpServers || parsed;
+        const firstKey = servers ? Object.keys(servers)[0] : null;
+        const entry = firstKey ? servers[firstKey] : null;
+        const coldProto = normalizeProto(meta.protocolType || "")
+          || (entry ? detectProtoFromEntry(entry) : (parsed?.command ? "stdio" : null));
 
-    if (domains?.length > 0 && path) {
-      const domain = domains[0];
-      const proto = domain.protocol || "https";
-      let formattedDomain = domain.domain;
-      if (domain.port) {
-        const isDefault = (proto === "http" && domain.port === 80) || (proto === "https" && domain.port === 443);
-        if (!isDefault) formattedDomain = `${domain.domain}:${domain.port}`;
-      }
-      const fullUrl = `${proto}://${formattedDomain}${path || "/"}`;
+        if (coldProto && coldProto !== hotProto) {
+          // 标准化为 mcpServers 格式
+          let coldJson: string;
+          if (parsed?.mcpServers) {
+            coldJson = JSON.stringify(parsed, null, 2);
+          } else if (parsed?.command) {
+            // 单 server 格式 → 包装为 mcpServers
+            const { env: _env, ...rest } = parsed;
+            coldJson = JSON.stringify({ mcpServers: { [serverName]: rest } }, null, 2);
+          } else if (firstKey && entry) {
+            // { serverName: { ... } } 格式 → 包装
+            const { env: _env, ...rest } = entry;
+            coldJson = JSON.stringify({ mcpServers: { [firstKey]: rest } }, null, 2);
+          } else {
+            coldJson = JSON.stringify(parsed, null, 2);
+          }
+          tabs.push({ key: coldProto, label: protoLabel[coldProto], json: coldJson });
+        }
+      } catch { /* ignore */ }
+    }
 
-      if (protocol === "SSE") {
-        setResolvedSseJson(JSON.stringify({ mcpServers: { [serverName]: { type: "sse", url: fullUrl } } }, null, 2));
-      } else if (protocol === "StreamableHTTP") {
-        setResolvedHttpJson(JSON.stringify({ mcpServers: { [serverName]: { type: "streamable-http", url: fullUrl } } }, null, 2));
-      } else {
-        setResolvedSseJson(JSON.stringify({ mcpServers: { [serverName]: { type: "sse", url: `${fullUrl}/sse` } } }, null, 2));
-        setResolvedHttpJson(JSON.stringify({ mcpServers: { [serverName]: { type: "streamable-http", url: fullUrl } } }, null, 2));
+    // 3. Fallback：rawConfig（仅在无任何数据时）
+    if (tabs.length === 0) {
+      const rawConfig = product?.mcpConfig?.mcpServerConfig?.rawConfig;
+      if (rawConfig && Object.keys(rawConfig).length > 0) {
+        tabs.push({ key: "stdio", label: "Stdio", json: JSON.stringify(rawConfig, null, 2) });
       }
     }
+
+    // 4. Fallback：domains + path（旧网关导入兼容）
+    if (tabs.length === 0 && product?.mcpConfig?.mcpServerConfig) {
+      const mcpConfig = product.mcpConfig;
+      const serverName = meta?.mcpName || product.name;
+      const domains = mcpConfig.mcpServerConfig.domains;
+      const path = mcpConfig.mcpServerConfig.path;
+      const protocol = mcpConfig.meta?.protocol;
+
+      if (domains?.length > 0 && path) {
+        const domain = domains[0];
+        const proto = domain.protocol || "https";
+        let formattedDomain = domain.domain;
+        if (domain.port) {
+          const isDefault = (proto === "http" && domain.port === 80) || (proto === "https" && domain.port === 443);
+          if (!isDefault) formattedDomain = `${domain.domain}:${domain.port}`;
+        }
+        const fullUrl = `${proto}://${formattedDomain}${path || "/"}`;
+
+        if (protocol === "SSE") {
+          tabs.push({ key: "sse", label: "SSE", json: JSON.stringify({ mcpServers: { [serverName]: { type: "sse", url: fullUrl } } }, null, 2) });
+        } else if (protocol === "StreamableHTTP") {
+          tabs.push({ key: "http", label: "Streamable HTTP", json: JSON.stringify({ mcpServers: { [serverName]: { type: "streamable-http", url: fullUrl } } }, null, 2) });
+        } else {
+          tabs.push({ key: "sse", label: "SSE", json: JSON.stringify({ mcpServers: { [serverName]: { type: "sse", url: `${fullUrl}/sse` } } }, null, 2) });
+          tabs.push({ key: "http", label: "Streamable HTTP", json: JSON.stringify({ mcpServers: { [serverName]: { type: "streamable-http", url: fullUrl } } }, null, 2) });
+        }
+      }
+    }
+
+    setConfigTabs(tabs);
   }, [product, meta]);
 
   // 工具卡片展开状态
@@ -300,7 +394,7 @@ function McpDetail() {
             <div className="flex items-start gap-4 flex-1 min-w-0">
               <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-purple-100 to-indigo-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
                 {meta?.icon || product.icon ? (
-                  <ProductIconRenderer className="w-full h-full object-cover" iconType={getIconString(meta?.icon ? { type: "URL", value: meta.icon } : product.icon)} />
+                  <ProductIconRenderer className="w-full h-full object-cover" iconType={getIconString(parseMetaIcon(meta?.icon) || product.icon)} />
                 ) : (
                   <AppstoreOutlined className="text-purple-500 text-2xl" />
                 )}
@@ -532,9 +626,7 @@ function McpDetail() {
                     </Button>
                   </div>
                 ) : (() => {
-                  const hasCold = !!(resolvedSseJson || resolvedHttpJson || coldLocalJson);
-
-                  if (!hasCold) {
+                  if (configTabs.length === 0) {
                     return (
                       <div className="text-xs text-gray-400 text-center py-4">
                         暂无连接配置信息
@@ -542,47 +634,11 @@ function McpDetail() {
                     );
                   }
 
-                  const tabItems: { key: string; label: React.ReactNode; children: React.ReactNode }[] = [];
-
-                  // 判断冷热数据协议是否重叠：重叠时只显示热数据
-                  const coldProto = (meta?.protocolType?.toLowerCase() || "").trim();
-                  const coldIsSse = coldProto === "sse";
-                  const coldIsHttp = coldProto.includes("http");
-                  const coldOverlapsHot = (coldIsSse && resolvedSseJson) || (coldIsHttp && resolvedHttpJson);
-
-                  // SSE（热数据）
-                  if (resolvedSseJson) {
-                    tabItems.push({
-                      key: "sse",
-                      label: "SSE",
-                      children: renderConfigJsonBlock(resolvedSseJson),
-                    });
-                  }
-
-                  // Streamable HTTP（热数据）
-                  if (resolvedHttpJson) {
-                    tabItems.push({
-                      key: "http",
-                      label: "Streamable HTTP",
-                      children: renderConfigJsonBlock(resolvedHttpJson),
-                    });
-                  }
-
-                  // 冷数据（本地配置）：协议与热数据重叠时不显示
-                  if (coldLocalJson && !coldOverlapsHot) {
-                    const coldLabel = (() => {
-                      if (coldIsHttp) return "Streamable HTTP";
-                      if (coldIsSse) return "SSE";
-                      return "Stdio";
-                    })();
-                    tabItems.push({
-                      key: "local",
-                      label: coldLabel,
-                      children: renderConfigJsonBlock(coldLocalJson),
-                    });
-                  }
-
-                  const defaultKey = tabItems[0]?.key || "sse";
+                  const tabItems = configTabs.map(tab => ({
+                    key: tab.key,
+                    label: tab.label,
+                    children: renderConfigJsonBlock(tab.json),
+                  }));
 
                   return (
                     <div>
@@ -591,31 +647,18 @@ function McpDetail() {
                           <Tag color="green" className="m-0 border-0">已订阅</Tag>
                         </div>
                       )}
-                      <Tabs size="small" defaultActiveKey={defaultKey} items={tabItems} />
-                      {/* 订阅/取消订阅 */}
+                      <Tabs size="small" defaultActiveKey={tabItems[0]?.key} items={tabItems} />
+                      {/* 订阅/管理订阅 */}
                       <div className="mt-3">
-                        {!subscribed ? (
-                          <Button
-                            type="primary"
-                            size="small"
-                            icon={<ThunderboltOutlined />}
-                            loading={subscribing}
-                            onClick={handleSubscribe}
-                            block
-                          >
-                            订阅
-                          </Button>
-                        ) : (
-                          <Button
-                            size="small"
-                            danger
-                            loading={unsubscribing}
-                            onClick={handleUnsubscribe}
-                            block
-                          >
-                            取消订阅
-                          </Button>
-                        )}
+                        <Button
+                          type="primary"
+                          size="small"
+                          icon={<ThunderboltOutlined />}
+                          onClick={openSubscribeModal}
+                          block
+                        >
+                          管理订阅
+                        </Button>
                       </div>
                     </div>
                   );
@@ -676,24 +719,122 @@ function McpDetail() {
           </div>
         </div>
       </div>
+
+      {/* 订阅管理弹窗 */}
+      <Modal
+        title="订阅管理"
+        open={subscribeModalOpen}
+        onCancel={() => { setSubscribeModalOpen(false); setIsApplyingSubscription(false); }}
+        footer={null}
+        width={520}
+      >
+        <div className="py-2">
+          {/* 订阅列表 */}
+          <div className="border border-gray-200 rounded overflow-hidden mb-4">
+            {subscriptionListLoading ? (
+              <div className="p-6 text-center"><Spin /></div>
+            ) : subscriptionList.length > 0 ? (
+              <div className="divide-y divide-gray-100">
+                {subscriptionList.map((item) => (
+                  <div key={item.consumerId} className="flex items-center px-4 py-3 hover:bg-gray-50">
+                    <div className="flex-1 min-w-0 pr-4">
+                      <span className="text-sm text-gray-700 truncate block">{item.consumerName}</span>
+                    </div>
+                    <div className="w-20 flex items-center pr-4">
+                      {item.status === "APPROVED" ? (
+                        <><CheckCircleFilled className="text-green-500 mr-1" style={{ fontSize: 10 }} /><span className="text-xs text-gray-700">已通过</span></>
+                      ) : item.status === "PENDING" ? (
+                        <><ClockCircleFilled className="text-blue-500 mr-1" style={{ fontSize: 10 }} /><span className="text-xs text-gray-700">审核中</span></>
+                      ) : (
+                        <><ExclamationCircleFilled className="text-red-500 mr-1" style={{ fontSize: 10 }} /><span className="text-xs text-gray-700">已拒绝</span></>
+                      )}
+                    </div>
+                    <div className="w-20">
+                      <Popconfirm title="确定要取消订阅吗？" onConfirm={() => handleUnsubscribeConsumer(item.consumerId)} okText="确认" cancelText="取消">
+                        <Button type="link" danger size="small" className="p-0">取消订阅</Button>
+                      </Popconfirm>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-6 text-center text-gray-400 text-sm">暂无订阅记录</div>
+            )}
+          </div>
+
+          {/* 新增订阅 */}
+          <div className="border-t pt-3">
+            <div className="flex justify-end">
+              {!isApplyingSubscription ? (
+                <Button type="primary" icon={<PlusOutlined />} onClick={startApplyingSubscription}>
+                  订阅
+                </Button>
+              ) : (
+                <div className="w-full">
+                  <div className="bg-gray-50 p-4 rounded-xl">
+                    <div className="mb-3">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">选择消费者</label>
+                      <Select
+                        placeholder="搜索或选择消费者"
+                        style={{ width: "100%" }}
+                        value={selectedConsumerId || undefined}
+                        onChange={setSelectedConsumerId}
+                        showSearch
+                        loading={consumersLoading}
+                        filterOption={(input, option) =>
+                          (option?.children as unknown as string)?.toLowerCase().includes(input.toLowerCase())
+                        }
+                        notFoundContent={consumersLoading ? "加载中..." : "暂无消费者"}
+                      >
+                        {consumers
+                          .filter((c) => !subscriptionList.some((s) => s.consumerId === c.consumerId))
+                          .map((c) => (
+                            <Select.Option key={c.consumerId} value={c.consumerId}>
+                              {c.name}
+                            </Select.Option>
+                          ))}
+                      </Select>
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <Button onClick={() => setIsApplyingSubscription(false)}>取消</Button>
+                      <Button type="primary" loading={subscribing} disabled={!selectedConsumerId} onClick={handleSubscribe}>
+                        确认申请
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </Modal>
     </Layout>
   );
 
   // JSON 语法高亮（浅色主题）
   function highlightJson(json: string) {
-    return json.replace(
+    // 1. key 高亮：匹配 JSON key（冒号前的字符串）
+    let result = json.replace(
       /("(?:\\.|[^"\\])*")\s*:/g,
       '<span style="color:#6366f1">$1</span>:'
-    ).replace(
-      /:\s*("(?:\\.|[^"\\])*")/g,
-      ': <span style="color:#059669">$1</span>'
-    ).replace(
-      /:\s*(\d+)/g,
-      ': <span style="color:#d97706">$1</span>'
-    ).replace(
-      /:\s*(true|false|null)/g,
-      ': <span style="color:#dc2626">$1</span>'
     );
+    // 2. 字符串值高亮：仅匹配行首缩进后 key: "value" 中的 value 部分
+    //    使用 lookbehind 确保冒号前是 </span>（即 key 高亮后的结尾），避免匹配 URL 内的冒号
+    result = result.replace(
+      /(<\/span>:\s*)("(?:\\.|[^"\\])*")/g,
+      '$1<span style="color:#059669">$2</span>'
+    );
+    // 3. 数字值高亮：同理仅匹配 key 后的数字值
+    result = result.replace(
+      /(<\/span>:\s*)(\d+)/g,
+      '$1<span style="color:#d97706">$2</span>'
+    );
+    // 4. 布尔/null 值高亮
+    result = result.replace(
+      /(<\/span>:\s*)(true|false|null)/g,
+      '$1<span style="color:#dc2626">$2</span>'
+    );
+    return result;
   }
 
   // 统一的配置 JSON 展示块

@@ -35,12 +35,10 @@ public interface McpServerMetaRepository extends BaseRepository<McpServerMeta, L
 
     List<McpServerMeta> findByProductId(String productId);
 
-    Page<McpServerMeta> findByPublishStatus(String publishStatus, Pageable pageable);
-
-    Page<McpServerMeta> findByPublishStatusAndVisibility(
-            String publishStatus, String visibility, Pageable pageable);
-
     Optional<McpServerMeta> findByMcpName(String mcpName);
+
+    /** 批量按 mcpServerId 查询（避免 N+1） */
+    List<McpServerMeta> findByMcpServerIdIn(java.util.Collection<String> mcpServerIds);
 
     Page<McpServerMeta> findByOrigin(String origin, Pageable pageable);
 }

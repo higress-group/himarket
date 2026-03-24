@@ -406,12 +406,7 @@ public class ProductServiceImpl implements ProductService {
 
         productRepository.save(product);
         productRefRepository.save(productRef);
-
-        // MCP 产品：同步生成 mcp_server_meta 记录
-        if (product.getType() == ProductType.MCP_SERVER
-                && StrUtil.isNotBlank(productRef.getMcpConfig())) {
-            syncMcpMeta(product, productRef);
-        }
+        // MCP 产品的 meta 已在 syncConfig → syncMcpConfigToMeta 中创建/更新
     }
 
     @Override
@@ -593,7 +588,14 @@ public class ProductServiceImpl implements ProductService {
                                                 + " tools"));
 
         // Initialize client and fetch tools
+        // mcpConfig 已由 fillProductConfig 从 McpServerMeta + endpoint 构建
+        if (product.getMcpConfig() == null) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "MCP 配置不可用，请检查 MCP 连接配置");
+        }
         MCPTransportConfig transportConfig = product.getMcpConfig().toTransportConfig();
+        if (transportConfig == null) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "无法从 MCP 配置中提取传输配置");
+        }
         CredentialContext credentialContext =
                 consumerService.getDefaultCredential(contextHolder.getUser());
         transportConfig.setHeaders(credentialContext.copyHeaders());
@@ -661,8 +663,11 @@ public class ProductServiceImpl implements ProductService {
                             gatewayService.fetchAPIConfig(gateway.getGatewayId(), config));
                     break;
                 case MCP_SERVER:
-                    productRef.setMcpConfig(
-                            gatewayService.fetchMcpConfig(gateway.getGatewayId(), config));
+                    // MCP 配置直接写入 McpServerMeta.connectionConfig，不再写 ProductRef.mcpConfig
+                    syncMcpConfigToMeta(
+                            product.getProductId(),
+                            gatewayService.fetchMcpConfig(gateway.getGatewayId(), config),
+                            "GATEWAY");
                     break;
                 case AGENT_API:
                     productRef.setAgentConfig(
@@ -683,10 +688,10 @@ public class ProductServiceImpl implements ProductService {
 
             switch (product.getType()) {
                 case MCP_SERVER:
-                    // MCP Server 配置同步（现有逻辑）
+                    // MCP 配置直接写入 McpServerMeta.connectionConfig，不再写 ProductRef.mcpConfig
                     String mcpConfig =
                             nacosService.fetchMcpConfig(productRef.getNacosId(), nacosRefConfig);
-                    productRef.setMcpConfig(mcpConfig);
+                    syncMcpConfigToMeta(product.getProductId(), mcpConfig, "NACOS");
                     break;
 
                 case AGENT_API:
@@ -704,14 +709,79 @@ public class ProductServiceImpl implements ProductService {
         }
     }
 
+    /**
+     * 将从网关/Nacos 拉取的 MCP 配置直接同步到 McpServerMeta。
+     * McpServerMeta.connectionConfig 是 MCP 技术配置的单一数据源。
+     * 如果 meta 不存在（首次绑定），自动创建。
+     */
+    private void syncMcpConfigToMeta(String productId, String mcpConfigStr, String sourceLabel) {
+        if (StrUtil.isBlank(mcpConfigStr)) {
+            return;
+        }
+
+        // 解析 mcpServerName
+        String mcpName = null;
+        String protocol = "sse";
+        String tools = null;
+        try {
+            cn.hutool.json.JSONObject mcpJson = JSONUtil.parseObj(mcpConfigStr);
+            mcpName = mcpJson.getStr("mcpServerName");
+            String p = mcpJson.getByPath("meta.protocol", String.class);
+            if (StrUtil.isNotBlank(p)) {
+                protocol = McpProtocolUtils.normalize(p);
+            }
+            tools = mcpJson.getStr("tools");
+        } catch (Exception e) {
+            log.warn("解析 MCP 配置失败: {}", e.getMessage());
+        }
+
+        if (StrUtil.isBlank(mcpName)) {
+            mcpName = productId; // fallback
+        }
+
+        // 查找或创建 meta
+        McpServerMeta meta =
+                mcpServerMetaRepository.findByProductIdAndMcpName(productId, mcpName).orElse(null);
+
+        if (meta == null) {
+            // 首次绑定，创建 meta
+            meta =
+                    McpServerMeta.builder()
+                            .mcpServerId(IdGenerator.genMcpServerId())
+                            .productId(productId)
+                            .mcpName(mcpName)
+                            .origin(sourceLabel)
+                            .protocolType(protocol)
+                            .connectionConfig(mcpConfigStr)
+                            .toolsConfig(McpToolsConfigParser.normalize(tools))
+                            .build();
+        } else {
+            meta.setOrigin(sourceLabel);
+            meta.setProtocolType(protocol);
+            meta.setConnectionConfig(mcpConfigStr);
+            if (StrUtil.isNotBlank(tools)) {
+                meta.setToolsConfig(McpToolsConfigParser.normalize(tools));
+            }
+        }
+        mcpServerMetaRepository.save(meta);
+    }
+
     private void syncMcpTools(Product product, ProductRef productRef) {
         if (product.getType() != ProductType.MCP_SERVER
                 || !productRef.getSourceType().isGateway()) {
             return;
         }
 
+        // 从 McpServerMeta 读取配置（单一数据源）
+        List<McpServerMeta> metas = mcpServerMetaRepository.findByProductId(product.getProductId());
+        if (metas.isEmpty()) {
+            return;
+        }
+        McpServerMeta meta = metas.get(0);
+
         MCPConfigResult mcpConfig =
-                Optional.ofNullable(productRef.getMcpConfig())
+                Optional.ofNullable(meta.getConnectionConfig())
+                        .filter(StrUtil::isNotBlank)
                         .map(config -> JSONUtil.toBean(config, MCPConfigResult.class))
                         .orElse(null);
 
@@ -724,66 +794,9 @@ public class ProductServiceImpl implements ProductService {
                 .filter(StrUtil::isNotBlank)
                 .ifPresent(
                         tools -> {
-                            mcpConfig.setTools(tools);
-                            productRef.setMcpConfig(JSONUtil.toJsonStr(mcpConfig));
+                            meta.setToolsConfig(McpToolsConfigParser.normalize(tools));
+                            mcpServerMetaRepository.save(meta);
                         });
-    }
-
-    /**
-     * 从 ProductRef 的 mcpConfig 中提取信息，同步到 mcp_server_meta 表。
-     * 网关/Nacos 导入 MCP 时调用。
-     */
-    private void syncMcpMeta(Product product, ProductRef productRef) {
-        try {
-            MCPConfigResult mcpConfig =
-                    JSONUtil.toBean(productRef.getMcpConfig(), MCPConfigResult.class);
-            if (mcpConfig == null || StrUtil.isBlank(mcpConfig.getMcpServerName())) {
-                return;
-            }
-
-            String mcpName = mcpConfig.getMcpServerName();
-            String productId = product.getProductId();
-
-            // 如果已存在同 productId + mcpName 的记录，更新；否则新建
-            McpServerMeta meta =
-                    mcpServerMetaRepository
-                            .findByProductIdAndMcpName(productId, mcpName)
-                            .orElse(null);
-
-            String sourceLabel = productRef.getSourceType().isGateway() ? "GATEWAY" : "NACOS";
-            String protocol =
-                    McpProtocolUtils.normalize(
-                            Optional.ofNullable(mcpConfig.getMeta())
-                                    .map(MCPConfigResult.McpMetadata::getProtocol)
-                                    .orElse("sse"));
-
-            if (meta == null) {
-                meta =
-                        McpServerMeta.builder()
-                                .mcpServerId(IdGenerator.genMcpServerId())
-                                .productId(productId)
-                                .mcpName(mcpName)
-                                .displayName(product.getName())
-                                .description(product.getDescription())
-                                .origin(sourceLabel)
-                                .protocolType(protocol)
-                                .connectionConfig(productRef.getMcpConfig())
-                                .toolsConfig(McpToolsConfigParser.normalize(mcpConfig.getTools()))
-                                .visibility("PUBLIC")
-                                .publishStatus("DRAFT")
-                                .createdBy(contextHolder.getUser())
-                                .build();
-            } else {
-                meta.setOrigin(sourceLabel);
-                meta.setProtocolType(protocol);
-                meta.setConnectionConfig(productRef.getMcpConfig());
-                meta.setToolsConfig(McpToolsConfigParser.normalize(mcpConfig.getTools()));
-            }
-
-            mcpServerMetaRepository.save(meta);
-        } catch (Exception e) {
-            log.warn("同步 MCP meta 失败，productId={}: {}", product.getProductId(), e.getMessage());
-        }
     }
 
     /**
@@ -839,8 +852,10 @@ public class ProductServiceImpl implements ProductService {
             product.setApiConfig(JSONUtil.toBean(productRef.getApiConfig(), APIConfigResult.class));
         }
 
-        // MCP config for MCP Server
-        if (StrUtil.isNotBlank(productRef.getMcpConfig())) {
+        // MCP config for MCP Server: 从 McpServerMeta + endpoint 构建（单一数据源）
+        if (product.getType() == ProductType.MCP_SERVER) {
+            product.setMcpConfig(buildMcpConfigFromMeta(product.getProductId()));
+        } else if (StrUtil.isNotBlank(productRef.getMcpConfig())) {
             product.setMcpConfig(JSONUtil.toBean(productRef.getMcpConfig(), MCPConfigResult.class));
         }
 
@@ -855,6 +870,138 @@ public class ProductServiceImpl implements ProductService {
             product.setModelConfig(
                     JSONUtil.toBean(productRef.getModelConfig(), ModelConfigResult.class));
         }
+    }
+
+    /**
+     * 从 McpServerMeta + endpoint 构建 MCPConfigResult。
+     * McpServerMeta.connectionConfig 是 MCP 技术配置的单一数据源。
+     */
+    private MCPConfigResult buildMcpConfigFromMeta(String productId) {
+        List<McpServerMeta> metas = mcpServerMetaRepository.findByProductId(productId);
+        if (metas.isEmpty()) {
+            return null;
+        }
+        McpServerMeta meta = metas.get(0);
+
+        // 查找公共 endpoint
+        McpServerEndpoint endpoint =
+                mcpServerEndpointRepository
+                        .findByMcpServerIdAndUserIdInAndStatus(
+                                meta.getMcpServerId(), List.of("*"), "ACTIVE")
+                        .stream()
+                        .findFirst()
+                        .orElse(null);
+
+        // 如果有 endpoint 热数据，构建基于 endpoint 的 MCPConfigResult
+        if (endpoint != null && StrUtil.isNotBlank(endpoint.getEndpointUrl())) {
+            return buildMcpConfigFromEndpoint(meta, endpoint);
+        }
+
+        // fallback: 从 meta.connectionConfig 解析
+        if (StrUtil.isNotBlank(meta.getConnectionConfig())) {
+            return buildMcpConfigFromConnectionConfig(meta);
+        }
+
+        return null;
+    }
+
+    /**
+     * 从 endpoint 热数据构建 MCPConfigResult（用于 API 返回）。
+     */
+    private MCPConfigResult buildMcpConfigFromEndpoint(
+            McpServerMeta meta, McpServerEndpoint endpoint) {
+        MCPConfigResult result = new MCPConfigResult();
+        result.setMcpServerName(meta.getMcpName());
+        result.setTools(meta.getToolsConfig());
+
+        // 构建 mcpServerConfig：用 endpoint URL 构建 domains 格式（兼容 toTransportConfig）
+        String url = endpoint.getEndpointUrl();
+        String protocol = StrUtil.blankToDefault(endpoint.getProtocol(), "sse");
+
+        try {
+            java.net.URI uri = java.net.URI.create(url.replaceAll("/sse$", ""));
+            com.alibaba.himarket.dto.result.common.DomainResult domain =
+                    com.alibaba.himarket.dto.result.common.DomainResult.builder()
+                            .protocol(uri.getScheme())
+                            .domain(uri.getHost())
+                            .port(uri.getPort() > 0 ? uri.getPort() : null)
+                            .build();
+
+            MCPConfigResult.MCPServerConfig serverConfig = new MCPConfigResult.MCPServerConfig();
+            serverConfig.setDomains(List.of(domain));
+            serverConfig.setPath(uri.getPath());
+            result.setMcpServerConfig(serverConfig);
+        } catch (Exception e) {
+            log.warn("解析 endpoint URL 失败: {}", e.getMessage());
+            return null;
+        }
+
+        MCPConfigResult.McpMetadata metadata = new MCPConfigResult.McpMetadata();
+        metadata.setSource(StrUtil.blankToDefault(meta.getOrigin(), "CUSTOM"));
+        metadata.setProtocol(protocol);
+        result.setMeta(metadata);
+
+        return result;
+    }
+
+    /**
+     * 从 meta.connectionConfig 冷数据构建 MCPConfigResult。
+     */
+    private MCPConfigResult buildMcpConfigFromConnectionConfig(McpServerMeta meta) {
+        try {
+            // connectionConfig 可能已经是 MCPConfigResult 兼容格式（网关导入时回写的）
+            String connConfig = meta.getConnectionConfig();
+            cn.hutool.json.JSONObject json = JSONUtil.parseObj(connConfig);
+
+            // 如果包含 mcpServerName，说明是 MCPConfigResult 兼容格式
+            if (json.containsKey("mcpServerName")) {
+                MCPConfigResult result = JSONUtil.toBean(connConfig, MCPConfigResult.class);
+                if (result.getTools() == null) {
+                    result.setTools(meta.getToolsConfig());
+                }
+                return result;
+            }
+
+            // mcpServers 格式：提取 URL 构建 MCPConfigResult
+            if (json.containsKey("mcpServers")) {
+                cn.hutool.json.JSONObject servers = json.getJSONObject("mcpServers");
+                for (String key : servers.keySet()) {
+                    cn.hutool.json.JSONObject server = servers.getJSONObject(key);
+                    if (server != null && StrUtil.isNotBlank(server.getStr("url"))) {
+                        String url = server.getStr("url");
+                        String type = server.getStr("type", "sse");
+
+                        MCPConfigResult result = new MCPConfigResult();
+                        result.setMcpServerName(meta.getMcpName());
+                        result.setTools(meta.getToolsConfig());
+
+                        java.net.URI uri = java.net.URI.create(url.replaceAll("/sse$", ""));
+                        com.alibaba.himarket.dto.result.common.DomainResult domain =
+                                com.alibaba.himarket.dto.result.common.DomainResult.builder()
+                                        .protocol(uri.getScheme())
+                                        .domain(uri.getHost())
+                                        .port(uri.getPort() > 0 ? uri.getPort() : null)
+                                        .build();
+
+                        MCPConfigResult.MCPServerConfig serverConfig =
+                                new MCPConfigResult.MCPServerConfig();
+                        serverConfig.setDomains(List.of(domain));
+                        serverConfig.setPath(uri.getPath());
+                        result.setMcpServerConfig(serverConfig);
+
+                        MCPConfigResult.McpMetadata metadata = new MCPConfigResult.McpMetadata();
+                        metadata.setSource(StrUtil.blankToDefault(meta.getOrigin(), "CUSTOM"));
+                        metadata.setProtocol(type);
+                        result.setMeta(metadata);
+
+                        return result;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("从 connectionConfig 构建 MCPConfigResult 失败: {}", e.getMessage());
+        }
+        return null;
     }
 
     private Product findPublishedProduct(String portalId, String productId) {

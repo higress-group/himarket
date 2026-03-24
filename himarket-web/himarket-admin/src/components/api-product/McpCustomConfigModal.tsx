@@ -1,19 +1,22 @@
 import { useState, useEffect } from 'react'
-import { Modal, Form, Input, Button, Tag, Radio, Space, Image, Select, Switch, Table, message, Steps } from 'antd'
-import type { UploadFile } from 'antd'
+import { Modal, Form, Input, Button, Tag, Radio, Space, Select, Switch, Table, message, Steps } from 'antd'
 import {
   InfoCircleOutlined, SettingOutlined, FileTextOutlined, CloudServerOutlined,
-  CameraOutlined, PlusOutlined, CheckCircleFilled,
+  PlusOutlined, CheckCircleFilled,
   CodeOutlined, GlobalOutlined, ApiOutlined, DeleteOutlined, EditOutlined,
   LoadingOutlined,
 } from '@ant-design/icons'
 import { sandboxApi } from '@/lib/api'
+import type { ProductIcon } from '@/types/api-product'
 
 interface McpCustomConfigModalProps {
   visible: boolean
   onCancel: () => void
   onOk: (values: any) => void | Promise<void>
   productName?: string
+  productDescription?: string
+  productIcon?: ProductIcon
+  productDocument?: string
 }
 
 interface ExtraParam {
@@ -32,13 +35,9 @@ const NAV_ITEMS = [
   { key: 3, label: '沙箱部署', icon: <CloudServerOutlined />, desc: '沙箱与参数配置' },
 ]
 
-export function McpCustomConfigModal({ visible, onCancel, onOk, productName }: McpCustomConfigModalProps) {
+export function McpCustomConfigModal({ visible, onCancel, onOk, productName, productDescription, productIcon, productDocument }: McpCustomConfigModalProps) {
   const [form] = Form.useForm()
   const [currentStep, setCurrentStep] = useState(0)
-  const [iconMode, setIconMode] = useState<'URL' | 'BASE64'>('URL')
-  const [fileList, setFileList] = useState<UploadFile[]>([])
-  const [previewOpen, setPreviewOpen] = useState(false)
-  const [previewImage, setPreviewImage] = useState('')
   const [tagInput, setTagInput] = useState('')
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set())
   const [extraParams, setExtraParams] = useState<ExtraParam[]>([])
@@ -68,30 +67,16 @@ export function McpCustomConfigModal({ visible, onCancel, onOk, productName }: M
     }
   }, [visible, sandboxRequired])
 
-  // 打开弹窗时自动填充产品名到 MCP 中文名称
+  // 打开弹窗时自动填充产品信息到展示字段（只读）
   useEffect(() => {
-    if (visible && productName && !form.getFieldValue('mcpDisplayName')) {
-      form.setFieldsValue({ mcpDisplayName: productName })
+    if (visible) {
+      form.setFieldsValue({
+        mcpDisplayName: productName || '',
+        description: productDescription || '',
+        serviceIntro: productDocument || '',
+      })
     }
-  }, [visible, productName])
-
-  const getBase64 = (file: File): Promise<string> =>
-    new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.readAsDataURL(file)
-      reader.onload = () => resolve(reader.result as string)
-      reader.onerror = (error) => reject(error)
-    })
-
-  const handleIconModeChange = (mode: 'URL' | 'BASE64') => {
-    setIconMode(mode)
-    if (mode === 'URL') {
-      form.setFieldsValue({ icon: undefined })
-      setFileList([])
-    } else {
-      form.setFieldsValue({ iconUrl: undefined })
-    }
-  }
+  }, [visible, productName, productDescription, productDocument])
 
   const handleAddTag = () => {
     const val = tagInput.trim()
@@ -110,10 +95,6 @@ export function McpCustomConfigModal({ visible, onCancel, onOk, productName }: M
   const resetAll = () => {
     form.resetFields()
     setCurrentStep(0)
-    setIconMode('URL')
-    setFileList([])
-    setPreviewImage('')
-    setPreviewOpen(false)
     setTagInput('')
     setCompletedSteps(new Set())
     setExtraParams([])
@@ -128,7 +109,7 @@ export function McpCustomConfigModal({ visible, onCancel, onOk, productName }: M
   const handleCancel = () => { resetAll(); onCancel() }
 
   const stepFields: string[][] = [
-    ['mcpServerName', 'mcpDisplayName'],
+    ['mcpServerName'],
     ['mcpConfigJson'],
     [], // 服务介绍 - 无必填
     [], // 沙箱部署 - 按钮级别校验
@@ -225,17 +206,13 @@ export function McpCustomConfigModal({ visible, onCancel, onOk, productName }: M
         <Form.Item
           name="mcpDisplayName"
           label="MCP 中文名称"
-          rules={[
-            { required: true, message: '请输入 MCP 中文名称' },
-            { max: 100, message: '不超过 100 个字符' },
-          ]}
         >
-          <Input placeholder="天气查询服务" />
+          <Input disabled />
         </Form.Item>
       </div>
 
       <Form.Item name="description" label="描述">
-        <Input.TextArea placeholder="简要描述 MCP Server 的功能和用途" rows={2} autoSize={{ minRows: 2, maxRows: 4 }} />
+        <Input.TextArea disabled rows={2} autoSize={{ minRows: 2, maxRows: 4 }} />
       </Form.Item>
 
       <Form.Item
@@ -278,66 +255,21 @@ export function McpCustomConfigModal({ visible, onCancel, onOk, productName }: M
         </div>
       </Form.Item>
 
-      {/* Icon */}
+      {/* Icon（继承自产品，只读展示） */}
       <Form.Item label="Icon">
-        <div className="flex items-start gap-4">
-          {iconMode === 'BASE64' ? (
-            <div
-              className="w-16 h-16 rounded-xl border-2 border-dashed border-gray-200 hover:border-blue-400 flex items-center justify-center cursor-pointer transition-all relative flex-shrink-0 group"
-              onClick={() => {
-                const input = document.createElement('input')
-                input.type = 'file'; input.accept = 'image/*'
-                input.onchange = (e) => {
-                  const file = (e.target as HTMLInputElement).files?.[0]
-                  if (!file) return
-                  if (file.size > 16 * 1024) { message.error(`图片不能超过 16KB`); return }
-                  setFileList([{ uid: Date.now().toString(), name: file.name, status: 'done', url: URL.createObjectURL(file) }])
-                  getBase64(file).then((b64) => form.setFieldsValue({ icon: b64 }))
-                }
-                input.click()
-              }}
-            >
-              {fileList.length > 0 ? (
-                <>
-                  <img src={fileList[0].url} alt="icon" className="w-full h-full object-cover rounded-[10px]" />
-                  <div
-                    className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-white text-[10px] cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={(e) => { e.stopPropagation(); setFileList([]); form.setFieldsValue({ icon: null }) }}
-                  >×</div>
-                </>
-              ) : (
-                <div className="flex flex-col items-center text-gray-300 group-hover:text-blue-400 transition-colors">
-                  <CameraOutlined className="text-lg mb-0.5" />
-                  <span className="text-[10px]">上传</span>
-                </div>
-              )}
-            </div>
+        <div className="w-16 h-16 rounded-xl border-2 border-dashed border-gray-200 flex items-center justify-center flex-shrink-0">
+          {productIcon ? (
+            <img
+              src={productIcon.value}
+              alt="icon"
+              className="w-full h-full object-cover rounded-[10px]"
+            />
           ) : (
-            <Form.Item name="iconUrl" noStyle rules={[{ type: 'url', message: '请输入有效的图片链接' }]}>
-              <Input placeholder="图片链接地址" className="flex-1" />
-            </Form.Item>
+            <span className="text-xs text-gray-300">无图标</span>
           )}
-          <Radio.Group
-            value={iconMode}
-            onChange={(e) => handleIconModeChange(e.target.value)}
-            size="small"
-            optionType="button"
-            buttonStyle="solid"
-            className="flex-shrink-0"
-          >
-            <Radio.Button value="URL">链接</Radio.Button>
-            <Radio.Button value="BASE64">上传</Radio.Button>
-          </Radio.Group>
         </div>
       </Form.Item>
 
-      {previewImage && (
-        <Image
-          wrapperStyle={{ display: 'none' }}
-          preview={{ visible: previewOpen, onVisibleChange: setPreviewOpen, afterOpenChange: (v) => { if (!v) setPreviewImage('') } }}
-          src={previewImage}
-        />
-      )}
     </>
   )
 
@@ -442,10 +374,13 @@ export function McpCustomConfigModal({ visible, onCancel, onOk, productName }: M
 
                 if (cfg.command) {
                   form.setFieldsValue({ protocolType: 'stdio', sandboxRequired: true })
-                } else if (cfg.type === 'sse') {
+                } else if (cfg.type === 'sse' || (!cfg.type && cfg.url && cfg.url.endsWith('/sse'))) {
                   form.setFieldsValue({ protocolType: 'sse' })
-                } else {
+                } else if (cfg.type === 'streamable-http') {
                   form.setFieldsValue({ protocolType: 'http' })
+                } else {
+                  // 有 url 但无法确定具体协议，默认 sse
+                  form.setFieldsValue({ protocolType: cfg.url ? 'sse' : 'http' })
                 }
 
                 const params: ExtraParam[] = []

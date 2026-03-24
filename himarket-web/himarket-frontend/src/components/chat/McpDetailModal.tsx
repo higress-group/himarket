@@ -7,7 +7,7 @@ import {
 import APIs from "../../lib/apis";
 import type { IProductDetail, IMcpMeta } from "../../lib/apis/product";
 import { ProductIconRenderer } from "../icon/ProductIconRenderer";
-import { getIconString } from "../../lib/iconUtils";
+import { getIconString, parseMetaIcon } from "../../lib/iconUtils";
 
 interface McpDetailModalProps {
   open: boolean;
@@ -41,7 +41,7 @@ function McpDetailModal({ open, product, onClose, onSubscribed }: McpDetailModal
       if (metaRes?.code === "SUCCESS" && metaRes.data?.length > 0) setMeta(metaRes.data[0]);
       if (subStatus?.hasSubscription) setSubscribed(true);
     }).finally(() => setLoading(false));
-  }, [open, product?.productId]);
+  }, [open, product]);
 
   if (!product) return null;
 
@@ -157,7 +157,7 @@ function McpDetailModal({ open, product, onClose, onSubscribed }: McpDetailModal
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-100 to-indigo-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
               {meta?.icon || product.icon ? (
-                <ProductIconRenderer className="w-full h-full object-cover" iconType={getIconString(meta?.icon ? { type: "URL", value: meta.icon } : product.icon)} />
+                <ProductIconRenderer className="w-full h-full object-cover" iconType={getIconString(parseMetaIcon(meta?.icon) || product.icon)} />
               ) : (
                 <AppstoreOutlined className="text-purple-500 text-lg" />
               )}

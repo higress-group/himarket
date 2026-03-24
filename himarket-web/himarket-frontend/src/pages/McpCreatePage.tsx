@@ -165,7 +165,7 @@ function McpCreatePage() {
       </Form.Item>
 
       <Form.Item name="repoUrl" label="仓库地址"
-        rules={[{ required: true, message: "请输入仓库地址" }, { type: "url", message: "请输入合法的 URL" }]}
+        rules={[{ type: "url", message: "请输入合法的 URL" }]}
       >
         <Input placeholder="https://github.com/org/mcp-server" />
       </Form.Item>
@@ -254,7 +254,10 @@ function McpCreatePage() {
 
     return (
       <>
-        <Form.Item name="protocolType" label="协议类型" initialValue="sse" rules={[{ required: true }]}>
+        <Form.Item name="protocolType" hidden initialValue="sse" rules={[{ required: true }]}>
+          <Input />
+        </Form.Item>
+        <Form.Item label="协议类型">
           <div className="grid grid-cols-3 gap-3">
             {protocols.map((p) => {
               const selected = protocolType === p.key;

@@ -8,7 +8,8 @@ import lombok.NoArgsConstructor;
 
 /**
  * MCP Server 详细信息 — 用于 Open API 单条查询。
- * 不暴露 productId 等内部字段。
+ * 不暴露 productId、connectionConfig（含内部网络地址）等敏感字段。
+ * 改为暴露 resolvedConfig（标准化后的 mcpServers 格式，仅含公开 URL）。
  */
 @Data
 @Builder
@@ -23,10 +24,12 @@ public class McpMetaDetailResult {
     private String repoUrl;
     private String icon;
     private String protocolType;
-    private String connectionConfig;
+
+    /** 标准化后的连接配置（mcpServers 格式），不含内部网络地址和环境变量 */
+    private String resolvedConfig;
+
     private String origin;
     private String tags;
-    private String extraParams;
     private String serviceIntro;
     private String visibility;
     private String publishStatus;
@@ -44,10 +47,9 @@ public class McpMetaDetailResult {
                 .repoUrl(full.getRepoUrl())
                 .icon(full.getIcon())
                 .protocolType(full.getProtocolType())
-                .connectionConfig(full.getConnectionConfig())
+                .resolvedConfig(full.getResolvedConfig())
                 .origin(full.getOrigin())
                 .tags(full.getTags())
-                .extraParams(full.getExtraParams())
                 .serviceIntro(full.getServiceIntro())
                 .visibility(full.getVisibility())
                 .publishStatus(full.getPublishStatus())

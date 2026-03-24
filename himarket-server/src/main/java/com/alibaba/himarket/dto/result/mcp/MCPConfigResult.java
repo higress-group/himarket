@@ -23,6 +23,7 @@ import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.dto.result.common.DomainResult;
 import com.alibaba.himarket.support.chat.mcp.MCPTransportConfig;
 import com.alibaba.himarket.support.enums.MCPTransportMode;
+import com.alibaba.himarket.support.enums.McpProtocolType;
 import java.util.List;
 import java.util.Optional;
 import lombok.Data;
@@ -75,13 +76,7 @@ public class MCPConfigResult {
                         .map(path -> baseUrl + path)
                         .orElse(baseUrl);
 
-        // Default: SSE (most MCP servers use SSE protocol)
-        // Only use STREAMABLE_HTTP when explicitly configured as "HTTP" or "StreamableHTTP"
-        MCPTransportMode transportMode =
-                ("HTTP".equalsIgnoreCase(meta.getProtocol())
-                                || "StreamableHTTP".equalsIgnoreCase(meta.getProtocol()))
-                        ? MCPTransportMode.STREAMABLE_HTTP
-                        : MCPTransportMode.SSE;
+        MCPTransportMode transportMode = McpProtocolType.resolveTransportMode(meta.getProtocol());
 
         if (transportMode == MCPTransportMode.SSE && !url.endsWith("/sse")) {
             url = url.endsWith("/") ? url + "sse" : url + "/sse";

@@ -10,7 +10,7 @@ import { CategoryMenu } from "../components/square/CategoryMenu";
 import { EmptyState } from "../components/EmptyState";
 import { useAuth } from "../hooks/useAuth";
 import APIs, { type ICategory } from "../lib/apis";
-import { getIconString } from "../lib/iconUtils";
+import { getIconString, parseMetaIcon } from "../lib/iconUtils";
 import type { IProductDetail, IMcpMeta } from "../lib/apis/product";
 import { getProductMcpMetaBatch, getProductMcpMetaBatchPublic } from "../lib/apis/product";
 import { ProductIconRenderer } from "../components/icon/ProductIconRenderer";
@@ -107,38 +107,62 @@ function McpSquare() {
     fetchProducts();
   }, [activeCategory, activeTab]);
 
-  // 获取我的 MCP（基于 product_subscription）
+  // 获取我的 MCP（基于 consumer subscription，只展示已订阅的 MCP 产品）
   const fetchMyMcps = useCallback(async () => {
     setMyMcpsLoading(true);
     try {
       const consumerRes = await APIs.getPrimaryConsumer();
-      if (consumerRes.code !== "SUCCESS" || !consumerRes.data) return;
-      const subRes = await APIs.getConsumerSubscriptions(consumerRes.data.consumerId, { size: 200 });
-      if (subRes.code !== "SUCCESS" || !subRes.data?.content) return;
-      const subs = subRes.data.content;
-      const productIds = new Set(subs.map(s => s.productId));
-      setSubscribedProductIds(productIds);
-      // 批量获取产品详情（一次请求）
-      const prodRes = await APIs.getProducts({ type: "MCP_SERVER", size: 200 });
-      const allProducts = prodRes.code === "SUCCESS" ? (prodRes.data?.content || []) : [];
-      const productMap = new Map<string, IProductDetail>();
-      for (const p of allProducts) {
-        productMap.set(p.productId, p);
+      if (consumerRes.code !== "SUCCESS" || !consumerRes.data) {
+        setMyMcpItems([]);
+        return;
       }
-      // 构建已订阅的产品列表
-      const subscribedProducts = subs
-        .filter(s => productMap.has(s.productId))
-        .map(s => productMap.get(s.productId)!)
-        .filter(p => p.type === "MCP_SERVER");
+      const subRes = await APIs.getConsumerSubscriptions(consumerRes.data.consumerId, { size: 200 });
+      if (subRes.code !== "SUCCESS" || !subRes.data?.content) {
+        setMyMcpItems([]);
+        return;
+      }
+      // 只取 APPROVED 状态的 MCP_SERVER 订阅
+      const mcpSubs = subRes.data.content.filter(
+        s => s.status === 'APPROVED' && s.productType === 'MCP_SERVER'
+      );
+      const productIds = mcpSubs.map(s => s.productId);
+
+      if (productIds.length === 0) {
+        setMyMcpItems([]);
+        return;
+      }
+
       // 批量获取 meta（一次请求）
-      const items = await fetchMetaForProducts(subscribedProducts);
+      const fetchFn = isLoggedIn ? getProductMcpMetaBatch : getProductMcpMetaBatchPublic;
+      const metaRes = await fetchFn(productIds);
+      const metaList = metaRes.code === "SUCCESS" ? (metaRes.data || []) : [];
+      const metaByProduct = new Map<string, IMcpMeta>();
+      for (const meta of metaList) {
+        if (!metaByProduct.has(meta.productId)) {
+          metaByProduct.set(meta.productId, meta);
+        }
+      }
+
+      // 从订阅 + meta 构建产品列表
+      const items: McpProductItem[] = mcpSubs.map(sub => {
+        const meta = metaByProduct.get(sub.productId);
+        const product: IProductDetail = {
+          productId: sub.productId,
+          name: sub.productName || meta?.displayName || meta?.mcpName || "",
+          description: meta?.description || "",
+          type: "MCP_SERVER",
+          icon: meta?.icon ? (() => { try { return JSON.parse(meta.icon); } catch { return undefined; } })() : undefined,
+          createAt: sub.createAt || "",
+        } as IProductDetail;
+        return { product, meta: meta || null };
+      });
       setMyMcpItems(items);
     } catch {
       // 未登录或获取失败
     } finally {
       setMyMcpsLoading(false);
     }
-  }, []);
+  }, [isLoggedIn]);
 
   // 获取订阅状态（基于 product_subscription）
   const fetchSubscribedProducts = useCallback(async () => {
@@ -147,7 +171,7 @@ function McpSquare() {
       if (consumerRes.code === "SUCCESS" && consumerRes.data) {
         const subRes = await APIs.getConsumerSubscriptions(consumerRes.data.consumerId, { size: 200 });
         if (subRes.code === "SUCCESS" && subRes.data?.content) {
-          setSubscribedProductIds(new Set(subRes.data.content.map(s => s.productId)));
+          setSubscribedProductIds(new Set(subRes.data.content.filter(s => s.status === 'APPROVED').map(s => s.productId)));
         }
       }
     } catch {
@@ -474,7 +498,7 @@ function McpCard({ item, subscribed, isLoggedIn, onViewDetail, onSubscribe, onUn
       <div className="flex items-center gap-3 mb-3">
         <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-colorPrimary/10 to-colorPrimary/5 flex items-center justify-center flex-shrink-0 overflow-hidden">
           {meta?.icon || product.icon ? (
-            <ProductIconRenderer className="w-full h-full object-cover" iconType={getIconString(meta?.icon ? { type: "URL", value: meta.icon } : product.icon)} />
+            <ProductIconRenderer className="w-full h-full object-cover" iconType={getIconString(parseMetaIcon(meta?.icon) || product.icon)} />
           ) : (
             <AppstoreOutlined className="text-colorPrimary text-lg" />
           )}
@@ -654,7 +678,7 @@ function MyMcpCard({ item, onDisconnect, onViewDetail }: {
       <div className="flex items-center gap-3 mb-3">
         <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-colorPrimary/10 to-colorPrimary/5 flex items-center justify-center flex-shrink-0 overflow-hidden">
           {meta?.icon || product.icon ? (
-            <ProductIconRenderer className="w-full h-full object-cover" iconType={getIconString(meta?.icon ? { type: "URL", value: meta.icon } : product.icon)} />
+            <ProductIconRenderer className="w-full h-full object-cover" iconType={getIconString(parseMetaIcon(meta?.icon) || product.icon)} />
           ) : (
             <AppstoreOutlined className="text-colorPrimary text-lg" />
           )}

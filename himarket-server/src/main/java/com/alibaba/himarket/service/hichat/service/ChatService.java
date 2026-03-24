@@ -50,6 +50,7 @@ import com.alibaba.himarket.support.chat.mcp.MCPTransportConfig;
 import com.alibaba.himarket.support.enums.ChatAttachmentType;
 import com.alibaba.himarket.support.enums.ChatStatus;
 import com.alibaba.himarket.support.enums.MCPTransportMode;
+import com.alibaba.himarket.support.enums.McpProtocolType;
 import com.alibaba.himarket.support.enums.ProductType;
 import io.agentscope.core.message.*;
 import java.nio.charset.StandardCharsets;
@@ -436,11 +437,7 @@ public class ChatService {
                                     String protocol =
                                             StrUtil.blankToDefault(ep.getProtocol(), "sse");
                                     MCPTransportMode mode =
-                                            "http".equalsIgnoreCase(protocol)
-                                                            || "streamablehttp"
-                                                                    .equalsIgnoreCase(protocol)
-                                                    ? MCPTransportMode.STREAMABLE_HTTP
-                                                    : MCPTransportMode.SSE;
+                                            McpProtocolType.resolveTransportMode(protocol);
                                     MCPTransportConfig config =
                                             MCPTransportConfig.builder()
                                                     .mcpServerName(meta.getMcpName())
