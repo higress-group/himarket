@@ -85,14 +85,9 @@ public class McpSandboxDeployListener {
                             event.getNamespace(),
                             event.getResourceSpec());
 
-            // SSE 类型需要 /sse 后缀
-            String finalEndpointUrl = endpointUrl;
-            McpProtocolType proto = McpProtocolType.fromString(event.getTransportType());
-            if ((proto == null || proto.isSse())
-                    && endpointUrl != null
-                    && !endpointUrl.endsWith("/sse")) {
-                finalEndpointUrl = endpointUrl + "/sse";
-            }
+            // 标准化 URL：SSE 协议追加 /sse 后缀，去掉尾部多余斜杠
+            String finalEndpointUrl =
+                    McpProtocolUtils.normalizeEndpointUrl(endpointUrl, event.getTransportType());
 
             // Step 2: 更新 endpoint URL（事务内已预创建了 endpoint 记录）
             String lambdaUrl = finalEndpointUrl;

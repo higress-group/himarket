@@ -48,4 +48,33 @@ public final class McpProtocolUtils {
         McpProtocolType type = McpProtocolType.fromString(raw);
         return type != null && type.isStreamableHttp();
     }
+
+    /**
+     * 标准化 SSE endpoint URL：去掉尾部多余斜杠，非 StreamableHTTP 协议自动追加 {@code /sse} 后缀。
+     *
+     * <p>规则：
+     * <ul>
+     *   <li>StreamableHTTP 协议：原样返回（去掉尾部斜杠）</li>
+     *   <li>SSE 或未知协议：确保以 {@code /sse} 结尾且不重复</li>
+     *   <li>URL 为空时原样返回</li>
+     * </ul>
+     *
+     * @param url      原始 endpoint URL
+     * @param protocol 协议类型字符串（可为 null，null 视为 SSE）
+     * @return 标准化后的 URL
+     */
+    public static String normalizeEndpointUrl(String url, String protocol) {
+        if (StrUtil.isBlank(url)) return url;
+        // 统一去掉尾部斜杠
+        String normalized = url.replaceAll("/+$", "");
+        McpProtocolType type = McpProtocolType.fromString(protocol);
+        if (type != null && type.isStreamableHttp()) {
+            return normalized;
+        }
+        // SSE 或未知协议：确保以 /sse 结尾
+        if (!normalized.endsWith("/sse")) {
+            normalized = normalized + "/sse";
+        }
+        return normalized;
+    }
 }

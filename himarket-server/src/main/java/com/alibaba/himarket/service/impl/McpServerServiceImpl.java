@@ -882,10 +882,7 @@ public class McpServerServiceImpl implements McpServerService {
                             ? MCPTransportMode.STREAMABLE_HTTP
                             : MCPTransportMode.SSE;
 
-            String url = endpoint.getEndpointUrl().replaceAll("/+$", "");
-            if (transportMode == MCPTransportMode.SSE && !url.endsWith("/sse")) {
-                url = url + "/sse";
-            }
+            String url = McpProtocolUtils.normalizeEndpointUrl(endpoint.getEndpointUrl(), protocol);
 
             Product product = productMap.get(productId);
             configs.add(
@@ -1154,7 +1151,7 @@ public class McpServerServiceImpl implements McpServerService {
             return;
         }
 
-        // 确定协议：明确指定 StreamableHTTP 的保持原样，其余统一走 SSE 并拼接 /sse 后缀
+        // 确定协议：明确指定 StreamableHTTP 的保持原样，其余统一走 SSE
         McpProtocolType protoType = McpProtocolType.fromString(meta.getProtocolType());
         boolean isStreamableHttp = protoType != null && protoType.isStreamableHttp();
         String protocol =
@@ -1162,15 +1159,8 @@ public class McpServerServiceImpl implements McpServerService {
                         ? (protoType != null ? protoType.getValue() : meta.getProtocolType())
                         : McpProtocolType.SSE.getValue();
 
-        if (!isStreamableHttp) {
-            // SSE 或未指定协议：标准化 URL，确保以 /sse 结尾且不重复
-            String normalized = endpointUrl.replaceAll("/+$", ""); // 去掉尾部斜杠
-            if (!normalized.endsWith("/sse")) {
-                endpointUrl = normalized + "/sse";
-            } else {
-                endpointUrl = normalized;
-            }
-        }
+        // 标准化 URL：去掉尾部斜杠，SSE 协议追加 /sse 后缀
+        endpointUrl = McpProtocolUtils.normalizeEndpointUrl(endpointUrl, meta.getProtocolType());
 
         McpOrigin metaOrigin = McpOrigin.fromString(meta.getOrigin());
         McpHostingType hostingType = McpHostingType.fromOrigin(metaOrigin);
