@@ -27,11 +27,13 @@ import com.alibaba.nacos.api.exception.NacosException;
 import com.alibaba.nacos.maintainer.client.ai.AiMaintainerService;
 import com.alibaba.nacos.maintainer.client.ai.SkillMaintainerService;
 import jakarta.servlet.http.HttpServletResponse;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -320,10 +322,14 @@ public class SkillServiceImpl implements SkillService {
         if (StrUtil.isBlank(ref.getSkillName())) {
             throw new BusinessException(ErrorCode.NOT_FOUND, Resources.SKILL, ref.getSkillName());
         }
+
+        Map<String, String> labels = new HashMap<>();
+        labels.put("latest", version);
+
         execute(
                 ref.getNacosId(),
                 s -> {
-                    s.updateLabels(ref.getNamespace(), ref.getSkillName(), "latest=" + version);
+                    s.updateLabels(ref.getNamespace(), ref.getSkillName(), JSONUtil.toJsonStr(labels));
                     return null;
                 });
         log.info("Set latest: Skill {}, version {}", ref.getSkillName(), version);
@@ -407,9 +413,9 @@ public class SkillServiceImpl implements SkillService {
                 s ->
                         StrUtil.isBlank(version)
                                 ? s.getSkillVersionDetail(
-                                        ref.getNamespace(), ref.getSkillName(), null)
+                                ref.getNamespace(), ref.getSkillName(), null)
                                 : s.getSkillVersionDetail(
-                                        ref.getNamespace(), ref.getSkillName(), version));
+                                ref.getNamespace(), ref.getSkillName(), version));
     }
 
     private String buildResourcePath(SkillResource resource) {
