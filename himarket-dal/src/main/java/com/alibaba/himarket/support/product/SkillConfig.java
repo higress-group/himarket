@@ -20,9 +20,15 @@
 package com.alibaba.himarket.support.product;
 
 import java.util.List;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class SkillConfig {
 
     /**
@@ -49,4 +55,9 @@ public class SkillConfig {
      * Nacos Skill name（唯一标识）
      */
     private String skillName;
+
+    /**
+     * Last published version in Nacos (e.g. v3)
+     */
+    private String currentVersion;
 }

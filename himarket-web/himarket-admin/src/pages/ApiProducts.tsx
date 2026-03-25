@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import type { MenuProps } from 'antd';
 import { Button, Dropdown, Modal, message, Pagination, Skeleton, Input, Tabs, Tag } from 'antd';
 import type { ApiProduct, ProductIcon } from '@/types/api-product';
-import { ApiOutlined, MoreOutlined, PlusOutlined, ExclamationCircleOutlined, ExclamationCircleFilled, ClockCircleFilled, CheckCircleFilled, SearchOutlined, RobotOutlined, BulbOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import { ApiOutlined, MoreOutlined, PlusOutlined, ExclamationCircleOutlined, ExclamationCircleFilled, ClockCircleFilled, CheckCircleFilled, SearchOutlined, RobotOutlined, BulbOutlined, ThunderboltOutlined, UserOutlined } from '@ant-design/icons';
 import McpServerIcon from '@/components/icons/McpServerIcon';
 import { apiProductApi } from '@/lib/api';
 import ApiProductFormModal from '@/components/api-product/ApiProductFormModal';
@@ -16,6 +16,7 @@ const PRODUCT_TYPES = [
   { key: 'MODEL_API', label: 'Model API' },
   { key: 'MCP_SERVER', label: 'MCP Server' },
   { key: 'AGENT_SKILL', label: 'Agent Skill' },
+  { key: 'WORKER', label: 'Worker' },
   { key: 'AGENT_API', label: 'Agent API' },
   { key: 'REST_API', label: 'REST API' },
 ];
@@ -26,6 +27,7 @@ const getDefaultIcon = (type: string) => {
   if (type === 'AGENT_API') return <RobotOutlined style={{ fontSize: '16px' }} />;
   if (type === 'MODEL_API') return <BulbOutlined style={{ fontSize: '16px' }} />;
   if (type === 'AGENT_SKILL') return <ThunderboltOutlined style={{ fontSize: '16px' }} />;
+  if (type === 'WORKER') return <UserOutlined style={{ fontSize: '16px' }} />;
   return <ApiOutlined style={{ fontSize: '16px' }} />;
 };
 
@@ -89,7 +91,7 @@ const ProductCard = memo(({ product, onNavigate, handleRefresh, onEdit }: {
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-colorPrimary/10 to-colorPrimary/5">
-            <ProductIconRenderer className="w-full h-full object-cover" iconType={getIconString(product.icon)} />
+            <ProductIconRenderer className="w-full h-full object-cover" iconType={getIconString(product.icon)} type={product.type} />
           </div>
           <div>
             <h3 className="text-lg font-semibold">{product.name}</h3>
@@ -103,6 +105,8 @@ const ProductCard = memo(({ product, onNavigate, handleRefresh, onEdit }: {
                   <BulbOutlined className="text-gray-600 mr-1" style={{ fontSize: '12px' }} />
                 ) : product.type === 'AGENT_SKILL' ? (
                   <ThunderboltOutlined className="text-gray-600 mr-1" style={{ fontSize: '12px' }} />
+                ) : product.type === 'WORKER' ? (
+                  <UserOutlined className="text-gray-600 mr-1" style={{ fontSize: '12px' }} />
                 ) : (
                   <McpServerIcon className="text-black mr-1" style={{ fontSize: '12px' }} />
                 )}

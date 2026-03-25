@@ -16,6 +16,7 @@ import Square from "./pages/Square";
 import Chat from "./pages/Chat";
 import Coding from "./pages/Coding";
 import SkillDetail from "./pages/SkillDetail";
+import WorkerDetail from "./pages/WorkerDetail";
 
 export function Router() {
   return (
@@ -27,6 +28,8 @@ export function Router() {
         <Route path="/apis" element={<Square activeType="REST_API" />} />
         <Route path="/skills" element={<Square activeType="AGENT_SKILL" />} />
         <Route path="/skills/:skillProductId" element={<SkillDetail />} />
+        <Route path="/workers" element={<Square activeType="WORKER" />} />
+        <Route path="/workers/:workerProductId" element={<WorkerDetail />} />
         <Route path="/chat" element={<Chat />} />
         <Route path="/quest" element={<Navigate to="/coding" />} />
         <Route path="/coding" element={<Coding />} />

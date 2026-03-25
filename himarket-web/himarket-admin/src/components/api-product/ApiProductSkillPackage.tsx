@@ -1,13 +1,43 @@
 import { useState, useEffect, useRef } from 'react'
-import { Upload, message, Spin, Tooltip, Alert, Button as AntButton } from 'antd'
-import { InboxOutlined, FolderOutlined, FolderOpenOutlined, FileOutlined } from '@ant-design/icons'
+import { Upload, message, Spin, Tooltip, Alert, Button as AntButton, Button, Select, Tag, Modal, Space } from 'antd'
+import {
+  UploadOutlined, FolderFilled, FolderOpenFilled, FileFilled,
+  FileMarkdownFilled, FileTextFilled, CodeFilled, SettingFilled,
+  Html5Filled, FileZipFilled, FileImageFilled,
+  JavaScriptOutlined, JavaOutlined, PythonOutlined, DockerOutlined,
+  RightOutlined, DownOutlined, ExclamationCircleFilled,
+  CheckCircleFilled, CloseCircleFilled,
+} from '@ant-design/icons'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeHighlight from 'rehype-highlight'
-import MonacoEditor from 'react-monaco-editor'
+import hljs from 'highlight.js'
 import { skillApi } from '@/lib/api'
 import 'github-markdown-css/github-markdown-light.css'
 import 'highlight.js/styles/github.css'
+
+// ── Parse YAML front matter from markdown ───────────────
+function parseFrontMatter(content: string): { frontmatter: Record<string, string>; body: string } {
+  const trimmed = content.trim()
+  if (!trimmed.startsWith('---')) return { frontmatter: {}, body: trimmed }
+  const secondDash = trimmed.indexOf('---', 3)
+  if (secondDash === -1) return { frontmatter: {}, body: trimmed }
+  const yamlBlock = trimmed.substring(3, secondDash).trim()
+  const body = trimmed.substring(secondDash + 3).trim()
+  const frontmatter: Record<string, string> = {}
+  for (const line of yamlBlock.split('\n')) {
+    const colonIdx = line.indexOf(':')
+    if (colonIdx > 0) {
+      const key = line.substring(0, colonIdx).trim()
+      let value = line.substring(colonIdx + 1).trim()
+      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1)
+      }
+      frontmatter[key] = value
+    }
+  }
+  return { frontmatter, body }
+}
 
 interface SkillFileTreeNode {
   name: string
@@ -25,12 +55,80 @@ interface FileContent {
   size: number
 }
 
+interface VersionItem {
+  version: string
+  updateTime?: number
+  status?: string // draft, reviewing, online, offline
+  downloadCount?: number
+  publishPipelineInfo?: string
+}
+
 interface ApiProductSkillPackageProps {
   apiProduct: import('@/types/api-product').ApiProduct
   onUploadSuccess?: () => void
 }
 
-// ── 自定义文件树（与前台 SkillFileTree 对齐）─────────────────
+// ── File icon by extension ───────────────
+const iconClass = "flex-shrink-0"
+const iconStyle = { fontSize: 14 }
+
+function FileIcon({ name }: { name: string }) {
+  const ext = name.split('.').pop()?.toLowerCase() ?? ''
+  const lowerName = name.toLowerCase()
+
+  if (lowerName === 'dockerfile') return <DockerOutlined className={iconClass} style={{ ...iconStyle, color: '#1a9ad0' }} />
+  if (lowerName === '.gitignore') return <FileTextFilled className={iconClass} style={{ ...iconStyle, color: '#999' }} />
+  if (lowerName === 'license' || lowerName === 'notice') return <FileTextFilled className={iconClass} style={{ ...iconStyle, color: '#999' }} />
+
+  switch (ext) {
+    case 'md':
+      return <FileMarkdownFilled className={iconClass} style={{ ...iconStyle, color: '#1a72bd' }} />
+    case 'json':
+      return <SettingFilled className={iconClass} style={{ ...iconStyle, color: '#7568b8' }} />
+    case 'yaml':
+    case 'yml':
+      return <SettingFilled className={iconClass} style={{ ...iconStyle, color: '#c88a0a' }} />
+    case 'toml':
+      return <SettingFilled className={iconClass} style={{ ...iconStyle, color: '#c88a0a' }} />
+    case 'xml':
+      return <CodeFilled className={iconClass} style={{ ...iconStyle, color: '#cc5e1e' }} />
+    case 'html':
+      return <Html5Filled className={iconClass} style={{ ...iconStyle, color: '#d94020' }} />
+    case 'css':
+      return <CodeFilled className={iconClass} style={{ ...iconStyle, color: '#2060b0' }} />
+    case 'js':
+    case 'jsx':
+      return <JavaScriptOutlined className={iconClass} style={{ ...iconStyle, color: '#c89008' }} />
+    case 'ts':
+    case 'tsx':
+      return <CodeFilled className={iconClass} style={{ ...iconStyle, color: '#1e68b0' }} />
+    case 'py':
+      return <PythonOutlined className={iconClass} style={{ ...iconStyle, color: '#2060a0' }} />
+    case 'java':
+      return <JavaOutlined className={iconClass} style={{ ...iconStyle, color: '#cc5818' }} />
+    case 'sh':
+    case 'bash':
+      return <CodeFilled className={iconClass} style={{ ...iconStyle, color: '#208848' }} />
+    case 'zip':
+    case 'tar':
+    case 'gz':
+      return <FileZipFilled className={iconClass} style={{ ...iconStyle, color: '#b88520' }} />
+    case 'png':
+    case 'jpg':
+    case 'jpeg':
+    case 'gif':
+    case 'svg':
+      return <FileImageFilled className={iconClass} style={{ ...iconStyle, color: '#5848b0' }} />
+    case 'txt':
+    case 'log':
+    case 'csv':
+      return <FileTextFilled className={iconClass} style={{ ...iconStyle, color: '#999' }} />
+    default:
+      return <FileFilled className={iconClass} style={{ ...iconStyle, color: '#3880c0' }} />
+  }
+}
+
+// ── File tree components ─────────────────
 interface TreeNodeProps {
   node: SkillFileTreeNode
   selectedPath?: string
@@ -48,20 +146,26 @@ function TreeNode({ node, selectedPath, onSelect, depth }: TreeNodeProps) {
       <Tooltip title={node.name} placement="right" mouseEnterDelay={0.8}>
         <div
           className={`
-            flex items-center gap-1.5 px-2 py-1 rounded cursor-pointer text-sm select-none
+            flex items-center gap-1 px-1 py-[2px] rounded cursor-pointer text-[13px] select-none
             transition-colors duration-100
-            ${isSelected ? 'bg-purple-100 text-purple-700' : 'hover:bg-gray-100 text-gray-700'}
+            ${isSelected ? 'bg-blue-100 text-gray-900' : 'hover:bg-gray-100 text-gray-700'}
           `}
-          style={{ paddingLeft: `${8 + depth * 16}px` }}
+          style={{ paddingLeft: `${4 + depth * 16}px` }}
           onClick={() => isDir ? setExpanded(v => !v) : onSelect(node.path)}
         >
           {isDir
-            ? expanded
-              ? <FolderOpenOutlined className="text-yellow-500 flex-shrink-0" />
-              : <FolderOutlined className="text-yellow-500 flex-shrink-0" />
-            : <FileOutlined className="text-blue-400 flex-shrink-0" />
+            ? <span className="w-4 flex items-center justify-center flex-shrink-0 text-[10px] text-gray-400">
+                {expanded ? <DownOutlined /> : <RightOutlined />}
+              </span>
+            : <span className="w-4 flex-shrink-0" />
           }
-          <span className="truncate">{node.name}</span>
+          {isDir
+            ? expanded
+              ? <FolderOpenFilled className="text-amber-500 flex-shrink-0 text-sm" />
+              : <FolderFilled className="text-amber-400 flex-shrink-0 text-sm" />
+            : <FileIcon name={node.name} />
+          }
+          <span className="truncate ml-0.5">{node.name}</span>
         </div>
       </Tooltip>
       {isDir && expanded && node.children && node.children.length > 0 && (
@@ -85,30 +189,40 @@ function SkillFileTree({ nodes, selectedPath, onSelect }: { nodes: SkillFileTree
   )
 }
 
-function parseFrontMatter(content: string): { entries: [string, string][]; body: string } {
-  const t = content.trim()
-  if (!t.startsWith('---')) return { entries: [], body: t }
-  const end = t.indexOf('---', 3)
-  if (end === -1) return { entries: [], body: t }
-  const yamlBlock = t.substring(3, end).trim()
-  const body = t.substring(end + 3).trim()
-  const entries: [string, string][] = yamlBlock.split('\n').flatMap((line) => {
-    const idx = line.indexOf(':')
-    if (idx <= 0) return []
-    const k = line.substring(0, idx).trim()
-    let v = line.substring(idx + 1).trim()
-    if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) v = v.slice(1, -1)
-    return [[k, v]] as [string, string][]
-  })
-  return { entries, body }
-}
-
 function findNode(nodes: SkillFileTreeNode[], path: string): SkillFileTreeNode | null {
   for (const node of nodes) {
     if (node.path === path) return node
     if (node.children) { const f = findNode(node.children, path); if (f) return f }
   }
   return null
+}
+
+function SkillOverview({ content }: { content: string }) {
+  const { frontmatter, body } = parseFrontMatter(content)
+  const fmEntries = Object.entries(frontmatter)
+  return (
+    <div className="markdown-body text-sm">
+      {fmEntries.length > 0 && (
+        <table className="mb-6 w-full text-[13px] border-collapse">
+          <thead>
+            <tr className="bg-[#f6f8fa]">
+              {fmEntries.map(([k]) => (
+                <th key={k} className="border border-[#d0d7de] px-3 py-1.5 text-left font-semibold text-[#1f2328]">{k}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              {fmEntries.map(([k, v]) => (
+                <td key={k} className="border border-[#d0d7de] px-3 py-1.5 text-[#1f2328] align-top">{v}</td>
+              ))}
+            </tr>
+          </tbody>
+        </table>
+      )}
+      <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>{body}</ReactMarkdown>
+    </div>
+  )
 }
 
 export function ApiProductSkillPackage({ apiProduct, onUploadSuccess }: ApiProductSkillPackageProps) {
@@ -119,9 +233,17 @@ export function ApiProductSkillPackage({ apiProduct, onUploadSuccess }: ApiProdu
   const [selectedFile, setSelectedFile] = useState<FileContent | null>(null)
   const [loadingTree, setLoadingTree] = useState(false)
   const [loadingFile, setLoadingFile] = useState(false)
+  const [loadingVersions, setLoadingVersions] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [versions, setVersions] = useState<VersionItem[]>([])
+  const [previewVersion, setPreviewVersion] = useState<string | undefined>(undefined)
   const [treeWidth, setTreeWidth] = useState(240)
   const isDragging = useRef(false)
+  const lastFetchedVersion = useRef<string | undefined>(undefined)
+  const [activeTab, setActiveTab] = useState<'overview' | 'file'>('overview')
+  const [overviewContent, setOverviewContent] = useState<string | null>(null)
+  const [loadingOverview] = useState(false)
+  const [actionLoading, setActionLoading] = useState<string | null>(null)
 
   const handleDragStart = (e: React.MouseEvent) => {
     e.preventDefault()
@@ -141,24 +263,25 @@ export function ApiProductSkillPackage({ apiProduct, onUploadSuccess }: ApiProdu
     window.addEventListener('mouseup', onUp)
   }
 
-  const fetchFileTree = async () => {
-    setLoadingTree(true)
+  const fetchVersions = async () => {
+    setLoadingVersions(true)
     try {
-      const res: any = await skillApi.getSkillFiles(productId)
-      const nodes: SkillFileTreeNode[] = res.data || []
-      setFileTree(nodes)
-      if (findNode(nodes, 'SKILL.md')) loadFileContent('SKILL.md')
+      const res: any = await skillApi.getVersions(productId)
+      const versionItems: VersionItem[] = res.data || []
+      setVersions(versionItems)
+      return versionItems
     } catch {
+      return []
     } finally {
-      setLoadingTree(false)
+      setLoadingVersions(false)
     }
   }
 
-  const loadFileContent = async (path: string) => {
+  const loadFileContent = async (path: string, version?: string) => {
     setSelectedPath(path)
     setLoadingFile(true)
     try {
-      const res: any = await skillApi.getSkillFileContent(productId, path)
+      const res: any = await skillApi.getSkillFileContent(productId, path, version)
       setSelectedFile(res.data)
     } catch {
     } finally {
@@ -166,7 +289,180 @@ export function ApiProductSkillPackage({ apiProduct, onUploadSuccess }: ApiProdu
     }
   }
 
-  useEffect(() => { fetchFileTree() }, [productId])
+  // Tracks the current fetch sequence; incremented on each new fetch to cancel stale ones
+  const fetchSeqRef = useRef(0)
+
+  const fetchFileTree = async (version?: string) => {
+    const seq = ++fetchSeqRef.current
+    setLoadingTree(true)
+    setSelectedPath(undefined)
+    setSelectedFile(null)
+    setOverviewContent(null)
+    lastFetchedVersion.current = version
+    try {
+      const res: any = await skillApi.getSkillFiles(productId, version)
+      if (seq !== fetchSeqRef.current) return
+      const nodes: SkillFileTreeNode[] = res.data || []
+      setFileTree(nodes)
+      if (findNode(nodes, 'SKILL.md')) {
+        const ovRes: any = await skillApi.getSkillFileContent(productId, 'SKILL.md', version)
+        if (seq !== fetchSeqRef.current) return
+        setOverviewContent(ovRes.data?.content ?? null)
+      }
+    } catch {
+    } finally {
+      if (seq === fetchSeqRef.current) setLoadingTree(false)
+    }
+  }
+
+  // Init sequence ref to cancel stale version fetches (separate from fetchSeqRef)
+  const initSeqRef = useRef(0)
+
+  // Initial load: versions → file tree, cancel stale runs on remount
+  useEffect(() => {
+    const seq = ++initSeqRef.current
+    const init = async () => {
+      setLoadingVersions(true)
+      try {
+        const res: any = await skillApi.getVersions(productId)
+        if (seq !== initSeqRef.current) return
+        const versionItems: VersionItem[] = res.data || []
+        setVersions(versionItems)
+        const firstVersion = versionItems[0]?.version
+        setPreviewVersion(firstVersion)
+        await fetchFileTree(firstVersion)
+      } catch {
+      } finally {
+        if (seq === initSeqRef.current) setLoadingVersions(false)
+      }
+    }
+    init()
+  }, [productId])
+
+  const previewItem = versions.find(item => item.version === previewVersion)
+  const latestVersion = versions.find(item => item.status === 'online')?.version
+  const isUnpublished = previewItem?.status === 'draft' || previewItem?.status === 'offline'
+  const isOnline = previewItem?.status === 'online'
+  const isReviewing = previewItem?.status === 'reviewing'
+  const canPublish = !!previewVersion && isUnpublished
+  const canOffline = !!previewVersion && isOnline
+  const canDeleteDraft = !!previewVersion && isUnpublished
+  const showPublishActions = canPublish || isReviewing
+  const totalDownloads = versions.reduce((sum, item) => sum + (item.downloadCount ?? 0), 0)
+
+  // Parse publishPipelineInfo from version data
+  const pipelineStatus = (() => {
+    const raw = previewItem?.publishPipelineInfo
+    if (!raw) return null
+    try {
+      return typeof raw === 'string' ? JSON.parse(raw) : raw
+    } catch {
+      return null
+    }
+  })()
+
+  const handlePublishVersion = async (version: string) => {
+    setActionLoading('publish')
+    try {
+      await skillApi.publishVersion(productId, version)
+      message.success(`版本 ${version} 提交审核成功`)
+      setPreviewVersion(version)
+      await Promise.all([fetchVersions(), fetchFileTree(version)])
+      onUploadSuccess?.()
+    } catch (error: any) {
+      message.error(error.response?.data?.message || '提交审核失败')
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  const handleOfflineVersion = async (version: string) => {
+    Modal.confirm({
+      title: '确认下线',
+      icon: <ExclamationCircleFilled />,
+      content: `确定要将版本 ${version} 下线吗？下线后该版本将无法被运行时查询。`,
+      okText: '确认下线',
+      okType: 'danger',
+      cancelText: '取消',
+      onOk: async () => {
+        setActionLoading('offline')
+        try {
+          await skillApi.offlineVersion(productId, version)
+          message.success(`版本 ${version} 已下线`)
+          await fetchVersions()
+          onUploadSuccess?.()
+        } catch (error: any) {
+          message.error(error.response?.data?.message || '下线失败')
+        } finally {
+          setActionLoading(null)
+        }
+      },
+    })
+  }
+
+  const handleSetLatest = async (version: string) => {
+    setActionLoading('setLatest')
+    try {
+      await skillApi.setLatestVersion(productId, version)
+      message.success(`版本 ${version} 已设为 latest`)
+      await fetchVersions()
+    } catch (error: any) {
+      message.error(error.response?.data?.message || '设置 latest 失败')
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  const handleDeleteDraft = async () => {
+    Modal.confirm({
+      title: '确认删除草稿',
+      icon: <ExclamationCircleFilled />,
+      content: '删除草稿后不可恢复，已发布的版本不受影响。',
+      okText: '确认删除',
+      okType: 'danger',
+      cancelText: '取消',
+      onOk: async () => {
+        setActionLoading('deleteDraft')
+        try {
+          await skillApi.deleteDraft(productId)
+          message.success('草稿已删除')
+          const nextVersion = versions.find(v => v.status === 'online')?.version
+          setPreviewVersion(nextVersion)
+          await fetchVersions()
+          if (nextVersion) {
+            await fetchFileTree(nextVersion)
+          } else {
+            setFileTree([])
+            setSelectedFile(null)
+            setSelectedPath(undefined)
+            setOverviewContent(null)
+          }
+          onUploadSuccess?.()
+        } catch (error: any) {
+          message.error(error.response?.data?.message || '删除草稿失败')
+        } finally {
+          setActionLoading(null)
+        }
+      },
+    })
+  }
+
+  useEffect(() => {
+    // Initial file tree load with no version (will be superseded by fetchVersions if versions exist)
+    fetchFileTree(undefined)
+  }, [productId])
+
+  useEffect(() => {
+    fetchVersions()
+  }, [productId])
+
+  // Auto-poll version list when any version is in reviewing state
+  const hasReviewing = versions.some(item => item.status === 'reviewing')
+  useEffect(() => {
+    if (!hasReviewing) return
+    const timer = setInterval(() => fetchVersions(), 5000)
+    return () => clearInterval(timer)
+  }, [hasReviewing, productId])
 
   const customRequest = async (options: any) => {
     const { file, onSuccess, onError } = options
@@ -175,7 +471,10 @@ export function ApiProductSkillPackage({ apiProduct, onUploadSuccess }: ApiProdu
       const res: any = await skillApi.uploadSkillPackage(productId, file)
       message.success('上传成功')
       onSuccess(res)
-      await fetchFileTree()
+      const versionItems = await fetchVersions()
+      const firstVersion = versionItems[0]?.version
+      setPreviewVersion(firstVersion)
+      await fetchFileTree(firstVersion)
       onUploadSuccess?.()
     } catch (error: any) {
       message.destroy()
@@ -192,7 +491,7 @@ export function ApiProductSkillPackage({ apiProduct, onUploadSuccess }: ApiProdu
     if (!selectedFile) return (
       <div className="flex items-center justify-center h-full text-gray-400">
         <div className="text-center">
-          <FileOutlined className="text-4xl mb-2 text-gray-300" />
+          <FileFilled className="text-4xl mb-2 text-gray-300" />
           <p>点击左侧文件查看内容</p>
         </div>
       </div>
@@ -205,49 +504,77 @@ export function ApiProductSkillPackage({ apiProduct, onUploadSuccess }: ApiProdu
     )
 
     if (selectedFile.path.endsWith('.md')) {
-      const { entries, body } = parseFrontMatter(selectedFile.content)
+      const highlighted = (() => {
+        try {
+          if (hljs.getLanguage('markdown')) {
+            return hljs.highlight(selectedFile.content, { language: 'markdown' }).value
+          }
+          return hljs.highlightAuto(selectedFile.content).value
+        } catch {
+          return selectedFile.content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        }
+      })()
+      const lineCount = selectedFile.content.split('\n').length
+      const codeFont = "'Menlo', 'Monaco', 'Courier New', monospace"
       return (
-        <div className="p-6 overflow-auto h-full">
-          {entries.length > 0 && (
-            <table className="mb-6 w-full text-[13px] border-collapse">
-              <thead>
-                <tr className="bg-[#f6f8fa]">
-                  {entries.map(([k]) => (
-                    <th key={k} className="border border-[#d0d7de] px-3 py-1.5 text-left font-semibold text-[#1f2328]">{k}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  {entries.map(([k, v]) => (
-                    <td key={k} className="border border-[#d0d7de] px-3 py-1.5 text-[#1f2328] align-top">{v}</td>
-                  ))}
-                </tr>
-              </tbody>
-            </table>
-          )}
-          <div className="markdown-body">
-            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>{body}</ReactMarkdown>
+        <div className="flex-1 overflow-auto bg-white h-full">
+          <div className="flex min-h-full">
+            <div className="select-none text-right pr-3 pt-4 pb-4 pl-3 text-xs text-gray-400 bg-[#f6f8fa] border-r border-[#d0d7de] flex-shrink-0" style={{ fontFamily: codeFont, lineHeight: '1.6', minWidth: 48 }}>
+              {Array.from({ length: lineCount }, (_, i) => <div key={i + 1}>{i + 1}</div>)}
+            </div>
+            <pre className="flex-1 m-0 pt-4 pb-4 pl-4 pr-4 text-xs overflow-x-auto" style={{ fontFamily: codeFont, lineHeight: '1.6', background: 'transparent' }}>
+              <code className="hljs language-markdown" dangerouslySetInnerHTML={{ __html: highlighted }} />
+            </pre>
           </div>
         </div>
       )
     }
 
     const lang = (() => {
+      const fileName = selectedFile.path.split('/').pop()?.toLowerCase() ?? ''
+      if (fileName === 'dockerfile') return 'dockerfile'
       const ext = selectedFile.path.split('.').pop()?.toLowerCase() ?? ''
-      const map: Record<string, string> = { py: 'python', js: 'javascript', ts: 'typescript', tsx: 'typescript', jsx: 'javascript', json: 'json', yaml: 'yaml', yml: 'yaml', sh: 'shell', bash: 'shell', css: 'css', html: 'html', xml: 'xml', sql: 'sql', java: 'java', go: 'go', rs: 'rust', rb: 'ruby', kt: 'kotlin', swift: 'swift', c: 'c', cpp: 'cpp', h: 'c', hpp: 'cpp' }
+      const map: Record<string, string> = { py: 'python', js: 'javascript', ts: 'typescript', tsx: 'typescript', jsx: 'javascript', json: 'json', yaml: 'yaml', yml: 'yaml', sh: 'bash', bash: 'bash', css: 'css', html: 'xml', xml: 'xml', sql: 'sql', java: 'java', go: 'go', rs: 'rust', rb: 'ruby', kt: 'kotlin', swift: 'swift', c: 'c', cpp: 'cpp', h: 'c', hpp: 'cpp', toml: 'ini', cfg: 'ini', ini: 'ini' }
       return map[ext] || 'plaintext'
     })()
 
+    const highlighted = (() => {
+      try {
+        if (lang && lang !== 'plaintext' && hljs.getLanguage(lang)) {
+          return hljs.highlight(selectedFile.content, { language: lang }).value
+        }
+        return hljs.highlightAuto(selectedFile.content).value
+      } catch {
+        return selectedFile.content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      }
+    })()
+
+    const lineCount = selectedFile.content.split('\n').length
+    const codeFont = "'Menlo', 'Monaco', 'Courier New', monospace"
+
     return (
-      <MonacoEditor
-        width="100%"
-        height="100%"
-        language={lang}
-        value={selectedFile.content}
-        options={{ readOnly: true, minimap: { enabled: false }, scrollBeyondLastLine: false, fontSize: 13, lineHeight: 20 }}
-        theme="vs"
-      />
+      <div className="flex-1 overflow-auto bg-white h-full">
+        <div className="flex min-h-full">
+          <div
+            className="flex-shrink-0 py-3 pr-3 pl-4 text-right select-none border-r border-gray-100 sticky left-0 bg-white z-10"
+            style={{ fontFamily: codeFont, fontSize: '13px', lineHeight: '20px' }}
+          >
+            {Array.from({ length: lineCount }, (_, i) => (
+              <div key={i} className="text-gray-300">{i + 1}</div>
+            ))}
+          </div>
+          <pre
+            className="flex-1 py-3 pl-5 pr-4 m-0 bg-white"
+            style={{ fontFamily: codeFont, fontSize: '13px', lineHeight: '20px', whiteSpace: 'pre', wordBreak: 'normal' }}
+          >
+            <code
+              className="hljs"
+              style={{ background: 'transparent', padding: 0 }}
+              dangerouslySetInnerHTML={{ __html: highlighted }}
+            />
+          </pre>
+        </div>
+      </div>
     )
   }
 
@@ -272,27 +599,243 @@ export function ApiProductSkillPackage({ apiProduct, onUploadSuccess }: ApiProdu
         />
       )}
 
-      <Upload.Dragger accept=".zip,.tar.gz" customRequest={customRequest} showUploadList={false} disabled={uploading || !hasNacos} style={{ padding: '8px 0' }}>
-        <p className="ant-upload-drag-icon"><InboxOutlined /></p>
-        <p className="ant-upload-text">点击或拖拽上传 Skill 包</p>
-        <p className="ant-upload-hint">支持 .zip 和 .tar.gz 格式，最大 50MB</p>
-      </Upload.Dragger>
+      {/* Card 1: Version Management */}
+      <div className="border rounded-lg bg-white p-4 space-y-3">
+        {/* Row 1: Version selector + action buttons + upload */}
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-3 flex-wrap">
+            <Space.Compact size="large">
+              <Select
+                value={previewVersion}
+                className="w-48"
+                placeholder="版本"
+                onChange={(value) => {
+                  setPreviewVersion(value)
+                  fetchFileTree(value)
+                }}
+                options={versions.map(item => ({
+                  label: (
+                    <div className="flex items-center gap-2">
+                      <span>{item.version}</span>
+                      {item.version === latestVersion && (
+                        <Tag color="blue" className="!m-0 !text-xs">latest</Tag>
+                      )}
+                    </div>
+                  ),
+                  value: item.version,
+                }))}
+              />
+              <Button
+                className="!bg-gray-100 !text-gray-700 !border-gray-300 hover:!bg-gray-200 disabled:!bg-gray-50 disabled:!text-gray-400"
+                loading={actionLoading === 'setLatest'}
+                disabled={!previewVersion || !isOnline || previewVersion === latestVersion}
+                onClick={() => previewVersion && handleSetLatest(previewVersion)}
+              >
+                设为 Latest
+              </Button>
+            </Space.Compact>
+            {loadingVersions && <Spin size="small" />}
+            {showPublishActions && (
+              <Button
+                type="primary"
+                disabled={isReviewing}
+                loading={actionLoading === 'publish'}
+                onClick={() => previewVersion && handlePublishVersion(previewVersion)}
+              >
+                提交审核
+              </Button>
+            )}
+            {(canDeleteDraft || isReviewing) && (
+              <Button
+                danger
+                disabled={isReviewing}
+                loading={actionLoading === 'deleteDraft'}
+                onClick={handleDeleteDraft}
+              >
+                删除草稿
+              </Button>
+            )}
+            {canOffline && (
+              <Button
+                danger
+                loading={actionLoading === 'offline'}
+                onClick={() => previewVersion && handleOfflineVersion(previewVersion)}
+              >
+                版本下线
+              </Button>
+            )}
+          </div>
 
-      <div className="flex border rounded-lg overflow-hidden" style={{ height: 560 }}>
-        <div className="border-r bg-gray-50 overflow-y-auto overflow-x-hidden flex-shrink-0 p-2" style={{ width: treeWidth }}>
-          {loadingTree
-            ? <div className="flex justify-center pt-4"><Spin size="small" /></div>
-            : fileTree.length === 0
-              ? <div className="text-gray-400 text-sm text-center pt-4">暂无文件</div>
-              : <SkillFileTree nodes={fileTree} selectedPath={selectedPath} onSelect={loadFileContent} />
-          }
+          <Upload
+            accept=".zip,.tar.gz"
+            customRequest={customRequest}
+            showUploadList={false}
+            disabled={uploading || !hasNacos}
+          >
+            <Button icon={<UploadOutlined />} loading={uploading} className="!h-auto !px-4 !py-2.5">
+              <div className="leading-snug text-left">
+                <div className="text-sm">上传 Skill 包</div>
+                <div className="text-xs text-gray-400">.zip / .tar.gz，最大 10MB</div>
+              </div>
+            </Button>
+          </Upload>
         </div>
-        {/* 拖拽分隔条 */}
-        <div
-          onMouseDown={handleDragStart}
-          className="w-1 flex-shrink-0 cursor-col-resize hover:bg-blue-200 transition-colors bg-transparent"
-        />
-        <div className="flex-1 overflow-auto h-full">{renderPreview()}</div>
+
+        {/* Row 2: Status + downloads + pipeline result */}
+        <div className="flex items-center gap-3 text-sm" style={{ minHeight: 32 }}>
+          <Tag
+            bordered={false}
+            className={`!m-0 ${
+              previewItem?.status === 'online'
+                ? '!bg-green-50 !text-green-600'
+                : previewItem?.status === 'reviewing'
+                ? '!bg-blue-50 !text-blue-600'
+                : '!bg-gray-100 !text-gray-500'
+            }`}
+          >
+            {previewItem?.status === 'online' ? '已上线'
+              : previewItem?.status === 'reviewing' ? '审核中'
+              : '未发布'}
+          </Tag>
+          <span className="text-gray-400">下载 <strong className="text-gray-600">{totalDownloads}</strong></span>
+          {(() => {
+            const pStatus = pipelineStatus?.status
+            const isApproved = pStatus === 'APPROVED' || previewItem?.status === 'online'
+            const isRejected = pStatus === 'REJECTED'
+            const isInProgress = isReviewing && !isApproved && !isRejected
+            const pipelineNodes = pipelineStatus?.pipeline as any[] | undefined
+
+            if (isInProgress) {
+              return (
+                <span className="inline-flex items-center gap-1.5 text-xs text-blue-600">
+                  <Spin size="small" />
+                  <span className="font-medium">审核中</span>
+                  {pipelineNodes && pipelineNodes.length > 0 && (
+                    <span className="text-blue-400">
+                      ({pipelineNodes.filter((n: any) => n.passed).length}/{pipelineNodes.length})
+                    </span>
+                  )}
+                </span>
+              )
+            }
+            if (isApproved && (isOnline || previewItem?.publishPipelineInfo)) {
+              return (
+                <span className="inline-flex items-center gap-1 text-xs text-green-600">
+                  <CheckCircleFilled />
+                  <span className="font-medium">审核通过</span>
+                </span>
+              )
+            }
+            if (isRejected) {
+              return (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-red-50 border border-red-100 rounded-lg text-xs text-red-500 ml-6">
+                  <CloseCircleFilled />
+                  <span className="font-medium">审核未通过</span>
+                  <Button
+                    type="link"
+                    size="small"
+                    className="!p-0 !text-red-500 !text-xs"
+                    onClick={() => Modal.info({
+                      title: '审核未通过',
+                      icon: null,
+                      width: 600,
+                      content: (
+                        <div className="mt-2 space-y-3">
+                          {pipelineNodes?.filter((n: any) => !n.passed).map((node: any, idx: number) => (
+                            <div key={idx} className="p-4 bg-gray-50 rounded-lg">
+                              <div className="flex items-start gap-3">
+                                <CloseCircleFilled className="text-red-500 mt-0.5 text-base flex-shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className="font-semibold text-gray-800">{node.nodeId}</span>
+                                    {node.durationMs != null && (
+                                      <span className="text-xs text-gray-400">{(node.durationMs / 1000).toFixed(1)}s</span>
+                                    )}
+                                  </div>
+                                  {node.message && (
+                                    <div className="text-sm text-gray-500 whitespace-pre-wrap break-words">{node.message}</div>
+                                  )}
+                                  {node.executedAt && (
+                                    <div className="flex items-center gap-1 mt-2 text-xs text-gray-400">
+                                      <span>⏱</span>
+                                      <span>{new Date(node.executedAt).toLocaleString('zh-CN')}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ),
+                    })}
+                  >
+                    详情
+                  </Button>
+                </span>
+              )
+            }
+            return null
+          })()}
+        </div>
+      </div>
+
+      {/* Card 2: Overview / File Preview */}
+      <div className="border rounded-lg overflow-hidden bg-white flex-1 flex flex-col" style={{ minHeight: 600 }}>
+        {/* Tab header */}
+        <div className="flex gap-6 px-4 pt-3 border-b">
+          <button
+            className={`pb-2 text-sm font-medium transition-colors border-b-2 ${
+              activeTab === 'overview'
+                ? 'text-blue-600 border-blue-600'
+                : 'text-gray-500 border-transparent hover:text-gray-700'
+            }`}
+            onClick={() => setActiveTab('overview')}
+          >
+            Overview
+          </button>
+          <button
+            className={`pb-2 text-sm font-medium transition-colors border-b-2 ${
+              activeTab === 'file'
+                ? 'text-blue-600 border-blue-600'
+                : 'text-gray-500 border-transparent hover:text-gray-700'
+            }`}
+            onClick={() => setActiveTab('file')}
+          >
+            File
+          </button>
+        </div>
+
+        {/* Tab content */}
+        {activeTab === 'overview' ? (
+          <div className="flex-1 overflow-auto p-6" style={{ height: 560 }}>
+            {loadingOverview ? (
+              <div className="flex justify-center pt-8"><Spin size="small" /></div>
+            ) : overviewContent ? (
+              <SkillOverview content={overviewContent} />
+            ) : (
+              <div className="text-gray-400 text-sm text-center pt-8">
+                该技能包未包含 SKILL.md 文件
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex flex-1 min-h-0" style={{ height: 560 }}>
+            <div className="border-r bg-white overflow-y-auto overflow-x-hidden flex-shrink-0 p-2" style={{ width: treeWidth }}>
+              {loadingTree
+                ? <div className="flex items-center justify-center h-full"><Spin size="small" /></div>
+                : fileTree.length === 0
+                  ? <div className="flex items-center justify-center h-full text-gray-400 text-sm">暂无文件</div>
+                  : <SkillFileTree nodes={fileTree} selectedPath={selectedPath} onSelect={(path) => loadFileContent(path, previewVersion)} />
+              }
+            </div>
+            {/* 拖拽分隔条 */}
+            <div
+              onMouseDown={handleDragStart}
+              className="w-1 flex-shrink-0 cursor-col-resize hover:bg-blue-200 transition-colors bg-transparent"
+            />
+            <div className="flex-1 overflow-auto flex flex-col" style={{ height: 560 }}>{renderPreview()}</div>
+          </div>
+        )}
       </div>
     </div>
   )

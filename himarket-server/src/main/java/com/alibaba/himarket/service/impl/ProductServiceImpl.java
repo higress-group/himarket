@@ -59,6 +59,7 @@ import com.alibaba.himarket.support.enums.SourceType;
 import com.alibaba.himarket.support.product.NacosRefConfig;
 import com.alibaba.himarket.support.product.ProductFeature;
 import com.alibaba.himarket.support.product.SkillConfig;
+import com.alibaba.himarket.support.product.WorkerConfig;
 import com.github.benmanes.caffeine.cache.Cache;
 import io.agentscope.core.tool.mcp.McpClientWrapper;
 import jakarta.persistence.criteria.Predicate;
@@ -129,26 +130,8 @@ public class ProductServiceImpl implements ProductService {
         product.setProductId(productId);
         product.setAdminId(contextHolder.getUser());
 
-        // AGENT_SKILL products are immediately ready (no gateway/nacos binding needed)
-        if (param.getType() == ProductType.AGENT_SKILL) {
-            product.setStatus(ProductStatus.READY);
-            // 自动绑定默认 Nacos 实例
-            NacosResult defaultNacos = nacosService.getDefaultNacosInstance();
-            if (defaultNacos != null) {
-                ProductFeature feature = product.getFeature();
-                if (feature == null) {
-                    feature = new ProductFeature();
-                    product.setFeature(feature);
-                }
-                SkillConfig skillConfig = feature.getSkillConfig();
-                if (skillConfig == null) {
-                    skillConfig = new SkillConfig();
-                    feature.setSkillConfig(skillConfig);
-                }
-                skillConfig.setNacosId(defaultNacos.getNacosId());
-                skillConfig.setNamespace(defaultNacos.getDefaultNamespace());
-            }
-        }
+        // Set feature for AGENT_SKILL / WORKER products
+        initDefaultFeature(product);
 
         validateModelFeature(product.getType(), product.getFeature());
 
@@ -158,6 +141,37 @@ public class ProductServiceImpl implements ProductService {
         setProductCategories(productId, param.getCategories());
 
         return getProduct(productId);
+    }
+
+    private void initDefaultFeature(Product product) {
+        ProductType productType = product.getType();
+        if (productType != ProductType.AGENT_SKILL && productType != ProductType.WORKER) {
+            return;
+        }
+
+        NacosResult nacos = nacosService.getDefaultNacosInstance();
+        if (nacos == null) {
+            return;
+        }
+
+        ProductFeature feature =
+                Optional.ofNullable(product.getFeature()).orElse(ProductFeature.builder().build());
+
+        if (productType == ProductType.AGENT_SKILL) {
+            feature.setSkillConfig(
+                    SkillConfig.builder()
+                            .nacosId(nacos.getNacosId())
+                            .namespace(nacos.getDefaultNamespace())
+                            .build());
+        } else {
+            feature.setWorkerConfig(
+                    WorkerConfig.builder()
+                            .nacosId(nacos.getNacosId())
+                            .namespace(nacos.getDefaultNamespace())
+                            .build());
+        }
+
+        product.setFeature(feature);
     }
 
     @Override
@@ -253,11 +267,6 @@ public class ProductServiceImpl implements ProductService {
         Product product = findProduct(productId);
         product.setStatus(ProductStatus.PUBLISHED);
 
-        // AGENT_SKILL products don't require a ProductRef (no gateway/nacos binding needed)
-        if (product.getType() != ProductType.AGENT_SKILL && getProductRef(productId) == null) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "API product not linked to API");
-        }
-
         ProductPublication productPublication = new ProductPublication();
         productPublication.setPublicationId(IdGenerator.genPublicationId());
         productPublication.setPortalId(portalId);
@@ -338,6 +347,9 @@ public class ProductServiceImpl implements ProductService {
     public void deleteProduct(String productId) {
         Product product = findProduct(productId);
 
+        // Block deletion if WORKER/AGENT_SKILL still has versions in Nacos
+        checkDeletePermission(product);
+
         // Delete after unpublishing
         publicationRepository.deleteByProductId(productId);
 
@@ -349,6 +361,32 @@ public class ProductServiceImpl implements ProductService {
 
         // Asynchronously clean up product resources
         SpringUtil.getApplicationContext().publishEvent(new ProductDeletingEvent(productId));
+    }
+
+    private void checkDeletePermission(Product product) {
+        ProductFeature feature = product.getFeature();
+        if (feature == null) {
+            return;
+        }
+
+        String specName =
+                switch (product.getType()) {
+                    case WORKER ->
+                            Optional.ofNullable(feature.getWorkerConfig())
+                                    .map(WorkerConfig::getAgentSpecName)
+                                    .orElse(null);
+                    case AGENT_SKILL ->
+                            Optional.ofNullable(feature.getSkillConfig())
+                                    .map(SkillConfig::getSkillName)
+                                    .orElse(null);
+                    default -> null;
+                };
+
+        if (StrUtil.isNotBlank(specName)) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST,
+                    "Please delete all versions before deleting the product.");
+        }
     }
 
     private void validateModelFeature(ProductType type, ProductFeature feature) {
@@ -588,27 +626,33 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public void updateSkillNacos(String productId, String nacosId, String namespace) {
+    public void bindProductNacos(String productId, BindNacosParam param) {
         Product product = findProduct(productId);
-        if (product.getType() != ProductType.AGENT_SKILL) {
-            throw new BusinessException(
-                    ErrorCode.INVALID_REQUEST, "Only AGENT_SKILL products can update skill nacos");
+        if (product.getType() != ProductType.AGENT_SKILL
+                && product.getType() != ProductType.WORKER) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "Product type is not supported");
         }
-        // Verify nacos instance exists
-        nacosService.getNacosInstance(nacosId);
 
-        ProductFeature feature = product.getFeature();
-        if (feature == null) {
-            feature = new ProductFeature();
-            product.setFeature(feature);
+        nacosService.getNacosInstance(param.getNacosId());
+
+        ProductFeature feature =
+                Optional.ofNullable(product.getFeature()).orElse(ProductFeature.builder().build());
+
+        if (product.getType() == ProductType.AGENT_SKILL) {
+            feature.setSkillConfig(
+                    SkillConfig.builder()
+                            .nacosId(param.getNacosId())
+                            .namespace(param.getNamespace())
+                            .build());
+        } else {
+            feature.setWorkerConfig(
+                    WorkerConfig.builder()
+                            .nacosId(param.getNacosId())
+                            .namespace(param.getNamespace())
+                            .build());
         }
-        SkillConfig skillConfig = feature.getSkillConfig();
-        if (skillConfig == null) {
-            skillConfig = new SkillConfig();
-            feature.setSkillConfig(skillConfig);
-        }
-        skillConfig.setNacosId(nacosId);
-        skillConfig.setNamespace(namespace);
+
+        product.setFeature(feature);
         productRepository.save(product);
     }
 
@@ -740,6 +784,11 @@ public class ProductServiceImpl implements ProductService {
             // Fill skill config from feature
             if (product.getFeature() != null && product.getFeature().getSkillConfig() != null) {
                 product.setSkillConfig(product.getFeature().getSkillConfig());
+            }
+
+            // Fill agent spec config from feature
+            if (product.getFeature() != null && product.getFeature().getWorkerConfig() != null) {
+                product.setWorkerConfig(product.getFeature().getWorkerConfig());
             }
         }
     }

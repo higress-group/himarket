@@ -196,6 +196,10 @@ export const apiProductApi = {
   updateSkillNacos: (productId: string, data: { nacosId: string; namespace: string }) => {
     return api.put(`/products/${productId}/skill-nacos`, data)
   },
+  // 更新 Worker 的 Nacos 关联
+  updateWorkerNacos: (productId: string, data: { nacosId: string; namespace: string }) => {
+    return api.put(`/products/${productId}/worker-nacos`, data)
+  },
   // 获取产品的订阅列表
   getProductSubscriptions: (productId: string, params?: { page?: number; size?: number; status?: string }) => {
     return api.get(`/products/${productId}/subscriptions`, { params })
@@ -312,6 +316,37 @@ export const nacosApi = {
   },
 }
 
+export const workerApi = {
+  delete: (productId: string) =>
+    api.delete(`/workers/${productId}`),
+  uploadPackage: (productId: string, file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api.post(`/workers/${productId}/package`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 60000,
+    })
+  },
+  getDownloadUrl: (productId: string) =>
+    `${import.meta.env.VITE_API_BASE_URL}/workers/${productId}/download`,
+  getFiles: (productId: string, version?: string) =>
+    api.get(`/workers/${productId}/files`, { params: { version } }),
+  getFileContent: (productId: string, filePath: string, version?: string) =>
+    api.get(`/workers/${productId}/files/${filePath}`, { params: { version } }),
+  getVersions: (productId: string) =>
+    api.get(`/workers/${productId}/versions`),
+  publishVersion: (productId: string, version: string) =>
+    api.post(`/workers/${productId}/versions`, { version }),
+  offlineVersion: (productId: string, version: string) =>
+    api.patch(`/workers/${productId}/versions/${version}`, { status: 'offline' }),
+  onlineVersion: (productId: string, version: string) =>
+    api.patch(`/workers/${productId}/versions/${version}`, { status: 'online' }),
+  deleteDraft: (productId: string) =>
+    api.delete(`/workers/${productId}/draft`),
+  setLatestVersion: (productId: string, version: string) =>
+    api.put(`/workers/${productId}/versions/latest`, { version }),
+}
+
 export const skillApi = {
   uploadSkillPackage: (productId: string, file: File) => {
     const formData = new FormData()
@@ -321,8 +356,22 @@ export const skillApi = {
       timeout: 60000,
     })
   },
-  getSkillFiles: (productId: string) => api.get(`/skills/${productId}/files`),
-  getSkillFileContent: (productId: string, filePath: string) =>
-    api.get(`/skills/${productId}/files/${filePath}`),
-
+  getDownloadUrl: (productId: string) =>
+    `${import.meta.env.VITE_API_BASE_URL}/skills/${productId}/download`,
+  getSkillFiles: (productId: string, version?: string) =>
+    api.get(`/skills/${productId}/files`, { params: { version } }),
+  getSkillFileContent: (productId: string, filePath: string, version?: string) =>
+    api.get(`/skills/${productId}/files/${filePath}`, { params: { version } }),
+  getVersions: (productId: string) =>
+    api.get(`/skills/${productId}/versions`),
+  publishVersion: (productId: string, version: string) =>
+    api.post(`/skills/${productId}/versions`, { version }),
+  offlineVersion: (productId: string, version: string) =>
+    api.patch(`/skills/${productId}/versions/${version}`, { status: 'offline' }),
+  onlineVersion: (productId: string, version: string) =>
+    api.patch(`/skills/${productId}/versions/${version}`, { status: 'online' }),
+  deleteDraft: (productId: string) =>
+    api.delete(`/skills/${productId}/draft`),
+  setLatestVersion: (productId: string, version: string) =>
+    api.put(`/skills/${productId}/versions/latest`, { version }),
 }

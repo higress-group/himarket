@@ -6,6 +6,7 @@ import { Layout } from "../components/Layout";
 import { CategoryMenu } from "../components/square/CategoryMenu";
 import { ModelCard } from "../components/square/ModelCard";
 import { SkillCard } from "../components/square/SkillCard";
+import { WorkerCard } from "../components/square/WorkerCard";
 import APIs, { type ICategory } from "../lib/apis";
 import { getIconString } from "../lib/iconUtils";
 import type { IProductDetail } from "../lib/apis/product";
@@ -184,6 +185,9 @@ function Square(props: { activeType: string }) {
       case "AGENT_SKILL":
         navigate(`/skills/${product.productId}`);
         break;
+      case "WORKER":
+        navigate(`/workers/${product.productId}`);
+        break;
       default:
         console.log("未知的产品类型", product.type);
     }
@@ -246,6 +250,15 @@ function Square(props: { activeType: string }) {
                           releaseDate={dayjs(product.createAt).format("YYYY-MM-DD HH:mm:ss")}
                           skillTags={product.skillConfig?.skillTags}
                           downloadCount={product.skillConfig?.downloadCount}
+                          onClick={() => handleViewDetail(product)}
+                        />
+                      ) : product.type === 'WORKER' ? (
+                        <WorkerCard
+                          key={product.productId}
+                          name={product.name}
+                          description={product.description}
+                          icon={getIconString(product.icon)}
+                          releaseDate={dayjs(product.createAt).format("YYYY-MM-DD HH:mm:ss")}
                           onClick={() => handleViewDetail(product)}
                         />
                       ) : (

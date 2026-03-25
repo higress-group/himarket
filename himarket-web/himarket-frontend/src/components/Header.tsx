@@ -24,6 +24,7 @@ export function Header() {
     { path: "/models", label: "模型" },
     { path: "/apis", label: "API" },
     { path: "/skills", label: "Skills" },
+    { path: "/workers", label: "Workers" },
   ];
 
   const isActiveTab = (path: string) => {

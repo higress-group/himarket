@@ -282,15 +282,13 @@ export default function ApiProductFormModal({
           <Input placeholder="请输入API Product名称" />
         </Form.Item>
 
-        {productType !== 'AGENT_SKILL' && (
-          <Form.Item
-            label="描述"
-            name="description"
-            rules={[{ required: true, message: "请输入描述" }]}
-          >
-            <Input.TextArea placeholder="请输入描述" rows={3} />
-          </Form.Item>
-        )}
+        <Form.Item
+          label="描述"
+          name="description"
+          rules={[{ required: true, message: "请输入描述" }]}
+        >
+          <Input.TextArea placeholder="请输入描述" rows={3} />
+        </Form.Item>
 
         <Form.Item
           label="类型"
@@ -306,6 +304,7 @@ export default function ApiProductFormModal({
             <Select.Option value="MODEL_API">Model API</Select.Option>
             <Select.Option value="MCP_SERVER">MCP Server</Select.Option>
             <Select.Option value="AGENT_SKILL">Agent Skill</Select.Option>
+            <Select.Option value="WORKER">Worker</Select.Option>
             <Select.Option value="AGENT_API">Agent API</Select.Option>
             <Select.Option value="REST_API">REST API</Select.Option>
           </Select>
@@ -347,9 +346,9 @@ export default function ApiProductFormModal({
           </Select>
         </Form.Item>
 
-        {productType !== 'AGENT_SKILL' && <Form.Item
-          label="自动审批订阅"
+        {productType !== 'AGENT_SKILL' && productType !== 'WORKER' && <Form.Item
           name="autoApprove"
+          label="自动审批订阅"
           tooltip={{
             title: (
               <div style={{ 

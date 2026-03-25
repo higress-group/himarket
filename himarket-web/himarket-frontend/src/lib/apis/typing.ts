@@ -184,3 +184,10 @@ export interface ISkillConfig {
   skillTags?: string[];
   downloadCount?: number;
 }
+
+export interface IWorkerConfig {
+  nacosId?: string;
+  namespace?: string;
+  workerName?: string;
+  downloadCount?: number;
+}

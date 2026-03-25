@@ -4,7 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 @Data
-public class UpdateSkillNacosParam {
+public class BindNacosParam {
 
     @NotBlank(message = "nacosId cannot be blank")
     private String nacosId;

@@ -19,12 +19,20 @@
 
 package com.alibaba.himarket.support.product;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class ProductFeature {
 
     private ModelFeature modelFeature;
 
     private SkillConfig skillConfig;
+
+    private WorkerConfig workerConfig;
 }

@@ -108,6 +108,7 @@ export const ProductTypeMap: Record<string, string> = {
   AGENT_API: 'Agent API',
   MODEL_API: 'Model API',
   AGENT_SKILL: 'Agent Skill',
+  WORKER: 'Worker',
 };
 
 // OpenAPI 规范解析相关类型和函数
