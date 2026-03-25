@@ -358,15 +358,15 @@ public class McpServerServiceImpl implements McpServerService {
                         com.alibaba.himarket.support.enums.ProductType.MCP_SERVER,
                         ProductStatus.PUBLISHED);
         if (publishedProductIds.isEmpty()) {
-            return PageResult.of(List.of(), pageable.getPageNumber() + 1, pageable.getPageSize(), 0);
+            return PageResult.of(
+                    List.of(), pageable.getPageNumber() + 1, pageable.getPageSize(), 0);
         }
 
         // 2. 在 meta 层按 origin 分页查询（分页粒度是 meta 而非 product）
         Page<McpServerMeta> metaPage =
                 metaRepository.findByProductIdInAndOrigin(publishedProductIds, origin, pageable);
         if (metaPage.isEmpty()) {
-            return PageResult.of(
-                    List.of(), metaPage.getNumber() + 1, metaPage.getSize(), 0);
+            return PageResult.of(List.of(), metaPage.getNumber() + 1, metaPage.getSize(), 0);
         }
 
         // 3. 批量查询关联 Product，避免 N+1
@@ -389,10 +389,7 @@ public class McpServerServiceImpl implements McpServerService {
                                 })
                         .collect(Collectors.toList());
         return PageResult.of(
-                results,
-                metaPage.getNumber() + 1,
-                metaPage.getSize(),
-                metaPage.getTotalElements());
+                results, metaPage.getNumber() + 1, metaPage.getSize(), metaPage.getTotalElements());
     }
 
     @Override
@@ -403,15 +400,15 @@ public class McpServerServiceImpl implements McpServerService {
                         com.alibaba.himarket.support.enums.ProductType.MCP_SERVER,
                         ProductStatus.PUBLISHED);
         if (publishedProductIds.isEmpty()) {
-            return PageResult.of(List.of(), pageable.getPageNumber() + 1, pageable.getPageSize(), 0);
+            return PageResult.of(
+                    List.of(), pageable.getPageNumber() + 1, pageable.getPageSize(), 0);
         }
 
         // 2. 在 meta 层分页查询
         Page<McpServerMeta> metaPage =
                 metaRepository.findByProductIdIn(publishedProductIds, pageable);
         if (metaPage.isEmpty()) {
-            return PageResult.of(
-                    List.of(), metaPage.getNumber() + 1, metaPage.getSize(), 0);
+            return PageResult.of(List.of(), metaPage.getNumber() + 1, metaPage.getSize(), 0);
         }
 
         // 3. 批量查询关联 Product，避免 N+1
@@ -434,10 +431,7 @@ public class McpServerServiceImpl implements McpServerService {
                                 })
                         .collect(Collectors.toList());
         return PageResult.of(
-                results,
-                metaPage.getNumber() + 1,
-                metaPage.getSize(),
-                metaPage.getTotalElements());
+                results, metaPage.getNumber() + 1, metaPage.getSize(), metaPage.getTotalElements());
     }
 
     @Override
@@ -475,8 +469,7 @@ public class McpServerServiceImpl implements McpServerService {
                                                 Resources.MCP_SERVER_META,
                                                 identifier));
         if (product.getStatus() != ProductStatus.PUBLISHED) {
-            throw new BusinessException(
-                    ErrorCode.NOT_FOUND, Resources.MCP_SERVER_META, identifier);
+            throw new BusinessException(ErrorCode.NOT_FOUND, Resources.MCP_SERVER_META, identifier);
         }
     }
 
