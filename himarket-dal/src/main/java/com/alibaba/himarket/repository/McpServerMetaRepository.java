@@ -41,4 +41,12 @@ public interface McpServerMetaRepository extends BaseRepository<McpServerMeta, L
     List<McpServerMeta> findByMcpServerIdIn(java.util.Collection<String> mcpServerIds);
 
     Page<McpServerMeta> findByOrigin(String origin, Pageable pageable);
+
+    /** 分页查询指定产品集合中、指定来源的 meta（Open API 用） */
+    Page<McpServerMeta> findByProductIdInAndOrigin(
+            java.util.Collection<String> productIds, String origin, Pageable pageable);
+
+    /** 分页查询指定产品集合中的所有 meta（Open API 用） */
+    Page<McpServerMeta> findByProductIdIn(
+            java.util.Collection<String> productIds, Pageable pageable);
 }

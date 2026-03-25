@@ -351,6 +351,136 @@ public class McpServerServiceImpl implements McpServerService {
     }
 
     @Override
+    public PageResult<McpMetaResult> listPublishedMetaByOrigin(String origin, Pageable pageable) {
+        // 1. 获取所有已发布 MCP 产品的 productId
+        List<String> publishedProductIds =
+                productRepository.findProductIdsByTypeAndStatus(
+                        com.alibaba.himarket.support.enums.ProductType.MCP_SERVER,
+                        ProductStatus.PUBLISHED);
+        if (publishedProductIds.isEmpty()) {
+            return PageResult.of(List.of(), pageable.getPageNumber() + 1, pageable.getPageSize(), 0);
+        }
+
+        // 2. 在 meta 层按 origin 分页查询（分页粒度是 meta 而非 product）
+        Page<McpServerMeta> metaPage =
+                metaRepository.findByProductIdInAndOrigin(publishedProductIds, origin, pageable);
+        if (metaPage.isEmpty()) {
+            return PageResult.of(
+                    List.of(), metaPage.getNumber() + 1, metaPage.getSize(), 0);
+        }
+
+        // 3. 批量查询关联 Product，避免 N+1
+        List<String> pageProductIds =
+                metaPage.getContent().stream()
+                        .map(McpServerMeta::getProductId)
+                        .distinct()
+                        .collect(Collectors.toList());
+        Map<String, Product> productMap =
+                productRepository.findByProductIdIn(pageProductIds).stream()
+                        .collect(Collectors.toMap(Product::getProductId, p -> p, (a, b) -> a));
+
+        List<McpMetaResult> results =
+                metaPage.getContent().stream()
+                        .map(
+                                m -> {
+                                    McpMetaResult r = new McpMetaResult().convertFrom(m);
+                                    enrichFromProduct(r, productMap.get(m.getProductId()));
+                                    return r;
+                                })
+                        .collect(Collectors.toList());
+        return PageResult.of(
+                results,
+                metaPage.getNumber() + 1,
+                metaPage.getSize(),
+                metaPage.getTotalElements());
+    }
+
+    @Override
+    public PageResult<McpMetaResult> listAllPublishedMeta(Pageable pageable) {
+        // 1. 获取所有已发布 MCP 产品的 productId
+        List<String> publishedProductIds =
+                productRepository.findProductIdsByTypeAndStatus(
+                        com.alibaba.himarket.support.enums.ProductType.MCP_SERVER,
+                        ProductStatus.PUBLISHED);
+        if (publishedProductIds.isEmpty()) {
+            return PageResult.of(List.of(), pageable.getPageNumber() + 1, pageable.getPageSize(), 0);
+        }
+
+        // 2. 在 meta 层分页查询
+        Page<McpServerMeta> metaPage =
+                metaRepository.findByProductIdIn(publishedProductIds, pageable);
+        if (metaPage.isEmpty()) {
+            return PageResult.of(
+                    List.of(), metaPage.getNumber() + 1, metaPage.getSize(), 0);
+        }
+
+        // 3. 批量查询关联 Product，避免 N+1
+        List<String> pageProductIds =
+                metaPage.getContent().stream()
+                        .map(McpServerMeta::getProductId)
+                        .distinct()
+                        .collect(Collectors.toList());
+        Map<String, Product> productMap =
+                productRepository.findByProductIdIn(pageProductIds).stream()
+                        .collect(Collectors.toMap(Product::getProductId, p -> p, (a, b) -> a));
+
+        List<McpMetaResult> results =
+                metaPage.getContent().stream()
+                        .map(
+                                m -> {
+                                    McpMetaResult r = new McpMetaResult().convertFrom(m);
+                                    enrichFromProduct(r, productMap.get(m.getProductId()));
+                                    return r;
+                                })
+                        .collect(Collectors.toList());
+        return PageResult.of(
+                results,
+                metaPage.getNumber() + 1,
+                metaPage.getSize(),
+                metaPage.getTotalElements());
+    }
+
+    @Override
+    public McpMetaResult getPublishedMeta(String mcpServerId) {
+        McpServerMeta meta = findMeta(mcpServerId);
+        requirePublished(meta.getProductId(), mcpServerId);
+        return getMeta(mcpServerId);
+    }
+
+    @Override
+    public McpMetaResult getPublishedMetaByName(String mcpName) {
+        McpServerMeta meta =
+                metaRepository
+                        .findByMcpName(mcpName)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                ErrorCode.NOT_FOUND,
+                                                Resources.MCP_SERVER_META,
+                                                mcpName));
+        requirePublished(meta.getProductId(), mcpName);
+        // 委托给 getMeta 以获取完整的热数据（endpoint + resolvedConfig）
+        return getMeta(meta.getMcpServerId());
+    }
+
+    /** 校验关联产品是否已发布，未发布则抛 NOT_FOUND（对外部调用方隐藏未发布资源的存在） */
+    private void requirePublished(String productId, String identifier) {
+        Product product =
+                productRepository
+                        .findByProductId(productId)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                ErrorCode.NOT_FOUND,
+                                                Resources.MCP_SERVER_META,
+                                                identifier));
+        if (product.getStatus() != ProductStatus.PUBLISHED) {
+            throw new BusinessException(
+                    ErrorCode.NOT_FOUND, Resources.MCP_SERVER_META, identifier);
+        }
+    }
+
+    @Override
     public List<McpMetaResult> listMetaByProduct(String productId) {
         Product product = productRepository.findByProductId(productId).orElse(null);
         return metaRepository.findByProductId(productId).stream()

@@ -74,4 +74,18 @@ public interface ProductRepository extends BaseRepository<Product, Long> {
             ProductType type,
             com.alibaba.himarket.support.enums.ProductStatus status,
             org.springframework.data.domain.Pageable pageable);
+
+    /**
+     * Find all product IDs by type and status (no pagination).
+     *
+     * @param type the product type
+     * @param status the product status
+     * @return the list of product IDs
+     */
+    @org.springframework.data.jpa.repository.Query(
+            "SELECT p.productId FROM Product p WHERE p.type = :type AND p.status = :status")
+    List<String> findProductIdsByTypeAndStatus(
+            @org.springframework.data.repository.query.Param("type") ProductType type,
+            @org.springframework.data.repository.query.Param("status")
+                    com.alibaba.himarket.support.enums.ProductStatus status);
 }

@@ -328,7 +328,7 @@ export default function SandboxConsoles() {
       ),
     },
     {
-      key: 'SELF_HOSTED', label: '自建 Sandbox',
+      key: 'SELF_HOSTED', label: '自建 Sandbox（即将支持）', disabled: true,
       children: (
         <div className="bg-white rounded-lg">
           <div className="py-4 pl-4 border-b border-gray-200">

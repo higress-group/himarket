@@ -89,6 +89,24 @@ public interface McpServerService {
     /** 分页查询所有 MCP 元信息 */
     PageResult<McpMetaResult> listAllMeta(Pageable pageable);
 
+    /** 分页查询指定来源的已发布 MCP 元信息（Open API 用，只返回关联产品已发布的记录） */
+    PageResult<McpMetaResult> listPublishedMetaByOrigin(String origin, Pageable pageable);
+
+    /** 分页查询所有已发布 MCP 元信息（Open API 用，只返回关联产品已发布的记录） */
+    PageResult<McpMetaResult> listAllPublishedMeta(Pageable pageable);
+
+    /**
+     * 根据 mcpServerId 获取已发布的元信息（Open API 用）。
+     * 如果关联产品未发布，抛出 NOT_FOUND 异常。
+     */
+    McpMetaResult getPublishedMeta(String mcpServerId);
+
+    /**
+     * 根据 mcpName 获取已发布的元信息（Open API 用）。
+     * 如果关联产品未发布，抛出 NOT_FOUND 异常。
+     */
+    McpMetaResult getPublishedMetaByName(String mcpName);
+
     /** 刷新工具列表：连接 endpoint 获取 tools/list，保存到 meta.toolsConfig */
     McpMetaResult refreshTools(String mcpServerId);
 

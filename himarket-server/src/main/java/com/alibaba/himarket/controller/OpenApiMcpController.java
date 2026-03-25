@@ -60,7 +60,7 @@ public class OpenApiMcpController {
     public McpMetaDetailResult getMeta(
             @RequestHeader("X-API-Key") String key, @PathVariable String mcpServerId) {
         verifyApiKey(key);
-        return McpMetaDetailResult.fromFull(mcpServerService.getMeta(mcpServerId));
+        return McpMetaDetailResult.fromFull(mcpServerService.getPublishedMeta(mcpServerId));
     }
 
     @Operation(summary = "按 mcpName 查询 MCP Server 详情")
@@ -68,29 +68,30 @@ public class OpenApiMcpController {
     public McpMetaDetailResult getMetaByName(
             @RequestHeader("X-API-Key") String key, @PathVariable String mcpName) {
         verifyApiKey(key);
-        return McpMetaDetailResult.fromFull(mcpServerService.getMetaByName(mcpName));
+        return McpMetaDetailResult.fromFull(mcpServerService.getPublishedMetaByName(mcpName));
     }
 
     // ==================== 查询接口（列表，精简） ====================
 
-    @Operation(summary = "分页查询指定来源的 MCP Server 列表（精简）")
+    @Operation(summary = "分页查询指定来源的 MCP Server 列表（精简，仅已发布）")
     @GetMapping("/meta/list")
     public PageResult<McpMetaSimpleResult> listMeta(
             @RequestHeader("X-API-Key") String key,
             @RequestParam(required = false, defaultValue = "OPEN_API") String origin,
             Pageable pageable) {
         verifyApiKey(key);
-        PageResult<McpMetaResult> fullPage = mcpServerService.listMetaByOrigin(origin, pageable);
+        PageResult<McpMetaResult> fullPage =
+                mcpServerService.listPublishedMetaByOrigin(origin, pageable);
         return new PageResult<McpMetaSimpleResult>()
                 .mapFrom(fullPage, McpMetaSimpleResult::fromFull);
     }
 
-    @Operation(summary = "分页查询所有 MCP Server 列表（精简）")
+    @Operation(summary = "分页查询所有 MCP Server 列表（精简，仅已发布）")
     @GetMapping("/meta/list-all")
     public PageResult<McpMetaSimpleResult> listAllMeta(
             @RequestHeader("X-API-Key") String key, Pageable pageable) {
         verifyApiKey(key);
-        PageResult<McpMetaResult> fullPage = mcpServerService.listAllMeta(pageable);
+        PageResult<McpMetaResult> fullPage = mcpServerService.listAllPublishedMeta(pageable);
         return new PageResult<McpMetaSimpleResult>()
                 .mapFrom(fullPage, McpMetaSimpleResult::fromFull);
     }
