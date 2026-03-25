@@ -4,6 +4,8 @@ import { message } from "antd";
 import { Header } from "../components/Header";
 import TextType from "../components/TextType";
 import bgImage from "../assets/bg.png";
+import { WelcomeView } from "../components/WelcomeView";
+import { useAuth } from "../hooks/useAuth";
 import {
   CodingSessionProvider,
   useCodingState,
@@ -36,7 +38,7 @@ import type { FileNode } from "../types/coding";
 import type { ChatItemPlan } from "../types/coding-protocol";
 import { buildCodingWsUrl } from "../lib/utils/wsUrl";
 
-import { getMarketModels, getCliProviders } from "../lib/apis/cliProvider";
+import { getMarketModels, getCliProviders, getCodingFeatures } from "../lib/apis/cliProvider";
 import { sortCliProviders } from "../lib/utils/cliProviderSort";
 import {
   createCodingSession,
@@ -104,6 +106,19 @@ type RightTab = "preview" | "code";
 const READ_ONLY_KINDS = new Set(["read", "search", "think", "fetch", "switch_mode"]);
 
 function CodingContent() {
+  // ===== 功能开关 =====
+  const [terminalEnabled, setTerminalEnabled] = useState(true);
+  useEffect(() => {
+    getCodingFeatures()
+      .then((res) => {
+        const data = res.data ?? (res as any);
+        if (typeof data.terminalEnabled === "boolean") {
+          setTerminalEnabled(data.terminalEnabled);
+        }
+      })
+      .catch(() => { /* 获取失败时保持默认值 true */ });
+  }, []);
+
   // ===== 配置（纯内存，不持久化） =====
   const { config, setConfig, isComplete } = useCodingConfig();
   const [sessionRefreshTrigger, setSessionRefreshTrigger] = useState(0);
@@ -427,9 +442,9 @@ function CodingContent() {
     });
   }, []);
 
-  // Derived visibility: hide file tree and terminal in preview mode
+  // Derived visibility: hide file tree and terminal in preview mode; hide terminal when disabled
   const showFileTree = fileTreeVisible && !isPreviewMode;
-  const showTerminal = !isPreviewMode;
+  const showTerminal = !isPreviewMode && terminalEnabled;
 
   // ===== Resizable panels =====
   const conversationPanel = useResizable({
@@ -822,6 +837,7 @@ function CodingContent() {
               {!terminalCollapsed && showTerminal && (
                 <ResizeHandle direction="vertical" isDragging={terminalPanel.isDragging} onMouseDown={terminalPanel.handleMouseDown} />
               )}
+              {terminalEnabled && (
               <div className="flex-shrink-0" style={{ display: showTerminal ? undefined : "none" }}>
                 <TerminalPanel
                   ref={terminalPanelRef}
@@ -831,6 +847,7 @@ function CodingContent() {
                   runtime={currentRuntimeRef.current}
                 />
               </div>
+              )}
             </div>
           </div>
         </>
@@ -849,6 +866,35 @@ function CodingContent() {
 }
 
 function Coding() {
+  const { isLoggedIn } = useAuth();
+
+  if (!isLoggedIn) {
+    return (
+      <div className="flex flex-col min-h-screen">
+        <div
+          className="fixed w-full h-full z-[1]"
+          style={{
+            backgroundImage: `url(${bgImage})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            backgroundRepeat: "no-repeat",
+            backgroundAttachment: "fixed",
+          }}
+        />
+        <div
+          className="fixed w-full h-full z-[2]"
+          style={{ backdropFilter: "blur(204px)" }}
+        />
+        <div className="relative z-10 flex-shrink-0">
+          <Header />
+        </div>
+        <div className="flex-1 relative z-10 px-8">
+          <WelcomeView type="coding" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <CodingSessionProvider>
       <CodingShell />

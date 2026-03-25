@@ -10,6 +10,7 @@ services:
   # MySQL 数据库(Himarket + Nacos) - 内置 MySQL，始终启动
   mysql:
     image: ${MYSQL_IMAGE:-opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/mysql:latest}
+    pull_policy: always
     container_name: himarket-mysql
     environment:
       - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-himarket_root_2024}
@@ -38,13 +39,8 @@ services:
   # Nacos Server - 使用 MySQL 作为数据源（与 Helm 部署一致）
   nacos:
     image: ${NACOS_IMAGE:-nacos-registry.cn-hangzhou.cr.aliyuncs.com/nacos/nacos-server:v3.2.0-BETA}
+    pull_policy: always
     container_name: nacos-standalone
-    entrypoint:
-      - /bin/sh
-      - -c
-      - |
-        export JAVA_OPT="$${JAVA_OPT} --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.lang.reflect=ALL-UNNAMED"
-        exec /home/nacos/bin/docker-startup.sh
     environment:
       - PREFER_HOST_MODE=hostname
       - MODE=standalone
@@ -82,6 +78,7 @@ services:
   # Redis Stack Server(for Higress MCP)
   redis-stack-server:
     image: ${REDIS_IMAGE:-higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/redis-stack-server:7.4.0-v3}
+    pull_policy: always
     container_name: redis-stack-server
     ports:
       - "6379:6379"
@@ -103,6 +100,7 @@ services:
   # Higress All-in-One (Gateway + Console)
   higress:
     image: ${HIGRESS_IMAGE:-higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/all-in-one:latest}
+    pull_policy: always
     container_name: higress
     ports:
       - "8001:8001"  # Console
@@ -128,6 +126,7 @@ services:
   # Sandbox Shared (远程沙箱)
   sandbox-shared:
     image: ${SANDBOX_IMAGE:-opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/sandbox:latest}
+    pull_policy: always
     container_name: sandbox-shared
     environment:
       - ALLOWED_COMMANDS=${SANDBOX_ALLOWED_COMMANDS:-qodercli,qwen,claude-agent-acp,opencode}
@@ -144,6 +143,7 @@ services:
   # Himarket Server
   himarket-server:
     image: ${HIMARKET_SERVER_IMAGE:-opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-server:latest}
+    pull_policy: always
     container_name: himarket-server
     environment:
       - DB_HOST=${DB_HOST:-mysql}
@@ -151,6 +151,7 @@ services:
       - DB_NAME=${DB_NAME:-portal_db}
       - DB_USERNAME=${DB_USERNAME:-portal_user}
       - DB_PASSWORD=${DB_PASSWORD:-himarket_app_2024}
+      - JWT_SECRET=${JWT_SECRET}
       - ACP_REMOTE_HOST=${ACP_REMOTE_HOST:-sandbox-shared}
       - ACP_REMOTE_PORT=${ACP_REMOTE_PORT:-8080}
       - ACP_DEFAULT_RUNTIME=${ACP_DEFAULT_RUNTIME:-remote}
@@ -178,6 +179,7 @@ services:
   # Himarket Admin
   himarket-admin:
     image: ${HIMARKET_ADMIN_IMAGE:-opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-admin:latest}
+    pull_policy: always
     container_name: himarket-admin
     environment:
       - HIMARKET_SERVER=http://himarket-server:8080
@@ -199,6 +201,7 @@ services:
   # Himarket Frontend
   himarket-frontend:
     image: ${HIMARKET_FRONTEND_IMAGE:-opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-frontend:latest}
+    pull_policy: always
     container_name: himarket-frontend
     environment:
       - HIMARKET_SERVER=http://himarket-server:8080

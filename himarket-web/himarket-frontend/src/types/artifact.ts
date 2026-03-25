@@ -23,4 +23,6 @@ export const ARTIFACT_EXTENSIONS: Record<string, ArtifactType> = {
   ".pdf": "pdf",
   ".pptx": "file",
   ".ppt": "file",
+  ".xlsx": "file",
+  ".xls": "file",
 };

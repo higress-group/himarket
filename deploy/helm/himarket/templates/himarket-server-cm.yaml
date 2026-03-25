@@ -11,4 +11,5 @@ data:
   ACP_REMOTE_HOST: {{ .Values.sandbox.remoteHost | default "sandbox-shared" | quote }}
   ACP_REMOTE_PORT: {{ .Values.sandbox.remotePort | default "8080" | quote }}
   ACP_DEFAULT_RUNTIME: {{ .Values.sandbox.defaultRuntime | default "remote" | quote }}
+  ACP_TERMINAL_ENABLED: {{ .Values.sandbox.terminalEnabled | default false | quote }}
   # 其他非敏感配置可以在这里添加

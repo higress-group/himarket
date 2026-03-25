@@ -1,0 +1,373 @@
+name: Build Docker Images and Push to Image Registry
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      push_images:
+        description: "Push images to registry"
+        required: false
+        default: "true"
+        type: boolean
+
+# Limit workflow permissions
+permissions:
+  contents: read
+
+env:
+  # Default registry (can be overridden by repository variables)
+  IMAGE_REGISTRY: ${{ vars.IMAGE_REGISTRY || 'opensource-registry.cn-hangzhou.cr.aliyuncs.com' }}
+  IMAGE_NAMESPACE: ${{ vars.IMAGE_NAMESPACE || 'higress-group' }}
+
+jobs:
+  # ===========================================
+  # Backend Image Build
+  # ===========================================
+  build-backend:
+    name: Build Backend Image
+    runs-on: ubuntu-latest
+    # Only run in the main repository or specific forks (others don't have registry credentials)
+    if: github.repository == 'higress-group/himarket' || github.repository == 'lexburner/himarket'
+    environment: image-registry
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Build with Maven
+        run: mvn clean package -DskipTests -B
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Registry
+        if: github.event_name == 'push' || inputs.push_images == true
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.IMAGE_REGISTRY }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Calculate Docker metadata
+        id: docker-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/himarket-server
+          tags: |
+            type=sha
+            type=ref,event=tag
+            type=semver,pattern={{version}}
+            type=raw,value=latest
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: himarket-bootstrap
+          file: himarket-bootstrap/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name == 'push' || inputs.push_images == true }}
+          tags: ${{ steps.docker-meta.outputs.tags }}
+          labels: ${{ steps.docker-meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build summary
+        run: |
+          echo "## 🐳 Backend Image Build" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Image**: \`${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/himarket-server\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Tags**:" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.docker-meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+
+  # ===========================================
+  # Frontend - Admin Portal Build
+  # ===========================================
+  build-admin:
+    name: Build Admin Portal Image
+    runs-on: ubuntu-latest
+    if: github.repository == 'higress-group/himarket' || github.repository == 'lexburner/himarket'
+    environment: image-registry
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        working-directory: himarket-web/himarket-admin
+        run: npm install --legacy-peer-deps
+
+      - name: Build project
+        working-directory: himarket-web/himarket-admin
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Registry
+        if: github.event_name == 'push' || inputs.push_images == true
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.IMAGE_REGISTRY }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Calculate Docker metadata
+        id: docker-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/himarket-admin
+          tags: |
+            type=sha
+            type=ref,event=tag
+            type=semver,pattern={{version}}
+            type=raw,value=latest
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: himarket-web/himarket-admin
+          file: himarket-web/himarket-admin/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name == 'push' || inputs.push_images == true }}
+          tags: ${{ steps.docker-meta.outputs.tags }}
+          labels: ${{ steps.docker-meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build summary
+        run: |
+          echo "## 🐳 Admin Portal Image Build" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Image**: \`${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/himarket-admin\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Tags**:" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.docker-meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+
+  # ===========================================
+  # Frontend - Developer Portal Build
+  # ===========================================
+  build-frontend:
+    name: Build Developer Portal Image
+    runs-on: ubuntu-latest
+    if: github.repository == 'higress-group/himarket' || github.repository == 'lexburner/himarket'
+    environment: image-registry
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        working-directory: himarket-web/himarket-frontend
+        run: npm install --legacy-peer-deps
+
+      - name: Build project
+        working-directory: himarket-web/himarket-frontend
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Registry
+        if: github.event_name == 'push' || inputs.push_images == true
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.IMAGE_REGISTRY }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Calculate Docker metadata
+        id: docker-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/himarket-frontend
+          tags: |
+            type=sha
+            type=ref,event=tag
+            type=semver,pattern={{version}}
+            type=raw,value=latest
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: himarket-web/himarket-frontend
+          file: himarket-web/himarket-frontend/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name == 'push' || inputs.push_images == true }}
+          tags: ${{ steps.docker-meta.outputs.tags }}
+          labels: ${{ steps.docker-meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build summary
+        run: |
+          echo "## 🐳 Developer Portal Image Build" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Image**: \`${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/himarket-frontend\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Tags**:" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.docker-meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+
+  # ===========================================
+  # Sandbox Image Build
+  # ===========================================
+  build-sandbox:
+    name: Build Sandbox Image
+    runs-on: ubuntu-latest
+    if: github.repository == 'higress-group/himarket' || github.repository == 'lexburner/himarket'
+    environment: image-registry
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Registry
+        if: github.event_name == 'push' || inputs.push_images == true
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.IMAGE_REGISTRY }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Calculate Docker metadata
+        id: docker-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/sandbox
+          tags: |
+            type=sha
+            type=ref,event=tag
+            type=semver,pattern={{version}}
+            type=raw,value=latest
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: sandbox
+          file: sandbox/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name == 'push' || inputs.push_images == true }}
+          tags: ${{ steps.docker-meta.outputs.tags }}
+          labels: ${{ steps.docker-meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build summary
+        run: |
+          echo "## 🐳 Sandbox Image Build" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Image**: \`${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/sandbox\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Tags**:" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.docker-meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+
+  # ===========================================
+  # Build Summary
+  # ===========================================
+  build-summary:
+    name: Build Summary
+    runs-on: ubuntu-latest
+    needs: [build-backend, build-admin, build-frontend, build-sandbox]
+    if: always()
+
+    steps:
+      - name: Generate summary
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const jobs = [
+              { name: 'Backend Image', status: '${{ needs.build-backend.result }}' },
+              { name: 'Admin Portal Image', status: '${{ needs.build-admin.result }}' },
+              { name: 'Developer Portal Image', status: '${{ needs.build-frontend.result }}' },
+              { name: 'Sandbox Image', status: '${{ needs.build-sandbox.result }}' }
+            ];
+
+            let summary = '## 🐳 Docker Image Build Summary\n\n';
+            let allPassed = true;
+
+            jobs.forEach(job => {
+              let icon = '✅';
+              let statusText = job.status;
+
+              if (job.status === 'success') {
+                icon = '✅';
+                statusText = 'Built & Pushed';
+              } else if (job.status === 'failure') {
+                icon = '❌';
+                statusText = 'Failed';
+                allPassed = false;
+              } else if (job.status === 'cancelled') {
+                icon = '🚫';
+                statusText = 'Cancelled';
+                allPassed = false;
+              } else if (job.status === 'skipped') {
+                icon = '⏭️';
+                statusText = 'Skipped';
+              } else {
+                icon = '⚠️';
+                allPassed = false;
+              }
+
+              summary += `${icon} **${job.name}**: ${statusText}\n`;
+            });
+
+            summary += '\n---\n\n';
+
+            if (allPassed) {
+              summary += '🎉 **All images built and pushed successfully!**\n\n';
+              summary += '### 📦 Images\n\n';
+              summary += `- Backend: \`${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/himarket-server:latest\`\n`;
+              summary += `- Admin Portal: \`${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/himarket-admin:latest\`\n`;
+              summary += `- Developer Portal: \`${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/himarket-frontend:latest\`\n`;
+              summary += `- Sandbox: \`${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/sandbox:latest\`\n`;
+            } else {
+              summary += '⚠️ **Some image builds failed.** Please check the logs above.\n';
+            }
+
+            await core.summary
+              .addRaw(summary)
+              .write();
+
+            if (!allPassed) {
+              core.setFailed('Some Docker image builds failed');
+            }

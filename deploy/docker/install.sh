@@ -366,6 +366,7 @@ load_config() {
                HIMARKET_SERVER_IMAGE HIMARKET_ADMIN_IMAGE HIMARKET_FRONTEND_IMAGE \
                MYSQL_IMAGE NACOS_IMAGE HIGRESS_IMAGE REDIS_IMAGE SANDBOX_IMAGE \
                MYSQL_ROOT_PASSWORD MYSQL_PASSWORD MYSQL_DATABASE MYSQL_USER \
+               JWT_SECRET \
                NACOS_ADMIN_PASSWORD HIGRESS_USERNAME HIGRESS_PASSWORD \
                ADMIN_USERNAME ADMIN_PASSWORD FRONT_USERNAME FRONT_PASSWORD \
                HIMARKET_LANGUAGE \
@@ -593,6 +594,12 @@ interactive_config() {
     export DB_USERNAME="${MYSQL_USER:-portal_user}"
     export DB_PASSWORD="${MYSQL_PASSWORD}"
 
+    # ─── JWT Secret（自动生成随机值） ───
+    if [[ -z "${JWT_SECRET:-}" ]]; then
+        JWT_SECRET="$(openssl rand -base64 32)"
+    fi
+    export JWT_SECRET
+
     # ─── 服务凭证 ───
     log ""
     log "$(msg section.credential)"
@@ -770,6 +777,9 @@ HIGRESS_IMAGE="${HIGRESS_IMAGE}"
 # ========== 数据库密码 ==========
 MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD}"
 MYSQL_PASSWORD="${MYSQL_PASSWORD}"
+
+# ========== JWT Secret ==========
+JWT_SECRET="${JWT_SECRET}"
 
 # ========== 服务凭证 ==========
 NACOS_ADMIN_PASSWORD="${NACOS_ADMIN_PASSWORD}"

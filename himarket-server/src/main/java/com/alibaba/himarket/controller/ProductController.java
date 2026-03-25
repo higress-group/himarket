@@ -21,7 +21,14 @@ package com.alibaba.himarket.controller;
 
 import com.alibaba.himarket.core.annotation.AdminAuth;
 import com.alibaba.himarket.core.annotation.AdminOrDeveloperAuth;
+import com.alibaba.himarket.core.annotation.PublicAccess;
 import com.alibaba.himarket.dto.params.product.*;
+import com.alibaba.himarket.dto.params.product.CreateProductParam;
+import com.alibaba.himarket.dto.params.product.CreateProductRefParam;
+import com.alibaba.himarket.dto.params.product.PublishProductParam;
+import com.alibaba.himarket.dto.params.product.QueryProductParam;
+import com.alibaba.himarket.dto.params.product.QueryProductSubscriptionParam;
+import com.alibaba.himarket.dto.params.product.UpdateProductParam;
 import com.alibaba.himarket.dto.result.ProductCategoryResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.mcp.McpToolListResult;
@@ -60,12 +67,14 @@ public class ProductController {
 
     @Operation(summary = "获取API产品列表")
     @GetMapping
+    @PublicAccess
     public PageResult<ProductResult> listProducts(QueryProductParam param, Pageable pageable) {
         return productService.listProducts(param, pageable);
     }
 
     @Operation(summary = "获取API产品详情")
     @GetMapping("/{productId}")
+    @PublicAccess
     public ProductResult getProduct(@PathVariable String productId) {
         return productService.getProduct(productId);
     }
@@ -119,6 +128,7 @@ public class ProductController {
 
     @Operation(summary = "获取API产品关联的API或MCP Server")
     @GetMapping("/{productId}/ref")
+    @PublicAccess
     public ProductRefResult getProductRef(@PathVariable String productId) {
         return productService.getProductRef(productId);
     }
@@ -164,7 +174,7 @@ public class ProductController {
 
     @Operation(summary = "获取MCP服务的工具详情")
     @GetMapping("/{productId}/tools")
-    @AdminOrDeveloperAuth
+    @PublicAccess
     public McpToolListResult listMcpTools(@PathVariable String productId) {
         return productService.listMcpTools(productId);
     }

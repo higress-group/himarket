@@ -2,6 +2,7 @@ package com.alibaba.himarket.controller;
 
 import com.alibaba.himarket.core.annotation.AdminAuth;
 import com.alibaba.himarket.core.annotation.AdminOrDeveloperAuth;
+import com.alibaba.himarket.core.annotation.PublicAccess;
 import com.alibaba.himarket.dto.params.worker.PublishWorkerVersionParam;
 import com.alibaba.himarket.dto.params.worker.SetLatestWorkerVersionParam;
 import com.alibaba.himarket.dto.params.worker.UpdateWorkerVersionStatusParam;
@@ -48,7 +49,7 @@ public class SkillController {
 
     @Operation(summary = "Get Skill file tree")
     @GetMapping("/{productId}/files")
-    @AdminOrDeveloperAuth
+    @PublicAccess
     public List<FileTreeNode> getFileTree(
             @PathVariable String productId, @RequestParam(required = false) String version) {
         return skillService.getFileTree(productId, version);
@@ -56,7 +57,7 @@ public class SkillController {
 
     @Operation(summary = "Get Skill file content")
     @GetMapping("/{productId}/files/{*filePath}")
-    @AdminOrDeveloperAuth
+    @PublicAccess
     public FileContentResult getFileContent(
             @PathVariable String productId,
             @PathVariable String filePath,

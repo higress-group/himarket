@@ -32,6 +32,23 @@ export function getCliProviders() {
   );
 }
 
+// ============ 功能开关类型定义 ============
+
+export interface CodingFeatures {
+  terminalEnabled: boolean;
+}
+
+// ============ 功能开关 API 函数 ============
+
+/**
+ * 获取 HiCoding 功能开关状态
+ */
+export function getCodingFeatures() {
+  return request.get<RespI<CodingFeatures>, RespI<CodingFeatures>>(
+    "/cli-providers/features"
+  );
+}
+
 // ============ 模型市场类型定义 ============
 
 export interface MarketModelInfo {
