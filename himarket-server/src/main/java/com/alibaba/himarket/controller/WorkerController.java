@@ -1,10 +1,11 @@
 package com.alibaba.himarket.controller;
 
 import com.alibaba.himarket.core.annotation.AdminAuth;
-import com.alibaba.himarket.core.annotation.AdminOrDeveloperAuth;
+import com.alibaba.himarket.core.annotation.PublicAccess;
 import com.alibaba.himarket.dto.params.worker.PublishWorkerVersionParam;
 import com.alibaba.himarket.dto.params.worker.SetLatestWorkerVersionParam;
 import com.alibaba.himarket.dto.params.worker.UpdateWorkerVersionStatusParam;
+import com.alibaba.himarket.dto.result.cli.CliDownloadInfo;
 import com.alibaba.himarket.dto.result.common.FileContentResult;
 import com.alibaba.himarket.dto.result.common.FileTreeNode;
 import com.alibaba.himarket.dto.result.common.VersionResult;
@@ -48,7 +49,7 @@ public class WorkerController {
 
     @Operation(summary = "Get Worker file tree")
     @GetMapping("/{productId}/files")
-    @AdminOrDeveloperAuth
+    @PublicAccess
     public List<FileTreeNode> getFileTree(
             @PathVariable String productId, @RequestParam(required = false) String version) {
         return workerService.getFileTree(productId, version);
@@ -56,7 +57,7 @@ public class WorkerController {
 
     @Operation(summary = "Get Worker file content")
     @GetMapping("/{productId}/files/{*filePath}")
-    @AdminOrDeveloperAuth
+    @PublicAccess
     public FileContentResult getFileContent(
             @PathVariable String productId,
             @PathVariable String filePath,
@@ -67,7 +68,7 @@ public class WorkerController {
 
     @Operation(summary = "List Worker versions")
     @GetMapping("/{productId}/versions")
-    @AdminOrDeveloperAuth
+    @PublicAccess
     public List<VersionResult> listVersions(@PathVariable String productId) {
         return workerService.listVersions(productId);
     }
@@ -113,5 +114,12 @@ public class WorkerController {
             HttpServletResponse response)
             throws IOException {
         workerService.downloadPackage(productId, version, response);
+    }
+
+    @Operation(summary = "Get CLI download info for Worker detail page")
+    @GetMapping("/{productId}/cli-info")
+    @PublicAccess
+    public CliDownloadInfo getCliDownloadInfo(@PathVariable String productId) {
+        return workerService.getCliDownloadInfo(productId);
     }
 }

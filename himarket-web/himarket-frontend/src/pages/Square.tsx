@@ -259,6 +259,7 @@ function Square(props: { activeType: string }) {
                           releaseDate={dayjs(product.createAt).format("YYYY-MM-DD HH:mm:ss")}
                           skillTags={product.skillConfig?.skillTags}
                           downloadCount={product.skillConfig?.downloadCount}
+                          icon={getIconString(product.icon)}
                           onClick={() => handleViewDetail(product)}
                         />
                       ) : product.type === 'WORKER' ? (
@@ -268,6 +269,7 @@ function Square(props: { activeType: string }) {
                           description={product.description}
                           icon={getIconString(product.icon)}
                           releaseDate={dayjs(product.createAt).format("YYYY-MM-DD HH:mm:ss")}
+                          workerTags={product.workerConfig?.tags}
                           onClick={() => handleViewDetail(product)}
                         />
                       ) : (

@@ -2,17 +2,19 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import { Alert, Spin, Button, Select, Tag, Tooltip } from "antd";
-import { ArrowLeftOutlined, DownloadOutlined, CopyOutlined, CheckOutlined, UserOutlined, FileFilled, CodeOutlined, EyeOutlined } from "@ant-design/icons";
+import { ArrowLeftOutlined, DownloadOutlined, CopyOutlined, CheckOutlined, UserOutlined, FileFilled, CodeOutlined, EyeOutlined, CloudUploadOutlined } from "@ant-design/icons";
 import hljs from "highlight.js";
 import "highlight.js/styles/github.css";
 import type { IProductDetail } from "../lib/apis";
 import type { IProductIcon } from "../lib/apis/typing";
-import type { WorkerFileTreeNode, WorkerFileContent, WorkerVersion } from "../lib/apis/workerTemplateApi";
+import type { IWorkerConfig } from "../lib/apis/typing";
+import type { WorkerFileTreeNode, WorkerFileContent, WorkerVersion, WorkerCliInfo } from "../lib/apis/workerTemplateApi";
 import APIs from "../lib/apis";
-import { getWorkerFileTree, getWorkerFileContent, getWorkerVersions, getWorkerPackageUrl } from "../lib/apis/workerTemplateApi";
+import { getWorkerFileTree, getWorkerFileContent, getWorkerVersions, getWorkerPackageUrl, getWorkerCliInfo } from "../lib/apis/workerTemplateApi";
 import MarkdownRender from "../components/MarkdownRender";
 import { parseSkillMd } from "../lib/skillMdUtils";
 import SkillFileTree from "../components/skill/SkillFileTree";
+import { copyToClipboard } from "../lib/utils";
 
 function MdPreview({ content }: { content: string }) {
   const { frontmatter, body } = parseSkillMd(content);
@@ -93,6 +95,7 @@ function WorkerDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [data, setData] = useState<IProductDetail>();
+    const [workerConfig, setWorkerConfig] = useState<IWorkerConfig>();
 
   const [fileTree, setFileTree] = useState<WorkerFileTreeNode[]>([]);
   const [selectedFilePath, setSelectedFilePath] = useState<string | undefined>();
@@ -130,14 +133,23 @@ function WorkerDetail() {
       setLoading(true);
       setError("");
       try {
-        const [productRes, versionsRes] = await Promise.all([
+        const [productRes, versionsRes, cliInfoRes] = await Promise.all([
           APIs.getProduct({ id: workerProductId }),
           getWorkerVersions(workerProductId).catch(() => null),
+          getWorkerCliInfo(workerProductId).catch(() => null),
         ]);
         if (productRes.code === "SUCCESS" && productRes.data) {
           setData(productRes.data);
+          if (productRes.data.workerConfig) {
+            setWorkerConfig(productRes.data.workerConfig);
+          }
         } else {
           setError(productRes.message || "数据加载失败");
+        }
+
+        // Set CLI download info
+        if (cliInfoRes?.code === "SUCCESS" && cliInfoRes.data) {
+          setCliInfo(cliInfoRes.data);
         }
 
         // Only show online (published) versions in frontend
@@ -230,8 +242,10 @@ function WorkerDetail() {
     await loadVersionContent(version);
   }, [workerProductId, data]);
 
-  const [copied, setCopied] = useState(false);
   const [copiedCmd, setCopiedCmd] = useState(false);
+  const [copiedHiclaw, setCopiedHiclaw] = useState(false);
+  const [copiedHttp, setCopiedHttp] = useState(false);
+  const [cliInfo, setCliInfo] = useState<WorkerCliInfo | null>(null);
   const [mdRawMode, setMdRawMode] = useState(true);
 
   const handleDownload = useCallback(() => {
@@ -242,15 +256,6 @@ function WorkerDetail() {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-  }, [workerProductId, selectedVersion]);
-
-  const handleCopyLink = useCallback(() => {
-    if (!workerProductId) return;
-    const url = `${window.location.origin}${getWorkerPackageUrl(workerProductId, selectedVersion)}`;
-    navigator.clipboard.writeText(url).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
   }, [workerProductId, selectedVersion]);
 
   if (loading) {
@@ -274,6 +279,7 @@ function WorkerDetail() {
   }
 
   const { name, description } = data;
+  const workerTags = workerConfig?.tags || [];
   const hasFiles = fileTree.length > 0;
 
   const renderFilePreview = () => {
@@ -416,6 +422,14 @@ function WorkerDetail() {
           </div>
 
           <p className="text-gray-600 text-sm leading-relaxed">{description}</p>
+
+          {workerTags.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-3">
+              {workerTags.map((tag) => (
+                <Tag key={tag} color="purple">{tag}</Tag>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Main content */}
@@ -519,7 +533,7 @@ function WorkerDetail() {
             </div>
 
             {/* Action buttons */}
-            <div className="px-4 py-3 space-y-2" style={{ borderBottom: '1px solid #f0f0f0' }}>
+            <div className="px-4 py-3" style={{ borderBottom: '1px solid #f0f0f0' }}>
               <Button
                 type="primary"
                 icon={<DownloadOutlined />}
@@ -528,53 +542,98 @@ function WorkerDetail() {
                 block
                 size="middle"
               >
-                下载 Worker
-              </Button>
-              <Button
-                icon={copied ? <CheckOutlined /> : <CopyOutlined />}
-                onClick={handleCopyLink}
-                disabled={!selectedVersion}
-                block
-                size="middle"
-                className={copied ? "!text-green-600 !border-green-400" : ""}
-              >
-                {copied ? "已复制链接" : "复制下载链接"}
+                下载 Worker 包
               </Button>
             </div>
 
-            {/* Nacos CLI command */}
-            <div className="px-4 py-3">
-              <div className="flex items-center gap-1.5 mb-2">
-                <CodeOutlined className="text-gray-400 text-xs" />
-                <span className="text-xs font-medium text-gray-500">Nacos 下载命令</span>
-              </div>
-              <div className="relative group rounded-md bg-gray-50 border border-gray-200">
-                <pre
-                  className="text-[12px] text-gray-700 px-3 py-2.5 pr-8 m-0 overflow-x-auto"
-                  style={{ fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace", lineHeight: '1.6', whiteSpace: 'pre' }}
-                >
-                  {selectedVersion
-                    ? `nacos-cli worker pull ${name} --version ${selectedVersion}`
-                    : `nacos-cli worker pull ${name}`}
-                </pre>
-                <Tooltip title={copiedCmd ? "已复制" : "复制命令"}>
+            {/* HTTP 下载 */}
+            {cliInfo && (
+              <div className="px-4 py-3">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-1.5">
+                    <CloudUploadOutlined className="text-gray-400 text-xs" />
+                    <span className="text-xs font-medium text-gray-500">HTTP 下载</span>
+                  </div>
                   <button
                     onClick={() => {
-                      const cmd = selectedVersion
-                        ? `nacos-cli worker pull ${name} --version ${selectedVersion}`
-                        : `nacos-cli worker pull ${name}`;
-                      navigator.clipboard.writeText(cmd).then(() => {
-                        setCopiedCmd(true);
-                        setTimeout(() => setCopiedCmd(false), 2000);
+                      const url = `${window.location.origin}/api/v1/workers/${workerProductId}/download${selectedVersion ? `?version=${encodeURIComponent(selectedVersion)}` : ''}`;
+                      copyToClipboard(url).then(() => {
+                        setCopiedHttp(true);
+                        setTimeout(() => setCopiedHttp(false), 2000);
                       });
                     }}
-                    className="absolute top-2 right-2 p-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-200 transition-colors opacity-0 group-hover:opacity-100"
+                    disabled={!selectedVersion}
+                    className="text-xs text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
                   >
-                    {copiedCmd ? <CheckOutlined className="text-green-500 text-xs" /> : <CopyOutlined className="text-xs" />}
+                    {copiedHttp ? <CheckOutlined className="text-green-500" /> : <CopyOutlined />}
                   </button>
-                </Tooltip>
+                </div>
+                <div className="rounded-md bg-gray-100 border border-gray-200 px-3 py-2">
+                  <code className="text-[12px] text-gray-700 break-all" style={{ fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace" }}>
+                    {`${typeof window !== 'undefined' ? window.location.origin : ''}/api/v1/workers/${workerProductId}/download${selectedVersion ? `?version=${encodeURIComponent(selectedVersion)}` : ''}`}
+                  </code>
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* Nacos CLI command */}
+            {cliInfo && (
+              <div className="px-4 py-3">
+                {/* npx 下载 */}
+                <div className="mb-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-1.5">
+                      <CodeOutlined className="text-gray-400 text-xs" />
+                      <span className="text-xs font-medium text-gray-500">NPX 下载</span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const cmd = `npx @nacos-group/cli --host ${cliInfo.nacosHost} agentspec-get ${cliInfo.resourceName}`;
+                        copyToClipboard(cmd).then(() => {
+                          setCopiedCmd(true);
+                          setTimeout(() => setCopiedCmd(false), 2000);
+                        });
+                      }}
+                      className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      {copiedCmd ? <CheckOutlined className="text-green-500" /> : <CopyOutlined />}
+                    </button>
+                  </div>
+                  <div className="rounded-md bg-gray-100 border border-gray-200 px-3 py-2">
+                    <code className="text-[12px] text-gray-700 break-all" style={{ fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace" }}>
+                      {`npx @nacos-group/cli --host ${cliInfo.nacosHost} agentspec-get ${cliInfo.resourceName}`}
+                    </code>
+                  </div>
+                </div>
+
+                {/* HiClaw 安装命令 */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-1.5">
+                      <CloudUploadOutlined className="text-gray-400 text-xs" />
+                      <span className="text-xs font-medium text-gray-500">安装到 HiClaw</span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const cmd = `bash /opt/hiclaw/scripts/lib/hiclaw-import.sh --nacos --host ${cliInfo.nacosHost} --name ${cliInfo.resourceName}`;
+                        copyToClipboard(cmd).then(() => {
+                          setCopiedHiclaw(true);
+                          setTimeout(() => setCopiedHiclaw(false), 2000);
+                        });
+                      }}
+                      className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      {copiedHiclaw ? <CheckOutlined className="text-green-500" /> : <CopyOutlined />}
+                    </button>
+                  </div>
+                  <div className="rounded-md bg-gray-100 border border-gray-200 px-3 py-2">
+                    <code className="text-[12px] text-gray-700 break-all" style={{ fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace" }}>
+                      {`bash /opt/hiclaw/scripts/lib/hiclaw-import.sh --nacos --host ${cliInfo.nacosHost} --name ${cliInfo.resourceName}`}
+                    </code>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from 'react'
-import { Upload, message, Spin, Tooltip, Alert, Button as AntButton, Button, Select, Tag, Modal, Space } from 'antd'
+import { Upload, message, Spin, Tooltip, Button, Select, Tag, Modal, Space, Form } from 'antd'
 import {
   UploadOutlined, FolderFilled, FolderOpenFilled, FileFilled,
   FileMarkdownFilled, FileTextFilled, CodeFilled, SettingFilled,
   Html5Filled, FileZipFilled, FileImageFilled,
   JavaScriptOutlined, JavaOutlined, PythonOutlined, DockerOutlined,
   RightOutlined, DownOutlined, ExclamationCircleFilled,
-  CheckCircleFilled, CloseCircleFilled,
+  CheckCircleFilled, CloseCircleFilled, LinkOutlined,
 } from '@ant-design/icons'
+import { apiProductApi, nacosApi } from '@/lib/api'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeHighlight from 'rehype-highlight'
@@ -66,6 +67,7 @@ interface VersionItem {
 interface ApiProductSkillPackageProps {
   apiProduct: import('@/types/api-product').ApiProduct
   onUploadSuccess?: () => void
+  handleRefresh: () => void
 }
 
 // ── File icon by extension ───────────────
@@ -225,7 +227,7 @@ function SkillOverview({ content }: { content: string }) {
   )
 }
 
-export function ApiProductSkillPackage({ apiProduct, onUploadSuccess }: ApiProductSkillPackageProps) {
+export function ApiProductSkillPackage({ apiProduct, onUploadSuccess, handleRefresh }: ApiProductSkillPackageProps) {
   const productId = apiProduct.productId
   const hasNacos = !!(apiProduct.skillConfig?.nacosId)
   const [fileTree, setFileTree] = useState<SkillFileTreeNode[]>([])
@@ -244,6 +246,76 @@ export function ApiProductSkillPackage({ apiProduct, onUploadSuccess }: ApiProdu
   const [overviewContent, setOverviewContent] = useState<string | null>(null)
   const [loadingOverview] = useState(false)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
+
+  // Nacos modal state
+  const [nacosModalVisible, setNacosModalVisible] = useState(false)
+  const [nacosInstances, setNacosInstances] = useState<any[]>([])
+  const [nacosNsOptions, setNacosNsOptions] = useState<any[]>([])
+  const [nacosLoading, setNacosLoading] = useState(false)
+  const [nsLoading, setNsLoading] = useState(false)
+  const [nacosSaving, setNacosSaving] = useState(false)
+  const [nacosForm] = Form.useForm()
+  const [currentNacosName, setCurrentNacosName] = useState<string>('')
+
+  // Fetch nacos name
+  useEffect(() => {
+    if (apiProduct.skillConfig?.nacosId) {
+      nacosApi.getNacos({ page: 1, size: 1000 }).then((res: any) => {
+        const list = res.data?.content || []
+        const found = list.find((n: any) => n.nacosId === apiProduct.skillConfig?.nacosId)
+        setCurrentNacosName(found?.nacosName || apiProduct.skillConfig?.nacosId || '')
+      }).catch(() => {})
+    }
+  }, [apiProduct.skillConfig?.nacosId])
+
+  const fetchNacosInstances = async () => {
+    setNacosLoading(true)
+    try {
+      const res = await nacosApi.getNacos({ page: 1, size: 1000 })
+      setNacosInstances(res.data?.content || [])
+    } finally {
+      setNacosLoading(false)
+    }
+  }
+
+  const handleNacosChange = async (nacosId: string) => {
+    nacosForm.setFieldValue('namespace', undefined)
+    setNacosNsOptions([])
+    setNsLoading(true)
+    try {
+      const res = await nacosApi.getNamespaces(nacosId, { page: 1, size: 1000 })
+      setNacosNsOptions(res.data?.content || [])
+    } finally {
+      setNsLoading(false)
+    }
+  }
+
+  const openNacosModal = () => {
+    fetchNacosInstances()
+    const currentNacosId = apiProduct.skillConfig?.nacosId
+    const currentNamespace = apiProduct.skillConfig?.namespace || 'public'
+    if (currentNacosId) {
+      nacosForm.setFieldsValue({ nacosId: currentNacosId, namespace: currentNamespace })
+      handleNacosChange(currentNacosId)
+    }
+    setNacosModalVisible(true)
+  }
+
+  const handleNacosSave = async () => {
+    const values = await nacosForm.validateFields()
+    setNacosSaving(true)
+    try {
+      await apiProductApi.updateSkillNacos(apiProduct.productId, {
+        nacosId: values.nacosId,
+        namespace: values.namespace,
+      })
+      message.success('Nacos 关联已更新')
+      setNacosModalVisible(false)
+      handleRefresh()
+    } finally {
+      setNacosSaving(false)
+    }
+  }
 
   const handleDragStart = (e: React.MouseEvent) => {
     e.preventDefault()
@@ -585,22 +657,24 @@ export function ApiProductSkillPackage({ apiProduct, onUploadSuccess }: ApiProdu
         <p className="text-gray-600">上传并管理技能包文件</p>
       </div>
 
-      {!hasNacos && (
-        <Alert
-          type="warning"
-          showIcon
-          message="尚未关联 Nacos 实例"
-          description="请先在 Link Nacos 页面关联 Nacos 实例后，才能上传和管理技能包。如果还没有导入 Nacos 实例，请前往 Nacos 实例管理页面导入。"
-          action={
-            <AntButton size="small" type="primary" href="/nacos-consoles">
-              前往 Nacos 管理
-            </AntButton>
-          }
-        />
-      )}
-
       {/* Card 1: Version Management */}
       <div className="border rounded-lg bg-white p-4 space-y-3">
+        {/* Nacos status row */}
+        <div className="flex items-center justify-between gap-4 pb-3 border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            <Tag style={{ margin: 0, background: '#f5f5f5', borderColor: '#d9d9d9', fontSize: 14, padding: '4px 12px' }}>
+              {currentNacosName} / {apiProduct.skillConfig?.namespace || 'public'}
+            </Tag>
+          </div>
+          <Button
+            type="primary"
+            icon={<LinkOutlined />}
+            onClick={openNacosModal}
+            style={{ background: '#6B5CE7', borderColor: '#6B5CE7' }}
+          >
+            {apiProduct.skillConfig?.nacosId ? '切换Nacos' : '关联Nacos'}
+          </Button>
+        </div>
         {/* Row 1: Version selector + action buttons + upload */}
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3 flex-wrap">
@@ -672,7 +746,13 @@ export function ApiProductSkillPackage({ apiProduct, onUploadSuccess }: ApiProdu
             showUploadList={false}
             disabled={uploading || !hasNacos}
           >
-            <Button icon={<UploadOutlined />} loading={uploading} className="!h-auto !px-4 !py-2.5">
+            <Button
+              icon={<UploadOutlined />}
+              loading={uploading}
+              disabled={!hasNacos}
+              className="!h-auto !px-4 !py-2.5"
+              style={!hasNacos ? { background: '#f5f5f5', borderColor: '#d9d9d9', color: '#bfbfbf' } : {}}
+            >
               <div className="leading-snug text-left">
                 <div className="text-sm">上传 Skill 包</div>
                 <div className="text-xs text-gray-400">.zip / .tar.gz，最大 10MB</div>
@@ -837,6 +917,49 @@ export function ApiProductSkillPackage({ apiProduct, onUploadSuccess }: ApiProdu
           </div>
         )}
       </div>
+
+      {/* Nacos Modal */}
+      <Modal
+        title="关联 Nacos 实例"
+        open={nacosModalVisible}
+        onOk={handleNacosSave}
+        onCancel={() => setNacosModalVisible(false)}
+        confirmLoading={nacosSaving}
+        okText="确认"
+        cancelText="取消"
+      >
+        <Form form={nacosForm} layout="vertical">
+          <Form.Item
+            name="nacosId"
+            label="Nacos 实例"
+            rules={[{ required: true, message: '请选择 Nacos 实例' }]}
+          >
+            <Select
+              placeholder="选择 Nacos 实例"
+              loading={nacosLoading}
+              onChange={handleNacosChange}
+              options={nacosInstances.map((n) => ({
+                label: `${n.nacosName}${n.isDefault ? ' (默认)' : ''}`,
+                value: n.nacosId,
+              }))}
+            />
+          </Form.Item>
+          <Form.Item
+            name="namespace"
+            label="命名空间"
+            rules={[{ required: true, message: '请选择命名空间' }]}
+          >
+            <Select
+              placeholder="选择命名空间"
+              loading={nsLoading}
+              options={nacosNsOptions.map((ns: any) => ({
+                label: ns.namespaceName || ns.namespaceId || 'public',
+                value: ns.namespaceId || '',
+              }))}
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   )
 }

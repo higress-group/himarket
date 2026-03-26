@@ -202,7 +202,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public PageResult<ProductResult> listProducts(QueryProductParam param, Pageable pageable) {
-        if (contextHolder.isDeveloper()) {
+        if (!contextHolder.isAdministrator()) {
             param.setPortalId(contextHolder.getPortal());
         }
 

@@ -61,6 +61,21 @@ export function getWorkerVersions(productId: string) {
 }
 
 /**
+ * 获取 Worker CLI 下载信息
+ */
+export interface WorkerCliInfo {
+  nacosHost: string;
+  resourceName: string;
+  resourceType: string;
+}
+
+export function getWorkerCliInfo(productId: string) {
+  return request.get<RespI<WorkerCliInfo>, RespI<WorkerCliInfo>>(
+    `/workers/${productId}/cli-info`
+  );
+}
+
+/**
  * 获取 Worker 包下载 URL
  */
 export function getWorkerPackageUrl(productId: string, version?: string): string {

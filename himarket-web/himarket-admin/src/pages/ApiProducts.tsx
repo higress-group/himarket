@@ -31,6 +31,16 @@ const getDefaultIcon = (type: string) => {
   return <ApiOutlined style={{ fontSize: '16px' }} />;
 };
 
+const getEmptyIcon = (type: string) => {
+  if (type === 'REST_API') return <ApiOutlined style={{ fontSize: '48px' }} />;
+  if (type === 'MCP_SERVER') return <McpServerIcon style={{ fontSize: '48px' }} />;
+  if (type === 'AGENT_API') return <RobotOutlined style={{ fontSize: '48px' }} />;
+  if (type === 'MODEL_API') return <BulbOutlined style={{ fontSize: '48px' }} />;
+  if (type === 'AGENT_SKILL') return <ThunderboltOutlined style={{ fontSize: '48px' }} />;
+  if (type === 'WORKER') return <UserOutlined style={{ fontSize: '48px' }} />;
+  return <ApiOutlined style={{ fontSize: '48px' }} />;
+};
+
 const getTypeLabel = (type: string) => {
   return PRODUCT_TYPES.find(t => t.key === type)?.label || type;
 };
@@ -237,7 +247,7 @@ export default function ApiProducts() {
       </div>
 
       {/* Tabs 按类型分组 */}
-      <div className="bg-white rounded-2xl border border-gray-200 px-6 pt-4">
+      <div>
         <div className="flex items-center justify-between">
           <Tabs
             activeKey={activeTab}
@@ -304,7 +314,7 @@ export default function ApiProducts() {
             </div>
           ) : apiProducts.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-gray-400">
-              <ApiOutlined style={{ fontSize: 48, marginBottom: 12 }} />
+              {getEmptyIcon(activeTab)}
               <p className="text-base">暂无{activeTab !== 'ALL' ? ` ${getTypeLabel(activeTab)} ` : ''}产品</p>
             </div>
           ) : (

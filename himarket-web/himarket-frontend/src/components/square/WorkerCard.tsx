@@ -5,6 +5,7 @@ interface WorkerCardProps {
   description: string;
   releaseDate: string;
   icon?: string;
+  workerTags?: string[];
   onClick?: () => void;
 }
 
@@ -13,6 +14,7 @@ export function WorkerCard({
   description,
   releaseDate,
   icon,
+  workerTags = [],
   onClick,
 }: WorkerCardProps) {
   return (
@@ -43,9 +45,22 @@ export function WorkerCard({
         {description}
       </p>
 
-      {/* 底部：日期 */}
-      <div className="mt-2">
-        <div className="flex items-center justify-end gap-2 text-[#a3a3a3] text-xs">
+      {/* 底部：标签 + 日期 */}
+      <div className="mt-2 space-y-1.5">
+        {(workerTags ?? []).length > 0 && (
+          <div className="flex items-center gap-1 overflow-hidden">
+            {(workerTags ?? []).slice(0, 3).map(tag => (
+              <span
+                key={tag}
+                className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-500 whitespace-nowrap"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
+
+        <div className="flex items-center justify-between gap-2 text-[#a3a3a3] text-xs">
           <span>{releaseDate}</span>
         </div>
       </div>

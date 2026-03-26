@@ -229,6 +229,7 @@ export interface ApiProductWorkerConfig {
   namespace?: string;
   workerName?: string;
   currentVersion?: string;
+  tags?: string[];
 }
 
 export interface ApiProduct {

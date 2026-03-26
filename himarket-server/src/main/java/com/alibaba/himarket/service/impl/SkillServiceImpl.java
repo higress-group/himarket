@@ -2,6 +2,7 @@ package com.alibaba.himarket.service.impl;
 
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.core.util.URLUtil;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.exception.BusinessException;
@@ -10,6 +11,7 @@ import com.alibaba.himarket.core.skill.FileTreeBuilder;
 import com.alibaba.himarket.core.skill.SkillMdBuilder;
 import com.alibaba.himarket.core.skill.SkillZipParser;
 import com.alibaba.himarket.dto.converter.OutputConverter;
+import com.alibaba.himarket.dto.result.cli.CliDownloadInfo;
 import com.alibaba.himarket.dto.result.common.FileContentResult;
 import com.alibaba.himarket.dto.result.common.FileTreeNode;
 import com.alibaba.himarket.dto.result.common.VersionResult;
@@ -27,13 +29,11 @@ import com.alibaba.nacos.api.exception.NacosException;
 import com.alibaba.nacos.maintainer.client.ai.AiMaintainerService;
 import com.alibaba.nacos.maintainer.client.ai.SkillMaintainerService;
 import jakarta.servlet.http.HttpServletResponse;
-
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
-
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -61,7 +61,8 @@ public class SkillServiceImpl implements SkillService {
         }
 
         Product product = findProduct(productId);
-        SkillRef ref = parseSkillRef(product);
+        SkillRef ref = getSkillRef(productId, true);
+
         byte[] zipBytes = file.getBytes();
 
         SkillConfig config = product.getFeature().getSkillConfig();
@@ -100,9 +101,9 @@ public class SkillServiceImpl implements SkillService {
     @Override
     public void deleteSkill(String productId) {
         Product product = findProduct(productId);
-        SkillRef ref = getSkillRef(productId);
+        SkillRef ref = getSkillRef(productId, false);
 
-        if (StrUtil.isBlank(ref.getSkillName())) {
+        if (ref == null || StrUtil.isBlank(ref.getSkillName())) {
             return;
         }
         execute(
@@ -121,8 +122,8 @@ public class SkillServiceImpl implements SkillService {
 
     @Override
     public List<FileTreeNode> getFileTree(String productId, String version) {
-        SkillRef ref = getSkillRef(productId);
-        if (StrUtil.isBlank(ref.getSkillName())) {
+        SkillRef ref = getSkillRef(productId, false);
+        if (ref == null || StrUtil.isBlank(ref.getSkillName())) {
             return Collections.emptyList();
         }
 
@@ -137,7 +138,7 @@ public class SkillServiceImpl implements SkillService {
 
     @Override
     public FileContentResult getFileContent(String productId, String path, String version) {
-        SkillRef ref = getSkillRef(productId);
+        SkillRef ref = getSkillRef(productId, true);
         Skill skill = fetchSkill(ref, version);
 
         // Virtual SKILL.md generated from Skill metadata
@@ -185,9 +186,9 @@ public class SkillServiceImpl implements SkillService {
     @Override
     public List<VersionResult> listVersions(String productId) {
         Product product = findProduct(productId);
-        SkillRef ref = parseSkillRef(product);
+        SkillRef ref = getSkillRef(productId, false);
 
-        if (StrUtil.isBlank(ref.getSkillName())) {
+        if (ref == null || StrUtil.isBlank(ref.getSkillName())) {
             return Collections.emptyList();
         }
 
@@ -243,10 +244,7 @@ public class SkillServiceImpl implements SkillService {
 
     @Override
     public void publishVersion(String productId, String version) {
-        SkillRef ref = getSkillRef(productId);
-        if (StrUtil.isBlank(ref.getSkillName())) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, Resources.SKILL, ref.getSkillName());
-        }
+        SkillRef ref = getSkillRef(productId, true);
 
         String submittedVersion =
                 execute(
@@ -257,10 +255,7 @@ public class SkillServiceImpl implements SkillService {
 
     @Override
     public void changeVersionStatus(String productId, String version, boolean online) {
-        SkillRef ref = getSkillRef(productId);
-        if (StrUtil.isBlank(ref.getSkillName())) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, Resources.SKILL, ref.getSkillName());
-        }
+        SkillRef ref = getSkillRef(productId, true);
 
         execute(
                 ref.getNacosId(),
@@ -279,10 +274,8 @@ public class SkillServiceImpl implements SkillService {
     @Override
     public void deleteDraft(String productId) {
         Product product = findProduct(productId);
-        SkillRef ref = parseSkillRef(product);
-        if (StrUtil.isBlank(ref.getSkillName())) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, Resources.SKILL, ref.getSkillName());
-        }
+        SkillRef ref = getSkillRef(productId, true);
+
         execute(ref.getNacosId(), s -> s.deleteDraft(ref.getNamespace(), ref.getSkillName()));
         log.info("Deleted draft for Skill {}", ref.getSkillName());
 
@@ -299,6 +292,9 @@ public class SkillServiceImpl implements SkillService {
                         ref.getNacosId(),
                         s -> s.deleteSkill(ref.getNamespace(), ref.getSkillName()));
 
+                if (product.getStatus() != ProductStatus.PUBLISHED) {
+                    product.setStatus(ProductStatus.PENDING);
+                }
                 SkillConfig config = product.getFeature().getSkillConfig();
                 config.setSkillName(null);
                 config.setCurrentVersion(null);
@@ -318,27 +314,25 @@ public class SkillServiceImpl implements SkillService {
 
     @Override
     public void setLatestVersion(String productId, String version) {
-        SkillRef ref = getSkillRef(productId);
-        if (StrUtil.isBlank(ref.getSkillName())) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, Resources.SKILL, ref.getSkillName());
-        }
+        SkillRef ref = getSkillRef(productId, true);
 
         Map<String, String> labels = new HashMap<>();
         labels.put("latest", version);
 
         execute(
                 ref.getNacosId(),
-                s -> {
-                    s.updateLabels(ref.getNamespace(), ref.getSkillName(), JSONUtil.toJsonStr(labels));
-                    return null;
-                });
+                s ->
+                        s.updateLabels(
+                                ref.getNamespace(),
+                                ref.getSkillName(),
+                                JSONUtil.toJsonStr(labels)));
         log.info("Set latest: Skill {}, version {}", ref.getSkillName(), version);
     }
 
     @Override
     public void downloadPackage(String productId, String version, HttpServletResponse response)
             throws IOException {
-        SkillRef ref = getSkillRef(productId);
+        SkillRef ref = getSkillRef(productId, true);
         Skill skill = fetchSkill(ref, version);
 
         response.setContentType("application/zip");
@@ -413,9 +407,9 @@ public class SkillServiceImpl implements SkillService {
                 s ->
                         StrUtil.isBlank(version)
                                 ? s.getSkillVersionDetail(
-                                ref.getNamespace(), ref.getSkillName(), null)
+                                        ref.getNamespace(), ref.getSkillName(), null)
                                 : s.getSkillVersionDetail(
-                                ref.getNamespace(), ref.getSkillName(), version));
+                                        ref.getNamespace(), ref.getSkillName(), version));
     }
 
     private String buildResourcePath(SkillResource resource) {
@@ -442,28 +436,22 @@ public class SkillServiceImpl implements SkillService {
                                         ErrorCode.NOT_FOUND, Resources.PRODUCT, productId));
     }
 
-    private SkillRef getSkillRef(String productId) {
-        Product product =
+    private SkillRef getSkillRef(String productId, boolean force) {
+        SkillRef result =
                 productRepository
                         .findByProductId(productId)
-                        .orElseThrow(
-                                () ->
-                                        new BusinessException(
-                                                ErrorCode.NOT_FOUND, Resources.PRODUCT, productId));
-        return parseSkillRef(product);
-    }
+                        .map(Product::getFeature)
+                        .map(ProductFeature::getSkillConfig)
+                        .filter(sc -> StrUtil.isNotBlank(sc.getNacosId()))
+                        .map(sc -> new SkillRef().convertFrom(sc))
+                        .orElse(null);
 
-    private SkillRef parseSkillRef(Product product) {
-        return Optional.ofNullable(product)
-                .map(Product::getFeature)
-                .map(ProductFeature::getSkillConfig)
-                .filter(sc -> StrUtil.isNotBlank(sc.getNacosId()))
-                .map(sc -> new SkillRef().convertFrom(sc))
-                .orElseThrow(
-                        () ->
-                                new BusinessException(
-                                        ErrorCode.INVALID_REQUEST,
-                                        "Product not linked to Nacos instance"));
+        if (force && result == null) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST, "Skill config not found for product: " + productId);
+        }
+
+        return result;
     }
 
     @FunctionalInterface
@@ -488,5 +476,32 @@ public class SkillServiceImpl implements SkillService {
         private String nacosId;
         private String namespace;
         private String skillName;
+    }
+
+    @Override
+    public CliDownloadInfo getCliDownloadInfo(String productId) {
+        Product product = findProduct(productId);
+        SkillConfig config = product.getFeature().getSkillConfig();
+
+        if (config == null
+                || StrUtil.isBlank(config.getNacosId())
+                || StrUtil.isBlank(config.getSkillName())) {
+            return null;
+        }
+
+        try {
+            var nacos = nacosService.getNacosInstance(config.getNacosId());
+            if (nacos == null || StrUtil.isBlank(nacos.getServerUrl())) {
+                return null;
+            }
+            return CliDownloadInfo.builder()
+                    .nacosHost(URLUtil.url(nacos.getServerUrl()).getHost())
+                    .resourceName(config.getSkillName())
+                    .resourceType("skill")
+                    .build();
+        } catch (Exception e) {
+            log.warn("Failed to get CLI download info for skill product {}", productId, e);
+            return null;
+        }
     }
 }

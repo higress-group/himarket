@@ -17,22 +17,21 @@
  * under the License.
  */
 
-package com.alibaba.himarket.dto.params.portal;
+package com.alibaba.himarket.dto.result.portal;
 
-import com.alibaba.himarket.dto.converter.InputConverter;
-import com.alibaba.himarket.entity.PortalDomain;
-import com.alibaba.himarket.support.enums.DomainType;
-import com.alibaba.himarket.support.enums.ProtocolType;
-import jakarta.validation.constraints.NotBlank;
+import com.alibaba.himarket.dto.converter.OutputConverter;
+import com.alibaba.himarket.entity.Portal;
+import com.alibaba.himarket.support.portal.PortalUiConfig;
 import lombok.Data;
 
 @Data
-public class BindDomainParam implements InputConverter<PortalDomain> {
+public class PortalProfileResult implements OutputConverter<PortalProfileResult, Portal> {
 
-    @NotBlank(message = "Portal domain cannot be blank")
-    private String domain;
+    private String portalId;
 
-    private ProtocolType protocol = ProtocolType.HTTP;
+    private String name;
 
-    private DomainType type = DomainType.CUSTOM;
+    private String description;
+
+    private PortalUiConfig portalUiConfig;
 }

@@ -1,11 +1,11 @@
 package com.alibaba.himarket.controller;
 
 import com.alibaba.himarket.core.annotation.AdminAuth;
-import com.alibaba.himarket.core.annotation.AdminOrDeveloperAuth;
 import com.alibaba.himarket.core.annotation.PublicAccess;
 import com.alibaba.himarket.dto.params.worker.PublishWorkerVersionParam;
 import com.alibaba.himarket.dto.params.worker.SetLatestWorkerVersionParam;
 import com.alibaba.himarket.dto.params.worker.UpdateWorkerVersionStatusParam;
+import com.alibaba.himarket.dto.result.cli.CliDownloadInfo;
 import com.alibaba.himarket.dto.result.common.FileContentResult;
 import com.alibaba.himarket.dto.result.common.FileTreeNode;
 import com.alibaba.himarket.dto.result.common.VersionResult;
@@ -68,7 +68,7 @@ public class SkillController {
 
     @Operation(summary = "List Skill versions")
     @GetMapping("/{productId}/versions")
-    @AdminOrDeveloperAuth
+    @PublicAccess
     public List<VersionResult> listVersions(@PathVariable String productId) {
         return skillService.listVersions(productId);
     }
@@ -114,5 +114,12 @@ public class SkillController {
             HttpServletResponse response)
             throws IOException {
         skillService.downloadPackage(productId, version, response);
+    }
+
+    @Operation(summary = "Get CLI download info for Skill detail page")
+    @GetMapping("/{productId}/cli-info")
+    @PublicAccess
+    public CliDownloadInfo getCliDownloadInfo(@PathVariable String productId) {
+        return skillService.getCliDownloadInfo(productId);
     }
 }

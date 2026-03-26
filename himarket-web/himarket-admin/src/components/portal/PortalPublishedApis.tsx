@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Card, Table, Modal, Button, Space, message, Empty } from 'antd'
+import { Table, Modal, Button, Space, message, Empty } from 'antd'
 import { EyeOutlined, DeleteOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
 import { Portal, ApiProduct, Publication } from '@/types'
 import { apiProductApi, portalApi } from '@/lib/api'
@@ -212,32 +212,30 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
         </Button>
       </div>
 
-      <Card>
-        <Table
-          columns={columns}
-          dataSource={apiProducts}
-          rowKey="productId"
-          loading={loading}
-          pagination={{
-            current: currentPage,
-            pageSize: pageSize,
-            total: total,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total) => `共 ${total} 条`,
-            onChange: handlePageChange,
-            onShowSizeChange: handlePageChange,
-          }}
-          locale={{
-            emptyText: (
-              <Empty
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                description="暂无已发布的API产品"
-              />
-            )
-          }}
-        />
-      </Card>
+      <Table
+        columns={columns}
+        dataSource={apiProducts}
+        rowKey="productId"
+        loading={loading}
+        pagination={{
+          current: currentPage,
+          pageSize: pageSize,
+          total: total,
+          showSizeChanger: true,
+          showQuickJumper: true,
+          showTotal: (total) => `共 ${total} 条`,
+          onChange: handlePageChange,
+          onShowSizeChange: handlePageChange,
+        }}
+        locale={{
+          emptyText: (
+            <Empty
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+              description="暂无已发布的API产品"
+            />
+          )
+        }}
+      />
 
       <Modal
         title="发布API产品"

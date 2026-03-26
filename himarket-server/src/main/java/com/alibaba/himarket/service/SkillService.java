@@ -1,5 +1,6 @@
 package com.alibaba.himarket.service;
 
+import com.alibaba.himarket.dto.result.cli.CliDownloadInfo;
 import com.alibaba.himarket.dto.result.common.FileContentResult;
 import com.alibaba.himarket.dto.result.common.FileTreeNode;
 import com.alibaba.himarket.dto.result.common.VersionResult;
@@ -137,4 +138,12 @@ public interface SkillService {
      * @return the created skill name
      */
     String uploadSkillFromZip(String nacosId, String namespace, byte[] zipBytes);
+
+    /**
+     * Gets CLI download info for the frontend detail page.
+     *
+     * @param productId the product identifier
+     * @return the CLI download info containing nacosHost and resource name
+     */
+    CliDownloadInfo getCliDownloadInfo(String productId);
 }

@@ -118,7 +118,6 @@ export default function NacosConsoles() {
       password: record.password,
       accessKey: record.accessKey,
       secretKey: record.secretKey,
-      description: record.description,
     })
     setModalVisible(true)
   }
@@ -205,17 +204,6 @@ export default function NacosConsoles() {
           {ns || 'public'}
         </Button>
       ),
-    },
-    {
-      title: '用户名',
-      dataIndex: 'username',
-      key: 'username',
-    },
-    {
-      title: '描述',
-      dataIndex: 'description',
-      key: 'description',
-      ellipsis: true,
     },
     {
       title: '创建时间',
@@ -362,16 +350,6 @@ export default function NacosConsoles() {
               </Form.Item>
             </>
           )}
-
-          <Form.Item
-            name="description"
-            label="描述"
-          >
-            <Input.TextArea
-              rows={3}
-              placeholder="请输入实例描述（可选）"
-            />
-          </Form.Item>
         </Form>
       </Modal>
 

@@ -188,6 +188,24 @@ export function getSkillFileContent(productId: string, filePath: string, version
 }
 
 /**
+ * Skill CLI download info
+ */
+export interface SkillCliInfo {
+  nacosHost: string;
+  resourceName: string;
+  resourceType: string;
+}
+
+/**
+ * 获取 Skill CLI 下载信息
+ */
+export function getSkillCliInfo(productId: string) {
+  return request.get<RespI<SkillCliInfo>, RespI<SkillCliInfo>>(
+    `/skills/${productId}/cli-info`
+  );
+}
+
+/**
  * 获取 Skill 包下载 URL
  */
 export function getSkillPackageUrl(productId: string, version?: string): string {

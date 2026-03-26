@@ -69,7 +69,7 @@ public class SecurityConfig {
         "/cli-providers",
         "/skills/*/download",
         "/workers/*/download",
-        "/worker-templates/*/package"
+        "/workers/*/files/**"
     };
 
     // Swagger endpoints

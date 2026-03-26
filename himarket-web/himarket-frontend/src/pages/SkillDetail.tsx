@@ -2,18 +2,21 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import { Alert, Spin, Tag, Button, Select, Tooltip } from "antd";
-import { ArrowLeftOutlined, DownloadOutlined, CopyOutlined, CheckOutlined, FileFilled, CodeOutlined, EyeOutlined } from "@ant-design/icons";
+import { ArrowLeftOutlined, DownloadOutlined, CopyOutlined, CheckOutlined, FileFilled, CodeOutlined, EyeOutlined, CloudUploadOutlined, ThunderboltOutlined } from "@ant-design/icons";
 import hljs from "highlight.js";
 import "highlight.js/styles/github.css";
 import type { IProductDetail } from "../lib/apis";
 import type { ISkillConfig } from "../lib/apis/typing";
-import type { SkillFileTreeNode, SkillFileContent, SkillVersion } from "../lib/apis/cliProvider";
+import type { SkillFileTreeNode, SkillFileContent, SkillVersion, SkillCliInfo } from "../lib/apis/cliProvider";
 import APIs from "../lib/apis";
-import { getSkillFiles, getSkillFileContent, getSkillPackageUrl, getSkillVersions } from "../lib/apis/cliProvider";
+import { getSkillFiles, getSkillFileContent, getSkillPackageUrl, getSkillVersions, getSkillCliInfo } from "../lib/apis/cliProvider";
 import { parseSkillMd } from "../lib/skillMdUtils";
+import { getIconString } from "../lib/iconUtils";
+import { ProductIconRenderer } from "../components/icon/ProductIconRenderer";
 import MarkdownRender from "../components/MarkdownRender";
 import SkillFileTree from "../components/skill/SkillFileTree";
 import RelatedSkills from "../components/skill/RelatedSkills";
+import { copyToClipboard } from "../lib/utils";
 
 function inferLanguage(path: string): string {
   const fileName = path.split("/").pop()?.toLowerCase() ?? "";
@@ -76,10 +79,11 @@ function SkillDetail() {
   const [overviewContent, setOverviewContent] = useState<string | null>(null);
   const [overviewLoading, setOverviewLoading] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [copiedCmd, setCopiedCmd] = useState(false);
+  const [copiedHttp, setCopiedHttp] = useState(false);
   const [mdRawMode, setMdRawMode] = useState(true);
   const [versions, setVersions] = useState<SkillVersion[]>([]);
   const [selectedVersion, setSelectedVersion] = useState<string | undefined>();
+  const [cliInfo, setCliInfo] = useState<SkillCliInfo | null>(null);
 
   const handleDragStart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -105,9 +109,10 @@ function SkillDetail() {
       setLoading(true);
       setError("");
       try {
-        const [productRes, versionsRes] = await Promise.all([
+        const [productRes, versionsRes, cliInfoRes] = await Promise.all([
           APIs.getProduct({ id: skillProductId }),
           getSkillVersions(skillProductId).catch(() => null),
+          getSkillCliInfo(skillProductId).catch(() => null),
         ]);
         if (productRes.code === "SUCCESS" && productRes.data) {
           setData(productRes.data);
@@ -116,6 +121,11 @@ function SkillDetail() {
           }
         } else {
           setError(productRes.message || "数据加载失败");
+        }
+
+        // Set CLI download info
+        if (cliInfoRes?.code === "SUCCESS" && cliInfoRes.data) {
+          setCliInfo(cliInfoRes.data);
         }
 
         // Only show online (published) versions in frontend
@@ -212,15 +222,6 @@ function SkillDetail() {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-  }, [skillProductId, selectedVersion]);
-
-  const handleCopyLink = useCallback(() => {
-    if (!skillProductId) return;
-    const url = `${window.location.origin}${getSkillPackageUrl(skillProductId, selectedVersion)}`;
-    navigator.clipboard.writeText(url).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
   }, [skillProductId, selectedVersion]);
 
   if (loading) {
@@ -373,9 +374,15 @@ function SkillDetail() {
           </button>
 
           <div className="flex items-center gap-4 mb-3">
-            <div className="w-16 h-16 rounded-xl flex-shrink-0 flex items-center justify-center bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-200">
-              <span className="text-3xl">⚡</span>
-            </div>
+            {data.icon && data.icon.value ? (
+              <div className="w-16 h-16 rounded-xl flex-shrink-0 flex items-center justify-center bg-gradient-to-br from-colorPrimary/10 to-colorPrimary/5 border border-gray-200 overflow-hidden">
+                <ProductIconRenderer className="w-full h-full object-cover" iconType={getIconString(data.icon)} />
+              </div>
+            ) : (
+              <div className="w-16 h-16 rounded-xl flex-shrink-0 flex items-center justify-center bg-gray-50 border border-gray-200">
+                <ThunderboltOutlined className="text-2xl" />
+              </div>
+            )}
             <div className="flex-1 min-w-0">
               <h1 className="text-xl font-semibold text-gray-900 mb-1">{name}</h1>
               {data.updatedAt && (
@@ -500,7 +507,7 @@ function SkillDetail() {
             </div>
 
             {/* Action buttons */}
-            <div className="px-4 py-3 space-y-2" style={{ borderBottom: '1px solid #f0f0f0' }}>
+            <div className="px-4 py-3">
               <Button
                 type="primary"
                 icon={<DownloadOutlined />}
@@ -511,54 +518,69 @@ function SkillDetail() {
               >
                 下载 Skill 包
               </Button>
-              <Button
-                icon={copied ? <CheckOutlined /> : <CopyOutlined />}
-                onClick={handleCopyLink}
-                disabled={!selectedVersion}
-                block
-                size="middle"
-                className={copied ? "!text-green-600 !border-green-400" : ""}
-              >
-                {copied ? "已复制链接" : "复制下载链接"}
-              </Button>
             </div>
 
-            {/* Nacos CLI command */}
-            <div className="px-4 py-3">
-              <div className="flex items-center gap-1.5 mb-2">
-                <CodeOutlined className="text-gray-400 text-xs" />
-                <span className="text-xs font-medium text-gray-500">Nacos 下载命令</span>
-              </div>
-              <div className="relative group rounded-md bg-gray-50 border border-gray-200">
-                <pre
-                  className="text-[12px] text-gray-700 px-3 py-2.5 pr-8 m-0 overflow-x-auto"
-                  style={{ fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace", lineHeight: '1.6', whiteSpace: 'pre' }}
-                >
-                  {selectedVersion
-                    ? `nacos-cli skill pull ${name} --version ${selectedVersion}`
-                    : `nacos-cli skill pull ${name}`}
-                </pre>
-                <Tooltip title={copiedCmd ? "已复制" : "复制命令"}>
+            {/* HTTP 下载 */}
+            {cliInfo && (
+              <div className="px-4 py-3">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-1.5">
+                    <CloudUploadOutlined className="text-gray-400 text-xs" />
+                    <span className="text-xs font-medium text-gray-500">HTTP 下载</span>
+                  </div>
                   <button
                     onClick={() => {
-                      const cmd = selectedVersion
-                        ? `nacos-cli skill pull ${name} --version ${selectedVersion}`
-                        : `nacos-cli skill pull ${name}`;
-                      navigator.clipboard.writeText(cmd).then(() => {
-                        setCopiedCmd(true);
-                        setTimeout(() => setCopiedCmd(false), 2000);
+                      const url = `${window.location.origin}/api/v1/skills/${skillProductId}/download${selectedVersion ? `?version=${encodeURIComponent(selectedVersion)}` : ''}`;
+                      copyToClipboard(url).then(() => {
+                        setCopiedHttp(true);
+                        setTimeout(() => setCopiedHttp(false), 2000);
                       });
                     }}
-                    className="absolute top-2 right-2 p-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-200 transition-colors opacity-0 group-hover:opacity-100"
+                    disabled={!selectedVersion}
+                    className="text-xs text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
                   >
-                    {copiedCmd ? <CheckOutlined className="text-green-500 text-xs" /> : <CopyOutlined className="text-xs" />}
+                    {copiedHttp ? <CheckOutlined className="text-green-500" /> : <CopyOutlined />}
                   </button>
-                </Tooltip>
+                </div>
+                <div className="rounded-md bg-gray-100 border border-gray-200 px-3 py-2">
+                  <code className="text-[12px] text-gray-700 break-all" style={{ fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace" }}>
+                    {`${typeof window !== 'undefined' ? window.location.origin : ''}/api/v1/skills/${skillProductId}/download${selectedVersion ? `?version=${encodeURIComponent(selectedVersion)}` : ''}`}
+                  </code>
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* Nacos CLI command */}
+            {cliInfo && (
+              <div className="px-4 py-3">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-1.5">
+                    <CodeOutlined className="text-gray-400 text-xs" />
+                    <span className="text-xs font-medium text-gray-500">NPX 下载</span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const cmd = `npx @nacos-group/cli --host ${cliInfo.nacosHost} skill-get ${cliInfo.resourceName}`;
+                      copyToClipboard(cmd).then(() => {
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 2000);
+                      });
+                    }}
+                    className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    {copied ? <CheckOutlined className="text-green-500" /> : <CopyOutlined />}
+                  </button>
+                </div>
+                <div className="rounded-md bg-gray-100 border border-gray-200 px-3 py-2">
+                  <code className="text-[12px] text-gray-700 break-all" style={{ fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace" }}>
+                    {`npx @nacos-group/cli --host ${cliInfo.nacosHost} skill-get ${cliInfo.resourceName}`}
+                  </code>
+                </div>
+              </div>
+            )}
           </div>
 
-          <RelatedSkills currentProductId={skillProductId!} />
+          <RelatedSkills currentProductId={skillProductId!} currentSkillTags={skillConfig?.skillTags} />
         </div>
       </div>
       </div>

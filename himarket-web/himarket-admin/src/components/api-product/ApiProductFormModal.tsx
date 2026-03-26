@@ -18,6 +18,7 @@ import type { ApiProduct } from "@/types/api-product";
 import type { ProductCategory } from "@/types/product-category";
 import ModelFeatureForm from "./ModelFeatureForm";
 import SkillConfigForm from "./SkillConfigForm";
+import WorkerConfigForm from "./WorkerConfigForm";
 
 interface ApiProductFormModalProps {
   visible: boolean;
@@ -203,6 +204,37 @@ export default function ApiProductFormModal({
       if (isEditMode) {
         let params = { ...otherValues };
         
+        // Merge feature fields with initial data to prevent data loss
+        if (initialData?.feature) {
+          const mergedFeature = { ...initialData.feature };
+          
+          // Merge skillConfig fields
+          if (initialData.feature.skillConfig) {
+            mergedFeature.skillConfig = {
+              ...initialData.feature.skillConfig,
+              ...(otherValues.feature?.skillConfig || {}),
+            };
+          }
+          
+          // Merge workerConfig fields
+          if (initialData.feature.workerConfig) {
+            mergedFeature.workerConfig = {
+              ...initialData.feature.workerConfig,
+              ...(otherValues.feature?.workerConfig || {}),
+            };
+          }
+          
+          // Merge modelFeature fields
+          if (initialData.feature.modelFeature) {
+            mergedFeature.modelFeature = {
+              ...initialData.feature.modelFeature,
+              ...(otherValues.feature?.modelFeature || {}),
+            };
+          }
+          
+          params.feature = mergedFeature;
+        }
+        
         // 处理icon字段
         if (iconMode === 'BASE64' && icon) {
           params.icon = {
@@ -377,7 +409,7 @@ export default function ApiProductFormModal({
           <Switch />
         </Form.Item>}
 
-        {productType !== 'AGENT_SKILL' && <Form.Item label="Icon设置" style={{ marginBottom: '16px' }}>
+        <Form.Item label="Icon设置" style={{ marginBottom: '16px' }}>
           <Space direction="vertical" style={{ width: '100%' }}>
             <Radio.Group 
               value={iconMode} 
@@ -496,7 +528,7 @@ export default function ApiProductFormModal({
               </Form.Item>
             )}
           </Space>
-        </Form.Item>}
+        </Form.Item>
 
         {/* 图片预览弹窗 */}
         {previewImage && (
@@ -516,6 +548,7 @@ export default function ApiProductFormModal({
         {/* Feature Configuration */}
         {productType === 'MODEL_API' && <ModelFeatureForm />}
         {productType === 'AGENT_SKILL' && <SkillConfigForm />}
+        {productType === 'WORKER' && <WorkerConfigForm />}
       </Form>
     </Modal>
   );

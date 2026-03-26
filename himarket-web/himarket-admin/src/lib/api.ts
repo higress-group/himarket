@@ -72,7 +72,7 @@ export const portalApi = {
     return api.get(`/portals/${portalId}`)
   },
   // 绑定域名
-  bindDomain: (portalId: string, domainData: { domain: string; protocol: string; type: string }) => {
+  bindDomain: (portalId: string, domainData: { domain: string; type: string }) => {
     return api.post(`/portals/${portalId}/domains`, domainData)
   },
   // 解绑域名

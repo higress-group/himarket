@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Card, Button, Table, Space, Modal, message } from 'antd'
+import { Button, Table, Space, Modal, message } from 'antd'
 import { PlusOutlined, EyeOutlined, DeleteOutlined, ExclamationCircleOutlined, GlobalOutlined, CheckCircleFilled, MinusCircleFilled } from '@ant-design/icons'
 import { useState, useEffect } from 'react'
 import type { ApiProduct, Publication } from '@/types/api-product';
@@ -254,8 +254,7 @@ export function ApiProductPortal({ apiProduct }: ApiProductPortalProps) {
         </Button>
       </div>
 
-      <Card>
-        {publishedPortals.length === 0 && !loading ? (
+      {publishedPortals.length === 0 && !loading ? (
           <div className="text-center py-8 text-gray-500">
             <p>暂未发布到任何门户</p>
           </div>
@@ -277,7 +276,6 @@ export function ApiProductPortal({ apiProduct }: ApiProductPortalProps) {
             }}
           />
         )}
-      </Card>
 
       <Modal
         title="发布到门户"

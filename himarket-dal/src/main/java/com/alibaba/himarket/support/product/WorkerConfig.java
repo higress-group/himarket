@@ -19,6 +19,7 @@
 
 package com.alibaba.himarket.support.product;
 
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -44,4 +45,9 @@ public class WorkerConfig {
      * AgentSpec name (corresponds to name in manifest.json)
      */
     private String agentSpecName;
+
+    /**
+     * Worker tags for categorization and search
+     */
+    private List<String> tags;
 }

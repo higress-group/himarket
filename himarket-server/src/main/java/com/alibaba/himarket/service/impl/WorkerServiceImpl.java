@@ -2,12 +2,14 @@ package com.alibaba.himarket.service.impl;
 
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.core.util.URLUtil;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.core.agentspec.AgentSpecZipParser;
 import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.dto.converter.OutputConverter;
+import com.alibaba.himarket.dto.result.cli.CliDownloadInfo;
 import com.alibaba.himarket.dto.result.common.FileContentResult;
 import com.alibaba.himarket.dto.result.common.FileTreeNode;
 import com.alibaba.himarket.dto.result.common.VersionResult;
@@ -55,7 +57,8 @@ public class WorkerServiceImpl implements WorkerService {
         }
 
         Product product = findProduct(productId);
-        AgentSpecRef ref = parseAgentSpecRef(product);
+        AgentSpecRef ref = getAgentSpecRef(productId, true);
+
         byte[] zipBytes = file.getBytes();
 
         WorkerConfig config = product.getFeature().getWorkerConfig();
@@ -88,8 +91,8 @@ public class WorkerServiceImpl implements WorkerService {
     @Override
     public void deleteAgentSpec(String productId) {
         Product product = findProduct(productId);
-        AgentSpecRef ref = getAgentSpecRef(productId);
-        if (StrUtil.isBlank(ref.getAgentSpecName())) {
+        AgentSpecRef ref = getAgentSpecRef(productId, false);
+        if (ref == null || StrUtil.isBlank(ref.getAgentSpecName())) {
             return;
         }
         execute(
@@ -105,8 +108,8 @@ public class WorkerServiceImpl implements WorkerService {
 
     @Override
     public List<FileTreeNode> getFileTree(String productId, String version) {
-        AgentSpecRef ref = getAgentSpecRef(productId);
-        if (StrUtil.isBlank(ref.getAgentSpecName())) {
+        AgentSpecRef ref = getAgentSpecRef(productId, false);
+        if (ref == null || StrUtil.isBlank(ref.getAgentSpecName())) {
             return Collections.emptyList();
         }
 
@@ -121,7 +124,7 @@ public class WorkerServiceImpl implements WorkerService {
 
     @Override
     public FileContentResult getFileContent(String productId, String path, String version) {
-        AgentSpecRef ref = getAgentSpecRef(productId);
+        AgentSpecRef ref = getAgentSpecRef(productId, true);
 
         return getFileContent(ref, path, version);
     }
@@ -129,9 +132,9 @@ public class WorkerServiceImpl implements WorkerService {
     @Override
     public List<VersionResult> listVersions(String productId) {
         Product product = findProduct(productId);
-        AgentSpecRef ref = parseAgentSpecRef(product);
+        AgentSpecRef ref = getAgentSpecRef(productId, false);
 
-        if (StrUtil.isBlank(ref.getAgentSpecName())) {
+        if (ref == null || StrUtil.isBlank(ref.getAgentSpecName())) {
             return Collections.emptyList();
         }
 
@@ -192,7 +195,7 @@ public class WorkerServiceImpl implements WorkerService {
 
     @Override
     public void publishVersion(String productId, String version) {
-        AgentSpecRef ref = getAgentSpecRef(productId);
+        AgentSpecRef ref = getAgentSpecRef(productId, true);
         if (StrUtil.isBlank(ref.getAgentSpecName())) {
             throw new BusinessException(
                     ErrorCode.NOT_FOUND, Resources.AGENT_SPEC, ref.getAgentSpecName());
@@ -208,7 +211,7 @@ public class WorkerServiceImpl implements WorkerService {
     @Override
     public void downloadPackage(String productId, String version, HttpServletResponse response)
             throws IOException {
-        AgentSpecRef ref = getAgentSpecRef(productId);
+        AgentSpecRef ref = getAgentSpecRef(productId, true);
         AgentSpec spec = fetchAgentSpec(ref, version);
 
         response.setContentType("application/zip");
@@ -250,12 +253,7 @@ public class WorkerServiceImpl implements WorkerService {
 
     @Override
     public void changeVersionStatus(String productId, String version, boolean online) {
-        Product product = findProduct(productId);
-        AgentSpecRef ref = parseAgentSpecRef(product);
-        if (StrUtil.isBlank(ref.getAgentSpecName())) {
-            throw new BusinessException(
-                    ErrorCode.NOT_FOUND, Resources.AGENT_SPEC, ref.getAgentSpecName());
-        }
+        AgentSpecRef ref = getAgentSpecRef(productId, true);
 
         execute(
                 ref.getNacosId(),
@@ -274,11 +272,8 @@ public class WorkerServiceImpl implements WorkerService {
     @Override
     public void deleteDraft(String productId) {
         Product product = findProduct(productId);
-        AgentSpecRef ref = parseAgentSpecRef(product);
-        if (StrUtil.isBlank(ref.getAgentSpecName())) {
-            throw new BusinessException(
-                    ErrorCode.NOT_FOUND, Resources.AGENT_SPEC, ref.getAgentSpecName());
-        }
+        AgentSpecRef ref = getAgentSpecRef(productId, true);
+
         execute(
                 ref.getNacosId(),
                 s -> {
@@ -302,6 +297,10 @@ public class WorkerServiceImpl implements WorkerService {
                         ref.getNacosId(),
                         s -> s.deleteAgentSpec(ref.getNamespace(), ref.getAgentSpecName()));
 
+                if (product.getStatus() != ProductStatus.PUBLISHED) {
+                    product.setStatus(ProductStatus.PENDING);
+                }
+
                 WorkerConfig config = product.getFeature().getWorkerConfig();
                 config.setAgentSpecName(null);
                 productRepository.save(product);
@@ -316,12 +315,7 @@ public class WorkerServiceImpl implements WorkerService {
 
     @Override
     public void setLatestVersion(String productId, String version) {
-        Product product = findProduct(productId);
-        AgentSpecRef ref = parseAgentSpecRef(product);
-        if (StrUtil.isBlank(ref.getAgentSpecName())) {
-            throw new BusinessException(
-                    ErrorCode.NOT_FOUND, Resources.AGENT_SPEC, ref.getAgentSpecName());
-        }
+        AgentSpecRef ref = getAgentSpecRef(productId, true);
 
         // Latest version label
         Map<String, String> labels = new HashMap<>();
@@ -533,21 +527,21 @@ public class WorkerServiceImpl implements WorkerService {
                                         ErrorCode.NOT_FOUND, Resources.PRODUCT, productId));
     }
 
-    private AgentSpecRef getAgentSpecRef(String productId) {
-        return productRepository.findByProductId(productId).map(this::parseAgentSpecRef).get();
-    }
+    private AgentSpecRef getAgentSpecRef(String productId, boolean force) {
+        AgentSpecRef result =
+                productRepository
+                        .findByProductId(productId)
+                        .map(Product::getFeature)
+                        .map(ProductFeature::getWorkerConfig)
+                        .filter(wc -> StrUtil.isNotBlank(wc.getNacosId()))
+                        .map(wc -> new AgentSpecRef().convertFrom(wc))
+                        .orElse(null);
 
-    private AgentSpecRef parseAgentSpecRef(Product product) {
-        return Optional.ofNullable(product)
-                .map(Product::getFeature)
-                .map(ProductFeature::getWorkerConfig)
-                .filter(wc -> StrUtil.isNotBlank(wc.getNacosId()))
-                .map(wc -> new AgentSpecRef().convertFrom(wc))
-                .orElseThrow(
-                        () ->
-                                new BusinessException(
-                                        ErrorCode.INVALID_REQUEST,
-                                        "Product not linked to Nacos instance"));
+        if (force && result == null) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST, "Worker config not found for product: " + productId);
+        }
+        return result;
     }
 
     @FunctionalInterface
@@ -570,5 +564,32 @@ public class WorkerServiceImpl implements WorkerService {
         private String nacosId;
         private String namespace;
         private String agentSpecName;
+    }
+
+    @Override
+    public CliDownloadInfo getCliDownloadInfo(String productId) {
+        Product product = findProduct(productId);
+        WorkerConfig config = product.getFeature().getWorkerConfig();
+
+        if (config == null
+                || StrUtil.isBlank(config.getNacosId())
+                || StrUtil.isBlank(config.getAgentSpecName())) {
+            return null;
+        }
+
+        try {
+            var nacos = nacosService.getNacosInstance(config.getNacosId());
+            if (nacos == null || StrUtil.isBlank(nacos.getServerUrl())) {
+                return null;
+            }
+            return CliDownloadInfo.builder()
+                    .nacosHost(URLUtil.url(nacos.getServerUrl()).getHost())
+                    .resourceName(config.getAgentSpecName())
+                    .resourceType("worker")
+                    .build();
+        } catch (Exception e) {
+            log.warn("Failed to get CLI download info for worker product {}", productId, e);
+            return null;
+        }
     }
 }

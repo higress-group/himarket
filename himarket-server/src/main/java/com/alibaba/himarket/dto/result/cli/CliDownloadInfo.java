@@ -17,22 +17,34 @@
  * under the License.
  */
 
-package com.alibaba.himarket.dto.params.portal;
+package com.alibaba.himarket.dto.result.cli;
 
-import com.alibaba.himarket.dto.converter.InputConverter;
-import com.alibaba.himarket.entity.PortalDomain;
-import com.alibaba.himarket.support.enums.DomainType;
-import com.alibaba.himarket.support.enums.ProtocolType;
-import jakarta.validation.constraints.NotBlank;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
+/**
+ * CLI download command info for Skill/Worker detail pages.
+ */
 @Data
-public class BindDomainParam implements InputConverter<PortalDomain> {
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class CliDownloadInfo {
 
-    @NotBlank(message = "Portal domain cannot be blank")
-    private String domain;
+    /**
+     * Nacos host address (without protocol and port)
+     */
+    private String nacosHost;
 
-    private ProtocolType protocol = ProtocolType.HTTP;
+    /**
+     * Skill or Worker name in Nacos
+     */
+    private String resourceName;
 
-    private DomainType type = DomainType.CUSTOM;
+    /**
+     * Resource type: "skill" or "worker"
+     */
+    private String resourceType;
 }

@@ -42,6 +42,7 @@ function MenuRedirectGuard() {
       "/models": "models",
       "/apis": "apis",
       "/skills": "skills",
+      "/workers": "workers",
     };
 
     const currentPath = location.pathname;

@@ -127,6 +127,7 @@ export interface ApiProductWorkerConfig {
   namespace?: string;
   workerName?: string;
   downloadCount?: number;
+  tags?: string[];
 }
 
 export interface ApiProduct {

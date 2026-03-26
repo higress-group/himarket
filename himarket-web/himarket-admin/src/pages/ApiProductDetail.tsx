@@ -16,7 +16,6 @@ import { ApiProductUsageGuide } from '@/components/api-product/ApiProductUsageGu
 import { ApiProductPortal } from '@/components/api-product/ApiProductPortal'
 import { ApiProductSkillPackage } from '@/components/api-product/ApiProductSkillPackage'
 import { ApiProductWorkerPackage } from '@/components/api-product/ApiProductWorkerPackage'
-import { ApiProductLinkNacos } from '@/components/api-product/ApiProductLinkNacos'
 // import { ApiProductDashboard } from '@/components/api-product/ApiProductDashboard'
 import { apiProductApi } from '@/lib/api';
 import type { ApiProduct, LinkedService } from '@/types/api-product';
@@ -62,14 +61,12 @@ export default function ApiProductDetail() {
     ? [
         BASE_MENU_ITEMS[0], // overview
         { key: 'skill-package', label: 'Skill Package', description: '技能包管理', icon: InboxOutlined },
-        { key: 'link-nacos', label: 'Link Nacos', description: 'Nacos 关联', icon: LinkOutlined },
         BASE_MENU_ITEMS[3], // portal
       ]
     : apiProduct?.type === 'WORKER'
     ? [
         BASE_MENU_ITEMS[0], // overview
         { key: 'worker-package', label: 'Worker Package', description: 'Worker 包管理', icon: InboxOutlined },
-        { key: 'link-nacos', label: 'Link Nacos', description: 'Nacos 关联', icon: LinkOutlined },
         BASE_MENU_ITEMS[3], // portal
       ]
     : BASE_MENU_ITEMS;
@@ -152,11 +149,9 @@ export default function ApiProductDetail() {
       case "portal":
         return <ApiProductPortal apiProduct={apiProduct} />
       case "skill-package":
-        return <ApiProductSkillPackage apiProduct={apiProduct} onUploadSuccess={fetchApiProduct} />
+        return <ApiProductSkillPackage apiProduct={apiProduct} onUploadSuccess={fetchApiProduct} handleRefresh={fetchApiProduct} />
       case "worker-package":
-        return <ApiProductWorkerPackage apiProduct={apiProduct} onUploadSuccess={fetchApiProduct} />
-      case "link-nacos":
-        return <ApiProductLinkNacos apiProduct={apiProduct} handleRefresh={fetchApiProduct} />
+        return <ApiProductWorkerPackage apiProduct={apiProduct} onUploadSuccess={fetchApiProduct} handleRefresh={fetchApiProduct} />
       // case "dashboard":
       //   return <ApiProductDashboard apiProduct={apiProduct} />
       default:
