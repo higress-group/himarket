@@ -177,3 +177,70 @@ CREATE TABLE IF NOT EXISTS `permissions` (
                                UNIQUE INDEX `uk_role_permission` (`role`,`resource`,`action`) USING BTREE
 );
 
+
+/******************************************/
+/*   表名称 = pipeline_execution           */
+/******************************************/
+CREATE TABLE IF NOT EXISTS `pipeline_execution` (
+    `execution_id`  varchar(64)  NOT NULL COMMENT '执行ID',
+    `resource_type` varchar(32)  NOT NULL COMMENT '资源类型',
+    `resource_name` varchar(256) NOT NULL COMMENT '资源名称',
+    `namespace_id`  varchar(128) DEFAULT NULL COMMENT '命名空间ID',
+    `version`       varchar(64)  DEFAULT NULL COMMENT '版本',
+    `status`        varchar(32)  NOT NULL COMMENT '执行状态',
+    `pipeline`      longtext     NOT NULL COMMENT 'pipeline节点结果JSON',
+    `create_time`   bigint(20)   NOT NULL COMMENT '创建时间',
+    `update_time`   bigint(20)   NOT NULL COMMENT '修改时间',
+    PRIMARY KEY (`execution_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI资源发布审核Pipeline执行记录';
+
+/******************************************/
+/*   表名称 = ai_resource                 */
+/******************************************/
+CREATE TABLE IF NOT EXISTS `ai_resource` (
+    `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'id',
+    `gmt_create` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `gmt_modified` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '修改时间',
+    `name` varchar(256) NOT NULL COMMENT '资源名称',
+    `type` varchar(32) NOT NULL COMMENT '资源类型',
+    `c_desc` varchar(2048) DEFAULT NULL COMMENT '资源描述',
+    `status` varchar(32) DEFAULT NULL COMMENT '资源状态',
+    `namespace_id` varchar(128) NOT NULL DEFAULT '' COMMENT '命名空间ID',
+    `biz_tags` varchar(1024) DEFAULT NULL COMMENT '业务标签',
+    `ext` longtext DEFAULT NULL COMMENT '扩展信息(JSON)',
+    `version_info` longtext DEFAULT NULL COMMENT '版本信息(JSON)',
+    `meta_version` bigint(20) NOT NULL DEFAULT 1 COMMENT '元数据版本(乐观锁)',
+    `scope` varchar(16) NOT NULL DEFAULT 'PRIVATE' COMMENT '可见性: PUBLIC/PRIVATE',
+    `owner` varchar(128) NOT NULL DEFAULT '' COMMENT '创建者用户名',
+    `download_count` bigint(20) NOT NULL DEFAULT 0 COMMENT '下载次数',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_ai_resource_ns_name_type` (`namespace_id`,`name`,`type`),
+    KEY `idx_ai_resource_name` (`name`),
+    KEY `idx_ai_resource_type` (`type`),
+    KEY `idx_ai_resource_gmt_modified` (`gmt_modified`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI资源元数据表';
+
+/******************************************/
+/*   表名称 = ai_resource_version         */
+/******************************************/
+CREATE TABLE IF NOT EXISTS `ai_resource_version` (
+    `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'id',
+    `gmt_create` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `gmt_modified` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '修改时间',
+    `type` varchar(32) NOT NULL COMMENT '资源类型',
+    `author` varchar(128) DEFAULT NULL COMMENT '作者',
+    `name` varchar(256) NOT NULL COMMENT '资源名称',
+    `c_desc` varchar(2048) DEFAULT NULL COMMENT '版本描述',
+    `status` varchar(32) NOT NULL COMMENT '版本状态',
+    `version` varchar(64) NOT NULL COMMENT '版本号',
+    `namespace_id` varchar(128) NOT NULL DEFAULT '' COMMENT '命名空间ID',
+    `storage` longtext DEFAULT NULL COMMENT '存储信息(JSON)',
+    `publish_pipeline_info` longtext DEFAULT NULL COMMENT '发布流水线信息(JSON)',
+    `download_count` bigint(20) NOT NULL DEFAULT 0 COMMENT '下载次数',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_ai_resource_ver_ns_name_type_ver` (`namespace_id`,`name`,`type`,`version`),
+    KEY `idx_ai_resource_ver_name` (`name`),
+    KEY `idx_ai_resource_ver_status` (`status`),
+    KEY `idx_ai_resource_ver_gmt_modified` (`gmt_modified`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI资源版本表';
+
