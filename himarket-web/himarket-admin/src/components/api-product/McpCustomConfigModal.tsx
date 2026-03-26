@@ -17,6 +17,20 @@ interface McpCustomConfigModalProps {
   productDescription?: string
   productIcon?: ProductIcon
   productDocument?: string
+  /** 编辑模式：传入已有 MCP 元数据，表单将预填这些值 */
+  initialMcpMeta?: {
+    mcpName?: string
+    displayName?: string
+    description?: string
+    protocolType?: string
+    connectionConfig?: string
+    tags?: string
+    icon?: string
+    repoUrl?: string
+    extraParams?: string
+    serviceIntro?: string
+    sandboxRequired?: boolean
+  } | null
 }
 
 interface ExtraParam {
@@ -35,7 +49,7 @@ const NAV_ITEMS = [
   { key: 3, label: '沙箱部署', icon: <CloudServerOutlined />, desc: '沙箱与参数配置' },
 ]
 
-export function McpCustomConfigModal({ visible, onCancel, onOk, productName, productDescription, productIcon, productDocument }: McpCustomConfigModalProps) {
+export function McpCustomConfigModal({ visible, onCancel, onOk, productName, productDescription, productIcon, productDocument, initialMcpMeta }: McpCustomConfigModalProps) {
   const [form] = Form.useForm()
   const [currentStep, setCurrentStep] = useState(0)
   const [tagInput, setTagInput] = useState('')
@@ -70,13 +84,52 @@ export function McpCustomConfigModal({ visible, onCancel, onOk, productName, pro
   // 打开弹窗时自动填充产品信息到展示字段（只读）
   useEffect(() => {
     if (visible) {
-      form.setFieldsValue({
+      const formValues: Record<string, any> = {
         mcpDisplayName: productName || '',
         description: productDescription || '',
         serviceIntro: productDocument || '',
-      })
+      }
+
+      // 编辑模式：预填已有 MCP 元数据
+      if (initialMcpMeta) {
+        if (initialMcpMeta.mcpName) formValues.mcpServerName = initialMcpMeta.mcpName
+        if (initialMcpMeta.displayName) formValues.mcpDisplayName = initialMcpMeta.displayName
+        if (initialMcpMeta.description) formValues.description = initialMcpMeta.description
+        if (initialMcpMeta.protocolType) formValues.protocolType = initialMcpMeta.protocolType
+        if (initialMcpMeta.connectionConfig) formValues.mcpConfigJson = initialMcpMeta.connectionConfig
+        if (initialMcpMeta.repoUrl) formValues.repoUrl = initialMcpMeta.repoUrl
+        if (initialMcpMeta.serviceIntro) formValues.serviceIntro = initialMcpMeta.serviceIntro
+        formValues.sandboxRequired = initialMcpMeta.sandboxRequired ?? true
+
+        // 解析 tags JSON
+        if (initialMcpMeta.tags) {
+          try {
+            const tags = JSON.parse(initialMcpMeta.tags)
+            if (Array.isArray(tags)) formValues.tags = tags
+          } catch { /* ignore */ }
+        }
+
+        // 解析 extraParams JSON
+        if (initialMcpMeta.extraParams) {
+          try {
+            const params = JSON.parse(initialMcpMeta.extraParams)
+            if (Array.isArray(params)) {
+              setExtraParams(params.map((p: any, i: number) => ({
+                key: p.name || `param-${i}`,
+                name: p.name || '',
+                position: p.position || 'env',
+                required: p.required ?? false,
+                description: p.description || '',
+                example: p.example || '',
+              })))
+            }
+          } catch { /* ignore */ }
+        }
+      }
+
+      form.setFieldsValue(formValues)
     }
-  }, [visible, productName, productDescription, productDocument])
+  }, [visible, productName, productDescription, productDocument, initialMcpMeta])
 
   const handleAddTag = () => {
     const val = tagInput.trim()

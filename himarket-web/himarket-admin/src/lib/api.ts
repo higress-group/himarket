@@ -463,3 +463,15 @@ export const sandboxApi = {
     return api.get(`/sandboxes/${sandboxId}/active-deployments`)
   },
 }
+
+// MCP 供应商导入 API
+export const mcpVendorApi = {
+  // 查询供应商 MCP 列表
+  listRemoteMcpItems: (params: { vendorType: string; keyword?: string; page?: number; size?: number }) => {
+    return api.get('/admin/mcp-vendor/mcp-list', { params })
+  },
+  // 批量导入（超时设长一些，因为后端需要逐条调详情 API 补充数据）
+  batchImport: (data: { vendorType: string; items: any[] }) => {
+    return api.post('/admin/mcp-vendor/import', data, { timeout: 300000 })
+  },
+}

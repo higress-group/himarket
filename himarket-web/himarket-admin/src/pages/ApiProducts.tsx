@@ -3,10 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import type { MenuProps } from 'antd';
 import { Button, Dropdown, Modal, message, Pagination, Skeleton, Input, Tabs, Tag } from 'antd';
 import type { ApiProduct, ProductIcon } from '@/types/api-product';
-import { ApiOutlined, MoreOutlined, PlusOutlined, ExclamationCircleOutlined, ExclamationCircleFilled, ClockCircleFilled, CheckCircleFilled, SearchOutlined, RobotOutlined, BulbOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import { ApiOutlined, MoreOutlined, PlusOutlined, ExclamationCircleOutlined, ExclamationCircleFilled, ClockCircleFilled, CheckCircleFilled, SearchOutlined, RobotOutlined, BulbOutlined, ThunderboltOutlined, ImportOutlined } from '@ant-design/icons';
 import McpServerIcon from '@/components/icons/McpServerIcon';
 import { apiProductApi } from '@/lib/api';
 import ApiProductFormModal from '@/components/api-product/ApiProductFormModal';
+import ImportMcpModal from '@/components/mcp-vendor/ImportMcpModal';
 import { ProductIconRenderer } from '@/components/icons/ProductIconRenderer';
 import { getIconString } from '@/lib/iconUtils';
 
@@ -148,6 +149,7 @@ export default function ApiProducts() {
   const [pagination, setPagination] = useState({ current: 1, pageSize: 12, total: 0 });
   const [modalVisible, setModalVisible] = useState(false);
   const [editingProduct, setEditingProduct] = useState<ApiProduct | null>(null);
+  const [importModalOpen, setImportModalOpen] = useState(false);
 
   const buildParams = useCallback((page: number, size: number, tab: string, name: string) => {
     const params: Record<string, any> = { page, size };
@@ -227,9 +229,14 @@ export default function ApiProducts() {
           <h1 className="text-3xl font-bold tracking-tight">API Products</h1>
           <p className="text-gray-500 mt-2">管理和配置您的API产品</p>
         </div>
-        <Button onClick={handleCreate} type="primary" icon={<PlusOutlined />}>
-          创建 API Product
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button onClick={() => setImportModalOpen(true)} icon={<ImportOutlined />}>
+            导入 MCP
+          </Button>
+          <Button onClick={handleCreate} type="primary" icon={<PlusOutlined />}>
+            创建 API Product
+          </Button>
+        </div>
       </div>
 
       {/* Tabs 按类型分组 */}
@@ -341,6 +348,12 @@ export default function ApiProducts() {
         onSuccess={handleModalSuccess}
         productId={editingProduct?.productId}
         initialData={editingProduct || undefined}
+      />
+
+      <ImportMcpModal
+        open={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        onImportSuccess={() => fetchApiProducts(pagination.current, pagination.pageSize)}
       />
     </div>
   );

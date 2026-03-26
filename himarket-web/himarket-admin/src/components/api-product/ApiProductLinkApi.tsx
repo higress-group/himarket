@@ -1189,6 +1189,20 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                   取消托管
                 </Button>
               )}
+              <Button
+                icon={<SettingOutlined />}
+                disabled={!!mcpMetaList[0]?.endpointUrl}
+                title={mcpMetaList[0]?.endpointUrl ? '请先取消沙箱部署后再修改配置' : undefined}
+                onClick={() => {
+                  if (mcpMetaList[0]?.endpointUrl) {
+                    message.warning('请先取消沙箱部署后再修改配置')
+                    return
+                  }
+                  setIsCustomConfigModalVisible(true)
+                }}
+              >
+                修改配置
+              </Button>
               <Button type="primary" danger icon={<DeleteOutlined />} onClick={handleDelete}>
                 解除配置
               </Button>
@@ -2685,6 +2699,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
         productDescription={apiProduct.description}
         productIcon={apiProduct.icon}
         productDocument={apiProduct.document}
+        initialMcpMeta={mcpMetaList.length > 0 ? mcpMetaList[0] : null}
         onOk={async (values) => {
           const iconJson = values.icon
             ? JSON.stringify({ type: 'BASE64', data: values.icon })

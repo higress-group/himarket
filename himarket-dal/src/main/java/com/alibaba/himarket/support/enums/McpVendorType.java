@@ -20,35 +20,33 @@
 package com.alibaba.himarket.support.enums;
 
 /**
- * MCP Server 来源。
+ * MCP 供应商类型。
+ *
+ * <p>供应商类型硬编码为枚举常量，不建表、不持久化。
+ * 所有供应商均不需要管理员输入 API Key（经实际 API 测试验证）。
  */
-public enum McpOrigin {
-    /** 管理员在 Admin 后台手动创建 */
-    ADMIN,
-    /** 从网关导入 */
-    GATEWAY,
-    /** 从 Nacos 导入 */
-    NACOS,
-    /** 通过 Open API 注册 */
-    OPEN_API,
-    /** 从 AgentRuntime 注册 */
-    AGENTRUNTIME,
-    /** 开发者在 Portal 端注册 */
-    USER,
-    /** 从第三方供应商 API 导入 */
-    VENDOR_IMPORT;
+public enum McpVendorType {
+    MODELSCOPE("ModelScope"),
+    MCP_REGISTRY("MCP Registry"),
+    LOBEHUB("LobeHub");
+
+    private final String displayName;
+
+    McpVendorType(String displayName) {
+        this.displayName = displayName;
+    }
+
+    public String getDisplayName() {
+        return displayName;
+    }
 
     /**
-     * 从字符串解析，大小写不敏感，无法识别时返回 ADMIN。
+     * 该供应商是否需要管理员手动输入 API Key 认证。
+     *
+     * <p>经实际测试验证，所有供应商均不需要：ModelScope 列表和详情接口无需认证，
+     * MCP_REGISTRY 为公开只读 API，LOBEHUB 使用 JWT client assertion 认证（后端自动处理）。
      */
-    public static McpOrigin fromString(String value) {
-        if (value == null || value.isBlank()) {
-            return ADMIN;
-        }
-        try {
-            return valueOf(value.trim().toUpperCase());
-        } catch (IllegalArgumentException e) {
-            return ADMIN;
-        }
+    public boolean requiresApiKey() {
+        return false;
     }
 }
