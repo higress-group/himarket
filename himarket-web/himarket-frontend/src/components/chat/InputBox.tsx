@@ -122,11 +122,16 @@ export function InputBox(props: InputBoxProps) {
         }
         setAttachments(prev => [...prev, attachment]);
       } else {
-        message.error("上传失败");
+        message.error(res.message || "上传失败");
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Upload error:", error);
-      message.error("上传出错");
+      const errMsg =
+        error && typeof error === "object" && "response" in error
+          ? (error as { response?: { data?: { message?: string } } }).response
+              ?.data?.message
+          : undefined;
+      message.error(errMsg || "上传出错");
     } finally {
       setIsUploading(false);
     }

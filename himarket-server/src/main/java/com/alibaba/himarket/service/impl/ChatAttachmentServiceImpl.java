@@ -23,6 +23,7 @@ import cn.hutool.core.codec.Base64;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.core.security.ContextHolder;
+import com.alibaba.himarket.core.utils.FileUploadValidator;
 import com.alibaba.himarket.core.utils.IdGenerator;
 import com.alibaba.himarket.dto.result.chat.ChatAttachmentDetailResult;
 import com.alibaba.himarket.dto.result.chat.ChatAttachmentResult;
@@ -50,6 +51,9 @@ public class ChatAttachmentServiceImpl implements ChatAttachmentService {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "File cannot be empty");
         }
 
+        // Validate file upload security
+        FileUploadValidator.validate(file);
+
         // Determine attachment type from MIME type
         String mimeType = file.getContentType();
         ChatAttachmentType type = determineAttachmentType(mimeType);
@@ -60,7 +64,7 @@ public class ChatAttachmentServiceImpl implements ChatAttachmentService {
                     ChatAttachment.builder()
                             .attachmentId(IdGenerator.genChatAttachmentId())
                             .userId(contextHolder.getUser())
-                            .name(file.getOriginalFilename())
+                            .name(FileUploadValidator.sanitizeFilename(file.getOriginalFilename()))
                             .type(type)
                             .mimeType(mimeType)
                             .size(file.getSize())
