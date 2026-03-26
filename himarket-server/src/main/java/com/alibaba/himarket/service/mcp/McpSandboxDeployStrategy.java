@@ -56,4 +56,22 @@ public interface McpSandboxDeployStrategy {
      * @param namespace  部署时使用的 Namespace（为空时使用 "default"）
      */
     void undeploy(SandboxInstance sandbox, String mcpName, String userId, String namespace);
+
+    /**
+     * 删除沙箱集群中的 ToolServer CRD（使用指定的 resourceName）。
+     *
+     * @param sandbox       沙箱实例
+     * @param mcpName       MCP Server 名称
+     * @param userId        订阅用户 ID
+     * @param namespace     部署时使用的 Namespace（为空时使用 "default"）
+     * @param resourceName  CRD 资源名称（为空时回退到名称计算）
+     */
+    default void undeploy(
+            SandboxInstance sandbox,
+            String mcpName,
+            String userId,
+            String namespace,
+            String resourceName) {
+        undeploy(sandbox, mcpName, userId, namespace);
+    }
 }

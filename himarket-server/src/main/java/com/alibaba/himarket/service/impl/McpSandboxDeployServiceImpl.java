@@ -98,6 +98,16 @@ public class McpSandboxDeployServiceImpl implements McpSandboxDeployService {
 
     @Override
     public void undeploy(String sandboxId, String mcpName, String userId, String namespace) {
+        undeploy(sandboxId, mcpName, userId, namespace, null);
+    }
+
+    @Override
+    public void undeploy(
+            String sandboxId,
+            String mcpName,
+            String userId,
+            String namespace,
+            String resourceName) {
         SandboxInstance sandbox =
                 sandboxInstanceRepository
                         .findBySandboxId(sandboxId)
@@ -113,12 +123,14 @@ public class McpSandboxDeployServiceImpl implements McpSandboxDeployService {
         }
 
         log.info(
-                "[McpSandboxUndeploy] sandboxId={}, type={}, mcpName={}, userId={}",
+                "[McpSandboxUndeploy] sandboxId={}, type={}, mcpName={}, userId={},"
+                        + " resourceName={}",
                 sandboxId,
                 sandboxType,
                 mcpName,
-                userId);
+                userId,
+                resourceName);
 
-        strategy.undeploy(sandbox, mcpName, userId, namespace);
+        strategy.undeploy(sandbox, mcpName, userId, namespace, resourceName);
     }
 }

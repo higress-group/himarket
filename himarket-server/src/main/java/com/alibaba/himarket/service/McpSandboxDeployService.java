@@ -49,4 +49,16 @@ public interface McpSandboxDeployService {
      * @param namespace  部署时使用的 Namespace（为空时使用 "default"）
      */
     void undeploy(String sandboxId, String mcpName, String userId, String namespace);
+
+    /**
+     * 删除沙箱集群中的 ToolServer CRD（使用指定的 resourceName）。
+     */
+    default void undeploy(
+            String sandboxId,
+            String mcpName,
+            String userId,
+            String namespace,
+            String resourceName) {
+        undeploy(sandboxId, mcpName, userId, namespace);
+    }
 }

@@ -55,6 +55,7 @@ import com.alibaba.himarket.service.McpServerService;
 import com.alibaba.himarket.service.NacosService;
 import com.alibaba.himarket.service.SandboxService;
 import com.alibaba.himarket.service.hichat.manager.ToolManager;
+import com.alibaba.himarket.service.mcp.AgentRuntimeDeployStrategy;
 import com.alibaba.himarket.service.mcp.McpConnectionConfig;
 import com.alibaba.himarket.service.mcp.McpProtocolUtils;
 import com.alibaba.himarket.service.mcp.McpSandboxDeployEvent;
@@ -1340,6 +1341,7 @@ public class McpServerServiceImpl implements McpServerService {
                                 .mcpName(existing.getMcpName())
                                 .userId(adminUserId)
                                 .namespace(extractNamespace(existing))
+                                .resourceName(extractResourceName(existing))
                                 .build());
             }
             endpointRepository.delete(existing);
@@ -1349,12 +1351,15 @@ public class McpServerServiceImpl implements McpServerService {
         var sandbox = sandboxService.getSandbox(sandboxId);
 
         // 事务内预创建 endpoint（状态为 INACTIVE，等 CRD 部署成功后由 listener 更新为 ACTIVE）
+        String resourceName =
+                AgentRuntimeDeployStrategy.buildResourceNameStatic(meta.getMcpName(), adminUserId);
         cn.hutool.json.JSONObject subParams =
                 JSONUtil.createObj()
                         .set("sandboxId", sandboxId)
                         .set("transportType", transportType)
                         .set("authType", authType)
-                        .set("namespace", StrUtil.blankToDefault(param.getNamespace(), "default"));
+                        .set("namespace", StrUtil.blankToDefault(param.getNamespace(), "default"))
+                        .set("resourceName", resourceName);
         if (StrUtil.isNotBlank(paramValues)) {
             subParams.set("extraParams", JSONUtil.parse(paramValues));
         }
@@ -1719,6 +1724,18 @@ public class McpServerServiceImpl implements McpServerService {
         }
     }
 
+    private String extractResourceName(McpServerEndpoint endpoint) {
+        if (endpoint == null || StrUtil.isBlank(endpoint.getSubscribeParams())) {
+            return null;
+        }
+        try {
+            cn.hutool.json.JSONObject params = JSONUtil.parseObj(endpoint.getSubscribeParams());
+            return params.getStr("resourceName");
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     /**
      * 对 meta 关联的所有沙箱托管 endpoint 执行 undeploy（删除沙箱中的 CRD 资源）。
      * undeploy 失败不阻塞删除流程，仅记录日志。
@@ -1733,13 +1750,19 @@ public class McpServerServiceImpl implements McpServerService {
             }
             try {
                 String namespace = extractNamespace(ep);
+                String resourceName = extractResourceName(ep);
                 mcpSandboxDeployService.undeploy(
-                        ep.getHostingInstanceId(), meta.getMcpName(), ep.getUserId(), namespace);
+                        ep.getHostingInstanceId(),
+                        meta.getMcpName(),
+                        ep.getUserId(),
+                        namespace,
+                        resourceName);
                 log.info(
-                        "沙箱 undeploy 成功: mcpName={}, sandboxId={}, namespace={}",
+                        "沙箱 undeploy 成功: mcpName={}, sandboxId={}, namespace={}, resourceName={}",
                         meta.getMcpName(),
                         ep.getHostingInstanceId(),
-                        namespace);
+                        namespace,
+                        resourceName);
             } catch (Exception e) {
                 log.warn(
                         "沙箱 undeploy 失败（不阻塞删除）: mcpName={}, sandboxId={}, error={}",

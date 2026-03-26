@@ -234,16 +234,31 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
 
     @Override
     public void undeploy(SandboxInstance sandbox, String mcpName, String userId, String namespace) {
+        undeploy(sandbox, mcpName, userId, namespace, null);
+    }
+
+    @Override
+    public void undeploy(
+            SandboxInstance sandbox,
+            String mcpName,
+            String userId,
+            String namespace,
+            String resourceName) {
         if (StrUtil.isBlank(sandbox.getKubeConfig())) {
             throw new BusinessException(
                     ErrorCode.INVALID_REQUEST, "沙箱实例未配置 KubeConfig: " + sandbox.getSandboxId());
         }
 
         String ns = StrUtil.blankToDefault(namespace, "default");
-        String resourceName = buildResourceName(mcpName, userId);
-        String endpointName = resourceName + "-primary";
-
         KubernetesClient client = K8sClientUtils.getClient(sandbox.getKubeConfig());
+
+        // 优先使用传入的 resourceName（从 subscribe_params 读取）
+        // 如果没有，回退到按名称计算
+        if (StrUtil.isBlank(resourceName)) {
+            resourceName = buildResourceName(mcpName, userId);
+        }
+
+        String endpointName = resourceName + "-primary";
 
         // 删除 ToolServer CRD
         try {
@@ -671,8 +686,9 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
 
     /**
      * 构建 K8s 资源名称：mcpName + userId 后 8 位。
+     * 公开静态方法，供 McpSandboxDeployListener 在部署后记录 resourceName。
      */
-    private String buildResourceName(String mcpName, String userId) {
+    public static String buildResourceNameStatic(String mcpName, String userId) {
         String name = StrUtil.blankToDefault(mcpName, "mcp-server");
         String userSuffix =
                 (userId != null && userId.length() >= 8)
@@ -685,6 +701,10 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
                         .replaceAll("-+", "-")
                         .replaceAll("^-|-$", "");
         return sanitized.length() > 253 ? sanitized.substring(0, 253) : sanitized;
+    }
+
+    private String buildResourceName(String mcpName, String userId) {
+        return buildResourceNameStatic(mcpName, userId);
     }
 
     /**

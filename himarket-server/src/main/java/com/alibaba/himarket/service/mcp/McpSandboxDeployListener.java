@@ -89,7 +89,7 @@ public class McpSandboxDeployListener {
             String finalEndpointUrl =
                     McpProtocolUtils.normalizeEndpointUrl(endpointUrl, event.getTransportType());
 
-            // Step 2: 更新 endpoint URL（事务内已预创建了 endpoint 记录）
+            // Step 2: 更新 endpoint URL（事务内已预创建了 endpoint 记录，resourceName 已在创建时写入）
             String lambdaUrl = finalEndpointUrl;
             endpointRepository
                     .findByEndpointId(event.getEndpointId())
@@ -132,11 +132,15 @@ public class McpSandboxDeployListener {
             // 回滚：删除已部署的 CRD（如果部署成功了的话）
             if (endpointUrl != null) {
                 try {
+                    String rollbackResourceName =
+                            AgentRuntimeDeployStrategy.buildResourceNameStatic(
+                                    event.getMcpName(), event.getAdminUserId());
                     mcpSandboxDeployService.undeploy(
                             event.getSandboxId(),
                             event.getMcpName(),
                             event.getAdminUserId(),
-                            StrUtil.blankToDefault(event.getNamespace(), "default"));
+                            StrUtil.blankToDefault(event.getNamespace(), "default"),
+                            rollbackResourceName);
                 } catch (Exception re) {
                     log.warn("回滚删除 CRD 失败: {}", re.getMessage());
                 }
@@ -198,7 +202,8 @@ public class McpSandboxDeployListener {
                                 event.getSandboxId(),
                                 event.getMcpName(),
                                 event.getUserId(),
-                                StrUtil.blankToDefault(event.getNamespace(), "default"));
+                                StrUtil.blankToDefault(event.getNamespace(), "default"),
+                                event.getResourceName());
                         log.info(
                                 "旧沙箱 CRD 清理成功: mcpName={}, sandboxId={}",
                                 event.getMcpName(),

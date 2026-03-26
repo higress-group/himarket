@@ -47,4 +47,7 @@ public class McpSandboxUndeployEvent {
 
     /** K8s namespace */
     private String namespace;
+
+    /** CRD 资源名称（用于精确删除，避免名称计算不一致） */
+    private String resourceName;
 }
