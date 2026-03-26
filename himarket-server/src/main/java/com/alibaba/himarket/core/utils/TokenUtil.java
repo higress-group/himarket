@@ -27,6 +27,7 @@ import cn.hutool.jwt.JWT;
 import cn.hutool.jwt.JWTUtil;
 import cn.hutool.jwt.signers.JWTSignerUtil;
 import com.alibaba.himarket.core.constant.CommonConstants;
+import com.alibaba.himarket.service.RevokedTokenService;
 import com.alibaba.himarket.support.common.User;
 import com.alibaba.himarket.support.enums.UserType;
 import jakarta.servlet.http.Cookie;
@@ -37,15 +38,12 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class TokenUtil {
 
     private static String JWT_SECRET;
 
     private static long JWT_EXPIRE_MILLIS;
-
-    private static final Map<String, Long> INVALID_TOKENS = new ConcurrentHashMap<>();
 
     private static String getJwtSecret() {
         if (JWT_SECRET == null) {
@@ -178,9 +176,8 @@ public class TokenUtil {
         if (StrUtil.isBlank(token)) {
             return;
         }
-        long expireAt = getTokenExpireTime(token);
-        INVALID_TOKENS.put(token, expireAt);
-        cleanExpiredTokens();
+        long expiresAtMillis = getTokenExpireTime(token);
+        SpringUtil.getBean(RevokedTokenService.class).revokeToken(token, expiresAtMillis);
     }
 
     private static long getTokenExpireTime(String token) {
@@ -203,20 +200,7 @@ public class TokenUtil {
         if (StrUtil.isBlank(token)) {
             return false;
         }
-        Long expireAt = INVALID_TOKENS.get(token);
-        if (expireAt == null) {
-            return false;
-        }
-        if (expireAt <= System.currentTimeMillis()) {
-            INVALID_TOKENS.remove(token);
-            return false;
-        }
-        return true;
-    }
-
-    private static void cleanExpiredTokens() {
-        long now = System.currentTimeMillis();
-        INVALID_TOKENS.entrySet().removeIf(entry -> entry.getValue() <= now);
+        return SpringUtil.getBean(RevokedTokenService.class).isTokenRevoked(token);
     }
 
     public static long getTokenExpiresIn() {

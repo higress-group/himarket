@@ -17,22 +17,34 @@
  * under the License.
  */
 
-package com.alibaba.himarket;
+package com.alibaba.himarket.entity;
 
-import com.alibaba.himarket.config.AcpProperties;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
-import org.springframework.scheduling.annotation.EnableScheduling;
+import jakarta.persistence.*;
+import java.time.LocalDateTime;
+import lombok.*;
 
-@SpringBootApplication
-@EnableJpaAuditing
-@EnableScheduling
-@EnableConfigurationProperties({AcpProperties.class})
-public class HiMarketApplication {
+@Entity
+@Table(
+        name = "revoked_token",
+        uniqueConstraints = {
+            @UniqueConstraint(
+                    columnNames = {"token_hash"},
+                    name = "uk_token_hash")
+        })
+@Data
+@EqualsAndHashCode(callSuper = true)
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class RevokedToken extends BaseEntity {
 
-    public static void main(String[] args) {
-        SpringApplication.run(HiMarketApplication.class, args);
-    }
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "token_hash", length = 64, nullable = false)
+    private String tokenHash;
+
+    @Column(name = "expires_at", columnDefinition = "datetime(3)", nullable = false)
+    private LocalDateTime expiresAt;
 }
