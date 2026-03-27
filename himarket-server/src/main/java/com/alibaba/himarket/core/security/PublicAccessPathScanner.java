@@ -181,7 +181,9 @@ public class PublicAccessPathScanner implements ApplicationContextAware {
         if (!path.startsWith("/")) {
             path = "/" + path;
         }
-        // Replace path variables like {productId} with *
+        // Replace catch-all path variables like {*filePath} with **
+        path = path.replaceAll("\\{\\*[^}]+}", "**");
+        // Replace regular path variables like {productId} with *
         path = path.replaceAll("\\{[^}]+}", "*");
         return path;
     }
