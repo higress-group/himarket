@@ -539,7 +539,7 @@ load_config() {
                HIGRESS_REPO_NAME HIGRESS_REPO_URL HIGRESS_CHART_REF \
                MYSQL_ROOT_PASSWORD MYSQL_PASSWORD \
                JWT_SECRET \
-               NACOS_ADMIN_PASSWORD HIGRESS_USERNAME HIGRESS_PASSWORD \
+               NACOS_USERNAME NACOS_ADMIN_PASSWORD HIGRESS_USERNAME HIGRESS_PASSWORD \
                ADMIN_USERNAME ADMIN_PASSWORD FRONT_USERNAME FRONT_PASSWORD \
                MYSQL_STORAGE_CLASS MYSQL_STORAGE_SIZE SANDBOX_STORAGE_CLASS SANDBOX_STORAGE_SIZE \
                HIGRESS_INGRESS_CLASS HIMARKET_LANGUAGE \
@@ -775,6 +775,7 @@ interactive_config() {
         if [[ -z "${JWT_SECRET:-}" ]]; then
             JWT_SECRET="$(openssl rand -base64 32)"
         fi
+        NACOS_USERNAME="${NACOS_USERNAME:-nacos}"
         NACOS_ADMIN_PASSWORD="${NACOS_ADMIN_PASSWORD:-nacos}"
         HIGRESS_USERNAME="${HIGRESS_USERNAME:-admin}"
         HIGRESS_PASSWORD="${HIGRESS_PASSWORD:-admin}"
@@ -821,6 +822,7 @@ interactive_config() {
     # ─── 服务凭证（首次安装时已自动生成随机值） ───
     log ""
     log "$(msg section.credential)"
+    prompt NACOS_USERNAME "Nacos admin username" "nacos"
     prompt NACOS_ADMIN_PASSWORD "Nacos admin password" "${NACOS_ADMIN_PASSWORD:-}"
     prompt HIGRESS_USERNAME "Higress console username" "admin"
     prompt HIGRESS_PASSWORD "Higress console password" "${HIGRESS_PASSWORD:-}"
@@ -1006,6 +1008,7 @@ MYSQL_PASSWORD="${MYSQL_PASSWORD}"
 JWT_SECRET="${JWT_SECRET}"
 
 # ========== 服务凭证 ==========
+NACOS_USERNAME="${NACOS_USERNAME}"
 NACOS_ADMIN_PASSWORD="${NACOS_ADMIN_PASSWORD}"
 HIGRESS_USERNAME="${HIGRESS_USERNAME}"
 HIGRESS_PASSWORD="${HIGRESS_PASSWORD}"
@@ -1199,7 +1202,7 @@ show_result_panel() {
     log "║"
     log "║  Admin login:      ${ADMIN_USERNAME} / ${ADMIN_PASSWORD}"
     log "║  Developer login:  ${FRONT_USERNAME} / ${FRONT_PASSWORD}"
-    log "║  Nacos login:      ${NACOS_USERNAME:-nacos} / ${NACOS_ADMIN_PASSWORD}"
+    log "║  Nacos login:      ${NACOS_USERNAME} / ${NACOS_ADMIN_PASSWORD}"
     log "║  Higress login:    ${HIGRESS_USERNAME} / ${HIGRESS_PASSWORD}"
     log "║"
     if [[ "${SKIP_AI_MODEL_INIT:-true}" != "true" ]]; then
