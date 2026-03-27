@@ -150,7 +150,7 @@ public class SkillServiceImpl implements SkillService {
             Skill skill = fetchSkill(ref, version);
             return FileTreeBuilder.build(skill);
         } catch (Exception e) {
-            log.warn("Failed to fetch file tree for Skill {}", ref.getSkillName());
+            log.warn("Failed to fetch file tree for Skill {}", ref.getSkillName(), e);
             return Collections.emptyList();
         }
     }
@@ -656,7 +656,8 @@ public class SkillServiceImpl implements SkillService {
     private void syncSkillGroup(String nacosId, String namespace, List<Product> products) {
         try {
             AiMaintainerService aiService = nacosService.getAiMaintainerService(nacosId);
-            Page<SkillSummary> page = aiService.skill().listSkills(namespace, 1, Integer.MAX_VALUE);
+            Page<SkillSummary> page =
+                    aiService.skill().listSkills(namespace, null, null, 1, Integer.MAX_VALUE);
 
             if (page == null || CollUtil.isEmpty(page.getPageItems())) {
                 return;
