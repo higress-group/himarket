@@ -347,7 +347,7 @@ export const workerApi = {
     api.put(`/workers/${productId}/versions/latest`, { version }),
   // 从 Nacos 导入 Workers
   importFromNacos: (nacosId: string, namespace?: string) => {
-    return api.post(`/workers/import`, null, { params: { nacosId, namespace } })
+    return api.post(`/workers/import`, null, { params: { nacosId, namespace }, timeout: 120000 })
   },
 }
 
@@ -380,6 +380,6 @@ export const skillApi = {
     api.put(`/skills/${productId}/versions/latest`, { version }),
   // 从 Nacos 导入 Skills
   importFromNacos: (nacosId: string, namespace?: string) => {
-    return api.post(`/skills/import`, null, { params: { nacosId, namespace } })
+    return api.post(`/skills/import`, null, { params: { nacosId, namespace }, timeout: 120000 })
   },
 }

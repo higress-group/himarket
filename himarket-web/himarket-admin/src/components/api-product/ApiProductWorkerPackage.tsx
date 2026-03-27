@@ -281,8 +281,8 @@ export function ApiProductWorkerPackage({ apiProduct, onUploadSuccess, handleRef
     }
   }
 
-  const fetchVersions = async () => {
-    setLoadingVersions(true)
+  const fetchVersions = async (silent = false) => {
+    if (!silent) setLoadingVersions(true)
     try {
       const res: any = await workerApi.getVersions(productId)
       const versionItems: VersionItem[] = res.data || []
@@ -296,7 +296,7 @@ export function ApiProductWorkerPackage({ apiProduct, onUploadSuccess, handleRef
     } catch {
       // ignore
     } finally {
-      setLoadingVersions(false)
+      if (!silent) setLoadingVersions(false)
     }
   }
 
@@ -492,7 +492,7 @@ export function ApiProductWorkerPackage({ apiProduct, onUploadSuccess, handleRef
   const hasReviewing = versions.some(item => item.status === 'reviewing')
   useEffect(() => {
     if (!hasReviewing) return
-    const timer = setInterval(() => fetchVersions(), 5000)
+    const timer = setInterval(() => fetchVersions(true), 5000)
     return () => clearInterval(timer)
   }, [hasReviewing, productId])
 
