@@ -502,6 +502,20 @@ public class ChatBotManager {
 
         sb.append("|");
 
+        // Body Params (sorted)
+        if (request.getBodyParams() != null && !request.getBodyParams().isEmpty()) {
+            sb.append("body:{");
+            request.getBodyParams().entrySet().stream()
+                    .sorted(Map.Entry.comparingByKey())
+                    .forEach(
+                            entry ->
+                                    sb.append(entry.getKey())
+                                            .append("=")
+                                            .append(entry.getValue())
+                                            .append(","));
+            sb.append("}|");
+        }
+
         // MCP Tool URLs (sorted)
         sb.append("mcp:");
         if (CollUtil.isNotEmpty(request.getMcpConfigs())) {

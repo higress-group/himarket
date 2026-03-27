@@ -142,7 +142,8 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
                 {apiProduct.type === 'REST_API' ? 'REST API' : 
                  apiProduct.type === 'AGENT_API' ? 'Agent API' : 
                  apiProduct.type === 'MODEL_API' ? 'Model API' :
-                 apiProduct.type === 'AGENT_SKILL' ? 'Agent Skill' : 'MCP Server'}
+                 apiProduct.type === 'AGENT_SKILL' ? 'Agent Skill' :
+                 apiProduct.type === 'WORKER' ? 'Worker' : 'MCP Server'}
               </span>
              <span className="text-xs text-gray-600">状态:</span>
               <div className="col-span-2 flex items-center">
@@ -159,7 +160,7 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
               </div>
             </div>
 
-            {apiProduct.type !== 'AGENT_SKILL' ? (
+            {apiProduct.type !== 'AGENT_SKILL' && apiProduct.type !== 'WORKER' ? (
               <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
                 <span className="text-xs text-gray-600">自动审批订阅:</span>
                 <div className="col-span-2 flex items-center">

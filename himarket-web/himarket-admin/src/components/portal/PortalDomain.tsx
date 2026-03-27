@@ -1,5 +1,5 @@
-import {Card, Button, Table, Modal, Form, Input, Select, message, Space} from 'antd'
-import {PlusOutlined, ExclamationCircleOutlined} from '@ant-design/icons'
+import {Button, Table, Modal, Form, Input, message, Space} from 'antd'
+import {PlusOutlined, ExclamationCircleOutlined, DeleteOutlined} from '@ant-design/icons'
 import {useState} from 'react'
 import {Portal} from '@/types'
 import {portalApi} from '@/lib/api'
@@ -25,8 +25,7 @@ export function PortalDomain({portal, onRefresh}: PortalDomainProps) {
             
             await portalApi.bindDomain(portal.portalId, {
                 domain: values.domain,
-                type: 'CUSTOM',
-                protocol: values.protocol
+                type: 'CUSTOM'
             })
             
             message.success('域名绑定成功')
@@ -65,6 +64,8 @@ export function PortalDomain({portal, onRefresh}: PortalDomainProps) {
         })
     }
 
+    const domains = portal.portalDomainConfig || []
+
     const domainColumns = [
         {
             title: '域名',
@@ -72,37 +73,29 @@ export function PortalDomain({portal, onRefresh}: PortalDomainProps) {
             key: 'domain',
         },
         {
-            title: '协议',
-            dataIndex: 'protocol',
-            key: 'protocol',
-            render: (protocol: string) => protocol?.toUpperCase() || 'HTTP'
-        },
-        {
             title: '类型',
             dataIndex: 'type',
             key: 'type',
-            render: (type: string) => type === 'CUSTOM' ? '自定义域名' : '系统域名'
+            render: (type: string) => (
+                type === 'CUSTOM' ? '自定义' : '系统域名'
+            )
         },
         {
             title: '操作',
             key: 'action',
             render: (_: any, record: any) => (
-                <Space>
-                    {record.type === 'CUSTOM' ? (
-                        <Button 
-                            type="link" 
-                            danger 
-                            size="small"
-                            onClick={() => handleDeleteDomain(record.domain)}
-                        >
-                            解绑
-                        </Button>
-                    ) : (
-                        <span className="text-gray-400 text-sm">-</span>
-                    )}
-                </Space>
-            ),
-        },
+                record.type === 'CUSTOM' ? (
+                    <Button
+                        type="text"
+                        danger
+                        icon={<DeleteOutlined/>}
+                        onClick={() => handleDeleteDomain(record.domain)}
+                    />
+                ) : (
+                    <span className="text-gray-400">-</span>
+                )
+            )
+        }
     ]
 
     return (
@@ -119,23 +112,16 @@ export function PortalDomain({portal, onRefresh}: PortalDomainProps) {
                 </Space>
             </div>
 
-            <Card>
-                <div className="space-y-6">
-                    {/* 域名列表内容 */}
-                    <div>
-                        <Table
-                            columns={domainColumns}
-                            dataSource={portal.portalDomainConfig || []}
-                            rowKey="domain"
-                            pagination={false}
-                            size="small"
-                            locale={{
-                                emptyText: '暂无绑定域名'
-                            }}
-                        />
-                    </div>
-                </div>
-            </Card>
+            <Table
+                columns={domainColumns}
+                dataSource={domains}
+                rowKey="domain"
+                pagination={false}
+                size="small"
+                locale={{
+                    emptyText: '暂无绑定域名'
+                }}
+            />
 
             {/* 域名绑定模态框 */}
             <Modal
@@ -146,24 +132,13 @@ export function PortalDomain({portal, onRefresh}: PortalDomainProps) {
                 confirmLoading={domainLoading}
                 destroyOnClose
             >
-                <Form form={domainForm} layout="vertical" initialValues={{ protocol: 'HTTP' }}>
+                <Form form={domainForm} layout="vertical">
                     <Form.Item
                         name="domain"
                         label="域名"
                         rules={[{ required: true, message: '请输入要绑定的域名' }]}
                     >
                         <Input placeholder="例如：example.com" />
-                    </Form.Item>
-                    
-                    <Form.Item
-                        name="protocol"
-                        label="协议"
-                        rules={[{ required: true, message: '请选择协议' }]}
-                    >
-                        <Select placeholder="请选择协议">
-                            <Select.Option value="HTTPS">HTTPS</Select.Option>
-                            <Select.Option value="HTTP">HTTP</Select.Option>
-                        </Select>
                     </Form.Item>
                 </Form>
             </Modal>

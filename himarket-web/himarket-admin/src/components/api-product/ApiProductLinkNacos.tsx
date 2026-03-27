@@ -11,6 +11,7 @@ interface ApiProductLinkNacosProps {
 }
 
 export function ApiProductLinkNacos({ apiProduct, handleRefresh }: ApiProductLinkNacosProps) {
+  const isWorker = apiProduct.type === 'WORKER'
   const [modalVisible, setModalVisible] = useState(false)
   const [form] = Form.useForm()
   const [nacosInstances, setNacosInstances] = useState<NacosInstance[]>([])
@@ -19,10 +20,10 @@ export function ApiProductLinkNacos({ apiProduct, handleRefresh }: ApiProductLin
   const [nsLoading, setNsLoading] = useState(false)
   const [saving, setSaving] = useState(false)
 
-  // 当前关联的 Nacos 信息
-  const skillConfig = apiProduct.skillConfig
-  const currentNacosId = skillConfig?.nacosId
-  const currentNamespace = skillConfig?.namespace || 'public'
+  // 当前关联的 Nacos 信息（Skill / Worker）
+  const nacosConfig = isWorker ? apiProduct.workerConfig : apiProduct.skillConfig
+  const currentNacosId = nacosConfig?.nacosId
+  const currentNamespace = nacosConfig?.namespace || 'public'
 
   // 查找当前关联的 Nacos 实例名称
   const [currentNacosName, setCurrentNacosName] = useState<string>('')
@@ -75,10 +76,17 @@ export function ApiProductLinkNacos({ apiProduct, handleRefresh }: ApiProductLin
     const values = await form.validateFields()
     setSaving(true)
     try {
-      await apiProductApi.updateSkillNacos(apiProduct.productId, {
-        nacosId: values.nacosId,
-        namespace: values.namespace,
-      })
+      if (isWorker) {
+        await apiProductApi.updateWorkerNacos(apiProduct.productId, {
+          nacosId: values.nacosId,
+          namespace: values.namespace,
+        })
+      } else {
+        await apiProductApi.updateSkillNacos(apiProduct.productId, {
+          nacosId: values.nacosId,
+          namespace: values.namespace,
+        })
+      }
       message.success('Nacos 关联已更新')
       setModalVisible(false)
       handleRefresh()
@@ -91,7 +99,7 @@ export function ApiProductLinkNacos({ apiProduct, handleRefresh }: ApiProductLin
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-1">Link Nacos</h1>
-      <p className="text-gray-600 mb-6">管理该 Skill 关联的 Nacos 实例和命名空间</p>
+      <p className="text-gray-600 mb-6">管理该{isWorker ? ' Worker ' : ' Skill '}关联的 Nacos 实例和命名空间</p>
 
       {currentNacosId ? (
         <Card>

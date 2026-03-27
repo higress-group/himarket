@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import {
-  GlobalOutlined,
-  AppstoreOutlined,
+  HomeOutlined,
+  ProductOutlined,
   DesktopOutlined,
   UserOutlined,
   MenuOutlined,
   SettingOutlined,
-  FolderOutlined,
+  TagsOutlined,
   BarChartOutlined,
   DashboardOutlined,
   MonitorOutlined,
@@ -58,18 +58,18 @@ const Layout: React.FC = () => {
   }, [location.pathname]);
 
   const navigation: NavigationItem[] = [
-    { name: "Portal", cn: "门户", href: "/portals", icon: GlobalOutlined },
+    { name: "Portal", cn: "门户", href: "/portals", icon: HomeOutlined },
     {
       name: "API Products",
       cn: "API产品",
       href: "/api-products",
-      icon: AppstoreOutlined,
+      icon: ProductOutlined,
     },
     {
       name: "Categories",
       cn: "产品类别",
       href: "/product-categories",
-      icon: FolderOutlined,
+      icon: TagsOutlined,
     },
     {
       name: "实例管理",

@@ -20,11 +20,13 @@
 package com.alibaba.himarket.controller;
 
 import com.alibaba.himarket.core.annotation.AdminAuth;
+import com.alibaba.himarket.core.annotation.PublicAccess;
 import com.alibaba.himarket.dto.params.consumer.QuerySubscriptionParam;
 import com.alibaba.himarket.dto.params.portal.BindDomainParam;
 import com.alibaba.himarket.dto.params.portal.CreatePortalParam;
 import com.alibaba.himarket.dto.params.portal.UpdatePortalParam;
 import com.alibaba.himarket.dto.result.common.PageResult;
+import com.alibaba.himarket.dto.result.portal.PortalProfileResult;
 import com.alibaba.himarket.dto.result.portal.PortalResult;
 import com.alibaba.himarket.dto.result.product.ProductPublicationResult;
 import com.alibaba.himarket.dto.result.product.SubscriptionResult;
@@ -43,7 +45,6 @@ import org.springframework.web.bind.annotation.*;
 @Slf4j
 @Validated
 @Tag(name = "门户管理")
-@AdminAuth
 @RequiredArgsConstructor
 public class PortalController {
 
@@ -51,6 +52,7 @@ public class PortalController {
 
     @Operation(summary = "创建门户")
     @PostMapping
+    @AdminAuth
     public PortalResult createPortal(@Valid @RequestBody CreatePortalParam param) {
         return portalService.createPortal(param);
     }
@@ -61,14 +63,23 @@ public class PortalController {
         return portalService.getPortal(portalId);
     }
 
+    @Operation(summary = "获取当前门户信息")
+    @GetMapping("/profile")
+    @PublicAccess
+    public PortalProfileResult getPortalProfile() {
+        return portalService.getPortalProfile();
+    }
+
     @Operation(summary = "获取门户列表")
     @GetMapping
+    @AdminAuth
     public PageResult<PortalResult> listPortals(Pageable pageable) {
         return portalService.listPortals(pageable);
     }
 
     @Operation(summary = "更新门户信息")
     @PutMapping("/{portalId}")
+    @AdminAuth
     public PortalResult updatePortal(
             @PathVariable String portalId, @Valid @RequestBody UpdatePortalParam param) {
         return portalService.updatePortal(portalId, param);
@@ -76,12 +87,14 @@ public class PortalController {
 
     @Operation(summary = "删除门户")
     @DeleteMapping("/{portalId}")
+    @AdminAuth
     public void deletePortal(@PathVariable String portalId) {
         portalService.deletePortal(portalId);
     }
 
     @Operation(summary = "绑定域名")
     @PostMapping("/{portalId}/domains")
+    @AdminAuth
     public PortalResult bindDomain(
             @PathVariable String portalId, @Valid @RequestBody BindDomainParam param) {
         return portalService.bindDomain(portalId, param);
@@ -89,6 +102,7 @@ public class PortalController {
 
     @Operation(summary = "解绑域名")
     @DeleteMapping("/{portalId}/domains/{domain}")
+    @AdminAuth
     public PortalResult unbindDomain(@PathVariable String portalId, @PathVariable String domain) {
         return portalService.unbindDomain(portalId, domain);
     }
@@ -103,6 +117,7 @@ public class PortalController {
 
     @Operation(summary = "获取门户上的API产品订阅列表")
     @GetMapping("/{portalId}/subscriptions")
+    @AdminAuth
     public PageResult<SubscriptionResult> listSubscriptions(
             @PathVariable String portalId, QuerySubscriptionParam param, Pageable pageable) {
         return portalService.listSubscriptions(portalId, param, pageable);

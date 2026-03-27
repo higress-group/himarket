@@ -20,33 +20,39 @@
 package com.alibaba.himarket.support.product;
 
 import java.util.List;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class SkillConfig {
 
     /**
-     * 技能标签列表
+     * List of skill tags
      */
     private List<String> skillTags;
 
     /**
-     * 下载次数
+     * Download count
      */
     private Long downloadCount;
 
     /**
-     * 关联的 Nacos 实例 ID（nacos_instance.nacos_id）
+     * Associated Nacos instance ID (nacos_instance.nacos_id)
      */
     private String nacosId;
 
     /**
-     * Nacos 命名空间，默认 "public"
+     * Nacos namespace, defaults to "public"
      */
     private String namespace;
 
     /**
-     * Nacos Skill name（唯一标识）
+     * Nacos Skill name (unique identifier)
      */
     private String skillName;
 }
