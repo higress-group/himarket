@@ -19,34 +19,7 @@
 
 package com.alibaba.himarket.dto.params.product;
 
-import com.alibaba.himarket.support.enums.ProductStatus;
-import com.alibaba.himarket.support.enums.ProductType;
-import java.util.List;
-import lombok.Data;
-
-@Data
-public class QueryProductParam {
-
-    private String portalId;
-
-    private ProductType type;
-
-    private String name;
-
-    private ProductStatus status;
-
-    private List<String> categoryIds;
-
-    private String excludeCategoryId;
-
-    private ModelFilter modelFilter;
-
-    private ProductSortBy sortBy;
-
-    /**
-     * Check if any type-specific filter is present
-     */
-    public boolean hasFilter() {
-        return modelFilter != null;
-    }
+public enum ProductSortBy {
+    DOWNLOAD_COUNT,
+    UPDATED_AT
 }

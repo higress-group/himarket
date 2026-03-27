@@ -57,6 +57,7 @@ export function getProducts(params: {
   name?: string;
   page?: number;
   size?: number;
+  sortBy?: string;
   ["modelFilter.category"]?: "Image" | "TEXT";
 }) {
   return request.get<RespI<GetProductsResp>, RespI<GetProductsResp>>('/products', {
@@ -66,6 +67,7 @@ export function getProducts(params: {
       categoryIds: params.categoryIds,
       page: params.page || 0,
       size: params.size || 100,
+      sortBy: params.sortBy,
       ["modelFilter.category"]: params["modelFilter.category"],
     },
   });
