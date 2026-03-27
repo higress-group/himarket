@@ -14,6 +14,11 @@ interface CategoryMenuProps {
 }
 
 export function CategoryMenu({ categories, activeCategory, onSelectCategory, loading = false }: CategoryMenuProps) {
+  // 没有分类数据时不渲染任何内容
+  if (!loading && categories.length === 0) {
+    return null;
+  }
+
   return (
     <div className="overflow-hidden">
       {loading ? (

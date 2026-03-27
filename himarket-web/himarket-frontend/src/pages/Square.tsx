@@ -62,12 +62,13 @@ function Square(props: { activeType: string }) {
               { id: "all", name: "全部", count: 0 },
               ...categoryList
             ]);
+            // 重置选中的分类为"全部"
+            setActiveCategory("all");
           } else {
             setCategories([])
+            // 没有分类时，不选中任何分类
+            setActiveCategory("");
           }
-
-          // 重置选中的分类为"全部"
-          setActiveCategory("all");
         }
       } catch (error) {
         console.error("Failed to fetch categories:", error);
