@@ -386,7 +386,7 @@ load_config() {
                ADMIN_USERNAME ADMIN_PASSWORD FRONT_USERNAME FRONT_PASSWORD \
                HIMARKET_LANGUAGE \
                SKIP_HOOK_ERRORS \
-               SKIP_AI_MODEL_INIT AI_MODEL_COUNT; do
+               SKIP_AI_MODEL_INIT AI_MODEL_COUNT SKIP_NACOS_SYNC; do
         eval "local _val=\"\${${var}:-}\""
         if [[ -n "${_val}" ]]; then
             saved_vars="${saved_vars} ${var}='${_val}'"

@@ -542,7 +542,7 @@ load_config() {
                MYSQL_STORAGE_CLASS MYSQL_STORAGE_SIZE SANDBOX_STORAGE_CLASS SANDBOX_STORAGE_SIZE \
                HIGRESS_INGRESS_CLASS HIMARKET_LANGUAGE \
                SKIP_HOOK_ERRORS \
-               SKIP_AI_MODEL_INIT AI_MODEL_COUNT; do
+               SKIP_AI_MODEL_INIT AI_MODEL_COUNT SKIP_NACOS_SYNC; do
         eval "local _val=\"\${${var}:-}\""
         if [[ -n "${_val}" ]]; then
             saved_vars="${saved_vars} ${var}='${_val}'"
@@ -799,7 +799,7 @@ interactive_config() {
 
     log ""
     log "$(msg section.basic)"
-    prompt NAMESPACE "Kubernetes namespace" "himarket"
+    prompt NAMESPACE "Kubernetes namespace" "himarket-system"
 
     log ""
     log "$(msg section.image)"
