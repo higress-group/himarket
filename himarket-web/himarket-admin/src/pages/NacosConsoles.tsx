@@ -114,6 +114,7 @@ export default function NacosConsoles() {
     form.setFieldsValue({
       nacosName: record.nacosName,
       serverUrl: record.serverUrl,
+      displayServerUrl: record.displayServerUrl,
       username: record.username,
       password: record.password,
       accessKey: record.accessKey,
@@ -328,6 +329,10 @@ export default function NacosConsoles() {
             )}
           </Form.Item>
       {/* 命名空间字段已移除 */}
+
+          <Form.Item name="displayServerUrl" label="展示地址">
+            <Input placeholder="可选，用于前台下载命令展示的公网地址，如 http://nacos.example.com:8848" />
+          </Form.Item>
 
           {/* 用户名/密码改为非必填 */}
           <Form.Item name="username" label="用户名" rules={[]}>

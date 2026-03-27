@@ -248,6 +248,7 @@ function WorkerDetail() {
   const [copiedHttp, setCopiedHttp] = useState(false);
   const [cliInfo, setCliInfo] = useState<WorkerCliInfo | null>(null);
   const [mdRawMode, setMdRawMode] = useState(true);
+  const [hiclawPlatform, setHiclawPlatform] = useState<'unix' | 'windows'>('unix');
 
   const handleDownload = useCallback(() => {
     if (!workerProductId) return;
@@ -547,6 +548,55 @@ function WorkerDetail() {
               </Button>
             </div>
 
+            {/* HiClaw 安装 */}
+            {cliInfo && (
+              <div className="px-4 py-3" style={{ borderBottom: '1px solid #f0f0f0' }}>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-1.5">
+                    <CloudUploadOutlined className="text-gray-400 text-xs" />
+                    <span className="text-xs font-medium text-gray-500">安装到 HiClaw</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setHiclawPlatform('unix')}
+                      className={`text-xs px-1.5 py-0.5 rounded transition-colors ${hiclawPlatform === 'unix' ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-400 hover:text-gray-600'}`}
+                    >
+                      Linux / Mac
+                    </button>
+                    <button
+                      onClick={() => setHiclawPlatform('windows')}
+                      className={`text-xs px-1.5 py-0.5 rounded transition-colors ${hiclawPlatform === 'windows' ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-400 hover:text-gray-600'}`}
+                    >
+                      Windows
+                    </button>
+                    <button
+                      onClick={() => {
+                        const quotedName = cliInfo.resourceName.includes(' ') ? `"${cliInfo.resourceName}"` : cliInfo.resourceName;
+                        const cmd = hiclawPlatform === 'unix'
+                          ? `curl -fsSL https://higress.ai/hiclaw/import.sh | bash -s -- --nacos --host ${cliInfo.nacosHost} --name ${quotedName}`
+                          : `irm https://higress.ai/hiclaw/import.ps1 -OutFile import.ps1; .\\import.ps1 --nacos --host ${cliInfo.nacosHost} --name ${quotedName}`;
+                        copyToClipboard(cmd).then(() => {
+                          setCopiedHiclaw(true);
+                          setTimeout(() => setCopiedHiclaw(false), 2000);
+                        });
+                      }}
+                      className="text-xs text-gray-400 hover:text-gray-600 transition-colors ml-1"
+                    >
+                      {copiedHiclaw ? <CheckOutlined className="text-green-500" /> : <CopyOutlined />}
+                    </button>
+                  </div>
+                </div>
+                <div className="rounded-md bg-gray-100 border border-gray-200 px-3 py-2">
+                  <code className="text-[12px] text-gray-700 break-all" style={{ fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace" }}>
+                    {hiclawPlatform === 'unix'
+                      ? `curl -fsSL https://higress.ai/hiclaw/import.sh | bash -s -- --nacos --host ${cliInfo.nacosHost} --name ${cliInfo.resourceName.includes(' ') ? `"${cliInfo.resourceName}"` : cliInfo.resourceName}`
+                      : `irm https://higress.ai/hiclaw/import.ps1 -OutFile import.ps1; .\\import.ps1 --nacos --host ${cliInfo.nacosHost} --name ${cliInfo.resourceName.includes(' ') ? `"${cliInfo.resourceName}"` : cliInfo.resourceName}`
+                    }
+                  </code>
+                </div>
+              </div>
+            )}
+
             {/* HTTP 下载 */}
             {cliInfo && (
               <div className="px-4 py-3">
@@ -604,33 +654,6 @@ function WorkerDetail() {
                   <div className="rounded-md bg-gray-100 border border-gray-200 px-3 py-2">
                     <code className="text-[12px] text-gray-700 break-all" style={{ fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace" }}>
                       {`npx @nacos-group/cli --host ${cliInfo.nacosHost} agentspec-get ${cliInfo.resourceName.includes(' ') ? `"${cliInfo.resourceName}"` : cliInfo.resourceName}`}
-                    </code>
-                  </div>
-                </div>
-
-                {/* HiClaw 安装命令 */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-1.5">
-                      <CloudUploadOutlined className="text-gray-400 text-xs" />
-                      <span className="text-xs font-medium text-gray-500">安装到 HiClaw</span>
-                    </div>
-                    <button
-                      onClick={() => {
-                        const cmd = `bash /opt/hiclaw/scripts/lib/hiclaw-import.sh --nacos --host ${cliInfo.nacosHost} --name ${cliInfo.resourceName}`;
-                        copyToClipboard(cmd).then(() => {
-                          setCopiedHiclaw(true);
-                          setTimeout(() => setCopiedHiclaw(false), 2000);
-                        });
-                      }}
-                      className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
-                    >
-                      {copiedHiclaw ? <CheckOutlined className="text-green-500" /> : <CopyOutlined />}
-                    </button>
-                  </div>
-                  <div className="rounded-md bg-gray-100 border border-gray-200 px-3 py-2">
-                    <code className="text-[12px] text-gray-700 break-all" style={{ fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace" }}>
-                      {`bash /opt/hiclaw/scripts/lib/hiclaw-import.sh --nacos --host ${cliInfo.nacosHost} --name ${cliInfo.resourceName}`}
                     </code>
                   </div>
                 </div>

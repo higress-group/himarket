@@ -512,7 +512,12 @@ public class SkillServiceImpl implements SkillService {
                 return null;
             }
             return CliDownloadInfo.builder()
-                    .nacosHost(URLUtil.url(nacos.getServerUrl()).getHost())
+                    .nacosHost(
+                            URLUtil.url(
+                                            StrUtil.isNotBlank(nacos.getDisplayServerUrl())
+                                                    ? nacos.getDisplayServerUrl()
+                                                    : nacos.getServerUrl())
+                                    .getHost())
                     .resourceName(config.getSkillName())
                     .resourceType("skill")
                     .build();

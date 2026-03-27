@@ -600,7 +600,12 @@ public class WorkerServiceImpl implements WorkerService {
                 return null;
             }
             return CliDownloadInfo.builder()
-                    .nacosHost(URLUtil.url(nacos.getServerUrl()).getHost())
+                    .nacosHost(
+                            URLUtil.url(
+                                            StrUtil.isNotBlank(nacos.getDisplayServerUrl())
+                                                    ? nacos.getDisplayServerUrl()
+                                                    : nacos.getServerUrl())
+                                    .getHost())
                     .resourceName(config.getAgentSpecName())
                     .resourceType("worker")
                     .build();
