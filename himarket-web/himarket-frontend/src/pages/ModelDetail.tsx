@@ -10,7 +10,6 @@ import {
   Tabs,
   Collapse,
   Select,
-  Spin,
 } from "antd";
 import { CopyOutlined, ArrowLeftOutlined, MessageOutlined, ThunderboltOutlined } from "@ant-design/icons";
 import { ProductType } from "../types";
@@ -21,6 +20,7 @@ import MarkdownRender from "../components/MarkdownRender";
 import { copyToClipboard, formatDomainWithPort } from "../lib/utils";
 import { LoginPrompt } from "../components/LoginPrompt";
 import { useAuth } from "../hooks/useAuth";
+import { DetailSkeleton } from "../components/loading";
 
 const { Panel } = Collapse;
 
@@ -237,8 +237,8 @@ function ModelDetail() {
   if (loading) {
     return (
       <Layout>
-        <div className="flex justify-center items-center h-screen">
-          <Spin size="large" tip="加载中..." />
+        <div className="max-w-7xl mx-auto px-4 py-6">
+          <DetailSkeleton />
         </div>
       </Layout>
     );

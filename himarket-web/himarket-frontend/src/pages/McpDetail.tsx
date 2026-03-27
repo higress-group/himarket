@@ -5,7 +5,7 @@ import { ProductHeader } from "../components/ProductHeader";
 import {
   Alert, Button, message,
   Tabs, Collapse, Select,
-  Spin, Tooltip,
+  Tooltip,
 } from "antd";
 import { ArrowLeftOutlined, CopyOutlined } from "@ant-design/icons";
 import { ProductType } from "../types";
@@ -15,6 +15,7 @@ import type { IProductDetail } from "../lib/apis";
 import APIs from "../lib/apis";
 import MarkdownRender from "../components/MarkdownRender";
 import { copyToClipboard, formatDomainWithPort } from "../lib/utils";
+import { DetailSkeleton } from "../components/loading";
 
 function McpDetail() {
   const { mcpProductId } = useParams();
@@ -252,8 +253,8 @@ function McpDetail() {
   if (loading) {
     return (
       <Layout>
-        <div className="flex justify-center items-center h-screen">
-          <Spin size="large" tip="加载中..." />
+        <div className="max-w-7xl mx-auto px-4 py-6">
+          <DetailSkeleton />
         </div>
       </Layout>
     );
@@ -272,8 +273,8 @@ function McpDetail() {
   if (!data) {
     return (
       <Layout>
-        <div className="flex justify-center items-center h-screen">
-          <Spin size="large" tip="加载中..." />
+        <div className="max-w-7xl mx-auto px-4 py-6">
+          <DetailSkeleton />
         </div>
       </Layout>
     );

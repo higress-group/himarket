@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { SearchOutlined } from "@ant-design/icons";
-import { Input, Spin, message, Pagination } from "antd";
+import { Input, message, Pagination } from "antd";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import { CategoryMenu } from "../components/square/CategoryMenu";
@@ -15,6 +15,7 @@ import { getIconString } from "../lib/iconUtils";
 import type { IProductDetail } from "../lib/apis/product";
 import dayjs from "dayjs";
 import BackToTopButton from "../components/scroll-to-top";
+import { CardGridSkeleton } from "../components/loading";
 
 function Square(props: { activeType: string }) {
   const { activeType } = props;
@@ -33,7 +34,7 @@ function Square(props: { activeType: string }) {
   // 分页相关状态
   const [currentPage, setCurrentPage] = useState(1); // 从1开始，用于分页组件
   const [totalElements, setTotalElements] = useState(0);
-  const PAGE_SIZE = 30;
+  const PAGE_SIZE = 12;
 
 
   // 获取分类列表
@@ -165,24 +166,21 @@ function Square(props: { activeType: string }) {
 
   return (
     <Layout>
-      <div className="flex h-[calc(100vh-96px)]">
-        {/* 左侧类型列表 */}
-        {
-          categories.length > 0 && (
+      <div className="flex flex-col h-[calc(100vh-96px)]">
+        {/* 顶部区域：分类 + 搜索框 */}
+        <div className="flex items-center justify-between gap-4 px-6 py-3 border-b border-gray-200">
+          {/* 分类菜单 */}
+          <div className="flex-1 min-w-0">
             <CategoryMenu
               categories={categories}
               activeCategory={activeCategory}
               onSelectCategory={setActiveCategory}
               loading={categoriesLoading}
             />
-          )
-        }
+          </div>
 
-        {/* 右侧内容区域 */}
-        <div className="flex-1 flex flex-col relative">
-          {/* 上半部分：Tab + 搜索框 */}
-          <div className="flex items-center justify-end mb-2 pl-4">
-            {/* 搜索框 */}
+          {/* 搜索框 */}
+          <div className="flex-shrink-0">
             <Input
               placeholder="搜索名称..."
               value={searchQuery}
@@ -197,85 +195,82 @@ function Square(props: { activeType: string }) {
                   <SearchOutlined />
                 </button>
               }
-              className="w-64 rounded-xl"
+              className="w-64 rounded-lg"
               style={{
-                backgroundColor: "rgba(255, 255, 255, 0.8)",
+                backgroundColor: "rgba(243, 244, 246, 0.5)",
               }}
             />
           </div>
+        </div>
 
-          {/* 下半部分：Grid 卡片展示 */}
-          <div className="flex-1 relative overflow-auto"
+        {/* 空白区域 */}
+        <div className="h-10" />
+        {/* 内容区域：Grid 卡片展示 */}
+        <div className="flex-1 overflow-hidden px-4 pb-4">
+          <div className="h-full overflow-auto scrollbar-hide pb-4"
             ref={scrollContainerRef}
           >
-            <div
-              className="h-full p-4"
-            >
-              {loading ? (
-                <div className="flex items-center justify-center h-full">
-                  <Spin size="large" tip="加载中..." />
-                </div>
-              ) : (
-                <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredModels.map((product) => (
-                      product.type === 'AGENT_SKILL' ? (
-                        <SkillCard
-                          key={product.productId}
-                          name={product.name}
-                          description={product.description}
-                          releaseDate={dayjs(product.createAt).format("YYYY-MM-DD HH:mm:ss")}
-                          skillTags={product.skillConfig?.skillTags}
-                          downloadCount={product.skillConfig?.downloadCount}
-                          icon={getIconString(product.icon)}
-                          onClick={() => handleViewDetail(product)}
-                        />
-                      ) : product.type === 'WORKER' ? (
-                        <WorkerCard
-                          key={product.productId}
-                          name={product.name}
-                          description={product.description}
-                          icon={getIconString(product.icon)}
-                          releaseDate={dayjs(product.createAt).format("YYYY-MM-DD HH:mm:ss")}
-                          workerTags={product.workerConfig?.tags}
-                          downloadCount={product.workerConfig?.downloadCount}
-                          onClick={() => handleViewDetail(product)}
-                        />
-                      ) : (
-                        <ModelCard
-                          key={product.productId}
-                          icon={getIconString(product.icon)}
-                          name={product.name}
-                          description={product.description}
-                          releaseDate={dayjs(product.createAt).format("YYYY-MM-DD HH:mm:ss")}
-                          onClick={() => handleViewDetail(product)}
-                          onTryNow={activeType === "MODEL_API" ? () => handleTryNow(product) : undefined}
-                        />
-                      )
-                    ))}
-                    {!loading && filteredModels.length === 0 && (
-                      <EmptyState productType={activeType} />
-                    )}
-                  </div>
-
-                  {/* 分页组件 */}
-                  {!loading && totalElements > PAGE_SIZE && (
-                    <div className="flex justify-center mt-6">
-                      <Pagination
-                        current={currentPage}
-                        pageSize={PAGE_SIZE}
-                        total={totalElements}
-                        onChange={handlePageChange}
-                        showSizeChanger={false}
-                        showQuickJumper
+            {loading ? (
+              <CardGridSkeleton count={8} columns={{ sm: 1, md: 2, lg: 3 }} />
+            ) : (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 max-w-[1600px] mx-auto">
+                  {filteredModels.map((product) => (
+                    product.type === 'AGENT_SKILL' ? (
+                      <SkillCard
+                        key={product.productId}
+                        name={product.name}
+                        description={product.description}
+                        releaseDate={dayjs(product.createAt).format("YYYY-MM-DD HH:mm:ss")}
+                        skillTags={product.skillConfig?.skillTags}
+                        downloadCount={product.skillConfig?.downloadCount}
+                        icon={getIconString(product.icon, product.name)}
+                        onClick={() => handleViewDetail(product)}
                       />
-                    </div>
+                    ) : product.type === 'WORKER' ? (
+                      <WorkerCard
+                        key={product.productId}
+                        name={product.name}
+                        description={product.description}
+                        icon={getIconString(product.icon, product.name)}
+                        releaseDate={dayjs(product.createAt).format("YYYY-MM-DD HH:mm:ss")}
+                        workerTags={product.workerConfig?.tags}
+                        downloadCount={product.workerConfig?.downloadCount}
+                        onClick={() => handleViewDetail(product)}
+                      />
+                    ) : (
+                      <ModelCard
+                        key={product.productId}
+                        icon={getIconString(product.icon, product.name)}
+                        name={product.name}
+                        description={product.description}
+                        releaseDate={dayjs(product.createAt).format("YYYY-MM-DD HH:mm:ss")}
+                        onClick={() => handleViewDetail(product)}
+                        onTryNow={activeType === "MODEL_API" ? () => handleTryNow(product) : undefined}
+                      />
+                    )
+                  ))}
+                  {!loading && filteredModels.length === 0 && (
+                    <EmptyState productType={activeType} />
                   )}
-                </>
-              )}
-            </div>
-          </div>
+                </div>
 
+                {/* 分页组件 */}
+                {!loading && totalElements > PAGE_SIZE && (
+                  <div className="flex justify-center mt-8 mb-4">
+                    <Pagination
+                      current={currentPage}
+                      pageSize={PAGE_SIZE}
+                      total={totalElements}
+                      onChange={handlePageChange}
+                      showSizeChanger={false}
+                      showQuickJumper
+                    />
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
       </div>
       <BackToTopButton container={scrollContainerRef.current!} />
