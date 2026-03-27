@@ -2,6 +2,7 @@ import axios from 'axios'
 import type { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 import { message } from 'antd';
 import qs from 'qs';
+import { notifyAuthInvalidated } from '../hooks/useAuth';
 
 export interface RespI<T> {
   code: string;
@@ -61,7 +62,11 @@ request.interceptors.response.use(
     switch (status) {
       case 401:
         if (isPublicPage()) {
-          // 公开页面静默处理，不跳转、不清除 Token
+          // 公开页面：如果有过期 token 则清除，并通知组件更新登录状态
+          if (localStorage.getItem('access_token')) {
+            localStorage.removeItem('access_token');
+            notifyAuthInvalidated();
+          }
           break;
         }
         message.error('未登录或登录已过期，请重新登录');
@@ -73,6 +78,10 @@ request.interceptors.response.use(
         break;
       case 403:
         if (isPublicPage()) {
+          if (localStorage.getItem('access_token')) {
+            localStorage.removeItem('access_token');
+            notifyAuthInvalidated();
+          }
           break;
         }
         localStorage.removeItem('access_token');
