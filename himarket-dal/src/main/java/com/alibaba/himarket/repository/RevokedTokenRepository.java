@@ -17,22 +17,25 @@
  * under the License.
  */
 
-package com.alibaba.himarket;
+package com.alibaba.himarket.repository;
 
-import com.alibaba.himarket.config.AcpProperties;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
-import org.springframework.scheduling.annotation.EnableScheduling;
+import com.alibaba.himarket.entity.RevokedToken;
+import java.time.LocalDateTime;
 
-@SpringBootApplication
-@EnableJpaAuditing
-@EnableScheduling
-@EnableConfigurationProperties({AcpProperties.class})
-public class HiMarketApplication {
+public interface RevokedTokenRepository extends BaseRepository<RevokedToken, Long> {
 
-    public static void main(String[] args) {
-        SpringApplication.run(HiMarketApplication.class, args);
-    }
+    /**
+     * Check if a revoked token exists by its SHA-256 hash
+     *
+     * @param tokenHash the SHA-256 hash of the token
+     * @return true if the token hash exists in the revoked tokens table
+     */
+    boolean existsByTokenHash(String tokenHash);
+
+    /**
+     * Delete all revoked tokens that expired before the given cutoff time
+     *
+     * @param cutoff the cutoff time; records with expiresAt before this are deleted
+     */
+    void deleteByExpiresAtBefore(LocalDateTime cutoff);
 }
