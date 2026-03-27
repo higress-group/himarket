@@ -14,14 +14,19 @@ interface CategoryMenuProps {
 }
 
 export function CategoryMenu({ categories, activeCategory, onSelectCategory, loading = false }: CategoryMenuProps) {
+  // 没有分类数据时不渲染任何内容
+  if (!loading && categories.length === 0) {
+    return null;
+  }
+
   return (
-    <div className="w-64 backdrop-blur-xl rounded-lg flex flex-col overflow-hidden">
+    <div className="overflow-hidden">
       {loading ? (
-        <div className="flex items-center justify-center py-8">
+        <div className="flex items-center justify-center py-4">
           <Spin />
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto p-4 space-y-1">
+        <div className="flex items-center justify-center gap-2 flex-wrap">
           {categories.map((category) => {
             const isActive = category.id === activeCategory;
             return (
@@ -29,27 +34,25 @@ export function CategoryMenu({ categories, activeCategory, onSelectCategory, loa
                 key={category.id}
                 onClick={() => onSelectCategory(category.id)}
                 className={`
-                  px-4 py-2.5 rounded-lg cursor-pointer
-                  transition-all duration-300 ease-in-out
+                  px-4 py-1.5 rounded-full cursor-pointer whitespace-nowrap
+                  transition-all duration-300 ease-in-out text-sm font-medium
                   ${isActive
-                    ? "bg-colorPrimaryBgHover text-mainTitle shadow-md"
-                    : "text-gray-700 hover:bg-colorPrimaryBgHover text-mainTitle"
+                    ? "bg-gray-900 text-white shadow-md"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                   }
                 `}
               >
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">{category.name}</span>
-                  {category.count !== undefined && category.count > 0 && (
-                    <span
-                      className={`
-                        text-xs px-2 py-0.5 rounded-full
-                        ${isActive ? "bg-white/20" : "bg-gray-100 text-gray-600"}
-                      `}
-                    >
-                      {category.count}
-                    </span>
-                  )}
-                </div>
+                <span>{category.name}</span>
+                {category.count !== undefined && category.count > 0 && (
+                  <span
+                    className={`
+                      ml-1.5 text-xs px-1.5 py-0.5 rounded-full
+                      ${isActive ? "bg-white/20 text-white" : "bg-gray-200 text-gray-600"}
+                    `}
+                  >
+                    {category.count}
+                  </span>
+                )}
               </div>
             );
           })}

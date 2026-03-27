@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Layout } from "../components/Layout";
-import { Alert, Spin, Button, Select, Tag, Tooltip } from "antd";
+import { Alert, Button, Select, Tag, Tooltip } from "antd";
 import { ArrowLeftOutlined, DownloadOutlined, CopyOutlined, CheckOutlined, UserOutlined, FileFilled, CodeOutlined, EyeOutlined, CloudUploadOutlined } from "@ant-design/icons";
 import hljs from "highlight.js";
 import "highlight.js/styles/github.css";
@@ -15,6 +15,7 @@ import MarkdownRender from "../components/MarkdownRender";
 import { parseSkillMd } from "../lib/skillMdUtils";
 import SkillFileTree from "../components/skill/SkillFileTree";
 import { copyToClipboard } from "../lib/utils";
+import { DetailSkeleton } from "../components/loading";
 
 function MdPreview({ content }: { content: string }) {
   const { frontmatter, body } = parseSkillMd(content);
@@ -261,8 +262,8 @@ function WorkerDetail() {
   if (loading) {
     return (
       <Layout>
-        <div className="flex justify-center items-center h-screen">
-          <Spin size="large" tip="加载中..." />
+        <div className="max-w-7xl mx-auto px-4 py-6">
+          <DetailSkeleton />
         </div>
       </Layout>
     );
@@ -294,7 +295,7 @@ function WorkerDetail() {
       );
     }
     if (fileLoading) {
-      return <div className="flex justify-center py-16"><Spin /></div>;
+      return <div className="flex justify-center py-16"><div className="w-8 h-8 border-2 border-gray-200 border-t-blue-500 rounded-full animate-spin" /></div>;
     }
     if (!fileContent) {
       return <div className="text-gray-400 text-center py-16 text-sm">加载失败</div>;
@@ -465,7 +466,7 @@ function WorkerDetail() {
             {activeTab === 'overview' && (
               <div className="flex-1 overflow-auto p-6">
                 {overviewLoading ? (
-                  <div className="flex justify-center pt-8"><Spin size="small" /></div>
+                  <div className="flex justify-center pt-8"><div className="w-6 h-6 border-2 border-gray-200 border-t-blue-500 rounded-full animate-spin" /></div>
                 ) : overviewContent ? (
                   <MdPreview content={overviewContent} />
                 ) : (
