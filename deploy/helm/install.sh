@@ -745,7 +745,7 @@ interactive_config() {
         log "$(msg section.image)"
         prompt HIMARKET_IMAGE_TAG "HiMarket image tag" "${HIMARKET_IMAGE_TAG:-latest}"
         prompt HIMARKET_MYSQL_IMAGE_TAG "MySQL image tag" "${HIMARKET_MYSQL_IMAGE_TAG:-latest}"
-        prompt NACOS_VERSION "Nacos version" "${NACOS_VERSION:-v3.2.0-BETA}"
+        prompt NACOS_VERSION "Nacos version" "${NACOS_VERSION:-v3.2.0}"
 
         # 其他配置沿用已有值（从配置文件加载或回退默认值）
         NAMESPACE="${NAMESPACE:-himarket}"
@@ -804,7 +804,7 @@ interactive_config() {
     prompt HIMARKET_HUB "HiMarket image hub" "opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group"
     prompt HIMARKET_IMAGE_TAG "HiMarket image tag" "latest"
     prompt HIMARKET_MYSQL_IMAGE_TAG "MySQL image tag" "latest"
-    prompt NACOS_VERSION "Nacos version" "v3.2.0-BETA"
+    prompt NACOS_VERSION "Nacos version" "v3.2.0"
     prompt NACOS_IMAGE_REGISTRY "Nacos image registry" "nacos-registry.cn-hangzhou.cr.aliyuncs.com"
     prompt NACOS_IMAGE_REPOSITORY "Nacos image repository" "nacos/nacos-server"
 

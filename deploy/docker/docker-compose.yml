@@ -38,7 +38,7 @@ services:
 
   # Nacos Server - 使用 MySQL 作为数据源（与 Helm 部署一致）
   nacos:
-    image: ${NACOS_IMAGE:-nacos-registry.cn-hangzhou.cr.aliyuncs.com/nacos/nacos-server:v3.2.0-BETA}
+    image: ${NACOS_IMAGE:-nacos-registry.cn-hangzhou.cr.aliyuncs.com/nacos/nacos-server:v3.2.0}
     pull_policy: always
     container_name: nacos-standalone
     environment:
@@ -53,6 +53,8 @@ services:
       - MYSQL_SERVICE_DB_PARAM=characterEncoding=utf8&connectTimeout=10000&socketTimeout=30000&autoReconnect=true&useSSL=false&allowPublicKeyRetrieval=true
       - NACOS_AUTH_IDENTITY_KEY=${NACOS_AUTH_IDENTITY_KEY:-serverIdentity}
       - NACOS_AUTH_IDENTITY_VALUE=${NACOS_AUTH_IDENTITY_VALUE:-security}
+      - NACOS_AUTH_ENABLE=true
+      - NACOS_AUTH_ALLOW_ANONYMOUS_AI_ENABLED=true
       - NACOS_AUTH_TOKEN=${NACOS_AUTH_TOKEN:-VGhpc0lzTXlDdXN0b21TZWNyZXRLZXkwMTIzNDU2Nzg=}
     volumes:
       - ${HOME}/himarket-data/standalone-logs/:/home/nacos/logs

@@ -51,6 +51,10 @@ spec:
               value: {{ .Values.database.password | quote }}
             - name: MYSQL_SERVICE_DB_PARAM
               value: "characterEncoding=utf8&connectTimeout=10000&socketTimeout=30000&autoReconnect=true&useSSL=false&allowPublicKeyRetrieval=true"
+            - name: NACOS_AUTH_ENABLE
+              value: {{ .Values.auth.enabled | default false | quote }}
+            - name: NACOS_AUTH_ALLOW_ANONYMOUS_AI_ENABLED
+              value: {{ .Values.auth.allowAnonymousAI | default false | quote }}
             {{- if .Values.auth.identityKey }}
             - name: NACOS_AUTH_IDENTITY_KEY
               value: {{ .Values.auth.identityKey | quote }}
