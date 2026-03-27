@@ -20,10 +20,13 @@
 package com.alibaba.himarket.repository;
 
 import com.alibaba.himarket.entity.Product;
+import com.alibaba.himarket.support.enums.ProductStatus;
 import com.alibaba.himarket.support.enums.ProductType;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -61,4 +64,13 @@ public interface ProductRepository extends BaseRepository<Product, Long> {
      * @return the list of products
      */
     List<Product> findAllByType(ProductType type);
+
+    /**
+     * Find products by status
+     *
+     * @param status the product status
+     * @param pageable the pageable
+     * @return the page of products
+     */
+    Page<Product> findAllByStatus(ProductStatus status, Pageable pageable);
 }

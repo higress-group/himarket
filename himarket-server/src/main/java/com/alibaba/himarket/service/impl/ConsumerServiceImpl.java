@@ -21,10 +21,12 @@ package com.alibaba.himarket.service.impl;
 
 import cn.hutool.core.util.BooleanUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.extra.spring.SpringUtil;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.event.DeveloperDeletingEvent;
 import com.alibaba.himarket.core.event.ProductDeletingEvent;
+import com.alibaba.himarket.core.event.ProductSummaryUpdateEvent;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.core.security.ContextHolder;
@@ -340,6 +342,8 @@ public class ConsumerServiceImpl implements ConsumerService {
         r.setProductName(product.getName());
         r.setProductType(product.getType());
 
+        SpringUtil.getApplicationContext()
+                .publishEvent(new ProductSummaryUpdateEvent(param.getProductId()));
         return r;
     }
 
@@ -371,6 +375,9 @@ public class ConsumerServiceImpl implements ConsumerService {
 
         subscriptionRepository.deleteByConsumerIdAndProductId(
                 consumerId, subscription.getProductId());
+
+        SpringUtil.getApplicationContext()
+                .publishEvent(new ProductSummaryUpdateEvent(subscription.getProductId()));
     }
 
     private ProductSubscription findBySubscriptionIdOrProductId(

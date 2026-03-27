@@ -326,3 +326,15 @@ export const skillApi = {
     api.get(`/skills/${productId}/files/${filePath}`),
 
 }
+
+// 产品统计相关API
+export const productSummaryApi = {
+  // 获取产品统计列表
+  getProductSummaryList: (params?: any) => {
+    return api.get(`/product-summary`, {params})
+  },
+  // 同步产品统计数据
+  syncProductSummary: () => {
+    return api.post(`/product-summary/sync`)
+  }
+}

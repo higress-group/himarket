@@ -35,6 +35,9 @@ function Square(props: { activeType: string }) {
   const [loadingMore, setLoadingMore] = useState(false);
   const PAGE_SIZE = 30;
 
+  // 排序相关状态
+  const [sortBy, setSortBy] = useState<"default" | "likes" | "subscriptions">("default");
+
 
   // 获取分类列表
   useEffect(() => {
@@ -91,6 +94,7 @@ function Square(props: { activeType: string }) {
           categoryIds,
           page: 0,
           size: PAGE_SIZE,
+          sortBy: sortBy !== "default" ? sortBy : undefined,
         });
         if (response.code === "SUCCESS" && response.data?.content) {
           const prods = response.data.content;
@@ -106,7 +110,7 @@ function Square(props: { activeType: string }) {
     };
 
     fetchProducts();
-  }, [activeType, activeCategory]);
+  }, [activeType, activeCategory, sortBy]);
 
   // 加载更多产品
   const loadMoreProducts = useCallback(async () => {
@@ -123,6 +127,7 @@ function Square(props: { activeType: string }) {
         categoryIds,
         page: nextPage,
         size: PAGE_SIZE,
+        sortBy: sortBy !== "default" ? sortBy : undefined,
       });
 
       if (response.code === "SUCCESS" && response.data?.content) {
@@ -137,7 +142,7 @@ function Square(props: { activeType: string }) {
     } finally {
       setLoadingMore(false);
     }
-  }, [activeType, activeCategory, currentPage, hasMore, loadingMore, PAGE_SIZE, products]);
+  }, [activeType, activeCategory, currentPage, hasMore, loadingMore, PAGE_SIZE, products, sortBy]);
 
   // 监听滚动事件
   useEffect(() => {
@@ -216,9 +221,47 @@ function Square(props: { activeType: string }) {
 
         {/* 右侧内容区域 */}
         <div className="flex-1 flex flex-col relative">
-          {/* 上半部分：Tab + 搜索框 */}
-          <div className="flex items-center justify-end mb-2 pl-4">
-            {/* 搜索框 */}
+          {/* 上半部分：Tab + 搜索框 + 排序 */}
+          <div className="flex items-center justify-between mb-2 pl-4">
+            {/* 左侧排序选项 */}
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-gray-600">排序：</span>
+              <button
+                onClick={() => setSortBy("default")}
+                className={`px-3 py-1 rounded-full text-sm transition-colors ${
+                  sortBy === "default"
+                    ? "bg-black text-white"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                默认
+              </button>
+              <button
+                onClick={() => setSortBy("likes")}
+                className={`px-3 py-1 rounded-full text-sm transition-colors ${
+                  sortBy === "likes"
+                    ? "bg-black text-white"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                👍 点赞量
+              </button>
+              {/* 智能体和 Skill 不显示订阅量排序 */}
+              {activeType !== "AGENT_API" && activeType !== "AGENT_SKILL" && (
+                  <button
+                      onClick={() => setSortBy("subscriptions")}
+                      className={`px-3 py-1 rounded-full text-sm transition-colors ${
+                          sortBy === "subscriptions"
+                              ? "bg-black text-white"
+                              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                      }`}
+                  >
+                    📦 订阅量
+                  </button>
+              )}
+            </div>
+
+            {/* 右侧搜索框 */}
             <Input
               placeholder="搜索..."
               prefix={<SearchOutlined className="text-gray-400" />}
@@ -255,6 +298,7 @@ function Square(props: { activeType: string }) {
                           releaseDate={dayjs(product.createAt).format("YYYY-MM-DD HH:mm:ss")}
                           skillTags={product.skillConfig?.skillTags}
                           downloadCount={product.skillConfig?.downloadCount}
+                          likesCount={product.likesCount}
                           onClick={() => handleViewDetail(product)}
                         />
                       ) : (
@@ -264,6 +308,8 @@ function Square(props: { activeType: string }) {
                           name={product.name}
                           description={product.description}
                           releaseDate={dayjs(product.createAt).format("YYYY-MM-DD HH:mm:ss")}
+                          productId={product.productId}
+                          likesCount={product.likesCount}
                           onClick={() => handleViewDetail(product)}
                           onTryNow={activeType === "MODEL_API" ? () => handleTryNow(product) : undefined}
                         />
