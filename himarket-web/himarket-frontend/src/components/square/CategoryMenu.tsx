@@ -21,7 +21,7 @@ export function CategoryMenu({ categories, activeCategory, onSelectCategory, loa
           <Spin />
         </div>
       ) : (
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center justify-center gap-2 flex-wrap">
           {categories.map((category) => {
             const isActive = category.id === activeCategory;
             return (
