@@ -3,6 +3,7 @@ package com.alibaba.himarket.service;
 import com.alibaba.himarket.dto.result.cli.CliDownloadInfo;
 import com.alibaba.himarket.dto.result.common.FileContentResult;
 import com.alibaba.himarket.dto.result.common.FileTreeNode;
+import com.alibaba.himarket.dto.result.common.ImportResult;
 import com.alibaba.himarket.dto.result.common.VersionResult;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -102,4 +103,13 @@ public interface WorkerService {
      * @return the CLI download info containing nacosHost and resource name
      */
     CliDownloadInfo getCliDownloadInfo(String productId);
+
+    /**
+     * Import workers from Nacos
+     *
+     * @param nacosId Nacos instance ID
+     * @param namespace Nacos namespace
+     * @return import result with success and skipped counts
+     */
+    ImportResult importFromNacos(String nacosId, String namespace);
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { SearchOutlined } from "@ant-design/icons";
-import { Input, Spin, message } from "antd";
+import { Input, Spin, message, Pagination } from "antd";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import { CategoryMenu } from "../components/square/CategoryMenu";
@@ -31,9 +31,8 @@ function Square(props: { activeType: string }) {
   const [categoriesLoading, setCategoriesLoading] = useState(false);
 
   // 分页相关状态
-  const [currentPage, setCurrentPage] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1); // 从1开始，用于分页组件
+  const [totalElements, setTotalElements] = useState(0);
   const PAGE_SIZE = 30;
 
 
@@ -77,95 +76,56 @@ function Square(props: { activeType: string }) {
   }, [activeType]);
 
   // 获取产品列表
-  useEffect(() => {
-    const fetchProducts = async () => {
-      setLoading(true);
-      setProducts([]); // 重置产品列表
-      setCurrentPage(0); // 重置页码
-      setHasMore(true); // 重置加载更多状态
-      try {
-        const productType = activeType;
-        const categoryIds = activeCategory === "all" ? undefined : [activeCategory];
-
-        const response = await APIs.getProducts({
-          type: productType,
-          categoryIds,
-          page: 0,
-          size: PAGE_SIZE,
-        });
-        if (response.code === "SUCCESS" && response.data?.content) {
-          const prods = response.data.content;
-          setProducts(prods);
-          setHasMore(response.data.totalElements > prods.length);
-        }
-      } catch (error) {
-        console.error("Failed to fetch products:", error);
-        message.error("获取产品列表失败");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProducts();
-  }, [activeType, activeCategory]);
-
-  // 加载更多产品
-  const loadMoreProducts = useCallback(async () => {
-    if (loadingMore || !hasMore) return;
-
-    setLoadingMore(true);
+  const fetchProducts = useCallback(async (searchText?: string, page?: number) => {
+    setLoading(true);
     try {
       const productType = activeType;
       const categoryIds = activeCategory === "all" ? undefined : [activeCategory];
-      const nextPage = currentPage + 1;
+      const name = (searchText ?? "").trim() || undefined;
+      // page 从 0 开始，currentPage 从 1 开始
+      const pageIndex = (page ?? currentPage) - 1;
 
       const response = await APIs.getProducts({
         type: productType,
         categoryIds,
-        page: nextPage,
+        name,
+        page: pageIndex,
         size: PAGE_SIZE,
       });
-
       if (response.code === "SUCCESS" && response.data?.content) {
-        const prods = [...products, ...response.data.content];
-        setProducts(prods);
-        setCurrentPage(nextPage);
-        setHasMore(response.data.totalElements > prods.length);
+        setProducts(response.data.content);
+        setTotalElements(response.data.totalElements);
       }
     } catch (error) {
-      console.error("Failed to load more products:", error);
-      message.error("加载更多失败");
+      console.error("Failed to fetch products:", error);
+      message.error("获取产品列表失败");
     } finally {
-      setLoadingMore(false);
+      setLoading(false);
     }
-  }, [activeType, activeCategory, currentPage, hasMore, loadingMore, PAGE_SIZE, products]);
+  }, [activeType, activeCategory, currentPage]);
 
-  // 监听滚动事件
   useEffect(() => {
-    const scrollContainer = scrollContainerRef.current;
-    if (!scrollContainer) return;
+    fetchProducts(searchQuery);
+  }, [activeType, activeCategory, currentPage]);
 
-    const handleScroll = () => {
-      const { scrollTop, scrollHeight, clientHeight } = scrollContainer;
+  // 分页变化时重新获取数据
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
 
-      // 滚动到底部时加载更多
-      if (scrollHeight - scrollTop - clientHeight < 200) {
-        loadMoreProducts();
-      }
-    };
+  // 输入框变化时只更新 state，不发起请求
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+  };
 
-    scrollContainer.addEventListener("scroll", handleScroll);
-    return () => scrollContainer.removeEventListener("scroll", handleScroll);
-  }, [loadMoreProducts]);
+  // 点击搜索按钮时发起请求
+  const handleSearch = () => {
+    setCurrentPage(1);
+    fetchProducts(searchQuery);
+  };
 
-  const filteredModels = products.filter((product) => {
-    const matchesSearch =
-      searchQuery === "" ||
-      product.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.description?.toLowerCase().includes(searchQuery.toLowerCase());
-
-    return matchesSearch;
-  });
+  // 直接使用后端搜索结果，不再做前端过滤
+  const filteredModels = products;
 
   const handleTryNow = (product: IProductDetail) => {
     if (!isLoggedIn) {
@@ -224,14 +184,22 @@ function Square(props: { activeType: string }) {
           <div className="flex items-center justify-end mb-2 pl-4">
             {/* 搜索框 */}
             <Input
-              placeholder="搜索..."
-              prefix={<SearchOutlined className="text-gray-400" />}
+              placeholder="搜索名称..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-80 rounded-xl"
+              onChange={(e) => handleSearchChange(e.target.value)}
+              onPressEnter={handleSearch}
+              suffix={
+                <button
+                  onClick={handleSearch}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  type="button"
+                >
+                  <SearchOutlined />
+                </button>
+              }
+              className="w-64 rounded-xl"
               style={{
-                backgroundColor: "rgba(255, 255, 255, 0.6)",
-                backdropFilter: "blur(10px)",
+                backgroundColor: "rgba(255, 255, 255, 0.8)",
               }}
             />
           </div>
@@ -270,6 +238,7 @@ function Square(props: { activeType: string }) {
                           icon={getIconString(product.icon)}
                           releaseDate={dayjs(product.createAt).format("YYYY-MM-DD HH:mm:ss")}
                           workerTags={product.workerConfig?.tags}
+                          downloadCount={product.workerConfig?.downloadCount}
                           onClick={() => handleViewDetail(product)}
                         />
                       ) : (
@@ -289,19 +258,19 @@ function Square(props: { activeType: string }) {
                     )}
                   </div>
 
-                  {/* 加载更多指示器 */}
-                  {loadingMore && (
-                    <div className="flex items-center justify-center py-8">
-                      <Spin tip="加载更多..." />
+                  {/* 分页组件 */}
+                  {!loading && totalElements > PAGE_SIZE && (
+                    <div className="flex justify-center mt-6">
+                      <Pagination
+                        current={currentPage}
+                        pageSize={PAGE_SIZE}
+                        total={totalElements}
+                        onChange={handlePageChange}
+                        showSizeChanger={false}
+                        showQuickJumper
+                      />
                     </div>
                   )}
-
-                  {/* 没有更多数据提示 */}
-                  {/* {!hasMore && filteredModels.length > 0 && (
-                    <div className="flex items-center justify-center py-8 text-gray-400 text-sm">
-                      已加载全部内容
-                    </div>
-                  )} */}
                 </>
               )}
             </div>

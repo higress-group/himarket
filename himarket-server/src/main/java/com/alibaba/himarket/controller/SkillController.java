@@ -8,6 +8,7 @@ import com.alibaba.himarket.dto.params.worker.UpdateWorkerVersionStatusParam;
 import com.alibaba.himarket.dto.result.cli.CliDownloadInfo;
 import com.alibaba.himarket.dto.result.common.FileContentResult;
 import com.alibaba.himarket.dto.result.common.FileTreeNode;
+import com.alibaba.himarket.dto.result.common.ImportResult;
 import com.alibaba.himarket.dto.result.common.VersionResult;
 import com.alibaba.himarket.service.SkillService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -121,5 +122,13 @@ public class SkillController {
     @PublicAccess
     public CliDownloadInfo getCliDownloadInfo(@PathVariable String productId) {
         return skillService.getCliDownloadInfo(productId);
+    }
+
+    @Operation(summary = "Import Skills from Nacos")
+    @PostMapping("/import")
+    @AdminAuth
+    public ImportResult importFromNacos(
+            @RequestParam String nacosId, @RequestParam(required = false) String namespace) {
+        return skillService.importFromNacos(nacosId, namespace);
     }
 }

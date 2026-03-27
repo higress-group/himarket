@@ -27,6 +27,7 @@ import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.event.PortalDeletingEvent;
 import com.alibaba.himarket.core.event.ProductConfigReloadEvent;
 import com.alibaba.himarket.core.event.ProductDeletingEvent;
+import com.alibaba.himarket.core.event.ProductQueriedEvent;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.core.security.ContextHolder;
@@ -791,12 +792,33 @@ public class ProductServiceImpl implements ProductService {
                 product.setWorkerConfig(product.getFeature().getWorkerConfig());
             }
         }
+
+        // Publish event to trigger async download count sync
+        publishDownloadCountSyncEvent(products);
+    }
+
+    /**
+     * Publish event to trigger async download count sync for skill/worker products.
+     */
+    private void publishDownloadCountSyncEvent(List<ProductResult> products) {
+        List<String> productIds =
+                products.stream()
+                        .filter(
+                                p ->
+                                        p.getType() == ProductType.AGENT_SKILL
+                                                || p.getType() == ProductType.WORKER)
+                        .map(ProductResult::getProductId)
+                        .toList();
+
+        if (!productIds.isEmpty()) {
+            SpringUtil.publishEvent(new ProductQueriedEvent(productIds));
+        }
     }
 
     /**
      * Fill product config from product reference.
      *
-     * @param product the product result to fill
+     * @param product    the product result to fill
      * @param productRef the product reference containing config data
      */
     private void fillProductConfig(ProductResult product, ProductRef productRef) {
@@ -963,7 +985,7 @@ public class ProductServiceImpl implements ProductService {
      * List products with type-specific filter.
      * Filter is used to match specific properties in Product Config (e.g., ModelAPIConfig, APIConfig).
      *
-     * @param param query parameters including product type and filter
+     * @param param    query parameters including product type and filter
      * @param pageable pagination settings
      * @return paginated product results
      */
@@ -1026,7 +1048,7 @@ public class ProductServiceImpl implements ProductService {
      * Check if product matches the type-specific filter
      *
      * @param productRef the product reference containing config data
-     * @param param query parameters containing filter criteria
+     * @param param      query parameters containing filter criteria
      * @return true if product matches the filter, false otherwise
      */
     private boolean matchesFilter(ProductRef productRef, QueryProductParam param) {

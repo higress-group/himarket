@@ -6,41 +6,52 @@ import cn.hutool.core.util.URLUtil;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.core.agentspec.AgentSpecZipParser;
 import com.alibaba.himarket.core.constant.Resources;
+import com.alibaba.himarket.core.event.ProductQueriedEvent;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
+import com.alibaba.himarket.core.security.ContextHolder;
+import com.alibaba.himarket.core.utils.CacheUtil;
+import com.alibaba.himarket.core.utils.IdGenerator;
 import com.alibaba.himarket.dto.converter.OutputConverter;
 import com.alibaba.himarket.dto.result.cli.CliDownloadInfo;
 import com.alibaba.himarket.dto.result.common.FileContentResult;
 import com.alibaba.himarket.dto.result.common.FileTreeNode;
+import com.alibaba.himarket.dto.result.common.ImportResult;
 import com.alibaba.himarket.dto.result.common.VersionResult;
 import com.alibaba.himarket.entity.Product;
 import com.alibaba.himarket.repository.ProductRepository;
 import com.alibaba.himarket.service.NacosService;
 import com.alibaba.himarket.service.WorkerService;
 import com.alibaba.himarket.support.enums.ProductStatus;
+import com.alibaba.himarket.support.enums.ProductType;
 import com.alibaba.himarket.support.product.ProductFeature;
 import com.alibaba.himarket.support.product.WorkerConfig;
-import com.alibaba.nacos.api.ai.model.agentspecs.AgentSpec;
-import com.alibaba.nacos.api.ai.model.agentspecs.AgentSpecMeta;
-import com.alibaba.nacos.api.ai.model.agentspecs.AgentSpecResource;
+import com.alibaba.nacos.api.ai.model.agentspecs.*;
 import com.alibaba.nacos.api.exception.NacosException;
+import com.alibaba.nacos.api.model.Page;
 import com.alibaba.nacos.maintainer.client.ai.AgentSpecMaintainerService;
 import com.alibaba.nacos.maintainer.client.ai.AiMaintainerService;
+import com.github.benmanes.caffeine.cache.Cache;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @Slf4j
 @RequiredArgsConstructor
+@Transactional
 public class WorkerServiceImpl implements WorkerService {
 
     private static final long MAX_ZIP_SIZE = 10 * 1024 * 1024;
@@ -48,6 +59,12 @@ public class WorkerServiceImpl implements WorkerService {
     private final NacosService nacosService;
 
     private final ProductRepository productRepository;
+    private final ContextHolder contextHolder;
+
+    /**
+     * Cache to prevent duplicate download count sync within 5 minutes
+     */
+    private final Cache<String, Boolean> downloadCountSyncCache = CacheUtil.newCache(5);
 
     @Override
     public void uploadPackage(String productId, MultipartFile file) throws IOException {
@@ -590,6 +607,188 @@ public class WorkerServiceImpl implements WorkerService {
         } catch (Exception e) {
             log.warn("Failed to get CLI download info for worker product {}", productId, e);
             return null;
+        }
+    }
+
+    @Override
+    public ImportResult importFromNacos(String nacosId, String namespace) {
+        int successCount = 0;
+        int skippedCount = 0;
+
+        try {
+            AiMaintainerService aiService = nacosService.getAiMaintainerService(nacosId);
+
+            Page<AgentSpecSummary> page =
+                    aiService
+                            .agentSpec()
+                            .listAgentSpecAdminItems(namespace, null, null, 1, Integer.MAX_VALUE);
+
+            if (page == null || page.getPageItems() == null) {
+                return ImportResult.builder()
+                        .resourceType("worker")
+                        .successCount(0)
+                        .skippedCount(0)
+                        .build();
+            }
+
+            String adminId = contextHolder.getUser();
+
+            for (AgentSpecSummary info : page.getPageItems()) {
+                String name = info.getName();
+
+                // Skip if product already exists
+                if (productRepository.findByNameAndAdminId(name, adminId).isPresent()) {
+                    log.info("Worker product '{}' already exists, skipping", name);
+                    skippedCount++;
+                    continue;
+                }
+
+                // Create product
+                Product product =
+                        Product.builder()
+                                .productId(IdGenerator.genApiProductId())
+                                .name(name)
+                                .description(info.getDescription())
+                                .type(ProductType.WORKER)
+                                .adminId(adminId)
+                                .status(
+                                        info.getOnlineCnt() != null && info.getOnlineCnt() > 0
+                                                ? ProductStatus.READY
+                                                : ProductStatus.PENDING)
+                                .build();
+                // Set worker config
+                WorkerConfig workerConfig =
+                        WorkerConfig.builder()
+                                .nacosId(nacosId)
+                                .namespace(namespace)
+                                .agentSpecName(name)
+                                .downloadCount(info.getDownloadCount())
+                                .build();
+
+                ProductFeature feature =
+                        ProductFeature.builder().workerConfig(workerConfig).build();
+                product.setFeature(feature);
+
+                productRepository.save(product);
+                successCount++;
+                log.info("Imported worker product '{}' from Nacos", name);
+            }
+        } catch (Exception e) {
+            log.error("Failed to import workers from Nacos", e);
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR, "Failed to import workers: " + e.getMessage());
+        }
+
+        log.info("Imported {} worker products from Nacos, skipped {}", successCount, skippedCount);
+
+        return ImportResult.builder()
+                .resourceType("worker")
+                .successCount(successCount)
+                .skippedCount(skippedCount)
+                .build();
+    }
+
+    /**
+     * Listen for product queried events and sync download counts for worker products. Groups by
+     * Nacos instance to minimize API calls.
+     *
+     * @param event the product queried event
+     */
+    @EventListener
+    @Async("taskExecutor")
+    public void onProductQueried(ProductQueriedEvent event) {
+        if (CollUtil.isEmpty(event.getProductIds())) {
+            return;
+        }
+
+        // Filter out products in cooldown
+        List<String> productIdsToSync =
+                event.getProductIds().stream()
+                        .filter(id -> downloadCountSyncCache.getIfPresent(id) == null)
+                        .toList();
+
+        if (CollUtil.isEmpty(productIdsToSync)) {
+            return;
+        }
+
+        // Batch fetch worker products
+        List<Product> productsToSync =
+                productRepository.findByProductIdIn(productIdsToSync).stream()
+                        .filter(
+                                p ->
+                                        p.getFeature() != null
+                                                && p.getFeature().getWorkerConfig() != null)
+                        .toList();
+
+        if (productsToSync.isEmpty()) {
+            return;
+        }
+
+        // Group by Nacos instance (nacosId:namespace) and sync each group
+        productsToSync.stream()
+                .collect(
+                        Collectors.groupingBy(
+                                p -> {
+                                    WorkerConfig c = p.getFeature().getWorkerConfig();
+                                    return c.getNacosId() + ":" + c.getNamespace();
+                                }))
+                .forEach(
+                        (key, group) -> {
+                            Product first = group.get(0);
+                            WorkerConfig config = first.getFeature().getWorkerConfig();
+                            syncWorkerGroup(config.getNacosId(), config.getNamespace(), group);
+                        });
+    }
+
+    /**
+     * Sync a group of worker products from the same Nacos instance.
+     */
+    private void syncWorkerGroup(String nacosId, String namespace, List<Product> products) {
+        try {
+            AiMaintainerService aiService = nacosService.getAiMaintainerService(nacosId);
+            Page<AgentSpecSummary> page =
+                    aiService
+                            .agentSpec()
+                            .listAgentSpecAdminItems(namespace, null, null, 1, Integer.MAX_VALUE);
+
+            if (page == null || CollUtil.isEmpty(page.getPageItems())) {
+                return;
+            }
+
+            Map<String, Long> downloadCountMap =
+                    page.getPageItems().stream()
+                            .collect(
+                                    Collectors.toMap(
+                                            AgentSpecSummary::getName,
+                                            AgentSpecSummary::getDownloadCount,
+                                            (v1, v2) -> v1));
+
+            for (Product product : products) {
+                try {
+                    WorkerConfig config = product.getFeature().getWorkerConfig();
+                    Long count = downloadCountMap.get(config.getAgentSpecName());
+
+                    if (count != null && !Objects.equals(config.getDownloadCount(), count)) {
+                        config.setDownloadCount(count);
+                        productRepository.save(product);
+                        log.info(
+                                "Synced download count for worker product {}: {}",
+                                product.getProductId(),
+                                count);
+                    }
+                    downloadCountSyncCache.put(product.getProductId(), Boolean.TRUE);
+                } catch (Exception e) {
+                    log.warn(
+                            "Failed to sync download count for worker product {}",
+                            product.getProductId(),
+                            e);
+                }
+            }
+        } catch (Exception e) {
+            log.warn(
+                    "Failed to sync download counts for worker products from Nacos {}: {}",
+                    nacosId,
+                    e.getMessage());
         }
     }
 }

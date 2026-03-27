@@ -17,42 +17,28 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.product;
+package com.alibaba.himarket.dto.result.common;
 
-import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * Result of importing resources from Nacos.
+ */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class WorkerConfig {
+public class ImportResult {
 
-    /**
-     * Nacos instance ID (nacos_instance.nacos_id)
-     */
-    private String nacosId;
+    /** Resource type: "skill" or "worker" */
+    private String resourceType;
 
-    /**
-     * Nacos namespace, defaults to "public"
-     */
-    private String namespace;
+    /** Number of successfully imported resources */
+    private int successCount;
 
-    /**
-     * AgentSpec name (corresponds to name in manifest.json)
-     */
-    private String agentSpecName;
-
-    /**
-     * Worker tags for categorization and search
-     */
-    private List<String> tags;
-
-    /**
-     * Worker download count
-     */
-    private long downloadCount;
+    /** Number of skipped resources (already exist) */
+    private int skippedCount;
 }

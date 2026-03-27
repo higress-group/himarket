@@ -5,33 +5,43 @@ import cn.hutool.core.util.StrUtil;
 import cn.hutool.core.util.URLUtil;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.core.constant.Resources;
+import com.alibaba.himarket.core.event.ProductQueriedEvent;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
+import com.alibaba.himarket.core.security.ContextHolder;
 import com.alibaba.himarket.core.skill.FileTreeBuilder;
 import com.alibaba.himarket.core.skill.SkillMdBuilder;
 import com.alibaba.himarket.core.skill.SkillZipParser;
+import com.alibaba.himarket.core.utils.CacheUtil;
+import com.alibaba.himarket.core.utils.IdGenerator;
 import com.alibaba.himarket.dto.converter.OutputConverter;
 import com.alibaba.himarket.dto.result.cli.CliDownloadInfo;
 import com.alibaba.himarket.dto.result.common.FileContentResult;
 import com.alibaba.himarket.dto.result.common.FileTreeNode;
+import com.alibaba.himarket.dto.result.common.ImportResult;
 import com.alibaba.himarket.dto.result.common.VersionResult;
 import com.alibaba.himarket.entity.Product;
 import com.alibaba.himarket.repository.ProductRepository;
 import com.alibaba.himarket.service.NacosService;
 import com.alibaba.himarket.service.SkillService;
 import com.alibaba.himarket.support.enums.ProductStatus;
+import com.alibaba.himarket.support.enums.ProductType;
 import com.alibaba.himarket.support.product.ProductFeature;
 import com.alibaba.himarket.support.product.SkillConfig;
 import com.alibaba.nacos.api.ai.model.skills.Skill;
 import com.alibaba.nacos.api.ai.model.skills.SkillMeta;
 import com.alibaba.nacos.api.ai.model.skills.SkillResource;
+import com.alibaba.nacos.api.ai.model.skills.SkillSummary;
 import com.alibaba.nacos.api.exception.NacosException;
+import com.alibaba.nacos.api.model.Page;
 import com.alibaba.nacos.maintainer.client.ai.AiMaintainerService;
 import com.alibaba.nacos.maintainer.client.ai.SkillMaintainerService;
+import com.github.benmanes.caffeine.cache.Cache;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import lombok.AllArgsConstructor;
@@ -39,12 +49,16 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @Slf4j
 @RequiredArgsConstructor
+@Transactional
 public class SkillServiceImpl implements SkillService {
 
     private static final long MAX_ZIP_SIZE = 10 * 1024 * 1024;
@@ -52,6 +66,12 @@ public class SkillServiceImpl implements SkillService {
     private final NacosService nacosService;
 
     private final ProductRepository productRepository;
+    private final ContextHolder contextHolder;
+
+    /**
+     * Cache to prevent duplicate download count sync within 5 minutes
+     */
+    private final Cache<String, Boolean> downloadCountSyncCache = CacheUtil.newCache(5);
 
     @Override
     public void uploadPackage(String productId, MultipartFile file) throws IOException {
@@ -115,7 +135,6 @@ public class SkillServiceImpl implements SkillService {
 
         SkillConfig config = product.getFeature().getSkillConfig();
         config.setSkillName(null);
-        config.setCurrentVersion(null);
 
         productRepository.save(product);
     }
@@ -297,7 +316,6 @@ public class SkillServiceImpl implements SkillService {
                 }
                 SkillConfig config = product.getFeature().getSkillConfig();
                 config.setSkillName(null);
-                config.setCurrentVersion(null);
                 productRepository.save(product);
             }
         } catch (Exception e) {
@@ -307,7 +325,6 @@ public class SkillServiceImpl implements SkillService {
                     ref.getSkillName());
             SkillConfig config = product.getFeature().getSkillConfig();
             config.setSkillName(null);
-            config.setCurrentVersion(null);
             productRepository.save(product);
         }
     }
@@ -502,6 +519,183 @@ public class SkillServiceImpl implements SkillService {
         } catch (Exception e) {
             log.warn("Failed to get CLI download info for skill product {}", productId, e);
             return null;
+        }
+    }
+
+    @Override
+    public ImportResult importFromNacos(String nacosId, String namespace) {
+        int successCount = 0;
+        int skippedCount = 0;
+
+        try {
+            AiMaintainerService aiService = nacosService.getAiMaintainerService(nacosId);
+
+            Page<SkillSummary> page =
+                    aiService.skill().listSkills(namespace, null, null, 1, Integer.MAX_VALUE);
+
+            if (page == null || page.getPageItems() == null) {
+                return ImportResult.builder()
+                        .resourceType("skill")
+                        .successCount(0)
+                        .skippedCount(0)
+                        .build();
+            }
+
+            for (SkillSummary info : page.getPageItems()) {
+                String name = info.getName();
+
+                // Skip if product already exists
+                if (productRepository
+                        .findByNameAndAdminId(name, contextHolder.getUser())
+                        .isPresent()) {
+                    log.info("Skill product '{}' already exists, skipping", name);
+                    skippedCount++;
+                    continue;
+                }
+
+                // Create product
+                Product product =
+                        Product.builder()
+                                .productId(IdGenerator.genApiProductId())
+                                .name(name)
+                                .description(info.getDescription())
+                                .type(ProductType.AGENT_SKILL)
+                                .adminId(contextHolder.getUser())
+                                .status(
+                                        info.getOnlineCnt() != null && info.getOnlineCnt() > 0
+                                                ? ProductStatus.READY
+                                                : ProductStatus.PENDING)
+                                .build();
+
+                // Set skill config
+                SkillConfig skillConfig =
+                        SkillConfig.builder()
+                                .nacosId(nacosId)
+                                .namespace(namespace)
+                                .skillName(name)
+                                .downloadCount(info.getDownloadCount())
+                                .build();
+
+                ProductFeature feature = ProductFeature.builder().skillConfig(skillConfig).build();
+                product.setFeature(feature);
+
+                productRepository.save(product);
+                successCount++;
+                log.info("Imported skill product '{}' from Nacos", name);
+            }
+        } catch (Exception e) {
+            log.error("Failed to import skills from Nacos", e);
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR, "Failed to import skills: " + e.getMessage());
+        }
+
+        log.info("Imported {} skills from Nacos, skipped {}", successCount, skippedCount);
+
+        return ImportResult.builder()
+                .resourceType("skill")
+                .successCount(successCount)
+                .skippedCount(skippedCount)
+                .build();
+    }
+
+    /**
+     * Listen for product queried events and sync download counts for skill products. Groups by
+     * Nacos instance to minimize API calls.
+     *
+     * @param event the product queried event
+     */
+    @EventListener
+    @Async("taskExecutor")
+    public void onProductQueried(ProductQueriedEvent event) {
+        if (CollUtil.isEmpty(event.getProductIds())) {
+            return;
+        }
+
+        // Filter out products in cooldown
+        List<String> productIdsToSync =
+                event.getProductIds().stream()
+                        .filter(id -> downloadCountSyncCache.getIfPresent(id) == null)
+                        .toList();
+
+        if (CollUtil.isEmpty(productIdsToSync)) {
+            return;
+        }
+
+        // Batch fetch skill products
+        List<Product> productsToSync =
+                productRepository.findByProductIdIn(productIdsToSync).stream()
+                        .filter(
+                                p ->
+                                        p.getFeature() != null
+                                                && p.getFeature().getSkillConfig() != null)
+                        .toList();
+
+        if (productsToSync.isEmpty()) {
+            return;
+        }
+
+        // Group by Nacos instance (nacosId:namespace) and sync each group
+        productsToSync.stream()
+                .collect(
+                        Collectors.groupingBy(
+                                p -> {
+                                    SkillConfig c = p.getFeature().getSkillConfig();
+                                    return c.getNacosId() + ":" + c.getNamespace();
+                                }))
+                .forEach(
+                        (key, group) -> {
+                            Product first = group.get(0);
+                            SkillConfig config = first.getFeature().getSkillConfig();
+                            syncSkillGroup(config.getNacosId(), config.getNamespace(), group);
+                        });
+    }
+
+    /**
+     * Sync a group of skill products from the same Nacos instance.
+     */
+    private void syncSkillGroup(String nacosId, String namespace, List<Product> products) {
+        try {
+            AiMaintainerService aiService = nacosService.getAiMaintainerService(nacosId);
+            Page<SkillSummary> page = aiService.skill().listSkills(namespace, 1, Integer.MAX_VALUE);
+
+            if (page == null || CollUtil.isEmpty(page.getPageItems())) {
+                return;
+            }
+
+            Map<String, Long> downloadCountMap =
+                    page.getPageItems().stream()
+                            .collect(
+                                    Collectors.toMap(
+                                            SkillSummary::getName,
+                                            SkillSummary::getDownloadCount,
+                                            (v1, v2) -> v1));
+
+            for (Product product : products) {
+                try {
+                    SkillConfig config = product.getFeature().getSkillConfig();
+                    Long count = downloadCountMap.get(config.getSkillName());
+
+                    if (count != null && !Objects.equals(config.getDownloadCount(), count)) {
+                        config.setDownloadCount(count);
+                        productRepository.save(product);
+                        log.info(
+                                "Synced download count for skill product {}: {}",
+                                product.getProductId(),
+                                count);
+                    }
+                    downloadCountSyncCache.put(product.getProductId(), Boolean.TRUE);
+                } catch (Exception e) {
+                    log.warn(
+                            "Failed to sync download count for skill product {}",
+                            product.getProductId(),
+                            e);
+                }
+            }
+        } catch (Exception e) {
+            log.warn(
+                    "Failed to sync download counts for skill products from Nacos {}: {}",
+                    nacosId,
+                    e.getMessage());
         }
     }
 }

@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import type { MenuProps } from 'antd';
 import { Button, Dropdown, Modal, message, Pagination, Skeleton, Input, Tabs, Tag } from 'antd';
 import type { ApiProduct, ProductIcon } from '@/types/api-product';
-import { ApiOutlined, MoreOutlined, PlusOutlined, ExclamationCircleOutlined, ExclamationCircleFilled, ClockCircleFilled, CheckCircleFilled, SearchOutlined, RobotOutlined, BulbOutlined, ThunderboltOutlined, UserOutlined } from '@ant-design/icons';
+import { ApiOutlined, MoreOutlined, PlusOutlined, ExclamationCircleOutlined, ExclamationCircleFilled, ClockCircleFilled, CheckCircleFilled, SearchOutlined, RobotOutlined, BulbOutlined, ThunderboltOutlined, UserOutlined, ImportOutlined, DownloadOutlined } from '@ant-design/icons';
 import McpServerIcon from '@/components/icons/McpServerIcon';
-import { apiProductApi } from '@/lib/api';
+import { apiProductApi, nacosApi, workerApi, skillApi } from '@/lib/api';
 import ApiProductFormModal from '@/components/api-product/ApiProductFormModal';
 import { ProductIconRenderer } from '@/components/icons/ProductIconRenderer';
 import { getIconString } from '@/lib/iconUtils';
@@ -134,6 +134,16 @@ const ProductCard = memo(({ product, onNavigate, handleRefresh, onEdit }: {
                   {product.status === 'PENDING' ? '待配置' : product.status === 'READY' ? '待发布' : '已发布'}
                 </span>
               </div>
+              {(product.type === 'AGENT_SKILL' || product.type === 'WORKER') && (
+                <div className="flex items-center">
+                  <DownloadOutlined className="text-gray-400 mr-1" style={{ fontSize: '12px' }} />
+                  <span className="text-xs text-gray-500">
+                    {product.type === 'AGENT_SKILL'
+                      ? (product.skillConfig?.downloadCount ?? 0)
+                      : (product.workerConfig?.downloadCount ?? 0)}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -162,6 +172,8 @@ export default function ApiProducts() {
   const [pagination, setPagination] = useState({ current: 1, pageSize: 12, total: 0 });
   const [modalVisible, setModalVisible] = useState(false);
   const [editingProduct, setEditingProduct] = useState<ApiProduct | null>(null);
+  const [importLoading, setImportLoading] = useState(false);
+  const [defaultNacos, setDefaultNacos] = useState<any>(null);
 
   const buildParams = useCallback((page: number, size: number, tab: string, name: string) => {
     const params: Record<string, any> = { page, size };
@@ -181,6 +193,55 @@ export default function ApiProducts() {
   useEffect(() => {
     fetchApiProducts(1, 12, 'ALL', '');
   }, []);
+
+  // Fetch default Nacos instance for import feature
+  useEffect(() => {
+    if (activeTab === 'AGENT_SKILL' || activeTab === 'WORKER') {
+      nacosApi.getDefaultNacos().then((res: any) => {
+        setDefaultNacos(res.data);
+      }).catch(() => {
+        setDefaultNacos(null);
+      });
+    }
+  }, [activeTab]);
+
+  const handleImportFromNacos = async () => {
+    if (!defaultNacos) {
+      message.warning('请先配置默认 Nacos 实例');
+      return;
+    }
+
+    const isWorker = activeTab === 'WORKER';
+    const typeName = isWorker ? 'Workers' : 'Skills';
+
+    Modal.confirm({
+      title: `从 Nacos 导入 ${typeName}`,
+      content: `将从默认 Nacos 实例 "${defaultNacos.nacosName || defaultNacos.nacosId}" 导入所有 ${typeName}，是否继续？`,
+      okText: '确认导入',
+      cancelText: '取消',
+      onOk: async () => {
+        setImportLoading(true);
+        try {
+          const namespace = defaultNacos.defaultNamespace || 'public';
+          const res = isWorker
+            ? await workerApi.importFromNacos(defaultNacos.nacosId, namespace)
+            : await skillApi.importFromNacos(defaultNacos.nacosId, namespace);
+
+          const importResult = res.data;
+          if (importResult.successCount > 0) {
+            message.success(`成功导入 ${importResult.successCount} 个 ${typeName}`);
+            fetchApiProducts(pagination.current, pagination.pageSize);
+          } else {
+            message.info(`没有新的 ${typeName} 需要导入`);
+          }
+        } catch (error: any) {
+          message.error(error.response?.data?.message || `导入 ${typeName} 失败`);
+        } finally {
+          setImportLoading(false);
+        }
+      },
+    });
+  };
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
@@ -241,9 +302,21 @@ export default function ApiProducts() {
           <h1 className="text-3xl font-bold tracking-tight">API Products</h1>
           <p className="text-gray-500 mt-2">管理和配置您的API产品</p>
         </div>
-        <Button onClick={handleCreate} type="primary" icon={<PlusOutlined />}>
-          创建 API Product
-        </Button>
+        <div className="flex items-center gap-3">
+          {(activeTab === 'AGENT_SKILL' || activeTab === 'WORKER') && (
+            <Button
+              onClick={handleImportFromNacos}
+              loading={importLoading}
+              disabled={!defaultNacos}
+              icon={<ImportOutlined />}
+            >
+              从 Nacos 导入
+            </Button>
+          )}
+          <Button onClick={handleCreate} type="primary" icon={<PlusOutlined />}>
+            创建 API Product
+          </Button>
+        </div>
       </div>
 
       {/* Tabs 按类型分组 */}

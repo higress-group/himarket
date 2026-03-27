@@ -336,15 +336,20 @@ public class DeveloperServiceImpl implements DeveloperService {
 
     @Override
     public DeveloperResult getCurrentDeveloperInfo() {
-        String currentUserId = contextHolder.getUser();
-        Developer developer = findDeveloper(currentUserId);
-        return new DeveloperResult().convertFrom(developer);
+        // Allow anonymous user
+        try {
+            Developer developer = findDeveloper(contextHolder.getUser());
+            return new DeveloperResult().convertFrom(developer);
+        } catch (Exception ignored) {
+        }
+
+        return new DeveloperResult();
     }
 
     @Override
-    public boolean changeCurrentDeveloperPassword(String oldPassword, String newPassword) {
+    public void resetDeveloperPassword(String oldPassword, String newPassword) {
         String currentUserId = contextHolder.getUser();
-        return resetPassword(currentUserId, oldPassword, newPassword);
+        resetPassword(currentUserId, oldPassword, newPassword);
     }
 
     private void createDefaultConsumer(String developerId) {

@@ -17,42 +17,22 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.product;
+package com.alibaba.himarket.core.event;
 
 import java.util.List;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * Event triggered when products are queried (list or get). Used to trigger async sync of download
+ * counts from Nacos.
+ */
 @Data
-@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class WorkerConfig {
+public class ProductQueriedEvent {
 
-    /**
-     * Nacos instance ID (nacos_instance.nacos_id)
-     */
-    private String nacosId;
-
-    /**
-     * Nacos namespace, defaults to "public"
-     */
-    private String namespace;
-
-    /**
-     * AgentSpec name (corresponds to name in manifest.json)
-     */
-    private String agentSpecName;
-
-    /**
-     * Worker tags for categorization and search
-     */
-    private List<String> tags;
-
-    /**
-     * Worker download count
-     */
-    private long downloadCount;
+    /** List of product IDs that were queried */
+    private List<String> productIds;
 }

@@ -211,7 +211,7 @@ export default function NacosConsoles() {
       key: 'createAt',
       render: (val: any, record: NacosInstance) => {
         const t = val ?? record.createAt ?? (record as any).createTime ?? (record as any).gmtCreate
-        return t ? dayjs(t).format('YYYY/MM/DD HH:mm:ss') : '-'
+        return t ? dayjs(t).format('YYYY-MM-DD HH:mm:ss') : '-'
       },
     },
     {

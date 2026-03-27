@@ -345,6 +345,10 @@ export const workerApi = {
     api.delete(`/workers/${productId}/draft`),
   setLatestVersion: (productId: string, version: string) =>
     api.put(`/workers/${productId}/versions/latest`, { version }),
+  // 从 Nacos 导入 Workers
+  importFromNacos: (nacosId: string, namespace?: string) => {
+    return api.post(`/workers/import`, null, { params: { nacosId, namespace } })
+  },
 }
 
 export const skillApi = {
@@ -374,4 +378,8 @@ export const skillApi = {
     api.delete(`/skills/${productId}/draft`),
   setLatestVersion: (productId: string, version: string) =>
     api.put(`/skills/${productId}/versions/latest`, { version }),
+  // 从 Nacos 导入 Skills
+  importFromNacos: (nacosId: string, namespace?: string) => {
+    return api.post(`/skills/import`, null, { params: { nacosId, namespace } })
+  },
 }

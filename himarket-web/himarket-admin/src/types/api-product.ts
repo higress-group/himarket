@@ -230,6 +230,7 @@ export interface ApiProductWorkerConfig {
   workerName?: string;
   currentVersion?: string;
   tags?: string[];
+  downloadCount?: number;
 }
 
 export interface ApiProduct {
