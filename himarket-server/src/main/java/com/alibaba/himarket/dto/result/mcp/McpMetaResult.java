@@ -89,4 +89,13 @@ public class McpMetaResult implements OutputConverter<McpMetaResult, McpServerMe
      * 前端可直接展示，无需自行拼接。
      */
     private String resolvedConfig;
+
+    /**
+     * 清除敏感字段，用于非管理员用户的响应脱敏。
+     * 隐藏部署参数（含 namespace 等基础设施信息）。
+     */
+    public McpMetaResult sanitize() {
+        this.subscribeParams = null;
+        return this;
+    }
 }

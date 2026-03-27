@@ -22,6 +22,7 @@ package com.alibaba.himarket.controller;
 import com.alibaba.himarket.core.annotation.AdminAuth;
 import com.alibaba.himarket.core.annotation.AdminOrDeveloperAuth;
 import com.alibaba.himarket.core.annotation.PublicAccess;
+import com.alibaba.himarket.core.security.ContextHolder;
 import com.alibaba.himarket.dto.params.product.CreateProductParam;
 import com.alibaba.himarket.dto.params.product.CreateProductRefParam;
 import com.alibaba.himarket.dto.params.product.PublishProductParam;
@@ -61,6 +62,8 @@ public class ProductController {
     private final ProductCategoryService productCategoryService;
 
     private final McpServerService mcpServerService;
+
+    private final ContextHolder contextHolder;
 
     @Operation(summary = "创建API产品")
     @PostMapping
@@ -140,7 +143,11 @@ public class ProductController {
     @Operation(summary = "获取产品关联的 MCP 元信息")
     @GetMapping("/{productId}/mcp-meta")
     public List<McpMetaResult> listMcpMeta(@PathVariable String productId) {
-        return mcpServerService.listMetaByProduct(productId);
+        List<McpMetaResult> results = mcpServerService.listMetaByProduct(productId);
+        if (!contextHolder.isAdministrator()) {
+            results.forEach(McpMetaResult::sanitize);
+        }
+        return results;
     }
 
     @Operation(summary = "获取产品关联的 MCP 公开信息（匿名可访问，脱敏）")

@@ -21,6 +21,7 @@ package com.alibaba.himarket.controller;
 
 import com.alibaba.himarket.core.annotation.AdminAuth;
 import com.alibaba.himarket.core.annotation.PublicAccess;
+import com.alibaba.himarket.core.security.ContextHolder;
 import com.alibaba.himarket.dto.params.mcp.RegisterMcpParam;
 import com.alibaba.himarket.dto.params.mcp.SaveMcpEndpointParam;
 import com.alibaba.himarket.dto.params.mcp.SaveMcpMetaParam;
@@ -48,6 +49,7 @@ public class McpServerController {
 
     private final McpServerService mcpServerService;
     private final SandboxService sandboxService;
+    private final ContextHolder contextHolder;
 
     // ==================== 管理接口（需要 Admin 权限） ====================
 
@@ -91,19 +93,28 @@ public class McpServerController {
     @Operation(summary = "获取 MCP 元信息")
     @GetMapping("/meta/{mcpServerId}")
     public McpMetaResult getMeta(@PathVariable String mcpServerId) {
-        return mcpServerService.getMeta(mcpServerId);
+        McpMetaResult result = mcpServerService.getMeta(mcpServerId);
+        return contextHolder.isAdministrator() ? result : result.sanitize();
     }
 
     @Operation(summary = "获取产品下所有 MCP 元信息")
     @GetMapping("/meta")
     public List<McpMetaResult> listMetaByProduct(@RequestParam String productId) {
-        return mcpServerService.listMetaByProduct(productId);
+        List<McpMetaResult> results = mcpServerService.listMetaByProduct(productId);
+        if (!contextHolder.isAdministrator()) {
+            results.forEach(McpMetaResult::sanitize);
+        }
+        return results;
     }
 
     @Operation(summary = "批量获取多个产品的 MCP 元信息（含公共 endpoint 热数据）")
     @GetMapping("/meta/batch")
     public List<McpMetaResult> listMetaByProductIds(@RequestParam List<String> productIds) {
-        return mcpServerService.listMetaByProductIds(productIds);
+        List<McpMetaResult> results = mcpServerService.listMetaByProductIds(productIds);
+        if (!contextHolder.isAdministrator()) {
+            results.forEach(McpMetaResult::sanitize);
+        }
+        return results;
     }
 
     @Operation(summary = "批量获取多个产品的 MCP 公开信息（匿名可访问，脱敏）")
@@ -162,7 +173,11 @@ public class McpServerController {
     @Operation(summary = "市场列表：已发布且公开的 MCP Server")
     @GetMapping("/published")
     public PageResult<McpMetaResult> listPublished(Pageable pageable) {
-        return mcpServerService.listPublishedMcpServers(pageable);
+        PageResult<McpMetaResult> page = mcpServerService.listPublishedMcpServers(pageable);
+        if (!contextHolder.isAdministrator()) {
+            page.getContent().forEach(McpMetaResult::sanitize);
+        }
+        return page;
     }
 
     @Operation(summary = "可用沙箱列表（Portal 端，只返回支持 MCP 托管且状态正常的沙箱）")
@@ -180,6 +195,7 @@ public class McpServerController {
     @Operation(summary = "用户注册 MCP Server（Portal 端，登录用户即可调用）")
     @PostMapping("/register")
     public McpMetaResult register(@RequestBody @Valid RegisterMcpParam param) {
-        return mcpServerService.registerMcp(param);
+        McpMetaResult result = mcpServerService.registerMcp(param);
+        return contextHolder.isAdministrator() ? result : result.sanitize();
     }
 }
