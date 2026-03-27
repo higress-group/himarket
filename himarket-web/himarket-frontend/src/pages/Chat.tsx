@@ -42,6 +42,8 @@ function Chat() {
 
   // 从 location.state 接收选中的产品，或者加载默认第一个模型
   useEffect(() => {
+    if (!isLoggedIn) return;
+
     const state = location.state as { selectedProduct?: IProductDetail } | null;
     if (state?.selectedProduct) {
       setSelectedModel(state.selectedProduct);
@@ -68,7 +70,7 @@ function Chat() {
       };
       loadDefaultModel();
     }
-  }, [location, chatType]);
+  }, [location, chatType, isLoggedIn]);
 
   const handleSendMessage = async (content: string, mcps: IProductDetail[], enableWebSearch: boolean, modelMap: Map<string, IProductDetail>, attachments: IAttachment[] = []) => {
     if (!selectedModel) {

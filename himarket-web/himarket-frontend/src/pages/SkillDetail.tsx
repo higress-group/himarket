@@ -109,7 +109,7 @@ function SkillDetail() {
   const [selectedVersion, setSelectedVersion] = useState<string | undefined>();
   const [cliInfo, setCliInfo] = useState<SkillCliInfo | null>(null);
   const [selectedIde, setSelectedIde] = useState<IdeType>('qoder');
-  const [outputDir, setOutputDir] = useState<string>('./.qoder/skills');
+  const [outputDir, setOutputDir] = useState<string>('~/.qoder/skills');
 
   const handleDragStart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -155,9 +155,10 @@ function SkillDetail() {
         }
 
         // Only show online (published) versions in frontend
-        const onlineVersions = (versionsRes?.code === "SUCCESS" && Array.isArray(versionsRes.data))
-          ? versionsRes.data.filter((v: SkillVersion) => v.status === "online")
+        const allVersions = (versionsRes?.code === "SUCCESS" && Array.isArray(versionsRes.data))
+          ? versionsRes.data
           : [];
+        const onlineVersions = allVersions.filter((v: SkillVersion) => v.status === "online");
         setVersions(onlineVersions);
 
         // Default to latest online version
@@ -166,6 +167,11 @@ function SkillDetail() {
 
         // Load file tree for the default version
         await loadVersionContent(defaultVersion);
+
+        // Fallback: if no online versions but product has document, use it as overview
+        if (onlineVersions.length === 0 && allVersions.length > 0 && productRes.data?.document) {
+          setOverviewContent(productRes.data.document);
+        }
       } catch (err) {
         console.error("API请求失败:", err);
         setError("加载失败，请稍后重试");
