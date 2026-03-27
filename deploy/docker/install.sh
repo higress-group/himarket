@@ -579,7 +579,7 @@ interactive_config() {
     prompt HIMARKET_ADMIN_IMAGE "HiMarket Admin image" "opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-admin:latest"
     prompt HIMARKET_FRONTEND_IMAGE "HiMarket Frontend image" "opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-frontend:latest"
     prompt MYSQL_IMAGE "MySQL image" "opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/mysql:latest"
-    prompt NACOS_IMAGE "Nacos image" "nacos-registry.cn-hangzhou.cr.aliyuncs.com/nacos/nacos-server:v3.2.0-BETA"
+    prompt NACOS_IMAGE "Nacos image" "nacos-registry.cn-hangzhou.cr.aliyuncs.com/nacos/nacos-server:v3.2.0"
     prompt HIGRESS_IMAGE "Higress image" "higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/all-in-one:latest"
 
     # ─── 数据库密码 ───

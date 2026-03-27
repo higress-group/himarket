@@ -213,7 +213,7 @@ public final class SkillZipParser {
         skill.setNamespaceId(namespaceId);
         skill.setName(name.trim());
         skill.setDescription(description.trim());
-        skill.setInstruction(instruction.trim());
+        skill.setSkillMd(instruction.trim());
         return skill;
     }
 

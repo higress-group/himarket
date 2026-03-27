@@ -21,8 +21,8 @@ public final class SkillMdBuilder {
                 .append(skill.getDescription() != null ? skill.getDescription() : "")
                 .append("\n");
         sb.append("---\n\n");
-        if (skill.getInstruction() != null) {
-            sb.append(skill.getInstruction());
+        if (skill.getSkillMd() != null) {
+            sb.append(skill.getSkillMd());
         }
         return sb.toString();
     }
