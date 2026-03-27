@@ -180,7 +180,38 @@ rm -f "$TMPZIP"
 
 上传失败时最多重试 3 次，每次间隔递增（1s、2s、3s）。
 
-### Step 8: Publish to Portal
+### Step 8: Submit & Online Version
+
+上传成功后，需要将 draft 版本提交审核并上线，否则前台开发者门户无法看到内容。
+
+```bash
+# 获取版本列表，找到 draft 版本
+VERSIONS=$(curl -s -H "Authorization: Bearer $TOKEN" \
+  "$HM_URL/skills/$PRODUCT_ID/versions")
+
+# 提取第一个 draft 版本号
+DRAFT_VERSION=$(echo "$VERSIONS" | jq -r '.data[] | select(.status == "draft") | .version' | head -1)
+
+if [ -n "$DRAFT_VERSION" ] && [ "$DRAFT_VERSION" != "null" ]; then
+  # 提交审核
+  curl -s -X POST "$HM_URL/skills/$PRODUCT_ID/versions" \
+    -H "Authorization: Bearer $TOKEN" \
+    -H "Content-Type: application/json" \
+    -d "{\"version\":\"$DRAFT_VERSION\"}"
+
+  sleep 1
+
+  # 上线版本
+  curl -s -X PATCH "$HM_URL/skills/$PRODUCT_ID/versions/$DRAFT_VERSION" \
+    -H "Authorization: Bearer $TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{"status":"online"}'
+fi
+```
+
+如果 submit 或 online 失败，记录警告但不阻塞后续步骤。
+
+### Step 9: Publish to Portal
 
 ```bash
 curl -s -X POST "$HM_URL/products/$PRODUCT_ID/publications" \
@@ -191,7 +222,7 @@ curl -s -X POST "$HM_URL/products/$PRODUCT_ID/publications" \
 
 如果产品已发布（返回错误），忽略该错误继续。
 
-### Step 9: Summary
+### Step 10: Summary
 
 处理完所有 skill 后，输出汇总表格：
 
