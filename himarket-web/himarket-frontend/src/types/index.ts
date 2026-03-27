@@ -122,19 +122,11 @@ export interface ApiProductSkillConfig {
   downloadCount?: number;
 }
 
-export interface ApiProductWorkerConfig {
-  nacosId?: string;
-  namespace?: string;
-  workerName?: string;
-  downloadCount?: number;
-  tags?: string[];
-}
-
 export interface ApiProduct {
   productId: string;
   name: string;
   description: string;
-  type: 'REST_API' | 'MCP_SERVER' | 'AGENT_API' | 'MODEL_API' | 'AGENT_SKILL' | 'WORKER';
+  type: 'REST_API' | 'MCP_SERVER' | 'AGENT_API' | 'MODEL_API' | 'AGENT_SKILL';
   category: string;
   status: 'PENDING' | 'READY' | 'PUBLISHED' | string;
   createAt: string;
@@ -146,7 +138,6 @@ export interface ApiProduct {
   agentConfig?: ApiProductAgentConfig;
   modelConfig?: ApiProductModelConfig;
   skillConfig?: ApiProductSkillConfig;
-  workerConfig?: ApiProductWorkerConfig;
   document?: string;
   icon?: ProductIcon | null;
   categories?: ProductCategoryData[];
@@ -160,7 +151,6 @@ export const ProductType = {
   AGENT_API: 'AGENT_API',
   MODEL_API: 'MODEL_API',
   AGENT_SKILL: 'AGENT_SKILL',
-  WORKER: 'WORKER',
 } as const;
 export type ProductType = typeof ProductType[keyof typeof ProductType];
 

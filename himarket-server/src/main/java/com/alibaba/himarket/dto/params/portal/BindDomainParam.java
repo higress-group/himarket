@@ -24,6 +24,7 @@ import com.alibaba.himarket.entity.PortalDomain;
 import com.alibaba.himarket.support.enums.DomainType;
 import com.alibaba.himarket.support.enums.ProtocolType;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 @Data
@@ -32,7 +33,8 @@ public class BindDomainParam implements InputConverter<PortalDomain> {
     @NotBlank(message = "Portal domain cannot be blank")
     private String domain;
 
-    private ProtocolType protocol = ProtocolType.HTTP;
+    @NotNull(message = "Domain protocol cannot be null")
+    private ProtocolType protocol;
 
     private DomainType type = DomainType.CUSTOM;
 }

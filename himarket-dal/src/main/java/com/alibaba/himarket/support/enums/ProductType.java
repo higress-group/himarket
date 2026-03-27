@@ -31,7 +31,5 @@ public enum ProductType {
     MODEL_API,
 
     AGENT_SKILL,
-
-    WORKER,
     ;
 }

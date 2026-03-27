@@ -1,12 +1,15 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, type ReactNode } from "react";
 import {
-  FolderFilled, FolderOpenFilled, FileFilled,
-  FileMarkdownFilled, FileTextFilled, CodeFilled, SettingFilled,
-  Html5Filled, FileZipFilled, FileImageFilled,
-  JavaScriptOutlined, JavaOutlined, PythonOutlined, DockerOutlined,
-  RightOutlined, DownOutlined,
-} from "@ant-design/icons";
-import { Tooltip } from "antd";
+  ChevronRight,
+  ChevronDown,
+  File,
+  Folder,
+  FolderOpen,
+  Braces,
+  FileCode,
+  FileText,
+  Image,
+} from "lucide-react";
 import type { FileNode } from "../../types/coding";
 
 interface FileTreeProps {
@@ -22,86 +25,60 @@ interface TreeNodeProps {
   selectedPath?: string | null;
 }
 
-// ── File icon by extension (matching admin IDEA style) ───────────────
-const iconClass = "flex-shrink-0";
-const iconStyle = { fontSize: 14 };
+const JSON_EXTS = new Set(["json"]);
+const CODE_EXTS = new Set([
+  "ts",
+  "tsx",
+  "js",
+  "jsx",
+  "py",
+  "java",
+  "go",
+  "rs",
+  "rb",
+  "php",
+  "c",
+  "cpp",
+  "h",
+  "hpp",
+  "cs",
+  "swift",
+  "kt",
+  "html",
+  "htm",
+  "css",
+  "scss",
+  "less",
+  "vue",
+  "svelte",
+  "sh",
+  "bash",
+  "sql",
+]);
+const IMAGE_EXTS = new Set(["png", "jpg", "jpeg", "gif", "webp", "svg", "ico"]);
+const TEXT_EXTS = new Set([
+  "md",
+  "txt",
+  "log",
+  "yml",
+  "yaml",
+  "toml",
+  "ini",
+  "cfg",
+  "conf",
+]);
 
-function FileIcon({ name }: { name: string }) {
+function getFileIcon(name: string): ReactNode {
   const ext = name.split(".").pop()?.toLowerCase() ?? "";
-  const lowerName = name.toLowerCase();
-
-  if (lowerName === "dockerfile") return <DockerOutlined className={iconClass} style={{ ...iconStyle, color: "#1a9ad0" }} />;
-  if (lowerName === ".gitignore") return <FileTextFilled className={iconClass} style={{ ...iconStyle, color: "#999" }} />;
-  if (lowerName === "license" || lowerName === "notice") return <FileTextFilled className={iconClass} style={{ ...iconStyle, color: "#999" }} />;
-
-  switch (ext) {
-    case "md":
-      return <FileMarkdownFilled className={iconClass} style={{ ...iconStyle, color: "#1a72bd" }} />;
-    case "json":
-      return <SettingFilled className={iconClass} style={{ ...iconStyle, color: "#7568b8" }} />;
-    case "yaml":
-    case "yml":
-      return <SettingFilled className={iconClass} style={{ ...iconStyle, color: "#c88a0a" }} />;
-    case "toml":
-      return <SettingFilled className={iconClass} style={{ ...iconStyle, color: "#c88a0a" }} />;
-    case "xml":
-      return <CodeFilled className={iconClass} style={{ ...iconStyle, color: "#cc5e1e" }} />;
-    case "html":
-      return <Html5Filled className={iconClass} style={{ ...iconStyle, color: "#d94020" }} />;
-    case "css":
-    case "scss":
-    case "less":
-      return <CodeFilled className={iconClass} style={{ ...iconStyle, color: "#2060b0" }} />;
-    case "js":
-    case "jsx":
-      return <JavaScriptOutlined className={iconClass} style={{ ...iconStyle, color: "#c89008" }} />;
-    case "ts":
-    case "tsx":
-      return <CodeFilled className={iconClass} style={{ ...iconStyle, color: "#1e68b0" }} />;
-    case "py":
-      return <PythonOutlined className={iconClass} style={{ ...iconStyle, color: "#2060a0" }} />;
-    case "java":
-      return <JavaOutlined className={iconClass} style={{ ...iconStyle, color: "#cc5818" }} />;
-    case "sh":
-    case "bash":
-      return <CodeFilled className={iconClass} style={{ ...iconStyle, color: "#208848" }} />;
-    case "go":
-    case "rs":
-    case "rb":
-    case "php":
-    case "c":
-    case "cpp":
-    case "h":
-    case "hpp":
-    case "cs":
-    case "swift":
-    case "kt":
-    case "vue":
-    case "svelte":
-    case "sql":
-      return <CodeFilled className={iconClass} style={{ ...iconStyle, color: "#3880c0" }} />;
-    case "zip":
-    case "tar":
-    case "gz":
-      return <FileZipFilled className={iconClass} style={{ ...iconStyle, color: "#b88520" }} />;
-    case "png":
-    case "jpg":
-    case "jpeg":
-    case "gif":
-    case "webp":
-    case "svg":
-    case "ico":
-      return <FileImageFilled className={iconClass} style={{ ...iconStyle, color: "#5848b0" }} />;
-    case "txt":
-    case "log":
-    case "csv":
-    case "ini":
-    case "cfg":
-    case "conf":
-      return <FileTextFilled className={iconClass} style={{ ...iconStyle, color: "#999" }} />;
-    default:
-      return <FileFilled className={iconClass} style={{ ...iconStyle, color: "#3880c0" }} />;
-  }
+  if (JSON_EXTS.has(ext))
+    return <Braces size={14} className="text-amber-500" />;
+  if (CODE_EXTS.has(ext))
+    return <FileCode size={14} className="text-blue-400" />;
+  if (IMAGE_EXTS.has(ext))
+    return <Image size={14} className="text-green-400" />;
+  if (TEXT_EXTS.has(ext))
+    return <FileText size={14} className="text-gray-400" />;
+  return <File size={14} className="text-gray-400" />;
 }
 
 function TreeNode({ node, depth, onFileSelect, selectedPath }: TreeNodeProps) {
@@ -119,35 +96,40 @@ function TreeNode({ node, depth, onFileSelect, selectedPath }: TreeNodeProps) {
 
   return (
     <div>
-      <Tooltip title={node.name} placement="right" mouseEnterDelay={0.8}>
-        <div
-          className={`
-            flex items-center gap-1 px-1 py-[2px] rounded cursor-pointer text-[13px] select-none
-            transition-colors duration-100
-            ${isSelected ? "bg-blue-100 text-gray-900" : "hover:bg-gray-100 text-gray-700"}
-          `}
-          style={{ paddingLeft: `${4 + depth * 16}px` }}
-          onClick={handleClick}
-        >
-          {isDir ? (
-            <span className="w-4 flex items-center justify-center flex-shrink-0 text-[10px] text-gray-400">
-              {expanded ? <DownOutlined /> : <RightOutlined />}
-            </span>
-          ) : (
-            <span className="w-4 flex-shrink-0" />
-          )}
+      <button
+        className={`flex items-center w-full text-left py-[3px] text-[13px] transition-colors group
+          border-l-[3px] ${
+            isSelected
+              ? "bg-purple-50/80 text-purple-700 border-purple-400"
+              : "text-gray-600 hover:bg-gray-50 border-transparent"
+          }`}
+        style={{ paddingLeft: `${depth * 12 + 4}px` }}
+        onClick={handleClick}
+      >
+        {isDir ? (
+          <span className="w-4 h-4 flex items-center justify-center flex-shrink-0 mr-0.5">
+            {expanded ? (
+              <ChevronDown size={14} className="text-gray-400" />
+            ) : (
+              <ChevronRight size={14} className="text-gray-400" />
+            )}
+          </span>
+        ) : (
+          <span className="w-4 h-4 flex-shrink-0 mr-0.5" />
+        )}
+        <span className="w-4 h-4 flex items-center justify-center flex-shrink-0 mr-1.5">
           {isDir ? (
             expanded ? (
-              <FolderOpenFilled className="text-amber-500 flex-shrink-0 text-sm" />
+              <FolderOpen size={14} className="text-amber-500" />
             ) : (
-              <FolderFilled className="text-amber-400 flex-shrink-0 text-sm" />
+              <Folder size={14} className="text-amber-500" />
             )
           ) : (
-            <FileIcon name={node.name} />
+            getFileIcon(node.name)
           )}
-          <span className="truncate ml-0.5">{node.name}</span>
-        </div>
-      </Tooltip>
+        </span>
+        <span className="truncate">{node.name}</span>
+      </button>
       {isDir && expanded && node.children && (
         <div>
           {node.children.map(child => (
@@ -162,7 +144,7 @@ function TreeNode({ node, depth, onFileSelect, selectedPath }: TreeNodeProps) {
           {node.truncated && (
             <div
               className="text-[11px] text-amber-500 px-2 py-1"
-              style={{ paddingLeft: `${(depth + 1) * 16 + 4}px` }}
+              style={{ paddingLeft: `${(depth + 1) * 12 + 4}px` }}
             >
               ⚠ 文件过多，仅显示部分
             </div>

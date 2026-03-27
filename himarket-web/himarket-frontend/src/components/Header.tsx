@@ -7,7 +7,7 @@ import { usePortalConfig } from "../context/PortalConfigContext";
 export function Header() {
   const location = useLocation();
   const [isScrolled, setIsScrolled] = useState(false);
-  const { visibleTabs, loading } = usePortalConfig();
+  const { visibleTabs } = usePortalConfig();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -17,6 +17,7 @@ export function Header() {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
   const isActiveTab = (path: string) => {
     return (
       location.pathname === path || location.pathname.startsWith(path + "/")
@@ -48,8 +49,7 @@ export function Header() {
               <HiMarket />
             </Link>
             <div className="h-6 w-[1px] bg-gray-200 mx-5"></div>
-            {/* Tab 区域 - loading 时不渲染，避免闪烁 */}
-            {!loading && (
+            {/* Tab 区域 */}
             <div className="flex items-center gap-1.5">
               {visibleTabs.map(tab => (
                 <Link key={tab.path} to={tab.path}>
@@ -69,7 +69,6 @@ export function Header() {
                 </Link>
               ))}
             </div>
-            )}
           </div>
           <div className="flex items-center space-x-4">
             {location.pathname !== "/login" &&

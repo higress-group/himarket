@@ -10,7 +10,7 @@ export interface RespI<T> {
 }
 
 /** Public page paths that allow anonymous access — 401/403 errors are silently ignored */
-const PUBLIC_PATHS = ['/models', '/mcp', '/agents', '/apis', '/skills', '/workers', '/chat', '/coding', '/quest'];
+const PUBLIC_PATHS = ['/models', '/mcp', '/agents', '/apis', '/skills', '/chat', '/coding', '/quest'];
 
 /** Check if current page is a public page that allows anonymous browsing */
 function isPublicPage(): boolean {

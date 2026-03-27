@@ -22,7 +22,6 @@ package com.alibaba.himarket.controller;
 import com.alibaba.himarket.core.annotation.AdminAuth;
 import com.alibaba.himarket.core.annotation.AdminOrDeveloperAuth;
 import com.alibaba.himarket.core.annotation.PublicAccess;
-import com.alibaba.himarket.dto.params.product.*;
 import com.alibaba.himarket.dto.params.product.CreateProductParam;
 import com.alibaba.himarket.dto.params.product.CreateProductRefParam;
 import com.alibaba.himarket.dto.params.product.PublishProductParam;
@@ -183,15 +182,9 @@ public class ProductController {
     @PutMapping("/{productId}/skill-nacos")
     @AdminAuth
     public void updateSkillNacos(
-            @PathVariable String productId, @RequestBody @Valid BindNacosParam param) {
-        productService.bindProductNacos(productId, param);
-    }
-
-    @Operation(summary = "更新 Worker 的 Nacos 关联")
-    @PutMapping("/{productId}/worker-nacos")
-    @AdminAuth
-    public void updateWorkerNacos(
-            @PathVariable String productId, @RequestBody @Valid BindNacosParam param) {
-        productService.bindProductNacos(productId, param);
+            @PathVariable String productId,
+            @RequestBody @Valid
+                    com.alibaba.himarket.dto.params.product.UpdateSkillNacosParam param) {
+        productService.updateSkillNacos(productId, param.getNacosId(), param.getNamespace());
     }
 }

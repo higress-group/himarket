@@ -158,78 +158,29 @@ export interface SkillFileContent {
   size: number;
 }
 
-export interface SkillVersion {
-  version: string;
-  status: string;
-  updateTime?: number;
-  downloadCount?: number;
-}
-
 // ============ Skill 文件 API 函数 ============
 
 /**
- * 获取 Skill 文件树（支持指定版本）
+ * 获取 Skill 文件树
  */
-export function getSkillFiles(productId: string, version?: string) {
+export function getSkillFiles(productId: string) {
   return request.get<RespI<SkillFileTreeNode[]>, RespI<SkillFileTreeNode[]>>(
-    `/skills/${productId}/files`,
-    { params: version ? { version } : {} }
+    `/skills/${productId}/files`
   );
 }
 
 /**
- * 获取单个文件内容（支持指定版本）
+ * 获取单个文件内容
  */
-export function getSkillFileContent(productId: string, filePath: string, version?: string) {
+export function getSkillFileContent(productId: string, filePath: string) {
   return request.get<RespI<SkillFileContent>, RespI<SkillFileContent>>(
-    `/skills/${productId}/files/${filePath}`,
-    { params: version ? { version } : {} }
-  );
-}
-
-/**
- * Skill CLI download info
- */
-export interface SkillCliInfo {
-  nacosHost: string;
-  resourceName: string;
-  resourceType: string;
-}
-
-/**
- * 获取 Skill CLI 下载信息
- */
-export function getSkillCliInfo(productId: string) {
-  return request.get<RespI<SkillCliInfo>, RespI<SkillCliInfo>>(
-    `/skills/${productId}/cli-info`
+    `/skills/${productId}/files/${filePath}`
   );
 }
 
 /**
  * 获取 Skill 包下载 URL
  */
-export function getSkillPackageUrl(productId: string, version?: string): string {
-  const base = `/api/v1/skills/${productId}/download`;
-  return version ? `${base}?version=${encodeURIComponent(version)}` : base;
-}
-
-/**
- * 获取 Skill 版本列表
- */
-export function getSkillVersions(productId: string) {
-  return request.get<RespI<SkillVersion[]>, RespI<SkillVersion[]>>(
-    `/skills/${productId}/versions`
-  );
-}
-
-// ============ Nacos 辅助 API ============
-
-export interface NacosInfo {
-  nacosId: string;
-  name: string;
-  defaultNamespace?: string;
-}
-
-export function getDefaultNacos() {
-  return request.get<RespI<NacosInfo>, RespI<NacosInfo>>('/nacos/default');
+export function getSkillPackageUrl(productId: string): string {
+  return `/api/v1/skills/${productId}/download`;
 }

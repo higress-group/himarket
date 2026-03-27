@@ -23,8 +23,7 @@ import {
   CheckCircleFilled,
   DeleteOutlined,
   ExclamationCircleOutlined,
-  PlusOutlined,
-  UserOutlined
+  PlusOutlined
 } from '@ant-design/icons';
 import { getProductCategory, unbindProductsFromCategory } from '@/lib/productCategoryApi';
 import { apiProductApi } from '@/lib/api';
@@ -161,14 +160,12 @@ export default function ProductCategoryDetail() {
           return type === "REST_API" ? <ApiOutlined style={{ fontSize: '16px', width: '16px', height: '16px' }} /> : 
                  type === "AGENT_API" ? <RobotOutlined style={{ fontSize: '16px', width: '16px', height: '16px' }} /> :
                  type === "MODEL_API" ? <BulbOutlined style={{ fontSize: '16px', width: '16px', height: '16px' }} /> :
-                 type === "WORKER" ? <UserOutlined style={{ fontSize: '16px', width: '16px', height: '16px' }} /> :
                  <McpServerIcon style={{ fontSize: '16px', width: '16px', height: '16px' }} />
       }
     } else {
       return type === "REST_API" ? <ApiOutlined style={{ fontSize: '16px', width: '16px', height: '16px' }} /> : 
              type === "AGENT_API" ? <RobotOutlined style={{ fontSize: '16px', width: '16px', height: '16px' }} /> :
              type === "MODEL_API" ? <BulbOutlined style={{ fontSize: '16px', width: '16px', height: '16px' }} /> :
-             type === "WORKER" ? <UserOutlined style={{ fontSize: '16px', width: '16px', height: '16px' }} /> :
              <McpServerIcon style={{ fontSize: '16px', width: '16px', height: '16px' }} />
     }
   };
@@ -411,8 +408,6 @@ export default function ProductCategoryDetail() {
                           <RobotOutlined className="text-gray-600 mr-1" style={{fontSize: '12px', width: '12px', height: '12px'}} />
                         ) : product.type === "MODEL_API" ? (
                           <BulbOutlined className="text-gray-600 mr-1" style={{fontSize: '12px', width: '12px', height: '12px'}} />
-                        ) : product.type === "WORKER" ? (
-                          <UserOutlined className="text-gray-600 mr-1" style={{fontSize: '12px', width: '12px', height: '12px'}} />
                         ) : (
                           <McpServerIcon className="text-black mr-1" style={{fontSize: '12px', width: '12px', height: '12px'}} />
                         )}

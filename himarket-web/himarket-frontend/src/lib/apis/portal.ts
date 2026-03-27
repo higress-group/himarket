@@ -6,15 +6,8 @@ export interface PortalUiConfig {
   menuVisibility: Record<string, boolean> | null;
 }
 
-export interface PortalProfile {
-  portalId: string;
-  name: string;
-  description: string;
-  portalUiConfig: PortalUiConfig;
-}
-
-export function getPortalProfile() {
-  return request.get<RespI<PortalProfile>, RespI<PortalProfile>>(
-    '/portals/profile'
+export function getPortalUiConfig() {
+  return request.get<RespI<PortalUiConfig>, RespI<PortalUiConfig>>(
+    '/portal-config/ui'
   );
 }

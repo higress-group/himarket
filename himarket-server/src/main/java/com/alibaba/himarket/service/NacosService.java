@@ -147,6 +147,7 @@ public interface NacosService {
      *
      * @param nacosId nacos_instance 表主键
      * @return AiMaintainerService 实例
+     * @throws BusinessException nacosId 不存在或连接失败
      */
     AiMaintainerService getAiMaintainerService(String nacosId);
 
@@ -155,6 +156,7 @@ public interface NacosService {
      *
      * @param nacosId nacos_instance 表主键
      * @return NacosInstance 实体
+     * @throws BusinessException nacosId 不存在
      */
     NacosInstance findNacosInstanceById(String nacosId);
 

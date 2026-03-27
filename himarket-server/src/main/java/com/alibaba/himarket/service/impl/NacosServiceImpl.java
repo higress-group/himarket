@@ -551,21 +551,6 @@ public class NacosServiceImpl implements NacosService {
         }
 
         // 缓存未命中，创建新的服务实例
-        Properties properties = buildMaintainerProperties(nacosInstance);
-
-        try {
-            AiMaintainerService service = AiMaintainerFactory.createAiMaintainerService(properties);
-            // 将新创建的服务实例放入缓存
-            aiServiceCache.put(cacheKey, service);
-            return service;
-        } catch (Exception e) {
-            log.error("Error init Nacos AiMaintainerService", e);
-            throw new BusinessException(
-                    ErrorCode.INTERNAL_ERROR, "Error init Nacos AiMaintainerService");
-        }
-    }
-
-    private Properties buildMaintainerProperties(NacosInstance nacosInstance) {
         Properties properties = new Properties();
         properties.setProperty(PropertyKeyConst.SERVER_ADDR, nacosInstance.getServerUrl());
         if (Objects.nonNull(nacosInstance.getUsername())) {
@@ -586,7 +571,17 @@ public class NacosServiceImpl implements NacosService {
         if (Objects.nonNull(nacosInstance.getSecretKey())) {
             properties.setProperty(PropertyKeyConst.SECRET_KEY, nacosInstance.getSecretKey());
         }
-        return properties;
+
+        try {
+            AiMaintainerService service = AiMaintainerFactory.createAiMaintainerService(properties);
+            // 将新创建的服务实例放入缓存
+            aiServiceCache.put(cacheKey, service);
+            return service;
+        } catch (Exception e) {
+            log.error("Error init Nacos AiMaintainerService", e);
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR, "Error init Nacos AiMaintainerService");
+        }
     }
 
     /**

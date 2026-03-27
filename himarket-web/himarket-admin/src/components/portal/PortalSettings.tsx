@@ -1,4 +1,4 @@
-import {Card, Form, Input, Select, Switch, Button, Divider, Space, Table, Modal, message, Tabs} from 'antd'
+import {Card, Form, Input, Select, Switch, Button, Divider, Space, Tag, Table, Modal, message, Tabs} from 'antd'
 import {SaveOutlined, PlusOutlined, DeleteOutlined, ExclamationCircleOutlined} from '@ant-design/icons'
 import {useState, useMemo} from 'react'
 import {Portal, ThirdPartyAuthConfig, AuthenticationType, OidcConfig, OAuth2Config} from '@/types'
@@ -79,6 +79,7 @@ export function PortalSettings({portal, onRefresh}: PortalSettingsProps) {
 
             const newDomain = {
                 domain: values.domain,
+                protocol: values.protocol,
                 type: 'CUSTOM'
             }
 
@@ -182,9 +183,6 @@ export function PortalSettings({portal, onRefresh}: PortalSettingsProps) {
         }
     }
 
-    // 域名列表数据
-    const domains = portal.portalDomainConfig || []
-
     // 域名表格列定义
     const domainColumns = [
         {
@@ -193,25 +191,36 @@ export function PortalSettings({portal, onRefresh}: PortalSettingsProps) {
             key: 'domain',
         },
         {
+            title: '协议',
+            dataIndex: 'protocol',
+            key: 'protocol',
+        },
+        {
             title: '类型',
             dataIndex: 'type',
             key: 'type',
             render: (type: string) => (
-                type === 'DEFAULT' ? '默认域名' : '自定义域名'
+                <Tag color={type === 'DEFAULT' ? 'blue' : 'green'}>
+                    {type === 'DEFAULT' ? '默认域名' : '自定义域名'}
+                </Tag>
             )
         },
         {
             title: '操作',
             key: 'action',
             render: (_: any, record: any) => (
-                record.type === 'CUSTOM' && (
-                    <Button
-                        type="text"
-                        danger
-                        icon={<DeleteOutlined/>}
-                        onClick={() => handleDeleteDomain(record.domain)}
-                    />
-                )
+                <Space>
+                    {record.type === 'CUSTOM' && (
+                        <Button
+                            type="link"
+                            danger
+                            icon={<DeleteOutlined/>}
+                            onClick={() => handleDeleteDomain(record.domain)}
+                        >
+                            解绑
+                        </Button>
+                    )}
+                </Space>
             )
         }
     ]
@@ -291,7 +300,7 @@ export function PortalSettings({portal, onRefresh}: PortalSettingsProps) {
                     </div>
                     <Table
                         columns={domainColumns}
-                        dataSource={domains}
+                        dataSource={portal.portalDomainConfig || []}
                         rowKey="domain"
                         pagination={false}
                         size="small"
@@ -363,6 +372,16 @@ export function PortalSettings({portal, onRefresh}: PortalSettingsProps) {
                         ]}
                     >
                         <Input placeholder="example.com"/>
+                    </Form.Item>
+                    <Form.Item
+                        name="protocol"
+                        label="协议"
+                        rules={[{required: true, message: '请选择协议'}]}
+                    >
+                        <Select placeholder="请选择协议">
+                            <Select.Option value="HTTP">HTTP</Select.Option>
+                            <Select.Option value="HTTPS">HTTPS</Select.Option>
+                        </Select>
                     </Form.Item>
                 </Form>
             </Modal>

@@ -183,16 +183,4 @@ export interface ITool {
 export interface ISkillConfig {
   skillTags?: string[];
   downloadCount?: number;
-  nacosId?: string;
-  namespace?: string;
-  skillName?: string;
-  currentVersion?: string;
-}
-
-export interface IWorkerConfig {
-  nacosId?: string;
-  namespace?: string;
-  workerName?: string;
-  downloadCount?: number;
-  tags?: string[];
 }

@@ -1,4 +1,4 @@
-import {Table, Badge, Button, Space, message, Modal} from 'antd'
+import {Card, Table, Badge, Button, Space, message, Modal} from 'antd'
 import {
     EditOutlined,
     DeleteOutlined,
@@ -304,7 +304,17 @@ export function PortalDevelopers({portal}: PortalDevelopersProps) {
                 </div>
             </div>
 
-            <Table
+            <Card>
+                {/* <div className="mb-4">
+          <Input
+            placeholder="搜索开发者..."
+            prefix={<SearchOutlined />}
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            style={{ width: 300 }}
+          />
+        </div> */}
+                <Table
                     columns={columns}
                     dataSource={developers}
                     rowKey="developerId"
@@ -315,6 +325,7 @@ export function PortalDevelopers({portal}: PortalDevelopersProps) {
                         x: 'max-content'
                     }}
                 />
+            </Card>
 
             {/* Consumer弹窗 */}
             <Modal

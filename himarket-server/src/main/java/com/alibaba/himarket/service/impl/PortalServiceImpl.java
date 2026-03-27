@@ -34,7 +34,6 @@ import com.alibaba.himarket.dto.params.portal.BindDomainParam;
 import com.alibaba.himarket.dto.params.portal.CreatePortalParam;
 import com.alibaba.himarket.dto.params.portal.UpdatePortalParam;
 import com.alibaba.himarket.dto.result.common.PageResult;
-import com.alibaba.himarket.dto.result.portal.PortalProfileResult;
 import com.alibaba.himarket.dto.result.portal.PortalResult;
 import com.alibaba.himarket.dto.result.product.ProductPublicationResult;
 import com.alibaba.himarket.dto.result.product.SubscriptionResult;
@@ -131,13 +130,6 @@ public class PortalServiceImpl implements PortalService {
         portal.setPortalDomains(domains);
 
         return new PortalResult().convertFrom(portal);
-    }
-
-    @Override
-    public PortalProfileResult getPortalProfile() {
-        Portal portal = findPortal(contextHolder.getPortal());
-
-        return new PortalProfileResult().convertFrom(portal);
     }
 
     @Override
