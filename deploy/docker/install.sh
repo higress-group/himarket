@@ -18,19 +18,21 @@ exec > >(tee -a "${HIMARKET_LOG_FILE}") 2>&1
 
 # ── 全局标志 ──────────────────────────────────────────────────────────────────
 NON_INTERACTIVE="${NON_INTERACTIVE:-0}"
-ACTION="deploy"    # deploy | uninstall
+ACTION="deploy"    # deploy | uninstall | init-data
 
 # ── 解析命令行参数 ────────────────────────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
     case "$1" in
         -n|--non-interactive) NON_INTERACTIVE=1; shift ;;
         --uninstall)          ACTION="uninstall"; shift ;;
+        --init-data)          ACTION="init-data"; shift ;;
         -h|--help)
             echo "Usage: $0 [OPTIONS]"
             echo ""
             echo "Options:"
             echo "  -n, --non-interactive  跳过交互式提示，使用 ~/himarket-install.env / 默认值"
             echo "  --uninstall            卸载所有组件"
+            echo "  --init-data            重试所有初始化数据钩子（跳过服务部署，仅执行数据初始化）"
             echo "  -h, --help             显示帮助"
             exit 0
             ;;
@@ -942,6 +944,72 @@ uninstall_all() {
 }
 
 # =============================================================================
+# 重试初始化数据
+# =============================================================================
+
+init_data() {
+    log ""
+    log "=========================================="
+    log "  重试初始化数据（跳过服务部署）"
+    log "=========================================="
+    log ""
+
+    # 加载已保存的配置
+    load_config
+
+    if [[ ! -f "${ENV_FILE}" ]]; then
+        error "未找到配置文件 ${ENV_FILE}，请先运行 $0 完成部署"
+    fi
+
+    # 验证核心服务是否在运行
+    log "检查服务状态..."
+    local services_ok=true
+    for svc in mysql nacos himarket-server himarket-admin himarket-frontend; do
+        local cid
+        cid=$(docker_compose ps -q "${svc}" 2>/dev/null || true)
+        if [[ -z "$cid" ]]; then
+            warn "服务 ${svc} 未运行"
+            services_ok=false
+        else
+            local status
+            status=$(docker inspect -f '{{ .State.Status }}' "$cid" 2>/dev/null || echo "unknown")
+            if [[ "$status" != "running" ]]; then
+                warn "服务 ${svc} 状态异常: ${status}"
+                services_ok=false
+            fi
+        fi
+    done
+
+    if [[ "${services_ok}" != "true" ]]; then
+        warn "部分服务未运行，初始化数据可能失败"
+        if [[ "${NON_INTERACTIVE}" != "1" ]]; then
+            local answer=""
+            read -r -p "是否继续? [y/N] " answer
+            if [[ ! "${answer}" =~ ^[Yy]$ ]]; then
+                log "已取消"
+                exit 0
+            fi
+        fi
+    fi
+
+    # 执行 post_ready 钩子
+    log "开始执行数据初始化钩子..."
+    export SKIP_HOOK_ERRORS=true
+    if run_hooks "post_ready"; then
+        log ""
+        log "=========================================="
+        log "  所有初始化数据钩子执行成功"
+        log "=========================================="
+    else
+        warn ""
+        warn "=========================================="
+        warn "  部分钩子执行失败，请检查日志: ${HIMARKET_LOG_FILE}"
+        warn "=========================================="
+        exit 1
+    fi
+}
+
+# =============================================================================
 # 入口
 # =============================================================================
 
@@ -952,6 +1020,7 @@ main() {
             load_config
             uninstall_all
             ;;
+        init-data) init_data ;;
         *) error "Unknown action: ${ACTION}" ;;
     esac
 }

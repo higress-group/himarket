@@ -589,7 +589,8 @@ function WorkerDetail() {
                     </div>
                     <button
                       onClick={() => {
-                        const cmd = `npx @nacos-group/cli --host ${cliInfo.nacosHost} agentspec-get ${cliInfo.resourceName}`;
+                        const quotedName = cliInfo.resourceName.includes(' ') ? `"${cliInfo.resourceName}"` : cliInfo.resourceName;
+                        const cmd = `npx @nacos-group/cli --host ${cliInfo.nacosHost} agentspec-get ${quotedName}`;
                         copyToClipboard(cmd).then(() => {
                           setCopiedCmd(true);
                           setTimeout(() => setCopiedCmd(false), 2000);
@@ -602,7 +603,7 @@ function WorkerDetail() {
                   </div>
                   <div className="rounded-md bg-gray-100 border border-gray-200 px-3 py-2">
                     <code className="text-[12px] text-gray-700 break-all" style={{ fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace" }}>
-                      {`npx @nacos-group/cli --host ${cliInfo.nacosHost} agentspec-get ${cliInfo.resourceName}`}
+                      {`npx @nacos-group/cli --host ${cliInfo.nacosHost} agentspec-get ${cliInfo.resourceName.includes(' ') ? `"${cliInfo.resourceName}"` : cliInfo.resourceName}`}
                     </code>
                   </div>
                 </div>

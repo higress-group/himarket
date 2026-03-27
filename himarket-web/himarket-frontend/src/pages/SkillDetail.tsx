@@ -592,7 +592,9 @@ function SkillDetail() {
                   </div>
                   <button
                     onClick={() => {
-                      const cmd = `npx @nacos-group/cli --host ${cliInfo.nacosHost} skill-get ${cliInfo.resourceName} -o ${outputDir}`;
+                      const quotedName = cliInfo.resourceName.includes(' ') ? `"${cliInfo.resourceName}"` : cliInfo.resourceName;
+                      const quotedDir = outputDir.includes(' ') ? `"${outputDir}"` : outputDir;
+                      const cmd = `npx @nacos-group/cli --host ${cliInfo.nacosHost} skill-get ${quotedName} -o ${quotedDir}`;
                       copyToClipboard(cmd).then(() => {
                         setCopied(true);
                         setTimeout(() => setCopied(false), 2000);
@@ -648,7 +650,7 @@ function SkillDetail() {
 
                 <div className="rounded-md bg-gray-100 border border-gray-200 px-3 py-2">
                   <code className="text-[12px] text-gray-700 break-all" style={{ fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace" }}>
-                    {`npx @nacos-group/cli --host ${cliInfo.nacosHost} skill-get ${cliInfo.resourceName} -o ${outputDir}`}
+                    {`npx @nacos-group/cli --host ${cliInfo.nacosHost} skill-get ${cliInfo.resourceName.includes(' ') ? `"${cliInfo.resourceName}"` : cliInfo.resourceName} -o ${outputDir.includes(' ') ? `"${outputDir}"` : outputDir}`}
                   </code>
                 </div>
               </div>
