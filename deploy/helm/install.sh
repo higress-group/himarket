@@ -89,10 +89,6 @@ msg() {
             [[ "$lang" == "zh" ]] && text="是否删除这些 PVC？数据将不可恢复" || text="Delete these PVCs? Data will be unrecoverable" ;;
         install.pvc_skip)
             [[ "$lang" == "zh" ]] && text="保留 PVC，如需手动清理: kubectl delete pvc --all -n ${NAMESPACE:-himarket}" || text="PVCs kept. To clean up manually: kubectl delete pvc --all -n ${NAMESPACE:-himarket}" ;;
-        install.skip_mcp_init)
-            [[ "$lang" == "zh" ]] && text="是否跳过 MCP 初始化? [y/N]" || text="Skip MCP initialization? [y/N]" ;;
-        install.skip_skill_init)
-            [[ "$lang" == "zh" ]] && text="是否跳过 Skill 初始化? [y/N]" || text="Skip Skill initialization? [y/N]" ;;
         install.uninstall_done)
             [[ "$lang" == "zh" ]] && text="卸载完成" || text="Uninstall complete" ;;
         prompt.preset)
@@ -117,8 +113,6 @@ msg() {
             [[ "$lang" == "zh" ]] && text="--- 默认用户 ---" || text="--- Default Users ---" ;;
         section.storage)
             [[ "$lang" == "zh" ]] && text="--- 存储配置 ---" || text="--- Storage Config ---" ;;
-        section.init)
-            [[ "$lang" == "zh" ]] && text="--- 初始化选项 ---" || text="--- Initialization Options ---" ;;
         section.ai_model)
             [[ "$lang" == "zh" ]] && text="--- AI 模型配置（可选）---" || text="--- AI Model Config (Optional) ---" ;;
         install.ai_model_prompt)
@@ -317,6 +311,26 @@ prompt_optional() {
     read -r -p "${display_prompt}: " value
     value="${value:-${current_value}}"
     eval "export ${var_name}='${value}'"
+}
+
+# ── generate_password — 生成随机安全密码 ─────────────────────────────────────
+generate_password() {
+    local len="${1:-16}"
+    openssl rand -base64 48 | tr -d '/+=\n' | head -c "${len}"
+}
+
+# ── ensure_secrets — 首次安装时为空密码字段生成随机值 ─────────────────────────
+# 在 load_config() 之后调用。如果 env 文件已加载了密码，则不会覆盖。
+ensure_secrets() {
+    : "${MYSQL_ROOT_PASSWORD:=$(generate_password)}"
+    : "${MYSQL_PASSWORD:=$(generate_password)}"
+    : "${JWT_SECRET:=$(openssl rand -base64 32)}"
+    : "${NACOS_ADMIN_PASSWORD:=$(generate_password)}"
+    : "${HIGRESS_PASSWORD:=$(generate_password)}"
+    : "${ADMIN_PASSWORD:=$(generate_password)}"
+    : "${FRONT_PASSWORD:=$(generate_password)}"
+    export MYSQL_ROOT_PASSWORD MYSQL_PASSWORD JWT_SECRET \
+           NACOS_ADMIN_PASSWORD HIGRESS_PASSWORD ADMIN_PASSWORD FRONT_PASSWORD
 }
 
 # =============================================================================
@@ -527,7 +541,7 @@ load_config() {
                ADMIN_USERNAME ADMIN_PASSWORD FRONT_USERNAME FRONT_PASSWORD \
                MYSQL_STORAGE_CLASS MYSQL_STORAGE_SIZE SANDBOX_STORAGE_CLASS SANDBOX_STORAGE_SIZE \
                HIGRESS_INGRESS_CLASS HIMARKET_LANGUAGE \
-               SKIP_MCP_INIT SKIP_SKILL_INIT SKIP_HOOK_ERRORS \
+               SKIP_HOOK_ERRORS \
                SKIP_AI_MODEL_INIT AI_MODEL_COUNT; do
         eval "local _val=\"\${${var}:-}\""
         if [[ -n "${_val}" ]]; then
@@ -747,7 +761,8 @@ interactive_config() {
         prompt HIMARKET_MYSQL_IMAGE_TAG "MySQL image tag" "${HIMARKET_MYSQL_IMAGE_TAG:-latest}"
         prompt NACOS_VERSION "Nacos version" "${NACOS_VERSION:-v3.2.0}"
 
-        # 其他配置沿用已有值（从配置文件加载或回退默认值）
+        # 其他配置沿用已有值（从配置文件加载）
+        # 注意：回退默认值保留旧版硬编码值，仅用于兼容 env 文件缺失的已有部署
         NAMESPACE="${NAMESPACE:-himarket}"
         HIMARKET_HUB="${HIMARKET_HUB:-opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group}"
         NACOS_IMAGE_REGISTRY="${NACOS_IMAGE_REGISTRY:-nacos-registry.cn-hangzhou.cr.aliyuncs.com}"
@@ -770,21 +785,6 @@ interactive_config() {
         SANDBOX_STORAGE_CLASS="${SANDBOX_STORAGE_CLASS:-alicloud-disk-essd}"
         SANDBOX_STORAGE_SIZE="${SANDBOX_STORAGE_SIZE:-50Gi}"
         HIGRESS_INGRESS_CLASS="${HIGRESS_INGRESS_CLASS:-himarket}"
-        if [[ "${NON_INTERACTIVE}" != "1" ]]; then
-            log ""
-            log "$(msg section.init)"
-            local skip_mcp_answer=""
-            read -r -p "$(msg install.skip_mcp_init) " skip_mcp_answer
-            [[ "${skip_mcp_answer}" =~ ^[Yy]$ ]] && SKIP_MCP_INIT="true" || SKIP_MCP_INIT="false"
-
-            local skip_skill_answer=""
-            read -r -p "$(msg install.skip_skill_init) " skip_skill_answer
-            [[ "${skip_skill_answer}" =~ ^[Yy]$ ]] && SKIP_SKILL_INIT="true" || SKIP_SKILL_INIT="false"
-        else
-            SKIP_MCP_INIT="${SKIP_MCP_INIT:-true}"
-            SKIP_SKILL_INIT="${SKIP_SKILL_INIT:-true}"
-        fi
-        export SKIP_MCP_INIT SKIP_SKILL_INIT
         SKIP_AI_MODEL_INIT="${SKIP_AI_MODEL_INIT:-true}"
         export SKIP_AI_MODEL_INIT AI_MODEL_COUNT
         local _ei
@@ -795,6 +795,8 @@ interactive_config() {
         done
     else
     # ─── 分组交互式提示（全新安装 / 重新安装）───
+    ensure_secrets
+
     log ""
     log "$(msg section.basic)"
     prompt NAMESPACE "Kubernetes namespace" "himarket"
@@ -808,28 +810,26 @@ interactive_config() {
     prompt NACOS_IMAGE_REGISTRY "Nacos image registry" "nacos-registry.cn-hangzhou.cr.aliyuncs.com"
     prompt NACOS_IMAGE_REPOSITORY "Nacos image repository" "nacos/nacos-server"
 
+    # ─── 数据库密码（首次安装时已自动生成随机值） ───
     log ""
     log "$(msg section.db)"
-    prompt MYSQL_ROOT_PASSWORD "MySQL root password" "himarket_root_2024"
-    prompt MYSQL_PASSWORD "MySQL app password" "himarket_app_2024"
+    prompt MYSQL_ROOT_PASSWORD "MySQL root password" "${MYSQL_ROOT_PASSWORD:-}"
+    prompt MYSQL_PASSWORD "MySQL app password" "${MYSQL_PASSWORD:-}"
 
-    # JWT Secret: 自动生成随机值（无需用户交互）
-    if [[ -z "${JWT_SECRET:-}" ]]; then
-        JWT_SECRET="$(openssl rand -base64 32)"
-    fi
-
+    # ─── 服务凭证（首次安装时已自动生成随机值） ───
     log ""
     log "$(msg section.credential)"
-    prompt NACOS_ADMIN_PASSWORD "Nacos admin password" "nacos"
+    prompt NACOS_ADMIN_PASSWORD "Nacos admin password" "${NACOS_ADMIN_PASSWORD:-}"
     prompt HIGRESS_USERNAME "Higress console username" "admin"
-    prompt HIGRESS_PASSWORD "Higress console password" "admin"
+    prompt HIGRESS_PASSWORD "Higress console password" "${HIGRESS_PASSWORD:-}"
 
+    # ─── 默认用户（首次安装时密码已自动生成随机值） ───
     log ""
     log "$(msg section.user)"
     prompt ADMIN_USERNAME "Admin username" "admin"
-    prompt ADMIN_PASSWORD "Admin password" "admin"
+    prompt ADMIN_PASSWORD "Admin password" "${ADMIN_PASSWORD:-}"
     prompt FRONT_USERNAME "Developer username" "user"
-    prompt FRONT_PASSWORD "Developer password" "123456"
+    prompt FRONT_PASSWORD "Developer password" "${FRONT_PASSWORD:-}"
 
     log ""
     log "$(msg section.storage)"
@@ -838,22 +838,6 @@ interactive_config() {
     prompt SANDBOX_STORAGE_CLASS "Sandbox StorageClass" "alicloud-disk-essd"
     prompt SANDBOX_STORAGE_SIZE "Sandbox storage size" "50Gi"
     prompt HIGRESS_INGRESS_CLASS "Higress IngressClass" "himarket"
-
-    log ""
-    log "$(msg section.init)"
-    if [[ "${NON_INTERACTIVE}" != "1" ]]; then
-        local skip_mcp_answer=""
-        read -r -p "$(msg install.skip_mcp_init) " skip_mcp_answer
-        [[ "${skip_mcp_answer}" =~ ^[Yy]$ ]] && SKIP_MCP_INIT="true" || SKIP_MCP_INIT="false"
-
-        local skip_skill_answer=""
-        read -r -p "$(msg install.skip_skill_init) " skip_skill_answer
-        [[ "${skip_skill_answer}" =~ ^[Yy]$ ]] && SKIP_SKILL_INIT="true" || SKIP_SKILL_INIT="false"
-    else
-        SKIP_MCP_INIT="${SKIP_MCP_INIT:-false}"
-        SKIP_SKILL_INIT="${SKIP_SKILL_INIT:-false}"
-    fi
-    export SKIP_MCP_INIT SKIP_SKILL_INIT
 
     # ─── AI 模型配置（可选，支持多个）───
     log ""
@@ -957,8 +941,6 @@ interactive_config() {
     log "  SANDBOX_STORAGE:   ${SANDBOX_STORAGE_CLASS} / ${SANDBOX_STORAGE_SIZE}"
     log "  NACOS_VERSION:     ${NACOS_VERSION}"
     log "  HIGRESS_INGRESS:   ${HIGRESS_INGRESS_CLASS}"
-    log "  SKIP_MCP_INIT:     ${SKIP_MCP_INIT}"
-    log "  SKIP_SKILL_INIT:   ${SKIP_SKILL_INIT}"
     log "  SKIP_AI_MODEL_INIT:${SKIP_AI_MODEL_INIT}"
     if [[ "${SKIP_AI_MODEL_INIT}" != "true" ]]; then
         log "  AI_MODEL_COUNT:    ${AI_MODEL_COUNT:-0}"
@@ -1040,10 +1022,6 @@ SANDBOX_STORAGE_SIZE="${SANDBOX_STORAGE_SIZE}"
 
 # ========== Higress IngressClass ==========
 HIGRESS_INGRESS_CLASS="${HIGRESS_INGRESS_CLASS}"
-
-# ========== 初始化选项 ==========
-SKIP_MCP_INIT="${SKIP_MCP_INIT}"
-SKIP_SKILL_INIT="${SKIP_SKILL_INIT}"
 
 # ========== AI 模型配置 ==========
 SKIP_AI_MODEL_INIT="${SKIP_AI_MODEL_INIT:-true}"
