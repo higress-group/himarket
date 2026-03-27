@@ -384,7 +384,7 @@ load_config() {
                MYSQL_IMAGE NACOS_IMAGE HIGRESS_IMAGE REDIS_IMAGE SANDBOX_IMAGE \
                MYSQL_ROOT_PASSWORD MYSQL_PASSWORD MYSQL_DATABASE MYSQL_USER \
                JWT_SECRET \
-               NACOS_ADMIN_PASSWORD HIGRESS_USERNAME HIGRESS_PASSWORD \
+               NACOS_USERNAME NACOS_ADMIN_PASSWORD HIGRESS_USERNAME HIGRESS_PASSWORD \
                ADMIN_USERNAME ADMIN_PASSWORD FRONT_USERNAME FRONT_PASSWORD \
                HIMARKET_LANGUAGE \
                SKIP_HOOK_ERRORS \
@@ -619,6 +619,7 @@ interactive_config() {
     # ─── 服务凭证（首次安装时已自动生成随机值） ───
     log ""
     log "$(msg section.credential)"
+    prompt NACOS_USERNAME "Nacos admin username" "nacos"
     prompt NACOS_ADMIN_PASSWORD "Nacos admin password" "${NACOS_ADMIN_PASSWORD:-}"
     prompt HIGRESS_USERNAME "Higress console username" "admin"
     prompt HIGRESS_PASSWORD "Higress console password" "${HIGRESS_PASSWORD:-}"
@@ -773,6 +774,7 @@ MYSQL_PASSWORD="${MYSQL_PASSWORD}"
 JWT_SECRET="${JWT_SECRET}"
 
 # ========== 服务凭证 ==========
+NACOS_USERNAME="${NACOS_USERNAME}"
 NACOS_ADMIN_PASSWORD="${NACOS_ADMIN_PASSWORD}"
 HIGRESS_USERNAME="${HIGRESS_USERNAME}"
 HIGRESS_PASSWORD="${HIGRESS_PASSWORD}"
@@ -897,7 +899,7 @@ show_result_panel() {
     log ""
     log "  Admin login:          ${ADMIN_USERNAME} / ${ADMIN_PASSWORD}"
     log "  Developer login:      ${FRONT_USERNAME} / ${FRONT_PASSWORD}"
-    log "  Nacos login:          nacos / ${NACOS_ADMIN_PASSWORD:-nacos}"
+    log "  Nacos login:          ${NACOS_USERNAME} / ${NACOS_ADMIN_PASSWORD:-nacos}"
     log "  Higress login:        ${HIGRESS_USERNAME} / ${HIGRESS_PASSWORD}"
     log ""
     if [[ "${SKIP_AI_MODEL_INIT:-true}" != "true" ]]; then
