@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useLayoutEffect } from "react";
-import { SearchOutlined } from "@ant-design/icons";
-import { Input, message, Pagination } from "antd";
+import { SearchOutlined, DownloadOutlined, ClockCircleOutlined } from "@ant-design/icons";
+import { Input, message, Pagination, Segmented } from "antd";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import { CategoryMenu } from "../components/square/CategoryMenu";
@@ -34,6 +34,9 @@ function Square(props: { activeType: string }) {
   const [categories, setCategories] = useState<Array<{ id: string; name: string; count: number }>>([]);
   const [loading, setLoading] = useState(false);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
+  const [sortBy, setSortBy] = useState<string>("DOWNLOAD_COUNT");
+
+  const showSortControl = activeType === 'AGENT_SKILL' || activeType === 'WORKER';
 
   // 分页相关状态
   const [currentPage, setCurrentPage] = useState(1); // 从1开始，用于分页组件
@@ -43,6 +46,9 @@ function Square(props: { activeType: string }) {
 
   // 获取分类列表
   useEffect(() => {
+    // Reset sort when switching product types
+    setSortBy("DOWNLOAD_COUNT");
+
     const fetchCategories = async () => {
       setCategoriesLoading(true);
       try {
@@ -120,6 +126,7 @@ function Square(props: { activeType: string }) {
         name,
         page: pageIndex,
         size: PAGE_SIZE,
+        sortBy: showSortControl ? sortBy : undefined,
       });
       if (response.code === "SUCCESS" && response.data?.content) {
         setProducts(response.data.content);
@@ -131,11 +138,11 @@ function Square(props: { activeType: string }) {
     } finally {
       setLoading(false);
     }
-  }, [activeType, activeCategory, currentPage]);
+  }, [activeType, activeCategory, currentPage, sortBy, showSortControl]);
 
   useEffect(() => {
     fetchProducts(searchQuery);
-  }, [activeType, activeCategory, currentPage]);
+  }, [activeType, activeCategory, currentPage, sortBy]);
 
   // 分页变化时重新获取数据
   const handlePageChange = (page: number) => {
@@ -241,14 +248,30 @@ function Square(props: { activeType: string }) {
                 }}
               />
             </div>
-            {/* 分类菜单 */}
-            <div className="w-full">
-              <CategoryMenu
-                categories={categories}
-                activeCategory={activeCategory}
-                onSelectCategory={setActiveCategory}
-                loading={categoriesLoading}
-              />
+            {/* 排序控件 + 分类菜单 */}
+            <div className="w-full flex items-center gap-3">
+              <div className="flex-1 min-w-0">
+                <CategoryMenu
+                  categories={categories}
+                  activeCategory={activeCategory}
+                  onSelectCategory={setActiveCategory}
+                  loading={categoriesLoading}
+                />
+              </div>
+              {showSortControl && (
+                <Segmented
+                  size="small"
+                  value={sortBy}
+                  onChange={(value) => {
+                    setSortBy(value as string);
+                    setCurrentPage(1);
+                  }}
+                  options={[
+                    { label: <span><DownloadOutlined /> 最多下载</span>, value: 'DOWNLOAD_COUNT' },
+                    { label: <span><ClockCircleOutlined /> 最近更新</span>, value: 'UPDATED_AT' },
+                  ]}
+                />
+              )}
             </div>
           </div>
         </div>
@@ -257,13 +280,27 @@ function Square(props: { activeType: string }) {
         <div className="flex flex-col h-[calc(100vh-96px)] overflow-auto scrollbar-hide" ref={scrollContainerRef}>
           {/* 顶部区域：统计 + 搜索框 + 分类 */}
           <div className="flex flex-col gap-4 px-6 py-6 from-blue-50 to-purple-50 flex-shrink-0">
-            {/* 统计信息 */}
-            <div className="flex items-center justify-center gap-2 text-sm text-gray-600">
+            {/* 统计信息 + 排序 */}
+            <div className="flex items-center justify-center gap-4 text-sm text-gray-600">
               <div className="flex items-center gap-1.5">
                 <div className="w-2 h-2 rounded-full bg-green-500"></div>
                 <span className="font-medium">{totalElements.toLocaleString()}</span>
                 <span>{getStatLabel()}</span>
               </div>
+              {showSortControl && (
+                <Segmented
+                  size="small"
+                  value={sortBy}
+                  onChange={(value) => {
+                    setSortBy(value as string);
+                    setCurrentPage(1);
+                  }}
+                  options={[
+                    { label: <span><DownloadOutlined /> 最多下载</span>, value: 'DOWNLOAD_COUNT' },
+                    { label: <span><ClockCircleOutlined /> 最近更新</span>, value: 'UPDATED_AT' },
+                  ]}
+                />
+              )}
             </div>
 
             {/* 搜索框 */}

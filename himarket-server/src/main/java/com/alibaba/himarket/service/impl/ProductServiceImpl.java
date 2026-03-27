@@ -216,6 +216,30 @@ public class ProductServiceImpl implements ProductService {
             return listProductsWithFilter(param, pageable);
         }
 
+        // Skill/Worker: sort by download count (default) or updated time
+        if (param.getType() == ProductType.AGENT_SKILL || param.getType() == ProductType.WORKER) {
+            if (param.getSortBy() == null || param.getSortBy() == ProductSortBy.DOWNLOAD_COUNT) {
+                return listProductsSortedByDownloadCount(param, pageable);
+            }
+            // UPDATED_AT: use DB-level sort
+            Pageable sortedPageable =
+                    org.springframework.data.domain.PageRequest.of(
+                            pageable.getPageNumber(),
+                            pageable.getPageSize(),
+                            org.springframework.data.domain.Sort.by(
+                                    org.springframework.data.domain.Sort.Direction.DESC,
+                                    "updatedAt"));
+            Page<Product> page =
+                    productRepository.findAll(buildSpecification(param), sortedPageable);
+            List<ProductResult> results =
+                    page.stream()
+                            .map(product -> new ProductResult().convertFrom(product))
+                            .collect(Collectors.toList());
+            fillProducts(results);
+            return PageResult.of(
+                    results, page.getNumber() + 1, page.getSize(), page.getTotalElements());
+        }
+
         Page<Product> page = productRepository.findAll(buildSpecification(param), pageable);
         List<ProductResult> results =
                 page.stream()
@@ -979,6 +1003,58 @@ public class ProductServiceImpl implements ProductService {
         } catch (Exception e) {
             log.warn("Failed to auto-sync product ref: {}", productId, e);
         }
+    }
+
+    /**
+     * List skill/worker products sorted by download count (descending).
+     * Uses in-memory sorting since downloadCount is stored inside the feature JSON column.
+     */
+    private PageResult<ProductResult> listProductsSortedByDownloadCount(
+            QueryProductParam param, Pageable pageable) {
+        List<Product> allProducts = productRepository.findAll(buildSpecification(param));
+
+        if (CollUtil.isEmpty(allProducts)) {
+            return PageResult.empty(pageable.getPageNumber(), pageable.getPageSize());
+        }
+
+        // Sort by download count descending (null treated as 0)
+        allProducts.sort(
+                Comparator.comparingLong((Product p) -> getDownloadCount(p, param.getType()))
+                        .reversed());
+
+        // Manual pagination
+        int start = (int) pageable.getOffset();
+        int end = Math.min(start + pageable.getPageSize(), allProducts.size());
+        List<Product> pageContent =
+                start < allProducts.size()
+                        ? allProducts.subList(start, end)
+                        : Collections.emptyList();
+
+        List<ProductResult> results =
+                pageContent.stream()
+                        .map(product -> new ProductResult().convertFrom(product))
+                        .collect(Collectors.toList());
+
+        fillProducts(results);
+
+        return PageResult.of(
+                results, pageable.getPageNumber() + 1, pageable.getPageSize(), allProducts.size());
+    }
+
+    private long getDownloadCount(Product product, ProductType type) {
+        ProductFeature feature = product.getFeature();
+        if (feature == null) {
+            return 0L;
+        }
+        if (type == ProductType.AGENT_SKILL) {
+            SkillConfig cfg = feature.getSkillConfig();
+            return cfg != null && cfg.getDownloadCount() != null ? cfg.getDownloadCount() : 0L;
+        }
+        if (type == ProductType.WORKER) {
+            WorkerConfig cfg = feature.getWorkerConfig();
+            return cfg != null ? cfg.getDownloadCount() : 0L;
+        }
+        return 0L;
     }
 
     /**

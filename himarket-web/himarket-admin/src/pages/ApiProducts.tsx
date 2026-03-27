@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { MenuProps } from 'antd';
-import { Button, Dropdown, Modal, message, Pagination, Skeleton, Input, Tabs, Tag } from 'antd';
+import { Button, Dropdown, Modal, message, Pagination, Skeleton, Input, Tabs, Tag, Select } from 'antd';
 import type { ApiProduct, ProductIcon } from '@/types/api-product';
 import { ApiOutlined, MoreOutlined, PlusOutlined, ExclamationCircleOutlined, ExclamationCircleFilled, ClockCircleFilled, CheckCircleFilled, SearchOutlined, RobotOutlined, BulbOutlined, ThunderboltOutlined, UserOutlined, ImportOutlined, DownloadOutlined } from '@ant-design/icons';
 import McpServerIcon from '@/components/icons/McpServerIcon';
@@ -174,13 +174,19 @@ export default function ApiProducts() {
   const [editingProduct, setEditingProduct] = useState<ApiProduct | null>(null);
   const [importLoading, setImportLoading] = useState(false);
   const [defaultNacos, setDefaultNacos] = useState<any>(null);
+  const [sortBy, setSortBy] = useState<string | undefined>(undefined);
+
+  const showSortControl = activeTab === 'AGENT_SKILL' || activeTab === 'WORKER';
 
   const buildParams = useCallback((page: number, size: number, tab: string, name: string) => {
     const params: Record<string, any> = { page, size };
     if (tab !== 'ALL') params.type = tab;
     if (name.trim()) params.name = name.trim();
+    if ((tab === 'AGENT_SKILL' || tab === 'WORKER') && sortBy) {
+      params.sortBy = sortBy;
+    }
     return params;
-  }, []);
+  }, [sortBy]);
 
   const fetchApiProducts = useCallback((page = 1, size = 12, tab = activeTab, name = nameFilter) => {
     setLoading(true);
@@ -193,6 +199,13 @@ export default function ApiProducts() {
   useEffect(() => {
     fetchApiProducts(1, 12, 'ALL', '');
   }, []);
+
+  // Re-fetch when sortBy changes
+  useEffect(() => {
+    if (sortBy !== undefined) {
+      fetchApiProducts(1, pagination.pageSize, activeTab, nameFilter);
+    }
+  }, [sortBy]);
 
   // Fetch default Nacos instance for import feature
   useEffect(() => {
@@ -247,6 +260,7 @@ export default function ApiProducts() {
     setActiveTab(tab);
     setNameFilter('');
     setSearchInput('');
+    setSortBy((tab === 'AGENT_SKILL' || tab === 'WORKER') ? 'DOWNLOAD_COUNT' : undefined);
     fetchApiProducts(1, pagination.pageSize, tab, '');
   };
 
@@ -328,26 +342,40 @@ export default function ApiProducts() {
             items={tabItems}
             className="flex-1"
           />
-          {/* 名称搜索框 */}
-          <div className="flex items-center border border-gray-300 rounded-md overflow-hidden hover:border-colorPrimary focus-within:border-colorPrimary mb-3 ml-4" style={{ minWidth: 260 }}>
-            <Input
-              placeholder="搜索产品名称"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              onPressEnter={handleSearch}
-              allowClear
-              onClear={handleClearSearch}
-              size="middle"
-              variant="borderless"
-              className="border-0"
-            />
-            <Button
-              icon={<SearchOutlined />}
-              onClick={handleSearch}
-              style={{ width: 40 }}
-              className="border-0 rounded-none"
-              type="text"
-            />
+          {/* 排序 + 名称搜索框 */}
+          <div className="flex items-center mb-3 ml-4 gap-2">
+            {showSortControl && (
+              <Select
+                value={sortBy || 'DOWNLOAD_COUNT'}
+                onChange={(value) => setSortBy(value)}
+                size="middle"
+                style={{ width: 140 }}
+                options={[
+                  { label: '最多下载', value: 'DOWNLOAD_COUNT' },
+                  { label: '最近更新', value: 'UPDATED_AT' },
+                ]}
+              />
+            )}
+            <div className="flex items-center border border-gray-300 rounded-md overflow-hidden hover:border-colorPrimary focus-within:border-colorPrimary" style={{ minWidth: 260 }}>
+              <Input
+                placeholder="搜索产品名称"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                onPressEnter={handleSearch}
+                allowClear
+                onClear={handleClearSearch}
+                size="middle"
+                variant="borderless"
+                className="border-0"
+              />
+              <Button
+                icon={<SearchOutlined />}
+                onClick={handleSearch}
+                style={{ width: 40 }}
+                className="border-0 rounded-none"
+                type="text"
+              />
+            </div>
           </div>
         </div>
 
