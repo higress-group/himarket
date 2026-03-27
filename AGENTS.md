@@ -200,3 +200,7 @@ ln -s /Users/xujingfeng/AIProjects/nacos nacos
 - 对接 Nacos 的 Open API 或使用其 Java SDK
 
 对于其他 HiMarket 功能开发，无需关注 Nacos 目录。
+
+## 创建 Pull Request
+
+创建 PR 前先检查 `.github/PULL_REQUEST_TEMPLATE.md` 是否存在，如存在则按模板格式填写 PR body。
