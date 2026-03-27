@@ -141,4 +141,4 @@ cat ~/himarket-install.log
 ### 如何跳过部分初始化
 
 - 交互模式：脚本会提供跳过选项
-- 非交互模式：通过环境变量控制，如 `SKIP_MCP_INIT=true`
+- 非交互模式：通过环境变量控制，如 `SKIP_AI_MODEL_INIT=true`
