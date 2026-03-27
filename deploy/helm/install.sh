@@ -89,10 +89,6 @@ msg() {
             [[ "$lang" == "zh" ]] && text="是否删除这些 PVC？数据将不可恢复" || text="Delete these PVCs? Data will be unrecoverable" ;;
         install.pvc_skip)
             [[ "$lang" == "zh" ]] && text="保留 PVC，如需手动清理: kubectl delete pvc --all -n ${NAMESPACE:-himarket}" || text="PVCs kept. To clean up manually: kubectl delete pvc --all -n ${NAMESPACE:-himarket}" ;;
-        install.skip_mcp_init)
-            [[ "$lang" == "zh" ]] && text="是否跳过 MCP 初始化? [y/N]" || text="Skip MCP initialization? [y/N]" ;;
-        install.skip_skill_init)
-            [[ "$lang" == "zh" ]] && text="是否跳过 Skill 初始化? [y/N]" || text="Skip Skill initialization? [y/N]" ;;
         install.uninstall_done)
             [[ "$lang" == "zh" ]] && text="卸载完成" || text="Uninstall complete" ;;
         prompt.preset)
@@ -117,8 +113,6 @@ msg() {
             [[ "$lang" == "zh" ]] && text="--- 默认用户 ---" || text="--- Default Users ---" ;;
         section.storage)
             [[ "$lang" == "zh" ]] && text="--- 存储配置 ---" || text="--- Storage Config ---" ;;
-        section.init)
-            [[ "$lang" == "zh" ]] && text="--- 初始化选项 ---" || text="--- Initialization Options ---" ;;
         section.ai_model)
             [[ "$lang" == "zh" ]] && text="--- AI 模型配置（可选）---" || text="--- AI Model Config (Optional) ---" ;;
         install.ai_model_prompt)
@@ -527,7 +521,7 @@ load_config() {
                ADMIN_USERNAME ADMIN_PASSWORD FRONT_USERNAME FRONT_PASSWORD \
                MYSQL_STORAGE_CLASS MYSQL_STORAGE_SIZE SANDBOX_STORAGE_CLASS SANDBOX_STORAGE_SIZE \
                HIGRESS_INGRESS_CLASS HIMARKET_LANGUAGE \
-               SKIP_MCP_INIT SKIP_SKILL_INIT SKIP_HOOK_ERRORS \
+               SKIP_HOOK_ERRORS \
                SKIP_AI_MODEL_INIT AI_MODEL_COUNT; do
         eval "local _val=\"\${${var}:-}\""
         if [[ -n "${_val}" ]]; then
@@ -770,21 +764,6 @@ interactive_config() {
         SANDBOX_STORAGE_CLASS="${SANDBOX_STORAGE_CLASS:-alicloud-disk-essd}"
         SANDBOX_STORAGE_SIZE="${SANDBOX_STORAGE_SIZE:-50Gi}"
         HIGRESS_INGRESS_CLASS="${HIGRESS_INGRESS_CLASS:-himarket}"
-        if [[ "${NON_INTERACTIVE}" != "1" ]]; then
-            log ""
-            log "$(msg section.init)"
-            local skip_mcp_answer=""
-            read -r -p "$(msg install.skip_mcp_init) " skip_mcp_answer
-            [[ "${skip_mcp_answer}" =~ ^[Yy]$ ]] && SKIP_MCP_INIT="true" || SKIP_MCP_INIT="false"
-
-            local skip_skill_answer=""
-            read -r -p "$(msg install.skip_skill_init) " skip_skill_answer
-            [[ "${skip_skill_answer}" =~ ^[Yy]$ ]] && SKIP_SKILL_INIT="true" || SKIP_SKILL_INIT="false"
-        else
-            SKIP_MCP_INIT="${SKIP_MCP_INIT:-true}"
-            SKIP_SKILL_INIT="${SKIP_SKILL_INIT:-true}"
-        fi
-        export SKIP_MCP_INIT SKIP_SKILL_INIT
         SKIP_AI_MODEL_INIT="${SKIP_AI_MODEL_INIT:-true}"
         export SKIP_AI_MODEL_INIT AI_MODEL_COUNT
         local _ei
@@ -838,22 +817,6 @@ interactive_config() {
     prompt SANDBOX_STORAGE_CLASS "Sandbox StorageClass" "alicloud-disk-essd"
     prompt SANDBOX_STORAGE_SIZE "Sandbox storage size" "50Gi"
     prompt HIGRESS_INGRESS_CLASS "Higress IngressClass" "himarket"
-
-    log ""
-    log "$(msg section.init)"
-    if [[ "${NON_INTERACTIVE}" != "1" ]]; then
-        local skip_mcp_answer=""
-        read -r -p "$(msg install.skip_mcp_init) " skip_mcp_answer
-        [[ "${skip_mcp_answer}" =~ ^[Yy]$ ]] && SKIP_MCP_INIT="true" || SKIP_MCP_INIT="false"
-
-        local skip_skill_answer=""
-        read -r -p "$(msg install.skip_skill_init) " skip_skill_answer
-        [[ "${skip_skill_answer}" =~ ^[Yy]$ ]] && SKIP_SKILL_INIT="true" || SKIP_SKILL_INIT="false"
-    else
-        SKIP_MCP_INIT="${SKIP_MCP_INIT:-false}"
-        SKIP_SKILL_INIT="${SKIP_SKILL_INIT:-false}"
-    fi
-    export SKIP_MCP_INIT SKIP_SKILL_INIT
 
     # ─── AI 模型配置（可选，支持多个）───
     log ""
@@ -957,8 +920,6 @@ interactive_config() {
     log "  SANDBOX_STORAGE:   ${SANDBOX_STORAGE_CLASS} / ${SANDBOX_STORAGE_SIZE}"
     log "  NACOS_VERSION:     ${NACOS_VERSION}"
     log "  HIGRESS_INGRESS:   ${HIGRESS_INGRESS_CLASS}"
-    log "  SKIP_MCP_INIT:     ${SKIP_MCP_INIT}"
-    log "  SKIP_SKILL_INIT:   ${SKIP_SKILL_INIT}"
     log "  SKIP_AI_MODEL_INIT:${SKIP_AI_MODEL_INIT}"
     if [[ "${SKIP_AI_MODEL_INIT}" != "true" ]]; then
         log "  AI_MODEL_COUNT:    ${AI_MODEL_COUNT:-0}"
@@ -1040,10 +1001,6 @@ SANDBOX_STORAGE_SIZE="${SANDBOX_STORAGE_SIZE}"
 
 # ========== Higress IngressClass ==========
 HIGRESS_INGRESS_CLASS="${HIGRESS_INGRESS_CLASS}"
-
-# ========== 初始化选项 ==========
-SKIP_MCP_INIT="${SKIP_MCP_INIT}"
-SKIP_SKILL_INIT="${SKIP_SKILL_INIT}"
 
 # ========== AI 模型配置 ==========
 SKIP_AI_MODEL_INIT="${SKIP_AI_MODEL_INIT:-true}"

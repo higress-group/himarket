@@ -141,4 +141,4 @@ Hook scripts are located in the `hooks/post_ready.d/` directory and can be execu
 ### How to Skip Partial Initialization
 
 - Interactive mode: The script provides skip options
-- Non-interactive mode: Control via environment variables, e.g., `SKIP_MCP_INIT=true`
+- Non-interactive mode: Control via environment variables, e.g., `SKIP_AI_MODEL_INIT=true`

@@ -80,10 +80,7 @@ msg() {
             [[ "$lang" == "zh" ]] && text="开始卸载所有组件..." || text="Uninstalling all components..." ;;
         install.uninstall_done)
             [[ "$lang" == "zh" ]] && text="卸载完成" || text="Uninstall complete" ;;
-        install.skip_mcp_init)
-            [[ "$lang" == "zh" ]] && text="是否跳过 MCP 初始化? [y/N]" || text="Skip MCP initialization? [y/N]" ;;
-        install.skip_skill_init)
-            [[ "$lang" == "zh" ]] && text="是否跳过 Skill 初始化? [y/N]" || text="Skip Skill initialization? [y/N]" ;;
+
         install.volume_confirm)
             [[ "$lang" == "zh" ]] && text="是否同时删除数据卷？数据将不可恢复 [y/N]" || text="Also delete data volumes? Data will be unrecoverable [y/N]" ;;
         install.volume_skip)
@@ -96,8 +93,6 @@ msg() {
             [[ "$lang" == "zh" ]] && text="--- 服务凭证 ---" || text="--- Service Credentials ---" ;;
         section.user)
             [[ "$lang" == "zh" ]] && text="--- 默认用户 ---" || text="--- Default Users ---" ;;
-        section.init)
-            [[ "$lang" == "zh" ]] && text="--- 初始化选项 ---" || text="--- Initialization Options ---" ;;
         section.ai_model)
             [[ "$lang" == "zh" ]] && text="--- AI 模型配置（可选）---" || text="--- AI Model Config (Optional) ---" ;;
         section.summary)
@@ -370,7 +365,7 @@ load_config() {
                NACOS_ADMIN_PASSWORD HIGRESS_USERNAME HIGRESS_PASSWORD \
                ADMIN_USERNAME ADMIN_PASSWORD FRONT_USERNAME FRONT_PASSWORD \
                HIMARKET_LANGUAGE \
-               SKIP_MCP_INIT SKIP_SKILL_INIT SKIP_HOOK_ERRORS \
+               SKIP_HOOK_ERRORS \
                SKIP_AI_MODEL_INIT AI_MODEL_COUNT; do
         eval "local _val=\"\${${var}:-}\""
         if [[ -n "${_val}" ]]; then
@@ -615,29 +610,6 @@ interactive_config() {
     prompt FRONT_USERNAME "Developer username" "user"
     prompt FRONT_PASSWORD "Developer password" "123456"
 
-    # ─── 初始化选项 ───
-    log ""
-    log "$(msg section.init)"
-    if [[ "${NON_INTERACTIVE}" != "1" ]]; then
-        local skip_mcp_answer=""
-        read -r -p "$(msg install.skip_mcp_init) " skip_mcp_answer
-        [[ "${skip_mcp_answer}" =~ ^[Yy]$ ]] && SKIP_MCP_INIT="true" || SKIP_MCP_INIT="false"
-
-        local skip_skill_answer=""
-        read -r -p "$(msg install.skip_skill_init) " skip_skill_answer
-        [[ "${skip_skill_answer}" =~ ^[Yy]$ ]] && SKIP_SKILL_INIT="true" || SKIP_SKILL_INIT="false"
-    else
-        # 升级模式默认跳过初始化（与 Helm 对齐），全新安装默认执行
-        if [[ "${DEPLOY_MODE}" == "upgrade" ]]; then
-            SKIP_MCP_INIT="${SKIP_MCP_INIT:-true}"
-            SKIP_SKILL_INIT="${SKIP_SKILL_INIT:-true}"
-        else
-            SKIP_MCP_INIT="${SKIP_MCP_INIT:-false}"
-            SKIP_SKILL_INIT="${SKIP_SKILL_INIT:-false}"
-        fi
-    fi
-    export SKIP_MCP_INIT SKIP_SKILL_INIT
-
     # ─── AI 模型配置（可选，支持多个）───
     log ""
     log "$(msg section.ai_model)"
@@ -723,8 +695,6 @@ interactive_config() {
     log "  MYSQL_IMAGE:          ${MYSQL_IMAGE}"
     log "  NACOS_IMAGE:          ${NACOS_IMAGE}"
     log "  HIGRESS_IMAGE:        ${HIGRESS_IMAGE}"
-    log "  SKIP_MCP_INIT:        ${SKIP_MCP_INIT}"
-    log "  SKIP_SKILL_INIT:      ${SKIP_SKILL_INIT}"
     log "  SKIP_AI_MODEL_INIT:   ${SKIP_AI_MODEL_INIT}"
     if [[ "${SKIP_AI_MODEL_INIT}" != "true" ]]; then
         log "  AI_MODEL_COUNT:       ${AI_MODEL_COUNT:-0}"
@@ -791,10 +761,6 @@ ADMIN_USERNAME="${ADMIN_USERNAME}"
 ADMIN_PASSWORD="${ADMIN_PASSWORD}"
 FRONT_USERNAME="${FRONT_USERNAME}"
 FRONT_PASSWORD="${FRONT_PASSWORD}"
-
-# ========== 初始化选项 ==========
-SKIP_MCP_INIT="${SKIP_MCP_INIT}"
-SKIP_SKILL_INIT="${SKIP_SKILL_INIT}"
 
 # ========== AI 模型配置 ==========
 SKIP_AI_MODEL_INIT="${SKIP_AI_MODEL_INIT:-true}"
