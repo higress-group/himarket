@@ -313,6 +313,26 @@ prompt_optional() {
     eval "export ${var_name}='${value}'"
 }
 
+# ── generate_password — 生成随机安全密码 ─────────────────────────────────────
+generate_password() {
+    local len="${1:-16}"
+    openssl rand -base64 48 | tr -d '/+=\n' | head -c "${len}"
+}
+
+# ── ensure_secrets — 首次安装时为空密码字段生成随机值 ─────────────────────────
+# 在 load_config() 之后调用。如果 env 文件已加载了密码，则不会覆盖。
+ensure_secrets() {
+    : "${MYSQL_ROOT_PASSWORD:=$(generate_password)}"
+    : "${MYSQL_PASSWORD:=$(generate_password)}"
+    : "${JWT_SECRET:=$(openssl rand -base64 32)}"
+    : "${NACOS_ADMIN_PASSWORD:=$(generate_password)}"
+    : "${HIGRESS_PASSWORD:=$(generate_password)}"
+    : "${ADMIN_PASSWORD:=$(generate_password)}"
+    : "${FRONT_PASSWORD:=$(generate_password)}"
+    export MYSQL_ROOT_PASSWORD MYSQL_PASSWORD JWT_SECRET \
+           NACOS_ADMIN_PASSWORD HIGRESS_PASSWORD ADMIN_PASSWORD FRONT_PASSWORD
+}
+
 # =============================================================================
 # Kubernetes / Helm 工具函数
 # =============================================================================
@@ -741,7 +761,8 @@ interactive_config() {
         prompt HIMARKET_MYSQL_IMAGE_TAG "MySQL image tag" "${HIMARKET_MYSQL_IMAGE_TAG:-latest}"
         prompt NACOS_VERSION "Nacos version" "${NACOS_VERSION:-v3.2.0-BETA}"
 
-        # 其他配置沿用已有值（从配置文件加载或回退默认值）
+        # 其他配置沿用已有值（从配置文件加载）
+        # 注意：回退默认值保留旧版硬编码值，仅用于兼容 env 文件缺失的已有部署
         NAMESPACE="${NAMESPACE:-himarket}"
         HIMARKET_HUB="${HIMARKET_HUB:-opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group}"
         NACOS_IMAGE_REGISTRY="${NACOS_IMAGE_REGISTRY:-nacos-registry.cn-hangzhou.cr.aliyuncs.com}"
@@ -774,6 +795,8 @@ interactive_config() {
         done
     else
     # ─── 分组交互式提示（全新安装 / 重新安装）───
+    ensure_secrets
+
     log ""
     log "$(msg section.basic)"
     prompt NAMESPACE "Kubernetes namespace" "himarket"
@@ -787,28 +810,26 @@ interactive_config() {
     prompt NACOS_IMAGE_REGISTRY "Nacos image registry" "nacos-registry.cn-hangzhou.cr.aliyuncs.com"
     prompt NACOS_IMAGE_REPOSITORY "Nacos image repository" "nacos/nacos-server"
 
+    # ─── 数据库密码（首次安装时已自动生成随机值） ───
     log ""
     log "$(msg section.db)"
-    prompt MYSQL_ROOT_PASSWORD "MySQL root password" "himarket_root_2024"
-    prompt MYSQL_PASSWORD "MySQL app password" "himarket_app_2024"
+    prompt MYSQL_ROOT_PASSWORD "MySQL root password" "${MYSQL_ROOT_PASSWORD:-}"
+    prompt MYSQL_PASSWORD "MySQL app password" "${MYSQL_PASSWORD:-}"
 
-    # JWT Secret: 自动生成随机值（无需用户交互）
-    if [[ -z "${JWT_SECRET:-}" ]]; then
-        JWT_SECRET="$(openssl rand -base64 32)"
-    fi
-
+    # ─── 服务凭证（首次安装时已自动生成随机值） ───
     log ""
     log "$(msg section.credential)"
-    prompt NACOS_ADMIN_PASSWORD "Nacos admin password" "nacos"
+    prompt NACOS_ADMIN_PASSWORD "Nacos admin password" "${NACOS_ADMIN_PASSWORD:-}"
     prompt HIGRESS_USERNAME "Higress console username" "admin"
-    prompt HIGRESS_PASSWORD "Higress console password" "admin"
+    prompt HIGRESS_PASSWORD "Higress console password" "${HIGRESS_PASSWORD:-}"
 
+    # ─── 默认用户（首次安装时密码已自动生成随机值） ───
     log ""
     log "$(msg section.user)"
     prompt ADMIN_USERNAME "Admin username" "admin"
-    prompt ADMIN_PASSWORD "Admin password" "admin"
+    prompt ADMIN_PASSWORD "Admin password" "${ADMIN_PASSWORD:-}"
     prompt FRONT_USERNAME "Developer username" "user"
-    prompt FRONT_PASSWORD "Developer password" "123456"
+    prompt FRONT_PASSWORD "Developer password" "${FRONT_PASSWORD:-}"
 
     log ""
     log "$(msg section.storage)"

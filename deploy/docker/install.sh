@@ -270,6 +270,26 @@ prompt_optional() {
     eval "export ${var_name}='${value}'"
 }
 
+# ── generate_password — 生成随机安全密码 ─────────────────────────────────────
+generate_password() {
+    local len="${1:-16}"
+    openssl rand -base64 48 | tr -d '/+=\n' | head -c "${len}"
+}
+
+# ── ensure_secrets — 首次安装时为空密码字段生成随机值 ─────────────────────────
+# 在 load_config() 之后调用。如果 env 文件已加载了密码，则不会覆盖。
+ensure_secrets() {
+    : "${MYSQL_ROOT_PASSWORD:=$(generate_password)}"
+    : "${MYSQL_PASSWORD:=$(generate_password)}"
+    : "${JWT_SECRET:=$(openssl rand -base64 32)}"
+    : "${NACOS_ADMIN_PASSWORD:=$(generate_password)}"
+    : "${HIGRESS_PASSWORD:=$(generate_password)}"
+    : "${ADMIN_PASSWORD:=$(generate_password)}"
+    : "${FRONT_PASSWORD:=$(generate_password)}"
+    export MYSQL_ROOT_PASSWORD MYSQL_PASSWORD JWT_SECRET \
+           NACOS_ADMIN_PASSWORD HIGRESS_PASSWORD ADMIN_PASSWORD FRONT_PASSWORD
+}
+
 # =============================================================================
 # Docker 工具函数
 # =============================================================================
@@ -567,6 +587,11 @@ interactive_config() {
         DEPLOY_MODE="install"
     fi
 
+    # 新安装/重新安装时，为空的密码字段生成随机值
+    if [[ "${DEPLOY_MODE}" != "upgrade" ]]; then
+        ensure_secrets
+    fi
+
     # ─── 镜像配置 ───
     log ""
     log "$(msg section.image)"
@@ -577,11 +602,11 @@ interactive_config() {
     prompt NACOS_IMAGE "Nacos image" "nacos-registry.cn-hangzhou.cr.aliyuncs.com/nacos/nacos-server:v3.2.0-BETA"
     prompt HIGRESS_IMAGE "Higress image" "higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/all-in-one:latest"
 
-    # ─── 数据库密码 ───
+    # ─── 数据库密码（首次安装时已自动生成随机值） ───
     log ""
     log "$(msg section.db)"
-    prompt MYSQL_ROOT_PASSWORD "MySQL root password" "himarket_root_2024"
-    prompt MYSQL_PASSWORD "MySQL app password" "himarket_app_2024"
+    prompt MYSQL_ROOT_PASSWORD "MySQL root password" "${MYSQL_ROOT_PASSWORD:-}"
+    prompt MYSQL_PASSWORD "MySQL app password" "${MYSQL_PASSWORD:-}"
     # 内置 MySQL：DB_* 始终指向容器内 MySQL
     export DB_HOST="mysql"
     export DB_PORT="3306"
@@ -589,26 +614,20 @@ interactive_config() {
     export DB_USERNAME="${MYSQL_USER:-portal_user}"
     export DB_PASSWORD="${MYSQL_PASSWORD}"
 
-    # ─── JWT Secret（自动生成随机值） ───
-    if [[ -z "${JWT_SECRET:-}" ]]; then
-        JWT_SECRET="$(openssl rand -base64 32)"
-    fi
-    export JWT_SECRET
-
-    # ─── 服务凭证 ───
+    # ─── 服务凭证（首次安装时已自动生成随机值） ───
     log ""
     log "$(msg section.credential)"
-    prompt NACOS_ADMIN_PASSWORD "Nacos admin password" "nacos"
+    prompt NACOS_ADMIN_PASSWORD "Nacos admin password" "${NACOS_ADMIN_PASSWORD:-}"
     prompt HIGRESS_USERNAME "Higress console username" "admin"
-    prompt HIGRESS_PASSWORD "Higress console password" "admin"
+    prompt HIGRESS_PASSWORD "Higress console password" "${HIGRESS_PASSWORD:-}"
 
-    # ─── 默认用户 ───
+    # ─── 默认用户（首次安装时密码已自动生成随机值） ───
     log ""
     log "$(msg section.user)"
     prompt ADMIN_USERNAME "Admin username" "admin"
-    prompt ADMIN_PASSWORD "Admin password" "admin"
+    prompt ADMIN_PASSWORD "Admin password" "${ADMIN_PASSWORD:-}"
     prompt FRONT_USERNAME "Developer username" "user"
-    prompt FRONT_PASSWORD "Developer password" "123456"
+    prompt FRONT_PASSWORD "Developer password" "${FRONT_PASSWORD:-}"
 
     # ─── AI 模型配置（可选，支持多个）───
     log ""
