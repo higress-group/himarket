@@ -18,6 +18,7 @@ import type { ApiProduct } from "@/types/api-product";
 import type { ProductCategory } from "@/types/product-category";
 import ModelFeatureForm from "./ModelFeatureForm";
 import SkillConfigForm from "./SkillConfigForm";
+import WorkerConfigForm from "./WorkerConfigForm";
 
 interface ApiProductFormModalProps {
   visible: boolean;
@@ -203,6 +204,37 @@ export default function ApiProductFormModal({
       if (isEditMode) {
         let params = { ...otherValues };
         
+        // Merge feature fields with initial data to prevent data loss
+        if (initialData?.feature) {
+          const mergedFeature = { ...initialData.feature };
+          
+          // Merge skillConfig fields
+          if (initialData.feature.skillConfig) {
+            mergedFeature.skillConfig = {
+              ...initialData.feature.skillConfig,
+              ...(otherValues.feature?.skillConfig || {}),
+            };
+          }
+          
+          // Merge workerConfig fields
+          if (initialData.feature.workerConfig) {
+            mergedFeature.workerConfig = {
+              ...initialData.feature.workerConfig,
+              ...(otherValues.feature?.workerConfig || {}),
+            };
+          }
+          
+          // Merge modelFeature fields
+          if (initialData.feature.modelFeature) {
+            mergedFeature.modelFeature = {
+              ...initialData.feature.modelFeature,
+              ...(otherValues.feature?.modelFeature || {}),
+            };
+          }
+          
+          params.feature = mergedFeature;
+        }
+        
         // 处理icon字段
         if (iconMode === 'BASE64' && icon) {
           params.icon = {
@@ -281,15 +313,13 @@ export default function ApiProductFormModal({
           <Input placeholder="请输入API Product名称" />
         </Form.Item>
 
-        {productType !== 'AGENT_SKILL' && (
-          <Form.Item
-            label="描述"
-            name="description"
-            rules={[{ required: true, message: "请输入描述" }]}
-          >
-            <Input.TextArea placeholder="请输入描述" rows={3} />
-          </Form.Item>
-        )}
+        <Form.Item
+          label="描述"
+          name="description"
+          rules={[{ required: true, message: "请输入描述" }]}
+        >
+          <Input.TextArea placeholder="请输入描述" rows={3} />
+        </Form.Item>
 
         <Form.Item
           label="类型"
@@ -305,6 +335,7 @@ export default function ApiProductFormModal({
             <Select.Option value="MODEL_API">Model API</Select.Option>
             <Select.Option value="MCP_SERVER">MCP Server</Select.Option>
             <Select.Option value="AGENT_SKILL">Agent Skill</Select.Option>
+            <Select.Option value="WORKER">Worker</Select.Option>
             <Select.Option value="AGENT_API">Agent API</Select.Option>
             <Select.Option value="REST_API">REST API</Select.Option>
           </Select>
@@ -346,9 +377,9 @@ export default function ApiProductFormModal({
           </Select>
         </Form.Item>
 
-        {productType !== 'AGENT_SKILL' && <Form.Item
-          label="自动审批订阅"
+        {productType !== 'AGENT_SKILL' && productType !== 'WORKER' && <Form.Item
           name="autoApprove"
+          label="自动审批订阅"
           tooltip={{
             title: (
               <div style={{ 
@@ -378,7 +409,7 @@ export default function ApiProductFormModal({
           <Switch />
         </Form.Item>}
 
-        {productType !== 'AGENT_SKILL' && <Form.Item label="Icon设置" style={{ marginBottom: '16px' }}>
+        <Form.Item label="Icon设置" style={{ marginBottom: '16px' }}>
           <Space direction="vertical" style={{ width: '100%' }}>
             <Radio.Group 
               value={iconMode} 
@@ -497,7 +528,7 @@ export default function ApiProductFormModal({
               </Form.Item>
             )}
           </Space>
-        </Form.Item>}
+        </Form.Item>
 
         {/* 图片预览弹窗 */}
         {previewImage && (
@@ -517,6 +548,7 @@ export default function ApiProductFormModal({
         {/* Feature Configuration */}
         {productType === 'MODEL_API' && <ModelFeatureForm />}
         {productType === 'AGENT_SKILL' && <SkillConfigForm />}
+        {productType === 'WORKER' && <WorkerConfigForm />}
       </Form>
     </Modal>
   );

@@ -150,7 +150,6 @@ public interface DeveloperService {
      *
      * @param oldPassword 旧密码
      * @param newPassword 新密码
-     * @return 是否成功
      */
-    boolean changeCurrentDeveloperPassword(String oldPassword, String newPassword);
+    void resetDeveloperPassword(String oldPassword, String newPassword);
 }

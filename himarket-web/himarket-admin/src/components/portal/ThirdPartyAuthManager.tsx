@@ -797,7 +797,7 @@ export function ThirdPartyAuthManager({configs, onSave}: ThirdPartyAuthManagerPr
             label: 'OIDC配置',
             children: (
               <div className="bg-white rounded-lg">
-                <div className="py-4 border-b border-gray-200">
+                <div className="py-4">
                   <h4 className="text-lg font-medium text-gray-900">OIDC配置</h4>
                   <p className="text-sm text-gray-500 mt-1">支持OpenID Connect标准协议的身份提供商</p>
                 </div>
@@ -819,7 +819,7 @@ export function ThirdPartyAuthManager({configs, onSave}: ThirdPartyAuthManagerPr
             label: 'OAuth2配置',
             children: (
               <div className="bg-white rounded-lg">
-                <div className="py-4 border-b border-gray-200">
+                <div className="py-4">
                   <h4 className="text-lg font-medium text-gray-900">OAuth2配置</h4>
                   <p className="text-sm text-gray-500 mt-1">支持OAuth 2.0标准协议的身份提供商</p>
                 </div>

@@ -118,7 +118,6 @@ export default function NacosConsoles() {
       password: record.password,
       accessKey: record.accessKey,
       secretKey: record.secretKey,
-      description: record.description,
     })
     setModalVisible(true)
   }
@@ -207,23 +206,12 @@ export default function NacosConsoles() {
       ),
     },
     {
-      title: '用户名',
-      dataIndex: 'username',
-      key: 'username',
-    },
-    {
-      title: '描述',
-      dataIndex: 'description',
-      key: 'description',
-      ellipsis: true,
-    },
-    {
       title: '创建时间',
       dataIndex: 'createAt',
       key: 'createAt',
       render: (val: any, record: NacosInstance) => {
         const t = val ?? record.createAt ?? (record as any).createTime ?? (record as any).gmtCreate
-        return t ? dayjs(t).format('YYYY/MM/DD HH:mm:ss') : '-'
+        return t ? dayjs(t).format('YYYY-MM-DD HH:mm:ss') : '-'
       },
     },
     {
@@ -362,16 +350,6 @@ export default function NacosConsoles() {
               </Form.Item>
             </>
           )}
-
-          <Form.Item
-            name="description"
-            label="描述"
-          >
-            <Input.TextArea
-              rows={3}
-              placeholder="请输入实例描述（可选）"
-            />
-          </Form.Item>
         </Form>
       </Modal>
 

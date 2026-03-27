@@ -31,6 +31,7 @@ import com.alibaba.himarket.support.enums.ProductType;
 import com.alibaba.himarket.support.product.Icon;
 import com.alibaba.himarket.support.product.ProductFeature;
 import com.alibaba.himarket.support.product.SkillConfig;
+import com.alibaba.himarket.support.product.WorkerConfig;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.Data;
@@ -71,6 +72,8 @@ public class ProductResult implements OutputConverter<ProductResult, Product> {
     private ModelConfigResult modelConfig;
 
     private SkillConfig skillConfig;
+
+    private WorkerConfig workerConfig;
 
     private Boolean enabled;
 

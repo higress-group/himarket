@@ -1,4 +1,5 @@
 import { DownloadOutlined } from "@ant-design/icons";
+import { ProductIconRenderer } from "../icon/ProductIconRenderer";
 
 interface SkillCardProps {
   name: string;
@@ -6,6 +7,7 @@ interface SkillCardProps {
   releaseDate: string;
   skillTags?: string[];
   downloadCount?: number;
+  icon?: string;
   onClick?: () => void;
 }
 
@@ -15,6 +17,7 @@ export function SkillCard({
   releaseDate,
   skillTags = [],
   downloadCount,
+  icon,
   onClick,
 }: SkillCardProps) {
   return (
@@ -30,10 +33,19 @@ export function SkillCard({
         h-[200px] flex flex-col
       "
     >
-      {/* 名称 */}
-      <h3 className="text-base font-semibold text-gray-900 truncate mb-3">
-        {name}
-      </h3>
+      {/* 图标 + 名称 + 下载数 */}
+      <div className="flex items-center gap-3 mb-3">
+        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-colorPrimary/10 to-colorPrimary/5 flex items-center justify-center flex-shrink-0 overflow-hidden">
+          <ProductIconRenderer className="w-full h-full object-cover" iconType={icon} />
+        </div>
+        <h3 className="text-base font-semibold text-gray-900 truncate flex-1">
+          {name}
+        </h3>
+        <span className="flex items-center gap-0.5 text-[#a3a3a3] text-xs">
+          <DownloadOutlined className="text-[10px]" />
+          {downloadCount ?? 0}
+        </span>
+      </div>
 
       {/* 简介 */}
       <p className="text-sm line-clamp-3 leading-relaxed text-[#a3a3a3] flex-1">
@@ -56,12 +68,6 @@ export function SkillCard({
         )}
 
         <div className="flex items-center justify-end gap-2 text-[#a3a3a3] text-xs">
-          {downloadCount != null && downloadCount > 0 && (
-            <span className="flex items-center gap-0.5">
-              <DownloadOutlined className="text-[10px]" />
-              {downloadCount}
-            </span>
-          )}
           <span>{releaseDate}</span>
         </div>
       </div>

@@ -39,7 +39,7 @@ public class CreateProductParam implements InputConverter<Product> {
     @Size(max = 50, message = "API product name cannot exceed 50 characters")
     private String name;
 
-    @Size(max = 256, message = "API product description cannot exceed 256 characters")
+    @Size(max = 512, message = "API product description cannot exceed 512 characters")
     private String description;
 
     @NotNull(message = "API product type cannot be null")

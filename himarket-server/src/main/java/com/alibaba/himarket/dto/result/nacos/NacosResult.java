@@ -33,14 +33,6 @@ public class NacosResult implements OutputConverter<NacosResult, NacosInstance> 
 
     private String serverUrl;
 
-    private String username;
-
-    private String accessKey;
-
-    private String description;
-
-    private String adminId;
-
     private Boolean isDefault;
 
     private String defaultNamespace;

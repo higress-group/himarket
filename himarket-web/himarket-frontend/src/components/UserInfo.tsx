@@ -53,7 +53,7 @@ export function UserInfo() {
     APIs.getDeveloperInfo()
       .then((response) => {
         const data = response.data;
-        if (data) {
+        if (data && data.username) {
           const userData = {
             displayName: data.username || data.email || "未命名用户",
             email: data.email,
@@ -64,9 +64,6 @@ export function UserInfo() {
             setUserInfo(userData);
           }
         }
-      })
-      .catch((error) => {
-        console.error('获取用户信息失败:', error);
       })
       .finally(() => {
         globalLoading = false;
@@ -181,8 +178,8 @@ export function UserInfo() {
       onClick={() => {
         navigate(`/login`);
       }}
-      type="default"
-      className="rounded-full shadow-none bg-colorPrimary text-white border-none hover:opacity-90"
+      type="text"
+      className="rounded-full bg-colorPrimary text-white border-none hover:opacity-90 hover:bg-colorPrimary"
     >
       登录
     </Button>
