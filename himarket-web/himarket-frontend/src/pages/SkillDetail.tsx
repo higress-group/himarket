@@ -19,6 +19,29 @@ import RelatedSkills from "../components/skill/RelatedSkills";
 import { copyToClipboard } from "../lib/utils";
 import { DetailSkeleton } from "../components/loading";
 
+type IdeType = 'cursor' | 'kiro' | 'qoder' | 'lingma' | 'claude' | 'codex';
+
+const IDE_OPTIONS: { value: IdeType; label: string; icon: string }[] = [
+  { value: 'cursor', label: 'Cursor', icon: 'https://aimg.alistatic.com/i/dm885X/UgW1Qzx0RPwrNIVs4sWlr-7b5511235d.svg' },
+  { value: 'claude', label: 'Claude', icon: 'https://img.alicdn.com/imgextra/i3/O1CN01JqyNKC1VmMU2MHdF9_!!6000000002695-55-tps-100-101.svg' },
+  { value: 'qoder', label: 'Qoder', icon: 'https://g.alicdn.com/qbase/qoder/0.0.65/favIcon.svg' },
+  { value: 'codex', label: 'Codex', icon: 'https://img.alicdn.com/imgextra/i3/O1CN011DvgjK1s54F8K000Q_!!6000000005714-0-tps-248-248.jpg' },
+  { value: 'kiro', label: 'Kiro', icon: '/kiro.png' },
+  { value: 'lingma', label: 'Lingma', icon: 'https://img.alicdn.com/imgextra/i2/O1CN01OR7j0c1OvKuJfKBAw_!!6000000001767-2-tps-280-280.png' },
+];
+
+const getDefaultOutputDir = (ide: IdeType): string => {
+  const dirMap: Record<IdeType, string> = {
+    cursor: './.cursor/skills',
+    kiro: './.kiro/skills',
+    qoder: './.qoder/skills',
+    lingma: './.lingma/skills',
+    claude: './.claude/skills',
+    codex: './.codex/skills',
+  };
+  return dirMap[ide];
+};
+
 function inferLanguage(path: string): string {
   const fileName = path.split("/").pop()?.toLowerCase() ?? "";
   if (fileName === "dockerfile") return "dockerfile";
@@ -85,6 +108,8 @@ function SkillDetail() {
   const [versions, setVersions] = useState<SkillVersion[]>([]);
   const [selectedVersion, setSelectedVersion] = useState<string | undefined>();
   const [cliInfo, setCliInfo] = useState<SkillCliInfo | null>(null);
+  const [selectedIde, setSelectedIde] = useState<IdeType>('qoder');
+  const [outputDir, setOutputDir] = useState<string>('./.qoder/skills');
 
   const handleDragStart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -554,14 +579,14 @@ function SkillDetail() {
             {/* Nacos CLI command */}
             {cliInfo && (
               <div className="px-4 py-3">
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-1.5">
                     <CodeOutlined className="text-gray-400 text-xs" />
                     <span className="text-xs font-medium text-gray-500">NPX 下载</span>
                   </div>
                   <button
                     onClick={() => {
-                      const cmd = `npx @nacos-group/cli --host ${cliInfo.nacosHost} skill-get ${cliInfo.resourceName}`;
+                      const cmd = `npx @nacos-group/cli --host ${cliInfo.nacosHost} skill-get ${cliInfo.resourceName} -o ${outputDir}`;
                       copyToClipboard(cmd).then(() => {
                         setCopied(true);
                         setTimeout(() => setCopied(false), 2000);
@@ -572,9 +597,52 @@ function SkillDetail() {
                     {copied ? <CheckOutlined className="text-green-500" /> : <CopyOutlined />}
                   </button>
                 </div>
+
+                {/* IDE Selection */}
+                <div className="mb-3">
+                  <div className="text-xs text-gray-500 mb-2">选择 IDE</div>
+                  <div className="flex flex-wrap gap-2">
+                    {IDE_OPTIONS.map((ide) => (
+                      <button
+                        key={ide.value}
+                        onClick={() => {
+                          setSelectedIde(ide.value);
+                          setOutputDir(getDefaultOutputDir(ide.value));
+                        }}
+                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-xs transition-all ${
+                          selectedIde === ide.value
+                            ? 'border-blue-500 bg-blue-50 text-blue-700'
+                            : 'border-gray-200 hover:border-gray-300 text-gray-600'
+                        }`}
+                      >
+                        {ide.icon && (
+                          <img
+                            src={ide.icon}
+                            alt={ide.label}
+                            className="w-4 h-4 object-contain"
+                          />
+                        )}
+                        <span>{ide.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Output Directory */}
+                <div className="mb-3">
+                  <div className="text-xs text-gray-500 mb-1.5">输出目录</div>
+                  <input
+                    type="text"
+                    value={outputDir}
+                    onChange={(e) => setOutputDir(e.target.value)}
+                    className="w-full px-3 py-2 text-xs border border-gray-200 rounded-md focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white text-gray-700"
+                    placeholder="输入输出目录路径"
+                  />
+                </div>
+
                 <div className="rounded-md bg-gray-100 border border-gray-200 px-3 py-2">
                   <code className="text-[12px] text-gray-700 break-all" style={{ fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace" }}>
-                    {`npx @nacos-group/cli --host ${cliInfo.nacosHost} skill-get ${cliInfo.resourceName}`}
+                    {`npx @nacos-group/cli --host ${cliInfo.nacosHost} skill-get ${cliInfo.resourceName} -o ${outputDir}`}
                   </code>
                 </div>
               </div>
