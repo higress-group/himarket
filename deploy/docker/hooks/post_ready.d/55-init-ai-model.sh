@@ -6,7 +6,7 @@
 #   2. 独立运行: ./55-init-ai-model.sh（独立模式）
 #
 # hook 模式:
-#   - 从 ~/himarket-install.env 和继承的环境变量获取所有配置
+#   - 从 ~/himarket-install-docker.env 和继承的环境变量获取所有配置
 #   - 受 SKIP_AI_MODEL_INIT 控制
 #
 # 独立模式:
@@ -32,8 +32,8 @@ fi
 _INHERITED_SKIP_AI_MODEL_INIT="${SKIP_AI_MODEL_INIT:-}"
 _INHERITED_AI_MODEL_COUNT="${AI_MODEL_COUNT:-}"
 
-# 从 ~/himarket-install.env 加载环境变量
-ENV_FILE="${HOME}/himarket-install.env"
+# 从 ~/himarket-install-docker.env 加载环境变量
+ENV_FILE="${HOME}/himarket-install-docker.env"
 if [[ -f "${ENV_FILE}" ]]; then
   set -a; . "${ENV_FILE}"; set +a
 fi

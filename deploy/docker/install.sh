@@ -9,11 +9,10 @@ set -Eeuo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COMPOSE_FILE="${SCRIPT_DIR}/docker-compose.yml"
 HOOKS_DIR="${SCRIPT_DIR}/hooks"
-export SHARED_DATA_DIR="$(cd "${SCRIPT_DIR}/../data" && pwd)"
-ENV_FILE="${HOME}/himarket-install.env"
+ENV_FILE="${HOME}/himarket-install-docker.env"
 
 # ── 日志重定向 ────────────────────────────────────────────────────────────────
-HIMARKET_LOG_FILE="${HOME}/himarket-install.log"
+HIMARKET_LOG_FILE="${HOME}/himarket-install-docker.log"
 exec > >(tee -a "${HIMARKET_LOG_FILE}") 2>&1
 
 # ── 全局标志 ──────────────────────────────────────────────────────────────────
@@ -30,7 +29,7 @@ while [[ $# -gt 0 ]]; do
             echo "Usage: $0 [OPTIONS]"
             echo ""
             echo "Options:"
-            echo "  -n, --non-interactive  跳过交互式提示，使用 ~/himarket-install.env / 默认值"
+            echo "  -n, --non-interactive  跳过交互式提示，使用 ~/himarket-install-docker.env / 默认值"
             echo "  --uninstall            卸载所有组件"
             echo "  --init-data            重试所有初始化数据钩子（跳过服务部署，仅执行数据初始化）"
             echo "  -h, --help             显示帮助"
@@ -56,6 +55,8 @@ msg() {
             [[ "$lang" == "zh" ]] && text="日志文件: %s" || text="Log file: %s" ;;
         install.upgrade_detected)
             [[ "$lang" == "zh" ]] && text="检测到已有 HiMarket Docker 部署" || text="Existing HiMarket Docker deployment detected" ;;
+        install.upgrade_image_only)
+            [[ "$lang" == "zh" ]] && text="升级模式：仅可修改镜像版本，其他配置沿用已有部署值" || text="Upgrade mode: only image versions can be changed, other settings kept from existing deployment" ;;
         install.mode_prompt)
             [[ "$lang" == "zh" ]] && text="请选择操作模式:" || text="Select operation mode:" ;;
         install.mode_upgrade)
@@ -71,7 +72,7 @@ msg() {
         install.confirm_deploy)
             [[ "$lang" == "zh" ]] && text="确认开始部署? [Y/n]" || text="Confirm deployment? [Y/n]" ;;
         install.confirm_save)
-            [[ "$lang" == "zh" ]] && text="是否保存配置到 ~/himarket-install.env? [Y/n]" || text="Save config to ~/himarket-install.env? [Y/n]" ;;
+            [[ "$lang" == "zh" ]] && text="是否保存配置到 ~/himarket-install-docker.env? [Y/n]" || text="Save config to ~/himarket-install-docker.env? [Y/n]" ;;
         install.cancelled)
             [[ "$lang" == "zh" ]] && text="部署已取消" || text="Deployment cancelled" ;;
         install.saved)
@@ -87,6 +88,8 @@ msg() {
             [[ "$lang" == "zh" ]] && text="是否同时删除数据卷？数据将不可恢复 [y/N]" || text="Also delete data volumes? Data will be unrecoverable [y/N]" ;;
         install.volume_skip)
             [[ "$lang" == "zh" ]] && text="数据卷已保留" || text="Data volumes kept" ;;
+        section.data)
+            [[ "$lang" == "zh" ]] && text="--- 数据目录 ---" || text="--- Data Directory ---" ;;
         section.image)
             [[ "$lang" == "zh" ]] && text="--- 镜像配置 ---" || text="--- Image Config ---" ;;
         section.db)
@@ -154,7 +157,7 @@ msg() {
         install.ai_model_existing_choice)
             [[ "$lang" == "zh" ]] && text="请输入选项" || text="Enter choice" ;;
         prompt.required)
-            [[ "$lang" == "zh" ]] && text="错误: %s 是必需的（非交互模式请通过环境变量或 ~/himarket-install.env 设置）" || text="Error: %s is required (set via env var or ~/himarket-install.env in non-interactive mode)" ;;
+            [[ "$lang" == "zh" ]] && text="错误: %s 是必需的（非交互模式请通过环境变量或 ~/himarket-install-docker.env 设置）" || text="Error: %s is required (set via env var or ~/himarket-install-docker.env in non-interactive mode)" ;;
         prompt.required_empty)
             [[ "$lang" == "zh" ]] && text="错误: %s 不能为空" || text="Error: %s cannot be empty" ;;
         deploy.preflight)
@@ -379,7 +382,7 @@ run_hooks() {
 load_config() {
     # 1. 保存当前 export 的环境变量（最高优先级）
     local saved_vars=""
-    for var in DEPLOY_MODE \
+    for var in DEPLOY_MODE HIMARKET_DATA_DIR \
                HIMARKET_SERVER_IMAGE HIMARKET_ADMIN_IMAGE HIMARKET_FRONTEND_IMAGE \
                MYSQL_IMAGE NACOS_IMAGE HIGRESS_IMAGE REDIS_IMAGE SANDBOX_IMAGE \
                MYSQL_ROOT_PASSWORD MYSQL_PASSWORD MYSQL_DATABASE MYSQL_USER \
@@ -589,10 +592,63 @@ interactive_config() {
         DEPLOY_MODE="install"
     fi
 
-    # 新安装/重新安装时，为空的密码字段生成随机值
-    if [[ "${DEPLOY_MODE}" != "upgrade" ]]; then
-        ensure_secrets
-    fi
+    if [[ "${DEPLOY_MODE}" == "upgrade" ]]; then
+        # ─── 升级模式：仅允许修改镜像 ───
+        log ""
+        log "$(msg install.upgrade_image_only)"
+        log ""
+        log "$(msg section.image)"
+        prompt HIMARKET_SERVER_IMAGE "HiMarket Server image" "${HIMARKET_SERVER_IMAGE:-opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-server:latest}"
+        prompt HIMARKET_ADMIN_IMAGE "HiMarket Admin image" "${HIMARKET_ADMIN_IMAGE:-opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-admin:latest}"
+        prompt HIMARKET_FRONTEND_IMAGE "HiMarket Frontend image" "${HIMARKET_FRONTEND_IMAGE:-opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-frontend:latest}"
+        prompt MYSQL_IMAGE "MySQL image" "${MYSQL_IMAGE:-opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/mysql:latest}"
+        prompt NACOS_IMAGE "Nacos image" "${NACOS_IMAGE:-nacos-registry.cn-hangzhou.cr.aliyuncs.com/nacos/nacos-server:v3.2.0}"
+        prompt HIGRESS_IMAGE "Higress image" "${HIGRESS_IMAGE:-higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/all-in-one:latest}"
+        prompt REDIS_IMAGE "Redis image" "${REDIS_IMAGE:-higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/redis-stack-server:7.4.0-v3}"
+        prompt SANDBOX_IMAGE "Sandbox image" "${SANDBOX_IMAGE:-opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/sandbox:latest}"
+
+        # 其他配置沿用已有值（从配置文件加载）
+        # 注意：回退默认值保留旧版硬编码值，仅用于兼容 env 文件缺失的已有部署
+        HIMARKET_DATA_DIR="${HIMARKET_DATA_DIR:-${HOME}/himarket-data}"
+        export HIMARKET_DATA_DIR
+        MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:-himarket_root_2024}"
+        MYSQL_PASSWORD="${MYSQL_PASSWORD:-himarket_app_2024}"
+        if [[ -z "${JWT_SECRET:-}" ]]; then
+            JWT_SECRET="$(openssl rand -base64 32)"
+        fi
+        NACOS_USERNAME="${NACOS_USERNAME:-nacos}"
+        NACOS_ADMIN_PASSWORD="${NACOS_ADMIN_PASSWORD:-nacos}"
+        HIGRESS_USERNAME="${HIGRESS_USERNAME:-admin}"
+        HIGRESS_PASSWORD="${HIGRESS_PASSWORD:-admin}"
+        ADMIN_USERNAME="${ADMIN_USERNAME:-admin}"
+        ADMIN_PASSWORD="${ADMIN_PASSWORD:-admin}"
+        FRONT_USERNAME="${FRONT_USERNAME:-user}"
+        FRONT_PASSWORD="${FRONT_PASSWORD:-123456}"
+
+        # 内置 MySQL：DB_* 始终指向容器内 MySQL
+        export DB_HOST="mysql"
+        export DB_PORT="3306"
+        export DB_NAME="${MYSQL_DATABASE:-portal_db}"
+        export DB_USERNAME="${MYSQL_USER:-portal_user}"
+        export DB_PASSWORD="${MYSQL_PASSWORD}"
+
+        SKIP_AI_MODEL_INIT="${SKIP_AI_MODEL_INIT:-true}"
+        export SKIP_AI_MODEL_INIT AI_MODEL_COUNT
+        local _ei
+        for (( _ei=1; _ei<=${AI_MODEL_COUNT:-0}; _ei++ )); do
+            export "AI_MODEL_${_ei}_PROVIDER" "AI_MODEL_${_ei}_TYPE" "AI_MODEL_${_ei}_DOMAIN" \
+                   "AI_MODEL_${_ei}_PORT" "AI_MODEL_${_ei}_PROTOCOL" "AI_MODEL_${_ei}_API_KEY" \
+                   "AI_MODEL_${_ei}_NAME" "AI_MODEL_${_ei}_DEFAULT_MODEL"
+        done
+    else
+    # ─── 全新安装 / 重新安装 ───
+    ensure_secrets
+
+    # ─── 数据目录 ───
+    log ""
+    log "$(msg section.data)"
+    prompt HIMARKET_DATA_DIR "Data directory" "${HOME}/himarket-data"
+    export HIMARKET_DATA_DIR
 
     # ─── 镜像配置 ───
     log ""
@@ -603,6 +659,8 @@ interactive_config() {
     prompt MYSQL_IMAGE "MySQL image" "opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/mysql:latest"
     prompt NACOS_IMAGE "Nacos image" "nacos-registry.cn-hangzhou.cr.aliyuncs.com/nacos/nacos-server:v3.2.0"
     prompt HIGRESS_IMAGE "Higress image" "higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/all-in-one:latest"
+    prompt REDIS_IMAGE "Redis image" "higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/redis-stack-server:7.4.0-v3"
+    prompt SANDBOX_IMAGE "Sandbox image" "opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/sandbox:latest"
 
     # ─── 数据库密码（首次安装时已自动生成随机值） ───
     log ""
@@ -708,15 +766,19 @@ interactive_config() {
                "AI_MODEL_${_ei}_PORT" "AI_MODEL_${_ei}_PROTOCOL" "AI_MODEL_${_ei}_API_KEY" \
                "AI_MODEL_${_ei}_NAME" "AI_MODEL_${_ei}_DEFAULT_MODEL"
     done
+    fi
 
     # ─── 配置摘要 ───
     log ""
     log "$(msg section.summary)"
     log "  DEPLOY_MODE:          ${DEPLOY_MODE}"
+    log "  HIMARKET_DATA_DIR:    ${HIMARKET_DATA_DIR}"
     log "  HIMARKET_SERVER:      ${HIMARKET_SERVER_IMAGE}"
     log "  MYSQL_IMAGE:          ${MYSQL_IMAGE}"
     log "  NACOS_IMAGE:          ${NACOS_IMAGE}"
     log "  HIGRESS_IMAGE:        ${HIGRESS_IMAGE}"
+    log "  REDIS_IMAGE:          ${REDIS_IMAGE}"
+    log "  SANDBOX_IMAGE:        ${SANDBOX_IMAGE}"
     log "  SKIP_AI_MODEL_INIT:   ${SKIP_AI_MODEL_INIT}"
     if [[ "${SKIP_AI_MODEL_INIT}" != "true" ]]; then
         log "  AI_MODEL_COUNT:       ${AI_MODEL_COUNT:-0}"
@@ -750,13 +812,16 @@ interactive_config() {
     fi
 }
 
-# ── 保存当前配置到 ~/himarket-install.env ─────────────────────────────────────
+# ── 保存当前配置到 ~/himarket-install-docker.env ──────────────────────────────
 save_env() {
     cat > "${ENV_FILE}" <<ENVEOF
 # HiMarket Docker 部署配置（由 install.sh 自动生成）
 
 # ========== 部署模式 ==========
 DEPLOY_MODE="${DEPLOY_MODE}"
+
+# ========== 数据目录 ==========
+HIMARKET_DATA_DIR="${HIMARKET_DATA_DIR}"
 
 # ========== 镜像配置 ==========
 HIMARKET_SERVER_IMAGE="${HIMARKET_SERVER_IMAGE}"
@@ -765,6 +830,8 @@ HIMARKET_FRONTEND_IMAGE="${HIMARKET_FRONTEND_IMAGE}"
 MYSQL_IMAGE="${MYSQL_IMAGE}"
 NACOS_IMAGE="${NACOS_IMAGE}"
 HIGRESS_IMAGE="${HIGRESS_IMAGE}"
+REDIS_IMAGE="${REDIS_IMAGE}"
+SANDBOX_IMAGE="${SANDBOX_IMAGE}"
 
 # ========== 数据库密码 ==========
 MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD}"
@@ -850,7 +917,7 @@ deploy_all() {
     if [[ "${DEPLOY_MODE}" == "reinstall" ]]; then
         log "$(msg install.reinstall_cleaning)"
         docker_compose down -v 2>/dev/null || true
-        rm -rf "${HOME}/himarket-data/data/mysql" "${HOME}/himarket-data/standalone-logs" "${HOME}/himarket-data/data/higress" "${HOME}/himarket-data/data/sandbox-workspace"
+        rm -rf "${HIMARKET_DATA_DIR:-${HOME}/himarket-data}/data/mysql" "${HIMARKET_DATA_DIR:-${HOME}/himarket-data}/standalone-logs" "${HIMARKET_DATA_DIR:-${HOME}/himarket-data}/data/higress" "${HIMARKET_DATA_DIR:-${HOME}/himarket-data}/data/sandbox-workspace"
     fi
 
     # 5. 构建 profiles（MySQL 和 Server 无 profile，始终启动）
@@ -935,7 +1002,7 @@ uninstall_all() {
         read -r -p "$(msg install.volume_confirm) " answer
         if [[ "${answer}" =~ ^[Yy]$ ]]; then
             docker_compose down -v 2>/dev/null || true
-            rm -rf "${HOME}/himarket-data/data/mysql" "${HOME}/himarket-data/standalone-logs" "${HOME}/himarket-data/data/higress" "${HOME}/himarket-data/data/sandbox-workspace"
+            rm -rf "${HIMARKET_DATA_DIR:-${HOME}/himarket-data}/data/mysql" "${HIMARKET_DATA_DIR:-${HOME}/himarket-data}/standalone-logs" "${HIMARKET_DATA_DIR:-${HOME}/himarket-data}/data/higress" "${HIMARKET_DATA_DIR:-${HOME}/himarket-data}/data/sandbox-workspace"
             log "数据卷和本地数据已清理"
         else
             log "$(msg install.volume_skip)"
