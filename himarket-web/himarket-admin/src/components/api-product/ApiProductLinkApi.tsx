@@ -1685,8 +1685,8 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                             <div className="text-xs text-gray-400 mb-2">托管配置</div>
                             <div className="grid grid-cols-3 gap-x-3 gap-y-2 text-xs">
                               <div>
-                                <div className="text-gray-400 mb-0.5">沙箱 ID</div>
-                                <div className="font-mono text-gray-700 truncate" title={sandboxId}>{sandboxId}</div>
+                                <div className="text-gray-400 mb-0.5">沙箱</div>
+                                <div className="font-mono text-gray-700 truncate" title={sp.sandboxName || sandboxId}>{sp.sandboxName || sandboxId}</div>
                               </div>
                               <div>
                                 <div className="text-gray-400 mb-0.5">Namespace</div>

@@ -1395,6 +1395,7 @@ public class McpServerServiceImpl implements McpServerService {
         cn.hutool.json.JSONObject subParams =
                 JSONUtil.createObj()
                         .set("sandboxId", sandboxId)
+                        .set("sandboxName", sandbox.getSandboxName())
                         .set("transportType", transportType)
                         .set("authType", authType)
                         .set("namespace", StrUtil.blankToDefault(param.getNamespace(), "default"))
