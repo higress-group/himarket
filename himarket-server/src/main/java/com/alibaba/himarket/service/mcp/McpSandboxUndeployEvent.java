@@ -50,4 +50,7 @@ public class McpSandboxUndeployEvent {
 
     /** CRD 资源名称（用于精确删除，避免名称计算不一致） */
     private String resourceName;
+
+    /** K8s Secret 名称（为空时跳过 Secret 删除） */
+    private String secretName;
 }

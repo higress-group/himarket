@@ -75,6 +75,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.agentscope.core.tool.mcp.McpClientWrapper;
 import io.modelcontextprotocol.spec.McpSchema;
 import jakarta.annotation.Resource;
+import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -1039,7 +1040,7 @@ public class McpServerServiceImpl implements McpServerService {
     /**
      * 根据 endpoint 来源解析 auth headers。
      * 网关/Nacos 来源：使用用户的 consumer credential（API Key）。
-     * 沙箱来源：沙箱代理层处理鉴权，不需要额外 headers。
+     * 沙箱来源：从 subscribeParams 中读取 API Key 鉴权信息。
      */
     private Map<String, String> resolveAuthHeaders(
             McpServerEndpoint endpoint, McpServerMeta meta, String userId) {
@@ -1054,6 +1055,32 @@ public class McpServerServiceImpl implements McpServerService {
                 return headers.isEmpty() ? null : headers;
             } catch (Exception e) {
                 log.warn("[resolveAuthHeaders] 获取用户 credential 失败: {}", e.getMessage());
+            }
+        } else if (hosting == McpHostingType.SANDBOX) {
+            // 从 subscribeParams 中读取 API Key 鉴权信息
+            if (StrUtil.isNotBlank(endpoint.getSubscribeParams())) {
+                try {
+                    cn.hutool.json.JSONObject params =
+                            cn.hutool.json.JSONUtil.parseObj(endpoint.getSubscribeParams());
+                    String authType = params.getStr("authType");
+                    if ("apikey".equalsIgnoreCase(authType)) {
+                        String apiKey = params.getStr("apiKey");
+                        if (StrUtil.isNotBlank(apiKey)) {
+                            return Map.of("Authorization", apiKey);
+                        }
+                        log.error(
+                                "[resolveAuthHeaders] 沙箱 endpoint authType=apikey 但 apiKey 为空:"
+                                        + " endpointId={}",
+                                endpoint.getEndpointId());
+                        throw new BusinessException(
+                                ErrorCode.INTERNAL_ERROR, "沙箱 API Key 鉴权配置异常：apiKey 为空");
+                    }
+                    // authType == "none" 或缺失：不需要额外 headers
+                } catch (BusinessException e) {
+                    throw e;
+                } catch (Exception e) {
+                    log.warn("[resolveAuthHeaders] 解析沙箱 subscribeParams 失败: {}", e.getMessage());
+                }
             }
         }
         return null;
@@ -1320,6 +1347,12 @@ public class McpServerServiceImpl implements McpServerService {
         String paramValues = param.getParamValues();
         String adminUserId = getCreatedByOrDefault();
 
+        // 当 authType 为 "apikey" 时生成随机 API Key
+        String apiKey = "";
+        if ("apikey".equalsIgnoreCase(authType)) {
+            apiKey = generateApiKey();
+        }
+
         // 先清理旧的公共沙箱 endpoint（DB 记录），包括 ACTIVE 和 INACTIVE 状态
         // 注意：旧 CRD 的清理也放到事务提交后，由 listener 处理
         // 先清理旧的公共沙箱 endpoint（DB 记录立即删除，CRD 清理延迟到事务提交后异步执行）
@@ -1342,9 +1375,15 @@ public class McpServerServiceImpl implements McpServerService {
                                 .userId(adminUserId)
                                 .namespace(extractNamespace(existing))
                                 .resourceName(extractResourceName(existing))
+                                .secretName(extractSecretName(existing))
                                 .build());
             }
             endpointRepository.delete(existing);
+        }
+
+        // 强制 flush 删除操作，避免后续 insert 时唯一约束冲突
+        if (!existingPublic.isEmpty()) {
+            endpointRepository.flush();
         }
 
         // 校验沙箱实例存在
@@ -1360,6 +1399,9 @@ public class McpServerServiceImpl implements McpServerService {
                         .set("authType", authType)
                         .set("namespace", StrUtil.blankToDefault(param.getNamespace(), "default"))
                         .set("resourceName", resourceName);
+        if ("apikey".equalsIgnoreCase(authType) && StrUtil.isNotBlank(apiKey)) {
+            subParams.set("apiKey", apiKey);
+        }
         if (StrUtil.isNotBlank(paramValues)) {
             subParams.set("extraParams", JSONUtil.parse(paramValues));
         }
@@ -1396,9 +1438,24 @@ public class McpServerServiceImpl implements McpServerService {
                         .namespace(param.getNamespace())
                         .resourceSpec(param.getResourceSpec())
                         .endpointId(pendingEndpoint.getEndpointId())
+                        .apiKey(apiKey)
                         .build());
 
         log.info("沙箱部署事件已发布（事务提交后执行）: mcpName={}, sandboxId={}", meta.getMcpName(), sandboxId);
+    }
+
+    /**
+     * 使用密码学安全的随机数生成器生成 API Key。
+     * 格式：sk_ + 32 位随机字母数字字符串（总长度 35）。
+     */
+    private String generateApiKey() {
+        SecureRandom random = new SecureRandom();
+        String chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        StringBuilder sb = new StringBuilder("sk_");
+        for (int i = 0; i < 32; i++) {
+            sb.append(chars.charAt(random.nextInt(chars.length())));
+        }
+        return sb.toString();
     }
 
     /**
@@ -1736,6 +1793,18 @@ public class McpServerServiceImpl implements McpServerService {
         }
     }
 
+    private String extractSecretName(McpServerEndpoint endpoint) {
+        if (endpoint == null || StrUtil.isBlank(endpoint.getSubscribeParams())) {
+            return null;
+        }
+        try {
+            cn.hutool.json.JSONObject params = JSONUtil.parseObj(endpoint.getSubscribeParams());
+            return params.getStr("secretName");
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     /**
      * 对 meta 关联的所有沙箱托管 endpoint 执行 undeploy（删除沙箱中的 CRD 资源）。
      * undeploy 失败不阻塞删除流程，仅记录日志。
@@ -1751,12 +1820,14 @@ public class McpServerServiceImpl implements McpServerService {
             try {
                 String namespace = extractNamespace(ep);
                 String resourceName = extractResourceName(ep);
+                String secretName = extractSecretName(ep);
                 mcpSandboxDeployService.undeploy(
                         ep.getHostingInstanceId(),
                         meta.getMcpName(),
                         ep.getUserId(),
                         namespace,
-                        resourceName);
+                        resourceName,
+                        secretName);
                 log.info(
                         "沙箱 undeploy 成功: mcpName={}, sandboxId={}, namespace={}, resourceName={}",
                         meta.getMcpName(),

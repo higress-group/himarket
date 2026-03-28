@@ -69,7 +69,7 @@ public class McpSandboxDeployListener {
         String endpointUrl = null;
         try {
             // Step 1: 部署 CRD 到沙箱
-            endpointUrl =
+            String rawResult =
                     mcpSandboxDeployService.deploy(
                             event.getSandboxId(),
                             event.getMcpServerId(),
@@ -78,25 +78,51 @@ public class McpSandboxDeployListener {
                             event.getTransportType(),
                             event.getMetaProtocolType(),
                             event.getConnectionConfig(),
-                            "",
+                            event.getApiKey(),
                             event.getAuthType(),
                             event.getParamValues(),
                             event.getExtraParams(),
                             event.getNamespace(),
                             event.getResourceSpec());
 
+            // 解析返回值：提取 endpointUrl 和 secretName
+            // deploy() 返回格式：endpointUrl 或 endpointUrl|SECRET:secretName
+            String secretName = null;
+            endpointUrl = rawResult;
+            if (rawResult != null && rawResult.contains("|SECRET:")) {
+                int idx = rawResult.indexOf("|SECRET:");
+                endpointUrl = rawResult.substring(0, idx);
+                secretName = rawResult.substring(idx + 8); // "|SECRET:".length() == 8
+            }
+
             // 标准化 URL：SSE 协议追加 /sse 后缀，去掉尾部多余斜杠
             String finalEndpointUrl =
                     McpProtocolUtils.normalizeEndpointUrl(endpointUrl, event.getTransportType());
 
-            // Step 2: 更新 endpoint URL（事务内已预创建了 endpoint 记录，resourceName 已在创建时写入）
+            // Step 2: 更新 endpoint URL 和状态，回写 secretName 到 subscribeParams
             String lambdaUrl = finalEndpointUrl;
+            String lambdaSecretName = secretName;
             endpointRepository
                     .findByEndpointId(event.getEndpointId())
                     .ifPresent(
                             ep -> {
                                 ep.setEndpointUrl(lambdaUrl);
                                 ep.setStatus(McpEndpointStatus.ACTIVE.name());
+                                // 回写 secretName 到 subscribeParams
+                                if (StrUtil.isNotBlank(lambdaSecretName)
+                                        && StrUtil.isNotBlank(ep.getSubscribeParams())) {
+                                    try {
+                                        cn.hutool.json.JSONObject params =
+                                                cn.hutool.json.JSONUtil.parseObj(
+                                                        ep.getSubscribeParams());
+                                        params.set("secretName", lambdaSecretName);
+                                        ep.setSubscribeParams(params.toString());
+                                    } catch (Exception e) {
+                                        log.warn(
+                                                "回写 secretName 到 subscribeParams 失败: {}",
+                                                e.getMessage());
+                                    }
+                                }
                                 endpointRepository.save(ep);
                             });
 
@@ -140,7 +166,8 @@ public class McpSandboxDeployListener {
                             event.getMcpName(),
                             event.getAdminUserId(),
                             StrUtil.blankToDefault(event.getNamespace(), "default"),
-                            rollbackResourceName);
+                            rollbackResourceName,
+                            null); // Secret already cleaned up in deploy() rollback
                 } catch (Exception re) {
                     log.warn("回滚删除 CRD 失败: {}", re.getMessage());
                 }
@@ -203,7 +230,8 @@ public class McpSandboxDeployListener {
                                 event.getMcpName(),
                                 event.getUserId(),
                                 StrUtil.blankToDefault(event.getNamespace(), "default"),
-                                event.getResourceName());
+                                event.getResourceName(),
+                                event.getSecretName());
                         log.info(
                                 "旧沙箱 CRD 清理成功: mcpName={}, sandboxId={}",
                                 event.getMcpName(),

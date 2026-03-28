@@ -51,4 +51,7 @@ public class McpSandboxDeployEvent {
 
     /** 预创建的 endpoint ID，部署成功后更新 URL；失败时删除 */
     private String endpointId;
+
+    /** 生成的 API Key（authType 为 "apikey" 时非空） */
+    private String apiKey;
 }

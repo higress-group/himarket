@@ -7,6 +7,8 @@ import com.alibaba.himarket.core.utils.K8sClientUtils;
 import com.alibaba.himarket.entity.SandboxInstance;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
+import io.fabric8.kubernetes.api.model.Secret;
+import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext;
 import io.fabric8.kubernetes.client.utils.Serialization;
@@ -102,7 +104,9 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
         String resourceName = buildResourceName(mcpName, userId);
         String accessName = "himarket-" + userId;
         boolean isStdio = "stdio".equalsIgnoreCase(metaProtocolType);
-        boolean isBearer = "bearer".equalsIgnoreCase(authType);
+        boolean isApiKeyAuth =
+                "bearer".equalsIgnoreCase(authType) || "apikey".equalsIgnoreCase(authType);
+        String secretName = null;
 
         // 构建 mcpServers JSON，同时从中剥离 env 字段
         String[] mcpResult = buildMcpServersJson(mcpName, connectionConfig);
@@ -178,7 +182,11 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
                 "PROTOCOL",
                 "http".equalsIgnoreCase(metaProtocolType) ? "streamableHttp" : metaProtocolType);
         vars.put("MCP_SERVERS_JSON", mcpServersJson);
-        vars.put("ACCESSES_YAML", buildAccessesYaml(isBearer, accessName));
+        // 当 authType 为 "apikey" 且 apiKey 非空时，生成 Secret 名称
+        if ("apikey".equalsIgnoreCase(authType) && StrUtil.isNotBlank(apiKey)) {
+            secretName = buildSecretName(mcpName);
+        }
+        vars.put("ACCESSES_YAML", buildAccessesYaml(isApiKeyAuth, accessName, secretName));
         vars.put("ENV_YAML", envYaml);
 
         // 从 MCP 配置的资源规格读取 CPU/内存等
@@ -205,13 +213,49 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
         crd.getMetadata().getLabels().put("app.kubernetes.io/managed-by", "himarket");
         crd.getMetadata().getLabels().put("himarket.io/mcp-server-id", mcpServerId);
         crd.getMetadata().getLabels().put("himarket.io/user-id", userId);
+        if (secretName != null) {
+            crd.getMetadata().getLabels().put("himarket.io/ref-secret", secretName);
+        }
 
-        // 下发 CRD
+        // 下发 CRD（先创建 Secret，再创建 CRD，CRD 失败时回滚 Secret）
         KubernetesClient client = K8sClientUtils.getClient(sandbox.getKubeConfig());
-        client.genericKubernetesResources(CRD_CONTEXT)
-                .inNamespace(ns)
-                .resource(crd)
-                .createOrReplace();
+
+        // 当 authType 为 "apikey" 且 apiKey 非空时，先创建 K8s Secret
+        if ("apikey".equalsIgnoreCase(authType) && StrUtil.isNotBlank(apiKey)) {
+            Secret k8sSecret =
+                    new SecretBuilder()
+                            .withNewMetadata()
+                            .withName(secretName)
+                            .withNamespace(ns)
+                            .addToLabels("app.kubernetes.io/managed-by", "himarket")
+                            .addToLabels("himarket.io/user-id", userId)
+                            .addToLabels("himarket.io/mcp-name", mcpName)
+                            .addToLabels("himarket.io/mcp-server-id", mcpServerId)
+                            .addToLabels("himarket.io/ref-toolserver", resourceName)
+                            .endMetadata()
+                            .withType("Opaque")
+                            .addToStringData("API_KEY", apiKey)
+                            .build();
+            client.secrets().inNamespace(ns).resource(k8sSecret).createOrReplace();
+            log.info("[AgentRuntimeDeploy] K8s Secret 创建成功: namespace={}, name={}", ns, secretName);
+        }
+
+        try {
+            client.genericKubernetesResources(CRD_CONTEXT)
+                    .inNamespace(ns)
+                    .resource(crd)
+                    .createOrReplace();
+        } catch (Exception e) {
+            if (secretName != null) {
+                try {
+                    client.secrets().inNamespace(ns).withName(secretName).delete();
+                    log.info("[AgentRuntimeDeploy] CRD 创建失败，已回滚删除 Secret: {}", secretName);
+                } catch (Exception rollbackEx) {
+                    log.warn("[AgentRuntimeDeploy] 回滚删除 Secret 失败: {}", rollbackEx.getMessage());
+                }
+            }
+            throw e;
+        }
 
         log.info(
                 "[AgentRuntimeDeploy] CRD 下发成功: namespace={}, name={}, template={}",
@@ -229,6 +273,9 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
         }
 
         log.info("[AgentRuntimeDeploy] Endpoint URL 获取成功: {}", endpointUrl);
+        if (secretName != null) {
+            return endpointUrl + "|SECRET:" + secretName;
+        }
         return endpointUrl;
     }
 
@@ -244,6 +291,17 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
             String userId,
             String namespace,
             String resourceName) {
+        undeploy(sandbox, mcpName, userId, namespace, resourceName, null);
+    }
+
+    @Override
+    public void undeploy(
+            SandboxInstance sandbox,
+            String mcpName,
+            String userId,
+            String namespace,
+            String resourceName,
+            String secretName) {
         if (StrUtil.isBlank(sandbox.getKubeConfig())) {
             throw new BusinessException(
                     ErrorCode.INVALID_REQUEST, "沙箱实例未配置 KubeConfig: " + sandbox.getSandboxId());
@@ -252,10 +310,26 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
         String ns = StrUtil.blankToDefault(namespace, "default");
         KubernetesClient client = K8sClientUtils.getClient(sandbox.getKubeConfig());
 
-        // 优先使用传入的 resourceName（从 subscribe_params 读取）
-        // 如果没有，回退到按名称计算
         if (StrUtil.isBlank(resourceName)) {
             resourceName = buildResourceName(mcpName, userId);
+        }
+
+        // 先删除 K8s Secret（如果有）
+        if (StrUtil.isNotBlank(secretName)) {
+            try {
+                client.secrets().inNamespace(ns).withName(secretName).delete();
+                log.info(
+                        "[AgentRuntimeDeploy] K8s Secret 删除成功: namespace={}, name={}",
+                        ns,
+                        secretName);
+            } catch (Exception e) {
+                log.warn(
+                        "[AgentRuntimeDeploy] K8s Secret 删除失败（可能已不存在）: namespace={}, name={},"
+                                + " error={}",
+                        ns,
+                        secretName,
+                        e.getMessage());
+            }
         }
 
         String endpointName = resourceName + "-primary";
@@ -280,7 +354,6 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
             return;
         }
 
-        // 轮询等待 Endpoint CRD 被沙箱清理
         waitEndpointDeleted(client, ns, endpointName);
     }
 
@@ -511,18 +584,19 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
 
     /**
      * 根据鉴权方式生成 CRD accesses YAML 片段。
-     * bearer：包含 authentication + name + port + type。
-     * none：只有 port + type，不含 authentication 和 name。
+     * isApiKeyAuth 为 true（bearer 或 apikey）：包含 authentication + name + port + type。
+     * 否则：只有 port + type，不含 authentication 和 name。
      */
-    private String buildAccessesYaml(boolean isBearer, String accessName) {
+    private String buildAccessesYaml(boolean isApiKeyAuth, String accessName, String secretName) {
         List<Map<String, Object>> accesses = new ArrayList<>();
         Map<String, Object> access = new LinkedHashMap<>();
 
-        if (isBearer) {
-            String secretName = accessName + "-secret";
+        if (isApiKeyAuth) {
+            String resolvedSecretName =
+                    StrUtil.isNotBlank(secretName) ? secretName : accessName + "-secret";
             Map<String, Object> source = new LinkedHashMap<>();
             source.put("key", "API_KEY");
-            source.put("name", secretName);
+            source.put("name", resolvedSecretName);
             source.put("optional", true);
 
             Map<String, Object> apiKey = new LinkedHashMap<>();
@@ -682,6 +756,22 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
             log.warn("解析 clusterAttribute 失败: {}", e.getMessage());
             return "";
         }
+    }
+
+    /**
+     * 生成 K8s Secret 名称。
+     * 格式：himarket-{sanitized-mcp-name}-{uuid前8位}-secret
+     */
+    public static String buildSecretName(String mcpName) {
+        String name = StrUtil.blankToDefault(mcpName, "mcp-server");
+        String sanitized =
+                name.toLowerCase()
+                        .replaceAll("[^a-z0-9-]", "-")
+                        .replaceAll("-+", "-")
+                        .replaceAll("^-|-$", "");
+        String uuid8 = java.util.UUID.randomUUID().toString().substring(0, 8);
+        String secretName = "himarket-" + sanitized + "-" + uuid8 + "-secret";
+        return secretName.length() > 253 ? secretName.substring(0, 253) : secretName;
     }
 
     /**

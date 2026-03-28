@@ -133,4 +133,36 @@ public class McpSandboxDeployServiceImpl implements McpSandboxDeployService {
 
         strategy.undeploy(sandbox, mcpName, userId, namespace, resourceName);
     }
+
+    @Override
+    public void undeploy(
+            String sandboxId,
+            String mcpName,
+            String userId,
+            String namespace,
+            String resourceName,
+            String secretName) {
+        SandboxInstance sandbox =
+                sandboxInstanceRepository
+                        .findBySandboxId(sandboxId)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                ErrorCode.NOT_FOUND, "沙箱实例", sandboxId));
+        String sandboxType = sandbox.getSandboxType();
+        McpSandboxDeployStrategy strategy = strategyMap.get(sandboxType);
+        if (strategy == null) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "不支持的沙箱类型: " + sandboxType);
+        }
+        log.info(
+                "[McpSandboxUndeploy] sandboxId={}, type={}, mcpName={}, userId={},"
+                        + " resourceName={}, secretName={}",
+                sandboxId,
+                sandboxType,
+                mcpName,
+                userId,
+                resourceName,
+                secretName);
+        strategy.undeploy(sandbox, mcpName, userId, namespace, resourceName, secretName);
+    }
 }

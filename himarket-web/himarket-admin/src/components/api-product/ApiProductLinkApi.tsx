@@ -19,6 +19,23 @@ interface ApiProductLinkApiProps {
   handleRefresh: () => void
 }
 
+function ApiKeyDisplay({ apiKey }: { apiKey: string }) {
+  const [visible, setVisible] = useState(false)
+  const masked = apiKey.length > 7 ? apiKey.substring(0, 3) + '****' + apiKey.substring(apiKey.length - 4) : '****'
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className="font-mono text-gray-700">{visible ? apiKey : masked}</span>
+      <Button type="link" size="small" className="p-0 text-[11px]" onClick={() => setVisible(!visible)}>
+        {visible ? '隐藏' : '查看'}
+      </Button>
+      <Button type="link" size="small" className="p-0 text-[11px]" onClick={() => {
+        navigator.clipboard.writeText(apiKey)
+        message.success('已复制 API Key')
+      }}>复制</Button>
+    </span>
+  )
+}
+
 export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUpdate, handleRefresh }: ApiProductLinkApiProps) {
   // 移除了内部的 linkedService 状态，现在从 props 接收
   const [isModalVisible, setIsModalVisible] = useState(false)
@@ -1677,9 +1694,30 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                               </div>
                               <div>
                                 <div className="text-gray-400 mb-0.5">鉴权类型</div>
-                                <div className="text-gray-700">{authType}</div>
+                                <div className="text-gray-700">{authType === 'apikey' ? <span className="text-green-600">API Key</span> : '无鉴权'}</div>
                               </div>
                             </div>
+                            {/* 鉴权信息卡片 */}
+                            {authType === 'apikey' && (sp.secretName || sp.apiKey) && (
+                              <div className="mt-2 rounded-lg border border-green-100 bg-green-50/50 p-3 space-y-1.5 text-xs">
+                                {sp.secretName && (
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-gray-500 shrink-0 w-20">Secret</span>
+                                    <span className="font-mono text-gray-700 truncate" title={sp.secretName}>{sp.secretName}</span>
+                                    <Button type="link" size="small" className="p-0 text-[11px] shrink-0" onClick={() => {
+                                      navigator.clipboard.writeText(sp.secretName)
+                                      message.success('已复制 Secret 名称')
+                                    }}>复制</Button>
+                                  </div>
+                                )}
+                                {sp.apiKey && (
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-gray-500 shrink-0 w-20">API Key</span>
+                                    <ApiKeyDisplay apiKey={sp.apiKey} />
+                                  </div>
+                                )}
+                              </div>
+                            )}
                             {extraEntries.length > 0 && (
                               <div className="mt-3 rounded-lg border border-gray-200 overflow-hidden">
                                 <div className="px-3 py-1.5 bg-gray-50 border-b border-gray-200">
@@ -2816,7 +2854,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                 <Form.Item label="鉴权方式" name="authType" className="mb-0">
                   <Select>
                     <Select.Option value="none">无鉴权</Select.Option>
-                    <Select.Option value="bearer" disabled>Bearer Token（即将开放）</Select.Option>
+                    <Select.Option value="apikey">API Key</Select.Option>
                   </Select>
                 </Form.Item>
               </div>

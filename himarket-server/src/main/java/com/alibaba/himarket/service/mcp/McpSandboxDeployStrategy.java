@@ -74,4 +74,24 @@ public interface McpSandboxDeployStrategy {
             String resourceName) {
         undeploy(sandbox, mcpName, userId, namespace);
     }
+
+    /**
+     * 删除沙箱集群中的 ToolServer CRD 和关联的 K8s Secret。
+     *
+     * @param sandbox       沙箱实例
+     * @param mcpName       MCP Server 名称
+     * @param userId        订阅用户 ID
+     * @param namespace     部署时使用的 Namespace
+     * @param resourceName  CRD 资源名称
+     * @param secretName    K8s Secret 名称（为空时跳过 Secret 删除）
+     */
+    default void undeploy(
+            SandboxInstance sandbox,
+            String mcpName,
+            String userId,
+            String namespace,
+            String resourceName,
+            String secretName) {
+        undeploy(sandbox, mcpName, userId, namespace, resourceName);
+    }
 }
