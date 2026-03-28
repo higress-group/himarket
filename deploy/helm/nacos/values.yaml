@@ -1,7 +1,7 @@
 image:
   registry: nacos-registry.cn-hangzhou.cr.aliyuncs.com
   repository: nacos/nacos-server
-  tag: "v3.2.0-BETA"
+  tag: "v3.2.0"
   pullPolicy: Always
 
 imagePullSecrets: []
@@ -20,6 +20,8 @@ database:
 
 # Auth 凭证（提供开箱即用的默认值，生产环境务必通过 --set 覆盖）
 auth:
+  enabled: true
+  allowAnonymousAI: true
   identityKey: "serverIdentity"
   identityValue: "security"
   token: "VGhpc0lzTXlDdXN0b21TZWNyZXRLZXkwMTIzNDU2Nzg="

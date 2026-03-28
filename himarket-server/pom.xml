@@ -97,6 +97,11 @@
             <artifactId>nacos-maintainer-client</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>com.alibaba.nacos</groupId>
+            <artifactId>nacos-api</artifactId>
+        </dependency>
+
         <!-- ApsaraStack CSB SDK For Common Request V2.0-->
         <dependency>
             <groupId>com.aliyun</groupId>
@@ -321,5 +326,17 @@
         </dependency>
 
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <excludedGroups>${surefire.excludedGroups}</excludedGroups>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 
 </project>

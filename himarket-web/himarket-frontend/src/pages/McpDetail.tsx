@@ -21,6 +21,7 @@ import { ProductIconRenderer } from "../components/icon/ProductIconRenderer";
 import { getIconString, parseMetaIcon } from "../lib/iconUtils";
 import MarkdownRender from "../components/MarkdownRender";
 import { useAuth } from "../hooks/useAuth";
+import { DetailSkeleton } from "../components/loading";
 import dayjs from "dayjs";
 
 function McpDetail() {
@@ -358,8 +359,8 @@ function McpDetail() {
   if (loading) {
     return (
       <Layout>
-        <div className="flex justify-center items-center h-[60vh]">
-          <Spin size="large" tip="加载中..." />
+        <div className="max-w-6xl mx-auto px-4 py-6">
+          <DetailSkeleton />
         </div>
       </Layout>
     );
@@ -374,6 +375,7 @@ function McpDetail() {
       </Layout>
     );
   }
+
 
   return (
     <Layout>

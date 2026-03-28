@@ -21,6 +21,10 @@ const TYPE_DESCRIPTIONS: Record<string, { title: string; desc: string }> = {
     title: "Skill 市场",
     desc: "这里是 Agent Skill 市场，开发者可以发现和下载各类 AI Agent 技能包。",
   },
+  WORKER: {
+    title: "Worker 市场",
+    desc: "这里是 Worker 市场，开发者可以使用适用于 HiClaw 和 OpenClaw 的 Worker。",
+  },
 };
 
 interface EmptyStateProps {
@@ -38,7 +42,6 @@ export function EmptyState({ productType }: EmptyStateProps) {
       <InboxOutlined className="text-5xl text-gray-300 mb-4" />
       <h3 className="text-lg font-medium text-gray-600 mb-2">{info.title}</h3>
       <p className="text-gray-400 max-w-md mb-3">{info.desc}</p>
-      <p className="text-gray-400 text-sm">暂无产品，敬请期待</p>
     </div>
   );
 }

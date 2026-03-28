@@ -67,7 +67,9 @@ public class SecurityConfig {
         "/ws/acp",
         "/ws/terminal",
         "/cli-providers",
-        "/skills/*/download"
+        "/skills/*/download",
+        "/workers/*/download",
+        "/workers/*/files/**"
     };
 
     // Swagger endpoints

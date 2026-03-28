@@ -24,6 +24,7 @@ import com.alibaba.himarket.dto.params.portal.BindDomainParam;
 import com.alibaba.himarket.dto.params.portal.CreatePortalParam;
 import com.alibaba.himarket.dto.params.portal.UpdatePortalParam;
 import com.alibaba.himarket.dto.result.common.PageResult;
+import com.alibaba.himarket.dto.result.portal.PortalProfileResult;
 import com.alibaba.himarket.dto.result.portal.PortalResult;
 import com.alibaba.himarket.dto.result.product.ProductPublicationResult;
 import com.alibaba.himarket.dto.result.product.SubscriptionResult;
@@ -48,6 +49,13 @@ public interface PortalService {
      * @return the portal result
      */
     PortalResult getPortal(String portalId);
+
+    /**
+     * Get current portal profile (public endpoint for frontend)
+     *
+     * @return the portal profile result
+     */
+    PortalProfileResult getPortalProfile();
 
     /**
      * Check if portal exists

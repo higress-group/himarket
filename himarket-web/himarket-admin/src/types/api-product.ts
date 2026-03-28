@@ -213,6 +213,7 @@ export interface ModelFeature {
 export interface ProductFeature {
   modelFeature?: ModelFeature;
   skillConfig?: ApiProductSkillConfig;
+  workerConfig?: ApiProductWorkerConfig;
 }
 
 export interface ApiProductSkillConfig {
@@ -223,11 +224,20 @@ export interface ApiProductSkillConfig {
   skillName?: string;
 }
 
+export interface ApiProductWorkerConfig {
+  nacosId?: string;
+  namespace?: string;
+  workerName?: string;
+  currentVersion?: string;
+  tags?: string[];
+  downloadCount?: number;
+}
+
 export interface ApiProduct {
   productId: string;
   name: string;
   description: string;
-  type: 'REST_API' | 'MCP_SERVER' | 'AGENT_API' | 'MODEL_API' | 'AGENT_SKILL';
+  type: 'REST_API' | 'MCP_SERVER' | 'AGENT_API' | 'MODEL_API' | 'AGENT_SKILL' | 'WORKER';
   status: 'PENDING' | 'READY' | 'PUBLISHED' | string;
   createAt: string;
   enableConsumerAuth?: boolean;
@@ -241,6 +251,7 @@ export interface ApiProduct {
   categories?: ProductCategory[];
   feature?: ProductFeature;
   skillConfig?: ApiProductSkillConfig;
+  workerConfig?: ApiProductWorkerConfig;
 }
 
 // Publication 类型定义（Product 和 Portal 的发布关系）

@@ -19,19 +19,21 @@ exec > >(tee -a "${HIMARKET_LOG_FILE}") 2>&1
 
 # ── 全局标志 ──────────────────────────────────────────────────────────────────
 NON_INTERACTIVE="${NON_INTERACTIVE:-0}"
-ACTION="deploy"    # deploy | uninstall
+ACTION="deploy"    # deploy | uninstall | init-data
 
 # ── 解析命令行参数 ────────────────────────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
     case "$1" in
         -n|--non-interactive) NON_INTERACTIVE=1; shift ;;
         --uninstall)          ACTION="uninstall"; shift ;;
+        --init-data)          ACTION="init-data"; shift ;;
         -h|--help)
             echo "Usage: $0 [OPTIONS]"
             echo ""
             echo "Options:"
             echo "  -n, --non-interactive  跳过交互式提示，使用 ~/himarket-install.env / 默认值"
             echo "  --uninstall            卸载所有组件"
+            echo "  --init-data            重试所有初始化数据钩子（跳过服务部署，仅执行数据初始化）"
             echo "  -h, --help             显示帮助"
             exit 0
             ;;
@@ -89,10 +91,6 @@ msg() {
             [[ "$lang" == "zh" ]] && text="是否删除这些 PVC？数据将不可恢复" || text="Delete these PVCs? Data will be unrecoverable" ;;
         install.pvc_skip)
             [[ "$lang" == "zh" ]] && text="保留 PVC，如需手动清理: kubectl delete pvc --all -n ${NAMESPACE:-himarket}" || text="PVCs kept. To clean up manually: kubectl delete pvc --all -n ${NAMESPACE:-himarket}" ;;
-        install.skip_mcp_init)
-            [[ "$lang" == "zh" ]] && text="是否跳过 MCP 初始化? [y/N]" || text="Skip MCP initialization? [y/N]" ;;
-        install.skip_skill_init)
-            [[ "$lang" == "zh" ]] && text="是否跳过 Skill 初始化? [y/N]" || text="Skip Skill initialization? [y/N]" ;;
         install.uninstall_done)
             [[ "$lang" == "zh" ]] && text="卸载完成" || text="Uninstall complete" ;;
         prompt.preset)
@@ -117,8 +115,6 @@ msg() {
             [[ "$lang" == "zh" ]] && text="--- 默认用户 ---" || text="--- Default Users ---" ;;
         section.storage)
             [[ "$lang" == "zh" ]] && text="--- 存储配置 ---" || text="--- Storage Config ---" ;;
-        section.init)
-            [[ "$lang" == "zh" ]] && text="--- 初始化选项 ---" || text="--- Initialization Options ---" ;;
         section.ai_model)
             [[ "$lang" == "zh" ]] && text="--- AI 模型配置（可选）---" || text="--- AI Model Config (Optional) ---" ;;
         install.ai_model_prompt)
@@ -317,6 +313,26 @@ prompt_optional() {
     read -r -p "${display_prompt}: " value
     value="${value:-${current_value}}"
     eval "export ${var_name}='${value}'"
+}
+
+# ── generate_password — 生成随机安全密码 ─────────────────────────────────────
+generate_password() {
+    local len="${1:-16}"
+    openssl rand -base64 48 | tr -d '/+=\n' | head -c "${len}"
+}
+
+# ── ensure_secrets — 首次安装时为空密码字段生成随机值 ─────────────────────────
+# 在 load_config() 之后调用。如果 env 文件已加载了密码，则不会覆盖。
+ensure_secrets() {
+    : "${MYSQL_ROOT_PASSWORD:=$(generate_password)}"
+    : "${MYSQL_PASSWORD:=$(generate_password)}"
+    : "${JWT_SECRET:=$(openssl rand -base64 32)}"
+    : "${NACOS_ADMIN_PASSWORD:=$(generate_password)}"
+    : "${HIGRESS_PASSWORD:=$(generate_password)}"
+    : "${ADMIN_PASSWORD:=$(generate_password)}"
+    : "${FRONT_PASSWORD:=$(generate_password)}"
+    export MYSQL_ROOT_PASSWORD MYSQL_PASSWORD JWT_SECRET \
+           NACOS_ADMIN_PASSWORD HIGRESS_PASSWORD ADMIN_PASSWORD FRONT_PASSWORD
 }
 
 # =============================================================================
@@ -523,12 +539,12 @@ load_config() {
                HIGRESS_REPO_NAME HIGRESS_REPO_URL HIGRESS_CHART_REF \
                MYSQL_ROOT_PASSWORD MYSQL_PASSWORD \
                JWT_SECRET \
-               NACOS_ADMIN_PASSWORD HIGRESS_USERNAME HIGRESS_PASSWORD \
+               NACOS_USERNAME NACOS_ADMIN_PASSWORD HIGRESS_USERNAME HIGRESS_PASSWORD \
                ADMIN_USERNAME ADMIN_PASSWORD FRONT_USERNAME FRONT_PASSWORD \
                MYSQL_STORAGE_CLASS MYSQL_STORAGE_SIZE SANDBOX_STORAGE_CLASS SANDBOX_STORAGE_SIZE \
                HIGRESS_INGRESS_CLASS HIMARKET_LANGUAGE \
-               SKIP_MCP_INIT SKIP_SKILL_INIT SKIP_HOOK_ERRORS \
-               SKIP_AI_MODEL_INIT AI_MODEL_COUNT; do
+               SKIP_HOOK_ERRORS \
+               SKIP_AI_MODEL_INIT AI_MODEL_COUNT SKIP_NACOS_SYNC; do
         eval "local _val=\"\${${var}:-}\""
         if [[ -n "${_val}" ]]; then
             saved_vars="${saved_vars} ${var}='${_val}'"
@@ -745,9 +761,10 @@ interactive_config() {
         log "$(msg section.image)"
         prompt HIMARKET_IMAGE_TAG "HiMarket image tag" "${HIMARKET_IMAGE_TAG:-latest}"
         prompt HIMARKET_MYSQL_IMAGE_TAG "MySQL image tag" "${HIMARKET_MYSQL_IMAGE_TAG:-latest}"
-        prompt NACOS_VERSION "Nacos version" "${NACOS_VERSION:-v3.2.0-BETA}"
+        prompt NACOS_VERSION "Nacos version" "${NACOS_VERSION:-v3.2.0}"
 
-        # 其他配置沿用已有值（从配置文件加载或回退默认值）
+        # 其他配置沿用已有值（从配置文件加载）
+        # 注意：回退默认值保留旧版硬编码值，仅用于兼容 env 文件缺失的已有部署
         NAMESPACE="${NAMESPACE:-himarket}"
         HIMARKET_HUB="${HIMARKET_HUB:-opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group}"
         NACOS_IMAGE_REGISTRY="${NACOS_IMAGE_REGISTRY:-nacos-registry.cn-hangzhou.cr.aliyuncs.com}"
@@ -758,6 +775,7 @@ interactive_config() {
         if [[ -z "${JWT_SECRET:-}" ]]; then
             JWT_SECRET="$(openssl rand -base64 32)"
         fi
+        NACOS_USERNAME="${NACOS_USERNAME:-nacos}"
         NACOS_ADMIN_PASSWORD="${NACOS_ADMIN_PASSWORD:-nacos}"
         HIGRESS_USERNAME="${HIGRESS_USERNAME:-admin}"
         HIGRESS_PASSWORD="${HIGRESS_PASSWORD:-admin}"
@@ -770,21 +788,6 @@ interactive_config() {
         SANDBOX_STORAGE_CLASS="${SANDBOX_STORAGE_CLASS:-alicloud-disk-essd}"
         SANDBOX_STORAGE_SIZE="${SANDBOX_STORAGE_SIZE:-50Gi}"
         HIGRESS_INGRESS_CLASS="${HIGRESS_INGRESS_CLASS:-himarket}"
-        if [[ "${NON_INTERACTIVE}" != "1" ]]; then
-            log ""
-            log "$(msg section.init)"
-            local skip_mcp_answer=""
-            read -r -p "$(msg install.skip_mcp_init) " skip_mcp_answer
-            [[ "${skip_mcp_answer}" =~ ^[Yy]$ ]] && SKIP_MCP_INIT="true" || SKIP_MCP_INIT="false"
-
-            local skip_skill_answer=""
-            read -r -p "$(msg install.skip_skill_init) " skip_skill_answer
-            [[ "${skip_skill_answer}" =~ ^[Yy]$ ]] && SKIP_SKILL_INIT="true" || SKIP_SKILL_INIT="false"
-        else
-            SKIP_MCP_INIT="${SKIP_MCP_INIT:-true}"
-            SKIP_SKILL_INIT="${SKIP_SKILL_INIT:-true}"
-        fi
-        export SKIP_MCP_INIT SKIP_SKILL_INIT
         SKIP_AI_MODEL_INIT="${SKIP_AI_MODEL_INIT:-true}"
         export SKIP_AI_MODEL_INIT AI_MODEL_COUNT
         local _ei
@@ -795,41 +798,42 @@ interactive_config() {
         done
     else
     # ─── 分组交互式提示（全新安装 / 重新安装）───
+    ensure_secrets
+
     log ""
     log "$(msg section.basic)"
-    prompt NAMESPACE "Kubernetes namespace" "himarket"
+    prompt NAMESPACE "Kubernetes namespace" "himarket-system"
 
     log ""
     log "$(msg section.image)"
     prompt HIMARKET_HUB "HiMarket image hub" "opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group"
     prompt HIMARKET_IMAGE_TAG "HiMarket image tag" "latest"
     prompt HIMARKET_MYSQL_IMAGE_TAG "MySQL image tag" "latest"
-    prompt NACOS_VERSION "Nacos version" "v3.2.0-BETA"
+    prompt NACOS_VERSION "Nacos version" "v3.2.0"
     prompt NACOS_IMAGE_REGISTRY "Nacos image registry" "nacos-registry.cn-hangzhou.cr.aliyuncs.com"
     prompt NACOS_IMAGE_REPOSITORY "Nacos image repository" "nacos/nacos-server"
 
+    # ─── 数据库密码（首次安装时已自动生成随机值） ───
     log ""
     log "$(msg section.db)"
-    prompt MYSQL_ROOT_PASSWORD "MySQL root password" "himarket_root_2024"
-    prompt MYSQL_PASSWORD "MySQL app password" "himarket_app_2024"
+    prompt MYSQL_ROOT_PASSWORD "MySQL root password" "${MYSQL_ROOT_PASSWORD:-}"
+    prompt MYSQL_PASSWORD "MySQL app password" "${MYSQL_PASSWORD:-}"
 
-    # JWT Secret: 自动生成随机值（无需用户交互）
-    if [[ -z "${JWT_SECRET:-}" ]]; then
-        JWT_SECRET="$(openssl rand -base64 32)"
-    fi
-
+    # ─── 服务凭证（首次安装时已自动生成随机值） ───
     log ""
     log "$(msg section.credential)"
-    prompt NACOS_ADMIN_PASSWORD "Nacos admin password" "nacos"
+    prompt NACOS_USERNAME "Nacos admin username" "nacos"
+    prompt NACOS_ADMIN_PASSWORD "Nacos admin password" "${NACOS_ADMIN_PASSWORD:-}"
     prompt HIGRESS_USERNAME "Higress console username" "admin"
-    prompt HIGRESS_PASSWORD "Higress console password" "admin"
+    prompt HIGRESS_PASSWORD "Higress console password" "${HIGRESS_PASSWORD:-}"
 
+    # ─── 默认用户（首次安装时密码已自动生成随机值） ───
     log ""
     log "$(msg section.user)"
     prompt ADMIN_USERNAME "Admin username" "admin"
-    prompt ADMIN_PASSWORD "Admin password" "admin"
+    prompt ADMIN_PASSWORD "Admin password" "${ADMIN_PASSWORD:-}"
     prompt FRONT_USERNAME "Developer username" "user"
-    prompt FRONT_PASSWORD "Developer password" "123456"
+    prompt FRONT_PASSWORD "Developer password" "${FRONT_PASSWORD:-}"
 
     log ""
     log "$(msg section.storage)"
@@ -838,22 +842,6 @@ interactive_config() {
     prompt SANDBOX_STORAGE_CLASS "Sandbox StorageClass" "alicloud-disk-essd"
     prompt SANDBOX_STORAGE_SIZE "Sandbox storage size" "50Gi"
     prompt HIGRESS_INGRESS_CLASS "Higress IngressClass" "himarket"
-
-    log ""
-    log "$(msg section.init)"
-    if [[ "${NON_INTERACTIVE}" != "1" ]]; then
-        local skip_mcp_answer=""
-        read -r -p "$(msg install.skip_mcp_init) " skip_mcp_answer
-        [[ "${skip_mcp_answer}" =~ ^[Yy]$ ]] && SKIP_MCP_INIT="true" || SKIP_MCP_INIT="false"
-
-        local skip_skill_answer=""
-        read -r -p "$(msg install.skip_skill_init) " skip_skill_answer
-        [[ "${skip_skill_answer}" =~ ^[Yy]$ ]] && SKIP_SKILL_INIT="true" || SKIP_SKILL_INIT="false"
-    else
-        SKIP_MCP_INIT="${SKIP_MCP_INIT:-false}"
-        SKIP_SKILL_INIT="${SKIP_SKILL_INIT:-false}"
-    fi
-    export SKIP_MCP_INIT SKIP_SKILL_INIT
 
     # ─── AI 模型配置（可选，支持多个）───
     log ""
@@ -957,8 +945,6 @@ interactive_config() {
     log "  SANDBOX_STORAGE:   ${SANDBOX_STORAGE_CLASS} / ${SANDBOX_STORAGE_SIZE}"
     log "  NACOS_VERSION:     ${NACOS_VERSION}"
     log "  HIGRESS_INGRESS:   ${HIGRESS_INGRESS_CLASS}"
-    log "  SKIP_MCP_INIT:     ${SKIP_MCP_INIT}"
-    log "  SKIP_SKILL_INIT:   ${SKIP_SKILL_INIT}"
     log "  SKIP_AI_MODEL_INIT:${SKIP_AI_MODEL_INIT}"
     if [[ "${SKIP_AI_MODEL_INIT}" != "true" ]]; then
         log "  AI_MODEL_COUNT:    ${AI_MODEL_COUNT:-0}"
@@ -1022,6 +1008,7 @@ MYSQL_PASSWORD="${MYSQL_PASSWORD}"
 JWT_SECRET="${JWT_SECRET}"
 
 # ========== 服务凭证 ==========
+NACOS_USERNAME="${NACOS_USERNAME}"
 NACOS_ADMIN_PASSWORD="${NACOS_ADMIN_PASSWORD}"
 HIGRESS_USERNAME="${HIGRESS_USERNAME}"
 HIGRESS_PASSWORD="${HIGRESS_PASSWORD}"
@@ -1040,10 +1027,6 @@ SANDBOX_STORAGE_SIZE="${SANDBOX_STORAGE_SIZE}"
 
 # ========== Higress IngressClass ==========
 HIGRESS_INGRESS_CLASS="${HIGRESS_INGRESS_CLASS}"
-
-# ========== 初始化选项 ==========
-SKIP_MCP_INIT="${SKIP_MCP_INIT}"
-SKIP_SKILL_INIT="${SKIP_SKILL_INIT}"
 
 # ========== AI 模型配置 ==========
 SKIP_AI_MODEL_INIT="${SKIP_AI_MODEL_INIT:-true}"
@@ -1219,7 +1202,7 @@ show_result_panel() {
     log "║"
     log "║  Admin login:      ${ADMIN_USERNAME} / ${ADMIN_PASSWORD}"
     log "║  Developer login:  ${FRONT_USERNAME} / ${FRONT_PASSWORD}"
-    log "║  Nacos login:      ${NACOS_USERNAME:-nacos} / ${NACOS_ADMIN_PASSWORD}"
+    log "║  Nacos login:      ${NACOS_USERNAME} / ${NACOS_ADMIN_PASSWORD}"
     log "║  Higress login:    ${HIGRESS_USERNAME} / ${HIGRESS_PASSWORD}"
     log "║"
     if [[ "${SKIP_AI_MODEL_INIT:-true}" != "true" ]]; then
@@ -1272,6 +1255,70 @@ uninstall_all() {
 }
 
 # =============================================================================
+# 重试初始化数据
+# =============================================================================
+
+init_data() {
+    log ""
+    log "=========================================="
+    log "  重试初始化数据（跳过服务部署）"
+    log "=========================================="
+    log ""
+
+    # 加载已保存的配置
+    load_config
+
+    if [[ ! -f "${ENV_FILE}" ]]; then
+        error "未找到配置文件 ${ENV_FILE}，请先运行 $0 完成部署"
+    fi
+
+    local ns="${NAMESPACE:-himarket}"
+
+    # 验证集群连接和核心 Pod 状态
+    log "检查集群和服务状态..."
+    command -v kubectl >/dev/null 2>&1 || error "$(msg deploy.missing_cmd "kubectl")"
+    kubectl cluster-info >/dev/null 2>&1 || error "无法连接到 Kubernetes 集群"
+
+    local services_ok=true
+    for deploy in himarket-server himarket-admin himarket-frontend nacos; do
+        local ready
+        ready=$(kubectl get deployment "${deploy}" -n "${ns}" -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
+        if [[ "${ready:-0}" -lt 1 ]]; then
+            warn "Deployment ${deploy} 未就绪 (readyReplicas=${ready:-0})"
+            services_ok=false
+        fi
+    done
+
+    if [[ "${services_ok}" != "true" ]]; then
+        warn "部分服务未就绪，初始化数据可能失败"
+        if [[ "${NON_INTERACTIVE}" != "1" ]]; then
+            local answer=""
+            read -r -p "是否继续? [y/N] " answer
+            if [[ ! "${answer}" =~ ^[Yy]$ ]]; then
+                log "已取消"
+                exit 0
+            fi
+        fi
+    fi
+
+    # 执行 post_ready 钩子
+    log "开始执行数据初始化钩子..."
+    export SKIP_HOOK_ERRORS=true
+    if run_hooks "post_ready"; then
+        log ""
+        log "=========================================="
+        log "  所有初始化数据钩子执行成功"
+        log "=========================================="
+    else
+        warn ""
+        warn "=========================================="
+        warn "  部分钩子执行失败，请检查日志: ${HIMARKET_LOG_FILE}"
+        warn "=========================================="
+        exit 1
+    fi
+}
+
+# =============================================================================
 # 入口
 # =============================================================================
 
@@ -1282,6 +1329,7 @@ main() {
             load_config
             uninstall_all
             ;;
+        init-data) init_data ;;
         *) error "Unknown action: ${ACTION}" ;;
     esac
 }

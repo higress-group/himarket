@@ -49,6 +49,7 @@ export interface NacosInstance {
   nacosId: string
   nacosName: string
   serverUrl: string
+  displayServerUrl?: string
   username: string
   password?: string
   accessKey?: string

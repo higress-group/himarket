@@ -41,6 +41,8 @@ public class QueryProductParam {
 
     private ModelFilter modelFilter;
 
+    private ProductSortBy sortBy;
+
     /**
      * Check if any type-specific filter is present
      */

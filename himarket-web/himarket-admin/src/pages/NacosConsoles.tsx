@@ -114,11 +114,11 @@ export default function NacosConsoles() {
     form.setFieldsValue({
       nacosName: record.nacosName,
       serverUrl: record.serverUrl,
+      displayServerUrl: record.displayServerUrl,
       username: record.username,
       password: record.password,
       accessKey: record.accessKey,
       secretKey: record.secretKey,
-      description: record.description,
     })
     setModalVisible(true)
   }
@@ -207,23 +207,12 @@ export default function NacosConsoles() {
       ),
     },
     {
-      title: '用户名',
-      dataIndex: 'username',
-      key: 'username',
-    },
-    {
-      title: '描述',
-      dataIndex: 'description',
-      key: 'description',
-      ellipsis: true,
-    },
-    {
       title: '创建时间',
       dataIndex: 'createAt',
       key: 'createAt',
       render: (val: any, record: NacosInstance) => {
         const t = val ?? record.createAt ?? (record as any).createTime ?? (record as any).gmtCreate
-        return t ? dayjs(t).format('YYYY/MM/DD HH:mm:ss') : '-'
+        return t ? dayjs(t).format('YYYY-MM-DD HH:mm:ss') : '-'
       },
     },
     {
@@ -341,6 +330,10 @@ export default function NacosConsoles() {
           </Form.Item>
       {/* 命名空间字段已移除 */}
 
+          <Form.Item name="displayServerUrl" label="展示地址">
+            <Input placeholder="可选，用于前台下载命令展示的公网地址，如 http://nacos.example.com:8848" />
+          </Form.Item>
+
           {/* 用户名/密码改为非必填 */}
           <Form.Item name="username" label="用户名" rules={[]}>
             <Input placeholder="请输入Nacos用户名（可选）" />
@@ -362,16 +355,6 @@ export default function NacosConsoles() {
               </Form.Item>
             </>
           )}
-
-          <Form.Item
-            name="description"
-            label="描述"
-          >
-            <Input.TextArea
-              rows={3}
-              placeholder="请输入实例描述（可选）"
-            />
-          </Form.Item>
         </Form>
       </Modal>
 

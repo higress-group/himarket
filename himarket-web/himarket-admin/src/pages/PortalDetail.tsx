@@ -9,7 +9,7 @@ import {
   TeamOutlined,
   SafetyOutlined,
   CloudOutlined,
-  AppstoreOutlined
+  MenuUnfoldOutlined
 } from '@ant-design/icons'
 import { PortalOverview } from '@/components/portal/PortalOverview'
 import { PortalPublishedApis } from '@/components/portal/PortalPublishedApis'
@@ -57,8 +57,8 @@ const menuItems = [
   {
     key: "menu",
     label: "Menu",
-    icon: AppstoreOutlined,
-    description: "菜单显隐管理"
+    icon: MenuUnfoldOutlined,
+    description: "菜单管理"
   },
   // {
   //   key: "consumers",

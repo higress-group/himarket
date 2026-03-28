@@ -1,4 +1,5 @@
 import { DownloadOutlined } from "@ant-design/icons";
+import { ProductIconRenderer } from "../icon/ProductIconRenderer";
 
 interface SkillCardProps {
   name: string;
@@ -6,6 +7,7 @@ interface SkillCardProps {
   releaseDate: string;
   skillTags?: string[];
   downloadCount?: number;
+  icon?: string;
   onClick?: () => void;
 }
 
@@ -15,28 +17,38 @@ export function SkillCard({
   releaseDate,
   skillTags = [],
   downloadCount,
+  icon,
   onClick,
 }: SkillCardProps) {
   return (
     <div
       onClick={onClick}
       className="
-        bg-white/60 backdrop-blur-sm rounded-2xl p-5
-        border border-white/40
+        group bg-white/70 backdrop-blur-sm rounded-2xl p-5
+        border border-gray-100/80
         cursor-pointer
-        transition-all duration-300 ease-in-out
-        hover:bg-white hover:shadow-md hover:scale-[1.02] hover:border-gray-300/60
-        active:scale-[0.98]
+        transition-all duration-300 ease-out
+        hover:bg-white hover:shadow-lg hover:shadow-gray-200/50 hover:-translate-y-0.5 hover:border-gray-200/60
+        active:scale-[0.98] active:duration-150
         h-[200px] flex flex-col
       "
     >
-      {/* 名称 */}
-      <h3 className="text-base font-semibold text-gray-900 truncate mb-3">
-        {name}
-      </h3>
+      {/* 图标 + 名称 + 下载数 */}
+      <div className="flex items-center gap-3 mb-3">
+        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-colorPrimary/10 to-colorPrimary/5 flex items-center justify-center flex-shrink-0 overflow-hidden">
+          <ProductIconRenderer className="w-full h-full object-cover" iconType={icon} />
+        </div>
+        <h3 className="text-base font-semibold text-gray-800 truncate flex-1 group-hover:text-gray-900 transition-colors">
+          {name}
+        </h3>
+        <span className="flex items-center gap-1.5 text-gray-400 text-sm">
+          <DownloadOutlined className="text-sm text-gray-400" />
+          {downloadCount ?? 0}
+        </span>
+      </div>
 
       {/* 简介 */}
-      <p className="text-sm line-clamp-3 leading-relaxed text-[#a3a3a3] flex-1">
+      <p className="text-sm line-clamp-3 leading-relaxed text-gray-500 flex-1">
         {description}
       </p>
 
@@ -47,7 +59,7 @@ export function SkillCard({
             {(skillTags ?? []).slice(0, 3).map(tag => (
               <span
                 key={tag}
-                className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-500 whitespace-nowrap"
+                className="px-2 py-0.5 rounded-md text-[11px] font-medium bg-gray-50 text-gray-500 whitespace-nowrap border border-gray-100"
               >
                 {tag}
               </span>
@@ -55,14 +67,8 @@ export function SkillCard({
           </div>
         )}
 
-        <div className="flex items-center justify-end gap-2 text-[#a3a3a3] text-xs">
-          {downloadCount != null && downloadCount > 0 && (
-            <span className="flex items-center gap-0.5">
-              <DownloadOutlined className="text-[10px]" />
-              {downloadCount}
-            </span>
-          )}
-          <span>{releaseDate}</span>
+        <div className="flex items-center justify-end text-gray-400 text-xs">
+          <span className="tabular-nums tracking-tight">{releaseDate}</span>
         </div>
       </div>
     </div>

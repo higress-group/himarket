@@ -21,6 +21,7 @@ package com.alibaba.himarket.controller;
 
 import com.alibaba.himarket.core.annotation.AdminAuth;
 import com.alibaba.himarket.core.annotation.DeveloperAuth;
+import com.alibaba.himarket.core.annotation.PublicAccess;
 import com.alibaba.himarket.dto.params.admin.ResetPasswordParam;
 import com.alibaba.himarket.dto.params.developer.*;
 import com.alibaba.himarket.dto.params.login.LoginParam;
@@ -73,9 +74,9 @@ public class DeveloperController {
         return developerService.listDevelopers(param, pageable);
     }
 
-    @Operation(summary = "获取当前开发者信息", description = "开发者功能：获取当前登录开发者的个人信息")
+    @Operation(summary = "获取当前开发者信息", description = "获取当前登录开发者的个人信息，未登录返回 null")
     @GetMapping("/profile")
-    @DeveloperAuth
+    @PublicAccess
     public DeveloperResult getCurrentDeveloperInfo() {
         return developerService.getCurrentDeveloperInfo();
     }
@@ -83,10 +84,8 @@ public class DeveloperController {
     @Operation(summary = "开发者修改密码", description = "修改当前登录开发者的密码")
     @PatchMapping("/password")
     @DeveloperAuth
-    public String changePassword(@RequestBody ResetPasswordParam param) {
-        developerService.changeCurrentDeveloperPassword(
-                param.getOldPassword(), param.getNewPassword());
-        return "修改密码成功";
+    public void changePassword(@RequestBody ResetPasswordParam param) {
+        developerService.resetDeveloperPassword(param.getOldPassword(), param.getNewPassword());
     }
 
     @Operation(summary = "开发者更新个人信息", description = "开发者功能：更新当前登录开发者的个人信息")

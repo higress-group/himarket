@@ -47,4 +47,6 @@ public class CreateNacosParam implements InputConverter<NacosInstance> {
     private String secretKey;
 
     private String description;
+
+    private String displayServerUrl;
 }

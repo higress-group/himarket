@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useMemo, type ReactNode } from "react";
-import { getPortalUiConfig } from "../lib/apis/portal";
+import { getPortalProfile } from "../lib/apis/portal";
 
 export interface TabItem {
   key: string;
@@ -15,9 +15,11 @@ const ALL_TABS: TabItem[] = [
   { key: "models", path: "/models", label: "模型" },
   { key: "apis", path: "/apis", label: "API" },
   { key: "skills", path: "/skills", label: "Skills" },
+  { key: "workers", path: "/workers", label: "Workers" },
 ];
 
 interface PortalConfigContextValue {
+  portalId: string;
   isMenuVisible: (key: string) => boolean;
   visibleTabs: TabItem[];
   firstVisiblePath: string;
@@ -25,6 +27,7 @@ interface PortalConfigContextValue {
 }
 
 const PortalConfigContext = createContext<PortalConfigContextValue>({
+  portalId: '',
   isMenuVisible: () => true,
   visibleTabs: ALL_TABS,
   firstVisiblePath: "/models",
@@ -36,25 +39,30 @@ export function usePortalConfig() {
 }
 
 export function PortalConfigProvider({ children }: { children: ReactNode }) {
+  const [portalId, setPortalId] = useState('');
   const [menuVisibility, setMenuVisibility] = useState<Record<string, boolean> | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    getPortalUiConfig()
+  const fetchConfig = () => {
+    getPortalProfile()
       .then((res) => {
         console.log("[PortalConfig] API response:", JSON.stringify(res));
-        const mv = res.data?.menuVisibility ?? null;
+        setPortalId(res.data?.portalId || '');
+        const mv = res.data?.portalUiConfig?.menuVisibility ?? null;
         console.log("[PortalConfig] menuVisibility:", JSON.stringify(mv));
         setMenuVisibility(mv);
       })
       .catch((err) => {
-        // 接口失败时静默降级，全部菜单显示
         console.warn("[PortalConfig] API failed:", err);
         setMenuVisibility(null);
       })
       .finally(() => {
         setLoading(false);
       });
+  };
+
+  useEffect(() => {
+    fetchConfig();
   }, []);
 
   const isMenuVisible = (key: string): boolean => {
@@ -74,7 +82,7 @@ export function PortalConfigProvider({ children }: { children: ReactNode }) {
   );
 
   return (
-    <PortalConfigContext.Provider value={{ isMenuVisible, visibleTabs, firstVisiblePath, loading }}>
+    <PortalConfigContext.Provider value={{ portalId, isMenuVisible, visibleTabs, firstVisiblePath, loading }}>
       {children}
     </PortalConfigContext.Provider>
   );

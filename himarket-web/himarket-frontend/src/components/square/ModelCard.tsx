@@ -15,15 +15,14 @@ export function ModelCard({ icon, name, description, company, releaseDate, onCli
     <div
       onClick={onClick}
       className="
-        bg-white/60 backdrop-blur-sm rounded-2xl p-5
-        border border-white/40
+        group bg-white/70 backdrop-blur-sm rounded-2xl p-5
+        border border-gray-100/80
         cursor-pointer
-        transition-all duration-300 ease-in-out
-        hover:bg-white hover:shadow-md hover:scale-[1.02] hover:border-colorPrimary/30
-        active:scale-[0.98]
+        transition-all duration-300 ease-out
+        hover:bg-white hover:shadow-lg hover:shadow-gray-200/50 hover:-translate-y-0.5 hover:border-gray-200/60
+        active:scale-[0.98] active:duration-150
         relative
         overflow-hidden
-        group
         h-[200px]
         flex flex-col
       "
@@ -33,20 +32,20 @@ export function ModelCard({ icon, name, description, company, releaseDate, onCli
         <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-colorPrimary/10 to-colorPrimary/5 flex items-center justify-center flex-shrink-0 overflow-hidden">
           <ProductIconRenderer className="w-full h-full object-cover" iconType={icon} />
         </div>
-        <h3 className="text-base font-semibold text-gray-900 truncate flex-1">{name}</h3>
+        <h3 className="text-base font-semibold text-gray-800 truncate flex-1 group-hover:text-gray-900 transition-colors">{name}</h3>
       </div>
 
       {/* 中部：简介（固定两行） */}
-      <p className="max-h-12 text-sm mb-4 line-clamp-2 leading-relaxed flex-1 text-[#a3a3a3]" >
+      <p className="max-h-12 text-sm mb-4 line-clamp-2 leading-relaxed flex-1 text-gray-500" >
         {description}
       </p>
 
       {/* 底部：公司和发布日期 - 只有在有按钮时才在 hover 时淡出 */}
       <div className={`h-10 flex items-center justify-between text-xs transition-opacity duration-300 ${onTryNow ? 'group-hover:opacity-0' : ''}`}>
         {company ? (
-          <span className="truncate text-[#a3a3a3]" >{company}</span>
+          <span className="truncate text-gray-500" >{company}</span>
         ) : null}
-        <span className="flex-shrink-0 text-[#a3a3a3]" >{releaseDate}</span>
+        <span className="flex-shrink-0 text-gray-400 tabular-nums tracking-tight" >{releaseDate}</span>
       </div>
 
       {/* 底部按钮组 - hover 时淡入 + 轻微上移 */}

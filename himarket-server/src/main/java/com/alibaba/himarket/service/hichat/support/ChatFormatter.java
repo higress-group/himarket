@@ -47,6 +47,9 @@ import reactor.core.publisher.Flux;
 @Slf4j
 public class ChatFormatter {
 
+    /** Tracks whether any text content has been streamed (via isLast=false REASONING events) */
+    private boolean hasStreamedText = false;
+
     public Flux<ChatEvent> format(Event event, ChatContext chatContext) {
         try {
             Msg msg = event.getMessage();
@@ -105,12 +108,22 @@ public class ChatFormatter {
         if (StrUtil.isNotBlank(textContent)) {
             if (isLast) {
                 getUsage(msg, chatContext);
-                // Skip final complete text to avoid duplication
-                log.debug(
-                        "Skipping final complete text (isLast=true, length={})",
-                        textContent.length());
+                if (hasStreamedText) {
+                    // Streaming chunks were already sent, skip to avoid duplication
+                    log.debug(
+                            "Skipping final complete text (already streamed, length={})",
+                            textContent.length());
+                } else {
+                    // No streaming chunks were sent (e.g., simple/short answers),
+                    // emit the final text so the frontend receives content
+                    log.debug(
+                            "Emitting final text as no streaming chunks were sent (length={})",
+                            textContent.length());
+                    chunks.add(ChatEvent.text(chatId, textContent));
+                }
             } else {
                 // Send incremental chunks for streaming
+                hasStreamedText = true;
                 chunks.add(ChatEvent.text(chatId, textContent));
             }
         }

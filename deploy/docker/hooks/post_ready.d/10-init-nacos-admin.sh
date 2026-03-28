@@ -11,6 +11,7 @@ if [[ -f "${ENV_FILE}" ]]; then
   set -a; . "${ENV_FILE}"; set +a
 fi
 
+NACOS_USERNAME="${NACOS_USERNAME:-nacos}"
 NACOS_ADMIN_PASSWORD="${NACOS_ADMIN_PASSWORD:-nacos}"
 
 log() { echo "[init-nacos-admin $(date +'%H:%M:%S')] $*"; }
@@ -64,7 +65,7 @@ while (( attempt <= max_attempts )); do
       log "请使用已有凭据登录 Nacos Console: http://${NACOS_HOST}:8848/nacos"
     else
       log "Nacos 管理员密码初始化成功！"
-      log "用户名: nacos"
+      log "用户名: ${NACOS_USERNAME}"
       log "密码: ${NACOS_ADMIN_PASSWORD}"
       log "访问地址: http://${NACOS_HOST}:8848/nacos"
     fi

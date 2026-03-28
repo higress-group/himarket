@@ -299,7 +299,7 @@ export default function Consoles() {
             label: 'Higress 网关',
             children: (
               <div className="bg-white rounded-lg">
-                <div className="py-4 pl-4 border-b border-gray-200">
+                <div className="py-4 pl-4">
                   <h3 className="text-lg font-medium text-gray-900">Higress 网关</h3>
                   <p className="text-sm text-gray-500 mt-1">Higress 云原生网关</p>
                 </div>
@@ -327,7 +327,7 @@ export default function Consoles() {
             label: 'API 网关',
             children: (
               <div className="bg-white rounded-lg">
-                <div className="py-4 pl-4 border-b border-gray-200">
+                <div className="py-4 pl-4">
                   <h3 className="text-lg font-medium text-gray-900">API 网关</h3>
                   <p className="text-sm text-gray-500 mt-1">阿里云 API 网关服务</p>
                 </div>
@@ -355,7 +355,7 @@ export default function Consoles() {
             label: 'AI 网关',
             children: (
               <div className="bg-white rounded-lg">
-                <div className="py-4 pl-4 border-b border-gray-200">
+                <div className="py-4 pl-4">
                   <h3 className="text-lg font-medium text-gray-900">AI 网关</h3>
                   <p className="text-sm text-gray-500 mt-1">阿里云 AI 网关服务</p>
                 </div>
@@ -383,7 +383,7 @@ export default function Consoles() {
             label: '专有云 AI 网关',
             children: (
               <div className="bg-white rounded-lg">
-                <div className="py-4 pl-4 border-b border-gray-200">
+                <div className="py-4 pl-4">
                   <h3 className="text-lg font-medium text-gray-900">AI 网关</h3>
                   <p className="text-sm text-gray-500 mt-1">专有云 AI 网关服务</p>
                 </div>
@@ -411,7 +411,7 @@ export default function Consoles() {
             label: '飞天企业版 AI 网关',
             children: (
               <div className="bg-white rounded-lg">
-                <div className="py-4 pl-4 border-b border-gray-200">
+                <div className="py-4 pl-4">
                   <h3 className="text-lg font-medium text-gray-900">飞天企业版 AI 网关</h3>
                   <p className="text-sm text-gray-500 mt-1">阿里云飞天企业版 AI 网关服务</p>
                 </div>

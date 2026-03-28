@@ -27,6 +27,7 @@ import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.event.PortalDeletingEvent;
 import com.alibaba.himarket.core.event.ProductConfigReloadEvent;
 import com.alibaba.himarket.core.event.ProductDeletingEvent;
+import com.alibaba.himarket.core.event.ProductQueriedEvent;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.core.security.ContextHolder;
@@ -61,6 +62,7 @@ import com.alibaba.himarket.support.enums.SourceType;
 import com.alibaba.himarket.support.product.NacosRefConfig;
 import com.alibaba.himarket.support.product.ProductFeature;
 import com.alibaba.himarket.support.product.SkillConfig;
+import com.alibaba.himarket.support.product.WorkerConfig;
 import com.github.benmanes.caffeine.cache.Cache;
 import io.agentscope.core.tool.mcp.McpClientWrapper;
 import jakarta.persistence.criteria.Predicate;
@@ -137,26 +139,8 @@ public class ProductServiceImpl implements ProductService {
         product.setProductId(productId);
         product.setAdminId(contextHolder.getUser());
 
-        // AGENT_SKILL products are immediately ready (no gateway/nacos binding needed)
-        if (param.getType() == ProductType.AGENT_SKILL) {
-            product.setStatus(ProductStatus.READY);
-            // 自动绑定默认 Nacos 实例
-            NacosResult defaultNacos = nacosService.getDefaultNacosInstance();
-            if (defaultNacos != null) {
-                ProductFeature feature = product.getFeature();
-                if (feature == null) {
-                    feature = new ProductFeature();
-                    product.setFeature(feature);
-                }
-                SkillConfig skillConfig = feature.getSkillConfig();
-                if (skillConfig == null) {
-                    skillConfig = new SkillConfig();
-                    feature.setSkillConfig(skillConfig);
-                }
-                skillConfig.setNacosId(defaultNacos.getNacosId());
-                skillConfig.setNamespace(defaultNacos.getDefaultNamespace());
-            }
-        }
+        // Set feature for AGENT_SKILL / WORKER products
+        initDefaultFeature(product);
 
         validateModelFeature(product.getType(), product.getFeature());
 
@@ -166,6 +150,37 @@ public class ProductServiceImpl implements ProductService {
         setProductCategories(productId, param.getCategories());
 
         return getProduct(productId);
+    }
+
+    private void initDefaultFeature(Product product) {
+        ProductType productType = product.getType();
+        if (productType != ProductType.AGENT_SKILL && productType != ProductType.WORKER) {
+            return;
+        }
+
+        NacosResult nacos = nacosService.getDefaultNacosInstance();
+        if (nacos == null) {
+            return;
+        }
+
+        ProductFeature feature =
+                Optional.ofNullable(product.getFeature()).orElse(ProductFeature.builder().build());
+
+        if (productType == ProductType.AGENT_SKILL) {
+            feature.setSkillConfig(
+                    SkillConfig.builder()
+                            .nacosId(nacos.getNacosId())
+                            .namespace(nacos.getDefaultNamespace())
+                            .build());
+        } else {
+            feature.setWorkerConfig(
+                    WorkerConfig.builder()
+                            .nacosId(nacos.getNacosId())
+                            .namespace(nacos.getDefaultNamespace())
+                            .build());
+        }
+
+        product.setFeature(feature);
     }
 
     @Override
@@ -196,7 +211,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public PageResult<ProductResult> listProducts(QueryProductParam param, Pageable pageable) {
-        if (contextHolder.isDeveloper()) {
+        if (!contextHolder.isAdministrator()) {
             param.setPortalId(contextHolder.getPortal());
         }
 
@@ -207,6 +222,30 @@ public class ProductServiceImpl implements ProductService {
 
         if (param.getType() != null && param.hasFilter()) {
             return listProductsWithFilter(param, pageable);
+        }
+
+        // Skill/Worker: sort by download count (default) or updated time
+        if (param.getType() == ProductType.AGENT_SKILL || param.getType() == ProductType.WORKER) {
+            if (param.getSortBy() == null || param.getSortBy() == ProductSortBy.DOWNLOAD_COUNT) {
+                return listProductsSortedByDownloadCount(param, pageable);
+            }
+            // UPDATED_AT: use DB-level sort
+            Pageable sortedPageable =
+                    org.springframework.data.domain.PageRequest.of(
+                            pageable.getPageNumber(),
+                            pageable.getPageSize(),
+                            org.springframework.data.domain.Sort.by(
+                                    org.springframework.data.domain.Sort.Direction.DESC,
+                                    "updatedAt"));
+            Page<Product> page =
+                    productRepository.findAll(buildSpecification(param), sortedPageable);
+            List<ProductResult> results =
+                    page.stream()
+                            .map(product -> new ProductResult().convertFrom(product))
+                            .collect(Collectors.toList());
+            fillProducts(results);
+            return PageResult.of(
+                    results, page.getNumber() + 1, page.getSize(), page.getTotalElements());
         }
 
         Page<Product> page = productRepository.findAll(buildSpecification(param), pageable);
@@ -260,11 +299,6 @@ public class ProductServiceImpl implements ProductService {
 
         Product product = findProduct(productId);
         product.setStatus(ProductStatus.PUBLISHED);
-
-        // AGENT_SKILL products don't require a ProductRef (no gateway/nacos binding needed)
-        if (product.getType() != ProductType.AGENT_SKILL && getProductRef(productId) == null) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "API product not linked to API");
-        }
 
         ProductPublication productPublication = new ProductPublication();
         productPublication.setPublicationId(IdGenerator.genPublicationId());
@@ -346,6 +380,9 @@ public class ProductServiceImpl implements ProductService {
     public void deleteProduct(String productId) {
         Product product = findProduct(productId);
 
+        // Block deletion if WORKER/AGENT_SKILL still has versions in Nacos
+        checkDeletePermission(product);
+
         // Delete after unpublishing
         publicationRepository.deleteByProductId(productId);
 
@@ -362,6 +399,32 @@ public class ProductServiceImpl implements ProductService {
 
         // Asynchronously clean up product resources
         SpringUtil.getApplicationContext().publishEvent(new ProductDeletingEvent(productId));
+    }
+
+    private void checkDeletePermission(Product product) {
+        ProductFeature feature = product.getFeature();
+        if (feature == null) {
+            return;
+        }
+
+        String specName =
+                switch (product.getType()) {
+                    case WORKER ->
+                            Optional.ofNullable(feature.getWorkerConfig())
+                                    .map(WorkerConfig::getAgentSpecName)
+                                    .orElse(null);
+                    case AGENT_SKILL ->
+                            Optional.ofNullable(feature.getSkillConfig())
+                                    .map(SkillConfig::getSkillName)
+                                    .orElse(null);
+                    default -> null;
+                };
+
+        if (StrUtil.isNotBlank(specName)) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST,
+                    "Please delete all versions before deleting the product.");
+        }
     }
 
     private void validateModelFeature(ProductType type, ProductFeature feature) {
@@ -614,27 +677,33 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public void updateSkillNacos(String productId, String nacosId, String namespace) {
+    public void bindProductNacos(String productId, BindNacosParam param) {
         Product product = findProduct(productId);
-        if (product.getType() != ProductType.AGENT_SKILL) {
-            throw new BusinessException(
-                    ErrorCode.INVALID_REQUEST, "Only AGENT_SKILL products can update skill nacos");
+        if (product.getType() != ProductType.AGENT_SKILL
+                && product.getType() != ProductType.WORKER) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "Product type is not supported");
         }
-        // Verify nacos instance exists
-        nacosService.getNacosInstance(nacosId);
 
-        ProductFeature feature = product.getFeature();
-        if (feature == null) {
-            feature = new ProductFeature();
-            product.setFeature(feature);
+        nacosService.getNacosInstance(param.getNacosId());
+
+        ProductFeature feature =
+                Optional.ofNullable(product.getFeature()).orElse(ProductFeature.builder().build());
+
+        if (product.getType() == ProductType.AGENT_SKILL) {
+            feature.setSkillConfig(
+                    SkillConfig.builder()
+                            .nacosId(param.getNacosId())
+                            .namespace(param.getNamespace())
+                            .build());
+        } else {
+            feature.setWorkerConfig(
+                    WorkerConfig.builder()
+                            .nacosId(param.getNacosId())
+                            .namespace(param.getNamespace())
+                            .build());
         }
-        SkillConfig skillConfig = feature.getSkillConfig();
-        if (skillConfig == null) {
-            skillConfig = new SkillConfig();
-            feature.setSkillConfig(skillConfig);
-        }
-        skillConfig.setNacosId(nacosId);
-        skillConfig.setNamespace(namespace);
+
+        product.setFeature(feature);
         productRepository.save(product);
     }
 
@@ -835,13 +904,39 @@ public class ProductServiceImpl implements ProductService {
             if (product.getFeature() != null && product.getFeature().getSkillConfig() != null) {
                 product.setSkillConfig(product.getFeature().getSkillConfig());
             }
+
+            // Fill agent spec config from feature
+            if (product.getFeature() != null && product.getFeature().getWorkerConfig() != null) {
+                product.setWorkerConfig(product.getFeature().getWorkerConfig());
+            }
+        }
+
+        // Publish event to trigger async download count sync
+        publishDownloadCountSyncEvent(products);
+    }
+
+    /**
+     * Publish event to trigger async download count sync for skill/worker products.
+     */
+    private void publishDownloadCountSyncEvent(List<ProductResult> products) {
+        List<String> productIds =
+                products.stream()
+                        .filter(
+                                p ->
+                                        p.getType() == ProductType.AGENT_SKILL
+                                                || p.getType() == ProductType.WORKER)
+                        .map(ProductResult::getProductId)
+                        .toList();
+
+        if (!productIds.isEmpty()) {
+            SpringUtil.publishEvent(new ProductQueriedEvent(productIds));
         }
     }
 
     /**
      * Fill product config from product reference.
      *
-     * @param product the product result to fill
+     * @param product    the product result to fill
      * @param productRef the product reference containing config data
      */
     private void fillProductConfig(ProductResult product, ProductRef productRef) {
@@ -1139,10 +1234,62 @@ public class ProductServiceImpl implements ProductService {
     }
 
     /**
+     * List skill/worker products sorted by download count (descending).
+     * Uses in-memory sorting since downloadCount is stored inside the feature JSON column.
+     */
+    private PageResult<ProductResult> listProductsSortedByDownloadCount(
+            QueryProductParam param, Pageable pageable) {
+        List<Product> allProducts = productRepository.findAll(buildSpecification(param));
+
+        if (CollUtil.isEmpty(allProducts)) {
+            return PageResult.empty(pageable.getPageNumber(), pageable.getPageSize());
+        }
+
+        // Sort by download count descending (null treated as 0)
+        allProducts.sort(
+                Comparator.comparingLong((Product p) -> getDownloadCount(p, param.getType()))
+                        .reversed());
+
+        // Manual pagination
+        int start = (int) pageable.getOffset();
+        int end = Math.min(start + pageable.getPageSize(), allProducts.size());
+        List<Product> pageContent =
+                start < allProducts.size()
+                        ? allProducts.subList(start, end)
+                        : Collections.emptyList();
+
+        List<ProductResult> results =
+                pageContent.stream()
+                        .map(product -> new ProductResult().convertFrom(product))
+                        .collect(Collectors.toList());
+
+        fillProducts(results);
+
+        return PageResult.of(
+                results, pageable.getPageNumber() + 1, pageable.getPageSize(), allProducts.size());
+    }
+
+    private long getDownloadCount(Product product, ProductType type) {
+        ProductFeature feature = product.getFeature();
+        if (feature == null) {
+            return 0L;
+        }
+        if (type == ProductType.AGENT_SKILL) {
+            SkillConfig cfg = feature.getSkillConfig();
+            return cfg != null && cfg.getDownloadCount() != null ? cfg.getDownloadCount() : 0L;
+        }
+        if (type == ProductType.WORKER) {
+            WorkerConfig cfg = feature.getWorkerConfig();
+            return cfg != null ? cfg.getDownloadCount() : 0L;
+        }
+        return 0L;
+    }
+
+    /**
      * List products with type-specific filter.
      * Filter is used to match specific properties in Product Config (e.g., ModelAPIConfig, APIConfig).
      *
-     * @param param query parameters including product type and filter
+     * @param param    query parameters including product type and filter
      * @param pageable pagination settings
      * @return paginated product results
      */
@@ -1205,7 +1352,7 @@ public class ProductServiceImpl implements ProductService {
      * Check if product matches the type-specific filter
      *
      * @param productRef the product reference containing config data
-     * @param param query parameters containing filter criteria
+     * @param param      query parameters containing filter criteria
      * @return true if product matches the filter, false otherwise
      */
     private boolean matchesFilter(ProductRef productRef, QueryProductParam param) {
