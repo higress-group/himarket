@@ -36,6 +36,41 @@ function ApiKeyDisplay({ apiKey }: { apiKey: string }) {
   )
 }
 
+function AuthCredentialPanel({ secretName, apiKey }: { secretName?: string; apiKey?: string }) {
+  const [expanded, setExpanded] = useState(false)
+  if (!expanded) {
+    return (
+      <div className="mt-2">
+        <Button type="link" size="small" className="p-0 text-xs text-green-600" onClick={() => setExpanded(true)}>查看鉴权凭证</Button>
+      </div>
+    )
+  }
+  return (
+    <div className="mt-2 rounded-lg border border-green-100 bg-green-50/50 p-3 space-y-1.5 text-xs">
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-gray-500 text-[11px]">鉴权凭证</span>
+        <Button type="link" size="small" className="p-0 text-[11px]" onClick={() => setExpanded(false)}>收起</Button>
+      </div>
+      {secretName && (
+        <div className="flex items-center gap-2">
+          <span className="text-gray-500 shrink-0 w-20">Secret</span>
+          <span className="font-mono text-gray-700 truncate" title={secretName}>{secretName}</span>
+          <Button type="link" size="small" className="p-0 text-[11px] shrink-0" onClick={() => {
+            navigator.clipboard.writeText(secretName)
+            message.success('已复制 Secret 名称')
+          }}>复制</Button>
+        </div>
+      )}
+      {apiKey && (
+        <div className="flex items-center gap-2">
+          <span className="text-gray-500 shrink-0 w-20">API Key</span>
+          <ApiKeyDisplay apiKey={apiKey} />
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUpdate, handleRefresh }: ApiProductLinkApiProps) {
   // 移除了内部的 linkedService 状态，现在从 props 接收
   const [isModalVisible, setIsModalVisible] = useState(false)
@@ -1697,26 +1732,9 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                                 <div className="text-gray-700">{authType === 'apikey' ? <span className="text-green-600">API Key</span> : '无鉴权'}</div>
                               </div>
                             </div>
-                            {/* 鉴权信息卡片 */}
+                            {/* 鉴权信息卡片 - 默认折叠 */}
                             {authType === 'apikey' && (sp.secretName || sp.apiKey) && (
-                              <div className="mt-2 rounded-lg border border-green-100 bg-green-50/50 p-3 space-y-1.5 text-xs">
-                                {sp.secretName && (
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-gray-500 shrink-0 w-20">Secret</span>
-                                    <span className="font-mono text-gray-700 truncate" title={sp.secretName}>{sp.secretName}</span>
-                                    <Button type="link" size="small" className="p-0 text-[11px] shrink-0" onClick={() => {
-                                      navigator.clipboard.writeText(sp.secretName)
-                                      message.success('已复制 Secret 名称')
-                                    }}>复制</Button>
-                                  </div>
-                                )}
-                                {sp.apiKey && (
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-gray-500 shrink-0 w-20">API Key</span>
-                                    <ApiKeyDisplay apiKey={sp.apiKey} />
-                                  </div>
-                                )}
-                              </div>
+                              <AuthCredentialPanel secretName={sp.secretName} apiKey={sp.apiKey} />
                             )}
                             {extraEntries.length > 0 && (
                               <div className="mt-3 rounded-lg border border-gray-200 overflow-hidden">
