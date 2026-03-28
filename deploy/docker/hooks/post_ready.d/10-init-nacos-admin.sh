@@ -5,8 +5,8 @@
 # Nacos 3.0.2 需要通过 POST /v3/auth/user/admin 初始化管理员密码
 set -euo pipefail
 
-# 从 ~/himarket-install.env 加载环境变量
-ENV_FILE="${HOME}/himarket-install.env"
+# 从 ~/himarket-install-docker.env 加载环境变量
+ENV_FILE="${HOME}/himarket-install-docker.env"
 if [[ -f "${ENV_FILE}" ]]; then
   set -a; . "${ENV_FILE}"; set +a
 fi

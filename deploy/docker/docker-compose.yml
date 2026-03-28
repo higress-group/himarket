@@ -20,7 +20,7 @@ services:
     ports:
       - "3306:3306"
     volumes:
-      - ${HOME}/himarket-data/data/mysql:/var/lib/mysql
+      - ${HIMARKET_DATA_DIR:-${HOME}/himarket-data}/data/mysql:/var/lib/mysql
       - ./init-nacos-db.sh:/docker-entrypoint-initdb.d/02-init-nacos-db.sh:ro
       - ../helm/nacos/sql:/nacos-sql:ro
     networks:
@@ -57,7 +57,7 @@ services:
       - NACOS_AUTH_ALLOW_ANONYMOUS_AI_ENABLED=true
       - NACOS_AUTH_TOKEN=${NACOS_AUTH_TOKEN:-VGhpc0lzTXlDdXN0b21TZWNyZXRLZXkwMTIzNDU2Nzg=}
     volumes:
-      - ${HOME}/himarket-data/standalone-logs/:/home/nacos/logs
+      - ${HIMARKET_DATA_DIR:-${HOME}/himarket-data}/standalone-logs/:/home/nacos/logs
     ports:
       - "8080:8080"
       - "8848:8848"
@@ -114,7 +114,7 @@ services:
     networks:
       - himarket-network
     volumes:
-      - ${HOME}/himarket-data/data/higress:/data
+      - ${HIMARKET_DATA_DIR:-${HOME}/himarket-data}/data/higress:/data
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/"]
       interval: 15s
@@ -133,7 +133,7 @@ services:
     environment:
       - ALLOWED_COMMANDS=${SANDBOX_ALLOWED_COMMANDS:-qodercli,qwen,claude-agent-acp,opencode}
     volumes:
-      - ${HOME}/himarket-data/data/sandbox-workspace:/workspace
+      - ${HIMARKET_DATA_DIR:-${HOME}/himarket-data}/data/sandbox-workspace:/workspace
     networks:
       - himarket-network
     restart: always
