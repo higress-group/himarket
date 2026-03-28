@@ -230,9 +230,11 @@ export default function ApiProducts() {
           <p className="text-gray-500 mt-2">管理和配置您的API产品</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button onClick={() => setImportModalOpen(true)} icon={<ImportOutlined />}>
-            导入 MCP
-          </Button>
+          {activeTab === 'MCP_SERVER' && (
+            <Button onClick={() => setImportModalOpen(true)} icon={<ImportOutlined />}>
+              导入 MCP
+            </Button>
+          )}
           <Button onClick={handleCreate} type="primary" icon={<PlusOutlined />}>
             创建 API Product
           </Button>
