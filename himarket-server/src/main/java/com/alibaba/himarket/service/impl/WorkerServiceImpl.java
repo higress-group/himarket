@@ -4,7 +4,6 @@ import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.core.util.URLUtil;
 import cn.hutool.json.JSONUtil;
-import com.alibaba.himarket.core.agentspec.AgentSpecZipParser;
 import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.event.ProductQueriedEvent;
 import com.alibaba.himarket.core.exception.BusinessException;
@@ -81,25 +80,20 @@ public class WorkerServiceImpl implements WorkerService {
         WorkerConfig config = product.getFeature().getWorkerConfig();
 
         if (StrUtil.isBlank(ref.getAgentSpecName())) {
-            // First upload: create AgentSpec from ZIP (draft v1)
+            // First upload: use overwrite mode in case Nacos already has an agent spec with the
+            // same name
             String agentSpecName =
                     execute(
                             ref.getNacosId(),
-                            s -> s.uploadAgentSpecFromZip(ref.getNamespace(), zipBytes));
+                            s -> s.uploadAgentSpecFromZip(ref.getNamespace(), zipBytes, true));
             log.info("Uploaded new AgentSpec draft: {}", agentSpecName);
             config.setAgentSpecName(agentSpecName);
         } else {
-            // Subsequent upload: create new draft version and update content
-            String draftVersion =
-                    execute(
-                            ref.getNacosId(),
-                            s -> s.createDraft(ref.getNamespace(), ref.getAgentSpecName(), null));
-            log.info("Created draft {} for AgentSpec {}", draftVersion, ref.getAgentSpecName());
-
-            String payload =
-                    AgentSpecZipParser.parse(zipBytes, ref.getNamespace(), ref.getAgentSpecName());
-            execute(ref.getNacosId(), s -> s.updateDraft(ref.getNamespace(), payload, false));
-            log.info("Updated draft {} for AgentSpec {}", draftVersion, ref.getAgentSpecName());
+            // Subsequent upload: use overwrite mode to bypass reviewing version blocking
+            execute(
+                    ref.getNacosId(),
+                    s -> s.uploadAgentSpecFromZip(ref.getNamespace(), zipBytes, true));
+            log.info("Uploaded (overwrite) for AgentSpec {}", ref.getAgentSpecName());
         }
 
         productRepository.save(product);
@@ -130,6 +124,8 @@ public class WorkerServiceImpl implements WorkerService {
             return Collections.emptyList();
         }
 
+        version = validateAndResolveVersion(productId, version);
+
         try {
             AgentSpec agentSpec = fetchAgentSpec(ref, version);
             return buildFileTree(agentSpec);
@@ -141,6 +137,8 @@ public class WorkerServiceImpl implements WorkerService {
 
     @Override
     public FileContentResult getFileContent(String productId, String path, String version) {
+        version = validateAndResolveVersion(productId, version);
+
         AgentSpecRef ref = getAgentSpecRef(productId, true);
 
         return getFileContent(ref, path, version);
@@ -174,6 +172,12 @@ public class WorkerServiceImpl implements WorkerService {
             return Collections.emptyList();
         }
 
+        String latestLabel = null;
+        if (meta.getLabels() != null) {
+            latestLabel = meta.getLabels().get("latest");
+        }
+        final String latestVersion = latestLabel;
+
         List<VersionResult> results =
                 meta.getVersions().stream()
                         .sorted(
@@ -186,25 +190,41 @@ public class WorkerServiceImpl implements WorkerService {
                                 v ->
                                         VersionResult.builder()
                                                 .version(v.getVersion())
-                                                .status(v.getStatus())
+                                                .status(
+                                                        VersionResult.resolveStatus(
+                                                                v.getStatus(),
+                                                                v.getPublishPipelineInfo()))
                                                 .updateTime(v.getUpdateTime())
                                                 .downloadCount(v.getDownloadCount())
                                                 .publishPipelineInfo(v.getPublishPipelineInfo())
+                                                .isLatest(v.getVersion().equals(latestVersion))
                                                 .build())
                         .toList();
 
         // Sync Product status based on whether any online version exists
-        ProductStatus status = product.getStatus();
-        if (status != ProductStatus.PUBLISHED) {
-            ProductStatus targetStatus =
-                    results.stream().anyMatch(v -> "online".equals(v.getStatus()))
+        boolean hasOnline = results.stream().anyMatch(v -> "online".equals(v.getStatus()));
+        ProductStatus current = product.getStatus();
+        ProductStatus targetStatus;
+        if (hasOnline) {
+            targetStatus = (current != ProductStatus.PUBLISHED) ? ProductStatus.READY : current;
+        } else {
+            targetStatus =
+                    (current == ProductStatus.PUBLISHED)
                             ? ProductStatus.READY
                             : ProductStatus.PENDING;
+        }
 
-            if (product.getStatus() != targetStatus) {
-                product.setStatus(targetStatus);
-                productRepository.save(product);
-            }
+        if (current != targetStatus) {
+            product.setStatus(targetStatus);
+            productRepository.save(product);
+        }
+
+        // Non-admin users can only see online versions
+        if (!contextHolder.isAdministrator()) {
+            results =
+                    results.stream()
+                            .filter(v -> "online".equals(v.getStatus()))
+                            .collect(Collectors.toList());
         }
 
         return results;
@@ -270,6 +290,7 @@ public class WorkerServiceImpl implements WorkerService {
 
     @Override
     public void changeVersionStatus(String productId, String version, boolean online) {
+        Product product = findProduct(productId);
         AgentSpecRef ref = getAgentSpecRef(productId, true);
 
         execute(
@@ -284,6 +305,108 @@ public class WorkerServiceImpl implements WorkerService {
                 online ? "Online" : "Offline",
                 ref.getAgentSpecName(),
                 version);
+
+        syncProductStatusAfterVersionChange(product, ref);
+    }
+
+    /**
+     * For non-admin users, validates that the requested version is online.
+     * If no version specified, returns the latest online version.
+     * Admins can access any version without restriction.
+     *
+     * @param productId the product ID
+     * @param version   the requested version (may be null or empty)
+     * @return the version to use
+     */
+    private String validateAndResolveVersion(String productId, String version) {
+        if (contextHolder.isAdministrator()) {
+            return version;
+        }
+
+        List<VersionResult> versions = listVersions(productId);
+        List<VersionResult> onlineVersions =
+                versions.stream()
+                        .filter(v -> "online".equals(v.getStatus()))
+                        .collect(Collectors.toList());
+
+        if (onlineVersions.isEmpty()) {
+            throw new BusinessException(
+                    ErrorCode.NOT_FOUND, "version", "No online version available");
+        }
+
+        if (StrUtil.isBlank(version)) {
+            return onlineVersions.get(onlineVersions.size() - 1).getVersion();
+        }
+
+        boolean isOnline = onlineVersions.stream().anyMatch(v -> version.equals(v.getVersion()));
+        if (!isOnline) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "version", version);
+        }
+
+        return version;
+    }
+
+    /**
+     * Syncs Product status based on whether any Nacos version is online.
+     *
+     * <p>Rules:
+     * <ul>
+     *   <li>Has online version + non-PUBLISHED → set to READY</li>
+     *   <li>No online version + non-PUBLISHED → set to PENDING</li>
+     *   <li>No online version + PUBLISHED → downgrade to READY</li>
+     * </ul>
+     *
+     * <p>Wrapped in try-catch so failures don't break the main operation.
+     */
+    void syncProductStatusAfterVersionChange(Product product, AgentSpecRef ref) {
+        try {
+            AgentSpecMeta meta =
+                    execute(
+                            ref.getNacosId(),
+                            s ->
+                                    s.getAgentSpecAdminDetail(
+                                            ref.getNamespace(), ref.getAgentSpecName()));
+
+            boolean hasOnline = false;
+            if (meta != null && CollUtil.isNotEmpty(meta.getVersions())) {
+                hasOnline =
+                        meta.getVersions().stream()
+                                .anyMatch(
+                                        v ->
+                                                "online"
+                                                        .equals(
+                                                                VersionResult.resolveStatus(
+                                                                        v.getStatus(),
+                                                                        v
+                                                                                .getPublishPipelineInfo())));
+            }
+
+            ProductStatus current = product.getStatus();
+            ProductStatus target;
+            if (hasOnline) {
+                target = (current != ProductStatus.PUBLISHED) ? ProductStatus.READY : current;
+            } else {
+                target =
+                        (current == ProductStatus.PUBLISHED)
+                                ? ProductStatus.READY
+                                : ProductStatus.PENDING;
+            }
+
+            if (current != target) {
+                product.setStatus(target);
+                productRepository.save(product);
+                log.info(
+                        "Synced product {} status: {} → {}",
+                        product.getProductId(),
+                        current,
+                        target);
+            }
+        } catch (Exception e) {
+            log.warn(
+                    "Failed to sync product status after version change for AgentSpec {}",
+                    ref.getAgentSpecName(),
+                    e);
+        }
     }
 
     @Override
@@ -291,12 +414,14 @@ public class WorkerServiceImpl implements WorkerService {
         Product product = findProduct(productId);
         AgentSpecRef ref = getAgentSpecRef(productId, true);
 
-        execute(
-                ref.getNacosId(),
-                s -> {
-                    s.deleteDraft(ref.getNamespace(), ref.getAgentSpecName());
-                    return null;
-                });
+        boolean deleted =
+                execute(
+                        ref.getNacosId(),
+                        s -> s.deleteDraft(ref.getNamespace(), ref.getAgentSpecName()));
+        if (!deleted) {
+            log.warn(
+                    "Nacos returned false for deleteDraft of AgentSpec {}", ref.getAgentSpecName());
+        }
         log.info("Deleted draft for AgentSpec {}", ref.getAgentSpecName());
 
         // Clear agentSpecName if no versions remain after deletion
@@ -307,6 +432,9 @@ public class WorkerServiceImpl implements WorkerService {
                             s ->
                                     s.getAgentSpecAdminDetail(
                                             ref.getNamespace(), ref.getAgentSpecName()));
+
+            // Auto-publish approved reviewing version to clear the blocking state
+            autoPublishReviewingVersion(ref, meta);
 
             if (meta == null || CollUtil.isEmpty(meta.getVersions())) {
                 // If no versions remain, delete the AgentSpec
@@ -321,18 +449,33 @@ public class WorkerServiceImpl implements WorkerService {
                 WorkerConfig config = product.getFeature().getWorkerConfig();
                 config.setAgentSpecName(null);
                 productRepository.save(product);
+            } else {
+                // Versions still remain — sync Product status
+                // (auto-publish may have created a new online version)
+                syncProductStatusAfterVersionChange(product, ref);
             }
         } catch (Exception e) {
             // AgentSpec no longer exists in Nacos
             log.info(
                     "AgentSpec {} not found after draft deletion, clearing reference",
                     ref.getAgentSpecName());
+            WorkerConfig config = product.getFeature().getWorkerConfig();
+            config.setAgentSpecName(null);
+            if (product.getStatus() != ProductStatus.PUBLISHED) {
+                product.setStatus(ProductStatus.PENDING);
+            }
+            productRepository.save(product);
         }
     }
 
     @Override
     public void setLatestVersion(String productId, String version) {
         AgentSpecRef ref = getAgentSpecRef(productId, true);
+
+        // If the target version is still marked as "reviewing" in Nacos metadata
+        // (e.g. pipeline APPROVED but not yet formally published), publish it first
+        // to clear the reviewingVersion pointer, otherwise updateLabels will reject it.
+        ensurePublished(ref, version);
 
         // Latest version label
         Map<String, String> labels = new HashMap<>();
@@ -347,6 +490,32 @@ public class WorkerServiceImpl implements WorkerService {
                                 JSONUtil.toJsonStr(labels)));
 
         log.info("Set latest: AgentSpec {}, version {}", ref.getAgentSpecName(), version);
+    }
+
+    private void ensurePublished(AgentSpecRef ref, String version) {
+        AgentSpecMeta meta;
+        try {
+            meta =
+                    execute(
+                            ref.getNacosId(),
+                            s ->
+                                    s.getAgentSpecAdminDetail(
+                                            ref.getNamespace(), ref.getAgentSpecName()));
+        } catch (Exception e) {
+            return;
+        }
+        if (meta == null) {
+            return;
+        }
+        if (version.equals(meta.getReviewingVersion())) {
+            execute(
+                    ref.getNacosId(),
+                    s -> s.publish(ref.getNamespace(), ref.getAgentSpecName(), version, false));
+            log.info(
+                    "Auto-published AgentSpec {} version {} to clear reviewing state",
+                    ref.getAgentSpecName(),
+                    version);
+        }
     }
 
     /**
@@ -566,14 +735,65 @@ public class WorkerServiceImpl implements WorkerService {
         T execute(AgentSpecMaintainerService service) throws NacosException;
     }
 
+    /**
+     * Auto-publish a reviewing version to clear the reviewing state that blocks new draft creation.
+     * Nacos's deleteDraft only removes editing versions; a reviewing version left behind will
+     * prevent createDraft from succeeding.
+     */
+    private void autoPublishReviewingVersion(AgentSpecRef ref, AgentSpecMeta meta) {
+        if (meta == null) {
+            return;
+        }
+        String reviewing = meta.getReviewingVersion();
+        if (StrUtil.isBlank(reviewing)) {
+            return;
+        }
+        try {
+            execute(
+                    ref.getNacosId(),
+                    s -> s.publish(ref.getNamespace(), ref.getAgentSpecName(), reviewing, true));
+            log.info(
+                    "Auto-published reviewing version {} for AgentSpec {} to unblock draft"
+                            + " operations",
+                    reviewing,
+                    ref.getAgentSpecName());
+        } catch (Exception e) {
+            log.warn(
+                    "Failed to auto-publish reviewing version {} for AgentSpec {}: {}",
+                    reviewing,
+                    ref.getAgentSpecName(),
+                    e.getMessage());
+        }
+    }
+
     private <T> T execute(String nacosId, NacosOperation<T> operation) {
         try {
             AiMaintainerService service = nacosService.getAiMaintainerService(nacosId);
             return operation.execute(service.agentSpec());
         } catch (NacosException e) {
             log.error("Nacos operation failed", e);
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, e.getMessage());
+            throw toBusinessException(e);
         }
+    }
+
+    private BusinessException toBusinessException(NacosException e) {
+        String detail = extractNacosDetail(e.getMessage());
+        if (detail.contains("resource conflict")) {
+            String conflictMsg = detail.replaceFirst("^resource conflict:\\s*", "");
+            return new BusinessException(ErrorCode.CONFLICT, conflictMsg);
+        }
+        return new BusinessException(ErrorCode.INTERNAL_ERROR, detail);
+    }
+
+    private String extractNacosDetail(String message) {
+        if (message == null) {
+            return "Unknown error";
+        }
+        int idx = message.lastIndexOf("last errMsg: ");
+        if (idx >= 0) {
+            return message.substring(idx + "last errMsg: ".length());
+        }
+        return message;
     }
 
     @Data

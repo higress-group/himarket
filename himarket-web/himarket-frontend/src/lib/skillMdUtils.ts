@@ -33,13 +33,41 @@ export function parseSkillMd(content: string): SkillMdParsed {
   const yamlBlock = trimmed.substring(3, secondDash).trim();
   const body = trimmed.substring(secondDash + 3).trim();
 
-  // 简单解析 YAML key: value
+  // 解析 YAML key: value，支持多行值（| 和 > 语法）
   const frontmatter: Record<string, string> = {};
-  for (const line of yamlBlock.split("\n")) {
+  const lines = yamlBlock.split("\n");
+  let currentKey = "";
+  let currentValue = "";
+  let multilineIndent = -1;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    // 如果正在收集多行值，检查缩进
+    if (multilineIndent >= 0) {
+      const stripped = line.replace(/^\s*/, "");
+      const indent = line.length - stripped.length;
+      if (indent > multilineIndent || stripped === "") {
+        currentValue += (currentValue ? "\n" : "") + stripped;
+        continue;
+      }
+      // 缩进结束，保存之前的多行值
+      frontmatter[currentKey] = currentValue.trim();
+      multilineIndent = -1;
+    }
+
     const colonIdx = line.indexOf(":");
-    if (colonIdx > 0) {
+    if (colonIdx > 0 && line.substring(0, colonIdx).trim() === line.substring(0, colonIdx).trimStart()) {
       const key = line.substring(0, colonIdx).trim();
       let value = line.substring(colonIdx + 1).trim();
+
+      if (value === "|" || value === ">" || value === "|−" || value === ">-") {
+        // 多行值开始
+        currentKey = key;
+        currentValue = "";
+        multilineIndent = line.length - line.trimStart().length;
+        continue;
+      }
+
       // 去掉引号
       if ((value.startsWith('"') && value.endsWith('"')) ||
           (value.startsWith("'") && value.endsWith("'"))) {
@@ -47,6 +75,10 @@ export function parseSkillMd(content: string): SkillMdParsed {
       }
       frontmatter[key] = value;
     }
+  }
+  // 处理最后一个多行值
+  if (multilineIndent >= 0 && currentKey) {
+    frontmatter[currentKey] = currentValue.trim();
   }
 
   return { frontmatter, body };
