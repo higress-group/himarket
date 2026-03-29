@@ -80,7 +80,8 @@ public class WorkerServiceImpl implements WorkerService {
         WorkerConfig config = product.getFeature().getWorkerConfig();
 
         if (StrUtil.isBlank(ref.getAgentSpecName())) {
-            // First upload: use overwrite mode in case Nacos already has an agent spec with the same name
+            // First upload: use overwrite mode in case Nacos already has an agent spec with the
+            // same name
             String agentSpecName =
                     execute(
                             ref.getNacosId(),
@@ -494,8 +495,12 @@ public class WorkerServiceImpl implements WorkerService {
     private void ensurePublished(AgentSpecRef ref, String version) {
         AgentSpecMeta meta;
         try {
-            meta = execute(ref.getNacosId(),
-                    s -> s.getAgentSpecAdminDetail(ref.getNamespace(), ref.getAgentSpecName()));
+            meta =
+                    execute(
+                            ref.getNacosId(),
+                            s ->
+                                    s.getAgentSpecAdminDetail(
+                                            ref.getNamespace(), ref.getAgentSpecName()));
         } catch (Exception e) {
             return;
         }
@@ -503,10 +508,13 @@ public class WorkerServiceImpl implements WorkerService {
             return;
         }
         if (version.equals(meta.getReviewingVersion())) {
-            execute(ref.getNacosId(),
+            execute(
+                    ref.getNacosId(),
                     s -> s.publish(ref.getNamespace(), ref.getAgentSpecName(), version, false));
-            log.info("Auto-published AgentSpec {} version {} to clear reviewing state",
-                    ref.getAgentSpecName(), version);
+            log.info(
+                    "Auto-published AgentSpec {} version {} to clear reviewing state",
+                    ref.getAgentSpecName(),
+                    version);
         }
     }
 

@@ -481,8 +481,10 @@ public class SkillServiceImpl implements SkillService {
     private void ensurePublished(SkillRef ref, String version) {
         SkillMeta meta;
         try {
-            meta = execute(ref.getNacosId(),
-                    s -> s.getSkillMeta(ref.getNamespace(), ref.getSkillName()));
+            meta =
+                    execute(
+                            ref.getNacosId(),
+                            s -> s.getSkillMeta(ref.getNamespace(), ref.getSkillName()));
         } catch (Exception e) {
             return;
         }
@@ -491,13 +493,15 @@ public class SkillServiceImpl implements SkillService {
         }
         // Check if the version is still the reviewingVersion in Nacos metadata
         if (version.equals(meta.getReviewingVersion())) {
-            execute(ref.getNacosId(),
+            execute(
+                    ref.getNacosId(),
                     s -> s.publish(ref.getNamespace(), ref.getSkillName(), version, false));
-            log.info("Auto-published Skill {} version {} to clear reviewing state",
-                    ref.getSkillName(), version);
+            log.info(
+                    "Auto-published Skill {} version {} to clear reviewing state",
+                    ref.getSkillName(),
+                    version);
         }
     }
-
 
     @Override
     public void downloadPackage(String productId, String version, HttpServletResponse response)
