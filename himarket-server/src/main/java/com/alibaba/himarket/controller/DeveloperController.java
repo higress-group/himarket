@@ -84,7 +84,7 @@ public class DeveloperController {
     @Operation(summary = "开发者修改密码", description = "修改当前登录开发者的密码")
     @PatchMapping("/password")
     @DeveloperAuth
-    public void changePassword(@RequestBody ResetPasswordParam param) {
+    public void changePassword(@Valid @RequestBody ResetPasswordParam param) {
         developerService.resetDeveloperPassword(param.getOldPassword(), param.getNewPassword());
     }
 

@@ -17,20 +17,25 @@
  * under the License.
  */
 
-package com.alibaba.himarket.dto.params.admin;
+package com.alibaba.himarket.core.validation;
 
-import com.alibaba.himarket.core.validation.StrongPassword;
-import jakarta.validation.constraints.NotBlank;
-import lombok.Data;
+import jakarta.validation.Constraint;
+import jakarta.validation.Payload;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-/** 修改密码参数 */
-@Data
-public class ResetPasswordParam {
+@Target({ElementType.FIELD, ElementType.PARAMETER})
+@Retention(RetentionPolicy.RUNTIME)
+@Constraint(validatedBy = StrongPasswordValidator.class)
+public @interface StrongPassword {
 
-    @NotBlank(message = "Old password cannot be blank")
-    private String oldPassword;
+    String message() default
+            "Password must be 8-32 characters and contain at least 3 of: uppercase letter,"
+                    + " lowercase letter, digit, special character";
 
-    @NotBlank(message = "New password cannot be blank")
-    @StrongPassword
-    private String newPassword;
+    Class<?>[] groups() default {};
+
+    Class<? extends Payload>[] payload() default {};
 }

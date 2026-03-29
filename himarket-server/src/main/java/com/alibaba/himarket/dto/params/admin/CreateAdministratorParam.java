@@ -19,6 +19,7 @@
 
 package com.alibaba.himarket.dto.params.admin;
 
+import com.alibaba.himarket.core.validation.StrongPassword;
 import com.alibaba.himarket.dto.converter.InputConverter;
 import com.alibaba.himarket.entity.Administrator;
 import jakarta.validation.constraints.NotBlank;
@@ -31,5 +32,6 @@ public class CreateAdministratorParam implements InputConverter<Administrator> {
     private String username;
 
     @NotBlank(message = "Password cannot be blank")
+    @StrongPassword
     private String password;
 }

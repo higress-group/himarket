@@ -19,6 +19,7 @@
 
 package com.alibaba.himarket.dto.params.developer;
 
+import com.alibaba.himarket.core.validation.StrongPassword;
 import com.alibaba.himarket.dto.converter.InputConverter;
 import com.alibaba.himarket.entity.Developer;
 import jakarta.validation.constraints.NotBlank;
@@ -35,7 +36,7 @@ public class CreateDeveloperParam implements InputConverter<Developer> {
     private String username;
 
     @NotBlank(message = "Password cannot be blank")
-    @Size(min = 6, max = 32, message = "Password must be between 6 and 32 characters")
+    @StrongPassword
     private String password;
 
     @Size(max = 256, message = "Avatar URL cannot exceed 256 characters")

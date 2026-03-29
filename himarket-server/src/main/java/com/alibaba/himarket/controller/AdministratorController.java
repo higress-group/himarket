@@ -72,7 +72,7 @@ public class AdministratorController {
     @Operation(summary = "管理员修改密码", description = "修改当前登录管理员的密码")
     @PatchMapping("/password")
     @AdminAuth
-    public void resetPassword(@RequestBody ResetPasswordParam param) {
+    public void resetPassword(@Valid @RequestBody ResetPasswordParam param) {
         administratorService.resetPassword(param.getOldPassword(), param.getNewPassword());
     }
 
