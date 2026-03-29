@@ -17,7 +17,7 @@ import { skillApi } from '@/lib/api'
 import 'github-markdown-css/github-markdown-light.css'
 import 'highlight.js/styles/github.css'
 
-// ── Parse YAML front matter from markdown ───────────────
+// ── Parse YAML front matter from markdown (supports | and > multiline) ──
 function parseFrontMatter(content: string): { frontmatter: Record<string, string>; body: string } {
   const trimmed = content.trim()
   if (!trimmed.startsWith('---')) return { frontmatter: {}, body: trimmed }
@@ -26,16 +26,41 @@ function parseFrontMatter(content: string): { frontmatter: Record<string, string
   const yamlBlock = trimmed.substring(3, secondDash).trim()
   const body = trimmed.substring(secondDash + 3).trim()
   const frontmatter: Record<string, string> = {}
-  for (const line of yamlBlock.split('\n')) {
+  const lines = yamlBlock.split('\n')
+  let currentKey = ''
+  let currentValue = ''
+  let multilineIndent = -1
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    if (multilineIndent >= 0) {
+      const stripped = line.replace(/^\s*/, '')
+      const indent = line.length - stripped.length
+      if (indent > multilineIndent || stripped === '') {
+        currentValue += (currentValue ? '\n' : '') + stripped
+        continue
+      }
+      frontmatter[currentKey] = currentValue.trim()
+      multilineIndent = -1
+    }
     const colonIdx = line.indexOf(':')
-    if (colonIdx > 0) {
+    if (colonIdx > 0 && line.substring(0, colonIdx).trim() === line.substring(0, colonIdx).trimStart()) {
       const key = line.substring(0, colonIdx).trim()
       let value = line.substring(colonIdx + 1).trim()
+      if (value === '|' || value === '>' || value === '|-' || value === '>-') {
+        currentKey = key
+        currentValue = ''
+        multilineIndent = line.length - line.trimStart().length
+        continue
+      }
       if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
         value = value.slice(1, -1)
       }
       frontmatter[key] = value
     }
+  }
+  if (multilineIndent >= 0 && currentKey) {
+    frontmatter[currentKey] = currentValue.trim()
   }
   return { frontmatter, body }
 }
@@ -62,6 +87,7 @@ interface VersionItem {
   status?: string // draft, reviewing, online, offline
   downloadCount?: number
   publishPipelineInfo?: string
+  isLatest?: boolean
 }
 
 interface ApiProductSkillPackageProps {
@@ -412,15 +438,7 @@ export function ApiProductSkillPackage({ apiProduct, onUploadSuccess, handleRefr
   }, [productId])
 
   const previewItem = versions.find(item => item.version === previewVersion)
-  const latestVersion = versions.find(item => item.status === 'online')?.version
-  const isUnpublished = previewItem?.status === 'draft' || previewItem?.status === 'offline'
-  const isOnline = previewItem?.status === 'online'
-  const isReviewing = previewItem?.status === 'reviewing'
-  const canPublish = !!previewVersion && isUnpublished
-  const canOffline = !!previewVersion && isOnline
-  const canDeleteDraft = !!previewVersion && isUnpublished
-  const showPublishActions = canPublish || isReviewing
-  const totalDownloads = versions.reduce((sum, item) => sum + (item.downloadCount ?? 0), 0)
+  const latestVersion = versions.find(item => item.isLatest)?.version
 
   // Parse publishPipelineInfo from version data
   const pipelineStatus = (() => {
@@ -432,6 +450,15 @@ export function ApiProductSkillPackage({ apiProduct, onUploadSuccess, handleRefr
       return null
     }
   })()
+
+  const isUnpublished = previewItem?.status === 'draft' || previewItem?.status === 'offline'
+  const isOnline = previewItem?.status === 'online'
+  const isReviewing = previewItem?.status === 'reviewing'
+  const canPublish = !!previewVersion && isUnpublished
+  const canOffline = !!previewVersion && isOnline
+  const canDeleteDraft = !!previewVersion && isUnpublished
+  const showPublishActions = canPublish || isReviewing
+  const totalDownloads = versions.reduce((sum, item) => sum + (item.downloadCount ?? 0), 0)
 
   const handlePublishVersion = async (version: string) => {
     setActionLoading('publish')

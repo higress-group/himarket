@@ -260,7 +260,7 @@ export default function ApiProducts() {
     setActiveTab(tab);
     setNameFilter('');
     setSearchInput('');
-    setSortBy((tab === 'AGENT_SKILL' || tab === 'WORKER') ? 'DOWNLOAD_COUNT' : undefined);
+    setSortBy((tab === 'AGENT_SKILL' || tab === 'WORKER') ? 'UPDATED_AT' : undefined);
     fetchApiProducts(1, pagination.pageSize, tab, '');
   };
 
@@ -346,7 +346,7 @@ export default function ApiProducts() {
           <div className="flex items-center mb-3 ml-4 gap-2">
             {showSortControl && (
               <Select
-                value={sortBy || 'DOWNLOAD_COUNT'}
+                value={sortBy || 'UPDATED_AT'}
                 onChange={(value) => setSortBy(value)}
                 size="middle"
                 style={{ width: 140 }}

@@ -37,6 +37,7 @@ import com.alibaba.himarket.dto.params.product.*;
 import com.alibaba.himarket.dto.result.ProductCategoryResult;
 import com.alibaba.himarket.dto.result.agent.AgentConfigResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
+import com.alibaba.himarket.dto.result.common.VersionResult;
 import com.alibaba.himarket.dto.result.consumer.CredentialContext;
 import com.alibaba.himarket.dto.result.gateway.GatewayResult;
 import com.alibaba.himarket.dto.result.httpapi.APIConfigResult;
@@ -106,6 +107,10 @@ public class ProductServiceImpl implements ProductService {
     private final ProductCategoryService productCategoryService;
 
     private final ToolManager toolManager;
+
+    private final WorkerService workerService;
+
+    private final SkillService skillService;
 
     /**
      * Cache to prevent duplicate sync within interval (5 minutes default)
@@ -216,12 +221,12 @@ public class ProductServiceImpl implements ProductService {
             return listProductsWithFilter(param, pageable);
         }
 
-        // Skill/Worker: sort by download count (default) or updated time
+        // Skill/Worker: sort by updated time (default) or download count
         if (param.getType() == ProductType.AGENT_SKILL || param.getType() == ProductType.WORKER) {
-            if (param.getSortBy() == null || param.getSortBy() == ProductSortBy.DOWNLOAD_COUNT) {
+            if (param.getSortBy() == ProductSortBy.DOWNLOAD_COUNT) {
                 return listProductsSortedByDownloadCount(param, pageable);
             }
-            // UPDATED_AT: use DB-level sort
+            // UPDATED_AT (default): use DB-level sort
             Pageable sortedPageable =
                     org.springframework.data.domain.PageRequest.of(
                             pageable.getPageNumber(),
@@ -290,6 +295,10 @@ public class ProductServiceImpl implements ProductService {
         }
 
         Product product = findProduct(productId);
+
+        // Validate Nacos online version for AGENT_SKILL and WORKER types
+        validateNacosOnlineVersion(product);
+
         product.setStatus(ProductStatus.PUBLISHED);
 
         ProductPublication productPublication = new ProductPublication();
@@ -372,11 +381,11 @@ public class ProductServiceImpl implements ProductService {
     public void deleteProduct(String productId) {
         Product product = findProduct(productId);
 
-        // Block deletion if WORKER/AGENT_SKILL still has versions in Nacos
-        checkDeletePermission(product);
-
-        // Delete after unpublishing
+        // Unpublish from all portals first
         publicationRepository.deleteByProductId(productId);
+
+        // Cascade delete Nacos versions for WORKER/AGENT_SKILL products
+        cleanupNacosResources(product);
 
         // Clear product category relationships
         clearProductCategoryRelations(productId);
@@ -388,29 +397,36 @@ public class ProductServiceImpl implements ProductService {
         SpringUtil.getApplicationContext().publishEvent(new ProductDeletingEvent(productId));
     }
 
-    private void checkDeletePermission(Product product) {
-        ProductFeature feature = product.getFeature();
-        if (feature == null) {
-            return;
+    private void cleanupNacosResources(Product product) {
+        try {
+            switch (product.getType()) {
+                case WORKER -> workerService.deleteAgentSpec(product.getProductId());
+                case AGENT_SKILL -> skillService.deleteSkill(product.getProductId());
+                default -> {}
+            }
+        } catch (Exception e) {
+            log.warn(
+                    "Failed to cleanup Nacos resources for product {}, continuing with deletion",
+                    product.getProductId(),
+                    e);
         }
+    }
 
-        String specName =
-                switch (product.getType()) {
-                    case WORKER ->
-                            Optional.ofNullable(feature.getWorkerConfig())
-                                    .map(WorkerConfig::getAgentSpecName)
-                                    .orElse(null);
-                    case AGENT_SKILL ->
-                            Optional.ofNullable(feature.getSkillConfig())
-                                    .map(SkillConfig::getSkillName)
-                                    .orElse(null);
-                    default -> null;
-                };
-
-        if (StrUtil.isNotBlank(specName)) {
-            throw new BusinessException(
-                    ErrorCode.INVALID_REQUEST,
-                    "Please delete all versions before deleting the product.");
+    private void validateNacosOnlineVersion(Product product) {
+        if (product.getType() == ProductType.AGENT_SKILL) {
+            List<VersionResult> versions = skillService.listVersions(product.getProductId());
+            if (versions.stream().noneMatch(v -> "online".equals(v.getStatus()))) {
+                throw new BusinessException(
+                        ErrorCode.INVALID_REQUEST,
+                        "Cannot publish: no online version found in Nacos");
+            }
+        } else if (product.getType() == ProductType.WORKER) {
+            List<VersionResult> versions = workerService.listVersions(product.getProductId());
+            if (versions.stream().noneMatch(v -> "online".equals(v.getStatus()))) {
+                throw new BusinessException(
+                        ErrorCode.INVALID_REQUEST,
+                        "Cannot publish: no online version found in Nacos");
+            }
         }
     }
 

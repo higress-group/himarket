@@ -20,6 +20,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
 import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream;
+import org.yaml.snakeyaml.Yaml;
 
 /**
  * ZIP 包解析工具类。参考 Nacos 服务端 SkillZipParser 实现。
@@ -218,22 +219,16 @@ public final class SkillZipParser {
     }
 
     private static Map<String, String> parseYamlFrontMatter(String yamlContent) {
+        Yaml yaml = new Yaml();
+        Object parsed = yaml.load(yamlContent);
         Map<String, String> result = new HashMap<>(4);
-        for (String line : yamlContent.split("\\n")) {
-            line = line.trim();
-            if (line.isEmpty() || line.startsWith("#")) continue;
-            int colonIndex = line.indexOf(':');
-            if (colonIndex > 0) {
-                String key = line.substring(0, colonIndex).trim();
-                String value = line.substring(colonIndex + 1).trim();
-                if (value.startsWith("\"") && value.endsWith("\"")) {
-                    value = value.substring(1, value.length() - 1);
-                    value = value.replace("\\\\", "\\").replace("\\\"", "\"");
-                } else if (value.startsWith("'") && value.endsWith("'")) {
-                    value = value.substring(1, value.length() - 1);
-                    value = value.replace("''", "'");
+        if (parsed instanceof Map) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> map = (Map<String, Object>) parsed;
+            for (Map.Entry<String, Object> entry : map.entrySet()) {
+                if (entry.getValue() != null) {
+                    result.put(entry.getKey(), entry.getValue().toString().trim());
                 }
-                result.put(key, value);
             }
         }
         return result;

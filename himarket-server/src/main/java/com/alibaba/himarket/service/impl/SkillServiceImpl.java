@@ -11,7 +11,6 @@ import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.core.security.ContextHolder;
 import com.alibaba.himarket.core.skill.FileTreeBuilder;
 import com.alibaba.himarket.core.skill.SkillMdBuilder;
-import com.alibaba.himarket.core.skill.SkillZipParser;
 import com.alibaba.himarket.core.utils.CacheUtil;
 import com.alibaba.himarket.core.utils.IdGenerator;
 import com.alibaba.himarket.dto.converter.OutputConverter;
@@ -88,31 +87,19 @@ public class SkillServiceImpl implements SkillService {
         SkillConfig config = product.getFeature().getSkillConfig();
 
         if (StrUtil.isBlank(ref.getSkillName())) {
-            // First upload: create Skill from ZIP (produces draft v1)
+            // First upload: use overwrite mode in case Nacos already has a skill with the same name
             String skillName =
                     execute(
                             ref.getNacosId(),
-                            s -> s.uploadSkillFromZip(ref.getNamespace(), zipBytes));
+                            s -> s.uploadSkillFromZip(ref.getNamespace(), zipBytes, true));
             log.info("Uploaded new Skill draft: {}", skillName);
             config.setSkillName(skillName);
         } else {
-            // Subsequent upload: create new draft version and update content
-            String draftVersion =
-                    execute(
-                            ref.getNacosId(),
-                            s -> s.createDraft(ref.getNamespace(), ref.getSkillName(), null));
-            log.info("Created draft {} for Skill {}", draftVersion, ref.getSkillName());
-
-            Skill skill = SkillZipParser.parseSkillFromZip(zipBytes, ref.getNamespace());
-            skill.setName(ref.getSkillName());
-            String skillCard = JSONUtil.toJsonStr(skill);
+            // Subsequent upload: use overwrite mode to bypass reviewing version blocking
             execute(
                     ref.getNacosId(),
-                    s -> {
-                        s.updateDraft(ref.getNamespace(), skillCard, false);
-                        return null;
-                    });
-            log.info("Updated draft {} for Skill {}", draftVersion, ref.getSkillName());
+                    s -> s.uploadSkillFromZip(ref.getNamespace(), zipBytes, true));
+            log.info("Uploaded (overwrite) for Skill {}", ref.getSkillName());
         }
 
         productRepository.save(product);
@@ -146,6 +133,8 @@ public class SkillServiceImpl implements SkillService {
             return Collections.emptyList();
         }
 
+        version = validateAndResolveVersion(productId, version);
+
         try {
             Skill skill = fetchSkill(ref, version);
             return FileTreeBuilder.build(skill);
@@ -157,6 +146,8 @@ public class SkillServiceImpl implements SkillService {
 
     @Override
     public FileContentResult getFileContent(String productId, String path, String version) {
+        version = validateAndResolveVersion(productId, version);
+
         SkillRef ref = getSkillRef(productId, true);
         Skill skill = fetchSkill(ref, version);
 
@@ -226,6 +217,12 @@ public class SkillServiceImpl implements SkillService {
             return Collections.emptyList();
         }
 
+        String latestLabel = null;
+        if (meta.getLabels() != null) {
+            latestLabel = meta.getLabels().get("latest");
+        }
+        final String latestVersion = latestLabel;
+
         List<VersionResult> results =
                 meta.getVersions().stream()
                         .sorted(
@@ -237,25 +234,41 @@ public class SkillServiceImpl implements SkillService {
                                 v ->
                                         VersionResult.builder()
                                                 .version(v.getVersion())
-                                                .status(v.getStatus())
+                                                .status(
+                                                        VersionResult.resolveStatus(
+                                                                v.getStatus(),
+                                                                v.getPublishPipelineInfo()))
                                                 .updateTime(v.getUpdateTime())
                                                 .downloadCount(v.getDownloadCount())
                                                 .publishPipelineInfo(v.getPublishPipelineInfo())
+                                                .isLatest(v.getVersion().equals(latestVersion))
                                                 .build())
                         .toList();
 
         // Sync Product status based on whether any online version exists
-        ProductStatus status = product.getStatus();
-        if (status != ProductStatus.PUBLISHED) {
-            ProductStatus targetStatus =
-                    results.stream().anyMatch(v -> "online".equals(v.getStatus()))
+        boolean hasOnline = results.stream().anyMatch(v -> "online".equals(v.getStatus()));
+        ProductStatus current = product.getStatus();
+        ProductStatus targetStatus;
+        if (hasOnline) {
+            targetStatus = (current != ProductStatus.PUBLISHED) ? ProductStatus.READY : current;
+        } else {
+            targetStatus =
+                    (current == ProductStatus.PUBLISHED)
                             ? ProductStatus.READY
                             : ProductStatus.PENDING;
+        }
 
-            if (product.getStatus() != targetStatus) {
-                product.setStatus(targetStatus);
-                productRepository.save(product);
-            }
+        if (current != targetStatus) {
+            product.setStatus(targetStatus);
+            productRepository.save(product);
+        }
+
+        // Non-admin users can only see online versions
+        if (!contextHolder.isAdministrator()) {
+            results =
+                    results.stream()
+                            .filter(v -> "online".equals(v.getStatus()))
+                            .collect(Collectors.toList());
         }
 
         return results;
@@ -274,6 +287,7 @@ public class SkillServiceImpl implements SkillService {
 
     @Override
     public void changeVersionStatus(String productId, String version, boolean online) {
+        Product product = findProduct(productId);
         SkillRef ref = getSkillRef(productId, true);
 
         execute(
@@ -288,6 +302,106 @@ public class SkillServiceImpl implements SkillService {
                 online ? "Online" : "Offline",
                 ref.getSkillName(),
                 version);
+
+        syncProductStatusAfterVersionChange(product, ref);
+    }
+
+    /**
+     * For non-admin users, validates that the requested version is online.
+     * If no version specified, returns the latest online version.
+     * Admins can access any version without restriction.
+     *
+     * @param productId the product ID
+     * @param version   the requested version (may be null or empty)
+     * @return the version to use
+     */
+    private String validateAndResolveVersion(String productId, String version) {
+        if (contextHolder.isAdministrator()) {
+            return version;
+        }
+
+        List<VersionResult> versions = listVersions(productId);
+        List<VersionResult> onlineVersions =
+                versions.stream()
+                        .filter(v -> "online".equals(v.getStatus()))
+                        .collect(Collectors.toList());
+
+        if (onlineVersions.isEmpty()) {
+            throw new BusinessException(
+                    ErrorCode.NOT_FOUND, "version", "No online version available");
+        }
+
+        if (StrUtil.isBlank(version)) {
+            return onlineVersions.get(onlineVersions.size() - 1).getVersion();
+        }
+
+        boolean isOnline = onlineVersions.stream().anyMatch(v -> version.equals(v.getVersion()));
+        if (!isOnline) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "version", version);
+        }
+
+        return version;
+    }
+
+    /**
+     * Syncs Product status based on whether any Nacos version is online.
+     *
+     * <p>Rules:
+     * <ul>
+     *   <li>Has online version + non-PUBLISHED → set to READY</li>
+     *   <li>No online version + non-PUBLISHED → set to PENDING</li>
+     *   <li>No online version + PUBLISHED → downgrade to READY</li>
+     * </ul>
+     *
+     * <p>Wrapped in try-catch so failures don't break the main operation.
+     */
+    private void syncProductStatusAfterVersionChange(Product product, SkillRef ref) {
+        try {
+            SkillMeta meta =
+                    execute(
+                            ref.getNacosId(),
+                            s -> s.getSkillMeta(ref.getNamespace(), ref.getSkillName()));
+
+            boolean hasOnline = false;
+            if (meta != null && CollUtil.isNotEmpty(meta.getVersions())) {
+                hasOnline =
+                        meta.getVersions().stream()
+                                .anyMatch(
+                                        v ->
+                                                "online"
+                                                        .equals(
+                                                                VersionResult.resolveStatus(
+                                                                        v.getStatus(),
+                                                                        v
+                                                                                .getPublishPipelineInfo())));
+            }
+
+            ProductStatus current = product.getStatus();
+            ProductStatus target;
+            if (hasOnline) {
+                target = (current != ProductStatus.PUBLISHED) ? ProductStatus.READY : current;
+            } else {
+                target =
+                        (current == ProductStatus.PUBLISHED)
+                                ? ProductStatus.READY
+                                : ProductStatus.PENDING;
+            }
+
+            if (current != target) {
+                product.setStatus(target);
+                productRepository.save(product);
+                log.info(
+                        "Synced product {} status: {} → {}",
+                        product.getProductId(),
+                        current,
+                        target);
+            }
+        } catch (Exception e) {
+            log.warn(
+                    "Failed to sync product status after version change for Skill {}",
+                    ref.getSkillName(),
+                    e);
+        }
     }
 
     @Override
@@ -295,7 +409,13 @@ public class SkillServiceImpl implements SkillService {
         Product product = findProduct(productId);
         SkillRef ref = getSkillRef(productId, true);
 
-        execute(ref.getNacosId(), s -> s.deleteDraft(ref.getNamespace(), ref.getSkillName()));
+        boolean deleted =
+                execute(
+                        ref.getNacosId(),
+                        s -> s.deleteDraft(ref.getNamespace(), ref.getSkillName()));
+        if (!deleted) {
+            log.warn("Nacos returned false for deleteDraft of Skill {}", ref.getSkillName());
+        }
         log.info("Deleted draft for Skill {}", ref.getSkillName());
 
         // Clear skillName if no versions remain after deletion
@@ -304,6 +424,9 @@ public class SkillServiceImpl implements SkillService {
                     execute(
                             ref.getNacosId(),
                             s -> s.getSkillMeta(ref.getNamespace(), ref.getSkillName()));
+
+            // Auto-publish approved reviewing version to clear the blocking state
+            autoPublishReviewingVersion(ref, meta);
 
             if (meta == null || CollUtil.isEmpty(meta.getVersions())) {
                 // If no versions remain, delete the skill
@@ -317,6 +440,10 @@ public class SkillServiceImpl implements SkillService {
                 SkillConfig config = product.getFeature().getSkillConfig();
                 config.setSkillName(null);
                 productRepository.save(product);
+            } else {
+                // Versions still remain — sync Product status
+                // (auto-publish may have created a new online version)
+                syncProductStatusAfterVersionChange(product, ref);
             }
         } catch (Exception e) {
             // Skill no longer exists in Nacos after draft deletion
@@ -333,6 +460,11 @@ public class SkillServiceImpl implements SkillService {
     public void setLatestVersion(String productId, String version) {
         SkillRef ref = getSkillRef(productId, true);
 
+        // If the target version is still marked as "reviewing" in Nacos metadata
+        // (e.g. pipeline APPROVED but not yet formally published), publish it first
+        // to clear the reviewingVersion pointer, otherwise updateLabels will reject it.
+        ensurePublished(ref, version);
+
         Map<String, String> labels = new HashMap<>();
         labels.put("latest", version);
 
@@ -345,6 +477,27 @@ public class SkillServiceImpl implements SkillService {
                                 JSONUtil.toJsonStr(labels)));
         log.info("Set latest: Skill {}, version {}", ref.getSkillName(), version);
     }
+
+    private void ensurePublished(SkillRef ref, String version) {
+        SkillMeta meta;
+        try {
+            meta = execute(ref.getNacosId(),
+                    s -> s.getSkillMeta(ref.getNamespace(), ref.getSkillName()));
+        } catch (Exception e) {
+            return;
+        }
+        if (meta == null) {
+            return;
+        }
+        // Check if the version is still the reviewingVersion in Nacos metadata
+        if (version.equals(meta.getReviewingVersion())) {
+            execute(ref.getNacosId(),
+                    s -> s.publish(ref.getNamespace(), ref.getSkillName(), version, false));
+            log.info("Auto-published Skill {} version {} to clear reviewing state",
+                    ref.getSkillName(), version);
+        }
+    }
+
 
     @Override
     public void downloadPackage(String productId, String version, HttpServletResponse response)
@@ -476,14 +629,64 @@ public class SkillServiceImpl implements SkillService {
         T execute(SkillMaintainerService service) throws NacosException;
     }
 
+    /**
+     * Auto-publish a reviewing version to clear the reviewing state that blocks new draft creation.
+     * Nacos's deleteDraft only removes editing versions; a reviewing version left behind will
+     * prevent createDraft from succeeding.
+     */
+    private void autoPublishReviewingVersion(SkillRef ref, SkillMeta meta) {
+        if (meta == null) {
+            return;
+        }
+        String reviewing = meta.getReviewingVersion();
+        if (StrUtil.isBlank(reviewing)) {
+            return;
+        }
+        try {
+            execute(
+                    ref.getNacosId(),
+                    s -> s.publish(ref.getNamespace(), ref.getSkillName(), reviewing, true));
+            log.info(
+                    "Auto-published reviewing version {} for Skill {} to unblock draft operations",
+                    reviewing,
+                    ref.getSkillName());
+        } catch (Exception e) {
+            log.warn(
+                    "Failed to auto-publish reviewing version {} for Skill {}: {}",
+                    reviewing,
+                    ref.getSkillName(),
+                    e.getMessage());
+        }
+    }
+
     private <T> T execute(String nacosId, NacosOperation<T> operation) {
         try {
             AiMaintainerService service = nacosService.getAiMaintainerService(nacosId);
             return operation.execute(service.skill());
         } catch (NacosException e) {
             log.error("Nacos operation failed", e);
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, e.getMessage());
+            throw toBusinessException(e);
         }
+    }
+
+    private BusinessException toBusinessException(NacosException e) {
+        String detail = extractNacosDetail(e.getMessage());
+        if (detail.contains("resource conflict")) {
+            String conflictMsg = detail.replaceFirst("^resource conflict:\\s*", "");
+            return new BusinessException(ErrorCode.CONFLICT, conflictMsg);
+        }
+        return new BusinessException(ErrorCode.INTERNAL_ERROR, detail);
+    }
+
+    private String extractNacosDetail(String message) {
+        if (message == null) {
+            return "Unknown error";
+        }
+        int idx = message.lastIndexOf("last errMsg: ");
+        if (idx >= 0) {
+            return message.substring(idx + "last errMsg: ".length());
+        }
+        return message;
     }
 
     @Data
