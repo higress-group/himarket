@@ -306,6 +306,24 @@ public class SkillServiceImpl implements SkillService {
         syncProductStatusAfterVersionChange(product, ref);
     }
 
+    @Override
+    public void forcePublishVersion(String productId, String version, Boolean updateLatestLabel) {
+        Product product = findProduct(productId);
+        SkillRef ref = getSkillRef(productId, true);
+
+        execute(
+                ref.getNacosId(),
+                s ->
+                        s.forcePublish(
+                                ref.getNamespace(),
+                                ref.getSkillName(),
+                                version,
+                                updateLatestLabel));
+        log.info("Force-published Skill {}, version {}", ref.getSkillName(), version);
+
+        syncProductStatusAfterVersionChange(product, ref);
+    }
+
     /**
      * For non-admin users, validates that the requested version is online.
      * If no version specified, returns the latest online version.

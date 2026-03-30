@@ -156,6 +156,18 @@ function Square(props: { activeType: string }) {
 
   const filteredModels = products;
 
+  // 根据产品类型获取引导语
+  const getSlogan = (): { title: string; subtitle: string } | null => {
+    switch (activeType) {
+      case 'AGENT_SKILL':
+        return { title: 'Skill 市场', subtitle: '发现和分享 Agent Skills' };
+      case 'WORKER':
+        return { title: 'Worker 市场', subtitle: '领养一个精心培育好的 OpenClaw，跳过从零开始的漫长训练' };
+      default:
+        return null;
+    }
+  };
+
   const getStatLabel = () => {
     switch (activeType) {
       case 'MODEL_API':
@@ -213,6 +225,14 @@ function Square(props: { activeType: string }) {
       <div className="flex flex-col h-[calc(100vh-96px)] overflow-auto scrollbar-hide" ref={scrollContainerRef}>
         {/* IntersectionObserver 哨兵元素 */}
         <div ref={sentinelRef} className="h-0 flex-shrink-0" />
+
+        {/* 引导语 */}
+        {getSlogan() && (
+          <div className="text-center py-4">
+            <h1 className="text-2xl font-bold mb-2">{getSlogan()!.title}</h1>
+            <p className="text-gray-500 text-base text-flow text-flow-grey slow">{getSlogan()!.subtitle}</p>
+          </div>
+        )}
 
         {/* 搜索区域 - CSS Sticky 实现 */}
         <div className={`sticky top-0 z-50 backdrop-blur-md transition-shadow duration-200 flex-shrink-0 ${isStuck ? 'shadow-sm bg-white/80' : ''}`}>
