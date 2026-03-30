@@ -326,8 +326,20 @@ public class ConsumerServiceImpl implements ConsumerService {
                 subscription.setStatus(SubscriptionStatus.PENDING);
             }
         } else {
-            // 非网关来源（自定义 MCP、Nacos 等）：直接 APPROVED
-            subscription.setStatus(SubscriptionStatus.APPROVED);
+            // Non-gateway source: respect product's autoApprove setting
+            boolean autoApprove;
+            if (product.getAutoApprove() != null) {
+                autoApprove = product.getAutoApprove();
+            } else {
+                PortalResult portal = portalService.getPortal(consumer.getPortalId());
+                autoApprove =
+                        portal.getPortalSettingConfig() != null
+                                && BooleanUtil.isTrue(
+                                        portal.getPortalSettingConfig()
+                                                .getAutoApproveSubscriptions());
+            }
+            subscription.setStatus(
+                    autoApprove ? SubscriptionStatus.APPROVED : SubscriptionStatus.PENDING);
         }
 
         subscriptionRepository.save(subscription);

@@ -374,10 +374,7 @@ public class McpServerServiceImpl implements McpServerService {
                                 })
                         .collect(Collectors.toList());
         return PageResult.of(
-                results,
-                metaPage.getNumber() + 1,
-                metaPage.getSize(),
-                metaPage.getTotalElements());
+                results, metaPage.getNumber() + 1, metaPage.getSize(), metaPage.getTotalElements());
     }
 
     @Override
@@ -417,10 +414,7 @@ public class McpServerServiceImpl implements McpServerService {
                                 })
                         .collect(Collectors.toList());
         return PageResult.of(
-                results,
-                metaPage.getNumber() + 1,
-                metaPage.getSize(),
-                metaPage.getTotalElements());
+                results, metaPage.getNumber() + 1, metaPage.getSize(), metaPage.getTotalElements());
     }
 
     @Override
@@ -601,9 +595,7 @@ public class McpServerServiceImpl implements McpServerService {
         if (meta.getMcpName() != null && meta.getMcpName().length() > 32) {
             throw new BusinessException(
                     ErrorCode.INVALID_REQUEST,
-                    "MCP 英文名称不能超过 32 个字符（当前 "
-                            + meta.getMcpName().length()
-                            + " 个），请先修改名称后再部署沙箱");
+                    "MCP 英文名称不能超过 32 个字符（当前 " + meta.getMcpName().length() + " 个），请先修改名称后再部署沙箱");
         }
         param.setProductId(meta.getProductId());
         param.setMcpName(meta.getMcpName());
@@ -914,31 +906,11 @@ public class McpServerServiceImpl implements McpServerService {
                         .url(endpointUrl)
                         .build();
 
-        McpClientWrapper client = null;
-        int maxRetries = 3;
-        long retryIntervalMs = 10000;
-        for (int i = 0; i < maxRetries; i++) {
-            client = toolManager.createClient(config);
-            if (client != null) {
-                break;
-            }
-            log.info(
-                    "MCP 客户端创建失败，等待重试 ({}/{}): mcpName={}",
-                    i + 1,
-                    maxRetries,
-                    meta.getMcpName());
-            try {
-                Thread.sleep(retryIntervalMs);
-            } catch (InterruptedException ie) {
-                Thread.currentThread().interrupt();
-                throw new BusinessException(
-                        ErrorCode.INTERNAL_ERROR, "获取工具列表被中断: mcpName=" + meta.getMcpName());
-            }
-        }
+        McpClientWrapper client = toolManager.createClient(config);
         if (client == null) {
             throw new BusinessException(
                     ErrorCode.INTERNAL_ERROR,
-                    "创建 MCP 客户端失败（已重试 " + maxRetries + " 次）: mcpName=" + meta.getMcpName());
+                    "创建 MCP 客户端失败，请检查连接地址是否可达: mcpName=" + meta.getMcpName());
         }
 
         List<McpSchema.Tool> tools = client.listTools().block();

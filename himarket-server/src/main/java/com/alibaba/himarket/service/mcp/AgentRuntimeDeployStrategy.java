@@ -85,7 +85,7 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     /** 用于非阻塞轮询的调度线程池（守护线程，不阻塞 JVM 关闭） */
-    private static final ScheduledExecutorService POLL_SCHEDULER =
+    private final ScheduledExecutorService pollScheduler =
             Executors.newScheduledThreadPool(
                     2,
                     r -> {
@@ -93,6 +93,14 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
                         t.setDaemon(true);
                         return t;
                     });
+
+    @jakarta.annotation.PreDestroy
+    void shutdown() {
+        pollScheduler.shutdownNow();
+    }
+
+    @org.springframework.beans.factory.annotation.Value("${sandbox.ssl-verify:true}")
+    private boolean sslVerify;
 
     @Override
     public String supportedSandboxType() {
@@ -286,9 +294,10 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
         String endpointName = resourceName + "-primary";
         String endpointUrl = pollEndpointUrl(client, ns, endpointName);
 
-        // TODO: 临时将 https 替换为 http，绕过 SSL 证书验证问题，后续配置证书后改回
-        if (endpointUrl != null && endpointUrl.startsWith("https://")) {
+        // When SSL verification is disabled, downgrade HTTPS to HTTP
+        if (!sslVerify && endpointUrl != null && endpointUrl.startsWith("https://")) {
             endpointUrl = endpointUrl.replaceFirst("https://", "http://");
+            log.info("[AgentRuntimeDeploy] SSL verification disabled, using HTTP: {}", endpointUrl);
         }
 
         log.info("[AgentRuntimeDeploy] Endpoint URL 获取成功: {}", endpointUrl);
@@ -418,11 +427,11 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
                             return;
                         }
                         log.debug("[AgentRuntimeDeploy] Endpoint 尚未清理，继续等待: {}", endpointName);
-                        POLL_SCHEDULER.schedule(this, POLL_INTERVAL_MS, TimeUnit.MILLISECONDS);
+                        pollScheduler.schedule(this, POLL_INTERVAL_MS, TimeUnit.MILLISECONDS);
                     }
                 };
 
-        POLL_SCHEDULER.schedule(pollTask, 0, TimeUnit.MILLISECONDS);
+        pollScheduler.schedule(pollTask, 0, TimeUnit.MILLISECONDS);
 
         try {
             future.get(POLL_TIMEOUT_MS + 5_000, TimeUnit.MILLISECONDS);
@@ -851,12 +860,12 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
                                     e.getMessage());
                         }
                         // 未获取到，继续调度下一次轮询
-                        POLL_SCHEDULER.schedule(this, POLL_INTERVAL_MS, TimeUnit.MILLISECONDS);
+                        pollScheduler.schedule(this, POLL_INTERVAL_MS, TimeUnit.MILLISECONDS);
                     }
                 };
 
         // 启动首次轮询
-        POLL_SCHEDULER.schedule(pollTask, 0, TimeUnit.MILLISECONDS);
+        pollScheduler.schedule(pollTask, 0, TimeUnit.MILLISECONDS);
 
         try {
             return future.get(POLL_TIMEOUT_MS + 5_000, TimeUnit.MILLISECONDS);

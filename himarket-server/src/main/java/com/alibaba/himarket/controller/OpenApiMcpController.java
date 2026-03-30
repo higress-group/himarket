@@ -63,8 +63,7 @@ public class OpenApiMcpController {
      * without API Key verification.
      */
     @ModelAttribute
-    private void authenticate(
-            @RequestHeader(value = "X-API-Key", required = false) String key) {
+    private void authenticate(@RequestHeader(value = "X-API-Key", required = false) String key) {
         verifyApiKey(key);
     }
 

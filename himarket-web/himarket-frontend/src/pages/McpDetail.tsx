@@ -815,18 +815,22 @@ function McpDetail() {
 
   // JSON 语法高亮（浅色主题）
   function highlightJson(json: string) {
+    // Sanitize: escape HTML entities to prevent XSS
+    const escaped = json
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
     // 1. key 高亮：匹配 JSON key（冒号前的字符串）
-    let result = json.replace(
-      /("(?:\\.|[^"\\])*")\s*:/g,
-      '<span style="color:#6366f1">$1</span>:'
+    let result = escaped.replace(
+      /(&quot;|")((?:\\.|[^"\\])*)(&quot;|")\s*:/g,
+      '<span style="color:#6366f1">"$2"</span>:'
     );
-    // 2. 字符串值高亮：仅匹配行首缩进后 key: "value" 中的 value 部分
-    //    使用 lookbehind 确保冒号前是 </span>（即 key 高亮后的结尾），避免匹配 URL 内的冒号
+    // 2. 字符串值高亮：仅匹配 key 后的 value 部分
     result = result.replace(
-      /(<\/span>:\s*)("(?:\\.|[^"\\])*")/g,
-      '$1<span style="color:#059669">$2</span>'
+      /(<\/span>:\s*)(&quot;|")((?:\\.|[^"\\])*)(&quot;|")/g,
+      '$1<span style="color:#059669">"$3"</span>'
     );
-    // 3. 数字值高亮：同理仅匹配 key 后的数字值
+    // 3. 数字值高亮
     result = result.replace(
       /(<\/span>:\s*)(\d+)/g,
       '$1<span style="color:#d97706">$2</span>'

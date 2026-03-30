@@ -53,18 +53,38 @@ public class K8sClientUtils {
     private K8sClientUtils() {}
 
     /**
-     * 根据KubeConfig文本获取KubernetesClient（带Caffeine缓存，6小时无访问过期）
+     * 根据KubeConfig文本获取KubernetesClient（带Caffeine缓存，6小时无访问过期）。
+     * 如果缓存的 client 连接失败，自动 evict 并重建。
      */
     public static KubernetesClient getClient(String kubeConfig) {
         String cacheKey = cn.hutool.crypto.digest.DigestUtil.sha256Hex(kubeConfig);
-        return CLIENT_CACHE.get(
-                cacheKey,
-                key -> {
-                    log.info("创建新的KubernetesClient, cacheKey={}...", key.substring(0, 12));
-                    Config config = Config.fromKubeconfig(kubeConfig);
-                    config.setTrustCerts(true);
-                    return new KubernetesClientBuilder().withConfig(config).build();
-                });
+        KubernetesClient client =
+                CLIENT_CACHE.get(
+                        cacheKey,
+                        key -> {
+                            log.info("创建新的KubernetesClient, cacheKey={}...", key.substring(0, 12));
+                            Config config = Config.fromKubeconfig(kubeConfig);
+                            config.setTrustCerts(true);
+                            return new KubernetesClientBuilder().withConfig(config).build();
+                        });
+        // Verify connectivity; evict and recreate on failure (e.g. expired OIDC token)
+        try {
+            client.getApiVersion();
+        } catch (Exception e) {
+            log.warn(
+                    "缓存的KubernetesClient连接失败，重建: cacheKey={}..., error={}",
+                    cacheKey.substring(0, 12),
+                    e.getMessage());
+            CLIENT_CACHE.invalidate(cacheKey);
+            return CLIENT_CACHE.get(
+                    cacheKey,
+                    key -> {
+                        Config config = Config.fromKubeconfig(kubeConfig);
+                        config.setTrustCerts(true);
+                        return new KubernetesClientBuilder().withConfig(config).build();
+                    });
+        }
+        return client;
     }
 
     /**
