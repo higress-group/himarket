@@ -56,7 +56,7 @@ function createSSECallbacks(ctx: SSEContext): SSEOptions {
 // ============ SSE Request Helper ============
 
 async function executeSSERequest(
-  modelId: string,
+  _modelId: string,
   messagePayload: Record<string, unknown>,
   abortController: AbortController,
   sseCallbacks: SSEOptions,

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { ProductDetailLayout } from "../components/ProductDetailLayout";
 import {
   Button,
@@ -19,7 +19,6 @@ const { Panel } = Collapse;
 
 function AgentDetail() {
   const { agentProductId } = useParams();
-  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [data, setData] = useState<IProductDetail>();

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { Tabs, Space, Button, message } from "antd";
 import { ProductDetailLayout } from "../components/ProductDetailLayout";
 import { SwaggerUIWrapper } from "../components/SwaggerUIWrapper";
@@ -18,8 +18,6 @@ function ApiDetailPage() {
   const [baseUrl, setBaseUrl] = useState<string>('');
   const [examplePath, setExamplePath] = useState<string>('/{path}');
   const [exampleMethod, setExampleMethod] = useState<string>('GET');
-  const navigate = useNavigate();
-
   const fetchApiDetail = React.useCallback(async () => {
     setLoading(true);
     setError('');

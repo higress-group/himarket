@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { ProductDetailLayout } from "../components/ProductDetailLayout";
 import {
   Button, message,
@@ -40,8 +40,6 @@ function McpDetail() {
   const [sseJson, setSseJson] = useState("");
   const [localJson, setLocalJson] = useState("");
   const [selectedDomainIndex, setSelectedDomainIndex] = useState<number>(0);
-
-  const navigate = useNavigate();
 
   // 解析YAML配置的函数
   const parseYamlConfig = (
