@@ -11,7 +11,12 @@ import {
   BarChartOutlined,
   DashboardOutlined,
   MonitorOutlined,
+  BulbOutlined,
+  ThunderboltOutlined,
+  RobotOutlined,
+  ApiOutlined,
 } from "@ant-design/icons";
+import McpServerIcon from "@/components/icons/McpServerIcon";
 import { Button, Tooltip } from "antd";
 import { isAuthenticated, removeToken } from "../lib/utils";
 
@@ -46,10 +51,14 @@ const Layout: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // 进入详情页自动折叠侧边栏
+    // 进入详情页自动折叠侧边栏（排除 API Products 子菜单路由）
+    const apiProductSubRoutes = ['model-api', 'mcp-server', 'agent-skill', 'worker', 'agent-api', 'rest-api'];
+    const isApiProductDetail = location.pathname.match(/^\/api-products\/([^/]+)$/);
+    const isSubMenuRoute = isApiProductDetail && apiProductSubRoutes.includes(isApiProductDetail[1]);
+
     if (
       location.pathname.match(/^\/portals\/[^/]+$/) ||
-      location.pathname.match(/^\/api-products\/[^/]+$/)
+      (isApiProductDetail && !isSubMenuRoute)
     ) {
       setSidebarCollapsed(true);
     } else {
@@ -64,6 +73,14 @@ const Layout: React.FC = () => {
       cn: "API产品",
       href: "/api-products",
       icon: ProductOutlined,
+      children: [
+        { name: "Model API", cn: "Model API", href: "/api-products/model-api", icon: BulbOutlined },
+        { name: "MCP Server", cn: "MCP Server", href: "/api-products/mcp-server", icon: McpServerIcon },
+        { name: "Agent Skill", cn: "Agent Skill", href: "/api-products/agent-skill", icon: ThunderboltOutlined },
+        { name: "Worker", cn: "Worker", href: "/api-products/worker", icon: UserOutlined },
+        { name: "Agent API", cn: "Agent API", href: "/api-products/agent-api", icon: RobotOutlined },
+        { name: "REST API", cn: "REST API", href: "/api-products/rest-api", icon: ApiOutlined },
+      ],
     },
     {
       name: "Categories",
@@ -124,11 +141,10 @@ const Layout: React.FC = () => {
   };
 
   const isMenuActive = (item: NavigationItem): boolean => {
-    if (location.pathname === item.href) return true;
     if (item.children) {
       return item.children.some(child => location.pathname === child.href);
     }
-    return false;
+    return location.pathname === item.href || location.pathname.startsWith(item.href + '/');
   };
 
   const renderMenuItem = (item: NavigationItem, level: number = 0) => {

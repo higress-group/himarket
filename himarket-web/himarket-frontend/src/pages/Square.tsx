@@ -215,7 +215,7 @@ function Square(props: { activeType: string }) {
         <div ref={sentinelRef} className="h-0 flex-shrink-0" />
 
         {/* 搜索区域 - CSS Sticky 实现 */}
-        <div className={`sticky top-0 z-50 bg-white/95 backdrop-blur-sm transition-shadow duration-200 flex-shrink-0 ${isStuck ? 'shadow-sm border-b border-gray-200' : ''}`}>
+        <div className={`sticky top-0 z-50 backdrop-blur-md transition-shadow duration-200 flex-shrink-0 ${isStuck ? 'shadow-sm bg-white/80' : ''}`}>
           <div className="flex flex-col gap-4 px-6 py-4">
             {/* 统计信息 + 排序 */}
             <div className="flex items-center justify-center gap-4 text-sm text-gray-600">
@@ -279,11 +279,8 @@ function Square(props: { activeType: string }) {
           </div>
         </div>
 
-        {/* 空白区域 */}
-        <div className="h-10 border-t border-gray-200 border-width-3 flex-shrink-0" />
-
         {/* 内容区域：Grid 卡片展示 */}
-        <div className="flex-1 px-4 pb-4 flex-shrink-0">
+        <div className="flex-1 px-4 pt-4 pb-4 flex-shrink-0">
           <div className="pb-4">
             {loading ? (
               <CardGridSkeleton count={8} columns={{ sm: 1, md: 2, lg: 3 }} />
