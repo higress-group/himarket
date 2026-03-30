@@ -141,6 +141,15 @@ public class McpServerServiceImpl implements McpServerService {
                         .findByProductIdAndMcpName(param.getProductId(), param.getMcpName())
                         .orElse(null);
 
+        // mcpName 被修改时，按 productId + mcpName 找不到旧记录
+        // 回退到按 productId 查找唯一 meta（一个产品通常只有一个 MCP）
+        if (meta == null) {
+            List<McpServerMeta> existing = metaRepository.findByProductId(param.getProductId());
+            if (existing.size() == 1) {
+                meta = existing.get(0);
+            }
+        }
+
         if (meta == null) {
             // 新建
             meta =
@@ -168,9 +177,7 @@ public class McpServerServiceImpl implements McpServerService {
             BeanUtil.copyProperties(
                     param,
                     meta,
-                    CopyOptions.create()
-                            .ignoreNullValue()
-                            .setIgnoreProperties("productId", "mcpName"));
+                    CopyOptions.create().ignoreNullValue().setIgnoreProperties("productId"));
         }
 
         metaRepository.save(meta);
@@ -632,6 +639,11 @@ public class McpServerServiceImpl implements McpServerService {
         }
         if (StrUtil.isBlank(param.getSandboxId())) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "请选择沙箱实例");
+        }
+        if (meta.getMcpName() != null && meta.getMcpName().length() > 32) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST,
+                    "MCP 英文名称不能超过 32 个字符（当前 " + meta.getMcpName().length() + " 个），请先修改名称后再部署沙箱");
         }
         // 将 meta 上的字段补充到 param 中，doDeploySandbox 需要用到
         param.setProductId(meta.getProductId());

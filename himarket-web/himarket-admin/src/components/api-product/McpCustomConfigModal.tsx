@@ -629,6 +629,12 @@ export function McpCustomConfigModal({ visible, onCancel, onOk, productName, pro
                     <Radio.Button value="http">Streamable HTTP</Radio.Button>
                   </Radio.Group>
                 </Form.Item>
+                <Form.Item name="authType" label="鉴权方式" initialValue="none" className="mb-0">
+                  <Select>
+                    <Select.Option value="none">无鉴权</Select.Option>
+                    <Select.Option value="apikey">API Key</Select.Option>
+                  </Select>
+                </Form.Item>
               </div>
             </div>
 

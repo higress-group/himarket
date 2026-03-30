@@ -143,29 +143,6 @@ export default function ImportMcpModal({ open, onClose, onImportSuccess }: Impor
       if (result && typeof result.successCount === 'number') {
         setImportResult(result)
         onImportSuccess()
-        // 用 Modal.success 直接弹出结果，不依赖组件状态
-        Modal.success({
-          title: '导入完成',
-          width: 500,
-          content: (
-            <div className="space-y-3 mt-3">
-              <div className="flex gap-6 justify-center">
-                <div className="text-center">
-                  <div className="text-xl font-bold text-green-600">{result.successCount}</div>
-                  <div className="text-xs text-gray-500">成功</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-xl font-bold text-yellow-500">{result.skippedCount}</div>
-                  <div className="text-xs text-gray-500">跳过</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-xl font-bold text-red-500">{result.failedCount}</div>
-                  <div className="text-xs text-gray-500">失败</div>
-                </div>
-              </div>
-            </div>
-          ),
-        })
       } else {
         console.warn('Unexpected batchImport response format:', res)
         message.success('导入完成')

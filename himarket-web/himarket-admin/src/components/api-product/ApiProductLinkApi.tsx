@@ -661,6 +661,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
       // 沙箱部署是异步的（事务提交后由 listener 执行 K8s CRD 部署），
       // 需要轮询等待 endpoint 状态变为 ACTIVE
       const maxAttempts = 15
+      let deployed = false
       for (let i = 0; i < maxAttempts; i++) {
         await new Promise(r => setTimeout(r, 2000))
         const metaRes = await mcpServerApi.listMetaByProduct(apiProduct.productId)
@@ -668,8 +669,12 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
         const activeMeta = (Array.isArray(metaList) ? metaList : []).find((m: any) => m.mcpServerId === targetMcpServerId)
         if (activeMeta?.endpointStatus === 'ACTIVE' && activeMeta?.endpointUrl) {
           message.success('沙箱部署完成')
+          deployed = true
           break
         }
+      }
+      if (!deployed) {
+        message.warning('沙箱部署超时，请稍后刷新页面查看状态')
       }
       await fetchMcpMeta()
       await handleRefresh()
@@ -2808,6 +2813,24 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                     })
                   : undefined,
               })
+
+              // 轮询等待 endpoint 状态变为 ACTIVE
+              const maxAttempts = 15
+              let deployed = false
+              for (let i = 0; i < maxAttempts; i++) {
+                await new Promise(r => setTimeout(r, 3000))
+                const pollRes = await mcpServerApi.listMetaByProduct(apiProduct.productId)
+                const pollList = pollRes?.data || []
+                const activeMeta = (Array.isArray(pollList) ? pollList : []).find((m: any) => m.mcpServerId === newMeta.mcpServerId)
+                if (activeMeta?.endpointStatus === 'ACTIVE' && activeMeta?.endpointUrl) {
+                  message.success('沙箱部署完成')
+                  deployed = true
+                  break
+                }
+              }
+              if (!deployed) {
+                message.warning('沙箱部署超时，请稍后刷新页面查看状态')
+              }
             }
           }
 
