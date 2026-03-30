@@ -38,7 +38,7 @@ services:
 
   # Nacos Server - 使用 MySQL 作为数据源（与 Helm 部署一致）
   nacos:
-    image: ${NACOS_IMAGE:-nacos-registry.cn-hangzhou.cr.aliyuncs.com/nacos/nacos-server:v3.2.0}
+    image: ${NACOS_IMAGE:-nacos-registry.cn-hangzhou.cr.aliyuncs.com/nacos/nacos-server:v3.2.1-2026.03.30}
     pull_policy: always
     container_name: nacos-standalone
     environment:

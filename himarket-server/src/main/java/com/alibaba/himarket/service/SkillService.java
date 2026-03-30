@@ -83,6 +83,15 @@ public interface SkillService {
     void changeVersionStatus(String productId, String version, boolean online);
 
     /**
+     * Force-publishes a version, bypassing Nacos pipeline validation.
+     *
+     * @param productId        the product identifier
+     * @param version          the version to force-publish
+     * @param updateLatestLabel whether to update the "latest" label, null defaults to true
+     */
+    void forcePublishVersion(String productId, String version, Boolean updateLatestLabel);
+
+    /**
      * Deletes the current editing draft.
      *
      * @param productId the product identifier
