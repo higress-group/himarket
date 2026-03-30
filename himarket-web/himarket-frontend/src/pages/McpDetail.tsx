@@ -1,13 +1,12 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { Layout } from "../components/Layout";
-import { ProductHeader } from "../components/ProductHeader";
+import { useParams } from "react-router-dom";
+import { ProductDetailLayout } from "../components/ProductDetailLayout";
 import {
-  Alert, Button, message,
+  Button, message,
   Tabs, Collapse, Select,
   Tooltip,
 } from "antd";
-import { ArrowLeftOutlined, CopyOutlined } from "@ant-design/icons";
+import { CopyOutlined } from "@ant-design/icons";
 import { ProductType } from "../types";
 import * as yaml from "js-yaml";
 import type { IMCPConfig } from "../lib/apis/typing";
@@ -15,7 +14,6 @@ import type { IProductDetail } from "../lib/apis";
 import APIs from "../lib/apis";
 import MarkdownRender from "../components/MarkdownRender";
 import { copyToClipboard, formatDomainWithPort } from "../lib/utils";
-import { DetailSkeleton } from "../components/loading";
 
 function McpDetail() {
   const { mcpProductId } = useParams();
@@ -42,8 +40,6 @@ function McpDetail() {
   const [sseJson, setSseJson] = useState("");
   const [localJson, setLocalJson] = useState("");
   const [selectedDomainIndex, setSelectedDomainIndex] = useState<number>(0);
-
-  const navigate = useNavigate();
 
   // 解析YAML配置的函数
   const parseYamlConfig = (
@@ -250,73 +246,12 @@ function McpDetail() {
     return getDomainOptions(mcpConfig?.mcpServerConfig?.domains || []);
   }, [mcpConfig?.mcpServerConfig?.domains]);
 
-  if (loading) {
-    return (
-      <Layout>
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <DetailSkeleton />
-        </div>
-      </Layout>
-    );
-  }
-
-  if (error) {
-    return (
-      <Layout>
-        <div className="p-8">
-          <Alert message="错误" description={error} type="error" showIcon />
-        </div>
-      </Layout>
-    );
-  }
-
-  if (!data) {
-    return (
-      <Layout>
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <DetailSkeleton />
-        </div>
-      </Layout>
-    );
-  }
-
-  const { name, description } = data;
+  const { name, description } = data || {};
   const hasLocalConfig = Boolean(mcpConfig?.mcpServerConfig.rawConfig);
 
-
-  return (
-    <Layout>
-      {/* 头部 */}
-      <div className="mb-8">
-        <button
-          onClick={() => navigate(-1)}
-          className="
-            flex items-center gap-2 mb-4 px-4 py-2 rounded-xl
-            text-gray-600 hover:text-colorPrimary
-            hover:bg-colorPrimaryBgHover
-            transition-all duration-200
-          "
-        >
-          <ArrowLeftOutlined />
-          <span>返回</span>
-        </button>
-        <ProductHeader
-          name={name}
-          description={description}
-          icon={data.icon}
-          defaultIcon="/MCP.svg"
-          mcpConfig={mcpConfig}
-          updatedAt={data.updatedAt}
-          productType="MCP_SERVER"
-        />
-      </div>
-
-      {/* 主要内容区域 - 左右布局 */}
-      <div className="flex flex-col lg:flex-row gap-6">
-        {/* 左侧内容 */}
-        <div className="w-full lg:w-[65%] order-2 lg:order-1">
-          <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-6">
-            <Tabs
+  const leftContent = data ? (
+    <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-6">
+      <Tabs
               defaultActiveKey="overview"
               // className="model-detail-tabs"
               items={[
@@ -398,11 +333,11 @@ function McpDetail() {
               ]}
             />
           </div>
-        </div>
+  ) : null;
 
-        {/* 右侧连接指导 */}
-        <div className="w-full lg:w-[35%] order-1 lg:order-2">
-          {mcpConfig && (
+  const rightContent = (
+    <>
+      {mcpConfig && (
             <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-6">
               <div className="flex items-center gap-2 mb-4">
                 <h3 className="text-base font-semibold  text-gray-900">
@@ -526,9 +461,25 @@ function McpDetail() {
               />
             </div>
           )}
-        </div>
-      </div>
-    </Layout>
+    </>
+  );
+
+  return (
+    <ProductDetailLayout
+      loading={loading}
+      error={error || (!data ? "数据加载失败" : undefined)}
+      headerProps={data ? {
+        name: name!,
+        description: description!,
+        icon: data.icon,
+        defaultIcon: "/MCP.svg",
+        mcpConfig: mcpConfig,
+        updatedAt: data.updatedAt,
+        productType: "MCP_SERVER",
+      } : undefined}
+      leftContent={leftContent}
+      rightContent={rightContent}
+    />
   );
 }
 

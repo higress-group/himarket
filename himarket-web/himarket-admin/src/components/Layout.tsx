@@ -11,8 +11,13 @@ import {
   BarChartOutlined,
   DashboardOutlined,
   MonitorOutlined,
+  BulbOutlined,
+  ThunderboltOutlined,
+  RobotOutlined,
+  ApiOutlined,
 } from "@ant-design/icons";
-import { Button } from "antd";
+import McpServerIcon from "@/components/icons/McpServerIcon";
+import { Button, Tooltip } from "antd";
 import { isAuthenticated, removeToken } from "../lib/utils";
 
 interface NavigationItem {
@@ -46,10 +51,14 @@ const Layout: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // 进入详情页自动折叠侧边栏
+    // 进入详情页自动折叠侧边栏（排除 API Products 子菜单路由）
+    const apiProductSubRoutes = ['model-api', 'mcp-server', 'agent-skill', 'worker', 'agent-api', 'rest-api'];
+    const isApiProductDetail = location.pathname.match(/^\/api-products\/([^/]+)$/);
+    const isSubMenuRoute = isApiProductDetail && apiProductSubRoutes.includes(isApiProductDetail[1]);
+
     if (
-      location.pathname.startsWith("/portals/detail") ||
-      location.pathname.startsWith("/api-products/detail")
+      location.pathname.match(/^\/portals\/[^/]+$/) ||
+      (isApiProductDetail && !isSubMenuRoute)
     ) {
       setSidebarCollapsed(true);
     } else {
@@ -64,6 +73,14 @@ const Layout: React.FC = () => {
       cn: "API产品",
       href: "/api-products",
       icon: ProductOutlined,
+      children: [
+        { name: "Model API", cn: "Model API", href: "/api-products/model-api", icon: BulbOutlined },
+        { name: "MCP Server", cn: "MCP Server", href: "/api-products/mcp-server", icon: McpServerIcon },
+        { name: "Agent Skill", cn: "Agent Skill", href: "/api-products/agent-skill", icon: ThunderboltOutlined },
+        { name: "Worker", cn: "Worker", href: "/api-products/worker", icon: UserOutlined },
+        { name: "Agent API", cn: "Agent API", href: "/api-products/agent-api", icon: RobotOutlined },
+        { name: "REST API", cn: "REST API", href: "/api-products/rest-api", icon: ApiOutlined },
+      ],
     },
     {
       name: "Categories",
@@ -124,11 +141,10 @@ const Layout: React.FC = () => {
   };
 
   const isMenuActive = (item: NavigationItem): boolean => {
-    if (location.pathname === item.href) return true;
     if (item.children) {
       return item.children.some(child => location.pathname === child.href);
     }
-    return false;
+    return location.pathname === item.href || location.pathname.startsWith(item.href + '/');
   };
 
   const renderMenuItem = (item: NavigationItem, level: number = 0) => {
@@ -136,6 +152,26 @@ const Layout: React.FC = () => {
     const isActive = isMenuActive(item);
     const hasChildren = item.children && item.children.length > 0;
 
+    // 折叠状态：隐藏子菜单，图标居中，添加 Tooltip
+    if (sidebarCollapsed) {
+      if (level > 0) return null;
+      return (
+        <Tooltip key={item.name} title={item.cn || item.name} placement="right">
+          <Link
+            to={item.href}
+            className={`flex items-center justify-center mt-2 p-3 rounded-lg transition-colors duration-150 ${
+              isActive && !hasChildren
+                ? "bg-gray-100 text-black"
+                : "text-gray-500 hover:text-black hover:bg-gray-50"
+            }`}
+          >
+            <Icon className="h-5 w-5" />
+          </Link>
+        </Tooltip>
+      );
+    }
+
+    // 展开状态：保持现有逻辑
     return (
       <div key={item.name}>
         <Link
@@ -147,16 +183,13 @@ const Layout: React.FC = () => {
               ? "bg-gray-100 text-black font-semibold"
               : "text-gray-500 hover:text-black hover:bg-gray-50"
           }`}
-          title={sidebarCollapsed ? item.name : ""}
         >
           <Icon className="mr-3 h-5 w-5 flex-shrink-0" />
-          {!sidebarCollapsed && (
-            <div className="flex flex-col flex-1">
-              <span className="text-base leading-none">{item.name}</span>
-            </div>
-          )}
+          <div className="flex flex-col flex-1">
+            <span className="text-base leading-none">{item.name}</span>
+          </div>
         </Link>
-        {!sidebarCollapsed && hasChildren && (
+        {hasChildren && (
           <div className="ml-2">
             {item.children!.map(child => renderMenuItem(child, level + 1))}
           </div>

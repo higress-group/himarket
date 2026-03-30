@@ -13,6 +13,17 @@ function App() {
         locale={zhCN}
         theme={{
           token: aliyunThemeToken,
+          components: {
+            Card: {
+              borderRadiusLG: 12,
+            },
+            Table: {
+              rowHoverBg: '#EEF2FF',
+            },
+            Button: {
+              primaryShadow: '0 2px 4px rgba(99, 102, 241, 0.3)',
+            },
+          },
         }}
       >
         <RouterProvider router={router} />

@@ -2,7 +2,8 @@ import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Form, Input, Button, message, Divider } from "antd";
 import { UserOutlined, LockOutlined } from "@ant-design/icons";
-import api, { type IdpResult } from "../lib/api";
+import request from "../lib/request";
+import type { IIdpProvider } from "../lib/apis";
 import { AxiosError } from "axios";
 import { Layout } from "../components/Layout";
 import APIs from "../lib/apis";
@@ -19,7 +20,7 @@ const oidcIcons: Record<string, React.ReactNode> = {
 };
 
 const Login: React.FC = () => {
-  const [providers, setProviders] = useState<IdpResult[]>([]);
+  const [providers, setProviders] = useState<IIdpProvider[]>([]);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -41,7 +42,7 @@ const Login: React.FC = () => {
   const handlePasswordLogin = async (values: { username: string; password: string }) => {
     setLoading(true);
     try {
-      const res = await api.post("/developers/login", {
+      const res = await request.post("/developers/login", {
         username: values.username,
         password: values.password,
       });
@@ -74,7 +75,7 @@ const Login: React.FC = () => {
   // 跳转到 OIDC 授权 - 对接OidcController
   const handleOidcLogin = (provider: string) => {
     // 获取API前缀配置
-    const apiPrefix = api.defaults.baseURL || '/api/v1';
+    const apiPrefix = request.defaults.baseURL || '/api/v1';
 
     // 构建授权URL - 对接 /developers/oidc/authorize
     const authUrl = new URL(`${window.location.origin}${apiPrefix}/developers/oidc/authorize`);

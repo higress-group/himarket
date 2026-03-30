@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Button, Dropdown, MenuProps, Modal, message } from 'antd'
 import {
   MoreOutlined,
@@ -51,6 +51,7 @@ const BASE_MENU_ITEMS = [
 
 export default function ApiProductDetail() {
   const navigate = useNavigate()
+  const { productId } = useParams<{ productId: string }>()
   const [searchParams, setSearchParams] = useSearchParams()
   const [apiProduct, setApiProduct] = useState<ApiProduct | null>(null)
   const [linkedService, setLinkedService] = useState<LinkedService | null>(null)
@@ -81,7 +82,6 @@ export default function ApiProductDetail() {
 
   
   const fetchApiProduct = async () => {
-    const productId = searchParams.get('productId')
     if (productId) {
       setLoading(true)
       try {
@@ -108,7 +108,7 @@ export default function ApiProductDetail() {
 
   useEffect(() => {
     fetchApiProduct()
-  }, [searchParams.get('productId')])
+  }, [productId])
 
   // 同步URL参数和activeTab状态
   useEffect(() => {
