@@ -19,13 +19,20 @@
 
 package com.alibaba.himarket.converter;
 
-import com.alibaba.himarket.support.sandbox.ClusterAttribute;
+import com.alibaba.himarket.support.common.Encryptor;
+import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 
-@Converter(autoApply = true)
-public class ClusterAttributeConverter extends JsonConverter<ClusterAttribute> {
+@Converter
+public class EncryptedStringConverter implements AttributeConverter<String, String> {
 
-    protected ClusterAttributeConverter() {
-        super(ClusterAttribute.class);
+    @Override
+    public String convertToDatabaseColumn(String attribute) {
+        return Encryptor.encrypt(attribute);
+    }
+
+    @Override
+    public String convertToEntityAttribute(String dbData) {
+        return Encryptor.decrypt(dbData);
     }
 }

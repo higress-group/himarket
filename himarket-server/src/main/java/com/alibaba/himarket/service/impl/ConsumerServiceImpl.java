@@ -303,20 +303,11 @@ public class ConsumerServiceImpl implements ConsumerService {
         subscription.setSubscriptionId(IdGenerator.genSubscriptionId());
         subscription.setConsumerId(consumerId);
 
+        // 判断是否自动审批
+        boolean autoApprove = resolveAutoApprove(product, consumer);
+
         // 网关来源：需要同步授权到网关
         if (productRef != null && productRef.getSourceType() == SourceType.GATEWAY) {
-            boolean autoApprove;
-            if (product.getAutoApprove() != null) {
-                autoApprove = product.getAutoApprove();
-            } else {
-                PortalResult portal = portalService.getPortal(consumer.getPortalId());
-                autoApprove =
-                        portal.getPortalSettingConfig() != null
-                                && BooleanUtil.isTrue(
-                                        portal.getPortalSettingConfig()
-                                                .getAutoApproveSubscriptions());
-            }
-
             if (autoApprove) {
                 ConsumerAuthConfig consumerAuthConfig =
                         authorizeConsumer(consumer, credential, productRef);
@@ -327,17 +318,6 @@ public class ConsumerServiceImpl implements ConsumerService {
             }
         } else {
             // Non-gateway source: respect product's autoApprove setting
-            boolean autoApprove;
-            if (product.getAutoApprove() != null) {
-                autoApprove = product.getAutoApprove();
-            } else {
-                PortalResult portal = portalService.getPortal(consumer.getPortalId());
-                autoApprove =
-                        portal.getPortalSettingConfig() != null
-                                && BooleanUtil.isTrue(
-                                        portal.getPortalSettingConfig()
-                                                .getAutoApproveSubscriptions());
-            }
             subscription.setStatus(
                     autoApprove ? SubscriptionStatus.APPROVED : SubscriptionStatus.PENDING);
         }
@@ -848,5 +828,15 @@ public class ConsumerServiceImpl implements ConsumerService {
                 .headers(headers)
                 .queryParams(queryParams)
                 .build();
+    }
+
+    private boolean resolveAutoApprove(ProductResult product, Consumer consumer) {
+        if (product.getAutoApprove() != null) {
+            return product.getAutoApprove();
+        }
+        PortalResult portal = portalService.getPortal(consumer.getPortalId());
+        return portal.getPortalSettingConfig() != null
+                && BooleanUtil.isTrue(
+                        portal.getPortalSettingConfig().getAutoApproveSubscriptions());
     }
 }

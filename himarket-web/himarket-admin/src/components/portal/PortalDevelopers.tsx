@@ -120,12 +120,6 @@ export function PortalDevelopers({portal}: PortalDevelopersProps) {
                 ...prev,
                 total: res.data.totalElements || 0
             }))
-        }).then((res: any) => {
-            setConsumers(res.data.content || [])
-            setConsumerPagination(prev => ({
-                ...prev,
-                total: res.data.totalElements || 0
-            }))
         })
     }
 

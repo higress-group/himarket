@@ -30,6 +30,7 @@ function McpSquare() {
 
   const [activeCategory, setActiveCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [committedSearch, setCommittedSearch] = useState("");
   const [mcpItems, setMcpItems] = useState<McpProductItem[]>([]);
   const [categories, setCategories] = useState<Array<{ id: string; name: string; count: number }>>([]);
   const [loading, setLoading] = useState(false);
@@ -91,7 +92,7 @@ function McpSquare() {
       setHasMore(true);
       try {
         const categoryIds = activeCategory === "all" ? undefined : [activeCategory];
-        const response = await APIs.getProducts({ type: "MCP_SERVER", categoryIds, page: 0, size: PAGE_SIZE });
+        const response = await APIs.getProducts({ type: "MCP_SERVER", categoryIds, name: committedSearch || undefined, page: 0, size: PAGE_SIZE });
         if (response.code === "SUCCESS" && response.data?.content) {
           const prods = response.data.content;
           setHasMore(response.data.totalElements > prods.length);
@@ -105,7 +106,7 @@ function McpSquare() {
       }
     };
     fetchProducts();
-  }, [activeCategory, activeTab]);
+  }, [activeCategory, activeTab, committedSearch, isLoggedIn]);
 
   // 获取我的 MCP（基于 consumer subscription，只展示已订阅的 MCP 产品）
   const fetchMyMcps = useCallback(async () => {
@@ -196,7 +197,7 @@ function McpSquare() {
     try {
       const categoryIds = activeCategory === "all" ? undefined : [activeCategory];
       const nextPage = currentPage + 1;
-      const response = await APIs.getProducts({ type: "MCP_SERVER", categoryIds, page: nextPage, size: PAGE_SIZE });
+      const response = await APIs.getProducts({ type: "MCP_SERVER", categoryIds, name: committedSearch || undefined, page: nextPage, size: PAGE_SIZE });
       if (response.code === "SUCCESS" && response.data?.content) {
         const newItems = await fetchMetaForProducts(response.data.content);
         setMcpItems(prev => [...prev, ...newItems]);
@@ -208,7 +209,7 @@ function McpSquare() {
     } finally {
       setLoadingMore(false);
     }
-  }, [activeCategory, currentPage, hasMore, loadingMore, mcpItems]);
+  }, [activeCategory, currentPage, hasMore, loadingMore, mcpItems, committedSearch]);
 
   useEffect(() => {
     const el = scrollContainerRef.current;
@@ -219,14 +220,6 @@ function McpSquare() {
     el.addEventListener("scroll", handleScroll);
     return () => el.removeEventListener("scroll", handleScroll);
   }, [loadMoreProducts]);
-
-  const filteredItems = mcpItems.filter((item) => {
-    if (!searchQuery) return true;
-    const q = searchQuery.toLowerCase();
-    const name = item.meta?.displayName || item.meta?.mcpName || item.product.name;
-    const desc = item.meta?.description || item.product.description;
-    return name.toLowerCase().includes(q) || desc?.toLowerCase().includes(q);
-  });
 
   const handleSubscribe = async (productId: string) => {
     try {
@@ -320,7 +313,11 @@ function McpSquare() {
               placeholder="搜索 MCP Server..."
               prefix={<SearchOutlined className="text-gray-400" />}
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                if (!e.target.value) setCommittedSearch("");
+              }}
+              onPressEnter={() => setCommittedSearch(searchQuery)}
               className="w-80 rounded-xl"
               style={{
                 backgroundColor: "rgba(255, 255, 255, 0.6)",
@@ -338,7 +335,7 @@ function McpSquare() {
                 <MarketContent
                   loading={loading}
                   loadingMore={loadingMore}
-                  items={filteredItems}
+                  items={mcpItems}
                   subscribedProductIds={subscribedProductIds}
                   isLoggedIn={isLoggedIn}
                   onViewDetail={(pid) => navigate(`/mcp/${pid}`)}

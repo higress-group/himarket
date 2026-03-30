@@ -57,6 +57,7 @@ import com.alibaba.himarket.service.hichat.manager.ToolManager;
 import com.alibaba.himarket.service.mcp.McpProtocolUtils;
 import com.alibaba.himarket.service.mcp.McpToolsConfigParser;
 import com.alibaba.himarket.support.chat.mcp.MCPTransportConfig;
+import com.alibaba.himarket.support.enums.McpEndpointStatus;
 import com.alibaba.himarket.support.enums.ProductStatus;
 import com.alibaba.himarket.support.enums.ProductType;
 import com.alibaba.himarket.support.enums.SourceType;
@@ -998,7 +999,9 @@ public class ProductServiceImpl implements ProductService {
         McpServerEndpoint endpoint =
                 mcpServerEndpointRepository
                         .findByMcpServerIdAndUserIdInAndStatus(
-                                meta.getMcpServerId(), List.of("*"), "ACTIVE")
+                                meta.getMcpServerId(),
+                                List.of(McpEndpointStatus.PUBLIC_USER_ID),
+                                McpEndpointStatus.ACTIVE.name())
                         .stream()
                         .findFirst()
                         .orElse(null);

@@ -18,6 +18,7 @@ import { getConsumers, subscribeProduct, unsubscribeProduct, getProductSubscript
 import type { Consumer } from "../types/consumer";
 import type { ISubscription } from "../lib/apis/consumer";
 import { ProductIconRenderer } from "../components/icon/ProductIconRenderer";
+import { copyToClipboard } from "../lib/utils";
 import { getIconString, parseMetaIcon } from "../lib/iconUtils";
 import MarkdownRender from "../components/MarkdownRender";
 import { useAuth } from "../hooks/useAuth";
@@ -90,7 +91,7 @@ function McpDetail() {
   }, [mcpProductId, isLoggedIn]);
 
   const handleCopy = (text: string) => {
-    navigator.clipboard.writeText(text);
+    copyToClipboard(text);
     message.success("已复制");
   };
 

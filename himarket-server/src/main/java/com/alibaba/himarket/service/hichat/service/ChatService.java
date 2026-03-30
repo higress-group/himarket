@@ -50,6 +50,7 @@ import com.alibaba.himarket.support.chat.mcp.MCPTransportConfig;
 import com.alibaba.himarket.support.enums.ChatAttachmentType;
 import com.alibaba.himarket.support.enums.ChatStatus;
 import com.alibaba.himarket.support.enums.MCPTransportMode;
+import com.alibaba.himarket.support.enums.McpEndpointStatus;
 import com.alibaba.himarket.support.enums.McpProtocolType;
 import com.alibaba.himarket.support.enums.ProductType;
 import io.agentscope.core.message.*;
@@ -413,7 +414,9 @@ public class ChatService {
                         ? java.util.Collections.emptyMap()
                         : mcpServerEndpointRepository
                                 .findByMcpServerIdInAndUserIdInAndStatus(
-                                        mcpServerIds, List.of("*"), "ACTIVE")
+                                        mcpServerIds,
+                                        List.of(McpEndpointStatus.PUBLIC_USER_ID),
+                                        McpEndpointStatus.ACTIVE.name())
                                 .stream()
                                 .collect(
                                         Collectors.toMap(

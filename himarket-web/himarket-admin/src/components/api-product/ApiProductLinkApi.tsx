@@ -29,7 +29,7 @@ function ApiKeyDisplay({ apiKey }: { apiKey: string }) {
         {visible ? '隐藏' : '查看'}
       </Button>
       <Button type="link" size="small" className="p-0 text-[11px]" onClick={() => {
-        navigator.clipboard.writeText(apiKey)
+        copyToClipboard(apiKey)
         message.success('已复制 API Key')
       }}>复制</Button>
     </span>
@@ -56,7 +56,7 @@ function AuthCredentialPanel({ secretName, apiKey }: { secretName?: string; apiK
           <span className="text-gray-500 shrink-0 w-20">Secret</span>
           <span className="font-mono text-gray-700 truncate" title={secretName}>{secretName}</span>
           <Button type="link" size="small" className="p-0 text-[11px] shrink-0" onClick={() => {
-            navigator.clipboard.writeText(secretName)
+            copyToClipboard(secretName)
             message.success('已复制 Secret 名称')
           }}>复制</Button>
         </div>

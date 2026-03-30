@@ -1,6 +1,7 @@
 package com.alibaba.himarket.dto.params.mcp;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -14,6 +15,7 @@ public class RegisterMcpParam {
 
     @NotBlank(message = "MCP 英文名称不能为空")
     @Size(max = 63, message = "不超过 63 个字符")
+    @Pattern(regexp = "^[a-z][a-z0-9-]*$", message = "小写字母开头，仅含小写字母、数字、连字符")
     private String mcpName;
 
     @NotBlank(message = "MCP 展示名称不能为空")

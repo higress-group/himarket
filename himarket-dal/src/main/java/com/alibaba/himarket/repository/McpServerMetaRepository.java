@@ -37,6 +37,9 @@ public interface McpServerMetaRepository extends BaseRepository<McpServerMeta, L
 
     Optional<McpServerMeta> findByMcpName(String mcpName);
 
+    /** 批量按 mcpName 查询（避免 N+1） */
+    List<McpServerMeta> findByMcpNameIn(java.util.Collection<String> mcpNames);
+
     /** 批量按 mcpServerId 查询（避免 N+1） */
     List<McpServerMeta> findByMcpServerIdIn(java.util.Collection<String> mcpServerIds);
 

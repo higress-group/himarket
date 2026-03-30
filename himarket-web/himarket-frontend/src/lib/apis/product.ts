@@ -271,11 +271,6 @@ export interface ISandboxSimple {
   sandboxName: string;
 }
 
-// 获取可用沙箱列表（Portal 端，只返回 id 和名称）
-export function getActiveSandboxes() {
-  return request.get<RespI<ISandboxSimple[]>, RespI<ISandboxSimple[]>>('/mcp-servers/sandboxes');
-}
-
 // 获取可用沙箱列表（Admin 端，按 adminId 过滤）
 export function getSandboxes(params?: { sandboxType?: string; page?: number; size?: number }) {
   return request.get<RespI<GetSandboxesResp>, RespI<GetSandboxesResp>>('/sandboxes', { params });

@@ -22,17 +22,17 @@ package com.alibaba.himarket.controller;
 import com.alibaba.himarket.core.annotation.AdminAuth;
 import com.alibaba.himarket.core.annotation.PublicAccess;
 import com.alibaba.himarket.core.security.ContextHolder;
+import com.alibaba.himarket.dto.params.mcp.DeploySandboxParam;
 import com.alibaba.himarket.dto.params.mcp.RegisterMcpParam;
 import com.alibaba.himarket.dto.params.mcp.SaveMcpEndpointParam;
 import com.alibaba.himarket.dto.params.mcp.SaveMcpMetaParam;
+import com.alibaba.himarket.dto.params.mcp.UpdateServiceIntroParam;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.mcp.McpEndpointResult;
 import com.alibaba.himarket.dto.result.mcp.McpMetaPublicResult;
 import com.alibaba.himarket.dto.result.mcp.McpMetaResult;
 import com.alibaba.himarket.dto.result.mcp.MyEndpointResult;
-import com.alibaba.himarket.dto.result.sandbox.SandboxSimpleResult;
 import com.alibaba.himarket.service.McpServerService;
-import com.alibaba.himarket.service.SandboxService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -48,7 +48,6 @@ import org.springframework.web.bind.annotation.*;
 public class McpServerController {
 
     private final McpServerService mcpServerService;
-    private final SandboxService sandboxService;
     private final ContextHolder contextHolder;
 
     // ==================== 管理接口（需要 Admin 权限） ====================
@@ -138,23 +137,16 @@ public class McpServerController {
     @PutMapping("/meta/{mcpServerId}/service-intro")
     @AdminAuth
     public McpMetaResult updateServiceIntro(
-            @PathVariable String mcpServerId, @RequestBody java.util.Map<String, String> body) {
-        return mcpServerService.updateServiceIntro(mcpServerId, body.get("serviceIntro"));
+            @PathVariable String mcpServerId, @Valid @RequestBody UpdateServiceIntroParam body) {
+        return mcpServerService.updateServiceIntro(mcpServerId, body.getServiceIntro());
     }
 
     @Operation(summary = "管理员手动部署沙箱（为已保存的 MCP 配置部署沙箱 endpoint）")
     @PostMapping("/meta/{mcpServerId}/deploy-sandbox")
     @AdminAuth
     public McpMetaResult deploySandbox(
-            @PathVariable String mcpServerId, @RequestBody java.util.Map<String, String> body) {
-        SaveMcpMetaParam param = new SaveMcpMetaParam();
-        param.setSandboxId(body.get("sandboxId"));
-        param.setTransportType(body.get("transportType"));
-        param.setAuthType(body.get("authType"));
-        param.setParamValues(body.get("paramValues"));
-        param.setNamespace(body.get("namespace"));
-        param.setResourceSpec(body.get("resourceSpec"));
-        return mcpServerService.deploySandbox(mcpServerId, param);
+            @PathVariable String mcpServerId, @Valid @RequestBody DeploySandboxParam body) {
+        return mcpServerService.deploySandbox(mcpServerId, body.toSaveMcpMetaParam());
     }
 
     @Operation(summary = "管理员取消沙箱托管（删除沙箱 CRD 和 endpoint）")
@@ -166,6 +158,7 @@ public class McpServerController {
 
     @Operation(summary = "获取 MCP Server 的所有 endpoint")
     @GetMapping("/endpoints")
+    @AdminAuth
     public List<McpEndpointResult> listEndpoints(@RequestParam String mcpServerId) {
         return mcpServerService.listEndpoints(mcpServerId);
     }
@@ -178,12 +171,6 @@ public class McpServerController {
             page.getContent().forEach(McpMetaResult::sanitize);
         }
         return page;
-    }
-
-    @Operation(summary = "可用沙箱列表（Portal 端，只返回支持 MCP 托管且状态正常的沙箱）")
-    @GetMapping("/sandboxes")
-    public List<SandboxSimpleResult> listMcpCapableSandboxes() {
-        return sandboxService.listMcpCapableSandboxes();
     }
 
     @Operation(summary = "我的 MCP：查询当前用户拥有的所有 endpoint")

@@ -19,6 +19,7 @@
 
 package com.alibaba.himarket.entity;
 
+import com.alibaba.himarket.converter.EncryptedStringConverter;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import lombok.*;
@@ -66,6 +67,7 @@ public class SandboxInstance extends BaseEntity {
     @Column(name = "api_server", length = 256)
     private String apiServer;
 
+    @Convert(converter = EncryptedStringConverter.class)
     @Column(name = "kube_config", columnDefinition = "text")
     private String kubeConfig;
 

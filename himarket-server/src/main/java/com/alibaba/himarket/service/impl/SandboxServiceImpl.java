@@ -38,6 +38,7 @@ import com.alibaba.himarket.entity.SandboxInstance;
 import com.alibaba.himarket.repository.McpServerEndpointRepository;
 import com.alibaba.himarket.repository.SandboxInstanceRepository;
 import com.alibaba.himarket.service.SandboxService;
+import com.alibaba.himarket.support.enums.McpHostingType;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import jakarta.persistence.criteria.Predicate;
 import java.util.ArrayList;
@@ -183,7 +184,7 @@ public class SandboxServiceImpl implements SandboxService {
         // 检查是否有 MCP endpoint 正在使用该沙箱
         var activeEndpoints =
                 mcpServerEndpointRepository.findByHostingTypeAndHostingInstanceId(
-                        "SANDBOX", sandboxId);
+                        McpHostingType.SANDBOX.name(), sandboxId);
         if (!activeEndpoints.isEmpty()) {
             throw new BusinessException(
                     ErrorCode.CONFLICT,
@@ -250,7 +251,7 @@ public class SandboxServiceImpl implements SandboxService {
     @Override
     public int countActiveDeployments(String sandboxId) {
         return mcpServerEndpointRepository
-                .findByHostingTypeAndHostingInstanceId("SANDBOX", sandboxId)
+                .findByHostingTypeAndHostingInstanceId(McpHostingType.SANDBOX.name(), sandboxId)
                 .size();
     }
 

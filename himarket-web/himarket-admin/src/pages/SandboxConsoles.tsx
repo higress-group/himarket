@@ -392,7 +392,7 @@ export default function SandboxConsoles() {
                   ? '如需更换集群，请粘贴新的 KubeConfig 并验证连通性。留空则保持原有集群配置不变。'
                   : '粘贴 Kubernetes 集群的 KubeConfig 文件内容，然后点击下方按钮验证连接。'}
               </div>
-              <Form.Item name="kubeConfig" label="KubeConfig" rules={[{ required: true, message: '请粘贴 KubeConfig 内容' }]}>
+              <Form.Item name="kubeConfig" label="KubeConfig" rules={[{ required: !editingSandbox, message: '请粘贴 KubeConfig 内容' }]}>
                 <Input.TextArea
                   placeholder={`apiVersion: v1\nclusters:\n- cluster:\n    server: https://your-k8s-api:6443\n  name: my-cluster\n...`}
                   autoSize={{ minRows: 10, maxRows: 18 }}

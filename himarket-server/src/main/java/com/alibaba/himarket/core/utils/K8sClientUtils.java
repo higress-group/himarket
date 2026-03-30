@@ -19,6 +19,7 @@
 
 package com.alibaba.himarket.core.utils;
 
+import cn.hutool.extra.spring.SpringUtil;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.RemovalCause;
@@ -52,6 +53,11 @@ public class K8sClientUtils {
 
     private K8sClientUtils() {}
 
+    private static boolean shouldTrustCerts() {
+        String sslVerify = SpringUtil.getProperty("sandbox.ssl-verify", "false");
+        return !"true".equalsIgnoreCase(sslVerify);
+    }
+
     /**
      * 根据KubeConfig文本获取KubernetesClient（带Caffeine缓存，6小时无访问过期）。
      * 如果缓存的 client 连接失败，自动 evict 并重建。
@@ -64,7 +70,7 @@ public class K8sClientUtils {
                         key -> {
                             log.info("创建新的KubernetesClient, cacheKey={}...", key.substring(0, 12));
                             Config config = Config.fromKubeconfig(kubeConfig);
-                            config.setTrustCerts(true);
+                            config.setTrustCerts(shouldTrustCerts());
                             return new KubernetesClientBuilder().withConfig(config).build();
                         });
         // Verify connectivity; evict and recreate on failure (e.g. expired OIDC token)
@@ -80,7 +86,7 @@ public class K8sClientUtils {
                     cacheKey,
                     key -> {
                         Config config = Config.fromKubeconfig(kubeConfig);
-                        config.setTrustCerts(true);
+                        config.setTrustCerts(shouldTrustCerts());
                         return new KubernetesClientBuilder().withConfig(config).build();
                     });
         }

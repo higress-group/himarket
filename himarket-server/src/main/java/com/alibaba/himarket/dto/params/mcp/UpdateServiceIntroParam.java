@@ -17,40 +17,17 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.sandbox;
+package com.alibaba.himarket.dto.params.mcp;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 
-/**
- * 集群属性，以JSON形式存储在sandbox_instance.cluster_attribute字段中
- */
+/** 更新 MCP Server 服务介绍参数。 */
 @Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class ClusterAttribute {
+public class UpdateServiceIntroParam {
 
-    /** 集群ID，kube-system namespace的UID */
-    private String clusterId;
-
-    /** 集群名称 */
-    private String clusterName;
-
-    /** SLB类型：internet（公网）/ intranet（内网） */
-    private String slbType;
-
-    /** VPC ID */
-    private String vpcId;
-
-    /** 映射IP，内网集群通过隧道访问时使用 */
-    private String mappingIP;
-
-    /** 映射端口 */
-    private Integer mappingPort;
-
-    /** 集群异常原因说明 */
-    private String abnormalReason;
+    @NotBlank(message = "服务介绍不能为空")
+    @Size(max = 65535, message = "服务介绍内容过长")
+    private String serviceIntro;
 }

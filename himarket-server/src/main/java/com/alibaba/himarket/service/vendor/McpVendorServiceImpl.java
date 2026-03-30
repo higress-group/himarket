@@ -56,12 +56,17 @@ public class McpVendorServiceImpl implements McpVendorService {
         PageResult<RemoteMcpItem> remotePage = adapter.listMcpServers(keyword, page, size);
 
         // 收集本页所有 mcpName，批量查询平台已有记录
-        Set<String> existingNames =
+        Set<String> allNames =
                 remotePage.getContent().stream()
                         .map(RemoteMcpItem::getMcpName)
                         .filter(name -> name != null && !name.isBlank())
-                        .filter(name -> metaRepository.findByMcpName(name).isPresent())
                         .collect(Collectors.toSet());
+        Set<String> existingNames =
+                allNames.isEmpty()
+                        ? Set.of()
+                        : metaRepository.findByMcpNameIn(allNames).stream()
+                                .map(meta -> meta.getMcpName())
+                                .collect(Collectors.toSet());
 
         List<RemoteMcpItemResult> results =
                 remotePage.getContent().stream()
@@ -80,6 +85,19 @@ public class McpVendorServiceImpl implements McpVendorService {
 
         McpVendorAdapter adapter = vendorAdapterRegistry.getAdapter(vendorType);
 
+        // 批量预查询已存在的 mcpName，避免循环内 N+1
+        Set<String> allMcpNames =
+                items.stream()
+                        .map(RemoteMcpItemParam::getMcpName)
+                        .filter(name -> name != null && !name.isBlank())
+                        .collect(Collectors.toSet());
+        Set<String> existingMcpNames =
+                allMcpNames.isEmpty()
+                        ? Set.of()
+                        : metaRepository.findByMcpNameIn(allMcpNames).stream()
+                                .map(meta -> meta.getMcpName())
+                                .collect(Collectors.toSet());
+
         int successCount = 0;
         int skippedCount = 0;
         int failedCount = 0;
@@ -89,7 +107,7 @@ public class McpVendorServiceImpl implements McpVendorService {
             String mcpName = item.getMcpName();
 
             // 检查 mcpName 是否已存在
-            if (metaRepository.findByMcpName(mcpName).isPresent()) {
+            if (existingMcpNames.contains(mcpName)) {
                 skippedCount++;
                 details.add(
                         ImportItemStatus.builder()

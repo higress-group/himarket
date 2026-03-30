@@ -132,24 +132,20 @@ export default function ImportMcpModal({ open, onClose, onImportSuccess }: Impor
         clearTimeout(timeoutId)
       }
 
-      console.log('batchImport response:', res)
       // 后端可能有全局响应包装 {code, message, data} 或直接返回 BatchImportResult
       const result: BatchImportResult | null = res?.data?.successCount !== undefined
         ? res.data
         : res?.successCount !== undefined
           ? res
           : null
-      console.log('parsed result:', result)
       if (result && typeof result.successCount === 'number') {
         setImportResult(result)
         onImportSuccess()
       } else {
-        console.warn('Unexpected batchImport response format:', res)
         message.success('导入完成')
         onImportSuccess()
       }
     } catch (err: any) {
-      console.error('batchImport error:', err)
       if (err?.name === 'AbortError' || err?.code === 'ECONNABORTED') {
         message.warning('导入请求超时，但后台可能已完成导入，请刷新页面查看')
         onImportSuccess()

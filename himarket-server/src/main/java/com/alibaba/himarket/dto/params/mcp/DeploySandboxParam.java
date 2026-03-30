@@ -17,35 +17,37 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.consumer;
+package com.alibaba.himarket.dto.params.mcp;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
+import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 
-/**
- * MCP 沙箱场景的鉴权配置，保存 primary consumer 的鉴权信息。
- * 后续可传给沙箱用于 MCP Server 鉴权。
- */
+/** 管理员手动部署沙箱的请求参数。 */
 @Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class McpAuthConfig {
+public class DeploySandboxParam {
 
-    /** 鉴权方式：none / bearer */
+    @NotBlank(message = "沙箱实例ID不能为空")
+    private String sandboxId;
+
+    private String transportType;
+
     private String authType;
 
-    /** 鉴权来源：Default（Header Bearer）、Header、QueryString */
-    private String source;
+    private String paramValues;
 
-    /** 请求头/参数名，如 Authorization */
-    private String headerName;
+    private String namespace;
 
-    /** API Key 值 */
-    private String apiKey;
+    private String resourceSpec;
 
-    /** consumer ID */
-    private String consumerId;
+    /** 转换为 Service 层使用的 SaveMcpMetaParam。 */
+    public SaveMcpMetaParam toSaveMcpMetaParam() {
+        SaveMcpMetaParam param = new SaveMcpMetaParam();
+        param.setSandboxId(sandboxId);
+        param.setTransportType(transportType);
+        param.setAuthType(authType);
+        param.setParamValues(paramValues);
+        param.setNamespace(namespace);
+        param.setResourceSpec(resourceSpec);
+        return param;
+    }
 }

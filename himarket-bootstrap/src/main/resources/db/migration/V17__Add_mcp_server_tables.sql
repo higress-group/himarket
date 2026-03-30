@@ -21,7 +21,8 @@ CREATE TABLE IF NOT EXISTS `mcp_server_meta` (
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_mcp_server_id` (`mcp_server_id`),
     UNIQUE KEY `uk_product_mcp_name` (`product_id`, `mcp_name`),
-    KEY `idx_product_id` (`product_id`)
+    KEY `idx_product_id` (`product_id`),
+    KEY `idx_mcp_name` (`mcp_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ========================================

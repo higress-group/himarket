@@ -339,46 +339,19 @@ public class McpServerServiceImpl implements McpServerService {
 
     @Override
     public PageResult<McpMetaResult> listPublishedMetaByOrigin(String origin, Pageable pageable) {
-        List<String> publishedProductIds =
-                productRepository.findProductIdsByTypeAndStatus(
-                        com.alibaba.himarket.support.enums.ProductType.MCP_SERVER,
-                        ProductStatus.PUBLISHED);
-        if (publishedProductIds.isEmpty()) {
-            return PageResult.of(
-                    List.of(), pageable.getPageNumber() + 1, pageable.getPageSize(), 0);
-        }
-
-        Page<McpServerMeta> metaPage =
-                metaRepository.findByProductIdInAndOrigin(publishedProductIds, origin, pageable);
-        if (metaPage.isEmpty()) {
-            return PageResult.of(List.of(), metaPage.getNumber() + 1, metaPage.getSize(), 0);
-        }
-
-        List<String> pageProductIds =
-                metaPage.getContent().stream()
-                        .map(McpServerMeta::getProductId)
-                        .distinct()
-                        .collect(Collectors.toList());
-        Map<String, Product> productMap =
-                productRepository.findByProductIdIn(pageProductIds).stream()
-                        .collect(Collectors.toMap(Product::getProductId, p -> p, (a, b) -> a));
-
-        List<McpMetaResult> results =
-                metaPage.getContent().stream()
-                        .map(
-                                m -> {
-                                    McpMetaResult r = new McpMetaResult().convertFrom(m);
-                                    configSyncHelper.enrichFromProduct(
-                                            r, productMap.get(m.getProductId()));
-                                    return r;
-                                })
-                        .collect(Collectors.toList());
-        return PageResult.of(
-                results, metaPage.getNumber() + 1, metaPage.getSize(), metaPage.getTotalElements());
+        return listPublishedMetaInternal(
+                pageable, ids -> metaRepository.findByProductIdInAndOrigin(ids, origin, pageable));
     }
 
     @Override
     public PageResult<McpMetaResult> listAllPublishedMeta(Pageable pageable) {
+        return listPublishedMetaInternal(
+                pageable, ids -> metaRepository.findByProductIdIn(ids, pageable));
+    }
+
+    private PageResult<McpMetaResult> listPublishedMetaInternal(
+            Pageable pageable,
+            java.util.function.Function<List<String>, Page<McpServerMeta>> queryFn) {
         List<String> publishedProductIds =
                 productRepository.findProductIdsByTypeAndStatus(
                         com.alibaba.himarket.support.enums.ProductType.MCP_SERVER,
@@ -388,8 +361,7 @@ public class McpServerServiceImpl implements McpServerService {
                     List.of(), pageable.getPageNumber() + 1, pageable.getPageSize(), 0);
         }
 
-        Page<McpServerMeta> metaPage =
-                metaRepository.findByProductIdIn(publishedProductIds, pageable);
+        Page<McpServerMeta> metaPage = queryFn.apply(publishedProductIds);
         if (metaPage.isEmpty()) {
             return PageResult.of(List.of(), metaPage.getNumber() + 1, metaPage.getSize(), 0);
         }
