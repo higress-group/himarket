@@ -58,6 +58,7 @@ import com.alibaba.himarket.support.enums.McpHostingType;
 import com.alibaba.himarket.support.enums.McpOrigin;
 import com.alibaba.himarket.support.enums.McpProtocolType;
 import com.alibaba.himarket.support.enums.ProductStatus;
+import com.alibaba.himarket.support.enums.SourceType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.agentscope.core.tool.mcp.McpClientWrapper;
 import io.modelcontextprotocol.spec.McpSchema;
@@ -250,7 +251,7 @@ public class McpServerServiceImpl implements McpServerService {
         metaParam.setDisplayName(param.getDisplayName());
         metaParam.setDescription(param.getDescription());
         metaParam.setRepoUrl(param.getRepoUrl());
-        metaParam.setSourceType("config");
+        metaParam.setSourceType(SourceType.CUSTOM.name());
         metaParam.setOrigin(StrUtil.blankToDefault(param.getOrigin(), McpOrigin.OPEN_API.name()));
         metaParam.setTags(param.getTags());
         metaParam.setIcon(param.getIcon());
