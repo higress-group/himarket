@@ -229,6 +229,28 @@ public class McpConfigSyncHelper {
                         });
     }
 
+    // ==================== Endpoint Operations ====================
+
+    /** Find all endpoints for a given mcpServerId. */
+    public List<McpServerEndpoint> findEndpointsByMcpServerId(String mcpServerId) {
+        return endpointRepository.findByMcpServerId(mcpServerId);
+    }
+
+    /** Delete an endpoint and flush immediately (for unique constraint safety). */
+    public void deleteEndpoint(McpServerEndpoint endpoint) {
+        endpointRepository.delete(endpoint);
+    }
+
+    /** Flush pending deletes to avoid unique constraint conflicts on subsequent inserts. */
+    public void flushEndpoints() {
+        endpointRepository.flush();
+    }
+
+    /** Save a new endpoint (for sandbox pre-create). */
+    public McpServerEndpoint saveEndpoint(McpServerEndpoint endpoint) {
+        return endpointRepository.save(endpoint);
+    }
+
     // ==================== Public Endpoint Sync ====================
 
     /**

@@ -26,7 +26,6 @@ import com.alibaba.himarket.core.utils.IdGenerator;
 import com.alibaba.himarket.dto.params.mcp.SaveMcpMetaParam;
 import com.alibaba.himarket.entity.McpServerEndpoint;
 import com.alibaba.himarket.entity.McpServerMeta;
-import com.alibaba.himarket.repository.McpServerEndpointRepository;
 import com.alibaba.himarket.service.McpSandboxDeployService;
 import com.alibaba.himarket.service.SandboxService;
 import com.alibaba.himarket.support.enums.McpEndpointStatus;
@@ -55,7 +54,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class McpSandboxOrchestrator {
 
-    private final McpServerEndpointRepository endpointRepository;
+    private final McpConfigSyncHelper configSyncHelper;
     private final SandboxService sandboxService;
     private final McpSandboxDeployService mcpSandboxDeployService;
     private final ApplicationEventPublisher eventPublisher;
@@ -79,7 +78,7 @@ public class McpSandboxOrchestrator {
 
         // Clean up old public sandbox endpoints (DB records)
         List<McpServerEndpoint> existingPublic =
-                endpointRepository.findByMcpServerId(meta.getMcpServerId()).stream()
+                configSyncHelper.findEndpointsByMcpServerId(meta.getMcpServerId()).stream()
                         .filter(ep -> McpEndpointStatus.PUBLIC_USER_ID.equals(ep.getUserId()))
                         .filter(
                                 ep ->
@@ -99,11 +98,11 @@ public class McpSandboxOrchestrator {
                                 .secretName(extractSecretName(existing))
                                 .build());
             }
-            endpointRepository.delete(existing);
+            configSyncHelper.deleteEndpoint(existing);
         }
 
         if (!existingPublic.isEmpty()) {
-            endpointRepository.flush();
+            configSyncHelper.flushEndpoints();
         }
 
         var sandbox = sandboxService.getSandbox(sandboxId);
@@ -139,7 +138,7 @@ public class McpSandboxOrchestrator {
                         .subscribeParams(subParams.toString())
                         .status(McpEndpointStatus.INACTIVE.name())
                         .build();
-        endpointRepository.save(pendingEndpoint);
+        configSyncHelper.saveEndpoint(pendingEndpoint);
 
         eventPublisher.publishEvent(
                 McpSandboxDeployEvent.builder()
@@ -168,7 +167,7 @@ public class McpSandboxOrchestrator {
      */
     public void undeploySandboxEndpoints(McpServerMeta meta) {
         List<McpServerEndpoint> endpoints =
-                endpointRepository.findByMcpServerId(meta.getMcpServerId());
+                configSyncHelper.findEndpointsByMcpServerId(meta.getMcpServerId());
         for (McpServerEndpoint ep : endpoints) {
             if (!McpHostingType.SANDBOX.name().equalsIgnoreCase(ep.getHostingType())
                     || StrUtil.isBlank(ep.getHostingInstanceId())) {
