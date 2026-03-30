@@ -419,6 +419,10 @@ load_config() {
         set +a
     fi
 
+    # 2.5 清除配置文件中的镜像相关变量，确保每次都使用脚本内置最新默认值
+    unset HIMARKET_SERVER_IMAGE HIMARKET_ADMIN_IMAGE HIMARKET_FRONTEND_IMAGE \
+          MYSQL_IMAGE NACOS_IMAGE HIGRESS_IMAGE REDIS_IMAGE SANDBOX_IMAGE 2>/dev/null || true
+
     # 3. 恢复 export 变量（覆盖配置文件中的同名变量）
     if [[ -n "${saved_vars}" ]]; then
         eval "export ${saved_vars}"
@@ -602,7 +606,7 @@ interactive_config() {
         prompt HIMARKET_ADMIN_IMAGE "HiMarket Admin image" "${HIMARKET_ADMIN_IMAGE:-opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-admin:latest}"
         prompt HIMARKET_FRONTEND_IMAGE "HiMarket Frontend image" "${HIMARKET_FRONTEND_IMAGE:-opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-frontend:latest}"
         prompt MYSQL_IMAGE "MySQL image" "${MYSQL_IMAGE:-opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/mysql:latest}"
-        prompt NACOS_IMAGE "Nacos image" "${NACOS_IMAGE:-nacos-registry.cn-hangzhou.cr.aliyuncs.com/nacos/nacos-server:v3.2.0}"
+        prompt NACOS_IMAGE "Nacos image" "${NACOS_IMAGE:-nacos-registry.cn-hangzhou.cr.aliyuncs.com/nacos/nacos-server:v3.2.1-2026.03.30}"
         prompt HIGRESS_IMAGE "Higress image" "${HIGRESS_IMAGE:-higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/all-in-one:latest}"
         prompt REDIS_IMAGE "Redis image" "${REDIS_IMAGE:-higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/redis-stack-server:7.4.0-v3}"
         prompt SANDBOX_IMAGE "Sandbox image" "${SANDBOX_IMAGE:-opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/sandbox:latest}"
@@ -657,7 +661,7 @@ interactive_config() {
     prompt HIMARKET_ADMIN_IMAGE "HiMarket Admin image" "opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-admin:latest"
     prompt HIMARKET_FRONTEND_IMAGE "HiMarket Frontend image" "opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-frontend:latest"
     prompt MYSQL_IMAGE "MySQL image" "opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/mysql:latest"
-    prompt NACOS_IMAGE "Nacos image" "nacos-registry.cn-hangzhou.cr.aliyuncs.com/nacos/nacos-server:v3.2.0"
+    prompt NACOS_IMAGE "Nacos image" "nacos-registry.cn-hangzhou.cr.aliyuncs.com/nacos/nacos-server:v3.2.1-2026.03.30"
     prompt HIGRESS_IMAGE "Higress image" "higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/all-in-one:latest"
     prompt REDIS_IMAGE "Redis image" "higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/redis-stack-server:7.4.0-v3"
     prompt SANDBOX_IMAGE "Sandbox image" "opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/sandbox:latest"
@@ -823,15 +827,8 @@ DEPLOY_MODE="${DEPLOY_MODE}"
 # ========== 数据目录 ==========
 HIMARKET_DATA_DIR="${HIMARKET_DATA_DIR}"
 
-# ========== 镜像配置 ==========
-HIMARKET_SERVER_IMAGE="${HIMARKET_SERVER_IMAGE}"
-HIMARKET_ADMIN_IMAGE="${HIMARKET_ADMIN_IMAGE}"
-HIMARKET_FRONTEND_IMAGE="${HIMARKET_FRONTEND_IMAGE}"
-MYSQL_IMAGE="${MYSQL_IMAGE}"
-NACOS_IMAGE="${NACOS_IMAGE}"
-HIGRESS_IMAGE="${HIGRESS_IMAGE}"
-REDIS_IMAGE="${REDIS_IMAGE}"
-SANDBOX_IMAGE="${SANDBOX_IMAGE}"
+# 注意：镜像配置不保存到本文件，
+# 每次安装始终使用 install.sh 脚本内置的最新默认值。
 
 # ========== 数据库密码 ==========
 MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD}"
@@ -927,8 +924,16 @@ deploy_all() {
     log "Docker Compose profiles: ${profiles}"
 
     # 6. 启动所有服务
-    log "启动 Docker Compose 服务..."
-    docker_compose up -d
+    if [[ "${DEPLOY_MODE}" == "upgrade" ]]; then
+        # 升级模式：显式拉取最新镜像，确保 latest 等 tag 获取到远端最新版本
+        log "拉取最新镜像..."
+        docker_compose pull
+        log "使用最新镜像重新创建服务..."
+        docker_compose up -d
+    else
+        log "启动 Docker Compose 服务..."
+        docker_compose up -d
+    fi
 
     # 7. 等待核心服务就绪
     log "等待核心服务启动..."
@@ -942,10 +947,14 @@ deploy_all() {
     wait_service "himarket-admin" 120
     wait_service "himarket-frontend" 120
 
-    # 8. 执行 post_ready 钩子
-    log "所有容器已就绪，开始执行数据初始化..."
-    export SKIP_HOOK_ERRORS=true
-    run_hooks "post_ready" || warn "部分钩子执行失败，请检查日志"
+    # 8. 首次安装/重新安装：执行一次性初始化步骤
+    if [[ "${DEPLOY_MODE}" != "upgrade" ]]; then
+        log "所有容器已就绪，开始执行数据初始化..."
+        export SKIP_HOOK_ERRORS=true
+        run_hooks "post_ready" || warn "部分钩子执行失败，请检查日志"
+    else
+        log "升级完成，跳过初始化钩子（如需重新初始化数据，请使用 --init-data）"
+    fi
 
     # 9. 展示结果面板
     show_result_panel
@@ -960,7 +969,7 @@ show_result_panel() {
     log ""
     log "  HiMarket Admin:       http://localhost:5174"
     log "  HiMarket Frontend:    http://localhost:5173"
-    log "  Nacos Console:        http://localhost:8848/nacos"
+    log "  Nacos Console:        http://localhost:8080"
     log "  Higress Console:      http://localhost:8001"
     log "  HiMarket Server API:  http://localhost:8081"
     log ""
