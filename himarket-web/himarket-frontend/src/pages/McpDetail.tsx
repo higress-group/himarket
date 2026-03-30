@@ -14,7 +14,7 @@ import {
 import APIs from "../lib/apis";
 import type { IProductDetail, IMcpMeta } from "../lib/apis/product";
 import { getProductMcpMetaPublic } from "../lib/apis/product";
-import { getConsumers, subscribeProduct, unsubscribeProduct, getProductSubscriptions } from "../lib/api";
+import { getConsumers, subscribeProduct, unsubscribeProduct, getProductSubscriptions } from "../lib/apis/consumer";
 import type { Consumer } from "../types/consumer";
 import type { ISubscription } from "../lib/apis/consumer";
 import { ProductIconRenderer } from "../components/icon/ProductIconRenderer";

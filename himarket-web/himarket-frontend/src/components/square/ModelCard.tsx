@@ -23,7 +23,7 @@ export function ModelCard({ icon, name, description, company, releaseDate, onCli
         active:scale-[0.98] active:duration-150
         relative
         overflow-hidden
-        h-[200px]
+        min-h-[200px]
         flex flex-col
       "
     >

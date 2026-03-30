@@ -18,7 +18,7 @@ import {
     DeleteOutlined,
     InfoCircleOutlined
 } from "@ant-design/icons";
-import api from "../../lib/api";
+import request from "../../lib/request";
 import type {
     ConsumerCredentialResult,
     CreateCredentialParam,
@@ -54,7 +54,7 @@ export function CredentialManager({ consumerId }: CredentialManagerProps) {
     // 初始化时获取当前配置
     const fetchCurrentConfig = React.useCallback(async () => {
         try {
-            const response: ApiResponse<ConsumerCredentialResult> = await api.get(`/consumers/${consumerId}/credentials`);
+            const response: ApiResponse<ConsumerCredentialResult> = await request.get(`/consumers/${consumerId}/credentials`);
             if (response.code === "SUCCESS" && response.data) {
                 const config = response.data;
                 setCurrentConfig(config);
@@ -79,7 +79,7 @@ export function CredentialManager({ consumerId }: CredentialManagerProps) {
             setCredentialLoading(true);
 
             // 先获取当前的凭证配置
-            const currentResponse: ApiResponse<ConsumerCredentialResult> = await api.get(`/consumers/${consumerId}/credentials`);
+            const currentResponse: ApiResponse<ConsumerCredentialResult> = await request.get(`/consumers/${consumerId}/credentials`);
             let currentConfig: ConsumerCredentialResult = {};
 
             if (currentResponse.code === "SUCCESS" && currentResponse.data) {
@@ -112,7 +112,7 @@ export function CredentialManager({ consumerId }: CredentialManagerProps) {
                 };
             }
 
-            const response: ApiResponse<ConsumerCredentialResult> = await api.put(`/consumers/${consumerId}/credentials`, param);
+            const response: ApiResponse<ConsumerCredentialResult> = await request.put(`/consumers/${consumerId}/credentials`, param);
             if (response?.code === "SUCCESS") {
                 message.success('凭证添加成功');
                 setCredentialModalVisible(false);
@@ -131,7 +131,7 @@ export function CredentialManager({ consumerId }: CredentialManagerProps) {
     const handleDeleteCredential = async (credentialType: string, credential: ConsumerCredential) => {
         try {
             // 先获取当前的凭证配置
-            const currentResponse: ApiResponse<ConsumerCredentialResult> = await api.get(`/consumers/${consumerId}/credentials`);
+            const currentResponse: ApiResponse<ConsumerCredentialResult> = await request.get(`/consumers/${consumerId}/credentials`);
             let currentConfig: ConsumerCredentialResult = {};
 
             if (currentResponse.code === "SUCCESS" && currentResponse.data) {
@@ -155,7 +155,7 @@ export function CredentialManager({ consumerId }: CredentialManagerProps) {
                 };
             }
 
-            const response: ApiResponse<ConsumerCredentialResult> = await api.put(`/consumers/${consumerId}/credentials`, param);
+            const response: ApiResponse<ConsumerCredentialResult> = await request.put(`/consumers/${consumerId}/credentials`, param);
             if (response?.code === "SUCCESS") {
                 message.success('凭证删除成功');
                 await fetchCurrentConfig();
@@ -179,7 +179,7 @@ export function CredentialManager({ consumerId }: CredentialManagerProps) {
     const handleEditSource = async (source: string, key: string) => {
         try {
             // 先获取当前的凭证配置
-            const currentResponse: ApiResponse<ConsumerCredentialResult> = await api.get(`/consumers/${consumerId}/credentials`);
+            const currentResponse: ApiResponse<ConsumerCredentialResult> = await request.get(`/consumers/${consumerId}/credentials`);
             let currentConfig: ConsumerCredentialResult = {};
 
             if (currentResponse.code === "SUCCESS" && currentResponse.data) {
@@ -206,12 +206,12 @@ export function CredentialManager({ consumerId }: CredentialManagerProps) {
 
 
             // 提交配置到后端
-            const response: ApiResponse<ConsumerCredentialResult> = await api.put(`/consumers/${consumerId}/credentials`, param);
+            const response: ApiResponse<ConsumerCredentialResult> = await request.put(`/consumers/${consumerId}/credentials`, param);
             if (response?.code === "SUCCESS") {
                 message.success('凭证来源更新成功');
 
                 // 重新查询接口获取最新配置，确保数据落盘
-                const updatedResponse: ApiResponse<ConsumerCredentialResult> = await api.get(`/consumers/${consumerId}/credentials`);
+                const updatedResponse: ApiResponse<ConsumerCredentialResult> = await request.get(`/consumers/${consumerId}/credentials`);
                 if (updatedResponse.code === "SUCCESS" && updatedResponse.data) {
                     const updatedConfig = updatedResponse.data;
                     if (updatedConfig.apiKeyConfig) {

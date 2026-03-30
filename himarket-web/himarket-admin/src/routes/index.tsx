@@ -1,17 +1,17 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom';
-import LayoutWrapper from '@/components/LayoutWrapper';
-import Portals from '@/pages/Portals';
-import ApiProducts from '@/pages/ApiProducts';
-import ProductCategories from '@/pages/ProductCategories';
-import ProductCategoryDetail from '@/pages/ProductCategoryDetail';
-import GatewayConsoles from '@/pages/GatewayConsoles';
-import NacosConsoles from '@/pages/NacosConsoles';
-import PortalDetail from '@/pages/PortalDetail';
-import ApiProductDetail from '@/pages/ApiProductDetail';
-import Login from '@/pages/Login';
-import ModelDashboard from '@/pages/ModelDashboard';
-import McpMonitor from '@/pages/McpMonitor';
-import SandboxConsoles from '@/pages/SandboxConsoles';
+import { createBrowserRouter, Navigate } from "react-router-dom";
+import LayoutWrapper from "@/components/LayoutWrapper";
+import Portals from "@/pages/Portals";
+import ProductTypePage from "@/pages/ProductTypePage";
+import ProductCategories from "@/pages/ProductCategories";
+import ProductCategoryDetail from "@/pages/ProductCategoryDetail";
+import GatewayConsoles from "@/pages/GatewayConsoles";
+import NacosConsoles from "@/pages/NacosConsoles";
+import PortalDetail from "@/pages/PortalDetail";
+import ApiProductDetail from "@/pages/ApiProductDetail";
+import Login from "@/pages/Login";
+import ModelDashboard from "@/pages/ModelDashboard";
+import McpMonitor from "@/pages/McpMonitor";
+import SandboxConsoles from "@/pages/SandboxConsoles";
 
 export const router = createBrowserRouter([
   {
@@ -31,16 +31,45 @@ export const router = createBrowserRouter([
         element: <Portals />,
       },
       {
-        path: "portals/detail",
+        path: "portals/:portalId",
         element: <PortalDetail />,
       },
       {
         path: "api-products",
-        element: <ApiProducts />,
-      },
-      {
-        path: "api-products/detail",
-        element: <ApiProductDetail />,
+        children: [
+          {
+            index: true,
+            element: <Navigate to="/api-products/model-api" replace />,
+          },
+          {
+            path: "model-api",
+            element: <ProductTypePage productType="MODEL_API" />,
+          },
+          {
+            path: "mcp-server",
+            element: <ProductTypePage productType="MCP_SERVER" />,
+          },
+          {
+            path: "agent-skill",
+            element: <ProductTypePage productType="AGENT_SKILL" />,
+          },
+          {
+            path: "worker",
+            element: <ProductTypePage productType="WORKER" />,
+          },
+          {
+            path: "agent-api",
+            element: <ProductTypePage productType="AGENT_API" />,
+          },
+          {
+            path: "rest-api",
+            element: <ProductTypePage productType="REST_API" />,
+          },
+          {
+            path: ":productId",
+            element: <ApiProductDetail />,
+          },
+        ],
       },
       {
         path: "product-categories",

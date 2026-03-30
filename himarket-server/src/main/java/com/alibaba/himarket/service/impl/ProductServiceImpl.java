@@ -300,6 +300,12 @@ public class ProductServiceImpl implements ProductService {
     public void publishProduct(String productId, String portalId) {
         portalService.existsPortal(portalId);
         if (publicationRepository.findByPortalIdAndProductId(portalId, productId).isPresent()) {
+            // Already published to this portal, ensure product status is correct
+            Product product = findProduct(productId);
+            if (product.getStatus() != ProductStatus.PUBLISHED) {
+                product.setStatus(ProductStatus.PUBLISHED);
+                productRepository.save(product);
+            }
             return;
         }
 

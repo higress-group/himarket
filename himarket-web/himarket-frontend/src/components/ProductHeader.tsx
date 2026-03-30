@@ -2,7 +2,7 @@ import React, { useState, useEffect, useImperativeHandle, forwardRef } from "rea
 import { Typography, Button, Modal, Select, message, Popconfirm, Input, Pagination, Spin } from "antd";
 import { ApiOutlined, CheckCircleFilled, ClockCircleFilled, ExclamationCircleFilled, PlusOutlined, RobotOutlined, BulbOutlined } from "@ant-design/icons";
 import { useParams } from "react-router-dom";
-import { getConsumers, subscribeProduct, unsubscribeProduct, getProductSubscriptions } from "../lib/api";
+import { getConsumers, subscribeProduct, unsubscribeProduct, getProductSubscriptions } from "../lib/apis";
 import type { Consumer } from "../types/consumer";
 import type { IMCPConfig, IProductIcon, IAgentConfig } from "../lib/apis/typing";
 import APIs, { getProductSubscriptionStatus, type ISubscription } from "../lib/apis";
@@ -177,7 +177,7 @@ export const ProductHeader = forwardRef<ProductHeaderHandle, ProductHeaderProps>
   const fetchConsumers = async () => {
     try {
       setConsumersLoading(true);
-      const response = await getConsumers({}, { page: 1, size: 100 });
+      const response = await getConsumers({ page: 1, size: 100 });
       if (response.data) {
         setConsumers(response.data.content || response.data);
       }
