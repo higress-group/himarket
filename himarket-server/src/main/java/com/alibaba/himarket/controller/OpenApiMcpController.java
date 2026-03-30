@@ -1,3 +1,22 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package com.alibaba.himarket.controller;
 
 import com.alibaba.himarket.core.exception.BusinessException;
@@ -35,16 +54,25 @@ public class OpenApiMcpController {
 
     private final McpServerService mcpServerService;
 
-    @Value("${open-api.api-key}")
+    @Value("${open-api.api-key:}")
     private String apiKey;
+
+    /**
+     * Authenticate every request to this controller before any handler method runs.
+     * This ensures new endpoints added under /open-api/mcp-servers are never exposed
+     * without API Key verification.
+     */
+    @ModelAttribute
+    private void authenticate(
+            @RequestHeader(value = "X-API-Key", required = false) String key) {
+        verifyApiKey(key);
+    }
 
     // ==================== 写入接口 ====================
 
     @Operation(summary = "注册 MCP Server（自动创建 Product + Meta + ProductRef）")
     @PostMapping("/register")
-    public McpMetaDetailResult register(
-            @RequestHeader("X-API-Key") String key, @RequestBody @Valid RegisterMcpParam param) {
-        verifyApiKey(key);
+    public McpMetaDetailResult register(@RequestBody @Valid RegisterMcpParam param) {
         McpMetaResult full = mcpServerService.registerMcp(param);
         return McpMetaDetailResult.fromFull(full);
     }
@@ -57,17 +85,13 @@ public class OpenApiMcpController {
 
     @Operation(summary = "按 mcpServerId 查询 MCP Server 详情")
     @GetMapping("/meta/{mcpServerId}")
-    public McpMetaDetailResult getMeta(
-            @RequestHeader("X-API-Key") String key, @PathVariable String mcpServerId) {
-        verifyApiKey(key);
+    public McpMetaDetailResult getMeta(@PathVariable String mcpServerId) {
         return McpMetaDetailResult.fromFull(mcpServerService.getPublishedMeta(mcpServerId));
     }
 
     @Operation(summary = "按 mcpName 查询 MCP Server 详情")
     @GetMapping("/meta/by-name/{mcpName}")
-    public McpMetaDetailResult getMetaByName(
-            @RequestHeader("X-API-Key") String key, @PathVariable String mcpName) {
-        verifyApiKey(key);
+    public McpMetaDetailResult getMetaByName(@PathVariable String mcpName) {
         return McpMetaDetailResult.fromFull(mcpServerService.getPublishedMetaByName(mcpName));
     }
 
@@ -76,10 +100,8 @@ public class OpenApiMcpController {
     @Operation(summary = "分页查询指定来源的 MCP Server 列表（精简，仅已发布）")
     @GetMapping("/meta/list")
     public PageResult<McpMetaSimpleResult> listMeta(
-            @RequestHeader("X-API-Key") String key,
             @RequestParam(required = false, defaultValue = "OPEN_API") String origin,
             Pageable pageable) {
-        verifyApiKey(key);
         PageResult<McpMetaResult> fullPage =
                 mcpServerService.listPublishedMetaByOrigin(origin, pageable);
         return new PageResult<McpMetaSimpleResult>()
@@ -88,9 +110,7 @@ public class OpenApiMcpController {
 
     @Operation(summary = "分页查询所有 MCP Server 列表（精简，仅已发布）")
     @GetMapping("/meta/list-all")
-    public PageResult<McpMetaSimpleResult> listAllMeta(
-            @RequestHeader("X-API-Key") String key, Pageable pageable) {
-        verifyApiKey(key);
+    public PageResult<McpMetaSimpleResult> listAllMeta(Pageable pageable) {
         PageResult<McpMetaResult> fullPage = mcpServerService.listAllPublishedMeta(pageable);
         return new PageResult<McpMetaSimpleResult>()
                 .mapFrom(fullPage, McpMetaSimpleResult::fromFull);
@@ -100,6 +120,12 @@ public class OpenApiMcpController {
     // @DeleteMapping("/meta/{mcpServerId}")
 
     private void verifyApiKey(String key) {
+        // Open API is disabled when api-key is not configured
+        if (apiKey == null || apiKey.isBlank()) {
+            throw new BusinessException(
+                    ErrorCode.UNAUTHORIZED,
+                    "Open API is disabled. Set OPEN_API_KEY environment variable to enable it.");
+        }
         if (key == null
                 || key.length() != apiKey.length()
                 || !java.security.MessageDigest.isEqual(

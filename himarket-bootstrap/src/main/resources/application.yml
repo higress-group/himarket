@@ -86,7 +86,7 @@ acp:
       supports-skill: true
 
 open-api:
-  api-key: ${OPEN_API_KEY:himarket-open-api-key}
+  api-key: ${OPEN_API_KEY:}
 
 observability:
   log-source: ${OBSERVABILITY_LOG_SOURCE:SLS}
