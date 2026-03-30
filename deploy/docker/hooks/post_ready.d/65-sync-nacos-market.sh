@@ -18,7 +18,7 @@
 set -euo pipefail
 
 # ── 加载环境变量 ─────────────────────────────────────────────────────────────
-ENV_FILE="${HOME}/himarket-install.env"
+ENV_FILE="${HOME}/himarket-install-docker.env"
 if [[ -f "${ENV_FILE}" ]]; then
   set -a; . "${ENV_FILE}"; set +a
 fi

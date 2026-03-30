@@ -10,7 +10,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HIMARKET_CHART_PATH="${SCRIPT_DIR}/himarket"
 NACOS_CHART_PATH="${SCRIPT_DIR}/nacos"
 HOOKS_DIR="${SCRIPT_DIR}/hooks"
-export SHARED_DATA_DIR="$(cd "${SCRIPT_DIR}/../data" && pwd)"
 ENV_FILE="${HOME}/himarket-install.env"
 
 # ── 日志重定向 ────────────────────────────────────────────────────────────────
