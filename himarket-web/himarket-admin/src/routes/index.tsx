@@ -30,7 +30,7 @@ export const router = createBrowserRouter([
         element: <Portals />,
       },
       {
-        path: "portals/detail",
+        path: "portals/:portalId",
         element: <PortalDetail />,
       },
       {
@@ -38,7 +38,7 @@ export const router = createBrowserRouter([
         element: <ApiProducts />,
       },
       {
-        path: "api-products/detail",
+        path: "api-products/:productId",
         element: <ApiProductDetail />,
       },
       {

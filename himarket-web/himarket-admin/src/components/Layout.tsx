@@ -12,7 +12,7 @@ import {
   DashboardOutlined,
   MonitorOutlined,
 } from "@ant-design/icons";
-import { Button } from "antd";
+import { Button, Tooltip } from "antd";
 import { isAuthenticated, removeToken } from "../lib/utils";
 
 interface NavigationItem {
@@ -48,8 +48,8 @@ const Layout: React.FC = () => {
   useEffect(() => {
     // 进入详情页自动折叠侧边栏
     if (
-      location.pathname.startsWith("/portals/detail") ||
-      location.pathname.startsWith("/api-products/detail")
+      location.pathname.match(/^\/portals\/[^/]+$/) ||
+      location.pathname.match(/^\/api-products\/[^/]+$/)
     ) {
       setSidebarCollapsed(true);
     } else {
@@ -136,6 +136,26 @@ const Layout: React.FC = () => {
     const isActive = isMenuActive(item);
     const hasChildren = item.children && item.children.length > 0;
 
+    // 折叠状态：隐藏子菜单，图标居中，添加 Tooltip
+    if (sidebarCollapsed) {
+      if (level > 0) return null;
+      return (
+        <Tooltip key={item.name} title={item.cn || item.name} placement="right">
+          <Link
+            to={item.href}
+            className={`flex items-center justify-center mt-2 p-3 rounded-lg transition-colors duration-150 ${
+              isActive && !hasChildren
+                ? "bg-gray-100 text-black"
+                : "text-gray-500 hover:text-black hover:bg-gray-50"
+            }`}
+          >
+            <Icon className="h-5 w-5" />
+          </Link>
+        </Tooltip>
+      );
+    }
+
+    // 展开状态：保持现有逻辑
     return (
       <div key={item.name}>
         <Link
@@ -147,16 +167,13 @@ const Layout: React.FC = () => {
               ? "bg-gray-100 text-black font-semibold"
               : "text-gray-500 hover:text-black hover:bg-gray-50"
           }`}
-          title={sidebarCollapsed ? item.name : ""}
         >
           <Icon className="mr-3 h-5 w-5 flex-shrink-0" />
-          {!sidebarCollapsed && (
-            <div className="flex flex-col flex-1">
-              <span className="text-base leading-none">{item.name}</span>
-            </div>
-          )}
+          <div className="flex flex-col flex-1">
+            <span className="text-base leading-none">{item.name}</span>
+          </div>
         </Link>
-        {!sidebarCollapsed && hasChildren && (
+        {hasChildren && (
           <div className="ml-2">
             {item.children!.map(child => renderMenuItem(child, level + 1))}
           </div>

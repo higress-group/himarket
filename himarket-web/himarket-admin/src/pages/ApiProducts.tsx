@@ -1,14 +1,15 @@
 import { memo, useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { MenuProps } from 'antd';
-import { Button, Dropdown, Modal, message, Pagination, Skeleton, Input, Tabs, Tag, Select } from 'antd';
+import { Button, Checkbox, Dropdown, Modal, message, Pagination, Skeleton, Input, Tabs, Tag, Select } from 'antd';
 import type { ApiProduct, ProductIcon } from '@/types/api-product';
-import { ApiOutlined, MoreOutlined, PlusOutlined, ExclamationCircleOutlined, ExclamationCircleFilled, ClockCircleFilled, CheckCircleFilled, SearchOutlined, RobotOutlined, BulbOutlined, ThunderboltOutlined, UserOutlined, ImportOutlined, DownloadOutlined } from '@ant-design/icons';
+import { ApiOutlined, MoreOutlined, PlusOutlined, ExclamationCircleOutlined, ExclamationCircleFilled, ClockCircleFilled, CheckCircleFilled, SearchOutlined, RobotOutlined, BulbOutlined, ThunderboltOutlined, UserOutlined, ImportOutlined, DownloadOutlined, CheckSquareOutlined } from '@ant-design/icons';
 import McpServerIcon from '@/components/icons/McpServerIcon';
 import { apiProductApi, nacosApi, workerApi, skillApi } from '@/lib/api';
 import ApiProductFormModal from '@/components/api-product/ApiProductFormModal';
 import { ProductIconRenderer } from '@/components/icons/ProductIconRenderer';
 import { getIconString } from '@/lib/iconUtils';
+import BatchActionBar from '@/components/api-product/BatchActionBar';
 
 // 产品类型定义
 const PRODUCT_TYPES = [
@@ -46,11 +47,14 @@ const getTypeLabel = (type: string) => {
 };
 
 // 优化的产品卡片组件
-const ProductCard = memo(({ product, onNavigate, handleRefresh, onEdit }: {
+const ProductCard = memo(({ product, onNavigate, handleRefresh, onEdit, batchMode, selected, onToggleSelect }: {
   product: ApiProduct;
   onNavigate: (productId: string) => void;
   handleRefresh: () => void;
   onEdit: (product: ApiProduct) => void;
+  batchMode?: boolean;
+  selected?: boolean;
+  onToggleSelect?: (productId: string) => void;
 }) => {
   const handleClick = useCallback(() => {
     onNavigate(product.productId);
@@ -98,6 +102,14 @@ const ProductCard = memo(({ product, onNavigate, handleRefresh, onEdit }: {
       "
       onClick={handleClick}
     >
+      {batchMode && (
+        <Checkbox
+          checked={selected}
+          onChange={() => onToggleSelect?.(product.productId)}
+          onClick={e => e.stopPropagation()}
+          className="absolute top-3 left-3 z-10"
+        />
+      )}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-colorPrimary/10 to-colorPrimary/5">
@@ -175,8 +187,32 @@ export default function ApiProducts() {
   const [importLoading, setImportLoading] = useState(false);
   const [defaultNacos, setDefaultNacos] = useState<any>(null);
   const [sortBy, setSortBy] = useState<string | undefined>(undefined);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [batchMode, setBatchMode] = useState(false);
 
   const showSortControl = activeTab === 'AGENT_SKILL' || activeTab === 'WORKER';
+
+  const toggleSelect = useCallback((productId: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(productId) ? next.delete(productId) : next.add(productId);
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedIds(prev => {
+      if (prev.size === apiProducts.length) {
+        return new Set();
+      }
+      return new Set(apiProducts.map(p => p.productId));
+    });
+  }, [apiProducts]);
+
+  const cancelSelection = useCallback(() => {
+    setSelectedIds(new Set());
+    setBatchMode(false);
+  }, []);
 
   const buildParams = useCallback((page: number, size: number, tab: string, name: string) => {
     const params: Record<string, any> = { page, size };
@@ -280,7 +316,7 @@ export default function ApiProducts() {
   };
 
   const handleNavigateToProduct = useCallback((productId: string) => {
-    navigate(`/api-products/detail?productId=${productId}`);
+    navigate(`/api-products/${productId}`);
   }, [navigate]);
 
   const handleCreate = () => {
@@ -317,6 +353,11 @@ export default function ApiProducts() {
           <p className="text-gray-500 mt-2">管理和配置您的API产品</p>
         </div>
         <div className="flex items-center gap-3">
+          {!batchMode && (
+            <Button onClick={() => setBatchMode(true)} icon={<CheckSquareOutlined />}>
+              批量选择
+            </Button>
+          )}
           {(activeTab === 'AGENT_SKILL' || activeTab === 'WORKER') && (
             <Button
               onClick={handleImportFromNacos}
@@ -395,6 +436,17 @@ export default function ApiProducts() {
 
         {/* 产品列表 */}
         <div className="pb-6">
+          {batchMode && selectedIds.size > 0 && (
+            <BatchActionBar
+              selectedIds={selectedIds}
+              products={apiProducts}
+              onComplete={() => {
+                cancelSelection();
+                fetchApiProducts(pagination.current, pagination.pageSize);
+              }}
+              onCancel={cancelSelection}
+            />
+          )}
           {loading ? (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {Array.from({ length: pagination.pageSize || 12 }).map((_, index) => (
@@ -428,6 +480,9 @@ export default function ApiProducts() {
                     onNavigate={handleNavigateToProduct}
                     handleRefresh={() => fetchApiProducts(pagination.current, pagination.pageSize)}
                     onEdit={handleEdit}
+                    batchMode={batchMode}
+                    selected={selectedIds.has(product.productId)}
+                    onToggleSelect={toggleSelect}
                   />
                 ))}
               </div>

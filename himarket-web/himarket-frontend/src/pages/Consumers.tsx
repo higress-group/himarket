@@ -2,7 +2,7 @@ import { Table, Button, Space, Typography, Input, Pagination, type TableColumnTy
 import { DeleteOutlined, PlusOutlined, SearchOutlined, ReloadOutlined, EditOutlined } from "@ant-design/icons";
 import { Layout } from "../components/Layout";
 import { useEffect, useState, useCallback } from "react";
-import { getConsumers, deleteConsumer, createConsumer } from "../lib/api";
+import { getConsumers, deleteConsumer, createConsumer } from "../lib/apis";
 import { message, Modal } from "antd";
 import { Link, useSearchParams } from "react-router-dom";
 import { formatDateTime } from "../lib/utils";
@@ -36,8 +36,7 @@ function ConsumersPage() {
     setLoading(true);
     try {
       const res = await getConsumers(
-        { name: searchKeyword || '' },
-        { page: targetPage || page, size: pageSize }
+        { name: searchKeyword || '', page: targetPage || page, size: pageSize }
       );
       setConsumers(res.data?.content || []);
       setTotal(res.data?.totalElements || 0);
