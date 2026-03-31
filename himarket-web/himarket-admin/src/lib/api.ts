@@ -399,6 +399,8 @@ export const skillApi = {
     api.delete(`/skills/${productId}/draft`),
   setLatestVersion: (productId: string, version: string) =>
     api.put(`/skills/${productId}/versions/latest`, { version }),
+  forcePublishVersion: (productId: string, version: string) =>
+    api.post(`/skills/${productId}/versions/${version}/force-publish`),
   // 从 Nacos 导入 Skills
   importFromNacos: (nacosId: string, namespace?: string) => {
     return api.post(`/skills/import`, null, { params: { nacosId, namespace }, timeout: 120000 })
