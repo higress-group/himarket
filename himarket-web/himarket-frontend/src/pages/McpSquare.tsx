@@ -3,12 +3,13 @@ import {
   SearchOutlined, ToolOutlined, AppstoreOutlined,
   CloudServerOutlined, StarOutlined, PlusOutlined,
 } from "@ant-design/icons";
-import { Input, Spin, message, Button } from "antd";
+import { Input, Spin, message, Button, Pagination } from "antd";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import { CategoryMenu } from "../components/square/CategoryMenu";
 import { EmptyState } from "../components/EmptyState";
 import { useAuth } from "../hooks/useAuth";
+import { useDebounce } from "../hooks/useDebounce";
 import APIs, { type ICategory } from "../lib/apis";
 import { getIconString, parseMetaIcon } from "../lib/iconUtils";
 import type { IProductDetail, IMcpMeta } from "../lib/apis/product";
@@ -16,6 +17,7 @@ import { getProductMcpMetaBatch, getProductMcpMetaBatchPublic } from "../lib/api
 import { ProductIconRenderer } from "../components/icon/ProductIconRenderer";
 import dayjs from "dayjs";
 import BackToTopButton from "../components/scroll-to-top";
+import { CardGridSkeleton } from "../components/loading";
 
 interface McpProductItem {
   product: IProductDetail;
@@ -26,7 +28,9 @@ function McpSquare() {
   const navigate = useNavigate();
   const { isLoggedIn } = useAuth();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
   const [activeTab, setActiveTab] = useState<"market" | "my">("market");
+  const [isStuck, setIsStuck] = useState(false);
 
   const [activeCategory, setActiveCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -34,14 +38,31 @@ function McpSquare() {
   const [mcpItems, setMcpItems] = useState<McpProductItem[]>([]);
   const [categories, setCategories] = useState<Array<{ id: string; name: string; count: number }>>([]);
   const [loading, setLoading] = useState(false);
-  const [currentPage, setCurrentPage] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const PAGE_SIZE = 30;
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalElements, setTotalElements] = useState(0);
+  const PAGE_SIZE = 12;
 
   const [myMcpItems, setMyMcpItems] = useState<McpProductItem[]>([]);
   const [myMcpsLoading, setMyMcpsLoading] = useState(false);
   const [subscribedProductIds, setSubscribedProductIds] = useState<Set<string>>(new Set());
+
+  // IntersectionObserver 检测 sticky 状态
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsStuck(!entry.isIntersecting),
+      { threshold: 0 }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, []);
+
+  // Debounce 自动搜索：输入停顿 300ms 后自动触发
+  useDebounce(searchQuery, 300, (debouncedValue) => {
+    setCommittedSearch(debouncedValue);
+    setCurrentPage(1);
+  });
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -88,15 +109,12 @@ function McpSquare() {
     const fetchProducts = async () => {
       setLoading(true);
       setMcpItems([]);
-      setCurrentPage(0);
-      setHasMore(true);
       try {
         const categoryIds = activeCategory === "all" ? undefined : [activeCategory];
-        const response = await APIs.getProducts({ type: "MCP_SERVER", categoryIds, name: committedSearch || undefined, page: 0, size: PAGE_SIZE });
+        const response = await APIs.getProducts({ type: "MCP_SERVER", categoryIds, name: committedSearch || undefined, page: currentPage - 1, size: PAGE_SIZE });
         if (response.code === "SUCCESS" && response.data?.content) {
-          const prods = response.data.content;
-          setHasMore(response.data.totalElements > prods.length);
-          setMcpItems(await fetchMetaForProducts(prods));
+          setTotalElements(response.data.totalElements);
+          setMcpItems(await fetchMetaForProducts(response.data.content));
         }
       } catch (error) {
         console.error("Failed to fetch products:", error);
@@ -106,7 +124,7 @@ function McpSquare() {
       }
     };
     fetchProducts();
-  }, [activeCategory, activeTab, committedSearch, isLoggedIn]);
+  }, [activeCategory, activeTab, committedSearch, isLoggedIn, currentPage]);
 
   // 获取我的 MCP（基于 consumer subscription，只展示已订阅的 MCP 产品）
   const fetchMyMcps = useCallback(async () => {
@@ -191,35 +209,19 @@ function McpSquare() {
     if (activeTab === "my" && isLoggedIn) fetchMyMcps();
   }, [activeTab, fetchMyMcps, isLoggedIn]);
 
-  const loadMoreProducts = useCallback(async () => {
-    if (loadingMore || !hasMore) return;
-    setLoadingMore(true);
-    try {
-      const categoryIds = activeCategory === "all" ? undefined : [activeCategory];
-      const nextPage = currentPage + 1;
-      const response = await APIs.getProducts({ type: "MCP_SERVER", categoryIds, name: committedSearch || undefined, page: nextPage, size: PAGE_SIZE });
-      if (response.code === "SUCCESS" && response.data?.content) {
-        const newItems = await fetchMetaForProducts(response.data.content);
-        setMcpItems(prev => [...prev, ...newItems]);
-        setCurrentPage(nextPage);
-        setHasMore(response.data.totalElements > mcpItems.length + response.data.content.length);
-      }
-    } catch (error) {
-      console.error("Failed to load more:", error);
-    } finally {
-      setLoadingMore(false);
-    }
-  }, [activeCategory, currentPage, hasMore, loadingMore, mcpItems, committedSearch]);
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
 
-  useEffect(() => {
-    const el = scrollContainerRef.current;
-    if (!el) return;
-    const handleScroll = () => {
-      if (el.scrollHeight - el.scrollTop - el.clientHeight < 200) loadMoreProducts();
-    };
-    el.addEventListener("scroll", handleScroll);
-    return () => el.removeEventListener("scroll", handleScroll);
-  }, [loadMoreProducts]);
+  const handleCategoryChange = (categoryId: string) => {
+    setActiveCategory(categoryId);
+    setCurrentPage(1);
+  };
+
+  const handleSearchCommit = () => {
+    setCommittedSearch(searchQuery);
+    setCurrentPage(1);
+  };
 
   const handleSubscribe = async (productId: string) => {
     try {
@@ -255,102 +257,116 @@ function McpSquare() {
 
   return (
     <Layout>
-      <div className="flex h-[calc(100vh-96px)]">
-        {/* 左侧分类菜单 - 仅广场 tab 且有分类时显示 */}
-        {activeTab === "market" && categories.length > 0 && (
-          <CategoryMenu
-            categories={categories}
-            activeCategory={activeCategory}
-            onSelectCategory={setActiveCategory}
-          />
-        )}
+      <div className="flex flex-col h-[calc(100vh-96px)] overflow-auto scrollbar-hide" ref={scrollContainerRef}>
+        {/* IntersectionObserver 哨兵元素 */}
+        <div ref={sentinelRef} className="h-0 flex-shrink-0" />
 
-        {/* 右侧内容区域 */}
-        <div className="flex-1 flex flex-col relative">
-          {/* 顶部：Tab 切换 + 搜索框 */}
-          <div className="flex items-center justify-between mb-2 pl-4">
-            <div className="flex items-center gap-1 bg-gray-100/80 rounded-xl p-1">
-              <button
-                onClick={() => setActiveTab("market")}
-                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  activeTab === "market"
-                    ? "bg-white text-gray-900 shadow-sm"
-                    : "text-gray-500 hover:text-gray-700"
-                }`}
-              >
-                <AppstoreOutlined className="mr-1.5" />MCP 广场
-              </button>
+        {/* 搜索区域 - sticky */}
+        <div className={`sticky top-0 z-50 backdrop-blur-md transition-shadow duration-200 flex-shrink-0 ${isStuck ? 'shadow-sm bg-white/80' : ''}`}>
+          <div className="flex flex-col gap-4 px-6 py-4">
+            {/* 第一行：统计信息 */}
+            <div className="flex items-center justify-center gap-4 text-sm text-gray-600">
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                <span className="font-medium">{mcpItems.length.toLocaleString()}</span>
+                <span>MCP Servers</span>
+              </div>
+            </div>
+
+            {/* 第二行：创建按钮 + 搜索框居中，我的MCP贴最右 */}
+            <div className="relative flex items-center justify-center gap-3">
               {isLoggedIn && (
-              <button
-                onClick={() => setActiveTab("my")}
-                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-1.5 ${
-                  activeTab === "my"
-                    ? "bg-white text-gray-900 shadow-sm"
-                    : "text-gray-500 hover:text-gray-700"
-                }`}
-              >
-                <StarOutlined className="mr-0.5" />我的 MCP
-                {myMcpItems.length > 0 && (
-                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-colorPrimary/10 text-colorPrimary">
-                    {myMcpItems.length}
+                <button
+                  onClick={() => navigate("/mcp/create")}
+                  className="group flex items-center gap-0 h-10 px-3 rounded-xl bg-black text-white hover:shadow-md transition-all duration-300 flex-shrink-0 overflow-hidden"
+                >
+                  <PlusOutlined className="text-base" />
+                  <span className="max-w-0 overflow-hidden group-hover:max-w-[60px] transition-all duration-300 whitespace-nowrap group-hover:ml-1.5">
+                    创建
                   </span>
-                )}
-              </button>
+                </button>
               )}
-            </div>
-            <div className="flex items-center gap-3">
+              <div className="w-full max-w-xl">
+                <Input
+                  placeholder="搜索 MCP Server..."
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    if (!e.target.value) setCommittedSearch("");
+                  }}
+                  onPressEnter={handleSearchCommit}
+                  size="large"
+                  suffix={
+                    <button
+                      onClick={handleSearchCommit}
+                      className="bg-black hover:bg-gray-800 text-white rounded-lg p-2 transition-colors"
+                      type="button"
+                    >
+                      <SearchOutlined className="text-lg" />
+                    </button>
+                  }
+                  className="rounded-xl text-base"
+                  style={{
+                    backgroundColor: "rgba(255, 255, 255, 0.95)",
+                    boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
+                  }}
+                  allowClear
+                />
+              </div>
               {isLoggedIn && (
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={() => navigate("/mcp/create")}
-                className="rounded-xl"
-              >
-                创建 MCP
-              </Button>
+                <button
+                  onClick={() => navigate("/mcp/my")}
+                  className="absolute right-0 flex items-center gap-1.5 h-10 px-4 rounded-xl border border-gray-200 bg-white text-gray-700 text-sm font-medium transition-all duration-200 flex-shrink-0 hover:bg-black hover:text-white hover:border-black hover:shadow-md"
+                >
+                  <StarOutlined className="text-sm" />
+                  我的 MCP
+                  {myMcpItems.length > 0 && (
+                    <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-full leading-none font-semibold">
+                      {myMcpItems.length}
+                    </span>
+                  )}
+                </button>
               )}
-              <Input
-              placeholder="搜索 MCP Server..."
-              prefix={<SearchOutlined className="text-gray-400" />}
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                if (!e.target.value) setCommittedSearch("");
-              }}
-              onPressEnter={() => setCommittedSearch(searchQuery)}
-              className="w-80 rounded-xl"
-              style={{
-                backgroundColor: "rgba(255, 255, 255, 0.6)",
-                backdropFilter: "blur(10px)",
-              }}
-              allowClear
-            />
             </div>
-          </div>
 
-          {/* 内容区域 */}
-          <div className="flex-1 relative overflow-auto" ref={scrollContainerRef}>
-            <div className="h-full p-4">
-              {activeTab === "market" ? (
-                <MarketContent
-                  loading={loading}
-                  loadingMore={loadingMore}
-                  items={mcpItems}
-                  subscribedProductIds={subscribedProductIds}
-                  isLoggedIn={isLoggedIn}
-                  onViewDetail={(pid) => navigate(`/mcp/${pid}`)}
-                  onSubscribe={handleSubscribe}
-                  onUnsubscribe={handleUnsubscribe}
+            {/* 第三行：分类标签 - 仅广场 tab 显示 */}
+            {activeTab === "market" && categories.length > 0 && (
+              <div className="flex-1 min-w-0">
+                <CategoryMenu
+                  categories={categories}
+                  activeCategory={activeCategory}
+                  onSelectCategory={handleCategoryChange}
                 />
-              ) : (
-                <MyMcpContent
-                  items={myMcpItems}
-                  loading={myMcpsLoading}
-                  onDisconnect={handleUnsubscribe}
-                  onViewDetail={(pid) => navigate(`/mcp/${pid}`)}
-                />
-              )}
-            </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 内容区域 */}
+        <div className="flex-1 px-4 pt-2 pb-4">
+          <div className="pb-4">
+            {activeTab === "market" ? (
+              <MarketContent
+                loading={loading}
+                items={mcpItems}
+                subscribedProductIds={subscribedProductIds}
+                isLoggedIn={isLoggedIn}
+                onViewDetail={(pid) => navigate(`/mcp/${pid}`)}
+                onSubscribe={handleSubscribe}
+                onUnsubscribe={handleUnsubscribe}
+                currentPage={currentPage}
+                totalElements={totalElements}
+                pageSize={PAGE_SIZE}
+                onPageChange={handlePageChange}
+              />
+            ) : (
+              <MyMcpContent
+                items={myMcpItems}
+                loading={myMcpsLoading}
+                onDisconnect={handleUnsubscribe}
+                onViewDetail={(pid) => navigate(`/mcp/${pid}`)}
+              />
+            )}
           </div>
         </div>
       </div>
@@ -360,18 +376,21 @@ function McpSquare() {
 }
 
 /* ==================== 广场内容 ==================== */
-function MarketContent({ loading, loadingMore, items, subscribedProductIds, isLoggedIn, onViewDetail, onSubscribe, onUnsubscribe }: {
+function MarketContent({ loading, items, subscribedProductIds, isLoggedIn, onViewDetail, onSubscribe, onUnsubscribe, currentPage, totalElements, pageSize, onPageChange }: {
   loading: boolean;
-  loadingMore: boolean;
   items: McpProductItem[];
   subscribedProductIds: Set<string>;
   isLoggedIn: boolean;
   onViewDetail: (productId: string) => void;
   onSubscribe: (productId: string) => Promise<void>;
   onUnsubscribe: (productId: string) => Promise<void>;
+  currentPage: number;
+  totalElements: number;
+  pageSize: number;
+  onPageChange: (page: number) => void;
 }) {
   if (loading) {
-    return <div className="flex items-center justify-center h-full"><Spin size="large" tip="加载中..." /></div>;
+    return <CardGridSkeleton count={8} columns={{ sm: 1, md: 2, lg: 4 }} />;
   }
 
   if (items.length === 0) {
@@ -380,7 +399,7 @@ function MarketContent({ loading, loadingMore, items, subscribedProductIds, isLo
 
   return (
     <>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {items.map((item) => (
           <McpCard
             key={item.product.productId}
@@ -393,8 +412,17 @@ function MarketContent({ loading, loadingMore, items, subscribedProductIds, isLo
           />
         ))}
       </div>
-      {loadingMore && (
-        <div className="flex items-center justify-center py-8"><Spin tip="加载更多..." /></div>
+      {totalElements > pageSize && (
+        <div className="flex justify-center mt-8 mb-4">
+          <Pagination
+            current={currentPage}
+            pageSize={pageSize}
+            total={totalElements}
+            onChange={onPageChange}
+            showSizeChanger={false}
+            showQuickJumper
+          />
+        </div>
       )}
     </>
   );
@@ -473,14 +501,14 @@ function McpCard({ item, subscribed, isLoggedIn, onViewDetail, onSubscribe, onUn
     <div
       onClick={onViewDetail}
       className="
-        bg-white/60 backdrop-blur-sm rounded-2xl p-5
+        bg-white/60 backdrop-blur-sm rounded-xl p-4
         border border-white/40
         cursor-pointer
         transition-all duration-300 ease-in-out
         hover:bg-white hover:shadow-md hover:scale-[1.02] hover:border-colorPrimary/30
         active:scale-[0.98]
         relative overflow-hidden group
-        h-[200px] flex flex-col
+        h-[160px] flex flex-col
       "
     >
       {/* 已订阅角标 */}
@@ -493,7 +521,7 @@ function McpCard({ item, subscribed, isLoggedIn, onViewDetail, onSubscribe, onUn
       )}
       {/* 头部：icon + 名称 + 标签 */}
       <div className="flex items-center gap-3 mb-3">
-        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-colorPrimary/10 to-colorPrimary/5 flex items-center justify-center flex-shrink-0 overflow-hidden">
+        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-colorPrimary/10 to-colorPrimary/5 flex items-center justify-center flex-shrink-0 overflow-hidden">
           {meta?.icon || product.icon ? (
             <ProductIconRenderer className="w-full h-full object-cover" iconType={getIconString(parseMetaIcon(meta?.icon) || product.icon)} />
           ) : (
@@ -661,19 +689,19 @@ function MyMcpCard({ item, onDisconnect, onViewDetail }: {
     <div
       onClick={onViewDetail}
       className="
-        bg-white/60 backdrop-blur-sm rounded-2xl p-5
+        bg-white/60 backdrop-blur-sm rounded-xl p-4
         border border-white/40
         cursor-pointer
         transition-all duration-300 ease-in-out
         hover:bg-white hover:shadow-md hover:scale-[1.02] hover:border-colorPrimary/30
         active:scale-[0.98]
         relative overflow-hidden group
-        h-[200px] flex flex-col
+        h-[160px] flex flex-col
       "
     >
       {/* 头部：icon + 名称 + 标签 */}
       <div className="flex items-center gap-3 mb-3">
-        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-colorPrimary/10 to-colorPrimary/5 flex items-center justify-center flex-shrink-0 overflow-hidden">
+        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-colorPrimary/10 to-colorPrimary/5 flex items-center justify-center flex-shrink-0 overflow-hidden">
           {meta?.icon || product.icon ? (
             <ProductIconRenderer className="w-full h-full object-cover" iconType={getIconString(parseMetaIcon(meta?.icon) || product.icon)} />
           ) : (

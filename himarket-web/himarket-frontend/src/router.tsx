@@ -14,6 +14,7 @@ import Callback from "./pages/Callback";
 import OidcCallback from "./pages/OidcCallback";
 import Square from "./pages/Square";
 import McpSquare from "./pages/McpSquare";
+import MyMcp from "./pages/MyMcp";
 import McpCreatePage from "./pages/McpCreatePage";
 import Chat from "./pages/Chat";
 import Coding from "./pages/Coding";
@@ -65,6 +66,7 @@ export function Router() {
         <Route path="/" element={<DynamicHome />} />
         <Route path="/models" element={<Square activeType="MODEL_API" />} />
         <Route path="/mcp" element={<McpSquare />} />
+        <Route path="/mcp/my" element={<RequireAuth><MyMcp /></RequireAuth>} />
         <Route path="/mcp/create" element={<McpCreatePage />} />
         <Route path="/agents" element={<Square activeType="AGENT_API" />} />
         <Route path="/apis" element={<Square activeType="REST_API" />} />

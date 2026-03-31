@@ -189,7 +189,7 @@ function McpDetail() {
     setSelectedConsumerId("");
     setConsumersLoading(true);
     try {
-      const res = await getConsumers({}, { page: 1, size: 100 });
+      const res = await getConsumers({ page: 1, size: 100 });
       if (res.data) {
         setConsumers(res.data.content || res.data);
       }
