@@ -571,6 +571,11 @@ load_config() {
         set +a
     fi
 
+    # 2.5 清除配置文件中的镜像/版本相关变量，确保每次都使用脚本内置最新默认值
+    unset HIMARKET_HUB HIMARKET_IMAGE_TAG HIMARKET_MYSQL_IMAGE_TAG \
+          NACOS_VERSION NACOS_IMAGE_REGISTRY NACOS_IMAGE_REPOSITORY \
+          HIGRESS_REPO_NAME HIGRESS_REPO_URL HIGRESS_CHART_REF 2>/dev/null || true
+
     # 3. 恢复 export 变量（覆盖配置文件中的同名变量）
     if [[ -n "${saved_vars}" ]]; then
         eval "export ${saved_vars}"
@@ -758,9 +763,9 @@ interactive_config() {
         log "$(msg install.upgrade_image_only)"
         log ""
         log "$(msg section.image)"
-        prompt HIMARKET_IMAGE_TAG "HiMarket image tag" "${HIMARKET_IMAGE_TAG:-latest}"
-        prompt HIMARKET_MYSQL_IMAGE_TAG "MySQL image tag" "${HIMARKET_MYSQL_IMAGE_TAG:-latest}"
-        prompt NACOS_VERSION "Nacos version" "${NACOS_VERSION:-v3.2.0}"
+        prompt HIMARKET_IMAGE_TAG "HiMarket image tag" "latest"
+        prompt HIMARKET_MYSQL_IMAGE_TAG "MySQL image tag" "latest"
+        prompt NACOS_VERSION "Nacos version" "v3.2.1-2026.03.30"
 
         # 其他配置沿用已有值（从配置文件加载）
         # 注意：回退默认值保留旧版硬编码值，仅用于兼容 env 文件缺失的已有部署
@@ -808,7 +813,7 @@ interactive_config() {
     prompt HIMARKET_HUB "HiMarket image hub" "opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group"
     prompt HIMARKET_IMAGE_TAG "HiMarket image tag" "latest"
     prompt HIMARKET_MYSQL_IMAGE_TAG "MySQL image tag" "latest"
-    prompt NACOS_VERSION "Nacos version" "v3.2.0"
+    prompt NACOS_VERSION "Nacos version" "v3.2.1-2026.03.30"
     prompt NACOS_IMAGE_REGISTRY "Nacos image registry" "nacos-registry.cn-hangzhou.cr.aliyuncs.com"
     prompt NACOS_IMAGE_REPOSITORY "Nacos image repository" "nacos/nacos-server"
 
@@ -986,18 +991,8 @@ DEPLOY_MODE="${DEPLOY_MODE}"
 # ========== 基础配置 ==========
 NAMESPACE="${NAMESPACE}"
 
-# ========== 镜像配置 ==========
-HIMARKET_HUB="${HIMARKET_HUB}"
-HIMARKET_IMAGE_TAG="${HIMARKET_IMAGE_TAG}"
-HIMARKET_MYSQL_IMAGE_TAG="${HIMARKET_MYSQL_IMAGE_TAG}"
-NACOS_VERSION="${NACOS_VERSION}"
-NACOS_IMAGE_REGISTRY="${NACOS_IMAGE_REGISTRY}"
-NACOS_IMAGE_REPOSITORY="${NACOS_IMAGE_REPOSITORY}"
-
-# ========== Helm 仓库 ==========
-HIGRESS_REPO_NAME="${HIGRESS_REPO_NAME}"
-HIGRESS_REPO_URL="${HIGRESS_REPO_URL}"
-HIGRESS_CHART_REF="${HIGRESS_CHART_REF}"
+# 注意：镜像配置 / Helm 仓库配置不保存到本文件，
+# 每次安装始终使用 install.sh 脚本内置的最新默认值。
 
 # ========== 数据库密码 ==========
 MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD}"
@@ -1127,12 +1122,27 @@ deploy_all() {
         --set "sandbox.persistence.size=${SANDBOX_STORAGE_SIZE}" \
         --set "server.jwtSecret=${JWT_SECRET}"
 
-    # 6.1 等待 HiMarket 核心组件就绪
+    # 6.1 升级模式：tag 不变（如 latest）时 helm upgrade 不会触发 rollout，
+    #     需要显式 rollout restart 让 imagePullPolicy: Always 生效拉取最新镜像
+    if [[ "${DEPLOY_MODE}" == "upgrade" ]]; then
+        if [[ "${HIMARKET_IMAGE_TAG}" == "latest" ]]; then
+            log "重启 HiMarket 组件以拉取最新 latest 镜像..."
+            kubectl rollout restart deployment himarket-server himarket-admin himarket-frontend -n "${NS}"
+        fi
+        if [[ "${HIMARKET_MYSQL_IMAGE_TAG}" == "latest" ]]; then
+            log "重启 MySQL 以拉取最新 latest 镜像..."
+            kubectl rollout restart statefulset mysql -n "${NS}" 2>/dev/null || true
+        fi
+        # sandbox 在 values.yaml 中默认使用 latest tag，始终重启
+        kubectl rollout restart deployment sandbox-shared -n "${NS}" 2>/dev/null || true
+    fi
+
+    # 6.2 等待 HiMarket 核心组件就绪
     wait_rollout "${NS}" "deployment" "himarket-server" 300
     wait_rollout "${NS}" "deployment" "himarket-admin" 300
     wait_rollout "${NS}" "deployment" "himarket-frontend" 300
 
-    # 7. 等待 MySQL Pod 就绪 + 初始化 Nacos 数据库
+    # 7. 同步 Nacos 数据库 schema（幂等，确保升级后 schema 与新版本一致）
     init_nacos_db_in_cluster "${NS}" "${MYSQL_ROOT_PASSWORD}" "${NACOS_DB_NAME}"
 
     # 8. 部署 Nacos
@@ -1149,6 +1159,12 @@ deploy_all() {
         --set "image.repository=${NACOS_IMAGE_REPOSITORY}" \
         --set "image.tag=${NACOS_VERSION}"
 
+    # 8.1 升级模式：Nacos 使用 latest 镜像时强制重启
+    if [[ "${DEPLOY_MODE}" == "upgrade" && "${NACOS_VERSION}" == "latest" ]]; then
+        log "重启 Nacos 以拉取最新 latest 镜像..."
+        kubectl rollout restart deployment nacos -n "${NS}" 2>/dev/null || true
+    fi
+
     wait_rollout "${NS}" "deployment" "nacos" 900
 
     # 9. 部署 Higress
@@ -1163,15 +1179,20 @@ deploy_all() {
     wait_rollout "${NS}" "deployment" "higress-gateway" 900
     wait_rollout "${NS}" "deployment" "higress-controller" 600
 
-    # 10. 配置 Higress MCP Redis
-    update_higress_mcp_redis "${NS}" || warn "mcpServer 配置更新失败，请手动检查"
+    # 10. 首次安装/重新安装：执行一次性初始化步骤
+    if [[ "${DEPLOY_MODE}" != "upgrade" ]]; then
+        # 配置 Higress MCP Redis
+        update_higress_mcp_redis "${NS}" || warn "mcpServer 配置更新失败，请手动检查"
 
-    # 11. 执行 post_ready 钩子（允许单个 hook 失败后继续执行后续 hook）
-    log "所有组件部署就绪，开始执行数据初始化..."
-    export SKIP_HOOK_ERRORS=true
-    run_hooks "post_ready" || warn "部分钩子执行失败，请检查日志"
+        # 执行 post_ready 钩子（允许单个 hook 失败后继续执行后续 hook）
+        log "所有组件部署就绪，开始执行数据初始化..."
+        export SKIP_HOOK_ERRORS=true
+        run_hooks "post_ready" || warn "部分钩子执行失败，请检查日志"
+    else
+        log "升级完成，跳过初始化钩子（如需重新初始化数据，请使用 --init-data）"
+    fi
 
-    # 12. 展示结果面板
+    # 11. 展示结果面板
     show_result_panel "${NS}"
 }
 
@@ -1196,7 +1217,7 @@ show_result_panel() {
     log "║"
     log "║  Frontend:         http://${frontend_ip}"
     log "║  Admin:            http://${admin_ip}"
-    log "║  Nacos:            http://${nacos_ip}:8848/nacos"
+    log "║  Nacos:            http://${nacos_ip}:8080"
     log "║  Higress Console:  http://${higress_ip}:${higress_port}"
     log "║"
     log "║  Admin login:      ${ADMIN_USERNAME} / ${ADMIN_PASSWORD}"

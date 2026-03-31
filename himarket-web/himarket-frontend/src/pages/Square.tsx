@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useLayoutEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { SearchOutlined, DownloadOutlined, ClockCircleOutlined } from "@ant-design/icons";
 import { Input, message, Pagination, Segmented } from "antd";
 import { useNavigate } from "react-router-dom";
@@ -9,6 +9,7 @@ import { SkillCard } from "../components/square/SkillCard";
 import { EmptyState } from "../components/EmptyState";
 import { LoginPrompt } from "../components/LoginPrompt";
 import { useAuth } from "../hooks/useAuth";
+import { useDebounce } from "../hooks/useDebounce";
 import { WorkerCard } from "../components/square/WorkerCard";
 import APIs, { type ICategory } from "../lib/apis";
 import { getIconString } from "../lib/iconUtils";
@@ -17,19 +18,15 @@ import dayjs from "dayjs";
 import BackToTopButton from "../components/scroll-to-top";
 import { CardGridSkeleton } from "../components/loading";
 
-// 滚动阈值：当滚动超过此值时显示粘性搜索框
-const STICKY_SEARCH_SCROLL_THRESHOLD = 64;
-
 function Square(props: { activeType: string }) {
   const { activeType } = props;
   const navigate = useNavigate();
   const { isLoggedIn } = useAuth();
   const [loginPromptOpen, setLoginPromptOpen] = useState(false);
 
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [activeCategory, setActiveCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [showStickySearch, setShowStickySearch] = useState(false);
+  const [isStuck, setIsStuck] = useState(false);
   const [products, setProducts] = useState<IProductDetail[]>([]);
   const [categories, setCategories] = useState<Array<{ id: string; name: string; count: number }>>([]);
   const [loading, setLoading] = useState(false);
@@ -39,40 +36,57 @@ function Square(props: { activeType: string }) {
   const showSortControl = activeType === 'AGENT_SKILL' || activeType === 'WORKER';
 
   // 分页相关状态
-  const [currentPage, setCurrentPage] = useState(1); // 从1开始，用于分页组件
+  const [currentPage, setCurrentPage] = useState(1);
   const [totalElements, setTotalElements] = useState(0);
   const PAGE_SIZE = 12;
 
+  // IntersectionObserver 哨兵 ref，用于检测 sticky 状态
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  // 滚动容器 ref，供 BackToTopButton 使用
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // IntersectionObserver 检测 sticky 状态
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        // 当哨兵元素不可见时，说明搜索区域已经 sticky 到顶部
+        setIsStuck(!entry.isIntersecting);
+      },
+      { threshold: 0 }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, []);
 
   // 获取分类列表
   useEffect(() => {
-    // Reset sort when switching product types
     setSortBy("DOWNLOAD_COUNT");
 
     const fetchCategories = async () => {
       setCategoriesLoading(true);
       try {
-        const productType = activeType
+        const productType = activeType;
         const response = await APIs.getCategoriesByProductType({ productType });
 
         if (response.code === "SUCCESS" && response.data?.content) {
           const categoryList = response.data.content.map((cat: ICategory) => ({
             id: cat.categoryId,
             name: cat.name,
-            count: 0, // 后端没有返回数量，先设为 0
+            count: 0,
           }));
 
           if (categoryList.length > 0) {
-            // 添加"全部"选项
             setCategories([
               { id: "all", name: "全部", count: 0 },
               ...categoryList
             ]);
-            // 重置选中的分类为"全部"
             setActiveCategory("all");
           } else {
-            setCategories([])
-            // 没有分类时，不选中任何分类
+            setCategories([]);
             setActiveCategory("");
           }
         }
@@ -87,29 +101,6 @@ function Square(props: { activeType: string }) {
     fetchCategories();
   }, [activeType]);
 
-  // 监听滚动，控制粘性搜索框显示/隐藏
-  useLayoutEffect(() => {
-    const container = scrollContainerRef.current;
-    
-    if (!container) {
-      return;
-    }
-
-    const handleScroll = () => {
-      // 当滚动超过阈值时，显示粘性搜索框
-      setShowStickySearch(container.scrollTop > STICKY_SEARCH_SCROLL_THRESHOLD);
-    };
-
-    // 立即绑定监听器
-    container.addEventListener('scroll', handleScroll);
-    console.log("Scroll listener attached");
-    
-    return () => {
-      console.log("Scroll listener removed");
-      container.removeEventListener('scroll', handleScroll);
-    };
-  }, []);
-
   // 获取产品列表
   const fetchProducts = useCallback(async (searchText?: string, page?: number) => {
     setLoading(true);
@@ -117,7 +108,6 @@ function Square(props: { activeType: string }) {
       const productType = activeType;
       const categoryIds = activeCategory === "all" ? undefined : [activeCategory];
       const name = (searchText ?? "").trim() || undefined;
-      // page 从 0 开始，currentPage 从 1 开始
       const pageIndex = (page ?? currentPage) - 1;
 
       const response = await APIs.getProducts({
@@ -144,26 +134,40 @@ function Square(props: { activeType: string }) {
     fetchProducts(searchQuery);
   }, [activeType, activeCategory, currentPage, sortBy]);
 
-  // 分页变化时重新获取数据
+  // Debounce 自动搜索：输入停顿 300ms 后自动触发搜索并重置分页
+  useDebounce(searchQuery, 300, (debouncedValue) => {
+    setCurrentPage(1);
+    fetchProducts(debouncedValue, 1);
+  });
+
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
   };
 
-  // 输入框变化时只更新 state，不发起请求
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
   };
 
-  // 点击搜索按钮时发起请求
+  // 即时搜索：搜索按钮和回车键
   const handleSearch = () => {
     setCurrentPage(1);
-    fetchProducts(searchQuery);
+    fetchProducts(searchQuery, 1);
   };
 
-  // 直接使用后端搜索结果，不再做前端过滤
   const filteredModels = products;
 
-  // 根据产品类型获取对应的统计文案
+  // 根据产品类型获取引导语
+  const getSlogan = (): { title: string; subtitle: string } | null => {
+    switch (activeType) {
+      case 'AGENT_SKILL':
+        return { title: 'Skill 市场', subtitle: '发现和分享 Agent Skills' };
+      case 'WORKER':
+        return { title: 'Worker 市场', subtitle: '领养一个精心培育好的 OpenClaw，跳过从零开始的漫长训练' };
+      default:
+        return null;
+    }
+  };
+
   const getStatLabel = () => {
     switch (activeType) {
       case 'MODEL_API':
@@ -188,12 +192,10 @@ function Square(props: { activeType: string }) {
       setLoginPromptOpen(true);
       return;
     }
-    // 跳转到 Chat 页面并传递选中的模型 ID
     navigate("/chat", { state: { selectedProduct: product } });
   };
 
   const handleViewDetail = (product: IProductDetail) => {
-    // 根据产品类型跳转到对应的详情页面
     switch (product.type) {
       case "MODEL_API":
         navigate(`/models/${product.productId}`);
@@ -218,68 +220,23 @@ function Square(props: { activeType: string }) {
     }
   };
 
-
   return (
-    <>
-      {/* 粘性搜索框（滚动时固定显示） */}
-      {showStickySearch && (
-        <div className="fixed top-0 left-0 right-0 z-[1000] bg-white border-b border-gray-200 shadow-sm py-2">
-          <div className="flex flex-col items-center justify-center px-6 py-2 gap-2">
-            {/* 搜索框 */}
-            <div className="w-full max-w-5xl">
-              <Input
-                placeholder="搜索名称..."
-                value={searchQuery}
-                onChange={(e) => handleSearchChange(e.target.value)}
-                onPressEnter={handleSearch}
-                size="middle"
-                suffix={
-                  <button
-                    onClick={handleSearch}
-                    className="bg-black hover:bg-gray-800 text-white rounded-lg p-1.5 transition-colors"
-                    type="button"
-                  >
-                    <SearchOutlined className="text-base" />
-                  </button>
-                }
-                className="rounded-lg text-sm"
-                style={{
-                  backgroundColor: "rgba(243, 244, 246, 0.5)",
-                }}
-              />
-            </div>
-            {/* 排序控件 + 分类菜单 */}
-            <div className="w-full flex items-center gap-3">
-              <div className="flex-1 min-w-0">
-                <CategoryMenu
-                  categories={categories}
-                  activeCategory={activeCategory}
-                  onSelectCategory={setActiveCategory}
-                  loading={categoriesLoading}
-                />
-              </div>
-              {showSortControl && (
-                <Segmented
-                  size="small"
-                  value={sortBy}
-                  onChange={(value) => {
-                    setSortBy(value as string);
-                    setCurrentPage(1);
-                  }}
-                  options={[
-                    { label: <span><DownloadOutlined /> 最多下载</span>, value: 'DOWNLOAD_COUNT' },
-                    { label: <span><ClockCircleOutlined /> 最近更新</span>, value: 'UPDATED_AT' },
-                  ]}
-                />
-              )}
-            </div>
+    <Layout>
+      <div className="flex flex-col h-[calc(100vh-96px)] overflow-auto scrollbar-hide" ref={scrollContainerRef}>
+        {/* IntersectionObserver 哨兵元素 */}
+        <div ref={sentinelRef} className="h-0 flex-shrink-0" />
+
+        {/* 引导语 */}
+        {getSlogan() && (
+          <div className="text-center py-4">
+            <h1 className="text-2xl font-bold mb-2">{getSlogan()!.title}</h1>
+            <p className="text-gray-500 text-base text-flow text-flow-grey slow">{getSlogan()!.subtitle}</p>
           </div>
-        </div>
-      )}
-      <Layout>
-        <div className="flex flex-col h-[calc(100vh-96px)] overflow-auto scrollbar-hide" ref={scrollContainerRef}>
-          {/* 顶部区域：统计 + 搜索框 + 分类 */}
-          <div className="flex flex-col gap-4 px-6 py-6 from-blue-50 to-purple-50 flex-shrink-0">
+        )}
+
+        {/* 搜索区域 - CSS Sticky 实现 */}
+        <div className={`sticky top-0 z-50 backdrop-blur-md transition-shadow duration-200 flex-shrink-0 ${isStuck ? 'shadow-sm bg-white/80' : ''}`}>
+          <div className="flex flex-col gap-4 px-6 py-4">
             {/* 统计信息 + 排序 */}
             <div className="flex items-center justify-center gap-4 text-sm text-gray-600">
               <div className="flex items-center gap-1.5">
@@ -303,7 +260,7 @@ function Square(props: { activeType: string }) {
               )}
             </div>
 
-            {/* 搜索框 */}
+            {/* 搜索框 - 唯一实例 */}
             <div className="flex items-center justify-center">
               <div className="w-full max-w-3xl">
                 <Input
@@ -330,7 +287,7 @@ function Square(props: { activeType: string }) {
               </div>
             </div>
 
-            {/* 分类菜单 */}
+            {/* 分类菜单 - 唯一实例 */}
             <div className="flex-1 min-w-0">
               <CategoryMenu
                 categories={categories}
@@ -340,83 +297,81 @@ function Square(props: { activeType: string }) {
               />
             </div>
           </div>
+        </div>
 
-          {/* 空白区域 */}
-          <div className="h-10 border-t border-gray-200 border-width-3 flex-shrink-0" />
-          {/* 内容区域：Grid 卡片展示 */}
-          <div className="flex-1 px-4 pb-4 flex-shrink-0">
-            <div className="pb-4">
-              {loading ? (
-                <CardGridSkeleton count={8} columns={{ sm: 1, md: 2, lg: 3 }} />
-              ) : (
-                <>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 max-w-[1600px] mx-auto">
-                    {filteredModels.map((product) => (
-                      product.type === 'AGENT_SKILL' ? (
-                        <SkillCard
-                          key={product.productId}
-                          name={product.name}
-                          description={product.description}
-                          releaseDate={dayjs(product.createAt).format("YYYY-MM-DD HH:mm:ss")}
-                          skillTags={product.skillConfig?.skillTags}
-                          downloadCount={product.skillConfig?.downloadCount}
-                          icon={getIconString(product.icon, product.name)}
-                          onClick={() => handleViewDetail(product)}
-                        />
-                      ) : product.type === 'WORKER' ? (
-                        <WorkerCard
-                          key={product.productId}
-                          name={product.name}
-                          description={product.description}
-                          icon={getIconString(product.icon, product.name)}
-                          releaseDate={dayjs(product.createAt).format("YYYY-MM-DD HH:mm:ss")}
-                          workerTags={product.workerConfig?.tags}
-                          downloadCount={product.workerConfig?.downloadCount}
-                          onClick={() => handleViewDetail(product)}
-                        />
-                      ) : (
-                        <ModelCard
-                          key={product.productId}
-                          icon={getIconString(product.icon, product.name)}
-                          name={product.name}
-                          description={product.description}
-                          releaseDate={dayjs(product.createAt).format("YYYY-MM-DD HH:mm:ss")}
-                          onClick={() => handleViewDetail(product)}
-                          onTryNow={activeType === "MODEL_API" ? () => handleTryNow(product) : undefined}
-                        />
-                      )
-                    ))}
-                    {!loading && filteredModels.length === 0 && (
-                      <EmptyState productType={activeType} />
-                    )}
-                  </div>
-
-                  {/* 分页组件 */}
-                  {!loading && totalElements > PAGE_SIZE && (
-                    <div className="flex justify-center mt-8 mb-4">
-                      <Pagination
-                        current={currentPage}
-                        pageSize={PAGE_SIZE}
-                        total={totalElements}
-                        onChange={handlePageChange}
-                        showSizeChanger={false}
-                        showQuickJumper
+        {/* 内容区域：Grid 卡片展示 */}
+        <div className="flex-1 px-4 pt-4 pb-4 flex-shrink-0">
+          <div className="pb-4">
+            {loading ? (
+              <CardGridSkeleton count={8} columns={{ sm: 1, md: 2, lg: 3 }} />
+            ) : (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 max-w-[1600px] mx-auto">
+                  {filteredModels.map((product) => (
+                    product.type === 'AGENT_SKILL' ? (
+                      <SkillCard
+                        key={product.productId}
+                        name={product.name}
+                        description={product.description}
+                        releaseDate={dayjs(product.createAt).format("YYYY-MM-DD HH:mm:ss")}
+                        skillTags={product.skillConfig?.skillTags}
+                        downloadCount={product.skillConfig?.downloadCount}
+                        icon={getIconString(product.icon, product.name)}
+                        onClick={() => handleViewDetail(product)}
                       />
-                    </div>
+                    ) : product.type === 'WORKER' ? (
+                      <WorkerCard
+                        key={product.productId}
+                        name={product.name}
+                        description={product.description}
+                        icon={getIconString(product.icon, product.name)}
+                        releaseDate={dayjs(product.createAt).format("YYYY-MM-DD HH:mm:ss")}
+                        workerTags={product.workerConfig?.tags}
+                        downloadCount={product.workerConfig?.downloadCount}
+                        onClick={() => handleViewDetail(product)}
+                      />
+                    ) : (
+                      <ModelCard
+                        key={product.productId}
+                        icon={getIconString(product.icon, product.name)}
+                        name={product.name}
+                        description={product.description}
+                        releaseDate={dayjs(product.createAt).format("YYYY-MM-DD HH:mm:ss")}
+                        onClick={() => handleViewDetail(product)}
+                        onTryNow={activeType === "MODEL_API" ? () => handleTryNow(product) : undefined}
+                      />
+                    )
+                  ))}
+                  {!loading && filteredModels.length === 0 && (
+                    <EmptyState productType={activeType} />
                   )}
-                </>
-              )}
-            </div>
+                </div>
+
+                {/* 分页组件 */}
+                {!loading && totalElements > PAGE_SIZE && (
+                  <div className="flex justify-center mt-8 mb-4">
+                    <Pagination
+                      current={currentPage}
+                      pageSize={PAGE_SIZE}
+                      total={totalElements}
+                      onChange={handlePageChange}
+                      showSizeChanger={false}
+                      showQuickJumper
+                    />
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </div>
-        <BackToTopButton container={scrollContainerRef.current!} />
-        <LoginPrompt
-          open={loginPromptOpen}
-          onClose={() => setLoginPromptOpen(false)}
-          contextMessage="登录后即可试用 AI 模型，体验智能对话能力"
-        />
+      </div>
+      <BackToTopButton container={scrollContainerRef.current!} />
+      <LoginPrompt
+        open={loginPromptOpen}
+        onClose={() => setLoginPromptOpen(false)}
+        contextMessage="登录后即可试用 AI 模型，体验智能对话能力"
+      />
     </Layout>
-    </>
   );
 }
 

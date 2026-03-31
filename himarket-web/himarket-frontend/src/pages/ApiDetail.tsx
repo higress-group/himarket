@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { Alert, Tabs, Space, Button, message } from "antd";
-import { Layout } from "../components/Layout";
-import { ProductHeader } from "../components/ProductHeader";
+import { useParams } from "react-router-dom";
+import { Tabs, Space, Button, message } from "antd";
+import { ProductDetailLayout } from "../components/ProductDetailLayout";
 import { SwaggerUIWrapper } from "../components/SwaggerUIWrapper";
 import * as yaml from 'js-yaml';
-import { CopyOutlined, DownloadOutlined, ArrowLeftOutlined } from "@ant-design/icons";
+import { CopyOutlined, DownloadOutlined } from "@ant-design/icons";
 import type { IProductDetail } from "../lib/apis";
 import APIs from "../lib/apis";
 import MarkdownRender from "../components/MarkdownRender";
@@ -19,8 +18,6 @@ function ApiDetailPage() {
   const [baseUrl, setBaseUrl] = useState<string>('');
   const [examplePath, setExamplePath] = useState<string>('/{path}');
   const [exampleMethod, setExampleMethod] = useState<string>('GET');
-  const navigate = useNavigate();
-
   const fetchApiDetail = React.useCallback(async () => {
     setLoading(true);
     setError('');
@@ -81,58 +78,9 @@ function ApiDetailPage() {
     fetchApiDetail();
   }, [apiProductId, fetchApiDetail]);
 
-  if (error) {
-    return (
-      <Layout>
-        <Alert message={error} type="error" showIcon className="my-8" />
-      </Layout>
-    );
-  }
-
-  if (!apiData) {
-    return (
-      <Layout>
-        <div className="flex justify-center items-center h-64">
-          <div>Loading...</div>
-        </div>
-      </Layout>
-    );
-  }
-
-  return (
-    <Layout>
-      {/* 头部 */}
-      <div className="mb-8">
-        {/* 返回按钮 */}
-        <button
-          onClick={() => navigate(-1)}
-          className="
-            flex items-center gap-2 mb-4 px-4 py-2 rounded-xl
-            text-gray-600 hover:text-colorPrimary
-            hover:bg-colorPrimaryBgHover
-            transition-all duration-200
-          "
-        >
-          <ArrowLeftOutlined />
-          <span>返回</span>
-        </button>
-
-        <ProductHeader
-          name={apiData.name}
-          description={apiData.description}
-          icon={apiData.icon}
-          defaultIcon="/logo.svg"
-          updatedAt={apiData.updatedAt}
-          productType="REST_API"
-        />
-      </div>
-
-      {/* 主要内容区域 */}
-      <div className="flex flex-col lg:flex-row gap-6">
-        {/* 左侧内容 */}
-        <div className="w-full lg:w-[65%] order-2 lg:order-1">
-          <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-6 pt-0">
-            <Tabs
+  const leftContent = apiData ? (
+    <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-6 pt-0">
+      <Tabs
               size="large"
               defaultActiveKey="overview"
               items={[
@@ -167,12 +115,11 @@ function ApiDetailPage() {
               ]}
             />
           </div>
-        </div>
+  ) : null;
 
-        {/* 右侧内容 */}
-        <div className="w-full lg:w-[35%] order-1 lg:order-2">
-          <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-6">
-            <h3 className="text-base font-semibold mb-4 text-gray-900">快速开始</h3>
+  const rightContent = (
+    <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-6">
+      <h3 className="text-base font-semibold mb-4 text-gray-900">快速开始</h3>
             <Tabs
               defaultActiveKey="curl"
               items={[
@@ -270,10 +217,24 @@ function ApiDetailPage() {
                 },
               ]}
             />
-          </div>
-        </div>
       </div>
-    </Layout>
+  );
+
+  return (
+    <ProductDetailLayout
+      loading={!apiData && !error}
+      error={error || undefined}
+      headerProps={apiData ? {
+        name: apiData.name,
+        description: apiData.description,
+        icon: apiData.icon,
+        defaultIcon: "/logo.svg",
+        updatedAt: apiData.updatedAt,
+        productType: "REST_API",
+      } : undefined}
+      leftContent={leftContent}
+      rightContent={rightContent}
+    />
   );
 }
 

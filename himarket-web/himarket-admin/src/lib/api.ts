@@ -1,6 +1,27 @@
 import axios, { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 import { getToken, removeToken } from './utils'
 import {  message } from 'antd'
+import type {
+  CreatePortalRequest,
+  UpdatePortalRequest,
+  UpdatePortalSettingsRequest,
+  GetApiProductsParams,
+  CreateApiProductRequest,
+  UpdateApiProductRequest,
+  CreateApiProductRefRequest,
+  GetApiProductPublicationsParams,
+  GetGatewaysParams,
+  GetApigGatewayParams,
+  GetApsaraGatewaysRequest,
+  GetAdpGatewaysRequest,
+  ImportGatewayRequest,
+  UpdateGatewayRequest,
+  GetGatewayApisParams,
+  GetNacosParams,
+  CreateNacosRequest,
+  UpdateNacosRequest,
+  GetNacosMcpServersParams,
+} from '@/types'
 
 
 
@@ -64,7 +85,7 @@ export const portalApi = {
   deletePortal: (portalId: string) => {
     return api.delete(`/portals/${portalId}`)
   },
-  createPortal: (data: any) => {
+  createPortal: (data: CreatePortalRequest) => {
     return api.post(`/portals`, data)
   },
   // 获取portal详情
@@ -81,11 +102,11 @@ export const portalApi = {
     return api.delete(`/portals/${portalId}/domains/${encodedDomain}`)
   },
   // 更新Portal
-  updatePortal: (portalId: string, data: any) => {
+  updatePortal: (portalId: string, data: UpdatePortalRequest) => {
     return api.put(`/portals/${portalId}`, data)
   },
   // 更新Portal设置
-  updatePortalSettings: (portalId: string, settings: any) => {
+  updatePortalSettings: (portalId: string, settings: UpdatePortalSettingsRequest) => {
     return api.put(`/portals/${portalId}/setting`, settings)
   },
   // 获取Portal的开发者列表
@@ -141,7 +162,7 @@ export const portalApi = {
 // API Product相关API
 export const apiProductApi = {
   // 获取API产品列表
-  getApiProducts: (params?: any) => {
+  getApiProducts: (params?: GetApiProductsParams) => {
     return api.get(`/products`, { params })
   },
   // 获取API产品详情
@@ -149,7 +170,7 @@ export const apiProductApi = {
     return api.get(`/products/${productId}`)
   },
   // 创建API产品
-  createApiProduct: (data: any) => {
+  createApiProduct: (data: CreateApiProductRequest) => {
     return api.post(`/products`, data)
   },
   // 删除API产品
@@ -157,7 +178,7 @@ export const apiProductApi = {
     return api.delete(`/products/${productId}`)
   },
   // 更新API产品
-  updateApiProduct: (productId: string, data: any) => {
+  updateApiProduct: (productId: string, data: UpdateApiProductRequest) => {
     return api.put(`/products/${productId}`, data)
   },
   // 获取API产品关联的服务
@@ -173,7 +194,7 @@ export const apiProductApi = {
     return api.delete(`/products/${productId}/ref`)
   },
   // 获取API产品已发布的门户列表
-  getApiProductPublications: (productId: string, params?: any) => {
+  getApiProductPublications: (productId: string, params?: GetApiProductPublicationsParams) => {
     return api.get(`/products/${productId}/publications`, { params })
   },
   // 发布API产品到门户
@@ -209,21 +230,21 @@ export const apiProductApi = {
 // Gateway相关API
 export const gatewayApi = {
   // 获取网关列表
-  getGateways: (params?: any) => {
+  getGateways: (params?: GetGatewaysParams) => {
     return api.get(`/gateways`, { params })
   },
   // 获取APIG网关
-  getApigGateway: (data: any) => {
+  getApigGateway: (data: GetApigGatewayParams) => {
     return api.get(`/gateways/apig`, { params: {
       ...data,
     } })
   },
   // 获取Apsara网关
-  getApsaraGateways: (data: any) => {
+  getApsaraGateways: (data: GetApsaraGatewaysRequest) => {
     return api.post(`/gateways/apsara`, data)
   },
   // 获取ADP网关
-  getAdpGateways: (data: any) => {
+  getAdpGateways: (data: GetAdpGatewaysRequest) => {
     return api.post(`/gateways/adp`, data)
   },
   // 删除网关
@@ -231,33 +252,33 @@ export const gatewayApi = {
     return api.delete(`/gateways/${gatewayId}`)
   },
   // 导入网关
-  importGateway: (data: any) => {
+  importGateway: (data: ImportGatewayRequest) => {
     return api.post(`/gateways`, { ...data })
   },
   // 更新网关
-  updateGateway: (gatewayId: string, data: any) => {
+  updateGateway: (gatewayId: string, data: UpdateGatewayRequest) => {
     return api.put(`/gateways/${gatewayId}`, data)
   },
   // 获取网关的REST API列表
-  getGatewayRestApis: (gatewayId: string, data: any) => {
+  getGatewayRestApis: (gatewayId: string, data: GetGatewayApisParams) => {
     return api.get(`/gateways/${gatewayId}/rest-apis`, {
       params: data
     })
   },
   // 获取网关的MCP Server列表
-  getGatewayMcpServers: (gatewayId: string, data: any) => {
+  getGatewayMcpServers: (gatewayId: string, data: GetGatewayApisParams) => {
     return api.get(`/gateways/${gatewayId}/mcp-servers`, {
       params: data
     })
   },
   // 获取网关的Agent API列表
-  getGatewayAgentApis: (gatewayId: string, data: any) => {
+  getGatewayAgentApis: (gatewayId: string, data: GetGatewayApisParams) => {
     return api.get(`/gateways/${gatewayId}/agent-apis`, {
       params: data
     })
   },
   // 获取网关的Model API列表
-  getGatewayModelApis: (gatewayId: string, data: any) => {
+  getGatewayModelApis: (gatewayId: string, data: GetGatewayApisParams) => {
     return api.get(`/gateways/${gatewayId}/model-apis`, {
       params: data
     })
@@ -269,23 +290,23 @@ export const gatewayApi = {
 } 
 
 export const nacosApi = {
-  getNacos: (params?: any) => {
+  getNacos: (params?: GetNacosParams) => {
     return api.get(`/nacos`, { params })
   },
   // 从阿里云 MSE 获取 Nacos 集群列表
   getMseNacos: (params: { regionId: string; accessKey: string; secretKey: string; page?: number; size?: number }) => {
     return api.get(`/nacos/mse`, { params })
   },
-  createNacos: (data: any) => {
+  createNacos: (data: CreateNacosRequest) => {
     return api.post(`/nacos`, data)
   },
   deleteNacos: (nacosId: string) => {
     return api.delete(`/nacos/${nacosId}`)
   },
-  updateNacos: (nacosId: string, data: any) => {
+  updateNacos: (nacosId: string, data: UpdateNacosRequest) => {
     return api.put(`/nacos/${nacosId}`, data)
   },
-  getNacosMcpServers: (nacosId: string, data: any) => {
+  getNacosMcpServers: (nacosId: string, data: GetNacosMcpServersParams) => {
     return api.get(`/nacos/${nacosId}/mcp-servers`, {
       params: data
     })
@@ -378,6 +399,8 @@ export const skillApi = {
     api.delete(`/skills/${productId}/draft`),
   setLatestVersion: (productId: string, version: string) =>
     api.put(`/skills/${productId}/versions/latest`, { version }),
+  forcePublishVersion: (productId: string, version: string) =>
+    api.post(`/skills/${productId}/versions/${version}/force-publish`),
   // 从 Nacos 导入 Skills
   importFromNacos: (nacosId: string, namespace?: string) => {
     return api.post(`/skills/import`, null, { params: { nacosId, namespace }, timeout: 120000 })

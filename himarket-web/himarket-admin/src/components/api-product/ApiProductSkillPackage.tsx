@@ -454,9 +454,11 @@ export function ApiProductSkillPackage({ apiProduct, onUploadSuccess, handleRefr
   const isUnpublished = previewItem?.status === 'draft' || previewItem?.status === 'offline'
   const isOnline = previewItem?.status === 'online'
   const isReviewing = previewItem?.status === 'reviewing'
+  const isRejected = previewItem?.status === 'draft' && pipelineStatus?.status === 'REJECTED'
   const canPublish = !!previewVersion && isUnpublished
   const canOffline = !!previewVersion && isOnline
   const canDeleteDraft = !!previewVersion && isUnpublished
+  const canForcePublish = !!previewVersion && isRejected
   const showPublishActions = canPublish || isReviewing
   const totalDownloads = versions.reduce((sum, item) => sum + (item.downloadCount ?? 0), 0)
 
@@ -539,6 +541,30 @@ export function ApiProductSkillPackage({ apiProduct, onUploadSuccess, handleRefr
           onUploadSuccess?.()
         } catch (error: any) {
           message.error(error.response?.data?.message || '删除草稿失败')
+        } finally {
+          setActionLoading(null)
+        }
+      },
+    })
+  }
+
+  const handleForcePublish = async (version: string) => {
+    Modal.confirm({
+      title: '确认强制发布',
+      icon: <ExclamationCircleFilled />,
+      content: `该版本审核未通过，确定要跳过审核流程强制发布版本 ${version} 吗？`,
+      okText: '强制发布',
+      okType: 'danger',
+      cancelText: '取消',
+      onOk: async () => {
+        setActionLoading('forcePublish')
+        try {
+          await skillApi.forcePublishVersion(productId, version)
+          message.success(`版本 ${version} 已强制发布`)
+          await fetchVersions()
+          onUploadSuccess?.()
+        } catch (error: any) {
+          message.error(error.response?.data?.message || '强制发布失败')
         } finally {
           setActionLoading(null)
         }
@@ -756,6 +782,16 @@ export function ApiProductSkillPackage({ apiProduct, onUploadSuccess, handleRefr
                 删除草稿
               </Button>
             )}
+            {canForcePublish && (
+              <Button
+                type="primary"
+                danger
+                loading={actionLoading === 'forcePublish'}
+                onClick={() => previewVersion && handleForcePublish(previewVersion)}
+              >
+                强制发布
+              </Button>
+            )}
             {canOffline && (
               <Button
                 danger
@@ -816,7 +852,6 @@ export function ApiProductSkillPackage({ apiProduct, onUploadSuccess, handleRefr
               return (
                 <span className="inline-flex items-center gap-1.5 text-xs text-blue-600">
                   <Spin size="small" />
-                  <span className="font-medium">审核中</span>
                   {pipelineNodes && pipelineNodes.length > 0 && (
                     <span className="text-blue-400">
                       ({pipelineNodes.filter((n: any) => n.passed).length}/{pipelineNodes.length})

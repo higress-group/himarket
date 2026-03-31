@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Form, Input, Button, message } from 'antd'
 import { UserOutlined, LockOutlined } from '@ant-design/icons'
-import api from '../lib/api'
+import request from '../lib/request'
 import { Layout } from '../components/Layout'
 
 const Register: React.FC = () => {
@@ -16,7 +16,7 @@ const Register: React.FC = () => {
     setLoading(true)
     try {
       // 这里需要根据实际API调整
-      await api.post('/developers', {
+      await request.post('/developers', {
         username: values.username,
         password: values.password,
       })

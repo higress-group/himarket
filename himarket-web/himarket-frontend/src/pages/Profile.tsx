@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 // import { useLocation } from 'react-router-dom'
 
+import { Layout } from '../components/Layout';
 import aliyunIcon from '../assets/aliyun.png';
 import githubIcon from '../assets/github.png';
 import googleIcon from '../assets/google.png';
@@ -115,8 +116,9 @@ const Profile: React.FC = () => {
   const userProfile = mainIdentity ? parseUserProfile(mainIdentity) : null;
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-white">
-      <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md flex flex-col items-center border border-gray-100">
+    <Layout>
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
+        <div className="bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-lg w-full max-w-md flex flex-col items-center border border-white/40">
         <h2 className="text-2xl font-bold mb-6 text-gray-900 text-center">个人中心</h2>
         {/* 个人信息展示区 */}
         {userProfile && (
@@ -156,8 +158,9 @@ const Profile: React.FC = () => {
             })
           )}
         </div>
+        </div>
       </div>
-    </div>
+    </Layout>
   )
 }
 

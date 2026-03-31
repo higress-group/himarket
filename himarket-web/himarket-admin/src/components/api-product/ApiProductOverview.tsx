@@ -256,7 +256,7 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
             <Card 
               className="cursor-pointer hover:shadow-md transition-shadow"
               onClick={() => {
-                navigate(`/api-products/detail?productId=${apiProduct.productId}&tab=portal`)
+                navigate(`/api-products/${apiProduct.productId}?tab=portal`)
               }}
             >
               <Statistic
@@ -271,7 +271,7 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
             <Card 
               className="cursor-pointer hover:shadow-md transition-shadow"
               onClick={() => {
-                navigate(`/api-products/detail?productId=${apiProduct.productId}&tab=link-api`)
+                navigate(`/api-products/${apiProduct.productId}?tab=link-api`)
               }}
             >
               <Statistic

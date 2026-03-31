@@ -12,7 +12,7 @@ import {
   PlusOutlined,
   ReloadOutlined,
 } from "@ant-design/icons";
-import api from "../../lib/api";
+import request from "../../lib/request";
 import type { Subscription } from "../../types/consumer";
 import type { ApiResponse, Product } from "../../types";
 import { getSubscriptionStatusText, getSubscriptionStatusColor, ProductTypeMap } from "../../lib/statusUtils";
@@ -108,7 +108,7 @@ export function SubscriptionManager({ consumerId, subscriptions, onSubscriptions
     setProductModalVisible(true);
     setProductLoading(true);
     try {
-      const response: ApiResponse<{ content: Product[] }> = await api.get("/products?page=0&size=100");
+      const response: ApiResponse<{ content: Product[] }> = await request.get("/products?page=0&size=100");
       if (response?.code === "SUCCESS" && response?.data) {
         const allProducts = response.data.content || [];
         // 初始化时过滤掉已订阅的产品
@@ -132,7 +132,7 @@ export function SubscriptionManager({ consumerId, subscriptions, onSubscriptions
 
     setSubscribeLoading(true);
     try {
-      await api.post(`/consumers/${consumerId}/subscriptions`, { productId: selectedProduct });
+      await request.post(`/consumers/${consumerId}/subscriptions`, { productId: selectedProduct });
       message.success('订阅成功');
       setProductModalVisible(false);
       setSelectedProduct('');
@@ -147,7 +147,7 @@ export function SubscriptionManager({ consumerId, subscriptions, onSubscriptions
 
   const handleUnsubscribe = async (productId: string) => {
     try {
-      await api.delete(`/consumers/${consumerId}/subscriptions/${productId}`);
+      await request.delete(`/consumers/${consumerId}/subscriptions/${productId}`);
       message.success('取消订阅成功');
       onSubscriptionsChange();
     } catch (error) {
