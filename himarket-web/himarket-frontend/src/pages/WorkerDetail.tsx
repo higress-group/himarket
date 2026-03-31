@@ -254,7 +254,6 @@ function WorkerDetail() {
     if (!workerProductId) return;
     const a = document.createElement("a");
     a.href = getWorkerPackageUrl(workerProductId, selectedVersion);
-    a.download = "";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -540,7 +539,7 @@ function WorkerDetail() {
                 type="primary"
                 icon={<DownloadOutlined />}
                 onClick={handleDownload}
-                disabled={!selectedVersion}
+                disabled={versions.length === 0}
                 block
                 size="middle"
               >
@@ -571,13 +570,19 @@ function WorkerDetail() {
                     </button>
                     <button
                       onClick={() => {
-                        const quotedName = cliInfo.resourceName.includes(' ') ? `"${cliInfo.resourceName}"` : cliInfo.resourceName;
+                        const version = selectedVersion || 'v1';
+                        const encodedName = encodeURIComponent(cliInfo.resourceName);
+                        const hostPart = cliInfo.nacosPort ? `${cliInfo.nacosHost}:${cliInfo.nacosPort}` : cliInfo.nacosHost;
+                        const selectedVersionInfo = versions.find((v) => v.version === version);
+                        const isLatest = selectedVersionInfo?.isLatest ?? false;
+                        const versionPart = isLatest ? '' : `/${version}`;
+                        const packageUrl = `nacos://${hostPart}/${cliInfo.namespace}/${encodedName}${versionPart}`;
                         const cmd = hiclawPlatform === 'unix'
-                          ? `curl -fsSL https://higress.ai/hiclaw/import.sh | bash -s -- --nacos --host ${cliInfo.nacosHost} --name ${quotedName}`
-                          : `irm https://higress.ai/hiclaw/import.ps1 -OutFile import.ps1; .\\import.ps1 --nacos --host ${cliInfo.nacosHost} --name ${quotedName}`;
+                          ? `curl -fsSL https://higress.ai/hiclaw/import.sh | bash -s -- worker --name "${cliInfo.resourceName}" --package "${packageUrl}"`
+                          : `irm https://higress.ai/hiclaw/import.ps1 -OutFile import.ps1; .\\import.ps1 worker --name "${cliInfo.resourceName}" --package "${packageUrl}"`;
                         copyToClipboard(cmd).then(() => {
                           setCopiedHiclaw(true);
-                          setTimeout(() => setCopiedHiclaw(false), 2000);
+                          setTimeout(() => setCopiedHiclaw(false), 2002);
                         });
                       }}
                       className="text-xs text-gray-400 hover:text-gray-600 transition-colors ml-1"
@@ -588,10 +593,18 @@ function WorkerDetail() {
                 </div>
                 <div className="rounded-md bg-gray-100 border border-gray-200 px-3 py-2">
                   <code className="text-[12px] text-gray-700 break-all" style={{ fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace" }}>
-                    {hiclawPlatform === 'unix'
-                      ? `curl -fsSL https://higress.ai/hiclaw/import.sh | bash -s -- --nacos --host ${cliInfo.nacosHost} --name ${cliInfo.resourceName.includes(' ') ? `"${cliInfo.resourceName}"` : cliInfo.resourceName}`
-                      : `irm https://higress.ai/hiclaw/import.ps1 -OutFile import.ps1; .\\import.ps1 --nacos --host ${cliInfo.nacosHost} --name ${cliInfo.resourceName.includes(' ') ? `"${cliInfo.resourceName}"` : cliInfo.resourceName}`
-                    }
+                    {(() => {
+                      const version = selectedVersion || 'v1';
+                      const encodedName = encodeURIComponent(cliInfo.resourceName);
+                      const hostPart = cliInfo.nacosPort ? `${cliInfo.nacosHost}:${cliInfo.nacosPort}` : cliInfo.nacosHost;
+                      const selectedVersionInfo = versions.find((v) => v.version === version);
+                      const isLatest = selectedVersionInfo?.isLatest ?? false;
+                      const versionPart = isLatest ? '' : `/${version}`;
+                      const packageUrl = `nacos://${hostPart}/${cliInfo.namespace}/${encodedName}${versionPart}`;
+                      return hiclawPlatform === 'unix'
+                        ? `curl -fsSL https://higress.ai/hiclaw/import.sh | bash -s -- worker --name "${cliInfo.resourceName}" --package "${packageUrl}"`
+                        : `irm https://higress.ai/hiclaw/import.ps1 -OutFile import.ps1; .\\import.ps1 worker --name "${cliInfo.resourceName}" --package "${packageUrl}"`;
+                    })()}
                   </code>
                 </div>
               </div>
@@ -607,7 +620,10 @@ function WorkerDetail() {
                   </div>
                   <button
                     onClick={() => {
-                      const url = `${window.location.origin}/api/v1/workers/${workerProductId}/download${selectedVersion ? `?version=${encodeURIComponent(selectedVersion)}` : ''}`;
+                      const selectedVersionInfo = versions.find((v) => v.version === selectedVersion);
+                      const isLatest = selectedVersionInfo?.isLatest ?? false;
+                      const versionParam = selectedVersion && !isLatest ? `?version=${encodeURIComponent(selectedVersion)}` : '';
+                      const url = `${window.location.origin}/api/v1/workers/${workerProductId}/download${versionParam}`;
                       copyToClipboard(url).then(() => {
                         setCopiedHttp(true);
                         setTimeout(() => setCopiedHttp(false), 2000);
@@ -621,7 +637,12 @@ function WorkerDetail() {
                 </div>
                 <div className="rounded-md bg-gray-100 border border-gray-200 px-3 py-2">
                   <code className="text-[12px] text-gray-700 break-all" style={{ fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace" }}>
-                    {`${typeof window !== 'undefined' ? window.location.origin : ''}/api/v1/workers/${workerProductId}/download${selectedVersion ? `?version=${encodeURIComponent(selectedVersion)}` : ''}`}
+                    {(() => {
+                      const selectedVersionInfo = versions.find((v) => v.version === selectedVersion);
+                      const isLatest = selectedVersionInfo?.isLatest ?? false;
+                      const versionParam = selectedVersion && !isLatest ? `?version=${encodeURIComponent(selectedVersion)}` : '';
+                      return `${typeof window !== 'undefined' ? window.location.origin : ''}/api/v1/workers/${workerProductId}/download${versionParam}`;
+                    })()}
                   </code>
                 </div>
               </div>
