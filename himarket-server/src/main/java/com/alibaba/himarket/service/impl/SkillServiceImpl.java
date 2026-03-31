@@ -510,8 +510,11 @@ public class SkillServiceImpl implements SkillService {
         Skill skill = fetchSkill(ref, version);
 
         response.setContentType("application/zip");
-        response.setHeader(
-                "Content-Disposition", "attachment; filename=\"" + skill.getName() + ".zip\"");
+        // Use RFC 5987 encoding for Unicode filenames
+        String encodedName =
+                java.net.URLEncoder.encode(skill.getName() + ".zip", StandardCharsets.UTF_8)
+                        .replace("+", "%20");
+        response.setHeader("Content-Disposition", "attachment; filename*=UTF-8''" + encodedName);
 
         try (ZipOutputStream zos = new ZipOutputStream(response.getOutputStream())) {
             String rootDir = skill.getName() + "/";
@@ -578,12 +581,54 @@ public class SkillServiceImpl implements SkillService {
         }
         return execute(
                 ref.getNacosId(),
-                s ->
-                        StrUtil.isBlank(version)
-                                ? s.getSkillVersionDetail(
-                                        ref.getNamespace(), ref.getSkillName(), null)
-                                : s.getSkillVersionDetail(
-                                        ref.getNamespace(), ref.getSkillName(), version));
+                s -> {
+                    String targetVersion =
+                            StrUtil.isBlank(version)
+                                    ? resolveLatestVersion(
+                                            s, ref.getNamespace(), ref.getSkillName())
+                                    : version;
+                    return s.getSkillVersionDetail(
+                            ref.getNamespace(), ref.getSkillName(), targetVersion);
+                });
+    }
+
+    /**
+     * Resolves the latest version for a Skill from Nacos.
+     * First checks the "latest" label, then falls back to the most recent version by createTime.
+     *
+     * @param service   SkillMaintainerService instance
+     * @param namespace Nacos namespace
+     * @param skillName Skill name
+     * @return Latest version string
+     * @throws BusinessException if Skill or versions not found
+     */
+    private String resolveLatestVersion(
+            SkillMaintainerService service, String namespace, String skillName) {
+        try {
+            SkillMeta meta = service.getSkillMeta(namespace, skillName);
+            if (meta == null || CollUtil.isEmpty(meta.getVersions())) {
+                throw new BusinessException(ErrorCode.NOT_FOUND, Resources.SKILL, skillName);
+            }
+            // Find latest version from labels
+            if (meta.getLabels() != null && StrUtil.isNotBlank(meta.getLabels().get("latest"))) {
+                return meta.getLabels().get("latest");
+            }
+            // Fallback: sort by createTime desc and use the first one
+            return meta.getVersions().stream()
+                    .sorted(
+                            Comparator.comparing(
+                                            SkillMeta.SkillVersionSummary::getCreateTime,
+                                            Comparator.nullsLast(Long::compareTo))
+                                    .reversed())
+                    .map(SkillMeta.SkillVersionSummary::getVersion)
+                    .findFirst()
+                    .orElseThrow(
+                            () ->
+                                    new BusinessException(
+                                            ErrorCode.NOT_FOUND, Resources.SKILL, skillName));
+        } catch (NacosException e) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, Resources.SKILL, skillName);
+        }
     }
 
     private String buildResourcePath(SkillResource resource) {

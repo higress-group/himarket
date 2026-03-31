@@ -39,6 +39,16 @@ public class CliDownloadInfo {
     private String nacosHost;
 
     /**
+     * Nacos port
+     */
+    private Integer nacosPort;
+
+    /**
+     * Nacos namespace
+     */
+    private String namespace;
+
+    /**
      * Skill or Worker name in Nacos
      */
     private String resourceName;

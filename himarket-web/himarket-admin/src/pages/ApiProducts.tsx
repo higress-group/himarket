@@ -2,7 +2,7 @@ import { memo, useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { MenuProps } from 'antd';
 import { Button, Dropdown, Modal, message, Pagination, Skeleton, Input, Tabs, Tag, Select } from 'antd';
-import type { ApiProduct, ProductIcon } from '@/types/api-product';
+import type { ApiProduct } from '@/types/api-product';
 import { ApiOutlined, MoreOutlined, PlusOutlined, ExclamationCircleOutlined, ExclamationCircleFilled, ClockCircleFilled, CheckCircleFilled, SearchOutlined, RobotOutlined, BulbOutlined, ThunderboltOutlined, UserOutlined, ImportOutlined, DownloadOutlined } from '@ant-design/icons';
 import McpServerIcon from '@/components/icons/McpServerIcon';
 import { apiProductApi, nacosApi, workerApi, skillApi } from '@/lib/api';
@@ -20,17 +20,6 @@ const PRODUCT_TYPES = [
   { key: 'AGENT_API', label: 'Agent API' },
   { key: 'REST_API', label: 'REST API' },
 ];
-
-const getDefaultIcon = (type: string) => {
-  if (type === 'REST_API') return <ApiOutlined style={{ fontSize: '16px' }} />;
-  if (type === 'MCP_SERVER') return <McpServerIcon style={{ fontSize: '16px' }} />;
-  if (type === 'AGENT_API') return <RobotOutlined style={{ fontSize: '16px' }} />;
-  if (type === 'MODEL_API') return <BulbOutlined style={{ fontSize: '16px' }} />;
-  if (type === 'AGENT_SKILL') return <ThunderboltOutlined style={{ fontSize: '16px' }} />;
-  if (type === 'WORKER') return <UserOutlined style={{ fontSize: '16px' }} />;
-  return <ApiOutlined style={{ fontSize: '16px' }} />;
-};
-
 const getEmptyIcon = (type: string) => {
   if (type === 'REST_API') return <ApiOutlined style={{ fontSize: '48px' }} />;
   if (type === 'MCP_SERVER') return <McpServerIcon style={{ fontSize: '48px' }} />;

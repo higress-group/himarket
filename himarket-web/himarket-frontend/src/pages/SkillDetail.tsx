@@ -250,7 +250,6 @@ function SkillDetail() {
     if (!skillProductId) return;
     const a = document.createElement("a");
     a.href = getSkillPackageUrl(skillProductId, selectedVersion);
-    a.download = "";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -544,7 +543,7 @@ function SkillDetail() {
                 type="primary"
                 icon={<DownloadOutlined />}
                 onClick={handleDownload}
-                disabled={!selectedVersion}
+                disabled={versions.length === 0}
                 block
                 size="middle"
               >
@@ -562,7 +561,10 @@ function SkillDetail() {
                   </div>
                   <button
                     onClick={() => {
-                      const url = `${window.location.origin}/api/v1/skills/${skillProductId}/download${selectedVersion ? `?version=${encodeURIComponent(selectedVersion)}` : ''}`;
+                      const selectedVersionInfo = versions.find((v) => v.version === selectedVersion);
+                      const isLatest = selectedVersionInfo?.isLatest ?? false;
+                      const versionParam = selectedVersion && !isLatest ? `?version=${encodeURIComponent(selectedVersion)}` : '';
+                      const url = `${window.location.origin}/api/v1/skills/${skillProductId}/download${versionParam}`;
                       copyToClipboard(url).then(() => {
                         setCopiedHttp(true);
                         setTimeout(() => setCopiedHttp(false), 2000);
@@ -576,7 +578,12 @@ function SkillDetail() {
                 </div>
                 <div className="rounded-md bg-gray-100 border border-gray-200 px-3 py-2">
                   <code className="text-[12px] text-gray-700 break-all" style={{ fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace" }}>
-                    {`${typeof window !== 'undefined' ? window.location.origin : ''}/api/v1/skills/${skillProductId}/download${selectedVersion ? `?version=${encodeURIComponent(selectedVersion)}` : ''}`}
+                    {(() => {
+                      const selectedVersionInfo = versions.find((v) => v.version === selectedVersion);
+                      const isLatest = selectedVersionInfo?.isLatest ?? false;
+                      const versionParam = selectedVersion && !isLatest ? `?version=${encodeURIComponent(selectedVersion)}` : '';
+                      return `${typeof window !== 'undefined' ? window.location.origin : ''}/api/v1/skills/${skillProductId}/download${versionParam}`;
+                    })()}
                   </code>
                 </div>
               </div>
