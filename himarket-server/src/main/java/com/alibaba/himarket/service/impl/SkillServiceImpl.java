@@ -5,11 +5,13 @@ import cn.hutool.core.util.StrUtil;
 import cn.hutool.core.util.URLUtil;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.core.constant.Resources;
+import com.alibaba.himarket.core.event.ProductQueriedEvent;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.core.security.ContextHolder;
 import com.alibaba.himarket.core.skill.FileTreeBuilder;
 import com.alibaba.himarket.core.skill.SkillMdBuilder;
+import com.alibaba.himarket.core.utils.CacheUtil;
 import com.alibaba.himarket.core.utils.IdGenerator;
 import com.alibaba.himarket.dto.converter.OutputConverter;
 import com.alibaba.himarket.dto.result.cli.CliDownloadInfo;
@@ -17,7 +19,6 @@ import com.alibaba.himarket.dto.result.common.FileContentResult;
 import com.alibaba.himarket.dto.result.common.FileTreeNode;
 import com.alibaba.himarket.dto.result.common.ImportResult;
 import com.alibaba.himarket.dto.result.common.VersionResult;
-import com.alibaba.himarket.entity.NacosInstance;
 import com.alibaba.himarket.entity.Product;
 import com.alibaba.himarket.repository.ProductRepository;
 import com.alibaba.himarket.service.NacosService;
@@ -34,9 +35,9 @@ import com.alibaba.nacos.api.exception.NacosException;
 import com.alibaba.nacos.api.model.Page;
 import com.alibaba.nacos.maintainer.client.ai.AiMaintainerService;
 import com.alibaba.nacos.maintainer.client.ai.SkillMaintainerService;
+import com.github.benmanes.caffeine.cache.Cache;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -47,6 +48,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -63,6 +66,11 @@ public class SkillServiceImpl implements SkillService {
 
     private final ProductRepository productRepository;
     private final ContextHolder contextHolder;
+
+    /**
+     * Cache to prevent duplicate download count sync within 5 minutes
+     */
+    private final Cache<String, Boolean> downloadCountSyncCache = CacheUtil.newCache(5);
 
     @Override
     public void uploadPackage(String productId, MultipartFile file) throws IOException {
@@ -298,24 +306,6 @@ public class SkillServiceImpl implements SkillService {
         syncProductStatusAfterVersionChange(product, ref);
     }
 
-    @Override
-    public void forcePublishVersion(String productId, String version, Boolean updateLatestLabel) {
-        Product product = findProduct(productId);
-        SkillRef ref = getSkillRef(productId, true);
-
-        execute(
-                ref.getNacosId(),
-                s ->
-                        s.forcePublish(
-                                ref.getNamespace(),
-                                ref.getSkillName(),
-                                version,
-                                updateLatestLabel));
-        log.info("Force-published Skill {}, version {}", ref.getSkillName(), version);
-
-        syncProductStatusAfterVersionChange(product, ref);
-    }
-
     /**
      * For non-admin users, validates that the requested version is online.
      * If no version specified, returns the latest online version.
@@ -517,111 +507,10 @@ public class SkillServiceImpl implements SkillService {
     public void downloadPackage(String productId, String version, HttpServletResponse response)
             throws IOException {
         SkillRef ref = getSkillRef(productId, true);
-
-        // 先调用 Nacos HTTP API 下载，让 Nacos 增加下载计数
-        downloadFromNacos(ref, version, response);
-    }
-
-    /**
-     * 通过调用 Nacos HTTP API 下载 Skill ZIP 包，使 Nacos 自动增加下载计数
-     * API: GET /v3/console/ai/skills/version/download?namespaceId=xxx&skillName=xxx&version=xxx
-     */
-    private void downloadFromNacos(SkillRef ref, String version, HttpServletResponse response)
-            throws IOException {
-        try {
-            NacosInstance nacosInstance = nacosService.findNacosInstanceById(ref.getNacosId());
-            // 优先使用展示地址，不存在则使用 serverUrl
-            String nacosBaseUrl =
-                    StrUtil.isNotBlank(nacosInstance.getDisplayServerUrl())
-                            ? nacosInstance.getDisplayServerUrl()
-                            : nacosInstance.getServerUrl();
-
-            // 构建 Nacos 下载 URL:
-            // /v3/console/ai/skills/version/download?namespaceId=xxx&skillName=xxx&version=xxx
-            StringBuilder urlBuilder = new StringBuilder();
-            urlBuilder.append(nacosBaseUrl);
-            if (!nacosBaseUrl.endsWith("/")) {
-                urlBuilder.append("/");
-            }
-            urlBuilder.append("v3/console/ai/skills/version/download?");
-            urlBuilder.append("namespaceId=").append(ref.getNamespace());
-            urlBuilder
-                    .append("&skillName=")
-                    .append(
-                            java.net.URLEncoder.encode(
-                                    ref.getSkillName(), StandardCharsets.UTF_8.name()));
-            if (StrUtil.isNotBlank(version)) {
-                urlBuilder
-                        .append("&version=")
-                        .append(java.net.URLEncoder.encode(version, StandardCharsets.UTF_8.name()));
-            }
-
-            // 添加认证参数（如果 Nacos 有用户名密码）
-            if (StrUtil.isNotBlank(nacosInstance.getUsername())
-                    && StrUtil.isNotBlank(nacosInstance.getPassword())) {
-                urlBuilder
-                        .append("&username=")
-                        .append(
-                                java.net.URLEncoder.encode(
-                                        nacosInstance.getUsername(),
-                                        StandardCharsets.UTF_8.name()));
-                urlBuilder
-                        .append("&password=")
-                        .append(
-                                java.net.URLEncoder.encode(
-                                        nacosInstance.getPassword(),
-                                        StandardCharsets.UTF_8.name()));
-            }
-
-            String downloadUrl = urlBuilder.toString();
-            // 日志中密码脱敏
-            String loggedUrl = downloadUrl.replaceAll("password=[^&]+", "password=***");
-            log.info("Calling Nacos download API: {}", loggedUrl);
-
-            // 创建 HTTP 连接
-            java.net.URL url = new java.net.URL(downloadUrl);
-            java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
-            conn.setRequestMethod("GET");
-            conn.setConnectTimeout(30000);
-            conn.setReadTimeout(60000);
-
-            int responseCode = conn.getResponseCode();
-            if (responseCode == java.net.HttpURLConnection.HTTP_OK) {
-                // 设置响应头
-                response.setContentType("application/zip");
-                String encodedName =
-                        java.net.URLEncoder.encode(
-                                        ref.getSkillName() + ".zip", StandardCharsets.UTF_8)
-                                .replace("+", "%20");
-                response.setHeader(
-                        "Content-Disposition", "attachment; filename*=UTF-8''" + encodedName);
-
-                // 流式传输 ZIP 文件
-                try (var input = conn.getInputStream();
-                        var output = response.getOutputStream()) {
-                    input.transferTo(output);
-                }
-                log.info("Downloaded skill {} from Nacos successfully", ref.getSkillName());
-            } else {
-                log.warn("Nacos download API returned non-OK status: {}", responseCode);
-                // 降级为本地生成 ZIP
-                fallbackToLocalDownload(ref, version, response);
-            }
-        } catch (Exception e) {
-            log.warn("Failed to download from Nacos, fallback to local generation", e);
-            // 降级为本地生成 ZIP
-            fallbackToLocalDownload(ref, version, response);
-        }
-    }
-
-    /**
-     * 降级方案：本地生成 ZIP 包（不增加 Nacos 下载计数）
-     */
-    private void fallbackToLocalDownload(SkillRef ref, String version, HttpServletResponse response)
-            throws IOException {
         Skill skill = fetchSkill(ref, version);
 
         response.setContentType("application/zip");
+        // Use RFC 5987 encoding for Unicode filenames
         String encodedName =
                 java.net.URLEncoder.encode(skill.getName() + ".zip", StandardCharsets.UTF_8)
                         .replace("+", "%20");
@@ -874,16 +763,13 @@ public class SkillServiceImpl implements SkillService {
             if (nacos == null || StrUtil.isBlank(nacos.getServerUrl())) {
                 return null;
             }
-            URL nacosUrl =
-                    URLUtil.url(
-                            StrUtil.isNotBlank(nacos.getDisplayServerUrl())
-                                    ? nacos.getDisplayServerUrl()
-                                    : nacos.getServerUrl());
-            int port = nacosUrl.getPort();
             return CliDownloadInfo.builder()
-                    .nacosHost(nacosUrl.getHost())
-                    .nacosPort(port == -1 ? null : port)
-                    .namespace(config.getNamespace())
+                    .nacosHost(
+                            URLUtil.url(
+                                            StrUtil.isNotBlank(nacos.getDisplayServerUrl())
+                                                    ? nacos.getDisplayServerUrl()
+                                                    : nacos.getServerUrl())
+                                    .getHost())
                     .resourceName(config.getSkillName())
                     .resourceType("skill")
                     .build();
@@ -967,5 +853,107 @@ public class SkillServiceImpl implements SkillService {
                 .successCount(successCount)
                 .skippedCount(skippedCount)
                 .build();
+    }
+
+    /**
+     * Listen for product queried events and sync download counts for skill products. Groups by
+     * Nacos instance to minimize API calls.
+     *
+     * @param event the product queried event
+     */
+    @EventListener
+    @Async("taskExecutor")
+    public void onProductQueried(ProductQueriedEvent event) {
+        if (CollUtil.isEmpty(event.getProductIds())) {
+            return;
+        }
+
+        // Filter out products in cooldown
+        List<String> productIdsToSync =
+                event.getProductIds().stream()
+                        .filter(id -> downloadCountSyncCache.getIfPresent(id) == null)
+                        .toList();
+
+        if (CollUtil.isEmpty(productIdsToSync)) {
+            return;
+        }
+
+        // Batch fetch skill products
+        List<Product> productsToSync =
+                productRepository.findByProductIdIn(productIdsToSync).stream()
+                        .filter(
+                                p ->
+                                        p.getFeature() != null
+                                                && p.getFeature().getSkillConfig() != null)
+                        .toList();
+
+        if (productsToSync.isEmpty()) {
+            return;
+        }
+
+        // Group by Nacos instance (nacosId:namespace) and sync each group
+        productsToSync.stream()
+                .collect(
+                        Collectors.groupingBy(
+                                p -> {
+                                    SkillConfig c = p.getFeature().getSkillConfig();
+                                    return c.getNacosId() + ":" + c.getNamespace();
+                                }))
+                .forEach(
+                        (key, group) -> {
+                            Product first = group.get(0);
+                            SkillConfig config = first.getFeature().getSkillConfig();
+                            syncSkillGroup(config.getNacosId(), config.getNamespace(), group);
+                        });
+    }
+
+    /**
+     * Sync a group of skill products from the same Nacos instance.
+     */
+    private void syncSkillGroup(String nacosId, String namespace, List<Product> products) {
+        try {
+            AiMaintainerService aiService = nacosService.getAiMaintainerService(nacosId);
+            Page<SkillSummary> page =
+                    aiService.skill().listSkills(namespace, null, null, 1, Integer.MAX_VALUE);
+
+            if (page == null || CollUtil.isEmpty(page.getPageItems())) {
+                return;
+            }
+
+            Map<String, Long> downloadCountMap =
+                    page.getPageItems().stream()
+                            .collect(
+                                    Collectors.toMap(
+                                            SkillSummary::getName,
+                                            SkillSummary::getDownloadCount,
+                                            (v1, v2) -> v1));
+
+            for (Product product : products) {
+                try {
+                    SkillConfig config = product.getFeature().getSkillConfig();
+                    Long count = downloadCountMap.get(config.getSkillName());
+
+                    if (count != null && !Objects.equals(config.getDownloadCount(), count)) {
+                        config.setDownloadCount(count);
+                        productRepository.save(product);
+                        log.info(
+                                "Synced download count for skill product {}: {}",
+                                product.getProductId(),
+                                count);
+                    }
+                    downloadCountSyncCache.put(product.getProductId(), Boolean.TRUE);
+                } catch (Exception e) {
+                    log.warn(
+                            "Failed to sync download count for skill product {}",
+                            product.getProductId(),
+                            e);
+                }
+            }
+        } catch (Exception e) {
+            log.warn(
+                    "Failed to sync download counts for skill products from Nacos {}: {}",
+                    nacosId,
+                    e.getMessage());
+        }
     }
 }
