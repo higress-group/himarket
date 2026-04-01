@@ -18,6 +18,10 @@ COPY target/*.jar app.jar
 
 EXPOSE 8080
 
+# Set timezone (defaults to Asia/Shanghai, override via docker run -e TZ=...)
+ENV TZ=Asia/Shanghai
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
 # Support reflection in java 17
 ENV JAVA_OPTS="--add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.lang.reflect=ALL-UNNAMED"
 
