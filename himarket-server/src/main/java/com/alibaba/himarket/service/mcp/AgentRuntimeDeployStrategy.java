@@ -30,7 +30,6 @@ import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext;
-import io.fabric8.kubernetes.client.utils.Serialization;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -229,9 +228,17 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
         // 加载模板 + 替换占位符
         String renderedYaml = renderTemplate(templateFile, vars);
 
-        // 反序列化为 GenericKubernetesResource
-        GenericKubernetesResource crd =
-                Serialization.unmarshal(renderedYaml, GenericKubernetesResource.class);
+        // 反序列化为 GenericKubernetesResource（使用 Jackson YAML 避免 SnakeYAML 2.x 兼容问题）
+        GenericKubernetesResource crd;
+        try {
+            crd =
+                    new com.fasterxml.jackson.databind.ObjectMapper(
+                                    new com.fasterxml.jackson.dataformat.yaml.YAMLFactory())
+                            .readValue(renderedYaml, GenericKubernetesResource.class);
+        } catch (Exception e) {
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR, "CRD YAML 反序列化失败: " + e.getMessage());
+        }
 
         // 追加 labels
         if (crd.getMetadata().getLabels() == null) {
