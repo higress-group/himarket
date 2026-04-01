@@ -3,7 +3,7 @@ import {
   SearchOutlined, ToolOutlined, AppstoreOutlined,
   CloudServerOutlined, StarOutlined, PlusOutlined,
 } from "@ant-design/icons";
-import { Input, Spin, message, Button, Pagination } from "antd";
+import { Input, Spin, message, Pagination } from "antd";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import { CategoryMenu } from "../components/square/CategoryMenu";
@@ -29,7 +29,7 @@ function McpSquare() {
   const { isLoggedIn } = useAuth();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
-  const [activeTab, setActiveTab] = useState<"market" | "my">("market");
+  const [activeTab, _setActiveTab] = useState<"market" | "my">("market");
   const [isStuck, setIsStuck] = useState(false);
 
   const [activeCategory, setActiveCategory] = useState("all");
