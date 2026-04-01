@@ -601,7 +601,12 @@ function SkillDetail() {
                     onClick={() => {
                       const quotedName = cliInfo.resourceName.includes(' ') ? `"${cliInfo.resourceName}"` : cliInfo.resourceName;
                       const quotedDir = outputDir.includes(' ') ? `"${outputDir}"` : outputDir;
-                      const cmd = `npx @nacos-group/cli --host ${cliInfo.nacosHost} skill-get ${quotedName} -o ${quotedDir}`;
+                      const isDefaultHost = cliInfo.nacosHost === 'market.hiclaw.io';
+                      const hostArg = isDefaultHost ? '' : ` --host ${cliInfo.nacosHost}`;
+                      const selectedVersionInfo = versions.find((v) => v.version === selectedVersion);
+                      const isLatest = selectedVersionInfo?.isLatest ?? false;
+                      const versionArg = isLatest ? '' : ` --version ${selectedVersion}`;
+                      const cmd = `npx @nacos-group/cli${hostArg} skill-get ${quotedName} -o ${quotedDir}${versionArg}`;
                       copyToClipboard(cmd).then(() => {
                         setCopied(true);
                         setTimeout(() => setCopied(false), 2000);
@@ -657,7 +662,14 @@ function SkillDetail() {
 
                 <div className="rounded-md bg-gray-100 border border-gray-200 px-3 py-2">
                   <code className="text-[12px] text-gray-700 break-all" style={{ fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace" }}>
-                    {`npx @nacos-group/cli --host ${cliInfo.nacosHost} skill-get ${cliInfo.resourceName.includes(' ') ? `"${cliInfo.resourceName}"` : cliInfo.resourceName} -o ${outputDir.includes(' ') ? `"${outputDir}"` : outputDir}`}
+                    {(() => {
+                      const isDefaultHost = cliInfo.nacosHost === 'market.hiclaw.io';
+                      const hostArg = isDefaultHost ? '' : ` --host ${cliInfo.nacosHost}`;
+                      const selectedVersionInfo = versions.find((v) => v.version === selectedVersion);
+                      const isLatest = selectedVersionInfo?.isLatest ?? false;
+                      const versionArg = isLatest ? '' : ` --version ${selectedVersion}`;
+                      return `npx @nacos-group/cli${hostArg} skill-get ${cliInfo.resourceName.includes(' ') ? `"${cliInfo.resourceName}"` : cliInfo.resourceName} -o ${outputDir.includes(' ') ? `"${outputDir}"` : outputDir}${versionArg}`;
+                    })()}
                   </code>
                 </div>
               </div>
