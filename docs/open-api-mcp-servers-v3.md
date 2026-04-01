@@ -448,6 +448,8 @@ connectionConfig 格式错误：
 
 ### 2. 按 mcpServerId 查询详情
 
+> 仅返回关联产品已发布（PUBLISHED）的 MCP Server。注册后默认状态为 PENDING，需管理员审核发布后才能通过此接口查询到。
+
 ```
 GET /open-api/mcp-servers/meta/{mcpServerId}
 ```
@@ -503,6 +505,8 @@ curl -X GET 'https://himarket.example.com/open-api/mcp-servers/meta/mcp-a1b2c3d4
 
 ### 3. 按 mcpName 查询详情
 
+> 同接口 2，仅返回关联产品已发布的记录。
+
 ```
 GET /open-api/mcp-servers/meta/by-name/{mcpName}
 ```
@@ -522,13 +526,13 @@ curl -X GET 'https://himarket.example.com/open-api/mcp-servers/meta/by-name/weat
 
 #### 响应
 
-同接口 2，返回完整详情。不存在时返回 `NOT_FOUND`。
+同接口 2，返回完整详情。不存在或未发布时返回 `NOT_FOUND`。
 
 ---
 
 ### 4. 分页查询指定来源的 MCP 列表
 
-返回精简信息，不含 toolsConfig、serviceIntro 等详细字段。
+仅返回已发布（PUBLISHED）的 MCP，返回精简信息，不含 toolsConfig、serviceIntro 等详细字段。
 
 ```
 GET /open-api/mcp-servers/meta/list
@@ -551,6 +555,8 @@ origin 取值：
 | `GATEWAY` | 从网关导入的 |
 | `NACOS` | 从 Nacos 导入的 |
 | `ADMIN` | 管理员手动创建的 |
+| `USER` | 开发者在 Portal 端注册的 |
+| `VENDOR_IMPORT` | 从第三方供应商 API 导入的 |
 
 #### 请求示例
 
@@ -580,7 +586,7 @@ curl -X GET 'https://himarket.example.com/open-api/mcp-servers/meta/list?origin=
         "protocolType": "sse",
         "origin": "OPEN_API",
         "tags": "天气,查询,工具",
-        "publishStatus": "PENDING",
+        "publishStatus": "PUBLISHED",
         "sandboxRequired": true,
         "createAt": "2026-03-14T10:30:00"
       }
@@ -598,7 +604,7 @@ curl -X GET 'https://himarket.example.com/open-api/mcp-servers/meta/list?origin=
 
 ### 5. 分页查询所有 MCP 列表
 
-不区分来源，查询系统中所有 MCP Server，返回精简信息。
+不区分来源，查询系统中所有已发布（PUBLISHED）的 MCP Server，返回精简信息。
 
 ```
 GET /open-api/mcp-servers/meta/list-all
