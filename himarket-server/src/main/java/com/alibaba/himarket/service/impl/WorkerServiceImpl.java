@@ -33,6 +33,7 @@ import com.alibaba.nacos.maintainer.client.ai.AiMaintainerService;
 import com.github.benmanes.caffeine.cache.Cache;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -252,8 +253,11 @@ public class WorkerServiceImpl implements WorkerService {
         AgentSpec spec = fetchAgentSpec(ref, version);
 
         response.setContentType("application/zip");
-        response.setHeader(
-                "Content-Disposition", "attachment; filename=\"" + spec.getName() + ".zip\"");
+        // Use RFC 5987 encoding for Unicode filenames
+        String encodedName =
+                java.net.URLEncoder.encode(spec.getName() + ".zip", StandardCharsets.UTF_8)
+                        .replace("+", "%20");
+        response.setHeader("Content-Disposition", "attachment; filename*=UTF-8''" + encodedName);
 
         try (ZipOutputStream zos = new ZipOutputStream(response.getOutputStream())) {
             String rootDir = spec.getName() + "/";
@@ -819,13 +823,16 @@ public class WorkerServiceImpl implements WorkerService {
             if (nacos == null || StrUtil.isBlank(nacos.getServerUrl())) {
                 return null;
             }
+            URL nacosUrl = URLUtil.url(nacos.getServerUrl());
+            int port = nacosUrl.getPort();
+            String namespace =
+                    StrUtil.isNotBlank(config.getNamespace())
+                            ? config.getNamespace()
+                            : nacos.getDefaultNamespace();
             return CliDownloadInfo.builder()
-                    .nacosHost(
-                            URLUtil.url(
-                                            StrUtil.isNotBlank(nacos.getDisplayServerUrl())
-                                                    ? nacos.getDisplayServerUrl()
-                                                    : nacos.getServerUrl())
-                                    .getHost())
+                    .nacosHost(nacosUrl.getHost())
+                    .nacosPort(port == -1 ? null : port)
+                    .namespace(namespace)
                     .resourceName(config.getAgentSpecName())
                     .resourceType("worker")
                     .build();
