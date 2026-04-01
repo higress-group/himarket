@@ -126,24 +126,33 @@ function McpSquare() {
     fetchProducts();
   }, [activeCategory, activeTab, committedSearch, isLoggedIn, currentPage]);
 
-  // 获取我的 MCP（基于 consumer subscription，只展示已订阅的 MCP 产品）
-  const fetchMyMcps = useCallback(async () => {
+  // Unified consumer data loader: fetches subscriptions once and derives both
+  // subscribedProductIds (for market tab badges) and myMcpItems (for "My MCP" tab)
+  const consumerIdRef = useRef<string | null>(null);
+
+  const fetchConsumerData = useCallback(async () => {
     setMyMcpsLoading(true);
     try {
       const consumerRes = await APIs.getPrimaryConsumer();
       if (consumerRes.code !== "SUCCESS" || !consumerRes.data) {
+        setSubscribedProductIds(new Set());
         setMyMcpItems([]);
         return;
       }
+      consumerIdRef.current = consumerRes.data.consumerId;
+
       const subRes = await APIs.getConsumerSubscriptions(consumerRes.data.consumerId, { size: 200 });
       if (subRes.code !== "SUCCESS" || !subRes.data?.content) {
+        setSubscribedProductIds(new Set());
         setMyMcpItems([]);
         return;
       }
-      // 只取 APPROVED 状态的 MCP_SERVER 订阅
-      const mcpSubs = subRes.data.content.filter(
-        s => s.status === 'APPROVED' && s.productType === 'MCP_SERVER'
-      );
+
+      const approvedSubs = subRes.data.content.filter(s => s.status === 'APPROVED');
+      setSubscribedProductIds(new Set(approvedSubs.map(s => s.productId)));
+
+      // Build "My MCP" items from MCP_SERVER subscriptions
+      const mcpSubs = approvedSubs.filter(s => s.productType === 'MCP_SERVER');
       const productIds = mcpSubs.map(s => s.productId);
 
       if (productIds.length === 0) {
@@ -151,7 +160,6 @@ function McpSquare() {
         return;
       }
 
-      // 批量获取 meta（一次请求）
       const fetchFn = isLoggedIn ? getProductMcpMetaBatch : getProductMcpMetaBatchPublic;
       const metaRes = await fetchFn(productIds);
       const metaList = metaRes.code === "SUCCESS" ? (metaRes.data || []) : [];
@@ -162,7 +170,6 @@ function McpSquare() {
         }
       }
 
-      // 从订阅 + meta 构建产品列表
       const items: McpProductItem[] = mcpSubs.map(sub => {
         const meta = metaByProduct.get(sub.productId);
         const product: IProductDetail = {
@@ -177,37 +184,22 @@ function McpSquare() {
       });
       setMyMcpItems(items);
     } catch {
-      // 未登录或获取失败
+      // Not logged in or request failed
     } finally {
       setMyMcpsLoading(false);
     }
   }, [isLoggedIn]);
 
-  // 获取订阅状态（基于 product_subscription）
-  const fetchSubscribedProducts = useCallback(async () => {
-    try {
-      const consumerRes = await APIs.getPrimaryConsumer();
-      if (consumerRes.code === "SUCCESS" && consumerRes.data) {
-        const subRes = await APIs.getConsumerSubscriptions(consumerRes.data.consumerId, { size: 200 });
-        if (subRes.code === "SUCCESS" && subRes.data?.content) {
-          setSubscribedProductIds(new Set(subRes.data.content.filter(s => s.status === 'APPROVED').map(s => s.productId)));
-        }
-      }
-    } catch {
-      // 未登录或获取失败不影响页面
-    }
-  }, []);
-
-  // 页面初始化时获取订阅状态（用于广场"已订阅"标记）+ 我的MCP数据（用于数量显示）
+  // Load consumer data once on login
   useEffect(() => {
     if (!isLoggedIn) return;
-    fetchSubscribedProducts();
-    fetchMyMcps();
-  }, [fetchSubscribedProducts, fetchMyMcps, isLoggedIn]);
+    fetchConsumerData();
+  }, [fetchConsumerData, isLoggedIn]);
 
+  // Refresh when switching to "my" tab
   useEffect(() => {
-    if (activeTab === "my" && isLoggedIn) fetchMyMcps();
-  }, [activeTab, fetchMyMcps, isLoggedIn]);
+    if (activeTab === "my" && isLoggedIn) fetchConsumerData();
+  }, [activeTab, fetchConsumerData, isLoggedIn]);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -225,15 +217,18 @@ function McpSquare() {
 
   const handleSubscribe = async (productId: string) => {
     try {
-      const consumerRes = await APIs.getPrimaryConsumer();
-      if (consumerRes.code !== "SUCCESS" || !consumerRes.data) {
-        message.error("获取消费者信息失败");
-        return;
+      const consumerId = consumerIdRef.current;
+      if (!consumerId) {
+        const consumerRes = await APIs.getPrimaryConsumer();
+        if (consumerRes.code !== "SUCCESS" || !consumerRes.data) {
+          message.error("获取消费者信息失败");
+          return;
+        }
+        consumerIdRef.current = consumerRes.data.consumerId;
       }
-      await APIs.subscribeProduct(consumerRes.data.consumerId, productId);
+      await APIs.subscribeProduct(consumerIdRef.current!, productId);
       message.success("订阅成功");
-      fetchSubscribedProducts();
-      fetchMyMcps();
+      fetchConsumerData();
     } catch (error: any) {
       message.error(error?.response?.data?.message || error?.message || "订阅失败");
     }
@@ -241,15 +236,18 @@ function McpSquare() {
 
   const handleUnsubscribe = async (productId: string) => {
     try {
-      const consumerRes = await APIs.getPrimaryConsumer();
-      if (consumerRes.code !== "SUCCESS" || !consumerRes.data) {
-        message.error("获取消费者信息失败");
-        return;
+      const consumerId = consumerIdRef.current;
+      if (!consumerId) {
+        const consumerRes = await APIs.getPrimaryConsumer();
+        if (consumerRes.code !== "SUCCESS" || !consumerRes.data) {
+          message.error("获取消费者信息失败");
+          return;
+        }
+        consumerIdRef.current = consumerRes.data.consumerId;
       }
-      await APIs.unsubscribeProduct(consumerRes.data.consumerId, productId);
+      await APIs.unsubscribeProduct(consumerIdRef.current!, productId);
       message.success("已取消订阅");
-      fetchSubscribedProducts();
-      fetchMyMcps();
+      fetchConsumerData();
     } catch (error: any) {
       message.error(error?.response?.data?.message || error?.message || "取消订阅失败");
     }

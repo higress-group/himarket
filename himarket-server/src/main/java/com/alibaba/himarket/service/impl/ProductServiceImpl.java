@@ -897,6 +897,11 @@ public class ProductServiceImpl implements ProductService {
      * @param products the list of products to fill
      */
     private void fillProducts(List<ProductResult> products) {
+        fillProducts(products, null);
+    }
+
+    private void fillProducts(
+            List<ProductResult> products, Map<String, ProductRef> preloadedProductRefMap) {
         if (CollUtil.isEmpty(products)) {
             return;
         }
@@ -905,11 +910,51 @@ public class ProductServiceImpl implements ProductService {
                 products.stream().map(ProductResult::getProductId).collect(Collectors.toList());
 
         Map<String, ProductRef> productRefMap =
-                productRefRepository.findByProductIdIn(productIds).stream()
-                        .collect(Collectors.toMap(ProductRef::getProductId, ref -> ref));
+                preloadedProductRefMap != null
+                        ? preloadedProductRefMap
+                        : productRefRepository.findByProductIdIn(productIds).stream()
+                                .collect(Collectors.toMap(ProductRef::getProductId, ref -> ref));
 
         Map<String, List<ProductCategoryResult>> categoriesMap =
                 productCategoryService.listCategoriesForProducts(productIds);
+
+        // Batch-load MCP meta and endpoint for MCP_SERVER products to avoid N+1 queries
+        List<String> mcpProductIds =
+                products.stream()
+                        .filter(p -> p.getType() == ProductType.MCP_SERVER)
+                        .map(ProductResult::getProductId)
+                        .collect(Collectors.toList());
+
+        Map<String, McpServerMeta> mcpMetaMap = Collections.emptyMap();
+        Map<String, McpServerEndpoint> mcpEndpointMap = Collections.emptyMap();
+
+        if (!mcpProductIds.isEmpty()) {
+            List<McpServerMeta> allMetas = mcpServerMetaRepository.findByProductIdIn(mcpProductIds);
+            mcpMetaMap = new LinkedHashMap<>();
+            for (McpServerMeta m : allMetas) {
+                mcpMetaMap.putIfAbsent(m.getProductId(), m);
+            }
+
+            List<String> mcpServerIds =
+                    allMetas.stream()
+                            .map(McpServerMeta::getMcpServerId)
+                            .distinct()
+                            .collect(Collectors.toList());
+            if (!mcpServerIds.isEmpty()) {
+                mcpEndpointMap =
+                        mcpServerEndpointRepository
+                                .findByMcpServerIdInAndUserIdInAndStatus(
+                                        mcpServerIds,
+                                        List.of(McpEndpointStatus.PUBLIC_USER_ID),
+                                        McpEndpointStatus.ACTIVE.name())
+                                .stream()
+                                .collect(
+                                        Collectors.toMap(
+                                                McpServerEndpoint::getMcpServerId,
+                                                ep -> ep,
+                                                (a, b) -> a));
+            }
+        }
 
         for (ProductResult product : products) {
             String productId = product.getProductId();
@@ -920,7 +965,7 @@ public class ProductServiceImpl implements ProductService {
             // Fill ProductRef config
             ProductRef productRef = productRefMap.get(productId);
             if (productRef != null) {
-                fillProductConfig(product, productRef);
+                fillProductConfig(product, productRef, mcpMetaMap, mcpEndpointMap);
             }
 
             // Fill skill config from feature
@@ -962,7 +1007,11 @@ public class ProductServiceImpl implements ProductService {
      * @param product    the product result to fill
      * @param productRef the product reference containing config data
      */
-    private void fillProductConfig(ProductResult product, ProductRef productRef) {
+    private void fillProductConfig(
+            ProductResult product,
+            ProductRef productRef,
+            Map<String, McpServerMeta> mcpMetaMap,
+            Map<String, McpServerEndpoint> mcpEndpointMap) {
         product.setEnabled(productRef.getEnabled());
 
         // API config for REST API
@@ -970,9 +1019,12 @@ public class ProductServiceImpl implements ProductService {
             product.setApiConfig(JSONUtil.toBean(productRef.getApiConfig(), APIConfigResult.class));
         }
 
-        // MCP config for MCP Server: 从 McpServerMeta + endpoint 构建（单一数据源）
+        // MCP config for MCP Server: lookup from pre-loaded maps (batch query)
         if (product.getType() == ProductType.MCP_SERVER) {
-            product.setMcpConfig(buildMcpConfigFromMeta(product.getProductId()));
+            McpServerMeta meta = mcpMetaMap.get(product.getProductId());
+            McpServerEndpoint endpoint =
+                    meta != null ? mcpEndpointMap.get(meta.getMcpServerId()) : null;
+            product.setMcpConfig(buildMcpConfigFromPreloaded(meta, endpoint));
         } else if (StrUtil.isNotBlank(productRef.getMcpConfig())) {
             product.setMcpConfig(JSONUtil.toBean(productRef.getMcpConfig(), MCPConfigResult.class));
         }
@@ -988,6 +1040,23 @@ public class ProductServiceImpl implements ProductService {
             product.setModelConfig(
                     JSONUtil.toBean(productRef.getModelConfig(), ModelConfigResult.class));
         }
+    }
+
+    /**
+     * Build MCPConfigResult from pre-loaded meta and endpoint (no DB queries).
+     */
+    private MCPConfigResult buildMcpConfigFromPreloaded(
+            McpServerMeta meta, McpServerEndpoint endpoint) {
+        if (meta == null) {
+            return null;
+        }
+        if (endpoint != null && StrUtil.isNotBlank(endpoint.getEndpointUrl())) {
+            return buildMcpConfigFromEndpoint(meta, endpoint);
+        }
+        if (StrUtil.isNotBlank(meta.getConnectionConfig())) {
+            return buildMcpConfigFromConnectionConfig(meta);
+        }
+        return null;
     }
 
     /**
@@ -1364,7 +1433,15 @@ public class ProductServiceImpl implements ProductService {
                         .map(product -> new ProductResult().convertFrom(product))
                         .collect(Collectors.toList());
 
-        fillProducts(results);
+        // Reuse the productRefMap already queried above for filtering
+        Map<String, ProductRef> pageProductRefMap = new HashMap<>();
+        for (ProductResult r : results) {
+            ProductRef ref = productRefMap.get(r.getProductId());
+            if (ref != null) {
+                pageProductRefMap.put(r.getProductId(), ref);
+            }
+        }
+        fillProducts(results, pageProductRefMap);
 
         return PageResult.of(
                 results,
