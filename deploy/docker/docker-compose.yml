@@ -148,6 +148,7 @@ services:
     pull_policy: always
     container_name: himarket-server
     environment:
+      - TZ=${TZ:-Asia/Shanghai}
       - DB_HOST=${DB_HOST:-mysql}
       - DB_PORT=${DB_PORT:-3306}
       - DB_NAME=${DB_NAME:-portal_db}
