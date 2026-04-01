@@ -823,7 +823,11 @@ public class WorkerServiceImpl implements WorkerService {
             if (nacos == null || StrUtil.isBlank(nacos.getServerUrl())) {
                 return null;
             }
-            URL nacosUrl = URLUtil.url(nacos.getServerUrl());
+            URL nacosUrl =
+                    URLUtil.url(
+                            StrUtil.isNotBlank(nacos.getDisplayServerUrl())
+                                    ? nacos.getDisplayServerUrl()
+                                    : nacos.getServerUrl());
             int port = nacosUrl.getPort();
             String namespace =
                     StrUtil.isNotBlank(config.getNamespace())
