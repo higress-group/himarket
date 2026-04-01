@@ -67,7 +67,7 @@ export function Router() {
         <Route path="/models" element={<Square activeType="MODEL_API" />} />
         <Route path="/mcp" element={<McpSquare />} />
         <Route path="/mcp/my" element={<RequireAuth><MyMcp /></RequireAuth>} />
-        <Route path="/mcp/create" element={<McpCreatePage />} />
+        <Route path="/mcp/create" element={<RequireAuth><McpCreatePage /></RequireAuth>} />
         <Route path="/agents" element={<Square activeType="AGENT_API" />} />
         <Route path="/apis" element={<Square activeType="REST_API" />} />
         <Route path="/skills" element={<Square activeType="AGENT_SKILL" />} />
