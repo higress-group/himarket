@@ -1,24 +1,17 @@
 /**
  * 卡片网格骨架屏组件
  * 用于 Square 页面等卡片列表加载状态
+ * 网格列数与实际卡片网格保持一致，避免切换时布局跳动
  */
 
 interface CardGridSkeletonProps {
   /** 卡片数量，默认 8 */
   count?: number;
-  /** 列数配置，默认响应式 */
-  columns?: {
-    sm?: number;
-    md?: number;
-    lg?: number;
-  };
 }
 
-export function CardGridSkeleton({ count = 8, columns = {} }: CardGridSkeletonProps) {
-  const { sm = 1, md = 2, lg = 3 } = columns;
-
+export function CardGridSkeleton({ count = 8 }: CardGridSkeletonProps) {
   return (
-    <div className={`grid grid-cols-${sm} md:grid-cols-${md} lg:grid-cols-${lg} gap-6`}>
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 max-w-[1600px] mx-auto">
       {Array.from({ length: count }).map((_, index) => (
         <div
           key={index}
