@@ -38,6 +38,7 @@ import com.alibaba.nacos.maintainer.client.ai.SkillMaintainerService;
 import com.github.benmanes.caffeine.cache.Cache;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -781,13 +782,16 @@ public class SkillServiceImpl implements SkillService {
             if (nacos == null || StrUtil.isBlank(nacos.getServerUrl())) {
                 return null;
             }
+            URL nacosUrl =
+                    URLUtil.url(
+                            StrUtil.isNotBlank(nacos.getDisplayServerUrl())
+                                    ? nacos.getDisplayServerUrl()
+                                    : nacos.getServerUrl());
+            int port = nacosUrl.getPort();
             return CliDownloadInfo.builder()
-                    .nacosHost(
-                            URLUtil.url(
-                                            StrUtil.isNotBlank(nacos.getDisplayServerUrl())
-                                                    ? nacos.getDisplayServerUrl()
-                                                    : nacos.getServerUrl())
-                                    .getHost())
+                    .nacosHost(nacosUrl.getHost())
+                    .nacosPort(port == -1 ? null : port)
+                    .namespace(config.getNamespace())
                     .resourceName(config.getSkillName())
                     .resourceType("skill")
                     .build();
