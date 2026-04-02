@@ -149,6 +149,7 @@ services:
     container_name: himarket-server
     environment:
       - TZ=${TZ:-Asia/Shanghai}
+      - JAVA_OPTS=${JAVA_OPTS:--XX:+UseG1GC -XX:MaxRAMPercentage=75.0 -XX:InitialRAMPercentage=50.0 -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp/heapdump.hprof}
       - DB_HOST=${DB_HOST:-mysql}
       - DB_PORT=${DB_PORT:-3306}
       - DB_NAME=${DB_NAME:-portal_db}
@@ -173,6 +174,11 @@ services:
       timeout: 10s
       retries: 20
       start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: "${HIMARKET_CPU_LIMIT:-2}"
+          memory: "${HIMARKET_MEM_LIMIT:-4g}"
     restart: always
 
   # ============================================================
@@ -199,6 +205,11 @@ services:
       timeout: 5s
       retries: 10
       start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "${HIMARKET_LIGHT_CPU_LIMIT:-1}"
+          memory: "${HIMARKET_LIGHT_MEM_LIMIT:-1g}"
     restart: always
 
   # Himarket Frontend
@@ -221,4 +232,9 @@ services:
       timeout: 5s
       retries: 10
       start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "${HIMARKET_LIGHT_CPU_LIMIT:-1}"
+          memory: "${HIMARKET_LIGHT_MEM_LIMIT:-1g}"
     restart: always
