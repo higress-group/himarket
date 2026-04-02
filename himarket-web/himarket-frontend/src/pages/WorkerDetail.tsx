@@ -249,7 +249,7 @@ function WorkerDetail() {
   const [cliInfo, setCliInfo] = useState<WorkerCliInfo | null>(null);
   const [mdRawMode, setMdRawMode] = useState(true);
   const [hiclawPlatform, setHiclawPlatform] = useState<'unix' | 'windows'>('unix');
-  const [installMethod, setInstallMethod] = useState<'nl' | 'script'>('script');
+  const [installMethod, setInstallMethod] = useState<'nl' | 'script'>('nl');
 
   const handleDownload = useCallback(() => {
     if (!workerProductId) return;
@@ -554,20 +554,11 @@ function WorkerDetail() {
                 <div className="flex items-center gap-1.5 mb-3">
                   <CloudUploadOutlined className="text-gray-400 text-xs" />
                   <span className="text-xs font-medium text-gray-500">安装到 HiClaw</span>
+                  <span className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 ml-auto">需要 HiClaw &ge; 1.0.9</span>
                 </div>
 
                 {/* 安装方式切换 Tab */}
                 <div className="flex bg-gray-100 rounded-lg p-1 mb-3">
-                  <button
-                    onClick={() => setInstallMethod('script')}
-                    className={`flex-1 py-2 text-xs rounded-md transition-all ${
-                      installMethod === 'script'
-                        ? 'bg-white text-gray-800 font-medium shadow-sm'
-                        : 'text-gray-500 hover:text-gray-700'
-                    }`}
-                  >
-                    脚本命令
-                  </button>
                   <button
                     onClick={() => setInstallMethod('nl')}
                     className={`flex-1 py-2 text-xs rounded-md transition-all ${
@@ -577,6 +568,16 @@ function WorkerDetail() {
                     }`}
                   >
                     自然语言
+                  </button>
+                  <button
+                    onClick={() => setInstallMethod('script')}
+                    className={`flex-1 py-2 text-xs rounded-md transition-all ${
+                      installMethod === 'script'
+                        ? 'bg-white text-gray-800 font-medium shadow-sm'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    脚本命令
                   </button>
                 </div>
 
