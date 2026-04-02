@@ -17,27 +17,29 @@ import MarkdownRender from "../components/MarkdownRender";
 import SkillFileTree from "../components/skill/SkillFileTree";
 import RelatedSkills from "../components/skill/RelatedSkills";
 import { copyToClipboard } from "../lib/utils";
-import { DetailSkeleton } from "../components/loading";
+import { SkillWorkerDetailSkeleton } from "../components/loading";
 
-type IdeType = 'cursor' | 'kiro' | 'qoder' | 'lingma' | 'claude' | 'codex';
+type IdeType = 'qoder' | 'qoderwork' | 'claude' | 'codex' | 'cursor' | 'kiro' | 'lingma';
 
 const IDE_OPTIONS: { value: IdeType; label: string; icon: string }[] = [
-  { value: 'cursor', label: 'Cursor', icon: 'https://aimg.alistatic.com/i/dm885X/UgW1Qzx0RPwrNIVs4sWlr-7b5511235d.svg' },
-  { value: 'claude', label: 'Claude', icon: 'https://img.alicdn.com/imgextra/i3/O1CN01JqyNKC1VmMU2MHdF9_!!6000000002695-55-tps-100-101.svg' },
   { value: 'qoder', label: 'Qoder', icon: 'https://g.alicdn.com/qbase/qoder/0.0.65/favIcon.svg' },
+  { value: 'qoderwork', label: 'QoderWork', icon: 'https://img.alicdn.com/imgextra/i1/O1CN01clv0Oy1Tia1VN1WEO_!!6000000002416-1-tps-1200-1200.gif' },
+  { value: 'claude', label: 'Claude', icon: 'https://img.alicdn.com/imgextra/i3/O1CN01JqyNKC1VmMU2MHdF9_!!6000000002695-55-tps-100-101.svg' },
   { value: 'codex', label: 'Codex', icon: 'https://img.alicdn.com/imgextra/i3/O1CN011DvgjK1s54F8K000Q_!!6000000005714-0-tps-248-248.jpg' },
+  { value: 'cursor', label: 'Cursor', icon: 'https://aimg.alistatic.com/i/dm885X/UgW1Qzx0RPwrNIVs4sWlr-7b5511235d.svg' },
   { value: 'kiro', label: 'Kiro', icon: '/kiro.png' },
   { value: 'lingma', label: 'Lingma', icon: 'https://img.alicdn.com/imgextra/i2/O1CN01OR7j0c1OvKuJfKBAw_!!6000000001767-2-tps-280-280.png' },
 ];
 
 const getDefaultOutputDir = (ide: IdeType): string => {
   const dirMap: Record<IdeType, string> = {
-    cursor: './.cursor/skills',
-    kiro: './.kiro/skills',
-    qoder: './.qoder/skills',
-    lingma: './.lingma/skills',
-    claude: './.claude/skills',
-    codex: './.codex/skills',
+    qoder: '~/.qoder/skills',
+    qoderwork: '~/.qoderwork/skills',
+    claude: '~/.claude/skills',
+    codex: '~/.codex/skills',
+    cursor: '~/.cursor/skills',
+    kiro: '~/.kiro/skills',
+    lingma: '~/.lingma/skills',
   };
   return dirMap[ide];
 };
@@ -258,9 +260,7 @@ function SkillDetail() {
   if (loading) {
     return (
       <Layout>
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <DetailSkeleton />
-        </div>
+        <SkillWorkerDetailSkeleton />
       </Layout>
     );
   }
@@ -512,9 +512,9 @@ function SkillDetail() {
 
         {/* Right sidebar: download card + related */}
         <div className="w-full lg:w-[420px] flex-shrink-0 order-1 lg:order-2 space-y-3">
-          <div className="bg-white rounded-lg overflow-hidden" style={{ border: '1px solid #f0f0f0' }}>
+          <div className="bg-white rounded-xl overflow-hidden shadow-sm" style={{ border: '1px solid #e8eaef' }}>
             {/* Card header: title + version selector */}
-            <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid #f0f0f0' }}>
+            <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid #edeef3' }}>
               <span className="text-sm font-semibold text-gray-800">下载</span>
               <Select
                 value={selectedVersion}
@@ -538,7 +538,7 @@ function SkillDetail() {
             </div>
 
             {/* Action buttons */}
-            <div className="px-4 py-3">
+            <div className="px-4 py-3" style={{ borderBottom: '1px solid #edeef3' }}>
               <Button
                 type="primary"
                 icon={<DownloadOutlined />}
@@ -551,76 +551,17 @@ function SkillDetail() {
               </Button>
             </div>
 
-            {/* HTTP 下载 */}
-            {cliInfo && (
-              <div className="px-4 py-3">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-1.5">
-                    <CloudUploadOutlined className="text-gray-400 text-xs" />
-                    <span className="text-xs font-medium text-gray-500">HTTP 下载</span>
-                  </div>
-                  <button
-                    onClick={() => {
-                      const selectedVersionInfo = versions.find((v) => v.version === selectedVersion);
-                      const isLatest = selectedVersionInfo?.isLatest ?? false;
-                      const versionParam = selectedVersion && !isLatest ? `?version=${encodeURIComponent(selectedVersion)}` : '';
-                      const url = `${window.location.origin}/api/v1/skills/${skillProductId}/download${versionParam}`;
-                      copyToClipboard(url).then(() => {
-                        setCopiedHttp(true);
-                        setTimeout(() => setCopiedHttp(false), 2000);
-                      });
-                    }}
-                    disabled={!selectedVersion}
-                    className="text-xs text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
-                  >
-                    {copiedHttp ? <CheckOutlined className="text-green-500" /> : <CopyOutlined />}
-                  </button>
-                </div>
-                <div className="rounded-md bg-gray-100 border border-gray-200 px-3 py-2">
-                  <code className="text-[12px] text-gray-700 break-all" style={{ fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace" }}>
-                    {(() => {
-                      const selectedVersionInfo = versions.find((v) => v.version === selectedVersion);
-                      const isLatest = selectedVersionInfo?.isLatest ?? false;
-                      const versionParam = selectedVersion && !isLatest ? `?version=${encodeURIComponent(selectedVersion)}` : '';
-                      return `${typeof window !== 'undefined' ? window.location.origin : ''}/api/v1/skills/${skillProductId}/download${versionParam}`;
-                    })()}
-                  </code>
-                </div>
-              </div>
-            )}
-
             {/* Nacos CLI command */}
             {cliInfo && (
-              <div className="px-4 py-3">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-1.5">
-                    <CodeOutlined className="text-gray-400 text-xs" />
-                    <span className="text-xs font-medium text-gray-500">NPX 下载</span>
-                  </div>
-                  <button
-                    onClick={() => {
-                      const quotedName = cliInfo.resourceName.includes(' ') ? `"${cliInfo.resourceName}"` : cliInfo.resourceName;
-                      const quotedDir = outputDir.includes(' ') ? `"${outputDir}"` : outputDir;
-                      const isDefaultHost = cliInfo.nacosHost === 'market.hiclaw.io';
-                      const hostArg = isDefaultHost ? '' : ` --host ${cliInfo.nacosHost}`;
-                      const selectedVersionInfo = versions.find((v) => v.version === selectedVersion);
-                      const isLatest = selectedVersionInfo?.isLatest ?? false;
-                      const versionArg = isLatest ? '' : ` --version ${selectedVersion}`;
-                      const cmd = `npx @nacos-group/cli${hostArg} skill-get ${quotedName} -o ${quotedDir}${versionArg}`;
-                      copyToClipboard(cmd).then(() => {
-                        setCopied(true);
-                        setTimeout(() => setCopied(false), 2000);
-                      });
-                    }}
-                    className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
-                  >
-                    {copied ? <CheckOutlined className="text-green-500" /> : <CopyOutlined />}
-                  </button>
+              <div className="px-4 py-3" style={{ borderBottom: '1px solid #edeef3' }}>
+                <div className="flex items-center gap-1.5 mb-3">
+                  <CodeOutlined className="text-indigo-400/80 text-[13px]" />
+                  <span className="text-xs font-semibold text-gray-600 tracking-wide">NPX 下载</span>
                 </div>
 
                 {/* IDE Selection */}
                 <div className="mb-3">
-                  <div className="text-xs text-gray-500 mb-2">选择 IDE</div>
+                  <div className="text-xs font-medium text-gray-600 mb-2">选择 IDE</div>
                   <div className="flex flex-wrap gap-2">
                     {IDE_OPTIONS.map((ide) => (
                       <button
@@ -650,7 +591,7 @@ function SkillDetail() {
 
                 {/* Output Directory */}
                 <div className="mb-3">
-                  <div className="text-xs text-gray-500 mb-1.5">输出目录</div>
+                  <div className="text-xs font-medium text-gray-600 mb-1.5">输出目录</div>
                   <input
                     type="text"
                     value={outputDir}
@@ -660,7 +601,26 @@ function SkillDetail() {
                   />
                 </div>
 
-                <div className="rounded-md bg-gray-100 border border-gray-200 px-3 py-2">
+                <div className="relative rounded-md bg-gray-50/80 border border-gray-200 border-l-[2.5px] border-l-indigo-300/60 pl-3 pr-9 py-2.5">
+                  <button
+                    onClick={() => {
+                      const quotedName = cliInfo.resourceName.includes(' ') ? `"${cliInfo.resourceName}"` : cliInfo.resourceName;
+                      const quotedDir = outputDir.includes(' ') ? `"${outputDir}"` : outputDir;
+                      const isDefaultHost = cliInfo.nacosHost === 'market.hiclaw.io';
+                      const hostArg = isDefaultHost ? '' : ` --host ${cliInfo.nacosHost}`;
+                      const selectedVersionInfo = versions.find((v) => v.version === selectedVersion);
+                      const isLatest = selectedVersionInfo?.isLatest ?? false;
+                      const versionArg = isLatest ? '' : ` --version ${selectedVersion}`;
+                      const cmd = `npx @nacos-group/cli${hostArg} skill-get ${quotedName} -o ${quotedDir}${versionArg}`;
+                      copyToClipboard(cmd).then(() => {
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 2000);
+                      });
+                    }}
+                    className="absolute top-2 right-2 p-1 rounded text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 transition-all"
+                  >
+                    {copied ? <CheckOutlined className="text-green-500" /> : <CopyOutlined />}
+                  </button>
                   <code className="text-[12px] text-gray-700 break-all" style={{ fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace" }}>
                     {(() => {
                       const isDefaultHost = cliInfo.nacosHost === 'market.hiclaw.io';
@@ -669,6 +629,42 @@ function SkillDetail() {
                       const isLatest = selectedVersionInfo?.isLatest ?? false;
                       const versionArg = isLatest ? '' : ` --version ${selectedVersion}`;
                       return `npx @nacos-group/cli${hostArg} skill-get ${cliInfo.resourceName.includes(' ') ? `"${cliInfo.resourceName}"` : cliInfo.resourceName} -o ${outputDir.includes(' ') ? `"${outputDir}"` : outputDir}${versionArg}`;
+                    })()}
+                  </code>
+                </div>
+              </div>
+            )}
+
+            {/* HTTP 下载 */}
+            {cliInfo && (
+              <div className="px-4 py-3">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <CloudUploadOutlined className="text-indigo-400/80 text-[13px]" />
+                  <span className="text-xs font-semibold text-gray-600 tracking-wide">HTTP 下载</span>
+                </div>
+                <div className="relative rounded-md bg-gray-50/80 border border-gray-200 border-l-[2.5px] border-l-indigo-300/60 pl-3 pr-9 py-2.5">
+                  <button
+                    onClick={() => {
+                      const selectedVersionInfo = versions.find((v) => v.version === selectedVersion);
+                      const isLatest = selectedVersionInfo?.isLatest ?? false;
+                      const versionParam = selectedVersion && !isLatest ? `?version=${encodeURIComponent(selectedVersion)}` : '';
+                      const url = `${window.location.origin}/api/v1/skills/${skillProductId}/download${versionParam}`;
+                      copyToClipboard(url).then(() => {
+                        setCopiedHttp(true);
+                        setTimeout(() => setCopiedHttp(false), 2000);
+                      });
+                    }}
+                    disabled={!selectedVersion}
+                    className="absolute top-2 right-2 p-1 rounded text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 transition-all disabled:opacity-50"
+                  >
+                    {copiedHttp ? <CheckOutlined className="text-green-500" /> : <CopyOutlined />}
+                  </button>
+                  <code className="text-[12px] text-gray-700 break-all" style={{ fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace" }}>
+                    {(() => {
+                      const selectedVersionInfo = versions.find((v) => v.version === selectedVersion);
+                      const isLatest = selectedVersionInfo?.isLatest ?? false;
+                      const versionParam = selectedVersion && !isLatest ? `?version=${encodeURIComponent(selectedVersion)}` : '';
+                      return `${typeof window !== 'undefined' ? window.location.origin : ''}/api/v1/skills/${skillProductId}/download${versionParam}`;
                     })()}
                   </code>
                 </div>

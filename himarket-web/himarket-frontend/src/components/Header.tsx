@@ -48,9 +48,19 @@ export function Header() {
               <HiMarket />
             </Link>
             <div className="h-6 w-[1px] bg-gray-200 mx-5"></div>
-            {/* Tab 区域 - loading 时不渲染，避免闪烁 */}
-            {!loading && (
-            <div className="flex items-center gap-1.5">
+            {/* Tab 区域 - loading 时显示占位骨架，避免突然出现 */}
+            {loading ? (
+              <div className="flex items-center gap-1.5">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="h-8 rounded-full bg-gray-200/60 animate-pulse"
+                    style={{ width: `${56 + (i % 3) * 8}px` }}
+                  />
+                ))}
+              </div>
+            ) : (
+            <div className="flex items-center gap-1.5 animate-in fade-in duration-300">
               {visibleTabs.map(tab => (
                 <Link key={tab.path} to={tab.path}>
                   <div

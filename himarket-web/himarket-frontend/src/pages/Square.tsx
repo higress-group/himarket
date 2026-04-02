@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { SearchOutlined, DownloadOutlined, ClockCircleOutlined } from "@ant-design/icons";
-import { Input, message, Pagination, Segmented } from "antd";
+import { Input, message, Pagination } from "antd";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import { CategoryMenu } from "../components/square/CategoryMenu";
@@ -26,11 +26,10 @@ function Square(props: { activeType: string }) {
 
   const [activeCategory, setActiveCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [isStuck, setIsStuck] = useState(false);
   const [products, setProducts] = useState<IProductDetail[]>([]);
   const [categories, setCategories] = useState<Array<{ id: string; name: string; count: number }>>([]);
-  const [loading, setLoading] = useState(false);
-  const [categoriesLoading, setCategoriesLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [sortBy, setSortBy] = useState<string>("DOWNLOAD_COUNT");
 
   const showSortControl = activeType === 'AGENT_SKILL' || activeType === 'WORKER';
@@ -40,34 +39,22 @@ function Square(props: { activeType: string }) {
   const [totalElements, setTotalElements] = useState(0);
   const PAGE_SIZE = 12;
 
-  // IntersectionObserver 哨兵 ref，用于检测 sticky 状态
-  const sentinelRef = useRef<HTMLDivElement>(null);
   // 滚动容器 ref，供 BackToTopButton 使用
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // IntersectionObserver 检测 sticky 状态
+  // activeType 切换时立即重置全部状态，避免旧数据闪烁
   useEffect(() => {
-    const sentinel = sentinelRef.current;
-    if (!sentinel) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        // 当哨兵元素不可见时，说明搜索区域已经 sticky 到顶部
-        setIsStuck(!entry.isIntersecting);
-      },
-      { threshold: 0 }
-    );
-
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, []);
-
-  // 获取分类列表
-  useEffect(() => {
+    setProducts([]);
+    setCategories([]);
+    setLoading(true);
+    setCategoriesLoading(true);
+    setSearchQuery("");
+    setCurrentPage(1);
     setSortBy("DOWNLOAD_COUNT");
+    setActiveCategory("all");
+    setTotalElements(0);
 
     const fetchCategories = async () => {
-      setCategoriesLoading(true);
       try {
         const productType = activeType;
         const response = await APIs.getCategoriesByProductType({ productType });
@@ -84,10 +71,8 @@ function Square(props: { activeType: string }) {
               { id: "all", name: "全部", count: 0 },
               ...categoryList
             ]);
-            setActiveCategory("all");
           } else {
             setCategories([]);
-            setActiveCategory("");
           }
         }
       } catch (error) {
@@ -223,9 +208,6 @@ function Square(props: { activeType: string }) {
   return (
     <Layout>
       <div className="flex flex-col h-[calc(100vh-96px)] overflow-auto scrollbar-hide" ref={scrollContainerRef}>
-        {/* IntersectionObserver 哨兵元素 */}
-        <div ref={sentinelRef} className="h-0 flex-shrink-0" />
-
         {/* 引导语 */}
         {getSlogan() && (
           <div className="text-center py-4">
@@ -234,33 +216,49 @@ function Square(props: { activeType: string }) {
           </div>
         )}
 
-        {/* 搜索区域 - CSS Sticky 实现 */}
-        <div className={`sticky top-0 z-50 backdrop-blur-md transition-shadow duration-200 flex-shrink-0 ${isStuck ? 'shadow-sm bg-white/80' : ''}`}>
+        {/* 搜索区域 */}
+        <div className="flex-shrink-0">
           <div className="flex flex-col gap-4 px-6 py-4">
             {/* 统计信息 + 排序 */}
-            <div className="flex items-center justify-center gap-4 text-sm text-gray-600">
-              <div className="flex items-center gap-1.5">
-                <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                <span className="font-medium">{totalElements.toLocaleString()}</span>
-                <span>{getStatLabel()}</span>
+            <div className="flex items-center justify-center gap-3 text-sm">
+              <div className="flex items-center gap-1.5 text-gray-500">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 ring-[3px] ring-emerald-500/20"></div>
+                <span className="font-semibold text-gray-800 tabular-nums">{totalElements.toLocaleString()}</span>
+                <span className="font-medium">{getStatLabel()}</span>
               </div>
               {showSortControl && (
-                <Segmented
-                  size="small"
-                  value={sortBy}
-                  onChange={(value) => {
-                    setSortBy(value as string);
-                    setCurrentPage(1);
-                  }}
-                  options={[
-                    { label: <span><DownloadOutlined /> 最多下载</span>, value: 'DOWNLOAD_COUNT' },
-                    { label: <span><ClockCircleOutlined /> 最近更新</span>, value: 'UPDATED_AT' },
-                  ]}
-                />
+                <div className="inline-flex items-center p-[3px] rounded-xl bg-gray-100/80 backdrop-blur-sm">
+                  {[
+                    { label: '最多下载', value: 'DOWNLOAD_COUNT', icon: <DownloadOutlined /> },
+                    { label: '最近更新', value: 'UPDATED_AT', icon: <ClockCircleOutlined /> },
+                  ].map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => {
+                        setSortBy(option.value);
+                        setCurrentPage(1);
+                      }}
+                      className={`
+                        flex items-center gap-1.5 px-3.5 py-1.5 rounded-[10px] text-[13px] font-medium
+                        transition-all duration-200 ease-out cursor-pointer select-none
+                        ${sortBy === option.value
+                          ? 'bg-white text-gray-900 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_0_0_1px_rgba(0,0,0,0.04)]'
+                          : 'text-gray-400 hover:text-gray-600'
+                        }
+                      `}
+                    >
+                      <span className={`text-xs transition-colors duration-200 ${sortBy === option.value ? 'text-indigo-500' : ''}`}>
+                        {option.icon}
+                      </span>
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
 
-            {/* 搜索框 - 唯一实例 */}
+            {/* 搜索框 */}
             <div className="flex items-center justify-center">
               <div className="w-full max-w-3xl">
                 <Input
@@ -279,15 +277,11 @@ function Square(props: { activeType: string }) {
                     </button>
                   }
                   className="rounded-xl text-base"
-                  style={{
-                    backgroundColor: "rgba(255, 255, 255, 0.95)",
-                    boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
-                  }}
                 />
               </div>
             </div>
 
-            {/* 分类菜单 - 唯一实例 */}
+            {/* 分类菜单 */}
             <div className="flex-1 min-w-0">
               <CategoryMenu
                 categories={categories}
@@ -303,10 +297,10 @@ function Square(props: { activeType: string }) {
         <div className="flex-1 px-4 pt-4 pb-4 flex-shrink-0">
           <div className="pb-4">
             {loading ? (
-              <CardGridSkeleton count={8} columns={{ sm: 1, md: 2, lg: 3 }} />
+              <CardGridSkeleton count={8} />
             ) : (
               <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 max-w-[1600px] mx-auto">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 max-w-[1600px] mx-auto animate-in fade-in duration-300">
                   {filteredModels.map((product) => (
                     product.type === 'AGENT_SKILL' ? (
                       <SkillCard
