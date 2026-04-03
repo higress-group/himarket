@@ -50,7 +50,10 @@ import com.alibaba.himarket.support.portal.IdentityMapping;
 import com.alibaba.himarket.support.portal.OidcConfig;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -60,6 +63,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
@@ -371,6 +375,39 @@ public class OidcServiceImpl implements OidcService {
                 response.getStatusCode(),
                 response.getBody());
 
-        return JSONUtil.toBean(response.getBody(), responseType);
+        String responseBody = response.getBody();
+        if (StrUtil.isBlank(responseBody)) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Empty response from: " + url);
+        }
+
+        // Some OIDC providers (e.g. GitHub) return application/x-www-form-urlencoded
+        MediaType contentType = response.getHeaders().getContentType();
+        if (contentType != null
+                && MediaType.APPLICATION_FORM_URLENCODED.isCompatibleWith(contentType)) {
+            Map<String, Object> parsed = parseFormUrlEncoded(responseBody);
+            return JSONUtil.toBean(JSONUtil.toJsonStr(parsed), responseType);
+        }
+
+        // Try JSON first; if it fails and looks like form-encoded, parse as form data
+        String trimmed = responseBody.trim();
+        if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+            return JSONUtil.toBean(responseBody, responseType);
+        }
+
+        // Fallback: treat as form-urlencoded (some providers omit the Content-Type header)
+        log.warn("Response from {} is not JSON, attempting form-urlencoded parsing", url);
+        Map<String, Object> parsed = parseFormUrlEncoded(responseBody);
+        return JSONUtil.toBean(JSONUtil.toJsonStr(parsed), responseType);
+    }
+
+    private Map<String, Object> parseFormUrlEncoded(String body) {
+        Map<String, Object> result = new HashMap<>();
+        for (String pair : body.split("&")) {
+            String[] kv = pair.split("=", 2);
+            String key = URLDecoder.decode(kv[0], StandardCharsets.UTF_8);
+            String value = kv.length > 1 ? URLDecoder.decode(kv[1], StandardCharsets.UTF_8) : "";
+            result.put(key, value);
+        }
+        return result;
     }
 }
