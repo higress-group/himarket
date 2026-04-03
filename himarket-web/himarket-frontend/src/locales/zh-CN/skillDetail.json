@@ -1,0 +1,23 @@
+{
+  "error": "错误",
+  "skillNotExist": "技能不存在",
+  "dataLoadFailed": "数据加载失败",
+  "loadFailed": "加载失败，请稍后重试",
+  "back": "返回",
+  "download": "下载",
+  "noVersion": "暂无版本",
+  "downloadSkillPackage": "下载 Skill 包",
+  "npxDownload": "NPX 下载",
+  "selectIde": "选择 IDE",
+  "outputDir": "输出目录",
+  "outputDirPlaceholder": "输入输出目录路径",
+  "httpDownload": "HTTP 下载",
+  "noSkillMd": "该技能包未包含 SKILL.md 文件",
+  "noFiles": "暂无文件",
+  "clickFileToView": "点击左侧文件查看内容",
+  "fileLoadFailed": "加载失败",
+  "binaryNotSupported": "二进制文件，不支持预览",
+  "renderPreview": "渲染预览",
+  "sourceCode": "源代码",
+  "relatedSkills": "相关技能"
+}

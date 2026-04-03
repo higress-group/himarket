@@ -1,0 +1,12 @@
+{
+  "login": "登录",
+  "register": "注册",
+  "confirm": "确认",
+  "cancel": "取消",
+  "search": "搜索",
+  "loading": "加载中...",
+  "error": {
+    "fetchFailed": "获取数据失败",
+    "networkError": "网络错误"
+  }
+}

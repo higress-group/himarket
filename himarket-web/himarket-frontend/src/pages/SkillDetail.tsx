@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useTranslation } from 'react-i18next';
 import { Layout } from "../components/Layout";
 import { Alert, Tag, Button, Select, Tooltip } from "antd";
 import { ArrowLeftOutlined, DownloadOutlined, CopyOutlined, CheckOutlined, FileFilled, CodeOutlined, EyeOutlined, CloudUploadOutlined, ThunderboltOutlined } from "@ant-design/icons";
@@ -90,6 +91,7 @@ function SkillOverview({ content }: { content: string }) {
 function SkillDetail() {
   const { skillProductId } = useParams<{ skillProductId: string }>();
   const navigate = useNavigate();
+  const { t } = useTranslation('skillDetail');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [data, setData] = useState<IProductDetail>();
@@ -148,7 +150,7 @@ function SkillDetail() {
             setSkillConfig(productRes.data.skillConfig);
           }
         } else {
-          setError(productRes.message || "数据加载失败");
+          setError(productRes.message || t('dataLoadFailed'));
         }
 
         // Set CLI download info
@@ -176,7 +178,7 @@ function SkillDetail() {
         }
       } catch (err) {
         console.error("API请求失败:", err);
-        setError("加载失败，请稍后重试");
+        setError(t('loadFailed'));
       } finally {
         setLoading(false);
       }
@@ -269,7 +271,7 @@ function SkillDetail() {
     return (
       <Layout>
         <div className="p-8">
-          <Alert message="错误" description={error || "技能不存在"} type="error" showIcon />
+          <Alert message={t('error')} description={error || t('skillNotExist')} type="error" showIcon />
         </div>
       </Layout>
     );
@@ -285,7 +287,7 @@ function SkillDetail() {
         <div className="flex items-center justify-center h-full text-gray-400">
           <div className="text-center">
             <FileFilled className="text-5xl mb-3 text-gray-300" />
-            <p className="text-sm text-gray-400">点击左侧文件查看内容</p>
+            <p className="text-sm text-gray-400">{t('clickFileToView')}</p>
           </div>
         </div>
       );
@@ -294,11 +296,11 @@ function SkillDetail() {
       return <div className="flex justify-center py-16"><div className="w-8 h-8 border-2 border-gray-200 border-t-blue-500 rounded-full animate-spin" /></div>;
     }
     if (!fileContent) {
-      return <div className="text-gray-400 text-center py-16 text-sm">加载失败</div>;
+      return <div className="text-gray-400 text-center py-16 text-sm">{t('fileLoadFailed')}</div>;
     }
     if (fileContent.encoding === "base64") {
       return (
-        <div className="text-gray-400 text-center py-16 text-sm">二进制文件，不支持预览</div>
+        <div className="text-gray-400 text-center py-16 text-sm">{t('binaryNotSupported')}</div>
       );
     }
     if (selectedFilePath.endsWith(".md")) {
@@ -318,7 +320,7 @@ function SkillDetail() {
         <div className="flex-1 overflow-auto bg-white h-full flex flex-col relative">
           {/* Toggle button - floats top-right */}
           <div className="absolute top-2 right-3 z-20">
-            <Tooltip title={mdRawMode ? "渲染预览" : "源代码"}>
+            <Tooltip title={mdRawMode ? t('renderPreview') : t('sourceCode')}>
               <button
                 onClick={() => setMdRawMode(!mdRawMode)}
                 className="flex items-center gap-1 px-2 py-0.5 rounded text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
@@ -401,7 +403,7 @@ function SkillDetail() {
             className="flex items-center gap-2 mb-4 px-4 py-2 rounded-xl text-gray-600 hover:text-colorPrimary hover:bg-colorPrimaryBgHover transition-all duration-200"
           >
             <ArrowLeftOutlined />
-            <span>返回</span>
+            <span>{t('back')}</span>
           </button>
 
           <div className="flex items-center gap-4 mb-3">
@@ -475,7 +477,7 @@ function SkillDetail() {
                   <SkillOverview content={overviewContent} />
                 ) : (
                   <div className="text-gray-400 text-sm text-center pt-8">
-                    该技能包未包含 SKILL.md 文件
+                    {t('noSkillMd')}
                   </div>
                 )}
               </div>
@@ -493,7 +495,7 @@ function SkillDetail() {
                       onSelect={handleSelectFile}
                     />
                   ) : (
-                    <div className="flex items-center justify-center h-full text-gray-400 text-sm">暂无文件</div>
+                    <div className="flex items-center justify-center h-full text-gray-400 text-sm">{t('noFiles')}</div>
                   )}
                 </div>
                 {/* Drag handle */}
@@ -515,12 +517,12 @@ function SkillDetail() {
           <div className="bg-white rounded-xl overflow-hidden shadow-sm" style={{ border: '1px solid #e8eaef' }}>
             {/* Card header: title + version selector */}
             <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid #edeef3' }}>
-              <span className="text-sm font-semibold text-gray-800">下载</span>
+              <span className="text-sm font-semibold text-gray-800">{t('download')}</span>
               <Select
                 value={selectedVersion}
                 onChange={handleVersionChange}
                 size="large"
-                placeholder="暂无版本"
+                placeholder={t('noVersion')}
                 disabled={versions.length === 0}
                 style={{ width: 180, fontSize: 15 }}
                 options={versions.map((v) => ({
@@ -547,7 +549,7 @@ function SkillDetail() {
                 block
                 size="middle"
               >
-                下载 Skill 包
+                {t('downloadSkillPackage')}
               </Button>
             </div>
 
@@ -556,12 +558,12 @@ function SkillDetail() {
               <div className="px-4 py-3" style={{ borderBottom: '1px solid #edeef3' }}>
                 <div className="flex items-center gap-1.5 mb-3">
                   <CodeOutlined className="text-indigo-400/80 text-[13px]" />
-                  <span className="text-xs font-semibold text-gray-600 tracking-wide">NPX 下载</span>
+                  <span className="text-xs font-semibold text-gray-600 tracking-wide">{t('npxDownload')}</span>
                 </div>
 
                 {/* IDE Selection */}
                 <div className="mb-3">
-                  <div className="text-xs font-medium text-gray-600 mb-2">选择 IDE</div>
+                  <div className="text-xs font-medium text-gray-600 mb-2">{t('selectIde')}</div>
                   <div className="flex flex-wrap gap-2">
                     {IDE_OPTIONS.map((ide) => (
                       <button
@@ -591,13 +593,13 @@ function SkillDetail() {
 
                 {/* Output Directory */}
                 <div className="mb-3">
-                  <div className="text-xs font-medium text-gray-600 mb-1.5">输出目录</div>
+                  <div className="text-xs font-medium text-gray-600 mb-1.5">{t('outputDir')}</div>
                   <input
                     type="text"
                     value={outputDir}
                     onChange={(e) => setOutputDir(e.target.value)}
                     className="w-full px-3 py-2 text-xs border border-gray-200 rounded-md focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white text-gray-700"
-                    placeholder="输入输出目录路径"
+                    placeholder={t('outputDirPlaceholder')}
                   />
                 </div>
 
@@ -640,7 +642,7 @@ function SkillDetail() {
               <div className="px-4 py-3">
                 <div className="flex items-center gap-1.5 mb-2">
                   <CloudUploadOutlined className="text-indigo-400/80 text-[13px]" />
-                  <span className="text-xs font-semibold text-gray-600 tracking-wide">HTTP 下载</span>
+                  <span className="text-xs font-semibold text-gray-600 tracking-wide">{t('httpDownload')}</span>
                 </div>
                 <div className="relative rounded-md bg-gray-50/80 border border-gray-200 border-l-[2.5px] border-l-indigo-300/60 pl-3 pr-9 py-2.5">
                   <button

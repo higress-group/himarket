@@ -1,0 +1,20 @@
+{
+  "greeting": "Hi, ",
+  "hello": "there",
+  "welcomeMessage": "Welcome to HiMarket",
+  "usernameRequired": "Please enter your username",
+  "usernameMinLength": "Username must be at least 3 characters",
+  "usernamePlaceholder": "Username",
+  "passwordRequired": "Please enter your password",
+  "passwordMinLength": "Password must be at least 6 characters",
+  "passwordPlaceholder": "Password",
+  "confirmPasswordRequired": "Please confirm your password",
+  "confirmPasswordPlaceholder": "Confirm Password",
+  "passwordMismatch": "Passwords do not match",
+  "registering": "Registering...",
+  "register": "Register",
+  "registerSuccess": "Registration successful!",
+  "registerFailed": "Registration failed, please try again",
+  "hasAccount": "Already have an account?",
+  "loginLink": "Login"
+}

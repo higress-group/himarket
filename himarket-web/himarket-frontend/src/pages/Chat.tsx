@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from 'react-i18next';
 import { useLocation } from "react-router-dom";
 import { message as antdMessage } from "antd";
 import { Layout } from "../components/Layout";
@@ -103,7 +104,7 @@ function Chat() {
           <LoginPrompt
             open={loginPromptOpen}
             onClose={() => setLoginPromptOpen(false)}
-            contextMessage="登录后即可与 AI 模型对话，体验智能问答能力"
+            contextMessage={tLoginPrompt('contextChatModel')}
           />
         </>
       ) : (
@@ -140,4 +141,5 @@ function Chat() {
   );
 }
 
+export default Chat;
 export default Chat;

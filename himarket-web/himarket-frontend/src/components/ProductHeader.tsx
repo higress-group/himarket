@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useImperativeHandle, forwardRef } from "react";
+import { useTranslation } from 'react-i18next';
 import { Typography, Button, Modal, Select, message, Popconfirm, Input, Pagination, Spin } from "antd";
 import { ApiOutlined, CheckCircleFilled, ClockCircleFilled, ExclamationCircleFilled, PlusOutlined, RobotOutlined, BulbOutlined } from "@ant-design/icons";
 import { useParams } from "react-router-dom";
@@ -620,8 +621,9 @@ export const ProductHeader = forwardRef<ProductHeaderHandle, ProductHeaderProps>
       <LoginPrompt
         open={loginPromptOpen}
         onClose={() => setLoginPromptOpen(false)}
-        contextMessage="登录后即可订阅产品，获取 API 访问凭证"
+        contextMessage={tLoginPrompt('contextSubscribeProduct')}
       />
     </>
   );
+}); 
 }); 

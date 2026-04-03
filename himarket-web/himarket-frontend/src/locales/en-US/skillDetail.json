@@ -1,0 +1,23 @@
+{
+  "error": "Error",
+  "skillNotExist": "Skill not found",
+  "dataLoadFailed": "Failed to load data",
+  "loadFailed": "Loading failed, please try again later",
+  "back": "Back",
+  "download": "Download",
+  "noVersion": "No versions",
+  "downloadSkillPackage": "Download Skill Package",
+  "npxDownload": "NPX Download",
+  "selectIde": "Select IDE",
+  "outputDir": "Output Directory",
+  "outputDirPlaceholder": "Enter output directory path",
+  "httpDownload": "HTTP Download",
+  "noSkillMd": "This skill package does not contain a SKILL.md file",
+  "noFiles": "No files",
+  "clickFileToView": "Click a file on the left to view its content",
+  "fileLoadFailed": "Failed to load",
+  "binaryNotSupported": "Binary file, preview not supported",
+  "renderPreview": "Render Preview",
+  "sourceCode": "Source Code",
+  "relatedSkills": "Related Skills"
+}
