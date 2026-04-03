@@ -32,6 +32,14 @@ limits:
 {{- end }}
 
 {{/*
+Map a size name to replica count. Only "large" gets 2 replicas.
+Usage: {{ include "himarket.sizeToReplicas" "standard" }}
+*/}}
+{{- define "himarket.sizeToReplicas" -}}
+{{- if eq . "large" }}2{{- else }}1{{- end }}
+{{- end }}
+
+{{/*
 Lightweight resource profile for Nginx-based frontend containers.
 Usage: {{ include "himarket.sizeToResourcesLight" "standard" }}
 */}}

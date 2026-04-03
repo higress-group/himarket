@@ -146,7 +146,6 @@ services:
   himarket-server:
     image: ${HIMARKET_SERVER_IMAGE:-opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-server:latest}
     pull_policy: always
-    container_name: himarket-server
     environment:
       - TZ=${TZ:-Asia/Shanghai}
       - JAVA_OPTS=${JAVA_OPTS:--XX:+UseG1GC -XX:MaxRAMPercentage=75.0 -XX:InitialRAMPercentage=50.0 -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp/heapdump.hprof}
@@ -160,7 +159,7 @@ services:
       - ACP_REMOTE_PORT=${ACP_REMOTE_PORT:-8080}
       - ACP_DEFAULT_RUNTIME=${ACP_DEFAULT_RUNTIME:-remote}
     ports:
-      - "8081:8080"
+      - "8081-8082:8080"
     depends_on:
       mysql:
         condition: service_healthy
@@ -175,6 +174,7 @@ services:
       retries: 20
       start_period: 60s
     deploy:
+      replicas: ${HIMARKET_REPLICAS:-1}
       resources:
         limits:
           cpus: "${HIMARKET_CPU_LIMIT:-2}"
@@ -189,11 +189,10 @@ services:
   himarket-admin:
     image: ${HIMARKET_ADMIN_IMAGE:-opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-admin:latest}
     pull_policy: always
-    container_name: himarket-admin
     environment:
       - HIMARKET_SERVER=http://himarket-server:8080
     ports:
-      - "5174:8000"
+      - "5175-5176:8000"
     depends_on:
       himarket-server:
         condition: service_healthy
@@ -206,6 +205,7 @@ services:
       retries: 10
       start_period: 10s
     deploy:
+      replicas: ${HIMARKET_REPLICAS:-1}
       resources:
         limits:
           cpus: "${HIMARKET_LIGHT_CPU_LIMIT:-1}"
@@ -216,11 +216,10 @@ services:
   himarket-frontend:
     image: ${HIMARKET_FRONTEND_IMAGE:-opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-frontend:latest}
     pull_policy: always
-    container_name: himarket-frontend
     environment:
       - HIMARKET_SERVER=http://himarket-server:8080
     ports:
-      - "5173:8000"
+      - "5173-5174:8000"
     depends_on:
       himarket-server:
         condition: service_healthy
@@ -233,6 +232,7 @@ services:
       retries: 10
       start_period: 10s
     deploy:
+      replicas: ${HIMARKET_REPLICAS:-1}
       resources:
         limits:
           cpus: "${HIMARKET_LIGHT_CPU_LIMIT:-1}"
