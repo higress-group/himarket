@@ -1,416 +1,397 @@
-import {
-  PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  ExclamationCircleOutlined,
-  MinusCircleOutlined,
-  KeyOutlined,
-  CheckCircleFilled,
-  MinusCircleFilled,
-} from '@ant-design/icons';
-import {
-  Button,
-  Form,
-  Input,
-  Select,
-  Switch,
-  Table,
-  Modal,
-  Space,
-  message,
-  Divider,
-  Steps,
-  Card,
-  Tabs,
-  Collapse,
-  Radio,
-} from 'antd';
-import { useState } from 'react';
-
-import type { ThirdPartyAuthConfig, AuthCodeConfig, OAuth2Config, OidcConfig } from '@/types';
-import { AuthenticationType, GrantType, PublicKeyFormat } from '@/types';
+import {useState} from 'react'
+import {Button, Form, Input, Select, Switch, Table, Modal, Space, message, Divider, Steps, Card, Tabs, Collapse, Radio} from 'antd'
+import {PlusOutlined, EditOutlined, DeleteOutlined, ExclamationCircleOutlined, MinusCircleOutlined, KeyOutlined, CheckCircleFilled, MinusCircleFilled} from '@ant-design/icons'
+import {ThirdPartyAuthConfig, AuthenticationType, GrantType, AuthCodeConfig, OAuth2Config, OidcConfig, PublicKeyFormat} from '@/types'
 
 interface ThirdPartyAuthManagerProps {
-  configs: ThirdPartyAuthConfig[];
-  onSave: (configs: ThirdPartyAuthConfig[]) => Promise<void>;
+  configs: ThirdPartyAuthConfig[]
+  onSave: (configs: ThirdPartyAuthConfig[]) => Promise<void>
 }
 
-export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManagerProps) {
-  const [form] = Form.useForm();
-  const [modalVisible, setModalVisible] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [editingConfig, setEditingConfig] = useState<ThirdPartyAuthConfig | null>(null);
-  const [currentStep, setCurrentStep] = useState(0);
-  const [selectedType, setSelectedType] = useState<AuthenticationType | null>(null);
+export function ThirdPartyAuthManager({configs, onSave}: ThirdPartyAuthManagerProps) {
+  const [form] = Form.useForm()
+  const [modalVisible, setModalVisible] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [editingConfig, setEditingConfig] = useState<ThirdPartyAuthConfig | null>(null)
+  const [currentStep, setCurrentStep] = useState(0)
+  const [selectedType, setSelectedType] = useState<AuthenticationType | null>(null)
+
 
   // 添加新配置
   const handleAdd = () => {
-    setEditingConfig(null);
-    setSelectedType(null);
-    setCurrentStep(0);
-    setModalVisible(true);
-    form.resetFields();
-  };
+    setEditingConfig(null)
+    setSelectedType(null)
+    setCurrentStep(0)
+    setModalVisible(true)
+    form.resetFields()
+  }
 
   // 编辑配置
   const handleEdit = (config: ThirdPartyAuthConfig) => {
-    setEditingConfig(config);
-    setSelectedType(config.type);
-    setCurrentStep(1); // 直接进入配置步骤
-
+    setEditingConfig(config)
+    setSelectedType(config.type)
+    setCurrentStep(1) // 直接进入配置步骤
+    
     // 先重置表单，再设置新值
-    form.resetFields();
-    setModalVisible(true);
-
+    form.resetFields()
+    setModalVisible(true)
+    
     // 根据类型设置表单值
     if (config.type === AuthenticationType.OIDC) {
       // OIDC配置：直接使用OidcConfig的字段
-      const oidcConfig = config as OidcConfig & { type: AuthenticationType.OIDC };
-
+      const oidcConfig = config as (OidcConfig & { type: AuthenticationType.OIDC })
+      
       // 检查是否是手动配置模式（有具体的端点地址）
-      const hasManualEndpoints = !!(
-        oidcConfig.authCodeConfig?.authorizationEndpoint &&
-        oidcConfig.authCodeConfig?.tokenEndpoint &&
-        oidcConfig.authCodeConfig?.userInfoEndpoint
-      );
-
+      const hasManualEndpoints = !!(oidcConfig.authCodeConfig?.authorizationEndpoint && 
+                                   oidcConfig.authCodeConfig?.tokenEndpoint && 
+                                   oidcConfig.authCodeConfig?.userInfoEndpoint)
+      
       form.setFieldsValue({
-        configMode: hasManualEndpoints ? 'manual' : 'auto',
-        enabled: oidcConfig.enabled,
-        name: oidcConfig.name,
         provider: oidcConfig.provider,
+        name: oidcConfig.name,
+        enabled: oidcConfig.enabled,
         type: oidcConfig.type,
+        configMode: hasManualEndpoints ? 'manual' : 'auto',
         ...oidcConfig.authCodeConfig,
-        emailField:
-          oidcConfig.identityMapping?.emailField ||
-          oidcConfig.authCodeConfig?.identityMapping?.emailField,
         // 设置OIDC专用的授权模式字段
         oidcGrantType: oidcConfig.grantType || 'AUTHORIZATION_CODE',
         // 身份映射字段可能在根级别或authCodeConfig中
-        userIdField:
-          oidcConfig.identityMapping?.userIdField ||
-          oidcConfig.authCodeConfig?.identityMapping?.userIdField,
-        userNameField:
-          oidcConfig.identityMapping?.userNameField ||
-          oidcConfig.authCodeConfig?.identityMapping?.userNameField,
-      });
+        userIdField: oidcConfig.identityMapping?.userIdField || oidcConfig.authCodeConfig?.identityMapping?.userIdField,
+        userNameField: oidcConfig.identityMapping?.userNameField || oidcConfig.authCodeConfig?.identityMapping?.userNameField,
+        emailField: oidcConfig.identityMapping?.emailField || oidcConfig.authCodeConfig?.identityMapping?.emailField
+      })
     } else if (config.type === AuthenticationType.OAUTH2) {
       // OAuth2配置：直接使用OAuth2Config的字段
-      const oauth2Config = config as OAuth2Config & { type: AuthenticationType.OAUTH2 };
+      const oauth2Config = config as (OAuth2Config & { type: AuthenticationType.OAUTH2 })
       form.setFieldsValue({
-        emailField: oauth2Config.identityMapping?.emailField,
-        enabled: oauth2Config.enabled,
-        name: oauth2Config.name,
-        oauth2GrantType: oauth2Config.grantType || GrantType.JWT_BEARER, // 使用oauth2GrantType字段
         provider: oauth2Config.provider,
-        publicKeys: oauth2Config.jwtBearerConfig?.publicKeys || [],
+        name: oauth2Config.name,
+        enabled: oauth2Config.enabled,
         type: oauth2Config.type,
+        oauth2GrantType: oauth2Config.grantType || GrantType.JWT_BEARER, // 使用oauth2GrantType字段
         userIdField: oauth2Config.identityMapping?.userIdField,
         userNameField: oauth2Config.identityMapping?.userNameField,
-      });
+        emailField: oauth2Config.identityMapping?.emailField,
+        publicKeys: oauth2Config.jwtBearerConfig?.publicKeys || []
+      })
     }
-  };
+  }
 
   // 删除配置
   const handleDelete = async (provider: string, name: string) => {
     Modal.confirm({
-      cancelText: '取消',
+      title: '确认删除',
+      icon: <ExclamationCircleOutlined/>,
       content: `确定要删除第三方认证配置 "${name}" 吗？此操作不可恢复。`,
-      icon: <ExclamationCircleOutlined />,
       okText: '确认删除',
       okType: 'danger',
+      cancelText: '取消',
       async onOk() {
         try {
-          const updatedConfigs = configs.filter((config) => config.provider !== provider);
-          await onSave(updatedConfigs);
-          message.success('第三方认证配置删除成功');
-        } catch (_error) {
-          message.error('删除第三方认证配置失败');
+          const updatedConfigs = configs.filter(config => config.provider !== provider)
+          await onSave(updatedConfigs)
+          message.success('第三方认证配置删除成功')
+        } catch (error) {
+          message.error('删除第三方认证配置失败')
         }
       },
-      title: '确认删除',
-    });
-  };
+    })
+  }
+
 
   // 下一步
   const handleNext = async () => {
     if (currentStep === 0) {
       try {
-        const values = await form.validateFields(['type']);
-        setSelectedType(values.type);
-        setCurrentStep(1);
-
+        const values = await form.validateFields(['type'])
+        setSelectedType(values.type)
+        setCurrentStep(1)
+        
         // 为不同类型设置默认值
         if (values.type === AuthenticationType.OAUTH2) {
           form.setFieldsValue({
-            enabled: true,
             oauth2GrantType: GrantType.JWT_BEARER,
-          });
+            enabled: true
+          })
         } else if (values.type === AuthenticationType.OIDC) {
           form.setFieldsValue({
-            configMode: 'auto',
             enabled: true,
-          });
+            configMode: 'auto'
+          })
         }
-      } catch (_error) {
+      } catch (error) {
         // 验证失败
       }
     }
-  };
+  }
 
   // 上一步
   const handlePrevious = () => {
-    setCurrentStep(0);
-  };
+    setCurrentStep(0)
+  }
 
   // 保存配置
   const handleSave = async () => {
     try {
-      setLoading(true);
+      setLoading(true)
+      
+      const values = await form.validateFields()
 
-      const values = await form.validateFields();
-
-      let newConfig: ThirdPartyAuthConfig;
+      let newConfig: ThirdPartyAuthConfig
 
       if (selectedType === AuthenticationType.OIDC) {
         // OIDC配置：根据配置模式创建不同的authCodeConfig
-        let authCodeConfig: AuthCodeConfig;
-
+        let authCodeConfig: AuthCodeConfig
+        
         // 构建身份映射配置（放在OidcConfig根级别）
-        const identityMapping =
-          values.userIdField || values.userNameField || values.emailField
-            ? {
-                emailField: values.emailField || null,
-                userIdField: values.userIdField || null,
-                userNameField: values.userNameField || null,
-              }
-            : undefined;
+        const identityMapping = (values.userIdField || values.userNameField || values.emailField) ? {
+          userIdField: values.userIdField || null,
+          userNameField: values.userNameField || null,
+          emailField: values.emailField || null
+        } : undefined
 
         if (values.configMode === 'auto') {
           // 自动发现模式：只保存issuer，端点置空（后端会通过issuer自动发现）
           authCodeConfig = {
-            authorizationEndpoint: '', // 自动发现模式下端点为空
             clientId: values.clientId,
             clientSecret: values.clientSecret,
-            issuer: values.issuer,
-            jwkSetUri: '',
-            // 可选的自定义回调地址
-            redirectUri: values.redirectUri || undefined,
             scopes: values.scopes,
+            issuer: values.issuer,
+            authorizationEndpoint: '',  // 自动发现模式下端点为空
             tokenEndpoint: '',
             userInfoEndpoint: '',
-          };
+            jwkSetUri: '',
+            // 可选的自定义回调地址
+            redirectUri: values.redirectUri || undefined
+          }
         } else {
           // 手动配置模式：保存具体的端点地址
           authCodeConfig = {
-            authorizationEndpoint: values.authorizationEndpoint,
             clientId: values.clientId,
             clientSecret: values.clientSecret,
-            issuer: values.issuer || '', // 手动配置模式下issuer可选
-            jwkSetUri: values.jwkSetUri || '',
-            // 可选的自定义回调地址
-            redirectUri: values.redirectUri || undefined,
             scopes: values.scopes,
+            issuer: values.issuer || '',  // 手动配置模式下issuer可选
+            authorizationEndpoint: values.authorizationEndpoint,
             tokenEndpoint: values.tokenEndpoint,
             userInfoEndpoint: values.userInfoEndpoint,
-          };
+            jwkSetUri: values.jwkSetUri || '',
+            // 可选的自定义回调地址
+            redirectUri: values.redirectUri || undefined
+          }
         }
 
         newConfig = {
-          authCodeConfig,
+          provider: values.provider,
+          name: values.name,
+          logoUrl: null,
           enabled: values.enabled ?? true,
-          grantType: values.oidcGrantType || ('AUTHORIZATION_CODE' as const), // 使用oidcGrantType字段
+          grantType: values.oidcGrantType || 'AUTHORIZATION_CODE' as const, // 使用oidcGrantType字段
+          authCodeConfig,
           // 根级别的身份映射
           identityMapping,
-          logoUrl: null,
-          name: values.name,
-          provider: values.provider,
-          type: AuthenticationType.OIDC,
-        } as OidcConfig & { type: AuthenticationType.OIDC };
+          type: AuthenticationType.OIDC
+        } as (OidcConfig & { type: AuthenticationType.OIDC })
       } else {
         // OAuth2配置：直接创建OAuth2Config格式
-        const grantType = values.oauth2GrantType || GrantType.JWT_BEARER; // 使用oauth2GrantType字段
+        const grantType = values.oauth2GrantType || GrantType.JWT_BEARER // 使用oauth2GrantType字段
         newConfig = {
+          provider: values.provider,
+          name: values.name,
           enabled: values.enabled ?? true,
           grantType: grantType,
+          jwtBearerConfig: grantType === GrantType.JWT_BEARER ? {
+            publicKeys: values.publicKeys || []
+          } : undefined,
           identityMapping: {
-            emailField: values.emailField || null,
             userIdField: values.userIdField || null,
             userNameField: values.userNameField || null,
+            emailField: values.emailField || null
           },
-          jwtBearerConfig:
-            grantType === GrantType.JWT_BEARER
-              ? {
-                  publicKeys: values.publicKeys || [],
-                }
-              : undefined,
-          name: values.name,
-          provider: values.provider,
-          type: AuthenticationType.OAUTH2,
-        } as OAuth2Config & { type: AuthenticationType.OAUTH2 };
+          type: AuthenticationType.OAUTH2
+        } as (OAuth2Config & { type: AuthenticationType.OAUTH2 })
       }
 
-      let updatedConfigs;
+      let updatedConfigs
       if (editingConfig) {
-        updatedConfigs = configs.map((config) =>
-          config.provider === editingConfig.provider ? newConfig : config,
-        );
+        updatedConfigs = configs.map(config => 
+          config.provider === editingConfig.provider ? newConfig : config
+        )
       } else {
-        updatedConfigs = [...configs, newConfig];
+        updatedConfigs = [...configs, newConfig]
       }
 
-      await onSave(updatedConfigs);
-
-      message.success(editingConfig ? '第三方认证配置更新成功' : '第三方认证配置添加成功');
-      setModalVisible(false);
-    } catch (_error) {
-      message.error('保存第三方认证配置失败');
+      await onSave(updatedConfigs)
+      
+      message.success(editingConfig ? '第三方认证配置更新成功' : '第三方认证配置添加成功')
+      setModalVisible(false)
+    } catch (error) {
+      message.error('保存第三方认证配置失败')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   // 取消
   const handleCancel = () => {
-    setModalVisible(false);
-    setEditingConfig(null);
-    setSelectedType(null);
-    setCurrentStep(0);
-    form.resetFields();
-  };
+    setModalVisible(false)
+    setEditingConfig(null)
+    setSelectedType(null)
+    setCurrentStep(0)
+    form.resetFields()
+  }
 
   // OIDC表格列定义（不包含类型列）
   const oidcColumns = [
     {
+      title: '提供商',
       dataIndex: 'provider',
       key: 'provider',
-      render: (provider: string) => <span className="font-medium text-gray-700">{provider}</span>,
-      title: '提供商',
       width: 120,
+      render: (provider: string) => (
+        <span className="font-medium text-gray-700">{provider}</span>
+      )
     },
     {
+      title: '名称',
       dataIndex: 'name',
       key: 'name',
-      title: '名称',
       width: 150,
     },
     {
-      key: 'grantType',
-      render: () => <span className="text-gray-600">授权码模式</span>,
       title: '授权模式',
+      key: 'grantType',
       width: 120,
+      render: () => <span className="text-gray-600">授权码模式</span>
     },
     {
+      title: '状态',
       dataIndex: 'enabled',
       key: 'enabled',
+      width: 80,
       render: (enabled: boolean) => (
         <div className="flex items-center">
           {enabled ? (
-            <CheckCircleFilled className="text-green-500 mr-2" style={{ fontSize: '12px' }} />
+            <CheckCircleFilled className="text-green-500 mr-2" style={{fontSize: '12px'}} />
           ) : (
-            <MinusCircleFilled className="text-gray-500 mr-2" style={{ fontSize: '12px' }} />
+            <MinusCircleFilled className="text-gray-500 mr-2" style={{fontSize: '12px'}} />
           )}
-          <span className="text-gray-700">{enabled ? '已启用' : '已停用'}</span>
+          <span className="text-gray-700">
+            {enabled ? '已启用' : '已停用'}
+          </span>
         </div>
-      ),
-      title: '状态',
-      width: 80,
+      )
     },
     {
+      title: '操作',
       key: 'action',
-      render: (_: unknown, record: ThirdPartyAuthConfig) => (
+      width: 150,
+      render: (_: any, record: ThirdPartyAuthConfig) => (
         <Space>
-          <Button icon={<EditOutlined />} onClick={() => handleEdit(record)} type="link">
+          <Button
+            type="link"
+            icon={<EditOutlined/>}
+            onClick={() => handleEdit(record)}
+          >
             编辑
           </Button>
           <Button
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => handleDelete(record.provider, record.name)}
             type="link"
+            danger
+            icon={<DeleteOutlined/>}
+            onClick={() => handleDelete(record.provider, record.name)}
           >
             删除
           </Button>
         </Space>
-      ),
-      title: '操作',
-      width: 150,
-    },
-  ];
+      )
+    }
+  ]
 
   // OAuth2表格列定义（不包含类型列）
   const oauth2Columns = [
     {
+      title: '提供商',
       dataIndex: 'provider',
       key: 'provider',
-      render: (provider: string) => <span className="font-medium text-gray-700">{provider}</span>,
-      title: '提供商',
       width: 120,
+      render: (provider: string) => (
+        <span className="font-medium text-gray-700">{provider}</span>
+      )
     },
     {
+      title: '名称',
       dataIndex: 'name',
       key: 'name',
-      title: '名称',
       width: 150,
     },
     {
+      title: '授权模式',
       key: 'grantType',
+      width: 120,
       render: (record: ThirdPartyAuthConfig) => {
         if (record.type === AuthenticationType.OAUTH2) {
-          const oauth2Config = record as OAuth2Config & { type: AuthenticationType.OAUTH2 };
+          const oauth2Config = record as (OAuth2Config & { type: AuthenticationType.OAUTH2 })
           return (
             <span className="text-gray-600">
               {oauth2Config.grantType === GrantType.JWT_BEARER ? 'JWT断言' : '授权码模式'}
             </span>
-          );
+          )
         }
-        return <span className="text-gray-600">授权码模式</span>;
-      },
-      title: '授权模式',
-      width: 120,
+        return <span className="text-gray-600">授权码模式</span>
+      }
     },
     {
+      title: '状态',
       dataIndex: 'enabled',
       key: 'enabled',
+      width: 80,
       render: (enabled: boolean) => (
         <div className="flex items-center">
           {enabled ? (
-            <CheckCircleFilled className="text-green-500 mr-2" style={{ fontSize: '12px' }} />
+            <CheckCircleFilled className="text-green-500 mr-2" style={{fontSize: '12px'}} />
           ) : (
-            <MinusCircleFilled className="text-gray-500 mr-2" style={{ fontSize: '12px' }} />
+            <MinusCircleFilled className="text-gray-500 mr-2" style={{fontSize: '12px'}} />
           )}
-          <span className="text-gray-700">{enabled ? '已启用' : '已停用'}</span>
+          <span className="text-gray-700">
+            {enabled ? '已启用' : '已停用'}
+          </span>
         </div>
-      ),
-      title: '状态',
-      width: 80,
+      )
     },
     {
+      title: '操作',
       key: 'action',
-      render: (_: unknown, record: ThirdPartyAuthConfig) => (
+      width: 150,
+      render: (_: any, record: ThirdPartyAuthConfig) => (
         <Space>
-          <Button icon={<EditOutlined />} onClick={() => handleEdit(record)} type="link">
+          <Button
+            type="link"
+            icon={<EditOutlined/>}
+            onClick={() => handleEdit(record)}
+          >
             编辑
           </Button>
           <Button
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => handleDelete(record.provider, record.name)}
             type="link"
+            danger
+            icon={<DeleteOutlined/>}
+            onClick={() => handleDelete(record.provider, record.name)}
           >
             删除
           </Button>
         </Space>
-      ),
-      title: '操作',
-      width: 150,
-    },
-  ];
+      )
+    }
+  ]
 
   // 渲染OIDC配置表单
   const renderOidcForm = () => (
     <div className="space-y-6">
-      <Form.Item initialValue="AUTHORIZATION_CODE" label="授权模式" name="oidcGrantType">
+      <Form.Item
+        name="oidcGrantType"
+        label="授权模式"
+        initialValue="AUTHORIZATION_CODE"
+      >
         <Select disabled>
           <Select.Option value="AUTHORIZATION_CODE">授权码模式</Select.Option>
         </Select>
@@ -418,42 +399,46 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
 
       <div className="grid grid-cols-2 gap-4">
         <Form.Item
-          label="Client ID"
           name="clientId"
-          rules={[{ message: '请输入 Client ID', required: true }]}
+          label="Client ID"
+          rules={[{required: true, message: '请输入 Client ID'}]}
         >
-          <Input placeholder="Client ID" />
+          <Input placeholder="Client ID"/>
         </Form.Item>
         <Form.Item
-          label="Client Secret"
           name="clientSecret"
-          rules={[{ message: '请输入 Client Secret', required: true }]}
+          label="Client Secret"
+          rules={[{required: true, message: '请输入 Client Secret'}]}
         >
-          <Input.Password placeholder="Client Secret" />
+          <Input.Password placeholder="Client Secret"/>
         </Form.Item>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <Form.Item
-          label="授权范围"
           name="scopes"
-          rules={[{ message: '请输入授权范围', required: true }]}
+          label="授权范围"
+          rules={[{required: true, message: '请输入授权范围'}]}
         >
-          <Input placeholder="如: openid profile email" />
+          <Input placeholder="如: openid profile email"/>
         </Form.Item>
         <Form.Item
-          label="回调地址"
           name="redirectUri"
+          label="回调地址"
           tooltip="可选，用于指定OIDC回调地址。格式：门户访问地址 + /oidc/callback。如不填写，系统将自动构建"
         >
-          <Input placeholder="如: http://localhost:5173/oidc/callback" />
+          <Input placeholder="如: http://localhost:5173/oidc/callback"/>
         </Form.Item>
       </div>
 
       <Divider />
 
       {/* 配置模式选择 */}
-      <Form.Item initialValue="auto" label="端点配置" name="configMode">
+      <Form.Item
+        name="configMode"
+        label="端点配置"
+        initialValue="auto"
+      >
         <Radio.Group>
           <Radio value="auto">自动发现</Radio>
           <Radio value="manual">手动配置</Radio>
@@ -466,149 +451,145 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
         shouldUpdate={(prevValues, curValues) => prevValues.configMode !== curValues.configMode}
       >
         {({ getFieldValue }) => {
-          const configMode = getFieldValue('configMode') || 'auto';
-
+          const configMode = getFieldValue('configMode') || 'auto'
+          
           if (configMode === 'auto') {
             // 自动发现模式：只需要Issuer地址
             return (
               <Form.Item
-                label="Issuer"
                 name="issuer"
+                label="Issuer"
                 rules={[
-                  { message: '请输入Issuer地址', required: true },
-                  { message: '请输入有效的URL', type: 'url' },
+                  { required: true, message: '请输入Issuer地址' },
+                  { type: 'url', message: '请输入有效的URL' }
                 ]}
               >
                 <Input placeholder="如: https://accounts.google.com" />
               </Form.Item>
-            );
+            )
           } else {
             // 手动配置模式：需要各个端点
             return (
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <Form.Item
-                    label="授权端点"
                     name="authorizationEndpoint"
-                    rules={[{ message: '请输入授权端点', required: true }]}
+                    label="授权端点"
+                    rules={[{ required: true, message: '请输入授权端点' }]}
                   >
-                    <Input placeholder="Authorization 授权端点" />
+                    <Input placeholder="Authorization 授权端点"/>
                   </Form.Item>
                   <Form.Item
-                    label="令牌端点"
                     name="tokenEndpoint"
-                    rules={[{ message: '请输入令牌端点', required: true }]}
+                    label="令牌端点"
+                    rules={[{ required: true, message: '请输入令牌端点' }]}
                   >
-                    <Input placeholder="Token 令牌端点" />
+                    <Input placeholder="Token 令牌端点"/>
                   </Form.Item>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <Form.Item
-                    label="用户信息端点"
                     name="userInfoEndpoint"
-                    rules={[{ message: '请输入用户信息端点', required: true }]}
+                    label="用户信息端点"
+                    rules={[{ required: true, message: '请输入用户信息端点' }]}
                   >
-                    <Input placeholder="UserInfo 端点" />
+                    <Input placeholder="UserInfo 端点"/>
                   </Form.Item>
-                  <Form.Item label="公钥端点" name="jwkSetUri">
-                    <Input placeholder="可选" />
+                  <Form.Item
+                    name="jwkSetUri"
+                    label="公钥端点"
+                  >
+                    <Input placeholder="可选"/>
                   </Form.Item>
                 </div>
               </div>
-            );
+            )
           }
         }}
       </Form.Item>
 
       <div className="-ml-3">
         <Collapse
+          size="small"
+          ghost
           expandIcon={({ isActive }) => (
-            <svg
+            <svg 
               className={`w-4 h-4 transition-transform ${isActive ? 'rotate-90' : ''}`}
-              fill="currentColor"
+              fill="currentColor" 
               viewBox="0 0 20 20"
             >
-              <path
-                clipRule="evenodd"
-                d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
-                fillRule="evenodd"
-              />
+              <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
             </svg>
           )}
-          ghost
           items={[
             {
-              children: (
-                <div className="space-y-4 pt-2 ml-3">
-                  <div className="grid grid-cols-3 gap-4">
-                    <Form.Item label="开发者ID" name="userIdField">
-                      <Input placeholder="默认: sub" />
-                    </Form.Item>
-                    <Form.Item label="开发者名称" name="userNameField">
-                      <Input placeholder="默认: name" />
-                    </Form.Item>
-                    <Form.Item label="邮箱" name="emailField">
-                      <Input placeholder="默认: email" />
-                    </Form.Item>
-                  </div>
-
-                  <div className="bg-blue-50 p-3 rounded-lg">
-                    <div className="flex items-start space-x-2">
-                      <div className="text-blue-600 mt-0.5">
-                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                          <path
-                            clipRule="evenodd"
-                            d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                            fillRule="evenodd"
-                          />
-                        </svg>
-                      </div>
-                      <div>
-                        <h4 className="text-blue-800 font-medium text-sm">配置说明</h4>
-                        <p className="text-blue-700 text-xs mt-1">
-                          身份映射用于从OIDC令牌中提取用户信息。如果不填写，系统将使用OIDC标准字段。
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ),
-              forceRender: true, // 确保折叠时表单字段仍然渲染，值能被收集
               key: 'advanced',
+              forceRender: true,  // 确保折叠时表单字段仍然渲染，值能被收集
               label: (
                 <div className="flex items-center text-gray-600">
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                    <path
-                      clipRule="evenodd"
-                      d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947z"
-                      fillRule="evenodd"
-                    />
-                    <path
-                      clipRule="evenodd"
-                      d="M10 13a3 3 0 100-6 3 3 0 000 6z"
-                      fillRule="evenodd"
-                    />
+                    <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947z" clipRule="evenodd" />
+                    <path fillRule="evenodd" d="M10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
                   </svg>
                   <span className="ml-2">高级配置</span>
                   <span className="text-xs text-gray-400 ml-2">身份映射</span>
                 </div>
               ),
-            },
-          ]}
-          size="small"
-        />
+              children: (
+                <div className="space-y-4 pt-2 ml-3">
+                  <div className="grid grid-cols-3 gap-4">
+                    <Form.Item
+                      name="userIdField"
+                      label="开发者ID"
+                    >
+                      <Input placeholder="默认: sub"/>
+                    </Form.Item>
+                    <Form.Item
+                      name="userNameField"
+                      label="开发者名称"
+                    >
+                      <Input placeholder="默认: name"/>
+                    </Form.Item>
+                    <Form.Item
+                      name="emailField"
+                      label="邮箱"
+                    >
+                      <Input placeholder="默认: email"/>
+                    </Form.Item>
+                  </div>
+
+                <div className="bg-blue-50 p-3 rounded-lg">
+                  <div className="flex items-start space-x-2">
+                    <div className="text-blue-600 mt-0.5">
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h4 className="text-blue-800 font-medium text-sm">配置说明</h4>
+                      <p className="text-blue-700 text-xs mt-1">
+                        身份映射用于从OIDC令牌中提取用户信息。如果不填写，系统将使用OIDC标准字段。
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
+          }
+        ]}
+      />
       </div>
     </div>
-  );
+  )
 
   // 渲染OAuth2配置表单
   const renderOAuth2Form = () => (
     <div className="space-y-6">
       <Form.Item
-        initialValue={GrantType.JWT_BEARER}
-        label="授权模式"
         name="oauth2GrantType"
-        rules={[{ required: true }]}
+        label="授权模式"
+        initialValue={GrantType.JWT_BEARER}
+        rules={[{required: true}]}
       >
         <Select disabled>
           <Select.Option value={GrantType.JWT_BEARER}>JWT断言</Select.Option>
@@ -620,23 +601,45 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
           <div className="space-y-4">
             {fields.length > 0 && (
               <Collapse
+                size="small"
                 items={fields.map(({ key, name, ...restField }) => ({
+                  key: key,
+                  label: (
+                    <div className="flex items-center">
+                      <KeyOutlined className="mr-2" />
+                      <span>公钥 {name + 1}</span>
+                    </div>
+                  ),
+                  extra: (
+                    <Button
+                      type="link"
+                      danger
+                      size="small"
+                      icon={<MinusCircleOutlined />}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        remove(name)
+                      }}
+                    >
+                      删除
+                    </Button>
+                  ),
                   children: (
                     <div className="space-y-4 px-4">
                       <div className="grid grid-cols-3 gap-4">
                         <Form.Item
                           {...restField}
-                          label="Key ID"
                           name={[name, 'kid']}
-                          rules={[{ message: '请输入Key ID', required: true }]}
+                          label="Key ID"
+                          rules={[{ required: true, message: '请输入Key ID' }]}
                         >
                           <Input placeholder="公钥标识符" size="small" />
                         </Form.Item>
                         <Form.Item
                           {...restField}
-                          label="签名算法"
                           name={[name, 'algorithm']}
-                          rules={[{ message: '请选择签名算法', required: true }]}
+                          label="签名算法"
+                          rules={[{ required: true, message: '请选择签名算法' }]}
                         >
                           <Select placeholder="选择签名算法" size="small">
                             <Select.Option value="RS256">RS256</Select.Option>
@@ -649,9 +652,9 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
                         </Form.Item>
                         <Form.Item
                           {...restField}
-                          label="公钥格式"
                           name={[name, 'format']}
-                          rules={[{ message: '请选择公钥格式', required: true }]}
+                          label="公钥格式"
+                          rules={[{ required: true, message: '请选择公钥格式' }]}
                         >
                           <Select placeholder="选择公钥格式" size="small">
                             <Select.Option value={PublicKeyFormat.PEM}>PEM</Select.Option>
@@ -663,61 +666,39 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
                       <Form.Item
                         noStyle
                         shouldUpdate={(prevValues, curValues) => {
-                          const prevFormat = prevValues?.publicKeys?.[name]?.format;
-                          const curFormat = curValues?.publicKeys?.[name]?.format;
-                          return prevFormat !== curFormat;
+                          const prevFormat = prevValues?.publicKeys?.[name]?.format
+                          const curFormat = curValues?.publicKeys?.[name]?.format
+                          return prevFormat !== curFormat
                         }}
                       >
                         {({ getFieldValue }) => {
-                          const format = getFieldValue(['publicKeys', name, 'format']);
+                          const format = getFieldValue(['publicKeys', name, 'format'])
                           return (
                             <Form.Item
                               {...restField}
-                              label="公钥内容"
                               name={[name, 'value']}
-                              rules={[{ message: '请输入公钥内容', required: true }]}
+                              label="公钥内容"
+                              rules={[{ required: true, message: '请输入公钥内容' }]}
                             >
                               <Input.TextArea
+                                rows={6}
                                 placeholder={
                                   format === PublicKeyFormat.JWK
                                     ? 'JWK格式公钥，例如:\n{\n  "kty": "RSA",\n  "kid": "key1",\n  "n": "...",\n  "e": "AQAB"\n}'
                                     : 'PEM格式公钥，例如:\n-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A...\n-----END PUBLIC KEY-----'
                                 }
-                                rows={6}
                                 style={{ fontFamily: 'monospace', fontSize: '12px' }}
                               />
                             </Form.Item>
-                          );
+                          )
                         }}
                       </Form.Item>
                     </div>
-                  ),
-                  extra: (
-                    <Button
-                      danger
-                      icon={<MinusCircleOutlined />}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        remove(name);
-                      }}
-                      size="small"
-                      type="link"
-                    >
-                      删除
-                    </Button>
-                  ),
-                  key: key,
-                  label: (
-                    <div className="flex items-center">
-                      <KeyOutlined className="mr-2" />
-                      <span>公钥 {name + 1}</span>
-                    </div>
-                  ),
+                  )
                 }))}
-                size="small"
               />
             )}
-            <Button block icon={<PlusOutlined />} onClick={() => add()} size="small" type="dashed">
+            <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />} size="small">
               添加公钥
             </Button>
           </div>
@@ -726,88 +707,81 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
 
       <div className="-ml-3">
         <Collapse
+          size="small"
+          ghost
           expandIcon={({ isActive }) => (
-            <svg
+            <svg 
               className={`w-4 h-4 transition-transform ${isActive ? 'rotate-90' : ''}`}
-              fill="currentColor"
+              fill="currentColor" 
               viewBox="0 0 20 20"
             >
-              <path
-                clipRule="evenodd"
-                d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
-                fillRule="evenodd"
-              />
+              <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
             </svg>
           )}
-          ghost
           items={[
             {
-              children: (
-                <div className="space-y-4 pt-2 ml-3">
-                  <div className="grid grid-cols-3 gap-4">
-                    <Form.Item label="开发者ID" name="userIdField">
-                      <Input placeholder="默认: userId" />
-                    </Form.Item>
-                    <Form.Item label="开发者名称" name="userNameField">
-                      <Input placeholder="默认: name" />
-                    </Form.Item>
-                    <Form.Item label="邮箱" name="emailField">
-                      <Input placeholder="默认: email" />
-                    </Form.Item>
-                  </div>
-
-                  <div className="bg-blue-50 p-3 rounded-lg">
-                    <div className="flex items-start space-x-2">
-                      <div className="text-blue-600 mt-0.5">
-                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                          <path
-                            clipRule="evenodd"
-                            d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 0 100-2v-3a1 1 0 00-1-1H9z"
-                            fillRule="evenodd"
-                          />
-                        </svg>
-                      </div>
-                      <div>
-                        <h4 className="text-blue-800 font-medium text-sm">配置说明</h4>
-                        <p className="text-blue-700 text-xs mt-1">
-                          身份映射用于从JWT载荷中提取用户信息。如果不填写，系统将使用默认字段名。
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ),
-              forceRender: true, // 确保折叠时表单字段仍然渲染，值能被收集
               key: 'advanced',
+              forceRender: true,  // 确保折叠时表单字段仍然渲染，值能被收集
               label: (
                 <div className="flex items-center text-gray-600">
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                    <path
-                      clipRule="evenodd"
-                      d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947z"
-                      fillRule="evenodd"
-                    />
-                    <path
-                      clipRule="evenodd"
-                      d="M10 13a3 3 0 100-6 3 3 0 000 6z"
-                      fillRule="evenodd"
-                    />
+                    <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947z" clipRule="evenodd" />
+                    <path fillRule="evenodd" d="M10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
                   </svg>
                   <span className="ml-2">高级配置</span>
                   <span className="text-xs text-gray-400 ml-2">身份映射</span>
                 </div>
               ),
-            },
-          ]}
-          size="small"
-        />
+              children: (
+                <div className="space-y-4 pt-2 ml-3">
+                  <div className="grid grid-cols-3 gap-4">
+                    <Form.Item
+                      name="userIdField"
+                      label="开发者ID"
+                    >
+                      <Input placeholder="默认: userId"/>
+                    </Form.Item>
+                    <Form.Item
+                      name="userNameField"
+                      label="开发者名称"
+                    >
+                      <Input placeholder="默认: name"/>
+                    </Form.Item>
+                    <Form.Item
+                      name="emailField"
+                      label="邮箱"
+                    >
+                      <Input placeholder="默认: email"/>
+                    </Form.Item>
+                  </div>
+
+                <div className="bg-blue-50 p-3 rounded-lg">
+                  <div className="flex items-start space-x-2">
+                    <div className="text-blue-600 mt-0.5">
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h4 className="text-blue-800 font-medium text-sm">配置说明</h4>
+                      <p className="text-blue-700 text-xs mt-1">
+                        身份映射用于从JWT载荷中提取用户信息。如果不填写，系统将使用默认字段名。
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
+          }
+        ]}
+      />
       </div>
     </div>
-  );
+  )
 
   // 按类型分组配置
-  const oidcConfigs = configs.filter((config) => config.type === AuthenticationType.OIDC);
-  const oauth2Configs = configs.filter((config) => config.type === AuthenticationType.OAUTH2);
+  const oidcConfigs = configs.filter(config => config.type === AuthenticationType.OIDC)
+  const oauth2Configs = configs.filter(config => config.type === AuthenticationType.OAUTH2)
 
   return (
     <div className="space-y-6">
@@ -816,7 +790,11 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
           <h3 className="text-lg font-medium">第三方认证</h3>
           <p className="text-sm text-gray-500">管理外部身份认证配置</p>
         </div>
-        <Button icon={<PlusOutlined />} onClick={handleAdd} type="primary">
+        <Button
+          type="primary"
+          icon={<PlusOutlined/>}
+          onClick={handleAdd}
+        >
           添加配置
         </Button>
       </div>
@@ -825,30 +803,30 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
         defaultActiveKey="oidc"
         items={[
           {
+            key: 'oidc',
+            label: 'OIDC配置',
             children: (
               <div className="bg-white rounded-lg">
                 <div className="py-4">
                   <h4 className="text-lg font-medium text-gray-900">OIDC配置</h4>
-                  <p className="text-sm text-gray-500 mt-1">
-                    支持OpenID Connect标准协议的身份提供商
-                  </p>
+                  <p className="text-sm text-gray-500 mt-1">支持OpenID Connect标准协议的身份提供商</p>
                 </div>
                 <Table
                   columns={oidcColumns}
                   dataSource={oidcConfigs}
-                  locale={{
-                    emptyText: '暂无OIDC配置',
-                  }}
-                  pagination={false}
                   rowKey="provider"
+                  pagination={false}
                   size="small"
+                  locale={{
+                    emptyText: '暂无OIDC配置'
+                  }}
                 />
               </div>
             ),
-            key: 'oidc',
-            label: 'OIDC配置',
           },
           {
+            key: 'oauth2',
+            label: 'OAuth2配置',
             children: (
               <div className="bg-white rounded-lg">
                 <div className="py-4">
@@ -858,59 +836,58 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
                 <Table
                   columns={oauth2Columns}
                   dataSource={oauth2Configs}
-                  locale={{
-                    emptyText: '暂无OAuth2配置',
-                  }}
-                  pagination={false}
                   rowKey="provider"
+                  pagination={false}
                   size="small"
+                  locale={{
+                    emptyText: '暂无OAuth2配置'
+                  }}
                 />
               </div>
             ),
-            key: 'oauth2',
-            label: 'OAuth2配置',
           },
         ]}
       />
 
       {/* 添加/编辑配置模态框 */}
       <Modal
-        footer={null}
-        onCancel={handleCancel}
-        open={modalVisible}
         title={editingConfig ? '编辑第三方认证配置' : '添加第三方认证配置'}
+        open={modalVisible}
+        onCancel={handleCancel}
         width={800}
+        footer={null}
       >
         <Steps
-          className="mb-6"
           current={currentStep}
+          className="mb-6"
           items={[
             {
-              description: '选择认证协议类型',
               title: '选择类型',
+              description: '选择认证协议类型'
             },
             {
-              description: '填写认证参数',
               title: '配置认证',
-            },
+              description: '填写认证参数'
+            }
           ]}
         />
 
-        <Form form={form} layout="vertical">
+        <Form
+          form={form}
+          layout="vertical"
+        >
           {currentStep === 0 ? (
             // 第一步：选择类型
             <Card>
               <Form.Item
-                label="认证类型"
                 name="type"
-                rules={[{ message: '请选择认证类型', required: true }]}
+                label="认证类型"
+                rules={[{required: true, message: '请选择认证类型'}]}
               >
                 <Select placeholder="请选择认证方式" size="large">
                   <Select.Option value={AuthenticationType.OIDC}>
                     <div className="py-2">
-                      <div className="font-medium">
-                        OIDC（适用于支持OpenID Connect的身份提供商认证）
-                      </div>
+                      <div className="font-medium">OIDC（适用于支持OpenID Connect的身份提供商认证）</div>
                     </div>
                   </Select.Option>
                   <Select.Option value={AuthenticationType.OAUTH2}>
@@ -920,9 +897,9 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
                   </Select.Option>
                 </Select>
               </Form.Item>
-
+              
               <div className="flex justify-end">
-                <Button onClick={handleNext} type="primary">
+                <Button type="primary" onClick={handleNext}>
                   下一步
                 </Button>
               </div>
@@ -932,43 +909,49 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
             <div>
               <div className="grid grid-cols-2 gap-4">
                 <Form.Item
-                  label="提供商标识"
                   name="provider"
+                  label="提供商标识"
                   rules={[
-                    { message: '请输入提供商标识', required: true },
+                    {required: true, message: '请输入提供商标识'},
                     {
                       validator: (_, value) => {
-                        if (!value) return Promise.resolve();
-
+                        if (!value) return Promise.resolve()
+                        
                         // 检查provider唯一性
-                        const isDuplicate = configs.some(
-                          (config) =>
-                            config.provider === value &&
-                            (!editingConfig || editingConfig.provider !== value),
-                        );
-
+                        const isDuplicate = configs.some(config => 
+                          config.provider === value && 
+                          (!editingConfig || editingConfig.provider !== value)
+                        )
+                        
                         if (isDuplicate) {
-                          return Promise.reject(new Error('该提供商标识已存在，请使用不同的标识'));
+                          return Promise.reject(new Error('该提供商标识已存在，请使用不同的标识'))
                         }
-
-                        return Promise.resolve();
-                      },
-                    },
+                        
+                        return Promise.resolve()
+                      }
+                    }
                   ]}
                 >
-                  <Input disabled={editingConfig !== null} placeholder="如: google, company-sso" />
+                  <Input
+                    placeholder="如: google, company-sso"
+                    disabled={editingConfig !== null}
+                  />
                 </Form.Item>
                 <Form.Item
-                  label="显示名称"
                   name="name"
-                  rules={[{ message: '请输入显示名称', required: true }]}
+                  label="显示名称"
+                  rules={[{required: true, message: '请输入显示名称'}]}
                 >
-                  <Input placeholder="如: Google登录、公司SSO" />
+                  <Input placeholder="如: Google登录、公司SSO"/>
                 </Form.Item>
               </div>
 
-              <Form.Item label="启用状态" name="enabled" valuePropName="checked">
-                <Switch />
+              <Form.Item
+                name="enabled"
+                label="启用状态"
+                valuePropName="checked"
+              >
+                <Switch/>
               </Form.Item>
 
               <Divider />
@@ -977,10 +960,14 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
               {selectedType === AuthenticationType.OIDC ? renderOidcForm() : renderOAuth2Form()}
 
               <div className="flex justify-between mt-6">
-                <Button onClick={handlePrevious}>上一步</Button>
+                <Button onClick={handlePrevious}>
+                  上一步
+                </Button>
                 <Space>
-                  <Button onClick={handleCancel}>取消</Button>
-                  <Button loading={loading} onClick={handleSave} type="primary">
+                  <Button onClick={handleCancel}>
+                    取消
+                  </Button>
+                  <Button type="primary" loading={loading} onClick={handleSave}>
                     {editingConfig ? '更新' : '添加'}
                   </Button>
                 </Space>
@@ -989,6 +976,7 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
           )}
         </Form>
       </Modal>
+
     </div>
-  );
+  )
 }
