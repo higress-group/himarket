@@ -626,4 +626,3 @@ export const ProductHeader = forwardRef<ProductHeaderHandle, ProductHeaderProps>
     </>
   );
 }); 
-}); 
