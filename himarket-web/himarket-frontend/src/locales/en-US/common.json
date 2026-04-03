@@ -1,0 +1,12 @@
+{
+  "login": "Login",
+  "register": "Register",
+  "confirm": "Confirm",
+  "cancel": "Cancel",
+  "search": "Search",
+  "loading": "Loading...",
+  "error": {
+    "fetchFailed": "Failed to fetch data",
+    "networkError": "Network error"
+  }
+}

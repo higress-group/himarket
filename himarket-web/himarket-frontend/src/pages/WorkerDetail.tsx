@@ -16,6 +16,7 @@ import { parseSkillMd } from "../lib/skillMdUtils";
 import SkillFileTree from "../components/skill/SkillFileTree";
 import { copyToClipboard } from "../lib/utils";
 import { SkillWorkerDetailSkeleton } from "../components/loading";
+import { useTranslation } from 'react-i18next';
 
 function MdPreview({ content }: { content: string }) {
   const { frontmatter, body } = parseSkillMd(content);
@@ -91,6 +92,7 @@ function ProductIcon({ name, icon }: { name: string; icon?: IProductIcon }) {
 }
 
 function WorkerDetail() {
+  const { t } = useTranslation('workerDetail');
   const { workerProductId } = useParams<{ workerProductId: string }>();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -145,7 +147,7 @@ function WorkerDetail() {
             setWorkerConfig(productRes.data.workerConfig);
           }
         } else {
-          setError(productRes.message || "数据加载失败");
+          setError(productRes.message || t('dataLoadFailed'));
         }
 
         // Set CLI download info
@@ -169,7 +171,7 @@ function WorkerDetail() {
         }
       } catch (err) {
         console.error("API请求失败:", err);
-        setError("加载失败，请稍后重试");
+        setError(t('loadFailed'));
       } finally {
         setLoading(false);
       }
@@ -273,7 +275,7 @@ function WorkerDetail() {
     return (
       <Layout>
         <div className="p-8">
-          <Alert message="错误" description={error || "Worker 不存在"} type="error" showIcon />
+          <Alert message={t('error')} description={error || t('workerNotExist')} type="error" showIcon />
         </div>
       </Layout>
     );
@@ -289,7 +291,7 @@ function WorkerDetail() {
         <div className="flex items-center justify-center h-full text-gray-400">
           <div className="text-center">
             <FileFilled className="text-5xl mb-3 text-gray-300" />
-            <p className="text-sm text-gray-400">点击左侧文件查看内容</p>
+            <p className="text-sm text-gray-400">{t('clickFileToView')}</p>
           </div>
         </div>
       );
@@ -298,11 +300,11 @@ function WorkerDetail() {
       return <div className="flex justify-center py-16"><div className="w-8 h-8 border-2 border-gray-200 border-t-blue-500 rounded-full animate-spin" /></div>;
     }
     if (!fileContent) {
-      return <div className="text-gray-400 text-center py-16 text-sm">加载失败</div>;
+      return <div className="text-gray-400 text-center py-16 text-sm">{t('fileLoadFailed')}</div>;
     }
     if (fileContent.encoding === "base64") {
       return (
-        <div className="text-gray-400 text-center py-16 text-sm">二进制文件，不支持预览</div>
+        <div className="text-gray-400 text-center py-16 text-sm">{t('binaryNotSupported')}</div>
       );
     }
     if (selectedFilePath.endsWith(".md")) {
@@ -322,7 +324,7 @@ function WorkerDetail() {
         <div className="flex-1 overflow-auto bg-white h-full flex flex-col relative">
           {/* Toggle button - floats top-right */}
           <div className="absolute top-2 right-3 z-20">
-            <Tooltip title={mdRawMode ? "渲染预览" : "源代码"}>
+            <Tooltip title={mdRawMode ? t('renderPreview') : t('sourceCode')}>
               <button
                 onClick={() => setMdRawMode(!mdRawMode)}
                 className="flex items-center gap-1 px-2 py-0.5 rounded text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
@@ -405,7 +407,7 @@ function WorkerDetail() {
             className="flex items-center gap-2 mb-4 px-4 py-2 rounded-xl text-gray-600 hover:text-colorPrimary hover:bg-colorPrimaryBgHover transition-all duration-200"
           >
             <ArrowLeftOutlined />
-            <span>返回</span>
+            <span>{t('back')}</span>
           </button>
 
           <div className="flex items-center gap-4 mb-3">
@@ -471,7 +473,7 @@ function WorkerDetail() {
                   <MdPreview content={overviewContent} />
                 ) : (
                   <div className="text-gray-400 text-sm text-center pt-8">
-                    该版本未包含 AGENTS.md 文件
+                    {t('noAgentsMd')}
                   </div>
                 )}
               </div>
@@ -489,7 +491,7 @@ function WorkerDetail() {
                       onSelect={handleSelectFile}
                     />
                   ) : (
-                    <div className="flex items-center justify-center h-full text-gray-400 text-sm">暂无文件</div>
+                    <div className="flex items-center justify-center h-full text-gray-400 text-sm">{t('noFiles')}</div>
                   )}
                 </div>
                 {/* Drag handle */}
@@ -511,12 +513,12 @@ function WorkerDetail() {
           <div className="bg-white rounded-xl overflow-hidden shadow-sm" style={{ border: '1px solid #e8eaef' }}>
             {/* Card header: title + version selector */}
             <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid #edeef3' }}>
-              <span className="text-sm font-semibold text-gray-800">下载</span>
+              <span className="text-sm font-semibold text-gray-800">{t('download')}</span>
               <Select
                 value={selectedVersion}
                 onChange={handleVersionChange}
                 size="large"
-                placeholder="暂无版本"
+                placeholder={t('noVersion')}
                 disabled={versions.length === 0}
                 style={{ width: 180, fontSize: 15 }}
                 options={versions.map((v) => ({
@@ -543,7 +545,7 @@ function WorkerDetail() {
                 block
                 size="middle"
               >
-                下载 Worker 包
+                {t('downloadWorkerPackage')}
               </Button>
             </div>
 
@@ -552,8 +554,8 @@ function WorkerDetail() {
               <div className="px-4 py-3" style={{ borderBottom: '1px solid #edeef3' }}>
                 <div className="flex items-center gap-1.5 mb-3">
                   <CloudUploadOutlined className="text-indigo-400/80 text-[13px]" />
-                  <span className="text-xs font-semibold text-gray-600 tracking-wide">安装到 HiClaw</span>
-                  <span className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 ml-auto">需要 HiClaw &ge; 1.0.9</span>
+                  <span className="text-xs font-semibold text-gray-600 tracking-wide">{t('installToHiClaw')}</span>
+                  <span className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 ml-auto">{t('requiresHiClaw')}</span>
                 </div>
 
                 {/* 安装方式切换 Tab */}
@@ -566,7 +568,7 @@ function WorkerDetail() {
                         : 'text-gray-500 hover:text-gray-700'
                     }`}
                   >
-                    自然语言
+                    {t('naturalLanguage')}
                   </button>
                   <button
                     onClick={() => setInstallMethod('script')}
@@ -576,7 +578,7 @@ function WorkerDetail() {
                         : 'text-gray-500 hover:text-gray-700'
                     }`}
                   >
-                    脚本命令
+                    {t('scriptCommand')}
                   </button>
                 </div>
 
@@ -585,11 +587,11 @@ function WorkerDetail() {
                   <div>
                     <div className="relative bg-indigo-50/40 border border-dashed border-indigo-200/60 rounded-lg pl-4 pr-9 py-3">
                       <div className="text-sm text-gray-700">
-                        从 market 中导入 "{cliInfo.resourceName}" worker
+                        {t('nlImportCommand', { name: cliInfo.resourceName })}
                       </div>
                       <button
                         onClick={() => {
-                          const text = `从 market 中导入 "${cliInfo.resourceName}" worker`;
+                          const text = t('nlImportCommand', { name: cliInfo.resourceName });
                           copyToClipboard(text).then(() => {
                             setCopiedNl(true);
                             setTimeout(() => setCopiedNl(false), 2000);
@@ -601,7 +603,7 @@ function WorkerDetail() {
                       </button>
                     </div>
                     <div className="text-xs text-gray-500 mt-2 ml-1">
-                      在 HiClaw 聊天框中向 Manager 发送上述指令即可导入
+                      {t('nlInstallHint')}
                     </div>
                   </div>
                 )}
@@ -684,7 +686,7 @@ function WorkerDetail() {
               <div className="px-4 py-3" style={{ borderBottom: '1px solid #edeef3' }}>
                 <div className="flex items-center gap-1.5 mb-2">
                   <CloudUploadOutlined className="text-indigo-400/80 text-[13px]" />
-                  <span className="text-xs font-semibold text-gray-600 tracking-wide">HTTP 下载</span>
+                  <span className="text-xs font-semibold text-gray-600 tracking-wide">{t('httpDownload')}</span>
                 </div>
                 <div className="relative rounded-md bg-gray-50/80 border border-gray-200 border-l-[2.5px] border-l-indigo-300/60 pl-3 pr-9 py-2.5">
                   <button
@@ -720,7 +722,7 @@ function WorkerDetail() {
               <div className="px-4 py-3">
                 <div className="flex items-center gap-1.5 mb-2">
                   <CodeOutlined className="text-indigo-400/80 text-[13px]" />
-                  <span className="text-xs font-semibold text-gray-600 tracking-wide">NPX 下载</span>
+                  <span className="text-xs font-semibold text-gray-600 tracking-wide">{t('npxDownload')}</span>
                 </div>
                 <div className="relative rounded-md bg-gray-50/80 border border-gray-200 border-l-[2.5px] border-l-indigo-300/60 pl-3 pr-9 py-2.5">
                   <button

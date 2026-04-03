@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from 'react-i18next';
 import { useLocation } from "react-router-dom";
 import { message as antdMessage } from "antd";
 import { Layout } from "../components/Layout";
@@ -14,6 +15,7 @@ import { ChatArea } from "../components/chat/Area";
 function Chat() {
   const location = useLocation();
   const { isLoggedIn } = useAuth();
+  const { t: tLoginPrompt } = useTranslation('loginPrompt');
   const [loginPromptOpen, setLoginPromptOpen] = useState(false);
   const [selectedModel, setSelectedModel] = useState<IProductDetail>();
   const [chatType, setChatType] = useState<"TEXT" | "Image">("TEXT");
@@ -103,7 +105,7 @@ function Chat() {
           <LoginPrompt
             open={loginPromptOpen}
             onClose={() => setLoginPromptOpen(false)}
-            contextMessage="登录后即可与 AI 模型对话，体验智能问答能力"
+            contextMessage={tLoginPrompt('contextChatModel')}
           />
         </>
       ) : (

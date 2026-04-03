@@ -1,6 +1,8 @@
 import { Link, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { UserInfo } from "./UserInfo";
+import { LanguageSwitcher } from "./LanguageSwitcher";
 import { HiMarket, Logo } from "./icon";
 import { usePortalConfig } from "../context/PortalConfigContext";
 
@@ -8,6 +10,7 @@ export function Header() {
   const location = useLocation();
   const [isScrolled, setIsScrolled] = useState(false);
   const { visibleTabs, loading } = usePortalConfig();
+  const { t } = useTranslation('header');
 
   useEffect(() => {
     const handleScroll = () => {
@@ -74,7 +77,7 @@ export function Header() {
                       }
                     `}
                   >
-                    {tab.label}
+                    {t(tab.label)}
                   </div>
                 </Link>
               ))}
@@ -82,6 +85,7 @@ export function Header() {
             )}
           </div>
           <div className="flex items-center space-x-4">
+            <LanguageSwitcher />
             {location.pathname !== "/login" &&
               location.pathname !== "/register" && <UserInfo />}
           </div>

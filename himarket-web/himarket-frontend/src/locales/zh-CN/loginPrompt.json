@@ -1,0 +1,8 @@
+{
+  "title": "登录以继续",
+  "login": "登录",
+  "registerNewAccount": "注册新账号",
+  "contextSubscribeProduct": "登录后即可订阅产品，获取 API 访问凭证",
+  "contextChatModel": "登录后即可与 AI 模型对话，体验智能问答能力",
+  "contextSubscribeModel": "登录后即可订阅模型并开始对话测试"
+}

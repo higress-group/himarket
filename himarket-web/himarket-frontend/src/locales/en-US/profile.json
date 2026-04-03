@@ -1,0 +1,8 @@
+{
+  "title": "Profile",
+  "fromProvider": "From {{provider}} account",
+  "noThirdParty": "No third-party providers available",
+  "bound": "Bound",
+  "bind": "Bind",
+  "bindingComingSoon": "{{provider}} account binding is coming soon"
+}

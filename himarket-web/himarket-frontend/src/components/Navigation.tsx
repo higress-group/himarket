@@ -1,6 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { Skeleton } from "antd";
 import { ApiOutlined, ToolOutlined, RobotOutlined, BulbOutlined } from "@ant-design/icons";
+import { useTranslation } from 'react-i18next';
 import { UserInfo } from "./UserInfo";
 
 interface NavigationProps {
@@ -9,6 +10,7 @@ interface NavigationProps {
 
 export function Navigation({ loading = false }: NavigationProps) {
   const location = useLocation();
+  const { t } = useTranslation('header');
 
   const isActive = (path: string) => {
     if (path === '/') {
@@ -22,25 +24,25 @@ export function Navigation({ loading = false }: NavigationProps) {
       path: '/apis',
       icon: <ApiOutlined />,
       title: 'APIs',
-      subtitle: 'REST接口'
+      subtitle: t('navigation.restApi')
     },
     {
       path: '/mcp',
       icon: <ToolOutlined />,
       title: 'MCP',
-      subtitle: '工具集成'
+      subtitle: t('navigation.toolIntegration')
     },
     {
       path: '/models',
       icon: <BulbOutlined />,
       title: 'Model',
-      subtitle: 'AI模型'
+      subtitle: t('navigation.aiModel')
     },
     {
       path: '/agents',
       icon: <RobotOutlined />,
       title: 'Agent',
-      subtitle: '智能助手'
+      subtitle: t('navigation.intelligentAssistant')
     }
   ];
 
