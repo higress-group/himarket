@@ -23,6 +23,7 @@ import cn.hutool.core.codec.Base64;
 import cn.hutool.core.convert.Convert;
 import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.http.HttpUtil;
 import cn.hutool.json.JSONUtil;
 import cn.hutool.jwt.JWT;
 import cn.hutool.jwt.JWTUtil;
@@ -50,6 +51,7 @@ import com.alibaba.himarket.support.portal.IdentityMapping;
 import com.alibaba.himarket.support.portal.OidcConfig;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -57,10 +59,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -88,7 +87,7 @@ public class OidcServiceImpl implements OidcService {
 
         // State saves context info
         String state = buildState(provider, apiPrefix);
-        String redirectUri = buildRedirectUri(request);
+        String redirectUri = buildRedirectUri(request, authCodeConfig);
 
         // Redirect URL
         String authUrl =
@@ -156,7 +155,11 @@ public class OidcServiceImpl implements OidcService {
                 .orElse(Collections.emptyList());
     }
 
-    private String buildRedirectUri(HttpServletRequest request) {
+    private String buildRedirectUri(HttpServletRequest request, AuthCodeConfig authCodeConfig) {
+        if (StrUtil.isNotBlank(authCodeConfig.getRedirectUri())) {
+            return authCodeConfig.getRedirectUri();
+        }
+
         String scheme = request.getScheme();
         //        String serverName = "localhost";
         //        int serverPort = 5173;
@@ -220,7 +223,7 @@ public class OidcServiceImpl implements OidcService {
     private IdpTokenResult requestToken(
             String code, OidcConfig oidcConfig, HttpServletRequest request) {
         AuthCodeConfig authCodeConfig = oidcConfig.getAuthCodeConfig();
-        String redirectUri = buildRedirectUri(request);
+        String redirectUri = buildRedirectUri(request, authCodeConfig);
 
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.add(IdpConstants.GRANT_TYPE, GrantType.AUTHORIZATION_CODE.getType());
@@ -371,6 +374,19 @@ public class OidcServiceImpl implements OidcService {
                 response.getStatusCode(),
                 response.getBody());
 
-        return JSONUtil.toBean(response.getBody(), responseType);
+        String responseBody = response.getBody();
+        if (responseBody == null) {
+            return null;
+        }
+
+        // OAuth2 token endpoint may return form-urlencoded instead of JSON (e.g., GitHub)
+        MediaType contentType = response.getHeaders().getContentType();
+        if (contentType != null
+                && contentType.isCompatibleWith(MediaType.APPLICATION_FORM_URLENCODED)) {
+            // Parse form-urlencoded  response
+            Map<String, String> map = HttpUtil.decodeParamMap(responseBody, StandardCharsets.UTF_8);
+            return JSONUtil.toBean(JSONUtil.parseObj(map), responseType);
+        }
+        return JSONUtil.toBean(responseBody, responseType);
     }
 }
