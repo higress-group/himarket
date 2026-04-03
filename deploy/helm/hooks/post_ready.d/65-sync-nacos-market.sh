@@ -32,6 +32,10 @@ fi
 NS="${NAMESPACE:-himarket}"
 
 # ── 跳过检查 ─────────────────────────────────────────────────────────────────
+if [[ "${INSTALL_NACOS:-true}" != "true" ]]; then
+  echo "[sync-nacos-market] INSTALL_NACOS=${INSTALL_NACOS}，跳过 Nacos 同步"
+  exit 0
+fi
 if [[ "${SKIP_NACOS_SYNC:-false}" == "true" ]]; then
   echo "[sync-nacos-market] SKIP_NACOS_SYNC=true，跳过 Nacos 同步"
   exit 0
