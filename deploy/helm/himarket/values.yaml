@@ -12,7 +12,7 @@ frontend:
   service:
     type: LoadBalancer
     port: 80
-  replicaCount: 1
+  # replicaCount: 不设置时由 size 自动决定（large=2, 其他=1）；显式设置可覆盖
   serverPort: 8000
   # size: small  # 可选：覆盖全局规格
 
@@ -24,7 +24,7 @@ admin:
   service:
     type: LoadBalancer
     port: 80
-  replicaCount: 1
+  # replicaCount: 不设置时由 size 自动决定（large=2, 其他=1）；显式设置可覆盖
   serverPort: 8000
   # size: small  # 可选：覆盖全局规格
 
@@ -36,7 +36,7 @@ server:
   service:
     type: ClusterIP
     port: 80
-  replicaCount: 1
+  # replicaCount: 不设置时由 size 自动决定（large=2, 其他=1）；显式设置可覆盖
   serverPort: 8080
   # size: large  # 可选：覆盖全局规格
   # JVM 调优参数（module opens 已固定在镜像 ENTRYPOINT 中，此处仅控制调优参数）
