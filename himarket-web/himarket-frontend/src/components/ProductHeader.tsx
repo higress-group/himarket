@@ -69,6 +69,7 @@ export const ProductHeader = forwardRef<ProductHeaderHandle, ProductHeaderProps>
   } = useParams();
   
   const { isLoggedIn } = useAuth();
+  const { t: tLoginPrompt } = useTranslation('loginPrompt');
   const [loginPromptOpen, setLoginPromptOpen] = useState(false);
   const [isManageModalVisible, setIsManageModalVisible] = useState(false);
   const [isApplyingSubscription, setIsApplyingSubscription] = useState(false);

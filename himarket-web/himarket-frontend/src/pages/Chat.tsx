@@ -15,6 +15,7 @@ import { ChatArea } from "../components/chat/Area";
 function Chat() {
   const location = useLocation();
   const { isLoggedIn } = useAuth();
+  const { t: tLoginPrompt } = useTranslation('loginPrompt');
   const [loginPromptOpen, setLoginPromptOpen] = useState(false);
   const [selectedModel, setSelectedModel] = useState<IProductDetail>();
   const [chatType, setChatType] = useState<"TEXT" | "Image">("TEXT");

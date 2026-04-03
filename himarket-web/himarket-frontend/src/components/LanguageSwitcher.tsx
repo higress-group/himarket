@@ -1,16 +1,16 @@
-import { useTranslation } from 'react-i18next';
-import { GlobalOutlined } from '@ant-design/icons';
+import { useTranslation } from "react-i18next";
+import { GlobalOutlined } from "@ant-design/icons";
 
 export function LanguageSwitcher() {
   const { i18n } = useTranslation();
 
   const toggle = () => {
-    const next = i18n.language === 'zh-CN' ? 'en-US' : 'zh-CN';
+    const next = i18n.language === "zh-CN" ? "en-US" : "zh-CN";
     i18n.changeLanguage(next);
   };
 
   // 显示要切换到的目标语言：当前中文时显示 EN，当前英文时显示 中文
-  const label = i18n.language === 'zh-CN' ? 'EN' : '中文';
+  const label = i18n.language === "zh-CN" ? "EN" : "中文";
 
   return (
     <button
