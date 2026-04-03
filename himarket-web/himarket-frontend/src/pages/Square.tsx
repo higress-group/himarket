@@ -318,7 +318,6 @@ function Square(props: { activeType: string }) {
                         key={product.productId}
                         name={product.name}
                         description={product.description}
-                        icon={getIconString(product.icon, product.name)}
                         releaseDate={dayjs(product.createAt).format("YYYY-MM-DD HH:mm:ss")}
                         workerTags={product.workerConfig?.tags}
                         downloadCount={product.workerConfig?.downloadCount}
