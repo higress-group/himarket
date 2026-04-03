@@ -114,6 +114,8 @@ msg() {
             [[ "$lang" == "zh" ]] && text="--- 默认用户 ---" || text="--- Default Users ---" ;;
         section.storage)
             [[ "$lang" == "zh" ]] && text="--- 存储配置 ---" || text="--- Storage Config ---" ;;
+        section.size)
+            [[ "$lang" == "zh" ]] && text="--- 资源规格 ---" || text="--- Resource Size ---" ;;
         section.ai_model)
             [[ "$lang" == "zh" ]] && text="--- AI 模型配置（可选）---" || text="--- AI Model Config (Optional) ---" ;;
         install.ai_model_prompt)
@@ -533,7 +535,8 @@ run_hooks() {
 load_config() {
     # 1. 保存当前 export 的环境变量（最高优先级）
     local saved_vars=""
-    for var in DEPLOY_MODE NAMESPACE HIMARKET_HUB HIMARKET_IMAGE_TAG HIMARKET_MYSQL_IMAGE_TAG \
+    for var in DEPLOY_MODE NAMESPACE HIMARKET_SIZE \
+               HIMARKET_HUB HIMARKET_IMAGE_TAG HIMARKET_MYSQL_IMAGE_TAG \
                NACOS_VERSION NACOS_IMAGE_REGISTRY NACOS_IMAGE_REPOSITORY \
                HIGRESS_REPO_NAME HIGRESS_REPO_URL HIGRESS_CHART_REF \
                MYSQL_ROOT_PASSWORD MYSQL_PASSWORD \
@@ -770,6 +773,7 @@ interactive_config() {
         # 其他配置沿用已有值（从配置文件加载）
         # 注意：回退默认值保留旧版硬编码值，仅用于兼容 env 文件缺失的已有部署
         NAMESPACE="${NAMESPACE:-himarket}"
+        HIMARKET_SIZE="${HIMARKET_SIZE:-standard}"
         HIMARKET_HUB="${HIMARKET_HUB:-opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group}"
         NACOS_IMAGE_REGISTRY="${NACOS_IMAGE_REGISTRY:-nacos-registry.cn-hangzhou.cr.aliyuncs.com}"
         NACOS_IMAGE_REPOSITORY="${NACOS_IMAGE_REPOSITORY:-nacos/nacos-server}"
@@ -807,6 +811,10 @@ interactive_config() {
     log ""
     log "$(msg section.basic)"
     prompt NAMESPACE "Kubernetes namespace" "himarket-system"
+
+    log ""
+    log "$(msg section.size)"
+    prompt HIMARKET_SIZE "Resource size (small=1c2g / standard=2c4g / large=4c8g)" "standard"
 
     log ""
     log "$(msg section.image)"
@@ -943,6 +951,7 @@ interactive_config() {
     log "$(msg section.summary)"
     log "  DEPLOY_MODE:       ${DEPLOY_MODE}"
     log "  NAMESPACE:         ${NAMESPACE}"
+    log "  HIMARKET_SIZE:     ${HIMARKET_SIZE}"
     log "  HIMARKET_HUB:      ${HIMARKET_HUB}"
     log "  HIMARKET_IMAGE_TAG:${HIMARKET_IMAGE_TAG}"
     log "  MYSQL_STORAGE:     ${MYSQL_STORAGE_CLASS} / ${MYSQL_STORAGE_SIZE}"
@@ -990,6 +999,7 @@ DEPLOY_MODE="${DEPLOY_MODE}"
 
 # ========== 基础配置 ==========
 NAMESPACE="${NAMESPACE}"
+HIMARKET_SIZE="${HIMARKET_SIZE}"
 
 # 注意：镜像配置 / Helm 仓库配置不保存到本文件，
 # 每次安装始终使用 install.sh 脚本内置的最新默认值。
@@ -1110,6 +1120,7 @@ deploy_all() {
     # 6. 部署 HiMarket（含 MySQL + Server + Admin + Frontend + Sandbox）
     helm_upsert "himarket" "${NS}" "${HIMARKET_CHART_PATH}" \
         --set "hub=${HIMARKET_HUB}" \
+        --set "size=${HIMARKET_SIZE}" \
         --set "frontend.image.tag=${HIMARKET_IMAGE_TAG}" \
         --set "admin.image.tag=${HIMARKET_IMAGE_TAG}" \
         --set "server.image.tag=${HIMARKET_IMAGE_TAG}" \

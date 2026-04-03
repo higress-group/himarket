@@ -1,5 +1,3 @@
-import { Spin } from "antd";
-
 interface Category {
   id: string;
   name: string;
@@ -14,7 +12,7 @@ interface CategoryMenuProps {
 }
 
 export function CategoryMenu({ categories, activeCategory, onSelectCategory, loading = false }: CategoryMenuProps) {
-  // 没有分类数据时不渲染任何内容
+  // 没有分类数据且不在加载中时不渲染任何内容
   if (!loading && categories.length === 0) {
     return null;
   }
@@ -22,11 +20,18 @@ export function CategoryMenu({ categories, activeCategory, onSelectCategory, loa
   return (
     <div className="overflow-hidden">
       {loading ? (
-        <div className="flex items-center justify-center py-4">
-          <Spin />
+        <div className="flex items-center justify-center gap-2 flex-wrap">
+          {/* 骨架药丸，与真实分类按钮布局一致，避免高度跳动 */}
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div
+              key={i}
+              className="h-8 rounded-full bg-gray-200 animate-pulse"
+              style={{ width: `${60 + i * 12}px` }}
+            />
+          ))}
         </div>
       ) : (
-        <div className="flex items-center justify-center gap-2 flex-wrap">
+        <div className="flex items-center justify-center gap-2 flex-wrap animate-in fade-in duration-200">
           {categories.map((category) => {
             const isActive = category.id === activeCategory;
             return (

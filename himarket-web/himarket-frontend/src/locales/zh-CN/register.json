@@ -1,0 +1,20 @@
+{
+  "greeting": "嗨，",
+  "hello": "您好",
+  "welcomeMessage": "欢迎来到 HiMarket",
+  "usernameRequired": "请输入账号",
+  "usernameMinLength": "账号至少3个字符",
+  "usernamePlaceholder": "账号",
+  "passwordRequired": "请输入密码",
+  "passwordMinLength": "密码至少6个字符",
+  "passwordPlaceholder": "密码",
+  "confirmPasswordRequired": "请确认密码",
+  "confirmPasswordPlaceholder": "确认密码",
+  "passwordMismatch": "两次输入的密码不一致",
+  "registering": "注册中...",
+  "register": "注册",
+  "registerSuccess": "注册成功！",
+  "registerFailed": "注册失败，请重试",
+  "hasAccount": "已有账号？",
+  "loginLink": "登录"
+}

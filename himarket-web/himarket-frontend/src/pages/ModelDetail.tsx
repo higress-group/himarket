@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate } from "react-router-dom";
 import type { ProductHeaderHandle } from "../components/ProductHeader";
 import { ProductDetailLayout } from "../components/ProductDetailLayout";
@@ -32,6 +33,7 @@ function ModelDetail() {
   const [hasSubscription, setHasSubscription] = useState(false);
   const headerRef = useRef<ProductHeaderHandle>(null);
   const { isLoggedIn } = useAuth();
+  const { t: tLoginPrompt } = useTranslation('loginPrompt');
   const [loginPromptOpen, setLoginPromptOpen] = useState(false);
 
   const handleSubscriptionStatusChange = useCallback((subscribed: boolean) => {
@@ -537,7 +539,7 @@ function ModelDetail() {
       <LoginPrompt
         open={loginPromptOpen}
         onClose={() => setLoginPromptOpen(false)}
-        contextMessage="登录后即可订阅模型并开始对话测试"
+        contextMessage={tLoginPrompt('contextSubscribeModel')}
       />
     </>
   );

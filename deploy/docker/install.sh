@@ -98,6 +98,8 @@ msg() {
             [[ "$lang" == "zh" ]] && text="--- 服务凭证 ---" || text="--- Service Credentials ---" ;;
         section.user)
             [[ "$lang" == "zh" ]] && text="--- 默认用户 ---" || text="--- Default Users ---" ;;
+        section.size)
+            [[ "$lang" == "zh" ]] && text="--- 资源规格 ---" || text="--- Resource Size ---" ;;
         section.ai_model)
             [[ "$lang" == "zh" ]] && text="--- AI 模型配置（可选）---" || text="--- AI Model Config (Optional) ---" ;;
         section.summary)
@@ -382,7 +384,7 @@ run_hooks() {
 load_config() {
     # 1. 保存当前 export 的环境变量（最高优先级）
     local saved_vars=""
-    for var in DEPLOY_MODE HIMARKET_DATA_DIR \
+    for var in DEPLOY_MODE HIMARKET_DATA_DIR HIMARKET_SIZE \
                HIMARKET_SERVER_IMAGE HIMARKET_ADMIN_IMAGE HIMARKET_FRONTEND_IMAGE \
                MYSQL_IMAGE NACOS_IMAGE HIGRESS_IMAGE REDIS_IMAGE SANDBOX_IMAGE \
                MYSQL_ROOT_PASSWORD MYSQL_PASSWORD MYSQL_DATABASE MYSQL_USER \
@@ -615,6 +617,12 @@ interactive_config() {
         # 注意：回退默认值保留旧版硬编码值，仅用于兼容 env 文件缺失的已有部署
         HIMARKET_DATA_DIR="${HIMARKET_DATA_DIR:-${HOME}/himarket-data}"
         export HIMARKET_DATA_DIR
+        HIMARKET_SIZE="${HIMARKET_SIZE:-standard}"
+        case "${HIMARKET_SIZE}" in
+            small)  export HIMARKET_CPU_LIMIT="1"  HIMARKET_MEM_LIMIT="2g"  HIMARKET_LIGHT_CPU_LIMIT="0.5" HIMARKET_LIGHT_MEM_LIMIT="512m" ;;
+            large)  export HIMARKET_CPU_LIMIT="4"  HIMARKET_MEM_LIMIT="8g"  HIMARKET_LIGHT_CPU_LIMIT="2"   HIMARKET_LIGHT_MEM_LIMIT="2g"   ;;
+            *)      export HIMARKET_CPU_LIMIT="2"  HIMARKET_MEM_LIMIT="4g"  HIMARKET_LIGHT_CPU_LIMIT="1"   HIMARKET_LIGHT_MEM_LIMIT="1g"   ;;
+        esac
         MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:-himarket_root_2024}"
         MYSQL_PASSWORD="${MYSQL_PASSWORD:-himarket_app_2024}"
         if [[ -z "${JWT_SECRET:-}" ]]; then
@@ -653,6 +661,17 @@ interactive_config() {
     log "$(msg section.data)"
     prompt HIMARKET_DATA_DIR "Data directory" "${HOME}/himarket-data"
     export HIMARKET_DATA_DIR
+
+    # ─── 资源规格 ───
+    log ""
+    log "$(msg section.size)"
+    prompt HIMARKET_SIZE "Resource size (small=1c2g / standard=2c4g / large=4c8g)" "standard"
+    # 映射 size 到容器资源限制（server 用完整规格，admin/frontend 用轻量规格）
+    case "${HIMARKET_SIZE}" in
+        small)  export HIMARKET_CPU_LIMIT="1"  HIMARKET_MEM_LIMIT="2g"  HIMARKET_LIGHT_CPU_LIMIT="0.5" HIMARKET_LIGHT_MEM_LIMIT="512m" ;;
+        large)  export HIMARKET_CPU_LIMIT="4"  HIMARKET_MEM_LIMIT="8g"  HIMARKET_LIGHT_CPU_LIMIT="2"   HIMARKET_LIGHT_MEM_LIMIT="2g"   ;;
+        *)      export HIMARKET_CPU_LIMIT="2"  HIMARKET_MEM_LIMIT="4g"  HIMARKET_LIGHT_CPU_LIMIT="1"   HIMARKET_LIGHT_MEM_LIMIT="1g"   ;;
+    esac
 
     # ─── 镜像配置 ───
     log ""
@@ -777,6 +796,7 @@ interactive_config() {
     log "$(msg section.summary)"
     log "  DEPLOY_MODE:          ${DEPLOY_MODE}"
     log "  HIMARKET_DATA_DIR:    ${HIMARKET_DATA_DIR}"
+    log "  HIMARKET_SIZE:        ${HIMARKET_SIZE}"
     log "  HIMARKET_SERVER:      ${HIMARKET_SERVER_IMAGE}"
     log "  MYSQL_IMAGE:          ${MYSQL_IMAGE}"
     log "  NACOS_IMAGE:          ${NACOS_IMAGE}"
@@ -826,6 +846,9 @@ DEPLOY_MODE="${DEPLOY_MODE}"
 
 # ========== 数据目录 ==========
 HIMARKET_DATA_DIR="${HIMARKET_DATA_DIR}"
+
+# ========== 资源规格 ==========
+HIMARKET_SIZE="${HIMARKET_SIZE}"
 
 # 注意：镜像配置不保存到本文件，
 # 每次安装始终使用 install.sh 脚本内置的最新默认值。
