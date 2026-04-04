@@ -314,7 +314,10 @@ public class CliProviderController {
             return null;
         }
 
-        String baseUrl = BaseUrlExtractor.extract(modelConfig.getModelAPIConfig().getRoutes());
+        String baseUrl =
+                BaseUrlExtractor.extract(
+                        modelConfig.getModelAPIConfig().getRoutes(),
+                        modelConfig.getModelAPIConfig().getAiProtocols());
         if (baseUrl == null) {
             logger.warn(
                     "Failed to extract baseUrl from product routes, skipping: productId={},"

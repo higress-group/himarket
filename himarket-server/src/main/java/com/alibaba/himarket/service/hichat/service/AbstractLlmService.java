@@ -36,8 +36,8 @@ import com.github.benmanes.caffeine.cache.Cache;
 import io.agentscope.core.model.Model;
 import java.net.URI;
 import java.util.*;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
@@ -202,7 +202,7 @@ public abstract class AbstractLlmService implements LlmService {
             ModelConfigResult modelConfig,
             List<URI> gatewayUris,
             String routeKeyword,
-            Function<String, String> pathProcessor) {
+            BiFunction<String, String, String> pathProcessor) {
 
         ModelConfigResult.ModelAPIConfig modelAPIConfig = modelConfig.getModelAPIConfig();
         if (modelAPIConfig == null || CollUtil.isEmpty(modelAPIConfig.getRoutes())) {
@@ -239,10 +239,11 @@ public abstract class AbstractLlmService implements LlmService {
                                                 .RouteMatchResult
                                         ::getPath)
                         .map(
-                                com.alibaba.himarket.dto.result.httpapi.HttpRouteResult
-                                                .RouteMatchPath
-                                        ::getValue)
-                        .map(pathProcessor) // Apply path processor
+                                routeMatchPath -> {
+                                    String pathValue = routeMatchPath.getValue();
+                                    String pathType = routeMatchPath.getType();
+                                    return pathProcessor.apply(pathValue, pathType);
+                                })
                         .orElse(routeKeyword);
 
         org.springframework.web.util.UriComponentsBuilder builder =
