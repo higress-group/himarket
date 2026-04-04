@@ -179,6 +179,7 @@ public class DeveloperServiceImpl implements DeveloperService {
                         .portalId(contextHolder.getPortal())
                         .username(buildExternalName(param.getProvider(), param.getDisplayName()))
                         .email(param.getEmail())
+                        .avatarUrl(param.getAvatarUrl())
                         // Default APPROVED
                         .status(DeveloperStatus.APPROVED)
                         .build();
@@ -205,6 +206,23 @@ public class DeveloperServiceImpl implements DeveloperService {
                 .findByProviderAndSubject(provider, subject)
                 .map(o -> new DeveloperResult().convertFrom(o.getDeveloper()))
                 .orElse(null);
+    }
+
+    @Override
+    public void updateExternalDeveloperAvatar(String provider, String subject, String avatarUrl) {
+        if (StrUtil.isBlank(avatarUrl)) {
+            return;
+        }
+        externalRepository
+                .findByProviderAndSubject(provider, subject)
+                .ifPresent(
+                        identity -> {
+                            Developer developer = identity.getDeveloper();
+                            if (!StrUtil.equals(developer.getAvatarUrl(), avatarUrl)) {
+                                developer.setAvatarUrl(avatarUrl);
+                                developerRepository.save(developer);
+                            }
+                        });
     }
 
     private String buildExternalName(String provider, String subject) {
