@@ -41,6 +41,11 @@ public class IdentityMapping {
     private String emailField;
 
     /**
+     * Field mapping for Developer Avatar URL
+     */
+    private String avatarUrlField;
+
+    /**
      * Custom field mappings (reserved for extension)
      */
     private Map<String, String> customFields;

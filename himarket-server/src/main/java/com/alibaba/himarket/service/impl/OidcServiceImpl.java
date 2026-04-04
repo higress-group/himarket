@@ -325,10 +325,15 @@ public class OidcServiceImpl implements OidcService {
                 StrUtil.isBlank(identityMapping.getEmailField())
                         ? IdpConstants.EMAIL
                         : identityMapping.getEmailField();
+        String avatarUrlField =
+                StrUtil.isBlank(identityMapping.getAvatarUrlField())
+                        ? IdpConstants.AVATAR_URL
+                        : identityMapping.getAvatarUrlField();
 
         Object userIdObj = userInfo.get(userIdField);
         Object userNameObj = userInfo.get(userNameField);
         Object emailObj = userInfo.get(emailField);
+        String avatarUrl = Convert.toStr(userInfo.get(avatarUrlField));
 
         String userId = Convert.toStr(userIdObj);
         String userName = Convert.toStr(userNameObj);
@@ -339,22 +344,25 @@ public class OidcServiceImpl implements OidcService {
         }
 
         // Reuse existing developer or create new
-        return Optional.ofNullable(
-                        developerService.getExternalDeveloper(config.getProvider(), userId))
-                .map(DeveloperResult::getDeveloperId)
-                .orElseGet(
-                        () -> {
-                            CreateExternalDeveloperParam param =
-                                    CreateExternalDeveloperParam.builder()
-                                            .provider(config.getProvider())
-                                            .subject(userId)
-                                            .displayName(userName)
-                                            .email(email)
-                                            .authType(DeveloperAuthType.OIDC)
-                                            .build();
+        DeveloperResult existing =
+                developerService.getExternalDeveloper(config.getProvider(), userId);
+        if (existing != null) {
+            // Update avatar URL on each login
+            developerService.updateExternalDeveloperAvatar(config.getProvider(), userId, avatarUrl);
+            return existing.getDeveloperId();
+        }
 
-                            return developerService.createExternalDeveloper(param).getDeveloperId();
-                        });
+        CreateExternalDeveloperParam param =
+                CreateExternalDeveloperParam.builder()
+                        .provider(config.getProvider())
+                        .subject(userId)
+                        .displayName(userName)
+                        .email(email)
+                        .avatarUrl(avatarUrl)
+                        .authType(DeveloperAuthType.OIDC)
+                        .build();
+
+        return developerService.createExternalDeveloper(param).getDeveloperId();
     }
 
     private <T> T executeRequest(
