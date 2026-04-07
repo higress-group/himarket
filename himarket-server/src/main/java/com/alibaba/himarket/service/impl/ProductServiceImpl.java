@@ -46,10 +46,7 @@ import com.alibaba.himarket.dto.result.mcp.McpToolListResult;
 import com.alibaba.himarket.dto.result.model.ModelConfigResult;
 import com.alibaba.himarket.dto.result.nacos.NacosResult;
 import com.alibaba.himarket.dto.result.portal.PortalResult;
-import com.alibaba.himarket.dto.result.product.ProductPublicationResult;
-import com.alibaba.himarket.dto.result.product.ProductRefResult;
-import com.alibaba.himarket.dto.result.product.ProductResult;
-import com.alibaba.himarket.dto.result.product.SubscriptionResult;
+import com.alibaba.himarket.dto.result.product.*;
 import com.alibaba.himarket.entity.*;
 import com.alibaba.himarket.repository.*;
 import com.alibaba.himarket.service.*;
@@ -58,10 +55,7 @@ import com.alibaba.himarket.support.chat.mcp.MCPTransportConfig;
 import com.alibaba.himarket.support.enums.ProductStatus;
 import com.alibaba.himarket.support.enums.ProductType;
 import com.alibaba.himarket.support.enums.SourceType;
-import com.alibaba.himarket.support.product.NacosRefConfig;
-import com.alibaba.himarket.support.product.ProductFeature;
-import com.alibaba.himarket.support.product.SkillConfig;
-import com.alibaba.himarket.support.product.WorkerConfig;
+import com.alibaba.himarket.support.product.*;
 import com.github.benmanes.caffeine.cache.Cache;
 import io.agentscope.core.tool.mcp.McpClientWrapper;
 import jakarta.persistence.criteria.Predicate;
@@ -1176,5 +1170,225 @@ public class ProductServiceImpl implements ProductService {
 
         // No filter specified or no matching filter type, pass through
         return true;
+    }
+
+    @Override
+    public ImportProductsResult importProducts(ImportProductsParam param) {
+        // 1. Validate parameters
+        validateImportParam(param);
+
+        // 2. Initialize result
+        ImportProductsResult result = new ImportProductsResult();
+        result.setTotalCount(param.getServices().size());
+        result.setSuccessCount(0);
+        result.setFailureCount(0);
+        List<ProductImportResult> results = new ArrayList<>();
+
+        // 3. Get gateway instance if source is gateway (for buildCreateProductRefParam)
+        GatewayResult gateway = null;
+        if (param.getSourceType().isGateway()) {
+            gateway = gatewayService.getGateway(param.getGatewayId());
+        }
+
+        // 4. Batch query existing products to avoid N+1 query problem
+        Set<String> serviceNames =
+                param.getServices().stream()
+                        .map(ServiceIdentifier::getName)
+                        .collect(Collectors.toSet());
+        List<Product> existingProducts =
+                productRepository.findByNameInAndAdminId(serviceNames, contextHolder.getUser());
+        Set<String> existingNames =
+                existingProducts.stream().map(Product::getName).collect(Collectors.toSet());
+
+        // 5. Import each service
+        for (ServiceIdentifier service : param.getServices()) {
+            ProductImportResult itemResult = new ProductImportResult();
+            itemResult.setServiceName(service.getName());
+
+            try {
+                // 5.1 Build CreateProductParam
+                CreateProductParam createParam = buildCreateProductParam(service, param);
+
+                // 5.2 Check for name conflict (using pre-loaded data)
+                if (existingNames.contains(createParam.getName())) {
+                    itemResult.setSuccess(false);
+                    itemResult.setErrorCode("NAME_CONFLICT");
+                    itemResult.setErrorMessage(
+                            StrUtil.format(
+                                    "Product with name '{}' already exists",
+                                    createParam.getName()));
+                    result.setFailureCount(result.getFailureCount() + 1);
+                    results.add(itemResult);
+                    continue;
+                }
+
+                // 5.3 Create product (reuse existing logic)
+                ProductResult product = createProduct(createParam);
+
+                // 5.4 Build CreateProductRefParam
+                CreateProductRefParam refParam =
+                        buildCreateProductRefParam(service, param, gateway);
+
+                // 5.5 Link API (reuse existing logic, auto syncConfig)
+                addProductRef(product.getProductId(), refParam);
+
+                // 5.6 Record success
+                itemResult.setSuccess(true);
+                itemResult.setProductId(product.getProductId());
+                result.setSuccessCount(result.getSuccessCount() + 1);
+
+            } catch (Exception e) {
+                // 5.7 Record failure
+                log.warn("Failed to import service: {}", service.getName(), e);
+                itemResult.setSuccess(false);
+                itemResult.setErrorCode("IMPORT_FAILED");
+                itemResult.setErrorMessage(e.getMessage());
+                result.setFailureCount(result.getFailureCount() + 1);
+            }
+
+            results.add(itemResult);
+        }
+
+        result.setResults(results);
+        return result;
+    }
+
+    private void validateImportParam(ImportProductsParam param) {
+        if (param.getSourceType().isGateway()) {
+            if (StrUtil.isBlank(param.getGatewayId())) {
+                throw new BusinessException(
+                        ErrorCode.INVALID_REQUEST,
+                        "Gateway ID is required when source type is GATEWAY");
+            }
+            gatewayService.getGateway(param.getGatewayId());
+
+        } else if (param.getSourceType().isNacos()) {
+            if (StrUtil.isBlank(param.getNacosId())) {
+                throw new BusinessException(
+                        ErrorCode.INVALID_REQUEST,
+                        "Nacos ID is required when source type is NACOS");
+            }
+            nacosService.getNacosInstance(param.getNacosId());
+
+            // Nacos does not support MODEL_API
+            if (param.getProductType() == ProductType.MODEL_API) {
+                throw new BusinessException(
+                        ErrorCode.INVALID_REQUEST, "Nacos source does not support MODEL_API type");
+            }
+        }
+    }
+
+    private CreateProductParam buildCreateProductParam(
+            ServiceIdentifier service, ImportProductsParam param) {
+        CreateProductParam createParam = new CreateProductParam();
+        createParam.setName(service.getName());
+        createParam.setDescription(service.getDescription());
+        createParam.setType(param.getProductType());
+
+        if (CollUtil.isNotEmpty(param.getCategories())) {
+            createParam.setCategories(param.getCategories());
+        }
+
+        // For MODEL_API, set feature with model name
+        if (param.getProductType() == ProductType.MODEL_API) {
+            ProductFeature feature = new ProductFeature();
+            ModelFeature modelFeature = ModelFeature.builder().model(service.getName()).build();
+            feature.setModelFeature(modelFeature);
+            createParam.setFeature(feature);
+        }
+
+        return createParam;
+    }
+
+    private CreateProductRefParam buildCreateProductRefParam(
+            ServiceIdentifier service, ImportProductsParam param, GatewayResult gateway) {
+        CreateProductRefParam refParam = new CreateProductRefParam();
+        refParam.setSourceType(param.getSourceType());
+
+        if (param.getSourceType().isGateway()) {
+            refParam.setGatewayId(param.getGatewayId());
+
+            // Configure based on gateway type
+            if (gateway.getGatewayType().isHigress()) {
+                // Higress uses HigressRefConfig
+                HigressRefConfig config = new HigressRefConfig();
+                switch (param.getProductType()) {
+                    case MCP_SERVER:
+                        config.setMcpServerName(service.getName());
+                        break;
+                    case MODEL_API:
+                        config.setModelRouteName(service.getName());
+                        break;
+                    case AGENT_API:
+                        // Higress Agent API may need additional configuration
+                        config.setRouteName(service.getName());
+                        break;
+                    default:
+                        break;
+                }
+                refParam.setHigressRefConfig(config);
+            } else {
+                // AIGW/APIG/Apsara use APIGRefConfig
+                APIGRefConfig config = new APIGRefConfig();
+                switch (param.getProductType()) {
+                    case MCP_SERVER:
+                        config.setApiId(service.getApiId());
+                        config.setMcpServerId(service.getMcpServerId());
+                        config.setMcpRouteId(service.getMcpRouteId());
+                        config.setMcpServerName(service.getName());
+                        break;
+                    case AGENT_API:
+                        config.setAgentApiId(service.getAgentApiId());
+                        config.setAgentApiName(service.getName());
+                        break;
+                    case MODEL_API:
+                        config.setModelApiId(service.getModelApiId());
+                        config.setModelApiName(service.getName());
+                        break;
+                    default:
+                        break;
+                }
+
+                // Set config to appropriate field based on gateway type
+                if (gateway.getGatewayType().isAdpAIGateway()) {
+                    refParam.setAdpAIGatewayRefConfig(config);
+                } else if (gateway.getGatewayType().isApsaraGateway()) {
+                    refParam.setApsaraGatewayRefConfig(config);
+                } else {
+                    refParam.setApigRefConfig(config);
+                }
+            }
+        } else if (param.getSourceType().isNacos()) {
+            // Nacos source
+            refParam.setNacosId(param.getNacosId());
+
+            NacosRefConfig nacosConfig = new NacosRefConfig();
+            // Use service-level namespaceId if specified, otherwise use param-level
+            String namespaceId =
+                    StrUtil.isNotBlank(service.getNamespaceId())
+                            ? service.getNamespaceId()
+                            : param.getNamespaceId();
+            nacosConfig.setNamespaceId(namespaceId);
+
+            switch (param.getProductType()) {
+                case MCP_SERVER:
+                    nacosConfig.setMcpServerName(
+                            StrUtil.isNotBlank(service.getMcpServerName())
+                                    ? service.getMcpServerName()
+                                    : service.getName());
+                    break;
+                case AGENT_API:
+                    nacosConfig.setAgentName(
+                            StrUtil.isNotBlank(service.getAgentName())
+                                    ? service.getAgentName()
+                                    : service.getName());
+                    break;
+                default:
+                    break;
+            }
+            refParam.setNacosRefConfig(nacosConfig);
+        }
+
+        return refParam;
     }
 }

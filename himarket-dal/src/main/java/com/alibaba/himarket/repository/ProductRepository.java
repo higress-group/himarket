@@ -61,4 +61,13 @@ public interface ProductRepository extends BaseRepository<Product, Long> {
      * @return the list of products
      */
     List<Product> findAllByType(ProductType type);
+
+    /**
+     * Find products by names and admin ID (for batch name conflict check)
+     *
+     * @param names the collection of product names
+     * @param adminId the admin ID
+     * @return the list of products matching the names
+     */
+    List<Product> findByNameInAndAdminId(Collection<String> names, String adminId);
 }

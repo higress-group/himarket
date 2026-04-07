@@ -225,6 +225,29 @@ export const apiProductApi = {
   getProductSubscriptions: (productId: string, params?: { page?: number; size?: number; status?: string }) => {
     return api.get(`/products/${productId}/subscriptions`, { params })
   },
+  // 批量导入 AI API 资源为产品
+  importProducts: (data: {
+    productType: string;
+    sourceType: 'GATEWAY' | 'NACOS';
+    gatewayId?: string;
+    nacosId?: string;
+    namespaceId?: string;
+    services: Array<{
+      name: string;
+      description?: string;
+      apiId?: string;
+      mcpServerId?: string;
+      mcpRouteId?: string;
+      agentApiId?: string;
+      modelApiId?: string;
+      mcpServerName?: string;
+      agentName?: string;
+      namespaceId?: string;
+    }>;
+    categories?: string[];
+  }) => {
+    return api.post(`/products/import`, data, { timeout: 120000 })
+  },
 }
 
 // Gateway相关API
