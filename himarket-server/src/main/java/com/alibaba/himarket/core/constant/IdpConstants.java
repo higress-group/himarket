@@ -77,6 +77,11 @@ public class IdpConstants {
     public static final String EMAIL = "email";
 
     /**
+     * Avatar URL
+     */
+    public static final String AVATAR_URL = "avatar_url";
+
+    /**
      * Authorization endpoint
      */
     public static final String AUTHORIZATION_ENDPOINT = "authorization_endpoint";

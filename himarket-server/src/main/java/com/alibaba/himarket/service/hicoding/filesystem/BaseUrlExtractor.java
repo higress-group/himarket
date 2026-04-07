@@ -2,6 +2,7 @@ package com.alibaba.himarket.service.hicoding.filesystem;
 
 import com.alibaba.himarket.dto.result.common.DomainResult;
 import com.alibaba.himarket.dto.result.httpapi.HttpRouteResult;
+import com.alibaba.himarket.service.gateway.ModelEndpointResolver;
 import java.util.List;
 
 /**
@@ -10,7 +11,7 @@ import java.util.List;
  * <p>提取规则：
  * <ul>
  *   <li>从 routes[0].domains[0] 中获取 protocol、domain、port</li>
- *   <li>从 routes[0].match.path.value 中获取 pathPrefix（去掉 /chat/completions 后缀）</li>
+ *   <li>从 routes[0].match.path 中获取 pathPrefix（通过 ModelEndpointResolver 归一化）</li>
  *   <li>端口处理：null 或标准端口（http:80, https:443）时省略，非标准端口时包含</li>
  * </ul>
  *
@@ -18,17 +19,17 @@ import java.util.List;
  */
 public class BaseUrlExtractor {
 
-    private static final String CHAT_COMPLETIONS_SUFFIX = "/chat/completions";
     private static final int HTTP_DEFAULT_PORT = 80;
     private static final int HTTPS_DEFAULT_PORT = 443;
 
     /**
      * 从产品的路由配置中提取 baseUrl。
      *
-     * @param routes 产品的路由列表
+     * @param routes      产品的路由列表
+     * @param aiProtocols AI 协议列表
      * @return 提取的 baseUrl，如果路由数据不完整则返回 null
      */
-    public static String extract(List<HttpRouteResult> routes) {
+    public static String extract(List<HttpRouteResult> routes, List<String> aiProtocols) {
         if (routes == null || routes.isEmpty()) {
             return null;
         }
@@ -57,6 +58,7 @@ public class BaseUrlExtractor {
         String host = domain.getDomain();
         Integer port = domain.getPort();
         String pathValue = firstRoute.getMatch().getPath().getValue();
+        String pathType = firstRoute.getMatch().getPath().getType();
 
         // 拼接 baseUrl
         StringBuilder sb = new StringBuilder();
@@ -67,8 +69,9 @@ public class BaseUrlExtractor {
             sb.append(":").append(port);
         }
 
-        // path 处理：去掉 /chat/completions 后缀
-        String pathPrefix = stripChatCompletionsSuffix(pathValue);
+        // path 处理：通过 ModelEndpointResolver 归一化
+        String pathPrefix =
+                ModelEndpointResolver.resolveBaseUrlPath(pathValue, pathType, aiProtocols);
         sb.append(pathPrefix);
 
         return sb.toString();
@@ -77,12 +80,5 @@ public class BaseUrlExtractor {
     private static boolean isStandardPort(String protocol, int port) {
         return ("http".equalsIgnoreCase(protocol) && port == HTTP_DEFAULT_PORT)
                 || ("https".equalsIgnoreCase(protocol) && port == HTTPS_DEFAULT_PORT);
-    }
-
-    private static String stripChatCompletionsSuffix(String path) {
-        if (path.endsWith(CHAT_COMPLETIONS_SUFFIX)) {
-            return path.substring(0, path.length() - CHAT_COMPLETIONS_SUFFIX.length());
-        }
-        return path;
     }
 }

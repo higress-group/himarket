@@ -37,5 +37,7 @@ public class CreateExternalDeveloperParam implements InputConverter<DeveloperExt
 
     private String email;
 
+    private String avatarUrl;
+
     private DeveloperAuthType authType;
 }

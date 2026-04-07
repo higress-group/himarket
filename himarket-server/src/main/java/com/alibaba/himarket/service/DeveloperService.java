@@ -132,6 +132,15 @@ public interface DeveloperService {
     void updateProfile(UpdateDeveloperParam param);
 
     /**
+     * Update avatar URL of an external developer on login
+     *
+     * @param provider
+     * @param subject
+     * @param avatarUrl
+     */
+    void updateExternalDeveloperAvatar(String provider, String subject, String avatarUrl);
+
+    /**
      * Logout
      *
      * @param request

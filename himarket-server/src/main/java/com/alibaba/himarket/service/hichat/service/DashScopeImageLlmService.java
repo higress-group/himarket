@@ -170,7 +170,7 @@ public class DashScopeImageLlmService extends AbstractLlmService {
                             product.getModelConfig(),
                             request.getGatewayUris(),
                             generationPath,
-                            path -> path);
+                            (pathValue, pathType) -> pathValue);
 
             request.setUri(uri);
         }
