@@ -42,11 +42,17 @@ interface ExtraParam {
   example: string
 }
 
-const NAV_ITEMS = [
+const NAV_ITEMS_FULL = [
   { key: 0, label: '基础信息', icon: <InfoCircleOutlined />, desc: '名称、仓库、标签' },
   { key: 1, label: 'MCP 配置', icon: <SettingOutlined />, desc: '协议与连接方式' },
   { key: 2, label: '服务介绍', icon: <FileTextOutlined />, desc: 'Markdown 文档' },
   { key: 3, label: '沙箱部署', icon: <CloudServerOutlined />, desc: '沙箱与参数配置' },
+]
+
+const NAV_ITEMS_SHORT = [
+  { key: 0, label: '基础信息', icon: <InfoCircleOutlined />, desc: '名称、仓库、标签' },
+  { key: 1, label: 'MCP 配置', icon: <SettingOutlined />, desc: '协议与连接方式' },
+  { key: 2, label: '服务介绍', icon: <FileTextOutlined />, desc: 'Markdown 文档' },
 ]
 
 export function McpCustomConfigModal({ visible, onCancel, onOk, productName, productDescription, productIcon, productDocument, initialMcpMeta }: McpCustomConfigModalProps) {
@@ -66,6 +72,14 @@ export function McpCustomConfigModal({ visible, onCancel, onOk, productName, pro
   const sandboxRequired: boolean = Form.useWatch('sandboxRequired', form) ?? true
   const watchedTags: string[] = Form.useWatch('tags', form) || []
   const resourcePreset: string = Form.useWatch('resourcePreset', form) || 'small'
+
+  // 关闭沙箱托管时，如果当前在第四步则自动回退到第三步
+  useEffect(() => {
+    if (!sandboxRequired && currentStep === 3) {
+      setCurrentStep(2)
+    }
+  }, [sandboxRequired, currentStep])
+
   const [sandboxList, setSandboxList] = useState<any[]>([])
   const [sandboxLoading, setSandboxLoading] = useState(false)
   const [namespaceList, setNamespaceList] = useState<string[]>([])
@@ -88,6 +102,7 @@ export function McpCustomConfigModal({ visible, onCancel, onOk, productName, pro
         mcpDisplayName: productName || '',
         description: productDescription || '',
         serviceIntro: productDocument || '',
+        sandboxRequired: true,
       }
 
       // 编辑模式：预填已有 MCP 元数据
@@ -545,6 +560,23 @@ export function McpCustomConfigModal({ visible, onCancel, onOk, productName, pro
             </div>
           )}
         </div>
+
+        {/* 沙箱托管开关 */}
+        <div className="flex items-center justify-between py-2.5 px-4 bg-gray-50 rounded-lg mt-4">
+          <div>
+            <div className="text-sm text-gray-700">是否需要沙箱托管</div>
+            <div className="text-xs text-gray-400 mt-0.5">
+              {isStdio ? 'Stdio 协议必须通过沙箱运行' : '开启后可将 MCP Server 部署到沙箱集群'}
+            </div>
+          </div>
+          <Switch
+            checked={sandboxRequired}
+            checkedChildren="开启"
+            unCheckedChildren="关闭"
+            disabled={isStdio}
+            onChange={(checked) => form.setFieldsValue({ sandboxRequired: checked })}
+          />
+        </div>
       </>
     )
   }
@@ -568,22 +600,8 @@ export function McpCustomConfigModal({ visible, onCancel, onOk, productName, pro
   }
 
   const renderSandboxConfig = () => {
-    const isStdio = protocolType === 'stdio'
     return (
       <>
-        {/* 沙箱托管开关 */}
-        <div className="flex items-center justify-between py-2.5 px-4 bg-gray-50 rounded-lg mb-4">
-          <div>
-            <div className="text-sm text-gray-700">沙箱托管</div>
-            <div className="text-xs text-gray-400 mt-0.5">
-              {isStdio ? 'Stdio 协议必须通过沙箱运行' : '开启后可将 MCP Server 部署到沙箱集群'}
-            </div>
-          </div>
-          <Form.Item name="sandboxRequired" valuePropName="checked" initialValue={true} className="mb-0">
-            <Switch checkedChildren="开启" unCheckedChildren="关闭" disabled={isStdio} />
-          </Form.Item>
-        </div>
-
         {sandboxRequired ? (
           <div className="space-y-4">
             {/* ── 部署目标 ── */}
@@ -766,7 +784,12 @@ export function McpCustomConfigModal({ visible, onCancel, onOk, productName, pro
     </>
   )
 
-  const stepContent = [renderBasicInfo, renderMcpConfig, renderServiceIntro, renderSandboxConfig]
+  const stepContent = sandboxRequired
+    ? [renderBasicInfo, renderMcpConfig, renderServiceIntro, renderSandboxConfig]
+    : [renderBasicInfo, renderMcpConfig, renderServiceIntro]
+
+  const navItems = sandboxRequired ? NAV_ITEMS_FULL : NAV_ITEMS_SHORT
+  const isLastStep = currentStep === navItems.length - 1
 
   return (
     <Modal
@@ -790,10 +813,10 @@ export function McpCustomConfigModal({ visible, onCancel, onOk, productName, pro
           </div>
 
           <nav className="flex-1">
-            {NAV_ITEMS.map((item, idx) => {
+            {navItems.map((item, idx) => {
               const isActive = currentStep === item.key
               const isDone = completedSteps.has(item.key)
-              const isLast = idx === NAV_ITEMS.length - 1
+              const isLast = idx === navItems.length - 1
               return (
                 <div key={item.key} className="flex gap-3" onClick={() => navigateTo(item.key)}>
                   {/* 左侧：圆点 + 连线 */}
@@ -835,9 +858,9 @@ export function McpCustomConfigModal({ visible, onCancel, onOk, productName, pro
           {/* 顶部标题栏 */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
             <div className="flex items-center gap-2">
-              <span className="text-gray-400">{NAV_ITEMS[currentStep].icon}</span>
-              <span className="text-sm font-medium text-gray-800">{NAV_ITEMS[currentStep].label}</span>
-              <span className="text-xs text-gray-400">— {NAV_ITEMS[currentStep].desc}</span>
+              <span className="text-gray-400">{navItems[currentStep].icon}</span>
+              <span className="text-sm font-medium text-gray-800">{navItems[currentStep].label}</span>
+              <span className="text-xs text-gray-400">— {navItems[currentStep].desc}</span>
             </div>
             <Button type="text" size="small" onClick={handleCancel} className="text-gray-400 hover:text-gray-600">
               ✕
@@ -847,6 +870,8 @@ export function McpCustomConfigModal({ visible, onCancel, onOk, productName, pro
           {/* 表单内容 */}
           <div className="flex-1 overflow-auto px-6 py-5">
             <Form form={form} layout="vertical" requiredMark={false}>
+              {/* 保持 sandboxRequired 字段始终挂载，避免 useWatch 在 Form.Item 卸载后返回 undefined */}
+              <Form.Item name="sandboxRequired" hidden><input type="hidden" /></Form.Item>
               {stepContent[currentStep]()}
             </Form>
           </div>
@@ -888,7 +913,7 @@ export function McpCustomConfigModal({ visible, onCancel, onOk, productName, pro
               </div>
               <Space>
                 <Button onClick={handleCancel} disabled={submitting}>取消</Button>
-                {currentStep < 3 ? (
+                {!isLastStep ? (
                   <Button type="primary" onClick={handleNext}>下一步</Button>
                 ) : (
                   <>

@@ -5,6 +5,9 @@ import { nacosApi, workerApi, skillApi } from '@/lib/api';
 import ProductTable from '@/components/api-product/ProductTable';
 import type { ProductTableRef } from '@/components/api-product/ProductTable';
 import ImportMcpModal from '@/components/mcp-vendor/ImportMcpModal';
+import McpCreationSelector from '@/components/mcp-creation/McpCreationSelector';
+import McpStepWizard from '@/components/mcp-creation/McpStepWizard';
+import type { CreationMode } from '@/components/mcp-creation/types';
 
 // 产品类型标题映射
 const TYPE_TITLES: Record<string, string> = {
@@ -35,8 +38,13 @@ const ProductTypePage: React.FC<ProductTypePageProps> = ({ productType }) => {
   const [defaultNacos, setDefaultNacos] = useState<any>(null);
 
   const showNacosImport = productType === 'AGENT_SKILL' || productType === 'WORKER';
-  const showMcpImport = productType === 'MCP_SERVER';
+  const isMcpServer = productType === 'MCP_SERVER';
   const [mcpImportOpen, setMcpImportOpen] = useState(false);
+
+  // Unified MCP creation flow state
+  const [selectorVisible, setSelectorVisible] = useState(false);
+  const [wizardVisible, setWizardVisible] = useState(false);
+  const [wizardMode, setWizardMode] = useState<Exclude<CreationMode, 'vendor'>>('manual');
 
   // Fetch default Nacos instance for import feature
   useEffect(() => {
@@ -87,6 +95,25 @@ const ProductTypePage: React.FC<ProductTypePageProps> = ({ productType }) => {
     });
   };
 
+  /** Handle creation mode selection from McpCreationSelector */
+  const handleMcpModeSelect = (mode: CreationMode) => {
+    setSelectorVisible(false);
+    if (mode === 'vendor') {
+      // Open existing ImportMcpModal for third-party market import
+      setMcpImportOpen(true);
+    } else {
+      // Open McpStepWizard for manual / gateway / nacos modes
+      setWizardMode(mode);
+      setWizardVisible(true);
+    }
+  };
+
+  /** Handle wizard success — refresh product list */
+  const handleWizardSuccess = () => {
+    setWizardVisible(false);
+    tableRef.current?.refresh();
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -95,15 +122,18 @@ const ProductTypePage: React.FC<ProductTypePageProps> = ({ productType }) => {
           <p className="text-gray-500 mt-2">{TYPE_SUBTITLES[productType]}</p>
         </div>
         <div className="flex items-center gap-3">
-          {showMcpImport && (
+          {/* MCP_SERVER: single unified "创建 MCP" button */}
+          {isMcpServer && (
             <Button
-              onClick={() => setMcpImportOpen(true)}
-              icon={<ImportOutlined />}
+              onClick={() => setSelectorVisible(true)}
+              type="primary"
+              icon={<PlusOutlined />}
             >
-              导入 MCP
+              创建 MCP
             </Button>
           )}
-          {showNacosImport && (
+          {/* Non-MCP types: keep original buttons */}
+          {!isMcpServer && showNacosImport && (
             <Button
               onClick={handleImportFromNacos}
               loading={importLoading}
@@ -113,23 +143,40 @@ const ProductTypePage: React.FC<ProductTypePageProps> = ({ productType }) => {
               从 Nacos 导入
             </Button>
           )}
-          <Button
-            onClick={() => tableRef.current?.handleCreate()}
-            type="primary"
-            icon={<PlusOutlined />}
-          >
-            创建 API Product
-          </Button>
+          {!isMcpServer && (
+            <Button
+              onClick={() => tableRef.current?.handleCreate()}
+              type="primary"
+              icon={<PlusOutlined />}
+            >
+              创建 API Product
+            </Button>
+          )}
         </div>
       </div>
 
       <ProductTable productType={productType} ref={tableRef} />
-      {showMcpImport && (
-        <ImportMcpModal
-          open={mcpImportOpen}
-          onClose={() => setMcpImportOpen(false)}
-          onImportSuccess={() => tableRef.current?.refresh()}
-        />
+
+      {/* MCP creation flow modals */}
+      {isMcpServer && (
+        <>
+          <McpCreationSelector
+            visible={selectorVisible}
+            onCancel={() => setSelectorVisible(false)}
+            onSelect={handleMcpModeSelect}
+          />
+          <McpStepWizard
+            visible={wizardVisible}
+            mode={wizardMode}
+            onCancel={() => setWizardVisible(false)}
+            onSuccess={handleWizardSuccess}
+          />
+          <ImportMcpModal
+            open={mcpImportOpen}
+            onClose={() => setMcpImportOpen(false)}
+            onImportSuccess={() => tableRef.current?.refresh()}
+          />
+        </>
       )}
     </div>
   );

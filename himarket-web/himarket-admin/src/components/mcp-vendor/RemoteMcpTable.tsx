@@ -1,5 +1,5 @@
 import { useMemo, useCallback } from 'react'
-import { Tag, Checkbox, Pagination, Empty, Spin } from 'antd'
+import { Tag, Checkbox, Pagination, Empty, Spin, message } from 'antd'
 import type { RemoteMcpItemResult } from '@/types/mcp-vendor'
 
 interface RemoteMcpTableProps {
@@ -7,6 +7,7 @@ interface RemoteMcpTableProps {
   loading: boolean
   selectedKeys: string[]
   onSelectionChange: (keys: string[], items: RemoteMcpItemResult[]) => void
+  maxSelection?: number
   pagination: {
     current: number
     pageSize: number
@@ -40,21 +41,29 @@ export default function RemoteMcpTable({
   loading,
   selectedKeys,
   onSelectionChange,
+  maxSelection = 50,
   pagination,
 }: RemoteMcpTableProps) {
   const selectedSet = useMemo(() => new Set(selectedKeys), [selectedKeys])
+  const isAtLimit = selectedKeys.length >= maxSelection
 
   const handleToggle = useCallback(
     (item: RemoteMcpItemResult) => {
       if (item.existsInPlatform) return
       const key = item.remoteId
-      const newKeys = selectedSet.has(key)
+      const isDeselecting = selectedSet.has(key)
+      // If at limit and trying to select a new item, block it
+      if (!isDeselecting && isAtLimit) {
+        message.warning('最多选择 50 条')
+        return
+      }
+      const newKeys = isDeselecting
         ? selectedKeys.filter((k) => k !== key)
         : [...selectedKeys, key]
       const newItems = items.filter((i) => newKeys.includes(i.remoteId))
       onSelectionChange(newKeys, newItems)
     },
-    [selectedKeys, selectedSet, items, onSelectionChange],
+    [selectedKeys, selectedSet, items, onSelectionChange, isAtLimit],
   )
 
   const selectableItems = useMemo(() => items.filter((i) => !i.existsInPlatform), [items])
@@ -106,7 +115,7 @@ export default function RemoteMcpTable({
           const iconUrl = parseIconUrl(item.icon)
           const tags = parseTags(item.tags)
           const isSelected = selectedSet.has(item.remoteId)
-          const isDisabled = item.existsInPlatform
+          const isDisabled = item.existsInPlatform || (!isSelected && isAtLimit)
 
           return (
             <div

@@ -93,7 +93,7 @@ export default function ImportMcpModal({ open, onClose, onImportSuccess }: Impor
 
   const handleSelectionChange = useCallback((keys: string[], rows: RemoteMcpItemResult[]) => {
     if (keys.length > 50) {
-      message.warning('单次导入数量不能超过 50 条')
+      message.warning('最多选择 50 条')
       return
     }
     setSelectedKeys(keys)
@@ -207,6 +207,7 @@ export default function ImportMcpModal({ open, onClose, onImportSuccess }: Impor
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-500">
                 已选择 <span className="font-medium text-blue-600">{selectedKeys.length}</span> 项
+                {selectedKeys.length >= 50 && <span className="text-orange-500 ml-2">（已达上限）</span>}
               </span>
               <Button
                 type="primary"
@@ -282,6 +283,7 @@ export default function ImportMcpModal({ open, onClose, onImportSuccess }: Impor
               loading={loading}
               selectedKeys={selectedKeys}
               onSelectionChange={handleSelectionChange}
+              maxSelection={50}
               pagination={{
                 current: pagination.current,
                 pageSize: pagination.pageSize,

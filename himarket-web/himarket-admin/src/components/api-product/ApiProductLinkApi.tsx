@@ -1278,7 +1278,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                 <span className="text-xs text-gray-600">协议类型:</span>
                 <span className="col-span-2 text-xs text-gray-900">{meta.protocolType?.toUpperCase()}</span>
                 <span className="text-xs text-gray-600">来源:</span>
-                <span className="col-span-2 text-xs text-gray-900">{meta.origin === 'GATEWAY' ? '网关导入' : meta.origin === 'NACOS' ? 'Nacos导入' : meta.origin === 'ADMIN' ? '管理员配置' : meta.origin === 'AGENTRUNTIME' ? 'AgentRuntime导入' : '自定义配置'}</span>
+                <span className="col-span-2 text-xs text-gray-900">{meta.origin === 'GATEWAY' ? '网关导入' : meta.origin === 'NACOS' ? 'Nacos导入' : meta.origin === 'ADMIN' ? '管理员手动创建' : meta.origin === 'AGENTRUNTIME' ? 'AgentRuntime导入' : meta.origin === 'OPEN_API' ? 'Open API 导入' : '自定义配置'}</span>
               </div>
               {meta.repoUrl && (
                 <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
