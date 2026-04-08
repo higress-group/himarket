@@ -506,7 +506,7 @@ function McpCard({ item, subscribed, isLoggedIn, onViewDetail, onSubscribe, onUn
         hover:bg-white hover:shadow-md hover:scale-[1.02] hover:border-colorPrimary/30
         active:scale-[0.98]
         relative overflow-hidden group
-        h-[160px] flex flex-col
+        h-[200px] flex flex-col
       "
     >
       {/* 已订阅角标 */}
@@ -547,7 +547,7 @@ function McpCard({ item, subscribed, isLoggedIn, onViewDetail, onSubscribe, onUn
       </div>
 
       {/* 描述 */}
-      <p className="max-h-12 text-sm mb-4 line-clamp-2 leading-relaxed flex-1 text-[#a3a3a3]">
+      <p className="text-sm mb-2 line-clamp-2 leading-relaxed flex-1 text-[#a3a3a3]">
         {description || "暂无描述"}
       </p>
 
@@ -694,7 +694,7 @@ function MyMcpCard({ item, onDisconnect, onViewDetail }: {
         hover:bg-white hover:shadow-md hover:scale-[1.02] hover:border-colorPrimary/30
         active:scale-[0.98]
         relative overflow-hidden group
-        h-[160px] flex flex-col
+        h-[200px] flex flex-col
       "
     >
       {/* 头部：icon + 名称 + 标签 */}
@@ -727,7 +727,7 @@ function MyMcpCard({ item, onDisconnect, onViewDetail }: {
       </div>
 
       {/* 描述 */}
-      <p className="max-h-12 text-sm mb-4 line-clamp-2 leading-relaxed flex-1 text-[#a3a3a3]">
+      <p className="text-sm mb-2 line-clamp-2 leading-relaxed flex-1 text-[#a3a3a3]">
         {description || "暂无描述"}
       </p>
 

@@ -63,7 +63,7 @@ public interface ProductRepository extends BaseRepository<Product, Long> {
     List<Product> findAllByType(ProductType type);
 
     /**
-    /**
+     * /**
      * Find products by type and status (paginated)
      *
      * @param type the product type
