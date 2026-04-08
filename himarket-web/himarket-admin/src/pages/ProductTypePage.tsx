@@ -4,6 +4,7 @@ import { PlusOutlined, ImportOutlined } from '@ant-design/icons';
 import { nacosApi, workerApi, skillApi } from '@/lib/api';
 import ProductTable from '@/components/api-product/ProductTable';
 import type { ProductTableRef } from '@/components/api-product/ProductTable';
+import ImportProductsModal from '@/components/api-product/ImportProductsModal';
 
 // 产品类型标题映射
 const TYPE_TITLES: Record<string, string> = {
@@ -32,6 +33,7 @@ const ProductTypePage: React.FC<ProductTypePageProps> = ({ productType }) => {
   const tableRef = useRef<ProductTableRef>(null);
   const [importLoading, setImportLoading] = useState(false);
   const [defaultNacos, setDefaultNacos] = useState<any>(null);
+  const [importModalVisible, setImportModalVisible] = useState(false);
 
   const showNacosImport = productType === 'AGENT_SKILL' || productType === 'WORKER';
 
@@ -103,6 +105,12 @@ const ProductTypePage: React.FC<ProductTypePageProps> = ({ productType }) => {
             </Button>
           )}
           <Button
+            onClick={() => setImportModalVisible(true)}
+            icon={<ImportOutlined />}
+          >
+            批量导入
+          </Button>
+          <Button
             onClick={() => tableRef.current?.handleCreate()}
             type="primary"
             icon={<PlusOutlined />}
@@ -113,6 +121,16 @@ const ProductTypePage: React.FC<ProductTypePageProps> = ({ productType }) => {
       </div>
 
       <ProductTable productType={productType} ref={tableRef} />
+
+      <ImportProductsModal
+        visible={importModalVisible}
+        onCancel={() => setImportModalVisible(false)}
+        onSuccess={() => {
+          setImportModalVisible(false);
+          tableRef.current?.refresh();
+        }}
+        productType={productType}
+      />
     </div>
   );
 };
