@@ -1,7 +1,7 @@
 import { Card, Button, Modal, Form, Select, message, Collapse, Tabs, Row, Col, Tag, Input, Spin, Space, Radio } from 'antd'
 import 'highlight.js/styles/github.css'
 import 'github-markdown-css/github-markdown-light.css'
-import { PlusOutlined, DeleteOutlined, ExclamationCircleOutlined, CopyOutlined, CloudUploadOutlined, SettingOutlined, SyncOutlined } from '@ant-design/icons'
+import { PlusOutlined, DeleteOutlined, ExclamationCircleOutlined, CopyOutlined, CloudUploadOutlined, SettingOutlined, SyncOutlined, EditOutlined } from '@ant-design/icons'
 import { useState, useEffect } from 'react'
 import type { ApiProduct, LinkedService, RestAPIItem, NacosMCPItem, APIGAIMCPItem, AIGatewayAgentItem, AIGatewayModelItem, ApiItem, AdpAIGatewayModelItem, ApsaraGatewayModelItem } from '@/types/api-product'
 import type { Gateway, NacosInstance } from '@/types/gateway'
@@ -11,6 +11,7 @@ import { copyToClipboard, formatDomainWithPort, formatDateTime } from '@/lib/uti
 import * as yaml from 'js-yaml'
 import { SwaggerUIWrapper } from './SwaggerUIWrapper'
 import { McpCustomConfigModal } from './McpCustomConfigModal'
+import ToolsConfigEditorModal from '../mcp/ToolsConfigEditorModal'
 
 interface ApiProductLinkApiProps {
   apiProduct: ApiProduct
@@ -110,6 +111,7 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
   const [selectedModelDomainIndex, setSelectedModelDomainIndex] = useState<number>(0)
   const [mcpMetaList, setMcpMetaList] = useState<any[]>([])
   const [fetchingTools, setFetchingTools] = useState(false)
+  const [toolsEditorOpen, setToolsEditorOpen] = useState(false)
   const [mcpToolsTab, setMcpToolsTab] = useState('tools')
   const [deployModalMcpServerId, setDeployModalMcpServerId] = useState<string | null>(null)
   const [deploying, setDeploying] = useState(false)
@@ -1483,16 +1485,29 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                   onChange={setMcpToolsTab}
                   tabBarExtraContent={
                     mcpToolsTab === 'tools' ? (
-                      <Button
-                        type="text"
-                        size="small"
-                        icon={<SyncOutlined spin={fetchingTools} />}
-                        loading={fetchingTools}
-                        onClick={handleRefreshTools}
-                        style={{ fontSize: 12, color: '#1677ff' }}
-                      >
-                        {parsedTools.length === 0 ? '获取工具列表' : '刷新工具'}
-                      </Button>
+                      <Space>
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={<EditOutlined />}
+                          onClick={() => setToolsEditorOpen(true)}
+                          style={{ fontSize: 12, color: '#1677ff' }}
+                        >
+                          编辑工具
+                        </Button>
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={<SyncOutlined spin={fetchingTools} />}
+                          loading={fetchingTools}
+                          onClick={handleRefreshTools}
+                          disabled={!mcpMetaList[0]?.endpointUrl}
+                          title={!mcpMetaList[0]?.endpointUrl ? '无可用连接地址，请先部署沙箱或配置远程连接' : undefined}
+                          style={{ fontSize: 12, color: mcpMetaList[0]?.endpointUrl ? '#1677ff' : undefined }}
+                        >
+                          {parsedTools.length === 0 ? '获取工具列表' : '刷新工具'}
+                        </Button>
+                      </Space>
                     ) : null
                   }
                   items={[
@@ -2997,6 +3012,24 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
           </div>
         </Form>
       </Modal>
+
+      {/* 编辑工具配置弹窗 */}
+      <ToolsConfigEditorModal
+        open={toolsEditorOpen}
+        mcpServerId={mcpMetaList[0]?.mcpServerId || ''}
+        initialValue={(() => {
+          const tc = mcpMetaList[0]?.toolsConfig
+          if (!tc) return ''
+          if (typeof tc === 'string') return tc
+          return JSON.stringify(tc, null, 2)
+        })()}
+        onSave={async () => {
+          setToolsEditorOpen(false)
+          await fetchMcpMeta()
+          await handleRefresh()
+        }}
+        onCancel={() => setToolsEditorOpen(false)}
+      />
 
     </div>
   )

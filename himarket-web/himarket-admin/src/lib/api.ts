@@ -503,6 +503,12 @@ export const mcpServerApi = {
   }) => {
     return api.post(`/mcp-servers/meta/${mcpServerId}/deploy-sandbox`, data, { timeout: 120000 })
   },
+  // 更新工具配置（手动编辑）
+  updateToolsConfig: (mcpServerId: string, toolsConfig: string) => {
+    return api.put(`/mcp-servers/meta/${mcpServerId}/tools-config`, toolsConfig, {
+      headers: { 'Content-Type': 'application/json' }
+    })
+  },
 }
 
 // Sandbox 实例相关 API

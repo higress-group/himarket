@@ -556,6 +556,18 @@ public class McpServerServiceImpl implements McpServerService {
 
     @Override
     @Transactional
+    public McpMetaResult updateToolsConfig(String mcpServerId, String toolsConfig) {
+        McpServerMeta meta = findMeta(mcpServerId);
+        String normalized = McpToolsConfigParser.normalize(toolsConfig);
+        meta.setToolsConfig(normalized);
+        metaRepository.save(meta);
+        McpMetaResult result = new McpMetaResult().convertFrom(meta);
+        configSyncHelper.enrichFromProduct(result, meta.getProductId());
+        return result;
+    }
+
+    @Override
+    @Transactional
     public McpMetaResult deploySandbox(String mcpServerId, SaveMcpMetaParam param) {
         McpServerMeta meta = findMeta(mcpServerId);
         if (!Boolean.TRUE.equals(meta.getSandboxRequired())) {

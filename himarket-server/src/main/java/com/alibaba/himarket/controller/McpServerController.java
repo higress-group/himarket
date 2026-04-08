@@ -141,6 +141,14 @@ public class McpServerController {
         return mcpServerService.updateServiceIntro(mcpServerId, body.getServiceIntro());
     }
 
+    @Operation(summary = "更新工具配置（手动编辑）")
+    @PutMapping("/meta/{mcpServerId}/tools-config")
+    @AdminAuth
+    public McpMetaResult updateToolsConfig(
+            @PathVariable String mcpServerId, @RequestBody String toolsConfig) {
+        return mcpServerService.updateToolsConfig(mcpServerId, toolsConfig);
+    }
+
     @Operation(summary = "管理员手动部署沙箱（为已保存的 MCP 配置部署沙箱 endpoint）")
     @PostMapping("/meta/{mcpServerId}/deploy-sandbox")
     @AdminAuth

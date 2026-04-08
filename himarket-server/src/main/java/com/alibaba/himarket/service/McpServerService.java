@@ -113,6 +113,9 @@ public interface McpServerService {
     /** 更新服务介绍 */
     McpMetaResult updateServiceIntro(String mcpServerId, String serviceIntro);
 
+    /** 更新工具配置（手动编辑） */
+    McpMetaResult updateToolsConfig(String mcpServerId, String toolsConfig);
+
     /** 管理员手动部署沙箱：为已保存的 MCP 配置部署沙箱 endpoint */
     McpMetaResult deploySandbox(String mcpServerId, SaveMcpMetaParam param);
 
