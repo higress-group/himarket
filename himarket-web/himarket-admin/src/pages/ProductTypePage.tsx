@@ -8,6 +8,7 @@ import ImportMcpModal from '@/components/mcp-vendor/ImportMcpModal';
 import McpCreationSelector from '@/components/mcp-creation/McpCreationSelector';
 import McpStepWizard from '@/components/mcp-creation/McpStepWizard';
 import type { CreationMode } from '@/components/mcp-creation/types';
+import ImportProductsModal from '@/components/api-product/ImportProductsModal';
 
 // 产品类型标题映射
 const TYPE_TITLES: Record<string, string> = {
@@ -36,6 +37,7 @@ const ProductTypePage: React.FC<ProductTypePageProps> = ({ productType }) => {
   const tableRef = useRef<ProductTableRef>(null);
   const [importLoading, setImportLoading] = useState(false);
   const [defaultNacos, setDefaultNacos] = useState<any>(null);
+  const [importModalVisible, setImportModalVisible] = useState(false);
 
   const showNacosImport = productType === 'AGENT_SKILL' || productType === 'WORKER';
   const isMcpServer = productType === 'MCP_SERVER';
@@ -143,6 +145,12 @@ const ProductTypePage: React.FC<ProductTypePageProps> = ({ productType }) => {
               从 Nacos 导入
             </Button>
           )}
+          <Button
+            onClick={() => setImportModalVisible(true)}
+            icon={<ImportOutlined />}
+          >
+            批量导入
+          </Button>
           {!isMcpServer && (
             <Button
               onClick={() => tableRef.current?.handleCreate()}
@@ -178,6 +186,16 @@ const ProductTypePage: React.FC<ProductTypePageProps> = ({ productType }) => {
           />
         </>
       )}
+
+      <ImportProductsModal
+        visible={importModalVisible}
+        onCancel={() => setImportModalVisible(false)}
+        onSuccess={() => {
+          setImportModalVisible(false);
+          tableRef.current?.refresh();
+        }}
+        productType={productType}
+      />
     </div>
   );
 };

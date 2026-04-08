@@ -71,6 +71,16 @@ msg() {
             [[ "$lang" == "zh" ]] && text="正在清理现有部署..." || text="Cleaning up existing deployment..." ;;
         install.confirm_deploy)
             [[ "$lang" == "zh" ]] && text="确认开始部署? [Y/n]" || text="Confirm deployment? [Y/n]" ;;
+        install.install_higress)
+            [[ "$lang" == "zh" ]] && text="是否安装 Higress 网关? [Y/n]" || text="Install Higress gateway? [Y/n]" ;;
+        install.install_nacos)
+            [[ "$lang" == "zh" ]] && text="是否安装 Nacos? [Y/n]" || text="Install Nacos? [Y/n]" ;;
+        install.skip_higress)
+            [[ "$lang" == "zh" ]] && text="跳过 Higress 网关安装" || text="Skipping Higress gateway installation" ;;
+        install.skip_nacos)
+            [[ "$lang" == "zh" ]] && text="跳过 Nacos 安装" || text="Skipping Nacos installation" ;;
+        section.component)
+            [[ "$lang" == "zh" ]] && text="--- 组件选择 ---" || text="--- Component Selection ---" ;;
         install.confirm_save)
             [[ "$lang" == "zh" ]] && text="是否保存配置到 ~/himarket-install-docker.env? [Y/n]" || text="Save config to ~/himarket-install-docker.env? [Y/n]" ;;
         install.cancelled)
@@ -98,6 +108,8 @@ msg() {
             [[ "$lang" == "zh" ]] && text="--- 服务凭证 ---" || text="--- Service Credentials ---" ;;
         section.user)
             [[ "$lang" == "zh" ]] && text="--- 默认用户 ---" || text="--- Default Users ---" ;;
+        section.size)
+            [[ "$lang" == "zh" ]] && text="--- 资源规格 ---" || text="--- Resource Size ---" ;;
         section.ai_model)
             [[ "$lang" == "zh" ]] && text="--- AI 模型配置（可选）---" || text="--- AI Model Config (Optional) ---" ;;
         section.summary)
@@ -382,7 +394,8 @@ run_hooks() {
 load_config() {
     # 1. 保存当前 export 的环境变量（最高优先级）
     local saved_vars=""
-    for var in DEPLOY_MODE HIMARKET_DATA_DIR \
+    for var in DEPLOY_MODE HIMARKET_DATA_DIR HIMARKET_SIZE \
+               INSTALL_HIGRESS INSTALL_NACOS \
                HIMARKET_SERVER_IMAGE HIMARKET_ADMIN_IMAGE HIMARKET_FRONTEND_IMAGE \
                MYSQL_IMAGE NACOS_IMAGE HIGRESS_IMAGE REDIS_IMAGE SANDBOX_IMAGE \
                MYSQL_ROOT_PASSWORD MYSQL_PASSWORD MYSQL_DATABASE MYSQL_USER \
@@ -600,21 +613,37 @@ interactive_config() {
         # ─── 升级模式：仅允许修改镜像 ───
         log ""
         log "$(msg install.upgrade_image_only)"
+
+        # 组件选择沿用已有值（兼容低版本升级：默认 true）
+        INSTALL_HIGRESS="${INSTALL_HIGRESS:-true}"
+        INSTALL_NACOS="${INSTALL_NACOS:-true}"
+        export INSTALL_HIGRESS INSTALL_NACOS
+
         log ""
         log "$(msg section.image)"
         prompt HIMARKET_SERVER_IMAGE "HiMarket Server image" "${HIMARKET_SERVER_IMAGE:-opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-server:latest}"
         prompt HIMARKET_ADMIN_IMAGE "HiMarket Admin image" "${HIMARKET_ADMIN_IMAGE:-opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-admin:latest}"
         prompt HIMARKET_FRONTEND_IMAGE "HiMarket Frontend image" "${HIMARKET_FRONTEND_IMAGE:-opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-frontend:latest}"
         prompt MYSQL_IMAGE "MySQL image" "${MYSQL_IMAGE:-opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/mysql:latest}"
-        prompt NACOS_IMAGE "Nacos image" "${NACOS_IMAGE:-nacos-registry.cn-hangzhou.cr.aliyuncs.com/nacos/nacos-server:v3.2.1-2026.03.30}"
-        prompt HIGRESS_IMAGE "Higress image" "${HIGRESS_IMAGE:-higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/all-in-one:latest}"
-        prompt REDIS_IMAGE "Redis image" "${REDIS_IMAGE:-higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/redis-stack-server:7.4.0-v3}"
+        if [[ "${INSTALL_NACOS}" == "true" ]]; then
+            prompt NACOS_IMAGE "Nacos image" "${NACOS_IMAGE:-nacos-registry.cn-hangzhou.cr.aliyuncs.com/nacos/nacos-server:v3.2.1-2026.03.30}"
+        fi
+        if [[ "${INSTALL_HIGRESS}" == "true" ]]; then
+            prompt HIGRESS_IMAGE "Higress image" "${HIGRESS_IMAGE:-higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/all-in-one:latest}"
+            prompt REDIS_IMAGE "Redis image" "${REDIS_IMAGE:-higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/redis-stack-server:7.4.0-v3}"
+        fi
         prompt SANDBOX_IMAGE "Sandbox image" "${SANDBOX_IMAGE:-opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/sandbox:latest}"
 
         # 其他配置沿用已有值（从配置文件加载）
         # 注意：回退默认值保留旧版硬编码值，仅用于兼容 env 文件缺失的已有部署
         HIMARKET_DATA_DIR="${HIMARKET_DATA_DIR:-${HOME}/himarket-data}"
         export HIMARKET_DATA_DIR
+        HIMARKET_SIZE="${HIMARKET_SIZE:-standard}"
+        case "${HIMARKET_SIZE}" in
+            small)  export HIMARKET_CPU_LIMIT="1"  HIMARKET_MEM_LIMIT="2g"  HIMARKET_LIGHT_CPU_LIMIT="0.5" HIMARKET_LIGHT_MEM_LIMIT="512m" HIMARKET_REPLICAS="1" ;;
+            large)  export HIMARKET_CPU_LIMIT="4"  HIMARKET_MEM_LIMIT="8g"  HIMARKET_LIGHT_CPU_LIMIT="2"   HIMARKET_LIGHT_MEM_LIMIT="2g"   HIMARKET_REPLICAS="2" ;;
+            *)      export HIMARKET_CPU_LIMIT="2"  HIMARKET_MEM_LIMIT="4g"  HIMARKET_LIGHT_CPU_LIMIT="1"   HIMARKET_LIGHT_MEM_LIMIT="1g"   HIMARKET_REPLICAS="1" ;;
+        esac
         MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:-himarket_root_2024}"
         MYSQL_PASSWORD="${MYSQL_PASSWORD:-himarket_app_2024}"
         if [[ -z "${JWT_SECRET:-}" ]]; then
@@ -654,6 +683,46 @@ interactive_config() {
     prompt HIMARKET_DATA_DIR "Data directory" "${HOME}/himarket-data"
     export HIMARKET_DATA_DIR
 
+    # ─── 资源规格 ───
+    log ""
+    log "$(msg section.size)"
+    prompt HIMARKET_SIZE "Resource size (small=1c2g / standard=2c4g / large=4c8g)" "standard"
+    # 映射 size 到容器资源限制（server 用完整规格，admin/frontend 用轻量规格）
+    case "${HIMARKET_SIZE}" in
+        small)  export HIMARKET_CPU_LIMIT="1"  HIMARKET_MEM_LIMIT="2g"  HIMARKET_LIGHT_CPU_LIMIT="0.5" HIMARKET_LIGHT_MEM_LIMIT="512m" HIMARKET_REPLICAS="1" ;;
+        large)  export HIMARKET_CPU_LIMIT="4"  HIMARKET_MEM_LIMIT="8g"  HIMARKET_LIGHT_CPU_LIMIT="2"   HIMARKET_LIGHT_MEM_LIMIT="2g"   HIMARKET_REPLICAS="2" ;;
+        *)      export HIMARKET_CPU_LIMIT="2"  HIMARKET_MEM_LIMIT="4g"  HIMARKET_LIGHT_CPU_LIMIT="1"   HIMARKET_LIGHT_MEM_LIMIT="1g"   HIMARKET_REPLICAS="1" ;;
+    esac
+
+    # ─── 组件选择 ───
+    log ""
+    log "$(msg section.component)"
+    if [[ "${NON_INTERACTIVE}" != "1" ]]; then
+        local _install_nacos_answer=""
+        read -r -p "$(msg install.install_nacos) " _install_nacos_answer
+        _install_nacos_answer="${_install_nacos_answer:-Y}"
+        if [[ "${_install_nacos_answer}" =~ ^[Nn]$ ]]; then
+            INSTALL_NACOS="false"
+            log "$(msg install.skip_nacos)"
+        else
+            INSTALL_NACOS="true"
+        fi
+
+        local _install_higress_answer=""
+        read -r -p "$(msg install.install_higress) " _install_higress_answer
+        _install_higress_answer="${_install_higress_answer:-Y}"
+        if [[ "${_install_higress_answer}" =~ ^[Nn]$ ]]; then
+            INSTALL_HIGRESS="false"
+            log "$(msg install.skip_higress)"
+        else
+            INSTALL_HIGRESS="true"
+        fi
+    else
+        INSTALL_NACOS="${INSTALL_NACOS:-true}"
+        INSTALL_HIGRESS="${INSTALL_HIGRESS:-true}"
+    fi
+    export INSTALL_NACOS INSTALL_HIGRESS
+
     # ─── 镜像配置 ───
     log ""
     log "$(msg section.image)"
@@ -661,9 +730,13 @@ interactive_config() {
     prompt HIMARKET_ADMIN_IMAGE "HiMarket Admin image" "opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-admin:latest"
     prompt HIMARKET_FRONTEND_IMAGE "HiMarket Frontend image" "opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-frontend:latest"
     prompt MYSQL_IMAGE "MySQL image" "opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/mysql:latest"
-    prompt NACOS_IMAGE "Nacos image" "nacos-registry.cn-hangzhou.cr.aliyuncs.com/nacos/nacos-server:v3.2.1-2026.03.30"
-    prompt HIGRESS_IMAGE "Higress image" "higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/all-in-one:latest"
-    prompt REDIS_IMAGE "Redis image" "higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/redis-stack-server:7.4.0-v3"
+    if [[ "${INSTALL_NACOS}" == "true" ]]; then
+        prompt NACOS_IMAGE "Nacos image" "nacos-registry.cn-hangzhou.cr.aliyuncs.com/nacos/nacos-server:v3.2.1-2026.03.30"
+    fi
+    if [[ "${INSTALL_HIGRESS}" == "true" ]]; then
+        prompt HIGRESS_IMAGE "Higress image" "higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/all-in-one:latest"
+        prompt REDIS_IMAGE "Redis image" "higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/redis-stack-server:7.4.0-v3"
+    fi
     prompt SANDBOX_IMAGE "Sandbox image" "opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/sandbox:latest"
 
     # ─── 数据库密码（首次安装时已自动生成随机值） ───
@@ -681,10 +754,14 @@ interactive_config() {
     # ─── 服务凭证（首次安装时已自动生成随机值） ───
     log ""
     log "$(msg section.credential)"
-    prompt NACOS_USERNAME "Nacos admin username" "nacos"
-    prompt NACOS_ADMIN_PASSWORD "Nacos admin password" "${NACOS_ADMIN_PASSWORD:-}"
-    prompt HIGRESS_USERNAME "Higress console username" "admin"
-    prompt HIGRESS_PASSWORD "Higress console password" "${HIGRESS_PASSWORD:-}"
+    if [[ "${INSTALL_NACOS}" == "true" ]]; then
+        prompt NACOS_USERNAME "Nacos admin username" "nacos"
+        prompt NACOS_ADMIN_PASSWORD "Nacos admin password" "${NACOS_ADMIN_PASSWORD:-}"
+    fi
+    if [[ "${INSTALL_HIGRESS}" == "true" ]]; then
+        prompt HIGRESS_USERNAME "Higress console username" "admin"
+        prompt HIGRESS_PASSWORD "Higress console password" "${HIGRESS_PASSWORD:-}"
+    fi
 
     # ─── 默认用户（首次安装时密码已自动生成随机值） ───
     log ""
@@ -777,11 +854,18 @@ interactive_config() {
     log "$(msg section.summary)"
     log "  DEPLOY_MODE:          ${DEPLOY_MODE}"
     log "  HIMARKET_DATA_DIR:    ${HIMARKET_DATA_DIR}"
+    log "  HIMARKET_SIZE:        ${HIMARKET_SIZE}"
+    log "  INSTALL_NACOS:        ${INSTALL_NACOS}"
+    log "  INSTALL_HIGRESS:      ${INSTALL_HIGRESS}"
     log "  HIMARKET_SERVER:      ${HIMARKET_SERVER_IMAGE}"
     log "  MYSQL_IMAGE:          ${MYSQL_IMAGE}"
-    log "  NACOS_IMAGE:          ${NACOS_IMAGE}"
-    log "  HIGRESS_IMAGE:        ${HIGRESS_IMAGE}"
-    log "  REDIS_IMAGE:          ${REDIS_IMAGE}"
+    if [[ "${INSTALL_NACOS}" == "true" ]]; then
+        log "  NACOS_IMAGE:          ${NACOS_IMAGE}"
+    fi
+    if [[ "${INSTALL_HIGRESS}" == "true" ]]; then
+        log "  HIGRESS_IMAGE:        ${HIGRESS_IMAGE}"
+        log "  REDIS_IMAGE:          ${REDIS_IMAGE}"
+    fi
     log "  SANDBOX_IMAGE:        ${SANDBOX_IMAGE}"
     log "  SKIP_AI_MODEL_INIT:   ${SKIP_AI_MODEL_INIT}"
     if [[ "${SKIP_AI_MODEL_INIT}" != "true" ]]; then
@@ -824,8 +908,15 @@ save_env() {
 # ========== 部署模式 ==========
 DEPLOY_MODE="${DEPLOY_MODE}"
 
+# ========== 组件选择 ==========
+INSTALL_NACOS="${INSTALL_NACOS:-true}"
+INSTALL_HIGRESS="${INSTALL_HIGRESS:-true}"
+
 # ========== 数据目录 ==========
 HIMARKET_DATA_DIR="${HIMARKET_DATA_DIR}"
+
+# ========== 资源规格 ==========
+HIMARKET_SIZE="${HIMARKET_SIZE}"
 
 # 注意：镜像配置不保存到本文件，
 # 每次安装始终使用 install.sh 脚本内置的最新默认值。
@@ -838,10 +929,10 @@ MYSQL_PASSWORD="${MYSQL_PASSWORD}"
 JWT_SECRET="${JWT_SECRET}"
 
 # ========== 服务凭证 ==========
-NACOS_USERNAME="${NACOS_USERNAME}"
-NACOS_ADMIN_PASSWORD="${NACOS_ADMIN_PASSWORD}"
-HIGRESS_USERNAME="${HIGRESS_USERNAME}"
-HIGRESS_PASSWORD="${HIGRESS_PASSWORD}"
+NACOS_USERNAME="${NACOS_USERNAME:-nacos}"
+NACOS_ADMIN_PASSWORD="${NACOS_ADMIN_PASSWORD:-}"
+HIGRESS_USERNAME="${HIGRESS_USERNAME:-admin}"
+HIGRESS_PASSWORD="${HIGRESS_PASSWORD:-}"
 
 # ========== 默认用户 ==========
 ADMIN_USERNAME="${ADMIN_USERNAME}"
@@ -918,10 +1009,17 @@ deploy_all() {
     fi
 
     # 5. 构建 profiles（MySQL 和 Server 无 profile，始终启动）
-    local profiles="opensource-nacos,higress-gateway"
+    local profiles=""
+    if [[ "${INSTALL_NACOS}" == "true" ]]; then
+        profiles="opensource-nacos"
+    fi
+    if [[ "${INSTALL_HIGRESS}" == "true" ]]; then
+        [[ -n "${profiles}" ]] && profiles="${profiles},"
+        profiles="${profiles}higress-gateway"
+    fi
 
     export COMPOSE_PROFILES="${profiles}"
-    log "Docker Compose profiles: ${profiles}"
+    log "Docker Compose profiles: ${profiles:-<none>}"
 
     # 6. 启动所有服务
     if [[ "${DEPLOY_MODE}" == "upgrade" ]]; then
@@ -940,9 +1038,13 @@ deploy_all() {
 
     wait_service "mysql" 120
 
-    wait_service "nacos" 300
-    wait_service "redis-stack-server" 60
-    wait_service "higress" 180
+    if [[ "${INSTALL_NACOS}" == "true" ]]; then
+        wait_service "nacos" 300
+    fi
+    if [[ "${INSTALL_HIGRESS}" == "true" ]]; then
+        wait_service "redis-stack-server" 60
+        wait_service "higress" 180
+    fi
     wait_service "himarket-server" 180
     wait_service "himarket-admin" 120
     wait_service "himarket-frontend" 120
@@ -967,16 +1069,24 @@ show_result_panel() {
     log "  $(msg install.complete)"
     log "========================================================"
     log ""
-    log "  HiMarket Admin:       http://localhost:5174"
+    log "  HiMarket Admin:       http://localhost:5175"
     log "  HiMarket Frontend:    http://localhost:5173"
-    log "  Nacos Console:        http://localhost:8080"
-    log "  Higress Console:      http://localhost:8001"
+    if [[ "${INSTALL_NACOS}" == "true" ]]; then
+        log "  Nacos Console:        http://localhost:8080"
+    fi
+    if [[ "${INSTALL_HIGRESS}" == "true" ]]; then
+        log "  Higress Console:      http://localhost:8001"
+    fi
     log "  HiMarket Server API:  http://localhost:8081"
     log ""
     log "  Admin login:          ${ADMIN_USERNAME} / ${ADMIN_PASSWORD}"
     log "  Developer login:      ${FRONT_USERNAME} / ${FRONT_PASSWORD}"
-    log "  Nacos login:          ${NACOS_USERNAME} / ${NACOS_ADMIN_PASSWORD:-nacos}"
-    log "  Higress login:        ${HIGRESS_USERNAME} / ${HIGRESS_PASSWORD}"
+    if [[ "${INSTALL_NACOS}" == "true" ]]; then
+        log "  Nacos login:          ${NACOS_USERNAME} / ${NACOS_ADMIN_PASSWORD:-nacos}"
+    fi
+    if [[ "${INSTALL_HIGRESS}" == "true" ]]; then
+        log "  Higress login:        ${HIGRESS_USERNAME} / ${HIGRESS_PASSWORD}"
+    fi
     log ""
     if [[ "${SKIP_AI_MODEL_INIT:-true}" != "true" ]]; then
         local _ri
@@ -1042,7 +1152,9 @@ init_data() {
     # 验证核心服务是否在运行
     log "检查服务状态..."
     local services_ok=true
-    for svc in mysql nacos himarket-server himarket-admin himarket-frontend; do
+    local _svcs="mysql himarket-server himarket-admin himarket-frontend"
+    [[ "${INSTALL_NACOS:-true}" == "true" ]] && _svcs="${_svcs} nacos"
+    for svc in ${_svcs}; do
         local cid
         cid=$(docker_compose ps -q "${svc}" 2>/dev/null || true)
         if [[ -z "$cid" ]]; then

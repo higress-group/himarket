@@ -72,6 +72,16 @@ msg() {
             [[ "$lang" == "zh" ]] && text="正在清理现有部署..." || text="Cleaning up existing deployment..." ;;
         install.confirm_deploy)
             [[ "$lang" == "zh" ]] && text="确认开始部署? [Y/n]" || text="Confirm deployment? [Y/n]" ;;
+        install.install_higress)
+            [[ "$lang" == "zh" ]] && text="是否安装 Higress 网关? [Y/n]" || text="Install Higress gateway? [Y/n]" ;;
+        install.install_nacos)
+            [[ "$lang" == "zh" ]] && text="是否安装 Nacos? [Y/n]" || text="Install Nacos? [Y/n]" ;;
+        install.skip_higress)
+            [[ "$lang" == "zh" ]] && text="跳过 Higress 网关安装" || text="Skipping Higress gateway installation" ;;
+        install.skip_nacos)
+            [[ "$lang" == "zh" ]] && text="跳过 Nacos 安装" || text="Skipping Nacos installation" ;;
+        section.component)
+            [[ "$lang" == "zh" ]] && text="--- 组件选择 ---" || text="--- Component Selection ---" ;;
         install.confirm_save)
             [[ "$lang" == "zh" ]] && text="是否保存配置到 ~/himarket-install.env? [Y/n]" || text="Save config to ~/himarket-install.env? [Y/n]" ;;
         install.cancelled)
@@ -114,6 +124,8 @@ msg() {
             [[ "$lang" == "zh" ]] && text="--- 默认用户 ---" || text="--- Default Users ---" ;;
         section.storage)
             [[ "$lang" == "zh" ]] && text="--- 存储配置 ---" || text="--- Storage Config ---" ;;
+        section.size)
+            [[ "$lang" == "zh" ]] && text="--- 资源规格 ---" || text="--- Resource Size ---" ;;
         section.ai_model)
             [[ "$lang" == "zh" ]] && text="--- AI 模型配置（可选）---" || text="--- AI Model Config (Optional) ---" ;;
         install.ai_model_prompt)
@@ -533,7 +545,9 @@ run_hooks() {
 load_config() {
     # 1. 保存当前 export 的环境变量（最高优先级）
     local saved_vars=""
-    for var in DEPLOY_MODE NAMESPACE HIMARKET_HUB HIMARKET_IMAGE_TAG HIMARKET_MYSQL_IMAGE_TAG \
+    for var in DEPLOY_MODE NAMESPACE HIMARKET_SIZE \
+               INSTALL_HIGRESS INSTALL_NACOS \
+               HIMARKET_HUB HIMARKET_IMAGE_TAG HIMARKET_MYSQL_IMAGE_TAG \
                NACOS_VERSION NACOS_IMAGE_REGISTRY NACOS_IMAGE_REPOSITORY \
                HIGRESS_REPO_NAME HIGRESS_REPO_URL HIGRESS_CHART_REF \
                MYSQL_ROOT_PASSWORD MYSQL_PASSWORD \
@@ -761,15 +775,24 @@ interactive_config() {
         # ─── 升级模式：仅允许修改镜像 Tag ───
         log ""
         log "$(msg install.upgrade_image_only)"
+
+        # 组件选择沿用已有值（兼容低版本升级：默认 true）
+        INSTALL_HIGRESS="${INSTALL_HIGRESS:-true}"
+        INSTALL_NACOS="${INSTALL_NACOS:-true}"
+        export INSTALL_HIGRESS INSTALL_NACOS
+
         log ""
         log "$(msg section.image)"
         prompt HIMARKET_IMAGE_TAG "HiMarket image tag" "latest"
         prompt HIMARKET_MYSQL_IMAGE_TAG "MySQL image tag" "latest"
-        prompt NACOS_VERSION "Nacos version" "v3.2.1-2026.03.30"
+        if [[ "${INSTALL_NACOS}" == "true" ]]; then
+            prompt NACOS_VERSION "Nacos version" "v3.2.1-2026.03.30"
+        fi
 
         # 其他配置沿用已有值（从配置文件加载）
         # 注意：回退默认值保留旧版硬编码值，仅用于兼容 env 文件缺失的已有部署
         NAMESPACE="${NAMESPACE:-himarket}"
+        HIMARKET_SIZE="${HIMARKET_SIZE:-standard}"
         HIMARKET_HUB="${HIMARKET_HUB:-opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group}"
         NACOS_IMAGE_REGISTRY="${NACOS_IMAGE_REGISTRY:-nacos-registry.cn-hangzhou.cr.aliyuncs.com}"
         NACOS_IMAGE_REPOSITORY="${NACOS_IMAGE_REPOSITORY:-nacos/nacos-server}"
@@ -809,13 +832,48 @@ interactive_config() {
     prompt NAMESPACE "Kubernetes namespace" "himarket-system"
 
     log ""
+    log "$(msg section.size)"
+    prompt HIMARKET_SIZE "Resource size (small=1c2g / standard=2c4g / large=4c8g)" "standard"
+
+    # ─── 组件选择 ───
+    log ""
+    log "$(msg section.component)"
+    if [[ "${NON_INTERACTIVE}" != "1" ]]; then
+        local _install_nacos_answer=""
+        read -r -p "$(msg install.install_nacos) " _install_nacos_answer
+        _install_nacos_answer="${_install_nacos_answer:-Y}"
+        if [[ "${_install_nacos_answer}" =~ ^[Nn]$ ]]; then
+            INSTALL_NACOS="false"
+            log "$(msg install.skip_nacos)"
+        else
+            INSTALL_NACOS="true"
+        fi
+
+        local _install_higress_answer=""
+        read -r -p "$(msg install.install_higress) " _install_higress_answer
+        _install_higress_answer="${_install_higress_answer:-Y}"
+        if [[ "${_install_higress_answer}" =~ ^[Nn]$ ]]; then
+            INSTALL_HIGRESS="false"
+            log "$(msg install.skip_higress)"
+        else
+            INSTALL_HIGRESS="true"
+        fi
+    else
+        INSTALL_NACOS="${INSTALL_NACOS:-true}"
+        INSTALL_HIGRESS="${INSTALL_HIGRESS:-true}"
+    fi
+    export INSTALL_NACOS INSTALL_HIGRESS
+
+    log ""
     log "$(msg section.image)"
     prompt HIMARKET_HUB "HiMarket image hub" "opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group"
     prompt HIMARKET_IMAGE_TAG "HiMarket image tag" "latest"
     prompt HIMARKET_MYSQL_IMAGE_TAG "MySQL image tag" "latest"
-    prompt NACOS_VERSION "Nacos version" "v3.2.1-2026.03.30"
-    prompt NACOS_IMAGE_REGISTRY "Nacos image registry" "nacos-registry.cn-hangzhou.cr.aliyuncs.com"
-    prompt NACOS_IMAGE_REPOSITORY "Nacos image repository" "nacos/nacos-server"
+    if [[ "${INSTALL_NACOS}" == "true" ]]; then
+        prompt NACOS_VERSION "Nacos version" "v3.2.1-2026.03.30"
+        prompt NACOS_IMAGE_REGISTRY "Nacos image registry" "nacos-registry.cn-hangzhou.cr.aliyuncs.com"
+        prompt NACOS_IMAGE_REPOSITORY "Nacos image repository" "nacos/nacos-server"
+    fi
 
     # ─── 数据库密码（首次安装时已自动生成随机值） ───
     log ""
@@ -826,10 +884,14 @@ interactive_config() {
     # ─── 服务凭证（首次安装时已自动生成随机值） ───
     log ""
     log "$(msg section.credential)"
-    prompt NACOS_USERNAME "Nacos admin username" "nacos"
-    prompt NACOS_ADMIN_PASSWORD "Nacos admin password" "${NACOS_ADMIN_PASSWORD:-}"
-    prompt HIGRESS_USERNAME "Higress console username" "admin"
-    prompt HIGRESS_PASSWORD "Higress console password" "${HIGRESS_PASSWORD:-}"
+    if [[ "${INSTALL_NACOS}" == "true" ]]; then
+        prompt NACOS_USERNAME "Nacos admin username" "nacos"
+        prompt NACOS_ADMIN_PASSWORD "Nacos admin password" "${NACOS_ADMIN_PASSWORD:-}"
+    fi
+    if [[ "${INSTALL_HIGRESS}" == "true" ]]; then
+        prompt HIGRESS_USERNAME "Higress console username" "admin"
+        prompt HIGRESS_PASSWORD "Higress console password" "${HIGRESS_PASSWORD:-}"
+    fi
 
     # ─── 默认用户（首次安装时密码已自动生成随机值） ───
     log ""
@@ -845,7 +907,9 @@ interactive_config() {
     prompt MYSQL_STORAGE_SIZE "MySQL storage size" "50Gi"
     prompt SANDBOX_STORAGE_CLASS "Sandbox StorageClass" "alicloud-disk-essd"
     prompt SANDBOX_STORAGE_SIZE "Sandbox storage size" "50Gi"
-    prompt HIGRESS_INGRESS_CLASS "Higress IngressClass" "himarket"
+    if [[ "${INSTALL_HIGRESS}" == "true" ]]; then
+        prompt HIGRESS_INGRESS_CLASS "Higress IngressClass" "himarket"
+    fi
 
     # ─── AI 模型配置（可选，支持多个）───
     log ""
@@ -943,12 +1007,19 @@ interactive_config() {
     log "$(msg section.summary)"
     log "  DEPLOY_MODE:       ${DEPLOY_MODE}"
     log "  NAMESPACE:         ${NAMESPACE}"
+    log "  HIMARKET_SIZE:     ${HIMARKET_SIZE}"
+    log "  INSTALL_NACOS:     ${INSTALL_NACOS}"
+    log "  INSTALL_HIGRESS:   ${INSTALL_HIGRESS}"
     log "  HIMARKET_HUB:      ${HIMARKET_HUB}"
     log "  HIMARKET_IMAGE_TAG:${HIMARKET_IMAGE_TAG}"
     log "  MYSQL_STORAGE:     ${MYSQL_STORAGE_CLASS} / ${MYSQL_STORAGE_SIZE}"
     log "  SANDBOX_STORAGE:   ${SANDBOX_STORAGE_CLASS} / ${SANDBOX_STORAGE_SIZE}"
-    log "  NACOS_VERSION:     ${NACOS_VERSION}"
-    log "  HIGRESS_INGRESS:   ${HIGRESS_INGRESS_CLASS}"
+    if [[ "${INSTALL_NACOS}" == "true" ]]; then
+        log "  NACOS_VERSION:     ${NACOS_VERSION}"
+    fi
+    if [[ "${INSTALL_HIGRESS}" == "true" ]]; then
+        log "  HIGRESS_INGRESS:   ${HIGRESS_INGRESS_CLASS}"
+    fi
     log "  SKIP_AI_MODEL_INIT:${SKIP_AI_MODEL_INIT}"
     if [[ "${SKIP_AI_MODEL_INIT}" != "true" ]]; then
         log "  AI_MODEL_COUNT:    ${AI_MODEL_COUNT:-0}"
@@ -988,8 +1059,13 @@ save_env() {
 # ========== 部署模式 ==========
 DEPLOY_MODE="${DEPLOY_MODE}"
 
+# ========== 组件选择 ==========
+INSTALL_NACOS="${INSTALL_NACOS:-true}"
+INSTALL_HIGRESS="${INSTALL_HIGRESS:-true}"
+
 # ========== 基础配置 ==========
 NAMESPACE="${NAMESPACE}"
+HIMARKET_SIZE="${HIMARKET_SIZE}"
 
 # 注意：镜像配置 / Helm 仓库配置不保存到本文件，
 # 每次安装始终使用 install.sh 脚本内置的最新默认值。
@@ -1002,10 +1078,10 @@ MYSQL_PASSWORD="${MYSQL_PASSWORD}"
 JWT_SECRET="${JWT_SECRET}"
 
 # ========== 服务凭证 ==========
-NACOS_USERNAME="${NACOS_USERNAME}"
-NACOS_ADMIN_PASSWORD="${NACOS_ADMIN_PASSWORD}"
-HIGRESS_USERNAME="${HIGRESS_USERNAME}"
-HIGRESS_PASSWORD="${HIGRESS_PASSWORD}"
+NACOS_USERNAME="${NACOS_USERNAME:-nacos}"
+NACOS_ADMIN_PASSWORD="${NACOS_ADMIN_PASSWORD:-}"
+HIGRESS_USERNAME="${HIGRESS_USERNAME:-admin}"
+HIGRESS_PASSWORD="${HIGRESS_PASSWORD:-}"
 
 # ========== 默认用户 ==========
 ADMIN_USERNAME="${ADMIN_USERNAME}"
@@ -1020,7 +1096,7 @@ SANDBOX_STORAGE_CLASS="${SANDBOX_STORAGE_CLASS}"
 SANDBOX_STORAGE_SIZE="${SANDBOX_STORAGE_SIZE}"
 
 # ========== Higress IngressClass ==========
-HIGRESS_INGRESS_CLASS="${HIGRESS_INGRESS_CLASS}"
+HIGRESS_INGRESS_CLASS="${HIGRESS_INGRESS_CLASS:-himarket}"
 
 # ========== AI 模型配置 ==========
 SKIP_AI_MODEL_INIT="${SKIP_AI_MODEL_INIT:-true}"
@@ -1104,12 +1180,15 @@ deploy_all() {
     # 5. 创建命名空间
     create_ns "${NS}"
 
-    # 5. 添加 Helm 仓库
-    add_repos
+    # 5.5 添加 Helm 仓库（仅在安装 Higress 时需要）
+    if [[ "${INSTALL_HIGRESS}" == "true" ]]; then
+        add_repos
+    fi
 
     # 6. 部署 HiMarket（含 MySQL + Server + Admin + Frontend + Sandbox）
     helm_upsert "himarket" "${NS}" "${HIMARKET_CHART_PATH}" \
         --set "hub=${HIMARKET_HUB}" \
+        --set "size=${HIMARKET_SIZE}" \
         --set "frontend.image.tag=${HIMARKET_IMAGE_TAG}" \
         --set "admin.image.tag=${HIMARKET_IMAGE_TAG}" \
         --set "server.image.tag=${HIMARKET_IMAGE_TAG}" \
@@ -1143,46 +1222,56 @@ deploy_all() {
     wait_rollout "${NS}" "deployment" "himarket-frontend" 300
 
     # 7. 同步 Nacos 数据库 schema（幂等，确保升级后 schema 与新版本一致）
-    init_nacos_db_in_cluster "${NS}" "${MYSQL_ROOT_PASSWORD}" "${NACOS_DB_NAME}"
+    if [[ "${INSTALL_NACOS}" == "true" ]]; then
+        init_nacos_db_in_cluster "${NS}" "${MYSQL_ROOT_PASSWORD}" "${NACOS_DB_NAME}"
 
-    # 8. 部署 Nacos
-    local nacos_db_pass
-    nacos_db_pass=$(kubectl get secret mysql-secret -n "${NS}" -o jsonpath='{.data.MYSQL_ROOT_PASSWORD}' 2>/dev/null | base64 -d 2>/dev/null || echo "${MYSQL_ROOT_PASSWORD}")
+        # 8. 部署 Nacos
+        local nacos_db_pass
+        nacos_db_pass=$(kubectl get secret mysql-secret -n "${NS}" -o jsonpath='{.data.MYSQL_ROOT_PASSWORD}' 2>/dev/null | base64 -d 2>/dev/null || echo "${MYSQL_ROOT_PASSWORD}")
 
-    helm_upsert "nacos" "${NS}" "${NACOS_CHART_PATH}" \
-        --set "database.host=mysql-headless-svc" \
-        --set "database.port=3306" \
-        --set "database.name=${NACOS_DB_NAME}" \
-        --set "database.username=root" \
-        --set "database.password=${nacos_db_pass}" \
-        --set "image.registry=${NACOS_IMAGE_REGISTRY}" \
-        --set "image.repository=${NACOS_IMAGE_REPOSITORY}" \
-        --set "image.tag=${NACOS_VERSION}"
+        helm_upsert "nacos" "${NS}" "${NACOS_CHART_PATH}" \
+            --set "database.host=mysql-headless-svc" \
+            --set "database.port=3306" \
+            --set "database.name=${NACOS_DB_NAME}" \
+            --set "database.username=root" \
+            --set "database.password=${nacos_db_pass}" \
+            --set "image.registry=${NACOS_IMAGE_REGISTRY}" \
+            --set "image.repository=${NACOS_IMAGE_REPOSITORY}" \
+            --set "image.tag=${NACOS_VERSION}"
 
-    # 8.1 升级模式：Nacos 使用 latest 镜像时强制重启
-    if [[ "${DEPLOY_MODE}" == "upgrade" && "${NACOS_VERSION}" == "latest" ]]; then
-        log "重启 Nacos 以拉取最新 latest 镜像..."
-        kubectl rollout restart deployment nacos -n "${NS}" 2>/dev/null || true
+        # 8.1 升级模式：Nacos 使用 latest 镜像时强制重启
+        if [[ "${DEPLOY_MODE}" == "upgrade" && "${NACOS_VERSION}" == "latest" ]]; then
+            log "重启 Nacos 以拉取最新 latest 镜像..."
+            kubectl rollout restart deployment nacos -n "${NS}" 2>/dev/null || true
+        fi
+
+        wait_rollout "${NS}" "deployment" "nacos" 900
+    else
+        log "$(msg install.skip_nacos)"
     fi
 
-    wait_rollout "${NS}" "deployment" "nacos" 900
-
     # 9. 部署 Higress
-    helm_upsert "higress" "${NS}" "${HIGRESS_CHART_REF}" \
-        --set "higress-core.global.enableRedis=true" \
-        --set "higress-core.global.ingressClass=${HIGRESS_INGRESS_CLASS}" \
-        --set "higress-console.global.ingressClass=${HIGRESS_INGRESS_CLASS}" \
-        --set "higress-console.service.type=LoadBalancer" \
-        --set "higress-console.admin.username=${HIGRESS_USERNAME}" \
-        --set "higress-console.admin.password=${HIGRESS_PASSWORD}"
+    if [[ "${INSTALL_HIGRESS}" == "true" ]]; then
+        helm_upsert "higress" "${NS}" "${HIGRESS_CHART_REF}" \
+            --set "higress-core.global.enableRedis=true" \
+            --set "higress-core.global.ingressClass=${HIGRESS_INGRESS_CLASS}" \
+            --set "higress-console.global.ingressClass=${HIGRESS_INGRESS_CLASS}" \
+            --set "higress-console.service.type=LoadBalancer" \
+            --set "higress-console.admin.username=${HIGRESS_USERNAME}" \
+            --set "higress-console.admin.password=${HIGRESS_PASSWORD}"
 
-    wait_rollout "${NS}" "deployment" "higress-gateway" 900
-    wait_rollout "${NS}" "deployment" "higress-controller" 600
+        wait_rollout "${NS}" "deployment" "higress-gateway" 900
+        wait_rollout "${NS}" "deployment" "higress-controller" 600
+    else
+        log "$(msg install.skip_higress)"
+    fi
 
     # 10. 首次安装/重新安装：执行一次性初始化步骤
     if [[ "${DEPLOY_MODE}" != "upgrade" ]]; then
-        # 配置 Higress MCP Redis
-        update_higress_mcp_redis "${NS}" || warn "mcpServer 配置更新失败，请手动检查"
+        # 配置 Higress MCP Redis（仅在安装 Higress 时）
+        if [[ "${INSTALL_HIGRESS}" == "true" ]]; then
+            update_higress_mcp_redis "${NS}" || warn "mcpServer 配置更新失败，请手动检查"
+        fi
 
         # 执行 post_ready 钩子（允许单个 hook 失败后继续执行后续 hook）
         log "所有组件部署就绪，开始执行数据初始化..."
@@ -1201,13 +1290,18 @@ show_result_panel() {
     local ns="$1"
 
     # 获取各组件 External-IP
-    local frontend_ip admin_ip nacos_ip higress_ip
+    local frontend_ip admin_ip
     frontend_ip=$(kubectl get svc himarket-frontend -n "${ns}" -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "<pending>")
     admin_ip=$(kubectl get svc himarket-admin -n "${ns}" -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "<pending>")
-    nacos_ip=$(kubectl get svc nacos -n "${ns}" -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "<pending>")
-    higress_ip=$(kubectl get svc higress-console -n "${ns}" -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "<pending>")
-    local higress_port
-    higress_port=$(kubectl get svc higress-console -n "${ns}" -o jsonpath='{.spec.ports[0].port}' 2>/dev/null || echo "8080")
+
+    local nacos_ip="" higress_ip="" higress_port=""
+    if [[ "${INSTALL_NACOS}" == "true" ]]; then
+        nacos_ip=$(kubectl get svc nacos -n "${ns}" -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "<pending>")
+    fi
+    if [[ "${INSTALL_HIGRESS}" == "true" ]]; then
+        higress_ip=$(kubectl get svc higress-console -n "${ns}" -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "<pending>")
+        higress_port=$(kubectl get svc higress-console -n "${ns}" -o jsonpath='{.spec.ports[0].port}' 2>/dev/null || echo "8080")
+    fi
 
     log ""
     log "╔══════════════════════════════════════════════════════╗"
@@ -1217,13 +1311,21 @@ show_result_panel() {
     log "║"
     log "║  Frontend:         http://${frontend_ip}"
     log "║  Admin:            http://${admin_ip}"
-    log "║  Nacos:            http://${nacos_ip}:8080"
-    log "║  Higress Console:  http://${higress_ip}:${higress_port}"
+    if [[ "${INSTALL_NACOS}" == "true" ]]; then
+        log "║  Nacos:            http://${nacos_ip}:8080"
+    fi
+    if [[ "${INSTALL_HIGRESS}" == "true" ]]; then
+        log "║  Higress Console:  http://${higress_ip}:${higress_port}"
+    fi
     log "║"
     log "║  Admin login:      ${ADMIN_USERNAME} / ${ADMIN_PASSWORD}"
     log "║  Developer login:  ${FRONT_USERNAME} / ${FRONT_PASSWORD}"
-    log "║  Nacos login:      ${NACOS_USERNAME} / ${NACOS_ADMIN_PASSWORD}"
-    log "║  Higress login:    ${HIGRESS_USERNAME} / ${HIGRESS_PASSWORD}"
+    if [[ "${INSTALL_NACOS}" == "true" ]]; then
+        log "║  Nacos login:      ${NACOS_USERNAME} / ${NACOS_ADMIN_PASSWORD}"
+    fi
+    if [[ "${INSTALL_HIGRESS}" == "true" ]]; then
+        log "║  Higress login:    ${HIGRESS_USERNAME} / ${HIGRESS_PASSWORD}"
+    fi
     log "║"
     if [[ "${SKIP_AI_MODEL_INIT:-true}" != "true" ]]; then
         local _ri
@@ -1300,7 +1402,11 @@ init_data() {
     kubectl cluster-info >/dev/null 2>&1 || error "无法连接到 Kubernetes 集群"
 
     local services_ok=true
-    for deploy in himarket-server himarket-admin himarket-frontend nacos; do
+    local _deploys="himarket-server himarket-admin himarket-frontend"
+    if [[ "${INSTALL_NACOS:-true}" == "true" ]]; then
+        _deploys="${_deploys} nacos"
+    fi
+    for deploy in ${_deploys}; do
         local ready
         ready=$(kubectl get deployment "${deploy}" -n "${ns}" -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
         if [[ "${ready:-0}" -lt 1 ]]; then

@@ -1,7 +1,9 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { SearchOutlined, DownloadOutlined, ClockCircleOutlined } from "@ant-design/icons";
-import { Input, message, Pagination, Segmented } from "antd";
+import { Trans } from 'react-i18next';
+import { Input, message, Pagination } from "antd";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from 'react-i18next';
 import { Layout } from "../components/Layout";
 import { CategoryMenu } from "../components/square/CategoryMenu";
 import { ModelCard } from "../components/square/ModelCard";
@@ -21,16 +23,16 @@ import { CardGridSkeleton } from "../components/loading";
 function Square(props: { activeType: string }) {
   const { activeType } = props;
   const navigate = useNavigate();
+  const { t } = useTranslation('square');
   const { isLoggedIn } = useAuth();
   const [loginPromptOpen, setLoginPromptOpen] = useState(false);
 
   const [activeCategory, setActiveCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [isStuck, setIsStuck] = useState(false);
   const [products, setProducts] = useState<IProductDetail[]>([]);
   const [categories, setCategories] = useState<Array<{ id: string; name: string; count: number }>>([]);
-  const [loading, setLoading] = useState(false);
-  const [categoriesLoading, setCategoriesLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [sortBy, setSortBy] = useState<string>("DOWNLOAD_COUNT");
 
   const showSortControl = activeType === 'AGENT_SKILL' || activeType === 'WORKER';
@@ -40,34 +42,22 @@ function Square(props: { activeType: string }) {
   const [totalElements, setTotalElements] = useState(0);
   const PAGE_SIZE = 12;
 
-  // IntersectionObserver 哨兵 ref，用于检测 sticky 状态
-  const sentinelRef = useRef<HTMLDivElement>(null);
   // 滚动容器 ref，供 BackToTopButton 使用
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // IntersectionObserver 检测 sticky 状态
+  // activeType 切换时立即重置全部状态，避免旧数据闪烁
   useEffect(() => {
-    const sentinel = sentinelRef.current;
-    if (!sentinel) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        // 当哨兵元素不可见时，说明搜索区域已经 sticky 到顶部
-        setIsStuck(!entry.isIntersecting);
-      },
-      { threshold: 0 }
-    );
-
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, []);
-
-  // 获取分类列表
-  useEffect(() => {
+    setProducts([]);
+    setCategories([]);
+    setLoading(true);
+    setCategoriesLoading(true);
+    setSearchQuery("");
+    setCurrentPage(1);
     setSortBy("DOWNLOAD_COUNT");
+    setActiveCategory("all");
+    setTotalElements(0);
 
     const fetchCategories = async () => {
-      setCategoriesLoading(true);
       try {
         const productType = activeType;
         const response = await APIs.getCategoriesByProductType({ productType });
@@ -81,18 +71,16 @@ function Square(props: { activeType: string }) {
 
           if (categoryList.length > 0) {
             setCategories([
-              { id: "all", name: "全部", count: 0 },
+              { id: "all", name: t('allCategory'), count: 0 },
               ...categoryList
             ]);
-            setActiveCategory("all");
           } else {
             setCategories([]);
-            setActiveCategory("");
           }
         }
       } catch (error) {
         console.error("Failed to fetch categories:", error);
-        message.error("获取分类列表失败");
+        message.error(t('fetchCategoriesFailed'));
       } finally {
         setCategoriesLoading(false);
       }
@@ -124,7 +112,7 @@ function Square(props: { activeType: string }) {
       }
     } catch (error) {
       console.error("Failed to fetch products:", error);
-      message.error("获取产品列表失败");
+      message.error(t('fetchProductsFailed'));
     } finally {
       setLoading(false);
     }
@@ -157,33 +145,14 @@ function Square(props: { activeType: string }) {
   const filteredModels = products;
 
   // 根据产品类型获取引导语
-  const getSlogan = (): { title: string; subtitle: string } | null => {
+  const getSlogan = (): { title: string; subtitleKey: string } | null => {
     switch (activeType) {
       case 'AGENT_SKILL':
-        return { title: 'Skill 市场', subtitle: '发现和分享 Agent Skills' };
+        return { title: t('skillMarketTitle'), subtitleKey: 'skillMarketSubtitle' };
       case 'WORKER':
-        return { title: 'Worker 市场', subtitle: '领养一个精心培育好的 OpenClaw，跳过从零开始的漫长训练' };
+        return { title: t('workerMarketTitle'), subtitleKey: 'workerMarketSubtitle' };
       default:
         return null;
-    }
-  };
-
-  const getStatLabel = () => {
-    switch (activeType) {
-      case 'MODEL_API':
-        return 'Models';
-      case 'MCP_SERVER':
-        return 'MCP Servers';
-      case 'AGENT_API':
-        return 'Agents';
-      case 'REST_API':
-        return 'APIs';
-      case 'AGENT_SKILL':
-        return 'Skills';
-      case 'WORKER':
-        return 'Workers';
-      default:
-        return 'Items';
     }
   };
 
@@ -216,55 +185,74 @@ function Square(props: { activeType: string }) {
         navigate(`/workers/${product.productId}`);
         break;
       default:
-        console.log("未知的产品类型", product.type);
+        console.log(t('unknownProductType'), product.type);
     }
   };
+
+  const slogan = getSlogan();
 
   return (
     <Layout>
       <div className="flex flex-col h-[calc(100vh-96px)] overflow-auto scrollbar-hide" ref={scrollContainerRef}>
-        {/* IntersectionObserver 哨兵元素 */}
-        <div ref={sentinelRef} className="h-0 flex-shrink-0" />
-
         {/* 引导语 */}
-        {getSlogan() && (
-          <div className="text-center py-4">
-            <h1 className="text-2xl font-bold mb-2">{getSlogan()!.title}</h1>
-            <p className="text-gray-500 text-base text-flow text-flow-grey slow">{getSlogan()!.subtitle}</p>
-          </div>
+        {slogan && (
+            <div className="text-center py-6">
+              <h1 className="text-4xl font-bold mb-3">{slogan.title}</h1>
+              <p className="text-gray-500 text-base flex items-baseline justify-center gap-0">
+                <Trans
+                  t={t}
+                  i18nKey={slogan.subtitleKey}
+                  values={{ count: totalElements }}
+                  components={{
+                    1: <span className="text-4xl font-extrabold text-blue-500 mx-1 tabular-nums leading-none relative -top-[2px]" />
+                  }}
+                />
+              </p>
+            </div>
         )}
 
-        {/* 搜索区域 - CSS Sticky 实现 */}
-        <div className={`sticky top-0 z-50 backdrop-blur-md transition-shadow duration-200 flex-shrink-0 ${isStuck ? 'shadow-sm bg-white/80' : ''}`}>
+        {/* 搜索区域 */}
+        <div className="flex-shrink-0">
           <div className="flex flex-col gap-4 px-6 py-4">
-            {/* 统计信息 + 排序 */}
-            <div className="flex items-center justify-center gap-4 text-sm text-gray-600">
-              <div className="flex items-center gap-1.5">
-                <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                <span className="font-medium">{totalElements.toLocaleString()}</span>
-                <span>{getStatLabel()}</span>
+            {/* 排序 */}
+            {showSortControl && (
+              <div className="flex items-center justify-center text-sm">
+                <div className="inline-flex items-center p-[3px] rounded-xl bg-gray-100/80 backdrop-blur-sm">
+                  {[
+                    { label: t('sortMostDownloads'), value: 'DOWNLOAD_COUNT', icon: <DownloadOutlined /> },
+                    { label: t('sortRecentlyUpdated'), value: 'UPDATED_AT', icon: <ClockCircleOutlined /> },
+                  ].map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => {
+                        setSortBy(option.value);
+                        setCurrentPage(1);
+                      }}
+                      className={`
+                        flex items-center gap-1.5 px-3.5 py-1.5 rounded-[10px] text-[13px] font-medium
+                        transition-all duration-200 ease-out cursor-pointer select-none
+                        ${sortBy === option.value
+                          ? 'bg-white text-gray-900 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_0_0_1px_rgba(0,0,0,0.04)]'
+                          : 'text-gray-500 hover:text-gray-700'
+                        }
+                      `}
+                    >
+                      <span className={`text-xs transition-colors duration-200 ${sortBy === option.value ? 'text-indigo-500' : 'text-gray-500'}`}>
+                        {option.icon}
+                      </span>
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
               </div>
-              {showSortControl && (
-                <Segmented
-                  size="small"
-                  value={sortBy}
-                  onChange={(value) => {
-                    setSortBy(value as string);
-                    setCurrentPage(1);
-                  }}
-                  options={[
-                    { label: <span><DownloadOutlined /> 最多下载</span>, value: 'DOWNLOAD_COUNT' },
-                    { label: <span><ClockCircleOutlined /> 最近更新</span>, value: 'UPDATED_AT' },
-                  ]}
-                />
-              )}
-            </div>
+            )}
 
-            {/* 搜索框 - 唯一实例 */}
+            {/* 搜索框 */}
             <div className="flex items-center justify-center">
               <div className="w-full max-w-3xl">
                 <Input
-                  placeholder="搜索名称..."
+                  placeholder={t('searchPlaceholder')}
                   value={searchQuery}
                   onChange={(e) => handleSearchChange(e.target.value)}
                   onPressEnter={handleSearch}
@@ -279,15 +267,11 @@ function Square(props: { activeType: string }) {
                     </button>
                   }
                   className="rounded-xl text-base"
-                  style={{
-                    backgroundColor: "rgba(255, 255, 255, 0.95)",
-                    boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
-                  }}
                 />
               </div>
             </div>
 
-            {/* 分类菜单 - 唯一实例 */}
+            {/* 分类菜单 */}
             <div className="flex-1 min-w-0">
               <CategoryMenu
                 categories={categories}
@@ -303,10 +287,10 @@ function Square(props: { activeType: string }) {
         <div className="flex-1 px-4 pt-4 pb-4 flex-shrink-0">
           <div className="pb-4">
             {loading ? (
-              <CardGridSkeleton count={8} columns={{ sm: 1, md: 2, lg: 3 }} />
+              <CardGridSkeleton count={8} />
             ) : (
               <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 max-w-[1600px] mx-auto">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 max-w-[1600px] mx-auto animate-in fade-in duration-300">
                   {filteredModels.map((product) => (
                     product.type === 'AGENT_SKILL' ? (
                       <SkillCard
@@ -316,7 +300,6 @@ function Square(props: { activeType: string }) {
                         releaseDate={dayjs(product.createAt).format("YYYY-MM-DD HH:mm:ss")}
                         skillTags={product.skillConfig?.skillTags}
                         downloadCount={product.skillConfig?.downloadCount}
-                        icon={getIconString(product.icon, product.name)}
                         onClick={() => handleViewDetail(product)}
                       />
                     ) : product.type === 'WORKER' ? (
@@ -324,7 +307,6 @@ function Square(props: { activeType: string }) {
                         key={product.productId}
                         name={product.name}
                         description={product.description}
-                        icon={getIconString(product.icon, product.name)}
                         releaseDate={dayjs(product.createAt).format("YYYY-MM-DD HH:mm:ss")}
                         workerTags={product.workerConfig?.tags}
                         downloadCount={product.workerConfig?.downloadCount}
@@ -369,7 +351,7 @@ function Square(props: { activeType: string }) {
       <LoginPrompt
         open={loginPromptOpen}
         onClose={() => setLoginPromptOpen(false)}
-        contextMessage="登录后即可试用 AI 模型，体验智能对话能力"
+        contextMessage={t('loginPromptContext')}
       />
     </Layout>
   );

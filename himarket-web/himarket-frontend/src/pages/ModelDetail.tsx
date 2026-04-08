@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate } from "react-router-dom";
 import type { ProductHeaderHandle } from "../components/ProductHeader";
 import { ProductDetailLayout } from "../components/ProductDetailLayout";
@@ -16,6 +17,7 @@ import type { IModelConfig, IRoute } from "../lib/apis/typing";
 import APIs from "../lib/apis";
 import MarkdownRender from "../components/MarkdownRender";
 import { copyToClipboard, formatDomainWithPort } from "../lib/utils";
+import { resolveEndpointPath } from "../lib/modelEndpoint";
 import { LoginPrompt } from "../components/LoginPrompt";
 import { useAuth } from "../hooks/useAuth";
 
@@ -32,6 +34,7 @@ function ModelDetail() {
   const [hasSubscription, setHasSubscription] = useState(false);
   const headerRef = useRef<ProductHeaderHandle>(null);
   const { isLoggedIn } = useAuth();
+  const { t: tLoginPrompt } = useTranslation('loginPrompt');
   const [loginPromptOpen, setLoginPromptOpen] = useState(false);
 
   const handleSubscriptionStatusChange = useCallback((subscribed: boolean) => {
@@ -206,7 +209,12 @@ function ModelDetail() {
     const selectedDomain = allUniqueDomains[selectedModelDomainIndex] || allUniqueDomains[0];
     const formattedDomain = formatDomainWithPort(selectedDomain.domain, selectedDomain.port, selectedDomain.protocol);
     const baseUrl = `${selectedDomain.protocol.toLowerCase()}://${formattedDomain}`;
-    const fullUrl = `${baseUrl}${firstRoute.match.path.value}`;
+    const resolvedPath = resolveEndpointPath(
+      firstRoute.match.path.value,
+      firstRoute.match.path.type,
+      modelConfig.modelAPIConfig.aiProtocols
+    );
+    const fullUrl = `${baseUrl}${resolvedPath}`;
 
     const modelName = data?.feature?.modelFeature?.model || "{{model_name}}";
 
@@ -332,13 +340,21 @@ function ModelDetail() {
                                           e.stopPropagation()
                                           if (allUniqueDomains.length > 0 && allUniqueDomains.length > selectedModelDomainIndex) {
                                             const selectedDomain = allUniqueDomains[selectedModelDomainIndex]
-                                            const path = route.match?.path?.value || '/'
+                                            const path = resolveEndpointPath(
+                                              route.match?.path?.value || '/',
+                                              route.match?.path?.type,
+                                              modelConfig.modelAPIConfig.aiProtocols
+                                            )
                                             const formattedDomain = formatDomainWithPort(selectedDomain.domain, selectedDomain.port, selectedDomain.protocol);
                                             const fullUrl = `${selectedDomain.protocol.toLowerCase()}://${formattedDomain}${path}`
                                             copyToClipboard(fullUrl).then(() => message.success("链接已复制到剪贴板"))
                                           } else if (route.domains && route.domains.length > 0) {
                                             const domain = route.domains[0]
-                                            const path = route.match?.path?.value || '/'
+                                            const path = resolveEndpointPath(
+                                              route.match?.path?.value || '/',
+                                              route.match?.path?.type,
+                                              modelConfig.modelAPIConfig.aiProtocols
+                                            )
                                             const formattedDomain = formatDomainWithPort(domain.domain, domain.port, domain.protocol);
                                             const fullUrl = `${domain.protocol.toLowerCase()}://${formattedDomain}${path}`
                                             copyToClipboard(fullUrl).then(() => message.success("链接已复制到剪贴板"))
@@ -537,7 +553,7 @@ function ModelDetail() {
       <LoginPrompt
         open={loginPromptOpen}
         onClose={() => setLoginPromptOpen(false)}
-        contextMessage="登录后即可订阅模型并开始对话测试"
+        contextMessage={tLoginPrompt('contextSubscribeModel')}
       />
     </>
   );

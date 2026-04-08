@@ -1,5 +1,9 @@
 hub: opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group
 
+# 全局资源规格：small(1c2g) / standard(2c4g) / large(4c8g)
+# 各组件可通过 frontend.size / admin.size / server.size 单独覆盖
+size: standard
+
 frontend:
   image:
     repository: himarket-frontend
@@ -8,8 +12,9 @@ frontend:
   service:
     type: LoadBalancer
     port: 80
-  replicaCount: 1
+  # replicaCount: 不设置时由 size 自动决定（large=2, 其他=1）；显式设置可覆盖
   serverPort: 8000
+  # size: small  # 可选：覆盖全局规格
 
 admin:
   image:
@@ -19,8 +24,9 @@ admin:
   service:
     type: LoadBalancer
     port: 80
-  replicaCount: 1
+  # replicaCount: 不设置时由 size 自动决定（large=2, 其他=1）；显式设置可覆盖
   serverPort: 8000
+  # size: small  # 可选：覆盖全局规格
 
 server:
   image:
@@ -30,8 +36,11 @@ server:
   service:
     type: ClusterIP
     port: 80
-  replicaCount: 1
+  # replicaCount: 不设置时由 size 自动决定（large=2, 其他=1）；显式设置可覆盖
   serverPort: 8080
+  # size: large  # 可选：覆盖全局规格
+  # JVM 调优参数（module opens 已固定在镜像 ENTRYPOINT 中，此处仅控制调优参数）
+  javaOpts: "-XX:+UseG1GC -XX:MaxRAMPercentage=75.0 -XX:InitialRAMPercentage=50.0 -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp/heapdump.hprof"
   # JWT Secret（留空则自动生成随机值）
   jwtSecret: ""
 
@@ -76,14 +85,6 @@ mysql:
 
 serviceAccount:
   name: "himarket"
-
-resources:
-  limits:
-    cpu: 2
-    memory: 2000Mi
-  requests:
-    cpu: 1
-    memory: 1000Mi
 
 # 共享沙箱配置
 sandbox:

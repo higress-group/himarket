@@ -32,6 +32,10 @@ fi
 NS="${NAMESPACE:-himarket}"
 
 # ── 跳过检查 ─────────────────────────────────────────────────────────────────
+if [[ "${INSTALL_NACOS:-true}" != "true" ]]; then
+  echo "[sync-nacos-market] INSTALL_NACOS=${INSTALL_NACOS}，跳过 Nacos 同步"
+  exit 0
+fi
 if [[ "${SKIP_NACOS_SYNC:-false}" == "true" ]]; then
   echo "[sync-nacos-market] SKIP_NACOS_SYNC=true，跳过 Nacos 同步"
   exit 0
@@ -169,6 +173,37 @@ call_himarket_api() {
     attempt=$((attempt + 1))
   done
   return 1
+}
+
+########################################
+# Step 0: 初始化 HiMarket 管理员（幂等）
+########################################
+ensure_admin_initialized() {
+  log "确保 HiMarket 管理员已初始化..."
+
+  local body
+  body=$(jq -n \
+    --arg username "${ADMIN_USERNAME}" \
+    --arg password "${ADMIN_PASSWORD}" \
+    '{username: $username, password: $password}')
+
+  # 先检查是否需要初始化
+  if call_himarket_api "检查初始化" "GET" "/api/v1/admins/need-init" "" 1; then
+    if [[ "$API_RESPONSE" == *"true"* ]]; then
+      log "HiMarket 尚未初始化管理员，正在创建..."
+      if call_himarket_api "初始化管理员" "POST" "/api/v1/admins/init" "$body" 1; then
+        log "HiMarket 管理员初始化成功"
+      else
+        err "HiMarket 管理员初始化失败 (HTTP ${API_HTTP_CODE})"
+        return 1
+      fi
+    else
+      log "HiMarket 管理员已存在，跳过初始化"
+    fi
+  else
+    err "无法检查 HiMarket 初始化状态 (HTTP ${API_HTTP_CODE})"
+    return 1
+  fi
 }
 
 ########################################
@@ -383,25 +418,31 @@ main() {
   # 1. 解析服务地址
   resolve_himarket_url
 
-  # 2. 登录 HiMarket
+  # 2. 确保 HiMarket 管理员已初始化（全新安装/重装时 administrator 表为空）
+  if ! ensure_admin_initialized; then
+    err "HiMarket 管理员初始化失败，终止同步"
+    exit 1
+  fi
+
+  # 3. 登录 HiMarket
   if ! login_himarket; then
     err "HiMarket Admin 登录失败，终止同步"
     exit 1
   fi
 
-  # 3. 注册 Nacos 实例
+  # 4. 注册 Nacos 实例
   if ! register_nacos_instance; then
     err "Nacos 实例注册失败，终止同步"
     exit 1
   fi
 
-  # 4. 导入 Skills（失败不阻断）
+  # 5. 导入 Skills（失败不阻断）
   import_skills || log "Skills 导入失败，继续执行..."
 
-  # 5. 导入 Workers（失败不阻断）
+  # 6. 导入 Workers（失败不阻断）
   import_workers || log "Workers 导入失败，继续执行..."
 
-  # 6. 获取或创建 Portal
+  # 7. 获取或创建 Portal
   log "获取 Portal ID..."
   PORTAL_ID=$(get_or_create_portal "demo")
   if [[ -z "${PORTAL_ID}" ]]; then
@@ -409,7 +450,7 @@ main() {
   else
     log "Portal ID: ${PORTAL_ID}"
 
-    # 7. 发布产品到门户
+    # 8. 发布产品到门户
     publish_products_to_portal "${PORTAL_ID}"
   fi
 

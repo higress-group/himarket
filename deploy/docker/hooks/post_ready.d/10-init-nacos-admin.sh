@@ -11,6 +11,12 @@ if [[ -f "${ENV_FILE}" ]]; then
   set -a; . "${ENV_FILE}"; set +a
 fi
 
+# 如果未安装 Nacos，跳过初始化
+if [[ "${INSTALL_NACOS:-true}" != "true" ]]; then
+  echo "[init-nacos-admin] INSTALL_NACOS=${INSTALL_NACOS}，跳过 Nacos 管理员初始化"
+  exit 0
+fi
+
 NACOS_USERNAME="${NACOS_USERNAME:-nacos}"
 NACOS_ADMIN_PASSWORD="${NACOS_ADMIN_PASSWORD:-nacos}"
 

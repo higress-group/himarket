@@ -63,6 +63,7 @@ public interface ProductRepository extends BaseRepository<Product, Long> {
     List<Product> findAllByType(ProductType type);
 
     /**
+    /**
      * Find products by type and status (paginated)
      *
      * @param type the product type
@@ -88,4 +89,13 @@ public interface ProductRepository extends BaseRepository<Product, Long> {
             @org.springframework.data.repository.query.Param("type") ProductType type,
             @org.springframework.data.repository.query.Param("status")
                     com.alibaba.himarket.support.enums.ProductStatus status);
+
+    /**
+     * Find products by names and admin ID (for batch name conflict check)
+     *
+     * @param names the collection of product names
+     * @param adminId the admin ID
+     * @return the list of products matching the names
+     */
+    List<Product> findByNameInAndAdminId(Collection<String> names, String adminId);
 }

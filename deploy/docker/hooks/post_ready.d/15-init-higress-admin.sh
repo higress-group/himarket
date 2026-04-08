@@ -10,6 +10,12 @@ if [[ -f "${ENV_FILE}" ]]; then
   set -a; . "${ENV_FILE}"; set +a
 fi
 
+# 如果未安装 Higress，跳过初始化
+if [[ "${INSTALL_HIGRESS:-true}" != "true" ]]; then
+  echo "[init-higress-admin] INSTALL_HIGRESS=${INSTALL_HIGRESS}，跳过 Higress 管理员初始化"
+  exit 0
+fi
+
 # 从环境变量读取密码，默认值为 admin
 HIGRESS_PASSWORD="${HIGRESS_PASSWORD:-admin}"
 HIGRESS_ADMIN_USER="${HIGRESS_ADMIN_USER:-admin}"

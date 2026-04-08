@@ -6,6 +6,7 @@ import aliyunIcon from '../assets/aliyun.png';
 import githubIcon from '../assets/github.png';
 import googleIcon from '../assets/google.png';
 import { message } from "antd";
+import { useTranslation } from 'react-i18next';
 import APIs, { type IIdentity, type IIdpProvider } from '../lib/apis';
 
 const providerIcons: Record<string, string> = {
@@ -56,6 +57,7 @@ const parseUserProfile = (identity: IIdentity): UserProfile => {
 };
 
 const Profile: React.FC = () => {
+  const { t } = useTranslation('profile');
   const [providers, setProviders] = useState<IIdpProvider[]>([])
   const [identities, setIdentities] = useState<IIdentity[]>([])
 
@@ -99,7 +101,7 @@ const Profile: React.FC = () => {
   const handleBinding = (provider: string) => {
     // 由于简化了OIDC流程，绑定功能需要单独实现
     // 暂时提示用户功能开发中
-    message.info(`${provider} 账号绑定功能开发中，敬请期待`);
+    message.info(t('bindingComingSoon', { provider }));
 
     // 后续可以考虑以下实现方案：
     // 1. 为绑定功能创建专门的回调页面
@@ -119,19 +121,19 @@ const Profile: React.FC = () => {
     <Layout>
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
         <div className="bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-lg w-full max-w-md flex flex-col items-center border border-white/40">
-        <h2 className="text-2xl font-bold mb-6 text-gray-900 text-center">个人中心</h2>
+        <h2 className="text-2xl font-bold mb-6 text-gray-900 text-center">{t('title')}</h2>
         {/* 个人信息展示区 */}
         {userProfile && (
           <div className="flex flex-col items-center mb-8">
             {userProfile.avatar && <img src={userProfile.avatar} alt="avatar" className="w-16 h-16 rounded-full mb-2" />}
             <div className="text-lg font-semibold text-gray-900">{userProfile.name}</div>
             {userProfile.email && <div className="text-gray-500 text-sm">{userProfile.email}</div>}
-            {userProfile.provider && <div className="text-gray-400 text-xs mt-1">来自 {userProfile.provider} 账号</div>}
+            {userProfile.provider && <div className="text-gray-400 text-xs mt-1">{t('fromProvider', { provider: userProfile.provider })}</div>}
           </div>
         )}
         <div className="w-full flex flex-col gap-3 mb-6">
           {!Array.isArray(providers) || providers.length === 0 ? (
-            <div className="text-gray-400 text-center">暂无可用第三方</div>
+            <div className="text-gray-400 text-center">{t('noThirdParty')}</div>
           ) : (
             providers.map((provider) => {
               const bound = isBound(provider.provider)
@@ -144,13 +146,13 @@ const Profile: React.FC = () => {
                   {icon && <img src={icon} alt={provider.provider} className="w-6 h-6" />}
                   <span className="flex-1">{provider.name || provider.provider}</span>
                   {bound ? (
-                    <span className="px-2 py-1 rounded bg-green-100 text-green-700 text-xs font-semibold">已绑定</span>
+                    <span className="px-2 py-1 rounded bg-green-100 text-green-700 text-xs font-semibold">{t('bound')}</span>
                   ) : (
                     <button
                       onClick={() => handleBinding(provider.provider)}
                       className="px-3 py-1 rounded bg-blue-500 text-white hover:bg-blue-600 text-xs font-semibold transition-colors"
                     >
-                      绑定
+                      {t('bind')}
                     </button>
                   )}
                 </div>
