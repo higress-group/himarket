@@ -156,6 +156,11 @@ function McpDetail() {
     GATEWAY: { text: "网关导入", color: "blue" },
     NACOS: { text: "Nacos导入", color: "cyan" },
     CUSTOM: { text: "自定义配置", color: "purple" },
+    ADMIN: { text: "管理员发布", color: "green" },
+    OPEN_API: { text: "API注册", color: "geekblue" },
+    AGENTRUNTIME: { text: "AgentRuntime", color: "orange" },
+    USER: { text: "开发者发布", color: "lime" },
+    VENDOR_IMPORT: { text: "三方导入", color: "magenta" },
   };
   const originTag = origin ? (originMap[origin] || { text: origin, color: "default" }) : null;
 
