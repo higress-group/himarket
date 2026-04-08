@@ -20,20 +20,10 @@
 package com.alibaba.himarket.service.mcp;
 
 import cn.hutool.core.util.StrUtil;
-import com.alibaba.himarket.entity.McpServerMeta;
 import com.alibaba.himarket.repository.McpServerEndpointRepository;
-import com.alibaba.himarket.repository.McpServerMetaRepository;
 import com.alibaba.himarket.service.McpSandboxDeployService;
-import com.alibaba.himarket.service.hichat.manager.ToolManager;
-import com.alibaba.himarket.support.chat.mcp.MCPTransportConfig;
-import com.alibaba.himarket.support.enums.MCPTransportMode;
 import com.alibaba.himarket.support.enums.McpEndpointStatus;
-import com.alibaba.himarket.support.enums.McpProtocolType;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.agentscope.core.tool.mcp.McpClientWrapper;
-import io.modelcontextprotocol.spec.McpSchema;
 import jakarta.annotation.Resource;
-import java.util.List;
 import java.util.concurrent.Executor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -53,9 +43,6 @@ public class McpSandboxDeployListener {
 
     private final McpSandboxDeployService mcpSandboxDeployService;
     private final McpServerEndpointRepository endpointRepository;
-    private final McpServerMetaRepository metaRepository;
-    private final ToolManager toolManager;
-    private final ObjectMapper objectMapper;
 
     @Resource(name = "taskExecutor")
     private Executor taskExecutor;
@@ -132,13 +119,6 @@ public class McpSandboxDeployListener {
                     event.getSandboxId(),
                     finalEndpointUrl);
 
-            // Step 3: 异步获取工具列表
-            fetchToolsAsync(
-                    event.getMcpServerId(),
-                    event.getMcpName(),
-                    finalEndpointUrl,
-                    event.getTransportType());
-
         } catch (Exception e) {
             log.error(
                     "沙箱 CRD 部署失败: mcpName={}, sandboxId={}",
@@ -172,46 +152,6 @@ public class McpSandboxDeployListener {
                     log.warn("回滚删除 CRD 失败: {}", re.getMessage());
                 }
             }
-        }
-    }
-
-    private void fetchToolsAsync(
-            String mcpServerId, String mcpName, String endpointUrl, String transportType) {
-        try {
-            MCPTransportMode mode = McpProtocolType.resolveTransportMode(transportType);
-            MCPTransportConfig config =
-                    MCPTransportConfig.builder()
-                            .mcpServerName(mcpName)
-                            .transportMode(mode)
-                            .url(endpointUrl)
-                            .build();
-
-            McpClientWrapper client = null;
-            for (int i = 0; i < 3; i++) {
-                client = toolManager.createClient(config);
-                if (client != null) break;
-                log.info("MCP 客户端创建失败，等待重试 ({}/3): mcpName={}", i + 1, mcpName);
-                Thread.sleep(10000);
-            }
-            if (client == null) {
-                log.warn("创建 MCP 客户端失败（已重试 3 次）: mcpName={}", mcpName);
-                return;
-            }
-
-            List<McpSchema.Tool> tools = client.listTools().block();
-            if (tools != null && !tools.isEmpty()) {
-                McpServerMeta meta = metaRepository.findByMcpServerId(mcpServerId).orElse(null);
-                if (meta != null) {
-                    meta.setToolsConfig(objectMapper.writeValueAsString(tools));
-                    metaRepository.save(meta);
-                    log.info("自动查询工具列表成功: mcpName={}, toolCount={}", mcpName, tools.size());
-                }
-            }
-        } catch (InterruptedException ie) {
-            Thread.currentThread().interrupt();
-            log.warn("获取工具列表被中断: mcpName={}", mcpName);
-        } catch (Exception e) {
-            log.warn("沙箱部署后获取工具列表失败（不影响部署）: mcpName={}, error={}", mcpName, e.getMessage());
         }
     }
 
