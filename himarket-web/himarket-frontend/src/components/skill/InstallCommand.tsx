@@ -1,5 +1,3 @@
-import { useState } from "react";
-import { message, Tooltip } from "antd";
 import {
   CopyOutlined,
   CheckOutlined,
@@ -8,9 +6,12 @@ import {
   HeartOutlined,
   DownloadOutlined,
   InfoCircleOutlined,
-} from "@ant-design/icons";
-import { copyToClipboard } from "../../lib/utils";
-import { parseSkillMd } from "../../lib/skillMdUtils";
+} from '@ant-design/icons';
+import { message, Tooltip } from 'antd';
+import { useState } from 'react';
+
+import { parseSkillMd } from '../../lib/skillMdUtils';
+import { copyToClipboard } from '../../lib/utils';
 
 interface InstallCommandProps {
   productId: string;
@@ -18,64 +19,64 @@ interface InstallCommandProps {
   document: string;
 }
 
-type PackageManager = "npx" | "bunx" | "pnpm";
+type PackageManager = 'npx' | 'bunx' | 'pnpm';
 
-function InstallCommand({ productId, skillName, document }: InstallCommandProps) {
+function InstallCommand({ document, productId, skillName }: InstallCommandProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [activePM, setActivePM] = useState<PackageManager>("pnpm");
+  const [activePM, setActivePM] = useState<PackageManager>('pnpm');
 
   const parsed = parseSkillMd(document);
   const fm = parsed.frontmatter;
 
-  const author = fm.author || fm.owner || "";
-  const repository = fm.repository || fm.repo || "";
-  const dirName = fm.name || skillName.toLowerCase().replace(/\s+/g, "-");
+  const author = fm.author || fm.owner || '';
+  const repository = fm.repository || fm.repo || '';
+  const dirName = fm.name || skillName.toLowerCase().replace(/\s+/g, '-');
   const skillPath = author ? `${author}/${dirName}` : dirName;
 
   const handleDownloadPackage = async () => {
     try {
       const headers: Record<string, string> = {};
-      const token = localStorage.getItem("access_token");
+      const token = localStorage.getItem('access_token');
       if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
+        headers['Authorization'] = `Bearer ${token}`;
       }
       const res = await fetch(`/api/v1/skills/${productId}/download`, { headers });
-      if (!res.ok) throw new Error("下载失败");
+      if (!res.ok) throw new Error('下载失败');
       const blob = await res.blob();
       const blobUrl = URL.createObjectURL(blob);
-      const a = window.document.createElement("a");
+      const a = window.document.createElement('a');
       a.href = blobUrl;
-      const disposition = res.headers.get("Content-Disposition") ?? "";
+      const disposition = res.headers.get('Content-Disposition') ?? '';
       const match = disposition.match(/filename\*?=(?:UTF-8'')?["']?([^"';\n]+)/i);
-      a.download = match ? decodeURIComponent(match[1]) : `${dirName}.zip`;
+      a.download = match && match[1] ? decodeURIComponent(match[1]) : `${dirName}.zip`;
       a.click();
       URL.revokeObjectURL(blobUrl);
     } catch {
-      message.error("下载失败");
+      message.error('下载失败');
     }
   };
 
   const installCommands: Record<PackageManager, string> = {
-    npx: `npx skills add ${skillPath}`,
     bunx: `bunx skills add ${skillPath}`,
+    npx: `npx skills add ${skillPath}`,
     pnpm: `pnpm dlx skills add ${skillPath}`,
   };
 
   const handleCopy = async (text: string, id: string) => {
     try {
       await copyToClipboard(text);
-      message.success("已复制到剪贴板");
+      message.success('已复制到剪贴板');
       setCopiedId(id);
       setTimeout(() => setCopiedId(null), 2000);
     } catch {
-      message.error("复制失败");
+      message.error('复制失败');
     }
   };
 
   const CopyBtn = ({ id, text }: { id: string; text: string }) => (
     <button
-      onClick={() => handleCopy(text, id)}
       className="p-1 rounded hover:bg-gray-100 transition-colors"
+      onClick={() => handleCopy(text, id)}
     >
       {copiedId === id ? (
         <CheckOutlined className="text-green-500 text-xs" />
@@ -137,18 +138,18 @@ function InstallCommand({ productId, skillName, document }: InstallCommandProps)
           {/* 查看仓库按钮 */}
           {repository && (
             <button
-              onClick={() => {
-                const url = repository.startsWith("http")
-                  ? repository
-                  : `https://github.com/${repository}`;
-                window.open(url, "_blank");
-              }}
               className="
                 flex items-center justify-center gap-2 w-full px-4 py-2
                 rounded-lg border border-gray-200 text-sm
                 text-gray-700 bg-white hover:bg-gray-50
                 transition-colors duration-200
               "
+              onClick={() => {
+                const url = repository.startsWith('http')
+                  ? repository
+                  : `https://github.com/${repository}`;
+                window.open(url, '_blank');
+              }}
             >
               <GithubOutlined />
               <span>查看仓库</span>
@@ -163,15 +164,15 @@ function InstallCommand({ productId, skillName, document }: InstallCommandProps)
 
         {/* 包管理器切换 */}
         <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs mb-3">
-          {(["npx", "bunx", "pnpm"] as PackageManager[]).map((pm) => (
+          {(['npx', 'bunx', 'pnpm'] as PackageManager[]).map((pm) => (
             <button
-              key={pm}
-              onClick={() => setActivePM(pm)}
               className={`flex-1 px-3 py-1.5 transition-colors duration-200 ${
                 activePM === pm
-                  ? "bg-purple-100 text-purple-700 font-medium"
-                  : "bg-white text-gray-500 hover:bg-gray-50"
+                  ? 'bg-purple-100 text-purple-700 font-medium'
+                  : 'bg-white text-gray-500 hover:bg-gray-50'
               }`}
+              key={pm}
+              onClick={() => setActivePM(pm)}
             >
               {pm}
             </button>
@@ -198,7 +199,6 @@ function InstallCommand({ productId, skillName, document }: InstallCommandProps)
 
         <div className="space-y-2">
           <button
-            onClick={handleDownloadPackage}
             className="
               flex items-center justify-center gap-2 w-full px-4 py-2.5
               rounded-lg text-sm font-medium text-white
@@ -206,21 +206,22 @@ function InstallCommand({ productId, skillName, document }: InstallCommandProps)
               hover:from-purple-600 hover:to-indigo-600
               transition-all duration-200 shadow-sm
             "
+            onClick={handleDownloadPackage}
           >
             <DownloadOutlined />
             <span>下载技能包</span>
           </button>
 
           <button
-            onClick={() => handleCopy(document, "content")}
             className="
               flex items-center justify-center gap-2 w-full px-4 py-2
               rounded-lg border border-gray-200 text-sm
               text-gray-700 bg-white hover:bg-gray-50
               transition-colors duration-200
             "
+            onClick={() => handleCopy(document, 'content')}
           >
-            {copiedId === "content" ? (
+            {copiedId === 'content' ? (
               <CheckOutlined className="text-green-500" />
             ) : (
               <CopyOutlined />

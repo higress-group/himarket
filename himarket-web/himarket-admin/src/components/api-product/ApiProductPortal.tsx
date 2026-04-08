@@ -1,246 +1,267 @@
-import { useNavigate } from 'react-router-dom'
-import { Button, Table, Space, Modal, message } from 'antd'
-import { PlusOutlined, EyeOutlined, DeleteOutlined, ExclamationCircleOutlined, GlobalOutlined, CheckCircleFilled, MinusCircleFilled } from '@ant-design/icons'
-import { useState, useEffect } from 'react'
-import type { ApiProduct, Publication } from '@/types/api-product';
+import {
+  PlusOutlined,
+  EyeOutlined,
+  DeleteOutlined,
+  ExclamationCircleOutlined,
+  GlobalOutlined,
+  CheckCircleFilled,
+  MinusCircleFilled,
+} from '@ant-design/icons';
+import { Button, Table, Space, Modal, message } from 'antd';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+
 import { apiProductApi, portalApi } from '@/lib/api';
+import type { ApiProduct, Publication } from '@/types/api-product';
 
 interface ApiProductPortalProps {
-  apiProduct: ApiProduct
+  apiProduct: ApiProduct;
 }
 
 interface Portal {
-  portalId: string
-  portalName: string
-  autoApproveSubscription: boolean
+  portalId: string;
+  portalName: string;
+  autoApproveSubscription: boolean;
 }
 
 export function ApiProductPortal({ apiProduct }: ApiProductPortalProps) {
-  const [publishedPortals, setPublishedPortals] = useState<Publication[]>([])
-  const [allPortals, setAllPortals] = useState<Portal[]>([])
-  const [isModalVisible, setIsModalVisible] = useState(false)
-  const [selectedPortalIds, setSelectedPortalIds] = useState<string[]>([])
-  const [loading, setLoading] = useState(false)
-  const [portalLoading, setPortalLoading] = useState(false)
-  const [modalLoading, setModalLoading] = useState(false)
+  const [publishedPortals, setPublishedPortals] = useState<Publication[]>([]);
+  const [allPortals, setAllPortals] = useState<Portal[]>([]);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [selectedPortalIds, setSelectedPortalIds] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
+  const [modalLoading, setModalLoading] = useState(false);
 
   // 分页状态
-  const [currentPage, setCurrentPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
-  const [total, setTotal] = useState(0)
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [total, setTotal] = useState(0);
 
-  const navigate = useNavigate()
+  const navigate = useNavigate();
 
   // 获取已发布的门户列表
   useEffect(() => {
     if (apiProduct.productId) {
-      fetchPublishedPortals()
+      fetchPublishedPortals();
     }
-  }, [apiProduct.productId, currentPage, pageSize])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apiProduct.productId, currentPage, pageSize]);
 
   // 获取所有门户列表
   useEffect(() => {
-    fetchAllPortals()
-  }, [])
+    fetchAllPortals();
+  }, []);
 
   const fetchPublishedPortals = async () => {
-    setLoading(true)
+    setLoading(true);
     try {
       const res = await apiProductApi.getApiProductPublications(apiProduct.productId, {
         page: currentPage,
-        size: pageSize
-      })
-      setPublishedPortals(res.data.content?.map((item: any) => ({
-        ...item,
-        autoApproveSubscription: item.autoApproveSubscriptions || false,
-      })) || [])
-      setTotal(res.data.totalElements || 0)
+        size: pageSize,
+      });
+      setPublishedPortals(
+        res.data.content?.map((item: unknown) => ({
+          ...(item as Record<string, unknown>),
+          autoApproveSubscription:
+            (item as Record<string, unknown>).autoApproveSubscriptions || false,
+        })) || [],
+      );
+      setTotal(res.data.totalElements || 0);
     } catch (error) {
-      console.error('获取已发布门户失败:', error)
+      console.error('获取已发布门户失败:', error);
       // message.error('获取已发布门户失败')
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const fetchAllPortals = async () => {
-    setPortalLoading(true)
+    setPortalLoading(true);
     try {
       const res = await portalApi.getPortals({
         page: 1,
-        size: 500 // 获取所有门户
-      })
-      setAllPortals(res.data.content?.map((item: any) => ({
-        ...item,
-        portalName: item.name,
-        autoApproveSubscription: item.portalSettingConfig?.autoApproveSubscriptions || false,
-      })) || [])
+        size: 500, // 获取所有门户
+      });
+      setAllPortals(
+        res.data.content?.map((item: unknown) => {
+          const record = item as Record<string, unknown>;
+          const portalSettingConfig = record.portalSettingConfig as
+            | Record<string, unknown>
+            | undefined;
+          return {
+            ...record,
+            autoApproveSubscription:
+              (portalSettingConfig?.autoApproveSubscriptions as boolean) || false,
+            portalName: record.name as string,
+          };
+        }) || [],
+      );
     } catch (error) {
-      console.error('获取门户列表失败:', error)
+      console.error('获取门户列表失败:', error);
       // message.error('获取门户列表失败')
     } finally {
-      setPortalLoading(false)
+      setPortalLoading(false);
     }
-  }
+  };
 
   const handlePageChange = (page: number, size?: number) => {
-    setCurrentPage(page)
+    setCurrentPage(page);
     if (size) {
-      setPageSize(size)
+      setPageSize(size);
     }
-  }
+  };
 
   const columns = [
     {
-      title: '门户信息',
       key: 'portalInfo',
-      width: 400,
-      render: (_: any, record: Publication) => (
+      render: (_: unknown, record: Publication) => (
         <div>
-          <div className="text-sm font-medium text-gray-900 truncate">
-            {record.portalName}
-          </div>
-          <div className="text-xs text-gray-500 truncate">
-            {record.portalId}
-          </div>
+          <div className="text-sm font-medium text-gray-900 truncate">{record.portalName}</div>
+          <div className="text-xs text-gray-500 truncate">{record.portalId}</div>
         </div>
       ),
+      title: '门户信息',
+      width: 400,
     },
     {
-      title: '订阅自动审批',
       key: 'autoApprove',
-      width: 160,
-      render: (_: any, record: Publication) => (
+      render: (_: unknown, record: Publication) => (
         <div className="flex items-center">
           {record.autoApproveSubscriptions ? (
             <>
-              <CheckCircleFilled className="text-green-500 mr-1" style={{fontSize: '10px'}} />
+              <CheckCircleFilled className="text-green-500 mr-1" style={{ fontSize: '10px' }} />
               <span className="text-xs text-gray-900">已开启</span>
             </>
           ) : (
             <>
-              <MinusCircleFilled className="text-gray-400 mr-1" style={{fontSize: '10px'}} />
+              <MinusCircleFilled className="text-gray-400 mr-1" style={{ fontSize: '10px' }} />
               <span className="text-xs text-gray-900">已关闭</span>
             </>
           )}
         </div>
       ),
+      title: '订阅自动审批',
+      width: 160,
     },
     {
-      title: '操作',
       key: 'action',
-      width: 180,
-      render: (_: any, record: Publication) => (
+      render: (_: unknown, record: Publication) => (
         <Space size="middle">
-          <Button onClick={() => {
-            navigate(`/portals/${record.portalId}`)
-          }} type="link" icon={<EyeOutlined />}>
+          <Button
+            icon={<EyeOutlined />}
+            onClick={() => {
+              navigate(`/portals/${record.portalId}`);
+            }}
+            type="link"
+          >
             查看
           </Button>
-         
-          <Button 
-            type="link" 
-            danger 
+
+          <Button
+            danger
             icon={<DeleteOutlined />}
             onClick={() => handleDelete(record.publicationId, record.portalName)}
+            type="link"
           >
             移除
           </Button>
         </Space>
       ),
+      title: '操作',
+      width: 180,
     },
-  ]
+  ];
 
   const modalColumns = [
     {
-      title: '门户信息',
       key: 'portalInfo',
-      render: (_: any, record: Portal) => (
+      render: (_: unknown, record: Portal) => (
         <div>
-          <div className="text-xs font-normal text-gray-900 truncate">
-            {record.portalName}
-          </div>
-          <div className="text-xs text-gray-500">
-            {record.portalId}
-          </div>
+          <div className="text-xs font-normal text-gray-900 truncate">{record.portalName}</div>
+          <div className="text-xs text-gray-500">{record.portalId}</div>
         </div>
       ),
+      title: '门户信息',
     },
     {
-      title: '订阅自动审批',
       key: 'autoApprove',
-      width: 140,
-      render: (_: any, record: Portal) => (
+      render: (_: unknown, record: Portal) => (
         <div className="flex items-center">
           {record.autoApproveSubscription ? (
             <>
-              <CheckCircleFilled className="text-green-500 mr-1" style={{fontSize: '10px'}} />
+              <CheckCircleFilled className="text-green-500 mr-1" style={{ fontSize: '10px' }} />
               <span className="text-xs text-gray-900">已开启</span>
             </>
           ) : (
             <>
-              <MinusCircleFilled className="text-gray-400 mr-1" style={{fontSize: '10px'}} />
+              <MinusCircleFilled className="text-gray-400 mr-1" style={{ fontSize: '10px' }} />
               <span className="text-xs text-gray-900">已关闭</span>
             </>
           )}
         </div>
       ),
+      title: '订阅自动审批',
+      width: 140,
     },
-  ]
+  ];
 
   const handleAdd = () => {
-    setIsModalVisible(true)
-  }
+    setIsModalVisible(true);
+  };
 
   const handleDelete = (publicationId: string, portalName: string) => {
     Modal.confirm({
-      title: '确认移除',
-      icon: <ExclamationCircleOutlined />,
+      cancelText: '取消',
       content: `确定要从API产品中移除门户 "${portalName}" 吗？此操作不可恢复。`,
+      icon: <ExclamationCircleOutlined />,
       okText: '确认移除',
       okType: 'danger',
-      cancelText: '取消',
       onOk() {
-        apiProductApi.cancelPublishToPortal(apiProduct.productId, publicationId).then(() => {
-          message.success('移除成功')
-          fetchPublishedPortals()
-        }).catch((error) => {
-          console.error('移除失败:', error)
-          // message.error('移除失败')
-        })
+        apiProductApi
+          .cancelPublishToPortal(apiProduct.productId, publicationId)
+          .then(() => {
+            message.success('移除成功');
+            fetchPublishedPortals();
+          })
+          .catch((error) => {
+            console.error('移除失败:', error);
+            // message.error('移除失败')
+          });
       },
-    })
-  }
+      title: '确认移除',
+    });
+  };
 
   const handleModalOk = async () => {
     if (selectedPortalIds.length === 0) {
-      message.warning('请至少选择一个门户')
-      return
+      message.warning('请至少选择一个门户');
+      return;
     }
 
-    setModalLoading(true)
+    setModalLoading(true);
     try {
       // 批量发布到选中的门户
       for (const portalId of selectedPortalIds) {
-        await apiProductApi.publishToPortal(apiProduct.productId, portalId)
+        await apiProductApi.publishToPortal(apiProduct.productId, portalId);
       }
-      message.success(`成功发布到 ${selectedPortalIds.length} 个门户`)
-      setSelectedPortalIds([])
-      setIsModalVisible(false)
+      message.success(`成功发布到 ${selectedPortalIds.length} 个门户`);
+      setSelectedPortalIds([]);
+      setIsModalVisible(false);
       // 重新获取已发布的门户列表
-      fetchPublishedPortals()
+      fetchPublishedPortals();
     } catch (error) {
-      console.error('发布失败:', error)
+      console.error('发布失败:', error);
       // message.error('发布失败')
     } finally {
-      setModalLoading(false)
+      setModalLoading(false);
     }
-  }
+  };
 
   const handleModalCancel = () => {
-    setIsModalVisible(false)
-    setSelectedPortalIds([])
-  }
+    setIsModalVisible(false);
+    setSelectedPortalIds([]);
+  };
 
   return (
     <div className="p-6 space-y-6">
@@ -249,70 +270,54 @@ export function ApiProductPortal({ apiProduct }: ApiProductPortalProps) {
           <h1 className="text-2xl font-bold mb-2">发布门户</h1>
           <p className="text-gray-600">管理API产品发布的门户</p>
         </div>
-        <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
+        <Button icon={<PlusOutlined />} onClick={handleAdd} type="primary">
           发布到门户
         </Button>
       </div>
 
       {publishedPortals.length === 0 && !loading ? (
-          <div className="text-center py-8 text-gray-500">
-            <p>暂未发布到任何门户</p>
-          </div>
-        ) : (
-          <Table 
-            columns={columns} 
-            dataSource={publishedPortals}
-            rowKey="portalId"
-            loading={loading}
-            pagination={{
-              current: currentPage,
-              pageSize: pageSize,
-              total: total,
-              showSizeChanger: true,
-              showQuickJumper: true,
-              showTotal: (total) => `共 ${total} 条`,
-              onChange: handlePageChange,
-              onShowSizeChange: handlePageChange,
-            }}
-          />
-        )}
+        <div className="text-center py-8 text-gray-500">
+          <p>暂未发布到任何门户</p>
+        </div>
+      ) : (
+        <Table
+          columns={columns}
+          dataSource={publishedPortals}
+          loading={loading}
+          pagination={{
+            current: currentPage,
+            onChange: handlePageChange,
+            onShowSizeChange: handlePageChange,
+            pageSize: pageSize,
+            showQuickJumper: true,
+            showSizeChanger: true,
+            showTotal: (total) => `共 ${total} 条`,
+            total: total,
+          }}
+          rowKey="portalId"
+        />
+      )}
 
       <Modal
-        title="发布到门户"
-        open={isModalVisible}
-        onOk={handleModalOk}
-        onCancel={handleModalCancel}
-        okText="发布"
         cancelText="取消"
-        width={700}
         confirmLoading={modalLoading}
         destroyOnClose
+        okText="发布"
+        onCancel={handleModalCancel}
+        onOk={handleModalOk}
+        open={isModalVisible}
+        title="发布到门户"
+        width={700}
       >
         <div className="border border-gray-200 rounded-lg overflow-hidden">
           <Table
-            columns={modalColumns}
-            dataSource={allPortals.filter(portal => 
-              !publishedPortals.some(published => published.portalId === portal.portalId)
-            )}
-            rowKey="portalId"
-            loading={portalLoading}
-            pagination={false}
-            scroll={{ y: 350 }}
-            size="middle"
             className="portal-selection-table"
-            rowSelection={{
-              type: 'checkbox',
-              selectedRowKeys: selectedPortalIds,
-              onChange: (selectedRowKeys) => {
-                setSelectedPortalIds(selectedRowKeys as string[])
-              },
-              columnWidth: 50,
-            }}
-            rowClassName={(record) => 
-              selectedPortalIds.includes(record.portalId) 
-                ? 'bg-blue-50 hover:bg-blue-100' 
-                : 'hover:bg-gray-50'
-            }
+            columns={modalColumns}
+            dataSource={allPortals.filter(
+              (portal) =>
+                !publishedPortals.some((published) => published.portalId === portal.portalId),
+            )}
+            loading={portalLoading}
             locale={{
               emptyText: (
                 <div className="py-8">
@@ -321,11 +326,28 @@ export function ApiProductPortal({ apiProduct }: ApiProductPortalProps) {
                   </div>
                   <div className="text-gray-500 text-sm">暂无可发布的门户</div>
                 </div>
-              )
+              ),
             }}
+            pagination={false}
+            rowClassName={(record) =>
+              selectedPortalIds.includes(record.portalId)
+                ? 'bg-blue-50 hover:bg-blue-100'
+                : 'hover:bg-gray-50'
+            }
+            rowKey="portalId"
+            rowSelection={{
+              columnWidth: 50,
+              onChange: (selectedRowKeys) => {
+                setSelectedPortalIds(selectedRowKeys as string[]);
+              },
+              selectedRowKeys: selectedPortalIds,
+              type: 'checkbox',
+            }}
+            scroll={{ y: 350 }}
+            size="middle"
           />
         </div>
       </Modal>
     </div>
-  )
-} 
+  );
+}

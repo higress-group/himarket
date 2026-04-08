@@ -1,4 +1,4 @@
-import { DownloadOutlined } from "@ant-design/icons";
+import { DownloadOutlined } from '@ant-design/icons';
 
 interface SkillCardProps {
   name: string;
@@ -10,16 +10,15 @@ interface SkillCardProps {
 }
 
 export function SkillCard({
-  name,
   description,
+  downloadCount,
+  name,
+  onClick,
   releaseDate,
   skillTags = [],
-  downloadCount,
-  onClick,
 }: SkillCardProps) {
   return (
-    <div
-      onClick={onClick}
+    <button
       className="
         group bg-white/70 backdrop-blur-sm rounded-2xl p-5
         border border-gray-100/80
@@ -28,7 +27,10 @@ export function SkillCard({
         hover:bg-white hover:shadow-lg hover:shadow-gray-200/50 hover:-translate-y-0.5 hover:border-gray-200/60
         active:scale-[0.98] active:duration-150
         h-[200px] flex flex-col
+        w-full text-left border-none
       "
+      onClick={onClick}
+      type="button"
     >
       {/* 名称 + 下载数 */}
       <div className="flex items-center gap-3 mb-3">
@@ -42,18 +44,16 @@ export function SkillCard({
       </div>
 
       {/* 简介 */}
-      <p className="text-sm line-clamp-3 leading-relaxed text-gray-500 flex-1">
-        {description}
-      </p>
+      <p className="text-sm line-clamp-3 leading-relaxed text-gray-500 flex-1">{description}</p>
 
       {/* 底部：标签 + 下载数 + 日期 */}
       <div className="mt-2 space-y-1.5">
         {(skillTags ?? []).length > 0 && (
           <div className="flex items-center gap-1 overflow-hidden">
-            {(skillTags ?? []).slice(0, 3).map(tag => (
+            {(skillTags ?? []).slice(0, 3).map((tag) => (
               <span
-                key={tag}
                 className="px-2 py-0.5 rounded-md text-[11px] font-medium bg-gray-50 text-gray-500 whitespace-nowrap border border-gray-100"
+                key={tag}
               >
                 {tag}
               </span>
@@ -65,6 +65,6 @@ export function SkillCard({
           <span className="tabular-nums tracking-tight">{releaseDate}</span>
         </div>
       </div>
-    </div>
+    </button>
   );
 }

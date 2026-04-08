@@ -1,4 +1,4 @@
-import type { FileNode } from "../../types/coding";
+import type { FileNode } from '../../types/coding';
 
 export interface FlatFileItem {
   name: string; // Filename only
@@ -10,23 +10,20 @@ export interface FlatFileItem {
 /**
  * Flatten hierarchical FileNode tree into a flat array of files (directories excluded)
  */
-export function flattenFileTree(
-  nodes: FileNode[],
-  basePath: string
-): FlatFileItem[] {
+export function flattenFileTree(nodes: FileNode[], basePath: string): FlatFileItem[] {
   const result: FlatFileItem[] = [];
 
   function traverse(node: FileNode) {
-    if (node.type === "file") {
+    if (node.type === 'file') {
       const relativePath = node.path.startsWith(basePath)
-        ? node.path.slice(basePath.length).replace(/^\//, "")
+        ? node.path.slice(basePath.length).replace(/^\//, '')
         : node.path;
 
       result.push({
+        extension: node.extension,
         name: node.name,
         path: node.path,
         relativePath,
-        extension: node.extension,
       });
     }
 
@@ -43,11 +40,7 @@ export function flattenFileTree(
  * Filter files by substring matching (case-insensitive)
  * Prioritizes: exact match > starts with > contains
  */
-export function filterFiles(
-  files: FlatFileItem[],
-  query: string,
-  limit = 50
-): FlatFileItem[] {
+export function filterFiles(files: FlatFileItem[], query: string, limit = 50): FlatFileItem[] {
   if (!query) {
     return files.slice(0, limit);
   }
@@ -73,8 +66,5 @@ export function filterFiles(
   }
 
   // Combine results with priority
-  return [...exactMatches, ...startsWithMatches, ...containsMatches].slice(
-    0,
-    limit
-  );
+  return [...exactMatches, ...startsWithMatches, ...containsMatches].slice(0, limit);
 }

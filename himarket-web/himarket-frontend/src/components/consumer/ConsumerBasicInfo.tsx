@@ -1,5 +1,6 @@
-import { Descriptions } from "antd";
-import type { Consumer } from "../../types/consumer";
+import { Descriptions } from 'antd';
+
+import type { Consumer } from '../../types/consumer';
 
 interface ConsumerBasicInfoProps {
   consumer: Consumer;

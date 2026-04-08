@@ -1,7 +1,9 @@
-import { useState } from "react";
-import { Collapse } from "antd";
-import { Mcp } from "../icon";
-import type { IMcpToolCall, IMcpToolResponse } from "../../types";
+import { Collapse } from 'antd';
+import { useState } from 'react';
+
+import { Mcp } from '../icon';
+
+import type { IMcpToolCall, IMcpToolResponse } from '../../types';
 
 interface McpToolCallItemProps {
   toolCall: IMcpToolCall;
@@ -12,15 +14,15 @@ interface McpToolCallItemProps {
 }
 
 // 单个工具调用组件 - 用于内联展示
-export function McpToolCallItem({ 
-  toolCall, 
-  toolResponse, 
-  panelKey = "mcp-tool-0",
+export function McpToolCallItem({
   activeKey: externalActiveKey,
-  onActiveKeyChange 
+  onActiveKeyChange,
+  panelKey = 'mcp-tool-0',
+  toolCall,
+  toolResponse,
 }: McpToolCallItemProps) {
   const [internalActiveKey, setInternalActiveKey] = useState<string | string[]>([]);
-  
+
   const activeKey = externalActiveKey !== undefined ? externalActiveKey : internalActiveKey;
   const setActiveKey = onActiveKeyChange || setInternalActiveKey;
 
@@ -32,13 +34,16 @@ export function McpToolCallItem({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let parsedResponse: any = null;
   try {
-    parsedInput = JSON.parse(toolCall.arguments || "{}");
+    parsedInput = JSON.parse(toolCall.arguments || '{}');
   } catch {
     parsedInput = toolCall.arguments;
   }
   try {
-    const resultString = typeof toolResponse?.result === 'string' ? toolResponse.result : JSON.stringify(toolResponse?.result || {});
-    parsedResponse = JSON.parse(resultString || "{}");
+    const resultString =
+      typeof toolResponse?.result === 'string'
+        ? toolResponse.result
+        : JSON.stringify(toolResponse?.result || {});
+    parsedResponse = JSON.parse(resultString || '{}');
   } catch {
     parsedResponse = toolResponse?.result;
   }
@@ -46,32 +51,26 @@ export function McpToolCallItem({
   return (
     <Collapse
       activeKey={activeKey}
-      onChange={setActiveKey}
+      className="bg-white/80 border border-blue-100"
       expandIconPosition="end"
       items={[
         {
-          key: panelKey,
-          label: (
-            <div className="flex items-center gap-2">
-              <Mcp className="w-4 h-4 fill-colorPrimary" />
-              <span className="font-medium text-colorPrimary">
-                {toolResponse ? "MCP 工具执行完成" : "MCP 工具执行中"}
-              </span>
-              <span className="text-gray-500">{mcpServerName}</span>
-            </div>
-          ),
           children: (
             <div className="space-y-4">
               {/* MCP Server 名称 */}
               <div>
                 <div className="text-xs font-medium text-gray-800 mb-1">MCP Server:</div>
-                <div className="text-sm p-2 border border-[#e5e5e5] rounded-lg text-gray-800">{mcpServerName}</div>
+                <div className="text-sm p-2 border border-[#e5e5e5] rounded-lg text-gray-800">
+                  {mcpServerName}
+                </div>
               </div>
 
               {/* Tools 列表 */}
               <div>
                 <div className="text-xs font-medium text-gray-800 mb-1">Tool:</div>
-                <div className="text-sm text-gray-800 border border-[#e5e5e5] p-2 rounded-lg">{toolName}</div>
+                <div className="text-sm text-gray-800 border border-[#e5e5e5] p-2 rounded-lg">
+                  {toolName}
+                </div>
               </div>
 
               {/* Parameters */}
@@ -79,7 +78,7 @@ export function McpToolCallItem({
                 <div className="text-xs font-medium text-gray-800 mb-1">Parameters:</div>
                 <div className="rounded-lg p-2 overflow-x-auto border border-[#e5e5e5]">
                   <pre className="text-xs text-gray-800 whitespace-pre-wrap">
-                    {typeof parsedInput === "object"
+                    {typeof parsedInput === 'object'
                       ? JSON.stringify(parsedInput, null, 2)
                       : String(parsedInput)}
                   </pre>
@@ -92,7 +91,7 @@ export function McpToolCallItem({
                   <div className="text-xs font-medium text-gray-800 mb-1">Results:</div>
                   <div className="bg-white rounded-lg p-2 overflow-x-auto border border-[#e5e5e5]">
                     <pre className="text-xs text-gray-800 whitespace-pre-wrap">
-                      {typeof parsedResponse === "object"
+                      {typeof parsedResponse === 'object'
                         ? JSON.stringify(parsedResponse, null, 2)
                         : String(parsedResponse)}
                     </pre>
@@ -101,14 +100,22 @@ export function McpToolCallItem({
               )}
 
               {/* 如果还没有响应，显示等待状态 */}
-              {!toolResponse && (
-                <div className="text-sm text-gray-400 italic">等待工具响应...</div>
-              )}
+              {!toolResponse && <div className="text-sm text-gray-400 italic">等待工具响应...</div>}
+            </div>
+          ),
+          key: panelKey,
+          label: (
+            <div className="flex items-center gap-2">
+              <Mcp className="w-4 h-4 fill-colorPrimary" />
+              <span className="font-medium text-colorPrimary">
+                {toolResponse ? 'MCP 工具执行完成' : 'MCP 工具执行中'}
+              </span>
+              <span className="text-gray-500">{mcpServerName}</span>
             </div>
           ),
         },
       ]}
-      className="bg-white/80 border border-blue-100"
+      onChange={setActiveKey}
     />
   );
 }
@@ -135,12 +142,12 @@ export function McpToolCallPanel({ toolCalls = [], toolResponses = [] }: McpTool
     <div className="space-y-2">
       {toolItems.map(({ toolCall, toolResponse }, index) => (
         <McpToolCallItem
+          activeKey={activeKey}
           key={`mcp-tool-${index}`}
+          onActiveKeyChange={setActiveKey}
+          panelKey={`mcp-tool-${index}`}
           toolCall={toolCall}
           toolResponse={toolResponse}
-          panelKey={`mcp-tool-${index}`}
-          activeKey={activeKey}
-          onActiveKeyChange={setActiveKey}
         />
       ))}
     </div>

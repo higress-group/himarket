@@ -1,14 +1,10 @@
 /**
  * SLS日志查询API服务封装
  */
-import api from "./api";
-import {
-  SlsQueryRequest,
-  ScenarioQueryResponse,
-  FilterOptions,
-  ModelScenarios,
-  McpScenarios,
-} from "../types/sls";
+import api from './api';
+import { ModelScenarios, McpScenarios } from '../types/sls';
+
+import type { SlsQueryRequest, ScenarioQueryResponse, FilterOptions } from '../types/sls';
 
 type ApiResponse<T> = {
   code: number;
@@ -21,12 +17,11 @@ type ApiResponse<T> = {
  * @param request 查询请求参数
  * @returns 场景查询响应
  */
-export async function querySlsStatistics(
-  request: SlsQueryRequest
-): Promise<ScenarioQueryResponse> {
-  const { data } = await api.post<
-    ScenarioQueryResponse | ApiResponse<ScenarioQueryResponse>
-  >("/observability/statistics", request);
+export async function querySlsStatistics(request: SlsQueryRequest): Promise<ScenarioQueryResponse> {
+  const { data } = await api.post<ScenarioQueryResponse | ApiResponse<ScenarioQueryResponse>>(
+    '/observability/statistics',
+    request,
+  );
 
   // 解包后端响应，从 { code, message, data } 中提取 data
   if (isWrappedResponse<ScenarioQueryResponse>(data)) {
@@ -37,12 +32,18 @@ export async function querySlsStatistics(
 
 function isWrappedResponse<T>(value: unknown): value is ApiResponse<T> {
   return (
-    typeof value === "object" &&
+    typeof value === 'object' &&
     value !== null &&
-    "code" in value &&
-    "message" in value &&
-    "data" in value
+    'code' in value &&
+    'message' in value &&
+    'data' in value
   );
+}
+
+const emptyTableResponse: ScenarioQueryResponse = { table: [], type: 'TABLE' };
+
+function responseAt(responses: ScenarioQueryResponse[], index: number): ScenarioQueryResponse {
+  return responses[index] ?? emptyTableResponse;
 }
 
 /**
@@ -51,9 +52,9 @@ function isWrappedResponse<T>(value: unknown): value is ApiResponse<T> {
  * @returns 多个场景查询响应
  */
 export async function batchQuerySlsStatistics(
-  requests: SlsQueryRequest[]
+  requests: SlsQueryRequest[],
 ): Promise<ScenarioQueryResponse[]> {
-  return Promise.all(requests.map(req => querySlsStatistics(req)));
+  return Promise.all(requests.map((req) => querySlsStatistics(req)));
 }
 
 /**
@@ -65,19 +66,16 @@ function cleanFilterValues(values: unknown[]): string[] {
   if (!Array.isArray(values)) return [];
 
   return values
-    .filter(v => v != null && v !== "") // 过滤null、undefined、空字符串
-    .map(v => String(v).trim()) // trim处理
-    .map(v => {
+    .filter((v) => v !== null && v !== undefined && v !== '') // 过滤null、undefined、空字符串
+    .map((v) => String(v).trim()) // trim处理
+    .map((v) => {
       // 移除两端的引号
-      if (
-        (v.startsWith('"') && v.endsWith('"')) ||
-        (v.startsWith("'") && v.endsWith("'"))
-      ) {
+      if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
         return v.slice(1, -1);
       }
       return v;
     })
-    .filter(v => v !== "" && v !== "-"); // 再次过滤空字符串和占位符
+    .filter((v) => v !== '' && v !== '-'); // 再次过滤空字符串和占位符
 }
 
 /**
@@ -90,9 +88,9 @@ function cleanFilterValues(values: unknown[]): string[] {
 export async function fetchModelFilterOptions(
   startTime: string,
   endTime: string,
-  interval: 1 | 15 | 60
+  interval: 1 | 15 | 60,
 ): Promise<FilterOptions> {
-  const baseParams = { startTime, endTime, interval, bizType: "MODEL_API" };
+  const baseParams = { bizType: 'MODEL_API', endTime, interval, startTime };
 
   // 并发查询所有过滤选项场景
   const requests: SlsQueryRequest[] = [
@@ -107,23 +105,18 @@ export async function fetchModelFilterOptions(
   const responses = await batchQuerySlsStatistics(requests);
 
   // 提取并清洗数据
-  const extractField = (
-    response: ScenarioQueryResponse,
-    field: string
-  ): string[] => {
-    if (response.type !== "TABLE" || !response.table) return [];
-    return cleanFilterValues(
-      response.table.map((row: Record<string, unknown>) => row[field])
-    );
+  const extractField = (response: ScenarioQueryResponse, field: string): string[] => {
+    if (response.type !== 'TABLE' || !response.table) return [];
+    return cleanFilterValues(response.table.map((row: Record<string, unknown>) => row[field]));
   };
 
   return {
-    cluster_id: extractField(responses[0], "service"),
-    api: extractField(responses[1], "api"),
-    model: extractField(responses[2], "model"),
-    route: extractField(responses[3], "route_name"),
-    service: extractField(responses[4], "upstream_cluster"),
-    consumer: extractField(responses[5], "consumer"),
+    api: extractField(responseAt(responses, 1), 'api'),
+    cluster_id: extractField(responseAt(responses, 0), 'service'),
+    consumer: extractField(responseAt(responses, 5), 'consumer'),
+    model: extractField(responseAt(responses, 2), 'model'),
+    route: extractField(responseAt(responses, 3), 'route_name'),
+    service: extractField(responseAt(responses, 4), 'upstream_cluster'),
   };
 }
 
@@ -137,9 +130,9 @@ export async function fetchModelFilterOptions(
 export async function fetchMcpFilterOptions(
   startTime: string,
   endTime: string,
-  interval: 1 | 15 | 60
+  interval: 1 | 15 | 60,
 ): Promise<FilterOptions> {
-  const baseParams = { startTime, endTime, interval, bizType: "MCP_SERVER" };
+  const baseParams = { bizType: 'MCP_SERVER', endTime, interval, startTime };
 
   // 并发查询所有过滤选项场景
   const requests: SlsQueryRequest[] = [
@@ -154,23 +147,18 @@ export async function fetchMcpFilterOptions(
   const responses = await batchQuerySlsStatistics(requests);
 
   // 提取并清洗数据
-  const extractField = (
-    response: ScenarioQueryResponse,
-    field: string
-  ): string[] => {
-    if (response.type !== "TABLE" || !response.table) return [];
-    return cleanFilterValues(
-      response.table.map((row: Record<string, unknown>) => row[field])
-    );
+  const extractField = (response: ScenarioQueryResponse, field: string): string[] => {
+    if (response.type !== 'TABLE' || !response.table) return [];
+    return cleanFilterValues(response.table.map((row: Record<string, unknown>) => row[field]));
   };
 
   return {
-    cluster_id: extractField(responses[0], "service"),
-    route_name: extractField(responses[1], "route_name"),
-    mcp_tool_name: extractField(responses[2], "mcp_tool_name"),
-    consumer: extractField(responses[3], "consumer"),
-    upstream_cluster: extractField(responses[4], "upstream_cluster"),
-    mcp_server: extractField(responses[5], "mcp_server"),
+    cluster_id: extractField(responseAt(responses, 0), 'service'),
+    consumer: extractField(responseAt(responses, 3), 'consumer'),
+    mcp_server: extractField(responseAt(responses, 5), 'mcp_server'),
+    mcp_tool_name: extractField(responseAt(responses, 2), 'mcp_tool_name'),
+    route_name: extractField(responseAt(responses, 1), 'route_name'),
+    upstream_cluster: extractField(responseAt(responses, 4), 'upstream_cluster'),
   };
 }
 
@@ -178,10 +166,10 @@ export async function fetchMcpFilterOptions(
  * SLS API导出
  */
 export const slsApi = {
-  queryStatistics: querySlsStatistics,
   batchQueryStatistics: batchQuerySlsStatistics,
-  fetchModelFilterOptions,
   fetchMcpFilterOptions,
+  fetchModelFilterOptions,
+  queryStatistics: querySlsStatistics,
 };
 
 export default slsApi;

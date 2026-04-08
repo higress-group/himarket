@@ -22,6 +22,3 @@ export interface SubscriptionModalProps {
   consumerName: string;
   onCancel: () => void;
 }
-
-
-

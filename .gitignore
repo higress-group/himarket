@@ -69,3 +69,6 @@ push-himarket.sh
 ### Docker deploy data (should live outside project) ###
 deploy/docker/data/
 deploy/docker/standalone-logs/
+
+# TypeScript 编译缓存
+*.tsbuildinfo

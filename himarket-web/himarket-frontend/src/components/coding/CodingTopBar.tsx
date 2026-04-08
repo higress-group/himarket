@@ -1,10 +1,9 @@
-import { FolderOpen, Folder } from "lucide-react";
-import { Select } from "antd";
-import {
-  useCodingState,
-  useActiveCodingSession,
-} from "../../context/CodingSessionContext";
-import type { WsStatus } from "../../hooks/useCodingWebSocket";
+import { Select } from 'antd';
+import { FolderOpen, Folder } from 'lucide-react';
+
+import { useCodingState, useActiveCodingSession } from '../../context/CodingSessionContext';
+
+import type { WsStatus } from '../../hooks/useCodingWebSocket';
 
 interface CodingTopBarProps {
   status: WsStatus;
@@ -14,20 +13,20 @@ interface CodingTopBarProps {
 }
 
 export function CodingTopBar({
-  status,
-  onSetModel,
   fileTreeVisible,
+  onSetModel,
   onToggleFileTree,
+  status,
 }: CodingTopBarProps) {
   const state = useCodingState();
   const quest = useActiveCodingSession();
 
   const statusColor =
-    status === "connected"
-      ? "bg-green-500"
-      : status === "connecting" || status === "reconnecting"
-        ? "bg-yellow-500 animate-pulse"
-        : "bg-gray-400";
+    status === 'connected'
+      ? 'bg-green-500'
+      : status === 'connecting' || status === 'reconnecting'
+        ? 'bg-yellow-500 animate-pulse'
+        : 'bg-gray-400';
   const modelOptions =
     quest?.availableModels && quest.availableModels.length > 0
       ? quest.availableModels
@@ -39,16 +38,16 @@ export function CodingTopBar({
 
       {modelOptions.length > 0 && (
         <Select
-          size="small"
-          variant="outlined"
-          placement="bottomLeft"
           className="min-w-[120px]"
-          value={quest?.currentModelId ?? ""}
           onChange={onSetModel}
-          options={modelOptions.map(m => ({
-            value: m.modelId,
+          options={modelOptions.map((m) => ({
             label: m.name,
+            value: m.modelId,
           }))}
+          placement="bottomLeft"
+          size="small"
+          value={quest?.currentModelId ?? ''}
+          variant="outlined"
         />
       )}
 
@@ -68,9 +67,9 @@ export function CodingTopBar({
 
       <button
         className={`w-7 h-7 flex items-center justify-center rounded transition-colors ml-2
-          ${fileTreeVisible ? "text-blue-600 bg-blue-50" : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"}`}
+          ${fileTreeVisible ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
         onClick={onToggleFileTree}
-        title={fileTreeVisible ? "隐藏文件" : "显示文件"}
+        title={fileTreeVisible ? '隐藏文件' : '显示文件'}
       >
         {fileTreeVisible ? <FolderOpen size={16} /> : <Folder size={16} />}
       </button>

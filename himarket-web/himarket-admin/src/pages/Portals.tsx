@@ -1,5 +1,4 @@
-import { useState, useCallback, memo, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { PlusOutlined, MoreOutlined, LinkOutlined } from '@ant-design/icons';
 import {
   Button,
   Card,
@@ -12,19 +11,22 @@ import {
   Tooltip,
   Pagination,
   Skeleton,
-} from "antd";
-import { PlusOutlined, MoreOutlined, LinkOutlined } from "@ant-design/icons";
-import type { MenuProps } from "antd";
-import { portalApi } from "../lib/api";
+} from 'antd';
+import { useState, useCallback, memo, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
-import { Portal } from '@/types'
+import type { ApiResponse, PaginatedResponse, Portal } from '@/types';
+
+import { portalApi } from '../lib/api';
+
+import type { MenuProps } from 'antd';
 
 // 优化的Portal卡片组件
 const PortalCard = memo(
   ({
-    portal,
-    onNavigate,
     fetchPortals,
+    onNavigate,
+    portal,
   }: {
     portal: Portal;
     onNavigate: (id: string) => void;
@@ -38,38 +40,42 @@ const PortalCard = memo(
       e.stopPropagation();
     }, []);
 
-    const dropdownItems: MenuProps["items"] = [
-
+    const dropdownItems: MenuProps['items'] = [
       {
-        key: "delete",
-        label: "删除",
         danger: true,
+        key: 'delete',
+        label: '删除',
         onClick: (e) => {
           e?.domEvent?.stopPropagation(); // 阻止事件冒泡
           Modal.confirm({
-            title: "删除Portal",
-            content: "确定要删除该Portal吗？",
+            content: '确定要删除该Portal吗？',
             onOk: () => {
               return handleDeletePortal(portal.portalId);
             },
+            title: '删除Portal',
           });
         },
       },
     ];
 
-    const handleDeletePortal = useCallback((portalId: string) => {
-      return portalApi.deletePortal(portalId).then(() => {
-        message.success("Portal删除成功");
-        fetchPortals();
-      }).catch((error) => {
-        message.error(error?.response?.data?.message || "删除失败，请稍后重试");
-        throw error;
-      });
-    }, [fetchPortals]);
+    const handleDeletePortal = useCallback(
+      (portalId: string) => {
+        return portalApi
+          .deletePortal(portalId)
+          .then(() => {
+            message.success('Portal删除成功');
+            fetchPortals();
+          })
+          .catch((error) => {
+            message.error(error?.response?.data?.message || '删除失败，请稍后重试');
+            throw error;
+          });
+      },
+      [fetchPortals],
+    );
 
     return (
       <Card
-        hoverable
         className="
           bg-white/60 backdrop-blur-sm rounded-2xl
           border cursor-pointer
@@ -78,32 +84,31 @@ const PortalCard = memo(
           border-colorPrimary/30 active:scale-[0.98]
           relative overflow-hidden group
         "
+        hoverable
         onClick={handleCardClick}
       >
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-4">
             <div className="relative">
               <Avatar
-                size={48}
                 className="bg-gradient-to-br from-colorPrimary to-colorPrimaryHover text-lg font-semibold border-none"
+                size={48}
               >
                 {portal.title.charAt(0).toUpperCase()}
               </Avatar>
               <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-white"></div>
             </div>
             <div>
-              <h3 className="text-xl font-bold text-gray-800 mb-1">
-                {portal.title}
-              </h3>
+              <h3 className="text-xl font-bold text-gray-800 mb-1">{portal.title}</h3>
               <p className="text-sm text-gray-500">{portal.description}</p>
             </div>
           </div>
-          <Dropdown menu={{ items: dropdownItems }} trigger={["click"]}>
+          <Dropdown menu={{ items: dropdownItems }} trigger={['click']}>
             <Button
-              type="text"
+              className="hover:bg-gray-100 rounded-full"
               icon={<MoreOutlined />}
               onClick={(e) => e.stopPropagation()}
-              className="hover:bg-gray-100 rounded-full"
+              type="text"
             />
           </Dropdown>
         </div>
@@ -112,25 +117,25 @@ const PortalCard = memo(
           <div className="flex items-center space-x-3 p-3 bg-blue-50 rounded-lg border border-blue-100">
             <LinkOutlined className="h-4 w-4 text-colorPrimary" />
             <Tooltip
-              title={portal.portalDomainConfig?.[portal.portalDomainConfig.length - 1]?.domain}
-              placement="top"
               color="#000"
+              placement="top"
+              title={portal.portalDomainConfig?.[portal.portalDomainConfig.length - 1]?.domain}
             >
               <a
-                href={`http://${portal.portalDomainConfig?.[portal.portalDomainConfig.length - 1]?.domain}`}
-                target="_blank"
-                rel="noopener noreferrer"
                 className="text-colorPrimary hover:text-colorPrimary font-medium text-sm"
+                href={`http://${portal.portalDomainConfig?.[portal.portalDomainConfig.length - 1]?.domain}`}
                 onClick={handleLinkClick}
+                rel="noopener noreferrer"
                 style={{
-                  display: "inline-block",
+                  cursor: 'pointer',
+                  display: 'inline-block',
                   maxWidth: 200,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  verticalAlign: "bottom",
-                  cursor: "pointer",
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  verticalAlign: 'bottom',
+                  whiteSpace: 'nowrap',
                 }}
+                target="_blank"
               >
                 {portal.portalDomainConfig?.[portal.portalDomainConfig.length - 1]?.domain}
               </a>
@@ -141,36 +146,28 @@ const PortalCard = memo(
             {/* 第一行：账号密码登录 + 开发者自动审批 */}
             <div className="grid grid-cols-2 gap-4">
               <div className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
-                <span className="text-xs font-medium text-gray-600">
-                  账号密码登录
-                </span>
+                <span className="text-xs font-medium text-gray-600">账号密码登录</span>
                 <span
                   className={`px-2 py-1 rounded-full text-xs font-medium ${
                     portal.portalSettingConfig?.builtinAuthEnabled
-                      ? "bg-green-100 text-green-700"
-                      : "bg-red-100 text-red-700"
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-red-100 text-red-700'
                   }`}
                 >
-                  {portal.portalSettingConfig?.builtinAuthEnabled
-                    ? "支持"
-                    : "不支持"}
+                  {portal.portalSettingConfig?.builtinAuthEnabled ? '支持' : '不支持'}
                 </span>
               </div>
 
               <div className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
-                <span className="text-xs font-medium text-gray-600">
-                  开发者自动审批
-                </span>
+                <span className="text-xs font-medium text-gray-600">开发者自动审批</span>
                 <span
                   className={`px-2 py-1 rounded-full text-xs font-medium ${
                     portal.portalSettingConfig?.autoApproveDevelopers
-                      ? "bg-green-100 text-green-700"
-                      : "bg-yellow-100 text-yellow-700"
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-yellow-100 text-yellow-700'
                   }`}
                 >
-                  {portal.portalSettingConfig?.autoApproveDevelopers
-                    ? "是"
-                    : "否"}
+                  {portal.portalSettingConfig?.autoApproveDevelopers ? '是' : '否'}
                 </span>
               </div>
             </div>
@@ -178,40 +175,33 @@ const PortalCard = memo(
             {/* 第二行：订阅自动审批 + 域名配置 */}
             <div className="grid grid-cols-2 gap-4">
               <div className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
-                <span className="text-xs font-medium text-gray-600">
-                  订阅自动审批
-                </span>
+                <span className="text-xs font-medium text-gray-600">订阅自动审批</span>
                 <span
                   className={`px-2 py-1 rounded-full text-xs font-medium ${
                     portal.portalSettingConfig?.autoApproveSubscriptions
-                      ? "bg-green-100 text-green-700"
-                      : "bg-yellow-100 text-yellow-700"
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-yellow-100 text-yellow-700'
                   }`}
                 >
-                  {portal.portalSettingConfig?.autoApproveSubscriptions
-                    ? "是"
-                    : "否"}
+                  {portal.portalSettingConfig?.autoApproveSubscriptions ? '是' : '否'}
                 </span>
               </div>
 
               <div className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
-                <span className="text-xs font-medium text-gray-600">
-                  域名配置
-                </span>
+                <span className="text-xs font-medium text-gray-600">域名配置</span>
                 <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
                   {portal.portalDomainConfig?.length || 0}个
                 </span>
               </div>
             </div>
           </div>
-
         </div>
       </Card>
     );
-  }
+  },
 );
 
-PortalCard.displayName = "PortalCard";
+PortalCard.displayName = 'PortalCard';
 
 export default function Portals() {
   const navigate = useNavigate();
@@ -228,29 +218,34 @@ export default function Portals() {
 
   const fetchPortals = useCallback((page = 1, size = 12) => {
     setLoading(true);
-    portalApi.getPortals({ page, size }).then((res: any) => {
-      const list = res?.data?.content || [];
-      const portals: Portal[] = list.map((item: any) => ({
-        portalId: item.portalId,
-        name: item.name,
-        title: item.name,
-        description: item.description,
-        adminId: item.adminId,
-        portalSettingConfig: item.portalSettingConfig,
-        portalUiConfig: item.portalUiConfig,
-        portalDomainConfig: item.portalDomainConfig || [],
-      }));
-      setPortals(portals);
-      setPagination({
-        current: page,
-        pageSize: size,
-        total: res?.data?.totalElements || 0,
+    portalApi
+      .getPortals({ page, size })
+      .then((res) => {
+        const r = res as unknown as ApiResponse<PaginatedResponse<Portal>>;
+        const list = r?.data?.content || [];
+        const portals: Portal[] = list.map((item) => ({
+          adminId: item.adminId,
+          description: item.description,
+          name: item.name,
+          portalDomainConfig: item.portalDomainConfig || [],
+          portalId: item.portalId,
+          portalSettingConfig: item.portalSettingConfig,
+          portalUiConfig: item.portalUiConfig,
+          title: item.name,
+        }));
+        setPortals(portals);
+        setPagination({
+          current: page,
+          pageSize: size,
+          total: r?.data?.totalElements || 0,
+        });
+      })
+      .catch((err: Error) => {
+        setError(err?.message || '加载失败');
+      })
+      .finally(() => {
+        setLoading(false);
       });
-    }).catch((err: any) => {
-      setError(err?.message || "加载失败");
-    }).finally(() => {
-      setLoading(false);
-    });
   }, []);
 
   useEffect(() => {
@@ -273,23 +268,23 @@ export default function Portals() {
       setLoading(true);
 
       const newPortal = {
+        description: values.description,
         name: values.name,
         title: values.title,
-        description: values.description,
       };
 
       await portalApi.createPortal(newPortal);
-      message.success("Portal创建成功");
+      message.success('Portal创建成功');
       setIsModalVisible(false);
       form.resetFields();
 
-      fetchPortals()
-    } catch (error: any) {
+      fetchPortals();
+    } catch {
       // message.error(error?.message || "创建失败");
     } finally {
       setLoading(false);
     }
-  }, [form]);
+  }, [fetchPortals, form]);
 
   const handleModalCancel = useCallback(() => {
     setIsModalVisible(false);
@@ -300,7 +295,7 @@ export default function Portals() {
     (portalId: string) => {
       navigate(`/portals/${portalId}`);
     },
-    [navigate]
+    [navigate],
   );
 
   return (
@@ -310,11 +305,7 @@ export default function Portals() {
           <h1 className="text-3xl font-bold tracking-tight">Portal</h1>
           <p className="text-gray-500 mt-2">管理和配置您的开发者门户</p>
         </div>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={handleCreatePortal}
-        >
+        <Button icon={<PlusOutlined />} onClick={handleCreatePortal} type="primary">
           创建 Portal
         </Button>
       </div>
@@ -323,16 +314,16 @@ export default function Portals() {
       {loading ? (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: pagination.pageSize || 12 }).map((_, index) => (
-            <div key={index} className="h-full rounded-lg shadow-lg bg-white p-4">
+            <div className="h-full rounded-lg shadow-lg bg-white p-4" key={index}>
               <div className="flex items-start space-x-4">
-                <Skeleton.Avatar size={48} active />
+                <Skeleton.Avatar active size={48} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-2">
                     <Skeleton.Input active size="small" style={{ width: 120 }} />
                     <Skeleton.Input active size="small" style={{ width: 60 }} />
                   </div>
-                  <Skeleton.Input active size="small" style={{ width: '100%', marginBottom: 12 }} />
-                  <Skeleton.Input active size="small" style={{ width: '80%', marginBottom: 8 }} />
+                  <Skeleton.Input active size="small" style={{ marginBottom: 12, width: '100%' }} />
+                  <Skeleton.Input active size="small" style={{ marginBottom: 8, width: '80%' }} />
                   <div className="flex items-center justify-between">
                     <Skeleton.Input active size="small" style={{ width: 60 }} />
                     <Skeleton.Input active size="small" style={{ width: 80 }} />
@@ -347,10 +338,10 @@ export default function Portals() {
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {portals.map((portal) => (
               <PortalCard
-                key={portal.portalId}
-                portal={portal}
-                onNavigate={handlePortalClick}
                 fetchPortals={() => fetchPortals(pagination.current, pagination.pageSize)}
+                key={portal.portalId}
+                onNavigate={handlePortalClick}
+                portal={portal}
               />
             ))}
           </div>
@@ -359,13 +350,13 @@ export default function Portals() {
             <div className="flex justify-center mt-6">
               <Pagination
                 current={pagination.current}
-                pageSize={pagination.pageSize}
-                total={pagination.total}
                 onChange={handlePaginationChange}
-                showSizeChanger
-                showQuickJumper
-                showTotal={(total) => `共 ${total} 条`}
+                pageSize={pagination.pageSize}
                 pageSizeOptions={['6', '12', '24', '48']}
+                showQuickJumper
+                showSizeChanger
+                showTotal={(total) => `共 ${total} 条`}
+                total={pagination.total}
               />
             </div>
           )}
@@ -373,18 +364,18 @@ export default function Portals() {
       )}
 
       <Modal
-        title="创建Portal"
-        open={isModalVisible}
-        onOk={handleModalOk}
-        onCancel={handleModalCancel}
         confirmLoading={loading}
+        onCancel={handleModalCancel}
+        onOk={handleModalOk}
+        open={isModalVisible}
+        title="创建Portal"
         width={600}
       >
         <Form form={form} layout="vertical">
           <Form.Item
-            name="name"
             label="名称"
-            rules={[{ required: true, message: "请输入Portal名称" }]}
+            name="name"
+            rules={[{ message: '请输入Portal名称', required: true }]}
           >
             <Input placeholder="请输入Portal名称" />
           </Form.Item>
@@ -397,12 +388,8 @@ export default function Portals() {
             <Input placeholder="请输入Portal标题" />
           </Form.Item> */}
 
-          <Form.Item
-            name="description"
-            label="描述"
-            rules={[{ message: "请输入描述" }]}
-          >
-            <Input.TextArea rows={3} placeholder="请输入Portal描述" />
+          <Form.Item label="描述" name="description" rules={[{ message: '请输入描述' }]}>
+            <Input.TextArea placeholder="请输入Portal描述" rows={3} />
           </Form.Item>
         </Form>
       </Modal>

@@ -1,17 +1,30 @@
-import React, { useState, useEffect, useMemo } from "react";
-import { Button, Typography, Table, Popconfirm, Modal, Radio, Input, Select, Form, message } from "antd";
-import { EditOutlined, PlusOutlined, CopyOutlined, DeleteOutlined } from "@ant-design/icons";
-import request from "../../lib/request";
+import { EditOutlined, PlusOutlined, CopyOutlined, DeleteOutlined } from '@ant-design/icons';
+import {
+  Button,
+  Typography,
+  Table,
+  Popconfirm,
+  Modal,
+  Radio,
+  Input,
+  Select,
+  Form,
+  message,
+} from 'antd';
+import React, { useState, useEffect, useMemo } from 'react';
+
+import request from '../../lib/request';
+import { modelStyles } from '../../lib/styles.ts';
+import MultiSwitchButton from '../switch-button.tsx';
+
+import type { ApiResponse } from '../../types';
 import type {
   ConsumerCredentialResult,
   CreateCredentialParam,
   ConsumerCredential,
   HMACCredential,
-  APIKeyCredential
-} from "../../types/consumer";
-import type { ApiResponse } from "../../types";
-import MultiSwitchButton from "../switch-button.tsx";
-import { modelStyles } from "../../lib/styles.ts";
+  APIKeyCredential,
+} from '../../types/consumer';
 
 const { Text } = Typography;
 
@@ -44,8 +57,10 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
   // 获取当前配置
   const fetchCurrentConfig = React.useCallback(async () => {
     try {
-      const response: ApiResponse<ConsumerCredentialResult> = await request.get(`/consumers/${consumerId}/credentials`);
-      if (response.code === "SUCCESS" && response.data) {
+      const response: ApiResponse<ConsumerCredentialResult> = await request.get(
+        `/consumers/${consumerId}/credentials`,
+      );
+      if (response.code === 'SUCCESS' && response.data) {
         const config = response.data;
         setCurrentConfig(config);
         if (config.apiKeyConfig) {
@@ -68,10 +83,12 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
       const values = await credentialForm.validateFields();
       setCredentialLoading(true);
 
-      const currentResponse: ApiResponse<ConsumerCredentialResult> = await request.get(`/consumers/${consumerId}/credentials`);
+      const currentResponse: ApiResponse<ConsumerCredentialResult> = await request.get(
+        `/consumers/${consumerId}/credentials`,
+      );
       let currentConfig: ConsumerCredentialResult = {};
 
-      if (currentResponse.code === "SUCCESS" && currentResponse.data) {
+      if (currentResponse.code === 'SUCCESS' && currentResponse.data) {
         currentConfig = currentResponse.data;
       }
 
@@ -81,27 +98,39 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
 
       if (credentialType === 'API_KEY') {
         const newCredential: ConsumerCredential = {
-          apiKey: values.generationMethod === 'CUSTOM' ? values.customApiKey : generateRandomCredential('apiKey'),
-          mode: values.generationMethod
+          apiKey:
+            values.generationMethod === 'CUSTOM'
+              ? values.customApiKey
+              : generateRandomCredential('apiKey'),
+          mode: values.generationMethod,
         };
         param.apiKeyConfig = {
           ...currentConfig.apiKeyConfig,
-          credentials: [...(currentConfig.apiKeyConfig?.credentials || []), newCredential]
+          credentials: [...(currentConfig.apiKeyConfig?.credentials || []), newCredential],
         };
       } else if (credentialType === 'HMAC') {
         const newCredential: ConsumerCredential = {
-          ak: values.generationMethod === 'CUSTOM' ? values.customAccessKey : generateRandomCredential('accessKey'),
-          sk: values.generationMethod === 'CUSTOM' ? values.customSecretKey : generateRandomCredential('secretKey'),
-          mode: values.generationMethod
+          ak:
+            values.generationMethod === 'CUSTOM'
+              ? values.customAccessKey
+              : generateRandomCredential('accessKey'),
+          mode: values.generationMethod,
+          sk:
+            values.generationMethod === 'CUSTOM'
+              ? values.customSecretKey
+              : generateRandomCredential('secretKey'),
         };
         param.hmacConfig = {
           ...currentConfig.hmacConfig,
-          credentials: [...(currentConfig.hmacConfig?.credentials || []), newCredential]
+          credentials: [...(currentConfig.hmacConfig?.credentials || []), newCredential],
         };
       }
 
-      const response: ApiResponse<ConsumerCredentialResult> = await request.put(`/consumers/${consumerId}/credentials`, param);
-      if (response?.code === "SUCCESS") {
+      const response: ApiResponse<ConsumerCredentialResult> = await request.put(
+        `/consumers/${consumerId}/credentials`,
+        param,
+      );
+      if (response?.code === 'SUCCESS') {
         message.success('凭证添加成功');
         setCredentialModalVisible(false);
         resetCredentialForm();
@@ -116,10 +145,12 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
 
   const handleDeleteCredential = async (credentialType: string, credential: ConsumerCredential) => {
     try {
-      const currentResponse: ApiResponse<ConsumerCredentialResult> = await request.get(`/consumers/${consumerId}/credentials`);
+      const currentResponse: ApiResponse<ConsumerCredentialResult> = await request.get(
+        `/consumers/${consumerId}/credentials`,
+      );
       let currentConfig: ConsumerCredentialResult = {};
 
-      if (currentResponse.code === "SUCCESS" && currentResponse.data) {
+      if (currentResponse.code === 'SUCCESS' && currentResponse.data) {
         currentConfig = currentResponse.data;
       }
 
@@ -129,18 +160,25 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
 
       if (credentialType === 'API_KEY') {
         param.apiKeyConfig = {
-          credentials: currentConfig.apiKeyConfig?.credentials?.filter(cred => cred.apiKey !== (credential as APIKeyCredential).apiKey),
+          credentials: currentConfig.apiKeyConfig?.credentials?.filter(
+            (cred) => cred.apiKey !== (credential as APIKeyCredential).apiKey,
+          ),
+          key: currentConfig.apiKeyConfig?.key || 'Authorization',
           source: currentConfig.apiKeyConfig?.source || 'Default',
-          key: currentConfig.apiKeyConfig?.key || 'Authorization'
         };
       } else if (credentialType === 'HMAC') {
         param.hmacConfig = {
-          credentials: currentConfig.hmacConfig?.credentials?.filter(cred => cred.ak !== (credential as HMACCredential).ak),
+          credentials: currentConfig.hmacConfig?.credentials?.filter(
+            (cred) => cred.ak !== (credential as HMACCredential).ak,
+          ),
         };
       }
 
-      const response: ApiResponse<ConsumerCredentialResult> = await request.put(`/consumers/${consumerId}/credentials`, param);
-      if (response?.code === "SUCCESS") {
+      const response: ApiResponse<ConsumerCredentialResult> = await request.put(
+        `/consumers/${consumerId}/credentials`,
+        param,
+      );
+      if (response?.code === 'SUCCESS') {
         message.success('凭证删除成功');
         await fetchCurrentConfig();
       }
@@ -164,7 +202,7 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
         message.success('已复制到剪贴板');
       }
     } catch (err) {
-      console.log(err)
+      console.warn(err);
       // Ignore
     } finally {
       document.body.removeChild(textArea);
@@ -177,10 +215,12 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
 
   const handleEditSource = async (source: string, key: string) => {
     try {
-      const currentResponse: ApiResponse<ConsumerCredentialResult> = await request.get(`/consumers/${consumerId}/credentials`);
+      const currentResponse: ApiResponse<ConsumerCredentialResult> = await request.get(
+        `/consumers/${consumerId}/credentials`,
+      );
       let currentConfig: ConsumerCredentialResult = {};
 
-      if (currentResponse.code === "SUCCESS" && currentResponse.data) {
+      if (currentResponse.code === 'SUCCESS' && currentResponse.data) {
         currentConfig = currentResponse.data as ConsumerCredentialResult;
       }
 
@@ -188,23 +228,28 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
 
       if (currentConfig.apiKeyConfig) {
         param.apiKeyConfig = {
-          source: source,
+          credentials: currentConfig.apiKeyConfig.credentials,
           key: source === 'Default' ? 'Authorization' : key,
-          credentials: currentConfig.apiKeyConfig.credentials
+          source: source,
         };
       } else {
         param.apiKeyConfig = {
-          source: source,
+          credentials: [],
           key: source === 'Default' ? 'Authorization' : key,
-          credentials: []
+          source: source,
         };
       }
 
-      const response: ApiResponse<ConsumerCredentialResult> = await request.put(`/consumers/${consumerId}/credentials`, param);
-      if (response?.code === "SUCCESS") {
+      const response: ApiResponse<ConsumerCredentialResult> = await request.put(
+        `/consumers/${consumerId}/credentials`,
+        param,
+      );
+      if (response?.code === 'SUCCESS') {
         message.success('凭证来源更新成功');
-        const updatedResponse: ApiResponse<ConsumerCredentialResult> = await request.get(`/consumers/${consumerId}/credentials`);
-        if (updatedResponse.code === "SUCCESS" && updatedResponse.data) {
+        const updatedResponse: ApiResponse<ConsumerCredentialResult> = await request.get(
+          `/consumers/${consumerId}/credentials`,
+        );
+        if (updatedResponse.code === 'SUCCESS' && updatedResponse.data) {
           const updatedConfig = updatedResponse.data;
           if (updatedConfig.apiKeyConfig) {
             setCurrentSource(updatedConfig.apiKeyConfig.source || 'Default');
@@ -224,17 +269,17 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
     const initKey = initSource === 'Default' ? 'Authorization' : currentKey;
     setEditingSource(initSource);
     setEditingKey(initKey);
-    sourceForm.setFieldsValue({ source: initSource, key: initKey });
+    sourceForm.setFieldsValue({ key: initKey, source: initSource });
     setSourceModalVisible(true);
   };
 
   const openCredentialModal = () => {
     credentialForm.resetFields();
     credentialForm.setFieldsValue({
-      generationMethod: 'SYSTEM',
-      customApiKey: '',
       customAccessKey: '',
-      customSecretKey: ''
+      customApiKey: '',
+      customSecretKey: '',
+      generationMethod: 'SYSTEM',
     });
     setCredentialModalVisible(true);
   };
@@ -243,7 +288,9 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
 
     if (type === 'apiKey') {
-      const apiKey = Array.from({ length: 32 }, () => chars.charAt(Math.floor(Math.random() * chars.length))).join('');
+      const apiKey = Array.from({ length: 32 }, () =>
+        chars.charAt(Math.floor(Math.random() * chars.length)),
+      ).join('');
       const setValue = () => {
         try {
           credentialForm.setFieldsValue({ customApiKey: apiKey });
@@ -258,13 +305,17 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
       }
       return apiKey;
     } else {
-      const ak = Array.from({ length: 32 }, () => chars.charAt(Math.floor(Math.random() * chars.length))).join('');
-      const sk = Array.from({ length: 64 }, () => chars.charAt(Math.floor(Math.random() * chars.length))).join('');
+      const ak = Array.from({ length: 32 }, () =>
+        chars.charAt(Math.floor(Math.random() * chars.length)),
+      ).join('');
+      const sk = Array.from({ length: 64 }, () =>
+        chars.charAt(Math.floor(Math.random() * chars.length)),
+      ).join('');
       const setValue = () => {
         try {
           credentialForm.setFieldsValue({
             customAccessKey: ak,
-            customSecretKey: sk
+            customSecretKey: sk,
           });
         } catch (error) {
           console.error('设置AK/SK失败:', error);
@@ -281,75 +332,106 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
 
   const maskSecretKey = (secretKey: string): string => {
     if (!secretKey || secretKey.length < 8) return secretKey;
-    return secretKey.substring(0, 4) + '*'.repeat(secretKey.length - 8) + secretKey.substring(secretKey.length - 4);
+    return (
+      secretKey.substring(0, 4) +
+      '*'.repeat(secretKey.length - 8) +
+      secretKey.substring(secretKey.length - 4)
+    );
   };
 
   // API Key 列
   const apiKeyColumns = [
     {
-      title: <span className="text-[#737373]">API Key</span>,
       dataIndex: 'apiKey',
       key: 'apiKey',
       render: (apiKey: string) => (
         <div className="flex items-center space-x-2">
           <code className="text-sm px-2 py-1 border border-[#e5e5e5] rounded-lg">{apiKey}</code>
-          <Button type="text" size="small" icon={<CopyOutlined className="text-colorPrimary" />} onClick={() => handleCopyCredential(apiKey)} />
+          <Button
+            icon={<CopyOutlined className="text-colorPrimary" />}
+            onClick={() => handleCopyCredential(apiKey)}
+            size="small"
+            type="text"
+          />
         </div>
       ),
+      title: <span className="text-[#737373]">API Key</span>,
     },
     {
-      title: <span className="text-[#737373]">操作</span>,
       key: 'action',
       render: (record: ConsumerCredential) => (
-        <Popconfirm title="确定要删除该API Key凭证吗？" onConfirm={() => handleDeleteCredential('API_KEY', record)}>
+        <Popconfirm
+          onConfirm={() => handleDeleteCredential('API_KEY', record)}
+          title="确定要删除该API Key凭证吗？"
+        >
           <Button className="rounded-lg" icon={<DeleteOutlined className="text-red-500" />} />
         </Popconfirm>
       ),
+      title: <span className="text-[#737373]">操作</span>,
     },
   ];
 
   // HMAC 列
   const hmacColumns = [
     {
-      title: 'Access Key',
       dataIndex: 'ak',
       key: 'ak',
       render: (ak: string) => (
         <div className="flex items-center space-x-2">
           <code className="text-sm px-2 py-1 border border-[#e5e5e5] rounded-lg">{ak}</code>
-          <Button type="text" size="small" icon={<CopyOutlined className="text-colorPrimary" />} onClick={() => handleCopyCredential(ak)} />
+          <Button
+            icon={<CopyOutlined className="text-colorPrimary" />}
+            onClick={() => handleCopyCredential(ak)}
+            size="small"
+            type="text"
+          />
         </div>
       ),
+      title: 'Access Key',
     },
     {
-      title: 'Secret Key',
       dataIndex: 'sk',
       key: 'sk',
       render: (sk: string) => (
         <div className="flex items-center space-x-2">
-          <code className="text-sm px-2 py-1 border border-[#e5e5e5] rounded-lg">{maskSecretKey(sk)}</code>
-          <Button type="text" size="small" icon={<CopyOutlined className="text-colorPrimary" />} onClick={() => handleCopyCredential(sk)} />
+          <code className="text-sm px-2 py-1 border border-[#e5e5e5] rounded-lg">
+            {maskSecretKey(sk)}
+          </code>
+          <Button
+            icon={<CopyOutlined className="text-colorPrimary" />}
+            onClick={() => handleCopyCredential(sk)}
+            size="small"
+            type="text"
+          />
         </div>
       ),
+      title: 'Secret Key',
     },
     {
-      title: '操作',
       key: 'action',
       render: (record: ConsumerCredential) => (
-        <Popconfirm title="确定要删除该AK/SK凭证吗？" onConfirm={() => handleDeleteCredential('HMAC', record)}>
-          <Button className="rounded-lg" size="small" icon={<DeleteOutlined className="text-red-500" />} />
+        <Popconfirm
+          onConfirm={() => handleDeleteCredential('HMAC', record)}
+          title="确定要删除该AK/SK凭证吗？"
+        >
+          <Button
+            className="rounded-lg"
+            icon={<DeleteOutlined className="text-red-500" />}
+            size="small"
+          />
         </Popconfirm>
       ),
+      title: '操作',
     },
   ];
 
   const switchBtnOptions = useMemo(() => {
     return [
-      { label: "API Key", value: "API_KEY" },
-      { label: "HMAC", value: "HMAC" },
-      { label: "JWT", value: "JWT" }
-    ]
-  }, [])
+      { label: 'API Key', value: 'API_KEY' },
+      { label: 'HMAC', value: 'HMAC' },
+      { label: 'JWT', value: 'JWT' },
+    ];
+  }, []);
 
   return (
     <div className="bg-white backdrop-blur-sm rounded-xl border border-white/60 shadow-sm overflow-hidden">
@@ -363,121 +445,120 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
           options={switchBtnOptions}
         />
         <div className="mt-6">
-          {
-            activeTab === 'API_KEY' && (
-              <div>
-                <div className="mb-4">
-                  {/* 凭证来源配置 */}
-                  <div className="mb-6 p-4 backdrop-blur-sm rounded-lg border border-[#e5e5e5]">
-                    <div className="flex items-center">
-                      <div className="flex items-center gap-4">
-                        <span className="font-medium">凭证来源：</span>
-                        <Text type="secondary" >
-                          {currentSource === 'Default' ? 'Authorization: Bearer <token>' : `${currentSource}：${currentKey}`}
-                        </Text>
-                      </div>
-                      <Button
-                        className="text-colorPrimary hover:text-colorPrimarySecondary ml-2"
-                        size="small" type="text" icon={<EditOutlined />}
-                        onClick={openSourceModal}
-                      >
-                        编辑
-                      </Button>
+          {activeTab === 'API_KEY' && (
+            <div>
+              <div className="mb-4">
+                {/* 凭证来源配置 */}
+                <div className="mb-6 p-4 backdrop-blur-sm rounded-lg border border-[#e5e5e5]">
+                  <div className="flex items-center">
+                    <div className="flex items-center gap-4">
+                      <span className="font-medium">凭证来源：</span>
+                      <Text type="secondary">
+                        {currentSource === 'Default'
+                          ? 'Authorization: Bearer <token>'
+                          : `${currentSource}：${currentKey}`}
+                      </Text>
                     </div>
+                    <Button
+                      className="text-colorPrimary hover:text-colorPrimarySecondary ml-2"
+                      icon={<EditOutlined />}
+                      onClick={openSourceModal}
+                      size="small"
+                      type="text"
+                    >
+                      编辑
+                    </Button>
                   </div>
+                </div>
 
-                  <Button
-                    type="primary"
-                    icon={<PlusOutlined />}
-                    onClick={() => {
-                      setCredentialType('API_KEY');
-                      openCredentialModal();
-                    }}
-                    className="rounded-lg"
-                  >
-                    新增凭证
-                  </Button>
-                </div>
-                <div className="p-1 border border-[#e5e5e5] rounded-lg overflow-hidden">
-                  <Table
-                    columns={apiKeyColumns}
-                    dataSource={currentConfig?.apiKeyConfig?.credentials || []}
-                    rowKey={(record) => record.apiKey || Math.random().toString()}
-                    pagination={false}
-                    locale={{ emptyText: '暂无API Key凭证，请点击上方按钮创建' }}
-                  />
-                </div>
+                <Button
+                  className="rounded-lg"
+                  icon={<PlusOutlined />}
+                  onClick={() => {
+                    setCredentialType('API_KEY');
+                    openCredentialModal();
+                  }}
+                  type="primary"
+                >
+                  新增凭证
+                </Button>
               </div>
-            )
-          }
-          {
-            activeTab === "HMAC" && (
-              <div>
-                <div className="mb-4">
-                  <Button
-                    type="primary"
-                    icon={<PlusOutlined />}
-                    onClick={() => {
-                      setCredentialType('HMAC');
-                      openCredentialModal();
-                    }}
-                    className="rounded-lg"
-                  >
-                    添加AK/SK
-                  </Button>
-                </div>
-                <div className="border border-[#e5e5e5] rounded-lg overflow-hidden">
-                  <Table
-                    columns={hmacColumns}
-                    dataSource={currentConfig?.hmacConfig?.credentials || []}
-                    rowKey={(record) => record.ak || record.sk || Math.random().toString()}
-                    pagination={false}
-                    size="small"
-                    locale={{ emptyText: '暂无AK/SK凭证，请点击上方按钮创建' }}
-                  />
-                </div>
+              <div className="p-1 border border-[#e5e5e5] rounded-lg overflow-hidden">
+                <Table
+                  columns={apiKeyColumns}
+                  dataSource={currentConfig?.apiKeyConfig?.credentials || []}
+                  locale={{ emptyText: '暂无API Key凭证，请点击上方按钮创建' }}
+                  pagination={false}
+                  rowKey={(record) => record.apiKey || Math.random().toString()}
+                />
               </div>
-            )
-          }
-          {
-            activeTab === "JWT" && (
-              <div className="text-center py-8 text-gray-500">
-                JWT功能暂未开放
+            </div>
+          )}
+          {activeTab === 'HMAC' && (
+            <div>
+              <div className="mb-4">
+                <Button
+                  className="rounded-lg"
+                  icon={<PlusOutlined />}
+                  onClick={() => {
+                    setCredentialType('HMAC');
+                    openCredentialModal();
+                  }}
+                  type="primary"
+                >
+                  添加AK/SK
+                </Button>
               </div>
-            )
-          }
+              <div className="border border-[#e5e5e5] rounded-lg overflow-hidden">
+                <Table
+                  columns={hmacColumns}
+                  dataSource={currentConfig?.hmacConfig?.credentials || []}
+                  locale={{ emptyText: '暂无AK/SK凭证，请点击上方按钮创建' }}
+                  pagination={false}
+                  rowKey={(record) => record.ak || record.sk || Math.random().toString()}
+                  size="small"
+                />
+              </div>
+            </div>
+          )}
+          {activeTab === 'JWT' && (
+            <div className="text-center py-8 text-gray-500">JWT功能暂未开放</div>
+          )}
         </div>
       </div>
 
       {/* 创建凭证模态框 */}
       <Modal
-        title={`添加 ${credentialType === 'API_KEY' ? 'API Key' : 'AK/SK'}`}
-        open={credentialModalVisible}
+        cancelText="取消"
+        confirmLoading={credentialLoading}
+        okText="添加"
         onCancel={() => {
           setCredentialModalVisible(false);
           resetCredentialForm();
         }}
         onOk={handleCreateCredential}
-        confirmLoading={credentialLoading}
-        okText="添加"
-        cancelText="取消"
+        open={credentialModalVisible}
         styles={modelStyles}
+        title={`添加 ${credentialType === 'API_KEY' ? 'API Key' : 'AK/SK'}`}
       >
-        <Form form={credentialForm} initialValues={{
-          generationMethod: 'SYSTEM',
-          customApiKey: '',
-          customAccessKey: '',
-          customSecretKey: ''
-        }}>
+        <Form
+          form={credentialForm}
+          initialValues={{
+            customAccessKey: '',
+            customApiKey: '',
+            customSecretKey: '',
+            generationMethod: 'SYSTEM',
+          }}
+        >
           <div className="mb-4">
             <div className="mb-2">
               <span className="text-red-500 mr-1">*</span>
               <span>生成方式</span>
             </div>
             <Form.Item
-              name="generationMethod"
-              rules={[{ required: true, message: '请选择生成方式' }]}
               className="mb-0"
+              name="generationMethod"
+              rules={[{ message: '请选择生成方式', required: true }]}
             >
               <Radio.Group>
                 <Radio value="SYSTEM">系统生成</Radio>
@@ -486,7 +567,10 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
             </Form.Item>
           </div>
 
-          <Form.Item noStyle shouldUpdate={(prev, curr) => prev.generationMethod !== curr.generationMethod}>
+          <Form.Item
+            noStyle
+            shouldUpdate={(prev, curr) => prev.generationMethod !== curr.generationMethod}
+          >
             {({ getFieldValue }) => {
               const method = getFieldValue('generationMethod');
               if (method === 'CUSTOM') {
@@ -499,19 +583,19 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
                           <span>凭证</span>
                         </div>
                         <Form.Item
+                          className="mb-2"
                           name="customApiKey"
                           rules={[
-                            { required: true, message: '请输入自定义API Key' },
+                            { message: '请输入自定义API Key', required: true },
                             {
+                              message: '支持英文、数字、下划线(_)和短横线(-)',
                               pattern: /^[A-Za-z0-9_-]+$/,
-                              message: '支持英文、数字、下划线(_)和短横线(-)'
                             },
-                            { min: 8, message: 'API Key长度至少8个字符' },
-                            { max: 128, message: 'API Key长度不能超过128个字符' }
+                            { message: 'API Key长度至少8个字符', min: 8 },
+                            { max: 128, message: 'API Key长度不能超过128个字符' },
                           ]}
-                          className="mb-2"
                         >
-                          <Input placeholder="请输入凭证" maxLength={128} />
+                          <Input maxLength={128} placeholder="请输入凭证" />
                         </Form.Item>
                         <div className="text-xs text-gray-500">
                           长度为8-128个字符，可包含英文、数字、下划线（_）和短横线（-）
@@ -526,19 +610,19 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
                             <span>Access Key</span>
                           </div>
                           <Form.Item
+                            className="mb-2"
                             name="customAccessKey"
                             rules={[
-                              { required: true, message: '请输入自定义Access Key' },
+                              { message: '请输入自定义Access Key', required: true },
                               {
+                                message: '支持英文、数字、下划线(_)和短横线(-)',
                                 pattern: /^[A-Za-z0-9_-]+$/,
-                                message: '支持英文、数字、下划线(_)和短横线(-)'
                               },
-                              { min: 8, message: 'Access Key长度至少8个字符' },
-                              { max: 128, message: 'Access Key长度不能超过128个字符' }
+                              { message: 'Access Key长度至少8个字符', min: 8 },
+                              { max: 128, message: 'Access Key长度不能超过128个字符' },
                             ]}
-                            className="mb-2"
                           >
-                            <Input placeholder="请输入Access Key" maxLength={128} />
+                            <Input maxLength={128} placeholder="请输入Access Key" />
                           </Form.Item>
                           <div className="text-xs text-gray-500">
                             长度为8-128个字符，可包含英文、数字、下划线（_）和短横线（-）
@@ -550,19 +634,19 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
                             <span>Secret Key</span>
                           </div>
                           <Form.Item
+                            className="mb-2"
                             name="customSecretKey"
                             rules={[
-                              { required: true, message: '请输入自定义Secret Key' },
+                              { message: '请输入自定义Secret Key', required: true },
                               {
+                                message: '支持英文、数字、下划线(_)和短横线(-)',
                                 pattern: /^[A-Za-z0-9_-]+$/,
-                                message: '支持英文、数字、下划线(_)和短横线(-)'
                               },
-                              { min: 8, message: 'Secret Key长度至少8个字符' },
-                              { max: 128, message: 'Secret Key长度不能超过128个字符' }
+                              { message: 'Secret Key长度至少8个字符', min: 8 },
+                              { max: 128, message: 'Secret Key长度不能超过128个字符' },
                             ]}
-                            className="mb-2"
                           >
-                            <Input placeholder="请输入 Secret Key" maxLength={128} />
+                            <Input maxLength={128} placeholder="请输入 Secret Key" />
                           </Form.Item>
                           <div className="text-xs text-gray-500">
                             长度为8-128个字符，可包含英文、数字、下划线（_）和短横线（-）
@@ -589,8 +673,8 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
 
       {/* 编辑凭证来源模态框 */}
       <Modal
-        title="编辑凭证来源"
-        open={sourceModalVisible}
+        cancelText="取消"
+        okText="保存"
         onCancel={() => {
           const initSource = currentSource;
           const initKey = initSource === 'Default' ? 'Authorization' : currentKey;
@@ -609,22 +693,26 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
             // 校验失败，不提交
           }
         }}
+        open={sourceModalVisible}
         styles={modelStyles}
-        okText="保存"
-        cancelText="取消"
+        title="编辑凭证来源"
       >
-        <Form form={sourceForm} layout="vertical" initialValues={{ source: editingSource, key: editingKey }}>
+        <Form
+          form={sourceForm}
+          initialValues={{ key: editingKey, source: editingSource }}
+          layout="vertical"
+        >
           <Form.Item
             label="凭证来源"
             name="source"
-            rules={[{ required: true, message: '请选择凭证来源' }]}
+            rules={[{ message: '请选择凭证来源', required: true }]}
           >
             <Select
+              className="w-full rounded-lg"
               onChange={(value) => {
                 const nextKey = value === 'Default' ? 'Authorization' : '';
                 sourceForm.setFieldsValue({ key: nextKey });
               }}
-              className="w-full rounded-lg"
             >
               <Select.Option value="Header">Header</Select.Option>
               <Select.Option value="QueryString">QueryString</Select.Option>
@@ -640,12 +728,12 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
                   name="key"
                   rules={[
                     {
-                      required: true,
                       message: '请输入键名',
+                      required: true,
                     },
                     {
-                      pattern: /^[A-Za-z0-9-_]+$/,
                       message: '仅支持字母/数字/-/_',
+                      pattern: /^[A-Za-z0-9-_]+$/,
                     },
                   ]}
                 >

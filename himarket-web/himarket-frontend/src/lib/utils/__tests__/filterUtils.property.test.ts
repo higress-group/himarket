@@ -1,14 +1,15 @@
-import { describe, it, expect } from 'vitest';
 import * as fc from 'fast-check';
+import { describe, it, expect } from 'vitest';
+
 import { filterByKeyword } from '../filterUtils';
 
 /**
  * fast-check arbitrary: 生成随机对象，包含字符串字段和数组字段
  */
 const arbItem = fc.record({
-  name: fc.string({ minLength: 0, maxLength: 30 }),
-  description: fc.string({ minLength: 0, maxLength: 50 }),
-  tags: fc.array(fc.string({ minLength: 0, maxLength: 15 }), { minLength: 0, maxLength: 5 }),
+  description: fc.string({ maxLength: 50, minLength: 0 }),
+  name: fc.string({ maxLength: 30, minLength: 0 }),
+  tags: fc.array(fc.string({ maxLength: 15, minLength: 0 }), { maxLength: 5, minLength: 0 }),
 });
 
 type TestItem = { name: string; description: string; tags: string[] };
@@ -16,13 +17,13 @@ type TestItem = { name: string; description: string; tags: string[] };
 /**
  * 生成随机对象列表
  */
-const arbItemList = fc.array(arbItem, { minLength: 0, maxLength: 30 });
+const arbItemList = fc.array(arbItem, { maxLength: 30, minLength: 0 });
 
 /**
  * 生成随机关键词（包含空白、普通字符串等场景）
  */
 const arbKeyword = fc.oneof(
-  fc.string({ minLength: 0, maxLength: 20 }),
+  fc.string({ maxLength: 20, minLength: 0 }),
   fc.constant(''),
   fc.constant('  '),
 );
@@ -60,7 +61,7 @@ describe('Feature: cli-ux-optimization, Property 2: 关键词过滤正确性', (
           for (const item of result) {
             const matchesAnyField = fields.some((field) => {
               const value = item[field];
-              if (value == null) return false;
+              if (value === null || value === undefined) return false;
               if (Array.isArray(value)) {
                 return value.join(' ').toLowerCase().includes(lowerKeyword);
               }

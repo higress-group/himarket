@@ -1,63 +1,66 @@
-import { describe, expect, it } from "vitest";
-import { normalizeIncomingMessage } from "./codingNormalize";
+import { describe, expect, it } from 'vitest';
 
-describe("normalizeIncomingMessage", () => {
-  it("normalizes tool kinds, preserves empty diff newText, and keeps string id", () => {
+import { normalizeIncomingMessage } from './codingNormalize';
+
+describe('normalizeIncomingMessage', () => {
+  it('normalizes tool kinds, preserves empty diff newText, and keeps string id', () => {
     const normalized = normalizeIncomingMessage({
-      jsonrpc: "2.0",
-      id: "42",
-      method: "session/update",
+      id: '42',
+      jsonrpc: '2.0',
+      method: 'session/update',
       params: {
-        sessionId: "sess-1",
+        sessionId: 'sess-1',
         update: {
-          sessionUpdate: "tool_call_update",
-          toolCallId: "tc-1",
-          kind: "search",
           content: [
             {
-              type: "diff",
-              path: "/tmp/a.txt",
-              oldText: "old",
-              newText: "",
+              newText: '',
+              oldText: 'old',
+              path: '/tmp/a.txt',
+              type: 'diff',
             },
             {
-              type: "terminal",
-              terminalId: "term-1",
+              terminalId: 'term-1',
+              type: 'terminal',
             },
           ],
+          kind: 'search',
+          sessionUpdate: 'tool_call_update',
+          toolCallId: 'tc-1',
         },
       },
     });
 
-    expect(normalized.id).toBe("42");
+    expect(normalized.id).toBe('42');
     const params = normalized.params as {
       update: { kind: string; content: Array<Record<string, unknown>> };
     };
-    expect(params.update.kind).toBe("search");
-    expect(params.update.content[0].newText).toBe("");
-    expect(params.update.content[1].type).toBe("terminal");
-    expect(params.update.content[1].terminalId).toBe("term-1");
+    expect(params.update.kind).toBe('search');
+    const content0 = params.update.content.at(0);
+    const content1 = params.update.content.at(1);
+    expect(content0?.newText).toBe('');
+    expect(content1?.type).toBe('terminal');
+    expect(content1?.terminalId).toBe('term-1');
   });
 
-  it("falls back unknown kind to other in permission request", () => {
+  it('falls back unknown kind to other in permission request', () => {
     const normalized = normalizeIncomingMessage({
-      jsonrpc: "2.0",
       id: 7,
-      method: "session/request_permission",
+      jsonrpc: '2.0',
+      method: 'session/request_permission',
       params: {
-        sessionId: "sess-2",
-        toolCall: {
-          toolCallId: "tc-2",
-          title: "do something",
-          kind: "mystery_kind",
-        },
         options: [],
+        sessionId: 'sess-2',
+        toolCall: {
+          kind: 'mystery_kind',
+          title: 'do something',
+          toolCallId: 'tc-2',
+        },
       },
     });
 
     const params = normalized.params as {
       toolCall: { kind: string };
     };
-    expect(params.toolCall.kind).toBe("other");
+    expect(params.toolCall.kind).toBe('other');
   });
 });

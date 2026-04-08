@@ -5,7 +5,7 @@ export function fetcher(url: string) {
 
 export function getTokenFromCookie(): string | null {
   const match = document.cookie.match(/(?:^|;\s*)auth_token=([^;]*)/);
-  return match ? decodeURIComponent(match[1]) : null;
+  return match && match[1] ? decodeURIComponent(match[1]) : null;
 }
 
 /**
@@ -19,18 +19,18 @@ export function unescapeNewlines(str: string): string {
 /**
  * 处理产品数据中的 mcpSpec 和 apiSpec 换行符转义
  */
-export function processProductSpecs<T extends { type: string; mcpSpec?: string | null; apiSpec?: string | null }>(
-  product: T
-): T {
+export function processProductSpecs<
+  T extends { type: string; mcpSpec?: string | null; apiSpec?: string | null },
+>(product: T): T {
   if (product.type === 'MCP_SERVER' && product.mcpSpec) {
     return {
       ...product,
-      mcpSpec: unescapeNewlines(product.mcpSpec)
+      mcpSpec: unescapeNewlines(product.mcpSpec),
     };
   } else if (product.type === 'REST_API' && product.apiSpec) {
     return {
       ...product,
-      apiSpec: unescapeNewlines(product.apiSpec)
+      apiSpec: unescapeNewlines(product.apiSpec),
     };
   }
   return product;
@@ -47,15 +47,15 @@ export const formatDateTime = (dateString: string | Date): string => {
     if (isNaN(date.getTime())) {
       return String(dateString);
     }
-    
+
     return date.toLocaleString('zh-CN', {
-      year: 'numeric',
-      month: '2-digit',
       day: '2-digit',
       hour: '2-digit',
+      hour12: false,
       minute: '2-digit',
+      month: '2-digit',
       second: '2-digit',
-      hour12: false
+      year: 'numeric',
     });
   } catch {
     return String(dateString);
@@ -73,25 +73,25 @@ export const formatDate = (dateString: string | Date): string => {
     if (isNaN(date.getTime())) {
       return String(dateString);
     }
-    
+
     return date.toLocaleDateString('zh-CN', {
-      year: 'numeric',
+      day: '2-digit',
       month: '2-digit',
-      day: '2-digit'
+      year: 'numeric',
     });
   } catch {
     return String(dateString);
   }
-}; 
+};
 
 export const safeJSONParse = <T>(value: string, fallback: T): T => {
   try {
     return JSON.parse(value);
   } catch (error) {
-    console.log(error);
+    console.warn(error);
     return fallback;
   }
-}
+};
 
 export function copyToClipboard(text: string) {
   // 返回一个 Promise 对象
@@ -103,10 +103,13 @@ export function copyToClipboard(text: string) {
       window.isSecureContext
     ) {
       // 使用 Clipboard API 写入剪切板
-      navigator.clipboard.writeText(text).then(resolve, reject).catch(() => {
-        // 如果 Clipboard API 失败，fallback 到 textarea
-        fallbackCopy(text, resolve, reject);
-      });
+      navigator.clipboard
+        .writeText(text)
+        .then(resolve, reject)
+        .catch(() => {
+          // 如果 Clipboard API 失败，fallback 到 textarea
+          fallbackCopy(text, resolve, reject);
+        });
     } else {
       // 非安全环境下或不支持 Clipboard API 的浏览器的回退方法
       fallbackCopy(text, resolve, reject);
@@ -114,7 +117,11 @@ export function copyToClipboard(text: string) {
   });
 }
 
-function fallbackCopy(text: string, resolve: (value: boolean) => void, reject: (reason?: any) => void) {
+function fallbackCopy(
+  text: string,
+  resolve: (value: boolean) => void,
+  reject: (reason?: unknown) => void,
+) {
   const textArea = document.createElement('textarea');
   textArea.value = text;
 
@@ -154,16 +161,16 @@ function fallbackCopy(text: string, resolve: (value: boolean) => void, reject: (
  * @param port - 端口号（可选）
  * @param protocol - 协议（http/https）
  * @returns 格式化后的 host 字符串
- * 
+ *
  * 规则：
  * - 如果 port 为 null/undefined，只返回 domain
  * - 如果 port 是默认端口（http:80, https:443），只返回 domain
  * - 其他情况返回 domain:port
  */
 export function formatDomainWithPort(
-  domain: string, 
-  port: number | null | undefined, 
-  protocol: string
+  domain: string,
+  port: number | null | undefined,
+  protocol: string,
 ): string {
   if (!port) return domain;
   if (protocol === 'http' && port === 80) return domain;

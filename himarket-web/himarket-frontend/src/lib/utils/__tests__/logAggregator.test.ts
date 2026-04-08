@@ -1,11 +1,13 @@
 // Feature: poc-code-cleanup, Property 1: LogAggregator 流式消息聚合
 // **Validates: Requirements 5.2, 5.3, 5.8**
 
-import { describe, it, expect, beforeEach } from 'vitest';
 import * as fc from 'fast-check';
-import { LogAggregator, _resetEntryCounter } from '../logAggregator';
-import type { AggregatedLogEntry } from '../../../types/log';
+import { describe, it, expect, beforeEach } from 'vitest';
+
 import { JSONRPC_VERSION, CODING_METHODS } from '../../../types/coding-protocol';
+import { LogAggregator, _resetEntryCounter } from '../logAggregator';
+
+import type { AggregatedLogEntry } from '../../../types/log';
 
 // ===== Arbitraries =====
 
@@ -13,7 +15,7 @@ import { JSONRPC_VERSION, CODING_METHODS } from '../../../types/coding-protocol'
 const arbSessionId = fc.stringMatching(/^[a-zA-Z0-9]{1,20}$/);
 
 /** 生成 chunk 文本片段 */
-const arbChunkText = fc.string({ minLength: 0, maxLength: 50 });
+const arbChunkText = fc.string({ maxLength: 50, minLength: 0 });
 
 /** 生成 agent_message_chunk 通知 */
 function arbAgentMessageChunk(sessionId: string, text: string) {
@@ -23,8 +25,8 @@ function arbAgentMessageChunk(sessionId: string, text: string) {
     params: {
       sessionId,
       update: {
+        content: { text, type: 'text' },
         sessionUpdate: 'agent_message_chunk',
-        content: { type: 'text', text },
       },
     },
   };
@@ -38,8 +40,8 @@ function arbAgentThoughtChunk(sessionId: string, text: string) {
     params: {
       sessionId,
       update: {
-        sessionUpdate: 'agent_thought_chunk',
         content: { text },
+        sessionUpdate: 'agent_thought_chunk',
       },
     },
   };
@@ -50,24 +52,24 @@ type ChunkType = 'agent_message' | 'agent_thought';
 
 /** 生成一组同类型的连续 chunk 消息 */
 const arbChunkGroup = fc.record({
-  type: fc.constantFrom<ChunkType>('agent_message', 'agent_thought'),
   sessionId: arbSessionId,
-  texts: fc.array(arbChunkText, { minLength: 1, maxLength: 10 }),
+  texts: fc.array(arbChunkText, { maxLength: 10, minLength: 1 }),
+  type: fc.constantFrom<ChunkType>('agent_message', 'agent_thought'),
 });
 
 /** 生成非流式 ACP 消息（request / response / 非 chunk 的 notification） */
 const arbNonStreamingMessage = fc.oneof(
   // JSON-RPC request (e.g. initialize)
   fc.record({
-    jsonrpc: fc.constant(JSONRPC_VERSION),
     id: fc.nat({ max: 10000 }),
+    jsonrpc: fc.constant(JSONRPC_VERSION),
     method: fc.constantFrom('initialize', 'session/new', 'session/prompt', 'session/cancel'),
     params: fc.constant({}),
   }),
   // JSON-RPC response
   fc.record({
-    jsonrpc: fc.constant(JSONRPC_VERSION),
     id: fc.nat({ max: 10000 }),
+    jsonrpc: fc.constant(JSONRPC_VERSION),
     result: fc.constant({}),
   }),
   // Non-chunk session/update notification (e.g. tool_call)
@@ -77,16 +79,15 @@ const arbNonStreamingMessage = fc.oneof(
     params: fc.record({
       sessionId: arbSessionId,
       update: fc.record({
+        kind: fc.constant('read'),
         sessionUpdate: fc.constantFrom('tool_call', 'plan', 'usage_update'),
-        toolCallId: fc.constant('tc-1'),
         status: fc.constant('completed'),
         title: fc.constant('test'),
-        kind: fc.constant('read'),
+        toolCallId: fc.constant('tc-1'),
       }),
     }),
   }),
 );
-
 
 /** 消息方向 */
 const arbDirection = fc.constantFrom<'client_to_agent' | 'agent_to_client'>(
@@ -119,7 +120,7 @@ describe('LogAggregator 属性测试', () => {
 
   it('连续同类型流式 chunk 被聚合为单条日志，isAggregated=true，messageCount=chunk数量，summary=前100字符', () => {
     fc.assert(
-      fc.property(arbChunkGroup, ({ type, sessionId, texts }) => {
+      fc.property(arbChunkGroup, ({ sessionId, texts, type }) => {
         const aggregator = new LogAggregator();
         const entries = collectEntries(aggregator);
 
@@ -138,14 +139,14 @@ describe('LogAggregator 属性测试', () => {
         // 应该只产生一条聚合日志
         expect(entries.length).toBe(1);
 
-        const entry = entries[0];
+        const entry = entries.at(0);
+        if (!entry) throw new Error('Expected one aggregated log entry');
         expect(entry.isAggregated).toBe(true);
         expect(entry.messageCount).toBe(texts.length);
 
         // summary 应为拼接文本的前 100 个字符
         const fullText = texts.join('');
-        const expectedSummary =
-          fullText.length > 100 ? fullText.slice(0, 100) + '...' : fullText;
+        const expectedSummary = fullText.length > 100 ? fullText.slice(0, 100) + '...' : fullText;
         expect(entry.summary).toBe(expectedSummary);
 
         // direction 应为 agent_to_client（流式消息来自 agent）
@@ -158,7 +159,7 @@ describe('LogAggregator 属性测试', () => {
   it('非流式消息各自产生独立日志条目，isAggregated=false，messageCount=1', () => {
     fc.assert(
       fc.property(
-        fc.array(arbNonStreamingMessage, { minLength: 1, maxLength: 10 }),
+        fc.array(arbNonStreamingMessage, { maxLength: 10, minLength: 1 }),
         arbDirection,
         (messages, direction) => {
           const aggregator = new LogAggregator();
@@ -185,12 +186,12 @@ describe('LogAggregator 属性测试', () => {
     // 生成交替的 chunk 组和非流式消息序列
     const arbMixedSequence = fc.record({
       chunkGroup1: arbChunkGroup,
-      nonStreaming: fc.array(arbNonStreamingMessage, { minLength: 1, maxLength: 3 }),
       chunkGroup2: arbChunkGroup,
+      nonStreaming: fc.array(arbNonStreamingMessage, { maxLength: 3, minLength: 1 }),
     });
 
     fc.assert(
-      fc.property(arbMixedSequence, ({ chunkGroup1, nonStreaming, chunkGroup2 }) => {
+      fc.property(arbMixedSequence, ({ chunkGroup1, chunkGroup2, nonStreaming }) => {
         const aggregator = new LogAggregator();
         const entries = collectEntries(aggregator);
 
@@ -222,7 +223,8 @@ describe('LogAggregator 属性测试', () => {
 
         // 验证：第一组聚合 + 非流式各自独立 + 第二组聚合
         // 第一条应该是第一组 chunk 的聚合
-        const firstEntry = entries[0];
+        const firstEntry = entries.at(0);
+        if (!firstEntry) throw new Error('Expected first aggregated entry');
         expect(firstEntry.isAggregated).toBe(true);
         expect(firstEntry.messageCount).toBe(chunkGroup1.texts.length);
 
@@ -233,13 +235,15 @@ describe('LogAggregator 属性测试', () => {
 
         // 中间的非流式消息
         for (let i = 0; i < nonStreaming.length; i++) {
-          const entry = entries[1 + i];
+          const entry = entries.at(1 + i);
+          if (!entry) throw new Error(`Expected non-streaming entry at index ${1 + i}`);
           expect(entry.isAggregated).toBe(false);
           expect(entry.messageCount).toBe(1);
         }
 
         // 最后一条应该是第二组 chunk 的聚合
-        const lastEntry = entries[entries.length - 1];
+        const lastEntry = entries.at(-1);
+        if (!lastEntry) throw new Error('Expected last aggregated entry');
         expect(lastEntry.isAggregated).toBe(true);
         expect(lastEntry.messageCount).toBe(chunkGroup2.texts.length);
 
@@ -259,26 +263,20 @@ describe('LogAggregator 属性测试', () => {
     fc.assert(
       fc.property(
         arbSessionId,
-        fc.array(arbChunkText, { minLength: 1, maxLength: 5 }),
-        fc.array(arbChunkText, { minLength: 1, maxLength: 5 }),
+        fc.array(arbChunkText, { maxLength: 5, minLength: 1 }),
+        fc.array(arbChunkText, { maxLength: 5, minLength: 1 }),
         (sessionId, messageTexts, thoughtTexts) => {
           const aggregator = new LogAggregator();
           const entries = collectEntries(aggregator);
 
           // 先发 agent_message_chunk
           for (const text of messageTexts) {
-            aggregator.processMessage(
-              'agent_to_client',
-              arbAgentMessageChunk(sessionId, text),
-            );
+            aggregator.processMessage('agent_to_client', arbAgentMessageChunk(sessionId, text));
           }
 
           // 再发 agent_thought_chunk（同 session，不同类型 → 不同 buffer key）
           for (const text of thoughtTexts) {
-            aggregator.processMessage(
-              'agent_to_client',
-              arbAgentThoughtChunk(sessionId, text),
-            );
+            aggregator.processMessage('agent_to_client', arbAgentThoughtChunk(sessionId, text));
           }
 
           aggregator.flush();
@@ -287,11 +285,14 @@ describe('LogAggregator 属性测试', () => {
           expect(entries.length).toBe(2);
 
           // 两条都是聚合的
-          expect(entries[0].isAggregated).toBe(true);
-          expect(entries[1].isAggregated).toBe(true);
+          const entry0 = entries.at(0);
+          const entry1 = entries.at(1);
+          if (!entry0 || !entry1) throw new Error('Expected two aggregated entries');
+          expect(entry0.isAggregated).toBe(true);
+          expect(entry1.isAggregated).toBe(true);
 
           // messageCount 分别等于各自的 chunk 数量
-          const counts = [entries[0].messageCount, entries[1].messageCount];
+          const counts = [entry0.messageCount, entry1.messageCount];
           expect(counts).toContain(messageTexts.length);
           expect(counts).toContain(thoughtTexts.length);
         },

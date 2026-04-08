@@ -2,7 +2,7 @@
  * 消费者（Consumer）相关接口
  */
 
-import request, { type RespI } from "../request";
+import request, { type RespI } from '../request';
 
 // ============ 类型定义 ============
 
@@ -79,19 +79,16 @@ interface SubscribeProductData {
  * 获取消费者列表
  */
 export function getConsumers(params: QueryConsumerParams) {
-  return request.get<RespI<GetConsumersResp>, RespI<GetConsumersResp>>(
-    '/consumers',
-    {
-      params: {
-        name: params.name,
-        email: params.email,
-        status: params.status,
-        company: params.company,
-        page: params.page || 0,
-        size: params.size || 20,
-      },
-    }
-  );
+  return request.get<RespI<GetConsumersResp>, RespI<GetConsumersResp>>('/consumers', {
+    params: {
+      company: params.company,
+      email: params.email,
+      name: params.name,
+      page: params.page || 0,
+      size: params.size || 20,
+      status: params.status,
+    },
+  });
 }
 
 /**
@@ -99,47 +96,37 @@ export function getConsumers(params: QueryConsumerParams) {
  */
 
 export function getConsumer(params: { id: string }) {
-  return request.get<RespI<IConsumer>, RespI<IConsumer>>(
-    `/consumers/${params.id}`
-  );
+  return request.get<RespI<IConsumer>, RespI<IConsumer>>(`/consumers/${params.id}`);
 }
 
 /**
  * 创建消费者
  */
 export function createConsumer(data: CreateConsumerData) {
-  return request.post<RespI<IConsumer>, RespI<IConsumer>>(
-    '/consumers',
-    data
-  );
+  return request.post<RespI<IConsumer>, RespI<IConsumer>>('/consumers', data);
 }
 
 /**
  * 删除消费者
  */
 export function deleteConsumer(consumerId: string) {
-  return request.delete<RespI<void>, RespI<void>>(
-    `/consumers/${consumerId}`
-  );
+  return request.delete<RespI<void>, RespI<void>>(`/consumers/${consumerId}`);
 }
 
 /**
  * 获取某个消费者的订阅列表
  */
-export function getConsumerSubscriptions(
-  consumerId: string,
-  params?: GetSubscriptionsParams
-) {
+export function getConsumerSubscriptions(consumerId: string, params?: GetSubscriptionsParams) {
   return request.get<RespI<GetSubscriptionsResp>, RespI<GetSubscriptionsResp>>(
     `/consumers/${consumerId}/subscriptions`,
     {
       params: {
-        productName: params?.productName,
-        status: params?.status,
         page: params?.page || 0,
+        productName: params?.productName,
         size: params?.size || 100,
+        status: params?.status,
       },
-    }
+    },
   );
 }
 
@@ -150,7 +137,7 @@ export function subscribeProduct(consumerId: string, productId: string) {
   const data: SubscribeProductData = { productId };
   return request.post<RespI<ISubscription>, RespI<ISubscription>>(
     `/consumers/${consumerId}/subscriptions`,
-    data
+    data,
   );
 }
 
@@ -159,7 +146,7 @@ export function subscribeProduct(consumerId: string, productId: string) {
  */
 export function unsubscribeProduct(consumerId: string, productId: string) {
   return request.delete<RespI<void>, RespI<void>>(
-    `/consumers/${consumerId}/subscriptions/${productId}`
+    `/consumers/${consumerId}/subscriptions/${productId}`,
   );
 }
 
@@ -173,18 +160,18 @@ export function getProductSubscriptions(
     consumerName?: string;
     page?: number;
     size?: number;
-  }
+  },
 ) {
   return request.get<RespI<GetSubscriptionsResp>, RespI<GetSubscriptionsResp>>(
     `/products/${productId}/subscriptions`,
     {
       params: {
-        status: params?.status,
         consumerName: params?.consumerName,
         page: params?.page || 0,
         size: params?.size || 20,
+        status: params?.status,
       },
-    }
+    },
   );
 }
 
@@ -203,13 +190,11 @@ export async function getProductSubscriptionStatus(productId: string) {
         consumerId: sub.consumerId,
         name: sub.consumerName,
       },
-      subscription: sub,
       subscribed: true,
+      subscription: sub,
     }));
 
     return {
-      hasSubscription: subscribedConsumers.length > 0,
-      subscribedConsumers: subscribedConsumers,
       allConsumers: [], // 延迟加载，在申请订阅时才获取
       // 新增：返回完整的订阅数据供管理弹窗使用
       fullSubscriptionData: {
@@ -217,13 +202,14 @@ export async function getProductSubscriptionStatus(productId: string) {
         totalElements: response.data.totalElements || subscriptions.length,
         totalPages: response.data.totalPages || 1,
       },
+      hasSubscription: subscribedConsumers.length > 0,
+      subscribedConsumers: subscribedConsumers,
     };
   } catch (error) {
     console.error('Failed to get product subscription status:', error);
     throw error;
   }
 }
-
 
 /**
  * 获取默认消费者
@@ -232,12 +218,12 @@ export interface IGetPrimaryConsumerResp {
   consumerId: string;
   name: string;
   description: string;
-  isPrimary: true,
+  isPrimary: true;
   createAt: string;
 }
 export function getPrimaryConsumer() {
   return request<RespI<IGetPrimaryConsumerResp>, RespI<IGetPrimaryConsumerResp>>(
-    "/consumers/primary"
+    '/consumers/primary',
   );
 }
 
@@ -246,5 +232,5 @@ export function getPrimaryConsumer() {
  */
 
 export function putPrimaryConsumer(id: string) {
-  return request.put<RespI<unknown>, RespI<unknown>>(`/consumers/${id}/primary`)
+  return request.put<RespI<unknown>, RespI<unknown>>(`/consumers/${id}/primary`);
 }

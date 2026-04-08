@@ -1,6 +1,6 @@
 // ===== JSON-RPC 2.0 Base Types =====
 
-export const JSONRPC_VERSION = "2.0" as const;
+export const JSONRPC_VERSION = '2.0' as const;
 export type JsonRpcId = number | string;
 
 export interface CodingRequest {
@@ -28,25 +28,25 @@ export type CodingMessage = CodingRequest | CodingResponse | CodingNotification;
 // ===== ContentBlock =====
 
 export interface TextContent {
-  type: "text";
+  type: 'text';
   text: string;
 }
 
 export interface ImageContent {
-  type: "image";
+  type: 'image';
   data: string;
   mimeType: string;
   uri?: string | null;
 }
 
 export interface AudioContent {
-  type: "audio";
+  type: 'audio';
   data: string;
   mimeType: string;
 }
 
 export interface ResourceLink {
-  type: "resource_link";
+  type: 'resource_link';
   name: string;
   uri: string;
   mimeType?: string | null;
@@ -68,7 +68,7 @@ export interface BlobResourceContents {
 }
 
 export interface EmbeddedResource {
-  type: "resource";
+  type: 'resource';
   resource: TextResourceContents | BlobResourceContents;
 }
 
@@ -155,34 +155,34 @@ export interface PromptResult {
 
 // ===== ToolCall Sub-types =====
 
-export type ToolCallStatus = "pending" | "in_progress" | "completed" | "failed";
+export type ToolCallStatus = 'pending' | 'in_progress' | 'completed' | 'failed';
 export type ToolKind =
-  | "read"
-  | "edit"
-  | "delete"
-  | "move"
-  | "search"
-  | "execute"
-  | "think"
-  | "fetch"
-  | "switch_mode"
-  | "other"
-  | "skill";
+  | 'read'
+  | 'edit'
+  | 'delete'
+  | 'move'
+  | 'search'
+  | 'execute'
+  | 'think'
+  | 'fetch'
+  | 'switch_mode'
+  | 'other'
+  | 'skill';
 
 export interface ToolCallContentTextItem {
-  type: "content";
+  type: 'content';
   content?: ContentBlock;
 }
 
 export interface ToolCallContentDiffItem {
-  type: "diff";
+  type: 'diff';
   path?: string;
   oldText?: string | null;
   newText?: string | null;
 }
 
 export interface ToolCallContentTerminalItem {
-  type: "terminal";
+  type: 'terminal';
   terminalId: string;
 }
 
@@ -203,28 +203,28 @@ interface BaseSessionUpdate {
 
 export interface AgentMessageChunkUpdate extends BaseSessionUpdate {
   update: {
-    sessionUpdate: "agent_message_chunk";
+    sessionUpdate: 'agent_message_chunk';
     content: ContentBlock;
   };
 }
 
 export interface AgentThoughtChunkUpdate extends BaseSessionUpdate {
   update: {
-    sessionUpdate: "agent_thought_chunk";
+    sessionUpdate: 'agent_thought_chunk';
     content: TextContent;
   };
 }
 
 export interface UserMessageChunkUpdate extends BaseSessionUpdate {
   update: {
-    sessionUpdate: "user_message_chunk";
+    sessionUpdate: 'user_message_chunk';
     content: ContentBlock;
   };
 }
 
 export interface ToolCallUpdateNotification extends BaseSessionUpdate {
   update: {
-    sessionUpdate: "tool_call";
+    sessionUpdate: 'tool_call';
     toolCallId: string;
     status: ToolCallStatus;
     title: string;
@@ -237,7 +237,7 @@ export interface ToolCallUpdateNotification extends BaseSessionUpdate {
 
 export interface ToolCallStatusUpdate extends BaseSessionUpdate {
   update: {
-    sessionUpdate: "tool_call_update";
+    sessionUpdate: 'tool_call_update';
     toolCallId: string;
     status?: ToolCallStatus | null;
     title?: string | null;
@@ -250,25 +250,25 @@ export interface ToolCallStatusUpdate extends BaseSessionUpdate {
 
 export interface PlanUpdateNotification extends BaseSessionUpdate {
   update: {
-    sessionUpdate: "plan";
+    sessionUpdate: 'plan';
     entries: Array<{
       content: string;
-      status: "pending" | "in_progress" | "completed";
-      priority?: "low" | "medium" | "high";
+      status: 'pending' | 'in_progress' | 'completed';
+      priority?: 'low' | 'medium' | 'high';
     }>;
   };
 }
 
 export interface AvailableCommandsUpdateNotification extends BaseSessionUpdate {
   update: {
-    sessionUpdate: "available_commands_update";
+    sessionUpdate: 'available_commands_update';
     availableCommands: Command[];
   };
 }
 
 export interface CurrentModeUpdateNotification extends BaseSessionUpdate {
   update: {
-    sessionUpdate: "current_mode_update";
+    sessionUpdate: 'current_mode_update';
     mode: string;
     description?: string;
   };
@@ -276,7 +276,7 @@ export interface CurrentModeUpdateNotification extends BaseSessionUpdate {
 
 export interface ConfigOptionUpdateNotification extends BaseSessionUpdate {
   update: {
-    sessionUpdate: "config_option_update";
+    sessionUpdate: 'config_option_update';
     key: string;
     value: unknown;
   };
@@ -284,14 +284,14 @@ export interface ConfigOptionUpdateNotification extends BaseSessionUpdate {
 
 export interface SessionInfoUpdateNotification extends BaseSessionUpdate {
   update: {
-    sessionUpdate: "session_info_update";
+    sessionUpdate: 'session_info_update';
     title?: string;
   };
 }
 
 export interface UsageUpdateNotification extends BaseSessionUpdate {
   update: {
-    sessionUpdate: "usage_update";
+    sessionUpdate: 'usage_update';
     usage: {
       size: number;
       used: number;
@@ -318,7 +318,7 @@ export type SessionUpdate =
 export interface PermissionOption {
   optionId: string;
   name: string;
-  kind: "allow_once" | "allow_always" | "reject_once" | "reject_always";
+  kind: 'allow_once' | 'allow_always' | 'reject_once' | 'reject_always';
 }
 
 export interface PermissionRequest {
@@ -338,39 +338,39 @@ export interface PermissionRequest {
 // ===== Agent → Client Requests =====
 
 export interface FileReadRequest extends CodingRequest {
-  method: "fs/read_text_file";
+  method: 'fs/read_text_file';
   params: { path: string; sessionId?: string };
 }
 
 export interface FileWriteRequest extends CodingRequest {
-  method: "fs/write_text_file";
+  method: 'fs/write_text_file';
   params: { path: string; content: string; sessionId?: string };
 }
 
 // ===== Coding Protocol Methods =====
 
 export const CODING_METHODS = {
-  INITIALIZE: "initialize",
-  SESSION_NEW: "session/new",
-  SESSION_LOAD: "session/load",
-  SESSION_PROMPT: "session/prompt",
-  SESSION_CANCEL: "session/cancel",
-  SESSION_SET_MODEL: "session/set_model",
-  SESSION_SET_MODE: "session/set_mode",
-  SESSION_SET_CONFIG: "session/set_config_option",
-  SESSION_UPDATE: "session/update",
-  REQUEST_PERMISSION: "session/request_permission",
-  READ_TEXT_FILE: "fs/read_text_file",
-  WRITE_TEXT_FILE: "fs/write_text_file",
-  TERMINAL_CREATE: "terminal/create",
-  TERMINAL_OUTPUT: "terminal/output",
+  INITIALIZE: 'initialize',
+  READ_TEXT_FILE: 'fs/read_text_file',
+  REQUEST_PERMISSION: 'session/request_permission',
+  SESSION_CANCEL: 'session/cancel',
+  SESSION_LOAD: 'session/load',
+  SESSION_NEW: 'session/new',
+  SESSION_PROMPT: 'session/prompt',
+  SESSION_SET_CONFIG: 'session/set_config_option',
+  SESSION_SET_MODE: 'session/set_mode',
+  SESSION_SET_MODEL: 'session/set_model',
+  SESSION_UPDATE: 'session/update',
+  TERMINAL_CREATE: 'terminal/create',
+  TERMINAL_OUTPUT: 'terminal/output',
+  WRITE_TEXT_FILE: 'fs/write_text_file',
 } as const;
 
 // ===== Attachment (client-side, for coding input) =====
 
 export interface FilePathAttachment {
   id: string;
-  kind: "file_path";
+  kind: 'file_path';
   name: string;
   filePath: string; // absolute file path on server
   mimeType?: string;
@@ -382,7 +382,7 @@ export type Attachment = FilePathAttachment;
 // ===== Chat Item Types (for UI rendering) =====
 
 export interface ChatItemUser {
-  type: "user";
+  type: 'user';
   id: string;
   text: string;
   attachments?: Attachment[];
@@ -397,20 +397,20 @@ export type ChatItem =
   | ChatItemError;
 
 export interface ChatItemAgent {
-  type: "agent";
+  type: 'agent';
   id: string;
   text: string;
   complete: boolean;
 }
 
 export interface ChatItemThought {
-  type: "thought";
+  type: 'thought';
   id: string;
   text: string;
 }
 
 export interface ChatItemToolCall {
-  type: "tool_call";
+  type: 'tool_call';
   id: string;
   toolCallId: string;
   title: string;
@@ -422,17 +422,17 @@ export interface ChatItemToolCall {
 }
 
 export interface ChatItemPlan {
-  type: "plan";
+  type: 'plan';
   id: string;
   entries: Array<{
     content: string;
-    status: "pending" | "in_progress" | "completed";
-    priority?: "low" | "medium" | "high";
+    status: 'pending' | 'in_progress' | 'completed';
+    priority?: 'low' | 'medium' | 'high';
   }>;
 }
 
 export interface ChatItemError {
-  type: "error";
+  type: 'error';
   id: string;
   code: number;
   message: string;

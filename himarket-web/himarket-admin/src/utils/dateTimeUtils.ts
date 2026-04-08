@@ -1,5 +1,7 @@
-import dayjs, { Dayjs } from 'dayjs';
+import dayjs from 'dayjs';
 import quarterOfYear from 'dayjs/plugin/quarterOfYear';
+
+import type { Dayjs } from 'dayjs';
 
 // 扩展dayjs支持季度
 dayjs.extend(quarterOfYear);
@@ -15,11 +17,23 @@ export const TIME_FORMAT = 'HH:mm:ss';
  * 预设时间范围类型
  */
 export type PresetTimeRange =
-  | '1m' | '5m' | '15m' | '1h' | '4h' | '1d'
-  | 'today' | 'yesterday' | 'dayBeforeYesterday'
-  | '1w' | 'thisWeek' | 'lastWeek'
-  | '30d' | 'thisMonth' | 'lastMonth'
-  | 'thisQuarter' | 'thisYear';
+  | '1m'
+  | '5m'
+  | '15m'
+  | '1h'
+  | '4h'
+  | '1d'
+  | 'today'
+  | 'yesterday'
+  | 'dayBeforeYesterday'
+  | '1w'
+  | 'thisWeek'
+  | 'lastWeek'
+  | '30d'
+  | 'thisMonth'
+  | 'lastMonth'
+  | 'thisQuarter'
+  | 'thisYear';
 
 /**
  * 格式化日期时间为本地字符串
@@ -29,7 +43,7 @@ export type PresetTimeRange =
  */
 export function formatDatetimeLocal(
   date: Date | Dayjs | string | number,
-  format: string = DATETIME_FORMAT
+  format: string = DATETIME_FORMAT,
 ): string {
   return dayjs(date).format(format);
 }
@@ -41,7 +55,7 @@ export function formatDatetimeLocal(
  */
 export function getPresetTimeRange(preset: PresetTimeRange): [Dayjs, Dayjs] {
   const now = dayjs();
-  
+
   switch (preset) {
     // 相对时间范围
     case '1m':
@@ -60,39 +74,27 @@ export function getPresetTimeRange(preset: PresetTimeRange): [Dayjs, Dayjs] {
       return [now.subtract(7, 'day'), now];
     case '30d':
       return [now.subtract(30, 'day'), now];
-    
+
     // 绝对时间范围
     case 'today':
       return [now.startOf('day'), now.endOf('day')];
     case 'yesterday':
-      return [
-        now.subtract(1, 'day').startOf('day'),
-        now.subtract(1, 'day').endOf('day')
-      ];
+      return [now.subtract(1, 'day').startOf('day'), now.subtract(1, 'day').endOf('day')];
     case 'dayBeforeYesterday':
-      return [
-        now.subtract(2, 'day').startOf('day'),
-        now.subtract(2, 'day').endOf('day')
-      ];
+      return [now.subtract(2, 'day').startOf('day'), now.subtract(2, 'day').endOf('day')];
     case 'thisWeek':
       return [now.startOf('week'), now.endOf('week')];
     case 'lastWeek':
-      return [
-        now.subtract(1, 'week').startOf('week'),
-        now.subtract(1, 'week').endOf('week')
-      ];
+      return [now.subtract(1, 'week').startOf('week'), now.subtract(1, 'week').endOf('week')];
     case 'thisMonth':
       return [now.startOf('month'), now.endOf('month')];
     case 'lastMonth':
-      return [
-        now.subtract(1, 'month').startOf('month'),
-        now.subtract(1, 'month').endOf('month')
-      ];
+      return [now.subtract(1, 'month').startOf('month'), now.subtract(1, 'month').endOf('month')];
     case 'thisQuarter':
-      return [now.startOf('quarter' as any), now.endOf('quarter' as any)];
+      return [now.startOf('quarter' as dayjs.UnitType), now.endOf('quarter' as dayjs.UnitType)];
     case 'thisYear':
       return [now.startOf('year'), now.endOf('year')];
-    
+
     default:
       return [now.subtract(7, 'day'), now];
   }
@@ -134,7 +136,7 @@ export function getTimeRangeLabel(startTime: string | Dayjs, endTime: string | D
   const start = dayjs(startTime);
   const end = dayjs(endTime);
   const diffMinutes = end.diff(start, 'minute');
-  
+
   if (diffMinutes < 60) {
     return `${diffMinutes}m`;
   } else if (diffMinutes < 60 * 24) {

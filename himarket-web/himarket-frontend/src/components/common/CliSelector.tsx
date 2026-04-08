@@ -1,27 +1,40 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { Button, Segmented, Radio, Input } from "antd";
-import { Plug, RefreshCw, Loader2, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
-import { getCliProviders, type ICliProvider, type McpServerEntry, type SkillEntry, type CliSessionConfig } from "../../lib/apis/cliProvider";
-import { CustomModelForm, type CustomModelFormData } from "./CustomModelForm";
-import { MarketModelSelector, type MarketModelSelection } from "./MarketModelSelector";
-import { MarketMcpSelector } from "./MarketMcpSelector";
-import { MarketSkillSelector } from "./MarketSkillSelector";
-import { SelectableCard } from "./SelectableCard";
-import { sortCliProviders } from "../../lib/utils/cliProviderSort";
-import { getVisibleSteps, type StepConfig } from "./stepUtils";
+import { Button, Segmented, Radio, Input } from 'antd';
+import { Plug, RefreshCw, Loader2, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+
+import { CustomModelForm, type CustomModelFormData } from './CustomModelForm';
+import { MarketMcpSelector } from './MarketMcpSelector';
+import { MarketModelSelector, type MarketModelSelection } from './MarketModelSelector';
+import { MarketSkillSelector } from './MarketSkillSelector';
+import { SelectableCard } from './SelectableCard';
+import { getVisibleSteps, type StepConfig } from './stepUtils';
+import {
+  getCliProviders,
+  type ICliProvider,
+  type McpServerEntry,
+  type SkillEntry,
+  type CliSessionConfig,
+} from '../../lib/apis/cliProvider';
+import { sortCliProviders } from '../../lib/utils/cliProviderSort';
 
 // ============ 类型定义 ============
 
 export type ModelConfigMode = 'none' | 'custom' | 'market';
 
 export interface CliSelectorProps {
-  onSelect: (cliId: string, cwd: string, runtime?: string, providerObj?: ICliProvider, cliSessionConfig?: string) => void;
+  onSelect: (
+    cliId: string,
+    cwd: string,
+    runtime?: string,
+    providerObj?: ICliProvider,
+    cliSessionConfig?: string,
+  ) => void;
   disabled: boolean;
 }
 
-export function CliSelector({ onSelect, disabled }: CliSelectorProps) {
+export function CliSelector({ disabled, onSelect }: CliSelectorProps) {
   const [providers, setProviders] = useState<ICliProvider[]>([]);
-  const [selectedCliId, setSelectedCliId] = useState<string>("");
+  const [selectedCliId, setSelectedCliId] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,12 +42,14 @@ export function CliSelector({ onSelect, disabled }: CliSelectorProps) {
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
 
   // 当前选中的 provider 对象
-  const selectedProvider = providers.find(p => p.key === selectedCliId) ?? null;
+  const selectedProvider = providers.find((p) => p.key === selectedCliId) ?? null;
 
   // 模型配置模式
   const [modelConfigMode, setModelConfigMode] = useState<ModelConfigMode>('market');
   const [, setCustomModelData] = useState<CustomModelFormData | null>(null);
-  const [marketModelSelection, setMarketModelSelection] = useState<MarketModelSelection | null>(null);
+  const [marketModelSelection, setMarketModelSelection] = useState<MarketModelSelection | null>(
+    null,
+  );
 
   // MCP 和 Skill 选择状态
   const [mcpEnabled, setMcpEnabled] = useState(false);
@@ -43,8 +58,8 @@ export function CliSelector({ onSelect, disabled }: CliSelectorProps) {
   const [selectedSkills, setSelectedSkills] = useState<SkillEntry[] | null>(null);
 
   // 认证方案状态
-  const [selectedAuthOption, setSelectedAuthOption] = useState<string>("");
-  const [authTokenInput, setAuthTokenInput] = useState<string>("");
+  const [selectedAuthOption, setSelectedAuthOption] = useState<string>('');
+  const [authTokenInput, setAuthTokenInput] = useState<string>('');
 
   // 使用 sortCliProviders 对 provider 列表排序
   const sortedProviders = useMemo(() => sortCliProviders(providers), [providers]);
@@ -52,7 +67,7 @@ export function CliSelector({ onSelect, disabled }: CliSelectorProps) {
   // 根据选中 provider 的能力动态计算可见步骤
   const visibleSteps: StepConfig[] = useMemo(
     () => getVisibleSteps(selectedProvider),
-    [selectedProvider]
+    [selectedProvider],
   );
 
   // 当前步骤配置
@@ -109,8 +124,9 @@ export function CliSelector({ onSelect, disabled }: CliSelectorProps) {
     setSelectedSkills(null);
     // 自动选中当前 provider 的第一个认证方案作为默认值
     const authOptions = selectedProvider?.authOptions ?? [];
-    setSelectedAuthOption(authOptions.length > 0 ? authOptions[0] : "");
-    setAuthTokenInput("");
+    const firstAuth = authOptions[0];
+    setSelectedAuthOption(firstAuth ?? '');
+    setAuthTokenInput('');
     setCurrentStepIndex(0);
   }, [selectedCliId, selectedProvider]);
 
@@ -121,17 +137,18 @@ export function CliSelector({ onSelect, disabled }: CliSelectorProps) {
       const res = await getCliProviders();
       const list: ICliProvider[] = Array.isArray(res.data)
         ? res.data
-        : (res as any).data?.data ?? [];
+        : ((((res as unknown as Record<string, unknown>).data as Record<string, unknown>)?.data ??
+            []) as ICliProvider[]);
       setProviders(list);
 
       // 使用排序后的列表自动选中第一个可用 provider
       const sorted = sortCliProviders(list);
-      const firstAvailable = sorted.find(p => p.available);
+      const firstAvailable = sorted.find((p) => p.available);
       if (firstAvailable) {
         setSelectedCliId(firstAvailable.key);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "获取 CLI 工具列表失败");
+      setError(err instanceof Error ? err.message : '获取 CLI 工具列表失败');
     } finally {
       setLoading(false);
     }
@@ -143,12 +160,12 @@ export function CliSelector({ onSelect, disabled }: CliSelectorProps) {
 
   // 导航：上一步
   const handlePrevStep = useCallback(() => {
-    setCurrentStepIndex(prev => Math.max(0, prev - 1));
+    setCurrentStepIndex((prev) => Math.max(0, prev - 1));
   }, []);
 
   // 导航：下一步
   const handleNextStep = useCallback(() => {
-    setCurrentStepIndex(prev => Math.min(visibleSteps.length - 1, prev + 1));
+    setCurrentStepIndex((prev) => Math.min(visibleSteps.length - 1, prev + 1));
   }, [visibleSteps.length]);
 
   // 连接处理
@@ -178,22 +195,37 @@ export function CliSelector({ onSelect, disabled }: CliSelectorProps) {
     }
 
     // 有任何配置时传递 cliSessionConfig
-    const hasConfig = sessionConfig.modelProductId
-      || sessionConfig.mcpServers
-      || sessionConfig.skills
-      || sessionConfig.authToken;
+    const hasConfig =
+      sessionConfig.modelProductId ||
+      sessionConfig.mcpServers ||
+      sessionConfig.skills ||
+      sessionConfig.authToken;
     const configJson = hasConfig ? JSON.stringify(sessionConfig) : undefined;
 
-    onSelect(selectedCliId, "", undefined, selectedProvider ?? undefined, configJson);
-  }, [selectedCliId, modelConfigMode, marketModelSelection, mcpEnabled, selectedMcps, skillEnabled, selectedSkills, authTokenInput, selectedProvider, onSelect]);
+    onSelect(selectedCliId, '', undefined, selectedProvider ?? undefined, configJson);
+  }, [
+    selectedCliId,
+    modelConfigMode,
+    marketModelSelection,
+    mcpEnabled,
+    selectedMcps,
+    skillEnabled,
+    selectedSkills,
+    authTokenInput,
+    selectedProvider,
+    onSelect,
+  ]);
 
   // 选择 CLI 工具卡片
-  const handleSelectProvider = useCallback((key: string) => {
-    const provider = sortedProviders.find(p => p.key === key);
-    if (provider?.available) {
-      setSelectedCliId(key);
-    }
-  }, [sortedProviders]);
+  const handleSelectProvider = useCallback(
+    (key: string) => {
+      const provider = sortedProviders.find((p) => p.key === key);
+      if (provider?.available) {
+        setSelectedCliId(key);
+      }
+    },
+    [sortedProviders],
+  );
 
   // ============ 渲染 ============
 
@@ -201,7 +233,7 @@ export function CliSelector({ onSelect, disabled }: CliSelectorProps) {
   if (loading) {
     return (
       <div className="flex flex-col items-center gap-3 py-6 text-gray-400">
-        <Loader2 size={24} className="animate-spin" />
+        <Loader2 className="animate-spin" size={24} />
         <span className="text-sm">正在加载 CLI 工具列表...</span>
       </div>
     );
@@ -216,10 +248,10 @@ export function CliSelector({ onSelect, disabled }: CliSelectorProps) {
           <span>{error}</span>
         </div>
         <Button
-          size="small"
+          disabled={disabled}
           icon={<RefreshCw size={14} />}
           onClick={fetchProviders}
-          disabled={disabled}
+          size="small"
         >
           重试
         </Button>
@@ -236,10 +268,10 @@ export function CliSelector({ onSelect, disabled }: CliSelectorProps) {
         <AlertCircle size={24} />
         <span className="text-sm">没有可用的 CLI 工具</span>
         <Button
-          size="small"
+          disabled={disabled}
           icon={<RefreshCw size={14} />}
           onClick={fetchProviders}
-          disabled={disabled}
+          size="small"
         >
           刷新
         </Button>
@@ -271,12 +303,12 @@ export function CliSelector({ onSelect, disabled }: CliSelectorProps) {
           <div className="flex flex-col gap-2 w-full">
             <label className="text-sm font-medium text-gray-600">认证方案</label>
             <Radio.Group
-              value={selectedAuthOption}
+              className="flex flex-col gap-2"
               onChange={(e) => {
                 setSelectedAuthOption(e.target.value);
-                setAuthTokenInput("");
+                setAuthTokenInput('');
               }}
-              className="flex flex-col gap-2"
+              value={selectedAuthOption}
             >
               {authOptions.map((option) => (
                 <Radio key={option} value={option}>
@@ -290,13 +322,11 @@ export function CliSelector({ onSelect, disabled }: CliSelectorProps) {
         {/* 选择 Personal Access Token 时展示 PAT 输入框 */}
         {selectedAuthOption === 'personal_access_token' && authEnvVar && (
           <div className="flex flex-col gap-2 w-full">
-            <label className="text-sm font-medium text-gray-600">
-              Personal Access Token
-            </label>
+            <label className="text-sm font-medium text-gray-600">Personal Access Token</label>
             <Input.Password
+              onChange={(e) => setAuthTokenInput(e.target.value)}
               placeholder={`请输入 ${authEnvVar} 对应的 Token`}
               value={authTokenInput}
-              onChange={(e) => setAuthTokenInput(e.target.value)}
             />
           </div>
         )}
@@ -313,18 +343,18 @@ export function CliSelector({ onSelect, disabled }: CliSelectorProps) {
         <div className="grid grid-cols-2 gap-2">
           {sortedProviders.map((p) => (
             <SelectableCard
-              key={p.key}
-              selected={selectedCliId === p.key}
               disabled={!p.available}
+              key={p.key}
               onClick={() => handleSelectProvider(p.key)}
+              selected={selectedCliId === p.key}
             >
               <div className="flex flex-col gap-0.5">
-                <span className={`text-sm font-medium ${!p.available ? 'text-gray-400' : 'text-gray-800'}`}>
+                <span
+                  className={`text-sm font-medium ${!p.available ? 'text-gray-400' : 'text-gray-800'}`}
+                >
                   {p.displayName}
                 </span>
-                {!p.available && (
-                  <span className="text-xs text-gray-400">不可用</span>
-                )}
+                {!p.available && <span className="text-xs text-gray-400">不可用</span>}
               </div>
             </SelectableCard>
           ))}
@@ -351,10 +381,10 @@ export function CliSelector({ onSelect, disabled }: CliSelectorProps) {
       {supportsCustomModel && (
         <>
           <Segmented
+            block
+            onChange={handleModelConfigModeChange}
             options={modelConfigOptions}
             value={modelConfigMode}
-            onChange={handleModelConfigModeChange}
-            block
           />
 
           {/* 自定义模型表单 */}
@@ -441,11 +471,7 @@ export function CliSelector({ onSelect, disabled }: CliSelectorProps) {
       <div className="flex items-center justify-center gap-3 w-full">
         {/* 上一步按钮 - 仅在非第一步且有多步骤时显示 */}
         {visibleSteps.length > 1 && !isFirstStep && (
-          <Button
-            icon={<ChevronLeft size={14} />}
-            onClick={handlePrevStep}
-            disabled={disabled}
-          >
+          <Button disabled={disabled} icon={<ChevronLeft size={14} />} onClick={handlePrevStep}>
             上一步
           </Button>
         )}
@@ -453,20 +479,16 @@ export function CliSelector({ onSelect, disabled }: CliSelectorProps) {
         {/* 下一步 / 连接按钮 */}
         {isLastStep ? (
           <Button
-            type="primary"
+            className="px-8"
+            disabled={disabled || !isStep1Complete}
             icon={<Plug size={14} />}
             onClick={handleConnect}
-            disabled={disabled || !isStep1Complete}
-            className="px-8"
+            type="primary"
           >
             连接
           </Button>
         ) : (
-          <Button
-            type="primary"
-            onClick={handleNextStep}
-            disabled={disabled || !canGoNext}
-          >
+          <Button disabled={disabled || !canGoNext} onClick={handleNextStep} type="primary">
             下一步
             <ChevronRight size={14} />
           </Button>

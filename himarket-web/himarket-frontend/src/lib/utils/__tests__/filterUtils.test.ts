@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+
 import { filterByKeyword } from '../filterUtils';
 
 /** 模拟 MCP Server 数据 */
@@ -15,16 +16,16 @@ interface MockSkill {
 }
 
 const mcpList: MockMcp[] = [
-  { name: 'GitHub Copilot', description: 'AI pair programming tool' },
-  { name: 'Database Explorer', description: 'Browse and query databases' },
-  { name: 'File Manager', description: 'Manage project files' },
-  { name: 'Docker Helper', description: 'Container management utility' },
+  { description: 'AI pair programming tool', name: 'GitHub Copilot' },
+  { description: 'Browse and query databases', name: 'Database Explorer' },
+  { description: 'Manage project files', name: 'File Manager' },
+  { description: 'Container management utility', name: 'Docker Helper' },
 ];
 
 const skillList: MockSkill[] = [
-  { name: 'Code Review', description: '代码审查技能', skillTags: ['review', 'quality'] },
-  { name: 'Unit Testing', description: '单元测试生成', skillTags: ['test', 'automation'] },
-  { name: 'API Design', description: 'RESTful API 设计', skillTags: ['api', 'design'] },
+  { description: '代码审查技能', name: 'Code Review', skillTags: ['review', 'quality'] },
+  { description: '单元测试生成', name: 'Unit Testing', skillTags: ['test', 'automation'] },
+  { description: 'RESTful API 设计', name: 'API Design', skillTags: ['api', 'design'] },
 ];
 
 describe('filterByKeyword', () => {
@@ -43,19 +44,19 @@ describe('filterByKeyword', () => {
   it('按名称匹配', () => {
     const result = filterByKeyword(mcpList, 'github', ['name', 'description']);
     expect(result).toHaveLength(1);
-    expect(result[0].name).toBe('GitHub Copilot');
+    expect(result.at(0)?.name).toBe('GitHub Copilot');
   });
 
   it('按描述匹配', () => {
     const result = filterByKeyword(mcpList, 'container', ['name', 'description']);
     expect(result).toHaveLength(1);
-    expect(result[0].name).toBe('Docker Helper');
+    expect(result.at(0)?.name).toBe('Docker Helper');
   });
 
   it('大小写不敏感', () => {
     const result = filterByKeyword(mcpList, 'DATABASE', ['name', 'description']);
     expect(result).toHaveLength(1);
-    expect(result[0].name).toBe('Database Explorer');
+    expect(result.at(0)?.name).toBe('Database Explorer');
   });
 
   it('匹配多个结果', () => {
@@ -72,13 +73,13 @@ describe('filterByKeyword', () => {
   it('数组字段匹配（skillTags）', () => {
     const result = filterByKeyword(skillList, 'automation', ['name', 'description', 'skillTags']);
     expect(result).toHaveLength(1);
-    expect(result[0].name).toBe('Unit Testing');
+    expect(result.at(0)?.name).toBe('Unit Testing');
   });
 
   it('数组字段中多个标签均可匹配', () => {
     const result = filterByKeyword(skillList, 'review', ['name', 'description', 'skillTags']);
     expect(result).toHaveLength(1);
-    expect(result[0].name).toBe('Code Review');
+    expect(result.at(0)?.name).toBe('Code Review');
   });
 
   it('仅搜索指定字段', () => {
@@ -94,7 +95,7 @@ describe('filterByKeyword', () => {
     ];
     const result = filterByKeyword(items, 'test', ['name', 'value']);
     expect(result).toHaveLength(1);
-    expect(result[0].name).toBe('Test');
+    expect(result.at(0)?.name).toBe('Test');
   });
 
   it('结果是原列表的子集', () => {

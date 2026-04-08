@@ -1,11 +1,8 @@
+import { Modal, Table, message } from 'antd';
 import { useState, useEffect } from 'react';
-import {
-  Modal,
-  Table,
-  message
-} from 'antd';
-import { bindProductsToCategory } from '@/lib/productCategoryApi';
+
 import { apiProductApi } from '@/lib/api';
+import { bindProductsToCategory } from '@/lib/productCategoryApi';
 import { ProductTypeMap } from '@/lib/utils';
 import type { ApiProduct } from '@/types/api-product';
 
@@ -17,10 +14,10 @@ interface AddProductModalProps {
 }
 
 const AddProductModal: React.FC<AddProductModalProps> = ({
-  visible,
   categoryId,
   onCancel,
-  onSuccess
+  onSuccess,
+  visible,
 }) => {
   const [availableProducts, setAvailableProducts] = useState<ApiProduct[]>([]);
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
@@ -30,15 +27,15 @@ const AddProductModal: React.FC<AddProductModalProps> = ({
   // Fetch available products
   const fetchAvailableProducts = async () => {
     if (!categoryId) return;
-    
+
     try {
       setLoading(true);
       const response = await apiProductApi.getApiProducts({
+        excludeCategoryId: categoryId,
         page: 1,
         size: 100,
-        excludeCategoryId: categoryId
       });
-      
+
       setAvailableProducts(response.data.content || []);
     } catch (error) {
       console.error('Failed to fetch available products:', error);
@@ -54,6 +51,7 @@ const AddProductModal: React.FC<AddProductModalProps> = ({
       setSelectedProductIds([]);
       fetchAvailableProducts();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, categoryId]);
 
   // Handle add products
@@ -80,65 +78,61 @@ const AddProductModal: React.FC<AddProductModalProps> = ({
   // 完全按照Portal表单的列定义
   const modalColumns = [
     {
-      title: '名称',
       dataIndex: 'name',
       key: 'name',
-      width: 280,
-      render: (_: any, record: ApiProduct) => (
+      render: (_: unknown, record: ApiProduct) => (
         <div>
-          <div className="text-sm font-medium text-gray-900 truncate">
-            {record.name}
-          </div>
-          <div className="text-xs text-gray-500 truncate">
-            {record.productId}
-          </div>
+          <div className="text-sm font-medium text-gray-900 truncate">{record.name}</div>
+          <div className="text-xs text-gray-500 truncate">{record.productId}</div>
         </div>
       ),
+      title: '名称',
+      width: 280,
     },
     {
-      title: '类型',
       dataIndex: 'type',
       key: 'type',
-      width: 120,
       render: (type: string) => ProductTypeMap[type] || type,
+      title: '类型',
+      width: 120,
     },
     {
-      title: '描述',
       dataIndex: 'description',
       key: 'description',
+      title: '描述',
       width: 300,
     },
   ];
 
   return (
     <Modal
-      title="添加API产品"
-      open={visible}
-      onOk={handleAddProducts}
-      onCancel={onCancel}
-      okText="添加"
       cancelText="取消"
-      width={800}
       confirmLoading={addLoading}
       okButtonProps={{
-        disabled: selectedProductIds.length === 0
+        disabled: selectedProductIds.length === 0,
       }}
+      okText="添加"
+      onCancel={onCancel}
+      onOk={handleAddProducts}
+      open={visible}
+      title="添加API产品"
+      width={800}
     >
       <Table
         columns={modalColumns}
         dataSource={availableProducts}
-        rowKey="productId"
         loading={loading}
         pagination={false}
-        scroll={{ y: 400 }}
+        rowKey="productId"
         rowSelection={{
-          type: 'checkbox',
-          selectedRowKeys: selectedProductIds,
+          columnWidth: 60,
           onChange: (selectedRowKeys) => {
             setSelectedProductIds(selectedRowKeys as string[]);
           },
-          columnWidth: 60,
+          selectedRowKeys: selectedProductIds,
+          type: 'checkbox',
         }}
+        scroll={{ y: 400 }}
       />
     </Modal>
   );

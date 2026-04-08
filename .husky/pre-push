@@ -1,0 +1,25 @@
+#!/usr/bin/env sh
+
+ROOT_DIR=$(pwd)
+
+# Determine the commit range being pushed:
+#   1. upstream branch..HEAD if tracking branch exists
+#   2. origin/main merge-base..HEAD as fallback
+#   3. skip checks if neither works (e.g., new repo with no origin/main)
+if UPSTREAM=$(git rev-parse --abbrev-ref HEAD@{upstream} 2>/dev/null); then
+  RANGE="${UPSTREAM}..HEAD"
+elif BASE=$(git merge-base HEAD origin/main 2>/dev/null); then
+  RANGE="${BASE}..HEAD"
+else
+  exit 0
+fi
+
+# Type-check himarket-frontend only if frontend files are in the push
+if git diff --name-only "$RANGE" | grep -q '^himarket-web/himarket-frontend/'; then
+  cd "$ROOT_DIR/himarket-web/himarket-frontend" && npm run type-check
+fi
+
+# Type-check himarket-admin only if admin files are in the push
+if git diff --name-only "$RANGE" | grep -q '^himarket-web/himarket-admin/'; then
+  cd "$ROOT_DIR/himarket-web/himarket-admin" && npm run type-check
+fi

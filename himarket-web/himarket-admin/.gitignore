@@ -23,3 +23,5 @@ dist-ssr
 *.sln
 *.sw?
 image-push.sh
+# TypeScript 编译缓存
+*.tsbuildinfo

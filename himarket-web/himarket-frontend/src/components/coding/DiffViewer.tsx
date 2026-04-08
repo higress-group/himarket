@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { diffLines } from "diff";
+import { diffLines } from 'diff';
+import { useMemo } from 'react';
 
 interface DiffViewerProps {
   path?: string;
@@ -7,31 +7,27 @@ interface DiffViewerProps {
   newText?: string | null;
 }
 
-type DiffLineType = "add" | "del" | "ctx";
+type DiffLineType = 'add' | 'del' | 'ctx';
 
 function splitToDisplayLines(value: string): string[] {
-  if (value.length === 0) return [""];
-  const lines = value.split("\n");
-  if (lines.length > 0 && lines[lines.length - 1] === "") {
+  if (value.length === 0) return [''];
+  const lines = value.split('\n');
+  if (lines.length > 0 && lines[lines.length - 1] === '') {
     lines.pop();
   }
-  return lines.length > 0 ? lines : [""];
+  return lines.length > 0 ? lines : [''];
 }
 
-export function DiffViewer({ path, oldText, newText }: DiffViewerProps) {
+export function DiffViewer({ newText, oldText, path }: DiffViewerProps) {
   const lines = useMemo(() => {
-    const changes = diffLines(oldText ?? "", newText ?? "");
+    const changes = diffLines(oldText ?? '', newText ?? '');
     const result: Array<{ type: DiffLineType; text: string }> = [];
 
     for (const change of changes) {
-      const type: DiffLineType = change.added
-        ? "add"
-        : change.removed
-          ? "del"
-          : "ctx";
+      const type: DiffLineType = change.added ? 'add' : change.removed ? 'del' : 'ctx';
       const displayLines = splitToDisplayLines(change.value);
       for (const line of displayLines) {
-        result.push({ type, text: line });
+        result.push({ text: line, type });
       }
     }
 
@@ -51,16 +47,16 @@ export function DiffViewer({ path, oldText, newText }: DiffViewerProps) {
         ) : (
           lines.map((line, i) => (
             <div
-              key={i}
               className={
-                line.type === "add"
-                  ? "bg-green-50 text-green-700 px-1"
-                  : line.type === "del"
-                    ? "bg-red-50 text-red-700 px-1"
-                    : "text-gray-600 px-1"
+                line.type === 'add'
+                  ? 'bg-green-50 text-green-700 px-1'
+                  : line.type === 'del'
+                    ? 'bg-red-50 text-red-700 px-1'
+                    : 'text-gray-600 px-1'
               }
+              key={i}
             >
-              {line.type === "add" ? "+ " : line.type === "del" ? "- " : "  "}
+              {line.type === 'add' ? '+ ' : line.type === 'del' ? '- ' : '  '}
               {line.text}
             </div>
           ))

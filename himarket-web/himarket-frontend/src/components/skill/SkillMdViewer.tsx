@@ -1,32 +1,32 @@
-import { useState, useEffect, useRef } from "react";
-import { CodeOutlined, ReadOutlined } from "@ant-design/icons";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import rehypeHighlight from "rehype-highlight";
-import hljs from "highlight.js/lib/core";
-import markdown from "highlight.js/lib/languages/markdown";
-import yaml from "highlight.js/lib/languages/yaml";
+import { CodeOutlined, ReadOutlined } from '@ant-design/icons';
+import hljs from 'highlight.js/lib/core';
+import markdown from 'highlight.js/lib/languages/markdown';
+import yaml from 'highlight.js/lib/languages/yaml';
+import { useState, useEffect, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
+import rehypeHighlight from 'rehype-highlight';
+import remarkGfm from 'remark-gfm';
 import 'highlight.js/styles/github.css';
-import "github-markdown-css/github-markdown-light.css";
+import 'github-markdown-css/github-markdown-light.css';
 
-hljs.registerLanguage("markdown", markdown);
-hljs.registerLanguage("yaml", yaml);
+hljs.registerLanguage('markdown', markdown);
+hljs.registerLanguage('yaml', yaml);
 
-import { parseSkillMd } from "../../lib/skillMdUtils";
+import { parseSkillMd } from '../../lib/skillMdUtils';
 
-type ViewMode = "rendered" | "source";
+type ViewMode = 'rendered' | 'source';
 
 interface SkillMdViewerProps {
   document: string;
 }
 
 function SkillMdViewer({ document }: SkillMdViewerProps) {
-  const [viewMode, setViewMode] = useState<ViewMode>("rendered");
+  const [viewMode, setViewMode] = useState<ViewMode>('rendered');
   const codeRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    if (viewMode === "source" && codeRef.current) {
-      codeRef.current.removeAttribute("data-highlighted");
+    if (viewMode === 'source' && codeRef.current) {
+      codeRef.current.removeAttribute('data-highlighted');
       hljs.highlightElement(codeRef.current);
     }
   }, [viewMode, document]);
@@ -47,23 +47,23 @@ function SkillMdViewer({ document }: SkillMdViewerProps) {
         <h3 className="text-base font-semibold text-gray-900">SKILL.md</h3>
         <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs">
           <button
-            onClick={() => setViewMode("rendered")}
             className={`flex items-center gap-1 px-3 py-1.5 transition-colors duration-200 ${
-              viewMode === "rendered"
-                ? "bg-purple-100 text-purple-700"
-                : "bg-white text-gray-500 hover:bg-gray-50"
+              viewMode === 'rendered'
+                ? 'bg-purple-100 text-purple-700'
+                : 'bg-white text-gray-500 hover:bg-gray-50'
             }`}
+            onClick={() => setViewMode('rendered')}
           >
             <ReadOutlined />
             <span>渲染视图</span>
           </button>
           <button
-            onClick={() => setViewMode("source")}
             className={`flex items-center gap-1 px-3 py-1.5 transition-colors duration-200 ${
-              viewMode === "source"
-                ? "bg-purple-100 text-purple-700"
-                : "bg-white text-gray-500 hover:bg-gray-50"
+              viewMode === 'source'
+                ? 'bg-purple-100 text-purple-700'
+                : 'bg-white text-gray-500 hover:bg-gray-50'
             }`}
+            onClick={() => setViewMode('source')}
           >
             <CodeOutlined />
             <span>源码视图</span>
@@ -73,9 +73,9 @@ function SkillMdViewer({ document }: SkillMdViewerProps) {
 
       {/* 内容区域 */}
       <div className="overflow-auto rounded-lg">
-        {viewMode === "rendered" ? (
+        {viewMode === 'rendered' ? (
           (() => {
-            const { frontmatter, body } = parseSkillMd(document);
+            const { body, frontmatter } = parseSkillMd(document);
             const fmEntries = Object.entries(frontmatter);
             return (
               <div>
@@ -84,21 +84,31 @@ function SkillMdViewer({ document }: SkillMdViewerProps) {
                     <thead>
                       <tr className="bg-[#f6f8fa]">
                         {fmEntries.map(([k]) => (
-                          <th key={k} className="border border-[#d0d7de] px-3 py-1.5 text-left font-semibold text-[#1f2328]">{k}</th>
+                          <th
+                            className="border border-[#d0d7de] px-3 py-1.5 text-left font-semibold text-[#1f2328]"
+                            key={k}
+                          >
+                            {k}
+                          </th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
                       <tr>
                         {fmEntries.map(([k, v]) => (
-                          <td key={k} className="border border-[#d0d7de] px-3 py-1.5 text-[#1f2328] align-top">{v}</td>
+                          <td
+                            className="border border-[#d0d7de] px-3 py-1.5 text-[#1f2328] align-top"
+                            key={k}
+                          >
+                            {v}
+                          </td>
                         ))}
                       </tr>
                     </tbody>
                   </table>
                 )}
                 <div className="markdown-body p-4 text-sm">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
+                  <ReactMarkdown rehypePlugins={[rehypeHighlight]} remarkPlugins={[remarkGfm]}>
                     {body}
                   </ReactMarkdown>
                 </div>
@@ -107,7 +117,7 @@ function SkillMdViewer({ document }: SkillMdViewerProps) {
           })()
         ) : (
           <pre className="m-0 rounded-lg">
-            <code ref={codeRef} className="language-markdown text-xs leading-relaxed">
+            <code className="language-markdown text-xs leading-relaxed" ref={codeRef}>
               {document}
             </code>
           </pre>

@@ -1,6 +1,6 @@
-import { Modal, Button } from "antd";
-import { useNavigate } from "react-router-dom";
+import { Modal, Button } from 'antd';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 
 interface LoginPromptProps {
   open: boolean;
@@ -9,12 +9,7 @@ interface LoginPromptProps {
   returnUrl?: string;
 }
 
-export function LoginPrompt({
-  open,
-  onClose,
-  contextMessage,
-  returnUrl,
-}: LoginPromptProps) {
+export function LoginPrompt({ contextMessage, onClose, open, returnUrl }: LoginPromptProps) {
   const navigate = useNavigate();
   const { t } = useTranslation('loginPrompt');
 
@@ -25,22 +20,20 @@ export function LoginPrompt({
   };
 
   const handleRegister = () => {
-    navigate("/register");
+    navigate('/register');
     onClose();
   };
 
   return (
-    <Modal open={open} onCancel={onClose} footer={null} centered width={420} destroyOnClose>
+    <Modal centered destroyOnClose footer={null} onCancel={onClose} open={open} width={420}>
       <div className="text-center py-4">
         <div className="text-2xl font-semibold mb-3">{t('title')}</div>
-        <p className="text-gray-500 mb-6 text-sm leading-relaxed">
-          {contextMessage}
-        </p>
+        <p className="text-gray-500 mb-6 text-sm leading-relaxed">{contextMessage}</p>
         <div className="flex flex-col gap-3">
-          <Button type="primary" size="large" block onClick={handleLogin}>
+          <Button block onClick={handleLogin} size="large" type="primary">
             {t('login')}
           </Button>
-          <Button size="large" block onClick={handleRegister}>
+          <Button block onClick={handleRegister} size="large">
             {t('registerNewAccount')}
           </Button>
         </div>

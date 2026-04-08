@@ -1,5 +1,6 @@
-import type { ReactNode } from "react";
-import { Navigate, useLocation } from "react-router-dom";
+import { Navigate, useLocation } from 'react-router-dom';
+
+import type { ReactNode } from 'react';
 
 interface RequireAuthProps {
   children: ReactNode;
@@ -7,11 +8,11 @@ interface RequireAuthProps {
 
 export function RequireAuth({ children }: RequireAuthProps) {
   const location = useLocation();
-  const isLoggedIn = !!localStorage.getItem("access_token");
+  const isLoggedIn = !!localStorage.getItem('access_token');
 
   if (!isLoggedIn) {
     const returnUrl = encodeURIComponent(location.pathname + location.search);
-    return <Navigate to={`/login?returnUrl=${returnUrl}`} replace />;
+    return <Navigate replace to={`/login?returnUrl=${returnUrl}`} />;
   }
 
   return <>{children}</>;

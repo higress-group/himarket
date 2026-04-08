@@ -1,48 +1,49 @@
-import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
-import { useEffect } from "react";
-import ApiDetail from "./pages/ApiDetail";
-import Consumers from "./pages/Consumers";
-import ConsumerDetail from "./pages/ConsumerDetail";
-import GettingStarted from "./pages/GettingStarted";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import Profile from "./pages/Profile";
-import McpDetail from "./pages/McpDetail";
-import Agent from "./pages/Agent";
-import AgentDetail from "./pages/AgentDetail";
-import ModelDetail from "./pages/ModelDetail";
-import Callback from "./pages/Callback";
-import OidcCallback from "./pages/OidcCallback";
-import Square from "./pages/Square";
-import Chat from "./pages/Chat";
-import Coding from "./pages/Coding";
-import SkillDetail from "./pages/SkillDetail";
-import WorkerDetail from "./pages/WorkerDetail";
-import { RequireAuth } from "./components/RequireAuth";
-import { usePortalConfig } from "./context/PortalConfigContext";
+import { useEffect } from 'react';
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+
+import { RequireAuth } from './components/RequireAuth';
+import { usePortalConfig } from './context/usePortalConfig';
+import Agent from './pages/Agent';
+import AgentDetail from './pages/AgentDetail';
+import ApiDetail from './pages/ApiDetail';
+import Callback from './pages/Callback';
+import Chat from './pages/Chat';
+import Coding from './pages/Coding';
+import ConsumerDetail from './pages/ConsumerDetail';
+import Consumers from './pages/Consumers';
+import GettingStarted from './pages/GettingStarted';
+import Login from './pages/Login';
+import McpDetail from './pages/McpDetail';
+import ModelDetail from './pages/ModelDetail';
+import OidcCallback from './pages/OidcCallback';
+import Profile from './pages/Profile';
+import Register from './pages/Register';
+import SkillDetail from './pages/SkillDetail';
+import Square from './pages/Square';
+import WorkerDetail from './pages/WorkerDetail';
 
 function DynamicHome() {
   const { firstVisiblePath } = usePortalConfig();
-  return <Navigate to={firstVisiblePath} replace />;
+  return <Navigate replace to={firstVisiblePath} />;
 }
 
 function MenuRedirectGuard() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { isMenuVisible, firstVisiblePath, loading } = usePortalConfig();
+  const { firstVisiblePath, isMenuVisible, loading } = usePortalConfig();
 
   useEffect(() => {
     if (loading) return;
 
     const pathToKeyMap: Record<string, string> = {
-      "/chat": "chat",
-      "/coding": "coding",
-      "/agents": "agents",
-      "/mcp": "mcp",
-      "/models": "models",
-      "/apis": "apis",
-      "/skills": "skills",
-      "/workers": "workers",
+      '/agents': 'agents',
+      '/apis': 'apis',
+      '/chat': 'chat',
+      '/coding': 'coding',
+      '/mcp': 'mcp',
+      '/models': 'models',
+      '/skills': 'skills',
+      '/workers': 'workers',
     };
 
     const currentPath = location.pathname;
@@ -61,31 +62,52 @@ export function Router() {
     <>
       <MenuRedirectGuard />
       <Routes>
-        <Route path="/" element={<DynamicHome />} />
-        <Route path="/models" element={<Square activeType="MODEL_API" />} />
-        <Route path="/mcp" element={<Square activeType="MCP_SERVER" />} />
-        <Route path="/agents" element={<Square activeType="AGENT_API" />} />
-        <Route path="/apis" element={<Square activeType="REST_API" />} />
-        <Route path="/skills" element={<Square activeType="AGENT_SKILL" />} />
-        <Route path="/skills/:skillProductId" element={<SkillDetail />} />
-        <Route path="/workers" element={<Square activeType="WORKER" />} />
-        <Route path="/workers/:workerProductId" element={<WorkerDetail />} />
-        <Route path="/chat" element={<Chat />} />
-        <Route path="/quest" element={<Navigate to="/coding" />} />
-        <Route path="/coding" element={<Coding />} />
-        <Route path="/getting-started" element={<GettingStarted />} />
-        <Route path="/apis/:apiProductId" element={<ApiDetail />} />
-        <Route path="/consumers/:consumerId" element={<RequireAuth><ConsumerDetail /></RequireAuth>} />
-        <Route path="/consumers" element={<RequireAuth><Consumers /></RequireAuth>} />
-        <Route path="/mcp/:mcpProductId" element={<McpDetail />} />
-        <Route path="/agents" element={<Agent />} />
-        <Route path="/agents/:agentProductId" element={<AgentDetail />} />
-        <Route path="/models/:modelProductId" element={<ModelDetail />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
-        <Route path="/callback" element={<Callback />} />
-        <Route path="/oidc/callback" element={<OidcCallback />} />
+        <Route element={<DynamicHome />} path="/" />
+        <Route element={<Square activeType="MODEL_API" />} path="/models" />
+        <Route element={<Square activeType="MCP_SERVER" />} path="/mcp" />
+        <Route element={<Square activeType="AGENT_API" />} path="/agents" />
+        <Route element={<Square activeType="REST_API" />} path="/apis" />
+        <Route element={<Square activeType="AGENT_SKILL" />} path="/skills" />
+        <Route element={<SkillDetail />} path="/skills/:skillProductId" />
+        <Route element={<Square activeType="WORKER" />} path="/workers" />
+        <Route element={<WorkerDetail />} path="/workers/:workerProductId" />
+        <Route element={<Chat />} path="/chat" />
+        <Route element={<Navigate to="/coding" />} path="/quest" />
+        <Route element={<Coding />} path="/coding" />
+        <Route element={<GettingStarted />} path="/getting-started" />
+        <Route element={<ApiDetail />} path="/apis/:apiProductId" />
+        <Route
+          element={
+            <RequireAuth>
+              <ConsumerDetail />
+            </RequireAuth>
+          }
+          path="/consumers/:consumerId"
+        />
+        <Route
+          element={
+            <RequireAuth>
+              <Consumers />
+            </RequireAuth>
+          }
+          path="/consumers"
+        />
+        <Route element={<McpDetail />} path="/mcp/:mcpProductId" />
+        <Route element={<Agent />} path="/agents" />
+        <Route element={<AgentDetail />} path="/agents/:agentProductId" />
+        <Route element={<ModelDetail />} path="/models/:modelProductId" />
+        <Route element={<Login />} path="/login" />
+        <Route element={<Register />} path="/register" />
+        <Route
+          element={
+            <RequireAuth>
+              <Profile />
+            </RequireAuth>
+          }
+          path="/profile"
+        />
+        <Route element={<Callback />} path="/callback" />
+        <Route element={<OidcCallback />} path="/oidc/callback" />
 
         {/* 其他页面可继续添加 */}
       </Routes>

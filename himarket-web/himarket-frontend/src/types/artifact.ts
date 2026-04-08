@@ -1,4 +1,4 @@
-export type ArtifactType = "html" | "markdown" | "svg" | "image" | "pdf" | "file";
+export type ArtifactType = 'html' | 'markdown' | 'svg' | 'image' | 'pdf' | 'file';
 
 export interface Artifact {
   id: string;
@@ -12,17 +12,17 @@ export interface Artifact {
 
 /** Extensions that map to a previewable artifact type */
 export const ARTIFACT_EXTENSIONS: Record<string, ArtifactType> = {
-  ".html": "html",
-  ".htm": "html",
-  ".svg": "svg",
-  ".png": "image",
-  ".jpg": "image",
-  ".jpeg": "image",
-  ".gif": "image",
-  ".webp": "image",
-  ".pdf": "pdf",
-  ".pptx": "file",
-  ".ppt": "file",
-  ".xlsx": "file",
-  ".xls": "file",
+  '.gif': 'image',
+  '.htm': 'html',
+  '.html': 'html',
+  '.jpeg': 'image',
+  '.jpg': 'image',
+  '.pdf': 'pdf',
+  '.png': 'image',
+  '.ppt': 'file',
+  '.pptx': 'file',
+  '.svg': 'svg',
+  '.webp': 'image',
+  '.xls': 'file',
+  '.xlsx': 'file',
 };

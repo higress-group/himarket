@@ -1,16 +1,16 @@
-import { useState, useEffect } from "react";
+import { message as antdMessage } from 'antd';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useLocation } from "react-router-dom";
-import { message as antdMessage } from "antd";
-import { Layout } from "../components/Layout";
-import { Sidebar } from "../components/chat/Sidebar";
-import { WelcomeView } from "../components/WelcomeView";
-import { LoginPrompt } from "../components/LoginPrompt";
-import { useAuth } from "../hooks/useAuth";
-import { useChatSession } from "../hooks/useChatSession";
-import APIs, { type IProductDetail, type IAttachment } from "../lib/apis";
-import { ChatArea } from "../components/chat/Area";
+import { useLocation } from 'react-router-dom';
 
+import { ChatArea } from '../components/chat/Area';
+import { Sidebar } from '../components/chat/Sidebar';
+import { Layout } from '../components/Layout';
+import { LoginPrompt } from '../components/LoginPrompt';
+import { WelcomeView } from '../components/WelcomeView';
+import { useAuth } from '../hooks/useAuth';
+import { useChatSession } from '../hooks/useChatSession';
+import APIs, { type IProductDetail, type IAttachment } from '../lib/apis';
 
 function Chat() {
   const location = useLocation();
@@ -18,22 +18,22 @@ function Chat() {
   const { t: tLoginPrompt } = useTranslation('loginPrompt');
   const [loginPromptOpen, setLoginPromptOpen] = useState(false);
   const [selectedModel, setSelectedModel] = useState<IProductDetail>();
-  const [chatType, setChatType] = useState<"TEXT" | "Image">("TEXT");
+  const [chatType, setChatType] = useState<'TEXT' | 'Image'>('TEXT');
 
   const {
-    modelConversation,
-    generating,
-    isMcpExecuting,
-    currentSessionId,
-    sidebarRefreshTrigger,
-    sendMessage,
-    regenerateMessage,
-    handleStop,
-    handleNewChat,
-    handleSelectSession,
-    onChangeActiveAnswer,
     addModels,
     closeModel,
+    currentSessionId,
+    generating,
+    handleNewChat,
+    handleSelectSession,
+    handleStop,
+    isMcpExecuting,
+    modelConversation,
+    onChangeActiveAnswer,
+    regenerateMessage,
+    sendMessage,
+    sidebarRefreshTrigger,
   } = useChatSession();
 
   // 从 location.state 接收选中的产品，或者加载默认第一个模型
@@ -48,18 +48,18 @@ function Chat() {
       const loadDefaultModel = async () => {
         try {
           const response = await APIs.getProducts({
-            type: "MODEL_API",
+            ['modelFilter.category']: chatType,
             page: 0,
             size: 1,
-            ["modelFilter.category"]: chatType,
+            type: 'MODEL_API',
           });
-          if (response.code === "SUCCESS" && response.data?.content?.length > 0) {
+          if (response.code === 'SUCCESS' && response.data?.content?.length > 0) {
             setSelectedModel(response.data.content[0]);
           } else {
             setSelectedModel(undefined);
           }
         } catch (error) {
-          console.error("Failed to load default model:", error);
+          console.error('Failed to load default model:', error);
         }
       };
       loadDefaultModel();
@@ -74,15 +74,20 @@ function Chat() {
     attachments: IAttachment[] = [],
   ) => {
     if (!selectedModel) {
-      antdMessage.error("请先选择一个模型");
+      antdMessage.error('请先选择一个模型');
       return;
     }
     await sendMessage(content, mcps, enableWebSearch, modelMap, selectedModel, attachments);
   };
 
   const handleGenerateMessage = async (params: {
-    modelId: string; conversationId: string; questionId: string; content: string;
-    mcps: IProductDetail[]; enableWebSearch: boolean; modelMap: Map<string, IProductDetail>;
+    modelId: string;
+    conversationId: string;
+    questionId: string;
+    content: string;
+    mcps: IProductDetail[];
+    enableWebSearch: boolean;
+    modelMap: Map<string, IProductDetail>;
     attachments?: IAttachment[];
   }) => {
     await regenerateMessage(params);
@@ -103,9 +108,9 @@ function Chat() {
         <>
           <WelcomeView type="chat" />
           <LoginPrompt
-            open={loginPromptOpen}
-            onClose={() => setLoginPromptOpen(false)}
             contextMessage={tLoginPrompt('contextChatModel')}
+            onClose={() => setLoginPromptOpen(false)}
+            open={loginPromptOpen}
           />
         </>
       ) : (
@@ -114,27 +119,27 @@ function Chat() {
             currentSessionId={currentSessionId}
             onNewChat={handleNewChat}
             onSelectSession={handleSelectSession}
-            refreshTrigger={sidebarRefreshTrigger}
-            selectedType={chatType}
             onSelectType={(type) => {
               setChatType(type);
               handleNewChat();
             }}
+            refreshTrigger={sidebarRefreshTrigger}
+            selectedType={chatType}
           />
           <ChatArea
+            addModels={handleAddModels}
+            chatType={chatType}
+            closeModel={closeModel}
+            currentSessionId={currentSessionId}
+            generating={generating}
+            handleGenerateMessage={handleGenerateMessage}
             isMcpExecuting={isMcpExecuting}
             modelConversations={modelConversation}
-            currentSessionId={currentSessionId}
             onChangeActiveAnswer={onChangeActiveAnswer}
-            onSendMessage={handleSendMessage}
             onSelectProduct={handleSelectProduct}
-            selectedModel={selectedModel}
-            handleGenerateMessage={handleGenerateMessage}
-            addModels={handleAddModels}
-            closeModel={closeModel}
-            generating={generating}
-            chatType={chatType}
+            onSendMessage={handleSendMessage}
             onStop={handleStop}
+            selectedModel={selectedModel}
           />
         </div>
       )}

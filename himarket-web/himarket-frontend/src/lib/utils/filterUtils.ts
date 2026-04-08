@@ -15,10 +15,10 @@
  * @param fields 参与匹配的字段名列表
  * @returns 过滤后的列表（原列表的子集）
  */
-export function filterByKeyword<T extends Record<string, any>>(
+export function filterByKeyword<T extends object>(
   items: T[],
   keyword: string,
-  fields: (keyof T)[]
+  fields: (keyof T)[],
 ): T[] {
   const trimmed = keyword.trim();
   if (!trimmed) {
@@ -29,8 +29,8 @@ export function filterByKeyword<T extends Record<string, any>>(
 
   return items.filter((item) =>
     fields.some((field) => {
-      const value = item[field];
-      if (value == null) return false;
+      const value = (item as Record<keyof T, unknown>)[field];
+      if (value === null || value === undefined) return false;
 
       // 数组类型字段：将元素拼接为字符串后匹配
       if (Array.isArray(value)) {
@@ -38,6 +38,6 @@ export function filterByKeyword<T extends Record<string, any>>(
       }
 
       return String(value).toLowerCase().includes(lowerKeyword);
-    })
+    }),
   );
 }

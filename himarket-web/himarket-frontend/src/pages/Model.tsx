@@ -1,13 +1,16 @@
-import { useEffect, useState } from "react";
-import { Card, Tag, Typography, Input, Avatar, Skeleton } from "antd";
-const { Title, Paragraph } = Typography;
-import { FolderFilled, FolderOpenFilled } from "@ant-design/icons";
-import { Link } from "react-router-dom";
-import { Layout } from "../components/Layout";
-import { ProductStatus } from "../types";
-import type { IModelConfig, IProductIcon } from "../lib/apis/typing";
-import type { ICategory } from "../lib/apis";
-import APIs from "../lib/apis";
+import { FolderFilled, FolderOpenFilled } from '@ant-design/icons';
+import { Card, Tag, Typography, Input, Avatar, Skeleton } from 'antd';
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+
+const { Paragraph, Title } = Typography;
+
+import { Layout } from '../components/Layout';
+import APIs from '../lib/apis';
+import { ProductStatus } from '../types';
+
+import type { ICategory } from '../lib/apis';
+import type { IModelConfig, IProductIcon } from '../lib/apis/typing';
 
 interface ModelAPI {
   key: string;
@@ -41,7 +44,7 @@ function ModelPage() {
   const fetchCategories = async () => {
     try {
       const response = await APIs.getCategoriesByProductType({ productType: 'MODEL_API' });
-      if (response.code === "SUCCESS" && response.data) {
+      if (response.code === 'SUCCESS' && response.data) {
         setCategories(response.data.content || []);
       }
     } catch (error) {
@@ -51,18 +54,22 @@ function ModelPage() {
 
   // 处理产品图标的函数
   const getIconUrl = (icon?: IProductIcon): string => {
-    const fallback = "/Model.svg";
+    const fallback = '/Model.svg';
 
     if (!icon) {
       return fallback;
     }
 
     switch (icon.type) {
-      case "URL":
+      case 'URL':
         return icon.value || fallback;
-      case "BASE64":
+      case 'BASE64':
         // 如果value已经包含data URL前缀，直接使用；否则添加前缀
-        return icon.value ? (icon.value.startsWith('data:') ? icon.value : `data:image/png;base64,${icon.value}`) : fallback;
+        return icon.value
+          ? icon.value.startsWith('data:')
+            ? icon.value
+            : `data:image/png;base64,${icon.value}`
+          : fallback;
       default:
         return fallback;
     }
@@ -71,8 +78,8 @@ function ModelPage() {
   const getModelIcon = (name: string) => {
     // Generate initials for Model icon
     const words = name.split(' ');
-    if (words.length >= 2) {
-      return words[0][0] + words[1][0];
+    if (words.length >= 2 && words[0] && words[1]) {
+      return words[0].charAt(0) + words[1].charAt(0);
     }
     return name.substring(0, 2).toUpperCase();
   };
@@ -112,25 +119,25 @@ function ModelPage() {
   const fetchModelAPIs = async () => {
     setLoading(true);
     try {
-      const response = await APIs.getProducts({ type: "MODEL_API", page: 0, size: 100 });
-      if (response.code === "SUCCESS" && response.data) {
+      const response = await APIs.getProducts({ page: 0, size: 100, type: 'MODEL_API' });
+      if (response.code === 'SUCCESS' && response.data) {
         // 移除重复过滤，简化数据映射
         const mapped = response.data.content.map((item) => {
           // 由于API已经筛选了MODEL_API类型，我们可以安全地进行类型断言
           const modelProduct = item;
           return {
-            key: modelProduct.productId,
-            name: modelProduct.name,
-            description: modelProduct.description,
-            status: modelProduct.status === ProductStatus.ENABLE ? 'active' : 'inactive',
-            version: 'v1.0.0',
-            protocols: 0,
+            categories: modelProduct.categories || [],
             category: 'Unknown',
             creator: 'Unknown',
+            description: modelProduct.description,
             icon: modelProduct.icon || undefined,
+            key: modelProduct.productId,
             modelConfig: modelProduct.modelConfig,
-            categories: modelProduct.categories || [],
-            updatedAt: modelProduct.updatedAt?.slice(0, 10) || ''
+            name: modelProduct.name,
+            protocols: 0,
+            status: modelProduct.status === ProductStatus.ENABLE ? 'active' : 'inactive',
+            updatedAt: modelProduct.updatedAt?.slice(0, 10) || '',
+            version: 'v1.0.0',
           };
         }) as ModelAPI[];
         setAllModels(mapped);
@@ -149,8 +156,8 @@ function ModelPage() {
     if (categoryId === 'all') {
       setModelAPIs(allModels);
     } else {
-      const filtered = allModels.filter(model =>
-        model.categories.some(cat => cat.categoryId === categoryId)
+      const filtered = allModels.filter((model) =>
+        model.categories.some((cat) => cat.categoryId === categoryId),
       );
       setModelAPIs(filtered);
     }
@@ -161,7 +168,7 @@ function ModelPage() {
     if (!icon || !icon.value) {
       // "全部"使用打开的文件夹图标，其他使用普通文件夹图标
       const IconComponent = isAll ? FolderOpenFilled : FolderFilled;
-      return <IconComponent style={{ fontSize: '18px', color: '#D1D5DB' }} />;
+      return <IconComponent style={{ color: '#D1D5DB', fontSize: '18px' }} />;
     }
 
     let iconUrl = '';
@@ -174,26 +181,27 @@ function ModelPage() {
 
     return (
       <img
-        src={iconUrl}
         alt=""
-        style={{ width: '18px', height: '18px' }}
         onError={(e) => {
           e.currentTarget.style.display = 'none';
         }}
+        src={iconUrl}
+        style={{ height: '18px', width: '18px' }}
       />
     );
   };
 
-  const filteredModelAPIs = modelAPIs.filter(model =>
-    model.name.toLowerCase().includes(searchText.toLowerCase()) ||
-    model.description.toLowerCase().includes(searchText.toLowerCase())
+  const filteredModelAPIs = modelAPIs.filter(
+    (model) =>
+      model.name.toLowerCase().includes(searchText.toLowerCase()) ||
+      model.description.toLowerCase().includes(searchText.toLowerCase()),
   );
 
   return (
     <Layout>
       {/* Header Section */}
       <div className="text-center mb-8">
-        <Title level={1} className="mb-4">
+        <Title className="mb-4" level={1}>
           Model 市场
         </Title>
         <Paragraph className="text-gray-600 text-lg max-w-4xl mx-auto text-flow text-flow-grey slow">
@@ -204,13 +212,16 @@ function ModelPage() {
       {/* Search Section */}
       <div className="flex justify-center mb-8">
         <div className="relative w-full max-w-lg">
-          <div className="border border-gray-300 rounded-md overflow-hidden hover:border-blue-500 focus-within:border-blue-500 focus-within:shadow-sm" style={{ width: '100%', maxWidth: '500px' }}>
+          <div
+            className="border border-gray-300 rounded-md overflow-hidden hover:border-blue-500 focus-within:border-blue-500 focus-within:shadow-sm"
+            style={{ maxWidth: '500px', width: '100%' }}
+          >
             <Input.Search
+              className="border-0 rounded-none"
+              onChange={(e) => setSearchText(e.target.value)}
               placeholder="请输入内容"
               size="large"
               value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              className="border-0 rounded-none"
               variant="borderless"
             />
           </div>
@@ -221,44 +232,78 @@ function ModelPage() {
       <div className="mb-2">
         <div className="py-3 px-4 border border-gray-200 rounded-lg bg-[#f4f4f6]">
           <div className="flex flex-wrap items-center gap-4">
-            <div
-              className={`cursor-pointer transition-all duration-200 px-3 py-1.5 rounded-md flex items-center gap-2 text-sm border ${selectedCategory === 'all'
-                ? 'bg-white shadow-sm text-blue-600 border-blue-200'
-                : 'text-gray-600 border-transparent hover:bg-white hover:shadow-sm hover:border-gray-200'
-                }`}
+            <button
+              className={`cursor-pointer transition-all duration-200 px-3 py-1.5 rounded-md flex items-center gap-2 text-sm border ${
+                selectedCategory === 'all'
+                  ? 'bg-white shadow-sm text-blue-600 border-blue-200'
+                  : 'text-gray-600 border-transparent hover:bg-white hover:shadow-sm hover:border-gray-200'
+              }`}
               onClick={() => handleCategoryChange('all')}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  handleCategoryChange('all');
+                }
+              }}
+              type="button"
             >
-              <div className={`w-4 h-4 rounded border flex items-center justify-center ${selectedCategory === 'all' ? 'border-blue-500 bg-blue-500' : 'border-gray-300 bg-white'
-                }`}>
+              <div
+                className={`w-4 h-4 rounded border flex items-center justify-center ${
+                  selectedCategory === 'all'
+                    ? 'border-blue-500 bg-blue-500'
+                    : 'border-gray-300 bg-white'
+                }`}
+              >
                 {selectedCategory === 'all' && (
-                  <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path
+                      clipRule="evenodd"
+                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                      fillRule="evenodd"
+                    />
                   </svg>
                 )}
               </div>
               {getCategoryIcon(undefined, selectedCategory === 'all', true)}
               <span>全部</span>
-            </div>
-            {categories.map(category => (
-              <div
+            </button>
+            {categories.map((category) => (
+              <button
+                className={`cursor-pointer transition-all duration-200 px-3 py-1.5 rounded-md flex items-center gap-2 text-sm border ${
+                  selectedCategory === category.categoryId
+                    ? 'bg-white shadow-sm text-blue-600 border-blue-200'
+                    : 'text-gray-600 border-transparent hover:bg-white hover:shadow-sm hover:border-gray-200'
+                }`}
                 key={category.categoryId}
-                className={`cursor-pointer transition-all duration-200 px-3 py-1.5 rounded-md flex items-center gap-2 text-sm border ${selectedCategory === category.categoryId
-                  ? 'bg-white shadow-sm text-blue-600 border-blue-200'
-                  : 'text-gray-600 border-transparent hover:bg-white hover:shadow-sm hover:border-gray-200'
-                  }`}
                 onClick={() => handleCategoryChange(category.categoryId)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleCategoryChange(category.categoryId);
+                  }
+                }}
+                type="button"
               >
-                <div className={`w-4 h-4 rounded border flex items-center justify-center ${selectedCategory === category.categoryId ? 'border-blue-500 bg-blue-500' : 'border-gray-300 bg-white'
-                  }`}>
+                <div
+                  className={`w-4 h-4 rounded border flex items-center justify-center ${
+                    selectedCategory === category.categoryId
+                      ? 'border-blue-500 bg-blue-500'
+                      : 'border-gray-300 bg-white'
+                  }`}
+                >
                   {selectedCategory === category.categoryId && (
-                    <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path
+                        clipRule="evenodd"
+                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                        fillRule="evenodd"
+                      />
                     </svg>
                   )}
                 </div>
                 {getCategoryIcon(category.icon, selectedCategory === category.categoryId)}
                 <span>{category.name}</span>
-              </div>
+              </button>
             ))}
           </div>
         </div>
@@ -268,13 +313,17 @@ function ModelPage() {
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           {Array.from({ length: 6 }).map((_, index) => (
-            <Card key={index} className="h-full rounded-lg shadow-lg">
-              <Skeleton loading active>
+            <Card className="h-full rounded-lg shadow-lg" key={index}>
+              <Skeleton active loading>
                 <div className="flex items-start space-x-4">
-                  <Skeleton.Avatar size={48} active />
+                  <Skeleton.Avatar active size={48} />
                   <div className="flex-1 min-w-0">
-                    <Skeleton.Input active size="small" style={{ width: '80%', marginBottom: 8 }} />
-                    <Skeleton.Input active size="small" style={{ width: '100%', marginBottom: 12 }} />
+                    <Skeleton.Input active size="small" style={{ marginBottom: 8, width: '80%' }} />
+                    <Skeleton.Input
+                      active
+                      size="small"
+                      style={{ marginBottom: 12, width: '100%' }}
+                    />
                     <Skeleton.Input active size="small" style={{ width: '60%' }} />
                   </div>
                 </div>
@@ -285,25 +334,22 @@ function ModelPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           {filteredModelAPIs.map((model) => (
-            <Link key={model.key} to={`/models/${model.key}`} className="block">
+            <Link className="block" key={model.key} to={`/models/${model.key}`}>
               <Card
-                hoverable
                 className="h-full transition-all duration-200 hover:shadow-lg cursor-pointer rounded-lg shadow-lg"
+                hoverable
               >
                 <div className="flex items-start space-x-4 mb-2">
                   {/* Model Icon */}
                   {model.icon ? (
-                    <Avatar
-                      size={48}
-                      src={getIconUrl(model.icon)}
-                    />
+                    <Avatar size={48} src={getIconUrl(model.icon)} />
                   ) : (
                     <Avatar
                       size={48}
                       style={{
                         backgroundColor: getModelIconColor(model.name),
                         fontSize: '18px',
-                        fontWeight: 'bold'
+                        fontWeight: 'bold',
                       }}
                     >
                       {getModelIcon(model.name)}
@@ -313,7 +359,7 @@ function ModelPage() {
                   {/* Model Info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-2">
-                      <Title level={5} className="mb-0 truncate">
+                      <Title className="mb-0 truncate" level={5}>
                         {model.name}
                       </Title>
                       <Tag className="text-xs text-gray-500 border-0 bg-transparent px-0">
@@ -326,9 +372,7 @@ function ModelPage() {
                     </Paragraph>
 
                     <div className="flex items-center justify-between">
-                      <div className="text-xs text-gray-400">
-                        更新 {model.updatedAt}
-                      </div>
+                      <div className="text-xs text-gray-400">更新 {model.updatedAt}</div>
                     </div>
                   </div>
                 </div>
@@ -339,25 +383,21 @@ function ModelPage() {
       )}
 
       {!loading && filteredModelAPIs.length === 0 && (
-        <div style={{
-          textAlign: 'center',
-          padding: '60px 20px',
-          color: '#999'
-        }}>
+        <div
+          style={{
+            color: '#999',
+            padding: '60px 20px',
+            textAlign: 'center',
+          }}
+        >
           {searchText ? (
             <>
-              <div style={{ fontSize: '16px', marginBottom: '8px' }}>
-                未找到匹配的Model API
-              </div>
-              <div style={{ fontSize: '14px' }}>
-                请尝试其他关键词搜索
-              </div>
+              <div style={{ fontSize: '16px', marginBottom: '8px' }}>未找到匹配的Model API</div>
+              <div style={{ fontSize: '14px' }}>请尝试其他关键词搜索</div>
             </>
           ) : (
             <>
-              <div style={{ fontSize: '16px', marginBottom: '8px' }}>
-                暂无Model服务
-              </div>
+              <div style={{ fontSize: '16px', marginBottom: '8px' }}>暂无Model服务</div>
             </>
           )}
         </div>

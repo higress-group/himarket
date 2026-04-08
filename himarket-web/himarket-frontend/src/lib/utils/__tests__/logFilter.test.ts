@@ -1,18 +1,17 @@
 // Feature: poc-code-cleanup, Property 2: 日志过滤正确性
 // **Validates: Requirements 5.7**
 
-import { describe, it, expect } from 'vitest';
 import * as fc from 'fast-check';
+import { describe, it, expect } from 'vitest';
+
 import { filterLogs } from '../logFilter';
+
 import type { AggregatedLogEntry } from '../../../types/log';
 
 // ===== fast-check 生成器 =====
 
 /** 生成消息方向 */
-const arbDirection = fc.constantFrom(
-  'client_to_agent' as const,
-  'agent_to_client' as const,
-);
+const arbDirection = fc.constantFrom('client_to_agent' as const, 'agent_to_client' as const);
 
 /** 生成可选的 method 名称 */
 const arbMethod = fc.option(
@@ -31,31 +30,30 @@ const arbMethod = fc.option(
 );
 
 /** 生成非空 summary 文本 */
-const arbSummary = fc.string({ minLength: 1, maxLength: 80 });
+const arbSummary = fc.string({ maxLength: 80, minLength: 1 });
 
 /** 生成单条 AggregatedLogEntry */
 const arbLogEntry: fc.Arbitrary<AggregatedLogEntry> = fc.record({
-  id: fc.uuid(),
-  direction: arbDirection,
-  timestamp: fc.integer({ min: 1_000_000_000_000, max: 2_000_000_000_000 }),
-  endTimestamp: fc.integer({ min: 1_000_000_000_000, max: 2_000_000_000_000 }),
-  method: arbMethod,
-  rpcId: fc.option(fc.integer({ min: 1, max: 10000 }), { nil: undefined }),
-  summary: arbSummary,
   data: fc.constant(null),
-  messageCount: fc.integer({ min: 1, max: 50 }),
+  direction: arbDirection,
+  endTimestamp: fc.integer({ max: 2_000_000_000_000, min: 1_000_000_000_000 }),
+  id: fc.uuid(),
   isAggregated: fc.boolean(),
+  messageCount: fc.integer({ max: 50, min: 1 }),
+  method: arbMethod,
+  rpcId: fc.option(fc.integer({ max: 10000, min: 1 }), { nil: undefined }),
+  summary: arbSummary,
+  timestamp: fc.integer({ max: 2_000_000_000_000, min: 1_000_000_000_000 }),
 });
 
 /** 生成任意顺序的日志列表 */
 const arbLogs: fc.Arbitrary<AggregatedLogEntry[]> = fc.array(arbLogEntry, {
-  minLength: 0,
   maxLength: 30,
+  minLength: 0,
 });
 
 /** 生成非空过滤关键词 */
-const arbNonEmptyFilter = fc.string({ minLength: 1, maxLength: 30 });
-
+const arbNonEmptyFilter = fc.string({ maxLength: 30, minLength: 1 });
 
 // ===== 属性测试 =====
 

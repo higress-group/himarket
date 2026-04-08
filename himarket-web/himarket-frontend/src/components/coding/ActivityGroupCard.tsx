@@ -1,4 +1,3 @@
-import { useState, useEffect, useRef, useMemo } from "react";
 import {
   ChevronDown,
   ChevronRight,
@@ -12,17 +11,21 @@ import {
   Settings2,
   CircleHelp,
   Pencil,
-} from "lucide-react";
+} from 'lucide-react';
+import { useState, useEffect, useRef, useMemo } from 'react';
+
+import { AgentMessage } from './AgentMessage';
+import { ThoughtBlock } from './ThoughtBlock';
+import { ToolCallCard } from './ToolCallCard';
+import { extractFileName } from './ToolCallCard.utils';
+
+import type { ActivityGroup } from '../../lib/utils/groupMessages';
 import type {
   ChatItem,
   ChatItemToolCall,
   ChatItemThought,
   ChatItemAgent,
-} from "../../types/coding-protocol";
-import type { ActivityGroup } from "../../lib/utils/groupMessages";
-import { ThoughtBlock } from "./ThoughtBlock";
-import { AgentMessage } from "./AgentMessage";
-import { ToolCallCard, extractFileName } from "./ToolCallCard";
+} from '../../types/coding-protocol';
 
 // ===== Props =====
 
@@ -36,16 +39,16 @@ interface ActivityGroupCardProps {
 // ===== Summary Text =====
 
 function getSummaryText(group: ActivityGroup): string {
-  const { toolsSummary: s, blocks } = group;
+  const { blocks, toolsSummary: s } = group;
   const parts: string[] = [];
 
   // Show filenames for edits (up to 3)
   if (s.edits > 0) {
     const editedFiles: string[] = [];
     for (const b of blocks) {
-      if (b.type !== "tool_call") continue;
+      if (b.type !== 'tool_call') continue;
       const tc = b as ChatItemToolCall;
-      if (tc.kind !== "edit") continue;
+      if (tc.kind !== 'edit') continue;
       const path =
         (tc.rawInput?.file_path as string) ??
         (tc.rawInput?.path as string) ??
@@ -57,7 +60,7 @@ function getSummaryText(group: ActivityGroup): string {
       }
     }
     if (editedFiles.length > 0) {
-      const shown = editedFiles.slice(0, 3).join(", ");
+      const shown = editedFiles.slice(0, 3).join(', ');
       const rest = editedFiles.length - 3;
       parts.push(rest > 0 ? `${shown} +${rest}` : shown);
     } else {
@@ -75,27 +78,27 @@ function getSummaryText(group: ActivityGroup): string {
   if (s.others > 0) parts.push(`${s.others}次其他操作`);
 
   if (parts.length === 0) {
-    const toolCount = blocks.filter(b => b.type === "tool_call").length;
+    const toolCount = blocks.filter((b) => b.type === 'tool_call').length;
     return `${toolCount} 个操作`;
   }
-  return parts.join(" · ");
+  return parts.join(' · ');
 }
 
 // ===== Same-kind operation merging (migrated from WorkUnitCard) =====
 
 const MERGEABLE_KINDS = new Set([
-  "read",
-  "search",
-  "think",
-  "fetch",
-  "switch_mode",
-  "other",
-  "edit",
+  'read',
+  'search',
+  'think',
+  'fetch',
+  'switch_mode',
+  'other',
+  'edit',
 ]);
 
 type ToolCallGroup =
-  | { type: "single"; item: ChatItem }
-  | { type: "merged"; kind: string; items: ChatItemToolCall[] };
+  | { type: 'single'; item: ChatItem }
+  | { type: 'merged'; kind: string; items: ChatItemToolCall[] };
 
 function groupConsecutiveToolCalls(items: ChatItem[]): ToolCallGroup[] {
   const groups: ToolCallGroup[] = [];
@@ -103,17 +106,14 @@ function groupConsecutiveToolCalls(items: ChatItem[]): ToolCallGroup[] {
 
   while (i < items.length) {
     const item = items[i];
-    if (item.type === "tool_call") {
+    if (item && item.type === 'tool_call') {
       const tc = item as ChatItemToolCall;
       if (MERGEABLE_KINDS.has(tc.kind)) {
         const sameKindItems: ChatItemToolCall[] = [tc];
         let j = i + 1;
         while (j < items.length) {
           const next = items[j];
-          if (
-            next.type === "tool_call" &&
-            (next as ChatItemToolCall).kind === tc.kind
-          ) {
+          if (next && next.type === 'tool_call' && (next as ChatItemToolCall).kind === tc.kind) {
             sameKindItems.push(next as ChatItemToolCall);
             j++;
           } else {
@@ -121,13 +121,15 @@ function groupConsecutiveToolCalls(items: ChatItem[]): ToolCallGroup[] {
           }
         }
         if (sameKindItems.length >= 2) {
-          groups.push({ type: "merged", kind: tc.kind, items: sameKindItems });
+          groups.push({ items: sameKindItems, kind: tc.kind, type: 'merged' });
           i = j;
           continue;
         }
       }
     }
-    groups.push({ type: "single", item });
+    if (item) {
+      groups.push({ item, type: 'single' });
+    }
     i++;
   }
 
@@ -137,20 +139,20 @@ function groupConsecutiveToolCalls(items: ChatItem[]): ToolCallGroup[] {
 // ===== Merged Row Icons & Labels =====
 
 const MERGED_ICON_MAP: Record<string, typeof Eye> = {
+  edit: Pencil,
+  fetch: CloudDownload,
+  other: CircleHelp,
   read: Eye,
   search: Search,
-  think: Brain,
-  fetch: CloudDownload,
   switch_mode: Settings2,
-  edit: Pencil,
-  other: CircleHelp,
+  think: Brain,
 };
 
 function getMergedLabel(kind: string, items: ChatItemToolCall[]): string {
   const count = items.length;
-  if (kind === "read") {
+  if (kind === 'read') {
     const names = items
-      .map(tc => {
+      .map((tc) => {
         const p =
           (tc.rawInput?.file_path as string) ??
           (tc.rawInput?.path as string) ??
@@ -159,25 +161,25 @@ function getMergedLabel(kind: string, items: ChatItemToolCall[]): string {
         return p ? extractFileName(p) : null;
       })
       .filter(Boolean);
-    const shown = names.slice(0, 3).join(", ");
+    const shown = names.slice(0, 3).join(', ');
     const rest = names.length - 3;
-    return `已查看 ${count} 个文件${shown ? ": " + shown : ""}${rest > 0 ? ` +${rest}` : ""}`;
+    return `已查看 ${count} 个文件${shown ? ': ' + shown : ''}${rest > 0 ? ` +${rest}` : ''}`;
   }
-  if (kind === "search") return `搜索了 ${count} 次`;
-  if (kind === "think") return `思考了 ${count} 次`;
-  if (kind === "fetch") return `抓取了 ${count} 次`;
-  if (kind === "switch_mode") return `切换模式 ${count} 次`;
-  if (kind === "edit") return `编辑了 ${count} 次`;
+  if (kind === 'search') return `搜索了 ${count} 次`;
+  if (kind === 'think') return `思考了 ${count} 次`;
+  if (kind === 'fetch') return `抓取了 ${count} 次`;
+  if (kind === 'switch_mode') return `切换模式 ${count} 次`;
+  if (kind === 'edit') return `编辑了 ${count} 次`;
   return `其他操作 ${count} 次`;
 }
 
 // ===== MergedRow Component =====
 
 function MergedRow({
-  kind,
   items,
-  selectedToolCallId,
+  kind,
   onSelectToolCall,
+  selectedToolCallId,
 }: {
   kind: string;
   items: ChatItemToolCall[];
@@ -187,43 +189,39 @@ function MergedRow({
   const [expanded, setExpanded] = useState(false);
   const Icon = MERGED_ICON_MAP[kind] ?? CircleHelp;
   const label = getMergedLabel(kind, items);
-  const allDone = items.every(tc => tc.status === "completed");
-  const anyFailed = items.some(tc => tc.status === "failed");
+  const allDone = items.every((tc) => tc.status === 'completed');
+  const anyFailed = items.some((tc) => tc.status === 'failed');
 
   return (
     <div>
-      <div
-        className="flex items-center gap-2 px-2.5 py-1.5 cursor-pointer hover:bg-gray-50/60 rounded-lg transition-colors"
-        onClick={() => setExpanded(prev => !prev)}
+      <button
+        className="flex items-center gap-2 px-2.5 py-1.5 cursor-pointer hover:bg-gray-50/60 rounded-lg transition-colors border-0 bg-transparent w-full text-left"
+        onClick={() => setExpanded((prev) => !prev)}
+        type="button"
       >
         {expanded ? (
-          <ChevronDown size={12} className="text-gray-300 flex-shrink-0" />
+          <ChevronDown className="text-gray-300 flex-shrink-0" size={12} />
         ) : (
-          <ChevronRight size={12} className="text-gray-300 flex-shrink-0" />
+          <ChevronRight className="text-gray-300 flex-shrink-0" size={12} />
         )}
-        <Icon size={13} className="text-gray-400 flex-shrink-0" />
-        <span className="text-[13px] text-gray-400 truncate flex-1 min-w-0">
-          {label}
-        </span>
+        <Icon className="text-gray-400 flex-shrink-0" size={13} />
+        <span className="text-[13px] text-gray-400 truncate flex-1 min-w-0">{label}</span>
         {anyFailed ? (
-          <XCircle size={13} className="text-red-500 flex-shrink-0" />
+          <XCircle className="text-red-500 flex-shrink-0" size={13} />
         ) : allDone ? (
-          <CheckCircle2 size={13} className="text-green-500/70 flex-shrink-0" />
+          <CheckCircle2 className="text-green-500/70 flex-shrink-0" size={13} />
         ) : (
-          <Loader2
-            size={13}
-            className="text-blue-500 animate-spin flex-shrink-0"
-          />
+          <Loader2 className="text-blue-500 animate-spin flex-shrink-0" size={13} />
         )}
-      </div>
+      </button>
       {expanded && (
         <div className="pl-4 space-y-0.5">
-          {items.map(tc => (
+          {items.map((tc) => (
             <ToolCallCard
-              key={tc.id}
               item={tc}
-              selected={selectedToolCallId === tc.toolCallId}
+              key={tc.id}
               onClick={() => onSelectToolCall(tc.toolCallId)}
+              selected={selectedToolCallId === tc.toolCallId}
               variant="compact"
             />
           ))}
@@ -236,21 +234,21 @@ function MergedRow({
 // ===== Title helpers =====
 
 function getTitle(group: ActivityGroup): string {
-  if (group.isExploring) return "执行中...";
-  if (group.isThinkingOnly) return "深度思考";
+  if (group.isExploring) return '执行中...';
+  if (group.isThinkingOnly) return '深度思考';
   if (group.isEditOnly && group.editFilePath) {
     return `编辑 ${extractFileName(group.editFilePath)}`;
   }
-  return "已执行";
+  return '已执行';
 }
 
 // ===== Main Component =====
 
 export function ActivityGroupCard({
   group,
-  selectedToolCallId,
-  onSelectToolCall,
   onOpenFile,
+  onSelectToolCall,
+  selectedToolCallId,
 }: ActivityGroupCardProps) {
   // Separate blocks by role
   const { reasoningItems, toolCallItems, trailingThoughts } = useMemo(() => {
@@ -262,7 +260,8 @@ export function ActivityGroupCard({
     let lastToolCallIdx = -1;
 
     for (let i = group.blocks.length - 1; i >= 0; i--) {
-      if (group.blocks[i].type === "tool_call") {
+      const block = group.blocks[i];
+      if (block && block.type === 'tool_call') {
         lastToolCallIdx = i;
         break;
       }
@@ -270,15 +269,13 @@ export function ActivityGroupCard({
 
     for (let i = 0; i < group.blocks.length; i++) {
       const item = group.blocks[i];
-      if (
-        !foundToolCall &&
-        (item.type === "thought" || item.type === "agent")
-      ) {
+      if (!item) continue;
+      if (!foundToolCall && (item.type === 'thought' || item.type === 'agent')) {
         reasoning.push(item);
-      } else if (item.type === "tool_call") {
+      } else if (item.type === 'tool_call') {
         foundToolCall = true;
         toolCalls.push(item);
-      } else if (item.type === "thought" && foundToolCall) {
+      } else if (item.type === 'thought' && foundToolCall) {
         if (i > lastToolCallIdx) {
           trailing.push(item);
         } else {
@@ -297,14 +294,9 @@ export function ActivityGroupCard({
   }, [group.blocks]);
 
   // Group consecutive same-kind tool calls for merged rendering
-  const groupedToolCalls = useMemo(
-    () => groupConsecutiveToolCalls(toolCallItems),
-    [toolCallItems]
-  );
+  const groupedToolCalls = useMemo(() => groupConsecutiveToolCalls(toolCallItems), [toolCallItems]);
 
-  const toolCallCount = toolCallItems.filter(
-    b => b.type === "tool_call"
-  ).length;
+  const toolCallCount = toolCallItems.filter((b) => b.type === 'tool_call').length;
 
   // ===== Auto expand/collapse based on isExploring =====
   const [isExpanded, setIsExpanded] = useState(group.isExploring);
@@ -332,9 +324,7 @@ export function ActivityGroupCard({
   useEffect(() => {
     if (!selectedToolCallId) return;
     const containsSelected = toolCallItems.some(
-      i =>
-        i.type === "tool_call" &&
-        (i as ChatItemToolCall).toolCallId === selectedToolCallId
+      (i) => i.type === 'tool_call' && (i as ChatItemToolCall).toolCallId === selectedToolCallId,
     );
     if (containsSelected && !isExpanded) {
       setIsExpanded(true);
@@ -343,7 +333,7 @@ export function ActivityGroupCard({
   }, [selectedToolCallId, toolCallItems, isExpanded]);
 
   const handleToggle = () => {
-    setIsExpanded(prev => !prev);
+    setIsExpanded((prev) => !prev);
     hasManuallyToggledRef.current = true;
   };
 
@@ -352,10 +342,10 @@ export function ActivityGroupCard({
   const allCompleted =
     toolCallCount > 0 &&
     toolCallItems.every(
-      b =>
-        b.type !== "tool_call" ||
-        (b as ChatItemToolCall).status === "completed" ||
-        (b as ChatItemToolCall).status === "failed"
+      (b) =>
+        b.type !== 'tool_call' ||
+        (b as ChatItemToolCall).status === 'completed' ||
+        (b as ChatItemToolCall).status === 'failed',
     );
 
   const StatusIcon = hasFailed
@@ -366,10 +356,10 @@ export function ActivityGroupCard({
         ? Loader2
         : CheckCircle2;
   const statusColor = hasFailed
-    ? "text-red-500"
+    ? 'text-red-500'
     : allCompleted
-      ? "text-green-500"
-      : "text-blue-500";
+      ? 'text-green-500'
+      : 'text-blue-500';
 
   const title = getTitle(group);
 
@@ -378,33 +368,31 @@ export function ActivityGroupCard({
       {/* Reasoning Header */}
       {reasoningItems.length > 0 && (
         <div className="pb-1.5">
-          {reasoningItems.map(item => {
-            if (item.type === "thought") {
+          {reasoningItems.map((item) => {
+            if (item.type === 'thought') {
               const t = item as ChatItemThought;
               return (
                 <ThoughtBlock
                   key={item.id}
+                  streaming={
+                    group.isExploring && item === reasoningItems[reasoningItems.length - 1]
+                  }
                   text={t.text}
                   variant="inline"
-                  streaming={
-                    group.isExploring &&
-                    item === reasoningItems[reasoningItems.length - 1]
-                  }
                 />
               );
             }
-            if (item.type === "agent") {
+            if (item.type === 'agent') {
               const a = item as ChatItemAgent;
               return (
-                <div key={item.id} className="pl-1">
+                <div className="pl-1" key={item.id}>
                   <AgentMessage
+                    onOpenFile={onOpenFile}
+                    streaming={
+                      group.isExploring && item === reasoningItems[reasoningItems.length - 1]
+                    }
                     text={a.text}
                     variant="compact"
-                    streaming={
-                      group.isExploring &&
-                      item === reasoningItems[reasoningItems.length - 1]
-                    }
-                    onOpenFile={onOpenFile}
                   />
                 </div>
               );
@@ -423,57 +411,55 @@ export function ActivityGroupCard({
             onClick={handleToggle}
           >
             <StatusIcon
+              className={`${statusColor} flex-shrink-0 ${group.isExploring ? 'animate-spin' : ''}`}
               size={14}
-              className={`${statusColor} flex-shrink-0 ${group.isExploring ? "animate-spin" : ""}`}
             />
             <span className="text-gray-500 text-[13px] flex-1 text-left truncate">
-              {group.isExploring
-                ? title
-                : `${title} · ${getSummaryText(group)}`}
+              {group.isExploring ? title : `${title} · ${getSummaryText(group)}`}
             </span>
             {isExpanded ? (
-              <ChevronDown size={14} className="text-gray-300 flex-shrink-0" />
+              <ChevronDown className="text-gray-300 flex-shrink-0" size={14} />
             ) : (
-              <ChevronRight size={14} className="text-gray-300 flex-shrink-0" />
+              <ChevronRight className="text-gray-300 flex-shrink-0" size={14} />
             )}
           </button>
 
           {/* CSS Grid animated expand/collapse */}
           <div
             className="grid transition-[grid-template-rows] duration-200 ease-out"
-            style={{ gridTemplateRows: isExpanded ? "1fr" : "0fr" }}
+            style={{ gridTemplateRows: isExpanded ? '1fr' : '0fr' }}
           >
             <div className="min-h-0 overflow-hidden">
               <div className="space-y-0.5">
                 {groupedToolCalls.map((g, gi) => {
-                  if (g.type === "merged") {
+                  if (g.type === 'merged') {
                     return (
                       <MergedRow
+                        items={g.items}
                         key={`merged-${g.kind}-${gi}`}
                         kind={g.kind}
-                        items={g.items}
-                        selectedToolCallId={selectedToolCallId}
                         onSelectToolCall={onSelectToolCall}
+                        selectedToolCallId={selectedToolCallId}
                       />
                     );
                   }
                   const item = g.item;
-                  if (item.type === "tool_call") {
+                  if (item.type === 'tool_call') {
                     const tc = item as ChatItemToolCall;
                     return (
                       <ToolCallCard
-                        key={item.id}
                         item={tc}
-                        selected={selectedToolCallId === tc.toolCallId}
+                        key={item.id}
                         onClick={() => onSelectToolCall(tc.toolCallId)}
+                        selected={selectedToolCallId === tc.toolCallId}
                         variant="compact"
                       />
                     );
                   }
-                  if (item.type === "thought") {
+                  if (item.type === 'thought') {
                     const t = item as ChatItemThought;
                     return (
-                      <div key={item.id} className="px-0 py-1">
+                      <div className="px-0 py-1" key={item.id}>
                         <ThoughtBlock text={t.text} variant="inline" />
                       </div>
                     );
@@ -489,17 +475,16 @@ export function ActivityGroupCard({
       {/* Trailing thoughts */}
       {trailingThoughts.length > 0 && (
         <div className="mt-1.5">
-          {trailingThoughts.map(item => {
+          {trailingThoughts.map((item) => {
             const t = item as ChatItemThought;
             return (
               <ThoughtBlock
                 key={item.id}
+                streaming={
+                  group.isExploring && item === trailingThoughts[trailingThoughts.length - 1]
+                }
                 text={t.text}
                 variant="inline"
-                streaming={
-                  group.isExploring &&
-                  item === trailingThoughts[trailingThoughts.length - 1]
-                }
               />
             );
           })}

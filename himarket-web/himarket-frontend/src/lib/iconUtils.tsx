@@ -1,4 +1,4 @@
-import type { IProductIcon } from "./apis/typing";
+import type { IProductIcon } from './apis/typing';
 
 /**
  * 获取名称的首字母（中文取首字，英文取首字母）
@@ -6,7 +6,7 @@ import type { IProductIcon } from "./apis/typing";
  * @returns 首字母或首字
  */
 function getFirstChar(name: string): string {
-  if (!name) return "?";
+  if (!name) return '?';
   // 取第一个字符
   const firstChar = name.charAt(0);
   return firstChar.toUpperCase();
@@ -21,16 +21,16 @@ function getFirstChar(name: string): string {
 export function getIconString(icon?: IProductIcon, name?: string): string {
   if (!icon || !icon.value) {
     // 无图标时返回 name 的首字母（中文首字，英文首字母）
-    return name ? getFirstChar(name) : "?";
+    return name ? getFirstChar(name) : '?';
   }
 
-  if (icon.type === "URL") {
+  if (icon.type === 'URL') {
     return icon.value;
   }
 
-  if (icon.type === "BASE64") {
+  if (icon.type === 'BASE64') {
     return icon.value.startsWith('data:') ? icon.value : `data:image/png;base64,${icon.value}`;
   }
 
-  return name ? getFirstChar(name) : "?";
+  return name ? getFirstChar(name) : '?';
 }

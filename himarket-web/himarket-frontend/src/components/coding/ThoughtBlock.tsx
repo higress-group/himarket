@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { ChevronDown, ChevronRight, Brain } from "lucide-react";
+import { ChevronDown, ChevronRight, Brain } from 'lucide-react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 
 interface ThoughtBlockProps {
   text: string;
   streaming?: boolean;
-  variant?: "standalone" | "inline";
+  variant?: 'standalone' | 'inline';
 }
 
 const PREVIEW_MAX_LINES = 3;
@@ -18,21 +18,17 @@ function formatDuration(ms: number): string {
   return `${mins}m ${secs}s`;
 }
 
-export function ThoughtBlock({
-  text,
-  streaming,
-  variant = "standalone",
-}: ThoughtBlockProps) {
-  const isInline = variant === "inline";
+export function ThoughtBlock({ streaming, text, variant = 'standalone' }: ThoughtBlockProps) {
+  const isInline = variant === 'inline';
 
-  const { preview, hasMore } = useMemo(() => {
-    const lines = text.split("\n").filter(l => l.trim() !== "");
+  const { hasMore, preview } = useMemo(() => {
+    const lines = text.split('\n').filter((l) => l.trim() !== '');
     if (lines.length <= PREVIEW_MAX_LINES) {
-      return { preview: lines.join("\n"), hasMore: false };
+      return { hasMore: false, preview: lines.join('\n') };
     }
     return {
-      preview: lines.slice(0, PREVIEW_MAX_LINES).join("\n"),
       hasMore: true,
+      preview: lines.slice(0, PREVIEW_MAX_LINES).join('\n'),
     };
   }, [text]);
 
@@ -75,13 +71,13 @@ export function ThoughtBlock({
   }, []);
 
   const durationText = useMemo(() => {
-    if (finalDuration != null) return formatDuration(finalDuration);
+    if (finalDuration !== undefined && finalDuration !== null) return formatDuration(finalDuration);
     if (streaming && liveDuration > 0) return formatDuration(liveDuration);
     return null;
   }, [finalDuration, streaming, liveDuration]);
 
   const handleToggle = useCallback(() => {
-    setExpanded(prev => !prev);
+    setExpanded((prev) => !prev);
     setUserToggled(true);
   }, []);
 
@@ -102,17 +98,11 @@ export function ThoughtBlock({
           onClick={handleToggle}
         >
           <Brain
+            className={streaming ? 'text-purple-500 animate-pulse' : 'text-gray-300'}
             size={12}
-            className={
-              streaming ? "text-purple-500 animate-pulse" : "text-gray-300"
-            }
           />
-          <span
-            className={
-              streaming ? "text-purple-600 font-medium" : "text-gray-400"
-            }
-          >
-            {streaming ? "思考中..." : "深度思考"}
+          <span className={streaming ? 'text-purple-600 font-medium' : 'text-gray-400'}>
+            {streaming ? '思考中...' : '深度思考'}
           </span>
           {streaming && (
             <span className="flex gap-0.5 ml-0.5">
@@ -126,17 +116,17 @@ export function ThoughtBlock({
           )}
           <span className="flex-1" />
           {expanded ? (
-            <ChevronDown size={12} className="text-gray-300" />
+            <ChevronDown className="text-gray-300" size={12} />
           ) : (
-            <ChevronRight size={12} className="text-gray-300" />
+            <ChevronRight className="text-gray-300" size={12} />
           )}
         </button>
 
         {/* Expanded content */}
         {expanded && text && (
           <div
-            ref={contentRef}
             className="mt-1 px-1.5 text-[13px] text-gray-400 whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto"
+            ref={contentRef}
           >
             {text}
             {streaming && (
@@ -165,17 +155,11 @@ export function ThoughtBlock({
         onClick={handleToggle}
       >
         <Brain
+          className={streaming ? 'text-purple-500 animate-pulse' : 'text-gray-300'}
           size={13}
-          className={
-            streaming ? "text-purple-500 animate-pulse" : "text-gray-300"
-          }
         />
-        <span
-          className={
-            streaming ? "text-purple-600 font-medium" : "text-gray-400"
-          }
-        >
-          {streaming ? "思考中..." : "深度思考"}
+        <span className={streaming ? 'text-purple-600 font-medium' : 'text-gray-400'}>
+          {streaming ? '思考中...' : '深度思考'}
         </span>
         {streaming && (
           <span className="flex gap-0.5 ml-1">
@@ -189,17 +173,17 @@ export function ThoughtBlock({
         )}
         <span className="flex-1" />
         {expanded ? (
-          <ChevronDown size={13} className="text-gray-300" />
+          <ChevronDown className="text-gray-300" size={13} />
         ) : (
-          <ChevronRight size={13} className="text-gray-300" />
+          <ChevronRight className="text-gray-300" size={13} />
         )}
       </button>
 
       {/* Content area */}
       {expanded && text && (
         <div
-          ref={contentRef}
           className="mt-1 px-1.5 text-[13px] text-gray-400 whitespace-pre-wrap leading-relaxed max-h-60 overflow-y-auto"
+          ref={contentRef}
         >
           {text}
           {streaming && (

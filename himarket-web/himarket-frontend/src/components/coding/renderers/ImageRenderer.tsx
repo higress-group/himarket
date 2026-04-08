@@ -1,4 +1,4 @@
-import { Image } from "antd";
+import { Image } from 'antd';
 
 interface ImageRendererProps {
   content: string;
@@ -6,19 +6,19 @@ interface ImageRendererProps {
 }
 
 function inferMimeType(path: string): string {
-  const ext = path.split(".").pop()?.toLowerCase();
+  const ext = path.split('.').pop()?.toLowerCase();
   switch (ext) {
-    case "png":
-      return "image/png";
-    case "jpg":
-    case "jpeg":
-      return "image/jpeg";
-    case "gif":
-      return "image/gif";
-    case "webp":
-      return "image/webp";
+    case 'png':
+      return 'image/png';
+    case 'jpg':
+    case 'jpeg':
+      return 'image/jpeg';
+    case 'gif':
+      return 'image/gif';
+    case 'webp':
+      return 'image/webp';
     default:
-      return "image/png";
+      return 'image/png';
   }
 }
 
@@ -35,14 +35,14 @@ export function ImageRenderer({ content, path }: ImageRendererProps) {
   }
 
   const mimeType = inferMimeType(path);
-  const src = `data:${mimeType};base64,${content.replace(/\s/g, "")}`;
+  const src = `data:${mimeType};base64,${content.replace(/\s/g, '')}`;
 
   return (
     <div className="flex items-center justify-center h-full p-4 overflow-auto">
       <Image
-        src={src}
         alt={path}
-        style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }}
+        src={src}
+        style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }}
       />
     </div>
   );

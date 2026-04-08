@@ -3,22 +3,22 @@ import type {
   ToolKind,
   ToolCallContentItem,
   ToolCallLocationItem,
-} from "../../types/coding-protocol";
+} from '../../types/coding-protocol';
 
-type ToolCallTextContent = Extract<ToolCallContentItem, { type: "content" }>["content"];
+type ToolCallTextContent = Extract<ToolCallContentItem, { type: 'content' }>['content'];
 
 const TOOL_KINDS: ReadonlySet<ToolKind> = new Set([
-  "read",
-  "edit",
-  "delete",
-  "move",
-  "search",
-  "execute",
-  "think",
-  "fetch",
-  "switch_mode",
-  "other",
-  "skill",
+  'read',
+  'edit',
+  'delete',
+  'move',
+  'search',
+  'execute',
+  'think',
+  'fetch',
+  'switch_mode',
+  'other',
+  'skill',
 ]);
 
 function hasOwn(obj: object, key: string): boolean {
@@ -26,27 +26,24 @@ function hasOwn(obj: object, key: string): boolean {
 }
 
 function asObject(value: unknown): Record<string, unknown> | null {
-  if (typeof value !== "object" || value === null) return null;
+  if (typeof value !== 'object' || value === null) return null;
   return value as Record<string, unknown>;
 }
 
 function normalizeJsonRpcId(id: unknown): JsonRpcId | undefined {
-  if (typeof id === "number" || typeof id === "string") return id;
+  if (typeof id === 'number' || typeof id === 'string') return id;
   return undefined;
 }
 
-export function normalizeToolKind(
-  kind: unknown,
-  title?: unknown
-): ToolKind {
-  if (typeof kind === "string") {
+export function normalizeToolKind(kind: unknown, title?: unknown): ToolKind {
+  if (typeof kind === 'string') {
     if (TOOL_KINDS.has(kind as ToolKind)) return kind as ToolKind;
-    if (/^skill\s+/i.test(kind)) return "skill";
+    if (/^skill\s+/i.test(kind)) return 'skill';
   }
-  if (typeof title === "string" && /^skill\s+/i.test(title)) {
-    return "skill";
+  if (typeof title === 'string' && /^skill\s+/i.test(title)) {
+    return 'skill';
   }
-  return "other";
+  return 'other';
 }
 
 function normalizeLocations(locations: unknown): ToolCallLocationItem[] | undefined {
@@ -55,7 +52,7 @@ function normalizeLocations(locations: unknown): ToolCallLocationItem[] | undefi
   for (const loc of locations) {
     const obj = asObject(loc);
     if (!obj) continue;
-    if (typeof obj.path === "string" && obj.path) {
+    if (typeof obj.path === 'string' && obj.path) {
       result.push({ path: obj.path });
     }
   }
@@ -64,37 +61,37 @@ function normalizeLocations(locations: unknown): ToolCallLocationItem[] | undefi
 
 function normalizeContentItem(item: unknown): ToolCallContentItem | null {
   const obj = asObject(item);
-  if (!obj || typeof obj.type !== "string") return null;
+  if (!obj || typeof obj.type !== 'string') return null;
 
-  if (obj.type === "terminal") {
-    if (typeof obj.terminalId !== "string" || !obj.terminalId) return null;
-    return { type: "terminal", terminalId: obj.terminalId };
+  if (obj.type === 'terminal') {
+    if (typeof obj.terminalId !== 'string' || !obj.terminalId) return null;
+    return { terminalId: obj.terminalId, type: 'terminal' };
   }
 
-  if (obj.type === "diff") {
-    const normalized: ToolCallContentItem = { type: "diff" };
-    if (typeof obj.path === "string") {
+  if (obj.type === 'diff') {
+    const normalized: ToolCallContentItem = { type: 'diff' };
+    if (typeof obj.path === 'string') {
       normalized.path = obj.path;
     }
-    if (hasOwn(obj, "oldText")) {
-      if (obj.oldText === null || typeof obj.oldText === "string") {
+    if (hasOwn(obj, 'oldText')) {
+      if (obj.oldText === null || typeof obj.oldText === 'string') {
         normalized.oldText = obj.oldText;
       }
     }
-    if (hasOwn(obj, "newText")) {
-      if (obj.newText === null || typeof obj.newText === "string") {
+    if (hasOwn(obj, 'newText')) {
+      if (obj.newText === null || typeof obj.newText === 'string') {
         normalized.newText = obj.newText;
       }
     }
     return normalized;
   }
 
-  if (obj.type === "content") {
-    const normalized: ToolCallContentItem = { type: "content" };
+  if (obj.type === 'content') {
+    const normalized: ToolCallContentItem = { type: 'content' };
     const contentObj = asObject(obj.content);
     if (contentObj) {
-      if (contentObj.type === "text" && typeof contentObj.text !== "string") {
-        normalized.content = { ...contentObj, text: "" } as ToolCallTextContent;
+      if (contentObj.type === 'text' && typeof contentObj.text !== 'string') {
+        normalized.content = { ...contentObj, text: '' } as ToolCallTextContent;
       } else {
         normalized.content = contentObj as unknown as ToolCallTextContent;
       }
@@ -121,25 +118,25 @@ function normalizeToolCallUpdate(update: Record<string, unknown>): void {
   const content = normalizeContent(update.content);
   if (content) {
     update.content = content;
-  } else if (hasOwn(update, "content")) {
+  } else if (hasOwn(update, 'content')) {
     update.content = [];
   }
 
   const locations = normalizeLocations(update.locations);
   if (locations) {
     update.locations = locations;
-  } else if (hasOwn(update, "locations")) {
+  } else if (hasOwn(update, 'locations')) {
     update.locations = [];
   }
 }
 
 function normalizeSessionUpdateParams(params: Record<string, unknown>): void {
   const updateEnvelope = asObject(params.update);
-  if (!updateEnvelope || typeof updateEnvelope.sessionUpdate !== "string") return;
+  if (!updateEnvelope || typeof updateEnvelope.sessionUpdate !== 'string') return;
 
   if (
-    updateEnvelope.sessionUpdate === "tool_call" ||
-    updateEnvelope.sessionUpdate === "tool_call_update"
+    updateEnvelope.sessionUpdate === 'tool_call' ||
+    updateEnvelope.sessionUpdate === 'tool_call_update'
   ) {
     normalizeToolCallUpdate(updateEnvelope);
   }
@@ -162,7 +159,7 @@ function normalizePermissionParams(params: Record<string, unknown>): void {
 }
 
 export function normalizeIncomingMessage(
-  message: Record<string, unknown>
+  message: Record<string, unknown>,
 ): Record<string, unknown> {
   const normalized: Record<string, unknown> = { ...message };
   const normalizedId = normalizeJsonRpcId(normalized.id);
@@ -170,14 +167,14 @@ export function normalizeIncomingMessage(
     normalized.id = normalizedId;
   }
 
-  if (typeof normalized.method !== "string") return normalized;
+  if (typeof normalized.method !== 'string') return normalized;
   const params = asObject(normalized.params);
   if (!params) return normalized;
   const normalizedParams: Record<string, unknown> = { ...params };
 
-  if (normalized.method === "session/update") {
+  if (normalized.method === 'session/update') {
     normalizeSessionUpdateParams(normalizedParams);
-  } else if (normalized.method === "session/request_permission") {
+  } else if (normalized.method === 'session/request_permission') {
     normalizePermissionParams(normalizedParams);
   }
 

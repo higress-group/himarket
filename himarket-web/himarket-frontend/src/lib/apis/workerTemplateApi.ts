@@ -1,10 +1,4 @@
-/**
- * Worker 相关接口
- */
-
-import request, { type RespI } from "../request";
-
-// ============ 类型定义 ============
+import request, { type RespI } from '../request';
 
 export interface WorkerFileTreeNode {
   name: string;
@@ -38,7 +32,7 @@ export interface WorkerVersion {
 export function getWorkerFileTree(productId: string, version?: string) {
   return request.get<RespI<WorkerFileTreeNode[]>, RespI<WorkerFileTreeNode[]>>(
     `/workers/${productId}/files`,
-    { params: version ? { version } : {} }
+    { params: version ? { version } : {} },
   );
 }
 
@@ -48,7 +42,7 @@ export function getWorkerFileTree(productId: string, version?: string) {
 export function getWorkerFileContent(productId: string, filePath: string, version?: string) {
   return request.get<RespI<WorkerFileContent>, RespI<WorkerFileContent>>(
     `/workers/${productId}/files/${filePath}`,
-    { params: version ? { version } : {} }
+    { params: version ? { version } : {} },
   );
 }
 
@@ -57,7 +51,7 @@ export function getWorkerFileContent(productId: string, filePath: string, versio
  */
 export function getWorkerVersions(productId: string) {
   return request.get<RespI<WorkerVersion[]>, RespI<WorkerVersion[]>>(
-    `/workers/${productId}/versions`
+    `/workers/${productId}/versions`,
   );
 }
 
@@ -73,9 +67,7 @@ export interface WorkerCliInfo {
 }
 
 export function getWorkerCliInfo(productId: string) {
-  return request.get<RespI<WorkerCliInfo>, RespI<WorkerCliInfo>>(
-    `/workers/${productId}/cli-info`
-  );
+  return request.get<RespI<WorkerCliInfo>, RespI<WorkerCliInfo>>(`/workers/${productId}/cli-info`);
 }
 
 /**

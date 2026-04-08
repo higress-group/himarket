@@ -1,25 +1,21 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { CopyOutlined, MessageOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import { Button, message, Tabs, Collapse, Select } from 'antd';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useParams, useNavigate } from "react-router-dom";
-import type { ProductHeaderHandle } from "../components/ProductHeader";
-import { ProductDetailLayout } from "../components/ProductDetailLayout";
-import {
-  Button,
-  message,
-  Tabs,
-  Collapse,
-  Select,
-} from "antd";
-import { CopyOutlined, MessageOutlined, ThunderboltOutlined } from "@ant-design/icons";
-import { ProductType } from "../types";
-import type { IProductDetail } from "../lib/apis";
-import type { IModelConfig, IRoute } from "../lib/apis/typing";
-import APIs from "../lib/apis";
-import MarkdownRender from "../components/MarkdownRender";
-import { copyToClipboard, formatDomainWithPort } from "../lib/utils";
-import { resolveEndpointPath } from "../lib/modelEndpoint";
-import { LoginPrompt } from "../components/LoginPrompt";
-import { useAuth } from "../hooks/useAuth";
+import { useParams, useNavigate } from 'react-router-dom';
+
+import { LoginPrompt } from '../components/LoginPrompt';
+import MarkdownRender from '../components/MarkdownRender';
+import { ProductDetailLayout } from '../components/ProductDetailLayout';
+import { useAuth } from '../hooks/useAuth';
+import APIs from '../lib/apis';
+import { resolveEndpointPath } from '../lib/modelEndpoint';
+import { copyToClipboard, formatDomainWithPort } from '../lib/utils';
+import { ProductType } from '../types';
+
+import type { ProductHeaderHandle } from '../components/ProductHeader';
+import type { IProductDetail } from '../lib/apis';
+import type { IModelConfig, IRoute } from '../lib/apis/typing';
 
 const { Panel } = Collapse;
 
@@ -27,7 +23,7 @@ function ModelDetail() {
   const { modelProductId } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
   const [data, setData] = useState<IProductDetail>();
   const [modelConfig, setModelConfig] = useState<IModelConfig>();
   const [selectedModelDomainIndex, setSelectedModelDomainIndex] = useState<number>(0);
@@ -41,17 +37,16 @@ function ModelDetail() {
     setHasSubscription(subscribed);
   }, []);
 
-
   useEffect(() => {
     const fetchDetail = async () => {
       if (!modelProductId) {
         return;
       }
       setLoading(true);
-      setError("");
+      setError('');
       try {
         const response = await APIs.getProduct({ id: modelProductId });
-        if (response.code === "SUCCESS" && response.data) {
+        if (response.code === 'SUCCESS' && response.data) {
           setData(response.data);
 
           // 处理Model配置
@@ -63,11 +58,11 @@ function ModelDetail() {
             }
           }
         } else {
-          setError(response.message || "数据加载失败");
+          setError(response.message || '数据加载失败');
         }
       } catch (error) {
-        console.error("API请求失败:", error);
-        setError("加载失败，请稍后重试");
+        console.error('API请求失败:', error);
+        setError('加载失败，请稍后重试');
       } finally {
         setLoading(false);
       }
@@ -82,33 +77,33 @@ function ModelDetail() {
 
   // 获取所有唯一域名
   const getAllUniqueDomains = () => {
-    if (!modelConfig?.modelAPIConfig?.routes) return []
+    if (!modelConfig?.modelAPIConfig?.routes) return [];
 
-    const domainsMap = new Map<string, { domain: string; port?: number; protocol: string }>()
+    const domainsMap = new Map<string, { domain: string; port?: number; protocol: string }>();
 
-    modelConfig.modelAPIConfig.routes.forEach(route => {
+    modelConfig.modelAPIConfig.routes.forEach((route) => {
       if (route.domains && route.domains.length > 0) {
         route.domains.forEach((domain) => {
           const formattedDomain = formatDomainWithPort(domain.domain, domain.port, domain.protocol);
-          const key = `${domain.protocol}://${formattedDomain}`
-          domainsMap.set(key, domain)
-        })
+          const key = `${domain.protocol}://${formattedDomain}`;
+          domainsMap.set(key, domain);
+        });
       }
-    })
+    });
 
-    return Array.from(domainsMap.values())
-  }
+    return Array.from(domainsMap.values());
+  };
 
-  const allUniqueDomains = getAllUniqueDomains()
+  const allUniqueDomains = getAllUniqueDomains();
 
   // 生成域名选择器选项
   const modelDomainOptions = allUniqueDomains.map((domain, index) => {
     const formattedDomain = formatDomainWithPort(domain.domain, domain.port, domain.protocol);
     return {
+      label: `${domain.protocol.toLowerCase()}://${formattedDomain}`,
       value: index,
-      label: `${domain.protocol.toLowerCase()}://${formattedDomain}`
     };
-  })
+  });
 
   // Helper functions for route display
   const getMatchTypePrefix = (type: string) => {
@@ -125,70 +120,78 @@ function ModelDetail() {
   };
 
   const getRouteDisplayText = (route: IRoute, domainIndex: number = 0) => {
-    if (!route.match) return 'Unknown Route'
+    if (!route.match) return 'Unknown Route';
 
-    const path = route.match.path?.value || '/'
-    const pathType = route.match.path?.type
+    const path = route.match.path?.value || '/';
+    const pathType = route.match.path?.type;
 
     // 拼接域名信息 - 使用选择的域名索引
-    let domainInfo = ''
+    let domainInfo = '';
     if (allUniqueDomains.length > 0 && allUniqueDomains.length > domainIndex) {
-      const selectedDomain = allUniqueDomains[domainIndex]
-      const formattedDomain = formatDomainWithPort(selectedDomain.domain, selectedDomain.port, selectedDomain.protocol);
-      domainInfo = `${selectedDomain.protocol.toLowerCase()}://${formattedDomain}`
+      const selectedDomain = allUniqueDomains[domainIndex];
+      if (selectedDomain) {
+        const formattedDomain = formatDomainWithPort(
+          selectedDomain.domain,
+          selectedDomain.port,
+          selectedDomain.protocol,
+        );
+        domainInfo = `${selectedDomain.protocol.toLowerCase()}://${formattedDomain}`;
+      }
     } else if (route.domains && route.domains.length > 0) {
       // 回退到路由的第一个域名
-      const domain = route.domains[0]
-      const formattedDomain = formatDomainWithPort(domain.domain, domain.port, domain.protocol);
-      domainInfo = `${domain.protocol.toLowerCase()}://${formattedDomain}`
+      const domain = route.domains[0];
+      if (domain) {
+        const formattedDomain = formatDomainWithPort(domain.domain, domain.port, domain.protocol);
+        domainInfo = `${domain.protocol.toLowerCase()}://${formattedDomain}`;
+      }
     }
 
     // 构建基本路由信息（匹配符号直接加到path后面）
-    let pathWithSuffix = path
+    let pathWithSuffix = path;
     if (pathType === 'Prefix') {
-      pathWithSuffix = `${path}*`
+      pathWithSuffix = `${path}*`;
     } else if (pathType === 'Regex') {
-      pathWithSuffix = `${path}~`
+      pathWithSuffix = `${path}~`;
     }
     // 精确匹配不加任何符号
 
-    let routeText = `${domainInfo}${pathWithSuffix}`
+    let routeText = `${domainInfo}${pathWithSuffix}`;
 
     // 添加描述信息
     if (route.description && route.description.trim()) {
-      routeText += ` - ${route.description}`
+      routeText += ` - ${route.description}`;
     }
 
-    return routeText
+    return routeText;
   };
 
   const getMethodsText = (route: IRoute) => {
-    const methods = route.match?.methods
+    const methods = route.match?.methods;
     if (!methods || methods.length === 0) {
-      return 'ANY'
+      return 'ANY';
     }
-    return methods.join(', ')
-  }
+    return methods.join(', ');
+  };
 
   // 获取适用场景中文翻译
   const getModelCategoryText = (category: string) => {
     switch (category) {
       case 'Text':
-        return '文本生成'
+        return '文本生成';
       case 'Image':
-        return '图片生成'
+        return '图片生成';
       case 'Video':
-        return '视频生成'
+        return '视频生成';
       case 'Audio':
-        return '语音合成'
+        return '语音合成';
       case 'Embedding':
-        return '向量化（Embedding）'
+        return '向量化（Embedding）';
       case 'Rerank':
-        return '文本排序（Rerank）'
+        return '文本排序（Rerank）';
       case 'Others':
-        return '其他'
+        return '其他';
       default:
-        return category || '未知'
+        return category || '未知';
     }
   };
 
@@ -207,16 +210,23 @@ function ModelDetail() {
 
     // 使用选择的域名
     const selectedDomain = allUniqueDomains[selectedModelDomainIndex] || allUniqueDomains[0];
-    const formattedDomain = formatDomainWithPort(selectedDomain.domain, selectedDomain.port, selectedDomain.protocol);
+    if (!selectedDomain) {
+      return null;
+    }
+    const formattedDomain = formatDomainWithPort(
+      selectedDomain.domain,
+      selectedDomain.port,
+      selectedDomain.protocol,
+    );
     const baseUrl = `${selectedDomain.protocol.toLowerCase()}://${formattedDomain}`;
     const resolvedPath = resolveEndpointPath(
       firstRoute.match.path.value,
       firstRoute.match.path.type,
-      modelConfig.modelAPIConfig.aiProtocols
+      modelConfig.modelAPIConfig.aiProtocols,
     );
     const fullUrl = `${baseUrl}${resolvedPath}`;
 
-    const modelName = data?.feature?.modelFeature?.model || "{{model_name}}";
+    const modelName = data?.feature?.modelFeature?.model || '{{model_name}}';
 
     return `curl --location '${fullUrl}' \\
   --header 'Content-Type: application/json' \\
@@ -242,336 +252,388 @@ function ModelDetail() {
   const leftContent = data ? (
     <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-6 pt-0">
       <Tabs
-              size="large"
-              defaultActiveKey="overview"
-              items={[
-                {
-                  key: "overview",
-                  label: "概览",
-                  children: data?.document ? (
-                    <div className="min-h-[400px] prose prose-lg">
-                      <MarkdownRender content={data.document} />
-                    </div>
-                  ) : (
-                    <div className="text-gray-500 text-center py-16">
-                      暂无概览信息
-                    </div>
-                  ),
-                },
-                {
-                  key: "configuration",
-                  label: `配置${modelConfig?.modelAPIConfig?.routes ? ` (${modelConfig.modelAPIConfig.routes.length})` : ''}`,
-                  children: modelConfig?.modelAPIConfig ? (
-                    <div className="space-y-6">
-                      {/* 基本信息 */}
-                      <div className="grid grid-cols-2 gap-4">
-                        {modelConfig.modelAPIConfig.modelCategory && (
-                          <div className="bg-gray-50 rounded-xl">
-                            <div className="text-sm text-gray-500 mb-1">适用场景</div>
-                            <div className="text-sm font-medium text-gray-900">
-                              {getModelCategoryText(modelConfig.modelAPIConfig.modelCategory)}
-                            </div>
-                          </div>
-                        )}
-                        <div className="bg-gray-50 rounded-xl">
-                          <div className="text-sm text-gray-500 mb-1">协议</div>
-                          <div className="text-sm font-medium text-gray-900">
-                            {modelConfig.modelAPIConfig.aiProtocols?.join(', ') || 'DashScope'}
-                          </div>
-                        </div>
+        defaultActiveKey="overview"
+        items={[
+          {
+            children: data?.document ? (
+              <div className="min-h-[400px] prose prose-lg">
+                <MarkdownRender content={data.document} />
+              </div>
+            ) : (
+              <div className="text-gray-500 text-center py-16">暂无概览信息</div>
+            ),
+            key: 'overview',
+            label: '概览',
+          },
+          {
+            children: modelConfig?.modelAPIConfig ? (
+              <div className="space-y-6">
+                {/* 基本信息 */}
+                <div className="grid grid-cols-2 gap-4">
+                  {modelConfig.modelAPIConfig.modelCategory && (
+                    <div className="bg-gray-50 rounded-xl">
+                      <div className="text-sm text-gray-500 mb-1">适用场景</div>
+                      <div className="text-sm font-medium text-gray-900">
+                        {getModelCategoryText(modelConfig.modelAPIConfig.modelCategory)}
                       </div>
+                    </div>
+                  )}
+                  <div className="bg-gray-50 rounded-xl">
+                    <div className="text-sm text-gray-500 mb-1">协议</div>
+                    <div className="text-sm font-medium text-gray-900">
+                      {modelConfig.modelAPIConfig.aiProtocols?.join(', ') || 'DashScope'}
+                    </div>
+                  </div>
+                </div>
 
-                      {/* 路由配置 */}
-                      {modelConfig.modelAPIConfig.routes && modelConfig.modelAPIConfig.routes.length > 0 && (
-                        <div>
-                          <div className="text-sm font-semibold text-gray-900 mb-4">路由配置</div>
+                {/* 路由配置 */}
+                {modelConfig.modelAPIConfig.routes &&
+                  modelConfig.modelAPIConfig.routes.length > 0 && (
+                    <div>
+                      <div className="text-sm font-semibold text-gray-900 mb-4">路由配置</div>
 
-                          {/* 域名选择器 */}
-                          {modelDomainOptions.length > 0 && (
-                            <div className="mb-4">
-                              <div className="flex border border-gray-300 rounded-md overflow-hidden">
-                                <span className="flex-shrink-0 bg-gray-50 px-3 py-2 text-xs text-gray-600 border-r border-gray-300 flex items-center whitespace-nowrap">域名:</span>
-                                <div className="flex-1">
-                                  <Select
-                                    value={selectedModelDomainIndex}
-                                    onChange={setSelectedModelDomainIndex}
-                                    className="w-full"
-                                    placeholder="选择域名"
-                                    size="middle"
-                                    variant="borderless"
-                                  >
-                                    {modelDomainOptions.map((option) => (
-                                      <Select.Option key={option.value} value={option.value}>
-                                        <span className="text-xs text-gray-900 font-mono">
-                                          {option.label}
-                                        </span>
-                                      </Select.Option>
-                                    ))}
-                                  </Select>
-                                </div>
-                              </div>
+                      {/* 域名选择器 */}
+                      {modelDomainOptions.length > 0 && (
+                        <div className="mb-4">
+                          <div className="flex border border-gray-300 rounded-md overflow-hidden">
+                            <span className="flex-shrink-0 bg-gray-50 px-3 py-2 text-xs text-gray-600 border-r border-gray-300 flex items-center whitespace-nowrap">
+                              域名:
+                            </span>
+                            <div className="flex-1">
+                              <Select
+                                className="w-full"
+                                onChange={setSelectedModelDomainIndex}
+                                placeholder="选择域名"
+                                size="middle"
+                                value={selectedModelDomainIndex}
+                                variant="borderless"
+                              >
+                                {modelDomainOptions.map((option) => (
+                                  <Select.Option key={option.value} value={option.value}>
+                                    <span className="text-xs text-gray-900 font-mono">
+                                      {option.label}
+                                    </span>
+                                  </Select.Option>
+                                ))}
+                              </Select>
                             </div>
-                          )}
-
-                          {/* 路由列表 */}
-                          <div className="border border-gray-200 rounded-xl overflow-hidden">
-                            <Collapse ghost expandIconPosition="end">
-                              {modelConfig.modelAPIConfig.routes.map((route, index) => (
-                                <Panel
-                                  key={index}
-                                  header={
-                                    <div className="flex items-center justify-between py-2">
-                                      <div className="flex-1">
-                                        <div className="font-mono text-sm font-medium text-blue-600 mb-1">
-                                          {getRouteDisplayText(route, selectedModelDomainIndex)}
-                                          {route.builtin && (
-                                            <span className="ml-2 px-2 py-0.5 text-xs bg-green-100 text-green-800 rounded-full">默认</span>
-                                          )}
-                                        </div>
-                                        <div className="text-xs text-gray-500">
-                                          方法: <span className="font-medium text-gray-700">{getMethodsText(route)}</span>
-                                        </div>
-                                      </div>
-                                      <Button
-                                        size="small"
-                                        type="text"
-                                        icon={<CopyOutlined />}
-                                        onClick={async (e) => {
-                                          e.stopPropagation()
-                                          if (allUniqueDomains.length > 0 && allUniqueDomains.length > selectedModelDomainIndex) {
-                                            const selectedDomain = allUniqueDomains[selectedModelDomainIndex]
-                                            const path = resolveEndpointPath(
-                                              route.match?.path?.value || '/',
-                                              route.match?.path?.type,
-                                              modelConfig.modelAPIConfig.aiProtocols
-                                            )
-                                            const formattedDomain = formatDomainWithPort(selectedDomain.domain, selectedDomain.port, selectedDomain.protocol);
-                                            const fullUrl = `${selectedDomain.protocol.toLowerCase()}://${formattedDomain}${path}`
-                                            copyToClipboard(fullUrl).then(() => message.success("链接已复制到剪贴板"))
-                                          } else if (route.domains && route.domains.length > 0) {
-                                            const domain = route.domains[0]
-                                            const path = resolveEndpointPath(
-                                              route.match?.path?.value || '/',
-                                              route.match?.path?.type,
-                                              modelConfig.modelAPIConfig.aiProtocols
-                                            )
-                                            const formattedDomain = formatDomainWithPort(domain.domain, domain.port, domain.protocol);
-                                            const fullUrl = `${domain.protocol.toLowerCase()}://${formattedDomain}${path}`
-                                            copyToClipboard(fullUrl).then(() => message.success("链接已复制到剪贴板"))
-                                          }
-                                        }}
-                                      />
-                                    </div>
-                                  }
-                                  className={index < modelConfig.modelAPIConfig.routes.length - 1 ? "border-b border-gray-100" : ""}
-                                >
-                                  <div className="pl-4 space-y-4 pb-4">
-                                    {/* 域名信息 */}
-                                    <div>
-                                      <div className="text-xs text-gray-500 mb-2">域名:</div>
-                                      {route.domains?.map((domain, domainIndex: number) => {
-                                        const formattedDomain = formatDomainWithPort(domain.domain, domain.port, domain.protocol);
-                                        return (
-                                          <div key={domainIndex} className="text-sm font-mono bg-gray-50 px-3 py-2 rounded-lg mb-1">
-                                            {domain.protocol.toLowerCase()}://{formattedDomain}
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-
-                                    {/* 匹配规则 */}
-                                    <div className="grid grid-cols-2 gap-4">
-                                      <div>
-                                        <div className="text-xs text-gray-500 mb-1">路径:</div>
-                                        <div className="text-sm font-mono bg-gray-50 px-3 py-2 rounded-lg">
-                                          {getMatchTypePrefix(route.match?.path?.type)} {route.match?.path?.value}
-                                        </div>
-                                      </div>
-                                      <div>
-                                        <div className="text-xs text-gray-500 mb-1">方法:</div>
-                                        <div className="text-sm font-mono bg-gray-50 px-3 py-2 rounded-lg">
-                                          {getMethodsText(route)}
-                                        </div>
-                                      </div>
-                                    </div>
-
-                                    {/* 请求头匹配 */}
-                                    {route.match?.headers && route.match.headers.length > 0 && (
-                                      <div>
-                                        <div className="text-xs text-gray-500 mb-2">请求头匹配:</div>
-                                        <div className="space-y-1">
-                                          {route.match.headers.map((header, headerIndex: number) => (
-                                            <div key={headerIndex} className="text-sm font-mono bg-gray-50 px-3 py-2 rounded-lg">
-                                              {header.name} {getMatchTypePrefix(header.type)} {header.value}
-                                            </div>
-                                          ))}
-                                        </div>
-                                      </div>
-                                    )}
-
-                                    {/* 查询参数匹配 */}
-                                    {route.match?.queryParams && route.match.queryParams.length > 0 && (
-                                      <div>
-                                        <div className="text-xs text-gray-500 mb-2">查询参数匹配:</div>
-                                        <div className="space-y-1">
-                                          {route.match.queryParams.map((param, paramIndex: number) => (
-                                            <div key={paramIndex} className="text-sm font-mono bg-gray-50 px-3 py-2 rounded-lg">
-                                              {param.name} {getMatchTypePrefix(param.type)} {param.value}
-                                            </div>
-                                          ))}
-                                        </div>
-                                      </div>
-                                    )}
-                                  </div>
-                                </Panel>
-                              ))}
-                            </Collapse>
                           </div>
                         </div>
                       )}
+
+                      {/* 路由列表 */}
+                      <div className="border border-gray-200 rounded-xl overflow-hidden">
+                        <Collapse expandIconPosition="end" ghost>
+                          {modelConfig.modelAPIConfig.routes.map((route, index) => (
+                            <Panel
+                              className={
+                                index < modelConfig.modelAPIConfig.routes.length - 1
+                                  ? 'border-b border-gray-100'
+                                  : ''
+                              }
+                              header={
+                                <div className="flex items-center justify-between py-2">
+                                  <div className="flex-1">
+                                    <div className="font-mono text-sm font-medium text-blue-600 mb-1">
+                                      {getRouteDisplayText(route, selectedModelDomainIndex)}
+                                      {route.builtin && (
+                                        <span className="ml-2 px-2 py-0.5 text-xs bg-green-100 text-green-800 rounded-full">
+                                          默认
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="text-xs text-gray-500">
+                                      方法:{' '}
+                                      <span className="font-medium text-gray-700">
+                                        {getMethodsText(route)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <Button
+                                    icon={<CopyOutlined />}
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
+                                      if (
+                                        allUniqueDomains.length > 0 &&
+                                        allUniqueDomains.length > selectedModelDomainIndex
+                                      ) {
+                                        const selectedDomain =
+                                          allUniqueDomains[selectedModelDomainIndex];
+                                        if (selectedDomain) {
+                                          const path = resolveEndpointPath(
+                                            route.match?.path?.value || '/',
+                                            route.match?.path?.type,
+                                            modelConfig.modelAPIConfig.aiProtocols,
+                                          );
+                                          const formattedDomain = formatDomainWithPort(
+                                            selectedDomain.domain,
+                                            selectedDomain.port,
+                                            selectedDomain.protocol,
+                                          );
+                                          const fullUrl = `${selectedDomain.protocol.toLowerCase()}://${formattedDomain}${path}`;
+                                          copyToClipboard(fullUrl).then(() =>
+                                            message.success('链接已复制到剪贴板'),
+                                          );
+                                        }
+                                      } else if (route.domains && route.domains.length > 0) {
+                                        const domain = route.domains[0];
+                                        if (domain) {
+                                          const path = resolveEndpointPath(
+                                            route.match?.path?.value || '/',
+                                            route.match?.path?.type,
+                                            modelConfig.modelAPIConfig.aiProtocols,
+                                          );
+                                          const formattedDomain = formatDomainWithPort(
+                                            domain.domain,
+                                            domain.port,
+                                            domain.protocol,
+                                          );
+                                          const fullUrl = `${domain.protocol.toLowerCase()}://${formattedDomain}${path}`;
+                                          copyToClipboard(fullUrl).then(() =>
+                                            message.success('链接已复制到剪贴板'),
+                                          );
+                                        }
+                                      }
+                                    }}
+                                    size="small"
+                                    type="text"
+                                  />
+                                </div>
+                              }
+                              key={index}
+                            >
+                              <div className="pl-4 space-y-4 pb-4">
+                                {/* 域名信息 */}
+                                <div>
+                                  <div className="text-xs text-gray-500 mb-2">域名:</div>
+                                  {route.domains?.map((domain, domainIndex: number) => {
+                                    const formattedDomain = formatDomainWithPort(
+                                      domain.domain,
+                                      domain.port,
+                                      domain.protocol,
+                                    );
+                                    return (
+                                      <div
+                                        className="text-sm font-mono bg-gray-50 px-3 py-2 rounded-lg mb-1"
+                                        key={domainIndex}
+                                      >
+                                        {domain.protocol.toLowerCase()}://{formattedDomain}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+
+                                {/* 匹配规则 */}
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div>
+                                    <div className="text-xs text-gray-500 mb-1">路径:</div>
+                                    <div className="text-sm font-mono bg-gray-50 px-3 py-2 rounded-lg">
+                                      {getMatchTypePrefix(route.match?.path?.type)}{' '}
+                                      {route.match?.path?.value}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <div className="text-xs text-gray-500 mb-1">方法:</div>
+                                    <div className="text-sm font-mono bg-gray-50 px-3 py-2 rounded-lg">
+                                      {getMethodsText(route)}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* 请求头匹配 */}
+                                {route.match?.headers && route.match.headers.length > 0 && (
+                                  <div>
+                                    <div className="text-xs text-gray-500 mb-2">请求头匹配:</div>
+                                    <div className="space-y-1">
+                                      {route.match.headers.map((header, headerIndex: number) => (
+                                        <div
+                                          className="text-sm font-mono bg-gray-50 px-3 py-2 rounded-lg"
+                                          key={headerIndex}
+                                        >
+                                          {header.name} {getMatchTypePrefix(header.type)}{' '}
+                                          {header.value}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* 查询参数匹配 */}
+                                {route.match?.queryParams && route.match.queryParams.length > 0 && (
+                                  <div>
+                                    <div className="text-xs text-gray-500 mb-2">查询参数匹配:</div>
+                                    <div className="space-y-1">
+                                      {route.match.queryParams.map((param, paramIndex: number) => (
+                                        <div
+                                          className="text-sm font-mono bg-gray-50 px-3 py-2 rounded-lg"
+                                          key={paramIndex}
+                                        >
+                                          {param.name} {getMatchTypePrefix(param.type)}{' '}
+                                          {param.value}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </Panel>
+                          ))}
+                        </Collapse>
+                      </div>
                     </div>
-                  ) : (
-                    <div className="text-gray-500 text-center py-16">
-                      暂无配置信息
-                    </div>
-                  ),
-                },
-              ]}
-            />
-          </div>
+                  )}
+              </div>
+            ) : (
+              <div className="text-gray-500 text-center py-16">暂无配置信息</div>
+            ),
+            key: 'configuration',
+            label: `配置${modelConfig?.modelAPIConfig?.routes ? ` (${modelConfig.modelAPIConfig.routes.length})` : ''}`,
+          },
+        ]}
+        size="large"
+      />
+    </div>
   ) : null;
 
   const rightContent = (
     <>
       <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-6">
         <h3 className="text-base font-semibold mb-2 text-gray-900">Model 调试</h3>
-            <Tabs
-              defaultActiveKey="chat"
-              items={[
-                {
-                  key: "chat",
-                  label: "Chat",
-                  children: (
-                    <div className="space-y-4">
-                      {/* 功能介绍 */}
-                      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
-                        <div className="flex items-start gap-3 mb-3">
-                          <MessageOutlined className="text-xl text-blue-600 mt-0.5" />
-                          <div>
-                            <h4 className="text-sm font-semibold text-gray-900 mb-1">实时对话测试</h4>
-                            <p className="text-xs text-gray-600 leading-relaxed">
-                              在交互式环境中测试模型能力，支持多轮对话、实时响应
-                            </p>
-                          </div>
-                        </div>
+        <Tabs
+          defaultActiveKey="chat"
+          items={[
+            {
+              children: (
+                <div className="space-y-4">
+                  {/* 功能介绍 */}
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
+                    <div className="flex items-start gap-3 mb-3">
+                      <MessageOutlined className="text-xl text-blue-600 mt-0.5" />
+                      <div>
+                        <h4 className="text-sm font-semibold text-gray-900 mb-1">实时对话测试</h4>
+                        <p className="text-xs text-gray-600 leading-relaxed">
+                          在交互式环境中测试模型能力，支持多轮对话、实时响应
+                        </p>
                       </div>
-
-                      {/* 功能特性 */}
-                      <div className="space-y-2">
-                        <div className="flex items-start gap-2 text-xs text-gray-600">
-                          <ThunderboltOutlined className="text-amber-500 mt-0.5" />
-                          <span>支持流式输出，实时查看生成结果</span>
-                        </div>
-                        <div className="flex items-start gap-2 text-xs text-gray-600">
-                          <MessageOutlined className="text-blue-500 mt-0.5" />
-                          <span>保存对话历史，支持多轮交互测试</span>
-                        </div>
-                      </div>
-
-                      {/* 操作按钮 */}
-                      <Button
-                        type="primary"
-                        block
-                        size="large"
-                        icon={<MessageOutlined />}
-                        className="rounded-lg mt-4"
-                        onClick={() => {
-                          if (!isLoggedIn) {
-                            setLoginPromptOpen(true);
-                            return;
-                          }
-                          if (hasSubscription) {
-                            navigate("/chat", { state: { selectedProduct: data } });
-                          } else {
-                            message.warning('请先订阅该产品后再进行对话测试');
-                            headerRef.current?.showManageModal();
-                          }
-                        }}
-                      >
-                        {!isLoggedIn ? '登录后开始对话' : hasSubscription ? '开始对话测试' : '订阅并开始对话'}
-                      </Button>
                     </div>
-                  ),
-                },
-                {
-                  key: "curl",
-                  label: "cURL",
-                  children: modelConfig?.modelAPIConfig ? (
-                    <div className="space-y-4">
-                      {generateCurlExample() ? (
-                        <>
-                          <div className="relative">
-                            <pre className="bg-gray-900 text-gray-100 p-4 rounded-xl text-xs overflow-x-auto whitespace-pre-wrap border border-gray-700">
-                              <code>{generateCurlExample()}</code>
-                            </pre>
-                            <Button
-                              size="small"
-                              type="text"
-                              icon={<CopyOutlined />}
-                              className="absolute top-2 right-2 text-gray-400 hover:text-white"
-                              onClick={async () => {
-                                const curlCommand = generateCurlExample();
-                                if (curlCommand) {
-                                  copyToClipboard(curlCommand).then(() => {
-                                    message.success('Curl命令已复制到剪贴板');
-                                  });
-                                }
-                              }}
-                            />
-                          </div>
-                          {!data?.feature?.modelFeature?.model && (
-                            <div className="text-xs text-gray-500 bg-blue-50 px-3 py-2 rounded-lg">
-                              💡 将 <code className="bg-white px-1.5 py-0.5 rounded text-blue-600">{"{{model_name}}"}</code> 替换为实际的模型名称
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <div className="text-gray-400 text-center py-8">
-                          当前配置中没有找到路由
+                  </div>
+
+                  {/* 功能特性 */}
+                  <div className="space-y-2">
+                    <div className="flex items-start gap-2 text-xs text-gray-600">
+                      <ThunderboltOutlined className="text-amber-500 mt-0.5" />
+                      <span>支持流式输出，实时查看生成结果</span>
+                    </div>
+                    <div className="flex items-start gap-2 text-xs text-gray-600">
+                      <MessageOutlined className="text-blue-500 mt-0.5" />
+                      <span>保存对话历史，支持多轮交互测试</span>
+                    </div>
+                  </div>
+
+                  {/* 操作按钮 */}
+                  <Button
+                    block
+                    className="rounded-lg mt-4"
+                    icon={<MessageOutlined />}
+                    onClick={() => {
+                      if (!isLoggedIn) {
+                        setLoginPromptOpen(true);
+                        return;
+                      }
+                      if (hasSubscription) {
+                        navigate('/chat', { state: { selectedProduct: data } });
+                      } else {
+                        message.warning('请先订阅该产品后再进行对话测试');
+                        headerRef.current?.showManageModal();
+                      }
+                    }}
+                    size="large"
+                    type="primary"
+                  >
+                    {!isLoggedIn
+                      ? '登录后开始对话'
+                      : hasSubscription
+                        ? '开始对话测试'
+                        : '订阅并开始对话'}
+                  </Button>
+                </div>
+              ),
+              key: 'chat',
+              label: 'Chat',
+            },
+            {
+              children: modelConfig?.modelAPIConfig ? (
+                <div className="space-y-4">
+                  {generateCurlExample() ? (
+                    <>
+                      <div className="relative">
+                        <pre className="bg-gray-900 text-gray-100 p-4 rounded-xl text-xs overflow-x-auto whitespace-pre-wrap border border-gray-700">
+                          <code>{generateCurlExample()}</code>
+                        </pre>
+                        <Button
+                          className="absolute top-2 right-2 text-gray-400 hover:text-white"
+                          icon={<CopyOutlined />}
+                          onClick={async () => {
+                            const curlCommand = generateCurlExample();
+                            if (curlCommand) {
+                              copyToClipboard(curlCommand).then(() => {
+                                message.success('Curl命令已复制到剪贴板');
+                              });
+                            }
+                          }}
+                          size="small"
+                          type="text"
+                        />
+                      </div>
+                      {!data?.feature?.modelFeature?.model && (
+                        <div className="text-xs text-gray-500 bg-blue-50 px-3 py-2 rounded-lg">
+                          💡 将{' '}
+                          <code className="bg-white px-1.5 py-0.5 rounded text-blue-600">
+                            {'{{model_name}}'}
+                          </code>{' '}
+                          替换为实际的模型名称
                         </div>
                       )}
-                    </div>
+                    </>
                   ) : (
-                    <div className="text-gray-400 text-center py-16">
-                      暂无 Model API 配置信息
-                    </div>
-                  ),
-                },
-              ]}
-            />
+                    <div className="text-gray-400 text-center py-8">当前配置中没有找到路由</div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-gray-400 text-center py-16">暂无 Model API 配置信息</div>
+              ),
+              key: 'curl',
+              label: 'cURL',
+            },
+          ]}
+        />
       </div>
       <LoginPrompt
-        open={loginPromptOpen}
-        onClose={() => setLoginPromptOpen(false)}
         contextMessage={tLoginPrompt('contextSubscribeModel')}
+        onClose={() => setLoginPromptOpen(false)}
+        open={loginPromptOpen}
       />
     </>
   );
 
   return (
     <ProductDetailLayout
-      loading={loading}
-      error={error || (!data ? "未找到对应的模型" : undefined)}
-      headerProps={data ? {
-        name: data.name,
-        description: data.description,
-        icon: data.icon,
-        updatedAt: data.updatedAt,
-        productType: "MODEL_API",
-        ref: headerRef,
-        onSubscriptionStatusChange: handleSubscriptionStatusChange,
-      } : undefined}
+      error={error || (!data ? '未找到对应的模型' : undefined)}
+      headerProps={
+        data
+          ? {
+              description: data.description,
+              icon: data.icon,
+              name: data.name,
+              onSubscriptionStatusChange: handleSubscriptionStatusChange,
+              productType: 'MODEL_API',
+              ref: headerRef,
+              updatedAt: data.updatedAt,
+            }
+          : undefined
+      }
       leftContent={leftContent}
+      loading={loading}
       rightContent={rightContent}
     />
   );

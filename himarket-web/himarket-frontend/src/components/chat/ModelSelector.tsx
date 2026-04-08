@@ -1,10 +1,11 @@
-import { useState } from "react";
-import { DownOutlined, CheckOutlined, SearchOutlined } from "@ant-design/icons";
-import { Dropdown, Input, Tabs, Spin } from "antd";
-import { ProductIconRenderer } from "../icon/ProductIconRenderer";
-import EmptyData from "../../assets/empty-data.svg";
-import type { ICategory, IProductDetail } from "../../lib/apis";
+import { DownOutlined, CheckOutlined, SearchOutlined } from '@ant-design/icons';
+import { Dropdown, Input, Tabs, Spin } from 'antd';
+import { useState } from 'react';
 
+import EmptyData from '../../assets/empty-data.svg';
+import { ProductIconRenderer } from '../icon/ProductIconRenderer';
+
+import type { ICategory, IProductDetail } from '../../lib/apis';
 
 interface ModelSelectorProps {
   selectedModelId: string;
@@ -16,27 +17,29 @@ interface ModelSelectorProps {
 }
 
 export function ModelSelector({
-  selectedModelId,
-  onSelectModel,
-  modelList = [],
-  loading = false,
   categories = [],
   categoriesLoading = false,
+  loading = false,
+  modelList = [],
+  onSelectModel,
+  selectedModelId,
 }: ModelSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [activeCategory, setActiveCategory] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeCategory, setActiveCategory] = useState<string>('all');
 
-  const currentModel = modelList.find(m => m.productId === selectedModelId) || modelList[0];
+  const currentModel = modelList.find((m) => m.productId === selectedModelId) || modelList[0];
 
   // 根据分类和搜索过滤模型
-  const filteredModels =  modelList.filter(model => {
+  const filteredModels = modelList.filter((model) => {
     // 分类过滤：如果选择"全部"或模型的 productCategories 包含当前选中的分类
-    const matchesCategory = activeCategory === "all" ||
-      model.categories.map(c => c.categoryId).includes(activeCategory);
+    const matchesCategory =
+      activeCategory === 'all' ||
+      model.categories.map((c) => c.categoryId).includes(activeCategory);
 
     // 搜索过滤
-    const matchesSearch = searchQuery === "" ||
+    const matchesSearch =
+      searchQuery === '' ||
       model.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       model.description.toLowerCase().includes(searchQuery.toLowerCase());
 
@@ -46,7 +49,7 @@ export function ModelSelector({
   const handleModelSelect = (model: IProductDetail) => {
     onSelectModel(model);
     setIsOpen(false);
-    setSearchQuery("");
+    setSearchQuery('');
   };
 
   // 浮层内容
@@ -55,12 +58,12 @@ export function ModelSelector({
       {/* 搜索框 */}
       <div className="p-4 pb-3">
         <Input
-          prefix={<SearchOutlined className="text-gray-400" />}
-          placeholder="搜索模型..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="rounded-lg"
           allowClear
+          className="rounded-lg"
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="搜索模型..."
+          prefix={<SearchOutlined className="text-gray-400" />}
+          value={searchQuery}
         />
       </div>
 
@@ -73,11 +76,11 @@ export function ModelSelector({
         ) : (
           <Tabs
             activeKey={activeCategory}
-            onChange={setActiveCategory}
-            items={categories.map(category => ({
+            items={categories.map((category) => ({
               key: category.categoryId,
               label: category.name,
             }))}
+            onChange={setActiveCategory}
           />
         )}
       </div>
@@ -90,36 +93,37 @@ export function ModelSelector({
           </div>
         ) : (
           <div className="space-y-1">
-            {filteredModels.map(model => (
-              <div
-                key={model.productId}
-                onClick={() => handleModelSelect(model)}
+            {filteredModels.map((model) => (
+              <button
                 className={`
                   px-3 py-2.5 rounded-lg cursor-pointer
-                  flex items-center gap-3
+                  flex items-center gap-3 w-full text-left
                   transition-all duration-200
                   hover:bg-colorPrimaryBgHover hover:scale-[1.01]
                   ${
                     model.productId === selectedModelId
-                      ? "bg-colorPrimary/10 text-colorPrimary"
-                      : "text-gray-700 hover:text-gray-900"
+                      ? 'bg-colorPrimary/10 text-colorPrimary'
+                      : 'text-gray-700 hover:text-gray-900'
                   }
                 `}
+                key={model.productId}
+                onClick={() => handleModelSelect(model)}
+                type="button"
               >
-                <ProductIconRenderer iconType={model.icon?.value} className="w-5 h-5" />
+                <ProductIconRenderer className="w-5 h-5" iconType={model.icon?.value} />
                 <span className="font-medium flex-1">{model.name}</span>
                 {model.productId === selectedModelId && (
                   <CheckOutlined className="text-colorPrimary text-xs" />
                 )}
-              </div>
+              </button>
             ))}
             {!loading && filteredModels.length === 0 && (
               <div className="text-center flex gap-4 flex-col items-center justify-center py-14 text-gray-400">
-                <img src={EmptyData} />
-                <div className="text-[#333] text-[16px] font-medium">
-                  暂无模型
+                <img alt="" src={EmptyData} />
+                <div className="text-[#333] text-[16px] font-medium">暂无模型</div>
+                <div className="text-[#333]">
+                  您需要首先在 Admin 中配置模型，才能在 HiChat 中体验
                 </div>
-                <div className="text-[#333]">您需要首先在 Admin 中配置模型，才能在 HiChat 中体验</div>
               </div>
             )}
           </div>
@@ -133,23 +137,21 @@ export function ModelSelector({
       {/* 顶部模型选择器 */}
       <div className="p-4 pr-0">
         <Dropdown
-          open={isOpen}
           onOpenChange={setIsOpen}
+          open={isOpen}
+          placement="bottomLeft"
           popupRender={() => dropdownContent}
           trigger={['click']}
-          placement="bottomLeft"
         >
           {/* 当前模型 */}
-          <button
-            className="flex items-center gap-2 px-4 py-2 rounded-xl transition-all duration-200 hover:scale-[1.01] hover:bg-colorPrimaryBgHover"
-          >
+          <button className="flex items-center gap-2 px-4 py-2 rounded-xl transition-all duration-200 hover:scale-[1.01] hover:bg-colorPrimaryBgHover">
             {currentModel?.icon && (
-              <ProductIconRenderer iconType={currentModel.icon.value} className="w-5 h-5" />
+              <ProductIconRenderer className="w-5 h-5" iconType={currentModel.icon.value} />
             )}
-            <span className="font-medium text-gray-900">
-              {currentModel?.name || "选择模型"}
-            </span>
-            <DownOutlined className={`text-xs text-gray-500 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+            <span className="font-medium text-gray-900">{currentModel?.name || '选择模型'}</span>
+            <DownOutlined
+              className={`text-xs text-gray-500 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+            />
           </button>
         </Dropdown>
       </div>

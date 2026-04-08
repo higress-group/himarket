@@ -202,7 +202,7 @@ Close #456
 ```markdown
 ## 📋 Checklist
 
-- [x] Code has been formatted (`mvn spotless:apply` for backend, `npm run lint:fix` for frontend)
+- [x] 代码质量检查已通过（运行 `./scripts/code-check.sh`）
 - [x] Code is self-reviewed
 - [x] Comments added for complex code
 - [x] Documentation updated (if applicable)
@@ -211,7 +211,7 @@ Close #456
 ```
 
 **推荐项：**
-- ✅ **代码已格式化** - 提交前运行格式化命令
+- ✅ **代码质量检查已通过** - 提交前在仓库根目录运行 `./scripts/code-check.sh`
 - ✅ **代码已自我审查** - 先自己审查变更
 - 为复杂代码添加注释
 - 更新文档（如适用）
@@ -219,10 +219,9 @@ Close #456
 - 所有 CI 检查通过
 
 **重要提示：** 提交 PR 前：
-1. **后端：** 在项目根目录运行 `mvn spotless:apply`
-2. **前端：** 在前端目录运行 `npm run lint:fix`
-3. 审查自己的代码变更
-4. 提交任何格式化产生的变更
+1. **推荐：** 在仓库根目录运行 `./scripts/code-check.sh`
+2. 审查自己的代码变更
+3. 提交检查产生的格式化或自动修复变更
 
 #### 6. Test Coverage（可选）📊
 
@@ -341,7 +340,7 @@ Close #456
 
 ## 📋 Checklist
 
-- [x] Code has been formatted (`mvn spotless:apply` for backend)
+- [x] 代码质量检查已通过（运行 `./scripts/code-check.sh`）
 - [x] Code is self-reviewed
 - [x] Comments added for complex code
 - [x] Documentation updated (if applicable)
@@ -388,7 +387,7 @@ Fix #789
 
 ## 📋 Checklist
 
-- [x] Code has been formatted (`mvn spotless:apply` for backend)
+- [x] 代码质量检查已通过（运行 `./scripts/code-check.sh`）
 - [x] Code is self-reviewed
 - [x] All CI checks pass
 ```
@@ -435,7 +434,7 @@ None
 
 ## 📋 Checklist
 
-- [x] Code has been formatted (`mvn spotless:apply` for backend)
+- [x] 代码质量检查已通过（运行 `./scripts/code-check.sh`）
 - [x] Code is self-reviewed
 - [x] No breaking changes
 ```
@@ -581,7 +580,7 @@ Fix pagination bug in product list
 
 ---
 
-### 错误 6：未确认代码格式化
+### 错误 6：未确认代码质量检查
 
 **错误写法：**
 ```markdown
@@ -591,7 +590,7 @@ Fix pagination bug in product list
 
 ## 📋 Checklist
 
-- [ ] Code has been formatted with `mvn spotless:apply`  <!-- 未勾选 -->
+- [ ] 代码质量检查已通过（运行 `./scripts/code-check.sh`）  <!-- 未勾选 -->
 - [x] Code is self-reviewed
 ```
 
@@ -603,15 +602,14 @@ Fix pagination bug in product list
 
 ## 📋 Checklist
 
-- [x] Code has been formatted (`mvn spotless:apply` for backend)  <!-- 必须勾选 -->
+- [x] 代码质量检查已通过（运行 `./scripts/code-check.sh`）  <!-- 必须勾选 -->
 - [x] Code is self-reviewed
 ```
 
 **注意：** 提交前：
-1. **后端：** 在终端运行 `mvn spotless:apply`
-2. **前端：** 在前端目录运行 `npm run lint:fix`
-3. 提交任何格式化产生的变更
-4. 验证检查清单项适用于你的变更
+1. 在仓库根目录运行 `./scripts/code-check.sh`
+2. 提交格式化或自动修复产生的变更
+3. 验证检查清单项适用于你的变更
 
 ---
 

@@ -2,7 +2,7 @@
  * 聊天和会话相关接口
  */
 
-import request, { type RespI } from "../request";
+import request, { type RespI } from '../request';
 
 // ============ 类型定义 ============
 
@@ -19,12 +19,12 @@ export interface ISession {
 export interface IAttachment {
   attachmentId: string;
   name: string;
-  type: "IMAGE" | "VIDEO" | "AUDIO" | "TEXT";
+  type: 'IMAGE' | 'VIDEO' | 'AUDIO' | 'TEXT';
   mimeType: string;
   size: number;
 }
 
-export interface IAttachmentUploadResp extends IAttachment { }
+export type IAttachmentUploadResp = IAttachment;
 
 export interface IChatMessage {
   productId: string;
@@ -177,32 +177,26 @@ interface SendChatMessageResp {
  * 创建会话
  */
 export function createSession(data: CreateSessionData) {
-  return request.post<RespI<ISession>, RespI<ISession>>("/sessions", data);
+  return request.post<RespI<ISession>, RespI<ISession>>('/sessions', data);
 }
 
 /**
  * 获取会话列表
  */
 export function getSessions(params?: GetSessionsParams) {
-  return request.get<RespI<GetSessionsResp>, RespI<GetSessionsResp>>(
-    "/sessions",
-    {
-      params: {
-        page: params?.page || 0,
-        size: params?.size || 20,
-      },
-    }
-  );
+  return request.get<RespI<GetSessionsResp>, RespI<GetSessionsResp>>('/sessions', {
+    params: {
+      page: params?.page || 0,
+      size: params?.size || 20,
+    },
+  });
 }
 
 /**
  * 更新会话名称
  */
 export function updateSession(sessionId: string, data: UpdateSessionData) {
-  return request.patch<RespI<ISession>, RespI<ISession>>(
-    `/sessions/${sessionId}`,
-    data
-  );
+  return request.patch<RespI<ISession>, RespI<ISession>>(`/sessions/${sessionId}`, data);
 }
 
 /**
@@ -216,17 +210,14 @@ export function deleteSession(sessionId: string) {
  * 发送聊天消息（非流式）
  */
 export function sendChatMessage(message: IChatMessage) {
-  return request.post<RespI<SendChatMessageResp>, RespI<SendChatMessageResp>>(
-    "/chats",
-    message
-  );
+  return request.post<RespI<SendChatMessageResp>, RespI<SendChatMessageResp>>('/chats', message);
 }
 
 /**
  * 获取聊天消息流式接口的完整 URL（用于 SSE）
  */
 export function getChatMessageStreamUrl(): string {
-  const baseURL = (request.defaults.baseURL || "") as string;
+  const baseURL = (request.defaults.baseURL || '') as string;
   return `${baseURL}/chats`;
 }
 
@@ -235,7 +226,7 @@ export function getChatMessageStreamUrl(): string {
  */
 export function getConversations(sessionId: string) {
   return request.get<RespI<IConversation[]>, RespI<IConversation[]>>(
-    `/sessions/${sessionId}/conversations`
+    `/sessions/${sessionId}/conversations`,
   );
 }
 
@@ -243,10 +234,9 @@ export function getConversations(sessionId: string) {
  * 获取会话的历史聊天记录（V2版本 - 支持多模型对比）
  */
 export function getConversationsV2(sessionId: string) {
-  return request.get<
-    RespI<IProductConversations[]>,
-    RespI<IProductConversations[]>
-  >(`/sessions/${sessionId}/conversations/v2`);
+  return request.get<RespI<IProductConversations[]>, RespI<IProductConversations[]>>(
+    `/sessions/${sessionId}/conversations/v2`,
+  );
 }
 
 /**
@@ -254,15 +244,16 @@ export function getConversationsV2(sessionId: string) {
  */
 export function uploadAttachment(file: File) {
   const formData = new FormData();
-  formData.append("file", file);
-  return request.post<
-    RespI<IAttachmentUploadResp>,
-    RespI<IAttachmentUploadResp>
-  >("/attachments", formData, {
-    headers: {
-      "Content-Type": "multipart/form-data",
+  formData.append('file', file);
+  return request.post<RespI<IAttachmentUploadResp>, RespI<IAttachmentUploadResp>>(
+    '/attachments',
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
     },
-  });
+  );
 }
 
 export interface IAttachmentContent extends IAttachment {
@@ -274,6 +265,6 @@ export interface IAttachmentContent extends IAttachment {
  */
 export function getAttachment(attachmentId: string) {
   return request.get<RespI<IAttachmentContent>, RespI<IAttachmentContent>>(
-    `/attachments/${attachmentId}`
+    `/attachments/${attachmentId}`,
   );
 }

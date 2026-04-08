@@ -1,5 +1,6 @@
-import * as echarts from "echarts";
-import { DataPoint } from "../types/sls";
+import type { DataPoint } from '../types/sls';
+import type * as echarts from 'echarts';
+import type { ReactNode } from 'react';
 
 /**
  * ECharts通用配置选项
@@ -19,79 +20,74 @@ export interface ChartBaseOptions {
  */
 export function generateLineChartOption(
   dataPoints: DataPoint[],
-  options: ChartBaseOptions & { seriesName?: string } = {}
+  options: ChartBaseOptions & { seriesName?: string } = {},
 ): echarts.EChartsOption {
-  const {
-    title,
-    xAxisLabel,
-    yAxisLabel,
-    isPercentage = false,
-    seriesName,
-  } = options;
+  const { isPercentage = false, seriesName, title, xAxisLabel, yAxisLabel } = options;
 
   // 提取时间戳和值
-  const timestamps = dataPoints.map(p => p.timestamp);
-  const values = dataPoints.map(p => {
-    const val = typeof p.value === "string" ? parseFloat(p.value) : p.value;
+  const timestamps = dataPoints.map((p) => p.timestamp);
+  const values = dataPoints.map((p) => {
+    const val = typeof p.value === 'string' ? parseFloat(p.value) : p.value;
     const numVal = isNaN(val) ? 0 : val;
     // 如果是百分比，将0-1的小数转换为0-100的百分比
     return isPercentage ? numVal * 100 : numVal;
   });
 
   return {
-    title: title ? { text: title, left: "center" } : undefined,
-    tooltip: {
-      trigger: "axis",
-      formatter: params => {
-        if (!Array.isArray(params) || params.length === 0) return "";
-        const param = params[0];
-        const value = isPercentage
-          ? `${Number(param.value || 0).toFixed(2)}%`
-          : Number(param.value || 0).toLocaleString();
-        return `${param.name || ""}<br/>${param.marker}${param.seriesName}: ${value}`;
-      },
-    },
-    legend: {
-      top: "top",
-      left: "center",
-    },
     grid: {
+      bottom: 32,
+      containLabel: true,
       left: 40,
       right: 56,
       top: 40,
-      bottom: 32,
-      containLabel: true,
     },
-    xAxis: {
-      type: "category",
-      data: timestamps,
-      name: xAxisLabel,
-      axisLabel: {
-        rotate: 45,
-        formatter: (value: string) => {
-          // 简化时间显示：只显示时分秒
-          const parts = value.split(" ");
-          return parts.length > 1 ? parts[1] : value;
-        },
-      },
-    },
-    yAxis: {
-      type: "value",
-      name: yAxisLabel,
-      axisLabel: {
-        formatter: isPercentage ? "{value}%" : "{value}",
-      },
+    legend: {
+      left: 'center',
+      top: 'top',
     },
     series: [
       {
-        name: seriesName || "数值",
-        type: "line" as const,
-        smooth: true,
-        showSymbol: false,
         areaStyle: {},
         data: values,
+        name: seriesName || '数值',
+        showSymbol: false,
+        smooth: true,
+        type: 'line' as const,
       },
     ],
+    title: title ? { left: 'center', text: title } : undefined,
+    tooltip: {
+      formatter: (params) => {
+        if (!Array.isArray(params) || params.length === 0) return '';
+        const param = params[0];
+        if (!param) return '';
+        const value = isPercentage
+          ? `${Number(param.value || 0).toFixed(2)}%`
+          : Number(param.value || 0).toLocaleString();
+        return `${param.name || ''}<br/>${param.marker}${param.seriesName}: ${value}`;
+      },
+      trigger: 'axis',
+    },
+    xAxis: {
+      axisLabel: {
+        formatter: (value: string) => {
+          // 简化时间显示：只显示时分秒
+          const parts = value.split(' ');
+          return parts.length > 1 ? (parts[1] ?? value) : value;
+        },
+        rotate: 45,
+      },
+      data: timestamps,
+      name: xAxisLabel,
+      type: 'category',
+    },
+    yAxis: {
+      axisLabel: {
+        formatter: isPercentage ? '{value}%' : '{value}',
+      },
+      name: yAxisLabel,
+      type: 'value',
+    },
   };
 }
 
@@ -103,43 +99,56 @@ export function generateLineChartOption(
  */
 export function generateMultiLineChartOption(
   seriesData: { name: string; dataPoints: DataPoint[] }[],
-  options: ChartBaseOptions = {}
+  options: ChartBaseOptions = {},
 ): echarts.EChartsOption {
-  const { title, xAxisLabel, yAxisLabel, isPercentage = false } = options;
+  const { isPercentage = false, title, xAxisLabel, yAxisLabel } = options;
 
   if (seriesData.length === 0) {
     return {};
   }
 
   // 使用第一个序列的时间戳作为X轴
-  const timestamps = seriesData[0]?.dataPoints.map(p => p.timestamp) || [];
+  const timestamps = seriesData[0]?.dataPoints.map((p) => p.timestamp) || [];
 
-  const series = seriesData.map(s => {
-    const values = s.dataPoints.map(p => {
-      const val = typeof p.value === "string" ? parseFloat(p.value) : p.value;
+  const series = seriesData.map((s) => {
+    const values = s.dataPoints.map((p) => {
+      const val = typeof p.value === 'string' ? parseFloat(p.value) : p.value;
       const numVal = isNaN(val) ? 0 : val;
       // 如果是百分比，将0-1的小数转换为0-100的百分比
       return isPercentage ? numVal * 100 : numVal;
     });
 
     return {
-      name: s.name,
-      type: "line" as const,
-      smooth: true,
-      showSymbol: false,
       areaStyle: {},
       data: values,
+      name: s.name,
+      showSymbol: false,
+      smooth: true,
+      type: 'line' as const,
     };
   });
 
   return {
-    title: title ? { text: title, left: "center" } : undefined,
+    grid: {
+      bottom: 32,
+      containLabel: true,
+      left: 40,
+      right: 56,
+      top: 40,
+    },
+    legend: {
+      left: 'center',
+      top: 'top',
+    },
+    series: series,
+    title: title ? { left: 'center', text: title } : undefined,
     tooltip: {
-      trigger: "axis",
-      formatter: params => {
-        if (!Array.isArray(params) || params.length === 0) return "";
-        let result = `${params[0].name || ""}<br/>`;
-        params.forEach(param => {
+      formatter: (params) => {
+        if (!Array.isArray(params) || params.length === 0) return '';
+        const head = params[0];
+        if (!head) return '';
+        let result = `${head.name || ''}<br/>`;
+        params.forEach((param) => {
           const value = isPercentage
             ? `${Number(param.value || 0).toFixed(2)}%`
             : Number(param.value || 0).toLocaleString();
@@ -147,38 +156,27 @@ export function generateMultiLineChartOption(
         });
         return result;
       },
-    },
-    legend: {
-      top: "top",
-      left: "center",
-    },
-    grid: {
-      left: 40,
-      right: 56,
-      top: 40,
-      bottom: 32,
-      containLabel: true,
+      trigger: 'axis',
     },
     xAxis: {
-      type: "category",
+      axisLabel: {
+        formatter: (value: string) => {
+          const parts = value.split(' ');
+          return parts.length > 1 ? (parts[1] ?? value) : value;
+        },
+        rotate: 45,
+      },
       data: timestamps,
       name: xAxisLabel,
-      axisLabel: {
-        rotate: 45,
-        formatter: (value: string) => {
-          const parts = value.split(" ");
-          return parts.length > 1 ? parts[1] : value;
-        },
-      },
+      type: 'category',
     },
     yAxis: {
-      type: "value",
-      name: yAxisLabel,
       axisLabel: {
-        formatter: isPercentage ? "{value}%" : "{value}",
+        formatter: isPercentage ? '{value}%' : '{value}',
       },
+      name: yAxisLabel,
+      type: 'value',
     },
-    series: series,
   };
 }
 
@@ -187,18 +185,16 @@ export function generateMultiLineChartOption(
  * @param message 提示消息
  * @returns ECharts配置对象
  */
-export function generateEmptyChartOption(
-  message: string = "暂无数据"
-): echarts.EChartsOption {
+export function generateEmptyChartOption(message: string = '暂无数据'): echarts.EChartsOption {
   return {
     title: {
+      left: 'center',
       text: message,
-      left: "center",
-      top: "middle",
       textStyle: {
-        color: "#999",
+        color: '#999',
         fontSize: 14,
       },
+      top: 'middle',
     },
     xAxis: { show: false },
     yAxis: { show: false },
@@ -214,23 +210,24 @@ export function generateTableColumns(data: Record<string, unknown>[]): Array<{
   title: string;
   dataIndex: string;
   key: string;
-  render: (text: unknown) => React.ReactNode;
+  render: (text: unknown) => ReactNode;
 }> {
   if (!data || data.length === 0) return [];
 
   const firstRow = data[0];
+  if (!firstRow) return [];
   const keys = Object.keys(firstRow);
 
-  return keys.map(key => ({
-    title: key,
+  return keys.map((key) => ({
     dataIndex: key,
     key: key,
     render: (text: unknown) => {
       // 如果是数字，格式化显示
-      if (typeof text === "number") {
-        return text.toLocaleString("en-US");
+      if (typeof text === 'number') {
+        return text.toLocaleString('en-US');
       }
-      return text as React.ReactNode;
+      return text as ReactNode;
     },
+    title: key,
   }));
 }

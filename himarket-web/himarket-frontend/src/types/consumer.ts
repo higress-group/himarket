@@ -1,4 +1,4 @@
-import type { Product } from "./index";
+import type { Product } from './index';
 
 export interface Consumer {
   consumerId: string;
@@ -70,4 +70,4 @@ export interface CreateCredentialParam {
     }>;
   };
   jwtConfig?: Record<string, unknown>;
-} 
+}

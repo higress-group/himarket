@@ -1,4 +1,3 @@
-import { useState, useEffect, useCallback } from "react";
 import {
   PlusOutlined,
   DownOutlined,
@@ -7,22 +6,31 @@ import {
   MoreOutlined,
   CheckOutlined,
   CloseOutlined,
-} from "@ant-design/icons";
-import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
-import { message as antdMessage, Spin, Dropdown, Modal } from "antd";
-import type { MenuProps } from "antd";
-import "./SessionSidebar.css";
+} from '@ant-design/icons';
+import { message as antdMessage, Spin, Dropdown, Modal } from 'antd';
+import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+
+import './SessionSidebar.css';
 import {
   getCodingSessions,
   deleteCodingSession,
   updateCodingSession,
   type ICodingSession,
-} from "../../lib/apis/codingSession";
+} from '../../lib/apis/codingSession';
+
+import type { MenuProps } from 'antd';
 
 export interface SessionSidebarProps {
   activeCliSessionId: string | null;
   agentSupportsLoadSession: boolean;
-  onLoadSession: (cliSessionId: string, cwd: string, title: string, platformSessionId: string, providerKey: string) => void;
+  onLoadSession: (
+    cliSessionId: string,
+    cwd: string,
+    title: string,
+    platformSessionId: string,
+    providerKey: string,
+  ) => void;
   onNewSession: () => void;
   /** External trigger to refresh the session list (increment to trigger) */
   refreshTrigger?: number;
@@ -43,14 +51,14 @@ interface SessionItem {
 
 function toSessionItems(sessions: ICodingSession[]): SessionItem[] {
   return sessions.map((s) => ({
-    id: s.sessionId,
-    sessionId: s.sessionId,
     cliSessionId: s.cliSessionId,
-    title: s.title || "未命名会话",
     cwd: s.cwd,
-    providerKey: s.providerKey || "",
+    id: s.sessionId,
     modelName: s.modelName || undefined,
+    providerKey: s.providerKey || '',
+    sessionId: s.sessionId,
     timestamp: new Date(s.updatedAt || s.createdAt),
+    title: s.title || '未命名会话',
   }));
 }
 
@@ -74,16 +82,16 @@ function categorizeByTime(sessions: SessionItem[]) {
     }
   });
 
-  return { today, last7Days, last30Days };
+  return { last30Days, last7Days, today };
 }
 
 export function SessionSidebar({
   activeCliSessionId,
   agentSupportsLoadSession,
+  defaultCollapsed = true,
   onLoadSession,
   onNewSession,
   refreshTrigger,
-  defaultCollapsed = true,
 }: SessionSidebarProps) {
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
 
@@ -93,18 +101,18 @@ export function SessionSidebar({
   }, [defaultCollapsed]);
 
   const [expandedSections, setExpandedSections] = useState({
-    today: true,
-    last7Days: false,
     last30Days: false,
+    last7Days: false,
+    today: true,
   });
   const [sessions, setSessions] = useState<SessionItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
-  const [editingName, setEditingName] = useState("");
-  const [originalName, setOriginalName] = useState("");
+  const [editingName, setEditingName] = useState('');
+  const [originalName, setOriginalName] = useState('');
 
   // 检测操作系统
-  const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+  const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
 
   // 获取会话列表
   const fetchSessions = useCallback(async () => {
@@ -120,8 +128,8 @@ export function SessionSidebar({
           : [];
       setSessions(toSessionItems(list));
     } catch (err) {
-      console.error("[SessionSidebar] Failed to fetch sessions:", err);
-      antdMessage.error("获取会话列表失败");
+      console.error('[SessionSidebar] Failed to fetch sessions:', err);
+      antdMessage.error('获取会话列表失败');
     } finally {
       setLoading(false);
     }
@@ -137,16 +145,16 @@ export function SessionSidebar({
       if (
         event.shiftKey &&
         (isMac ? event.metaKey : event.ctrlKey) &&
-        event.key.toLowerCase() === "o"
+        event.key.toLowerCase() === 'o'
       ) {
         event.preventDefault();
         onNewSession();
       }
     };
 
-    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
     return () => {
-      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener('keydown', handleKeyDown);
     };
   }, [isMac, onNewSession]);
 
@@ -169,7 +177,7 @@ export function SessionSidebar({
     const trimmedName = editingName.trim();
 
     if (!trimmedName) {
-      antdMessage.error("会话名称不能为空");
+      antdMessage.error('会话名称不能为空');
       return;
     }
 
@@ -182,40 +190,38 @@ export function SessionSidebar({
       const response = await updateCodingSession(sessionId, {
         title: trimmedName,
       });
-      if (response.code === "SUCCESS") {
+      if (response.code === 'SUCCESS') {
         setSessions((prev) =>
           prev.map((session) =>
-            session.id === sessionId
-              ? { ...session, title: trimmedName }
-              : session,
+            session.id === sessionId ? { ...session, title: trimmedName } : session,
           ),
         );
-        antdMessage.success("重命名成功");
+        antdMessage.success('重命名成功');
         setEditingSessionId(null);
-        setEditingName("");
-        setOriginalName("");
+        setEditingName('');
+        setOriginalName('');
       } else {
-        throw new Error("重命名失败");
+        throw new Error('重命名失败');
       }
     } catch (error) {
-      console.error("Failed to rename session:", error);
-      antdMessage.error("重命名失败");
+      console.error('Failed to rename session:', error);
+      antdMessage.error('重命名失败');
     }
   };
 
   // 取消编辑
   const handleCancelEdit = () => {
     setEditingSessionId(null);
-    setEditingName("");
-    setOriginalName("");
+    setEditingName('');
+    setOriginalName('');
   };
 
   // 处理键盘事件
   const handleEditKeyDown = (e: React.KeyboardEvent, sessionId: string) => {
-    if (e.key === "Enter") {
+    if (e.key === 'Enter') {
       e.preventDefault();
       handleSaveEdit(sessionId);
-    } else if (e.key === "Escape") {
+    } else if (e.key === 'Escape') {
       e.preventDefault();
       handleCancelEdit();
     }
@@ -224,18 +230,15 @@ export function SessionSidebar({
   // 删除会话
   const handleDeleteSession = (sessionId: string, sessionName: string) => {
     Modal.confirm({
-      title: "确认删除",
+      cancelText: '取消',
       content: `确定要删除会话 "${sessionName}" 吗？此操作无法撤销。`,
-      okText: "删除",
-      okType: "danger",
-      cancelText: "取消",
+      okText: '删除',
+      okType: 'danger',
       onOk: async () => {
         try {
           await deleteCodingSession(sessionId);
-          setSessions((prev) =>
-            prev.filter((session) => session.id !== sessionId),
-          );
-          antdMessage.success("删除成功");
+          setSessions((prev) => prev.filter((session) => session.id !== sessionId));
+          antdMessage.success('删除成功');
 
           // 如果删除的是当前活跃会话，触发新建
           const deletedSession = sessions.find((s) => s.id === sessionId);
@@ -243,10 +246,11 @@ export function SessionSidebar({
             onNewSession();
           }
         } catch (error) {
-          console.error("Failed to delete session:", error);
-          antdMessage.error("删除失败");
+          console.error('Failed to delete session:', error);
+          antdMessage.error('删除失败');
         }
       },
+      title: '确认删除',
     });
   };
 
@@ -254,19 +258,19 @@ export function SessionSidebar({
   const getSessionMenu = (session: SessionItem): MenuProps => ({
     items: [
       {
-        key: "rename",
-        label: "重命名",
         icon: <EditOutlined />,
+        key: 'rename',
+        label: '重命名',
         onClick: ({ domEvent }) => {
           domEvent.stopPropagation();
           handleStartEdit(session.id, session.title);
         },
       },
       {
-        key: "delete",
-        label: "删除",
-        icon: <DeleteOutlined />,
         danger: true,
+        icon: <DeleteOutlined />,
+        key: 'delete',
+        label: '删除',
         onClick: ({ domEvent }) => {
           domEvent.stopPropagation();
           handleDeleteSession(session.id, session.title);
@@ -275,7 +279,7 @@ export function SessionSidebar({
     ],
   });
 
-  const { today, last7Days, last30Days } = categorizeByTime(sessions);
+  const { last30Days, last7Days, today } = categorizeByTime(sessions);
 
   const renderSessionGroup = (
     title: string,
@@ -286,24 +290,31 @@ export function SessionSidebar({
 
     return (
       <div className="mb-2">
-        <div
-          className={`${expandedSections[sectionKey] ? "bg-white" : ""} sticky top-0 z-10 flex items-center justify-between px-3 py-2 text-sm text-subTitle cursor-pointer hover:bg-white/30 rounded-lg transition-all duration-200 hover:scale-[1.02] backdrop-blur-xl`}
+        <button
+          className={`${expandedSections[sectionKey] ? 'bg-white' : ''} sticky top-0 z-10 flex items-center justify-between px-3 py-2 text-sm text-subTitle cursor-pointer hover:bg-white/30 rounded-lg transition-all duration-200 hover:scale-[1.02] backdrop-blur-xl border-0 w-full text-left`}
           onClick={() => toggleSection(sectionKey)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              toggleSection(sectionKey);
+            }
+          }}
+          type="button"
         >
           <span className="font-medium">{title}</span>
           <span
             className={`
               transition-transform duration-300 ease-in-out
-              ${expandedSections[sectionKey] ? "rotate-0" : "-rotate-90"}
+              ${expandedSections[sectionKey] ? 'rotate-0' : '-rotate-90'}
             `}
           >
             <DownOutlined className="text-xs" />
           </span>
-        </div>
+        </button>
         <div
           className={`
             overflow-auto transition-all duration-300 ease-in-out sidebar-level-1
-            ${expandedSections[sectionKey] ? "opacity-100 mt-1" : "max-h-0 opacity-0"}
+            ${expandedSections[sectionKey] ? 'opacity-100 mt-1' : 'max-h-0 opacity-0'}
           `}
         >
           <div className="space-y-1">
@@ -311,24 +322,24 @@ export function SessionSidebar({
               const isActive = session.cliSessionId === activeCliSessionId;
               return (
                 <div
-                  key={session.id}
                   className={`
                     px-3 py-2 rounded-lg text-sm
                     transition-all duration-200 ease-in-out
                     hover:scale-[1.02] hover:shadow-sm text-mainTitle
                     ${
                       isActive
-                        ? "bg-colorPrimaryHoverLight font-medium"
-                        : (agentSupportsLoadSession || activeCliSessionId === null)
-                          ? "text-gray-600 hover:bg-colorPrimaryHoverLight hover:text-gray-900 cursor-pointer"
-                          : "text-gray-600 opacity-60"
+                        ? 'bg-colorPrimaryHoverLight font-medium'
+                        : agentSupportsLoadSession || activeCliSessionId === null
+                          ? 'text-gray-600 hover:bg-colorPrimaryHoverLight hover:text-gray-900 cursor-pointer'
+                          : 'text-gray-600 opacity-60'
                     }
                   `}
+                  key={session.id}
                   style={{
-                    animationDelay: `${index * 30}ms`,
                     animation: expandedSections[sectionKey]
-                      ? "slideIn 300ms ease-out forwards"
-                      : "none",
+                      ? 'slideIn 300ms ease-out forwards'
+                      : 'none',
+                    animationDelay: `${index * 30}ms`,
                   }}
                 >
                   {editingSessionId === session.id ? (
@@ -336,42 +347,43 @@ export function SessionSidebar({
                     <div
                       className="flex items-center gap-2"
                       onClick={(e) => e.stopPropagation()}
+                      role="presentation"
                     >
                       <input
-                        type="text"
-                        value={editingName}
-                        onChange={(e) => setEditingName(e.target.value)}
-                        onKeyDown={(e) => handleEditKeyDown(e, session.id)}
+                        autoFocus
+                        className="flex-1 max-w-[70%] px-2 py-1 text-sm border border-colorPrimary rounded focus:outline-none focus:ring-1 focus:ring-colorPrimary"
                         onBlur={() => {
                           handleCancelEdit();
                         }}
-                        className="flex-1 max-w-[70%] px-2 py-1 text-sm border border-colorPrimary rounded focus:outline-none focus:ring-1 focus:ring-colorPrimary"
-                        autoFocus
+                        onChange={(e) => setEditingName(e.target.value)}
+                        onKeyDown={(e) => handleEditKeyDown(e, session.id)}
+                        type="text"
+                        value={editingName}
                       />
                       <button
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                        }}
+                        className="flex-shrink-0 p-1 text-green-600 hover:bg-green-50 rounded transition-colors"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleSaveEdit(session.id);
                         }}
-                        className="flex-shrink-0 p-1 text-green-600 hover:bg-green-50 rounded transition-colors"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                        }}
                         title="保存"
                       >
                         <CheckOutlined className="text-sm" />
                       </button>
                       <button
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                        }}
+                        className="flex-shrink-0 p-1 text-gray-600 hover:bg-gray-100 rounded transition-colors"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleCancelEdit();
                         }}
-                        className="flex-shrink-0 p-1 text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                        }}
                         title="取消"
                       >
                         <CloseOutlined className="text-sm" />
@@ -379,8 +391,8 @@ export function SessionSidebar({
                     </div>
                   ) : (
                     /* 正常模式 */
-                    <div
-                      className="group"
+                    <button
+                      className="group border-0 bg-transparent w-full text-left px-0 py-0"
                       onClick={() => {
                         if (activeCliSessionId !== null && !agentSupportsLoadSession) return;
                         onLoadSession(
@@ -391,27 +403,28 @@ export function SessionSidebar({
                           session.providerKey,
                         );
                       }}
+                      type="button"
                     >
                       <div className="flex items-center gap-2">
                         <span className="truncate flex-1">{session.title}</span>
                         <Dropdown
-                          menu={getSessionMenu(session)}
-                          trigger={["click"]}
-                          placement="bottomRight"
                           classNames={{
-                            root: "coding-session-menu-dropdown",
+                            root: 'coding-session-menu-dropdown',
                           }}
+                          menu={getSessionMenu(session)}
+                          placement="bottomRight"
                           popupRender={(menu) => (
                             <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-lg border border-white/40 overflow-hidden">
                               {menu}
                             </div>
                           )}
+                          trigger={['click']}
                         >
                           <button
+                            className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-colorPrimary hover:bg-gray-200 rounded transition-all"
                             onClick={(e) => {
                               e.stopPropagation();
                             }}
-                            className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-colorPrimary hover:bg-gray-200 rounded transition-all"
                             title="更多操作"
                           >
                             <MoreOutlined className="text-base" />
@@ -420,10 +433,10 @@ export function SessionSidebar({
                       </div>
                       {(session.providerKey || session.modelName) && (
                         <div className="text-[11px] text-gray-400 truncate mt-0.5">
-                          {[session.providerKey, session.modelName].filter(Boolean).join(" · ")}
+                          {[session.providerKey, session.modelName].filter(Boolean).join(' · ')}
                         </div>
                       )}
-                    </div>
+                    </button>
                   )}
                 </div>
               );
@@ -440,20 +453,20 @@ export function SessionSidebar({
       <div className="flex flex-col items-center py-3 px-1 gap-2 flex-shrink-0 bg-white/50 backdrop-blur-xl transition-all duration-300 ease-in-out w-12">
         {/* 展开按钮 */}
         <button
-          onClick={() => setCollapsed(false)}
           className="w-8 h-8 flex items-center justify-center rounded-lg
                      text-gray-400 hover:text-colorPrimary hover:bg-colorPrimaryHoverLight
                      transition-all duration-200"
+          onClick={() => setCollapsed(false)}
           title="展开侧栏"
         >
           <PanelLeftOpen size={16} />
         </button>
         {/* 新会话 */}
         <button
-          onClick={onNewSession}
           className="w-8 h-8 flex items-center justify-center rounded-lg
                      text-gray-400 hover:text-colorPrimary hover:bg-colorPrimaryHoverLight
                      transition-all duration-200"
+          onClick={onNewSession}
           title="新会话"
         >
           <PlusOutlined className="text-sm" />
@@ -468,21 +481,21 @@ export function SessionSidebar({
       {/* 顶部操作栏：收起 + 新会话 */}
       <div className="flex items-center gap-2 p-3">
         <button
-          onClick={() => setCollapsed(true)}
           className="w-8 h-8 flex items-center justify-center rounded-lg flex-shrink-0
                      text-gray-400 hover:text-colorPrimary hover:bg-colorPrimaryHoverLight
                      transition-all duration-200"
+          onClick={() => setCollapsed(true)}
           title="收起侧栏"
         >
           <PanelLeftClose size={16} />
         </button>
         <button
-          onClick={onNewSession}
           className="flex-1 flex items-center justify-between bg-white rounded-lg
                      border-[3px] border-colorPrimaryBgHover/50 px-3 py-1.5
                      transition-all duration-200 ease-in-out
                      hover:bg-gray-50 hover:shadow-md hover:scale-[1.02] active:scale-95
                      text-nowrap overflow-hidden"
+          onClick={onNewSession}
         >
           <div className="flex items-center gap-2">
             <PlusOutlined className="text-sm" />
@@ -490,14 +503,12 @@ export function SessionSidebar({
           </div>
           <div className="flex items-center gap-1 text-xs text-gray-400">
             <kbd className="px-1 py-0.5 bg-gray-100 rounded text-[10px] font-sans">
-              {isMac ? "⇧" : "Shift"}
+              {isMac ? '⇧' : 'Shift'}
             </kbd>
             <kbd className="px-1 py-0.5 bg-gray-100 rounded text-[10px] font-sans">
-              {isMac ? "⌘" : "Ctrl"}
+              {isMac ? '⌘' : 'Ctrl'}
             </kbd>
-            <kbd className="px-1 py-0.5 bg-gray-100 rounded text-[10px] font-sans">
-              O
-            </kbd>
+            <kbd className="px-1 py-0.5 bg-gray-100 rounded text-[10px] font-sans">O</kbd>
           </div>
         </button>
       </div>
@@ -512,14 +523,12 @@ export function SessionSidebar({
             <Spin />
           </div>
         ) : sessions.length === 0 ? (
-          <div className="text-center py-8 text-gray-400 text-sm">
-            暂无历史会话
-          </div>
+          <div className="text-center py-8 text-gray-400 text-sm">暂无历史会话</div>
         ) : (
           <>
-            {renderSessionGroup("今天", today, "today")}
-            {renderSessionGroup("近7天", last7Days, "last7Days")}
-            {renderSessionGroup("近30天", last30Days, "last30Days")}
+            {renderSessionGroup('今天', today, 'today')}
+            {renderSessionGroup('近7天', last7Days, 'last7Days')}
+            {renderSessionGroup('近30天', last30Days, 'last30Days')}
           </>
         )}
       </div>

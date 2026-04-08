@@ -1,11 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { calcReconnectDelay } from "./useCodingWebSocket";
+import { useCallback, useEffect, useRef, useState } from 'react';
 
-export type TerminalWsStatus =
-  | "disconnected"
-  | "connecting"
-  | "connected"
-  | "reconnecting";
+import { calcReconnectDelay } from './useCodingWebSocket';
+
+export type TerminalWsStatus = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
 
 interface UseTerminalWebSocketOptions {
   url: string;
@@ -24,12 +21,12 @@ interface UseTerminalWebSocketReturn {
 }
 
 export function useTerminalWebSocket({
-  url,
-  onOutput,
-  onExit,
   autoConnect = true,
+  onExit,
+  onOutput,
+  url,
 }: UseTerminalWebSocketOptions): UseTerminalWebSocketReturn {
-  const [status, setStatus] = useState<TerminalWsStatus>("disconnected");
+  const [status, setStatus] = useState<TerminalWsStatus>('disconnected');
 
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectAttemptRef = useRef(0);
@@ -63,7 +60,7 @@ export function useTerminalWebSocket({
     const attempt = reconnectAttemptRef.current;
     const delay = calcReconnectDelay(attempt);
     reconnectAttemptRef.current = attempt + 1;
-    console.log(`[TerminalWebSocket] Scheduling reconnect #${attempt + 1} in ${delay}ms`);
+    console.warn(`[TerminalWebSocket] Scheduling reconnect #${attempt + 1} in ${delay}ms`);
     reconnectTimerRef.current = setTimeout(() => {
       reconnectTimerRef.current = null;
       doConnectRef.current();
@@ -84,29 +81,29 @@ export function useTerminalWebSocket({
 
     if (intentionalDisconnectRef.current) return;
 
-    setStatus("connecting");
-    console.log("[TerminalWebSocket] Connecting to:", urlRef.current);
+    setStatus('connecting');
+    console.warn('[TerminalWebSocket] Connecting to:', urlRef.current);
     const ws = new WebSocket(urlRef.current);
     wsRef.current = ws;
 
     ws.onopen = () => {
       if (wsRef.current !== ws) return;
-      console.log("[TerminalWebSocket] Connected successfully");
-      setStatus("connected");
+      console.warn('[TerminalWebSocket] Connected successfully');
+      setStatus('connected');
       wasConnectedRef.current = true;
       reconnectAttemptRef.current = 0;
 
       // Auto-resend last resize info after reconnection
       if (lastResizeRef.current && ws.readyState === WebSocket.OPEN) {
         const { cols, rows } = lastResizeRef.current;
-        ws.send(JSON.stringify({ type: "resize", cols, rows }));
+        ws.send(JSON.stringify({ cols, rows, type: 'resize' }));
       }
     };
 
     ws.onmessage = (e) => {
       try {
         const msg = JSON.parse(e.data);
-        if (msg.type === "output" && msg.data) {
+        if (msg.type === 'output' && msg.data) {
           // Decode base64 to raw bytes (Uint8Array) so xterm.js handles
           // UTF-8 properly, including partial multi-byte sequences.
           const binaryStr = atob(msg.data);
@@ -115,7 +112,7 @@ export function useTerminalWebSocket({
             bytes[i] = binaryStr.charCodeAt(i);
           }
           onOutputRef.current(bytes);
-        } else if (msg.type === "exit") {
+        } else if (msg.type === 'exit') {
           onExitRef.current?.(msg.code ?? 0);
         }
       } catch {
@@ -124,7 +121,7 @@ export function useTerminalWebSocket({
     };
 
     ws.onerror = (e) => {
-      console.error("[TerminalWebSocket] Error:", e);
+      console.error('[TerminalWebSocket] Error:', e);
     };
 
     ws.onclose = () => {
@@ -132,12 +129,12 @@ export function useTerminalWebSocket({
       wsRef.current = null;
 
       if (intentionalDisconnectRef.current) {
-        setStatus("disconnected");
+        setStatus('disconnected');
         return;
       }
 
       // Unexpected disconnect — enter reconnecting state and schedule retry
-      setStatus("reconnecting");
+      setStatus('reconnecting');
       scheduleReconnect();
     };
   }, [clearReconnectTimer, scheduleReconnect]);
@@ -165,12 +162,12 @@ export function useTerminalWebSocket({
       wsRef.current.close();
       wsRef.current = null;
     }
-    setStatus("disconnected");
+    setStatus('disconnected');
   }, [clearReconnectTimer]);
 
   const sendInput = useCallback((data: string) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: "input", data }));
+      wsRef.current.send(JSON.stringify({ data, type: 'input' }));
     }
   }, []);
 
@@ -178,7 +175,7 @@ export function useTerminalWebSocket({
     // Save last resize dimensions for auto-resend after reconnection
     lastResizeRef.current = { cols, rows };
     if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: "resize", cols, rows }));
+      wsRef.current.send(JSON.stringify({ cols, rows, type: 'resize' }));
     }
   }, []);
 
@@ -209,10 +206,10 @@ export function useTerminalWebSocket({
         wsRef.current.close();
         wsRef.current = null;
       }
-      setStatus("disconnected");
+      setStatus('disconnected');
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url]);
 
-  return { status, connect, disconnect, sendInput, sendResize, reconnect };
+  return { connect, disconnect, reconnect, sendInput, sendResize, status };
 }

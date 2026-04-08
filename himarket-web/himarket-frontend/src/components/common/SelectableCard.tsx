@@ -24,10 +24,10 @@ export interface SelectableCardProps {
  * - 禁用：置灰，不可点击 (opacity-50, cursor-not-allowed)
  */
 export const SelectableCard: React.FC<SelectableCardProps> = ({
-  selected,
+  children,
   disabled = false,
   onClick,
-  children,
+  selected,
 }) => {
   const handleClick = () => {
     if (!disabled) {
@@ -45,10 +45,8 @@ export const SelectableCard: React.FC<SelectableCardProps> = ({
 
   return (
     <div
-      role="button"
-      tabIndex={disabled ? -1 : 0}
-      aria-selected={selected}
       aria-disabled={disabled}
+      aria-selected={selected}
       className={`rounded-lg border-2 p-3 transition-colors ${borderClass} ${cursorClass}`}
       onClick={handleClick}
       onKeyDown={(e) => {
@@ -57,6 +55,8 @@ export const SelectableCard: React.FC<SelectableCardProps> = ({
           handleClick();
         }
       }}
+      role="button"
+      tabIndex={disabled ? -1 : 0}
     >
       {children}
     </div>

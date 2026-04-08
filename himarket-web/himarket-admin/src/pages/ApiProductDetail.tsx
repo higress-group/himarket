@@ -1,6 +1,3 @@
-import { useState, useEffect } from 'react'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { Button, Dropdown, MenuProps, Modal, message } from 'antd'
 import {
   MoreOutlined,
   LeftOutlined,
@@ -8,197 +5,244 @@ import {
   LinkOutlined,
   BookOutlined,
   GlobalOutlined,
-  InboxOutlined
-} from '@ant-design/icons'
-import { ApiProductOverview } from '@/components/api-product/ApiProductOverview'
-import { ApiProductLinkApi } from '@/components/api-product/ApiProductLinkApi'
-import { ApiProductUsageGuide } from '@/components/api-product/ApiProductUsageGuide'
-import { ApiProductPortal } from '@/components/api-product/ApiProductPortal'
-import { ApiProductSkillPackage } from '@/components/api-product/ApiProductSkillPackage'
-import { ApiProductWorkerPackage } from '@/components/api-product/ApiProductWorkerPackage'
+  InboxOutlined,
+} from '@ant-design/icons';
+import { Button, Dropdown, Modal, message } from 'antd';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+
+import ApiProductFormModal from '@/components/api-product/ApiProductFormModal';
+import { ApiProductLinkApi } from '@/components/api-product/ApiProductLinkApi';
+import { ApiProductOverview } from '@/components/api-product/ApiProductOverview';
+import { ApiProductPortal } from '@/components/api-product/ApiProductPortal';
+import { ApiProductSkillPackage } from '@/components/api-product/ApiProductSkillPackage';
+import { ApiProductUsageGuide } from '@/components/api-product/ApiProductUsageGuide';
+import { ApiProductWorkerPackage } from '@/components/api-product/ApiProductWorkerPackage';
 // import { ApiProductDashboard } from '@/components/api-product/ApiProductDashboard'
 import { apiProductApi } from '@/lib/api';
 import type { ApiProduct, LinkedService } from '@/types/api-product';
 
-import ApiProductFormModal from '@/components/api-product/ApiProductFormModal';
+import type { MenuProps } from 'antd';
 
 const BASE_MENU_ITEMS = [
   {
-    key: "overview",
-    label: "Overview",
-    description: "产品概览",
-    icon: EyeOutlined
+    description: '产品概览',
+    icon: EyeOutlined,
+    key: 'overview',
+    label: 'Overview',
   },
   {
-    key: "link-api",
-    label: "Link API",
-    description: "API关联",
-    icon: LinkOutlined
+    description: 'API关联',
+    icon: LinkOutlined,
+    key: 'link-api',
+    label: 'Link API',
   },
   {
-    key: "usage-guide",
-    label: "Usage Guide",
-    description: "使用指南",
-    icon: BookOutlined
+    description: '使用指南',
+    icon: BookOutlined,
+    key: 'usage-guide',
+    label: 'Usage Guide',
   },
   {
-    key: "portal",
-    label: "Portal",
-    description: "发布的门户",
-    icon: GlobalOutlined
+    description: '发布的门户',
+    icon: GlobalOutlined,
+    key: 'portal',
+    label: 'Portal',
   },
-]
+] as const;
 
 export default function ApiProductDetail() {
-  const navigate = useNavigate()
-  const { productId } = useParams<{ productId: string }>()
-  const [searchParams, setSearchParams] = useSearchParams()
-  const [apiProduct, setApiProduct] = useState<ApiProduct | null>(null)
-  const [linkedService, setLinkedService] = useState<LinkedService | null>(null)
-  const [, setLoading] = useState(true) // 添加 loading 状态
-  
+  const navigate = useNavigate();
+  const { productId } = useParams<{ productId: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [apiProduct, setApiProduct] = useState<ApiProduct | null>(null);
+  const [linkedService, setLinkedService] = useState<LinkedService | null>(null);
+  const [, setLoading] = useState(true); // 添加 loading 状态
+
   // 动态计算 menuItems（AGENT_SKILL / WORKER 类型：隐藏 Link API 和 Usage Guide，插入包管理和 Link Nacos）
-  const menuItems = apiProduct?.type === 'AGENT_SKILL'
-    ? [
-        BASE_MENU_ITEMS[0], // overview
-        { key: 'skill-package', label: 'Skill Package', description: '技能包管理', icon: InboxOutlined },
-        BASE_MENU_ITEMS[3], // portal
-      ]
-    : apiProduct?.type === 'WORKER'
-    ? [
-        BASE_MENU_ITEMS[0], // overview
-        { key: 'worker-package', label: 'Worker Package', description: 'Worker 包管理', icon: InboxOutlined },
-        BASE_MENU_ITEMS[3], // portal
-      ]
-    : BASE_MENU_ITEMS;
+  const menuItems = useMemo(
+    () =>
+      apiProduct?.type === 'AGENT_SKILL'
+        ? [
+            BASE_MENU_ITEMS[0], // overview
+            {
+              description: '技能包管理',
+              icon: InboxOutlined,
+              key: 'skill-package',
+              label: 'Skill Package',
+            },
+            BASE_MENU_ITEMS[3], // portal
+          ]
+        : apiProduct?.type === 'WORKER'
+          ? [
+              BASE_MENU_ITEMS[0], // overview
+              {
+                description: 'Worker 包管理',
+                icon: InboxOutlined,
+                key: 'worker-package',
+                label: 'Worker Package',
+              },
+              BASE_MENU_ITEMS[3], // portal
+            ]
+          : BASE_MENU_ITEMS,
+    [apiProduct],
+  );
 
   // 从URL query参数获取当前tab，默认为overview
-  const currentTab = searchParams.get('tab') || 'overview'
+  const currentTab = searchParams.get('tab') || 'overview';
   // 验证tab值是否有效，如果无效则使用默认值
-  const validTab = menuItems.some(item => item.key === currentTab) ? currentTab : 'overview'
-  const [activeTab, setActiveTab] = useState(validTab)
+  const validTab = menuItems.some((item) => item.key === currentTab) ? currentTab : 'overview';
+  const [activeTab, setActiveTab] = useState(validTab);
 
-  const [editModalVisible, setEditModalVisible] = useState(false)
+  const [editModalVisible, setEditModalVisible] = useState(false);
 
-  
-  const fetchApiProduct = async () => {
+  const fetchApiProduct = useCallback(async () => {
     if (productId) {
-      setLoading(true)
+      setLoading(true);
       try {
         // 并行获取Product详情和关联信息
         const [productRes, refRes] = await Promise.all([
           apiProductApi.getApiProductDetail(productId),
-          apiProductApi.getApiProductRef(productId).catch(() => ({ data: null })) // 关联信息获取失败不影响页面显示
-        ])
-        
-        setApiProduct(productRes.data)
-        setLinkedService(refRes.data || null)
+          apiProductApi.getApiProductRef(productId).catch(() => ({ data: null })), // 关联信息获取失败不影响页面显示
+        ]);
+
+        setApiProduct(productRes.data);
+        setLinkedService(refRes.data || null);
       } catch (error) {
-        console.error('获取Product详情失败:', error)
+        console.error('获取Product详情失败:', error);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
     }
-  }
+  }, [productId]);
 
   // 更新关联信息的回调函数
   const handleLinkedServiceUpdate = (newLinkedService: LinkedService | null) => {
-    setLinkedService(newLinkedService)
-  }
+    setLinkedService(newLinkedService);
+  };
 
   useEffect(() => {
-    fetchApiProduct()
-  }, [productId])
+    fetchApiProduct();
+  }, [fetchApiProduct]);
 
   // 同步URL参数和activeTab状态
   useEffect(() => {
-    const currentTab = searchParams.get('tab') || 'overview'
-    const valid = menuItems.some(item => item.key === currentTab) ? currentTab : 'overview'
-    setActiveTab(valid)
-  }, [searchParams, apiProduct])
+    const currentTab = searchParams.get('tab') || 'overview';
+    const valid = menuItems.some((item) => item.key === currentTab) ? currentTab : 'overview';
+    setActiveTab(valid);
+  }, [searchParams, menuItems]);
 
   const handleBackToApiProducts = () => {
-    navigate('/api-products')
-  }
+    navigate('/api-products');
+  };
 
   const handleTabChange = (tabKey: string) => {
-    setActiveTab(tabKey)
+    setActiveTab(tabKey);
     // 更新URL query参数
-    const newSearchParams = new URLSearchParams(searchParams)
-    newSearchParams.set('tab', tabKey)
-    setSearchParams(newSearchParams)
-  }
+    const newSearchParams = new URLSearchParams(searchParams);
+    newSearchParams.set('tab', tabKey);
+    setSearchParams(newSearchParams);
+  };
 
   const renderContent = () => {
     if (!apiProduct) {
-      return <div className="p-6">Loading...</div>
+      return <div className="p-6">Loading...</div>;
     }
-    
+
     switch (activeTab) {
-      case "overview":
-        return <ApiProductOverview apiProduct={apiProduct} linkedService={linkedService} onEdit={handleEdit} />
-      case "link-api":
-        return <ApiProductLinkApi 
-          apiProduct={apiProduct} 
-          linkedService={linkedService}
-          onLinkedServiceUpdate={handleLinkedServiceUpdate}
-          handleRefresh={fetchApiProduct}
-        />
-      case "usage-guide":
-        return <ApiProductUsageGuide apiProduct={apiProduct} handleRefresh={fetchApiProduct} />
-      case "portal":
-        return <ApiProductPortal apiProduct={apiProduct} />
-      case "skill-package":
-        return <ApiProductSkillPackage apiProduct={apiProduct} onUploadSuccess={fetchApiProduct} handleRefresh={fetchApiProduct} />
-      case "worker-package":
-        return <ApiProductWorkerPackage apiProduct={apiProduct} onUploadSuccess={fetchApiProduct} handleRefresh={fetchApiProduct} />
+      case 'overview':
+        return (
+          <ApiProductOverview
+            apiProduct={apiProduct}
+            linkedService={linkedService}
+            onEdit={handleEdit}
+          />
+        );
+      case 'link-api':
+        return (
+          <ApiProductLinkApi
+            apiProduct={apiProduct}
+            handleRefresh={fetchApiProduct}
+            linkedService={linkedService}
+            onLinkedServiceUpdate={handleLinkedServiceUpdate}
+          />
+        );
+      case 'usage-guide':
+        return <ApiProductUsageGuide apiProduct={apiProduct} handleRefresh={fetchApiProduct} />;
+      case 'portal':
+        return <ApiProductPortal apiProduct={apiProduct} />;
+      case 'skill-package':
+        return (
+          <ApiProductSkillPackage
+            apiProduct={apiProduct}
+            handleRefresh={fetchApiProduct}
+            onUploadSuccess={fetchApiProduct}
+          />
+        );
+      case 'worker-package':
+        return (
+          <ApiProductWorkerPackage
+            apiProduct={apiProduct}
+            handleRefresh={fetchApiProduct}
+            onUploadSuccess={fetchApiProduct}
+          />
+        );
       // case "dashboard":
       //   return <ApiProductDashboard apiProduct={apiProduct} />
       default:
-        return <ApiProductOverview apiProduct={apiProduct} linkedService={linkedService} onEdit={handleEdit} />
+        return (
+          <ApiProductOverview
+            apiProduct={apiProduct}
+            linkedService={linkedService}
+            onEdit={handleEdit}
+          />
+        );
     }
-  }
+  };
 
   const dropdownItems: MenuProps['items'] = [
     {
+      danger: true,
       key: 'delete',
       label: '删除',
       onClick: () => {
         Modal.confirm({
-          title: '确认删除',
           content: '确定要删除该产品吗？',
           onOk: () => {
-            handleDeleteApiProduct()
+            handleDeleteApiProduct();
           },
-        })
+          title: '确认删除',
+        });
       },
-      danger: true,
     },
-  ]
+  ];
 
   const handleDeleteApiProduct = () => {
     if (!apiProduct) return;
-    
-    apiProductApi.deleteApiProduct(apiProduct.productId).then(() => {
-      message.success('删除成功')
-      navigate('/api-products')
-    }).catch(() => {
-      // message.error(error.response?.data?.message || '删除失败')
-    })
-  }
+
+    apiProductApi
+      .deleteApiProduct(apiProduct.productId)
+      .then(() => {
+        message.success('删除成功');
+        navigate('/api-products');
+      })
+      .catch(() => {
+        // message.error(error.response?.data?.message || '删除失败')
+      });
+  };
 
   const handleEdit = () => {
-    setEditModalVisible(true)
-  }
+    setEditModalVisible(true);
+  };
 
   const handleEditSuccess = () => {
-    setEditModalVisible(false)
-    fetchApiProduct()
-  }
+    setEditModalVisible(false);
+    fetchApiProduct();
+  };
 
   const handleEditCancel = () => {
-    setEditModalVisible(false)
-  }
+    setEditModalVisible(false);
+  };
 
   return (
     <div className="flex h-full w-full overflow-hidden">
@@ -207,10 +251,10 @@ export default function ApiProductDetail() {
         {/* 返回按钮 */}
         <div className="pb-4 border-b">
           <Button
-            type="text"
+            icon={<LeftOutlined />}
             // className="w-full justify-start"
             onClick={handleBackToApiProducts}
-            icon={<LeftOutlined />}
+            type="text"
           >
             返回
           </Button>
@@ -225,36 +269,36 @@ export default function ApiProductDetail() {
               <div className="h-6 bg-gray-200 rounded animate-pulse w-32" />
             )}
             <Dropdown menu={{ items: dropdownItems }} trigger={['click']}>
-              <Button type="text" icon={<MoreOutlined />} />
+              <Button icon={<MoreOutlined />} type="text" />
             </Dropdown>
           </div>
         </div>
 
         {/* 导航菜单 - 等待产品数据加载后再渲染，避免菜单项闪烁 */}
         <nav className="flex-1 p-4 space-y-1">
-          {apiProduct ? menuItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.key}
-                onClick={() => handleTabChange(item.key)}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
-                  activeTab === item.key
-                    ? "bg-blue-500 text-white"
-                    : "hover:bg-gray-100"
-                }`}
-              >
-                <Icon className="h-4 w-4 flex-shrink-0" />
-                <div>
-                  <div className="font-medium">{item.label}</div>
-                  <div className="text-xs opacity-70">{item.description}</div>
-                </div>
-              </button>
-            );
-          }) : (
+          {apiProduct ? (
+            menuItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
+                    activeTab === item.key ? 'bg-blue-500 text-white' : 'hover:bg-gray-100'
+                  }`}
+                  key={item.key}
+                  onClick={() => handleTabChange(item.key)}
+                >
+                  <Icon className="h-4 w-4 flex-shrink-0" />
+                  <div>
+                    <div className="font-medium">{item.label}</div>
+                    <div className="text-xs opacity-70">{item.description}</div>
+                  </div>
+                </button>
+              );
+            })
+          ) : (
             <div className="space-y-2">
               {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="flex items-center gap-3 px-3 py-2">
+                <div className="flex items-center gap-3 px-3 py-2" key={i}>
                   <div className="w-4 h-4 rounded bg-gray-200 animate-pulse flex-shrink-0" />
                   <div className="flex-1 space-y-1">
                     <div className="h-4 bg-gray-200 rounded animate-pulse w-20" />
@@ -269,20 +313,18 @@ export default function ApiProductDetail() {
 
       {/* 主内容区域 */}
       <div className="flex-1 overflow-auto min-w-0">
-        <div className="w-full max-w-full">
-          {renderContent()}
-        </div>
+        <div className="w-full max-w-full">{renderContent()}</div>
       </div>
 
       {apiProduct && (
         <ApiProductFormModal
-          visible={editModalVisible}
+          initialData={apiProduct}
           onCancel={handleEditCancel}
           onSuccess={handleEditSuccess}
           productId={apiProduct.productId}
-          initialData={apiProduct}
+          visible={editModalVisible}
         />
       )}
     </div>
-  )
+  );
 }

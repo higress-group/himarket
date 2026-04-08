@@ -1,25 +1,20 @@
-import { useState } from "react";
+import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
+import { Button, message, Modal, Table, Badge, Popconfirm, Select } from 'antd';
+import { useState } from 'react';
+
+import request from '../../lib/request';
 import {
-  Button,
-  message,
-  Modal,
-  Table,
-  Badge,
-  Popconfirm,
-  Select,
-} from "antd";
-import {
-  PlusOutlined,
-  ReloadOutlined,
-} from "@ant-design/icons";
-import request from "../../lib/request";
-import type { Subscription } from "../../types/consumer";
-import type { ApiResponse, Product } from "../../types";
-import { getSubscriptionStatusText, getSubscriptionStatusColor, ProductTypeMap } from "../../lib/statusUtils";
-import { formatDateTime } from "../../lib/utils";
-import { AdvancedSearch, type SearchParam } from "../common";
-import type { ISubscription } from "../../lib/apis";
-import { modelStyles } from "../../lib/styles";
+  getSubscriptionStatusText,
+  getSubscriptionStatusColor,
+  ProductTypeMap,
+} from '../../lib/statusUtils';
+import { modelStyles } from '../../lib/styles';
+import { formatDateTime } from '../../lib/utils';
+import { AdvancedSearch, type SearchParam } from '../common';
+
+import type { ISubscription } from '../../lib/apis';
+import type { ApiResponse, Product } from '../../types';
+import type { Subscription } from '../../types/consumer';
 
 interface SubscriptionManagerProps {
   consumerId: string;
@@ -29,7 +24,13 @@ interface SubscriptionManagerProps {
   loading?: boolean;
 }
 
-export function SubscriptionManager({ consumerId, subscriptions, onSubscriptionsChange, loading = false, onRefresh }: SubscriptionManagerProps) {
+export function SubscriptionManager({
+  consumerId,
+  loading = false,
+  onRefresh,
+  onSubscriptionsChange,
+  subscriptions,
+}: SubscriptionManagerProps) {
   const [productModalVisible, setProductModalVisible] = useState(false);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [productLoading, setProductLoading] = useState(false);
@@ -43,18 +44,18 @@ export function SubscriptionManager({ consumerId, subscriptions, onSubscriptions
       label: '产品名称',
       name: 'productName',
       placeholder: '请输入产品名称进行搜索',
-      type: 'input'
+      type: 'input',
     },
     {
       label: '订阅状态',
       name: 'status',
-      placeholder: '请选择订阅状态',
-      type: 'select',
       optionList: [
         { label: '待审批', value: 'PENDING' },
-        { label: '已通过', value: 'APPROVED' }
-      ]
-    }
+        { label: '已通过', value: 'APPROVED' },
+      ],
+      placeholder: '请选择订阅状态',
+      type: 'select',
+    },
   ];
 
   // 高级搜索处理函数
@@ -82,7 +83,7 @@ export function SubscriptionManager({ consumerId, subscriptions, onSubscriptions
     // 调用父组件的搜索回调
     onSubscriptionsChange({
       productName: newSearch.productName,
-      status: newSearch.status
+      status: newSearch.status,
     });
   };
 
@@ -96,20 +97,20 @@ export function SubscriptionManager({ consumerId, subscriptions, onSubscriptions
   // 过滤产品：移除已订阅的产品
   const filterProducts = (allProducts: Product[]) => {
     // 获取已订阅的产品ID列表
-    const subscribedProductIds = subscriptions.map(sub => sub.productId);
+    const subscribedProductIds = subscriptions.map((sub) => sub.productId);
 
     // 过滤掉已订阅的产品
-    return allProducts.filter(product =>
-      !subscribedProductIds.includes(product.productId)
-    );
+    return allProducts.filter((product) => !subscribedProductIds.includes(product.productId));
   };
 
   const openProductModal = async () => {
     setProductModalVisible(true);
     setProductLoading(true);
     try {
-      const response: ApiResponse<{ content: Product[] }> = await request.get("/products?page=0&size=100");
-      if (response?.code === "SUCCESS" && response?.data) {
+      const response: ApiResponse<{ content: Product[] }> = await request.get(
+        '/products?page=0&size=100',
+      );
+      if (response?.code === 'SUCCESS' && response?.data) {
         const allProducts = response.data.content || [];
         // 初始化时过滤掉已订阅的产品
         const filtered = filterProducts(allProducts);
@@ -122,7 +123,6 @@ export function SubscriptionManager({ consumerId, subscriptions, onSubscriptions
       setProductLoading(false);
     }
   };
-
 
   const handleSubscribeProducts = async () => {
     if (!selectedProduct) {
@@ -156,52 +156,58 @@ export function SubscriptionManager({ consumerId, subscriptions, onSubscriptions
     }
   };
 
-
-
   const subscriptionColumns = [
     {
-      title: '产品名称',
       dataIndex: 'productName',
       key: 'productName',
       render: (productName: Product['productName']) => productName || '-',
+      title: '产品名称',
     },
     {
-      title: '产品类型',
       dataIndex: 'productType',
       key: 'productType',
       render: (productType: Product['productType']) => {
         return ProductTypeMap[productType] || productType || '-';
-      }
+      },
+      title: '产品类型',
     },
     {
-      title: '订阅状态',
       dataIndex: 'status',
       key: 'status',
       render: (status: string) => (
-        <Badge status={getSubscriptionStatusColor(status) as 'success' | 'processing' | 'error' | 'default' | 'warning'} text={getSubscriptionStatusText(status)} />
+        <Badge
+          status={
+            getSubscriptionStatusColor(status) as
+              | 'success'
+              | 'processing'
+              | 'error'
+              | 'default'
+              | 'warning'
+          }
+          text={getSubscriptionStatusText(status)}
+        />
       ),
+      title: '订阅状态',
     },
     {
-      title: '订阅时间',
       dataIndex: 'createAt',
       key: 'createAt',
-      render: (date: string) => date ? formatDateTime(date) : '-',
+      render: (date: string) => (date ? formatDateTime(date) : '-'),
+      title: '订阅时间',
     },
     {
-      title: '操作',
       key: 'action',
       render: (record: Subscription) => (
         <Popconfirm
-          title="确定要取消订阅吗？"
           onConfirm={() => handleUnsubscribe(record.productId)}
+          title="确定要取消订阅吗？"
         >
           <Button className="rounded-lg">
-            <span className="text-red-500">
-              取消订阅
-            </span>
+            <span className="text-red-500">取消订阅</span>
           </Button>
         </Popconfirm>
       ),
+      title: '操作',
     },
   ];
 
@@ -215,81 +221,75 @@ export function SubscriptionManager({ consumerId, subscriptions, onSubscriptions
         <div className="mb-4 flex justify-between">
           <div className="flex items-center gap-4">
             <Button
-              type="primary"
+              className="rounded-lg"
               icon={<PlusOutlined />}
               onClick={openProductModal}
-              className="rounded-lg"
+              type="primary"
             >
               订阅
             </Button>
             <AdvancedSearch
-              searchParamsList={searchParamsList}
-              onSearch={handleAdvancedSearch}
               onClear={handleClearAllSearch}
+              onSearch={handleAdvancedSearch}
+              searchParamsList={searchParamsList}
             />
           </div>
-          <Button onClick={onRefresh} className="rounded-lg" icon={<ReloadOutlined />} />
+          <Button className="rounded-lg" icon={<ReloadOutlined />} onClick={onRefresh} />
         </div>
         <div className="border border-[#e5e5e5] rounded-lg overflow-hidden">
           <Table
             columns={subscriptionColumns}
             dataSource={safeSubscriptions}
-            rowKey={(record) => record.productId}
-            pagination={false}
-            size="small"
             loading={loading}
             locale={{ emptyText: '暂无订阅记录，请点击上方按钮进行订阅' }}
+            pagination={false}
+            rowKey={(record) => record.productId}
+            size="small"
           />
         </div>
       </div>
 
       {/* 产品选择弹窗 */}
       <Modal
-        title="订阅产品"
-        open={productModalVisible}
-        onCancel={() => {
-          if (!subscribeLoading) {
-            setProductModalVisible(false);
-            setSelectedProduct('');
-          }
-        }}
         footer={
           <div className="flex justify-end space-x-2">
             <Button
+              disabled={subscribeLoading}
               onClick={() => {
                 if (!subscribeLoading) {
                   setProductModalVisible(false);
                   setSelectedProduct('');
                 }
               }}
-              disabled={subscribeLoading}
             >
               取消
             </Button>
             <Button
-              type="primary"
-              onClick={handleSubscribeProducts}
               disabled={!selectedProduct}
               loading={subscribeLoading}
+              onClick={handleSubscribeProducts}
+              type="primary"
             >
               确定订阅
             </Button>
           </div>
         }
-        width={500}
+        onCancel={() => {
+          if (!subscribeLoading) {
+            setProductModalVisible(false);
+            setSelectedProduct('');
+          }
+        }}
+        open={productModalVisible}
         styles={modelStyles}
+        title="订阅产品"
+        width={500}
       >
         <div>
           <div className="text-sm text-gray-700 mb-3 font-medium">选择要订阅的产品：</div>
           <Select
-            placeholder="请输入产品名称进行搜索或直接选择"
-            style={{ width: '100%' }}
-            value={selectedProduct}
-            onChange={setSelectedProduct}
-            loading={productLoading}
-            showSearch={true}
             filterOption={(input, option) => {
-              const product = filteredProducts.find(p => p.productId === option?.value);
+              const product = filteredProducts.find((p) => p.productId === option?.value);
               if (!product) return false;
 
               const searchText = input.toLowerCase();
@@ -298,9 +298,15 @@ export function SubscriptionManager({ consumerId, subscriptions, onSubscriptions
                 product.description?.toLowerCase().includes(searchText)
               );
             }}
+            loading={productLoading}
             notFoundContent={productLoading ? '加载中...' : '暂无可订阅的产品'}
+            onChange={setSelectedProduct}
+            placeholder="请输入产品名称进行搜索或直接选择"
+            showSearch={true}
+            style={{ width: '100%' }}
+            value={selectedProduct}
           >
-            {filteredProducts.map(product => (
+            {filteredProducts.map((product) => (
               <Select.Option key={product.productId} value={product.productId}>
                 {product.name}
               </Select.Option>
@@ -310,4 +316,4 @@ export function SubscriptionManager({ consumerId, subscriptions, onSubscriptions
       </Modal>
     </>
   );
-} 
+}

@@ -1,7 +1,8 @@
-import React, { useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import { message, Spin } from "antd";
-import request from "../lib/request";
+import { message, Spin } from 'antd';
+import React, { useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+
+import request from '../lib/request';
 
 const Callback: React.FC = () => {
   const location = useLocation();
@@ -9,30 +10,30 @@ const Callback: React.FC = () => {
 
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
-    const code = searchParams.get("code");
-    const state = searchParams.get("state");
+    const code = searchParams.get('code');
+    const state = searchParams.get('state');
 
     if (!code || !state) {
-      message.error("缺少 code 或 state 参数");
+      message.error('缺少 code 或 state 参数');
       return;
     }
 
     // 调用后端获取token
     request
-      .post<{ access_token: string }>("/developers/token", { code, state })
+      .post<{ access_token: string }>('/developers/token', { code, state })
       .then((res) => {
         if (res && res.data && res.data.access_token) {
-          message.success("登录成功！");
+          message.success('登录成功！');
           // 存储access_token
           localStorage.setItem('access_token', res.data.access_token);
           // 跳转首页
           navigate('/');
         } else {
-          message.error("登录失败，未获取到 access_token");
+          message.error('登录失败，未获取到 access_token');
         }
       })
       .catch(() => {
-        message.error("登录失败，请重试");
+        message.error('登录失败，请重试');
       });
   }, [location.search, navigate]);
 

@@ -1,6 +1,5 @@
-
 /* Table 头部 */
-.ant-table-thead>tr>th {
+.ant-table-thead > tr > th {
   background: rgba(255, 255, 255, 0.5) !important;
   border-bottom: 1px solid #e5e5e5 !important;
   font-weight: 600;
@@ -12,17 +11,17 @@
 }
 
 /* Table 行 */
-.ant-table-tbody>tr>td {
+.ant-table-tbody > tr > td {
   border-bottom: 1px solid #e5e5e5 !important;
   padding: 14px 16px !important;
 }
 
-.ant-table-tbody>tr:last-child>td {
+.ant-table-tbody > tr:last-child > td {
   border-bottom: 0 !important;
 }
 
 /* Table 行 hover 效果 */
-.ant-table-tbody>tr:hover>td {
+.ant-table-tbody > tr:hover > td {
   background: rgba(255, 255, 255, 0.4) !important;
   backdrop-filter: blur(5px);
 }
@@ -62,8 +61,8 @@
 }
 
 .ant-pagination .ant-pagination-item-active {
-  background: #6366F1 !important;
-  border-color: #6366F1 !important;
+  background: #6366f1 !important;
+  border-color: #6366f1 !important;
 }
 
 .ant-pagination .ant-pagination-item-active a {
@@ -71,8 +70,8 @@
 }
 
 .ant-pagination .ant-pagination-item-active:hover {
-  background: #818CF8 !important;
-  border-color: #818CF8 !important;
+  background: #818cf8 !important;
+  border-color: #818cf8 !important;
 }
 
 .ant-pagination .ant-pagination-item-active:hover a {

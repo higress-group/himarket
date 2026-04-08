@@ -14,7 +14,9 @@ export function filterLogs(logs: AggregatedLogEntry[], filter: string): Aggregat
 /** 检查日志列表是否按 timestamp 升序排列 */
 export function isTimeSorted(logs: AggregatedLogEntry[]): boolean {
   for (let i = 1; i < logs.length; i++) {
-    if (logs[i].timestamp < logs[i - 1].timestamp) return false;
+    const current = logs[i]?.timestamp;
+    const previous = logs[i - 1]?.timestamp;
+    if (current === undefined || previous === undefined || current < previous) return false;
   }
   return true;
 }

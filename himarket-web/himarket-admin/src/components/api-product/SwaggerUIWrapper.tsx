@@ -1,9 +1,10 @@
+import { message } from 'antd';
+import * as yaml from 'js-yaml';
 import React from 'react';
 import SwaggerUI from 'swagger-ui-react';
 import 'swagger-ui-react/swagger-ui.css';
 import './SwaggerUIWrapper.css';
-import * as yaml from 'js-yaml';
-import { message } from 'antd';
+
 import { copyToClipboard } from '@/lib/utils';
 
 interface SwaggerUIWrapperProps {
@@ -12,15 +13,15 @@ interface SwaggerUIWrapperProps {
 
 export const SwaggerUIWrapper: React.FC<SwaggerUIWrapperProps> = ({ apiSpec }) => {
   // 直接解析原始规范，不进行重新构建
-  let swaggerSpec: any;
-  
+  let swaggerSpec: Record<string, unknown>;
+
   try {
     // 尝试解析YAML格式
     try {
-      swaggerSpec = yaml.load(apiSpec);
+      swaggerSpec = yaml.load(apiSpec) as Record<string, unknown>;
     } catch {
       // 如果YAML解析失败，尝试JSON格式
-      swaggerSpec = JSON.parse(apiSpec);
+      swaggerSpec = JSON.parse(apiSpec) as Record<string, unknown>;
     }
 
     if (!swaggerSpec || !swaggerSpec.paths) {
@@ -28,23 +29,29 @@ export const SwaggerUIWrapper: React.FC<SwaggerUIWrapperProps> = ({ apiSpec }) =
     }
 
     // 为没有tags的操作添加默认标签，避免显示"default"
-    Object.keys(swaggerSpec.paths).forEach(path => {
-      const pathItem = swaggerSpec.paths[path];
-      Object.keys(pathItem).forEach(method => {
-        const operation = pathItem[method];
-        if (operation && typeof operation === 'object' && !operation.tags) {
-          operation.tags = ['接口列表'];
+    if (swaggerSpec.paths && typeof swaggerSpec.paths === 'object') {
+      Object.keys(swaggerSpec.paths).forEach((path) => {
+        const pathItem = (swaggerSpec.paths as Record<string, unknown>)[path];
+        if (pathItem && typeof pathItem === 'object') {
+          Object.keys(pathItem).forEach((method) => {
+            const operation = (pathItem as Record<string, unknown>)[method];
+            if (
+              operation &&
+              typeof operation === 'object' &&
+              !(operation as Record<string, unknown>).tags
+            ) {
+              (operation as Record<string, unknown>).tags = ['接口列表'];
+            }
+          });
         }
       });
-    });
+    }
   } catch (error) {
     console.error('OpenAPI规范解析失败:', error);
     return (
       <div className="text-center text-gray-500 py-8 bg-gray-50 rounded-lg">
         <p>无法解析OpenAPI规范</p>
-        <div className="text-sm text-gray-400 mt-2">
-          请检查API配置格式是否正确
-        </div>
+        <div className="text-sm text-gray-400 mt-2">请检查API配置格式是否正确</div>
         <div className="text-xs text-gray-400 mt-1">
           错误详情: {error instanceof Error ? error.message : String(error)}
         </div>
@@ -55,30 +62,15 @@ export const SwaggerUIWrapper: React.FC<SwaggerUIWrapperProps> = ({ apiSpec }) =
   return (
     <div className="swagger-ui-wrapper">
       <SwaggerUI
-        spec={swaggerSpec}
-        docExpansion="list"
-        displayRequestDuration={true}
-        tryItOutEnabled={true}
-        filter={false}
-        showRequestHeaders={true}
-        showCommonExtensions={true}
-        defaultModelsExpandDepth={0}
-        defaultModelExpandDepth={0}
-        displayOperationId={true}
-        enableCORS={true}
-        supportedSubmitMethods={['get', 'post', 'put', 'delete', 'patch', 'head', 'options']}
         deepLinking={false}
-        showMutatedRequest={true}
-        requestInterceptor={(request: any) => {
-          console.log('Request:', request);
-          return request;
-        }}
-        responseInterceptor={(response: any) => {
-          console.log('Response:', response);
-          return response;
-        }}
+        defaultModelExpandDepth={0}
+        defaultModelsExpandDepth={0}
+        displayOperationId={true}
+        displayRequestDuration={true}
+        docExpansion="list"
+        enableCORS={true}
+        filter={false}
         onComplete={() => {
-          console.log('Swagger UI loaded');
           // 添加服务器复制功能
           setTimeout(() => {
             const serversContainer = document.querySelector('.swagger-ui .servers');
@@ -108,7 +100,7 @@ export const SwaggerUIWrapper: React.FC<SwaggerUIWrapperProps> = ({ apiSpec }) =
                 align-items: center;
                 justify-content: center;
               `;
-              
+
               copyBtn.addEventListener('click', async () => {
                 const serverSelect = serversContainer.querySelector('select') as HTMLSelectElement;
                 if (serverSelect && serverSelect.value) {
@@ -126,14 +118,14 @@ export const SwaggerUIWrapper: React.FC<SwaggerUIWrapperProps> = ({ apiSpec }) =
                 copyBtn.style.background = '#f5f5f5';
                 copyBtn.style.color = '#1890ff';
               });
-              
+
               copyBtn.addEventListener('mouseleave', () => {
                 copyBtn.style.background = 'transparent';
                 copyBtn.style.color = '#666';
               });
 
               serversContainer.appendChild(copyBtn);
-              
+
               // 调整服务器选择框的padding
               const serverSelect = serversContainer.querySelector('select') as HTMLSelectElement;
               if (serverSelect) {
@@ -142,27 +134,39 @@ export const SwaggerUIWrapper: React.FC<SwaggerUIWrapperProps> = ({ apiSpec }) =
             }
           }, 1000);
         }}
-        syntaxHighlight={{
-          activated: true,
-          theme: 'agate'
+        requestInterceptor={(req: { [key: string]: unknown }) => {
+          return req;
         }}
-        requestSnippetsEnabled={true}
         requestSnippets={{
           generators: {
-            'curl_bash': {
+            curl_bash: {
+              syntax: 'bash',
               title: 'cURL (bash)',
-              syntax: 'bash'
             },
-            'curl_powershell': {
-              title: 'cURL (PowerShell)',
-              syntax: 'powershell'
-            },
-            'curl_cmd': {
+            curl_cmd: {
+              syntax: 'bash',
               title: 'cURL (CMD)',
-              syntax: 'bash'
-            }
-          }
+            },
+            curl_powershell: {
+              syntax: 'powershell',
+              title: 'cURL (PowerShell)',
+            },
+          },
         }}
+        requestSnippetsEnabled={true}
+        responseInterceptor={(res: { [key: string]: unknown }) => {
+          return res;
+        }}
+        showCommonExtensions={true}
+        showMutatedRequest={true}
+        showRequestHeaders={true}
+        spec={swaggerSpec}
+        supportedSubmitMethods={['get', 'post', 'put', 'delete', 'patch', 'head', 'options']}
+        syntaxHighlight={{
+          activated: true,
+          theme: 'agate',
+        }}
+        tryItOutEnabled={true}
       />
     </div>
   );

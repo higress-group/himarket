@@ -1,7 +1,6 @@
 export { AdvancedSearch } from './AdvancedSearch';
 export type { SearchParam } from './AdvancedSearch';
 
-
 export { CliSelector } from './CliSelector';
 export type { CliSelectorProps } from './CliSelector';
 

@@ -1,6 +1,7 @@
-import type React from 'react';
 import { Input } from 'antd';
 import { Search } from 'lucide-react';
+
+import type React from 'react';
 
 /**
  * 搜索过滤输入框 Props
@@ -21,18 +22,18 @@ export interface SearchFilterInputProps {
  * 带搜索图标前缀和清除按钮，用于列表的实时过滤。
  */
 export const SearchFilterInput: React.FC<SearchFilterInputProps> = ({
-  value,
   onChange,
   placeholder = '搜索...',
+  value,
 }) => {
   return (
     <Input
-      value={value}
+      allowClear
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
-      prefix={<Search size={16} className="text-gray-400" />}
-      allowClear
+      prefix={<Search className="text-gray-400" size={16} />}
       size="middle"
+      value={value}
     />
   );
 };

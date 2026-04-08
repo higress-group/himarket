@@ -56,6 +56,6 @@
 
 /* 页面标题渐变背景 */
 .page-title-area {
-  background: linear-gradient(180deg, #EEF2FF 0%, transparent 100%);
+  background: linear-gradient(180deg, #eef2ff 0%, transparent 100%);
   padding: 24px 0 16px;
 }

@@ -14,20 +14,20 @@ export interface SkillMdParsed {
  */
 export function parseSkillMd(content: string): SkillMdParsed {
   if (!content) {
-    return { frontmatter: {}, body: "" };
+    return { body: '', frontmatter: {} };
   }
 
   const trimmed = content.trim();
 
   // 检查是否以 --- 开头
-  if (!trimmed.startsWith("---")) {
-    return { frontmatter: {}, body: trimmed };
+  if (!trimmed.startsWith('---')) {
+    return { body: trimmed, frontmatter: {} };
   }
 
   // 找到第二个 ---
-  const secondDash = trimmed.indexOf("---", 3);
+  const secondDash = trimmed.indexOf('---', 3);
   if (secondDash === -1) {
-    return { frontmatter: {}, body: trimmed };
+    return { body: trimmed, frontmatter: {} };
   }
 
   const yamlBlock = trimmed.substring(3, secondDash).trim();
@@ -35,19 +35,18 @@ export function parseSkillMd(content: string): SkillMdParsed {
 
   // 解析 YAML key: value，支持多行值（| 和 > 语法）
   const frontmatter: Record<string, string> = {};
-  const lines = yamlBlock.split("\n");
-  let currentKey = "";
-  let currentValue = "";
+  const lines = yamlBlock.split('\n');
+  let currentKey = '';
+  let currentValue = '';
   let multilineIndent = -1;
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
+  for (const line of lines) {
     // 如果正在收集多行值，检查缩进
     if (multilineIndent >= 0) {
-      const stripped = line.replace(/^\s*/, "");
+      const stripped = line.replace(/^\s*/, '');
       const indent = line.length - stripped.length;
-      if (indent > multilineIndent || stripped === "") {
-        currentValue += (currentValue ? "\n" : "") + stripped;
+      if (indent > multilineIndent || stripped === '') {
+        currentValue += (currentValue ? '\n' : '') + stripped;
         continue;
       }
       // 缩进结束，保存之前的多行值
@@ -55,22 +54,27 @@ export function parseSkillMd(content: string): SkillMdParsed {
       multilineIndent = -1;
     }
 
-    const colonIdx = line.indexOf(":");
-    if (colonIdx > 0 && line.substring(0, colonIdx).trim() === line.substring(0, colonIdx).trimStart()) {
+    const colonIdx = line.indexOf(':');
+    if (
+      colonIdx > 0 &&
+      line.substring(0, colonIdx).trim() === line.substring(0, colonIdx).trimStart()
+    ) {
       const key = line.substring(0, colonIdx).trim();
       let value = line.substring(colonIdx + 1).trim();
 
-      if (value === "|" || value === ">" || value === "|−" || value === ">-") {
+      if (value === '|' || value === '>' || value === '|−' || value === '>-') {
         // 多行值开始
         currentKey = key;
-        currentValue = "";
+        currentValue = '';
         multilineIndent = line.length - line.trimStart().length;
         continue;
       }
 
       // 去掉引号
-      if ((value.startsWith('"') && value.endsWith('"')) ||
-          (value.startsWith("'") && value.endsWith("'"))) {
+      if (
+        (value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))
+      ) {
         value = value.slice(1, -1);
       }
       frontmatter[key] = value;
@@ -81,7 +85,7 @@ export function parseSkillMd(content: string): SkillMdParsed {
     frontmatter[currentKey] = currentValue.trim();
   }
 
-  return { frontmatter, body };
+  return { body, frontmatter };
 }
 
 /**

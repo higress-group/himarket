@@ -1,14 +1,16 @@
-import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { Layout } from "../components/Layout";
-import { Alert, Tabs } from "antd";
-import { ArrowLeftOutlined } from "@ant-design/icons";
-import { AuthConfig, SubscriptionManager } from "../components/consumer";
-import type { ApiResponse } from "../types";
-import "../styles/table.css";
-import APIs, { type IConsumer, type ISubscription } from "../lib/apis";
-import request from "../lib/request";
+import { ArrowLeftOutlined } from '@ant-design/icons';
+import { Alert, Tabs } from 'antd';
+import { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 
+import { AuthConfig, SubscriptionManager } from '../components/consumer';
+import { Layout } from '../components/Layout';
+import APIs, { type IConsumer, type ISubscription } from '../lib/apis';
+import request from '../lib/request';
+
+import '../styles/table.css';
+
+import type { ApiResponse } from '../types';
 
 function ConsumerDetailPage() {
   const { consumerId } = useParams();
@@ -24,7 +26,7 @@ function ConsumerDetailPage() {
     setSubscriptionsLoading(true);
     try {
       const response = await APIs.getConsumerSubscriptions(consumerId);
-      if (response?.code === "SUCCESS" && response?.data) {
+      if (response?.code === 'SUCCESS' && response?.data) {
         // 从分页数据中提取实际的订阅数组
         const subscriptionsData = response.data.content || [];
         setSubscriptions(subscriptionsData);
@@ -42,7 +44,7 @@ function ConsumerDetailPage() {
     const fetchConsumerDetail = async () => {
       try {
         const response = await APIs.getConsumer({ id: consumerId });
-        if (response?.code === "SUCCESS" && response?.data) {
+        if (response?.code === 'SUCCESS' && response?.data) {
           setConsumer(response.data);
         }
       } catch (error) {
@@ -60,17 +62,10 @@ function ConsumerDetailPage() {
     }
   }, [consumerId, refreshIndex]);
 
-
-
   if (error) {
     return (
       <Layout>
-        <Alert
-          message="加载失败"
-          description={error}
-          type="error"
-          showIcon
-          className="my-8" />
+        <Alert className="my-8" description={error} message="加载失败" showIcon type="error" />
       </Layout>
     );
   }
@@ -83,33 +78,23 @@ function ConsumerDetailPage() {
             {/* 消费者头部 - 返回按钮 + 消费者名称 */}
             <div className="p-6">
               <div className="flex items-center gap-3">
-                <ArrowLeftOutlined
-                  onClick={() => navigate('/consumers')}
-                  className="text-sm"
-                />
-                <h1 className="text-2xl font-semibold text-gray-900">
-                  {consumer.name}
-                </h1>
+                <ArrowLeftOutlined className="text-sm" onClick={() => navigate('/consumers')} />
+                <h1 className="text-2xl font-semibold text-gray-900">{consumer.name}</h1>
               </div>
             </div>
             {/* Tabs 区域 - glass-morphism 风格 */}
-            <Tabs
-              activeKey={activeTab}
-              onChange={setActiveTab}
-              size="large"
-              className="px-6"
-            >
-              <Tabs.TabPane tab="基本信息" key="basic">
+            <Tabs activeKey={activeTab} className="px-6" onChange={setActiveTab} size="large">
+              <Tabs.TabPane key="basic" tab="基本信息">
                 <div className="border border-[#e5e5e5] rounded-lg mt-2">
-                  <AuthConfig consumerId={consumerId!} />
+                  <AuthConfig consumerId={consumerId ?? ''} />
                 </div>
               </Tabs.TabPane>
 
-              <Tabs.TabPane tab="订阅列表" key="authorization">
+              <Tabs.TabPane key="authorization" tab="订阅列表">
                 <SubscriptionManager
-                  onRefresh={() => setRefreshIndex(v => v + 1)}
-                  consumerId={consumerId!}
-                  subscriptions={subscriptions}
+                  consumerId={consumerId ?? ''}
+                  loading={subscriptionsLoading}
+                  onRefresh={() => setRefreshIndex((v) => v + 1)}
                   onSubscriptionsChange={async (searchParams) => {
                     // 重新获取订阅列表
                     if (consumerId) {
@@ -127,8 +112,11 @@ function ConsumerDetailPage() {
                         const queryString = params.toString();
                         const url = `/consumers/${consumerId}/subscriptions${queryString ? `?${queryString}` : ''}`;
 
-                        const response: ApiResponse<{ content: ISubscription[], totalElements: number }> = await request.get(url);
-                        if (response?.code === "SUCCESS" && response?.data) {
+                        const response: ApiResponse<{
+                          content: ISubscription[];
+                          totalElements: number;
+                        }> = await request.get(url);
+                        if (response?.code === 'SUCCESS' && response?.data) {
                           // 从分页数据中提取实际的订阅数组
                           const subscriptionsData = response.data.content || [];
                           setSubscriptions(subscriptionsData);
@@ -140,7 +128,7 @@ function ConsumerDetailPage() {
                       }
                     }
                   }}
-                  loading={subscriptionsLoading}
+                  subscriptions={subscriptions}
                 />
               </Tabs.TabPane>
             </Tabs>

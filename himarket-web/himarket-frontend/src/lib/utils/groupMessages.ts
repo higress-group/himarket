@@ -1,15 +1,11 @@
-import type {
-  ChatItem,
-  ChatItemToolCall,
-  ChatItemAgent,
-} from "../../types/coding-protocol";
+import type { ChatItem, ChatItemToolCall, ChatItemAgent } from '../../types/coding-protocol';
 
 // ===== MCP Detection (inlined to avoid circular deps with ToolCallCard) =====
 
 /** Detect if a tool_call is an MCP tool invocation by title pattern */
 function isMcpToolCall(item: ChatItemToolCall): boolean {
-  if (item.kind !== "other") return false;
-  return /\(.+\s+MCP Server\)\s*:/.test(item.title || "");
+  if (item.kind !== 'other') return false;
+  return /\(.+\s+MCP Server\)\s*:/.test(item.title || '');
 }
 
 // ===== Types =====
@@ -38,26 +34,27 @@ export interface ActivityGroup {
 }
 
 export type RenderItem =
-  | { type: "single"; item: ChatItem }
-  | { type: "activity_group"; group: ActivityGroup };
+  | { type: 'single'; item: ChatItem }
+  | { type: 'activity_group'; group: ActivityGroup };
 
 // ===== Helpers =====
 
 function extractFilePath(item: ChatItemToolCall): string | null {
   if (item.rawInput) {
-    if (typeof item.rawInput.file_path === "string")
-      return item.rawInput.file_path;
-    if (typeof item.rawInput.path === "string") return item.rawInput.path;
+    if (typeof item.rawInput.file_path === 'string') return item.rawInput.file_path;
+    if (typeof item.rawInput.path === 'string') return item.rawInput.path;
   }
-  if (item.locations && item.locations.length > 0)
-    return item.locations[0].path;
+  if (item.locations && item.locations.length > 0) {
+    const first = item.locations[0];
+    if (first) return first.path;
+  }
   return null;
 }
 
 function isShortText(text: string): boolean {
   if (text.length > 150) return false;
-  if (text.split("\n").length > 2) return false;
-  if (text.includes("```")) return false;
+  if (text.split('\n').length > 2) return false;
+  if (text.includes('```')) return false;
   return true;
 }
 
@@ -85,43 +82,43 @@ function isShortText(text: string): boolean {
  */
 function shouldFoldBlock(item: ChatItem, isInGroup: boolean): boolean {
   switch (item.type) {
-    case "user":
-    case "plan":
-    case "error":
+    case 'user':
+    case 'plan':
+    case 'error':
       return false;
 
-    case "tool_call": {
+    case 'tool_call': {
       const tc = item as ChatItemToolCall;
       // Failed tools → fold into group to reduce visual noise
-      if (tc.status === "failed") return true;
+      if (tc.status === 'failed') return true;
       switch (tc.kind) {
-        case "switch_mode":
+        case 'switch_mode':
           return false;
-        case "skill":
+        case 'skill':
           return false;
-        case "edit":
+        case 'edit':
           return true; // modify operations fold
-        case "execute":
+        case 'execute':
           return false;
-        case "read":
-        case "search":
-        case "think":
-        case "fetch":
+        case 'read':
+        case 'search':
+        case 'think':
+        case 'fetch':
           return true; // exploration tools fold
-        case "delete":
-        case "move":
+        case 'delete':
+        case 'move':
           return false;
-        case "other":
+        case 'other':
           return !isMcpToolCall(tc); // MCP calls don't fold
         default:
           return false;
       }
     }
 
-    case "thought":
+    case 'thought':
       return true;
 
-    case "agent": {
+    case 'agent': {
       if (!isInGroup) return false;
       const a = item as ChatItemAgent;
       return isShortText(a.text);
@@ -140,11 +137,11 @@ function shouldFoldBlock(item: ChatItem, isInGroup: boolean): boolean {
  */
 function shouldEndGroup(currentGroup: ChatItem[], nextItem: ChatItem): boolean {
   const hasEditInGroup = currentGroup.some(
-    b => b.type === "tool_call" && (b as ChatItemToolCall).kind === "edit"
+    (b) => b.type === 'tool_call' && (b as ChatItemToolCall).kind === 'edit',
   );
 
-  if (nextItem.type === "tool_call") {
-    const isNextEdit = (nextItem as ChatItemToolCall).kind === "edit";
+  if (nextItem.type === 'tool_call') {
+    const isNextEdit = (nextItem as ChatItemToolCall).kind === 'edit';
 
     // Current group has no edit + next is edit → end group (edits start own group)
     if (!hasEditInGroup && isNextEdit) return true;
@@ -168,7 +165,7 @@ function shouldEndGroup(currentGroup: ChatItem[], nextItem: ChatItem): boolean {
 
 function getFirstEditFilePath(blocks: ChatItem[]): string | null {
   for (const b of blocks) {
-    if (b.type === "tool_call" && (b as ChatItemToolCall).kind === "edit") {
+    if (b.type === 'tool_call' && (b as ChatItemToolCall).kind === 'edit') {
       return extractFilePath(b as ChatItemToolCall);
     }
   }
@@ -183,13 +180,11 @@ function getFirstEditFilePath(blocks: ChatItem[]): string | null {
  * conversation is protected so the user always sees the final reply.
  * During processing, no protection is applied (the last message is still changing).
  */
-function findProtectedIndex(
-  messages: ChatItem[],
-  isProcessing: boolean
-): number {
+function findProtectedIndex(messages: ChatItem[], isProcessing: boolean): number {
   if (isProcessing) return -1;
   for (let i = messages.length - 1; i >= 0; i--) {
-    if (messages[i].type === "agent") return i;
+    const msg = messages[i];
+    if (msg?.type === 'agent') return i;
   }
   return -1;
 }
@@ -198,15 +193,15 @@ function findProtectedIndex(
 
 function createActivityGroup(blocks: ChatItem[]): ActivityGroup {
   const summary: ToolsSummary = {
-    files: 0,
-    searches: 0,
     edits: 0,
     executes: 0,
     fetches: 0,
-    thinks: 0,
-    skills: 0,
+    files: 0,
     mcpCalls: 0,
     others: 0,
+    searches: 0,
+    skills: 0,
+    thinks: 0,
   };
 
   let hasErrorTool = false;
@@ -217,32 +212,32 @@ function createActivityGroup(blocks: ChatItem[]): ActivityGroup {
   let hasAnyToolCall = false;
 
   for (const block of blocks) {
-    if (block.type === "tool_call") {
+    if (block.type === 'tool_call') {
       const tc = block as ChatItemToolCall;
       hasAnyToolCall = true;
 
-      if (tc.status === "failed") hasErrorTool = true;
+      if (tc.status === 'failed') hasErrorTool = true;
 
-      const isSkill = tc.kind === "skill" || /^Skill\s+/i.test(tc.title || "");
+      const isSkill = tc.kind === 'skill' || /^Skill\s+/i.test(tc.title || '');
       if (isSkill) {
         summary.skills++;
         isThinkingOnly = false;
         isEditOnly = false;
       } else {
         switch (tc.kind) {
-          case "read": {
+          case 'read': {
             const fp = extractFilePath(tc);
             if (fp) readFilePaths.add(fp);
             isThinkingOnly = false;
             isEditOnly = false;
             break;
           }
-          case "search":
+          case 'search':
             summary.searches++;
             isThinkingOnly = false;
             isEditOnly = false;
             break;
-          case "edit": {
+          case 'edit': {
             summary.edits++;
             isThinkingOnly = false;
             const fp = extractFilePath(tc);
@@ -253,32 +248,32 @@ function createActivityGroup(blocks: ChatItem[]): ActivityGroup {
             }
             break;
           }
-          case "execute":
+          case 'execute':
             summary.executes++;
             isThinkingOnly = false;
             isEditOnly = false;
             break;
-          case "think":
+          case 'think':
             summary.thinks++;
             isEditOnly = false;
             break;
-          case "fetch":
+          case 'fetch':
             summary.fetches++;
             isThinkingOnly = false;
             isEditOnly = false;
             break;
-          case "delete":
-          case "move":
+          case 'delete':
+          case 'move':
             isThinkingOnly = false;
             isEditOnly = false;
             summary.others++;
             break;
-          case "switch_mode":
+          case 'switch_mode':
             isThinkingOnly = false;
             isEditOnly = false;
             summary.others++;
             break;
-          case "other":
+          case 'other':
             isThinkingOnly = false;
             isEditOnly = false;
             if (isMcpToolCall(tc)) {
@@ -294,10 +289,10 @@ function createActivityGroup(blocks: ChatItem[]): ActivityGroup {
             break;
         }
       }
-    } else if (block.type === "thought") {
+    } else if (block.type === 'thought') {
       // thought is compatible with both isThinkingOnly and isEditOnly
       isEditOnly = false; // thoughts don't contribute to edit-only
-    } else if (block.type === "agent") {
+    } else if (block.type === 'agent') {
       // Short agent text in a group is OK for thinking-only
       isEditOnly = false;
     }
@@ -318,9 +313,9 @@ function createActivityGroup(blocks: ChatItem[]): ActivityGroup {
   // isEditOnly requires only edit tool calls (+ thoughts/agents are OK)
   if (isEditOnly) {
     for (const block of blocks) {
-      if (block.type === "tool_call") {
+      if (block.type === 'tool_call') {
         const tc = block as ChatItemToolCall;
-        if (tc.kind !== "edit") {
+        if (tc.kind !== 'edit') {
           isEditOnly = false;
           break;
         }
@@ -328,30 +323,29 @@ function createActivityGroup(blocks: ChatItem[]): ActivityGroup {
     }
   }
 
+  const firstBlock = blocks[0];
   return {
-    id: `ag-${blocks[0].id}`,
     blocks,
+    editFilePath: isEditOnly ? editFilePath : undefined,
+    hasErrorTool,
+    id: `ag-${firstBlock?.id ?? 'unknown'}`,
+    isEditOnly,
     isExploring: false, // Set later by setIsExploringForLastGroup
     isThinkingOnly,
-    isEditOnly,
-    editFilePath: isEditOnly ? editFilePath : undefined,
     toolsSummary: summary,
-    hasErrorTool,
   };
 }
 
 // ===== isExploring =====
 
-function setIsExploringForLastGroup(
-  result: RenderItem[],
-  isProcessing: boolean
-): void {
+function setIsExploringForLastGroup(result: RenderItem[], isProcessing: boolean): void {
   if (!isProcessing) return;
 
   // Find the last activity_group
   let lastGroupIdx = -1;
   for (let i = result.length - 1; i >= 0; i--) {
-    if (result[i].type === "activity_group") {
+    const item = result[i];
+    if (item?.type === 'activity_group') {
       lastGroupIdx = i;
       break;
     }
@@ -360,18 +354,17 @@ function setIsExploringForLastGroup(
 
   // Check no single blocks after it
   for (let i = lastGroupIdx + 1; i < result.length; i++) {
-    if (result[i].type === "single") return;
+    const item = result[i];
+    if (item?.type === 'single') return;
   }
 
   // Check at least one tool is still running
-  const group = (
-    result[lastGroupIdx] as { type: "activity_group"; group: ActivityGroup }
-  ).group;
+  const group = (result[lastGroupIdx] as { type: 'activity_group'; group: ActivityGroup }).group;
   const hasRunningTool = group.blocks.some(
-    b =>
-      b.type === "tool_call" &&
-      ((b as ChatItemToolCall).status === "pending" ||
-        (b as ChatItemToolCall).status === "in_progress")
+    (b) =>
+      b.type === 'tool_call' &&
+      ((b as ChatItemToolCall).status === 'pending' ||
+        (b as ChatItemToolCall).status === 'in_progress'),
   );
 
   if (hasRunningTool) {
@@ -387,15 +380,16 @@ function flushGroup(result: RenderItem[], currentGroup: ChatItem[]): void {
   if (currentGroup.length === 1) {
     // Single block: re-check if it should be folded when standalone
     const item = currentGroup[0];
+    if (!item) return;
     const shouldFold = shouldFoldBlock(item, false);
     if (!shouldFold) {
-      result.push({ type: "single", item });
+      result.push({ item, type: 'single' });
       return;
     }
   }
 
   const group = createActivityGroup(currentGroup);
-  result.push({ type: "activity_group", group });
+  result.push({ group, type: 'activity_group' });
 }
 
 // ===== Main Grouping Algorithm =====
@@ -411,10 +405,7 @@ function flushGroup(result: RenderItem[], currentGroup: ChatItem[]): void {
  * - Same-file edit aggregation: consecutive modify edits on same file group together
  * - Short text folding: agent short text (≤150 chars) folds when in a group
  */
-export function groupMessages(
-  messages: ChatItem[],
-  isProcessing: boolean = false
-): RenderItem[] {
+export function groupMessages(messages: ChatItem[], isProcessing: boolean = false): RenderItem[] {
   const result: RenderItem[] = [];
   const len = messages.length;
   const protectedIndex = findProtectedIndex(messages, isProcessing);
@@ -422,12 +413,13 @@ export function groupMessages(
 
   for (let i = 0; i < len; i++) {
     const item = messages[i];
+    if (!item) continue;
 
     // Protected last message: always render as single
     if (i === protectedIndex) {
       flushGroup(result, currentGroup);
       currentGroup = [];
-      result.push({ type: "single", item });
+      result.push({ item, type: 'single' });
       continue;
     }
 
@@ -445,7 +437,7 @@ export function groupMessages(
       // Not foldable: flush current group, emit as single
       flushGroup(result, currentGroup);
       currentGroup = [];
-      result.push({ type: "single", item });
+      result.push({ item, type: 'single' });
     }
   }
 

@@ -1,8 +1,9 @@
-import { Link, useLocation } from "react-router-dom";
-import { Skeleton } from "antd";
-import { ApiOutlined, ToolOutlined, RobotOutlined, BulbOutlined } from "@ant-design/icons";
+import { ApiOutlined, ToolOutlined, RobotOutlined, BulbOutlined } from '@ant-design/icons';
+import { Skeleton } from 'antd';
 import { useTranslation } from 'react-i18next';
-import { UserInfo } from "./UserInfo";
+import { Link, useLocation } from 'react-router-dom';
+
+import { UserInfo } from './UserInfo';
 
 interface NavigationProps {
   loading?: boolean;
@@ -21,29 +22,29 @@ export function Navigation({ loading = false }: NavigationProps) {
 
   const navigationItems = [
     {
-      path: '/apis',
       icon: <ApiOutlined />,
+      path: '/apis',
+      subtitle: t('navigation.restApi'),
       title: 'APIs',
-      subtitle: t('navigation.restApi')
     },
     {
-      path: '/mcp',
       icon: <ToolOutlined />,
+      path: '/mcp',
+      subtitle: t('navigation.toolIntegration'),
       title: 'MCP',
-      subtitle: t('navigation.toolIntegration')
     },
     {
-      path: '/models',
       icon: <BulbOutlined />,
+      path: '/models',
+      subtitle: t('navigation.aiModel'),
       title: 'Model',
-      subtitle: t('navigation.aiModel')
     },
     {
-      path: '/agents',
       icon: <RobotOutlined />,
+      path: '/agents',
+      subtitle: t('navigation.intelligentAssistant'),
       title: 'Agent',
-      subtitle: t('navigation.intelligentAssistant')
-    }
+    },
   ];
 
   return (
@@ -53,19 +54,22 @@ export function Navigation({ loading = false }: NavigationProps) {
           <div className="flex items-center">
             {loading ? (
               <div className="flex items-center space-x-2">
-                <Skeleton.Avatar size={32} active />
-                <Skeleton.Input active size="small" style={{ width: 120, height: 24 }} />
+                <Skeleton.Avatar active size={32} />
+                <Skeleton.Input active size="small" style={{ height: 24, width: 120 }} />
               </div>
             ) : (
-              <Link to="/" className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
+              <Link
+                className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
+                to="/"
+              >
                 <div className="w-8 h-8 rounded-full flex items-center justify-center">
-                {/* LOGO区域 */}
-                <img
-                  src="/logo.png"
-                  alt="logo"
-                  className="w-6 h-6"
-                  style={{ display: "block" }}
-                />
+                  {/* LOGO区域 */}
+                  <img
+                    alt="logo"
+                    className="w-6 h-6"
+                    src="/logo.png"
+                    style={{ display: 'block' }}
+                  />
                 </div>
                 <span className="text-xl font-bold text-gray-900">HiMarket</span>
               </Link>
@@ -75,34 +79,32 @@ export function Navigation({ loading = false }: NavigationProps) {
           <div className="hidden md:flex items-center absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
             {loading ? (
               <div className="flex space-x-3">
-                <Skeleton.Input active size="small" style={{ width: 100, height: 60 }} />
-                <Skeleton.Input active size="small" style={{ width: 100, height: 60 }} />
-                <Skeleton.Input active size="small" style={{ width: 100, height: 60 }} />
-                <Skeleton.Input active size="small" style={{ width: 100, height: 60 }} />
+                <Skeleton.Input active size="small" style={{ height: 60, width: 100 }} />
+                <Skeleton.Input active size="small" style={{ height: 60, width: 100 }} />
+                <Skeleton.Input active size="small" style={{ height: 60, width: 100 }} />
+                <Skeleton.Input active size="small" style={{ height: 60, width: 100 }} />
               </div>
             ) : (
               <div className="flex space-x-3">
                 {navigationItems.map((item) => (
                   <Link
-                    key={item.path}
-                    to={item.path}
                     className={`px-4 py-3 rounded-lg font-medium transition-all duration-200 flex flex-col items-center justify-center min-w-[100px] ${
                       isActive(item.path)
                         ? 'bg-blue-50/80 text-blue-700 border border-blue-200/50 shadow-sm'
                         : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50/50 border border-transparent'
                     }`}
+                    key={item.path}
+                    to={item.path}
                   >
                     <div className="flex items-center space-x-1 mb-1">
-                      <div className={`text-lg ${isActive(item.path) ? 'text-blue-600' : 'text-gray-500'}`}>
+                      <div
+                        className={`text-lg ${isActive(item.path) ? 'text-blue-600' : 'text-gray-500'}`}
+                      >
                         {item.icon}
                       </div>
-                      <div className="text-sm font-semibold leading-tight">
-                        {item.title}
-                      </div>
+                      <div className="text-sm font-semibold leading-tight">{item.title}</div>
                     </div>
-                    <div className="text-xs text-gray-500 leading-tight">
-                      {item.subtitle}
-                    </div>
+                    <div className="text-xs text-gray-500 leading-tight">{item.subtitle}</div>
                   </Link>
                 ))}
               </div>
@@ -110,11 +112,7 @@ export function Navigation({ loading = false }: NavigationProps) {
           </div>
 
           <div className="flex items-center space-x-4">
-            {loading ? (
-              <Skeleton.Avatar size={32} active />
-            ) : (
-              <UserInfo />
-            )}
+            {loading ? <Skeleton.Avatar active size={32} /> : <UserInfo />}
           </div>
         </div>
       </div>

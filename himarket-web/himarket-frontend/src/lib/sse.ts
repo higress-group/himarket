@@ -29,14 +29,14 @@ export interface SSENewMessage {
 */
 
 // Chat Event Type
-export type ChatEventType = 
-  | 'START'        // Stream started
-  | 'ASSISTANT'    // Assistant response
-  | 'THINKING'     // Thinking process
-  | 'TOOL_CALL'    // Tool call request
-  | 'TOOL_RESULT'  // Tool execution result
-  | 'DONE'         // Stream completed
-  | 'ERROR';       // Error occurred
+export type ChatEventType =
+  | 'START' // Stream started
+  | 'ASSISTANT' // Assistant response
+  | 'THINKING' // Thinking process
+  | 'TOOL_CALL' // Tool call request
+  | 'TOOL_RESULT' // Tool execution result
+  | 'DONE' // Stream completed
+  | 'ERROR'; // Error occurred
 
 // Chat Event Structure
 export interface ChatEvent {
@@ -86,13 +86,13 @@ export async function handleSSEStream(
   url: string,
   options: RequestInit,
   callbacks: SSEOptions,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<void> {
   const response = await fetch(url, {
     ...options,
     headers: {
       ...options.headers,
-      'Accept': 'text/event-stream',
+      Accept: 'text/event-stream',
     },
     signal,
   });
@@ -187,7 +187,7 @@ export async function handleSSEStream(
                     callbacks.onToolCall?.(
                       event.content as IToolCall,
                       event.chatId,
-                      event.usage || undefined
+                      event.usage || undefined,
                     );
                   }
                   break;
@@ -198,7 +198,7 @@ export async function handleSSEStream(
                     callbacks.onToolResponse?.(
                       event.content as IToolResponse,
                       event.chatId,
-                      event.usage || undefined
+                      event.usage || undefined,
                     );
                   }
                   break;
@@ -212,10 +212,7 @@ export async function handleSSEStream(
 
                 case 'ERROR':
                   // Error event
-                  callbacks.onError?.(
-                    event.message || "Network error, please retry",
-                    event.error
-                  );
+                  callbacks.onError?.(event.message || 'Network error, please retry', event.error);
                   break;
               }
             }

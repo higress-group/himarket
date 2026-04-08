@@ -1,6 +1,6 @@
-import { ArrowUpOutlined } from "@ant-design/icons";
-import { Button } from "antd";
-import { useCallback, useEffect, useState } from "react";
+import { ArrowUpOutlined } from '@ant-design/icons';
+import { Button } from 'antd';
+import { useCallback, useEffect, useState } from 'react';
 
 export default function BackToTopButton({ container }: { container?: HTMLDivElement }) {
   const [isVisible, setIsVisible] = useState(false);
@@ -20,31 +20,30 @@ export default function BackToTopButton({ container }: { container?: HTMLDivElem
   const scrollToTop = () => {
     const c = container || window;
     c.scrollTo({
+      behavior: 'smooth',
       top: 0,
-      behavior: "smooth",
     });
   };
 
   useEffect(() => {
     const con = container || window;
-    con.addEventListener("scroll", toggleVisibility);
+    con.addEventListener('scroll', toggleVisibility);
 
     // Cleanup listener on component unmount
     return () => {
-      con.removeEventListener("scroll", toggleVisibility);
+      con.removeEventListener('scroll', toggleVisibility);
     };
   }, [container, toggleVisibility]);
 
   return (
     <Button
-      type="primary"
+      aria-label="Scroll to top"
       className={`fixed bottom-8 right-2 rounded-full h-10 w-10 shadow-lg transition-opacity duration-300 ease-in-out z-50
         hover:scale-110 active:scale-95 
-        ${isVisible ? "opacity-100" : "opacity-0 pointer-events-none"
-        }
+        ${isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}
       )`}
       onClick={scrollToTop}
-      aria-label="Scroll to top"
+      type="primary"
     >
       <ArrowUpOutlined className="h-6 w-6" />
     </Button>

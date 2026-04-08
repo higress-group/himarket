@@ -1,7 +1,9 @@
-import { useMemo } from "react";
-import { useActiveCodingSession } from "../../context/CodingSessionContext";
-import { DiffViewer } from "./DiffViewer";
-import type { ChatItemToolCall } from "../../types/coding-protocol";
+import { useMemo } from 'react';
+
+import { DiffViewer } from './DiffViewer';
+import { useActiveCodingSession } from '../../context/CodingSessionContext';
+
+import type { ChatItemToolCall } from '../../types/coding-protocol';
 
 interface DiffEntry {
   path: string;
@@ -18,17 +20,14 @@ export function ChangesView() {
     if (!messages) return [];
     const result: DiffEntry[] = [];
     for (const m of messages) {
-      if (m.type !== "tool_call") continue;
+      if (m.type !== 'tool_call') continue;
       const tc = m as ChatItemToolCall;
       for (const c of tc.content ?? []) {
-        if (
-          c.type === "diff" &&
-          (c.oldText !== undefined || c.newText !== undefined)
-        ) {
+        if (c.type === 'diff' && (c.oldText !== undefined || c.newText !== undefined)) {
           result.push({
-            path: c.path ?? "unknown",
+            newText: c.newText ?? '',
             oldText: c.oldText,
-            newText: c.newText ?? "",
+            path: c.path ?? 'unknown',
             toolTitle: tc.title,
           });
         }
@@ -53,15 +52,10 @@ export function ChangesView() {
   return (
     <div className="p-4 space-y-3">
       <div className="text-xs text-gray-400 mb-2">
-        {diffs.length} file{diffs.length !== 1 ? "s" : ""} changed
+        {diffs.length} file{diffs.length !== 1 ? 's' : ''} changed
       </div>
       {diffs.map((d, i) => (
-        <DiffViewer
-          key={`${d.path}-${i}`}
-          path={d.path}
-          oldText={d.oldText}
-          newText={d.newText}
-        />
+        <DiffViewer key={`${d.path}-${i}`} newText={d.newText} oldText={d.oldText} path={d.path} />
       ))}
     </div>
   );

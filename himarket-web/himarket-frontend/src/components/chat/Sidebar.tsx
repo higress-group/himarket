@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react";
 import {
   PlusOutlined,
   DownOutlined,
@@ -9,20 +8,23 @@ import {
   MoreOutlined,
   CheckOutlined,
   CloseOutlined,
-} from "@ant-design/icons";
-import { message as antdMessage, Spin, Dropdown, Modal } from "antd";
-import type { MenuProps } from "antd";
-import "./Sidebar.css";
-import APIs, { type ISession } from "../../lib/apis";
-import { FileVideo, Image, MessageSquareQuote } from "../icon";
+} from '@ant-design/icons';
+import { message as antdMessage, Spin, Dropdown, Modal } from 'antd';
+import { useState, useEffect } from 'react';
+
+import './Sidebar.css';
+import APIs, { type ISession } from '../../lib/apis';
+import { FileVideo, Image, MessageSquareQuote } from '../icon';
+
+import type { MenuProps } from 'antd';
 
 interface SidebarProps {
   currentSessionId?: string;
   onNewChat: () => void;
   onSelectSession?: (sessionId: string, productIds: string[]) => void;
   refreshTrigger?: number; // 添加刷新触发器
-  selectedType?: "TEXT" | "Image";
-  onSelectType?: (type: "TEXT" | "Image") => void;
+  selectedType?: 'TEXT' | 'Image';
+  onSelectType?: (type: 'TEXT' | 'Image') => void;
 }
 
 interface ChatSession {
@@ -52,29 +54,29 @@ const categorizeSessionsByTime = (sessions: ChatSession[]) => {
     }
   });
 
-  return { today, last7Days, last30Days };
+  return { last30Days, last7Days, today };
 };
 
 export function Sidebar({
   currentSessionId,
   onNewChat,
   onSelectSession,
-  refreshTrigger,
-  selectedType = "TEXT",
   onSelectType,
+  refreshTrigger,
+  selectedType = 'TEXT',
 }: SidebarProps) {
   // const [selectedFeature, setSelectedFeature] = useState("language-model");
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
-    today: true,
-    last7Days: false,
     last30Days: false,
+    last7Days: false,
+    today: true,
   });
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [loading, setLoading] = useState(false);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
-  const [editingName, setEditingName] = useState("");
-  const [originalName, setOriginalName] = useState(""); // 保存原始名称用于取消
+  const [editingName, setEditingName] = useState('');
+  const [originalName, setOriginalName] = useState(''); // 保存原始名称用于取消
 
   // 获取会话列表
   useEffect(() => {
@@ -83,20 +85,18 @@ export function Sidebar({
       try {
         const response = await APIs.getSessions({ page: 0, size: 50 });
 
-        if (response.code === "SUCCESS" && response.data?.content) {
-          const sessionList: ChatSession[] = response.data.content.map(
-            (session: ISession) => ({
-              id: session.sessionId,
-              title: session.name || "未命名会话",
-              timestamp: new Date(session.updateAt || session.createAt),
-              productIds: session.products || [],
-            }),
-          );
+        if (response.code === 'SUCCESS' && response.data?.content) {
+          const sessionList: ChatSession[] = response.data.content.map((session: ISession) => ({
+            id: session.sessionId,
+            productIds: session.products || [],
+            timestamp: new Date(session.updateAt || session.createAt),
+            title: session.name || '未命名会话',
+          }));
           setSessions(sessionList);
         }
       } catch (error) {
-        console.error("Failed to fetch sessions:", error);
-        antdMessage.error("获取会话列表失败");
+        console.error('Failed to fetch sessions:', error);
+        antdMessage.error('获取会话列表失败');
       } finally {
         setLoading(false);
       }
@@ -105,10 +105,10 @@ export function Sidebar({
     fetchSessions();
   }, [refreshTrigger]); // 当 refreshTrigger 改变时重新获取
 
-  const { today, last7Days, last30Days } = categorizeSessionsByTime(sessions);
+  const { last30Days, last7Days, today } = categorizeSessionsByTime(sessions);
 
   // 检测操作系统
-  const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+  const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
 
   // 监听快捷键
   useEffect(() => {
@@ -117,16 +117,16 @@ export function Sidebar({
       if (
         event.shiftKey &&
         (isMac ? event.metaKey : event.ctrlKey) &&
-        event.key.toLowerCase() === "o"
+        event.key.toLowerCase() === 'o'
       ) {
         event.preventDefault();
         onNewChat();
       }
     };
 
-    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
     return () => {
-      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener('keydown', handleKeyDown);
     };
   }, [isMac, onNewChat]);
 
@@ -149,7 +149,7 @@ export function Sidebar({
     const trimmedName = editingName.trim();
 
     if (!trimmedName) {
-      antdMessage.error("会话名称不能为空");
+      antdMessage.error('会话名称不能为空');
       return;
     }
 
@@ -163,41 +163,39 @@ export function Sidebar({
       const response = await APIs.updateSession(sessionId, {
         name: trimmedName,
       });
-      if (response.code === "SUCCESS") {
+      if (response.code === 'SUCCESS') {
         // 更新本地状态
         setSessions((prev) =>
           prev.map((session) =>
-            session.id === sessionId
-              ? { ...session, title: trimmedName }
-              : session,
+            session.id === sessionId ? { ...session, title: trimmedName } : session,
           ),
         );
-        antdMessage.success("重命名成功");
+        antdMessage.success('重命名成功');
         setEditingSessionId(null);
-        setEditingName("");
-        setOriginalName("");
+        setEditingName('');
+        setOriginalName('');
       } else {
-        throw new Error("重命名失败");
+        throw new Error('重命名失败');
       }
     } catch (error) {
-      console.error("Failed to rename session:", error);
-      antdMessage.error("重命名失败");
+      console.error('Failed to rename session:', error);
+      antdMessage.error('重命名失败');
     }
   };
 
   // 取消编辑
   const handleCancelEdit = () => {
     setEditingSessionId(null);
-    setEditingName("");
-    setOriginalName("");
+    setEditingName('');
+    setOriginalName('');
   };
 
   // 处理键盘事件
   const handleEditKeyDown = (e: React.KeyboardEvent, sessionId: string) => {
-    if (e.key === "Enter") {
+    if (e.key === 'Enter') {
       e.preventDefault();
       handleSaveEdit(sessionId);
-    } else if (e.key === "Escape") {
+    } else if (e.key === 'Escape') {
       e.preventDefault();
       handleCancelEdit();
     }
@@ -206,33 +204,31 @@ export function Sidebar({
   // 删除会话
   const handleDeleteSession = (sessionId: string, sessionName: string) => {
     Modal.confirm({
-      title: "确认删除",
+      cancelText: '取消',
       content: `确定要删除会话 "${sessionName}" 吗？此操作无法撤销。`,
-      okText: "删除",
-      okType: "danger",
-      cancelText: "取消",
+      okText: '删除',
+      okType: 'danger',
       onOk: async () => {
         try {
           const response = await APIs.deleteSession(sessionId);
-          if (response.code === "SUCCESS") {
+          if (response.code === 'SUCCESS') {
             // 从本地状态中移除
-            setSessions((prev) =>
-              prev.filter((session) => session.id !== sessionId),
-            );
-            antdMessage.success("删除成功");
+            setSessions((prev) => prev.filter((session) => session.id !== sessionId));
+            antdMessage.success('删除成功');
 
             // 如果删除的是当前选中的会话，触发新会话
             if (currentSessionId === sessionId) {
               onNewChat();
             }
           } else {
-            throw new Error("删除失败");
+            throw new Error('删除失败');
           }
         } catch (error) {
-          console.error("Failed to delete session:", error);
-          antdMessage.error("删除失败");
+          console.error('Failed to delete session:', error);
+          antdMessage.error('删除失败');
         }
       },
+      title: '确认删除',
     });
   };
 
@@ -240,19 +236,19 @@ export function Sidebar({
   const getSessionMenu = (session: ChatSession): MenuProps => ({
     items: [
       {
-        key: "rename",
-        label: "重命名",
         icon: <EditOutlined />,
+        key: 'rename',
+        label: '重命名',
         onClick: ({ domEvent }) => {
           domEvent.stopPropagation();
           handleStartEdit(session.id, session.title);
         },
       },
       {
-        key: "delete",
-        label: "删除",
-        icon: <DeleteOutlined />,
         danger: true,
+        icon: <DeleteOutlined />,
+        key: 'delete',
+        label: '删除',
         onClick: ({ domEvent }) => {
           domEvent.stopPropagation();
           handleDeleteSession(session.id, session.title);
@@ -270,45 +266,52 @@ export function Sidebar({
 
     return (
       <div className="mb-2">
-        <div
-          className={`${expandedSections[sectionKey] ? "bg-white" : ""} sticky top-0 z-10 flex items-center justify-between px-3 py-2 text-sm text-subTitle cursor-pointer hover:bg-white/30 rounded-lg transition-all duration-200 hover:scale-[1.02]  backdrop-blur-xl`}
+        <button
+          className={`${expandedSections[sectionKey] ? 'bg-white' : ''} sticky top-0 z-10 flex items-center justify-between px-3 py-2 text-sm text-subTitle cursor-pointer hover:bg-white/30 rounded-lg transition-all duration-200 hover:scale-[1.02] backdrop-blur-xl border-0 w-full text-left`}
           onClick={() => toggleSection(sectionKey)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              toggleSection(sectionKey);
+            }
+          }}
+          type="button"
         >
           <span className="font-medium">{title}</span>
           <span
             className={`
               transition-transform duration-300 ease-in-out
-              ${expandedSections[sectionKey] ? "rotate-0" : "-rotate-90"}
+              ${expandedSections[sectionKey] ? 'rotate-0' : '-rotate-90'}
             `}
           >
             <DownOutlined className="text-xs" />
           </span>
-        </div>
+        </button>
         <div
           className={`
             overflow-auto transition-all duration-300 ease-in-out sidebar-level-1
-            ${expandedSections[sectionKey] ? "opacity-100 mt-1" : "max-h-0 opacity-0"}
+            ${expandedSections[sectionKey] ? 'opacity-100 mt-1' : 'max-h-0 opacity-0'}
           `}
         >
           <div className="space-y-1">
             {sessions.map((session, index) => (
               <div
-                key={session.id}
                 className={`
                   px-3 py-2 rounded-lg text-sm
                   transition-all duration-200 ease-in-out
                   hover:scale-[1.02] hover:shadow-sm text-mainTitle
                   ${
                     currentSessionId === session.id
-                      ? "bg-colorPrimaryHoverLight font-medium"
-                      : "text-gray-600 hover:bg-colorPrimaryHoverLight hover:text-gray-900"
+                      ? 'bg-colorPrimaryHoverLight font-medium'
+                      : 'text-gray-600 hover:bg-colorPrimaryHoverLight hover:text-gray-900'
                   }
                 `}
+                key={session.id}
                 style={{
-                  animationDelay: `${index * 30}ms`,
                   animation: expandedSections[sectionKey]
-                    ? "slideIn 300ms ease-out forwards"
-                    : "none",
+                    ? 'slideIn 300ms ease-out forwards'
+                    : 'none',
+                  animationDelay: `${index * 30}ms`,
                 }}
               >
                 {editingSessionId === session.id ? (
@@ -316,42 +319,43 @@ export function Sidebar({
                   <div
                     className="flex items-center gap-2"
                     onClick={(e) => e.stopPropagation()}
+                    role="presentation"
                   >
                     <input
-                      type="text"
-                      value={editingName}
-                      onChange={(e) => setEditingName(e.target.value)}
-                      onKeyDown={(e) => handleEditKeyDown(e, session.id)}
+                      autoFocus
+                      className="flex-1 max-w-[70%] px-2 py-1 text-sm border border-colorPrimary rounded focus:outline-none focus:ring-1 focus:ring-colorPrimary"
                       onBlur={() => {
                         handleCancelEdit();
                       }}
-                      className="flex-1 max-w-[70%] px-2 py-1 text-sm border border-colorPrimary rounded focus:outline-none focus:ring-1 focus:ring-colorPrimary"
-                      autoFocus
+                      onChange={(e) => setEditingName(e.target.value)}
+                      onKeyDown={(e) => handleEditKeyDown(e, session.id)}
+                      type="text"
+                      value={editingName}
                     />
                     <button
-                      onMouseDown={(e) => {
-                        e.preventDefault(); // 防止触发 input 的 blur
-                        e.stopPropagation();
-                      }}
+                      className="flex-shrink-0 p-1 text-green-600 hover:bg-green-50 rounded transition-colors"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleSaveEdit(session.id);
                       }}
-                      className="flex-shrink-0 p-1 text-green-600 hover:bg-green-50 rounded transition-colors"
+                      onMouseDown={(e) => {
+                        e.preventDefault(); // 防止触发 input 的 blur
+                        e.stopPropagation();
+                      }}
                       title="保存"
                     >
                       <CheckOutlined className="text-sm" />
                     </button>
                     <button
-                      onMouseDown={(e) => {
-                        e.preventDefault(); // 防止触发 input 的 blur
-                        e.stopPropagation();
-                      }}
+                      className="flex-shrink-0 p-1 text-gray-600 hover:bg-gray-100 rounded transition-colors"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleCancelEdit();
                       }}
-                      className="flex-shrink-0 p-1 text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                      onMouseDown={(e) => {
+                        e.preventDefault(); // 防止触发 input 的 blur
+                        e.stopPropagation();
+                      }}
                       title="取消"
                     >
                       <CloseOutlined className="text-sm" />
@@ -359,37 +363,38 @@ export function Sidebar({
                   </div>
                 ) : (
                   /* 正常模式 */
-                  <div
-                    className="flex items-center gap-2 cursor-pointer group"
+                  <button
+                    className="flex items-center gap-2 cursor-pointer group border-0 bg-transparent w-full text-left px-0 py-0"
                     onClick={() => {
                       onSelectSession?.(session.id, session.productIds);
                     }}
+                    type="button"
                   >
                     <span className="truncate flex-1">{session.title}</span>
                     <Dropdown
-                      menu={getSessionMenu(session)}
-                      trigger={["click"]}
-                      placement="bottomRight"
                       classNames={{
-                        root: "session-menu-dropdown"
+                        root: 'session-menu-dropdown',
                       }}
+                      menu={getSessionMenu(session)}
+                      placement="bottomRight"
                       popupRender={(menu) => (
                         <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-lg border border-white/40 overflow-hidden">
                           {menu}
                         </div>
                       )}
+                      trigger={['click']}
                     >
                       <button
+                        className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-colorPrimary hover:bg-gray-200 rounded transition-all"
                         onClick={(e) => {
                           e.stopPropagation();
                         }}
-                        className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-colorPrimary hover:bg-gray-200 rounded transition-all"
                         title="更多操作"
                       >
                         <MoreOutlined className="text-base" />
                       </button>
                     </Dropdown>
-                  </div>
+                  </button>
                 )}
               </div>
             ))}
@@ -404,21 +409,21 @@ export function Sidebar({
       className={`
         bg-white/50 backdrop-blur-xl rounded-lg flex flex-col ml-4
         transition-all duration-300 ease-in-out chat-session--sidebar
-        ${isCollapsed ? "w-16" : "w-64"}
+        ${isCollapsed ? 'w-16' : 'w-64'}
       `}
     >
       {/* 新增话按钮 */}
       <div className="p-4">
         <button
-          onClick={onNewChat}
           className={`
             flex items-center bg-white rounded-lg
             border-[4px] border-colorPrimaryBgHover/50
             transition-all duration-200 ease-in-out
             hover:bg-gray-50 hover:shadow-md hover:scale-[1.02] active:scale-95 text-nowrap overflow-hidden
-            ${isCollapsed ? "w-8 h-8 p-0 justify-center" : "w-full px-3 py-2 justify-between"}
+            ${isCollapsed ? 'w-8 h-8 p-0 justify-center' : 'w-full px-3 py-2 justify-between'}
           `}
-          title={isCollapsed ? "新会话" : ""}
+          onClick={onNewChat}
+          title={isCollapsed ? '新会话' : ''}
         >
           {isCollapsed ? (
             <PlusOutlined className="transition-transform duration-200 hover:rotate-90" />
@@ -430,14 +435,12 @@ export function Sidebar({
               </div>
               <div className="flex items-center gap-1 text-xs text-gray-400">
                 <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-sans">
-                  {isMac ? "⇧" : "Shift"}
+                  {isMac ? '⇧' : 'Shift'}
                 </kbd>
                 <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-sans">
-                  {isMac ? "⌘" : "Ctrl"}
+                  {isMac ? '⌘' : 'Ctrl'}
                 </kbd>
-                <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-sans">
-                  O
-                </kbd>
+                <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-sans">O</kbd>
               </div>
             </>
           )}
@@ -446,16 +449,17 @@ export function Sidebar({
 
       {/* 功能列表 */}
       <div className="px-4 mb-4 flex flex-col gap-2">
-        <div
+        <button
           className={`
             px-3 py-2 rounded-lg text-sm cursor-pointer
             transition-all duration-200 ease-in-out overflow-hidden text-nowrap
-            hover:scale-[1.02] hover:shadow-sm 
-            ${selectedType === "TEXT" ? "bg-colorPrimaryHoverLight text-gray-900 font-medium" : "text-gray-600 hover:bg-gray-100"}
-            ${isCollapsed ? "px-2 py-2 text-center" : "px-3 py-2 text-sm"}
+            hover:scale-[1.02] hover:shadow-sm border-0 w-full text-left
+            ${selectedType === 'TEXT' ? 'bg-colorPrimaryHoverLight text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-100'}
+            ${isCollapsed ? 'px-2 py-2 text-center' : 'px-3 py-2 text-sm'}
           `}
-          title={isCollapsed ? "语言模型" : ""}
-          onClick={() => onSelectType?.("TEXT")}
+          onClick={() => onSelectType?.('TEXT')}
+          title={isCollapsed ? '语言模型' : ''}
+          type="button"
         >
           {isCollapsed ? (
             <MessageSquareQuote className="fill-mainTitle text-base transition-transform duration-200 hover:scale-110" />
@@ -465,17 +469,17 @@ export function Sidebar({
               语言模型
             </div>
           )}
-        </div>
-        <div
+        </button>
+        <button
           className={`
             px-3 py-2 rounded-lg text-sm overflow-hidden text-nowrap cursor-pointer
             transition-all duration-200 ease-in-out
-            hover:scale-[1.02] hover:shadow-sm
-            ${selectedType === "Image" ? "bg-colorPrimaryHoverLight text-gray-900 font-medium" : "text-gray-600 hover:bg-gray-100"}
-            ${isCollapsed ? "px-2 py-2 text-center" : "px-3 py-2 text-sm"}
+            hover:scale-[1.02] hover:shadow-sm border-0 w-full text-left
+            ${selectedType === 'Image' ? 'bg-colorPrimaryHoverLight text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-100'}
+            ${isCollapsed ? 'px-2 py-2 text-center' : 'px-3 py-2 text-sm'}
           `}
-          title={isCollapsed ? "文生图" : ""}
-          onClick={() => onSelectType?.("Image")}
+          onClick={() => onSelectType?.('Image')}
+          title={isCollapsed ? '文生图' : ''}
         >
           {isCollapsed ? (
             <Image className="fill-mainTitle text-base transition-transform duration-200 hover:scale-110" />
@@ -487,15 +491,15 @@ export function Sidebar({
               </div>
             </div>
           )}
-        </div>
+        </button>
         <div
           className={`
             px-3 py-2 rounded-lg text-sm overflow-hidden text-nowrap
             transition-all duration-200 ease-in-out
             hover:scale-[1.02] hover:shadow-sm  text-gray-900
-            ${isCollapsed ? "px-2 py-2 text-center" : "px-3 py-2 text-sm"}
+            ${isCollapsed ? 'px-2 py-2 text-center' : 'px-3 py-2 text-sm'}
           `}
-          title={isCollapsed ? "文生视频" : ""}
+          title={isCollapsed ? '文生视频' : ''}
         >
           {isCollapsed ? (
             <FileVideo className="fill-mainTitle text-base transition-transform duration-200 hover:scale-110" />
@@ -505,9 +509,7 @@ export function Sidebar({
                 <FileVideo className="fill-mainTitle text-base transition-transform duration-200 hover:scale-110" />
                 文生视频
               </div>
-              <div className="py-1 px-2 rounded-xl bg-[#F3F4F6] text-[#99A1AF]">
-                敬请期待
-              </div>
+              <div className="py-1 px-2 rounded-xl bg-[#F3F4F6] text-[#99A1AF]">敬请期待</div>
             </div>
           )}
         </div>
@@ -522,14 +524,12 @@ export function Sidebar({
               <Spin />
             </div>
           ) : sessions.length === 0 ? (
-            <div className="text-center py-8 text-gray-400 text-sm">
-              暂无历史会话
-            </div>
+            <div className="text-center py-8 text-gray-400 text-sm">暂无历史会话</div>
           ) : (
             <>
-              {renderSessionGroup("今天", today, "today")}
-              {renderSessionGroup("近7天", last7Days, "last7Days")}
-              {renderSessionGroup("近30天", last30Days, "last30Days")}
+              {renderSessionGroup('今天', today, 'today')}
+              {renderSessionGroup('近7天', last7Days, 'last7Days')}
+              {renderSessionGroup('近30天', last30Days, 'last30Days')}
             </>
           )}
         </div>
@@ -548,14 +548,14 @@ export function Sidebar({
       {/* 收起/展开按钮 */}
       <div className="p-4">
         <button
-          onClick={() => setIsCollapsed(!isCollapsed)}
           className={`
             flex items-center gap-2 text-gray-600 rounded-lg
             transition-all duration-200 ease-in-out overflow-hidden text-nowrap
             hover:bg-gray-100 hover:scale-[1.02] active:scale-95
-            ${isCollapsed ? "w-8 h-8 p-0 justify-center mx-auto" : "w-full px-4 py-2 justify-center"}
+            ${isCollapsed ? 'w-8 h-8 p-0 justify-center mx-auto' : 'w-full px-4 py-2 justify-center'}
           `}
-          title={isCollapsed ? "展开" : "收起"}
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          title={isCollapsed ? '展开' : '收起'}
         >
           {isCollapsed ? (
             <MenuUnfoldOutlined className="transition-transform duration-200 hover:translate-x-1" />

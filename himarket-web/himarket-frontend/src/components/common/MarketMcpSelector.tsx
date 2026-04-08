@@ -1,14 +1,11 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { Alert, Spin, Button } from "antd";
-import { RefreshCw } from "lucide-react";
-import {
-  getMarketMcps,
-  type MarketMcpInfo,
-  type McpServerEntry,
-} from "../../lib/apis/cliProvider";
-import { SelectableCard } from "../common/SelectableCard";
-import { SearchFilterInput } from "../common/SearchFilterInput";
-import { filterByKeyword } from "../../lib/utils/filterUtils";
+import { Alert, Spin, Button } from 'antd';
+import { RefreshCw } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+
+import { getMarketMcps, type MarketMcpInfo, type McpServerEntry } from '../../lib/apis/cliProvider';
+import { filterByKeyword } from '../../lib/utils/filterUtils';
+import { SearchFilterInput } from '../common/SearchFilterInput';
+import { SelectableCard } from '../common/SelectableCard';
 
 // ============ 类型定义 ============
 
@@ -27,7 +24,7 @@ export function MarketMcpSelector({ onChange }: MarketMcpSelectorProps) {
   const [error, setError] = useState<string | null>(null);
   const [mcpServers, setMcpServers] = useState<MarketMcpInfo[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [searchKeyword, setSearchKeyword] = useState("");
+  const [searchKeyword, setSearchKeyword] = useState('');
 
   const fetchMcps = useCallback(async () => {
     setLoading(true);
@@ -36,13 +33,14 @@ export function MarketMcpSelector({ onChange }: MarketMcpSelectorProps) {
       const res = await getMarketMcps();
       const data = res.data;
       setMcpServers(data.mcpServers ?? []);
-    } catch (err: any) {
-      if (err?.response?.status === 401) {
-        setError("请先登录以使用市场 MCP Server");
+    } catch (err: unknown) {
+      const response = (err as Record<string, unknown>)?.response as
+        | Record<string, unknown>
+        | undefined;
+      if (response?.status === 401) {
+        setError('请先登录以使用市场 MCP Server');
       } else {
-        setError(
-          err instanceof Error ? err.message : "获取市场 MCP Server 列表失败"
-        );
+        setError(err instanceof Error ? err.message : '获取市场 MCP Server 列表失败');
       }
     } finally {
       setLoading(false);
@@ -54,12 +52,13 @@ export function MarketMcpSelector({ onChange }: MarketMcpSelectorProps) {
     setSelectedIds([]);
     onChange(null);
     fetchMcps();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchMcps]);
 
   // 根据关键词过滤 MCP 列表（按名称和描述匹配）
   const filteredServers = useMemo(
-    () => filterByKeyword(mcpServers, searchKeyword, ["name", "description"]),
-    [mcpServers, searchKeyword]
+    () => filterByKeyword(mcpServers, searchKeyword, ['name', 'description']),
+    [mcpServers, searchKeyword],
   );
 
   // 切换卡片选中状态
@@ -78,7 +77,7 @@ export function MarketMcpSelector({ onChange }: MarketMcpSelectorProps) {
             .map((id) => {
               const mcp = mcpServers.find((m) => m.productId === id);
               if (!mcp) return null;
-              return { productId: mcp.productId, name: mcp.name };
+              return { name: mcp.name, productId: mcp.productId };
             })
             .filter((e): e is McpServerEntry => e !== null);
           onChange(entries.length > 0 ? entries : null);
@@ -87,7 +86,7 @@ export function MarketMcpSelector({ onChange }: MarketMcpSelectorProps) {
         return next;
       });
     },
-    [mcpServers, onChange]
+    [mcpServers, onChange],
   );
 
   // 加载中
@@ -103,13 +102,9 @@ export function MarketMcpSelector({ onChange }: MarketMcpSelectorProps) {
   if (error) {
     return (
       <div className="flex flex-col items-center gap-2 w-full">
-        <Alert message={error} type="error" showIcon className="w-full" />
-        {error !== "请先登录以使用市场 MCP Server" && (
-          <Button
-            size="small"
-            icon={<RefreshCw size={14} />}
-            onClick={fetchMcps}
-          >
+        <Alert className="w-full" message={error} showIcon type="error" />
+        {error !== '请先登录以使用市场 MCP Server' && (
+          <Button icon={<RefreshCw size={14} />} onClick={fetchMcps} size="small">
             重试
           </Button>
         )}
@@ -121,10 +116,10 @@ export function MarketMcpSelector({ onChange }: MarketMcpSelectorProps) {
   if (mcpServers.length === 0) {
     return (
       <Alert
-        message="暂无已订阅的 MCP Server，请先在市场中订阅"
-        type="info"
-        showIcon
         className="w-full"
+        message="暂无已订阅的 MCP Server，请先在市场中订阅"
+        showIcon
+        type="info"
       />
     );
   }
@@ -135,34 +130,28 @@ export function MarketMcpSelector({ onChange }: MarketMcpSelectorProps) {
       {/* 列表超过 4 项时显示搜索框 */}
       {mcpServers.length > SEARCH_THRESHOLD && (
         <SearchFilterInput
-          value={searchKeyword}
           onChange={setSearchKeyword}
           placeholder="搜索 MCP Server..."
+          value={searchKeyword}
         />
       )}
 
       {/* 过滤后无匹配结果 */}
       {filteredServers.length === 0 ? (
-        <div className="text-center text-sm text-gray-400 py-4">
-          无匹配结果
-        </div>
+        <div className="text-center text-sm text-gray-400 py-4">无匹配结果</div>
       ) : (
         /* 卡片网格布局 */
         <div className="grid grid-cols-2 gap-2 max-h-[280px] overflow-y-auto pr-1">
           {filteredServers.map((mcp) => (
             <SelectableCard
               key={mcp.productId}
-              selected={selectedIds.includes(mcp.productId)}
               onClick={() => handleToggle(mcp.productId)}
+              selected={selectedIds.includes(mcp.productId)}
             >
               <div className="flex flex-col gap-1">
-                <span className="text-sm font-medium text-gray-800">
-                  {mcp.name}
-                </span>
+                <span className="text-sm font-medium text-gray-800">{mcp.name}</span>
                 {mcp.description && (
-                  <span className="text-xs text-gray-400 line-clamp-2">
-                    {mcp.description}
-                  </span>
+                  <span className="text-xs text-gray-400 line-clamp-2">{mcp.description}</span>
                 )}
               </div>
             </SelectableCard>

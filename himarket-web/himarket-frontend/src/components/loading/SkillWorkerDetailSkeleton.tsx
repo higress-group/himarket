@@ -44,10 +44,13 @@ export function SkillWorkerDetailSkeleton() {
         <div className="flex-1 min-w-0">
           <div
             className="bg-white rounded-lg overflow-hidden flex flex-col"
-            style={{ height: "calc(100vh - 280px)", minHeight: 500, border: "1px solid #f0f0f0" }}
+            style={{ border: '1px solid #f0f0f0', height: 'calc(100vh - 280px)', minHeight: 500 }}
           >
             {/* Tab 栏 */}
-            <div className="flex gap-6 px-4 pt-3 pb-0" style={{ borderBottom: "1px solid #f0f0f0" }}>
+            <div
+              className="flex gap-6 px-4 pt-3 pb-0"
+              style={{ borderBottom: '1px solid #f0f0f0' }}
+            >
               <div className="pb-2 border-b-2 border-gray-300">
                 <div className="h-4 w-16 bg-gray-200/70 rounded" />
               </div>
@@ -61,16 +64,32 @@ export function SkillWorkerDetailSkeleton() {
               {/* 表格骨架（frontmatter） */}
               <div className="border border-gray-200/60 rounded overflow-hidden mb-6">
                 <div className="flex bg-gray-100/50">
-                  <div className="flex-1 px-3 py-2"><div className="h-3.5 bg-gray-200/70 rounded w-12" /></div>
-                  <div className="flex-1 px-3 py-2"><div className="h-3.5 bg-gray-200/70 rounded w-16" /></div>
-                  <div className="flex-1 px-3 py-2"><div className="h-3.5 bg-gray-200/70 rounded w-20" /></div>
-                  <div className="flex-1 px-3 py-2"><div className="h-3.5 bg-gray-200/70 rounded w-14" /></div>
+                  <div className="flex-1 px-3 py-2">
+                    <div className="h-3.5 bg-gray-200/70 rounded w-12" />
+                  </div>
+                  <div className="flex-1 px-3 py-2">
+                    <div className="h-3.5 bg-gray-200/70 rounded w-16" />
+                  </div>
+                  <div className="flex-1 px-3 py-2">
+                    <div className="h-3.5 bg-gray-200/70 rounded w-20" />
+                  </div>
+                  <div className="flex-1 px-3 py-2">
+                    <div className="h-3.5 bg-gray-200/70 rounded w-14" />
+                  </div>
                 </div>
                 <div className="flex">
-                  <div className="flex-1 px-3 py-2"><div className="h-3.5 bg-gray-200/50 rounded w-20" /></div>
-                  <div className="flex-1 px-3 py-2"><div className="h-3.5 bg-gray-200/50 rounded w-24" /></div>
-                  <div className="flex-1 px-3 py-2"><div className="h-3.5 bg-gray-200/50 rounded w-32" /></div>
-                  <div className="flex-1 px-3 py-2"><div className="h-3.5 bg-gray-200/50 rounded w-16" /></div>
+                  <div className="flex-1 px-3 py-2">
+                    <div className="h-3.5 bg-gray-200/50 rounded w-20" />
+                  </div>
+                  <div className="flex-1 px-3 py-2">
+                    <div className="h-3.5 bg-gray-200/50 rounded w-24" />
+                  </div>
+                  <div className="flex-1 px-3 py-2">
+                    <div className="h-3.5 bg-gray-200/50 rounded w-32" />
+                  </div>
+                  <div className="flex-1 px-3 py-2">
+                    <div className="h-3.5 bg-gray-200/50 rounded w-16" />
+                  </div>
                 </div>
               </div>
 
@@ -93,9 +112,15 @@ export function SkillWorkerDetailSkeleton() {
 
         {/* 右侧：下载卡片 */}
         <div className="w-full lg:w-[420px] flex-shrink-0 space-y-3">
-          <div className="bg-white rounded-lg overflow-hidden" style={{ border: "1px solid #f0f0f0" }}>
+          <div
+            className="bg-white rounded-lg overflow-hidden"
+            style={{ border: '1px solid #f0f0f0' }}
+          >
             {/* 标题 + 版本选择器 */}
-            <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: "1px solid #f0f0f0" }}>
+            <div
+              className="flex items-center justify-between px-4 py-3"
+              style={{ borderBottom: '1px solid #f0f0f0' }}
+            >
               <div className="h-4 w-10 bg-gray-200/70 rounded" />
               <div className="h-8 w-[180px] bg-gray-200/50 rounded-md" />
             </div>
@@ -126,7 +151,7 @@ export function SkillWorkerDetailSkeleton() {
                 <div className="h-3 w-14 bg-gray-200/40 rounded mb-2" />
                 <div className="flex flex-wrap gap-2">
                   {[56, 52, 52, 52, 44, 56].map((w, i) => (
-                    <div key={i} className="h-8 bg-gray-200/40 rounded-md" style={{ width: w }} />
+                    <div className="h-8 bg-gray-200/40 rounded-md" key={i} style={{ width: w }} />
                   ))}
                 </div>
               </div>
@@ -143,11 +168,14 @@ export function SkillWorkerDetailSkeleton() {
           </div>
 
           {/* 相关推荐卡片骨架 */}
-          <div className="bg-white rounded-lg overflow-hidden p-4" style={{ border: "1px solid #f0f0f0" }}>
+          <div
+            className="bg-white rounded-lg overflow-hidden p-4"
+            style={{ border: '1px solid #f0f0f0' }}
+          >
             <div className="h-4 w-20 bg-gray-200/60 rounded mb-3" />
             <div className="space-y-3">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="flex items-center gap-3">
+                <div className="flex items-center gap-3" key={i}>
                   <div className="w-10 h-10 rounded-lg bg-gray-200/50 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
                     <div className="h-3.5 bg-gray-200/50 rounded w-24 mb-1.5" />

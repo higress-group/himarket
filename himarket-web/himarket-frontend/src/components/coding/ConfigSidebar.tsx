@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { Drawer, Select, Button, Divider } from "antd";
-import { Plug, Loader2, AlertCircle, RefreshCw } from "lucide-react";
-import type { CodingConfig } from "../../types/coding";
+import { Drawer, Select, Button, Divider } from 'antd';
+import { Plug, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+
 import {
   getCliProviders,
   getMarketMcps,
@@ -13,9 +13,11 @@ import {
   type MarketSkillInfo,
   type McpServerEntry,
   type SkillEntry,
-} from "../../lib/apis/cliProvider";
-import { SelectableCard } from "../common/SelectableCard";
-import { sortCliProviders } from "../../lib/utils/cliProviderSort";
+} from '../../lib/apis/cliProvider';
+import { sortCliProviders } from '../../lib/utils/cliProviderSort';
+import { SelectableCard } from '../common/SelectableCard';
+
+import type { CodingConfig } from '../../types/coding';
 
 // ============ Props ============
 
@@ -30,11 +32,11 @@ export interface ConfigSidebarProps {
 // ============ 组件 ============
 
 export function ConfigSidebar({
-  open,
-  onClose,
   config,
-  onConfigChange,
   isFirstTime,
+  onClose,
+  onConfigChange,
+  open,
 }: ConfigSidebarProps) {
   // CLI providers
   const [providers, setProviders] = useState<ICliProvider[]>([]);
@@ -67,10 +69,12 @@ export function ConfigSidebar({
       const res = await getCliProviders();
       const list: ICliProvider[] = Array.isArray(res.data)
         ? res.data
-        : (res as any).data?.data ?? [];
+        : (((
+            (res as unknown as Record<string, unknown>).data as Record<string, unknown> | undefined
+          )?.data ?? []) as ICliProvider[]);
       setProviders(list);
     } catch {
-      setCliError("获取 CLI 工具列表失败");
+      setCliError('获取 CLI 工具列表失败');
     } finally {
       setCliLoading(false);
     }
@@ -136,7 +140,7 @@ export function ConfigSidebar({
   const handleSelectModel = useCallback(
     (productId: string) => {
       const model = marketModels.find((m) => m.productId === productId);
-      onConfigChange({ ...config, modelProductId: productId, modelName: model?.name ?? null });
+      onConfigChange({ ...config, modelName: model?.name ?? null, modelProductId: productId });
     },
     [config, onConfigChange, marketModels],
   );
@@ -178,7 +182,7 @@ export function ConfigSidebar({
       .map((id) => {
         const mcp = mcpServers.find((m) => m.productId === id);
         if (!mcp) return null;
-        return { productId: mcp.productId, name: mcp.name };
+        return { name: mcp.name, productId: mcp.productId };
       })
       .filter((e): e is McpServerEntry => e !== null);
 
@@ -191,7 +195,7 @@ export function ConfigSidebar({
       .map((id) => {
         const skill = skills.find((s) => s.productId === id);
         if (!skill) return null;
-        return { productId: skill.productId, name: skill.name };
+        return { name: skill.name, productId: skill.productId };
       })
       .filter((e): e is SkillEntry => e !== null);
 
@@ -215,31 +219,30 @@ export function ConfigSidebar({
     onClose();
   }, [buildFinalConfig, onConfigChange, onClose]);
 
-
   // ============ 渲染 ============
 
   return (
     <Drawer
-      title="HiCoding 配置"
-      placement="right"
-      width={400}
-      open={open}
-      onClose={onClose}
       closable={!isFirstTime}
-      maskClosable={!isFirstTime}
-      keyboard={!isFirstTime}
       footer={
         <div className="flex justify-end">
           <Button
-            type="primary"
+            disabled={!isComplete}
             icon={<Plug size={14} />}
             onClick={handleApply}
-            disabled={!isComplete}
+            type="primary"
           >
-            {isFirstTime ? "开始使用" : "应用配置"}
+            {isFirstTime ? '开始使用' : '应用配置'}
           </Button>
         </div>
       }
+      keyboard={!isFirstTime}
+      maskClosable={!isFirstTime}
+      onClose={onClose}
+      open={open}
+      placement="right"
+      title="HiCoding 配置"
+      width={400}
     >
       <div className="flex flex-col gap-6">
         {/* ===== 模型选择 ===== */}
@@ -249,19 +252,19 @@ export function ConfigSidebar({
           </label>
           {modelLoading ? (
             <div className="flex items-center gap-2 text-gray-400 text-sm py-2">
-              <Loader2 size={16} className="animate-spin" />
+              <Loader2 className="animate-spin" size={16} />
               <span>加载中...</span>
             </div>
           ) : marketModels.length > 0 ? (
             <Select
               className="w-full"
-              placeholder="选择模型"
-              value={config.modelProductId ?? undefined}
               onChange={handleSelectModel}
               options={marketModels.map((m) => ({
-                value: m.productId,
                 label: m.name,
+                value: m.productId,
               }))}
+              placeholder="选择模型"
+              value={config.modelProductId ?? undefined}
             />
           ) : (
             <div className="text-sm text-gray-400">暂无可用模型</div>
@@ -277,7 +280,7 @@ export function ConfigSidebar({
           </label>
           {cliLoading ? (
             <div className="flex items-center gap-2 text-gray-400 text-sm py-2">
-              <Loader2 size={16} className="animate-spin" />
+              <Loader2 className="animate-spin" size={16} />
               <span>加载中...</span>
             </div>
           ) : cliError ? (
@@ -286,11 +289,7 @@ export function ConfigSidebar({
                 <AlertCircle size={16} />
                 <span>{cliError}</span>
               </div>
-              <Button
-                size="small"
-                icon={<RefreshCw size={14} />}
-                onClick={fetchProviders}
-              >
+              <Button icon={<RefreshCw size={14} />} onClick={fetchProviders} size="small">
                 重试
               </Button>
             </div>
@@ -299,20 +298,18 @@ export function ConfigSidebar({
               <div className="grid grid-cols-2 gap-2">
                 {sortedProviders.map((p) => (
                   <SelectableCard
-                    key={p.key}
-                    selected={config.cliProviderId === p.key}
                     disabled={!p.available}
+                    key={p.key}
                     onClick={() => handleSelectCli(p.key)}
+                    selected={config.cliProviderId === p.key}
                   >
                     <div className="flex flex-col gap-0.5">
                       <span
-                        className={`text-sm font-medium ${!p.available ? "text-gray-400" : "text-gray-800"}`}
+                        className={`text-sm font-medium ${!p.available ? 'text-gray-400' : 'text-gray-800'}`}
                       >
                         {p.displayName}
                       </span>
-                      {!p.available && (
-                        <span className="text-xs text-gray-400">不可用</span>
-                      )}
+                      {!p.available && <span className="text-xs text-gray-400">不可用</span>}
                     </div>
                   </SelectableCard>
                 ))}
@@ -325,12 +322,10 @@ export function ConfigSidebar({
 
         {/* ===== Skill 选择 ===== */}
         <section>
-          <label className="text-sm font-medium text-gray-700 mb-2 block">
-            Skill
-          </label>
+          <label className="text-sm font-medium text-gray-700 mb-2 block">Skill</label>
           {skillLoading ? (
             <div className="flex items-center gap-2 text-gray-400 text-sm py-2">
-              <Loader2 size={16} className="animate-spin" />
+              <Loader2 className="animate-spin" size={16} />
               <span>加载中...</span>
             </div>
           ) : skills.length === 0 ? (
@@ -340,13 +335,11 @@ export function ConfigSidebar({
               {skills.map((skill) => (
                 <SelectableCard
                   key={skill.productId}
-                  selected={(config.skills ?? []).includes(skill.productId)}
                   onClick={() => handleToggleSkill(skill.productId)}
+                  selected={(config.skills ?? []).includes(skill.productId)}
                 >
                   <div className="flex flex-col gap-0.5">
-                    <span className="text-sm font-medium text-gray-800">
-                      {skill.name}
-                    </span>
+                    <span className="text-sm font-medium text-gray-800">{skill.name}</span>
                     {skill.description && (
                       <span className="text-xs text-gray-400 line-clamp-2">
                         {skill.description}
@@ -363,12 +356,10 @@ export function ConfigSidebar({
 
         {/* ===== MCP 选择 ===== */}
         <section>
-          <label className="text-sm font-medium text-gray-700 mb-2 block">
-            MCP Server
-          </label>
+          <label className="text-sm font-medium text-gray-700 mb-2 block">MCP Server</label>
           {mcpLoading ? (
             <div className="flex items-center gap-2 text-gray-400 text-sm py-2">
-              <Loader2 size={16} className="animate-spin" />
+              <Loader2 className="animate-spin" size={16} />
               <span>加载中...</span>
             </div>
           ) : mcpServers.length === 0 ? (
@@ -378,17 +369,13 @@ export function ConfigSidebar({
               {mcpServers.map((mcp) => (
                 <SelectableCard
                   key={mcp.productId}
-                  selected={(config.mcpServers ?? []).includes(mcp.productId)}
                   onClick={() => handleToggleMcp(mcp.productId)}
+                  selected={(config.mcpServers ?? []).includes(mcp.productId)}
                 >
                   <div className="flex flex-col gap-0.5">
-                    <span className="text-sm font-medium text-gray-800">
-                      {mcp.name}
-                    </span>
+                    <span className="text-sm font-medium text-gray-800">{mcp.name}</span>
                     {mcp.description && (
-                      <span className="text-xs text-gray-400 line-clamp-2">
-                        {mcp.description}
-                      </span>
+                      <span className="text-xs text-gray-400 line-clamp-2">{mcp.description}</span>
                     )}
                   </div>
                 </SelectableCard>

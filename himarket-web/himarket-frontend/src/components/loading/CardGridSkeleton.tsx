@@ -14,13 +14,13 @@ export function CardGridSkeleton({ count = 8 }: CardGridSkeletonProps) {
     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 max-w-[1600px] mx-auto">
       {Array.from({ length: count }).map((_, index) => (
         <div
-          key={index}
           className="
             bg-white/70 backdrop-blur-sm rounded-2xl p-5
             border border-gray-100/80
             h-[200px] flex flex-col
             animate-pulse
           "
+          key={index}
         >
           {/* 图标 + 名称 + 下载数 骨架 */}
           <div className="flex items-center gap-3 mb-3">

@@ -1,111 +1,112 @@
-import { createBrowserRouter, Navigate } from "react-router-dom";
-import LayoutWrapper from "@/components/LayoutWrapper";
-import Portals from "@/pages/Portals";
-import ProductTypePage from "@/pages/ProductTypePage";
-import ProductCategories from "@/pages/ProductCategories";
-import ProductCategoryDetail from "@/pages/ProductCategoryDetail";
-import GatewayConsoles from "@/pages/GatewayConsoles";
-import NacosConsoles from "@/pages/NacosConsoles";
-import PortalDetail from "@/pages/PortalDetail";
-import ApiProductDetail from "@/pages/ApiProductDetail";
-import Login from "@/pages/Login";
-import ModelDashboard from "@/pages/ModelDashboard";
-import McpMonitor from "@/pages/McpMonitor";
+import { createBrowserRouter, Navigate } from 'react-router-dom';
+
+import LayoutWrapper from '@/components/LayoutWrapper';
+import ApiProductDetail from '@/pages/ApiProductDetail';
+import GatewayConsoles from '@/pages/GatewayConsoles';
+import Login from '@/pages/Login';
+import McpMonitor from '@/pages/McpMonitor';
+import ModelDashboard from '@/pages/ModelDashboard';
+import NacosConsoles from '@/pages/NacosConsoles';
+import PortalDetail from '@/pages/PortalDetail';
+import Portals from '@/pages/Portals';
+import ProductCategories from '@/pages/ProductCategories';
+import ProductCategoryDetail from '@/pages/ProductCategoryDetail';
+import ProductTypePage from '@/pages/ProductTypePage';
 
 export const router = createBrowserRouter([
   {
-    path: "/login",
     element: <Login />,
+    path: '/login',
   },
   {
-    path: "/",
-    element: <LayoutWrapper />,
     children: [
       {
+        element: <Navigate replace to="/portals" />,
         index: true,
-        element: <Navigate to="/portals" replace />,
       },
       {
-        path: "portals",
         element: <Portals />,
+        path: 'portals',
       },
       {
-        path: "portals/:portalId",
         element: <PortalDetail />,
+        path: 'portals/:portalId',
       },
       {
-        path: "api-products",
         children: [
           {
+            element: <Navigate replace to="/api-products/model-api" />,
             index: true,
-            element: <Navigate to="/api-products/model-api" replace />,
           },
           {
-            path: "model-api",
             element: <ProductTypePage productType="MODEL_API" />,
+            path: 'model-api',
           },
           {
-            path: "mcp-server",
             element: <ProductTypePage productType="MCP_SERVER" />,
+            path: 'mcp-server',
           },
           {
-            path: "agent-skill",
             element: <ProductTypePage productType="AGENT_SKILL" />,
+            path: 'agent-skill',
           },
           {
-            path: "worker",
             element: <ProductTypePage productType="WORKER" />,
+            path: 'worker',
           },
           {
-            path: "agent-api",
             element: <ProductTypePage productType="AGENT_API" />,
+            path: 'agent-api',
           },
           {
-            path: "rest-api",
             element: <ProductTypePage productType="REST_API" />,
+            path: 'rest-api',
           },
           {
-            path: ":productId",
             element: <ApiProductDetail />,
+            path: ':productId',
           },
         ],
+        path: 'api-products',
       },
       {
-        path: "product-categories",
         element: <ProductCategories />,
+        path: 'product-categories',
       },
       {
-        path: "product-categories/:categoryId",
         element: <ProductCategoryDetail />,
+        path: 'product-categories/:categoryId',
       },
       {
-        path: "consoles",
-        element: <Navigate to="/consoles/gateway" replace />,
+        element: <Navigate replace to="/consoles/gateway" />,
+        path: 'consoles',
       },
       {
-        path: "consoles/gateway",
         element: <GatewayConsoles />,
+        path: 'consoles/gateway',
       },
       {
-        path: "consoles/nacos",
         element: <NacosConsoles />,
+        path: 'consoles/nacos',
       },
       {
-        path: "observability",
-        element: <Navigate to="/observability/model-dashboard" replace />,
+        element: <Navigate replace to="/observability/model-dashboard" />,
+        path: 'observability',
       },
       {
-        path: "observability/model-dashboard",
         element: <ModelDashboard />,
+        path: 'observability/model-dashboard',
       },
       {
-        path: "observability/mcp-monitor",
         element: <McpMonitor />,
+        path: 'observability/mcp-monitor',
       },
       {
-        path: "*",
-        element: <Navigate to="/portals" replace />,
+        element: <Navigate replace to="/portals" />,
+        path: '*',
       },
     ],
+    element: <LayoutWrapper />,
+    path: '/',
   },
 ]);

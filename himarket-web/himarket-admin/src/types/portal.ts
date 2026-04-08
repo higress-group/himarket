@@ -27,17 +27,17 @@ export interface OidcConfig {
 // 第三方认证相关类型定义
 export enum AuthenticationType {
   OIDC = 'OIDC',
-  OAUTH2 = 'OAUTH2'
+  OAUTH2 = 'OAUTH2',
 }
 
 export enum GrantType {
   AUTHORIZATION_CODE = 'AUTHORIZATION_CODE',
-  JWT_BEARER = 'JWT_BEARER'
+  JWT_BEARER = 'JWT_BEARER',
 }
 
 export enum PublicKeyFormat {
   PEM = 'PEM',
-  JWK = 'JWK'
+  JWK = 'JWK',
 }
 
 export interface PublicKeyConfig {
@@ -69,9 +69,9 @@ export interface OAuth2Config {
 }
 
 // 为了UI显示方便，给配置添加类型标识的联合类型
-export type ThirdPartyAuthConfig = 
+export type ThirdPartyAuthConfig =
   | (OidcConfig & { type: AuthenticationType.OIDC })
-  | (OAuth2Config & { type: AuthenticationType.OAUTH2 })
+  | (OAuth2Config & { type: AuthenticationType.OAUTH2 });
 
 export interface PortalSettingConfig {
   builtinAuthEnabled: boolean;
@@ -79,7 +79,7 @@ export interface PortalSettingConfig {
   autoApproveDevelopers: boolean;
   autoApproveSubscriptions: boolean;
   frontendRedirectUrl: string;
-  
+
   // 第三方认证配置（分离存储）
   oidcConfigs?: OidcConfig[];
   oauth2Configs?: OAuth2Config[];
@@ -106,7 +106,7 @@ export interface Portal {
   portalSettingConfig: PortalSettingConfig;
   portalUiConfig: PortalUiConfig;
   portalDomainConfig: PortalDomainConfig[];
-} 
+}
 
 export interface Developer {
   portalId: string;

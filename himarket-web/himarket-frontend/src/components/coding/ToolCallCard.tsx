@@ -1,4 +1,3 @@
-import { useState } from "react";
 import {
   Eye,
   Terminal,
@@ -15,60 +14,60 @@ import {
   Sparkles,
   ChevronDown,
   ChevronRight,
-} from "lucide-react";
-import type { ChatItemToolCall, ToolCallContentItem } from "../../types/coding-protocol";
-import { Mcp } from "../icon";
-import { DiffViewer } from "./DiffViewer";
+} from 'lucide-react';
+import { useState } from 'react';
+
+import { Mcp } from '../icon';
+import { DiffViewer } from './DiffViewer';
+import { extractFileName, getDiffStats, isMcpItem } from './ToolCallCard.utils';
+
+import type { ChatItemToolCall, ToolCallContentItem } from '../../types/coding-protocol';
 
 interface ToolCallCardProps {
   item: ChatItemToolCall;
   selected: boolean;
   onClick: () => void;
-  variant?: "default" | "compact";
+  variant?: 'default' | 'compact';
 }
 
 // ===== Operation type detection =====
 
-type FileOp = "A" | "M" | "D";
+type FileOp = 'A' | 'M' | 'D';
 
 const opStyles: Record<FileOp, string> = {
-  A: "bg-green-50 text-green-600 border border-green-200",
-  M: "bg-amber-50 text-amber-600 border border-amber-200",
-  D: "bg-red-50 text-red-500 border border-red-200",
+  A: 'bg-green-50 text-green-600 border border-green-200',
+  D: 'bg-red-50 text-red-500 border border-red-200',
+  M: 'bg-amber-50 text-amber-600 border border-amber-200',
 };
 
 function getFileOp(item: ChatItemToolCall): FileOp {
   if (item.content) {
-    const diffs = item.content.filter(c => c.type === "diff");
+    const diffs = item.content.filter((c) => c.type === 'diff');
     if (diffs.length > 0) {
-      const hasOld = diffs.some(d => d.oldText != null);
-      const hasNew = diffs.some(d => d.newText != null);
-      if (!hasOld && hasNew) return "A";
-      if (hasOld && !hasNew) return "D";
-      if (hasOld && hasNew) return "M";
+      const hasOld = diffs.some((d) => d.oldText !== undefined && d.oldText !== null);
+      const hasNew = diffs.some((d) => d.newText !== undefined && d.newText !== null);
+      if (!hasOld && hasNew) return 'A';
+      if (hasOld && !hasNew) return 'D';
+      if (hasOld && hasNew) return 'M';
     }
   }
   // Write tool (rawInput.content exists) → create
-  if (item.rawInput && typeof item.rawInput.content === "string") return "A";
-  return "M";
+  if (item.rawInput && typeof item.rawInput.content === 'string') return 'A';
+  return 'M';
 }
 
 // ===== Path helpers =====
 
 function getFilePath(item: ChatItemToolCall): string | null {
   if (item.rawInput) {
-    if (typeof item.rawInput.file_path === "string")
-      return item.rawInput.file_path;
-    if (typeof item.rawInput.path === "string") return item.rawInput.path;
+    if (typeof item.rawInput.file_path === 'string') return item.rawInput.file_path;
+    if (typeof item.rawInput.path === 'string') return item.rawInput.path;
   }
-  if (item.locations && item.locations.length > 0) return item.locations[0].path;
+  if (item.locations && item.locations.length > 0) {
+    const first = item.locations[0];
+    if (first) return first.path;
+  }
   return null;
-}
-
-/** Get just the basename from a full file path */
-export function extractFileName(path: string): string {
-  const parts = path.split(/[/\\]/);
-  return parts[parts.length - 1] || path;
 }
 
 /** Get the parent directory (last 2 segments) from a full path, for context */
@@ -77,32 +76,13 @@ function extractDirHint(path: string, fileName: string): string | null {
   if (!withoutFile) return null;
   const parts = withoutFile.split(/[/\\]/);
   // Show last 2 segments for context
-  return parts.slice(-2).join("/");
-}
-
-// ===== Diff stats =====
-
-export function getDiffStats(
-  content?: ToolCallContentItem[]
-): { added: number; removed: number } | null {
-  if (!content) return null;
-  const diffs = content.filter(c => c.type === "diff");
-  if (diffs.length === 0) return null;
-
-  let added = 0;
-  let removed = 0;
-  for (const d of diffs) {
-    if (d.newText) added += d.newText.split("\n").length;
-    if (d.oldText) removed += d.oldText.split("\n").length;
-  }
-
-  return added > 0 || removed > 0 ? { added, removed } : null;
+  return parts.slice(-2).join('/');
 }
 
 // ===== Command helpers =====
 
 function getCommand(item: ChatItemToolCall): string | null {
-  if (item.rawInput && typeof item.rawInput.command === "string") {
+  if (item.rawInput && typeof item.rawInput.command === 'string') {
     return item.rawInput.command;
   }
   return null;
@@ -110,15 +90,15 @@ function getCommand(item: ChatItemToolCall): string | null {
 
 /** Extract skill name from title like "Skill qoder-ppt" → "qoder-ppt" */
 function getSkillName(item: ChatItemToolCall): string {
-  const title = item.title || "";
+  const title = item.title || '';
   const match = title.match(/^Skill\s+(.+)$/i);
-  return match ? match[1] : title;
+  return match && match[1] ? match[1] : title;
 }
 
 /** Detect skill tool_call by kind or title pattern */
 function isSkillItem(item: ChatItemToolCall): boolean {
-  if (item.kind === "skill") return true;
-  return /^Skill\s+/i.test(item.title || "");
+  if (item.kind === 'skill') return true;
+  return /^Skill\s+/i.test(item.title || '');
 }
 
 // ===== MCP tool_call detection & parsing =====
@@ -138,76 +118,60 @@ function parseMcpTitle(title: string): McpTitleInfo | null {
   // Pattern: toolName (serverName MCP Server): jsonParams
   const match = title.match(/^(.+?)\s+\((.+?)\s+MCP Server\)\s*:\s*(.*)$/);
   if (!match) return null;
-  const [, toolName, serverName, rawParams] = match;
+  const toolName = match[1] ?? '';
+  const serverName = match[2] ?? '';
+  const rawParams = match[3] ?? '';
   // Build a human-readable params summary from the JSON
-  let paramsSummary = "";
+  let paramsSummary = '';
   try {
     const parsed = JSON.parse(rawParams);
-    if (typeof parsed === "object" && parsed !== null) {
+    if (typeof parsed === 'object' && parsed !== null) {
       const entries = Object.entries(parsed)
-        .filter(([, v]) => v !== "" && v !== null && v !== undefined)
-        .map(([k, v]) => `${k}: ${typeof v === "string" ? v : JSON.stringify(v)}`);
-      paramsSummary = entries.length > 0 ? entries.join(", ") : "";
+        .filter(([, v]) => v !== '' && v !== null && v !== undefined)
+        .map(([k, v]) => `${k}: ${typeof v === 'string' ? v : JSON.stringify(v)}`);
+      paramsSummary = entries.length > 0 ? entries.join(', ') : '';
     }
   } catch {
     // If JSON parse fails, use raw string but trim it
-    paramsSummary = rawParams.length > 60 ? rawParams.slice(0, 60) + "..." : rawParams;
+    paramsSummary = rawParams.length > 60 ? rawParams.slice(0, 60) + '...' : rawParams;
   }
-  return { toolName, serverName, paramsSummary };
-}
-
-/** Detect if a tool_call is an MCP tool invocation */
-export function isMcpItem(item: ChatItemToolCall): boolean {
-  if (item.kind !== "other") return false;
-  return /\(.+\s+MCP Server\)\s*:/.test(item.title || "");
+  return { paramsSummary, serverName, toolName };
 }
 
 /** Get parsed MCP info, returns null if not an MCP tool_call */
 function getMcpInfo(item: ChatItemToolCall): McpTitleInfo | null {
   if (!isMcpItem(item)) return null;
-  return parseMcpTitle(item.title || "");
+  return parseMcpTitle(item.title || '');
 }
 
 function getOutputPreview(content?: ToolCallContentItem[]): string | null {
   if (!content) return null;
-  const textItem = content.find(
-    c => c.type === "content" && c.content?.type === "text"
-  );
-  if (!textItem || textItem.type !== "content" || textItem.content?.type !== "text") {
+  const textItem = content.find((c) => c.type === 'content' && c.content?.type === 'text');
+  if (!textItem || textItem.type !== 'content' || textItem.content?.type !== 'text') {
     return null;
   }
   const text = textItem.content.text;
-  const firstLine = text.split("\n").filter((l: string) => l.trim())[0] ?? "";
-  if (firstLine.length > 80) return firstLine.slice(0, 80) + "...";
+  const firstLine = text.split('\n').filter((l: string) => l.trim())[0] ?? '';
+  if (firstLine.length > 80) return firstLine.slice(0, 80) + '...';
   return firstLine || null;
 }
 
 function getTerminalId(content?: ToolCallContentItem[]): string | null {
   if (!content) return null;
-  const terminal = content.find(c => c.type === "terminal");
-  return terminal && terminal.type === "terminal" ? terminal.terminalId : null;
+  const terminal = content.find((c) => c.type === 'terminal');
+  return terminal && terminal.type === 'terminal' ? terminal.terminalId : null;
 }
 
 // ===== Sub-components =====
 
 function StatusBadge({ item }: { item: ChatItemToolCall }) {
-  const isCompleted = item.status === "completed";
-  const isFailed = item.status === "failed";
-  const inProgress = item.status === "in_progress" || item.status === "pending";
+  const isCompleted = item.status === 'completed';
+  const isFailed = item.status === 'failed';
+  const inProgress = item.status === 'in_progress' || item.status === 'pending';
 
-  if (inProgress)
-    return (
-      <Loader2
-        size={13}
-        className="text-blue-500 animate-spin flex-shrink-0"
-      />
-    );
-  if (isFailed)
-    return <XCircle size={13} className="text-red-500 flex-shrink-0" />;
-  if (isCompleted)
-    return (
-      <CheckCircle2 size={13} className="text-green-500/70 flex-shrink-0" />
-    );
+  if (inProgress) return <Loader2 className="text-blue-500 animate-spin flex-shrink-0" size={13} />;
+  if (isFailed) return <XCircle className="text-red-500 flex-shrink-0" size={13} />;
+  if (isCompleted) return <CheckCircle2 className="text-green-500/70 flex-shrink-0" size={13} />;
   return null;
 }
 
@@ -231,50 +195,40 @@ function DiffStatsDisplay({ content }: { content?: ToolCallContentItem[] }) {
   if (!stats) return null;
   return (
     <span className="font-mono text-[11px] flex items-center gap-1 flex-shrink-0 tabular-nums">
-      {stats.added > 0 && (
-        <span className="text-green-600">+{stats.added}</span>
-      )}
-      {stats.removed > 0 && (
-        <span className="text-red-500">-{stats.removed}</span>
-      )}
+      {stats.added > 0 && <span className="text-green-600">+{stats.added}</span>}
+      {stats.removed > 0 && <span className="text-red-500">-{stats.removed}</span>}
     </span>
   );
 }
 
 // ===== Main component =====
 
-export function ToolCallCard({
-  item,
-  selected,
-  onClick,
-  variant = "default",
-}: ToolCallCardProps) {
+export function ToolCallCard({ item, onClick, selected, variant = 'default' }: ToolCallCardProps) {
   const isSkill = isSkillItem(item);
-  const filePath = item.kind !== "execute" && !isSkill ? getFilePath(item) : null;
+  const filePath = item.kind !== 'execute' && !isSkill ? getFilePath(item) : null;
   const fileName = filePath ? extractFileName(filePath) : null;
-  const fileOp = item.kind === "edit" ? getFileOp(item) : null;
-  const command = item.kind === "execute" && !isSkill ? getCommand(item) : null;
-  const terminalId = item.kind === "execute" ? getTerminalId(item.content) : null;
+  const fileOp = item.kind === 'edit' ? getFileOp(item) : null;
+  const command = item.kind === 'execute' && !isSkill ? getCommand(item) : null;
+  const terminalId = item.kind === 'execute' ? getTerminalId(item.content) : null;
   const extraFileCount =
-    item.locations && item.locations.length > 1
-      ? item.locations.length - 1
-      : 0;
+    item.locations && item.locations.length > 1 ? item.locations.length - 1 : 0;
 
   // ===== Compact variant (inside WorkUnitCard) =====
-  if (variant === "compact") {
+  if (variant === 'compact') {
     return (
-      <div
+      <button
         className={`
-          flex items-center gap-2 px-2.5 py-1.5 rounded-md cursor-pointer transition-colors
-          ${selected ? "bg-blue-50 ring-1 ring-blue-200/80" : "hover:bg-gray-50/60"}
+          flex items-center gap-2 px-2.5 py-1.5 rounded-md cursor-pointer transition-colors w-full text-left border-0 bg-transparent
+          ${selected ? 'bg-blue-50 ring-1 ring-blue-200/80' : 'hover:bg-gray-50/60'}
         `}
         onClick={onClick}
+        type="button"
       >
         {/* Skill: sparkle icon + skill name (checked first, before execute) */}
         {isSkill && (
           <>
             <span className="flex items-center justify-center w-[18px] h-[18px] rounded bg-violet-50 border border-violet-200 flex-shrink-0">
-              <Sparkles size={11} className="text-violet-500" />
+              <Sparkles className="text-violet-500" size={11} />
             </span>
             <span className="text-xs text-violet-700 font-medium truncate flex-1 min-w-0">
               {getSkillName(item)}
@@ -283,15 +237,13 @@ export function ToolCallCard({
         )}
 
         {/* Edit: op badge + filename + stats */}
-        {!isSkill && item.kind === "edit" && (
+        {!isSkill && item.kind === 'edit' && (
           <>
             {fileOp && <OpBadge op={fileOp} />}
             <span className="text-xs text-gray-700 font-medium truncate flex-1 min-w-0">
               {fileName || item.title}
               {extraFileCount > 0 && (
-                <span className="text-gray-400 font-normal ml-1">
-                  +{extraFileCount}
-                </span>
+                <span className="text-gray-400 font-normal ml-1">+{extraFileCount}</span>
               )}
             </span>
             <DiffStatsDisplay content={item.content} />
@@ -299,80 +251,73 @@ export function ToolCallCard({
         )}
 
         {/* Read: eye icon + filename */}
-        {!isSkill && item.kind === "read" && (
+        {!isSkill && item.kind === 'read' && (
           <>
-            <Eye size={14} className="text-blue-400/70 flex-shrink-0" />
+            <Eye className="text-blue-400/70 flex-shrink-0" size={14} />
             <span className="text-xs text-gray-500 truncate flex-1 min-w-0">
               {fileName || item.title}
             </span>
           </>
         )}
 
-        {!isSkill && item.kind === "delete" && (
+        {!isSkill && item.kind === 'delete' && (
           <>
-            <Trash2 size={14} className="text-red-400 flex-shrink-0" />
+            <Trash2 className="text-red-400 flex-shrink-0" size={14} />
             <span className="text-xs text-gray-600 truncate flex-1 min-w-0">
               {fileName || item.title}
             </span>
           </>
         )}
 
-        {!isSkill && item.kind === "move" && (
+        {!isSkill && item.kind === 'move' && (
           <>
-            <ArrowRightLeft size={14} className="text-indigo-400 flex-shrink-0" />
+            <ArrowRightLeft className="text-indigo-400 flex-shrink-0" size={14} />
             <span className="text-xs text-gray-600 truncate flex-1 min-w-0">
               {fileName || item.title}
             </span>
           </>
         )}
 
-        {!isSkill && item.kind === "search" && (
+        {!isSkill && item.kind === 'search' && (
           <>
-            <Search size={14} className="text-cyan-500 flex-shrink-0" />
-            <span className="text-xs text-gray-600 truncate flex-1 min-w-0">
-              {item.title}
-            </span>
+            <Search className="text-cyan-500 flex-shrink-0" size={14} />
+            <span className="text-xs text-gray-600 truncate flex-1 min-w-0">{item.title}</span>
           </>
         )}
 
         {/* Execute: terminal icon + command */}
-        {!isSkill && item.kind === "execute" && (
+        {!isSkill && item.kind === 'execute' && (
           <>
-            <Terminal size={14} className="text-emerald-500 flex-shrink-0" />
+            <Terminal className="text-emerald-500 flex-shrink-0" size={14} />
             <code className="text-xs text-gray-600 truncate flex-1 min-w-0 font-mono">
               {command || item.title}
             </code>
           </>
         )}
 
-        {!isSkill && item.kind === "think" && (
+        {!isSkill && item.kind === 'think' && (
           <>
-            <Brain size={14} className="text-purple-500 flex-shrink-0" />
-            <span className="text-xs text-gray-600 truncate flex-1 min-w-0">
-              {item.title}
-            </span>
+            <Brain className="text-purple-500 flex-shrink-0" size={14} />
+            <span className="text-xs text-gray-600 truncate flex-1 min-w-0">{item.title}</span>
           </>
         )}
 
-        {!isSkill && item.kind === "fetch" && (
+        {!isSkill && item.kind === 'fetch' && (
           <>
-            <CloudDownload size={14} className="text-sky-500 flex-shrink-0" />
-            <span className="text-xs text-gray-600 truncate flex-1 min-w-0">
-              {item.title}
-            </span>
+            <CloudDownload className="text-sky-500 flex-shrink-0" size={14} />
+            <span className="text-xs text-gray-600 truncate flex-1 min-w-0">{item.title}</span>
           </>
         )}
 
-        {!isSkill && item.kind === "switch_mode" && (
+        {!isSkill && item.kind === 'switch_mode' && (
           <>
-            <Settings2 size={14} className="text-amber-500 flex-shrink-0" />
-            <span className="text-xs text-gray-600 truncate flex-1 min-w-0">
-              {item.title}
-            </span>
+            <Settings2 className="text-amber-500 flex-shrink-0" size={14} />
+            <span className="text-xs text-gray-600 truncate flex-1 min-w-0">{item.title}</span>
           </>
         )}
 
-        {!isSkill && item.kind === "other" && (
+        {!isSkill &&
+          item.kind === 'other' &&
           (() => {
             const mcpInfo = getMcpInfo(item);
             if (mcpInfo) {
@@ -392,57 +337,62 @@ export function ToolCallCard({
             }
             return (
               <>
-                <CircleHelp size={14} className="text-gray-400 flex-shrink-0" />
-                <span className="text-xs text-gray-500 truncate flex-1 min-w-0">
-                  {item.title}
-                </span>
+                <CircleHelp className="text-gray-400 flex-shrink-0" size={14} />
+                <span className="text-xs text-gray-500 truncate flex-1 min-w-0">{item.title}</span>
               </>
             );
-          })()
-        )}
+          })()}
 
         <StatusBadge item={item} />
-      </div>
+      </button>
     );
   }
 
   // ===== Default variant (standalone in ChatStream) =====
-  const isFailed = item.status === "failed";
+  const isFailed = item.status === 'failed';
 
   // Skill kind (checked first, before execute fallback)
   if (isSkill) {
     const skillName = getSkillName(item);
-    const inProgress = item.status === "in_progress" || item.status === "pending";
+    const inProgress = item.status === 'in_progress' || item.status === 'pending';
     return (
       <div
         className={`
           rounded-lg border cursor-pointer transition-all duration-200 overflow-hidden
           ${
             selected
-              ? "border-violet-300 bg-violet-50/40 shadow-sm"
+              ? 'border-violet-300 bg-violet-50/40 shadow-sm'
               : isFailed
-                ? "border-red-200 bg-red-50/30"
-                : "border-violet-200/60 bg-gradient-to-r from-violet-50/50 to-white hover:border-violet-300 hover:shadow-sm"
+                ? 'border-red-200 bg-red-50/30'
+                : 'border-violet-200/60 bg-gradient-to-r from-violet-50/50 to-white hover:border-violet-300 hover:shadow-sm'
           }
         `}
         onClick={onClick}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onClick();
+          }
+        }}
+        role="button"
+        tabIndex={0}
       >
         <div className="px-3 py-2.5">
           <div className="flex items-center gap-2.5">
             <span
               className={`
                 flex items-center justify-center w-[22px] h-[22px] rounded-md flex-shrink-0
-                ${isFailed ? "bg-red-50 border border-red-200" : "bg-violet-100/80 border border-violet-200"}
+                ${isFailed ? 'bg-red-50 border border-red-200' : 'bg-violet-100/80 border border-violet-200'}
               `}
             >
-              <Sparkles size={13} className={isFailed ? "text-red-400" : "text-violet-500"} />
+              <Sparkles className={isFailed ? 'text-red-400' : 'text-violet-500'} size={13} />
             </span>
             <div className="flex flex-col flex-1 min-w-0">
-              <span className="text-sm text-gray-800 font-medium truncate">
-                {skillName}
-              </span>
-              <span className={`text-[11px] ${isFailed ? "text-red-400" : inProgress ? "text-violet-400" : "text-gray-400"}`}>
-                {isFailed ? "技能执行失败" : inProgress ? "技能执行中..." : "技能已完成"}
+              <span className="text-sm text-gray-800 font-medium truncate">{skillName}</span>
+              <span
+                className={`text-[11px] ${isFailed ? 'text-red-400' : inProgress ? 'text-violet-400' : 'text-gray-400'}`}
+              >
+                {isFailed ? '技能执行失败' : inProgress ? '技能执行中...' : '技能已完成'}
               </span>
             </div>
             <StatusBadge item={item} />
@@ -453,35 +403,42 @@ export function ToolCallCard({
   }
 
   // Edit kind
-  if (item.kind === "edit") {
-    const dirHint =
-      filePath && fileName ? extractDirHint(filePath, fileName) : null;
-    const diffs = (item.content ?? []).filter(c => c.type === "diff");
+  if (item.kind === 'edit') {
+    const dirHint = filePath && fileName ? extractDirHint(filePath, fileName) : null;
+    const diffs = (item.content ?? []).filter((c) => c.type === 'diff');
     const hasDiff = diffs.length > 0;
     return (
       <EditCard
-        item={item}
-        selected={selected}
-        isFailed={isFailed}
-        fileOp={fileOp}
-        fileName={fileName}
+        diffs={diffs}
         dirHint={dirHint}
         extraFileCount={extraFileCount}
-        diffs={diffs}
+        fileName={fileName}
+        fileOp={fileOp}
         hasDiff={hasDiff}
+        isFailed={isFailed}
+        item={item}
         onClick={onClick}
+        selected={selected}
       />
     );
   }
 
   // Read kind — lightweight inline style
-  if (item.kind === "read") {
+  if (item.kind === 'read') {
     return (
       <div
         className="flex items-center gap-2 px-1 py-1 cursor-pointer hover:opacity-70 transition-opacity"
         onClick={onClick}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onClick();
+          }
+        }}
+        role="button"
+        tabIndex={0}
       >
-        <Eye size={13} className="text-gray-300 flex-shrink-0" />
+        <Eye className="text-gray-300 flex-shrink-0" size={13} />
         <span className="text-xs text-gray-400 truncate flex-1 min-w-0">
           已查看 {fileName || item.title}
         </span>
@@ -490,25 +447,33 @@ export function ToolCallCard({
     );
   }
 
-  if (item.kind === "delete" || item.kind === "move") {
-    const Icon = item.kind === "delete" ? Trash2 : ArrowRightLeft;
-    const iconCls = item.kind === "delete" ? "text-red-500" : "text-indigo-500";
+  if (item.kind === 'delete' || item.kind === 'move') {
+    const Icon = item.kind === 'delete' ? Trash2 : ArrowRightLeft;
+    const iconCls = item.kind === 'delete' ? 'text-red-500' : 'text-indigo-500';
     return (
       <div
         className={`
           rounded-lg border cursor-pointer transition-all duration-200
           ${
             selected
-              ? "border-blue-300 bg-blue-50/40 shadow-sm"
+              ? 'border-blue-300 bg-blue-50/40 shadow-sm'
               : isFailed
-                ? "border-red-200 bg-red-50/30"
-                : "border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm"
+                ? 'border-red-200 bg-red-50/30'
+                : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
           }
         `}
         onClick={onClick}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onClick();
+          }
+        }}
+        role="button"
+        tabIndex={0}
       >
         <div className="px-3 py-2 flex items-center gap-2">
-          <Icon size={15} className={`${iconCls} flex-shrink-0`} />
+          <Icon className={`${iconCls} flex-shrink-0`} size={15} />
           <span className="text-sm text-gray-600 truncate flex-1 min-w-0">
             {fileName || item.title}
           </span>
@@ -519,39 +484,47 @@ export function ToolCallCard({
   }
 
   if (
-    item.kind === "search" ||
-    item.kind === "think" ||
-    item.kind === "fetch" ||
-    item.kind === "switch_mode" ||
-    item.kind === "other"
+    item.kind === 'search' ||
+    item.kind === 'think' ||
+    item.kind === 'fetch' ||
+    item.kind === 'switch_mode' ||
+    item.kind === 'other'
   ) {
     // MCP tool_call: render as a styled card
-    const mcpInfo = item.kind === "other" ? getMcpInfo(item) : null;
+    const mcpInfo = item.kind === 'other' ? getMcpInfo(item) : null;
     if (mcpInfo) {
-      const inProgress = item.status === "in_progress" || item.status === "pending";
+      const inProgress = item.status === 'in_progress' || item.status === 'pending';
       return (
         <div
           className={`
             rounded-lg border cursor-pointer transition-all duration-200 overflow-hidden
             ${
               selected
-                ? "border-blue-300 bg-blue-50/40 shadow-sm"
+                ? 'border-blue-300 bg-blue-50/40 shadow-sm'
                 : isFailed
-                  ? "border-red-200 bg-red-50/30"
-                  : "border-blue-200/60 bg-gradient-to-r from-blue-50/40 to-white hover:border-blue-300 hover:shadow-sm"
+                  ? 'border-red-200 bg-red-50/30'
+                  : 'border-blue-200/60 bg-gradient-to-r from-blue-50/40 to-white hover:border-blue-300 hover:shadow-sm'
             }
           `}
           onClick={onClick}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              onClick();
+            }
+          }}
+          role="button"
+          tabIndex={0}
         >
           <div className="px-3 py-2.5">
             <div className="flex items-center gap-2.5">
               <span
                 className={`
                   flex items-center justify-center w-[22px] h-[22px] rounded-md flex-shrink-0
-                  ${isFailed ? "bg-red-50 border border-red-200" : "bg-blue-100/80 border border-blue-200"}
+                  ${isFailed ? 'bg-red-50 border border-red-200' : 'bg-blue-100/80 border border-blue-200'}
                 `}
               >
-                <Mcp className={`w-3 h-3 ${isFailed ? "fill-red-400" : "fill-blue-500"}`} />
+                <Mcp className={`w-3 h-3 ${isFailed ? 'fill-red-400' : 'fill-blue-500'}`} />
               </span>
               <div className="flex flex-col flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
@@ -567,8 +540,10 @@ export function ToolCallCard({
                     {mcpInfo.paramsSummary}
                   </span>
                 ) : (
-                  <span className={`text-[11px] ${isFailed ? "text-red-400" : inProgress ? "text-blue-400" : "text-gray-400"}`}>
-                    {isFailed ? "MCP 调用失败" : inProgress ? "MCP 调用中..." : "MCP 调用完成"}
+                  <span
+                    className={`text-[11px] ${isFailed ? 'text-red-400' : inProgress ? 'text-blue-400' : 'text-gray-400'}`}
+                  >
+                    {isFailed ? 'MCP 调用失败' : inProgress ? 'MCP 调用中...' : 'MCP 调用完成'}
                   </span>
                 )}
               </div>
@@ -581,31 +556,39 @@ export function ToolCallCard({
 
     // Non-MCP "other" and other lightweight kinds
     const Icon =
-      item.kind === "search"
+      item.kind === 'search'
         ? Search
-        : item.kind === "think"
+        : item.kind === 'think'
           ? Brain
-          : item.kind === "fetch"
+          : item.kind === 'fetch'
             ? CloudDownload
-            : item.kind === "switch_mode"
+            : item.kind === 'switch_mode'
               ? Settings2
               : CircleHelp;
     const label =
-      item.kind === "search"
-        ? "搜索"
-        : item.kind === "think"
-          ? "思考"
-          : item.kind === "fetch"
-            ? "抓取"
-            : item.kind === "switch_mode"
-              ? "切换模式"
-              : "操作";
+      item.kind === 'search'
+        ? '搜索'
+        : item.kind === 'think'
+          ? '思考'
+          : item.kind === 'fetch'
+            ? '抓取'
+            : item.kind === 'switch_mode'
+              ? '切换模式'
+              : '操作';
     return (
       <div
         className="flex items-center gap-2 px-1 py-1 cursor-pointer hover:opacity-70 transition-opacity"
         onClick={onClick}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onClick();
+          }
+        }}
+        role="button"
+        tabIndex={0}
       >
-        <Icon size={13} className="text-gray-300 flex-shrink-0" />
+        <Icon className="text-gray-300 flex-shrink-0" size={13} />
         <span className="text-xs text-gray-400 truncate flex-1 min-w-0">
           {label} {item.title}
         </span>
@@ -617,12 +600,12 @@ export function ToolCallCard({
   // Execute kind
   return (
     <ExecuteCard
-      item={item}
-      selected={selected}
-      isFailed={isFailed}
       command={command}
-      terminalId={terminalId}
+      isFailed={isFailed}
+      item={item}
       onClick={onClick}
+      selected={selected}
+      terminalId={terminalId}
     />
   );
 }
@@ -630,16 +613,16 @@ export function ToolCallCard({
 // ===== EditCard with expandable diff =====
 
 function EditCard({
-  item,
-  selected,
-  isFailed,
-  fileOp,
-  fileName,
+  diffs,
   dirHint,
   extraFileCount,
-  diffs,
+  fileName,
+  fileOp,
   hasDiff,
+  isFailed,
+  item,
   onClick,
+  selected,
 }: {
   item: ChatItemToolCall;
   selected: boolean;
@@ -660,14 +643,25 @@ function EditCard({
         rounded-lg border cursor-pointer transition-all duration-200 overflow-hidden
         ${
           selected
-            ? "border-blue-300 bg-blue-50/40 shadow-sm"
+            ? 'border-blue-300 bg-blue-50/40 shadow-sm'
             : isFailed
-              ? "border-red-200 bg-red-50/30"
-              : "border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm"
+              ? 'border-red-200 bg-red-50/30'
+              : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
         }
       `}
     >
-      <div className="px-3 py-2.5" onClick={onClick}>
+      <div
+        className="px-3 py-2.5"
+        onClick={onClick}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onClick();
+          }
+        }}
+        role="button"
+        tabIndex={0}
+      >
         <div className="flex items-center gap-2">
           {fileOp && <OpBadge op={fileOp} />}
           <span className="text-sm text-gray-800 font-medium truncate flex-1 min-w-0">
@@ -682,24 +676,22 @@ function EditCard({
           {hasDiff && (
             <button
               className="p-0.5 rounded hover:bg-gray-100 transition-colors"
-              onClick={e => {
+              onClick={(e) => {
                 e.stopPropagation();
-                setDiffExpanded(prev => !prev);
+                setDiffExpanded((prev) => !prev);
               }}
             >
               {diffExpanded ? (
-                <ChevronDown size={13} className="text-gray-400" />
+                <ChevronDown className="text-gray-400" size={13} />
               ) : (
-                <ChevronRight size={13} className="text-gray-400" />
+                <ChevronRight className="text-gray-400" size={13} />
               )}
             </button>
           )}
           <StatusBadge item={item} />
         </div>
         {dirHint && (
-          <div className="mt-1 text-[11px] text-gray-400 truncate pl-[26px]">
-            {dirHint}
-          </div>
+          <div className="mt-1 text-[11px] text-gray-400 truncate pl-[26px]">{dirHint}</div>
         )}
       </div>
       {diffExpanded && hasDiff && (
@@ -707,9 +699,9 @@ function EditCard({
           {diffs.map((d, i) => (
             <DiffViewer
               key={i}
-              path={d.type === "diff" ? (d.path ? extractFileName(d.path) : undefined) : undefined}
-              oldText={d.type === "diff" ? d.oldText : undefined}
-              newText={d.type === "diff" ? d.newText : undefined}
+              newText={d.type === 'diff' ? d.newText : undefined}
+              oldText={d.type === 'diff' ? d.oldText : undefined}
+              path={d.type === 'diff' ? (d.path ? extractFileName(d.path) : undefined) : undefined}
             />
           ))}
         </div>
@@ -721,12 +713,12 @@ function EditCard({
 // ===== ExecuteCard with expandable command =====
 
 function ExecuteCard({
-  item,
-  selected,
-  isFailed,
   command,
-  terminalId,
+  isFailed,
+  item,
   onClick,
+  selected,
+  terminalId,
 }: {
   item: ChatItemToolCall;
   selected: boolean;
@@ -743,17 +735,25 @@ function ExecuteCard({
         rounded-lg border cursor-pointer transition-all duration-200 overflow-hidden
         ${
           selected
-            ? "border-blue-300 bg-blue-50/40 shadow-sm"
+            ? 'border-blue-300 bg-blue-50/40 shadow-sm'
             : isFailed
-              ? "border-red-200 bg-red-50/30"
-              : "border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm"
+              ? 'border-red-200 bg-red-50/30'
+              : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
         }
       `}
       onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick();
+        }
+      }}
+      role="button"
+      tabIndex={0}
     >
       <div className="px-3 py-2.5">
         <div className="flex items-center gap-2">
-          <Terminal size={15} className="text-emerald-500 flex-shrink-0" />
+          <Terminal className="text-emerald-500 flex-shrink-0" size={15} />
           <span className="text-sm text-gray-700 font-medium truncate flex-1 min-w-0">
             {item.title}
           </span>
@@ -762,12 +762,21 @@ function ExecuteCard({
         {command && (
           <div
             className={`mt-1.5 bg-gray-900 rounded-md px-2.5 py-1.5 font-mono text-[11px] text-gray-300 ${
-              cmdExpanded ? "whitespace-pre-wrap break-all" : "truncate"
+              cmdExpanded ? 'whitespace-pre-wrap break-all' : 'truncate'
             }`}
-            onClick={e => {
+            onClick={(e) => {
               e.stopPropagation();
-              setCmdExpanded(prev => !prev);
+              setCmdExpanded((prev) => !prev);
             }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                e.stopPropagation();
+                setCmdExpanded((prev) => !prev);
+              }
+            }}
+            role="button"
+            tabIndex={0}
           >
             <span className="text-emerald-400 mr-1.5 select-none">$</span>
             {command}
@@ -778,7 +787,7 @@ function ExecuteCard({
             terminal: {terminalId}
           </div>
         )}
-        {item.status === "completed" && getOutputPreview(item.content) && (
+        {item.status === 'completed' && getOutputPreview(item.content) && (
           <div className="mt-1 text-[11px] text-gray-400 truncate pl-[23px]">
             {getOutputPreview(item.content)}
           </div>

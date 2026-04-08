@@ -1,64 +1,64 @@
 // 产品状态映射
 export const ProductStatusMap: Record<string, { text: string; color: string }> = {
-  PENDING: { text: "待发布", color: "orange" },
-  READY: { text: "就绪", color: "blue" },
-  PUBLISHED: { text: "已发布", color: "green" },
-  DRAFT: { text: "草稿", color: "default" },
-  DEPRECATED: { text: "已弃用", color: "red" },
-  ENABLE: { text: "活跃", color: "green" },
-  DISABLE: { text: "非活跃", color: "red" },
+  DEPRECATED: { color: 'red', text: '已弃用' },
+  DISABLE: { color: 'red', text: '非活跃' },
+  DRAFT: { color: 'default', text: '草稿' },
+  ENABLE: { color: 'green', text: '活跃' },
+  PENDING: { color: 'orange', text: '待发布' },
+  PUBLISHED: { color: 'green', text: '已发布' },
+  READY: { color: 'blue', text: '就绪' },
 };
 
 // 订阅状态映射
 export const SubscriptionStatusMap: Record<string, { text: string; color: string }> = {
-  PENDING: { text: "待审批", color: "orange" },
-  APPROVED: { text: "已通过", color: "green" },
+  APPROVED: { color: 'green', text: '已通过' },
+  PENDING: { color: 'orange', text: '待审批' },
 };
 
 // 产品分类映射
 export const ProductCategoryMap: Record<string, { text: string; color: string }> = {
-  OFFICIAL: { text: "官方", color: "blue" },
-  COMMUNITY: { text: "社区", color: "green" },
-  CUSTOM: { text: "自定义", color: "orange" },
-  official2: { text: "官方", color: "blue" },
+  COMMUNITY: { color: 'green', text: '社区' },
+  CUSTOM: { color: 'orange', text: '自定义' },
+  OFFICIAL: { color: 'blue', text: '官方' },
+  official2: { color: 'blue', text: '官方' },
 };
 
 // 来源类型映射
 export const FromTypeMap: Record<string, string> = {
-  HTTP: "HTTP转MCP",
-  MCP: "MCP直接代理",
-  OPEN_API: "OpenAPI转MCP",
-  DIRECT_ROUTE: "直接路由",
-  DATABASE: "数据库",
+  DATABASE: '数据库',
+  DIRECT_ROUTE: '直接路由',
+  HTTP: 'HTTP转MCP',
+  MCP: 'MCP直接代理',
+  OPEN_API: 'OpenAPI转MCP',
 };
 
 // 来源映射
 export const SourceMap: Record<string, string> = {
-  APIG_AI: "AI网关",
-  HIGRESS: "Higress",
-  NACOS: "Nacos",
-  APIG_API: "API网关",
-  ADP_AI_GATEWAY: "专有云AI网关"
+  ADP_AI_GATEWAY: '专有云AI网关',
+  APIG_AI: 'AI网关',
+  APIG_API: 'API网关',
+  HIGRESS: 'Higress',
+  NACOS: 'Nacos',
 };
 
 // 类型映射
 export const ProductTypeMap: Record<string, string> = {
-  REST_API: 'REST API',
-  MCP_SERVER: 'MCP Server',
   AGENT_API: 'Agent API',
-  MODEL_API: 'Model API',
   AGENT_SKILL: 'Agent Skill',
+  MCP_SERVER: 'MCP Server',
+  MODEL_API: 'Model API',
+  REST_API: 'REST API',
   WORKER: 'Worker',
 };
 
 // 获取状态信息
 export const getStatusInfo = (status: string) => {
-  return ProductStatusMap[status] || { text: status, color: "default" };
+  return ProductStatusMap[status] || { color: 'default', text: status };
 };
 
 // 获取分类信息
 export const getCategoryInfo = (category: string) => {
-  return ProductCategoryMap[category] || { text: category, color: "default" };
+  return ProductCategoryMap[category] || { color: 'default', text: category };
 };
 
 // 获取状态文本
@@ -83,7 +83,7 @@ export const getCategoryColor = (category: string) => {
 
 // 获取订阅状态信息
 export const getSubscriptionStatusInfo = (status: string) => {
-  return SubscriptionStatusMap[status] || { text: status, color: "default" };
+  return SubscriptionStatusMap[status] || { color: 'default', text: status };
 };
 
 // 获取订阅状态文本
@@ -94,4 +94,4 @@ export const getSubscriptionStatusText = (status: string) => {
 // 获取订阅状态颜色
 export const getSubscriptionStatusColor = (status: string) => {
   return getSubscriptionStatusInfo(status).color;
-}; 
+};

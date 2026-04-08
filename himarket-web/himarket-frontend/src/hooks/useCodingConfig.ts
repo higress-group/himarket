@@ -1,6 +1,8 @@
-import { useState, useCallback, useMemo } from "react";
-import type { CodingConfig } from "../types/coding";
-import { DEFAULT_CONFIG, isConfigComplete } from "../types/coding";
+import { useState, useCallback, useMemo } from 'react';
+
+import { DEFAULT_CONFIG, isConfigComplete } from '../types/coding';
+
+import type { CodingConfig } from '../types/coding';
 
 interface UseCodingConfigReturn {
   config: CodingConfig;
@@ -21,15 +23,12 @@ export function useCodingConfig(): UseCodingConfigReturn {
     setConfigState(newConfig);
   }, []);
 
-  const isComplete = useMemo(
-    () => isConfigComplete(config),
-    [config]
-  );
+  const isComplete = useMemo(() => isConfigComplete(config), [config]);
 
   return {
     config,
-    setConfig,
-    isFirstTime: false,
     isComplete,
+    isFirstTime: false,
+    setConfig,
   };
 }

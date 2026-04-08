@@ -1,15 +1,11 @@
-import { useEffect, useState } from "react";
-import {
-  Download,
-  Maximize2,
-  Loader2,
-  RefreshCcw,
-  AlertCircle,
-} from "lucide-react";
-import { ArtifactRenderer } from "./renderers/ArtifactRenderer";
-import { useCodingDispatch } from "../../context/CodingSessionContext";
-import { fetchArtifactContent } from "../../lib/utils/workspaceApi";
-import type { Artifact } from "../../types/artifact";
+import { Download, Maximize2, Loader2, RefreshCcw, AlertCircle } from 'lucide-react';
+import { useEffect, useState } from 'react';
+
+import { ArtifactRenderer } from './renderers/ArtifactRenderer';
+import { useCodingDispatch } from '../../context/CodingSessionContext';
+import { fetchArtifactContent } from '../../lib/utils/workspaceApi';
+
+import type { Artifact } from '../../types/artifact';
 
 interface ArtifactPreviewProps {
   artifact: Artifact;
@@ -26,9 +22,9 @@ export function ArtifactPreview({ artifact }: ArtifactPreviewProps) {
   }, [artifact.id]);
 
   const resolveDownloadName = (name: string) => {
-    if (artifact.type !== "pdf") return name;
-    if (name.toLowerCase().endsWith(".pdf")) return name;
-    const dot = name.lastIndexOf(".");
+    if (artifact.type !== 'pdf') return name;
+    if (name.toLowerCase().endsWith('.pdf')) return name;
+    const dot = name.lastIndexOf('.');
     const base = dot > 0 ? name.slice(0, dot) : name;
     return `${base}.pdf`;
   };
@@ -47,7 +43,7 @@ export function ArtifactPreview({ artifact }: ArtifactPreviewProps) {
   // applyArtifactDetection), so this always fetches the latest version.
   useEffect(() => {
     if (artifact.content !== null) return;
-    if (artifact.type === "file") return;
+    if (artifact.type === 'file') return;
 
     let cancelled = false;
     setError(null);
@@ -59,18 +55,18 @@ export function ArtifactPreview({ artifact }: ArtifactPreviewProps) {
       if (result.content !== null) {
         setError(null);
         dispatch({
-          type: "UPDATE_ARTIFACT_CONTENT",
           artifactId: artifact.id,
           content: result.content,
+          type: 'UPDATE_ARTIFACT_CONTENT',
         });
       } else {
-        setError(result.error?.message ?? "加载预览失败");
+        setError(result.error?.message ?? '加载预览失败');
       }
     };
 
     load().catch(() => {
       if (!cancelled) {
-        setError("加载预览失败");
+        setError('加载预览失败');
       }
     });
 
@@ -88,29 +84,26 @@ export function ArtifactPreview({ artifact }: ArtifactPreviewProps) {
   ]);
 
   const hasContent = artifact.content !== null;
-  const isLoading = !hasContent && artifact.type !== "file" && !error;
+  const isLoading = !hasContent && artifact.type !== 'file' && !error;
 
   const handleRetry = () => {
     setError(null);
-    setRetryToken(v => v + 1);
+    setRetryToken((v) => v + 1);
   };
 
   const handleDownload = () => {
     if (!artifact.content) return;
 
     let blob: Blob;
-    if (artifact.type === "pdf" || artifact.type === "image") {
-      const mime =
-        artifact.type === "pdf"
-          ? "application/pdf"
-          : "application/octet-stream";
+    if (artifact.type === 'pdf' || artifact.type === 'image') {
+      const mime = artifact.type === 'pdf' ? 'application/pdf' : 'application/octet-stream';
       blob = decodeBase64ToBlob(artifact.content, mime);
     } else {
-      blob = new Blob([artifact.content], { type: "text/plain" });
+      blob = new Blob([artifact.content], { type: 'text/plain' });
     }
 
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
+    const a = document.createElement('a');
     a.href = url;
     a.download = resolveDownloadName(artifact.fileName);
     a.click();
@@ -120,24 +113,24 @@ export function ArtifactPreview({ artifact }: ArtifactPreviewProps) {
   const handleOpenTab = () => {
     if (!artifact.content) return;
 
-    if (artifact.type === "pdf") {
-      const blob = decodeBase64ToBlob(artifact.content, "application/pdf");
+    if (artifact.type === 'pdf') {
+      const blob = decodeBase64ToBlob(artifact.content, 'application/pdf');
       const url = URL.createObjectURL(blob);
-      window.open(url, "_blank");
+      window.open(url, '_blank');
       return;
     }
 
     const mimeMap: Record<string, string> = {
-      html: "text/html",
-      markdown: "text/plain",
-      svg: "image/svg+xml",
-      image: "text/plain",
+      html: 'text/html',
+      image: 'text/plain',
+      markdown: 'text/plain',
+      svg: 'image/svg+xml',
     };
     const blob = new Blob([artifact.content], {
-      type: mimeMap[artifact.type] ?? "text/plain",
+      type: mimeMap[artifact.type] ?? 'text/plain',
     });
     const url = URL.createObjectURL(blob);
-    window.open(url, "_blank");
+    window.open(url, '_blank');
   };
 
   return (
@@ -168,7 +161,7 @@ export function ArtifactPreview({ artifact }: ArtifactPreviewProps) {
       <div className="flex-1 min-h-0 overflow-hidden">
         {isLoading ? (
           <div className="flex items-center justify-center h-full text-gray-400 text-sm gap-2">
-            <Loader2 size={16} className="animate-spin" />
+            <Loader2 className="animate-spin" size={16} />
             Loading preview...
           </div>
         ) : error ? (
@@ -193,10 +186,10 @@ export function ArtifactPreview({ artifact }: ArtifactPreviewProps) {
           </div>
         ) : (
           <ArtifactRenderer
-            type={artifact.type}
             content={artifact.content}
-            path={artifact.path}
             fileName={artifact.fileName}
+            path={artifact.path}
+            type={artifact.type}
           />
         )}
       </div>

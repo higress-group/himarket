@@ -11,7 +11,10 @@ import { useEffect, useRef } from 'react';
  */
 export function useDebounce<T>(value: T, delay: number, callback: (value: T) => void) {
   const callbackRef = useRef(callback);
-  callbackRef.current = callback;
+
+  useEffect(() => {
+    callbackRef.current = callback;
+  }, [callback]);
 
   const timerRef = useRef<ReturnType<typeof setTimeout>>();
   const isFirstRender = useRef(true);

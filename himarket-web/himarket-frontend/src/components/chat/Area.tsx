@@ -1,64 +1,94 @@
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
-import { message } from "antd";
-import { CloseOutlined, PlusOutlined } from "@ant-design/icons";
-import { ModelSelector } from "./ModelSelector";
-import { Messages } from "./Messages";
-import { InputBox } from "./InputBox";
-import { SuggestedQuestions } from "./SuggestedQuestions";
-import { MultiModelSelector } from "./MultiModelSelector";
-import McpModal from "./McpModal";
-import useProducts from "../../hooks/useProducts";
-import useCategories from "../../hooks/useCategories";
-import APIs from "../../lib/apis";
+import { CloseOutlined, PlusOutlined } from '@ant-design/icons';
+import { message } from 'antd';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 
-import type { IGetPrimaryConsumerResp, IProductDetail, ISubscription, IAttachment } from "../../lib/apis";
-import type { IModelConversation } from "../../types";
-import { safeJSONParse } from "../../lib/utils";
-import TextType from "../TextType";
+import { InputBox } from './InputBox';
+import McpModal from './McpModal';
+import { Messages } from './Messages';
+import { ModelSelector } from './ModelSelector';
+import { MultiModelSelector } from './MultiModelSelector';
+import { SuggestedQuestions } from './SuggestedQuestions';
+import useCategories from '../../hooks/useCategories';
+import useProducts from '../../hooks/useProducts';
+import APIs from '../../lib/apis';
+import { safeJSONParse } from '../../lib/utils';
+import TextType from '../TextType';
 
+import type {
+  IGetPrimaryConsumerResp,
+  IProductDetail,
+  ISubscription,
+  IAttachment,
+} from '../../lib/apis';
+import type { IModelConversation } from '../../types';
 
 interface ChatAreaProps {
   modelConversations: IModelConversation[];
   currentSessionId?: string;
   selectedModel?: IProductDetail;
-  generating: boolean,
+  generating: boolean;
   isMcpExecuting: boolean;
-  onChangeActiveAnswer: (modelId: string, conversationId: string, questionId: string, direction: 'prev' | 'next') => void
-  onSendMessage: (message: string, mcps: IProductDetail[], enableWebSearch: boolean, modelMap: Map<string, IProductDetail>, attachments: IAttachment[]) => void;
+  onChangeActiveAnswer: (
+    modelId: string,
+    conversationId: string,
+    questionId: string,
+    direction: 'prev' | 'next',
+  ) => void;
+  onSendMessage: (
+    message: string,
+    mcps: IProductDetail[],
+    enableWebSearch: boolean,
+    modelMap: Map<string, IProductDetail>,
+    attachments: IAttachment[],
+  ) => void;
   onSelectProduct: (product: IProductDetail) => void;
   handleGenerateMessage: (ids: {
     modelId: string;
     conversationId: string;
     questionId: string;
     content: string;
-    mcps: IProductDetail[],
+    mcps: IProductDetail[];
     enableWebSearch: boolean;
-    modelMap: Map<string, IProductDetail>,
-    attachments?: IAttachment[]
+    modelMap: Map<string, IProductDetail>;
+    attachments?: IAttachment[];
   }) => void;
 
   addModels: (ids: string[]) => void;
   closeModel: (modelId: string) => void;
-  chatType?: "TEXT" | "Image";
+  chatType?: 'TEXT' | 'Image';
   onStop?: () => void;
 }
 
 export function ChatArea(props: ChatAreaProps) {
   const {
-    modelConversations, onChangeActiveAnswer, onSendMessage,
-    onSelectProduct, selectedModel, handleGenerateMessage, addModels, closeModel,
-    generating, isMcpExecuting, chatType = "TEXT", onStop
+    addModels,
+    chatType = 'TEXT',
+    closeModel,
+    generating,
+    handleGenerateMessage,
+    isMcpExecuting,
+    modelConversations,
+    onChangeActiveAnswer,
+    onSelectProduct,
+    onSendMessage,
+    onStop,
+    selectedModel,
   } = props;
 
   const isCompareMode = modelConversations.length > 1;
 
   const {
-    data: mcpList, get: getMcpList, loading: mcpListLoading,
-    set: setMcpList
-  } = useProducts({ type: "MCP_SERVER" });
-  const { data: modelList } = useProducts({ type: "MODEL_API", ["modelFilter.category"]: chatType });
-  const { data: categories } = useCategories({ type: "MODEL_API", addAll: true });
-  const { data: mcpCategories } = useCategories({ type: "MCP_SERVER", addAll: true });
+    data: mcpList,
+    get: getMcpList,
+    loading: mcpListLoading,
+    set: setMcpList,
+  } = useProducts({ type: 'MCP_SERVER' });
+  const { data: modelList } = useProducts({
+    ['modelFilter.category']: chatType,
+    type: 'MODEL_API',
+  });
+  const { data: categories } = useCategories({ addAll: true, type: 'MODEL_API' });
+  const { data: mcpCategories } = useCategories({ addAll: true, type: 'MCP_SERVER' });
 
   const primaryConsumer = useRef<IGetPrimaryConsumerResp>();
 
@@ -67,7 +97,7 @@ export function ChatArea(props: ChatAreaProps) {
   const [mcpSubscripts, setMcpSubscripts] = useState<ISubscription[]>([]);
   const [modelSubscriptions, setModelSubscriptions] = useState<ISubscription[]>([]);
   const [mcpEnabled, setMcpEnabled] = useState(() => {
-    return safeJSONParse(window.localStorage.getItem("mcpEnabled") || "false", false)
+    return safeJSONParse(window.localStorage.getItem('mcpEnabled') || 'false', false);
   });
 
   const [enableWebSearch, setEnableWebSearch] = useState(false);
@@ -80,7 +110,7 @@ export function ChatArea(props: ChatAreaProps) {
   // 处理滚动事件，检测用户是否手动向上滚动
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     const target = e.currentTarget;
-    const { scrollTop, scrollHeight, clientHeight } = target;
+    const { clientHeight, scrollHeight, scrollTop } = target;
     // 距离底部的阈值（像素）
     const threshold = 100;
     const isAtBottom = scrollHeight - scrollTop - clientHeight < threshold;
@@ -94,42 +124,47 @@ export function ChatArea(props: ChatAreaProps) {
     }
   }, []);
 
+  const handleMcpFilter = useCallback(
+    (id: string) => {
+      if (id === 'added') {
+        setMcpList(addedMcpsRef.current);
+      } else {
+        getMcpList({
+          categoryIds: ['all', 'added'].includes(id) ? [] : [id],
+          type: 'MCP_SERVER',
+        });
+      }
+    },
+    [getMcpList, setMcpList],
+  );
 
-  const handleMcpFilter = useCallback((id: string) => {
-    if (id === "added") {
-      setMcpList(addedMcps);
-    } else {
-      getMcpList({
-        type: "MCP_SERVER",
-        categoryIds: ['all', 'added'].includes(id) ? [] : [id],
-      });
-    }
-  }, [addedMcps, setMcpList, getMcpList]);
-
-  const handleMcpSearch = useCallback((id: string, name: string) => {
-    if (id === "added") {
-      setAddedMcps(() => addedMcpsRef.current.filter(mcp => mcp.name.includes(name)))
-    } else {
-      getMcpList({
-        type: "MCP_SERVER",
-        categoryIds: ['all', 'added'].includes(id) ? [] : [id],
-        name
-      });
-    }
-  }, [addedMcps, getMcpList]);
+  const handleMcpSearch = useCallback(
+    (id: string, name: string) => {
+      if (id === 'added') {
+        setAddedMcps(() => addedMcpsRef.current.filter((mcp) => mcp.name.includes(name)));
+      } else {
+        getMcpList({
+          categoryIds: ['all', 'added'].includes(id) ? [] : [id],
+          name,
+          type: 'MCP_SERVER',
+        });
+      }
+    },
+    [getMcpList],
+  );
 
   const toggleMcpModal = useCallback(() => {
-    setShowMcpModal(v => !v);
+    setShowMcpModal((v) => !v);
   }, []);
 
   const handleToggleCompare = () => {
     setShowModelSelector(true);
-  }
+  };
 
   const handleSelectModels = (modelIds: string[]) => {
     addModels(modelIds);
     setShowModelSelector(false);
-  }
+  };
 
   const handleAddModel = () => {
     // 添加新的对比模型
@@ -137,13 +172,13 @@ export function ChatArea(props: ChatAreaProps) {
   };
 
   const selectedModelIds = useMemo(() => {
-    return modelConversations.map(model => model.id);
+    return modelConversations.map((model) => model.id);
   }, [modelConversations]);
 
   const handleAddMcp = useCallback((product: IProductDetail) => {
-    setAddedMcps(v => {
+    setAddedMcps((v) => {
       if (v.length === 10) {
-        message.error("最多添加 10 个 MCP 服务")
+        message.error('最多添加 10 个 MCP 服务');
         return v;
       }
       const res = [product, ...v];
@@ -153,60 +188,60 @@ export function ChatArea(props: ChatAreaProps) {
   }, []);
 
   const handleRemoveMcp = useCallback((product: IProductDetail) => {
-    setAddedMcps(v => {
-      const res = v.filter(i => i.productId !== product.productId);
+    setAddedMcps((v) => {
+      const res = v.filter((i) => i.productId !== product.productId);
       addedMcpsRef.current = res;
       return res;
-    })
+    });
   }, []);
 
   const handleRemoveAll = useCallback(() => {
     setAddedMcps([]);
-    addedMcpsRef.current = []
-  }, [])
+    addedMcpsRef.current = [];
+  }, []);
 
   const handleQuickSubscribe = useCallback((product: IProductDetail) => {
     if (!primaryConsumer.current) return;
     APIs.subscribeProduct(primaryConsumer.current.consumerId, product.productId)
       .then(({ data }) => {
         if (data) {
-          message.success("订阅成功")
-          APIs.getConsumerSubscriptions(data.consumerId, { size: 1000 })
-            .then(({ data }) => {
-              setMcpSubscripts(data.content);
-            })
+          message.success('订阅成功');
+          APIs.getConsumerSubscriptions(data.consumerId, { size: 1000 }).then(({ data }) => {
+            setMcpSubscripts(data.content);
+          });
         } else {
-          message.error("订阅失败")
+          message.error('订阅失败');
         }
-      }).catch(() => {
-        message.error("订阅失败")
       })
+      .catch(() => {
+        message.error('订阅失败');
+      });
   }, []);
 
   const handleMcpEnable = (enable: boolean) => {
-    localStorage.setItem("mcpEnabled", JSON.stringify(enable));
+    localStorage.setItem('mcpEnabled', JSON.stringify(enable));
     setMcpEnabled(enable);
-  }
+  };
 
   const subscribedModelList = useMemo(() => {
     if (modelSubscriptions.length === 0) return [];
-    const approvedProductIds = new Set(modelSubscriptions.map(s => s.productId));
-    return modelList.filter(m => approvedProductIds.has(m.productId));
+    const approvedProductIds = new Set(modelSubscriptions.map((s) => s.productId));
+    return modelList.filter((m) => approvedProductIds.has(m.productId));
   }, [modelList, modelSubscriptions]);
 
   const modelMap = useMemo(() => {
-    const m = new Map<string, IProductDetail>;
-    subscribedModelList.forEach(model => {
+    const m = new Map<string, IProductDetail>();
+    subscribedModelList.forEach((model) => {
       m.set(model.productId, model);
     });
-    return m
-  }, [subscribedModelList])
+    return m;
+  }, [subscribedModelList]);
 
   const showWebSearch = useMemo(() => {
     if (modelConversations.length === 0) {
       return selectedModel?.feature?.modelFeature?.webSearch || false;
     }
-    return modelConversations.some(v => {
+    return modelConversations.some((v) => {
       return modelMap.get(v.id)?.feature?.modelFeature?.webSearch || false;
     });
   }, [modelConversations, modelMap, selectedModel]);
@@ -215,267 +250,248 @@ export function ChatArea(props: ChatAreaProps) {
     if (modelConversations.length === 0) {
       return selectedModel?.feature?.modelFeature?.enableMultiModal || false;
     }
-    return modelConversations.some(v => {
+    return modelConversations.some((v) => {
       return modelMap.get(v.id)?.feature?.modelFeature?.enableMultiModal || false;
     });
   }, [modelConversations, modelMap, selectedModel]);
 
   useEffect(() => {
-    APIs.getPrimaryConsumer()
-      .then(({ data }) => {
-        primaryConsumer.current = data;
-        APIs.getConsumerSubscriptions(data.consumerId, { size: 1000 })
-          .then(({ data }) => {
-            setMcpSubscripts(data.content);
-            setModelSubscriptions(data.content.filter(
-              (s: ISubscription) => s.status === 'APPROVED'
-            ));
-          })
-      })
+    APIs.getPrimaryConsumer().then(({ data }) => {
+      primaryConsumer.current = data;
+      APIs.getConsumerSubscriptions(data.consumerId, { size: 1000 }).then(({ data }) => {
+        setMcpSubscripts(data.content);
+        setModelSubscriptions(data.content.filter((s: ISubscription) => s.status === 'APPROVED'));
+      });
+    });
   }, []);
 
   return (
     <div className="h-full flex flex-col flex-1">
-
-      <div className={`overflow-hidden ${modelConversations.length === 0 ? "" : "h-full"} grid grid-rows-[auto] ${modelConversations.length === 0 ? "" : modelConversations.length === 1 ? "grid-cols-1 " : modelConversations.length === 2 ? "grid-cols-2" : "grid-cols-3"}`}>
+      <div
+        className={`overflow-hidden ${modelConversations.length === 0 ? '' : 'h-full'} grid grid-rows-[auto] ${modelConversations.length === 0 ? '' : modelConversations.length === 1 ? 'grid-cols-1 ' : modelConversations.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}
+      >
         {/* 主要内容区域 */}
-        {
-          modelConversations.map((model, index) => {
-            const currentModel = subscribedModelList.find(m => m.productId === model.id);
-            return (
-              <div
-                key={model.id}
-                className={`h-full overflow-auto flex-1 flex flex-col ${index < modelConversations.length - 1 ? 'border-r border-gray-200' : ''}`}
-              >
-                {
-                  !isCompareMode && (
-                    <div className="">
-                      <div className="h-20 flex items-center gap-4 px-4 py-4">
-                        <ModelSelector
-                          selectedModelId={model.id}
-                          onSelectModel={onSelectProduct}
-                          modelList={subscribedModelList}
-                          // loading={modelsLoading}
-                          categories={categories}
-                        // categoriesLoading={categoriesLoading}
-                        />
-
-                        {/* 分割线 */}
-                        <div className="h-6 w-px bg-gray-300"></div>
-
-                        <button
-                          onClick={handleToggleCompare}
-                          className=" flex items-center gap-2 px-4 py-2 rounded-full border border-gray-300 text-gray-600 bg-transparent hover:border-colorPrimary hover:text-colorPrimary transition-all duration-300 "
-                        >
-                          <PlusOutlined />
-                          <span className="text-sm font-medium">多模型对比</span>
-                        </button>
-                      </div>
-
-
-                    </div>
-                  )
-                }
-                {
-                  showModelSelector && (
-                    <MultiModelSelector
-                      currentModelId={model.id}
-                      excludeModels={selectedModelIds}
-                      onConfirm={handleSelectModels}
-                      onCancel={() => setShowModelSelector(false)}
+        {modelConversations.map((model, index) => {
+          const currentModel = subscribedModelList.find((m) => m.productId === model.id);
+          return (
+            <div
+              className={`h-full overflow-auto flex-1 flex flex-col ${index < modelConversations.length - 1 ? 'border-r border-gray-200' : ''}`}
+              key={model.id}
+            >
+              {!isCompareMode && (
+                <div className="">
+                  <div className="h-20 flex items-center gap-4 px-4 py-4">
+                    <ModelSelector
+                      // loading={modelsLoading}
+                      categories={categories}
                       modelList={subscribedModelList}
-                    // loading={modelsLoading}
+                      onSelectModel={onSelectProduct}
+                      selectedModelId={model.id}
+                      // categoriesLoading={categoriesLoading}
                     />
-                  )
-                }
 
-                {/* 模型名称标题（可切换） + 关闭按钮 + 添加按钮 */}
-                {
-                  isCompareMode && (
-                    <div className="px-4 py-3 flex items-center justify-between">
-                      <button className="flex items-center gap-1 text-sm font-semibold text-gray-900 hover:text-colorPrimary transition-colors">
-                        {currentModel?.name || "-"}
-                      </button>
-                      <div className="flex items-center gap-2">
-                        {index === 1 && modelConversations.length < 3 && (
-                          <button
-                            onClick={handleAddModel}
-                            className="text-gray-400 hover:text-colorPrimary transition-colors duration-200"
-                            title="添加对比模型"
-                          >
-                            <PlusOutlined className="text-xs" />
-                          </button>
-                        )}
-                        <button
-                          onClick={() => closeModel(model.id)}
-                          className="text-gray-400 hover:text-gray-600 transition-colors duration-200"
-                        >
-                          <CloseOutlined className="text-xs" />
-                        </button>
-                      </div>
-                    </div>
-                  )
-                }
+                    {/* 分割线 */}
+                    <div className="h-6 w-px bg-gray-300"></div>
 
-                {/* 消息列表 */}
-                <div
-                  className="h-full overflow-auto"
-                  onScroll={handleScroll}
-                  ref={(el) => {
-                    if (el) scrollContainerRefs.current.set(model.id, el);
-                  }}
-                >
-                  <Messages
-                    conversations={model.conversations}
-                    onChangeVersion={(...args) => onChangeActiveAnswer(model.id, ...args)}
-                    autoScrollEnabled={autoScrollEnabled}
-                    modelName={currentModel?.name}
-                    onRefresh={(con, quest, isLast) => {
-                      setAutoScrollEnabled(isLast);
-                      handleGenerateMessage({
-                        modelId: model.id,
-                        conversationId: con.id,
-                        questionId: quest.id,
-                        content: quest.content,
-                        mcps: mcpEnabled ? addedMcps : [],
-                        enableWebSearch,
-                        modelMap,
-                        attachments: quest.attachments as IAttachment[],
-                      })
-                    }}
-                  />
+                    <button
+                      className=" flex items-center gap-2 px-4 py-2 rounded-full border border-gray-300 text-gray-600 bg-transparent hover:border-colorPrimary hover:text-colorPrimary transition-all duration-300 "
+                      onClick={handleToggleCompare}
+                    >
+                      <PlusOutlined />
+                      <span className="text-sm font-medium">多模型对比</span>
+                    </button>
+                  </div>
                 </div>
-              </div>
-            )
-          })
-        }
-        {
-          modelConversations.length === 0 && (
-            <div className="">
-              <div className="h-20 flex items-center gap-4 px-4 py-4">
-                <ModelSelector
-                  selectedModelId={selectedModel?.productId || ""}
-                  onSelectModel={onSelectProduct}
+              )}
+              {showModelSelector && (
+                <MultiModelSelector
+                  currentModelId={model.id}
+                  excludeModels={selectedModelIds}
                   modelList={subscribedModelList}
+                  onCancel={() => setShowModelSelector(false)}
+                  onConfirm={handleSelectModels}
                   // loading={modelsLoading}
-                  categories={categories}
-                // categoriesLoading={categoriesLoading}
                 />
+              )}
 
-                {/* 分割线 */}
-                <div className="h-6 w-px bg-gray-300"></div>
+              {/* 模型名称标题（可切换） + 关闭按钮 + 添加按钮 */}
+              {isCompareMode && (
+                <div className="px-4 py-3 flex items-center justify-between">
+                  <button className="flex items-center gap-1 text-sm font-semibold text-gray-900 hover:text-colorPrimary transition-colors">
+                    {currentModel?.name || '-'}
+                  </button>
+                  <div className="flex items-center gap-2">
+                    {index === 1 && modelConversations.length < 3 && (
+                      <button
+                        className="text-gray-400 hover:text-colorPrimary transition-colors duration-200"
+                        onClick={handleAddModel}
+                        title="添加对比模型"
+                      >
+                        <PlusOutlined className="text-xs" />
+                      </button>
+                    )}
+                    <button
+                      className="text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                      onClick={() => closeModel(model.id)}
+                    >
+                      <CloseOutlined className="text-xs" />
+                    </button>
+                  </div>
+                </div>
+              )}
 
-                <button
-                  onClick={handleToggleCompare}
-                  className=" flex items-center gap-2 px-4 py-2 rounded-full border border-gray-300 text-gray-600 bg-transparent hover:border-colorPrimary hover:text-colorPrimary transition-all duration-300 "
-                >
-                  <PlusOutlined />
-                  <span className="text-sm font-medium">多模型对比</span>
-                </button>
-              </div>
-              {
-                showModelSelector && (
-                  <MultiModelSelector
-                    currentModelId={selectedModel?.productId || ""}
-                    excludeModels={[]}
-                    onConfirm={handleSelectModels}
-                    onCancel={() => setShowModelSelector(false)}
-                    modelList={subscribedModelList}
-                  // loading={modelsLoading}
-                  />
-                )
-              }
-
-            </div>
-          )
-        }
-
-      </div>
-      {
-        modelConversations.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full px-4">
-            <div className="max-w-4xl w-full">
-              {/* 欢迎标题 */}
-              <div className="text-center mb-12">
-                <h1 className="text-2xl font-medium text-gray-900 mb-2">
-                  您好，欢迎来到 <span className="text-colorPrimary">
-                    <TextType
-                      text={["HiMarket HiChat"]}
-                      typingSpeed={100}
-                      showCursor={true}
-                      cursorCharacter="_"
-                    />
-                  </span>
-                </h1>
-              </div>
-
-              {/* 输入框 */}
-              <div className="mb-8">
-                <InputBox
-                  onSendMessage={(c, a) => {
-                    setAutoScrollEnabled(true);
-                    onSendMessage(c, mcpEnabled ? addedMcps : [], enableWebSearch, modelMap, a)
+              {/* 消息列表 */}
+              <div
+                className="h-full overflow-auto"
+                onScroll={handleScroll}
+                ref={(el) => {
+                  if (el) scrollContainerRefs.current.set(model.id, el);
+                }}
+              >
+                <Messages
+                  autoScrollEnabled={autoScrollEnabled}
+                  conversations={model.conversations}
+                  modelName={currentModel?.name}
+                  onChangeVersion={(...args) => onChangeActiveAnswer(model.id, ...args)}
+                  onRefresh={(con, quest, isLast) => {
+                    setAutoScrollEnabled(isLast);
+                    handleGenerateMessage({
+                      attachments: quest.attachments as IAttachment[],
+                      content: quest.content,
+                      conversationId: con.id,
+                      enableWebSearch,
+                      mcps: mcpEnabled ? addedMcps : [],
+                      modelId: model.id,
+                      modelMap,
+                      questionId: quest.id,
+                    });
                   }}
-                  isLoading={generating}
-                  onMcpClick={toggleMcpModal}
-                  mcpEnabled={mcpEnabled}
-                  addedMcps={addedMcps}
-                  isMcpExecuting={isMcpExecuting}
-                  showWebSearch={showWebSearch}
-                  onWebSearchEnable={setEnableWebSearch}
-                  webSearchEnabled={enableWebSearch}
-                  enableMultiModal={enableMultiModal}
-                  onStop={onStop}
                 />
               </div>
-
-              {/* 推荐问题 */}
-              <SuggestedQuestions
-                onSelectQuestion={(c) => {
-                  setAutoScrollEnabled(true);
-                  onSendMessage(c, mcpEnabled ? addedMcps : [], enableWebSearch, modelMap, []);
-                }} />
             </div>
+          );
+        })}
+        {modelConversations.length === 0 && (
+          <div className="">
+            <div className="h-20 flex items-center gap-4 px-4 py-4">
+              <ModelSelector
+                // loading={modelsLoading}
+                categories={categories}
+                modelList={subscribedModelList}
+                onSelectModel={onSelectProduct}
+                selectedModelId={selectedModel?.productId || ''}
+                // categoriesLoading={categoriesLoading}
+              />
+
+              {/* 分割线 */}
+              <div className="h-6 w-px bg-gray-300"></div>
+
+              <button
+                className=" flex items-center gap-2 px-4 py-2 rounded-full border border-gray-300 text-gray-600 bg-transparent hover:border-colorPrimary hover:text-colorPrimary transition-all duration-300 "
+                onClick={handleToggleCompare}
+              >
+                <PlusOutlined />
+                <span className="text-sm font-medium">多模型对比</span>
+              </button>
+            </div>
+            {showModelSelector && (
+              <MultiModelSelector
+                currentModelId={selectedModel?.productId || ''}
+                excludeModels={[]}
+                modelList={subscribedModelList}
+                onCancel={() => setShowModelSelector(false)}
+                onConfirm={handleSelectModels}
+                // loading={modelsLoading}
+              />
+            )}
           </div>
-        ) : (
-          <div className="p-4 pb-0">
-            <div className="max-w-3xl mx-auto">
+        )}
+      </div>
+      {modelConversations.length === 0 ? (
+        <div className="flex flex-col items-center justify-center h-full px-4">
+          <div className="max-w-4xl w-full">
+            {/* 欢迎标题 */}
+            <div className="text-center mb-12">
+              <h1 className="text-2xl font-medium text-gray-900 mb-2">
+                您好，欢迎来到{' '}
+                <span className="text-colorPrimary">
+                  <TextType
+                    cursorCharacter="_"
+                    showCursor={true}
+                    text={['HiMarket HiChat']}
+                    typingSpeed={100}
+                  />
+                </span>
+              </h1>
+            </div>
+
+            {/* 输入框 */}
+            <div className="mb-8">
               <InputBox
+                addedMcps={addedMcps}
+                enableMultiModal={enableMultiModal}
+                isLoading={generating}
+                isMcpExecuting={isMcpExecuting}
+                mcpEnabled={mcpEnabled}
                 onMcpClick={toggleMcpModal}
                 onSendMessage={(c, a) => {
                   setAutoScrollEnabled(true);
                   onSendMessage(c, mcpEnabled ? addedMcps : [], enableWebSearch, modelMap, a);
                 }}
-                isLoading={generating}
-                mcpEnabled={mcpEnabled}
-                addedMcps={addedMcps}
-                isMcpExecuting={isMcpExecuting}
-                showWebSearch={showWebSearch}
-                onWebSearchEnable={setEnableWebSearch}
-                webSearchEnabled={enableWebSearch}
-                enableMultiModal={enableMultiModal}
                 onStop={onStop}
+                onWebSearchEnable={setEnableWebSearch}
+                showWebSearch={showWebSearch}
+                webSearchEnabled={enableWebSearch}
               />
             </div>
+
+            {/* 推荐问题 */}
+            <SuggestedQuestions
+              onSelectQuestion={(c) => {
+                setAutoScrollEnabled(true);
+                onSendMessage(c, mcpEnabled ? addedMcps : [], enableWebSearch, modelMap, []);
+              }}
+            />
           </div>
-        )
-      }
+        </div>
+      ) : (
+        <div className="p-4 pb-0">
+          <div className="max-w-3xl mx-auto">
+            <InputBox
+              addedMcps={addedMcps}
+              enableMultiModal={enableMultiModal}
+              isLoading={generating}
+              isMcpExecuting={isMcpExecuting}
+              mcpEnabled={mcpEnabled}
+              onMcpClick={toggleMcpModal}
+              onSendMessage={(c, a) => {
+                setAutoScrollEnabled(true);
+                onSendMessage(c, mcpEnabled ? addedMcps : [], enableWebSearch, modelMap, a);
+              }}
+              onStop={onStop}
+              onWebSearchEnable={setEnableWebSearch}
+              showWebSearch={showWebSearch}
+              webSearchEnabled={enableWebSearch}
+            />
+          </div>
+        </div>
+      )}
       <McpModal
-        open={showMcpModal}
+        added={addedMcps}
         categories={mcpCategories}
         data={mcpList}
-        onFilter={handleMcpFilter}
-        onSearch={handleMcpSearch}
-        mcpLoading={mcpListLoading}
-        added={addedMcps}
-        subscripts={mcpSubscripts}
-        onAdd={handleAddMcp}
-        onEnabled={handleMcpEnable}
         enabled={mcpEnabled}
-        onRemove={handleRemoveMcp}
+        mcpLoading={mcpListLoading}
+        onAdd={handleAddMcp}
         onClose={() => setShowMcpModal(false)}
+        onEnabled={handleMcpEnable}
+        onFilter={handleMcpFilter}
         onQuickSubscribe={handleQuickSubscribe}
+        onRemove={handleRemoveMcp}
         onRemoveAll={handleRemoveAll}
+        onSearch={handleMcpSearch}
+        open={showMcpModal}
+        subscripts={mcpSubscripts}
       />
     </div>
   );

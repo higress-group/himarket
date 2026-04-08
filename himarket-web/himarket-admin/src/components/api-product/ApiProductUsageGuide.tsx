@@ -1,80 +1,90 @@
-import { Card, Button, Space, message } from 'antd'
-import { SaveOutlined, UploadOutlined, FileMarkdownOutlined, EditOutlined } from '@ant-design/icons'
-import { useState, useRef } from 'react'
-import ReactMarkdown from 'react-markdown'
+import {
+  SaveOutlined,
+  UploadOutlined,
+  FileMarkdownOutlined,
+  EditOutlined,
+} from '@ant-design/icons';
+import { Card, Button, Space, message } from 'antd';
+import { useState, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
+import MdEditor from 'react-markdown-editor-lite';
 import remarkGfm from 'remark-gfm';
-import MdEditor from 'react-markdown-editor-lite'
-import 'react-markdown-editor-lite/lib/index.css'
-import type { ApiProduct } from '@/types/api-product'
-import { apiProductApi } from '@/lib/api'
+
+import 'react-markdown-editor-lite/lib/index.css';
+import { apiProductApi } from '@/lib/api';
+import type { ApiProduct } from '@/types/api-product';
 
 interface ApiProductUsageGuideProps {
-  apiProduct: ApiProduct
-  handleRefresh: () => void
+  apiProduct: ApiProduct;
+  handleRefresh: () => void;
 }
 
 export function ApiProductUsageGuide({ apiProduct, handleRefresh }: ApiProductUsageGuideProps) {
-  const [content, setContent] = useState(apiProduct.document || '')
-  const [isEditing, setIsEditing] = useState(false)
-  const [originalContent, setOriginalContent] = useState(apiProduct.document || '')
-  const [saving, setSaving] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [content, setContent] = useState(apiProduct.document || '');
+  const [isEditing, setIsEditing] = useState(false);
+  const [originalContent, setOriginalContent] = useState(apiProduct.document || '');
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_saving, setSaving] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleEdit = () => {
-    setIsEditing(true)
-  }
+    setIsEditing(true);
+  };
 
   const handleSave = () => {
-    const categoryIds = apiProduct.categories?.map(cat => cat.categoryId) || [];
+    const categoryIds = apiProduct.categories?.map((cat) => cat.categoryId) || [];
 
-    setSaving(true)
-    apiProductApi.updateApiProduct(apiProduct.productId, {
-      document: content,
-      categories: categoryIds
-    }).then(() => {
-      message.success('保存成功')
-      setIsEditing(false)
-      setOriginalContent(content)
-      handleRefresh();
-    }).finally(() => {
-      setSaving(false)
-    })
-  }
+    setSaving(true);
+    apiProductApi
+      .updateApiProduct(apiProduct.productId, {
+        categories: categoryIds,
+        document: content,
+      })
+      .then(() => {
+        message.success('保存成功');
+        setIsEditing(false);
+        setOriginalContent(content);
+        handleRefresh();
+      })
+      .finally(() => {
+        setSaving(false);
+      });
+  };
 
   const handleCancel = () => {
-    setContent(originalContent)
-    setIsEditing(false)
-  }
+    setContent(originalContent);
+    setIsEditing(false);
+  };
 
   const handleEditorChange = ({ text }: { text: string }) => {
-    setContent(text)
-  }
+    setContent(text);
+  };
 
   const handleFileImport = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
+    const file = event.target.files?.[0];
     if (file) {
       if (file.type !== 'text/markdown' && !file.name.endsWith('.md')) {
-        message.error('请选择 Markdown 文件 (.md)')
-        return
+        message.error('请选择 Markdown 文件 (.md)');
+        return;
       }
 
-      const reader = new FileReader()
+      const reader = new FileReader();
       reader.onload = (e) => {
-        const content = e.target?.result as string
-        setContent(content)
-        setIsEditing(true)
-        message.success('文件导入成功')
-      }
-      reader.readAsText(file)
+        const content = e.target?.result as string;
+        setContent(content);
+        setIsEditing(true);
+        message.success('文件导入成功');
+      };
+      reader.readAsText(file);
     }
     if (event.target) {
-      event.target.value = ''
+      event.target.value = '';
     }
-  }
+  };
 
   const triggerFileInput = () => {
-    fileInputRef.current?.click()
-  }
+    fileInputRef.current?.click();
+  };
 
   return (
     <div className="p-6 space-y-6">
@@ -89,10 +99,8 @@ export function ApiProductUsageGuide({ apiProduct, handleRefresh }: ApiProductUs
               <Button icon={<UploadOutlined />} onClick={triggerFileInput}>
                 导入文件
               </Button>
-              <Button onClick={handleCancel}>
-                取消
-              </Button>
-              <Button type="primary" icon={<SaveOutlined />} onClick={handleSave}>
+              <Button onClick={handleCancel}>取消</Button>
+              <Button icon={<SaveOutlined />} onClick={handleSave} type="primary">
                 保存
               </Button>
             </>
@@ -101,7 +109,7 @@ export function ApiProductUsageGuide({ apiProduct, handleRefresh }: ApiProductUs
               <Button icon={<UploadOutlined />} onClick={triggerFileInput}>
                 导入文件
               </Button>
-              <Button type="primary" icon={<EditOutlined />} onClick={handleEdit}>
+              <Button icon={<EditOutlined />} onClick={handleEdit} type="primary">
                 编辑
               </Button>
             </>
@@ -113,14 +121,23 @@ export function ApiProductUsageGuide({ apiProduct, handleRefresh }: ApiProductUs
         {isEditing ? (
           <>
             <MdEditor
-              value={content}
-              onChange={handleEditorChange}
-              style={{ height: '600px', width: '100%' }}
-              placeholder="请输入使用指南内容..."
-              renderHTML={(text) => <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>}
-              canView={{ menu: true, md: true, html: true, both: true, fullScreen: false, hideMenu: false }}
+              canView={{
+                both: true,
+                fullScreen: false,
+                hideMenu: false,
+                html: true,
+                md: true,
+                menu: true,
+              }}
               htmlClass="custom-html-style"
               markdownClass="custom-markdown-style"
+              onChange={handleEditorChange}
+              placeholder="请输入使用指南内容..."
+              renderHTML={(text) => (
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>
+              )}
+              style={{ height: '600px', width: '100%' }}
+              value={content}
             />
             <div className="mt-4 text-sm text-gray-500">
               💡 支持Markdown格式：代码块、表格、链接、图片等语法
@@ -132,10 +149,11 @@ export function ApiProductUsageGuide({ apiProduct, handleRefresh }: ApiProductUs
               <div
                 className="prose prose-lg max-w-none"
                 style={{
-                  lineHeight: '1.7',
                   color: '#374151',
+                  fontFamily:
+                    '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
                   fontSize: '16px',
-                  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+                  lineHeight: '1.7',
                 }}
               >
                 <style>{`
@@ -180,12 +198,12 @@ export function ApiProductUsageGuide({ apiProduct, handleRefresh }: ApiProductUs
 
       {/* 隐藏的文件输入框 */}
       <input
-        ref={fileInputRef}
-        type="file"
         accept=".md,text/markdown"
         onChange={handleFileImport}
+        ref={fileInputRef}
         style={{ display: 'none' }}
+        type="file"
       />
     </div>
-  )
+  );
 }

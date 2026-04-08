@@ -1,5 +1,6 @@
-import type { ICliProvider } from "../../lib/apis/cliProvider";
-import { CliSelector } from "./CliSelector";
+import { CliSelector } from './CliSelector';
+
+import type { ICliProvider } from '../../lib/apis/cliProvider';
 
 export interface WelcomePageProps {
   icon: React.ReactNode;
@@ -25,13 +26,13 @@ export interface WelcomePageProps {
  * 居中容器 → 模块图标 → 模块名称 → 描述文案 → CliSelector 或操作按钮
  */
 export function WelcomePage({
-  icon,
-  title,
-  description,
-  isConnected,
-  disabled,
-  onSelectCli,
   connectedContent,
+  description,
+  disabled,
+  icon,
+  isConnected,
+  onSelectCli,
+  title,
 }: WelcomePageProps) {
   return (
     <div className="flex-1 flex items-center justify-center px-6 min-h-0 overflow-y-auto">
@@ -48,10 +49,7 @@ export function WelcomePage({
         ) : (
           <>
             <p className="text-sm text-gray-400 mb-6">{description}</p>
-            <CliSelector
-              onSelect={onSelectCli}
-              disabled={disabled}
-            />
+            <CliSelector disabled={disabled} onSelect={onSelectCli} />
           </>
         )}
       </div>

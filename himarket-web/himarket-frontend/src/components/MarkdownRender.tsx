@@ -1,31 +1,36 @@
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import rehypeHighlight from 'rehype-highlight';
 import { Image } from 'antd';
+import ReactMarkdown from 'react-markdown';
+import rehypeHighlight from 'rehype-highlight';
+import remarkGfm from 'remark-gfm';
 import 'highlight.js/styles/github.css';
-import "github-markdown-css/github-markdown-light.css"
+import 'github-markdown-css/github-markdown-light.css';
 
 const MarkdownRender = ({ content }: { content: string }) => {
   return (
     <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
-      rehypePlugins={[rehypeHighlight]}
       components={{
-        img: ({ src, alt }) => (
+        img: ({ alt, src }) => (
           <Image
-            src={src}
             alt={alt || ''}
-            style={{ maxWidth: '300px', maxHeight: '300px', objectFit: 'contain', cursor: 'pointer' }}
             preview={{
               mask: '点击查看大图',
+            }}
+            src={src}
+            style={{
+              cursor: 'pointer',
+              maxHeight: '300px',
+              maxWidth: '300px',
+              objectFit: 'contain',
             }}
           />
         ),
       }}
+      rehypePlugins={[rehypeHighlight]}
+      remarkPlugins={[remarkGfm]}
     >
       {content}
     </ReactMarkdown>
-  )
-}
+  );
+};
 
 export default MarkdownRender;

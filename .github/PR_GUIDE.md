@@ -203,7 +203,7 @@ The checklist helps ensure code quality and completeness.
 ```markdown
 ## 📋 Checklist
 
-- [x] Code has been formatted (`mvn spotless:apply` for backend, `npm run lint:fix` for frontend)
+- [x] Code quality checks passed (run `./scripts/code-check.sh`)
 - [x] Code is self-reviewed
 - [x] Comments added for complex code
 - [x] Documentation updated (if applicable)
@@ -212,7 +212,7 @@ The checklist helps ensure code quality and completeness.
 ```
 
 **Recommended Items:**
-- ✅ **Code has been formatted** - Run format commands before submitting
+- ✅ **Code quality checks passed** - Run `./scripts/code-check.sh` from the repository root before submitting
 - ✅ **Code is self-reviewed** - Review your own changes first
 - Comments added for complex code
 - Documentation updated (if applicable)
@@ -220,10 +220,9 @@ The checklist helps ensure code quality and completeness.
 - All CI checks pass
 
 **Important:** Before submitting your PR:
-1. **Backend:** Run `mvn spotless:apply` in your project root
-2. **Frontend:** Run `npm run lint:fix` in frontend directory
-3. Review your own code changes
-4. Commit any formatting changes
+1. **Recommended:** Run `./scripts/code-check.sh` from the repository root
+2. Review your own code changes
+3. Commit any formatting or auto-fix changes produced by the checks
 
 #### 6. Test Coverage (Optional) 📊
 
@@ -342,7 +341,7 @@ Close #456
 
 ## 📋 Checklist
 
-- [x] Code has been formatted (`mvn spotless:apply` for backend)
+- [x] Code quality checks passed (run `./scripts/code-check.sh`)
 - [x] Code is self-reviewed
 - [x] Comments added for complex code
 - [x] Documentation updated (if applicable)
@@ -389,7 +388,7 @@ Fix #789
 
 ## 📋 Checklist
 
-- [x] Code has been formatted (`mvn spotless:apply` for backend)
+- [x] Code quality checks passed (run `./scripts/code-check.sh`)
 - [x] Code is self-reviewed
 - [x] All CI checks pass
 ```
@@ -436,7 +435,7 @@ None
 
 ## 📋 Checklist
 
-- [x] Code has been formatted (`mvn spotless:apply` for backend)
+- [x] Code quality checks passed (run `./scripts/code-check.sh`)
 - [x] Code is self-reviewed
 - [x] No breaking changes
 ```
@@ -582,7 +581,7 @@ Please select at least one Type of Change checkbox
 
 ---
 
-### Mistake 6: Code Formatting Not Confirmed
+### Mistake 6: Code Quality Checks Not Confirmed
 
 **Wrong:**
 ```markdown
@@ -592,7 +591,7 @@ Add new feature
 
 ## 📋 Checklist
 
-- [ ] Code has been formatted with `mvn spotless:apply`  <!-- Not checked -->
+- [ ] Code quality checks passed (run `./scripts/code-check.sh`)  <!-- Not checked -->
 - [x] Code is self-reviewed
 ```
 
@@ -604,15 +603,14 @@ Add new feature
 
 ## 📋 Checklist
 
-- [x] Code has been formatted (`mvn spotless:apply` for backend)  <!-- Must check -->
+- [x] Code quality checks passed (run `./scripts/code-check.sh`)  <!-- Must check -->
 - [x] Code is self-reviewed
 ```
 
 **Note:** Before submitting:
-1. **Backend:** Run `mvn spotless:apply` in your terminal
-2. **Frontend:** Run `npm run lint:fix` in frontend directory
-3. Commit any formatting changes
-4. Verify the checklist items apply to your changes
+1. Run `./scripts/code-check.sh` from the repository root
+2. Commit any formatting or auto-fix changes
+3. Verify the checklist items apply to your changes
 
 ---
 

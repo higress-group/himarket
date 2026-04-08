@@ -25,19 +25,18 @@ export interface WsUrlParams {
  */
 export function buildCodingWsUrl(
   params: WsUrlParams,
-  basePath = "/ws/acp",
+  basePath = '/ws/acp',
   origin?: string,
 ): string {
   const resolvedOrigin =
-    origin ??
-    `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}`;
+    origin ?? `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`;
   const base = `${resolvedOrigin}${basePath}`;
 
   const searchParams = new URLSearchParams();
-  if (params.token) searchParams.set("token", params.token);
-  if (params.provider) searchParams.set("provider", params.provider);
-  if (params.runtime) searchParams.set("runtime", params.runtime);
-  if (params.customModelConfig) searchParams.set("customModelConfig", params.customModelConfig);
+  if (params.token) searchParams.set('token', params.token);
+  if (params.provider) searchParams.set('provider', params.provider);
+  if (params.runtime) searchParams.set('runtime', params.runtime);
+  if (params.customModelConfig) searchParams.set('customModelConfig', params.customModelConfig);
 
   const qs = searchParams.toString();
   return qs ? `${base}?${qs}` : base;

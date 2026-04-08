@@ -1,5 +1,5 @@
-import { useEffect } from "react";
-import { Form, Input, Select } from "antd";
+import { Form, Input, Select } from 'antd';
+import { useEffect } from 'react';
 
 // ============ 类型定义 ============
 
@@ -8,7 +8,7 @@ export interface CustomModelFormData {
   apiKey: string;
   modelId: string;
   modelName: string;
-  protocolType: "openai" | "anthropic" | "gemini";
+  protocolType: 'openai' | 'anthropic' | 'gemini';
 }
 
 export interface CustomModelFormProps {
@@ -21,9 +21,9 @@ export interface CustomModelFormProps {
 // ============ 常量 ============
 
 const PROTOCOL_OPTIONS = [
-  { value: "openai", label: "OpenAI" },
-  { value: "anthropic", label: "Anthropic" },
-  { value: "gemini", label: "Gemini" },
+  { label: 'OpenAI', value: 'openai' },
+  { label: 'Anthropic', value: 'anthropic' },
+  { label: 'Gemini', value: 'gemini' },
 ];
 
 const URL_PATTERN = /^https?:\/\/.+/;
@@ -39,6 +39,7 @@ export function CustomModelForm({ enabled, onChange }: CustomModelFormProps) {
       form.resetFields();
       onChange?.(null);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled]);
 
   if (!enabled) {
@@ -52,7 +53,7 @@ export function CustomModelForm({ enabled, onChange }: CustomModelFormProps) {
         onChange?.({
           ...values,
           modelName: values.modelName || values.modelId,
-          protocolType: values.protocolType || "openai",
+          protocolType: values.protocolType || 'openai',
         });
       })
       .catch(() => {
@@ -63,21 +64,21 @@ export function CustomModelForm({ enabled, onChange }: CustomModelFormProps) {
   return (
     <div className="w-full">
       <Form
-        form={form}
-        layout="vertical"
-        size="small"
-        initialValues={{ protocolType: "openai" }}
-        onValuesChange={handleValuesChange}
         className="w-full"
+        form={form}
+        initialValues={{ protocolType: 'openai' }}
+        layout="vertical"
+        onValuesChange={handleValuesChange}
+        size="small"
       >
         <Form.Item
-          name="baseUrl"
           label="模型接入点 URL"
+          name="baseUrl"
           rules={[
-            { required: true, message: "请输入模型接入点 URL" },
+            { message: '请输入模型接入点 URL', required: true },
             {
+              message: '请输入合法的 URL（以 http:// 或 https:// 开头）',
               pattern: URL_PATTERN,
-              message: "请输入合法的 URL（以 http:// 或 https:// 开头）",
             },
           ]}
         >
@@ -85,32 +86,26 @@ export function CustomModelForm({ enabled, onChange }: CustomModelFormProps) {
         </Form.Item>
 
         <Form.Item
-          name="apiKey"
           label="API Key"
-          rules={[{ required: true, message: "请输入 API Key" }]}
+          name="apiKey"
+          rules={[{ message: '请输入 API Key', required: true }]}
         >
           <Input.Password placeholder="sk-..." />
         </Form.Item>
 
         <Form.Item
-          name="modelId"
           label="模型 ID"
-          rules={[{ required: true, message: "请输入模型 ID" }]}
+          name="modelId"
+          rules={[{ message: '请输入模型 ID', required: true }]}
         >
           <Input placeholder="gpt-4o" />
         </Form.Item>
 
-        <Form.Item
-          name="modelName"
-          label="模型显示名称"
-        >
+        <Form.Item label="模型显示名称" name="modelName">
           <Input placeholder="留空则使用模型 ID" />
         </Form.Item>
 
-        <Form.Item
-          name="protocolType"
-          label="协议类型"
-        >
+        <Form.Item label="协议类型" name="protocolType">
           <Select options={PROTOCOL_OPTIONS} />
         </Form.Item>
       </Form>

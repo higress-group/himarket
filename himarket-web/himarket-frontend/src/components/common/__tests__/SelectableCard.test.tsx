@@ -1,5 +1,6 @@
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
+
 import { SelectableCard } from '../SelectableCard';
 
 afterEach(() => cleanup());
@@ -7,7 +8,7 @@ afterEach(() => cleanup());
 describe('SelectableCard', () => {
   it('渲染子内容', () => {
     render(
-      <SelectableCard selected={false} onClick={vi.fn()}>
+      <SelectableCard onClick={vi.fn()} selected={false}>
         <span>测试内容</span>
       </SelectableCard>,
     );
@@ -16,7 +17,7 @@ describe('SelectableCard', () => {
 
   it('未选中状态使用灰色边框', () => {
     render(
-      <SelectableCard selected={false} onClick={vi.fn()}>
+      <SelectableCard onClick={vi.fn()} selected={false}>
         内容
       </SelectableCard>,
     );
@@ -27,7 +28,7 @@ describe('SelectableCard', () => {
 
   it('选中状态使用蓝色边框高亮', () => {
     render(
-      <SelectableCard selected={true} onClick={vi.fn()}>
+      <SelectableCard onClick={vi.fn()} selected={true}>
         内容
       </SelectableCard>,
     );
@@ -39,7 +40,7 @@ describe('SelectableCard', () => {
   it('禁用状态置灰且不可点击', () => {
     const onClick = vi.fn();
     render(
-      <SelectableCard selected={false} disabled={true} onClick={onClick}>
+      <SelectableCard disabled={true} onClick={onClick} selected={false}>
         内容
       </SelectableCard>,
     );
@@ -55,7 +56,7 @@ describe('SelectableCard', () => {
   it('点击未禁用卡片触发 onClick', () => {
     const onClick = vi.fn();
     render(
-      <SelectableCard selected={false} onClick={onClick}>
+      <SelectableCard onClick={onClick} selected={false}>
         内容
       </SelectableCard>,
     );
@@ -66,7 +67,7 @@ describe('SelectableCard', () => {
   it('禁用状态下点击不触发 onClick', () => {
     const onClick = vi.fn();
     render(
-      <SelectableCard selected={true} disabled={true} onClick={onClick}>
+      <SelectableCard disabled={true} onClick={onClick} selected={true}>
         内容
       </SelectableCard>,
     );
@@ -77,7 +78,7 @@ describe('SelectableCard', () => {
   it('键盘 Enter 触发 onClick', () => {
     const onClick = vi.fn();
     render(
-      <SelectableCard selected={false} onClick={onClick}>
+      <SelectableCard onClick={onClick} selected={false}>
         内容
       </SelectableCard>,
     );
@@ -88,7 +89,7 @@ describe('SelectableCard', () => {
   it('键盘 Space 触发 onClick', () => {
     const onClick = vi.fn();
     render(
-      <SelectableCard selected={false} onClick={onClick}>
+      <SelectableCard onClick={onClick} selected={false}>
         内容
       </SelectableCard>,
     );
@@ -99,7 +100,7 @@ describe('SelectableCard', () => {
   it('禁用状态下键盘操作不触发 onClick', () => {
     const onClick = vi.fn();
     render(
-      <SelectableCard selected={false} disabled={true} onClick={onClick}>
+      <SelectableCard disabled={true} onClick={onClick} selected={false}>
         内容
       </SelectableCard>,
     );
@@ -110,7 +111,7 @@ describe('SelectableCard', () => {
 
   it('设置正确的 aria 属性', () => {
     render(
-      <SelectableCard selected={true} onClick={vi.fn()}>
+      <SelectableCard onClick={vi.fn()} selected={true}>
         内容
       </SelectableCard>,
     );
@@ -121,7 +122,7 @@ describe('SelectableCard', () => {
 
   it('禁用时 tabIndex 为 -1', () => {
     render(
-      <SelectableCard selected={false} disabled={true} onClick={vi.fn()}>
+      <SelectableCard disabled={true} onClick={vi.fn()} selected={false}>
         内容
       </SelectableCard>,
     );
@@ -130,7 +131,7 @@ describe('SelectableCard', () => {
 
   it('未禁用时 tabIndex 为 0', () => {
     render(
-      <SelectableCard selected={false} onClick={vi.fn()}>
+      <SelectableCard onClick={vi.fn()} selected={false}>
         内容
       </SelectableCard>,
     );

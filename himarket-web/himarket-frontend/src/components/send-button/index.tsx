@@ -4,11 +4,11 @@ interface SendButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> 
 }
 
 const SendButton: React.FC<SendButtonProps> = ({
-  isLoading,
-  onStop,
-  className = '',
   children,
+  className = '',
+  isLoading,
   onClick,
+  onStop,
   ...props
 }) => {
   const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -44,17 +44,16 @@ const SendButton: React.FC<SendButtonProps> = ({
       `}</style>
 
       <button
-        type="button"
         // 这里的 className 允许你传入 w-*, h-*, text-*, bg-* 等 tailwind 类
         // 默认添加了 relative, flex 等布局属性
         className={`relative flex items-center justify-center rounded-full transition-all active:scale-95 ${isLoading ? 'cursor-pointer' : ''} ${className}`}
         onClick={handleClick}
+        type="button"
         {...props}
       >
         {isLoading ? (
           /* Loading 状态：内容被替换为 Spinner */
           <div className="absolute inset-0 w-full h-full flex items-center justify-center">
-
             {/* A. 外圈：流星拖尾线 */}
             {/* absolute inset-0 撑满按钮 */}
             <div className="loading-tail-ring absolute inset-0 rounded-full" />
@@ -62,17 +61,14 @@ const SendButton: React.FC<SendButtonProps> = ({
             {/* B. 中间：圆角正方形 */}
             {/* w-1/3 表示宽度是按钮的 33% */}
             <div className="relative bg-current w-1/3 h-1/3 rounded-[20%]" />
-
           </div>
         ) : (
           /* 非 Loading 状态：显示原本的内容 (图标/文字) */
-          <div className="flex items-center justify-center w-full h-full">
-            {children}
-          </div>
+          <div className="flex items-center justify-center w-full h-full">{children}</div>
         )}
       </button>
     </>
   );
 };
 
-export default SendButton;;
+export default SendButton;

@@ -1,10 +1,11 @@
-import { useState, useEffect, useRef } from "react";
-import { Button, Avatar, Dropdown, Skeleton, message } from "antd";
-import { useNavigate } from "react-router-dom";
+import { Button, Avatar, Dropdown, Skeleton, message } from 'antd';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { LogOut, UserRoundCheck } from "./icon";
-import APIs from "../lib/apis";
-import "./UserInfo.css";
+import { useNavigate } from 'react-router-dom';
+
+import { LogOut, UserRoundCheck } from './icon';
+import APIs from '../lib/apis';
+import './UserInfo.css';
 
 interface UserInfo {
   displayName: string;
@@ -57,9 +58,9 @@ export function UserInfo() {
         const data = response.data;
         if (data && data.username) {
           const userData = {
+            avatar: data.avatarUrl || undefined,
             displayName: data.username || data.email || t('unnamedUser'),
             email: data.email,
-            avatar: data.avatarUrl || undefined,
           };
           globalUserInfo = userData;
           if (mounted.current) {
@@ -77,7 +78,7 @@ export function UserInfo() {
     return () => {
       mounted.current = false;
     };
-  }, []);
+  }, [t]);
 
   const handleLogout = async () => {
     try {
@@ -102,23 +103,21 @@ export function UserInfo() {
 
   const menuItems = [
     {
+      disabled: true,
       key: 'user-info',
       label: (
         <div>
           <div className="font-semibold text-gray-900 text-base">{userInfo?.displayName}</div>
-          {userInfo?.email && (
-            <div className="text-xs text-gray-500 mt-0.5">{userInfo.email}</div>
-          )}
+          {userInfo?.email && <div className="text-xs text-gray-500 mt-0.5">{userInfo.email}</div>}
         </div>
       ),
-      disabled: true,
     },
     {
       type: 'divider' as const,
     },
     {
-      key: 'my-applications',
       icon: <UserRoundCheck className="mr-1" />,
+      key: 'my-applications',
       label: t('consumerManagement'),
       onClick: () => navigate('/consumers'),
     },
@@ -126,8 +125,8 @@ export function UserInfo() {
       type: 'divider' as const,
     },
     {
-      key: 'logout',
       icon: <LogOut className="mr-1" />,
+      key: 'logout',
       label: t('logout'),
       onClick: handleLogout,
     },
@@ -147,7 +146,7 @@ export function UserInfo() {
   if (loading) {
     return (
       <div className="flex items-center space-x-2">
-        <Skeleton.Avatar size={32} active />
+        <Skeleton.Avatar active size={32} />
       </div>
     );
   }
@@ -155,18 +154,18 @@ export function UserInfo() {
   if (userInfo) {
     return (
       <Dropdown
+        classNames={{
+          root: 'user-dropdown',
+        }}
         menu={{ items: menuItems }}
         placement="bottomRight"
         trigger={['hover']}
-        classNames={{
-          root: "user-dropdown"
-        }}
       >
         <div className="flex items-center space-x-2 cursor-pointer hover:opacity-80 transition-opacity px-2 py-1 rounded-full">
           {userInfo.avatar ? (
-            <Avatar src={userInfo.avatar} size="default" />
+            <Avatar size="default" src={userInfo.avatar} />
           ) : (
-            <Avatar size="default" className="bg-colorPrimarySecondary text-mainTitle font-medium">
+            <Avatar className="bg-colorPrimarySecondary text-mainTitle font-medium" size="default">
               {getInitials(userInfo.displayName)}
             </Avatar>
           )}
@@ -177,11 +176,11 @@ export function UserInfo() {
 
   return (
     <Button
+      className="rounded-full bg-colorPrimary text-white border-none hover:opacity-90 hover:bg-colorPrimary"
       onClick={() => {
         navigate(`/login`);
       }}
       type="text"
-      className="rounded-full bg-colorPrimary text-white border-none hover:opacity-90 hover:bg-colorPrimary"
     >
       {t('login')}
     </Button>

@@ -5,15 +5,17 @@
  */
 
 const PROTOCOL_CONFIG: Record<string, { versionPrefix: string; endpointSuffix: string }> = {
-  openai: { versionPrefix: '/v1', endpointSuffix: '/chat/completions' },
-  anthropic: { versionPrefix: '/v1', endpointSuffix: '/messages' },
+  anthropic: { endpointSuffix: '/messages', versionPrefix: '/v1' },
+  openai: { endpointSuffix: '/chat/completions', versionPrefix: '/v1' },
 };
 
 function detectProtocol(aiProtocols: string[] | undefined): string {
   if (!aiProtocols || aiProtocols.length === 0) return 'openai';
-  const first = aiProtocols[0].toLowerCase();
-  if (first.includes('openai')) return 'openai';
-  if (first.includes('anthropic')) return 'anthropic';
+  const first = aiProtocols[0];
+  if (!first) return 'openai';
+  const lower = first.toLowerCase();
+  if (lower.includes('openai')) return 'openai';
+  if (lower.includes('anthropic')) return 'anthropic';
   return 'unknown';
 }
 

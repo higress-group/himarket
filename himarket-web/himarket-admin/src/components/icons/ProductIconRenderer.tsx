@@ -1,6 +1,14 @@
-import { DefaultModel } from "./index";
-import { ApiOutlined, RobotOutlined, BulbOutlined, ThunderboltOutlined, UserOutlined } from '@ant-design/icons';
+import {
+  ApiOutlined,
+  RobotOutlined,
+  BulbOutlined,
+  ThunderboltOutlined,
+  UserOutlined,
+} from '@ant-design/icons';
+
 import McpServerIcon from './McpServerIcon';
+
+import { DefaultModel } from './index';
 
 interface ProductIconRendererProps {
   iconType?: string;
@@ -8,7 +16,7 @@ interface ProductIconRendererProps {
   className?: string;
 }
 
-function DefaultIconByType({ type, style }: { type?: string; style?: React.CSSProperties }) {
+function DefaultIconByType({ style, type }: { type?: string; style?: React.CSSProperties }) {
   if (type === 'REST_API') return <ApiOutlined style={style} />;
   if (type === 'AGENT_API') return <RobotOutlined style={style} />;
   if (type === 'MODEL_API') return <BulbOutlined style={style} />;
@@ -22,16 +30,20 @@ function DefaultIconByType({ type, style }: { type?: string; style?: React.CSSPr
  * Product icon renderer component.
  * Supports: URL image, Base64 image, type-based default icon, and SVG default.
  */
-export function ProductIconRenderer({ iconType, type, className = "w-4 h-4" }: ProductIconRendererProps) {
+export function ProductIconRenderer({
+  className = 'w-4 h-4',
+  iconType,
+  type,
+}: ProductIconRendererProps) {
   // URL or base64 image
-  if (iconType && iconType !== "default") {
+  if (iconType && iconType !== 'default') {
     if (iconType.startsWith('http') || iconType.startsWith('data:image')) {
-      return <img src={iconType} alt="icon" className={`${className} object-cover rounded`} />;
+      return <img alt="icon" className={`${className} object-cover rounded`} src={iconType} />;
     }
   }
 
   // Fall back to type-based icon
-  const typeIcon = DefaultIconByType({ type, style: { fontSize: '22px', color: '#6366f1' } });
+  const typeIcon = DefaultIconByType({ style: { color: '#6366f1', fontSize: '22px' }, type });
   if (typeIcon) return typeIcon;
 
   // Final fallback: SVG cube

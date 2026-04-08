@@ -1,64 +1,70 @@
 export interface Gateway {
-  gatewayId: string
-  gatewayName: string
-  description?: string
-  gatewayType: 'APIG_API' | 'HIGRESS' | 'APIG_AI' | 'ADP_AI_GATEWAY' | 'APSARA_GATEWAY'
-  createAt: string
-  apigConfig?: ApigConfig
-  higressConfig?: HigressConfig
-  adpAIGatewayConfig?: AdpAIGatewayConfig
-  apsaraGatewayConfig?: ApsaraGatewayConfig
+  gatewayId: string;
+  gatewayName: string;
+  description?: string;
+  gatewayType: 'APIG_API' | 'HIGRESS' | 'APIG_AI' | 'ADP_AI_GATEWAY' | 'APSARA_GATEWAY';
+  createAt: string;
+  apigConfig?: ApigConfig;
+  higressConfig?: HigressConfig;
+  adpAIGatewayConfig?: AdpAIGatewayConfig;
+  apsaraGatewayConfig?: ApsaraGatewayConfig;
 }
 
 export interface ApigConfig {
-  region: string
-  accessKey: string
-  secretKey: string
+  region: string;
+  accessKey: string;
+  secretKey: string;
 }
 
 export interface HigressConfig {
-  username: string
-  address: string
-  password: string
-  gatewayAddress?: string
+  username: string;
+  address: string;
+  password: string;
+  gatewayAddress?: string;
 }
 
 export interface AdpAIGatewayConfig {
-  baseUrl: string
-  port: number
-  authType: 'Seed' | 'Header'
-  authSeed?: string
-  authHeaders?: Array<{ key: string; value: string }>
+  baseUrl: string;
+  port: number;
+  authType: 'Seed' | 'Header';
+  authSeed?: string;
+  authHeaders?: Array<{ key: string; value: string }>;
 }
 
 export interface ApsaraGatewayConfig {
-  regionId: string
-  accessKeyId: string
-  accessKeySecret?: string
-  securityToken?: string
-  domain: string
-  product: string
-  version: string
-  xAcsOrganizationId: string
-  xAcsCallerSdkSource?: string
-  xAcsResourceGroupId?: string
-  xAcsCallerType?: string
+  regionId: string;
+  accessKeyId: string;
+  accessKeySecret?: string;
+  securityToken?: string;
+  domain: string;
+  product: string;
+  version: string;
+  xAcsOrganizationId: string;
+  xAcsCallerSdkSource?: string;
+  xAcsResourceGroupId?: string;
+  xAcsCallerType?: string;
 }
 
 export interface NacosInstance {
-  nacosId: string
-  nacosName: string
-  serverUrl: string
-  displayServerUrl?: string
-  username: string
-  password?: string
-  accessKey?: string
-  secretKey?: string
-  description: string
-  adminId: string
-  isDefault?: boolean
-  defaultNamespace?: string
-  createAt?: string | number
+  nacosId: string;
+  nacosName: string;
+  serverUrl: string;
+  displayServerUrl?: string;
+  username: string;
+  password?: string;
+  accessKey?: string;
+  secretKey?: string;
+  description: string;
+  adminId: string;
+  isDefault?: boolean;
+  defaultNamespace?: string;
+  createAt?: string | number;
 }
 
-export type GatewayType = 'APIG_API' | 'APIG_AI' | 'HIGRESS' | 'ADP_AI_GATEWAY' | 'APSARA_GATEWAY'
+export interface NacosNamespace {
+  namespaceId: string;
+  namespaceName?: string;
+  namespaceDesc?: string;
+}
+
+export type GatewayType = 'APIG_API' | 'APIG_AI' | 'HIGRESS' | 'ADP_AI_GATEWAY' | 'APSARA_GATEWAY';

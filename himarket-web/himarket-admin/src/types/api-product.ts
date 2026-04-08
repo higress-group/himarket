@@ -1,11 +1,11 @@
-import type { ProductCategory } from "./product-category";
+import type { ProductCategory } from './product-category';
 
 export interface ApiProductConfig {
   spec: string;
   meta: {
     source: string;
     type: string;
-  }
+  };
 }
 
 // 产品图标类型
@@ -20,10 +20,10 @@ export interface ApiProductMcpConfig {
   meta: {
     source: string;
     mcpServerName: string;
-    mcpServerConfig: any;
+    mcpServerConfig: Record<string, unknown>;
     fromType: string;
     protocol?: string;
-  }
+  };
   mcpServerConfig: {
     path: string;
     domains: {
@@ -31,13 +31,14 @@ export interface ApiProductMcpConfig {
       protocol: string;
     }[];
     rawConfig?: unknown;
-  }
+  };
 }
 
 export interface ApiProductAgentConfig {
   agentAPIConfig: {
-    agentProtocols: string[];  // 协议列表，包含 "a2a" 时使用 agentCard
-    routes?: Array<{           // HTTP 路由（非 A2A 协议使用）
+    agentProtocols: string[]; // 协议列表，包含 "a2a" 时使用 agentCard
+    routes?: Array<{
+      // HTTP 路由（非 A2A 协议使用）
       domains: Array<{
         domain: string;
         protocol: string;
@@ -61,7 +62,8 @@ export interface ApiProductAgentConfig {
         }> | null;
       };
     }>;
-    agentCard?: {              // Agent Card 信息（A2A 协议）
+    agentCard?: {
+      // Agent Card 信息（A2A 协议）
       name: string;
       version: string;
       description?: string;
@@ -76,18 +78,20 @@ export interface ApiProductAgentConfig {
       }>;
       capabilities?: {
         streaming?: boolean;
-        [key: string]: any;
+        [key: string]: unknown;
       };
-      additionalInterfaces?: Array<{  // 附加接口信息（注意：复数形式）
-        transport: string;  // 传输协议（HTTP/gRPC/JSONRPC）
+      additionalInterfaces?: Array<{
+        // 附加接口信息（注意：复数形式）
+        transport: string; // 传输协议（HTTP/gRPC/JSONRPC）
         url: string;
-        [key: string]: any;
+        [key: string]: unknown;
       }>;
-      [key: string]: any;      // 支持其他扩展字段
+      [key: string]: unknown; // 支持其他扩展字段
     };
   };
-  meta?: {                     // 元数据信息
-    source?: string;           // 来源：NACOS / APIG_AI / HIGRESS 等
+  meta?: {
+    // 元数据信息
+    source?: string; // 来源：NACOS / APIG_AI / HIGRESS 等
   };
 }
 
@@ -130,8 +134,8 @@ export interface RestAPIItem {
 }
 
 export interface HigressMCPItem {
-  mcpServerName?: string;      // MCP Server 名称（用于 MCP Server 产品）
-  modelRouteName?: string;     // Model API 路由名称（用于 Model API 产品）
+  mcpServerName?: string; // MCP Server 名称（用于 MCP Server 产品）
+  modelRouteName?: string; // Model API 路由名称（用于 Model API 产品）
   fromGatewayType: 'HIGRESS';
 }
 
@@ -178,13 +182,20 @@ export interface ApsaraGatewayModelItem {
 
 // Nacos Agent 列表项
 export interface NacosAgentItem {
-  agentName: string;          // Agent 名称（唯一标识）
-  description?: string;       // Agent 描述
-  fromGatewayType: 'NACOS';   // 标识来源
-  type: string;               // 显示类型，如 "Agent API (public)"
+  agentName: string; // Agent 名称（唯一标识）
+  description?: string; // Agent 描述
+  fromGatewayType: 'NACOS'; // 标识来源
+  type: string; // 显示类型，如 "Agent API (public)"
 }
 
-export type ApiItem = RestAPIItem | HigressMCPItem | APIGAIMCPItem | NacosMCPItem | AIGatewayAgentItem | AIGatewayModelItem | NacosAgentItem;
+export type ApiItem =
+  | RestAPIItem
+  | HigressMCPItem
+  | APIGAIMCPItem
+  | NacosMCPItem
+  | AIGatewayAgentItem
+  | AIGatewayModelItem
+  | NacosAgentItem;
 
 // 关联服务配置
 export interface LinkedService {
@@ -194,7 +205,7 @@ export interface LinkedService {
   sourceType: 'GATEWAY' | 'NACOS';
   apigRefConfig?: RestAPIItem | APIGAIMCPItem | AIGatewayAgentItem | AIGatewayModelItem;
   higressRefConfig?: HigressMCPItem;
-  nacosRefConfig?: NacosMCPItem | NacosAgentItem;  // 扩展支持 Agent
+  nacosRefConfig?: NacosMCPItem | NacosAgentItem; // 扩展支持 Agent
   adpAIGatewayRefConfig?: APIGAIMCPItem | AdpAIGatewayModelItem;
   apsaraGatewayRefConfig?: APIGAIMCPItem | ApsaraGatewayModelItem;
 }
@@ -256,13 +267,13 @@ export interface ApiProduct {
 
 // Publication 类型定义（Product 和 Portal 的发布关系）
 export interface Publication {
-  publicationId: string;           // 发布ID
-  portalId: string;                // 门户ID
-  portalName: string;              // 门户名称
-  productId: string;               // 产品ID
-  productName: string;             // 产品名称
-  productType: string;             // 产品类型
-  description: string;             // 产品描述
-  autoApproveSubscriptions: boolean;  // 是否自动审批订阅
-  createAt: string;                // 创建时间
+  publicationId: string; // 发布ID
+  portalId: string; // 门户ID
+  portalName: string; // 门户名称
+  productId: string; // 产品ID
+  productName: string; // 产品名称
+  productType: string; // 产品类型
+  description: string; // 产品描述
+  autoApproveSubscriptions: boolean; // 是否自动审批订阅
+  createAt: string; // 创建时间
 }

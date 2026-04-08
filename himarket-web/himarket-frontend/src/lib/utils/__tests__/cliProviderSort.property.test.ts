@@ -1,6 +1,8 @@
-import { describe, it, expect } from 'vitest';
 import * as fc from 'fast-check';
+import { describe, it, expect } from 'vitest';
+
 import { sortCliProviders } from '../cliProviderSort';
+
 import type { ICliProvider } from '../../apis/cliProvider';
 
 /**
@@ -8,20 +10,20 @@ import type { ICliProvider } from '../../apis/cliProvider';
  * 混合普通 key 和包含 "qwen" 的 key，确保属性测试能覆盖 Qwen 场景
  */
 const arbKey = fc.oneof(
-  fc.string({ minLength: 1, maxLength: 20 }),
+  fc.string({ maxLength: 20, minLength: 1 }),
   fc.constant('qwen-code'),
   fc.constant('QWEN-CLI'),
-  fc.string({ minLength: 1, maxLength: 10 }).map(s => `qwen-${s}`),
+  fc.string({ maxLength: 10, minLength: 1 }).map((s) => `qwen-${s}`),
 );
 
 /**
  * fast-check arbitrary: 生成随机 ICliProvider
  */
 const arbCliProvider: fc.Arbitrary<ICliProvider> = fc.record({
-  key: arbKey,
-  displayName: fc.string({ minLength: 1, maxLength: 30 }),
-  isDefault: fc.boolean(),
   available: fc.boolean(),
+  displayName: fc.string({ maxLength: 30, minLength: 1 }),
+  isDefault: fc.boolean(),
+  key: arbKey,
   supportsCustomModel: fc.option(fc.boolean(), { nil: undefined }),
   supportsMcp: fc.option(fc.boolean(), { nil: undefined }),
   supportsSkill: fc.option(fc.boolean(), { nil: undefined }),
@@ -30,7 +32,7 @@ const arbCliProvider: fc.Arbitrary<ICliProvider> = fc.record({
 /**
  * 生成随机 provider 列表
  */
-const arbProviderList = fc.array(arbCliProvider, { minLength: 0, maxLength: 30 });
+const arbProviderList = fc.array(arbCliProvider, { maxLength: 30, minLength: 0 });
 
 describe('Feature: cli-ux-optimization, Property 1: CLI Provider 排序不变量', () => {
   /**
@@ -61,14 +63,14 @@ describe('Feature: cli-ux-optimization, Property 1: CLI Provider 排序不变量
 
         // (a) 如果列表中存在 key 包含 "qwen" 的可用 provider，该 provider 应位于排序结果的第一位
         const hasAvailableQwen = providers.some(
-          p => p.available && p.key.toLowerCase().includes('qwen')
+          (p) => p.available && p.key.toLowerCase().includes('qwen'),
         );
         if (hasAvailableQwen) {
-          expect(sorted[0].key.toLowerCase()).toContain('qwen');
-          expect(sorted[0].available).toBe(true);
+          expect(sorted.at(0)?.key.toLowerCase()).toContain('qwen');
+          expect(sorted.at(0)?.available).toBe(true);
         }
       }),
-      { numRuns: 100 }
+      { numRuns: 100 },
     );
   });
 });

@@ -1,30 +1,33 @@
-import React, { useEffect, useState } from "react";
-import type { ICategory } from "../lib/apis";
-import APIs from "../lib/apis";
+import React, { useEffect, useState } from 'react';
 
-function useCategories(params: { type: string, addAll?: boolean }) {
+import APIs from '../lib/apis';
+
+import type { ICategory } from '../lib/apis';
+
+function useCategories(params: { type: string; addAll?: boolean }) {
   const [data, setData] = useState<ICategory[]>([]);
   const [loading, setLoading] = useState(false);
 
   const get = React.useCallback(() => {
     setLoading(true);
     APIs.getCategoriesByProductType({ productType: params.type })
-      .then(res => {
+      .then((res) => {
         if (res.data?.content) {
           if (params.addAll) {
             setData([
               {
-                categoryId: "all",
-                name: "全部",
-                description: "",
-                createAt: "",
-                updatedAt: "",
+                categoryId: 'all',
+                createAt: '',
+                description: '',
+                name: '全部',
+                updatedAt: '',
               },
-              ...res.data.content
-            ])
+              ...res.data.content,
+            ]);
           }
         }
-      }).finally(() => setLoading(false));
+      })
+      .finally(() => setLoading(false));
   }, [params.type, params.addAll]);
 
   useEffect(() => {
@@ -33,10 +36,9 @@ function useCategories(params: { type: string, addAll?: boolean }) {
 
   return {
     data,
+    get,
     loading,
-    get
-  }
-
+  };
 }
 
 export default useCategories;

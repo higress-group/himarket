@@ -8,7 +8,8 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-family:
+      -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -38,7 +39,9 @@
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
     --radius: 0.5rem;
-    --gradient-iondigo-500: linear-gradient(0deg, rgba(245, 245, 255, 0.78) 0%, rgba(245, 245, 255, 0) 100%), rgba(0, 5, 255, 0.2);
+    --gradient-iondigo-500:
+      linear-gradient(0deg, rgba(245, 245, 255, 0.78) 0%, rgba(245, 245, 255, 0) 100%),
+      rgba(0, 5, 255, 0.2);
   }
   .dark {
     --background: 0 0% 3.9%;
@@ -91,7 +94,8 @@
 
 /* Custom bounce animation for loading dots with larger amplitude */
 @keyframes bounceStrong {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0);
     animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
   }

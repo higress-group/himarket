@@ -1,12 +1,14 @@
-import type { ReactNode, Ref } from "react";
-import { useNavigate } from "react-router-dom";
-import { Alert } from "antd";
-import { ArrowLeftOutlined } from "@ant-design/icons";
-import { Layout } from "./Layout";
-import { ProductHeader } from "./ProductHeader";
-import type { ProductHeaderHandle } from "./ProductHeader";
-import type { IProductIcon, IMCPConfig, IAgentConfig } from "../lib/apis/typing";
-import { DetailSkeleton } from "./loading";
+import { ArrowLeftOutlined } from '@ant-design/icons';
+import { Alert } from 'antd';
+import { useNavigate } from 'react-router-dom';
+
+import { Layout } from './Layout';
+import { DetailSkeleton } from './loading';
+import { ProductHeader } from './ProductHeader';
+
+import type { ProductHeaderHandle } from './ProductHeader';
+import type { IProductIcon, IMCPConfig, IAgentConfig } from '../lib/apis/typing';
+import type { ReactNode, Ref } from 'react';
 
 export interface ProductDetailHeaderProps {
   name: string;
@@ -31,12 +33,12 @@ export interface ProductDetailLayoutProps {
 }
 
 export function ProductDetailLayout({
-  leftContent,
-  rightContent,
-  headerProps,
-  loading,
   error,
+  headerProps,
+  leftContent,
+  loading,
   onBack,
+  rightContent,
 }: ProductDetailLayoutProps) {
   const navigate = useNavigate();
 
@@ -54,7 +56,7 @@ export function ProductDetailLayout({
     return (
       <Layout>
         <div className="p-8">
-          <Alert message="错误" description={error} type="error" showIcon />
+          <Alert description={error} message="错误" showIcon type="error" />
         </div>
       </Layout>
     );
@@ -66,13 +68,13 @@ export function ProductDetailLayout({
       <div className="mb-8">
         {/* 返回按钮 */}
         <button
-          onClick={onBack || (() => navigate(-1))}
           className="
             flex items-center gap-2 mb-4 px-4 py-2 rounded-xl
             text-gray-600 hover:text-colorPrimary
             hover:bg-colorPrimaryBgHover
             transition-all duration-200
           "
+          onClick={onBack || (() => navigate(-1))}
         >
           <ArrowLeftOutlined />
           <span>返回</span>
@@ -84,13 +86,9 @@ export function ProductDetailLayout({
       {/* 主要内容区域 */}
       <div className="flex flex-col lg:flex-row gap-6">
         {/* 左侧内容 - 65% */}
-        <div className="w-full lg:w-[65%] order-2 lg:order-1">
-          {leftContent}
-        </div>
+        <div className="w-full lg:w-[65%] order-2 lg:order-1">{leftContent}</div>
         {/* 右侧内容 - 35% */}
-        <div className="w-full lg:w-[35%] order-1 lg:order-2">
-          {rightContent}
-        </div>
+        <div className="w-full lg:w-[35%] order-1 lg:order-2">{rightContent}</div>
       </div>
     </Layout>
   );

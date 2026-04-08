@@ -2,8 +2,18 @@
  * 模型相关接口
  */
 
-import request, { type RespI } from "../request";
-import type { IAgentConfig, IAPIConfig, IInputSchema, IMCPConfig, IModelConfig, IProductIcon, ISkillConfig, IWorkerConfig } from "./typing";
+import request, { type RespI } from '../request';
+
+import type {
+  IAgentConfig,
+  IAPIConfig,
+  IInputSchema,
+  IMCPConfig,
+  IModelConfig,
+  IProductIcon,
+  ISkillConfig,
+  IWorkerConfig,
+} from './typing';
 
 export interface IProductDetail {
   productId: string;
@@ -19,16 +29,16 @@ export interface IProductDetail {
     name: string;
     description: string;
     icon: {
-      type: string,
-      value: string
-    },
+      type: string;
+      value: string;
+    };
     createAt: string;
     updatedAt: string;
   }[];
   autoApprove: boolean | null;
   createAt: string;
   updatedAt: string;
-  apiConfig: IAPIConfig,
+  apiConfig: IAPIConfig;
   agentConfig: IAgentConfig;
   mcpConfig: IMCPConfig;
   modelConfig?: IModelConfig;
@@ -40,15 +50,15 @@ export interface IProductDetail {
       model: string;
       webSearch: boolean;
       enableMultiModal: boolean;
-    }
-  }
+    };
+  };
 }
 
 interface GetProductsResp {
   content: IProductDetail[];
-  number: number
-  size: number
-  totalElements: number
+  number: number;
+  size: number;
+  totalElements: number;
 }
 // 获取模型列表
 export function getProducts(params: {
@@ -58,24 +68,23 @@ export function getProducts(params: {
   page?: number;
   size?: number;
   sortBy?: string;
-  ["modelFilter.category"]?: "Image" | "TEXT";
+  ['modelFilter.category']?: 'Image' | 'TEXT';
 }) {
   return request.get<RespI<GetProductsResp>, RespI<GetProductsResp>>('/products', {
     params: {
-      name: params.name,
-      type: params.type,
       categoryIds: params.categoryIds,
+      ['modelFilter.category']: params['modelFilter.category'],
+      name: params.name,
       page: params.page || 0,
       size: params.size || 100,
       sortBy: params.sortBy,
-      ["modelFilter.category"]: params["modelFilter.category"],
+      type: params.type,
     },
   });
 }
 
-
 export function getProduct(params: { id: string }) {
-  return request.get<RespI<IProductDetail>, RespI<IProductDetail>>('/products/' + params.id)
+  return request.get<RespI<IProductDetail>, RespI<IProductDetail>>('/products/' + params.id);
 }
 
 // MCP 工具列表相关类型
@@ -180,6 +189,6 @@ export function getMcpTools(params: { productId: string }) {
 
   // 真实接口调用（暂时注释）
   return request.get<RespI<IMcpToolsListResp>, RespI<IMcpToolsListResp>>(
-    `/products/${params.productId}/tools`
+    `/products/${params.productId}/tools`,
   );
 }

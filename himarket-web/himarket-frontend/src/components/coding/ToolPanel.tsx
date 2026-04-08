@@ -1,9 +1,11 @@
-import { useState } from "react";
-import { ChevronRight, ChevronDown } from "lucide-react";
-import { useActiveCodingSession } from "../../context/CodingSessionContext";
-import { DiffViewer } from "./DiffViewer";
-import { TerminalOutput } from "./TerminalOutput";
-import type { ChatItemToolCall } from "../../types/coding-protocol";
+import { ChevronRight, ChevronDown } from 'lucide-react';
+import { useState } from 'react';
+
+import { DiffViewer } from './DiffViewer';
+import { TerminalOutput } from './TerminalOutput';
+import { useActiveCodingSession } from '../../context/CodingSessionContext';
+
+import type { ChatItemToolCall } from '../../types/coding-protocol';
 
 interface ToolPanelProps {
   collapsed: boolean;
@@ -16,22 +18,21 @@ export function ToolPanel({ collapsed, onToggleCollapse }: ToolPanelProps) {
 
   const selectedTool = quest?.selectedToolCallId
     ? (quest.messages.find(
-        m => m.type === "tool_call" && m.toolCallId === quest.selectedToolCallId
+        (m) => m.type === 'tool_call' && m.toolCallId === quest.selectedToolCallId,
       ) as ChatItemToolCall | undefined)
     : null;
 
   if (!selectedTool) return null;
   if (collapsed) return null;
 
-  const diffs = selectedTool.content?.filter(c => c.type === "diff") ?? [];
-  const textContent =
-    selectedTool.content?.filter(c => c.type === "content") ?? [];
+  const diffs = selectedTool.content?.filter((c) => c.type === 'diff') ?? [];
+  const textContent = selectedTool.content?.filter((c) => c.type === 'content') ?? [];
 
   return (
     <div className="w-[420px] flex-shrink-0 border-l border-gray-200/60 bg-white/30 backdrop-blur-sm flex flex-col">
       <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200/60">
         <span className="text-sm font-medium text-gray-700 truncate">
-          {selectedTool.title} — {selectedTool.status.replace("_", " ")}
+          {selectedTool.title} — {selectedTool.status.replace('_', ' ')}
         </span>
         <button
           className="w-6 h-6 flex items-center justify-center rounded text-gray-400
@@ -44,18 +45,10 @@ export function ToolPanel({ collapsed, onToggleCollapse }: ToolPanelProps) {
       </div>
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {diffs.map((d, i) => (
-          <DiffViewer
-            key={i}
-            path={d.path}
-            oldText={d.oldText}
-            newText={d.newText}
-          />
+          <DiffViewer key={i} newText={d.newText} oldText={d.oldText} path={d.path} />
         ))}
         {textContent.map((c, i) => (
-          <TerminalOutput
-            key={i}
-            text={c.content?.type === "text" ? c.content.text : ""}
-          />
+          <TerminalOutput key={i} text={c.content?.type === 'text' ? c.content.text : ''} />
         ))}
         {selectedTool.rawInput && (
           <div className="rounded-lg border border-gray-200/60 overflow-hidden">
@@ -64,11 +57,7 @@ export function ToolPanel({ collapsed, onToggleCollapse }: ToolPanelProps) {
                          hover:bg-gray-50 transition-colors"
               onClick={() => setJsonExpanded(!jsonExpanded)}
             >
-              {jsonExpanded ? (
-                <ChevronDown size={12} />
-              ) : (
-                <ChevronRight size={12} />
-              )}
+              {jsonExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
               Raw Input
             </button>
             {jsonExpanded && (

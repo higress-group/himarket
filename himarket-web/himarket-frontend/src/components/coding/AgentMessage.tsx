@@ -1,7 +1,7 @@
-import { useMemo, type ReactNode } from "react";
-import Markdown, { type Components } from "react-markdown";
-import remarkGfm from "remark-gfm";
-import rehypeHighlight from "rehype-highlight";
+import { useMemo, type ReactNode } from 'react';
+import Markdown, { type Components } from 'react-markdown';
+import rehypeHighlight from 'rehype-highlight';
+import remarkGfm from 'remark-gfm';
 
 // Matches absolute file paths like /foo/bar/baz.ts
 const FILE_PATH_RE = /(?:\/[\w.@+-]+)+\.\w+/g;
@@ -9,38 +9,35 @@ const FILE_PATH_RE = /(?:\/[\w.@+-]+)+\.\w+/g;
 interface AgentMessageProps {
   text: string;
   streaming?: boolean;
-  variant?: "default" | "compact";
+  variant?: 'default' | 'compact';
   onOpenFile?: (path: string) => void;
 }
 
 /** Split plain text, replacing file-path segments with clickable spans. */
-function linkifyFilePaths(
-  text: string,
-  onOpen: (path: string) => void
-): ReactNode[] {
+function linkifyFilePaths(text: string, onOpen: (path: string) => void): ReactNode[] {
   const parts: ReactNode[] = [];
   let lastIdx = 0;
 
   for (const m of text.matchAll(FILE_PATH_RE)) {
     const path = m[0];
-    const start = m.index!;
+    const start = m.index ?? 0;
     if (start > lastIdx) parts.push(text.slice(lastIdx, start));
     parts.push(
       <span
-        key={start}
-        role="link"
-        tabIndex={0}
         className="text-blue-600 hover:underline cursor-pointer"
-        onClick={e => {
+        key={start}
+        onClick={(e) => {
           e.stopPropagation();
           onOpen(path);
         }}
-        onKeyDown={e => {
-          if (e.key === "Enter") onOpen(path);
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') onOpen(path);
         }}
+        role="link"
+        tabIndex={0}
       >
         {path}
-      </span>
+      </span>,
     );
     lastIdx = start + path.length;
   }
@@ -49,65 +46,51 @@ function linkifyFilePaths(
   return parts;
 }
 
-function useMarkdownComponents(
-  onOpenFile?: (path: string) => void
-): Components | undefined {
+function useMarkdownComponents(onOpenFile?: (path: string) => void): Components | undefined {
   return useMemo(() => {
     if (!onOpenFile) return undefined;
 
     const processChildren = (children: ReactNode): ReactNode => {
-      if (typeof children === "string") {
+      if (typeof children === 'string') {
         const parts = linkifyFilePaths(children, onOpenFile);
-        return parts.length === 1 && typeof parts[0] === "string"
-          ? children
-          : parts;
+        return parts.length === 1 && typeof parts[0] === 'string' ? children : parts;
       }
       if (Array.isArray(children)) {
         return children.map((child, i) =>
-          typeof child === "string" ? (
+          typeof child === 'string' ? (
             linkifyFilePaths(child, onOpenFile).length === 1 &&
-            typeof linkifyFilePaths(child, onOpenFile)[0] === "string" ? (
+            typeof linkifyFilePaths(child, onOpenFile)[0] === 'string' ? (
               child
             ) : (
               <span key={i}>{linkifyFilePaths(child, onOpenFile)}</span>
             )
           ) : (
             child
-          )
+          ),
         );
       }
       return children;
     };
 
     return {
-      p({ children }) {
-        return <p>{processChildren(children)}</p>;
-      },
-      li({ children }) {
-        return <li>{processChildren(children)}</li>;
-      },
-      code({ className, children, ...props }) {
+      code({ children, className, ...props }) {
         // Only process inline code (no language className = not a code block)
         const isInline = !className;
-        if (
-          isInline &&
-          typeof children === "string" &&
-          FILE_PATH_RE.test(children)
-        ) {
+        if (isInline && typeof children === 'string' && FILE_PATH_RE.test(children)) {
           FILE_PATH_RE.lastIndex = 0;
           return (
             <code
               {...props}
               className="text-blue-600 hover:underline cursor-pointer"
-              role="link"
-              tabIndex={0}
-              onClick={e => {
+              onClick={(e) => {
                 e.stopPropagation();
                 onOpenFile(children);
               }}
-              onKeyDown={e => {
-                if (e.key === "Enter") onOpenFile(children as string);
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') onOpenFile(children as string);
               }}
+              role="link"
+              tabIndex={0}
             >
               {children}
             </code>
@@ -119,19 +102,25 @@ function useMarkdownComponents(
           </code>
         );
       },
+      li({ children }) {
+        return <li>{processChildren(children)}</li>;
+      },
+      p({ children }) {
+        return <p>{processChildren(children)}</p>;
+      },
     } satisfies Components;
   }, [onOpenFile]);
 }
 
 export function AgentMessage({
-  text,
-  streaming,
-  variant = "default",
   onOpenFile,
+  streaming,
+  text,
+  variant = 'default',
 }: AgentMessageProps) {
   const components = useMarkdownComponents(onOpenFile);
 
-  if (variant === "compact") {
+  if (variant === 'compact') {
     return (
       <div
         className="prose prose-sm max-w-none text-gray-600
@@ -144,9 +133,9 @@ export function AgentMessage({
                    prose-td:border prose-td:border-gray-200 prose-td:px-3 prose-td:py-1.5"
       >
         <Markdown
-          remarkPlugins={[remarkGfm]}
-          rehypePlugins={[rehypeHighlight]}
           components={components}
+          rehypePlugins={[rehypeHighlight]}
+          remarkPlugins={[remarkGfm]}
         >
           {text}
         </Markdown>
@@ -168,9 +157,9 @@ export function AgentMessage({
                      prose-td:border prose-td:border-gray-200 prose-td:px-3 prose-td:py-1.5"
     >
       <Markdown
-        remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeHighlight]}
         components={components}
+        rehypePlugins={[rehypeHighlight]}
+        remarkPlugins={[remarkGfm]}
       >
         {text}
       </Markdown>

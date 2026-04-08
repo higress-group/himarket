@@ -10,7 +10,7 @@ export type QueryInterval = 1 | 15 | 60;
 /**
  * 响应数据类型
  */
-export type ResponseType = "LINE" | "CARD" | "TABLE";
+export type ResponseType = 'LINE' | 'CARD' | 'TABLE';
 
 /**
  * 通用SLS查询请求参数
@@ -90,79 +90,79 @@ export interface FilterOptions {
  * 模型监控场景标识
  */
 export const ModelScenarios = {
-  // KPI卡片
-  PV: "pv",
-  UV: "uv",
-  FALLBACK_COUNT: "fallback_count",
-  INPUT_TOKEN_TOTAL: "input_token_total",
-  OUTPUT_TOKEN_TOTAL: "output_token_total",
-  TOKEN_TOTAL: "token_total",
+  CACHE_HIT: 'cache_hit',
+  CACHE_MISS: 'cache_miss',
+  CACHE_SKIP: 'cache_skip',
+  CONSUMER_TOKEN_TABLE: 'consumer_token_table',
+  ERROR_REQUESTS_TABLE: 'error_requests_table',
+  FALLBACK_COUNT: 'fallback_count',
 
-  // 时序图表
-  QPS_STREAM: "qps_stream",
-  QPS_NORMAL: "qps_normal",
-  QPS_TOTAL: "qps_total",
-  SUCCESS_RATE: "success_rate",
-  TOKEN_PER_SEC_INPUT: "token_per_sec_input",
-  TOKEN_PER_SEC_OUTPUT: "token_per_sec_output",
-  TOKEN_PER_SEC_TOTAL: "token_per_sec_total",
-  RT_AVG_TOTAL: "rt_avg_total",
-  RT_AVG_STREAM: "rt_avg_stream",
-  RT_AVG_NORMAL: "rt_avg_normal",
-  RT_FIRST_TOKEN: "rt_first_token",
-  RATELIMITED_PER_SEC: "ratelimited_per_sec",
-  CACHE_HIT: "cache_hit",
-  CACHE_MISS: "cache_miss",
-  CACHE_SKIP: "cache_skip",
-
-  // 统计表格
-  MODEL_TOKEN_TABLE: "model_token_table",
-  CONSUMER_TOKEN_TABLE: "consumer_token_table",
-  SERVICE_TOKEN_TABLE: "service_token_table",
-  ERROR_REQUESTS_TABLE: "error_requests_table",
-  RATELIMITED_CONSUMER_TABLE: "ratelimited_consumer_table",
-  RISK_LABEL_TABLE: "risk_label_table",
-  RISK_CONSUMER_TABLE: "risk_consumer_table",
-
+  FILTER_API_OPTIONS: 'filter_api_options',
+  FILTER_CONSUMER_OPTIONS: 'filter_consumer_options',
+  FILTER_MODEL_OPTIONS: 'filter_model_options',
+  FILTER_ROUTE_OPTIONS: 'filter_route_options',
   // 过滤选项
-  FILTER_SERVICE_OPTIONS: "filter_service_options",
-  FILTER_API_OPTIONS: "filter_api_options",
-  FILTER_MODEL_OPTIONS: "filter_model_options",
-  FILTER_ROUTE_OPTIONS: "filter_route_options",
-  FILTER_UPSTREAM_OPTIONS: "filter_upstream_options",
-  FILTER_CONSUMER_OPTIONS: "filter_consumer_options",
+  FILTER_SERVICE_OPTIONS: 'filter_service_options',
+  FILTER_UPSTREAM_OPTIONS: 'filter_upstream_options',
+  INPUT_TOKEN_TOTAL: 'input_token_total',
+  // 统计表格
+  MODEL_TOKEN_TABLE: 'model_token_table',
+  OUTPUT_TOKEN_TOTAL: 'output_token_total',
+  // KPI卡片
+  PV: 'pv',
+  QPS_NORMAL: 'qps_normal',
+  // 时序图表
+  QPS_STREAM: 'qps_stream',
+  QPS_TOTAL: 'qps_total',
+  RATELIMITED_CONSUMER_TABLE: 'ratelimited_consumer_table',
+  RATELIMITED_PER_SEC: 'ratelimited_per_sec',
+
+  RISK_CONSUMER_TABLE: 'risk_consumer_table',
+  RISK_LABEL_TABLE: 'risk_label_table',
+  RT_AVG_NORMAL: 'rt_avg_normal',
+  RT_AVG_STREAM: 'rt_avg_stream',
+  RT_AVG_TOTAL: 'rt_avg_total',
+  RT_FIRST_TOKEN: 'rt_first_token',
+  SERVICE_TOKEN_TABLE: 'service_token_table',
+
+  SUCCESS_RATE: 'success_rate',
+  TOKEN_PER_SEC_INPUT: 'token_per_sec_input',
+  TOKEN_PER_SEC_OUTPUT: 'token_per_sec_output',
+  TOKEN_PER_SEC_TOTAL: 'token_per_sec_total',
+  TOKEN_TOTAL: 'token_total',
+  UV: 'uv',
 } as const;
 
 /**
  * MCP监控场景标识
  */
 export const McpScenarios = {
-  // KPI卡片
-  PV: "pv",
-  UV: "uv",
-  BYTES_RECEIVED: "bytes_received",
-  BYTES_SENT: "bytes_sent",
+  BACKEND_STATUS_DISTRIBUTION: 'backend_status_distribution',
+  BYTES_RECEIVED: 'bytes_received',
+  BYTES_SENT: 'bytes_sent',
+  FILTER_CONSUMER_OPTIONS: 'filter_consumer_options',
 
-  // 时序图表
-  SUCCESS_RATE: "success_rate",
-  QPS_TOTAL_SIMPLE: "qps_total_simple",
-  RT_AVG: "rt_avg",
-  RT_P99: "rt_p99",
-  RT_P95: "rt_p95",
-  RT_P90: "rt_p90",
-  RT_P50: "rt_p50",
-
-  // 统计表格
-  METHOD_DISTRIBUTION: "method_distribution",
-  GATEWAY_STATUS_DISTRIBUTION: "gateway_status_distribution",
-  BACKEND_STATUS_DISTRIBUTION: "backend_status_distribution",
-  REQUEST_DISTRIBUTION: "request_distribution",
-
+  FILTER_MCP_SERVER_OPTIONS: 'filter_mcp_server_options',
+  FILTER_MCP_TOOL_OPTIONS: 'filter_mcp_tool_options',
+  FILTER_ROUTE_OPTIONS: 'filter_route_options',
   // 过滤选项
-  FILTER_SERVICE_OPTIONS: "filter_service_options",
-  FILTER_ROUTE_OPTIONS: "filter_route_options",
-  FILTER_MCP_TOOL_OPTIONS: "filter_mcp_tool_options",
-  FILTER_MCP_SERVER_OPTIONS: "filter_mcp_server_options",
-  FILTER_CONSUMER_OPTIONS: "filter_consumer_options",
-  FILTER_UPSTREAM_OPTIONS: "filter_upstream_options",
+  FILTER_SERVICE_OPTIONS: 'filter_service_options',
+  FILTER_UPSTREAM_OPTIONS: 'filter_upstream_options',
+  GATEWAY_STATUS_DISTRIBUTION: 'gateway_status_distribution',
+  // 统计表格
+  METHOD_DISTRIBUTION: 'method_distribution',
+
+  // KPI卡片
+  PV: 'pv',
+  QPS_TOTAL_SIMPLE: 'qps_total_simple',
+  REQUEST_DISTRIBUTION: 'request_distribution',
+  RT_AVG: 'rt_avg',
+
+  RT_P50: 'rt_p50',
+  RT_P90: 'rt_p90',
+  RT_P95: 'rt_p95',
+  RT_P99: 'rt_p99',
+  // 时序图表
+  SUCCESS_RATE: 'success_rate',
+  UV: 'uv',
 } as const;

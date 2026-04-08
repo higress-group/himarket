@@ -1,0 +1,13 @@
+#!/usr/bin/env sh
+
+ROOT_DIR=$(pwd)
+
+# Run lint-staged (himarket-frontend) only if frontend files are staged
+if git diff --cached --name-only | grep -q '^himarket-web/himarket-frontend/'; then
+  cd "$ROOT_DIR/himarket-web/himarket-frontend" && npx lint-staged --cwd .
+fi
+
+# Run lint-staged (himarket-admin) only if admin files are staged
+if git diff --cached --name-only | grep -q '^himarket-web/himarket-admin/'; then
+  cd "$ROOT_DIR/himarket-web/himarket-admin" && npx lint-staged --cwd .
+fi

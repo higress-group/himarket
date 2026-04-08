@@ -1,55 +1,55 @@
-import { Modal, Radio, Button, Space } from 'antd'
-import { useState } from 'react'
+import { Modal, Radio, Button, Space } from 'antd';
+import { useState } from 'react';
 
-export type NacosImportType = 'OPEN_SOURCE' | 'MSE'
+export type NacosImportType = 'OPEN_SOURCE' | 'MSE';
 
 interface NacosTypeSelectorProps {
-  visible: boolean
-  onCancel: () => void
-  onSelect: (type: NacosImportType) => void
+  visible: boolean;
+  onCancel: () => void;
+  onSelect: (type: NacosImportType) => void;
 }
 
-export default function NacosTypeSelector({ visible, onCancel, onSelect }: NacosTypeSelectorProps) {
-  const [selectedType, setSelectedType] = useState<NacosImportType>('MSE')
+export default function NacosTypeSelector({ onCancel, onSelect, visible }: NacosTypeSelectorProps) {
+  const [selectedType, setSelectedType] = useState<NacosImportType>('MSE');
 
   const handleConfirm = () => {
-    onSelect(selectedType)
-  }
+    onSelect(selectedType);
+  };
 
   const handleCancel = () => {
-  setSelectedType('OPEN_SOURCE')
-    onCancel()
-  }
+    setSelectedType('OPEN_SOURCE');
+    onCancel();
+  };
 
   return (
     <Modal
-      title="选择 Nacos 类型"
-      open={visible}
-      onCancel={handleCancel}
       footer={[
         <Button key="cancel" onClick={handleCancel}>
           取消
         </Button>,
-        <Button key="confirm" type="primary" onClick={handleConfirm}>
+        <Button key="confirm" onClick={handleConfirm} type="primary">
           确定
-        </Button>
+        </Button>,
       ]}
+      onCancel={handleCancel}
+      open={visible}
+      title="选择 Nacos 类型"
       width={500}
     >
       <div className="py-4">
-        <Radio.Group 
-          value={selectedType} 
-          onChange={(e) => setSelectedType(e.target.value)}
+        <Radio.Group
           className="w-full"
+          onChange={(e) => setSelectedType(e.target.value)}
+          value={selectedType}
         >
-          <Space direction="vertical" className="w-full">
-            <Radio value="MSE" className="w-full p-3 border rounded-lg hover:bg-gray-50">
+          <Space className="w-full" direction="vertical">
+            <Radio className="w-full p-3 border rounded-lg hover:bg-gray-50" value="MSE">
               <div className="ml-2">
                 <div className="font-medium">MSE Nacos</div>
                 <div className="text-sm text-gray-500">通过阿里云 MSE 账号授权后选择实例导入</div>
               </div>
             </Radio>
-            <Radio value="OPEN_SOURCE" className="w-full p-3 border rounded-lg hover:bg-gray-50">
+            <Radio className="w-full p-3 border rounded-lg hover:bg-gray-50" value="OPEN_SOURCE">
               <div className="ml-2">
                 <div className="font-medium">开源 Nacos</div>
                 <div className="text-sm text-gray-500">使用已有自建/开源 Nacos 地址登录创建</div>
@@ -59,5 +59,5 @@ export default function NacosTypeSelector({ visible, onCancel, onSelect }: Nacos
         </Radio.Group>
       </div>
     </Modal>
-  )
+  );
 }

@@ -1,4 +1,4 @@
-import { Form, Select, Tag } from "antd";
+import { Form, Select, Tag } from 'antd';
 
 /**
  * Worker configuration form component
@@ -15,17 +15,12 @@ export default function WorkerConfigForm() {
         mode="tags"
         placeholder="输入标签后按回车添加"
         style={{ width: '100%' }}
-        tokenSeparators={[',']}
-        tagRender={({ label, closable, onClose }) => (
-          <Tag
-            color="blue"
-            closable={closable}
-            onClose={onClose}
-            style={{ marginInlineEnd: 4 }}
-          >
+        tagRender={({ closable, label, onClose }) => (
+          <Tag closable={closable} color="blue" onClose={onClose} style={{ marginInlineEnd: 4 }}>
             {label}
           </Tag>
         )}
+        tokenSeparators={[',']}
       />
     </Form.Item>
   );

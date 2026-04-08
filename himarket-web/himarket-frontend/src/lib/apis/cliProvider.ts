@@ -2,7 +2,7 @@
  * CLI Provider 相关接口
  */
 
-import request, { type RespI } from "../request";
+import request, { type RespI } from '../request';
 
 // ============ 类型定义 ============
 
@@ -17,8 +17,8 @@ export interface ICliProvider {
   supportsCustomModel?: boolean;
   supportsMcp?: boolean;
   supportsSkill?: boolean;
-  authOptions?: string[];    // 认证方案列表，如 ["default", "personal_access_token"]
-  authEnvVar?: string;       // Token/API Key 对应的环境变量名
+  authOptions?: string[]; // 认证方案列表，如 ["default", "personal_access_token"]
+  authEnvVar?: string; // Token/API Key 对应的环境变量名
 }
 
 // ============ API 函数 ============
@@ -27,9 +27,7 @@ export interface ICliProvider {
  * 获取可用的 CLI Provider 列表
  */
 export function getCliProviders() {
-  return request.get<RespI<ICliProvider[]>, RespI<ICliProvider[]>>(
-    "/cli-providers"
-  );
+  return request.get<RespI<ICliProvider[]>, RespI<ICliProvider[]>>('/cli-providers');
 }
 
 // ============ 功能开关类型定义 ============
@@ -44,9 +42,7 @@ export interface CodingFeatures {
  * 获取 HiCoding 功能开关状态
  */
 export function getCodingFeatures() {
-  return request.get<RespI<CodingFeatures>, RespI<CodingFeatures>>(
-    "/cli-providers/features"
-  );
+  return request.get<RespI<CodingFeatures>, RespI<CodingFeatures>>('/cli-providers/features');
 }
 
 // ============ 模型市场类型定义 ============
@@ -71,7 +67,7 @@ export interface MarketModelsResponse {
  */
 export function getMarketModels() {
   return request.get<RespI<MarketModelsResponse>, RespI<MarketModelsResponse>>(
-    "/cli-providers/market-models"
+    '/cli-providers/market-models',
   );
 }
 
@@ -115,7 +111,7 @@ export interface CliSessionConfig {
   modelProductId?: string;
   mcpServers?: McpServerEntry[];
   skills?: SkillEntry[];
-  authToken?: string;  // 认证凭据（PAT / API Key）
+  authToken?: string; // 认证凭据（PAT / API Key）
 }
 
 // ============ MCP 市场 API 函数 ============
@@ -125,7 +121,7 @@ export interface CliSessionConfig {
  */
 export function getMarketMcps() {
   return request.get<RespI<MarketMcpsResponse>, RespI<MarketMcpsResponse>>(
-    "/cli-providers/market-mcps"
+    '/cli-providers/market-mcps',
   );
 }
 
@@ -136,7 +132,7 @@ export function getMarketMcps() {
  */
 export function getMarketSkills() {
   return request.get<RespI<MarketSkillInfo[]>, RespI<MarketSkillInfo[]>>(
-    "/cli-providers/market-skills"
+    '/cli-providers/market-skills',
   );
 }
 
@@ -174,7 +170,7 @@ export interface SkillVersion {
 export function getSkillFiles(productId: string, version?: string) {
   return request.get<RespI<SkillFileTreeNode[]>, RespI<SkillFileTreeNode[]>>(
     `/skills/${productId}/files`,
-    { params: version ? { version } : {} }
+    { params: version ? { version } : {} },
   );
 }
 
@@ -184,7 +180,7 @@ export function getSkillFiles(productId: string, version?: string) {
 export function getSkillFileContent(productId: string, filePath: string, version?: string) {
   return request.get<RespI<SkillFileContent>, RespI<SkillFileContent>>(
     `/skills/${productId}/files/${filePath}`,
-    { params: version ? { version } : {} }
+    { params: version ? { version } : {} },
   );
 }
 
@@ -201,9 +197,7 @@ export interface SkillCliInfo {
  * 获取 Skill CLI 下载信息
  */
 export function getSkillCliInfo(productId: string) {
-  return request.get<RespI<SkillCliInfo>, RespI<SkillCliInfo>>(
-    `/skills/${productId}/cli-info`
-  );
+  return request.get<RespI<SkillCliInfo>, RespI<SkillCliInfo>>(`/skills/${productId}/cli-info`);
 }
 
 /**
@@ -218,9 +212,7 @@ export function getSkillPackageUrl(productId: string, version?: string): string 
  * 获取 Skill 版本列表
  */
 export function getSkillVersions(productId: string) {
-  return request.get<RespI<SkillVersion[]>, RespI<SkillVersion[]>>(
-    `/skills/${productId}/versions`
-  );
+  return request.get<RespI<SkillVersion[]>, RespI<SkillVersion[]>>(`/skills/${productId}/versions`);
 }
 
 // ============ Nacos 辅助 API ============

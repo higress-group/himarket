@@ -103,7 +103,7 @@ Examples:
 Please check the items that apply to your PR
 -->
 
-- [ ] Code has been formatted (`mvn spotless:apply` for backend, `npm run lint:fix` for frontend)
+- [ ] Code quality checks passed (run `./scripts/code-check.sh`)
 - [ ] Code is self-reviewed
 - [ ] Comments added for complex code
 - [ ] Documentation updated (if applicable)

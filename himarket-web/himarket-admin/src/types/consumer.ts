@@ -6,7 +6,7 @@ export interface Consumer {
   description?: string;
   status?: string;
   createAt?: string;
-  createdAt?: string;  // 支持两种字段名
+  createdAt?: string; // 支持两种字段名
   enabled?: boolean;
 }
 

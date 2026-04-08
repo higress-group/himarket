@@ -1,16 +1,16 @@
-import request from "../request";
-import type { FileNode } from "../../types/coding";
+import request from '../request';
+
+import type { FileNode } from '../../types/coding';
 
 interface FileContentResponse {
   content: string;
-  encoding: "utf-8" | "base64";
+  encoding: 'utf-8' | 'base64';
 }
 
 export const ARTIFACT_SCAN_FALLBACK_ENABLED =
-  import.meta.env.VITE_ARTIFACT_SCAN_FALLBACK !== "false";
+  import.meta.env.VITE_ARTIFACT_SCAN_FALLBACK !== 'false';
 
-export const PPT_PREVIEW_PREPARE_ENABLED =
-  import.meta.env.VITE_PPT_PREPARE_PREVIEW !== "false";
+export const PPT_PREVIEW_PREPARE_ENABLED = import.meta.env.VITE_PPT_PREPARE_PREVIEW !== 'false';
 
 /**
  * 全局默认 runtime，由 HiCoding 页面初始化时设置。
@@ -32,19 +32,19 @@ export function getDefaultRuntime(): string | undefined {
 export async function downloadWorkspaceFile(
   filePath: string,
   fileName: string,
-  runtime?: string
+  runtime?: string,
 ): Promise<void> {
   const rt = runtime ?? _defaultRuntime;
   const params: Record<string, string> = { path: filePath };
   if (rt) params.runtime = rt;
-  const resp = await request.get("/workspace/download", {
+  const resp = await request.get('/workspace/download', {
     params,
-    responseType: "blob",
+    responseType: 'blob',
     timeout: 60000,
   });
   const blob = resp instanceof Blob ? resp : new Blob([resp as unknown as BlobPart]);
   const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
+  const a = document.createElement('a');
   a.href = url;
   a.download = fileName;
   a.click();
@@ -59,7 +59,7 @@ export interface WorkspaceApiError {
 
 export interface ArtifactContentResult {
   content: string | null;
-  encoding: "utf-8" | "base64" | null;
+  encoding: 'utf-8' | 'base64' | null;
   error: WorkspaceApiError | null;
 }
 
@@ -71,7 +71,7 @@ export interface WorkspaceChange {
 }
 
 export interface PreparePreviewResponse {
-  status: "ready" | "converting" | "failed" | "unsupported";
+  status: 'ready' | 'converting' | 'failed' | 'unsupported';
   previewPath?: string;
   reason?: string;
 }
@@ -81,24 +81,22 @@ interface WorkspaceChangesResponse {
 }
 
 function parseWorkspaceError(error: unknown): WorkspaceApiError {
-  if (typeof error === "object" && error !== null) {
+  if (typeof error === 'object' && error !== null) {
     const errObj = error as {
       response?: { status?: number; data?: { error?: string; code?: string } };
       message?: string;
     };
     const status = errObj.response?.status;
-    const code = errObj.response?.data?.code ?? "WORKSPACE_API_ERROR";
+    const code = errObj.response?.data?.code ?? 'WORKSPACE_API_ERROR';
     const message =
       status === 413
-        ? "文件过大，无法预览"
-        : errObj.response?.data?.error ??
-          errObj.message ??
-          "Workspace API request failed";
+        ? '文件过大，无法预览'
+        : (errObj.response?.data?.error ?? errObj.message ?? 'Workspace API request failed');
     return { code, message, status };
   }
   return {
-    code: "WORKSPACE_API_ERROR",
-    message: "Workspace API request failed",
+    code: 'WORKSPACE_API_ERROR',
+    message: 'Workspace API request failed',
   };
 }
 
@@ -107,17 +105,13 @@ function parseWorkspaceError(error: unknown): WorkspaceApiError {
  */
 export async function uploadFileToWorkspace(file: File): Promise<string> {
   const formData = new FormData();
-  formData.append("file", file);
-  const resp: { filePath: string } = await request.post(
-    "/workspace/upload",
-    formData,
-    {
-      timeout: 60000,
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    }
-  );
+  formData.append('file', file);
+  const resp: { filePath: string } = await request.post('/workspace/upload', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+    timeout: 60000,
+  });
   return resp.filePath;
 }
 
@@ -128,11 +122,11 @@ export async function uploadFileToWorkspace(file: File): Promise<string> {
  */
 export async function fetchArtifactContent(
   filePath: string,
-  opts?: { raw?: boolean; runtime?: string }
+  opts?: { raw?: boolean; runtime?: string },
 ): Promise<ArtifactContentResult> {
   try {
     const runtime = opts?.runtime ?? _defaultRuntime;
-    const resp: FileContentResponse = await request.get("/workspace/file", {
+    const resp: FileContentResponse = await request.get('/workspace/file', {
       params: {
         path: filePath,
         raw: opts?.raw === true,
@@ -156,18 +150,15 @@ export async function fetchArtifactContent(
 /**
  * Prepare preview conversion in background (currently for PPT/PPTX -> PDF).
  */
-export async function prepareArtifactPreview(
-  filePath: string
-): Promise<PreparePreviewResponse> {
+export async function prepareArtifactPreview(filePath: string): Promise<PreparePreviewResponse> {
   try {
-    const resp: PreparePreviewResponse = await request.post(
-      "/workspace/preview/prepare",
-      { path: filePath }
-    );
+    const resp: PreparePreviewResponse = await request.post('/workspace/preview/prepare', {
+      path: filePath,
+    });
     return resp;
   } catch (error) {
     const e = parseWorkspaceError(error);
-    return { status: "failed", reason: e.message };
+    return { reason: e.message, status: 'failed' };
   }
 }
 
@@ -178,16 +169,13 @@ export async function fetchWorkspaceChanges(
   cwd: string,
   since: number,
   limit = 200,
-  runtime?: string
+  runtime?: string,
 ): Promise<WorkspaceChange[]> {
   try {
     const effectiveRuntime = runtime ?? _defaultRuntime;
-    const resp: WorkspaceChangesResponse = await request.get(
-      "/workspace/changes",
-      {
-        params: { cwd, since, limit, ...(effectiveRuntime ? { runtime: effectiveRuntime } : {}) },
-      }
-    );
+    const resp: WorkspaceChangesResponse = await request.get('/workspace/changes', {
+      params: { cwd, limit, since, ...(effectiveRuntime ? { runtime: effectiveRuntime } : {}) },
+    });
     return resp.changes ?? [];
   } catch {
     return [];
@@ -202,11 +190,11 @@ export async function fetchWorkspaceChanges(
 export async function fetchDirectoryTree(
   cwd: string,
   depth = 10,
-  runtime?: string
+  runtime?: string,
 ): Promise<FileNode[] | null> {
   try {
     const effectiveRuntime = runtime ?? _defaultRuntime;
-    const resp: FileNode = await request.get("/workspace/tree", {
+    const resp: FileNode = await request.get('/workspace/tree', {
       params: { cwd, depth, ...(effectiveRuntime ? { runtime: effectiveRuntime } : {}) },
     });
     return resp.children ?? [];

@@ -1,5 +1,6 @@
-import type { ChatItemToolCall } from "../../types/coding-protocol";
-import { TerminalOutput } from "./TerminalOutput";
+import { TerminalOutput } from './TerminalOutput';
+
+import type { ChatItemToolCall } from '../../types/coding-protocol';
 
 interface TerminalViewProps {
   terminalId: string;
@@ -9,13 +10,13 @@ interface TerminalViewProps {
 export function TerminalView({ terminalId, toolCall }: TerminalViewProps) {
   const outputs = (toolCall?.content ?? [])
     .filter(
-      c =>
-        c.type === "content" &&
-        c.content?.type === "text" &&
-        typeof c.content.text === "string" &&
-        c.content.text.length > 0
+      (c) =>
+        c.type === 'content' &&
+        c.content?.type === 'text' &&
+        typeof c.content.text === 'string' &&
+        c.content.text.length > 0,
     )
-    .map(c => (c.type === "content" && c.content?.type === "text" ? c.content.text : ""))
+    .map((c) => (c.type === 'content' && c.content?.type === 'text' ? c.content.text : ''))
     .filter(Boolean);
 
   return (

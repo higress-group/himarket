@@ -2,8 +2,9 @@
  * 产品分类相关接口
  */
 
-import request, { type RespI } from "../request";
-import type { IProductIcon } from "./typing";
+import request, { type RespI } from '../request';
+
+import type { IProductIcon } from './typing';
 
 // ============ 类型定义 ============
 
@@ -38,14 +39,11 @@ interface GetCategoriesResp {
  * 获取指定产品类型下的分类列表
  */
 export function getCategoriesByProductType(params: GetCategoriesParams) {
-  return request.get<RespI<GetCategoriesResp>, RespI<GetCategoriesResp>>(
-    '/product-categories',
-    {
-      params: {
-        productType: params.productType,
-        page: params.page || 0,
-        size: params.size || 1000,
-      },
-    }
-  );
+  return request.get<RespI<GetCategoriesResp>, RespI<GetCategoriesResp>>('/product-categories', {
+    params: {
+      page: params.page || 0,
+      productType: params.productType,
+      size: params.size || 1000,
+    },
+  });
 }

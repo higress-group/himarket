@@ -1,158 +1,155 @@
-import { Card, Table, Badge, Button, Space, Avatar, Tag, Input } from 'antd'
-import { SearchOutlined, UserAddOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
-import { useState } from 'react'
-import { Portal, DeveloperStats } from '@/types'
-import { formatDateTime } from '@/lib/utils'
+import { SearchOutlined, UserAddOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Card, Table, Badge, Button, Space, Avatar, Tag, Input } from 'antd';
+import { useState } from 'react';
+
+import { formatDateTime } from '@/lib/utils';
+import type { Portal, DeveloperStats } from '@/types';
 
 interface PortalConsumersProps {
-  portal: Portal
+  portal: Portal;
 }
 
 const mockConsumers: DeveloperStats[] = [
   {
-    id: "1",
-    name: "企业A",
-    email: "contact@company-a.com",
-    status: "active",
-    plan: "premium",
-    joinedAt: "2025-01-01T10:00:00Z",
-    lastActive: "2025-01-08T15:30:00Z",
     apiCalls: 15420,
-    subscriptions: 3
+    email: 'contact@company-a.com',
+    id: '1',
+    joinedAt: '2025-01-01T10:00:00Z',
+    lastActive: '2025-01-08T15:30:00Z',
+    name: '企业A',
+    plan: 'premium',
+    status: 'active',
+    subscriptions: 3,
   },
   {
-    id: "2",
-    name: "企业B",
-    email: "dev@company-b.com",
-    status: "active",
-    plan: "standard",
-    joinedAt: "2025-01-02T11:00:00Z",
-    lastActive: "2025-01-08T14:20:00Z",
     apiCalls: 8765,
-    subscriptions: 2
+    email: 'dev@company-b.com',
+    id: '2',
+    joinedAt: '2025-01-02T11:00:00Z',
+    lastActive: '2025-01-08T14:20:00Z',
+    name: '企业B',
+    plan: 'standard',
+    status: 'active',
+    subscriptions: 2,
   },
   {
-    id: "3",
-    name: "企业C",
-    email: "api@company-c.com",
-    status: "inactive",
-    plan: "basic",
-    joinedAt: "2025-01-03T12:00:00Z",
-    lastActive: "2025-01-05T09:15:00Z",
     apiCalls: 1200,
-    subscriptions: 1
-  }
-]
+    email: 'api@company-c.com',
+    id: '3',
+    joinedAt: '2025-01-03T12:00:00Z',
+    lastActive: '2025-01-05T09:15:00Z',
+    name: '企业C',
+    plan: 'basic',
+    status: 'inactive',
+    subscriptions: 1,
+  },
+];
 
-export function PortalConsumers({ portal }: PortalConsumersProps) {
-  const [consumers, setConsumers] = useState<DeveloperStats[]>(mockConsumers)
-  const [searchText, setSearchText] = useState('')
-
-  const filteredConsumers = consumers.filter(consumer =>
-    consumer.name.toLowerCase().includes(searchText.toLowerCase()) ||
-    consumer.email.toLowerCase().includes(searchText.toLowerCase())
-  )
+export function PortalConsumers({ portal: _portal }: PortalConsumersProps) {
+  const [searchText, setSearchText] = useState('');
+  const filteredConsumers = mockConsumers.filter(
+    (consumer) =>
+      consumer.name.toLowerCase().includes(searchText.toLowerCase()) ||
+      consumer.email.toLowerCase().includes(searchText.toLowerCase()),
+  );
 
   const getPlanColor = (plan: string) => {
     switch (plan) {
       case 'premium':
-        return 'gold'
+        return 'gold';
       case 'standard':
-        return 'blue'
+        return 'blue';
       case 'basic':
-        return 'green'
+        return 'green';
       default:
-        return 'default'
+        return 'default';
     }
-  }
+  };
 
   const getPlanText = (plan: string) => {
     switch (plan) {
       case 'premium':
-        return '高级版'
+        return '高级版';
       case 'standard':
-        return '标准版'
+        return '标准版';
       case 'basic':
-        return '基础版'
+        return '基础版';
       default:
-        return plan
+        return plan;
     }
-  }
+  };
 
   const columns = [
     {
-      title: '消费者',
       dataIndex: 'name',
       key: 'name',
       render: (name: string, record: DeveloperStats) => (
         <div className="flex items-center space-x-3">
-          <Avatar className="bg-green-500">
-            {name.charAt(0).toUpperCase()}
-          </Avatar>
+          <Avatar className="bg-green-500">{name.charAt(0).toUpperCase()}</Avatar>
           <div>
             <div className="font-medium">{name}</div>
             <div className="text-sm text-gray-500">{record.email}</div>
           </div>
         </div>
       ),
+      title: '消费者',
     },
     {
-      title: '状态',
       dataIndex: 'status',
       key: 'status',
       render: (status: string) => (
-        <Badge status={status === 'active' ? 'success' : 'default'} text={status === 'active' ? '活跃' : '非活跃'} />
-      )
+        <Badge
+          status={status === 'active' ? 'success' : 'default'}
+          text={status === 'active' ? '活跃' : '非活跃'}
+        />
+      ),
+      title: '状态',
     },
     {
-      title: '套餐',
       dataIndex: 'plan',
       key: 'plan',
-      render: (plan: string) => (
-        <Tag color={getPlanColor(plan)}>
-          {getPlanText(plan)}
-        </Tag>
-      )
+      render: (plan: string) => <Tag color={getPlanColor(plan)}>{getPlanText(plan)}</Tag>,
+      title: '套餐',
     },
     {
-      title: 'API调用',
       dataIndex: 'apiCalls',
       key: 'apiCalls',
-      render: (calls: number) => calls.toLocaleString()
+      render: (calls: number) => calls.toLocaleString(),
+      title: 'API调用',
     },
     {
-      title: '订阅数',
       dataIndex: 'subscriptions',
       key: 'subscriptions',
-      render: (subscriptions: number) => subscriptions.toLocaleString()
+      render: (subscriptions: number) => subscriptions.toLocaleString(),
+      title: '订阅数',
     },
     {
-      title: '加入时间',
       dataIndex: 'joinedAt',
       key: 'joinedAt',
-      render: (date: string) => formatDateTime(date)
+      render: (date: string) => formatDateTime(date),
+      title: '加入时间',
     },
     {
-      title: '最后活跃',
       dataIndex: 'lastActive',
       key: 'lastActive',
-      render: (date: string) => formatDateTime(date)
+      render: (date: string) => formatDateTime(date),
+      title: '最后活跃',
     },
     {
-      title: '操作',
       key: 'action',
-      render: (_: any, record: DeveloperStats) => (
+      render: (_text: unknown, _record: DeveloperStats) => (
         <Space size="middle">
-          <Button type="link" icon={<EditOutlined />}>
+          <Button icon={<EditOutlined />} type="link">
             编辑
           </Button>
-          <Button type="link" danger icon={<DeleteOutlined />}>
+          <Button danger icon={<DeleteOutlined />} type="link">
             删除
           </Button>
         </Space>
       ),
+      title: '操作',
     },
-  ]
+  ];
 
   return (
     <div className="p-6 space-y-6">
@@ -161,7 +158,7 @@ export function PortalConsumers({ portal }: PortalConsumersProps) {
           <h1 className="text-2xl font-bold mb-2">消费者</h1>
           <p className="text-gray-600">管理Portal的消费者用户</p>
         </div>
-        <Button type="primary" icon={<UserAddOutlined />}>
+        <Button icon={<UserAddOutlined />} type="primary">
           添加消费者
         </Button>
       </div>
@@ -169,19 +166,14 @@ export function PortalConsumers({ portal }: PortalConsumersProps) {
       <Card>
         <div className="mb-4">
           <Input
+            onChange={(e) => setSearchText(e.target.value)}
             placeholder="搜索消费者..."
             prefix={<SearchOutlined />}
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
             style={{ width: 300 }}
+            value={searchText}
           />
         </div>
-        <Table 
-          columns={columns} 
-          dataSource={filteredConsumers}
-          rowKey="id"
-          pagination={false}
-        />
+        <Table columns={columns} dataSource={filteredConsumers} pagination={false} rowKey="id" />
       </Card>
 
       {/* <Card title="消费者统计">
@@ -211,5 +203,5 @@ export function PortalConsumers({ portal }: PortalConsumersProps) {
         </div>
       </Card> */}
     </div>
-  )
-} 
+  );
+}

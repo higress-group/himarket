@@ -1,10 +1,11 @@
-import { RouterProvider } from 'react-router-dom'
-import { ConfigProvider } from 'antd'
-import zhCN from 'antd/locale/zh_CN'
-import { router } from './routes'
-import aliyunThemeToken from './aliyunThemeToken'
-import { LoadingProvider } from './contexts/LoadingContext'
-import './App.css'
+import { ConfigProvider } from 'antd';
+import zhCN from 'antd/locale/zh_CN';
+import { RouterProvider } from 'react-router-dom';
+
+import aliyunThemeToken from './aliyunThemeToken';
+import { LoadingProvider } from './contexts/LoadingContext';
+import { router } from './routes';
+import './App.css';
 
 function App() {
   return (
@@ -12,24 +13,24 @@ function App() {
       <ConfigProvider
         locale={zhCN}
         theme={{
-          token: aliyunThemeToken,
           components: {
+            Button: {
+              primaryShadow: '0 2px 4px rgba(99, 102, 241, 0.3)',
+            },
             Card: {
               borderRadiusLG: 12,
             },
             Table: {
               rowHoverBg: '#EEF2FF',
             },
-            Button: {
-              primaryShadow: '0 2px 4px rgba(99, 102, 241, 0.3)',
-            },
           },
+          token: aliyunThemeToken,
         }}
       >
         <RouterProvider router={router} />
       </ConfigProvider>
     </LoadingProvider>
-  )
+  );
 }
 
-export default App
+export default App;

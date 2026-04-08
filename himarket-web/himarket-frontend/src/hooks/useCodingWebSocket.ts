@@ -1,18 +1,18 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from 'react';
 
-export type WsStatus = "disconnected" | "connecting" | "connected" | "reconnecting";
+export type WsStatus = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
 
 export const RECONNECT_CONFIG = {
-  baseDelay: 1000,       // 初始重连延迟 1 秒
-  maxDelay: 30000,       // 最大重连延迟 30 秒
-  backoffMultiplier: 2,  // 指数退避倍数
+  backoffMultiplier: 2, // 指数退避倍数
+  baseDelay: 1000, // 初始重连延迟 1 秒
+  maxDelay: 30000, // 最大重连延迟 30 秒
 } as const;
 
 /**
  * 计算指数退避延迟：delay = min(baseDelay * 2^attempt, maxDelay)
  */
 export function calcReconnectDelay(attempt: number): number {
-  const { baseDelay, maxDelay, backoffMultiplier } = RECONNECT_CONFIG;
+  const { backoffMultiplier, baseDelay, maxDelay } = RECONNECT_CONFIG;
   return Math.min(baseDelay * Math.pow(backoffMultiplier, attempt), maxDelay);
 }
 
@@ -34,12 +34,12 @@ interface UseWebSocketReturn {
 }
 
 export function useCodingWebSocket({
-  url,
-  onMessage,
-  onConnected,
   autoConnect = true,
+  onConnected,
+  onMessage,
+  url,
 }: UseWebSocketOptions): UseWebSocketReturn {
-  const [status, setStatus] = useState<WsStatus>("disconnected");
+  const [status, setStatus] = useState<WsStatus>('disconnected');
   const [reconnectAttempt, setReconnectAttempt] = useState(0);
 
   const wsRef = useRef<WebSocket | null>(null);
@@ -73,7 +73,7 @@ export function useCodingWebSocket({
     const delay = calcReconnectDelay(attempt);
     reconnectAttemptRef.current = attempt + 1;
     setReconnectAttempt(attempt + 1);
-    console.log(`[CodingWebSocket] Scheduling reconnect #${attempt + 1} in ${delay}ms`);
+    console.warn(`[CodingWebSocket] Scheduling reconnect #${attempt + 1} in ${delay}ms`);
     reconnectTimerRef.current = setTimeout(() => {
       reconnectTimerRef.current = null;
       doConnectRef.current();
@@ -94,18 +94,18 @@ export function useCodingWebSocket({
 
     if (intentionalDisconnectRef.current) return;
 
-    setStatus("connecting");
-    console.log("[CodingWebSocket] Connecting to:", urlRef.current);
+    setStatus('connecting');
+    console.warn('[CodingWebSocket] Connecting to:', urlRef.current);
     const ws = new WebSocket(urlRef.current);
     wsRef.current = ws;
 
     ws.onopen = () => {
       if (wsRef.current !== ws) return;
-      console.log("[CodingWebSocket] Connected successfully");
+      console.warn('[CodingWebSocket] Connected successfully');
       if (onConnectedRef.current) {
         onConnectedRef.current((data: string) => ws.send(data));
       }
-      setStatus("connected");
+      setStatus('connected');
       wasConnectedRef.current = true;
       reconnectAttemptRef.current = 0;
       setReconnectAttempt(0);
@@ -116,21 +116,21 @@ export function useCodingWebSocket({
     };
 
     ws.onerror = (e) => {
-      console.error("[CodingWebSocket] Error:", e);
+      console.error('[CodingWebSocket] Error:', e);
     };
 
     ws.onclose = (e) => {
-      console.log("[CodingWebSocket] Closed:", e.code, e.reason);
+      console.warn('[CodingWebSocket] Closed:', e.code, e.reason);
       if (wsRef.current !== ws) return;
       wsRef.current = null;
 
       if (intentionalDisconnectRef.current) {
-        setStatus("disconnected");
+        setStatus('disconnected');
         return;
       }
 
       // Unexpected disconnect — enter reconnecting state and schedule retry
-      setStatus("reconnecting");
+      setStatus('reconnecting');
       scheduleReconnect();
     };
   }, [clearReconnectTimer, scheduleReconnect]);
@@ -160,7 +160,7 @@ export function useCodingWebSocket({
       wsRef.current.close();
       wsRef.current = null;
     }
-    setStatus("disconnected");
+    setStatus('disconnected');
   }, [clearReconnectTimer]);
 
   const send = useCallback((data: string) => {
@@ -197,10 +197,10 @@ export function useCodingWebSocket({
         wsRef.current.close();
         wsRef.current = null;
       }
-      setStatus("disconnected");
+      setStatus('disconnected');
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url]);
 
-  return { status, reconnectAttempt, connect, disconnect, send, manualReconnect };
+  return { connect, disconnect, manualReconnect, reconnectAttempt, send, status };
 }

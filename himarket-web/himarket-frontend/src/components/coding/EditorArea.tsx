@@ -1,23 +1,14 @@
-import { useState, useCallback, useEffect, useMemo } from "react";
-import {
-  Download,
-  FileBox,
-  Loader2,
-  RefreshCw,
-  Copy,
-  WrapText,
-  Check,
-} from "lucide-react";
-import { message } from "antd";
-import hljs from "highlight.js";
-import "highlight.js/styles/github.css";
-import type { OpenFile } from "../../types/coding";
-import { ImageRenderer } from "./renderers/ImageRenderer";
-import {
-  downloadWorkspaceFile,
-  getDefaultRuntime,
-} from "../../lib/utils/workspaceApi";
-import request from "../../lib/request";
+import { message } from 'antd';
+import hljs from 'highlight.js';
+import { Download, FileBox, Loader2, RefreshCw, Copy, WrapText, Check } from 'lucide-react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
+
+import 'highlight.js/styles/github.css';
+import { ImageRenderer } from './renderers/ImageRenderer';
+import request from '../../lib/request';
+import { downloadWorkspaceFile, getDefaultRuntime } from '../../lib/utils/workspaceApi';
+
+import type { OpenFile } from '../../types/coding';
 
 interface EditorAreaProps {
   openFiles: OpenFile[];
@@ -27,70 +18,67 @@ interface EditorAreaProps {
   onRefreshFile?: (path: string) => void;
 }
 
-const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "webp"]);
-const PDF_EXTENSIONS = new Set(["pdf"]);
+const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp']);
+const PDF_EXTENSIONS = new Set(['pdf']);
 const BINARY_DOWNLOAD_EXTENSIONS = new Set([
-  "pptx",
-  "ppt",
-  "docx",
-  "doc",
-  "xlsx",
-  "xls",
-  "zip",
-  "tar",
-  "gz",
-  "mp4",
-  "mov",
-  "mp3",
-  "wav",
+  'pptx',
+  'ppt',
+  'docx',
+  'doc',
+  'xlsx',
+  'xls',
+  'zip',
+  'tar',
+  'gz',
+  'mp4',
+  'mov',
+  'mp3',
+  'wav',
 ]);
 
 function getExt(fileName: string): string {
-  return fileName.split(".").pop()?.toLowerCase() ?? "";
+  return fileName.split('.').pop()?.toLowerCase() ?? '';
 }
 
 const EXT_LABELS: Record<string, string> = {
-  pptx: "PowerPoint",
-  ppt: "PowerPoint",
-  docx: "Word",
-  doc: "Word",
-  xlsx: "Excel",
-  xls: "Excel",
-  zip: "Archive",
-  tar: "Archive",
-  gz: "Archive",
-  mp4: "Video",
-  mov: "Video",
-  mp3: "Audio",
-  wav: "Audio",
+  doc: 'Word',
+  docx: 'Word',
+  gz: 'Archive',
+  mov: 'Video',
+  mp3: 'Audio',
+  mp4: 'Video',
+  ppt: 'PowerPoint',
+  pptx: 'PowerPoint',
+  tar: 'Archive',
+  wav: 'Audio',
+  xls: 'Excel',
+  xlsx: 'Excel',
+  zip: 'Archive',
 };
 
 const LANG_MAP: Record<string, string> = {
-  typescript: "typescript",
-  javascript: "javascript",
-  json: "json",
-  html: "xml",
-  css: "css",
-  scss: "scss",
-  less: "less",
-  markdown: "markdown",
-  python: "python",
-  java: "java",
-  xml: "xml",
-  yaml: "yaml",
-  shell: "bash",
-  sql: "sql",
-  go: "go",
-  rust: "rust",
-  toml: "ini",
-  plaintext: "plaintext",
+  css: 'css',
+  go: 'go',
+  html: 'xml',
+  java: 'java',
+  javascript: 'javascript',
+  json: 'json',
+  less: 'less',
+  markdown: 'markdown',
+  plaintext: 'plaintext',
+  python: 'python',
+  rust: 'rust',
+  scss: 'scss',
+  shell: 'bash',
+  sql: 'sql',
+  toml: 'ini',
+  typescript: 'typescript',
+  xml: 'xml',
+  yaml: 'yaml',
 };
 
 function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 // ===== PDF Preview =====
@@ -110,9 +98,9 @@ function PdfPreview({ file }: { file: OpenFile }) {
     if (rt) params.runtime = rt;
 
     request
-      .get("/workspace/download", {
+      .get('/workspace/download', {
         params,
-        responseType: "blob",
+        responseType: 'blob',
         timeout: 60000,
       })
       .then((resp: unknown) => {
@@ -121,7 +109,7 @@ function PdfPreview({ file }: { file: OpenFile }) {
         setBlobUrl(URL.createObjectURL(blob));
       })
       .catch((e: Error) => {
-        if (!cancelled) setError(e.message ?? "PDF 加载失败");
+        if (!cancelled) setError(e.message ?? 'PDF 加载失败');
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -129,7 +117,7 @@ function PdfPreview({ file }: { file: OpenFile }) {
 
     return () => {
       cancelled = true;
-      setBlobUrl(prev => {
+      setBlobUrl((prev) => {
         if (prev) URL.revokeObjectURL(prev);
         return null;
       });
@@ -139,7 +127,7 @@ function PdfPreview({ file }: { file: OpenFile }) {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full text-gray-400 text-sm gap-2">
-        <Loader2 size={16} className="animate-spin" />
+        <Loader2 className="animate-spin" size={16} />
         加载 PDF...
       </div>
     );
@@ -147,17 +135,11 @@ function PdfPreview({ file }: { file: OpenFile }) {
   if (error || !blobUrl) {
     return (
       <div className="flex items-center justify-center h-full text-sm text-gray-400">
-        PDF 预览失败：{error ?? "未知错误"}
+        PDF 预览失败：{error ?? '未知错误'}
       </div>
     );
   }
-  return (
-    <iframe
-      src={blobUrl}
-      className="w-full h-full border-none"
-      title="PDF Preview"
-    />
-  );
+  return <iframe className="w-full h-full border-none" src={blobUrl} title="PDF Preview" />;
 }
 
 // ===== Binary File Placeholder =====
@@ -170,11 +152,9 @@ function BinaryFilePlaceholder({ file }: { file: OpenFile }) {
   return (
     <div className="flex items-center justify-center h-full p-6">
       <div className="text-center space-y-3">
-        <FileBox size={48} className="mx-auto text-gray-300" />
+        <FileBox className="mx-auto text-gray-300" size={48} />
         <div>
-          <div className="text-sm font-medium text-gray-700">
-            {file.fileName}
-          </div>
+          <div className="text-sm font-medium text-gray-700">{file.fileName}</div>
           <div className="text-xs text-gray-400 mt-1">{label} 文件</div>
         </div>
         <button
@@ -194,8 +174,8 @@ function BinaryFilePlaceholder({ file }: { file: OpenFile }) {
 // ===== Syntax Highlighted Code =====
 
 const CODE_FONT = "'Menlo', 'Monaco', 'Courier New', monospace";
-const CODE_FONT_SIZE = "13px";
-const CODE_LINE_HEIGHT = "20px";
+const CODE_FONT_SIZE = '13px';
+const CODE_LINE_HEIGHT = '20px';
 
 function SyntaxHighlightedCode({
   content,
@@ -209,7 +189,7 @@ function SyntaxHighlightedCode({
   const highlighted = useMemo(() => {
     const lang = LANG_MAP[language] || language;
     try {
-      if (lang && lang !== "plaintext" && hljs.getLanguage(lang)) {
+      if (lang && lang !== 'plaintext' && hljs.getLanguage(lang)) {
         return hljs.highlight(content, { language: lang }).value;
       }
       return hljs.highlightAuto(content).value;
@@ -218,7 +198,7 @@ function SyntaxHighlightedCode({
     }
   }, [content, language]);
 
-  const lineCount = content.split("\n").length;
+  const lineCount = content.split('\n').length;
 
   return (
     <div className="flex-1 overflow-auto bg-white">
@@ -233,7 +213,7 @@ function SyntaxHighlightedCode({
           }}
         >
           {Array.from({ length: lineCount }, (_, i) => (
-            <div key={i} className="text-gray-300">
+            <div className="text-gray-300" key={i}>
               {i + 1}
             </div>
           ))}
@@ -245,14 +225,14 @@ function SyntaxHighlightedCode({
             fontFamily: CODE_FONT,
             fontSize: CODE_FONT_SIZE,
             lineHeight: CODE_LINE_HEIGHT,
-            whiteSpace: wordWrap ? "pre-wrap" : "pre",
-            wordBreak: wordWrap ? "break-all" : "normal",
+            whiteSpace: wordWrap ? 'pre-wrap' : 'pre',
+            wordBreak: wordWrap ? 'break-all' : 'normal',
           }}
         >
           <code
             className="hljs"
-            style={{ background: "transparent", padding: 0 }}
             dangerouslySetInnerHTML={{ __html: highlighted }}
+            style={{ background: 'transparent', padding: 0 }}
           />
         </pre>
       </div>
@@ -263,13 +243,13 @@ function SyntaxHighlightedCode({
 // ===== Code Header with Action Buttons =====
 
 function CodeHeader({
-  fileName,
-  onRefresh,
-  onCopy,
-  wordWrap,
-  onToggleWrap,
-  onDownload,
   copySuccess,
+  fileName,
+  onCopy,
+  onDownload,
+  onRefresh,
+  onToggleWrap,
+  wordWrap,
 }: {
   fileName: string;
   onRefresh?: () => void;
@@ -280,34 +260,24 @@ function CodeHeader({
   copySuccess: boolean;
 }) {
   const btnCls =
-    "w-7 h-7 flex items-center justify-center rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors";
+    'w-7 h-7 flex items-center justify-center rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors';
 
   return (
     <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200/60 bg-white flex-shrink-0">
-      <span className="text-sm text-gray-600 font-medium truncate">
-        {fileName}
-      </span>
+      <span className="text-sm text-gray-600 font-medium truncate">{fileName}</span>
       <div className="flex items-center gap-0.5">
         {onRefresh && (
           <button className={btnCls} onClick={onRefresh} title="刷新文件">
             <RefreshCw size={14} />
           </button>
         )}
-        <button
-          className={btnCls}
-          onClick={onCopy}
-          title={copySuccess ? "已复制" : "复制代码"}
-        >
-          {copySuccess ? (
-            <Check size={14} className="text-green-500" />
-          ) : (
-            <Copy size={14} />
-          )}
+        <button className={btnCls} onClick={onCopy} title={copySuccess ? '已复制' : '复制代码'}>
+          {copySuccess ? <Check className="text-green-500" size={14} /> : <Copy size={14} />}
         </button>
         <button
-          className={`${btnCls} ${wordWrap ? "text-blue-500 bg-blue-50" : ""}`}
+          className={`${btnCls} ${wordWrap ? 'text-blue-500 bg-blue-50' : ''}`}
           onClick={onToggleWrap}
-          title={wordWrap ? "取消换行" : "自动换行"}
+          title={wordWrap ? '取消换行' : '自动换行'}
         >
           <WrapText size={14} />
         </button>
@@ -321,25 +291,21 @@ function CodeHeader({
 
 // ===== Main Component =====
 
-export function EditorArea({
-  openFiles,
-  activeFilePath,
-  onRefreshFile,
-}: EditorAreaProps) {
+export function EditorArea({ activeFilePath, onRefreshFile, openFiles }: EditorAreaProps) {
   const [wordWrap, setWordWrap] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
 
-  const activeFile = openFiles.find(f => f.path === activeFilePath) ?? null;
+  const activeFile = openFiles.find((f) => f.path === activeFilePath) ?? null;
 
   const handleCopy = useCallback(async () => {
     if (!activeFile) return;
     try {
       await navigator.clipboard.writeText(activeFile.content);
       setCopySuccess(true);
-      message.success("已复制到剪贴板");
+      message.success('已复制到剪贴板');
       setTimeout(() => setCopySuccess(false), 2000);
     } catch {
-      message.error("复制失败");
+      message.error('复制失败');
     }
   }, [activeFile]);
 
@@ -372,13 +338,13 @@ export function EditorArea({
     <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
       {/* File header with action buttons */}
       <CodeHeader
-        fileName={activeFile.fileName}
-        onRefresh={onRefreshFile ? handleRefresh : undefined}
-        onCopy={handleCopy}
-        wordWrap={wordWrap}
-        onToggleWrap={() => setWordWrap(v => !v)}
-        onDownload={handleDownload}
         copySuccess={copySuccess}
+        fileName={activeFile.fileName}
+        onCopy={handleCopy}
+        onDownload={handleDownload}
+        onRefresh={onRefreshFile ? handleRefresh : undefined}
+        onToggleWrap={() => setWordWrap((v) => !v)}
+        wordWrap={wordWrap}
       />
 
       {/* Content */}
@@ -389,10 +355,7 @@ export function EditorArea({
           </div>
         ) : isImage ? (
           <div className="absolute inset-0">
-            <ImageRenderer
-              content={activeFile.content}
-              path={activeFile.path}
-            />
+            <ImageRenderer content={activeFile.content} path={activeFile.path} />
           </div>
         ) : isBinaryDownload ? (
           <div className="absolute inset-0">

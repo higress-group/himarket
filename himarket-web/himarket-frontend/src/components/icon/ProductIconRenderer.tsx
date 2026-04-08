@@ -1,4 +1,4 @@
-import { DefaultModel } from "./index";
+import { DefaultModel } from './index';
 
 interface ProductIconRendererProps {
   iconType?: string;
@@ -17,16 +17,19 @@ function isSingleChar(str: string): boolean {
 /**
  * 预定义的渐变背景色配置，确保字体颜色与背景搭配良好
  */
-const GRADIENT_COLORS = [
-  { bg: "from-blue-500 to-indigo-600", text: "text-white" },
-  { bg: "from-emerald-500 to-teal-600", text: "text-white" },
-  { bg: "from-violet-500 to-purple-600", text: "text-white" },
-  { bg: "from-rose-500 to-pink-600", text: "text-white" },
-  { bg: "from-amber-500 to-orange-600", text: "text-white" },
-  { bg: "from-cyan-500 to-sky-600", text: "text-white" },
-  { bg: "from-fuchsia-500 to-pink-600", text: "text-white" },
-  { bg: "from-lime-500 to-green-600", text: "text-white" },
+const GRADIENT_COLORS: { bg: string; text: string }[] = [
+  { bg: 'from-blue-500 to-indigo-600', text: 'text-white' },
+  { bg: 'from-emerald-500 to-teal-600', text: 'text-white' },
+  { bg: 'from-violet-500 to-purple-600', text: 'text-white' },
+  { bg: 'from-rose-500 to-pink-600', text: 'text-white' },
+  { bg: 'from-amber-500 to-orange-600', text: 'text-white' },
+  { bg: 'from-cyan-500 to-sky-600', text: 'text-white' },
+  { bg: 'from-fuchsia-500 to-pink-600', text: 'text-white' },
+  { bg: 'from-lime-500 to-green-600', text: 'text-white' },
 ];
+
+// Safe accessor: array is guaranteed non-empty (8 elements)
+const DEFAULT_COLOR = GRADIENT_COLORS[0] as { bg: string; text: string };
 
 /**
  * 根据字符获取固定的颜色索引（确保同一字符始终显示相同颜色）
@@ -36,29 +39,31 @@ const GRADIENT_COLORS = [
 function getColorByChar(char: string) {
   const code = char.charCodeAt(0);
   const index = code % GRADIENT_COLORS.length;
-  return GRADIENT_COLORS[index];
+  return GRADIENT_COLORS[index] ?? DEFAULT_COLOR;
 }
 
 /**
  * 通用的产品图标渲染组件
  * 支持：URL 图片、Base64 图片、首字母/首字、默认图标
  */
-export function ProductIconRenderer({ iconType, className = "w-4 h-4" }: ProductIconRendererProps) {
+export function ProductIconRenderer({ className = 'w-4 h-4', iconType }: ProductIconRendererProps) {
   // 如果是默认图标或空值
-  if (!iconType || iconType === "default") {
+  if (!iconType || iconType === 'default') {
     return <DefaultModel className={className} />;
   }
 
   // 如果是 URL 或 base64 图片
   if (iconType.startsWith('http') || iconType.startsWith('data:image')) {
-    return <img src={iconType} alt="icon" className={`${className} object-cover rounded`} />;
+    return <img alt="icon" className={`${className} object-cover rounded`} src={iconType} />;
   }
 
   // 如果是单个字符（首字母/首字），渲染文字图标
   if (isSingleChar(iconType)) {
     const colorConfig = getColorByChar(iconType);
     return (
-      <div className={`${className} flex items-center justify-center bg-gradient-to-br ${colorConfig.bg} ${colorConfig.text} font-bold rounded`}>
+      <div
+        className={`${className} flex items-center justify-center bg-gradient-to-br ${colorConfig.bg} ${colorConfig.text} font-bold rounded`}
+      >
         <span className="text-lg">{iconType}</span>
       </div>
     );

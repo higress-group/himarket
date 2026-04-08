@@ -1,48 +1,52 @@
-import React, { useEffect, useState } from 'react'
-import { Card, Spin, Button, Space } from 'antd'
-import { ReloadOutlined, DashboardOutlined } from '@ant-design/icons'
-import { portalApi } from '@/lib/api'
-import type { Portal } from '@/types'
+import { ReloadOutlined, DashboardOutlined } from '@ant-design/icons';
+import { Card, Spin, Button, Space } from 'antd';
+import React, { useEffect, useState } from 'react';
+
+import { portalApi } from '@/lib/api';
+import type { Portal } from '@/types';
 
 interface PortalDashboardProps {
-  portal: Portal
+  portal: Portal;
 }
 
 export const PortalDashboard: React.FC<PortalDashboardProps> = ({ portal }) => {
-  const [dashboardUrl, setDashboardUrl] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [fallback, setFallback] = useState(false)
+  const [dashboardUrl, setDashboardUrl] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [fallback, setFallback] = useState(false);
 
   const fetchDashboardUrl = async () => {
-    if (!portal.portalId) return
-    setLoading(true)
-    setError('')
+    if (!portal.portalId) return;
+    setLoading(true);
+    setError('');
     try {
-      const res = await portalApi.getPortalDashboard(portal.portalId, 'Portal')
+      const res = await portalApi.getPortalDashboard(portal.portalId, 'Portal');
       if (!res?.data) {
-        setFallback(true)
+        setFallback(true);
       } else {
-        setDashboardUrl(res.data)
+        setDashboardUrl(res.data);
       }
-    } catch (e: any) {
-      setError(e?.response?.data?.message || '获取监控面板失败')
-      setFallback(true)
+    } catch (err: unknown) {
+      const message = (err as { response?: { data?: { message?: string } } })?.response?.data
+        ?.message;
+      setError(message || '获取监控面板失败');
+      setFallback(true);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
-    fetchDashboardUrl()
-  }, [portal.portalId])
+    fetchDashboardUrl();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [portal.portalId]);
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <Spin size="large" />
       </div>
-    )
+    );
   }
 
   if (fallback || !dashboardUrl || error) {
@@ -52,10 +56,12 @@ export const PortalDashboard: React.FC<PortalDashboardProps> = ({ portal }) => {
           Dashboard 发布中，敬请期待
         </div>
         <div className="mt-4 text-right">
-          <Button onClick={fetchDashboardUrl} loading={loading}>刷新</Button>
+          <Button loading={loading} onClick={fetchDashboardUrl}>
+            刷新
+          </Button>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -69,23 +75,23 @@ export const PortalDashboard: React.FC<PortalDashboardProps> = ({ portal }) => {
           <p className="text-gray-500 mt-2">实时监控 {portal.name} 的访问与性能</p>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={fetchDashboardUrl} loading={loading}>刷新</Button>
+          <Button icon={<ReloadOutlined />} loading={loading} onClick={fetchDashboardUrl}>
+            刷新
+          </Button>
         </Space>
       </div>
 
-      <Card title="监控面板" className="w-full">
+      <Card className="w-full" title="监控面板">
         <div className="w-full h-[600px] border rounded-lg overflow-hidden">
           <iframe
+            className="w-full h-full border-0"
+            onError={() => setFallback(true)}
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
             src={dashboardUrl}
             title={`${portal.name} Dashboard`}
-            className="w-full h-full border-0"
-            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
-            onError={() => setFallback(true)}
           />
         </div>
       </Card>
     </div>
-  )
-}
-
-
+  );
+};

@@ -59,6 +59,8 @@ export function computeSteps(capabilities: ProviderCapabilities | null | undefin
 /**
  * 获取可见步骤列表
  */
-export function getVisibleSteps(capabilities: ProviderCapabilities | null | undefined): StepConfig[] {
-  return computeSteps(capabilities).filter(step => step.visible);
+export function getVisibleSteps(
+  capabilities: ProviderCapabilities | null | undefined,
+): StepConfig[] {
+  return computeSteps(capabilities).filter((step) => step.visible);
 }

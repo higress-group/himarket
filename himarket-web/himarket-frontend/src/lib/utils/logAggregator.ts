@@ -1,13 +1,14 @@
 // 日志聚合器：将流式 chunk 消息拼接为完整日志条目，非流式消息立即输出
 
-import type { RawMessageDirection } from '../../types/log';
-import type { AggregatedLogEntry, ChunkBuffer } from '../../types/log';
 import {
   isNotification,
   isSessionUpdateNotification,
   extractSessionUpdate,
 } from './codingProtocol';
+
 import type { CodingMessage, CodingNotification } from '../../types/coding-protocol';
+import type { RawMessageDirection } from '../../types/log';
+import type { AggregatedLogEntry, ChunkBuffer } from '../../types/log';
 
 /** 日志条目 ID 计数器 */
 let entryCounter = 0;
@@ -62,7 +63,7 @@ function generateSummary(data: unknown, method?: string): string {
  * 返回 chunk 类型和文本内容，如果不是流式 chunk 则返回 null
  */
 function extractChunkInfo(
-  data: unknown
+  data: unknown,
 ): { type: 'agent_message' | 'agent_thought'; sessionId: string; text: string } | null {
   // data 必须是 session/update 通知
   const msg = data as CodingMessage;
@@ -77,13 +78,13 @@ function extractChunkInfo(
     const content = (update as { update: { content?: { type: string; text?: string } } }).update
       .content;
     const text = content?.type === 'text' && content.text ? content.text : '';
-    return { type: 'agent_message', sessionId: update.sessionId, text };
+    return { sessionId: update.sessionId, text, type: 'agent_message' };
   }
 
   if (sessionUpdate === 'agent_thought_chunk') {
     const content = (update as { update: { content?: { text?: string } } }).update.content;
     const text = content?.text ?? '';
-    return { type: 'agent_thought', sessionId: update.sessionId, text };
+    return { sessionId: update.sessionId, text, type: 'agent_thought' };
   }
 
   return null;
@@ -153,23 +154,23 @@ export class LogAggregator {
     _direction: RawMessageDirection,
     data: unknown,
     chunkInfo: { type: 'agent_message' | 'agent_thought'; sessionId: string; text: string },
-    timestamp: number
+    timestamp: number,
   ): void {
     const bufferKey = `${chunkInfo.type}:${chunkInfo.sessionId}`;
 
     let buffer = this.buffers.get(bufferKey);
     if (!buffer) {
       buffer = {
-        type: chunkInfo.type,
+        chunks: [],
         sessionId: chunkInfo.sessionId,
         startTimestamp: timestamp,
-        chunks: [],
         textAccumulator: '',
+        type: chunkInfo.type,
       };
       this.buffers.set(bufferKey, buffer);
     }
 
-    buffer.chunks.push({ timestamp, data });
+    buffer.chunks.push({ data, timestamp });
     buffer.textAccumulator += chunkInfo.text;
   }
 
@@ -190,26 +191,28 @@ export class LogAggregator {
     if (buffer.chunks.length === 0) return;
 
     const lastChunk = buffer.chunks[buffer.chunks.length - 1];
+    if (!lastChunk) return;
     const method =
       buffer.type === 'agent_message'
         ? 'session/update [agent_message_chunk]'
         : 'session/update [agent_thought_chunk]';
 
     const entry: AggregatedLogEntry = {
-      id: generateEntryId(),
-      direction: 'agent_to_client',
-      timestamp: buffer.startTimestamp,
-      endTimestamp: lastChunk.timestamp,
-      method,
-      summary: buffer.textAccumulator.slice(0, 100) + (buffer.textAccumulator.length > 100 ? '...' : ''),
       data: {
-        type: buffer.type,
-        sessionId: buffer.sessionId,
-        fullText: buffer.textAccumulator,
         chunkCount: buffer.chunks.length,
+        fullText: buffer.textAccumulator,
+        sessionId: buffer.sessionId,
+        type: buffer.type,
       },
-      messageCount: buffer.chunks.length,
+      direction: 'agent_to_client',
+      endTimestamp: lastChunk.timestamp,
+      id: generateEntryId(),
       isAggregated: true,
+      messageCount: buffer.chunks.length,
+      method,
+      summary:
+        buffer.textAccumulator.slice(0, 100) + (buffer.textAccumulator.length > 100 ? '...' : ''),
+      timestamp: buffer.startTimestamp,
     };
 
     this.onEntry?.(entry);
@@ -223,16 +226,16 @@ export class LogAggregator {
     const rpcId = extractRpcId(data);
 
     const entry: AggregatedLogEntry = {
-      id: generateEntryId(),
+      data,
       direction,
-      timestamp,
       endTimestamp: timestamp,
+      id: generateEntryId(),
+      isAggregated: false,
+      messageCount: 1,
       method,
       rpcId,
       summary: generateSummary(data, method),
-      data,
-      messageCount: 1,
-      isAggregated: false,
+      timestamp,
     };
 
     this.onEntry?.(entry);

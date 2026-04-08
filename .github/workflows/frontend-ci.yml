@@ -35,7 +35,7 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Check for file changes
         uses: dorny/paths-filter@v3
         id: filter
@@ -46,7 +46,7 @@ jobs:
             admin:
               - 'himarket-web/himarket-admin/**'
 
-  # Frontend Build Check
+  # Frontend: Prettier, ESLint, production build, artifact verification
   himarket-frontend-build:
     name: Frontend - Build Check
     runs-on: ubuntu-latest
@@ -71,6 +71,20 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps  # Using legacy-peer-deps to handle React 19 compatibility
 
+      - name: Check code formatting
+        run: npm run format:check
+        continue-on-error: false
+
+      - name: Run ESLint
+        run: npm run lint
+        continue-on-error: false
+
+      - name: Type Check
+        run: npm run type-check
+
+      - name: Run tests
+        run: npm run test
+
       - name: Build project
         run: npm run build
         env:
@@ -82,12 +96,12 @@ jobs:
             echo "❌ Build failed: dist directory does not exist"
             exit 1
           fi
-          
+
           if [ ! -f "dist/index.html" ]; then
             echo "❌ Build failed: dist/index.html does not exist"
             exit 1
           fi
-          
+
           echo "✅ Build artifacts verified"
 
       - name: Upload build artifacts
@@ -98,7 +112,7 @@ jobs:
           path: himarket-web/himarket-frontend/dist/
           retention-days: 7
 
-  # Admin Build Check
+  # Admin: Prettier, ESLint, production build, artifact verification
   himarket-admin-build:
     name: Admin - Build Check
     runs-on: ubuntu-latest
@@ -122,6 +136,17 @@ jobs:
 
       - name: Install dependencies
         run: npm install --legacy-peer-deps  # Using legacy-peer-deps to handle React 19 compatibility
+
+      - name: Check code formatting
+        run: npm run format:check
+        continue-on-error: false
+
+      - name: Run ESLint
+        run: npm run lint
+        continue-on-error: false
+
+      - name: Type Check
+        run: npm run type-check
 
       - name: Build project
         run: npm run build
@@ -150,7 +175,7 @@ jobs:
           path: himarket-web/himarket-admin/dist/
           retention-days: 7
 
-  # Summary of all check results
+  # Summary of all check results (format, lint, build per changed package)
   frontend-ci-summary:
     name: Frontend CI Summary
     runs-on: ubuntu-latest
@@ -189,10 +214,9 @@ jobs:
             summary += '\n---\n\n';
             
             if (allPassed) {
-              summary += '🎉 **All required checks passed!** Your PR builds successfully.\n\n';
-              summary += '💡 **Note:** Code quality checks (ESLint, TypeScript) run in a separate workflow.\n';
+              summary += '🎉 **All required checks passed!** Your PR meets formatting, lint, and build requirements.\n\n';
             } else {
-              summary += '⚠️ **Some required checks failed**. Please fix the build errors.\n';
+              summary += '⚠️ **Some required checks failed**. Please fix the errors (format, lint, or build).\n';
               if (hasSkipped) {
                 summary += '\n📝 _Note: Some checks were skipped because no related files were changed._\n';
               }

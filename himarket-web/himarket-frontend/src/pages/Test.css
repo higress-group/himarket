@@ -94,7 +94,6 @@
   animation: light 2s infinite linear;
 }
 
-
 /* 蓝色流光效果 */
 .text-flow-blue {
   background-image: linear-gradient(
@@ -190,14 +189,14 @@
   .test-container {
     padding: 1rem;
   }
-  
+
   .text-flow {
     font-size: 1.5rem;
     margin: 0 0.5rem;
   }
-  
+
   .text-flow-container.large .text-flow {
     font-size: 2.5rem;
     margin: 0 1rem;
   }
-} 
+}

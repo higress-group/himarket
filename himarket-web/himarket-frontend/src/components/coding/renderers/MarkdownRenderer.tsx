@@ -1,6 +1,6 @@
-import Markdown from "react-markdown";
-import rehypeHighlight from "rehype-highlight";
-import remarkGfm from "remark-gfm";
+import Markdown from 'react-markdown';
+import rehypeHighlight from 'rehype-highlight';
+import remarkGfm from 'remark-gfm';
 
 interface MarkdownRendererProps {
   content: string;
@@ -15,7 +15,7 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
                    prose-code:text-gray-700 prose-code:before:content-none prose-code:after:content-none
                    prose-headings:text-gray-800 prose-a:text-blue-600"
       >
-        <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
+        <Markdown rehypePlugins={[rehypeHighlight]} remarkPlugins={[remarkGfm]}>
           {content}
         </Markdown>
       </div>

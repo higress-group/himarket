@@ -1,38 +1,26 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-import React, { useState, useEffect, useRef } from "react";
+import { Form, DatePicker, Select, Button, Card, Row, Col, Table, message } from 'antd';
+import * as echarts from 'echarts';
+import React, { useState, useEffect, useRef } from 'react';
+
+import slsApi from '../lib/slsApi';
+import { ModelScenarios } from '../types/sls';
 import {
-  Form,
-  DatePicker,
-  Select,
-  Button,
-  Card,
-  Row,
-  Col,
-  Table,
-  message,
-} from "antd";
-import * as echarts from "echarts";
-import { Dayjs } from "dayjs";
-import slsApi from "../lib/slsApi";
-import {
-  SlsQueryRequest,
-  ModelScenarios,
-  QueryInterval,
-  ScenarioQueryResponse,
-} from "../types/sls";
+  generateMultiLineChartOption,
+  generateLineChartOption,
+  generateEmptyChartOption,
+  generateTableColumns,
+} from '../utils/chartUtils';
 import {
   formatDatetimeLocal,
   rangePresets,
   getTimeRangeLabel,
   formatNumber,
   DATETIME_FORMAT,
-} from "../utils/dateTimeUtils";
-import {
-  generateMultiLineChartOption,
-  generateLineChartOption,
-  generateEmptyChartOption,
-  generateTableColumns,
-} from "../utils/chartUtils";
+} from '../utils/dateTimeUtils';
+
+import type { SlsQueryRequest, QueryInterval, ScenarioQueryResponse } from '../types/sls';
+import type { Dayjs } from 'dayjs';
 
 const { RangePicker } = DatePicker;
 
@@ -42,26 +30,26 @@ const { RangePicker } = DatePicker;
 const ModelDashboard: React.FC = () => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
-  const [timeRangeLabel, setTimeRangeLabel] = useState("");
+  const [timeRangeLabel, setTimeRangeLabel] = useState('');
 
   // 过滤选项状态
   const [filterOptions, setFilterOptions] = useState({
-    clusterIds: [] as string[],
     apis: [] as string[],
+    clusterIds: [] as string[],
+    consumers: [] as string[],
     models: [] as string[],
     routes: [] as string[],
     services: [] as string[],
-    consumers: [] as string[],
   });
 
   // KPI数据状态
   const [kpiData, setKpiData] = useState({
-    pv: "-",
-    uv: "-",
-    fallbackCount: "-",
-    inputToken: "-",
-    outputToken: "-",
-    totalToken: "-",
+    fallbackCount: '-',
+    inputToken: '-',
+    outputToken: '-',
+    pv: '-',
+    totalToken: '-',
+    uv: '-',
   });
 
   // 定义表格数据值的联合类型，避免使用 any
@@ -69,13 +57,13 @@ const ModelDashboard: React.FC = () => {
 
   // 表格数据状态
   const [tableData, setTableData] = useState({
-    modelToken: [] as Record<string, TableValue>[],
     consumerToken: [] as Record<string, TableValue>[],
-    serviceToken: [] as Record<string, TableValue>[],
     errorRequests: [] as Record<string, TableValue>[],
+    modelToken: [] as Record<string, TableValue>[],
     ratelimitedConsumer: [] as Record<string, TableValue>[],
-    riskLabel: [] as Record<string, TableValue>[],
     riskConsumer: [] as Record<string, TableValue>[],
+    riskLabel: [] as Record<string, TableValue>[],
+    serviceToken: [] as Record<string, TableValue>[],
   });
 
   // ECharts实例引用
@@ -99,22 +87,16 @@ const ModelDashboard: React.FC = () => {
       qpsChartInstance.current = echarts.init(qpsChartRef.current);
     }
     if (successRateChartRef.current) {
-      successRateChartInstance.current = echarts.init(
-        successRateChartRef.current
-      );
+      successRateChartInstance.current = echarts.init(successRateChartRef.current);
     }
     if (tokenPerSecChartRef.current) {
-      tokenPerSecChartInstance.current = echarts.init(
-        tokenPerSecChartRef.current
-      );
+      tokenPerSecChartInstance.current = echarts.init(tokenPerSecChartRef.current);
     }
     if (rtChartRef.current) {
       rtChartInstance.current = echarts.init(rtChartRef.current);
     }
     if (ratelimitedChartRef.current) {
-      ratelimitedChartInstance.current = echarts.init(
-        ratelimitedChartRef.current
-      );
+      ratelimitedChartInstance.current = echarts.init(ratelimitedChartRef.current);
     }
     if (cacheChartRef.current) {
       cacheChartInstance.current = echarts.init(cacheChartRef.current);
@@ -133,60 +115,43 @@ const ModelDashboard: React.FC = () => {
 
   // 初始化默认值
   useEffect(() => {
-    const [start, end] =
-      rangePresets.find(p => p.label === "最近1周")?.value || [];
+    const [start, end] = rangePresets.find((p) => p.label === '最近1周')?.value || [];
     form.setFieldsValue({
-      timeRange: [start, end],
       interval: 15,
+      timeRange: [start, end],
     });
     // 自动触发一次查询
     handleQuery();
   }, []);
 
   // 加载过滤选项
-  const loadFilterOptions = async (
-    startTime: string,
-    endTime: string,
-    interval: QueryInterval
-  ) => {
+  const loadFilterOptions = async (startTime: string, endTime: string, interval: QueryInterval) => {
     try {
-      const options = await slsApi.fetchModelFilterOptions(
-        startTime,
-        endTime,
-        interval
-      );
+      const options = await slsApi.fetchModelFilterOptions(startTime, endTime, interval);
       setFilterOptions({
-        clusterIds: options.cluster_id || [],
         apis: options.api || [],
+        clusterIds: options.cluster_id || [],
+        consumers: options.consumer || [],
         models: options.model || [],
         routes: options.route || [],
         services: options.service || [],
-        consumers: options.consumer || [],
       });
     } catch (error) {
-      console.error("加载过滤选项失败:", error);
+      console.error('加载过滤选项失败:', error);
     }
   };
 
   // 监听时间范围变化
-  const handleTimeRangeChange = (
-    dates: [Dayjs | null, Dayjs | null] | null
-  ) => {
+  const handleTimeRangeChange = (dates: [Dayjs | null, Dayjs | null] | null) => {
     if (dates && dates.length === 2 && dates[0] && dates[1]) {
       const [start, end] = dates;
-      const interval = form.getFieldValue("interval") || 15;
-      loadFilterOptions(
-        formatDatetimeLocal(start),
-        formatDatetimeLocal(end),
-        interval
-      );
+      const interval = form.getFieldValue('interval') || 15;
+      loadFilterOptions(formatDatetimeLocal(start), formatDatetimeLocal(end), interval);
     }
   };
 
   // 查询KPI数据
-  const queryKpiData = async (
-    baseParams: Omit<SlsQueryRequest, "scenario">
-  ) => {
+  const queryKpiData = async (baseParams: Omit<SlsQueryRequest, 'scenario'>) => {
     try {
       const kpiScenarios = [
         ModelScenarios.PV,
@@ -197,7 +162,7 @@ const ModelDashboard: React.FC = () => {
         ModelScenarios.TOKEN_TOTAL,
       ];
 
-      const requests = kpiScenarios.map(scenario => ({
+      const requests = kpiScenarios.map((scenario) => ({
         ...baseParams,
         scenario,
       }));
@@ -205,32 +170,29 @@ const ModelDashboard: React.FC = () => {
       const responses = await slsApi.batchQueryStatistics(requests);
 
       const getValue = (response: ScenarioQueryResponse, key: string) => {
-        if (response.type === "CARD" && response.stats) {
-          const stat = response.stats.find(
-            (s: { key: string; value: string }) => s.key === key
-          );
-          return stat ? formatNumber(stat.value) : "-";
+        if (response.type === 'CARD' && response.stats) {
+          const stat = response.stats.find((s: { key: string; value: string }) => s.key === key);
+          return stat ? formatNumber(stat.value) : '-';
         }
-        return "-";
+        return '-';
       };
 
+      const [r0, r1, r2, r3, r4, r5] = responses;
       setKpiData({
-        pv: getValue(responses[0], "pv"),
-        uv: getValue(responses[1], "uv"),
-        fallbackCount: getValue(responses[2], "cnt"),
-        inputToken: getValue(responses[3], "input_token"),
-        outputToken: getValue(responses[4], "output_token"),
-        totalToken: getValue(responses[5], "token"),
+        fallbackCount: r2 !== undefined ? getValue(r2, 'cnt') : '-',
+        inputToken: r3 !== undefined ? getValue(r3, 'input_token') : '-',
+        outputToken: r4 !== undefined ? getValue(r4, 'output_token') : '-',
+        pv: r0 !== undefined ? getValue(r0, 'pv') : '-',
+        totalToken: r5 !== undefined ? getValue(r5, 'token') : '-',
+        uv: r1 !== undefined ? getValue(r1, 'uv') : '-',
       });
     } catch (error) {
-      console.error("查询KPI数据失败:", error);
+      console.error('查询KPI数据失败:', error);
     }
   };
 
   // 查询图表数据
-  const queryChartData = async (
-    baseParams: Omit<SlsQueryRequest, "scenario">
-  ) => {
+  const queryChartData = async (baseParams: Omit<SlsQueryRequest, 'scenario'>) => {
     try {
       // QPS趋势图
       const qpsResponses = await slsApi.batchQueryStatistics([
@@ -241,22 +203,22 @@ const ModelDashboard: React.FC = () => {
 
       const qpsSeries = [
         {
-          name: "流式QPS",
-          dataPoints: qpsResponses[0].timeSeries?.dataPoints || [],
+          dataPoints: qpsResponses[0]?.timeSeries?.dataPoints || [],
+          name: '流式QPS',
         },
         {
-          name: "请求QPS",
-          dataPoints: qpsResponses[1].timeSeries?.dataPoints || [],
+          dataPoints: qpsResponses[1]?.timeSeries?.dataPoints || [],
+          name: '请求QPS',
         },
         {
-          name: "总QPS",
-          dataPoints: qpsResponses[2].timeSeries?.dataPoints || [],
+          dataPoints: qpsResponses[2]?.timeSeries?.dataPoints || [],
+          name: '总QPS',
         },
       ];
 
       if (qpsChartInstance.current) {
         const option =
-          qpsSeries[0].dataPoints.length > 0
+          (qpsSeries[0]?.dataPoints.length ?? 0) > 0
             ? generateMultiLineChartOption(qpsSeries)
             : generateEmptyChartOption();
         qpsChartInstance.current.setOption(option, true);
@@ -274,7 +236,7 @@ const ModelDashboard: React.FC = () => {
           dataPoints.length > 0
             ? generateLineChartOption(dataPoints, {
                 isPercentage: true,
-                seriesName: "成功率",
+                seriesName: '成功率',
               })
             : generateEmptyChartOption();
         successRateChartInstance.current.setOption(option, true);
@@ -289,22 +251,22 @@ const ModelDashboard: React.FC = () => {
 
       const tokenSeries = [
         {
-          name: "输入token/s",
-          dataPoints: tokenPerSecResponses[0].timeSeries?.dataPoints || [],
+          dataPoints: tokenPerSecResponses[0]?.timeSeries?.dataPoints || [],
+          name: '输入token/s',
         },
         {
-          name: "输出token/s",
-          dataPoints: tokenPerSecResponses[1].timeSeries?.dataPoints || [],
+          dataPoints: tokenPerSecResponses[1]?.timeSeries?.dataPoints || [],
+          name: '输出token/s',
         },
         {
-          name: "总token/s",
-          dataPoints: tokenPerSecResponses[2].timeSeries?.dataPoints || [],
+          dataPoints: tokenPerSecResponses[2]?.timeSeries?.dataPoints || [],
+          name: '总token/s',
         },
       ];
 
       if (tokenPerSecChartInstance.current) {
         const option =
-          tokenSeries[0].dataPoints.length > 0
+          (tokenSeries[0]?.dataPoints.length ?? 0) > 0
             ? generateMultiLineChartOption(tokenSeries)
             : generateEmptyChartOption();
         tokenPerSecChartInstance.current.setOption(option, true);
@@ -320,26 +282,26 @@ const ModelDashboard: React.FC = () => {
 
       const rtSeries = [
         {
-          name: "整体RT",
-          dataPoints: rtResponses[0].timeSeries?.dataPoints || [],
+          dataPoints: rtResponses[0]?.timeSeries?.dataPoints || [],
+          name: '整体RT',
         },
         {
-          name: "流式RT",
-          dataPoints: rtResponses[1].timeSeries?.dataPoints || [],
+          dataPoints: rtResponses[1]?.timeSeries?.dataPoints || [],
+          name: '流式RT',
         },
         {
-          name: "非流式RT",
-          dataPoints: rtResponses[2].timeSeries?.dataPoints || [],
+          dataPoints: rtResponses[2]?.timeSeries?.dataPoints || [],
+          name: '非流式RT',
         },
         {
-          name: "首包RT",
-          dataPoints: rtResponses[3].timeSeries?.dataPoints || [],
+          dataPoints: rtResponses[3]?.timeSeries?.dataPoints || [],
+          name: '首包RT',
         },
       ];
 
       if (rtChartInstance.current) {
         const option =
-          rtSeries[0].dataPoints.length > 0
+          (rtSeries[0]?.dataPoints.length ?? 0) > 0
             ? generateMultiLineChartOption(rtSeries)
             : generateEmptyChartOption();
         rtChartInstance.current.setOption(option, true);
@@ -355,7 +317,7 @@ const ModelDashboard: React.FC = () => {
         const dataPoints = ratelimitedResponse.timeSeries?.dataPoints || [];
         const option =
           dataPoints.length > 0
-            ? generateLineChartOption(dataPoints, { seriesName: "限流请求数" })
+            ? generateLineChartOption(dataPoints, { seriesName: '限流请求数' })
             : generateEmptyChartOption();
         ratelimitedChartInstance.current.setOption(option, true);
       }
@@ -369,35 +331,33 @@ const ModelDashboard: React.FC = () => {
 
       const cacheSeries = [
         {
-          name: "命中",
-          dataPoints: cacheResponses[0].timeSeries?.dataPoints || [],
+          dataPoints: cacheResponses[0]?.timeSeries?.dataPoints || [],
+          name: '命中',
         },
         {
-          name: "未命中",
-          dataPoints: cacheResponses[1].timeSeries?.dataPoints || [],
+          dataPoints: cacheResponses[1]?.timeSeries?.dataPoints || [],
+          name: '未命中',
         },
         {
-          name: "跳过",
-          dataPoints: cacheResponses[2].timeSeries?.dataPoints || [],
+          dataPoints: cacheResponses[2]?.timeSeries?.dataPoints || [],
+          name: '跳过',
         },
       ];
 
       if (cacheChartInstance.current) {
         const option =
-          cacheSeries[0].dataPoints.length > 0
+          (cacheSeries[0]?.dataPoints.length ?? 0) > 0
             ? generateMultiLineChartOption(cacheSeries)
             : generateEmptyChartOption();
         cacheChartInstance.current.setOption(option, true);
       }
     } catch (error) {
-      console.error("查询图表数据失败:", error);
+      console.error('查询图表数据失败:', error);
     }
   };
 
   // 查询表格数据
-  const queryTableData = async (
-    baseParams: Omit<SlsQueryRequest, "scenario">
-  ) => {
+  const queryTableData = async (baseParams: Omit<SlsQueryRequest, 'scenario'>) => {
     try {
       const tableScenarios = [
         ModelScenarios.MODEL_TOKEN_TABLE,
@@ -409,7 +369,7 @@ const ModelDashboard: React.FC = () => {
         ModelScenarios.RISK_CONSUMER_TABLE,
       ];
 
-      const requests = tableScenarios.map(scenario => ({
+      const requests = tableScenarios.map((scenario) => ({
         ...baseParams,
         scenario,
       }));
@@ -417,31 +377,16 @@ const ModelDashboard: React.FC = () => {
       const responses = await slsApi.batchQueryStatistics(requests);
 
       setTableData({
-        modelToken: (responses[0].table || []) as Record<string, TableValue>[],
-        consumerToken: (responses[1].table || []) as Record<
-          string,
-          TableValue
-        >[],
-        serviceToken: (responses[2].table || []) as Record<
-          string,
-          TableValue
-        >[],
-        errorRequests: (responses[3].table || []) as Record<
-          string,
-          TableValue
-        >[],
-        ratelimitedConsumer: (responses[4].table || []) as Record<
-          string,
-          TableValue
-        >[],
-        riskLabel: (responses[5].table || []) as Record<string, TableValue>[],
-        riskConsumer: (responses[6].table || []) as Record<
-          string,
-          TableValue
-        >[],
+        consumerToken: (responses[1]?.table || []) as Record<string, TableValue>[],
+        errorRequests: (responses[3]?.table || []) as Record<string, TableValue>[],
+        modelToken: (responses[0]?.table || []) as Record<string, TableValue>[],
+        ratelimitedConsumer: (responses[4]?.table || []) as Record<string, TableValue>[],
+        riskConsumer: (responses[6]?.table || []) as Record<string, TableValue>[],
+        riskLabel: (responses[5]?.table || []) as Record<string, TableValue>[],
+        serviceToken: (responses[2]?.table || []) as Record<string, TableValue>[],
       });
     } catch (error) {
-      console.error("查询表格数据失败:", error);
+      console.error('查询表格数据失败:', error);
     }
   };
 
@@ -450,19 +395,10 @@ const ModelDashboard: React.FC = () => {
     try {
       await form.validateFields();
       const values = form.getFieldsValue();
-      const {
-        timeRange,
-        interval,
-        cluster_id,
-        api,
-        model,
-        route,
-        service,
-        consumer,
-      } = values;
+      const { api, cluster_id, consumer, interval, model, route, service, timeRange } = values;
 
       if (!timeRange || timeRange.length !== 2) {
-        message.warning("请选择时间范围");
+        message.warning('请选择时间范围');
         return;
       }
 
@@ -475,17 +411,17 @@ const ModelDashboard: React.FC = () => {
       // 设置时间范围标签
       setTimeRangeLabel(getTimeRangeLabel(startTimeStr, endTimeStr));
 
-      const baseParams: Omit<SlsQueryRequest, "scenario"> = {
-        startTime: startTimeStr,
+      const baseParams: Omit<SlsQueryRequest, 'scenario'> = {
+        api,
+        bizType: 'MODEL_API',
+        cluster_id,
+        consumer,
         endTime: endTimeStr,
         interval: interval || 15,
-        bizType: "MODEL_API",
-        cluster_id,
-        api,
         model,
         route,
         service,
-        consumer,
+        startTime: startTimeStr,
       };
 
       // 并发查询所有数据
@@ -498,9 +434,9 @@ const ModelDashboard: React.FC = () => {
       // 查询成功后刷新过滤选项
       await loadFilterOptions(startTimeStr, endTimeStr, interval || 15);
 
-      message.success("查询成功");
+      message.success('查询成功');
     } catch (error) {
-      console.error("查询失败:", error);
+      console.error('查询失败:', error);
     } finally {
       setLoading(false);
     }
@@ -509,23 +445,23 @@ const ModelDashboard: React.FC = () => {
   // 重置按钮处理
   const handleReset = () => {
     form.resetFields();
-    setTimeRangeLabel("");
+    setTimeRangeLabel('');
     setKpiData({
-      pv: "-",
-      uv: "-",
-      fallbackCount: "-",
-      inputToken: "-",
-      outputToken: "-",
-      totalToken: "-",
+      fallbackCount: '-',
+      inputToken: '-',
+      outputToken: '-',
+      pv: '-',
+      totalToken: '-',
+      uv: '-',
     });
     setTableData({
-      modelToken: [],
       consumerToken: [],
-      serviceToken: [],
       errorRequests: [],
+      modelToken: [],
       ratelimitedConsumer: [],
-      riskLabel: [],
       riskConsumer: [],
+      riskLabel: [],
+      serviceToken: [],
     });
 
     // 清空图表
@@ -547,22 +483,22 @@ const ModelDashboard: React.FC = () => {
           <Row gutter={16}>
             <Col flex="350px">
               <Form.Item
-                name="timeRange"
                 label="时间范围"
-                rules={[{ required: true, message: "请选择时间范围" }]}
+                name="timeRange"
+                rules={[{ message: '请选择时间范围', required: true }]}
               >
                 <RangePicker
-                  showTime
                   format={DATETIME_FORMAT}
-                  presets={rangePresets}
                   onChange={handleTimeRangeChange}
-                  style={{ width: "100%" }}
+                  presets={rangePresets}
+                  showTime
+                  style={{ width: '100%' }}
                 />
               </Form.Item>
             </Col>
             <Col flex="180px">
-              <Form.Item name="interval" label="查询粒度">
-                <Select style={{ width: "100%" }}>
+              <Form.Item label="查询粒度" name="interval">
+                <Select style={{ width: '100%' }}>
                   <Select.Option value={1}>1秒</Select.Option>
                   <Select.Option value={15}>15秒</Select.Option>
                   <Select.Option value={60}>60秒</Select.Option>
@@ -573,41 +509,41 @@ const ModelDashboard: React.FC = () => {
 
           <Row gutter={16}>
             <Col span={8}>
-              <Form.Item name="cluster_id" label="实例ID">
+              <Form.Item label="实例ID" name="cluster_id">
                 <Select
                   mode="tags"
-                  placeholder="请选择"
-                  style={{ width: "100%" }}
-                  options={filterOptions.clusterIds.map(v => ({
+                  options={filterOptions.clusterIds.map((v) => ({
                     label: v,
                     value: v,
                   }))}
+                  placeholder="请选择"
+                  style={{ width: '100%' }}
                 />
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item name="api" label="API">
+              <Form.Item label="API" name="api">
                 <Select
                   mode="tags"
-                  placeholder="请选择"
-                  style={{ width: "100%" }}
-                  options={filterOptions.apis.map(v => ({
+                  options={filterOptions.apis.map((v) => ({
                     label: v,
                     value: v,
                   }))}
+                  placeholder="请选择"
+                  style={{ width: '100%' }}
                 />
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item name="model" label="模型">
+              <Form.Item label="模型" name="model">
                 <Select
                   mode="tags"
-                  placeholder="请选择"
-                  style={{ width: "100%" }}
-                  options={filterOptions.models.map(v => ({
+                  options={filterOptions.models.map((v) => ({
                     label: v,
                     value: v,
                   }))}
+                  placeholder="请选择"
+                  style={{ width: '100%' }}
                 />
               </Form.Item>
             </Col>
@@ -615,41 +551,41 @@ const ModelDashboard: React.FC = () => {
 
           <Row gutter={16}>
             <Col span={8}>
-              <Form.Item name="consumer" label="消费者">
+              <Form.Item label="消费者" name="consumer">
                 <Select
                   mode="tags"
-                  placeholder="请选择"
-                  style={{ width: "100%" }}
-                  options={filterOptions.consumers.map(v => ({
+                  options={filterOptions.consumers.map((v) => ({
                     label: v,
                     value: v,
                   }))}
+                  placeholder="请选择"
+                  style={{ width: '100%' }}
                 />
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item name="route" label="路由">
+              <Form.Item label="路由" name="route">
                 <Select
                   mode="tags"
-                  placeholder="请选择"
-                  style={{ width: "100%" }}
-                  options={filterOptions.routes.map(v => ({
+                  options={filterOptions.routes.map((v) => ({
                     label: v,
                     value: v,
                   }))}
+                  placeholder="请选择"
+                  style={{ width: '100%' }}
                 />
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item name="service" label="服务">
+              <Form.Item label="服务" name="service">
                 <Select
                   mode="tags"
-                  placeholder="请选择"
-                  style={{ width: "100%" }}
-                  options={filterOptions.services.map(v => ({
+                  options={filterOptions.services.map((v) => ({
                     label: v,
                     value: v,
                   }))}
+                  placeholder="请选择"
+                  style={{ width: '100%' }}
                 />
               </Form.Item>
             </Col>
@@ -658,7 +594,7 @@ const ModelDashboard: React.FC = () => {
           <Row>
             <Col span={24}>
               <Form.Item>
-                <Button type="primary" onClick={handleQuery} loading={loading}>
+                <Button loading={loading} onClick={handleQuery} type="primary">
                   查询
                 </Button>
                 <Button onClick={handleReset} style={{ marginLeft: 8 }}>
@@ -671,14 +607,12 @@ const ModelDashboard: React.FC = () => {
       </Card>
 
       {/* KPI统计卡片 */}
-      <Row gutter={16} className="mb-6">
+      <Row className="mb-6" gutter={16}>
         <Col span={4}>
           <Card>
             <div className="flex justify-between items-center mb-2">
               <div className="text-sm text-gray-500">PV</div>
-              {timeRangeLabel && (
-                <span className="text-xs text-gray-400">{timeRangeLabel}</span>
-              )}
+              {timeRangeLabel && <span className="text-xs text-gray-400">{timeRangeLabel}</span>}
             </div>
             <div className="text-center text-2xl font-medium">{kpiData.pv}</div>
           </Card>
@@ -687,9 +621,7 @@ const ModelDashboard: React.FC = () => {
           <Card>
             <div className="flex justify-between items-center mb-2">
               <div className="text-sm text-gray-500">UV</div>
-              {timeRangeLabel && (
-                <span className="text-xs text-gray-400">{timeRangeLabel}</span>
-              )}
+              {timeRangeLabel && <span className="text-xs text-gray-400">{timeRangeLabel}</span>}
             </div>
             <div className="text-center text-2xl font-medium">{kpiData.uv}</div>
           </Card>
@@ -698,132 +630,104 @@ const ModelDashboard: React.FC = () => {
           <Card>
             <div className="flex justify-between items-center mb-2">
               <div className="text-sm text-gray-500">Fallback请求数</div>
-              {timeRangeLabel && (
-                <span className="text-xs text-gray-400">{timeRangeLabel}</span>
-              )}
+              {timeRangeLabel && <span className="text-xs text-gray-400">{timeRangeLabel}</span>}
             </div>
-            <div className="text-center text-2xl font-medium">
-              {kpiData.fallbackCount}
-            </div>
+            <div className="text-center text-2xl font-medium">{kpiData.fallbackCount}</div>
           </Card>
         </Col>
         <Col span={4}>
           <Card>
             <div className="flex justify-between items-center mb-2">
               <div className="text-sm text-gray-500">输入Token数</div>
-              {timeRangeLabel && (
-                <span className="text-xs text-gray-400">{timeRangeLabel}</span>
-              )}
+              {timeRangeLabel && <span className="text-xs text-gray-400">{timeRangeLabel}</span>}
             </div>
-            <div className="text-center text-2xl font-medium">
-              {kpiData.inputToken}
-            </div>
+            <div className="text-center text-2xl font-medium">{kpiData.inputToken}</div>
           </Card>
         </Col>
         <Col span={4}>
           <Card>
             <div className="flex justify-between items-center mb-2">
               <div className="text-sm text-gray-500">输出Token数</div>
-              {timeRangeLabel && (
-                <span className="text-xs text-gray-400">{timeRangeLabel}</span>
-              )}
+              {timeRangeLabel && <span className="text-xs text-gray-400">{timeRangeLabel}</span>}
             </div>
-            <div className="text-center text-2xl font-medium">
-              {kpiData.outputToken}
-            </div>
+            <div className="text-center text-2xl font-medium">{kpiData.outputToken}</div>
           </Card>
         </Col>
         <Col span={4}>
           <Card>
             <div className="flex justify-between items-center mb-2">
               <div className="text-sm text-gray-500">Token总数</div>
-              {timeRangeLabel && (
-                <span className="text-xs text-gray-400">{timeRangeLabel}</span>
-              )}
+              {timeRangeLabel && <span className="text-xs text-gray-400">{timeRangeLabel}</span>}
             </div>
-            <div className="text-center text-2xl font-medium">
-              {kpiData.totalToken}
-            </div>
+            <div className="text-center text-2xl font-medium">{kpiData.totalToken}</div>
           </Card>
         </Col>
       </Row>
 
       {/* 时序图表 */}
-      <Row gutter={16} className="mb-6">
+      <Row className="mb-6" gutter={16}>
         <Col span={12}>
           <Card
-            title={<span>QPS</span>}
             extra={
-              timeRangeLabel && (
-                <span className="text-xs text-gray-400">{timeRangeLabel}</span>
-              )
+              timeRangeLabel && <span className="text-xs text-gray-400">{timeRangeLabel}</span>
             }
+            title={<span>QPS</span>}
           >
             <div ref={qpsChartRef} style={{ height: 300 }} />
           </Card>
         </Col>
         <Col span={12}>
           <Card
-            title={<span>请求成功率</span>}
             extra={
-              timeRangeLabel && (
-                <span className="text-xs text-gray-400">{timeRangeLabel}</span>
-              )
+              timeRangeLabel && <span className="text-xs text-gray-400">{timeRangeLabel}</span>
             }
+            title={<span>请求成功率</span>}
           >
             <div ref={successRateChartRef} style={{ height: 300 }} />
           </Card>
         </Col>
       </Row>
 
-      <Row gutter={16} className="mb-6">
+      <Row className="mb-6" gutter={16}>
         <Col span={12}>
           <Card
-            title={<span>token消耗数/s</span>}
             extra={
-              timeRangeLabel && (
-                <span className="text-xs text-gray-400">{timeRangeLabel}</span>
-              )
+              timeRangeLabel && <span className="text-xs text-gray-400">{timeRangeLabel}</span>
             }
+            title={<span>token消耗数/s</span>}
           >
             <div ref={tokenPerSecChartRef} style={{ height: 300 }} />
           </Card>
         </Col>
         <Col span={12}>
           <Card
-            title={<span>请求平均RT/ms</span>}
             extra={
-              timeRangeLabel && (
-                <span className="text-xs text-gray-400">{timeRangeLabel}</span>
-              )
+              timeRangeLabel && <span className="text-xs text-gray-400">{timeRangeLabel}</span>
             }
+            title={<span>请求平均RT/ms</span>}
           >
             <div ref={rtChartRef} style={{ height: 300 }} />
           </Card>
         </Col>
       </Row>
 
-      <Row gutter={16} className="mb-6">
+      <Row className="mb-6" gutter={16}>
         <Col span={12}>
           <Card
-            title={<span>限流请求数/s</span>}
             extra={
-              timeRangeLabel && (
-                <span className="text-xs text-gray-400">{timeRangeLabel}</span>
-              )
+              timeRangeLabel && <span className="text-xs text-gray-400">{timeRangeLabel}</span>
             }
+            title={<span>限流请求数/s</span>}
           >
             <div ref={ratelimitedChartRef} style={{ height: 300 }} />
           </Card>
         </Col>
         <Col span={12}>
           <Card
-            title={<span>缓存命中情况/s</span>}
             extra={
-              timeRangeLabel && (
-                <span className="text-xs text-gray-400">{timeRangeLabel}</span>
-              )
+              timeRangeLabel && <span className="text-xs text-gray-400">{timeRangeLabel}</span>
             }
+            title={<span>缓存命中情况/s</span>}
           >
             <div ref={cacheChartRef} style={{ height: 300 }} />
           </Card>
@@ -832,41 +736,37 @@ const ModelDashboard: React.FC = () => {
 
       {/* 统计表格 */}
       {/* 第一行：模型token使用统计、消费者token使用统计 */}
-      <Row gutter={16} className="mb-4">
+      <Row className="mb-4" gutter={16}>
         <Col span={12}>
           <Card
-            title="模型token使用统计"
             extra={
-              timeRangeLabel && (
-                <span className="text-xs text-gray-400">{timeRangeLabel}</span>
-              )
+              timeRangeLabel && <span className="text-xs text-gray-400">{timeRangeLabel}</span>
             }
+            title="模型token使用统计"
           >
             <Table
-              dataSource={tableData.modelToken}
               columns={generateTableColumns(tableData.modelToken)}
+              dataSource={tableData.modelToken}
               pagination={false}
-              rowKey={(_, index) => index?.toString() || "0"}
-              scroll={{ x: "max-content" }}
+              rowKey={(_, index) => index?.toString() || '0'}
+              scroll={{ x: 'max-content' }}
               size="small"
             />
           </Card>
         </Col>
         <Col span={12}>
           <Card
-            title="消费者token使用统计"
             extra={
-              timeRangeLabel && (
-                <span className="text-xs text-gray-400">{timeRangeLabel}</span>
-              )
+              timeRangeLabel && <span className="text-xs text-gray-400">{timeRangeLabel}</span>
             }
+            title="消费者token使用统计"
           >
             <Table
-              dataSource={tableData.consumerToken}
               columns={generateTableColumns(tableData.consumerToken)}
+              dataSource={tableData.consumerToken}
               pagination={false}
-              rowKey={(_, index) => index?.toString() || "0"}
-              scroll={{ x: "max-content" }}
+              rowKey={(_, index) => index?.toString() || '0'}
+              scroll={{ x: 'max-content' }}
               size="small"
             />
           </Card>
@@ -874,41 +774,37 @@ const ModelDashboard: React.FC = () => {
       </Row>
 
       {/* 第二行：服务token使用统计、错误请求统计 */}
-      <Row gutter={16} className="mb-4">
+      <Row className="mb-4" gutter={16}>
         <Col span={12}>
           <Card
-            title="服务token使用统计"
             extra={
-              timeRangeLabel && (
-                <span className="text-xs text-gray-400">{timeRangeLabel}</span>
-              )
+              timeRangeLabel && <span className="text-xs text-gray-400">{timeRangeLabel}</span>
             }
+            title="服务token使用统计"
           >
             <Table
-              dataSource={tableData.serviceToken}
               columns={generateTableColumns(tableData.serviceToken)}
+              dataSource={tableData.serviceToken}
               pagination={false}
-              rowKey={(_, index) => index?.toString() || "0"}
-              scroll={{ x: "max-content" }}
+              rowKey={(_, index) => index?.toString() || '0'}
+              scroll={{ x: 'max-content' }}
               size="small"
             />
           </Card>
         </Col>
         <Col span={12}>
           <Card
-            title="错误请求统计"
             extra={
-              timeRangeLabel && (
-                <span className="text-xs text-gray-400">{timeRangeLabel}</span>
-              )
+              timeRangeLabel && <span className="text-xs text-gray-400">{timeRangeLabel}</span>
             }
+            title="错误请求统计"
           >
             <Table
-              dataSource={tableData.errorRequests}
               columns={generateTableColumns(tableData.errorRequests)}
+              dataSource={tableData.errorRequests}
               pagination={false}
-              rowKey={(_, index) => index?.toString() || "0"}
-              scroll={{ x: "max-content" }}
+              rowKey={(_, index) => index?.toString() || '0'}
+              scroll={{ x: 'max-content' }}
               size="small"
             />
           </Card>
@@ -916,60 +812,54 @@ const ModelDashboard: React.FC = () => {
       </Row>
 
       {/* 第三行：限流消费者统计、风险类型统计、风险消费者统计 */}
-      <Row gutter={16} className="mb-4">
+      <Row className="mb-4" gutter={16}>
         <Col span={8}>
           <Card
+            extra={
+              timeRangeLabel && <span className="text-xs text-gray-400">{timeRangeLabel}</span>
+            }
             title="限流消费者统计"
-            extra={
-              timeRangeLabel && (
-                <span className="text-xs text-gray-400">{timeRangeLabel}</span>
-              )
-            }
           >
             <Table
-              dataSource={tableData.ratelimitedConsumer}
               columns={generateTableColumns(tableData.ratelimitedConsumer)}
+              dataSource={tableData.ratelimitedConsumer}
               pagination={false}
-              rowKey={(_, index) => index?.toString() || "0"}
-              scroll={{ x: "max-content" }}
+              rowKey={(_, index) => index?.toString() || '0'}
+              scroll={{ x: 'max-content' }}
               size="small"
             />
           </Card>
         </Col>
         <Col span={8}>
           <Card
+            extra={
+              timeRangeLabel && <span className="text-xs text-gray-400">{timeRangeLabel}</span>
+            }
             title="风险类型统计"
-            extra={
-              timeRangeLabel && (
-                <span className="text-xs text-gray-400">{timeRangeLabel}</span>
-              )
-            }
           >
             <Table
-              dataSource={tableData.riskLabel}
               columns={generateTableColumns(tableData.riskLabel)}
+              dataSource={tableData.riskLabel}
               pagination={false}
-              rowKey={(_, index) => index?.toString() || "0"}
-              scroll={{ x: "max-content" }}
+              rowKey={(_, index) => index?.toString() || '0'}
+              scroll={{ x: 'max-content' }}
               size="small"
             />
           </Card>
         </Col>
         <Col span={8}>
           <Card
-            title="风险消费者统计"
             extra={
-              timeRangeLabel && (
-                <span className="text-xs text-gray-400">{timeRangeLabel}</span>
-              )
+              timeRangeLabel && <span className="text-xs text-gray-400">{timeRangeLabel}</span>
             }
+            title="风险消费者统计"
           >
             <Table
-              dataSource={tableData.riskConsumer}
               columns={generateTableColumns(tableData.riskConsumer)}
+              dataSource={tableData.riskConsumer}
               pagination={false}
-              rowKey={(_, index) => index?.toString() || "0"}
-              scroll={{ x: "max-content" }}
+              rowKey={(_, index) => index?.toString() || '0'}
+              scroll={{ x: 'max-content' }}
               size="small"
             />
           </Card>

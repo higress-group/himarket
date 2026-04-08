@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest';
 import * as fc from 'fast-check';
+import { describe, it, expect } from 'vitest';
+
 import type { ICliProvider } from '../../../lib/apis/cliProvider';
 
 /**
@@ -23,17 +24,17 @@ function simulateSelection(
     history.push(selectedId);
   }
 
-  return { selectedId, history };
+  return { history, selectedId };
 }
 
 /**
  * fast-check arbitrary: 生成随机 ICliProvider
  */
 const arbProvider: fc.Arbitrary<ICliProvider> = fc.record({
-  key: fc.string({ minLength: 1, maxLength: 20 }),
-  displayName: fc.string({ minLength: 1, maxLength: 30 }),
-  isDefault: fc.boolean(),
   available: fc.boolean(),
+  displayName: fc.string({ maxLength: 30, minLength: 1 }),
+  isDefault: fc.boolean(),
+  key: fc.string({ maxLength: 20, minLength: 1 }),
   supportsCustomModel: fc.option(fc.boolean(), { nil: undefined }),
   supportsMcp: fc.option(fc.boolean(), { nil: undefined }),
   supportsSkill: fc.option(fc.boolean(), { nil: undefined }),
@@ -45,10 +46,7 @@ const arbProvider: fc.Arbitrary<ICliProvider> = fc.record({
 function arbProvidersAndActions() {
   return arbProvider
     .chain((first) =>
-      fc.tuple(
-        fc.constant(first),
-        fc.array(arbProvider, { minLength: 0, maxLength: 9 }),
-      ),
+      fc.tuple(fc.constant(first), fc.array(arbProvider, { maxLength: 9, minLength: 0 })),
     )
     .chain(([first, rest]) => {
       // 确保 key 唯一
@@ -64,12 +62,9 @@ function arbProvidersAndActions() {
       const allKeys = providers.map((p) => p.key);
       const arbAction = fc.oneof(
         fc.constantFrom(...allKeys),
-        fc.string({ minLength: 1, maxLength: 20 }), // 可能不存在的 key
+        fc.string({ maxLength: 20, minLength: 1 }), // 可能不存在的 key
       );
-      return fc.tuple(
-        fc.constant(providers),
-        fc.array(arbAction, { minLength: 1, maxLength: 30 }),
-      );
+      return fc.tuple(fc.constant(providers), fc.array(arbAction, { maxLength: 30, minLength: 1 }));
     });
 }
 
@@ -92,7 +87,7 @@ describe('Feature: cli-ux-optimization, Property 4: CLI 工具单选不变量', 
             expect(provider).toBeDefined();
 
             // 不变量 2: 选中的工具必须是可用的
-            expect(provider!.available).toBe(true);
+            expect(provider?.available).toBe(true);
           }
           // 不变量 3: selectedId 是 string | null，即最多只有一个选中
           // 这由数据结构本身保证（单个变量而非集合）

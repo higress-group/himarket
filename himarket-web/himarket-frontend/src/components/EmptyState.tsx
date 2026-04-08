@@ -1,4 +1,4 @@
-import { InboxOutlined } from "@ant-design/icons";
+import { InboxOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 
 interface EmptyStateProps {
@@ -8,7 +8,14 @@ interface EmptyStateProps {
 export function EmptyState({ productType }: EmptyStateProps) {
   const { t } = useTranslation('emptyState');
 
-  const typeKey = ['MODEL_API', 'MCP_SERVER', 'AGENT_API', 'REST_API', 'AGENT_SKILL', 'WORKER'].includes(productType)
+  const typeKey = [
+    'MODEL_API',
+    'MCP_SERVER',
+    'AGENT_API',
+    'REST_API',
+    'AGENT_SKILL',
+    'WORKER',
+  ].includes(productType)
     ? productType
     : null;
 

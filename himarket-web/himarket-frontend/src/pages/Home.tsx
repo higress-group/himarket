@@ -1,24 +1,24 @@
-import { Typography } from "antd";
-import { Layout } from "../components/Layout";
-import { useEffect } from "react";
-import { getTokenFromCookie } from "../lib/utils";
-import HomeModelCard from "../components/card/ModelCard";
-import HomeMCPCard from "../components/card/HomeMcpCard";
-import HomeAgentCard from "../components/card/AgentCard";
-import HomeAPICard from "../components/card/APICard";
-import HomeChatCard from "../components/card/ChatCard";
-import TextType from "../components/TextType";
+import { Typography } from 'antd';
+import { useEffect } from 'react';
 
-const { Title, Paragraph } = Typography;
+import HomeAgentCard from '../components/card/AgentCard';
+import HomeAPICard from '../components/card/APICard';
+import HomeChatCard from '../components/card/ChatCard';
+import HomeMCPCard from '../components/card/HomeMcpCard';
+import HomeModelCard from '../components/card/ModelCard';
+import { Layout } from '../components/Layout';
+import TextType from '../components/TextType';
+import { getTokenFromCookie } from '../lib/utils';
+
+const { Paragraph, Title } = Typography;
 
 function HomePage() {
-
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const fromCookie = params.get("fromCookie");
+    const fromCookie = params.get('fromCookie');
     const token = getTokenFromCookie();
     if (fromCookie && token) {
-      localStorage.setItem("access_token", token);
+      localStorage.setItem('access_token', token);
     }
   }, []);
 
@@ -28,21 +28,23 @@ function HomePage() {
         <div className="h-[68%] flex flex-col">
           {/* 标题区域 */}
           <div className="mb-10">
-            <Title level={1} className="text-5xl font-bold text-gray-900 mb-8">
-              <span style={{
-                background: "linear-gradient(249deg, #8FA1FF 0%, #2B2B3B 25%)",
-                backgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-              }}>
+            <Title className="text-5xl font-bold text-gray-900 mb-8" level={1}>
+              <span
+                style={{
+                  background: 'linear-gradient(249deg, #8FA1FF 0%, #2B2B3B 25%)',
+                  backgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                }}
+              >
                 HiMarket 企业级AI开放平台
               </span>
             </Title>
             <Paragraph className="text-xl text-subTitle">
               <TextType
-                text={["开箱即用，快速集成"]}
-                typingSpeed={120}
-                showCursor={true}
                 cursorCharacter="_"
+                showCursor={true}
+                text={['开箱即用，快速集成']}
+                typingSpeed={120}
               />
             </Paragraph>
           </div>

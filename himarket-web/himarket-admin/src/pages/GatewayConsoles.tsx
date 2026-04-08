@@ -1,302 +1,284 @@
-import { useState, useEffect, useCallback } from 'react'
-import { Button, Table, message, Modal, Tabs } from 'antd'
-import { PlusOutlined } from '@ant-design/icons'
-import { gatewayApi } from '@/lib/api'
-import ImportGatewayModal from '@/components/console/ImportGatewayModal'
-import ImportHigressModal from '@/components/console/ImportHigressModal'
-import GatewayTypeSelector from '@/components/console/GatewayTypeSelector'
-import EditGatewayModal from '@/components/console/EditGatewayModal'
-import { formatDateTime } from '@/lib/utils'
-import { Gateway, GatewayType } from '@/types'
+import { PlusOutlined } from '@ant-design/icons';
+import { Button, Table, message, Modal, Tabs } from 'antd';
+import { useState, useEffect, useCallback } from 'react';
+
+import EditGatewayModal from '@/components/console/EditGatewayModal';
+import GatewayTypeSelector from '@/components/console/GatewayTypeSelector';
+import ImportGatewayModal from '@/components/console/ImportGatewayModal';
+import ImportHigressModal from '@/components/console/ImportHigressModal';
+import { gatewayApi } from '@/lib/api';
+import { formatDateTime } from '@/lib/utils';
+import type { Gateway, GatewayType } from '@/types';
+
+import type { ColumnsType } from 'antd/es/table';
 
 export default function Consoles() {
-  const [gateways, setGateways] = useState<Gateway[]>([])
-  const [typeSelectorVisible, setTypeSelectorVisible] = useState(false)
-  const [importVisible, setImportVisible] = useState(false)
-  const [higressImportVisible, setHigressImportVisible] = useState(false)
-  const [selectedGatewayType, setSelectedGatewayType] = useState<GatewayType>('APIG_API')
-  const [loading, setLoading] = useState(false)
-  const [activeTab, setActiveTab] = useState<GatewayType>('HIGRESS')
-  const [editVisible, setEditVisible] = useState(false)
-  const [editingGateway, setEditingGateway] = useState<Gateway | null>(null)
+  const [gateways, setGateways] = useState<Gateway[]>([]);
+  const [typeSelectorVisible, setTypeSelectorVisible] = useState(false);
+  const [importVisible, setImportVisible] = useState(false);
+  const [higressImportVisible, setHigressImportVisible] = useState(false);
+  const [selectedGatewayType, setSelectedGatewayType] = useState<GatewayType>('APIG_API');
+  const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<GatewayType>('HIGRESS');
+  const [editVisible, setEditVisible] = useState(false);
+  const [editingGateway, setEditingGateway] = useState<Gateway | null>(null);
   const [pagination, setPagination] = useState({
     current: 1,
     pageSize: 10,
     total: 0,
-  })
+  });
 
   const fetchGatewaysByType = useCallback(async (gatewayType: GatewayType, page = 1, size = 10) => {
-    setLoading(true)
+    setLoading(true);
     try {
-      const res = await gatewayApi.getGateways({ gatewayType, page, size })
-      setGateways(res.data?.content || [])
+      const res = await gatewayApi.getGateways({ gatewayType, page, size });
+      setGateways(res.data?.content || []);
       setPagination({
         current: page,
         pageSize: size,
         total: res.data?.totalElements || 0,
-      })
-    } catch (error) {
+      });
+    } catch (_error) {
       // message.error('获取网关列表失败')
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [])
+  }, []);
 
   useEffect(() => {
-    fetchGatewaysByType(activeTab, 1, 10)
-  }, [fetchGatewaysByType, activeTab])
+    fetchGatewaysByType(activeTab, 1, 10);
+  }, [fetchGatewaysByType, activeTab]);
 
   // 处理导入成功
   const handleImportSuccess = () => {
-    fetchGatewaysByType(activeTab, pagination.current, pagination.pageSize)
-  }
+    fetchGatewaysByType(activeTab, pagination.current, pagination.pageSize);
+  };
 
   // 处理网关类型选择
   const handleGatewayTypeSelect = (type: GatewayType) => {
-    setSelectedGatewayType(type)
-    setTypeSelectorVisible(false)
+    setSelectedGatewayType(type);
+    setTypeSelectorVisible(false);
     if (type === 'HIGRESS') {
-      setHigressImportVisible(true)
+      setHigressImportVisible(true);
     } else {
-      setImportVisible(true)
+      setImportVisible(true);
     }
-  }
+  };
 
   // 处理分页变化
   const handlePaginationChange = (page: number, pageSize: number) => {
-    fetchGatewaysByType(activeTab, page, pageSize)
-  }
+    fetchGatewaysByType(activeTab, page, pageSize);
+  };
 
   // 处理Tab切换
   const handleTabChange = (tabKey: string) => {
-    const gatewayType = tabKey as GatewayType
-    setActiveTab(gatewayType)
+    const gatewayType = tabKey as GatewayType;
+    setActiveTab(gatewayType);
     // Tab切换时重置到第一页
-    setPagination(prev => ({ ...prev, current: 1 }))
-  }
+    setPagination((prev) => ({ ...prev, current: 1 }));
+  };
 
   const handleEditGateway = (gateway: Gateway) => {
-    setEditingGateway(gateway)
-    setEditVisible(true)
-  }
+    setEditingGateway(gateway);
+    setEditVisible(true);
+  };
 
   const handleDeleteGateway = async (gatewayId: string) => {
     Modal.confirm({
-      title: '确认删除',
       content: '确定要删除该网关吗？',
       onOk: async () => {
         try {
-          await gatewayApi.deleteGateway(gatewayId)
-          message.success('删除成功')
-          fetchGatewaysByType(activeTab, pagination.current, pagination.pageSize)
-        } catch (error) {
+          await gatewayApi.deleteGateway(gatewayId);
+          message.success('删除成功');
+          fetchGatewaysByType(activeTab, pagination.current, pagination.pageSize);
+        } catch (_error) {
           // message.error('删除失败')
         }
       },
-    })
-  }
+      title: '确认删除',
+    });
+  };
 
   // APIG 网关的列定义
-  const apigColumns = [
+  const apigColumns: ColumnsType<Gateway> = [
     {
-      title: '网关名称/ID',
       key: 'nameAndId',
-      width: 280,
-      render: (_: any, record: Gateway) => (
+      render: (_text: unknown, record: Gateway) => (
         <div>
-          <div className="text-sm font-medium text-gray-900 truncate">
-            {record.gatewayName}
-          </div>
-          <div className="text-xs text-gray-500 truncate">
-            {record.gatewayId}
-          </div>
+          <div className="text-sm font-medium text-gray-900 truncate">{record.gatewayName}</div>
+          <div className="text-xs text-gray-500 truncate">{record.gatewayId}</div>
         </div>
       ),
+      title: '网关名称/ID',
+      width: 280,
     },
     {
-      title: '区域',
       dataIndex: 'region',
       key: 'region',
-      render: (_: any, record: Gateway) => {
-        return record.apigConfig?.region || '-'
-      }
+      render: (_text: unknown, record: Gateway) => {
+        return record.apigConfig?.region || '-';
+      },
+      title: '区域',
     },
     {
-      title: '创建时间',
       dataIndex: 'createAt',
       key: 'createAt',
-      render: (date: string) => formatDateTime(date)
+      render: (date: string) => formatDateTime(date),
+      title: '创建时间',
     },
     {
-      title: '操作',
       key: 'action',
-      render: (_: any, record: Gateway) => (
+      render: (_text: unknown, record: Gateway) => (
         <>
-          <Button type="link" onClick={() => handleEditGateway(record)}>
+          <Button onClick={() => handleEditGateway(record)} type="link">
             编辑
           </Button>
-          <Button type="link" danger onClick={() => handleDeleteGateway(record.gatewayId)}>
+          <Button danger onClick={() => handleDeleteGateway(record.gatewayId)} type="link">
             删除
           </Button>
         </>
       ),
+      title: '操作',
     },
-  ]
+  ];
 
   // 专有云 AI 网关的列定义
-  const adpAiColumns = [
+  const adpAiColumns: ColumnsType<Gateway> = [
     {
-      title: '网关名称/ID',
       key: 'nameAndId',
-      width: 280,
-      render: (_: any, record: Gateway) => (
+      render: (_text: unknown, record: Gateway) => (
         <div>
-          <div className="text-sm font-medium text-gray-900 truncate">
-            {record.gatewayName}
-          </div>
-          <div className="text-xs text-gray-500 truncate">
-            {record.gatewayId}
-          </div>
+          <div className="text-sm font-medium text-gray-900 truncate">{record.gatewayName}</div>
+          <div className="text-xs text-gray-500 truncate">{record.gatewayId}</div>
         </div>
       ),
+      title: '网关名称/ID',
+      width: 280,
     },
     {
-      title: '创建时间',
       dataIndex: 'createAt',
       key: 'createAt',
-      render: (date: string) => formatDateTime(date)
+      render: (date: string) => formatDateTime(date),
+      title: '创建时间',
     },
     {
-      title: '操作',
       key: 'action',
-      render: (_: any, record: Gateway) => (
+      render: (_text: unknown, record: Gateway) => (
         <>
-          <Button type="link" onClick={() => handleEditGateway(record)}>
+          <Button onClick={() => handleEditGateway(record)} type="link">
             编辑
           </Button>
-          <Button type="link" danger onClick={() => handleDeleteGateway(record.gatewayId)}>
+          <Button danger onClick={() => handleDeleteGateway(record.gatewayId)} type="link">
             删除
           </Button>
         </>
       ),
-    }
-  ]
+      title: '操作',
+    },
+  ];
 
   // 飞天企业版 AI 网关的列定义
-  const apsaraGatewayColumns = [
+  const apsaraGatewayColumns: ColumnsType<Gateway> = [
     {
-      title: '网关名称/ID',
       key: 'nameAndId',
-      width: 280,
-      render: (_: any, record: Gateway) => (
+      render: (_text: unknown, record: Gateway) => (
         <div>
-          <div className="text-sm font-medium text-gray-900 truncate">
-            {record.gatewayName}
-          </div>
-          <div className="text-xs text-gray-500 truncate">
-            {record.gatewayId}
-          </div>
+          <div className="text-sm font-medium text-gray-900 truncate">{record.gatewayName}</div>
+          <div className="text-xs text-gray-500 truncate">{record.gatewayId}</div>
         </div>
       ),
+      title: '网关名称/ID',
+      width: 280,
     },
     {
-      title: '创建时间',
       dataIndex: 'createAt',
       key: 'createAt',
-      render: (date: string) => formatDateTime(date)
+      render: (date: string) => formatDateTime(date),
+      title: '创建时间',
     },
     {
-      title: '操作',
       key: 'action',
-      render: (_: any, record: Gateway) => (
+      render: (_text: unknown, record: Gateway) => (
         <>
-          <Button type="link" onClick={() => handleEditGateway(record)}>
+          <Button onClick={() => handleEditGateway(record)} type="link">
             编辑
           </Button>
-          <Button type="link" danger onClick={() => handleDeleteGateway(record.gatewayId)}>
+          <Button danger onClick={() => handleDeleteGateway(record.gatewayId)} type="link">
             删除
           </Button>
         </>
       ),
+      title: '操作',
     },
-  ]
+  ];
 
   // Higress 网关的列定义
-  const higressColumns = [
+  const higressColumns: ColumnsType<Gateway> = [
     {
-      title: '网关名称/ID',
       key: 'nameAndId',
-      width: 280,
-      render: (_: any, record: Gateway) => (
+      render: (_text: unknown, record: Gateway) => (
         <div>
-          <div className="text-sm font-medium text-gray-900 truncate">
-            {record.gatewayName}
-          </div>
-          <div className="text-xs text-gray-500 truncate">
-            {record.gatewayId}
-          </div>
+          <div className="text-sm font-medium text-gray-900 truncate">{record.gatewayName}</div>
+          <div className="text-xs text-gray-500 truncate">{record.gatewayId}</div>
         </div>
       ),
+      title: '网关名称/ID',
+      width: 280,
     },
     {
-      title: 'Console地址',
       dataIndex: 'address',
       key: 'address',
-      render: (_: any, record: Gateway) => {
-        return record.higressConfig?.address || '-'
-      }
+      render: (_text: unknown, record: Gateway) => {
+        return record.higressConfig?.address || '-';
+      },
+      title: 'Console地址',
     },
     {
-      title: 'Gateway地址',
       dataIndex: 'gatewayAddress',
       key: 'gatewayAddress',
-      render: (_: any, record: Gateway) => {
-        return record.higressConfig?.gatewayAddress || '-'
-      }
+      render: (_text: unknown, record: Gateway) => {
+        return record.higressConfig?.gatewayAddress || '-';
+      },
+      title: 'Gateway地址',
     },
     {
-      title: '创建时间',
       dataIndex: 'createAt',
       key: 'createAt',
-      render: (date: string) => formatDateTime(date)
+      render: (date: string) => formatDateTime(date),
+      title: '创建时间',
     },
     {
-      title: '操作',
       key: 'action',
-      render: (_: any, record: Gateway) => (
+      render: (_text: unknown, record: Gateway) => (
         <>
-          <Button type="link" onClick={() => handleEditGateway(record)}>
+          <Button onClick={() => handleEditGateway(record)} type="link">
             编辑
           </Button>
-          <Button type="link" danger onClick={() => handleDeleteGateway(record.gatewayId)}>
+          <Button danger onClick={() => handleDeleteGateway(record.gatewayId)} type="link">
             删除
           </Button>
         </>
       ),
+      title: '操作',
     },
-  ]
+  ];
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">网关实例</h1>
-          <p className="text-gray-500 mt-2">
-            管理和配置您的网关实例
-          </p>
+          <p className="text-gray-500 mt-2">管理和配置您的网关实例</p>
         </div>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setTypeSelectorVisible(true)}>
+        <Button icon={<PlusOutlined />} onClick={() => setTypeSelectorVisible(true)} type="primary">
           导入网关实例
         </Button>
       </div>
 
       <Tabs
         activeKey={activeTab}
-        onChange={handleTabChange}
         items={[
           {
-            key: 'HIGRESS',
-            label: 'Higress 网关',
             children: (
               <div className="bg-white rounded-lg">
                 <div className="py-4 pl-4">
@@ -306,25 +288,25 @@ export default function Consoles() {
                 <Table
                   columns={higressColumns}
                   dataSource={gateways}
-                  rowKey="gatewayId"
                   loading={loading}
                   pagination={{
                     current: pagination.current,
-                    pageSize: pagination.pageSize,
-                    total: pagination.total,
-                    showSizeChanger: true,
-                    showQuickJumper: true,
-                    showTotal: (total) => `共 ${total} 条`,
                     onChange: handlePaginationChange,
                     onShowSizeChange: handlePaginationChange,
+                    pageSize: pagination.pageSize,
+                    showQuickJumper: true,
+                    showSizeChanger: true,
+                    showTotal: (total) => `共 ${total} 条`,
+                    total: pagination.total,
                   }}
+                  rowKey="gatewayId"
                 />
               </div>
             ),
+            key: 'HIGRESS',
+            label: 'Higress 网关',
           },
           {
-            key: 'APIG_API',
-            label: 'API 网关',
             children: (
               <div className="bg-white rounded-lg">
                 <div className="py-4 pl-4">
@@ -334,25 +316,25 @@ export default function Consoles() {
                 <Table
                   columns={apigColumns}
                   dataSource={gateways}
-                  rowKey="gatewayId"
                   loading={loading}
                   pagination={{
                     current: pagination.current,
-                    pageSize: pagination.pageSize,
-                    total: pagination.total,
-                    showSizeChanger: true,
-                    showQuickJumper: true,
-                    showTotal: (total) => `共 ${total} 条`,
                     onChange: handlePaginationChange,
                     onShowSizeChange: handlePaginationChange,
+                    pageSize: pagination.pageSize,
+                    showQuickJumper: true,
+                    showSizeChanger: true,
+                    showTotal: (total) => `共 ${total} 条`,
+                    total: pagination.total,
                   }}
+                  rowKey="gatewayId"
                 />
               </div>
             ),
+            key: 'APIG_API',
+            label: 'API 网关',
           },
           {
-            key: 'APIG_AI',
-            label: 'AI 网关',
             children: (
               <div className="bg-white rounded-lg">
                 <div className="py-4 pl-4">
@@ -362,25 +344,25 @@ export default function Consoles() {
                 <Table
                   columns={apigColumns}
                   dataSource={gateways}
-                  rowKey="gatewayId"
                   loading={loading}
                   pagination={{
                     current: pagination.current,
-                    pageSize: pagination.pageSize,
-                    total: pagination.total,
-                    showSizeChanger: true,
-                    showQuickJumper: true,
-                    showTotal: (total) => `共 ${total} 条`,
                     onChange: handlePaginationChange,
                     onShowSizeChange: handlePaginationChange,
+                    pageSize: pagination.pageSize,
+                    showQuickJumper: true,
+                    showSizeChanger: true,
+                    showTotal: (total) => `共 ${total} 条`,
+                    total: pagination.total,
                   }}
+                  rowKey="gatewayId"
                 />
               </div>
             ),
+            key: 'APIG_AI',
+            label: 'AI 网关',
           },
           {
-            key: 'ADP_AI_GATEWAY',
-            label: '专有云 AI 网关',
             children: (
               <div className="bg-white rounded-lg">
                 <div className="py-4 pl-4">
@@ -390,25 +372,25 @@ export default function Consoles() {
                 <Table
                   columns={adpAiColumns}
                   dataSource={gateways}
-                  rowKey="gatewayId"
                   loading={loading}
                   pagination={{
                     current: pagination.current,
-                    pageSize: pagination.pageSize,
-                    total: pagination.total,
-                    showSizeChanger: true,
-                    showQuickJumper: true,
-                    showTotal: (total) => `共 ${total} 条`,
                     onChange: handlePaginationChange,
                     onShowSizeChange: handlePaginationChange,
+                    pageSize: pagination.pageSize,
+                    showQuickJumper: true,
+                    showSizeChanger: true,
+                    showTotal: (total) => `共 ${total} 条`,
+                    total: pagination.total,
                   }}
+                  rowKey="gatewayId"
                 />
               </div>
             ),
+            key: 'ADP_AI_GATEWAY',
+            label: '专有云 AI 网关',
           },
           {
-            key: 'APSARA_GATEWAY',
-            label: '飞天企业版 AI 网关',
             children: (
               <div className="bg-white rounded-lg">
                 <div className="py-4 pl-4">
@@ -418,57 +400,62 @@ export default function Consoles() {
                 <Table
                   columns={apsaraGatewayColumns}
                   dataSource={gateways}
-                  rowKey="gatewayId"
                   loading={loading}
                   pagination={{
                     current: pagination.current,
-                    pageSize: pagination.pageSize,
-                    total: pagination.total,
-                    showSizeChanger: true,
-                    showQuickJumper: true,
-                    showTotal: (total) => `共 ${total} 条`,
                     onChange: handlePaginationChange,
                     onShowSizeChange: handlePaginationChange,
+                    pageSize: pagination.pageSize,
+                    showQuickJumper: true,
+                    showSizeChanger: true,
+                    showTotal: (total) => `共 ${total} 条`,
+                    total: pagination.total,
                   }}
+                  rowKey="gatewayId"
                 />
               </div>
             ),
+            key: 'APSARA_GATEWAY',
+            label: '飞天企业版 AI 网关',
           },
         ]}
+        onChange={handleTabChange}
       />
 
       <ImportGatewayModal
-        visible={importVisible}
-        gatewayType={selectedGatewayType as 'APIG_API' | 'APIG_AI' | 'ADP_AI_GATEWAY' | 'APSARA_GATEWAY'}
+        gatewayType={
+          selectedGatewayType as 'APIG_API' | 'APIG_AI' | 'ADP_AI_GATEWAY' | 'APSARA_GATEWAY'
+        }
         onCancel={() => setImportVisible(false)}
         onSuccess={handleImportSuccess}
+        visible={importVisible}
       />
 
       <ImportHigressModal
-        visible={higressImportVisible}
         onCancel={() => setHigressImportVisible(false)}
         onSuccess={handleImportSuccess}
+        visible={higressImportVisible}
       />
 
       <EditGatewayModal
-        visible={editVisible}
         gateway={editingGateway}
         onCancel={() => {
-          setEditVisible(false)
-          setEditingGateway(null)
+          setEditVisible(false);
+          setEditingGateway(null);
         }}
         onSuccess={() => {
-          setEditVisible(false)
-          setEditingGateway(null)
-          fetchGatewaysByType(activeTab, pagination.current, pagination.pageSize)
+          setEditVisible(false);
+          setEditingGateway(null);
+          fetchGatewaysByType(activeTab, pagination.current, pagination.pageSize);
         }}
+        visible={editVisible}
       />
 
       <GatewayTypeSelector
-        visible={typeSelectorVisible}
         onCancel={() => setTypeSelectorVisible(false)}
         onSelect={handleGatewayTypeSelect}
+        visible={typeSelectorVisible}
       />
     </div>
-  )
+  );
 }

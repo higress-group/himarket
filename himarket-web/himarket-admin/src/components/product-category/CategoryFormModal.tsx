@@ -1,16 +1,16 @@
-import { useState, useEffect } from 'react';
-import {
-  Modal,
-  Form,
-  Input,
-  message,
-  Radio,
-  Space,
-} from 'antd';
 import { CameraOutlined } from '@ant-design/icons';
-import type { UploadFile } from 'antd/es/upload/interface';
-import type { ProductCategory, CreateProductCategoryParam, UpdateProductCategoryParam, ProductIcon } from '@/types/product-category';
+import { Modal, Form, Input, message, Radio, Space } from 'antd';
+import { useState, useEffect } from 'react';
+
 import { createProductCategory, updateProductCategory } from '@/lib/productCategoryApi';
+import type {
+  ProductCategory,
+  CreateProductCategoryParam,
+  UpdateProductCategoryParam,
+  ProductIcon,
+} from '@/types/product-category';
+
+import type { UploadFile } from 'antd/es/upload/interface';
 
 interface CategoryFormModalProps {
   visible: boolean;
@@ -21,11 +21,11 @@ interface CategoryFormModalProps {
 }
 
 const CategoryFormModal: React.FC<CategoryFormModalProps> = ({
-  visible,
-  onCancel,
-  onSuccess,
   category,
   isEdit = false,
+  onCancel,
+  onSuccess,
+  visible,
 }) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
@@ -37,8 +37,8 @@ const CategoryFormModal: React.FC<CategoryFormModalProps> = ({
       if (isEdit && category) {
         // 编辑模式：填充表单
         form.setFieldsValue({
-          name: category.name,
           description: category.description || '',
+          name: category.name,
         });
 
         if (category.icon) {
@@ -67,18 +67,17 @@ const CategoryFormModal: React.FC<CategoryFormModalProps> = ({
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onload = () => resolve(reader.result as string);
-      reader.onerror = error => reject(error);
+      reader.onerror = (error) => reject(error);
     });
-
 
   const handleSubmit = async () => {
     try {
       setLoading(true);
       const values = await form.validateFields();
-      
+
       // 构建图标对象
       let icon: ProductIcon | undefined;
-      
+
       if (iconMode === 'URL' && values.iconUrl) {
         icon = { type: 'URL', value: values.iconUrl };
       } else if (iconMode === 'BASE64' && values.icon) {
@@ -87,15 +86,18 @@ const CategoryFormModal: React.FC<CategoryFormModalProps> = ({
       }
 
       const categoryData: CreateProductCategoryParam | UpdateProductCategoryParam = {
-        name: values.name,
         description: values.description,
         icon,
+        name: values.name,
       };
 
       // 调用相应的API
       if (isEdit && category) {
         // 调用更新API
-        await updateProductCategory(category.categoryId, categoryData as UpdateProductCategoryParam);
+        await updateProductCategory(
+          category.categoryId,
+          categoryData as UpdateProductCategoryParam,
+        );
         message.success('更新成功');
       } else {
         // 调用创建API
@@ -113,24 +115,23 @@ const CategoryFormModal: React.FC<CategoryFormModalProps> = ({
     }
   };
 
-
   return (
     <Modal
-      title={isEdit ? '编辑类别' : '创建类别'}
-      open={visible}
-      onOk={handleSubmit}
-      onCancel={handleCancel}
       confirmLoading={loading}
-      width={600}
       okText={isEdit ? '更新' : '创建'}
+      onCancel={handleCancel}
+      onOk={handleSubmit}
+      open={visible}
+      title={isEdit ? '编辑类别' : '创建类别'}
+      width={600}
     >
-      <Form form={form} layout="vertical" className="mt-4">
+      <Form className="mt-4" form={form} layout="vertical">
         <Form.Item
           label="名称"
           name="name"
           rules={[
-            { required: true, message: '请输入名称' },
-            { max: 50, message: '名称不能超过50个字符' }
+            { message: '请输入名称', required: true },
+            { max: 50, message: '名称不能超过50个字符' },
           ]}
         >
           <Input placeholder="如：数据分析、API网关、支付服务等" />
@@ -141,56 +142,44 @@ const CategoryFormModal: React.FC<CategoryFormModalProps> = ({
           name="description"
           rules={[{ max: 256, message: '描述不能超过256个字符' }]}
         >
-          <Input.TextArea 
+          <Input.TextArea
+            maxLength={256}
             placeholder="描述用途和特点，帮助用户更好地理解..."
             rows={3}
             showCount
-            maxLength={256}
           />
         </Form.Item>
 
         <Form.Item label="Icon设置" style={{ marginBottom: '16px' }}>
           <Space direction="vertical" style={{ width: '100%' }}>
-            <Radio.Group 
-              value={iconMode} 
+            <Radio.Group
               onChange={(e) => {
                 setIconMode(e.target.value);
                 setFileList([]);
                 form.setFieldValue('iconUrl', '');
               }}
+              value={iconMode}
             >
               <Radio value="URL">图片链接</Radio>
               <Radio value="BASE64">本地上传</Radio>
             </Radio.Group>
-            
+
             {iconMode === 'URL' ? (
-              <Form.Item 
-                name="iconUrl" 
-                style={{ marginBottom: 0 }}
+              <Form.Item
+                name="iconUrl"
                 rules={[
-                  { 
-                    type: 'url', 
-                    message: '请输入有效的图片链接' 
-                  }
+                  {
+                    message: '请输入有效的图片链接',
+                    type: 'url',
+                  },
                 ]}
+                style={{ marginBottom: 0 }}
               >
                 <Input placeholder="请输入图片链接地址" />
               </Form.Item>
             ) : (
               <Form.Item name="icon" style={{ marginBottom: 0 }}>
-                <div 
-                  style={{ 
-                    width: '80px', 
-                    height: '80px',
-                    border: '1px dashed #d9d9d9',
-                    borderRadius: '8px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    transition: 'border-color 0.3s',
-                    position: 'relative'
-                  }}
+                <div
                   onClick={() => {
                     const input = document.createElement('input');
                     input.type = 'file';
@@ -200,16 +189,20 @@ const CategoryFormModal: React.FC<CategoryFormModalProps> = ({
                       if (file) {
                         const maxSize = 16 * 1024; // 16KB
                         if (file.size > maxSize) {
-                          message.error(`图片大小不能超过 16KB，当前图片大小为 ${Math.round(file.size / 1024)}KB`);
+                          message.error(
+                            `图片大小不能超过 16KB，当前图片大小为 ${Math.round(file.size / 1024)}KB`,
+                          );
                           return;
                         }
-                        
-                        const newFileList = [{
-                          uid: Date.now().toString(),
-                          name: file.name,
-                          status: 'done' as const,
-                          url: URL.createObjectURL(file)
-                        }];
+
+                        const newFileList = [
+                          {
+                            name: file.name,
+                            status: 'done' as const,
+                            uid: Date.now().toString(),
+                            url: URL.createObjectURL(file),
+                          },
+                        ];
                         setFileList(newFileList);
                         getBase64(file).then((base64) => {
                           form.setFieldsValue({ icon: base64 });
@@ -218,29 +211,56 @@ const CategoryFormModal: React.FC<CategoryFormModalProps> = ({
                     };
                     input.click();
                   }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      e.currentTarget.click();
+                    }
+                  }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.borderColor = '#1890ff';
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.borderColor = '#d9d9d9';
                   }}
+                  role="button"
+                  style={{
+                    alignItems: 'center',
+                    border: '1px dashed #d9d9d9',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    height: '80px',
+                    justifyContent: 'center',
+                    position: 'relative',
+                    transition: 'border-color 0.3s',
+                    width: '80px',
+                  }}
+                  tabIndex={0}
                 >
                   {fileList.length >= 1 ? (
-                    <img 
-                      src={fileList[0].url} 
-                      alt="uploaded" 
-                      style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '6px' }}
+                    <img
+                      alt="uploaded"
+                      src={fileList[0]?.url ?? ''}
+                      style={{
+                        borderRadius: '6px',
+                        height: '100%',
+                        objectFit: 'cover',
+                        width: '100%',
+                      }}
                     />
                   ) : (
-                    <div style={{ 
-                      display: 'flex', 
-                      flexDirection: 'column', 
-                      alignItems: 'center', 
-                      justifyContent: 'center',
-                      color: '#999'
-                    }}>
+                    <div
+                      style={{
+                        alignItems: 'center',
+                        color: '#999',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'center',
+                      }}
+                    >
                       <CameraOutlined style={{ fontSize: '16px', marginBottom: '6px' }} />
-                      <span style={{ fontSize: '12px', color: '#999' }}>上传图片</span>
+                      <span style={{ color: '#999', fontSize: '12px' }}>上传图片</span>
                     </div>
                   )}
                 </div>

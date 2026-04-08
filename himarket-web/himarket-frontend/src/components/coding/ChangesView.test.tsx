@@ -1,40 +1,41 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
-import { ChangesView } from "./ChangesView";
+import { render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+
+import { ChangesView } from './ChangesView';
 
 const useActiveCodingSessionMock = vi.fn();
 
-vi.mock("../../context/CodingSessionContext", () => ({
+vi.mock('../../context/CodingSessionContext', () => ({
   useActiveCodingSession: () => useActiveCodingSessionMock(),
 }));
 
-describe("ChangesView", () => {
-  it("includes delete-style diff where newText is empty string", () => {
+describe('ChangesView', () => {
+  it('includes delete-style diff where newText is empty string', () => {
     useActiveCodingSessionMock.mockReturnValue({
-      id: "q1",
+      id: 'q1',
       messages: [
         {
-          type: "tool_call",
-          id: "tc-item-1",
-          toolCallId: "tc-1",
-          title: "Delete line",
-          kind: "edit",
-          status: "completed",
           content: [
             {
-              type: "diff",
-              path: "/tmp/delete.txt",
-              oldText: "a",
-              newText: "",
+              newText: '',
+              oldText: 'a',
+              path: '/tmp/delete.txt',
+              type: 'diff',
             },
           ],
+          id: 'tc-item-1',
+          kind: 'edit',
+          status: 'completed',
+          title: 'Delete line',
+          toolCallId: 'tc-1',
+          type: 'tool_call',
         },
       ],
     });
 
     render(<ChangesView />);
 
-    expect(screen.getByText("1 file changed")).toBeInTheDocument();
-    expect(screen.getByText("/tmp/delete.txt")).toBeInTheDocument();
+    expect(screen.getByText('1 file changed')).toBeInTheDocument();
+    expect(screen.getByText('/tmp/delete.txt')).toBeInTheDocument();
   });
 });

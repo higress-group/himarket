@@ -1,5 +1,5 @@
-import { useCallback, useSyncExternalStore } from "react";
-import { useNavigate } from "react-router-dom";
+import { useCallback, useSyncExternalStore } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 /**
  * 全局 auth 失效通知。
@@ -16,7 +16,9 @@ export function notifyAuthInvalidated() {
 
 function subscribeAuth(callback: () => void) {
   listeners.add(callback);
-  return () => { listeners.delete(callback); };
+  return () => {
+    listeners.delete(callback);
+  };
 }
 
 function getAuthSnapshot() {
@@ -29,16 +31,15 @@ export function useAuth() {
   // 订阅 auth 失效事件，触发重新读取 token
   useSyncExternalStore(subscribeAuth, getAuthSnapshot);
 
-  const token = localStorage.getItem("access_token");
+  const token = localStorage.getItem('access_token');
   const isLoggedIn = !!token;
 
   const login = useCallback(
     (returnUrl?: string) => {
-      const url =
-        returnUrl || window.location.pathname + window.location.search;
+      const url = returnUrl || window.location.pathname + window.location.search;
       navigate(`/login?returnUrl=${encodeURIComponent(url)}`);
     },
-    [navigate]
+    [navigate],
   );
 
   return { isLoggedIn, login, token };
