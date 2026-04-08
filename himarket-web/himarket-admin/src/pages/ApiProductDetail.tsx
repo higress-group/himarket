@@ -24,14 +24,7 @@ import type { ApiProduct, LinkedService } from '@/types/api-product';
 
 import type { MenuProps } from 'antd';
 
-interface MenuItem {
-  description: string;
-  icon: React.ComponentType<{ className?: string }>;
-  key: string;
-  label: string;
-}
-
-const BASE_MENU_ITEMS: MenuItem[] = [
+const BASE_MENU_ITEMS = [
   {
     description: '产品概览',
     icon: EyeOutlined,
@@ -56,7 +49,7 @@ const BASE_MENU_ITEMS: MenuItem[] = [
     key: 'portal',
     label: 'Portal',
   },
-];
+] as const;
 
 export default function ApiProductDetail() {
   const navigate = useNavigate();
@@ -91,26 +84,14 @@ export default function ApiProductDetail() {
               },
               BASE_MENU_ITEMS[3], // portal
             ]
-          : apiProduct?.type === 'MCP_SERVER'
-            ? [
-                BASE_MENU_ITEMS[0], // overview
-                {
-                  description: 'MCP Server 配置',
-                  icon: LinkOutlined,
-                  key: 'link-api',
-                  label: '配置MCP',
-                },
-                BASE_MENU_ITEMS[2], // usage-guide
-                BASE_MENU_ITEMS[3], // portal
-              ]
-            : BASE_MENU_ITEMS,
-    [apiProduct?.type],
+          : BASE_MENU_ITEMS,
+    [apiProduct],
   );
 
   // 从URL query参数获取当前tab，默认为overview
   const currentTab = searchParams.get('tab') || 'overview';
   // 验证tab值是否有效，如果无效则使用默认值
-  const validTab = menuItems.some((item) => item?.key === currentTab) ? currentTab : 'overview';
+  const validTab = menuItems.some((item) => item.key === currentTab) ? currentTab : 'overview';
   const [activeTab, setActiveTab] = useState(validTab);
 
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -147,7 +128,7 @@ export default function ApiProductDetail() {
   // 同步URL参数和activeTab状态
   useEffect(() => {
     const currentTab = searchParams.get('tab') || 'overview';
-    const valid = menuItems.some((item) => item?.key === currentTab) ? currentTab : 'overview';
+    const valid = menuItems.some((item) => item.key === currentTab) ? currentTab : 'overview';
     setActiveTab(valid);
   }, [searchParams, menuItems]);
 
@@ -296,26 +277,24 @@ export default function ApiProductDetail() {
         {/* 导航菜单 - 等待产品数据加载后再渲染，避免菜单项闪烁 */}
         <nav className="flex-1 p-4 space-y-1">
           {apiProduct ? (
-            menuItems
-              .filter((item): item is MenuItem => !!item)
-              .map((item) => {
-                const Icon = item.icon;
-                return (
-                  <button
-                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
-                      activeTab === item.key ? 'bg-blue-500 text-white' : 'hover:bg-gray-100'
-                    }`}
-                    key={item.key}
-                    onClick={() => handleTabChange(item.key)}
-                  >
-                    <Icon className="h-4 w-4 flex-shrink-0" />
-                    <div>
-                      <div className="font-medium">{item.label}</div>
-                      <div className="text-xs opacity-70">{item.description}</div>
-                    </div>
-                  </button>
-                );
-              })
+            menuItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
+                    activeTab === item.key ? 'bg-blue-500 text-white' : 'hover:bg-gray-100'
+                  }`}
+                  key={item.key}
+                  onClick={() => handleTabChange(item.key)}
+                >
+                  <Icon className="h-4 w-4 flex-shrink-0" />
+                  <div>
+                    <div className="font-medium">{item.label}</div>
+                    <div className="text-xs opacity-70">{item.description}</div>
+                  </div>
+                </button>
+              );
+            })
           ) : (
             <div className="space-y-2">
               {[1, 2, 3, 4].map((i) => (

@@ -3,29 +3,31 @@ import {
   DeleteOutlined,
   ExclamationCircleOutlined,
   CopyOutlined,
-  CloudUploadOutlined,
-  SettingOutlined,
 } from '@ant-design/icons';
-import { Card, Button, Modal, message, Space, Tag } from 'antd';
-import { useCallback, useEffect, useState } from 'react';
+import { Card, Button, Modal, Form, Select, message, Collapse, Tabs, Row, Col } from 'antd';
+import * as yaml from 'js-yaml';
+import { useState, useEffect } from 'react';
 
-import { apiProductApi, mcpServerApi } from '@/lib/api';
-import { copyToClipboard, formatDateTime } from '@/lib/utils';
-import type { ApiProduct, ApiProductConfig, LinkedService } from '@/types/api-product';
+import { apiProductApi, gatewayApi, nacosApi } from '@/lib/api';
+import { getGatewayTypeLabel } from '@/lib/constant';
+import { copyToClipboard, formatDomainWithPort } from '@/lib/utils';
+import type {
+  ApiProduct,
+  LinkedService,
+  RestAPIItem,
+  HigressMCPItem,
+  NacosMCPItem,
+  NacosAgentItem,
+  APIGAIMCPItem,
+  AIGatewayAgentItem,
+  AIGatewayModelItem,
+  ApiItem,
+  AdpAIGatewayModelItem,
+  ApsaraGatewayModelItem,
+} from '@/types/api-product';
+import type { Gateway, GatewayType, NacosInstance } from '@/types/gateway';
 
-import {
-  McpServerConfigPanel,
-  AgentApiConfigPanel,
-  ModelApiConfigPanel,
-  RestApiConfigPanel,
-} from './config-panels';
-import { McpCustomConfigModal } from './McpCustomConfigModal';
-import ToolsConfigEditorModal from '../mcp/ToolsConfigEditorModal';
-import { DeployMcpModal } from './deploy-mcp-modal/DeployMcpModal';
-import { useMcpConnectionConfig } from './hooks/useMcpConnectionConfig';
-import { useMcpMeta } from './hooks/useMcpMeta';
-import { useParsedMcpTools } from './hooks/useParsedMcpTools';
-import { LinkApiModal } from './link-api-modal/LinkApiModal';
+import { SwaggerUIWrapper } from './SwaggerUIWrapper';
 
 interface ApiProductLinkApiProps {
   apiProduct: ApiProduct;
@@ -40,99 +42,768 @@ export function ApiProductLinkApi({
   linkedService,
   onLinkedServiceUpdate,
 }: ApiProductLinkApiProps) {
-  // 沙箱部署弹窗控制
-  const [deployModalMcpServerId, setDeployModalMcpServerId] = useState<string | null>(null);
+  // 移除了内部的 linkedService 状态，现在从 props 接收
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [form] = Form.useForm();
+  const [gateways, setGateways] = useState<Gateway[]>([]);
+  const [nacosInstances, setNacosInstances] = useState<NacosInstance[]>([]);
+  const [gatewayLoading, setGatewayLoading] = useState(false);
+  const [nacosLoading, setNacosLoading] = useState(false);
+  const [selectedGateway, setSelectedGateway] = useState<Gateway | null>(null);
+  const [selectedNacos, setSelectedNacos] = useState<NacosInstance | null>(null);
+  const [nacosNamespaces, setNacosNamespaces] = useState<
+    Array<{ namespaceDesc?: string; namespaceId: string; namespaceName?: string }>
+  >([]);
+  const [selectedNamespace, setSelectedNamespace] = useState<string | null>(null);
+  const [apiList, setApiList] = useState<ApiItem[] | NacosMCPItem[]>([]);
+  const [apiLoading, setApiLoading] = useState(false);
+  const [sourceType, setSourceType] = useState<'GATEWAY' | 'NACOS'>('GATEWAY');
+  const [parsedTools, setParsedTools] = useState<
+    Array<{
+      name: string;
+      description: string;
+      args?: Array<{
+        name: string;
+        description: string;
+        type: string;
+        required: boolean;
+        position: string;
+        default?: string;
+        enum?: string[];
+      }>;
+    }>
+  >([]);
+  const [httpJson, setHttpJson] = useState('');
+  const [sseJson, setSseJson] = useState('');
+  const [localJson, setLocalJson] = useState('');
+  const [selectedDomainIndex, setSelectedDomainIndex] = useState<number>(0);
+  const [selectedAgentDomainIndex, setSelectedAgentDomainIndex] = useState<number>(0);
+  const [selectedModelDomainIndex, setSelectedModelDomainIndex] = useState<number>(0);
 
-  // 域名选择索引
-  const [selectedDomainIndex, setSelectedDomainIndex] = useState(0);
-  const [selectedAgentDomainIndex, setSelectedAgentDomainIndex] = useState(0);
-  const [selectedModelDomainIndex, setSelectedModelDomainIndex] = useState(0);
-
-  // MCP 数据
-  const { fetch: fetchMcpMeta, metaList: mcpMetaList } = useMcpMeta();
-  const parsedTools = useParsedMcpTools(apiProduct, mcpMetaList);
-  const connConfig = useMcpConnectionConfig(
-    apiProduct,
-    linkedService,
-    mcpMetaList,
-    selectedDomainIndex,
-  );
-
-  // 初始化加载
   useEffect(() => {
-    if (apiProduct.type === 'MCP_SERVER') {
-      fetchMcpMeta(apiProduct.productId);
-    }
-  }, [apiProduct.type, apiProduct.productId, fetchMcpMeta]);
+    void fetchGateways();
+    void fetchNacosInstances();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // 产品切换重置域名索引
+  // 解析MCP tools配置
+  useEffect(() => {
+    if (apiProduct.type === 'MCP_SERVER' && apiProduct.mcpConfig?.tools) {
+      const parsedConfig = parseYamlConfig(apiProduct.mcpConfig.tools);
+      if (parsedConfig && parsedConfig.tools && Array.isArray(parsedConfig.tools)) {
+        setParsedTools(parsedConfig.tools);
+      } else {
+        // 如果tools字段存在但是空数组，也设置为空数组
+        setParsedTools([]);
+      }
+    } else {
+      setParsedTools([]);
+    }
+  }, [apiProduct]);
+
+  // 生成连接配置
+  // 当产品切换时重置域名选择索引
   useEffect(() => {
     setSelectedDomainIndex(0);
     setSelectedAgentDomainIndex(0);
     setSelectedModelDomainIndex(0);
   }, [apiProduct.productId]);
 
-  // 获取工具列表
-  const [fetchingTools, setFetchingTools] = useState(false);
-  const handleRefreshTools = async () => {
-    const meta = mcpMetaList[0];
-    if (!meta?.mcpServerId) return;
-    setFetchingTools(true);
-    try {
-      await mcpServerApi.refreshTools(meta.mcpServerId);
-      message.success('工具列表获取成功');
-      await fetchMcpMeta(apiProduct.productId);
-      await handleRefresh();
-    } catch (e: unknown) {
-      message.error(
-        (e as { response?: { data?: { message?: string } } }).response?.data?.message ||
-          '获取工具列表失败',
+  useEffect(() => {
+    if (apiProduct.type === 'MCP_SERVER' && apiProduct.mcpConfig) {
+      // 获取关联的MCP Server名称
+      let mcpServerName = apiProduct.name; // 默认使用产品名称
+
+      if (linkedService) {
+        // 从linkedService中获取真实的MCP Server名称
+        if (
+          linkedService.sourceType === 'GATEWAY' &&
+          linkedService.apigRefConfig &&
+          'mcpServerName' in linkedService.apigRefConfig
+        ) {
+          mcpServerName = linkedService.apigRefConfig.mcpServerName || apiProduct.name;
+        } else if (linkedService.sourceType === 'GATEWAY' && linkedService.higressRefConfig) {
+          mcpServerName = linkedService.higressRefConfig.mcpServerName || apiProduct.name;
+        } else if (linkedService.sourceType === 'GATEWAY' && linkedService.adpAIGatewayRefConfig) {
+          // 检查是否是 AdpAIGatewayModelItem 类型（有 modelApiName 属性）
+          if ('modelApiName' in linkedService.adpAIGatewayRefConfig) {
+            mcpServerName = linkedService.adpAIGatewayRefConfig.modelApiName || apiProduct.name;
+          } else {
+            // APIGAIMCPItem 类型
+            mcpServerName = linkedService.adpAIGatewayRefConfig.mcpServerName || apiProduct.name;
+          }
+        } else if (linkedService.sourceType === 'GATEWAY' && linkedService.apsaraGatewayRefConfig) {
+          if ('modelApiName' in linkedService.apsaraGatewayRefConfig) {
+            mcpServerName = linkedService.apsaraGatewayRefConfig.modelApiName || apiProduct.name;
+          } else {
+            mcpServerName = linkedService.apsaraGatewayRefConfig.mcpServerName || apiProduct.name;
+          }
+        } else if (
+          linkedService.sourceType === 'NACOS' &&
+          linkedService.nacosRefConfig &&
+          'mcpServerName' in linkedService.nacosRefConfig
+        ) {
+          mcpServerName = linkedService.nacosRefConfig.mcpServerName || apiProduct.name;
+        }
+      }
+
+      generateConnectionConfig(
+        apiProduct.mcpConfig.mcpServerConfig.domains,
+        apiProduct.mcpConfig.mcpServerConfig.path,
+        mcpServerName,
+        apiProduct.mcpConfig.mcpServerConfig.rawConfig,
+        apiProduct.mcpConfig.meta?.protocol,
+        selectedDomainIndex,
       );
-    } finally {
-      setFetchingTools(false);
     }
-  };
+  }, [apiProduct, linkedService, selectedDomainIndex]);
 
-  // 删除关联
-  const handleDelete = () => {
-    const isMcp = apiProduct.type === 'MCP_SERVER';
-    if (!isMcp && !linkedService) return;
-
-    Modal.confirm({
-      content: isMcp
-        ? '确定要解除当前MCP配置吗？这将同时删除关联数据和MCP元信息。'
-        : '确定要解除与当前API的关联吗？',
-      icon: <ExclamationCircleOutlined />,
-      onOk() {
-        const deletePromise = isMcp
-          ? mcpServerApi.deleteMetaByProduct(apiProduct.productId)
-          : apiProductApi.deleteApiProductRef(apiProduct.productId);
-
-        return deletePromise
-          .then(() => {
-            message.success(isMcp ? '解除配置成功' : '解除关联成功');
-            onLinkedServiceUpdate(null);
-            if (isMcp) {
-              fetchMcpMeta(apiProduct.productId);
-            }
-            handleRefresh();
-          })
-          .catch(() => {
-            message.error(isMcp ? '解除配置失败' : '解除关联失败');
-          });
-      },
-      title: isMcp ? '确认解除配置' : '确认解除关联',
+  // 生成域名选项的函数
+  const getDomainOptions = (
+    domains: Array<{ domain: string; port?: number; protocol: string; networkType?: string }>,
+  ) => {
+    return domains.map((domain, index) => {
+      const formattedDomain = formatDomainWithPort(domain.domain, domain.port, domain.protocol);
+      return {
+        domain: domain,
+        label: `${domain.protocol}://${formattedDomain}`,
+        value: index,
+      };
     });
   };
 
-  // Link Modal 控制
-  const [isModalVisible, setIsModalVisible] = useState(false);
+  // 解析YAML配置的函数
+  const parseYamlConfig = (
+    yamlString: string,
+  ): {
+    tools?: Array<{
+      name: string;
+      description: string;
+      args?: Array<{
+        name: string;
+        description: string;
+        type: string;
+        required: boolean;
+        position: string;
+        default?: string;
+        enum?: string[];
+      }>;
+    }>;
+  } | null => {
+    try {
+      const parsed = yaml.load(yamlString) as {
+        tools?: Array<{
+          name: string;
+          description: string;
+          args?: Array<{
+            name: string;
+            description: string;
+            type: string;
+            required: boolean;
+            position: string;
+            default?: string;
+            enum?: string[];
+          }>;
+        }>;
+      };
+      return parsed;
+    } catch (error) {
+      console.error('YAML解析失败:', error);
+      return null;
+    }
+  };
 
-  // Custom Config Modal 控制
-  const [isCustomConfigModalVisible, setIsCustomConfigModalVisible] = useState(false);
+  // 生成连接配置
+  const generateConnectionConfig = (
+    domains: Array<{ domain: string; port?: number; protocol: string }> | null | undefined,
+    path: string | null | undefined,
+    serverName: string,
+    localConfig?: unknown,
+    protocolType?: string,
+    domainIndex: number = 0,
+  ) => {
+    // 互斥：优先判断本地模式
+    if (localConfig) {
+      const localConfigJson = JSON.stringify(localConfig, null, 2);
+      setLocalJson(localConfigJson);
+      setHttpJson('');
+      setSseJson('');
+      return;
+    }
 
-  // Tools Editor 控制
-  const [toolsEditorOpen, setToolsEditorOpen] = useState(false);
+    // HTTP/SSE 模式
+    if (domains && domains.length > 0 && path && domainIndex < domains.length) {
+      const domain = domains[domainIndex];
+      if (!domain) return;
+      const formattedDomain = formatDomainWithPort(domain.domain, domain.port, domain.protocol);
+      const baseUrl = `${domain.protocol}://${formattedDomain}`;
+      const fullUrl = `${baseUrl}${path || '/'}`;
+
+      if (protocolType === 'SSE') {
+        // 仅生成SSE配置，不追加/sse
+        const sseConfig = {
+          mcpServers: {
+            [serverName]: {
+              type: 'sse',
+              url: fullUrl,
+            },
+          },
+        };
+        setSseJson(JSON.stringify(sseConfig, null, 2));
+        setHttpJson('');
+        setLocalJson('');
+        return;
+      } else if (protocolType === 'StreamableHTTP') {
+        // 仅生成HTTP配置
+        const httpConfig = {
+          mcpServers: {
+            [serverName]: {
+              url: fullUrl,
+            },
+          },
+        };
+        setHttpJson(JSON.stringify(httpConfig, null, 2));
+        setSseJson('');
+        setLocalJson('');
+        return;
+      } else {
+        // protocol为null或其他值：生成两种配置
+        const sseConfig = {
+          mcpServers: {
+            [serverName]: {
+              type: 'sse',
+              url: `${fullUrl}/sse`,
+            },
+          },
+        };
+
+        const httpConfig = {
+          mcpServers: {
+            [serverName]: {
+              url: fullUrl,
+            },
+          },
+        };
+
+        setSseJson(JSON.stringify(sseConfig, null, 2));
+        setHttpJson(JSON.stringify(httpConfig, null, 2));
+        setLocalJson('');
+        return;
+      }
+    }
+
+    // 无有效配置
+    setHttpJson('');
+    setSseJson('');
+    setLocalJson('');
+  };
+
+  const handleCopy = async (text: string) => {
+    try {
+      await copyToClipboard(text);
+      message.success('已复制到剪贴板');
+    } catch {
+      message.error('复制失败，请手动复制');
+    }
+  };
+
+  const fetchGateways = async () => {
+    setGatewayLoading(true);
+    try {
+      const res = await gatewayApi.getGateways({
+        page: 1,
+        size: 1000,
+      });
+      let result;
+      if (apiProduct.type === 'REST_API') {
+        // REST API 只支持 APIG_API 网关
+        result = res.data?.content?.filter?.((item: Gateway) => item.gatewayType === 'APIG_API');
+      } else if (apiProduct.type === 'AGENT_API') {
+        // Agent API 只支持 APIG_AI 网关
+        result = res.data?.content?.filter?.((item: Gateway) => item.gatewayType === 'APIG_AI');
+      } else if (apiProduct.type === 'MODEL_API') {
+        // Model API 支持 APIG_AI 网关、HIGRESS 网关、ADP AI 网关、APSARA 网关
+        result = res.data?.content?.filter?.(
+          (item: Gateway) =>
+            item.gatewayType === 'APIG_AI' ||
+            item.gatewayType === 'HIGRESS' ||
+            item.gatewayType === 'ADP_AI_GATEWAY' ||
+            item.gatewayType === 'APSARA_GATEWAY',
+        );
+      } else if (apiProduct.type === 'AGENT_SKILL') {
+        // Agent Skill 不需要关联网关
+        result = [];
+      } else {
+        // MCP Server 支持 HIGRESS、APIG_AI、ADP AI 网关、APSARA 网关
+        result = res.data?.content?.filter?.(
+          (item: Gateway) =>
+            item.gatewayType === 'HIGRESS' ||
+            item.gatewayType === 'APIG_AI' ||
+            item.gatewayType === 'ADP_AI_GATEWAY' ||
+            item.gatewayType === 'APSARA_GATEWAY',
+        );
+      }
+      setGateways(result || []);
+    } catch (error) {
+      console.error('获取网关列表失败:', error);
+    } finally {
+      setGatewayLoading(false);
+    }
+  };
+
+  const fetchNacosInstances = async () => {
+    setNacosLoading(true);
+    try {
+      const res = await nacosApi.getNacos({
+        page: 1,
+        size: 1000, // 获取所有 Nacos 实例
+      });
+      setNacosInstances(res.data.content || []);
+    } catch (error) {
+      console.error('获取Nacos实例列表失败:', error);
+    } finally {
+      setNacosLoading(false);
+    }
+  };
+
+  const handleSourceTypeChange = (value: 'GATEWAY' | 'NACOS') => {
+    setSourceType(value);
+    setSelectedGateway(null);
+    setSelectedNacos(null);
+    setSelectedNamespace(null);
+    setNacosNamespaces([]);
+    setApiList([]);
+    form.setFieldsValue({
+      apiId: undefined,
+      gatewayId: undefined,
+      nacosId: undefined,
+    });
+  };
+
+  const handleGatewayChange = async (gatewayId: string) => {
+    const gateway = gateways.find((g) => g.gatewayId === gatewayId);
+    setSelectedGateway(gateway || null);
+
+    if (!gateway) return;
+
+    setApiLoading(true);
+    try {
+      if (gateway.gatewayType === 'APIG_API') {
+        // APIG_API类型：获取REST API列表
+        const restRes = await gatewayApi.getGatewayRestApis(gatewayId, {});
+        const restApis = (restRes.data?.content || []).map(
+          (api: { apiId?: string; apiName?: string }) => ({
+            apiId: api.apiId,
+            apiName: api.apiName,
+            type: 'REST API',
+          }),
+        );
+        setApiList(restApis);
+      } else if (gateway.gatewayType === 'HIGRESS') {
+        // HIGRESS类型：对于Model API产品，获取Model API列表；其他情况获取MCP Server列表
+        if (apiProduct.type === 'MODEL_API') {
+          // HIGRESS类型 + Model API产品：获取Model API列表
+          const res = await gatewayApi.getGatewayModelApis(gatewayId, {
+            page: 1,
+            size: 1000, // 获取所有Model API
+          });
+          const modelApis = (res.data?.content || []).map((api: { modelRouteName?: string }) => ({
+            fromGatewayType: 'HIGRESS' as const,
+            modelRouteName: api.modelRouteName,
+            type: 'Model API',
+          }));
+          setApiList(modelApis);
+        } else {
+          // HIGRESS类型：获取MCP Server列表
+          const res = await gatewayApi.getGatewayMcpServers(gatewayId, {
+            page: 1,
+            size: 1000, // 获取所有MCP Server
+          });
+          const mcpServers = (res.data?.content || []).map((api: { mcpServerName?: string }) => ({
+            fromGatewayType: 'HIGRESS' as const,
+            mcpServerName: api.mcpServerName,
+            type: 'MCP Server',
+          }));
+          setApiList(mcpServers);
+        }
+      } else if (gateway.gatewayType === 'APIG_AI') {
+        if (apiProduct.type === 'AGENT_API') {
+          // APIG_AI类型 + Agent API产品：获取Agent API列表
+          const res = await gatewayApi.getGatewayAgentApis(gatewayId, {
+            page: 1,
+            size: 500, // 获取所有Agent API
+          });
+          const agentApis = (res.data?.content || []).map(
+            (api: { agentApiId?: string; agentApiName?: string }) => ({
+              agentApiId: api.agentApiId,
+              agentApiName: api.agentApiName,
+              fromGatewayType: 'APIG_AI' as const,
+              type: 'Agent API',
+            }),
+          );
+          setApiList(agentApis);
+        } else if (apiProduct.type === 'MODEL_API') {
+          // APIG_AI类型 + Model API产品：获取Model API列表
+          const res = await gatewayApi.getGatewayModelApis(gatewayId, {
+            page: 1,
+            size: 500, // 获取所有Model API
+          });
+          const modelApis = (res.data?.content || []).map(
+            (api: { modelApiId?: string; modelApiName?: string }) => ({
+              fromGatewayType: 'APIG_AI' as const,
+              modelApiId: api.modelApiId,
+              modelApiName: api.modelApiName,
+              type: 'Model API',
+            }),
+          );
+          setApiList(modelApis);
+        } else {
+          // APIG_AI类型 + MCP Server产品：获取MCP Server列表
+          const res = await gatewayApi.getGatewayMcpServers(gatewayId, {
+            page: 1,
+            size: 500, // 获取所有MCP Server
+          });
+          const mcpServers = (res.data?.content || []).map(
+            (api: {
+              apiId?: string;
+              mcpRouteId?: string;
+              mcpServerId?: string;
+              mcpServerName?: string;
+            }) => ({
+              apiId: api.apiId,
+              fromGatewayType: 'APIG_AI' as const,
+              mcpRouteId: api.mcpRouteId,
+              mcpServerId: api.mcpServerId,
+              mcpServerName: api.mcpServerName,
+              type: 'MCP Server',
+            }),
+          );
+          setApiList(mcpServers);
+        }
+      } else if (gateway.gatewayType === 'ADP_AI_GATEWAY') {
+        if (apiProduct.type === 'MODEL_API') {
+          // ADP_AI_GATEWAY类型 + Model API产品：获取Model API列表
+          const res = await gatewayApi.getGatewayModelApis(gatewayId, {
+            page: 1,
+            size: 500, // 获取所有Model API
+          });
+          const modelApis = (res.data?.content || []).map(
+            (api: { modelApiId?: string; modelApiName?: string }) => ({
+              fromGatewayType: 'ADP_AI_GATEWAY' as const,
+              modelApiId: api.modelApiId,
+              modelApiName: api.modelApiName,
+              type: 'Model API',
+            }),
+          );
+          setApiList(modelApis);
+        } else {
+          // ADP_AI_GATEWAY类型：获取MCP Server列表
+          const res = await gatewayApi.getGatewayMcpServers(gatewayId, {
+            page: 1,
+            size: 500, // 获取所有MCP Server
+          });
+          const mcpServers = (res.data?.content || []).map(
+            (api: {
+              mcpRouteId?: string;
+              mcpServerId?: string;
+              mcpServerName?: string;
+              name?: string;
+            }) => ({
+              fromGatewayType: 'ADP_AI_GATEWAY' as const,
+              mcpRouteId: api.mcpRouteId,
+              mcpServerId: api.mcpServerId,
+              mcpServerName: api.mcpServerName || api.name,
+              type: 'MCP Server',
+            }),
+          );
+          setApiList(mcpServers);
+        }
+      } else if (gateway.gatewayType === 'APSARA_GATEWAY') {
+        if (apiProduct.type === 'AGENT_API') {
+          // APSARA_GATEWAY类型 + Agent API产品：获取Agent API列表
+          const res = await gatewayApi.getGatewayAgentApis(gatewayId, {
+            page: 1,
+            size: 500, // 获取所有Agent API
+          });
+          const agentApis = (res.data?.content || []).map(
+            (api: { agentApiId?: string; agentApiName?: string }) => ({
+              agentApiId: api.agentApiId,
+              agentApiName: api.agentApiName,
+              fromGatewayType: 'APSARA_GATEWAY' as const,
+              type: 'Agent API',
+            }),
+          );
+          setApiList(agentApis);
+        } else if (apiProduct.type === 'MODEL_API') {
+          // APSARA_GATEWAY类型 + Model API产品：获取Model API列表
+          const res = await gatewayApi.getGatewayModelApis(gatewayId, {
+            page: 1,
+            size: 500, // 获取所有Model API
+          });
+          const modelApis = (res.data?.content || []).map(
+            (api: { modelApiId?: string; modelApiName?: string }) => ({
+              fromGatewayType: 'APSARA_GATEWAY' as const,
+              modelApiId: api.modelApiId,
+              modelApiName: api.modelApiName,
+              type: 'Model API',
+            }),
+          );
+          setApiList(modelApis);
+        } else {
+          // APSARA_GATEWAY类型：获取MCP Server列表
+          const res = await gatewayApi.getGatewayMcpServers(gatewayId, {
+            page: 1,
+            size: 500, // 获取所有MCP Server
+          });
+          const mcpServers = (res.data?.content || []).map(
+            (api: {
+              mcpRouteId?: string;
+              mcpServerId?: string;
+              mcpServerName?: string;
+              name?: string;
+            }) => ({
+              fromGatewayType: 'APSARA_GATEWAY' as const,
+              mcpRouteId: api.mcpRouteId,
+              mcpServerId: api.mcpServerId,
+              mcpServerName: api.mcpServerName || api.name,
+              type: 'MCP Server',
+            }),
+          );
+          setApiList(mcpServers);
+        }
+      }
+    } catch {
+    } finally {
+      setApiLoading(false);
+    }
+  };
+
+  const handleNacosChange = async (nacosId: string) => {
+    const nacos = nacosInstances.find((n) => n.nacosId === nacosId);
+    setSelectedNacos(nacos || null);
+    setSelectedNamespace(null);
+    setApiList([]);
+    setNacosNamespaces([]);
+    if (!nacos) return;
+
+    // 获取命名空间列表
+    try {
+      const nsRes = await nacosApi.getNamespaces(nacosId, { page: 1, size: 1000 });
+      const namespaces = (nsRes.data?.content || []).map(
+        (ns: { namespaceDesc?: string; namespaceId: string; namespaceName?: string }) => ({
+          namespaceDesc: ns.namespaceDesc,
+          namespaceId: ns.namespaceId,
+          namespaceName: ns.namespaceName || ns.namespaceId,
+        }),
+      );
+      setNacosNamespaces(namespaces);
+    } catch (e) {
+      console.error('获取命名空间失败', e);
+    }
+  };
+
+  const handleNamespaceChange = async (namespaceId: string) => {
+    setSelectedNamespace(namespaceId);
+    setApiLoading(true);
+    try {
+      if (!selectedNacos) return;
+
+      // 根据产品类型获取不同的列表
+      if (apiProduct.type === 'AGENT_API') {
+        // 获取 Agent 列表
+        const res = await nacosApi.getNacosAgents(selectedNacos.nacosId, {
+          namespaceId,
+          page: 1,
+          size: 1000,
+        });
+        const agents = (res.data?.content || []).map(
+          (api: { agentName?: string; description?: string }) => ({
+            agentName: api.agentName,
+            description: api.description,
+            fromGatewayType: 'NACOS' as const,
+            type: `Agent API (${namespaceId})`,
+          }),
+        );
+        setApiList(agents);
+      } else if (apiProduct.type === 'MCP_SERVER') {
+        // 获取 MCP Server 列表（现有逻辑）
+        const res = await nacosApi.getNacosMcpServers(selectedNacos.nacosId, {
+          namespaceId,
+          page: 1,
+          size: 1000,
+        });
+        const mcpServers = (res.data?.content || []).map((api: { mcpServerName?: string }) => ({
+          fromGatewayType: 'NACOS' as const,
+          mcpServerName: api.mcpServerName,
+          type: `MCP Server (${namespaceId})`,
+        }));
+        setApiList(mcpServers);
+      }
+    } catch (e) {
+      console.error('获取 Nacos 资源列表失败:', e);
+    } finally {
+      setApiLoading(false);
+    }
+  };
+
+  // TODO
+  const handleModalOk = () => {
+    form.validateFields().then((values) => {
+      const { apiId, gatewayId, nacosId, sourceType } = values;
+      const selectedApi = apiList.find((item: ApiItem | NacosMCPItem) => {
+        if ('apiId' in item) {
+          // REST API或MCP server 会返回apiId和mcpRouteId，此时mcpRouteId为唯一值，apiId不是
+          if ('mcpRouteId' in item) {
+            return item.mcpRouteId === apiId;
+          } else {
+            return item.apiId === apiId;
+          }
+        } else if ('mcpServerName' in item) {
+          return item.mcpServerName === apiId;
+        } else if ('agentApiId' in item || 'agentApiName' in item) {
+          // Agent API: 匹配agentApiId或agentApiName
+          const agentItem = item as AIGatewayAgentItem;
+          return agentItem.agentApiId === apiId || agentItem.agentApiName === apiId;
+        } else if ('modelApiId' in item || 'modelApiName' in item) {
+          // Model API (AI Gateway): 匹配modelApiId或modelApiName
+          const modelItem = item as AIGatewayModelItem;
+          return modelItem.modelApiId === apiId || modelItem.modelApiName === apiId;
+        } else if ('modelRouteName' in item && item.fromGatewayType === 'HIGRESS') {
+          // Model API (Higress): 匹配modelRouteName字段
+          return item.modelRouteName === apiId;
+        } else if ('agentName' in item) {
+          // Nacos Agent: 匹配agentName
+          return item.agentName === apiId;
+        }
+        return false;
+      });
+      const newService: LinkedService = {
+        adpAIGatewayRefConfig:
+          selectedApi &&
+          'fromGatewayType' in selectedApi &&
+          selectedApi.fromGatewayType === 'ADP_AI_GATEWAY'
+            ? apiProduct.type === 'MODEL_API'
+              ? ({
+                  fromGatewayType: 'ADP_AI_GATEWAY' as const,
+                  modelApiId: (selectedApi as { modelApiId?: string }).modelApiId,
+                  modelApiName: (selectedApi as { modelApiName?: string }).modelApiName,
+                } as AdpAIGatewayModelItem)
+              : (selectedApi as APIGAIMCPItem)
+            : undefined,
+        apigRefConfig:
+          selectedApi &&
+          ('apiId' in selectedApi ||
+            'agentApiId' in selectedApi ||
+            'agentApiName' in selectedApi ||
+            'modelApiId' in selectedApi ||
+            'modelApiName' in selectedApi) &&
+          (!('fromGatewayType' in selectedApi) ||
+            (selectedApi.fromGatewayType !== 'HIGRESS' &&
+              selectedApi.fromGatewayType !== 'ADP_AI_GATEWAY' &&
+              selectedApi.fromGatewayType !== 'APSARA_GATEWAY'))
+            ? (selectedApi as RestAPIItem | APIGAIMCPItem | AIGatewayAgentItem | AIGatewayModelItem)
+            : undefined,
+        apsaraGatewayRefConfig:
+          selectedApi &&
+          'fromGatewayType' in selectedApi &&
+          selectedApi.fromGatewayType === 'APSARA_GATEWAY'
+            ? apiProduct.type === 'MODEL_API'
+              ? ({
+                  fromGatewayType: 'APSARA_GATEWAY' as const,
+                  modelApiId: (selectedApi as { modelApiId?: string }).modelApiId,
+                  modelApiName: (selectedApi as { modelApiName?: string }).modelApiName,
+                } as ApsaraGatewayModelItem)
+              : (selectedApi as APIGAIMCPItem)
+            : undefined,
+        gatewayId: sourceType === 'GATEWAY' ? gatewayId : undefined, // 对于 Nacos，使用 nacosId 作为 gatewayId
+        higressRefConfig:
+          selectedApi &&
+          'fromGatewayType' in selectedApi &&
+          selectedApi.fromGatewayType === 'HIGRESS'
+            ? apiProduct.type === 'MODEL_API'
+              ? {
+                  fromGatewayType: 'HIGRESS' as const,
+                  modelRouteName: (selectedApi as { modelRouteName?: string }).modelRouteName,
+                }
+              : {
+                  fromGatewayType: 'HIGRESS' as const,
+                  mcpServerName: (selectedApi as { mcpServerName?: string }).mcpServerName,
+                }
+            : undefined,
+        nacosId: sourceType === 'NACOS' ? nacosId : undefined,
+        nacosRefConfig:
+          sourceType === 'NACOS' &&
+          selectedApi &&
+          'fromGatewayType' in selectedApi &&
+          selectedApi.fromGatewayType === 'NACOS'
+            ? {
+                ...selectedApi,
+                namespaceId: selectedNamespace || 'public',
+              }
+            : undefined,
+        productId: apiProduct.productId,
+        sourceType,
+      };
+      apiProductApi
+        .createApiProductRef(apiProduct.productId, newService as unknown as Record<string, unknown>)
+        .then(async () => {
+          message.success('关联成功');
+          setIsModalVisible(false);
+
+          // 重新获取关联信息并更新
+          try {
+            const res = await apiProductApi.getApiProductRef(apiProduct.productId);
+            onLinkedServiceUpdate(res.data || null);
+          } catch {
+            onLinkedServiceUpdate(null);
+          }
+
+          // 重新获取产品详情（特别重要，因为关联API后apiProduct.apiConfig可能会更新）
+          handleRefresh();
+
+          form.resetFields();
+          setSelectedGateway(null);
+          setSelectedNacos(null);
+          setApiList([]);
+          setSourceType('GATEWAY');
+        })
+        .catch(() => {
+          message.error('关联失败');
+        });
+    });
+  };
+
+  const handleModalCancel = () => {
+    setIsModalVisible(false);
+    form.resetFields();
+    setSelectedGateway(null);
+    setSelectedNacos(null);
+    setApiList([]);
+    setSourceType('GATEWAY');
+  };
+
+  const handleDelete = () => {
+    if (!linkedService) return;
+
+    Modal.confirm({
+      content: '确定要解除与当前API的关联吗？',
+      icon: <ExclamationCircleOutlined />,
+      onOk() {
+        return apiProductApi
+          .deleteApiProductRef(apiProduct.productId)
+          .then(() => {
+            message.success('解除关联成功');
+            onLinkedServiceUpdate(null);
+            // 重新获取产品详情（解除关联后apiProduct.apiConfig可能会更新）
+            handleRefresh();
+          })
+          .catch(() => {
+            message.error('解除关联失败');
+          });
+      },
+      title: '确认解除关联',
+    });
+  };
 
   const getServiceInfo = () => {
     if (!linkedService) return null;
@@ -142,7 +813,9 @@ export function ApiProductLinkApi({
     let sourceInfo = '';
     let gatewayInfo = '';
 
+    // 首先根据 Product 的 type 确定基本类型
     if (apiProduct.type === 'REST_API') {
+      // REST API 类型产品 - 只能关联 API 网关上的 REST API
       if (
         linkedService.sourceType === 'GATEWAY' &&
         linkedService.apigRefConfig &&
@@ -154,30 +827,38 @@ export function ApiProductLinkApi({
         gatewayInfo = linkedService.gatewayId || '未知';
       }
     } else if (apiProduct.type === 'MCP_SERVER') {
+      // MCP Server 类型产品 - 可以关联多种平台上的 MCP Server
       apiType = 'MCP Server';
+
       if (
         linkedService.sourceType === 'GATEWAY' &&
         linkedService.apigRefConfig &&
         'mcpServerName' in linkedService.apigRefConfig
       ) {
+        // AI网关上的MCP Server
         apiName = linkedService.apigRefConfig.mcpServerName || '未命名';
         sourceInfo = 'AI网关';
         gatewayInfo = linkedService.gatewayId || '未知';
       } else if (linkedService.sourceType === 'GATEWAY' && linkedService.higressRefConfig) {
+        // Higress网关上的MCP Server
         apiName = linkedService.higressRefConfig.mcpServerName || '未命名';
         sourceInfo = 'Higress网关';
         gatewayInfo = linkedService.gatewayId || '未知';
       } else if (linkedService.sourceType === 'GATEWAY' && linkedService.adpAIGatewayRefConfig) {
+        // 检查是否是 AdpAIGatewayModelItem 类型（有 modelApiName 属性）
         if ('modelApiName' in linkedService.adpAIGatewayRefConfig) {
+          // 专有云AI网关上的Model API
           apiName = linkedService.adpAIGatewayRefConfig.modelApiName || '未命名';
           sourceInfo = '专有云AI网关';
           gatewayInfo = linkedService.gatewayId || '未知';
         } else {
+          // 专有云AI网关上的MCP Server
           apiName = linkedService.adpAIGatewayRefConfig.mcpServerName || '未命名';
           sourceInfo = '专有云AI网关';
           gatewayInfo = linkedService.gatewayId || '未知';
         }
       } else if (linkedService.sourceType === 'GATEWAY' && linkedService.apsaraGatewayRefConfig) {
+        // 飞天企业版AI网关上的MCP Server
         if ('mcpServerName' in linkedService.apsaraGatewayRefConfig) {
           apiName = linkedService.apsaraGatewayRefConfig.mcpServerName || '未命名';
         } else {
@@ -190,21 +871,21 @@ export function ApiProductLinkApi({
         linkedService.nacosRefConfig &&
         'mcpServerName' in linkedService.nacosRefConfig
       ) {
+        // Nacos上的MCP Server
         apiName = linkedService.nacosRefConfig.mcpServerName || '未命名';
         sourceInfo = 'Nacos服务发现';
         gatewayInfo = linkedService.nacosId || '未知';
-      } else if (linkedService.sourceType === 'CUSTOM') {
-        apiName = apiProduct.name || '未命名';
-        sourceInfo = '自定义配置';
-        gatewayInfo = '-';
       }
     } else if (apiProduct.type === 'AGENT_API') {
+      // Agent API 类型产品 - 可以关联 AI 网关或 Nacos 上的 Agent API
       apiType = 'Agent API';
+
       if (
         linkedService.sourceType === 'GATEWAY' &&
         linkedService.apigRefConfig &&
         'agentApiName' in linkedService.apigRefConfig
       ) {
+        // AI网关上的Agent API
         apiName = linkedService.apigRefConfig.agentApiName || '未命名';
         sourceInfo = 'AI网关';
         gatewayInfo = linkedService.gatewayId || '未知';
@@ -213,17 +894,22 @@ export function ApiProductLinkApi({
         linkedService.nacosRefConfig &&
         'agentName' in linkedService.nacosRefConfig
       ) {
+        // Nacos 上的 Agent API
         apiName = linkedService.nacosRefConfig.agentName || '未命名';
         sourceInfo = 'Nacos Agent Registry';
         gatewayInfo = linkedService.nacosId || '未知';
       }
+      // 注意：Agent API 不支持专有云AI网关（ADP_AI_GATEWAY）
     } else if (apiProduct.type === 'MODEL_API') {
+      // Model API 类型产品 - 可以关联 AI 网关或 Higress 网关上的 Model API
       apiType = 'Model API';
+
       if (
         linkedService.sourceType === 'GATEWAY' &&
         linkedService.apigRefConfig &&
         'modelApiName' in linkedService.apigRefConfig
       ) {
+        // AI网关上的Model API
         apiName = linkedService.apigRefConfig.modelApiName || '未命名';
         sourceInfo = 'AI网关';
         gatewayInfo = linkedService.gatewayId || '未知';
@@ -232,6 +918,7 @@ export function ApiProductLinkApi({
         linkedService.higressRefConfig &&
         'modelRouteName' in linkedService.higressRefConfig
       ) {
+        // Higress网关上的Model API（AI路由）
         apiName = linkedService.higressRefConfig.modelRouteName || '未命名';
         sourceInfo = 'Higress网关';
         gatewayInfo = linkedService.gatewayId || '未知';
@@ -240,6 +927,7 @@ export function ApiProductLinkApi({
         linkedService.adpAIGatewayRefConfig &&
         'modelApiName' in linkedService.adpAIGatewayRefConfig
       ) {
+        // 专有云AI网关上的Model API
         apiName = linkedService.adpAIGatewayRefConfig.modelApiName || '未命名';
         sourceInfo = '专有云AI网关';
         gatewayInfo = linkedService.gatewayId || '未知';
@@ -248,284 +936,33 @@ export function ApiProductLinkApi({
         linkedService.apsaraGatewayRefConfig &&
         'modelApiName' in linkedService.apsaraGatewayRefConfig
       ) {
+        // 飞天企业版AI网关上的Model API
         apiName = linkedService.apsaraGatewayRefConfig.modelApiName || '未命名';
         sourceInfo = '飞天企业版AI网关';
         gatewayInfo = linkedService.gatewayId || '未知';
       }
     }
 
-    return { apiName, apiType, gatewayInfo, sourceInfo };
+    return {
+      apiName,
+      apiType,
+      gatewayInfo,
+      sourceInfo,
+    };
   };
 
   const renderLinkInfo = () => {
     const serviceInfo = getServiceInfo();
-    const isMcp = apiProduct.type === 'MCP_SERVER';
 
-    if (isMcp && mcpMetaList.length > 0) {
-      return (
-        <Card
-          className="mb-6"
-          extra={
-            <Space>
-              {mcpMetaList[0]?.sandboxRequired && !mcpMetaList[0]?.endpointUrl && (
-                <Button
-                  icon={<CloudUploadOutlined />}
-                  onClick={() => setDeployModalMcpServerId(mcpMetaList[0]?.mcpServerId || null)}
-                  type="primary"
-                >
-                  部署到沙箱
-                </Button>
-              )}
-              {mcpMetaList[0]?.sandboxRequired && mcpMetaList[0]?.endpointUrl && (
-                <Button
-                  danger
-                  onClick={() => {
-                    Modal.confirm({
-                      cancelText: '返回',
-                      content:
-                        '取消托管将删除沙箱中的部署实例和连接地址，已订阅的用户将无法继续使用。确定要取消吗？',
-                      icon: <ExclamationCircleOutlined />,
-                      okButtonProps: { danger: true },
-                      okText: '确认取消',
-                      onOk: async () => {
-                        try {
-                          await mcpServerApi.undeploySandbox(mcpMetaList[0]?.mcpServerId || '');
-                          message.success('已取消沙箱托管');
-                          fetchMcpMeta(apiProduct.productId);
-                        } catch {
-                          // 错误已由拦截器处理
-                        }
-                      },
-                      title: '确认取消托管',
-                    });
-                  }}
-                >
-                  取消托管
-                </Button>
-              )}
-              <Button
-                disabled={!!mcpMetaList[0]?.endpointUrl}
-                icon={<SettingOutlined />}
-                onClick={() => {
-                  if (mcpMetaList[0]?.endpointUrl) {
-                    message.warning('请先取消沙箱部署后再修改配置');
-                    return;
-                  }
-                  setIsCustomConfigModalVisible(true);
-                }}
-                title={mcpMetaList[0]?.endpointUrl ? '请先取消沙箱部署后再修改配置' : undefined}
-              >
-                修改配置
-              </Button>
-              <Button danger icon={<DeleteOutlined />} onClick={handleDelete} type="primary">
-                解除配置
-              </Button>
-            </Space>
-          }
-          title="MCP 配置信息"
-        >
-          {mcpMetaList.map((meta) => (
-            <div className="space-y-1" key={meta.mcpServerId}>
-              <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
-                <span className="text-xs text-gray-600">MCP 名称:</span>
-                <span className="col-span-2 text-xs text-gray-900 font-mono">{meta.mcpName}</span>
-                <span className="text-xs text-gray-600">展示名称:</span>
-                <span className="col-span-2 text-xs text-gray-900">{meta.displayName}</span>
-              </div>
-              <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
-                <span className="text-xs text-gray-600">协议类型:</span>
-                <span className="col-span-2 text-xs text-gray-900">
-                  {meta.protocolType?.toUpperCase()}
-                </span>
-                <span className="text-xs text-gray-600">来源:</span>
-                <span className="col-span-2 text-xs text-gray-900">
-                  {meta.origin === 'GATEWAY'
-                    ? '网关导入'
-                    : meta.origin === 'NACOS'
-                      ? 'Nacos导入'
-                      : meta.origin === 'ADMIN'
-                        ? '管理员手动创建'
-                        : meta.origin === 'AGENTRUNTIME'
-                          ? 'AgentRuntime导入'
-                          : meta.origin === 'OPEN_API'
-                            ? 'Open API 导入'
-                            : '自定义配置'}
-                </span>
-              </div>
-              {meta.repoUrl && (
-                <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
-                  <span className="text-xs text-gray-600">仓库地址:</span>
-                  <a
-                    className="col-span-5 text-xs text-blue-500 hover:underline truncate"
-                    href={meta.repoUrl}
-                    rel="noopener noreferrer"
-                    target="_blank"
-                  >
-                    {meta.repoUrl}
-                  </a>
-                </div>
-              )}
-              {meta.description && (
-                <div className="grid grid-cols-6 gap-8 pt-2 pb-2">
-                  <span className="text-xs text-gray-600">描述:</span>
-                  <span className="col-span-5 text-xs text-gray-700 leading-relaxed">
-                    {meta.description}
-                  </span>
-                </div>
-              )}
-              {meta.sandboxRequired && (
-                <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
-                  <span className="text-xs text-gray-600">沙箱托管:</span>
-                  <div className="col-span-5 flex items-center gap-2">
-                    {meta.endpointUrl ? (
-                      <>
-                        <Tag
-                          className="m-0"
-                          color={meta.endpointStatus === 'ACTIVE' ? 'green' : 'default'}
-                        >
-                          {meta.endpointStatus === 'ACTIVE'
-                            ? '运行中'
-                            : meta.endpointStatus || '未知'}
-                        </Tag>
-                        <span className="text-xs text-gray-700 font-mono break-all">
-                          {meta.endpointUrl}
-                        </span>
-                        <CopyOutlined
-                          className="text-gray-400 hover:text-blue-600 cursor-pointer transition-colors flex-shrink-0"
-                          onClick={async () => {
-                            try {
-                              await copyToClipboard(meta.endpointUrl || '');
-                              message.success('连接地址已复制');
-                            } catch {
-                              message.error('复制失败');
-                            }
-                          }}
-                          style={{ fontSize: '12px' }}
-                        />
-                      </>
-                    ) : meta.endpointStatus === 'INACTIVE' ? (
-                      <>
-                        <Tag className="m-0" color="red">
-                          部署失败
-                        </Tag>
-                        <Button
-                          className="p-0 text-xs"
-                          onClick={() => setDeployModalMcpServerId(meta.mcpServerId || null)}
-                          size="small"
-                          type="link"
-                        >
-                          重新部署
-                        </Button>
-                      </>
-                    ) : (
-                      <Tag className="m-0" color="default">
-                        未部署
-                      </Tag>
-                    )}
-                  </div>
-                </div>
-              )}
-              {meta.tags &&
-                (() => {
-                  try {
-                    const tags = JSON.parse(meta.tags);
-                    return Array.isArray(tags) && tags.length > 0 ? (
-                      <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
-                        <span className="text-xs text-gray-600">标签:</span>
-                        <div className="col-span-5 flex flex-wrap gap-1">
-                          {tags.map((tag: string) => (
-                            <Tag className="m-0" color="blue" key={tag}>
-                              {tag}
-                            </Tag>
-                          ))}
-                        </div>
-                      </div>
-                    ) : null;
-                  } catch {
-                    return null;
-                  }
-                })()}
-              <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
-                {meta.createdBy && (
-                  <>
-                    <span className="text-xs text-gray-600">创建人:</span>
-                    <span className="col-span-2 text-xs text-gray-900">{meta.createdBy}</span>
-                  </>
-                )}
-                {meta.createAt && (
-                  <>
-                    <span className="text-xs text-gray-600">创建时间:</span>
-                    <span className="col-span-2 text-xs text-gray-700">
-                      {formatDateTime(meta.createAt)}
-                    </span>
-                  </>
-                )}
-              </div>
-            </div>
-          ))}
-        </Card>
-      );
-    }
-
+    // 没有关联任何API
     if (!linkedService || !serviceInfo) {
       return (
         <Card className="mb-6">
           <div className="text-center py-8">
-            <div className="text-gray-500 mb-4">
-              {isMcp ? '暂未配置MCP Server' : '暂未关联任何API'}
-            </div>
-            {isMcp ? (
-              <div className="max-w-2xl mx-auto">
-                <div className="grid grid-cols-2 gap-4 mt-2">
-                  <div
-                    className="group cursor-pointer rounded-xl border-2 border-dashed border-gray-200 hover:border-blue-400 p-5 transition-all duration-200 hover:bg-blue-50/50"
-                    onClick={() => setIsModalVisible(true)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        setIsModalVisible(true);
-                      }
-                    }}
-                    role="button"
-                    tabIndex={0}
-                  >
-                    <div className="w-10 h-10 rounded-lg bg-blue-50 group-hover:bg-blue-100 flex items-center justify-center mx-auto mb-3 transition-colors">
-                      <CloudUploadOutlined className="text-blue-500 text-lg" />
-                    </div>
-                    <div className="font-medium text-sm text-gray-800 mb-1">从网关/Nacos导入</div>
-                    <div className="text-xs text-gray-400 leading-relaxed">
-                      关联已有网关或 Nacos 中注册的 MCP Server
-                    </div>
-                  </div>
-                  <div
-                    className="group cursor-pointer rounded-xl border-2 border-dashed border-gray-200 hover:border-purple-400 p-5 transition-all duration-200 hover:bg-purple-50/50"
-                    onClick={() => setIsCustomConfigModalVisible(true)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        setIsCustomConfigModalVisible(true);
-                      }
-                    }}
-                    role="button"
-                    tabIndex={0}
-                  >
-                    <div className="w-10 h-10 rounded-lg bg-purple-50 group-hover:bg-purple-100 flex items-center justify-center mx-auto mb-3 transition-colors">
-                      <SettingOutlined className="text-purple-500 text-lg" />
-                    </div>
-                    <div className="font-medium text-sm text-gray-800 mb-1">自定义数据</div>
-                    <div className="text-xs text-gray-400 leading-relaxed">
-                      手动配置 MCP Server 的连接信息和工具定义
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <Button
-                icon={<PlusOutlined />}
-                onClick={() => setIsModalVisible(true)}
-                type="primary"
-              >
-                关联API
-              </Button>
-            )}
+            <div className="text-gray-500 mb-4">暂未关联任何API</div>
+            <Button icon={<PlusOutlined />} onClick={() => setIsModalVisible(true)} type="primary">
+              关联API
+            </Button>
           </div>
         </Card>
       );
@@ -542,6 +979,7 @@ export function ApiProductLinkApi({
         title="关联详情"
       >
         <div>
+          {/* 第一行：名称 + 类型 */}
           <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
             <span className="text-xs text-gray-600">名称:</span>
             <span className="col-span-2 text-xs text-gray-900">
@@ -550,258 +988,1332 @@ export function ApiProductLinkApi({
             <span className="text-xs text-gray-600">类型:</span>
             <span className="col-span-2 text-xs text-gray-900">{serviceInfo.apiType}</span>
           </div>
+
+          {/* 第二行：来源 + ID */}
           <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
             <span className="text-xs text-gray-600">来源:</span>
             <span className="col-span-2 text-xs text-gray-900">{serviceInfo.sourceInfo}</span>
-            {linkedService?.sourceType !== 'CUSTOM' && (
-              <>
-                <span className="text-xs text-gray-600">
-                  {linkedService?.sourceType === 'NACOS' ? 'Nacos ID:' : '网关ID:'}
-                </span>
-                <span className="col-span-2 text-xs text-gray-700">{serviceInfo.gatewayInfo}</span>
-              </>
-            )}
+            <span className="text-xs text-gray-600">
+              {linkedService?.sourceType === 'NACOS' ? 'Nacos ID:' : '网关ID:'}
+            </span>
+            <span className="col-span-2 text-xs text-gray-700">{serviceInfo.gatewayInfo}</span>
           </div>
-          {linkedService?.sourceType === 'CUSTOM' && mcpMetaList.length > 0 && (
-            <>
-              {mcpMetaList.map((meta) => (
-                <div key={meta.mcpServerId}>
-                  <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
-                    <span className="text-xs text-gray-600">MCP 名称:</span>
-                    <span className="col-span-2 text-xs text-gray-900 font-mono">
-                      {meta.mcpName}
-                    </span>
-                    <span className="text-xs text-gray-600">展示名称:</span>
-                    <span className="col-span-2 text-xs text-gray-900">{meta.displayName}</span>
-                  </div>
-                  <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
-                    <span className="text-xs text-gray-600">协议类型:</span>
-                    <span className="col-span-2 text-xs text-gray-900">
-                      {meta.protocolType?.toUpperCase()}
-                    </span>
-                  </div>
-                  {meta.repoUrl && (
-                    <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
-                      <span className="text-xs text-gray-600">仓库地址:</span>
-                      <a
-                        className="col-span-5 text-xs text-blue-500 hover:underline truncate"
-                        href={meta.repoUrl}
-                        rel="noopener noreferrer"
-                        target="_blank"
-                      >
-                        {meta.repoUrl}
-                      </a>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </>
-          )}
         </div>
       </Card>
     );
   };
 
-  const handleLinkSuccess = useCallback(async () => {
-    setIsModalVisible(false);
-    try {
-      const res = await apiProductApi.getApiProductRef(apiProduct.productId);
-      onLinkedServiceUpdate(res.data || null);
-    } catch {
-      onLinkedServiceUpdate(null);
+  const renderApiConfig = () => {
+    const isMcp = apiProduct.type === 'MCP_SERVER';
+    const isOpenApi = apiProduct.type === 'REST_API';
+    const isAgent = apiProduct.type === 'AGENT_API';
+    const isModel = apiProduct.type === 'MODEL_API';
+
+    // MCP Server类型：无论是否有linkedService都显示tools和连接点配置
+    if (isMcp && apiProduct.mcpConfig) {
+      return (
+        <Card title="配置详情">
+          <Row gutter={24}>
+            {/* 左侧：工具列表 */}
+            <Col span={15}>
+              <Card>
+                <Tabs
+                  defaultActiveKey="tools"
+                  items={[
+                    {
+                      children:
+                        parsedTools.length > 0 ? (
+                          <div className="border border-gray-200 rounded-lg bg-gray-50">
+                            {parsedTools.map((tool, idx) => (
+                              <div
+                                className={
+                                  idx < parsedTools.length - 1 ? 'border-b border-gray-200' : ''
+                                }
+                                key={idx}
+                              >
+                                <Collapse
+                                  expandIconPosition="end"
+                                  ghost
+                                  items={[
+                                    {
+                                      children: (
+                                        <div className="px-4 pb-2">
+                                          <div className="text-gray-600 mb-4">
+                                            {tool.description}
+                                          </div>
+
+                                          {tool.args && tool.args.length > 0 && (
+                                            <div>
+                                              <p className="font-medium text-gray-700 mb-3">
+                                                输入参数:
+                                              </p>
+                                              {tool.args.map((arg, argIdx) => (
+                                                <div className="mb-3" key={argIdx}>
+                                                  <div className="flex items-center mb-2">
+                                                    <span className="font-medium text-gray-800 mr-2">
+                                                      {arg.name}
+                                                    </span>
+                                                    <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded mr-2">
+                                                      {arg.type}
+                                                    </span>
+                                                    {arg.required && (
+                                                      <span className="text-red-500 text-xs mr-2">
+                                                        *
+                                                      </span>
+                                                    )}
+                                                    {arg.description && (
+                                                      <span className="text-xs text-gray-500">
+                                                        {arg.description}
+                                                      </span>
+                                                    )}
+                                                  </div>
+                                                  <input
+                                                    className="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-2"
+                                                    defaultValue={
+                                                      arg.default !== undefined
+                                                        ? JSON.stringify(arg.default)
+                                                        : ''
+                                                    }
+                                                    placeholder={
+                                                      arg.description || `请输入${arg.name}`
+                                                    }
+                                                    type="text"
+                                                  />
+                                                  {arg.enum && (
+                                                    <div className="text-xs text-gray-500">
+                                                      可选值:{' '}
+                                                      {arg.enum.map((value) => (
+                                                        <code className="mr-1" key={value}>
+                                                          {value}
+                                                        </code>
+                                                      ))}
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              ))}
+                                            </div>
+                                          )}
+                                        </div>
+                                      ),
+                                      key: idx.toString(),
+                                      label: tool.name,
+                                    },
+                                  ]}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-gray-500 text-center py-8">No tools available</div>
+                        ),
+                      key: 'tools',
+                      label: `Tools (${parsedTools.length})`,
+                    },
+                  ]}
+                />
+              </Card>
+            </Col>
+
+            {/* 右侧：连接点配置 */}
+            <Col span={9}>
+              <Card>
+                <div className="mb-4">
+                  <h3 className="text-sm font-semibold mb-3">连接点配置</h3>
+
+                  {/* 域名选择器 */}
+                  {apiProduct.mcpConfig?.mcpServerConfig?.domains &&
+                    apiProduct.mcpConfig.mcpServerConfig.domains.length > 0 && (
+                      <div className="mb-2">
+                        <div className="flex border border-gray-200 rounded-md overflow-hidden">
+                          <div className="flex-shrink-0 bg-gray-50 px-3 py-2 text-xs text-gray-600 border-r border-gray-200 flex items-center whitespace-nowrap">
+                            域名
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <Select
+                              className="w-full"
+                              onChange={setSelectedDomainIndex}
+                              placeholder="选择域名"
+                              size="middle"
+                              style={{
+                                fontSize: '12px',
+                                height: '100%',
+                              }}
+                              value={selectedDomainIndex}
+                              variant="borderless"
+                            >
+                              {getDomainOptions(apiProduct.mcpConfig.mcpServerConfig.domains).map(
+                                (option) => (
+                                  <Select.Option key={option.value} value={option.value}>
+                                    <span
+                                      className="text-xs text-gray-900 font-mono"
+                                      title={option.label}
+                                    >
+                                      {option.label}
+                                    </span>
+                                  </Select.Option>
+                                ),
+                              )}
+                            </Select>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                  <Tabs
+                    defaultActiveKey={localJson ? 'local' : sseJson ? 'sse' : 'http'}
+                    items={(() => {
+                      const tabs = [];
+
+                      if (localJson) {
+                        tabs.push({
+                          children: (
+                            <div className="relative bg-gray-50 border border-gray-200 rounded-md p-3">
+                              <Button
+                                className="absolute top-2 right-2 z-10"
+                                icon={<CopyOutlined />}
+                                onClick={() => handleCopy(localJson)}
+                                size="small"
+                              ></Button>
+                              <div className="text-gray-800 font-mono text-xs overflow-x-auto">
+                                <pre className="whitespace-pre">{localJson}</pre>
+                              </div>
+                            </div>
+                          ),
+                          key: 'local',
+                          label: 'Stdio',
+                        });
+                      } else {
+                        if (sseJson) {
+                          tabs.push({
+                            children: (
+                              <div className="relative bg-gray-50 border border-gray-200 rounded-md p-3">
+                                <Button
+                                  className="absolute top-2 right-2 z-10"
+                                  icon={<CopyOutlined />}
+                                  onClick={() => handleCopy(sseJson)}
+                                  size="small"
+                                ></Button>
+                                <div className="text-gray-800 font-mono text-xs overflow-x-auto">
+                                  <pre className="whitespace-pre">{sseJson}</pre>
+                                </div>
+                              </div>
+                            ),
+                            key: 'sse',
+                            label: 'SSE',
+                          });
+                        }
+
+                        if (httpJson) {
+                          tabs.push({
+                            children: (
+                              <div className="relative bg-gray-50 border border-gray-200 rounded-md p-3">
+                                <Button
+                                  className="absolute top-2 right-2 z-10"
+                                  icon={<CopyOutlined />}
+                                  onClick={() => handleCopy(httpJson)}
+                                  size="small"
+                                ></Button>
+                                <div className="text-gray-800 font-mono text-xs overflow-x-auto">
+                                  <pre className="whitespace-pre">{httpJson}</pre>
+                                </div>
+                              </div>
+                            ),
+                            key: 'http',
+                            label: 'Streamable HTTP',
+                          });
+                        }
+                      }
+
+                      return tabs;
+                    })()}
+                    size="small"
+                  />
+                </div>
+              </Card>
+            </Col>
+          </Row>
+        </Card>
+      );
     }
-    handleRefresh();
-    if (apiProduct.type === 'MCP_SERVER') {
-      await fetchMcpMeta(apiProduct.productId);
+
+    // Agent API类型：显示协议支持和路由配置或 AgentCard
+    if (isAgent && apiProduct.agentConfig?.agentAPIConfig) {
+      const agentAPIConfig = apiProduct.agentConfig.agentAPIConfig;
+      const routes = agentAPIConfig.routes || [];
+      const protocols = agentAPIConfig.agentProtocols || [];
+      const isA2A = protocols.includes('a2a');
+      const agentCard = agentAPIConfig.agentCard;
+
+      // 生成匹配类型前缀文字
+      const getMatchTypePrefix = (matchType: string) => {
+        switch (matchType) {
+          case 'Exact':
+            return '等于';
+          case 'Prefix':
+            return '前缀是';
+          case 'Regex':
+            return '正则是';
+          default:
+            return '等于';
+        }
+      };
+
+      // 获取所有唯一域名的简化版本
+      const getAllUniqueDomains = () => {
+        const domainsMap = new Map<string, { domain: string; port?: number; protocol: string }>();
+
+        routes.forEach((route) => {
+          if (route.domains && route.domains.length > 0) {
+            route.domains.forEach((domain: { domain: string; port?: number; protocol: string }) => {
+              const key = `${domain.protocol}://${domain.domain}${domain.port ? `:${domain.port}` : ''}`;
+              domainsMap.set(key, domain);
+            });
+          }
+        });
+
+        return Array.from(domainsMap.values());
+      };
+
+      const allUniqueDomains = getAllUniqueDomains();
+
+      // 生成域名选择器选项
+      const agentDomainOptions = allUniqueDomains.map((domain, index) => {
+        const formattedDomain = formatDomainWithPort(domain.domain, domain.port, domain.protocol);
+        return {
+          label: `${domain.protocol.toLowerCase()}://${formattedDomain}`,
+          value: index,
+        };
+      });
+
+      // 生成路由显示文本（优化方法显示）
+      const getRouteDisplayText = (
+        route: {
+          description?: string;
+          domains?: Array<{ domain: string; port?: number; protocol: string }>;
+          match?: {
+            headers?: Array<{ name: string; type: string; value: string }> | null;
+            methods?: string[] | null;
+            path?: { type?: string; value?: string };
+            queryParams?: Array<{ name: string; type: string; value: string }> | null;
+          };
+        },
+        domainIndex: number = 0,
+      ) => {
+        if (!route.match) return 'Unknown Route';
+
+        const path = route.match.path?.value || '/';
+        const pathType = route.match.path?.type;
+
+        // 拼接域名信息 - 使用选择的域名索引
+        let domainInfo = '';
+        if (allUniqueDomains.length > 0 && allUniqueDomains.length > domainIndex) {
+          const selectedDomain = allUniqueDomains[domainIndex];
+          if (!selectedDomain) return 'Unknown Route';
+          const formattedDomain = formatDomainWithPort(
+            selectedDomain.domain,
+            selectedDomain.port,
+            selectedDomain.protocol,
+          );
+          domainInfo = `${selectedDomain.protocol.toLowerCase()}://${formattedDomain}`;
+        } else if (route.domains && route.domains.length > 0) {
+          // 回退到路由的第一个域名
+          const domain = route.domains[0];
+          if (domain) {
+            const formattedDomain = formatDomainWithPort(
+              domain.domain,
+              domain.port,
+              domain.protocol,
+            );
+            domainInfo = `${domain.protocol.toLowerCase()}://${formattedDomain}`;
+          }
+        }
+
+        // 构建基本路由信息（匹配符号直接加到path后面）
+        let pathWithSuffix = path;
+        if (pathType === 'Prefix') {
+          pathWithSuffix = `${path}*`;
+        } else if (pathType === 'Regex') {
+          pathWithSuffix = `${path}~`;
+        }
+        // 精确匹配不加任何符号
+
+        let routeText = `${domainInfo}${pathWithSuffix}`;
+
+        // 添加描述信息
+        if (route.description && route.description.trim()) {
+          routeText += ` - ${route.description.trim()}`;
+        }
+
+        return routeText;
+      };
+
+      // 生成完整URL
+      const getFullUrl = (
+        route: {
+          domains?: Array<{ domain: string; port?: number; protocol: string }>;
+          match?: { path?: { value?: string } };
+        },
+        domainIndex: number = 0,
+      ) => {
+        if (allUniqueDomains.length > 0 && allUniqueDomains.length > domainIndex) {
+          const selectedDomain = allUniqueDomains[domainIndex];
+          if (!selectedDomain) return '';
+          const formattedDomain = formatDomainWithPort(
+            selectedDomain.domain,
+            selectedDomain.port,
+            selectedDomain.protocol,
+          );
+          const path = route.match?.path?.value || '/';
+          return `${selectedDomain.protocol.toLowerCase()}://${formattedDomain}${path}`;
+        } else if (route.domains && route.domains.length > 0) {
+          const domain = route.domains[0];
+          if (!domain) return '';
+          const formattedDomain = formatDomainWithPort(domain.domain, domain.port, domain.protocol);
+          const path = route.match?.path?.value || '/';
+          return `${domain.protocol.toLowerCase()}://${formattedDomain}${path}`;
+        }
+        return '';
+      };
+
+      return (
+        <Card title="配置详情">
+          <div className="space-y-6">
+            {/* 协议信息 */}
+            {protocols.length > 0 && (
+              <div>
+                <div className="text-sm text-gray-600">支持协议</div>
+                <div className="font-medium">{protocols.join(', ')}</div>
+              </div>
+            )}
+
+            {/* A2A 协议：额外显示 AgentCard */}
+            {isA2A && agentCard && (
+              <div className="border-t pt-4">
+                <h3 className="text-lg font-semibold mb-4">Agent Card 信息</h3>
+                <div className="space-y-4">
+                  {/* 基本信息 */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <div className="text-sm text-gray-600">名称</div>
+                      <div className="font-medium">{agentCard.name}</div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-gray-600">版本</div>
+                      <div className="font-medium">{agentCard.version}</div>
+                    </div>
+                  </div>
+
+                  {agentCard.protocolVersion && (
+                    <div>
+                      <div className="text-sm text-gray-600">协议版本</div>
+                      <div className="font-mono text-sm">{agentCard.protocolVersion}</div>
+                    </div>
+                  )}
+
+                  {agentCard.description && (
+                    <div>
+                      <div className="text-sm text-gray-600">描述</div>
+                      <div>{agentCard.description}</div>
+                    </div>
+                  )}
+
+                  {agentCard.url && (
+                    <div>
+                      <div className="text-sm text-gray-600">URL</div>
+                      <div className="font-mono text-sm">{agentCard.url}</div>
+                    </div>
+                  )}
+
+                  {agentCard.preferredTransport && (
+                    <div>
+                      <div className="text-sm text-gray-600">传输协议</div>
+                      <div>{agentCard.preferredTransport}</div>
+                    </div>
+                  )}
+
+                  {/* Additional Interfaces */}
+                  {agentCard.additionalInterfaces && agentCard.additionalInterfaces.length > 0 && (
+                    <div>
+                      <div className="text-sm text-gray-600 mb-2">附加接口</div>
+                      <div className="space-y-2">
+                        {agentCard.additionalInterfaces.map(
+                          (iface: { transport?: string; url?: string }, idx: number) => (
+                            <div
+                              className="border border-gray-200 rounded p-3 bg-gray-50"
+                              key={idx}
+                            >
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-medium">
+                                  {iface.transport || 'Unknown'}
+                                </span>
+                              </div>
+                              <div className="font-mono text-sm text-gray-700 break-all">
+                                {iface.url}
+                              </div>
+                            </div>
+                          ),
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Skills */}
+                  {agentCard.skills && agentCard.skills.length > 0 && (
+                    <div>
+                      <div className="text-sm text-gray-600 mb-2">技能列表</div>
+                      <div className="space-y-2">
+                        {agentCard.skills.map(
+                          (
+                            skill: { description?: string; name?: string; tags?: string[] },
+                            idx: number,
+                          ) => (
+                            <div className="border border-gray-200 rounded p-3" key={idx}>
+                              <div className="font-medium">{skill.name}</div>
+                              {skill.description && (
+                                <div className="text-sm text-gray-600 mt-1">
+                                  {skill.description}
+                                </div>
+                              )}
+                              {skill.tags && skill.tags.length > 0 && (
+                                <div className="flex gap-2 mt-2">
+                                  {skill.tags.map((tag: string, tagIdx: number) => (
+                                    <span
+                                      className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded"
+                                      key={tagIdx}
+                                    >
+                                      {tag}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ),
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Capabilities */}
+                  {agentCard.capabilities && (
+                    <div>
+                      <div className="text-sm text-gray-600 mb-2">能力</div>
+                      <pre className="bg-gray-50 p-3 rounded text-sm overflow-auto">
+                        {JSON.stringify(agentCard.capabilities, null, 2)}
+                      </pre>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* 路由配置（如果有）*/}
+            {routes.length > 0 && (
+              <div className={isA2A && agentCard ? 'border-t pt-4' : ''}>
+                <div className="text-sm text-gray-600 mb-3">路由配置:</div>
+
+                {/* 域名选择器 */}
+                {agentDomainOptions.length > 1 && (
+                  <div className="mb-2">
+                    <div className="flex items-stretch border border-gray-200 rounded-md overflow-hidden">
+                      <div className="bg-gray-50 px-3 py-2 text-xs text-gray-600 border-r border-gray-200 flex items-center whitespace-nowrap">
+                        域名
+                      </div>
+                      <div className="flex-1">
+                        <Select
+                          bordered={false}
+                          className="w-full"
+                          onChange={setSelectedAgentDomainIndex}
+                          placeholder="选择域名"
+                          size="middle"
+                          style={{
+                            fontSize: '12px',
+                            height: '100%',
+                          }}
+                          value={selectedAgentDomainIndex}
+                        >
+                          {agentDomainOptions.map((option) => (
+                            <Select.Option key={option.value} value={option.value}>
+                              <span className="text-xs text-gray-900 font-mono">
+                                {option.label}
+                              </span>
+                            </Select.Option>
+                          ))}
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                  <Collapse expandIconPosition="end" ghost>
+                    {routes.map((route, index) => (
+                      <Collapse.Panel
+                        header={
+                          <div className="flex items-center justify-between py-2 px-4 hover:bg-gray-50">
+                            <div className="flex-1">
+                              <div className="font-mono text-sm font-medium text-blue-600">
+                                {getRouteDisplayText(route, selectedAgentDomainIndex)}
+                              </div>
+                            </div>
+                            <Button
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                const fullUrl = getFullUrl(route, selectedAgentDomainIndex);
+                                if (fullUrl) {
+                                  try {
+                                    await copyToClipboard(fullUrl);
+                                    message.success('链接已复制到剪贴板');
+                                  } catch {
+                                    message.error('复制失败');
+                                  }
+                                }
+                              }}
+                              size="small"
+                              type="text"
+                            >
+                              <CopyOutlined />
+                            </Button>
+                          </div>
+                        }
+                        key={index}
+                        style={{
+                          borderBottom: index < routes.length - 1 ? '1px solid #e5e7eb' : 'none',
+                        }}
+                      >
+                        <div className="pl-4 space-y-3">
+                          {/* 域名信息 */}
+                          <div>
+                            <div className="text-xs text-gray-500 mb-1">域名:</div>
+                            {route.domains?.map(
+                              (
+                                domain: { domain: string; port?: number; protocol: string },
+                                domainIndex: number,
+                              ) => {
+                                const formattedDomain = formatDomainWithPort(
+                                  domain.domain,
+                                  domain.port,
+                                  domain.protocol,
+                                );
+                                return (
+                                  <div className="text-sm" key={domainIndex}>
+                                    <span className="font-mono">
+                                      {domain.protocol.toLowerCase()}://{formattedDomain}
+                                    </span>
+                                  </div>
+                                );
+                              },
+                            )}
+                          </div>
+
+                          {/* 匹配规则 */}
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <div className="text-xs text-gray-500">路径:</div>
+                              <div className="font-mono">
+                                {getMatchTypePrefix(route.match?.path?.type)}{' '}
+                                {route.match?.path?.value}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-xs text-gray-500">方法:</div>
+                              <div>
+                                {route.match?.methods ? route.match.methods.join(', ') : 'ANY'}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* 请求头匹配 */}
+                          {route.match?.headers && route.match.headers.length > 0 && (
+                            <div>
+                              <div className="text-xs text-gray-500 mb-1">请求头匹配:</div>
+                              <div className="space-y-1">
+                                {route.match.headers.map(
+                                  (
+                                    header: { name: string; type: string; value: string },
+                                    headerIndex: number,
+                                  ) => (
+                                    <div className="text-sm font-mono" key={headerIndex}>
+                                      {header.name} {getMatchTypePrefix(header.type)} {header.value}
+                                    </div>
+                                  ),
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* 查询参数匹配 */}
+                          {route.match?.queryParams && route.match.queryParams.length > 0 && (
+                            <div>
+                              <div className="text-xs text-gray-500 mb-1">查询参数匹配:</div>
+                              <div className="space-y-1">
+                                {route.match.queryParams.map(
+                                  (
+                                    param: { name: string; type: string; value: string },
+                                    paramIndex: number,
+                                  ) => (
+                                    <div className="text-sm font-mono" key={paramIndex}>
+                                      {param.name} {getMatchTypePrefix(param.type)} {param.value}
+                                    </div>
+                                  ),
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* 描述 */}
+                          {route.description && (
+                            <div>
+                              <div className="text-xs text-gray-500">描述:</div>
+                              <div className="text-sm">{route.description}</div>
+                            </div>
+                          )}
+                        </div>
+                      </Collapse.Panel>
+                    ))}
+                  </Collapse>
+                </div>
+              </div>
+            )}
+          </div>
+        </Card>
+      );
     }
-  }, [apiProduct.productId, apiProduct.type, fetchMcpMeta, handleRefresh, onLinkedServiceUpdate]);
+
+    // Model API类型：显示协议支持和路由配置
+    if (isModel && apiProduct.modelConfig?.modelAPIConfig) {
+      const modelAPIConfig = apiProduct.modelConfig.modelAPIConfig;
+      const routes = modelAPIConfig.routes || [];
+      const protocols = modelAPIConfig.aiProtocols || [];
+
+      // 获取所有唯一域名的简化版本
+      const getAllModelUniqueDomains = () => {
+        const domainsMap = new Map<string, { domain: string; port?: number; protocol: string }>();
+
+        routes.forEach((route) => {
+          if (route.domains && route.domains.length > 0) {
+            route.domains.forEach((domain: { domain: string; port?: number; protocol: string }) => {
+              const key = `${domain.protocol}://${domain.domain}${domain.port ? `:${domain.port}` : ''}`;
+              domainsMap.set(key, domain);
+            });
+          }
+        });
+
+        return Array.from(domainsMap.values());
+      };
+
+      const allModelUniqueDomains = getAllModelUniqueDomains();
+
+      // 生成域名选择器选项
+      const modelDomainOptions = allModelUniqueDomains.map((domain, index) => {
+        const formattedDomain = formatDomainWithPort(domain.domain, domain.port, domain.protocol);
+        return {
+          label: `${domain.protocol.toLowerCase()}://${formattedDomain}`,
+          value: index,
+        };
+      });
+
+      // 生成匹配类型前缀文字
+      const getMatchTypePrefix = (matchType: string) => {
+        switch (matchType) {
+          case 'Exact':
+            return '等于';
+          case 'Prefix':
+            return '前缀是';
+          case 'Regex':
+            return '正则是';
+          default:
+            return '等于';
+        }
+      };
+
+      // 生成路由显示文本
+      const getRouteDisplayText = (
+        route: {
+          description?: string;
+          domains?: { domain: string; port?: number; protocol: string }[];
+          match?: {
+            path?: { type?: string; value?: string };
+          };
+        },
+        domainIndex: number = 0,
+      ) => {
+        if (!route.match) return 'Unknown Route';
+
+        const path = route.match.path?.value || '/';
+        const pathType = route.match.path?.type;
+
+        // 拼接域名信息 - 使用选择的域名索引
+        let domainInfo = '';
+        if (allModelUniqueDomains.length > 0 && allModelUniqueDomains.length > domainIndex) {
+          const selectedDomain = allModelUniqueDomains[domainIndex];
+          if (!selectedDomain) return 'Unknown Route';
+          const formattedDomain = formatDomainWithPort(
+            selectedDomain.domain,
+            selectedDomain.port,
+            selectedDomain.protocol,
+          );
+          domainInfo = `${selectedDomain.protocol.toLowerCase()}://${formattedDomain}`;
+        } else if (route.domains && route.domains.length > 0) {
+          // 回退到路由的第一个域名
+          const domain = route.domains[0];
+          if (domain) {
+            const formattedDomain = formatDomainWithPort(
+              domain.domain,
+              domain.port,
+              domain.protocol,
+            );
+            domainInfo = `${domain.protocol.toLowerCase()}://${formattedDomain}`;
+          }
+        }
+
+        // 构建基本路由信息（匹配符号直接加到path后面）
+        let pathWithSuffix = path;
+        if (pathType === 'Prefix') {
+          pathWithSuffix = `${path}*`;
+        } else if (pathType === 'Regex') {
+          pathWithSuffix = `${path}~`;
+        }
+
+        let routeText = `${domainInfo}${pathWithSuffix}`;
+
+        // 添加描述信息
+        if (route.description && route.description.trim()) {
+          routeText += ` - ${route.description}`;
+        }
+
+        return routeText;
+      };
+
+      // 生成方法文本
+      const getMethodsText = (route: { match?: { methods?: string[] | null } }) => {
+        const methods = route.match?.methods;
+        if (!methods || methods.length === 0) {
+          return 'ANY';
+        }
+        return methods.join(', ');
+      };
+
+      // 获取完整URL用于复制
+      const getFullUrl = (
+        route: {
+          domains?: { domain: string; port?: number; protocol: string }[];
+          match?: { path?: { value?: string } };
+        },
+        domainIndex: number = 0,
+      ) => {
+        if (allModelUniqueDomains.length > 0 && allModelUniqueDomains.length > domainIndex) {
+          const selectedDomain = allModelUniqueDomains[domainIndex];
+          if (!selectedDomain) return null;
+          const formattedDomain = formatDomainWithPort(
+            selectedDomain.domain,
+            selectedDomain.port,
+            selectedDomain.protocol,
+          );
+          const path = route.match?.path?.value || '/';
+          return `${selectedDomain.protocol.toLowerCase()}://${formattedDomain}${path}`;
+        } else if (route.domains && route.domains.length > 0) {
+          const domain = route.domains[0];
+          if (!domain) return null;
+          const formattedDomain = formatDomainWithPort(domain.domain, domain.port, domain.protocol);
+          const path = route.match?.path?.value || '/';
+          return `${domain.protocol.toLowerCase()}://${formattedDomain}${path}`;
+        }
+        return null;
+      };
+
+      // 获取适用场景中文翻译
+      const getModelCategoryText = (category: string) => {
+        switch (category) {
+          case 'Text':
+            return '文本生成';
+          case 'Image':
+            return '图片生成';
+          case 'Video':
+            return '视频生成';
+          case 'Audio':
+            return '语音合成';
+          case 'Embedding':
+            return '向量化（Embedding）';
+          case 'Rerank':
+            return '文本排序（Rerank）';
+          case 'Others':
+            return '其他';
+          default:
+            return category || '未知';
+        }
+      };
+
+      return (
+        <Card title="配置详情">
+          <div className="space-y-4">
+            {/* 适用场景信息 */}
+            {modelAPIConfig.modelCategory && (
+              <div className="text-sm">
+                <span className="text-gray-700">适用场景: </span>
+                <span className="font-medium">
+                  {getModelCategoryText(modelAPIConfig.modelCategory)}
+                </span>
+              </div>
+            )}
+
+            {/* 协议信息 */}
+            <div className="text-sm">
+              <span className="text-gray-700">协议: </span>
+              <span className="font-medium">{protocols.join(', ')}</span>
+            </div>
+
+            {/* 路由配置表格 */}
+            {routes.length > 0 && (
+              <div>
+                <div className="text-sm text-gray-600 mb-3">路由配置:</div>
+
+                {/* 域名选择器 */}
+                {modelDomainOptions.length > 0 && (
+                  <div className="mb-2">
+                    <div className="flex items-stretch border border-gray-200 rounded-md overflow-hidden">
+                      <div className="bg-gray-50 px-3 py-2 text-xs text-gray-600 border-r border-gray-200 flex items-center whitespace-nowrap">
+                        域名
+                      </div>
+                      <div className="flex-1">
+                        <Select
+                          bordered={false}
+                          className="w-full"
+                          onChange={setSelectedModelDomainIndex}
+                          placeholder="选择域名"
+                          size="middle"
+                          style={{
+                            fontSize: '12px',
+                            height: '100%',
+                          }}
+                          value={selectedModelDomainIndex}
+                        >
+                          {modelDomainOptions.map((option) => (
+                            <Select.Option key={option.value} value={option.value}>
+                              <span className="text-xs text-gray-900 font-mono">
+                                {option.label}
+                              </span>
+                            </Select.Option>
+                          ))}
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                  <Collapse expandIconPosition="end" ghost>
+                    {routes.map((route, index) => (
+                      <Collapse.Panel
+                        header={
+                          <div className="flex items-center justify-between py-3 px-4 hover:bg-gray-50">
+                            <div className="flex-1">
+                              <div className="font-mono text-sm font-medium text-blue-600 mb-1">
+                                {getRouteDisplayText(route, selectedModelDomainIndex)}
+                                {route.builtin && (
+                                  <span className="ml-2 px-2 py-0.5 text-xs bg-green-100 text-green-800 rounded-full">
+                                    默认
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                方法:{' '}
+                                <span className="font-medium text-gray-700">
+                                  {getMethodsText(route)}
+                                </span>
+                              </div>
+                            </div>
+                            <Button
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                const fullUrl = getFullUrl(route, selectedModelDomainIndex);
+                                if (fullUrl) {
+                                  try {
+                                    await copyToClipboard(fullUrl);
+                                    message.success('链接已复制到剪贴板');
+                                  } catch {
+                                    message.error('复制失败');
+                                  }
+                                }
+                              }}
+                              size="small"
+                              type="text"
+                            >
+                              <CopyOutlined />
+                            </Button>
+                          </div>
+                        }
+                        key={index}
+                        style={{
+                          borderBottom: index < routes.length - 1 ? '1px solid #e5e7eb' : 'none',
+                        }}
+                      >
+                        <div className="pl-4 space-y-3">
+                          {/* 域名信息 */}
+                          <div>
+                            <div className="text-xs text-gray-500 mb-1">域名:</div>
+                            {route.domains?.map(
+                              (
+                                domain: { domain: string; port?: number; protocol: string },
+                                domainIndex: number,
+                              ) => {
+                                const formattedDomain = formatDomainWithPort(
+                                  domain.domain,
+                                  domain.port,
+                                  domain.protocol,
+                                );
+                                return (
+                                  <div className="text-sm" key={domainIndex}>
+                                    <span className="font-mono">
+                                      {domain.protocol.toLowerCase()}://{formattedDomain}
+                                    </span>
+                                  </div>
+                                );
+                              },
+                            )}
+                          </div>
+
+                          {/* 匹配规则 */}
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <div className="text-xs text-gray-500">路径:</div>
+                              <div className="font-mono">
+                                {getMatchTypePrefix(route.match?.path?.type)}{' '}
+                                {route.match?.path?.value}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-xs text-gray-500">方法:</div>
+                              <div>
+                                {route.match?.methods ? route.match.methods.join(', ') : 'ANY'}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* 请求头匹配 */}
+                          {route.match?.headers && route.match.headers.length > 0 && (
+                            <div>
+                              <div className="text-xs text-gray-500 mb-1">请求头匹配:</div>
+                              <div className="space-y-1">
+                                {route.match.headers.map(
+                                  (
+                                    header: { name: string; type: string; value: string },
+                                    headerIndex: number,
+                                  ) => (
+                                    <div className="text-sm font-mono" key={headerIndex}>
+                                      {header.name} {getMatchTypePrefix(header.type)} {header.value}
+                                    </div>
+                                  ),
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* 查询参数匹配 */}
+                          {route.match?.queryParams && route.match.queryParams.length > 0 && (
+                            <div>
+                              <div className="text-xs text-gray-500 mb-1">查询参数匹配:</div>
+                              <div className="space-y-1">
+                                {route.match.queryParams.map(
+                                  (
+                                    param: { name: string; type: string; value: string },
+                                    paramIndex: number,
+                                  ) => (
+                                    <div className="text-sm font-mono" key={paramIndex}>
+                                      {param.name} {getMatchTypePrefix(param.type)} {param.value}
+                                    </div>
+                                  ),
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </Collapse.Panel>
+                    ))}
+                  </Collapse>
+                </div>
+              </div>
+            )}
+          </div>
+        </Card>
+      );
+    }
+
+    // REST API类型：需要linkedService才显示
+    if (!linkedService) {
+      return null;
+    }
+
+    return (
+      <Card title="配置详情">
+        {isOpenApi && apiProduct.apiConfig && apiProduct.apiConfig.spec && (
+          <div>
+            <h4 className="text-base font-medium mb-4">REST API接口文档</h4>
+            <SwaggerUIWrapper apiSpec={apiProduct.apiConfig.spec} />
+          </div>
+        )}
+      </Card>
+    );
+  };
 
   return (
     <div className="p-6 space-y-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold mb-2">
-          {apiProduct.type === 'MCP_SERVER' ? '配置MCP' : 'API关联'}
-        </h1>
-        <p className="text-gray-600">
-          {apiProduct.type === 'MCP_SERVER'
-            ? '管理Product关联的MCP Server'
-            : '管理Product关联的API'}
-        </p>
+        <h1 className="text-2xl font-bold mb-2">API关联</h1>
+        <p className="text-gray-600">管理Product关联的API</p>
       </div>
 
       {renderLinkInfo()}
+      {renderApiConfig()}
 
-      {apiProduct.type === 'MCP_SERVER' && (apiProduct.mcpConfig || mcpMetaList.length > 0) && (
-        <McpServerConfigPanel
-          apiProduct={apiProduct}
-          domainOptions={connConfig.domainOptions}
-          fetchingTools={fetchingTools}
-          hotHttpJson={connConfig.hotHttpJson}
-          hotSseJson={connConfig.hotSseJson}
-          httpJson={connConfig.httpJson}
-          localJson={connConfig.localJson}
-          mcpMetaList={mcpMetaList}
-          onDomainChange={setSelectedDomainIndex}
-          onEditTools={() => setToolsEditorOpen(true)}
-          onRefreshTools={handleRefreshTools}
-          parsedTools={parsedTools}
-          selectedDomainIndex={selectedDomainIndex}
-          sseJson={connConfig.sseJson}
-        />
-      )}
-      {apiProduct.type === 'AGENT_API' && apiProduct.agentConfig?.agentAPIConfig && (
-        <AgentApiConfigPanel
-          agentConfig={apiProduct.agentConfig}
-          onDomainChange={setSelectedAgentDomainIndex}
-          selectedDomainIndex={selectedAgentDomainIndex}
-        />
-      )}
-      {apiProduct.type === 'MODEL_API' && apiProduct.modelConfig?.modelAPIConfig && (
-        <ModelApiConfigPanel
-          modelConfig={apiProduct.modelConfig}
-          onDomainChange={setSelectedModelDomainIndex}
-          selectedDomainIndex={selectedModelDomainIndex}
-        />
-      )}
-      {apiProduct.type === 'REST_API' && linkedService && (
-        <RestApiConfigPanel apiConfig={apiProduct.apiConfig as ApiProductConfig} />
-      )}
-
-      <LinkApiModal
-        apiProduct={apiProduct}
-        linkedService={linkedService}
-        onCancel={() => setIsModalVisible(false)}
-        onOk={handleLinkSuccess}
+      <Modal
+        cancelText="取消"
+        okText="关联"
+        onCancel={handleModalCancel}
+        onOk={handleModalOk}
         open={isModalVisible}
-      />
+        title={linkedService ? '重新关联API' : '关联新API'}
+        width={600}
+      >
+        <Form form={form} layout="vertical">
+          <Form.Item
+            initialValue="GATEWAY"
+            label="来源类型"
+            name="sourceType"
+            rules={[{ message: '请选择来源类型', required: true }]}
+          >
+            <Select onChange={handleSourceTypeChange} placeholder="请选择来源类型">
+              <Select.Option value="GATEWAY">网关</Select.Option>
+              <Select.Option
+                disabled={apiProduct.type === 'REST_API' || apiProduct.type === 'MODEL_API'}
+                value="NACOS"
+              >
+                Nacos
+              </Select.Option>
+            </Select>
+          </Form.Item>
 
-      <McpCustomConfigModal
-        initialMcpMeta={mcpMetaList.length > 0 ? (mcpMetaList[0] as Record<string, unknown>) : null}
-        onCancel={() => setIsCustomConfigModalVisible(false)}
-        onOk={async (values: unknown) => {
-          const v = values as Record<string, unknown>;
-          const iconJson = v.icon
-            ? JSON.stringify({ data: v.icon, type: 'BASE64' })
-            : v.iconUrl
-              ? JSON.stringify({ type: 'URL', url: v.iconUrl })
-              : undefined;
-
-          await mcpServerApi.saveMeta({
-            connectionConfig: v.mcpConfigJson as string,
-            description: v.description as string,
-            displayName: v.mcpDisplayName as string,
-            extraParams: (v.extraParams as string[])?.length
-              ? JSON.stringify(v.extraParams as string[])
-              : undefined,
-            icon: iconJson,
-            mcpName: v.mcpServerName as string,
-            origin: 'ADMIN',
-            productId: apiProduct.productId,
-            protocolType: v.protocolType as string,
-            publishStatus: 'DRAFT',
-            repoUrl: v.repoUrl as string,
-            sandboxRequired: (v.sandboxRequired as boolean) || false,
-            serviceIntro: v.serviceIntro as string,
-            sourceType: 'config',
-            tags: v.tags ? JSON.stringify(v.tags as string[]) : undefined,
-            visibility: 'PUBLIC',
-          });
-
-          if ((v.sandboxRequired as boolean) && v.deployNow && v.sandboxId) {
-            const metaRes = await mcpServerApi.listMetaByProduct(apiProduct.productId);
-            const metaList = metaRes?.data || [];
-            const newMeta = metaList.find(
-              (m: Record<string, unknown>) => m.mcpName === v.mcpServerName,
-            );
-            if (newMeta?.mcpServerId) {
-              await mcpServerApi.deploySandbox(newMeta.mcpServerId, {
-                authType: (v.authType as string) || 'none',
-                namespace: v.namespace as string,
-                paramValues:
-                  (v.adminParamValues as Record<string, unknown>) &&
-                  Object.keys(v.adminParamValues as Record<string, unknown>).length > 0
-                    ? JSON.stringify(v.adminParamValues as Record<string, unknown>)
-                    : undefined,
-                resourceSpec:
-                  (v.cpuRequest as string) ||
-                  (v.cpuLimit as string) ||
-                  (v.memoryRequest as string) ||
-                  (v.memoryLimit as string) ||
-                  (v.ephemeralStorage as string)
-                    ? JSON.stringify({
-                        cpuLimit: (v.cpuLimit as string) || undefined,
-                        cpuRequest: (v.cpuRequest as string) || undefined,
-                        ephemeralStorage: (v.ephemeralStorage as string) || undefined,
-                        memoryLimit: (v.memoryLimit as string) || undefined,
-                        memoryRequest: (v.memoryRequest as string) || undefined,
-                      })
-                    : undefined,
-                sandboxId: v.sandboxId as string,
-                transportType: (v.transportType as string) || 'sse',
-              });
-
-              const maxAttempts = 15;
-              let deployed = false;
-              for (let i = 0; i < maxAttempts; i++) {
-                await new Promise((r) => setTimeout(r, 3000));
-                const pollRes = await mcpServerApi.listMetaByProduct(apiProduct.productId);
-                const pollList = pollRes?.data || [];
-                const activeMeta = (Array.isArray(pollList) ? pollList : []).find(
-                  (m) => m.mcpServerId === newMeta.mcpServerId,
-                );
-                if (activeMeta?.endpointStatus === 'ACTIVE' && activeMeta?.endpointUrl) {
-                  message.success('沙箱部署完成');
-                  deployed = true;
-                  break;
+          {sourceType === 'GATEWAY' && (
+            <Form.Item
+              label="网关实例"
+              name="gatewayId"
+              rules={[{ message: '请选择网关', required: true }]}
+            >
+              <Select
+                filterOption={(input, option) =>
+                  (option?.value as unknown as string)?.toLowerCase().includes(input.toLowerCase())
                 }
+                loading={gatewayLoading}
+                onChange={handleGatewayChange}
+                optionLabelProp="label"
+                placeholder="请选择网关实例"
+                showSearch
+              >
+                {gateways
+                  .filter((gateway) => {
+                    // 如果是Agent API类型，只显示AI网关（APIG_AI）
+                    if (apiProduct.type === 'AGENT_API') {
+                      return gateway.gatewayType === 'APIG_AI';
+                    }
+                    // 如果是Model API类型，只显示AI网关（APIG_AI）和Higress网关
+                    if (apiProduct.type === 'MODEL_API') {
+                      return (
+                        gateway.gatewayType === 'APIG_AI' ||
+                        gateway.gatewayType === 'HIGRESS' ||
+                        gateway.gatewayType === 'ADP_AI_GATEWAY' ||
+                        gateway.gatewayType === 'APSARA_GATEWAY'
+                      );
+                    }
+                    return true;
+                  })
+                  .map((gateway) => (
+                    <Select.Option
+                      key={gateway.gatewayId}
+                      label={gateway.gatewayName}
+                      value={gateway.gatewayId}
+                    >
+                      <div>
+                        <div className="font-medium">{gateway.gatewayName}</div>
+                        <div className="text-sm text-gray-500">
+                          {gateway.gatewayId} -{' '}
+                          {getGatewayTypeLabel(gateway.gatewayType as GatewayType)}
+                        </div>
+                      </div>
+                    </Select.Option>
+                  ))}
+              </Select>
+            </Form.Item>
+          )}
+
+          {sourceType === 'NACOS' && (
+            <Form.Item
+              label="Nacos实例"
+              name="nacosId"
+              rules={[{ message: '请选择Nacos实例', required: true }]}
+            >
+              <Select
+                filterOption={(input, option) =>
+                  (option?.value as unknown as string)?.toLowerCase().includes(input.toLowerCase())
+                }
+                loading={nacosLoading}
+                onChange={handleNacosChange}
+                optionLabelProp="label"
+                placeholder="请选择Nacos实例"
+                showSearch
+              >
+                {nacosInstances.map((nacos) => (
+                  <Select.Option key={nacos.nacosId} label={nacos.nacosName} value={nacos.nacosId}>
+                    <div>
+                      <div className="font-medium">{nacos.nacosName}</div>
+                      <div className="text-sm text-gray-500">{nacos.serverUrl}</div>
+                    </div>
+                  </Select.Option>
+                ))}
+              </Select>
+            </Form.Item>
+          )}
+
+          {sourceType === 'NACOS' && selectedNacos && (
+            <Form.Item
+              label="命名空间"
+              name="namespaceId"
+              rules={[{ message: '请选择命名空间', required: true }]}
+            >
+              <Select
+                filterOption={(input, option) =>
+                  (option?.children as unknown as string)
+                    ?.toLowerCase()
+                    .includes(input.toLowerCase())
+                }
+                loading={apiLoading && nacosNamespaces.length === 0}
+                onChange={handleNamespaceChange}
+                optionLabelProp="label"
+                placeholder="请选择命名空间"
+                showSearch
+              >
+                {nacosNamespaces.map((ns) => (
+                  <Select.Option
+                    key={ns.namespaceId}
+                    label={ns.namespaceName}
+                    value={ns.namespaceId}
+                  >
+                    <div>
+                      <div className="font-medium">{ns.namespaceName}</div>
+                      <div className="text-sm text-gray-500">{ns.namespaceId}</div>
+                    </div>
+                  </Select.Option>
+                ))}
+              </Select>
+            </Form.Item>
+          )}
+
+          {(selectedGateway || (selectedNacos && selectedNamespace)) && (
+            <Form.Item
+              label={
+                apiProduct.type === 'REST_API'
+                  ? '选择REST API'
+                  : apiProduct.type === 'AGENT_API'
+                    ? '选择Agent API'
+                    : apiProduct.type === 'MODEL_API'
+                      ? '选择Model API'
+                      : '选择MCP Server'
               }
-              if (!deployed) {
-                message.warning('沙箱部署超时，请稍后刷新页面查看状态');
-              }
-            }
-          }
+              name="apiId"
+              rules={[
+                {
+                  message:
+                    apiProduct.type === 'REST_API'
+                      ? '请选择REST API'
+                      : apiProduct.type === 'AGENT_API'
+                        ? '请选择Agent API'
+                        : apiProduct.type === 'MODEL_API'
+                          ? '请选择Model API'
+                          : '请选择MCP Server',
+                  required: true,
+                },
+              ]}
+            >
+              <Select
+                filterOption={(input, option) =>
+                  (option?.value as unknown as string)?.toLowerCase().includes(input.toLowerCase())
+                }
+                loading={apiLoading}
+                optionLabelProp="label"
+                placeholder={
+                  apiProduct.type === 'REST_API'
+                    ? '请选择REST API'
+                    : apiProduct.type === 'AGENT_API'
+                      ? '请选择Agent API'
+                      : apiProduct.type === 'MODEL_API'
+                        ? '请选择Model API'
+                        : '请选择MCP Server'
+                }
+                showSearch
+              >
+                {apiList.map((api: ApiItem) => {
+                  let key: string | undefined;
+                  let value: string | undefined;
+                  let displayName: string | undefined;
+                  if (apiProduct.type === 'REST_API') {
+                    const rest = api as RestAPIItem;
+                    key = rest.apiId;
+                    value = rest.apiId;
+                    displayName = rest.apiName;
+                  } else if (apiProduct.type === 'AGENT_API') {
+                    if ('agentName' in api) {
+                      const nacosAgent = api as NacosAgentItem;
+                      key = nacosAgent.agentName;
+                      value = nacosAgent.agentName;
+                      displayName = nacosAgent.agentName;
+                    } else {
+                      const gwAgent = api as AIGatewayAgentItem;
+                      key = gwAgent.agentApiId || gwAgent.agentApiName;
+                      value = gwAgent.agentApiId || gwAgent.agentApiName;
+                      displayName = gwAgent.agentApiName;
+                    }
+                  } else if (apiProduct.type === 'MODEL_API') {
+                    if ('fromGatewayType' in api && api.fromGatewayType === 'HIGRESS') {
+                      const higressModel = api as HigressMCPItem;
+                      key = higressModel.modelRouteName;
+                      value = higressModel.modelRouteName;
+                      displayName = higressModel.modelRouteName;
+                    } else {
+                      const gwModel = api as
+                        | AIGatewayModelItem
+                        | AdpAIGatewayModelItem
+                        | ApsaraGatewayModelItem;
+                      key = gwModel.modelApiId || gwModel.modelApiName;
+                      value = gwModel.modelApiId || gwModel.modelApiName;
+                      displayName = gwModel.modelApiName;
+                    }
+                  } else {
+                    const mcpApi = api as {
+                      mcpRouteId?: string;
+                      mcpServerName?: string;
+                      name?: string;
+                    };
+                    key = mcpApi.mcpRouteId || mcpApi.mcpServerName || mcpApi.name;
+                    value = mcpApi.mcpRouteId || mcpApi.mcpServerName || mcpApi.name;
+                    displayName = mcpApi.mcpServerName || mcpApi.name;
+                  }
 
-          setIsCustomConfigModalVisible(false);
-          await fetchMcpMeta(apiProduct.productId);
-          await handleRefresh();
-        }}
-        productDescription={apiProduct.description}
-        productDocument={apiProduct.document}
-        productIcon={apiProduct.icon}
-        productName={apiProduct.name}
-        visible={isCustomConfigModalVisible}
-      />
+                  const optMeta = api as { type?: string; description?: string };
 
-      <DeployMcpModal
-        mcpMetaList={mcpMetaList}
-        mcpServerId={deployModalMcpServerId}
-        onCancel={() => {
-          setDeployModalMcpServerId(null);
-        }}
-        onDeploySuccess={() => {
-          setDeployModalMcpServerId(null);
-          fetchMcpMeta(apiProduct.productId);
-          handleRefresh();
-        }}
-        productId={apiProduct.productId}
-      />
-
-      <ToolsConfigEditorModal
-        initialValue={(() => {
-          const tc = mcpMetaList[0]?.toolsConfig;
-          if (!tc) return '';
-          if (typeof tc === 'string') return tc;
-          return JSON.stringify(tc, null, 2);
-        })()}
-        mcpServerId={mcpMetaList[0]?.mcpServerId || ''}
-        onCancel={() => setToolsEditorOpen(false)}
-        onSave={async () => {
-          setToolsEditorOpen(false);
-          await fetchMcpMeta(apiProduct.productId);
-          await handleRefresh();
-        }}
-        open={toolsEditorOpen}
-      />
+                  return (
+                    <Select.Option key={key} label={displayName} value={value}>
+                      <div>
+                        <div className="font-medium">{displayName}</div>
+                        <div className="text-sm text-gray-500">
+                          {optMeta.type ?? ''} - {optMeta.description || key}
+                        </div>
+                      </div>
+                    </Select.Option>
+                  );
+                })}
+              </Select>
+            </Form.Item>
+          )}
+        </Form>
+      </Modal>
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-
 
 import { RequireAuth } from './components/RequireAuth';
 import { usePortalConfig } from './context/usePortalConfig';
+import Agent from './pages/Agent';
 import AgentDetail from './pages/AgentDetail';
 import ApiDetail from './pages/ApiDetail';
 import Callback from './pages/Callback';
@@ -12,11 +13,8 @@ import ConsumerDetail from './pages/ConsumerDetail';
 import Consumers from './pages/Consumers';
 import GettingStarted from './pages/GettingStarted';
 import Login from './pages/Login';
-import McpCreatePage from './pages/McpCreatePage';
 import McpDetail from './pages/McpDetail';
-import McpSquare from './pages/McpSquare';
 import ModelDetail from './pages/ModelDetail';
-import MyMcp from './pages/MyMcp';
 import OidcCallback from './pages/OidcCallback';
 import Profile from './pages/Profile';
 import Register from './pages/Register';
@@ -66,23 +64,7 @@ export function Router() {
       <Routes>
         <Route element={<DynamicHome />} path="/" />
         <Route element={<Square activeType="MODEL_API" />} path="/models" />
-        <Route element={<McpSquare />} path="/mcp" />
-        <Route
-          element={
-            <RequireAuth>
-              <MyMcp />
-            </RequireAuth>
-          }
-          path="/mcp/my"
-        />
-        <Route
-          element={
-            <RequireAuth>
-              <McpCreatePage />
-            </RequireAuth>
-          }
-          path="/mcp/create"
-        />
+        <Route element={<Square activeType="MCP_SERVER" />} path="/mcp" />
         <Route element={<Square activeType="AGENT_API" />} path="/agents" />
         <Route element={<Square activeType="REST_API" />} path="/apis" />
         <Route element={<Square activeType="AGENT_SKILL" />} path="/skills" />
@@ -111,6 +93,7 @@ export function Router() {
           path="/consumers"
         />
         <Route element={<McpDetail />} path="/mcp/:mcpProductId" />
+        <Route element={<Agent />} path="/agents" />
         <Route element={<AgentDetail />} path="/agents/:agentProductId" />
         <Route element={<ModelDetail />} path="/models/:modelProductId" />
         <Route element={<Login />} path="/login" />
