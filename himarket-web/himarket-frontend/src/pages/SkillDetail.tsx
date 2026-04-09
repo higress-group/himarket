@@ -23,6 +23,8 @@ import { SkillWorkerDetailSkeleton } from "../components/loading";
 type IdeType = 'qoder' | 'qoderwork' | 'claude' | 'codex' | 'cursor' | 'kiro' | 'lingma' | 'copaw' | 'openclaw';
 
 const IDE_OPTIONS: { value: IdeType; label: string; icon: string }[] = [
+  { value: 'copaw', label: 'CoPaw', icon: '/copaw.png' },
+  { value: 'openclaw', label: 'OpenClaw', icon: '/openclaw.svg' },
   { value: 'qoder', label: 'Qoder', icon: 'https://g.alicdn.com/qbase/qoder/0.0.65/favIcon.svg' },
   { value: 'qoderwork', label: 'QoderWork', icon: 'https://img.alicdn.com/imgextra/i1/O1CN01clv0Oy1Tia1VN1WEO_!!6000000002416-1-tps-1200-1200.gif' },
   { value: 'claude', label: 'Claude', icon: 'https://img.alicdn.com/imgextra/i3/O1CN01JqyNKC1VmMU2MHdF9_!!6000000002695-55-tps-100-101.svg' },
@@ -30,8 +32,6 @@ const IDE_OPTIONS: { value: IdeType; label: string; icon: string }[] = [
   { value: 'cursor', label: 'Cursor', icon: 'https://aimg.alistatic.com/i/dm885X/UgW1Qzx0RPwrNIVs4sWlr-7b5511235d.svg' },
   { value: 'kiro', label: 'Kiro', icon: '/kiro.png' },
   { value: 'lingma', label: 'Lingma', icon: 'https://img.alicdn.com/imgextra/i2/O1CN01OR7j0c1OvKuJfKBAw_!!6000000001767-2-tps-280-280.png' },
-  { value: 'copaw', label: 'CoPaw', icon: '/copaw.png' },
-  { value: 'openclaw', label: 'OpenClaw', icon: '/openclaw.svg' },
 ];
 
 const getDefaultOutputDir = (ide: IdeType): string => {
@@ -43,7 +43,7 @@ const getDefaultOutputDir = (ide: IdeType): string => {
     cursor: '~/.cursor/skills',
     kiro: '~/.kiro/skills',
     lingma: '~/.lingma/skills',
-    copaw: '~/.copaw/skills',
+    copaw: '~/.copaw/skill_pool',
     openclaw: '~/.openclaw/skills',
   };
   return dirMap[ide];
@@ -116,8 +116,8 @@ function SkillDetail() {
   const [versions, setVersions] = useState<SkillVersion[]>([]);
   const [selectedVersion, setSelectedVersion] = useState<string | undefined>();
   const [cliInfo, setCliInfo] = useState<SkillCliInfo | null>(null);
-  const [selectedIde, setSelectedIde] = useState<IdeType>('qoder');
-  const [outputDir, setOutputDir] = useState<string>('~/.qoder/skills');
+  const [selectedIde, setSelectedIde] = useState<IdeType>('copaw');
+  const [outputDir, setOutputDir] = useState<string>('~/.copaw/skill_pool');
 
   const handleDragStart = (e: React.MouseEvent) => {
     e.preventDefault();
