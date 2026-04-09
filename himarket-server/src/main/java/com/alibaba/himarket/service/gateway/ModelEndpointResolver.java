@@ -162,7 +162,7 @@ public class ModelEndpointResolver {
     }
 
     /**
-     * 判断路径类型是否为前缀匹配（Higress 的 Prefix/Pre 均视为前缀匹配）。
+     * 判断路径类型是否为前缀匹配（Higress 返回的 Prefix/Pre 均视为前缀匹配）。
      */
     private static boolean isPrefixType(String pathType) {
         return "Prefix".equalsIgnoreCase(pathType) || "Pre".equalsIgnoreCase(pathType);
