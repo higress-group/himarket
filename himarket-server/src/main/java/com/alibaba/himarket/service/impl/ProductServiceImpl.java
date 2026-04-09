@@ -27,7 +27,6 @@ import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.event.PortalDeletingEvent;
 import com.alibaba.himarket.core.event.ProductConfigReloadEvent;
 import com.alibaba.himarket.core.event.ProductDeletingEvent;
-import com.alibaba.himarket.core.event.ProductQueriedEvent;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.core.security.ContextHolder;
@@ -831,27 +830,6 @@ public class ProductServiceImpl implements ProductService {
             if (product.getFeature() != null && product.getFeature().getWorkerConfig() != null) {
                 product.setWorkerConfig(product.getFeature().getWorkerConfig());
             }
-        }
-
-        // Publish event to trigger async download count sync
-        publishDownloadCountSyncEvent(products);
-    }
-
-    /**
-     * Publish event to trigger async download count sync for skill/worker products.
-     */
-    private void publishDownloadCountSyncEvent(List<ProductResult> products) {
-        List<String> productIds =
-                products.stream()
-                        .filter(
-                                p ->
-                                        p.getType() == ProductType.AGENT_SKILL
-                                                || p.getType() == ProductType.WORKER)
-                        .map(ProductResult::getProductId)
-                        .toList();
-
-        if (!productIds.isEmpty()) {
-            SpringUtil.publishEvent(new ProductQueriedEvent(productIds));
         }
     }
 
