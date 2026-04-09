@@ -5,6 +5,7 @@ import com.alibaba.himarket.config.AcpProperties.CliProviderConfig;
 import com.alibaba.himarket.service.hicoding.runtime.RemoteRuntimeAdapter;
 import com.alibaba.himarket.service.hicoding.runtime.RuntimeAdapter;
 import com.alibaba.himarket.service.hicoding.runtime.RuntimeConfig;
+import com.alibaba.himarket.service.hicoding.sandbox.SandboxHttpClient;
 import com.alibaba.himarket.service.hicoding.sandbox.SandboxInfo;
 import com.alibaba.himarket.service.hicoding.sandbox.SandboxType;
 import com.alibaba.himarket.service.hicoding.session.CliSessionConfig;
@@ -60,6 +61,7 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
     private final HiCodingMessageRouter messageRouter;
     private final HiCodingConnectionManager connectionManager;
     private final WebSocketPingScheduler pingScheduler;
+    private final SandboxHttpClient sandboxHttpClient;
 
     /** 异步初始化线程池（有界） */
     private final ExecutorService podInitExecutor =
@@ -82,13 +84,15 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
             SessionInitializer sessionInitializer,
             HiCodingMessageRouter messageRouter,
             HiCodingConnectionManager connectionManager,
-            WebSocketPingScheduler pingScheduler) {
+            WebSocketPingScheduler pingScheduler,
+            SandboxHttpClient sandboxHttpClient) {
         this.properties = properties;
         this.objectMapper = objectMapper;
         this.sessionInitializer = sessionInitializer;
         this.messageRouter = messageRouter;
         this.connectionManager = connectionManager;
         this.pingScheduler = pingScheduler;
+        this.sandboxHttpClient = sandboxHttpClient;
     }
 
     @PreDestroy
@@ -414,6 +418,18 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
             throw new RuntimeException(
                     "Sidecar connection closed immediately after reattach,"
                             + " session may have expired on sidecar side");
+        }
+
+        // 通过 REST API 验证 sidecar 会话是否真正存在
+        // sidecar 对任意 sessionId 都接受 WebSocket 连接，即使会话已删除
+        String sidecarBaseUrl =
+                "http://"
+                        + properties.getRemote().getHost()
+                        + ":"
+                        + properties.getRemote().getPort();
+        if (!sandboxHttpClient.sessionExists(sidecarBaseUrl, detached.sidecarSessionId())) {
+            throw new RuntimeException(
+                    "Sidecar session no longer exists: " + detached.sidecarSessionId());
         }
 
         if (!session.isOpen()) {
