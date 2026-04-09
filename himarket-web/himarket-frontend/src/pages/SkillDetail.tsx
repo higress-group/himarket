@@ -20,7 +20,7 @@ import RelatedSkills from "../components/skill/RelatedSkills";
 import { copyToClipboard } from "../lib/utils";
 import { SkillWorkerDetailSkeleton } from "../components/loading";
 
-type IdeType = 'qoder' | 'qoderwork' | 'claude' | 'codex' | 'cursor' | 'kiro' | 'lingma';
+type IdeType = 'qoder' | 'qoderwork' | 'claude' | 'codex' | 'cursor' | 'kiro' | 'lingma' | 'copaw' | 'openclaw';
 
 const IDE_OPTIONS: { value: IdeType; label: string; icon: string }[] = [
   { value: 'qoder', label: 'Qoder', icon: 'https://g.alicdn.com/qbase/qoder/0.0.65/favIcon.svg' },
@@ -30,6 +30,8 @@ const IDE_OPTIONS: { value: IdeType; label: string; icon: string }[] = [
   { value: 'cursor', label: 'Cursor', icon: 'https://aimg.alistatic.com/i/dm885X/UgW1Qzx0RPwrNIVs4sWlr-7b5511235d.svg' },
   { value: 'kiro', label: 'Kiro', icon: '/kiro.png' },
   { value: 'lingma', label: 'Lingma', icon: 'https://img.alicdn.com/imgextra/i2/O1CN01OR7j0c1OvKuJfKBAw_!!6000000001767-2-tps-280-280.png' },
+  { value: 'copaw', label: 'CoPaw', icon: '/copaw.png' },
+  { value: 'openclaw', label: 'OpenClaw', icon: '/openclaw.svg' },
 ];
 
 const getDefaultOutputDir = (ide: IdeType): string => {
@@ -41,6 +43,8 @@ const getDefaultOutputDir = (ide: IdeType): string => {
     cursor: '~/.cursor/skills',
     kiro: '~/.kiro/skills',
     lingma: '~/.lingma/skills',
+    copaw: '~/.copaw/skills',
+    openclaw: '~/.openclaw/skills',
   };
   return dirMap[ide];
 };
@@ -561,9 +565,8 @@ function SkillDetail() {
                   <span className="text-xs font-semibold text-gray-600 tracking-wide">{t('npxDownload')}</span>
                 </div>
 
-                {/* IDE Selection */}
+                {/* IDE/Tool Selection */}
                 <div className="mb-3">
-                  <div className="text-xs font-medium text-gray-600 mb-2">{t('selectIde')}</div>
                   <div className="flex flex-wrap gap-2">
                     {IDE_OPTIONS.map((ide) => (
                       <button
