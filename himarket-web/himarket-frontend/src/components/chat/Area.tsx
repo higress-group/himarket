@@ -14,7 +14,7 @@ import APIs from "../../lib/apis";
 import type { IGetPrimaryConsumerResp, IProductDetail, ISubscription, IAttachment } from "../../lib/apis";
 import type { IModelConversation } from "../../types";
 import { safeJSONParse } from "../../lib/utils";
-import { getProductMcpMetaBatchPublic } from "../../lib/apis/product";
+import { getProductMcpMetaBatch } from "../../lib/apis/product";
 import { hasAvailableEndpoint } from "../../lib/utils/mcpUtils";
 import TextType from "../TextType";
 
@@ -79,7 +79,7 @@ export function ChatArea(props: ChatAreaProps) {
   useEffect(() => {
     if (!mcpList || mcpList.length === 0) return;
     const productIds = mcpList.map(p => p.productId);
-    getProductMcpMetaBatchPublic(productIds).then(res => {
+    getProductMcpMetaBatch(productIds).then(res => {
       if (res.code === 'SUCCESS' && res.data) {
         const map = new Map<string, boolean>();
         for (const meta of res.data) {
