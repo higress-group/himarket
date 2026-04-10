@@ -9,6 +9,8 @@ interface McpCardProps {
   data: IProductDetail;
   isSubscribed?: boolean;
   isAdded?: boolean;
+  /** 是否有可用 endpoint，默认 true（向后兼容） */
+  hasEndpoint?: boolean;
   onAdd?: (product: IProductDetail) => void;
   onRemove?: (product: IProductDetail) => void;
   onQuickSubscribe?: (product: IProductDetail) => void;
@@ -19,6 +21,7 @@ interface McpCardProps {
 function McpCard(props: McpCardProps) {
   const {
     data, isSubscribed = false, isAdded = false,
+    hasEndpoint = true,
     onAdd, onRemove, onQuickSubscribe, onShowMore,
   } = props;
 
@@ -160,7 +163,7 @@ function McpCard(props: McpCardProps) {
           >
             {isAdded ? '取消添加' : '添加'}
           </Button>
-        ) : (
+        ) : hasEndpoint ? (
           <Button
             type="primary"
             block
@@ -169,7 +172,7 @@ function McpCard(props: McpCardProps) {
           >
             订阅
           </Button>
-        )}
+        ) : null}
       </div>
     </div>
   );

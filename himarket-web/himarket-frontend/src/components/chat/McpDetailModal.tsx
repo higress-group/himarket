@@ -6,6 +6,7 @@ import {
 } from "@ant-design/icons";
 import APIs from "../../lib/apis";
 import type { IProductDetail, IMcpMeta } from "../../lib/apis/product";
+import { hasAvailableEndpoint } from "../../lib/utils/mcpUtils";
 import { ProductIconRenderer } from "../icon/ProductIconRenderer";
 import { getIconString, parseMetaIcon } from "../../lib/iconUtils";
 
@@ -188,11 +189,11 @@ function McpDetailModal({ open, product, onClose, onSubscribed }: McpDetailModal
                 <Tabs size="small" defaultActiveKey={buildTabItems()[0]?.key} items={buildTabItems()} />
                 {/* 订阅/取消订阅按钮 */}
                 <div className="mt-2">
-                  {!subscribed ? (
-                    <Button type="primary" size="small" icon={<ThunderboltOutlined />} loading={subscribing} onClick={handleSubscribe} block>订阅</Button>
-                  ) : (
+                  {subscribed ? (
                     <Button size="small" danger loading={unsubscribing} onClick={handleUnsubscribe} block>取消订阅</Button>
-                  )}
+                  ) : hasAvailableEndpoint(meta) ? (
+                    <Button type="primary" size="small" icon={<ThunderboltOutlined />} loading={subscribing} onClick={handleSubscribe} block>订阅</Button>
+                  ) : null}
                 </div>
               </div>
             )}

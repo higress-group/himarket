@@ -23,6 +23,7 @@ import { getIconString, parseMetaIcon } from "../lib/iconUtils";
 import MarkdownRender from "../components/MarkdownRender";
 import { useAuth } from "../hooks/useAuth";
 import { DetailSkeleton } from "../components/loading";
+import { hasAvailableEndpoint } from "../lib/utils/mcpUtils";
 import dayjs from "dayjs";
 
 function McpDetail() {
@@ -658,15 +659,17 @@ function McpDetail() {
                       <Tabs size="small" defaultActiveKey={tabItems[0]?.key} items={tabItems} />
                       {/* 订阅/管理订阅 */}
                       <div className="mt-3">
-                        <Button
-                          type="primary"
-                          size="small"
-                          icon={<ThunderboltOutlined />}
-                          onClick={openSubscribeModal}
-                          block
-                        >
-                          管理订阅
-                        </Button>
+                        {(hasAvailableEndpoint(meta) || subscribed) && (
+                          <Button
+                            type="primary"
+                            size="small"
+                            icon={<ThunderboltOutlined />}
+                            onClick={openSubscribeModal}
+                            block
+                          >
+                            管理订阅
+                          </Button>
+                        )}
                       </div>
                     </div>
                   );

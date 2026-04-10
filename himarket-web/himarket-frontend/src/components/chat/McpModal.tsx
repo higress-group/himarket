@@ -17,6 +17,8 @@ interface McpModal extends ModalProps {
   subscripts: ISubscription[];
   /** 已订阅（APPROVED）的 productId 集合 */
   subscribedProductIds?: Set<string>;
+  /** productId → 是否有可用 endpoint 的映射 */
+  endpointMap?: Map<string, boolean>;
   enabled?: boolean;
   onEnabled: (enabled: boolean) => void;
   onClose: () => void;
@@ -30,7 +32,7 @@ function McpModal(props: McpModal) {
     onAdd, subscripts, onEnabled,
     enabled, onRemove, onClose,
     onQuickSubscribe, onRemoveAll,
-    subscribedProductIds,
+    subscribedProductIds, endpointMap,
     ...modalProps
   } = props;
   const [searchText, setSearchText] = useState("");
@@ -183,10 +185,18 @@ function McpModal(props: McpModal) {
               ) : (
                 <div className="grid grid-cols-3 gap-4 content-start overflow-y-auto p-1 flex-1" data-sign-name="mcp-card-grid">
                   {
-                    filteredData.map((item) => (
+                    filteredData
+                      .filter((item) => {
+                        // 未订阅且无可用 endpoint 的不显示
+                        const isSubscribed = scbscriptsIds.includes(item.productId);
+                        const hasEp = endpointMap ? (endpointMap.get(item.productId) ?? true) : true;
+                        return isSubscribed || hasEp;
+                      })
+                      .map((item) => (
                       <McpCard
                         key={item.productId} data={item}
                         isAdded={addedIds.includes(item.productId)}
+                        hasEndpoint={endpointMap ? (endpointMap.get(item.productId) ?? true) : true}
                         onAdd={onAdd}
                         onRemove={onRemove}
                         isSubscribed={scbscriptsIds.includes(item.productId)}

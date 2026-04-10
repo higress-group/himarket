@@ -1319,6 +1319,18 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                           }}
                         />
                       </>
+                    ) : meta.endpointStatus === 'INACTIVE' ? (
+                      <>
+                        <Tag color="red" className="m-0">部署失败</Tag>
+                        <Button
+                          type="link"
+                          size="small"
+                          className="p-0 text-xs"
+                          onClick={() => setDeployModalMcpServerId(meta.mcpServerId)}
+                        >
+                          重新部署
+                        </Button>
+                      </>
                     ) : (
                       <Tag color="default" className="m-0">未部署</Tag>
                     )}
@@ -1495,18 +1507,18 @@ export function ApiProductLinkApi({ apiProduct, linkedService, onLinkedServiceUp
                         >
                           编辑工具
                         </Button>
-                        <Button
-                          type="text"
-                          size="small"
-                          icon={<SyncOutlined spin={fetchingTools} />}
-                          loading={fetchingTools}
-                          onClick={handleRefreshTools}
-                          disabled={!mcpMetaList[0]?.endpointUrl}
-                          title={!mcpMetaList[0]?.endpointUrl ? '无可用连接地址，请先部署沙箱或配置远程连接' : undefined}
-                          style={{ fontSize: 12, color: mcpMetaList[0]?.endpointUrl ? '#1677ff' : undefined }}
-                        >
-                          {parsedTools.length === 0 ? '获取工具列表' : '刷新工具'}
-                        </Button>
+                        {mcpMetaList[0]?.endpointUrl && (
+                          <Button
+                            type="text"
+                            size="small"
+                            icon={<SyncOutlined spin={fetchingTools} />}
+                            loading={fetchingTools}
+                            onClick={handleRefreshTools}
+                            style={{ fontSize: 12, color: '#1677ff' }}
+                          >
+                            {parsedTools.length === 0 ? '获取工具列表' : '刷新工具'}
+                          </Button>
+                        )}
                       </Space>
                     ) : null
                   }

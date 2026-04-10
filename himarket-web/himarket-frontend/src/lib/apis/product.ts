@@ -319,6 +319,7 @@ export interface IRegisterMcpParam {
   extraParams?: string;
   serviceIntro?: string;
   sandboxRequired?: boolean;
+  origin?: string;
 }
 
 export function registerMcp(data: IRegisterMcpParam) {

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { ArrowLeftOutlined, CloudServerOutlined } from "@ant-design/icons";
-import { message, Button } from "antd";
+import { Button } from "antd";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import { McpCard } from "../components/square/McpCard";
@@ -116,21 +116,6 @@ function MyMcp() {
     if (isLoggedIn) fetchMyMcps();
   }, [fetchMyMcps, isLoggedIn]);
 
-  const handleUnsubscribe = async (productId: string) => {
-    try {
-      const consumerRes = await APIs.getPrimaryConsumer();
-      if (consumerRes.code !== "SUCCESS" || !consumerRes.data) {
-        message.error("获取消费者信息失败");
-        return;
-      }
-      await APIs.unsubscribeProduct(consumerRes.data.consumerId, productId);
-      message.success("已取消订阅");
-      fetchMyMcps();
-    } catch (error: any) {
-      message.error(error?.response?.data?.message || error?.message || "取消订阅失败");
-    }
-  };
-
   return (
     <Layout>
       <div className="flex flex-col h-[calc(100vh-96px)] overflow-auto scrollbar-hide">
@@ -182,7 +167,6 @@ function MyMcp() {
                       subscribed={true}
                       isLoggedIn={isLoggedIn}
                       onClick={() => navigate(`/mcp/${item.product.productId}`)}
-                      onUnsubscribe={() => handleUnsubscribe(item.product.productId)}
                     />
                   );
                 })}

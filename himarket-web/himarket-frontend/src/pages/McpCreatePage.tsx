@@ -122,6 +122,7 @@ function McpCreatePage() {
         extraParams: extraParams.length ? JSON.stringify(extraParams) : undefined,
         serviceIntro: values.serviceIntro,
         sandboxRequired: values.sandboxRequired || false,
+        origin: "USER",
       });
 
       if (res.code === "SUCCESS") {

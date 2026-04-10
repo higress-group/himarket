@@ -73,6 +73,9 @@ export function McpCustomConfigModal({ visible, onCancel, onOk, productName, pro
   const watchedTags: string[] = Form.useWatch('tags', form) || []
   const resourcePreset: string = Form.useWatch('resourcePreset', form) || 'small'
 
+  // 编辑模式判断：initialMcpMeta 存在且包含 mcpName 时为编辑模式
+  const isEditMode = !!initialMcpMeta?.mcpName
+
   // 关闭沙箱托管时，如果当前在第四步则自动回退到第三步
   useEffect(() => {
     if (!sandboxRequired && currentStep === 3) {
@@ -269,7 +272,7 @@ export function McpCustomConfigModal({ visible, onCancel, onOk, productName, pro
             { max: 63, message: '不超过 63 个字符' },
           ]}
         >
-          <Input placeholder="weather-mcp-server" />
+          <Input placeholder="weather-mcp-server" disabled={isEditMode} />
         </Form.Item>
         <Form.Item
           name="mcpDisplayName"

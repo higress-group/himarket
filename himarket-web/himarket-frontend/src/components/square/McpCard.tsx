@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { ToolOutlined } from "@ant-design/icons";
 import { ProductIconRenderer } from "../icon/ProductIconRenderer";
 
@@ -15,33 +14,14 @@ interface McpCardProps {
   subscribed?: boolean;
   isLoggedIn?: boolean;
   onClick?: () => void;
-  onSubscribe?: () => Promise<void>;
-  onUnsubscribe?: () => Promise<void>;
 }
 
 export function McpCard({
   icon, name, mcpName, description, releaseDate,
   protocols, toolCount, tags, categoryName,
   subscribed, isLoggedIn,
-  onClick, onSubscribe, onUnsubscribe,
+  onClick,
 }: McpCardProps) {
-  const [actionLoading, setActionLoading] = useState(false);
-
-  const hasActions = isLoggedIn && (onSubscribe || onUnsubscribe);
-
-  const handleSubscribeClick = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!onSubscribe) return;
-    setActionLoading(true);
-    try { await onSubscribe(); } finally { setActionLoading(false); }
-  };
-
-  const handleUnsubscribeClick = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!onUnsubscribe) return;
-    setActionLoading(true);
-    try { await onUnsubscribe(); } finally { setActionLoading(false); }
-  };
 
   return (
     <div
@@ -98,8 +78,8 @@ export function McpCard({
         {description || "暂无描述"}
       </p>
 
-      {/* 底部：标签 + 日期 - hover 时淡出 */}
-      <div className={`h-10 flex items-center justify-between text-xs transition-opacity duration-300 ${hasActions ? 'group-hover:opacity-0' : ''}`}>
+      {/* 底部：标签 + 日期 */}
+      <div className="h-10 flex items-center justify-between text-xs">
         <div className="flex items-center gap-1.5 flex-wrap flex-1 min-w-0">
           {tags.slice(0, 2).map((t) => (
             <span key={t} className="text-[10px] px-2 py-0.5 rounded-full bg-gray-50 text-gray-500 border border-gray-100 truncate max-w-[80px]">
@@ -115,51 +95,6 @@ export function McpCard({
         <span className="flex-shrink-0 text-gray-400 tabular-nums tracking-tight">{releaseDate}</span>
       </div>
 
-      {/* Hover 操作按钮 */}
-      {hasActions && (
-        <div className="
-          absolute bottom-0 left-0 right-0
-          p-5
-          opacity-0 translate-y-2
-          group-hover:opacity-100 group-hover:translate-y-0
-          transition-all duration-300 ease-out
-          pointer-events-none group-hover:pointer-events-auto
-        ">
-          <div className="flex gap-3">
-            <button
-              onClick={(e) => { e.stopPropagation(); onClick?.(); }}
-              className="
-                flex-1 px-4 py-2.5 rounded-xl
-                border border-gray-300
-                text-sm font-medium text-gray-700
-                bg-white
-                hover:bg-gray-50 hover:border-gray-400
-                transition-all duration-200
-                shadow-sm
-              "
-            >
-              查看详情
-            </button>
-            {subscribed ? (
-              <button
-                disabled={actionLoading}
-                onClick={handleUnsubscribeClick}
-                className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium text-red-600 bg-white border border-red-300 hover:bg-red-50 hover:border-red-400 transition-all duration-200 shadow-sm disabled:opacity-50"
-              >
-                {actionLoading ? "处理中..." : "取消订阅"}
-              </button>
-            ) : (
-              <button
-                disabled={actionLoading}
-                onClick={handleSubscribeClick}
-                className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium text-white bg-colorPrimary hover:opacity-90 transition-all duration-200 shadow-sm disabled:opacity-50"
-              >
-                {actionLoading ? "处理中..." : "立即订阅"}
-              </button>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -14,6 +14,8 @@ import APIs from "../../lib/apis";
 import type { IGetPrimaryConsumerResp, IProductDetail, ISubscription, IAttachment } from "../../lib/apis";
 import type { IModelConversation } from "../../types";
 import { safeJSONParse } from "../../lib/utils";
+import { getProductMcpMetaBatchPublic } from "../../lib/apis/product";
+import { hasAvailableEndpoint } from "../../lib/utils/mcpUtils";
 import TextType from "../TextType";
 
 
@@ -71,6 +73,22 @@ export function ChatArea(props: ChatAreaProps) {
     const ids = new Set(mcpSubscripts.filter(s => s.status === 'APPROVED').map(s => s.productId));
     setMcpEndpointProductIds(ids);
   }, [mcpSubscripts]);
+
+  // productId → 是否有可用 endpoint 的映射
+  const [mcpEndpointMap, setMcpEndpointMap] = useState<Map<string, boolean>>(new Map());
+  useEffect(() => {
+    if (!mcpList || mcpList.length === 0) return;
+    const productIds = mcpList.map(p => p.productId);
+    getProductMcpMetaBatchPublic(productIds).then(res => {
+      if (res.code === 'SUCCESS' && res.data) {
+        const map = new Map<string, boolean>();
+        for (const meta of res.data) {
+          map.set(meta.productId, hasAvailableEndpoint(meta));
+        }
+        setMcpEndpointMap(map);
+      }
+    }).catch(() => { /* 静默失败，默认允许订阅 */ });
+  }, [mcpList]);
   const [modelSubscriptions, setModelSubscriptions] = useState<ISubscription[]>([]);
   const [mcpEnabled, setMcpEnabled] = useState(() => {
     return safeJSONParse(window.localStorage.getItem("mcpEnabled") || "false", false)
@@ -467,6 +485,7 @@ export function ChatArea(props: ChatAreaProps) {
         added={addedMcps}
         subscripts={mcpSubscripts}
         subscribedProductIds={mcpEndpointProductIds}
+        endpointMap={mcpEndpointMap}
         onAdd={handleAddMcp}
         onEnabled={handleMcpEnable}
         enabled={mcpEnabled}

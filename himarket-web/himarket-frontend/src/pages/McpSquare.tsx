@@ -350,8 +350,6 @@ function McpSquare() {
                 subscribedProductIds={subscribedProductIds}
                 isLoggedIn={isLoggedIn}
                 onViewDetail={(pid) => navigate(`/mcp/${pid}`)}
-                onSubscribe={handleSubscribe}
-                onUnsubscribe={handleUnsubscribe}
                 currentPage={currentPage}
                 totalElements={totalElements}
                 pageSize={PAGE_SIZE}
@@ -374,14 +372,12 @@ function McpSquare() {
 }
 
 /* ==================== 广场内容 ==================== */
-function MarketContent({ loading, items, subscribedProductIds, isLoggedIn, onViewDetail, onSubscribe, onUnsubscribe, currentPage, totalElements, pageSize, onPageChange }: {
+function MarketContent({ loading, items, subscribedProductIds, isLoggedIn, onViewDetail, currentPage, totalElements, pageSize, onPageChange }: {
   loading: boolean;
   items: McpProductItem[];
   subscribedProductIds: Set<string>;
   isLoggedIn: boolean;
   onViewDetail: (productId: string) => void;
-  onSubscribe: (productId: string) => Promise<void>;
-  onUnsubscribe: (productId: string) => Promise<void>;
   currentPage: number;
   totalElements: number;
   pageSize: number;
@@ -405,8 +401,6 @@ function MarketContent({ loading, items, subscribedProductIds, isLoggedIn, onVie
             subscribed={subscribedProductIds.has(item.product.productId)}
             isLoggedIn={isLoggedIn}
             onViewDetail={() => onViewDetail(item.product.productId)}
-            onSubscribe={() => onSubscribe(item.product.productId)}
-            onUnsubscribe={() => onUnsubscribe(item.product.productId)}
           />
         ))}
       </div>
@@ -427,18 +421,15 @@ function MarketContent({ loading, items, subscribedProductIds, isLoggedIn, onVie
 }
 
 /* ==================== MCP 卡片（匹配 ModelCard 风格） ==================== */
-function McpCard({ item, subscribed, isLoggedIn, onViewDetail, onSubscribe, onUnsubscribe }: {
+function McpCard({ item, subscribed, isLoggedIn, onViewDetail }: {
   item: McpProductItem;
   subscribed: boolean;
   isLoggedIn: boolean;
   onViewDetail: () => void;
-  onSubscribe: () => Promise<void>;
-  onUnsubscribe: () => Promise<void>;
 }) {
   const { product, meta } = item;
   const displayName = meta?.displayName || meta?.mcpName || product.name;
   const description = meta?.description || product.description;
-  const [actionLoading, setActionLoading] = useState(false);
 
   // 收集所有可用的连接类型（去重、统一大写）
   const allProtocols = (() => {
@@ -482,18 +473,6 @@ function McpCard({ item, subscribed, isLoggedIn, onViewDetail, onSubscribe, onUn
       return meta.tags.split(",").map((t: string) => t.trim()).filter(Boolean);
     }
   })();
-
-  const handleSubscribeClick = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setActionLoading(true);
-    try { await onSubscribe(); } finally { setActionLoading(false); }
-  };
-
-  const handleUnsubscribeClick = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setActionLoading(true);
-    try { await onUnsubscribe(); } finally { setActionLoading(false); }
-  };
 
   return (
     <div
@@ -551,8 +530,8 @@ function McpCard({ item, subscribed, isLoggedIn, onViewDetail, onSubscribe, onUn
         {description || "暂无描述"}
       </p>
 
-      {/* 底部：标签 + 日期 - hover 时淡出 */}
-      <div className="h-10 flex items-center justify-between text-xs transition-opacity duration-300 group-hover:opacity-0">
+      {/* 底部：标签 + 日期 */}
+      <div className="h-10 flex items-center justify-between text-xs transition-opacity duration-300">
         <div className="flex items-center gap-1.5 flex-wrap flex-1 min-w-0">
           {tagList.slice(0, 2).map((t) => (
             <span key={t} className="text-[10px] px-2 py-0.5 rounded-full bg-gray-50 text-gray-500 border border-gray-100 truncate max-w-[80px]">
@@ -566,41 +545,6 @@ function McpCard({ item, subscribed, isLoggedIn, onViewDetail, onSubscribe, onUn
           )}
         </div>
         <span className="flex-shrink-0 text-[#a3a3a3]">{dayjs(product.createAt).format("YYYY-MM-DD")}</span>
-      </div>
-
-      {/* Hover 操作按钮 */}
-      <div className="
-        absolute bottom-0 left-0 right-0 p-5
-        opacity-0 translate-y-2
-        group-hover:opacity-100 group-hover:translate-y-0
-        transition-all duration-300 ease-out
-        pointer-events-none group-hover:pointer-events-auto
-      ">
-        <div className="flex gap-3">
-          <button
-            onClick={(e) => { e.stopPropagation(); onViewDetail(); }}
-            className={`${isLoggedIn ? 'flex-1' : 'w-full'} px-4 py-2.5 rounded-xl border border-gray-300 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 shadow-sm`}
-          >
-            查看详情
-          </button>
-          {isLoggedIn && (subscribed ? (
-            <button
-              disabled={actionLoading}
-              onClick={handleUnsubscribeClick}
-              className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium text-red-600 bg-white border border-red-300 hover:bg-red-50 hover:border-red-400 transition-all duration-200 shadow-sm disabled:opacity-50"
-            >
-              {actionLoading ? "处理中..." : "取消订阅"}
-            </button>
-          ) : (
-            <button
-              disabled={actionLoading}
-              onClick={handleSubscribeClick}
-              className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium text-white bg-colorPrimary hover:opacity-90 transition-all duration-200 shadow-sm disabled:opacity-50"
-            >
-              {actionLoading ? "处理中..." : "立即订阅"}
-            </button>
-          ))}
-        </div>
       </div>
     </div>
   );
@@ -731,36 +675,12 @@ function MyMcpCard({ item, onDisconnect, onViewDetail }: {
         {description || "暂无描述"}
       </p>
 
-      {/* 底部 - hover 时淡出 */}
-      <div className="h-10 flex items-center justify-between text-xs transition-opacity duration-300 group-hover:opacity-0">
+      {/* 底部 */}
+      <div className="h-10 flex items-center justify-between text-xs transition-opacity duration-300">
         <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-green-50 text-green-600 border border-green-100">
           已订阅
         </span>
         <span className="flex-shrink-0 text-[#a3a3a3]">{dayjs(product.createAt).format("YYYY-MM-DD")}</span>
-      </div>
-
-      {/* Hover 操作按钮 */}
-      <div className="
-        absolute bottom-0 left-0 right-0 p-5
-        opacity-0 translate-y-2
-        group-hover:opacity-100 group-hover:translate-y-0
-        transition-all duration-300 ease-out
-        pointer-events-none group-hover:pointer-events-auto
-      ">
-        <div className="flex gap-3">
-          <button
-            onClick={(e) => { e.stopPropagation(); onViewDetail(); }}
-            className="flex-1 px-4 py-2.5 rounded-xl border border-gray-300 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 shadow-sm"
-          >
-            查看详情
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); onDisconnect(); }}
-            className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium text-red-600 bg-white border border-red-300 hover:bg-red-50 hover:border-red-400 transition-all duration-200 shadow-sm"
-          >
-            取消订阅
-          </button>
-        </div>
       </div>
     </div>
   );
