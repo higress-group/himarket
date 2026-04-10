@@ -1,0 +1,429 @@
+{
+  "skill_name": "harness-executor",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "我注意到 harness/eval/scorer.go 里的 ScoreStyle 函数一直返回 1.0，是个 TODO 占位。请实现一个基础的代码风格评分逻辑：检查文件是否有 package 注释、导出函数是否有 doc comment、以及命名是否符合 Go 规范（驼峰命名）。评分范围 0-1。",
+      "expected_output": "Agent 应该：1) 读取 AGENTS.md 了解项目结构；2) 读取相关 design/reference 文档了解 eval 系统设计；3) 读取 QUALITY.md 了解代码规范；4) 实现 ScoreStyle 函数；5) 添加相应测试；6) 运行 validate.py + verify.py 完整验证管线",
+      "files": [],
+      "assertions": [
+        {
+          "type": "tool_call",
+          "description": "Should run detect_harness.py first",
+          "pattern": "detect_harness"
+        },
+        {
+          "type": "file_read",
+          "description": "Should read AGENTS.md for navigation",
+          "file": "AGENTS.md"
+        },
+        {
+          "type": "validation",
+          "description": "Should run static validation pipeline",
+          "pattern": "validate.py"
+        },
+        {
+          "type": "runtime_verification",
+          "description": "Should run runtime verification (verify.py) as part of validation pipeline",
+          "pattern": "verify\\.py"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "harness/cleanup/tasks.go 里的 detectDeadCode 函数用的是简单字符串搜索，会产生很多误报。帮我改成基于 AST 的分析，用 go/parser 和 go/ast 来检测真正未被引用的导出函数。需要保持原来的接口不变。",
+      "expected_output": "Agent 应该：1) 读取 AGENTS.md 和架构文档了解层级约束；2) 阅读 cleanup/tasks.go 的现有实现；3) 基于 AST 重写 detectDeadCode；4) 确保 CleanupTask 接口不变；5) 运行完整验证管线（validate + verify）确认通过",
+      "files": [],
+      "assertions": [
+        {
+          "type": "file_read",
+          "description": "Should read ARCHITECTURE.md",
+          "file": "docs/ARCHITECTURE.md"
+        },
+        {
+          "type": "validation",
+          "description": "Should validate changes",
+          "pattern": "validate.py"
+        },
+        {
+          "type": "runtime_verification",
+          "description": "Should run verify.py after validate.py",
+          "pattern": "verify\\.py"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "docs/references/hooks.md 里列出的 hook 类型和实际代码不一致，有些新加的 hook 没有被文档记录。请同步文档和代码，同时检查 harness 其他文档是否也有类似的 drift 问题，如果有也一并修复。",
+      "expected_output": "Agent 应该：1) 读取 AGENTS.md 作为导航；2) 读取 hooks 相关的代码实现和文档；3) 识别 drift 问题；4) 修复文档使其与代码一致；5) 检查其他文档是否也有类似问题；6) 运行 lint 和 build 验证",
+      "files": [],
+      "assertions": [
+        {
+          "type": "file_read",
+          "description": "Should read AGENTS.md",
+          "file": "AGENTS.md"
+        },
+        {
+          "type": "validation",
+          "description": "Should run validation",
+          "pattern": "validate.py"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "我有一个已有的 Python 项目 (FastAPI web service)，在 ~/projects/my-api/ 下，没有任何 harness 基础设施，只有普通的 src/、tests/ 和 pyproject.toml。帮我给这个项目的 /users 端点加一个分页功能，支持 page 和 page_size 参数。",
+      "expected_output": "Agent 应该：1) 运行 detect_harness.py 发现没有 harness；2) 自动调用 harness-creator 建立基础设施；3) 然后基于新建的 harness 文档了解项目架构；4) 实现分页功能；5) 添加测试；6) 运行 validate.py + verify.py 完整管线验证",
+      "files": [],
+      "assertions": [
+        {
+          "type": "tool_call",
+          "description": "CRITICAL: Should detect no harness first",
+          "pattern": "(detect_harness|AGENTS.md.*MISSING|no harness)"
+        },
+        {
+          "type": "skill_call",
+          "description": "CRITICAL: Should invoke harness-creator skill to bootstrap",
+          "skill": "harness-creator"
+        },
+        {
+          "type": "file_created",
+          "description": "harness-creator should create AGENTS.md",
+          "file": "AGENTS.md"
+        },
+        {
+          "type": "continuation",
+          "description": "Should continue with original task after bootstrap (not re-invoke harness-executor)"
+        },
+        {
+          "type": "validation",
+          "description": "Should validate via pipeline",
+          "pattern": "validate.py"
+        },
+        {
+          "type": "runtime_verification",
+          "description": "Should run verify.py — FastAPI is a server, runtime check is critical",
+          "pattern": "verify\\.py"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "这个 TypeScript 项目（Next.js）没有 AGENTS.md 也没有 harness 目录。我要把现有的 REST API 改造成 tRPC，涉及路由层、类型定义和前端调用。这是个比较大的重构。",
+      "expected_output": "Agent 应该：1) 检测无 harness → 自动 bootstrap；2) 创建正式执行计划；3) 请求用户审批；4) 用 worktree 隔离执行；5) 完整验证（validate + Verifier subagent）",
+      "files": [],
+      "assertions": [
+        {
+          "type": "tool_call",
+          "description": "Should detect missing harness",
+          "pattern": "(detect_harness|AGENTS.md.*MISSING)"
+        },
+        {
+          "type": "skill_call",
+          "description": "CRITICAL: Should invoke harness-creator for bootstrap",
+          "skill": "harness-creator"
+        },
+        {
+          "type": "user_approval",
+          "description": "Should request user approval for major refactor"
+        },
+        {
+          "type": "tool_call",
+          "description": "Should use worktree isolation for major refactor",
+          "pattern": "worktree"
+        },
+        {
+          "type": "functional_verification",
+          "description": "CRITICAL: Must spawn Verifier subagent for functional verification",
+          "pattern": "(Verifier|verification-report|agents/verifier\\.md)"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "帮我在这个 Go 项目里加一个简单的健康检查接口 /health，返回 200 OK 就行。项目已经有完整的 harness 设施。",
+      "expected_output": "Agent 应该：1) 检测到 harness 存在；2) 直接执行修改；3) 运行 validate + Verifier subagent 完整验证",
+      "files": [],
+      "assertions": [
+        {
+          "type": "tool_call",
+          "description": "Should run detection",
+          "pattern": "detect_harness"
+        },
+        {
+          "type": "no_skill_call",
+          "description": "Should NOT invoke harness-creator (harness already exists)",
+          "skill": "harness-creator"
+        },
+        {
+          "type": "validation",
+          "description": "Should validate changes",
+          "pattern": "validate.py"
+        },
+        {
+          "type": "functional_verification",
+          "description": "CRITICAL: Must spawn Verifier subagent — adding a /health endpoint is exactly what functional verification tests",
+          "pattern": "(Verifier|verification-report|agents/verifier\\.md)"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "这个 Go 项目需要重构整体架构，涉及拆分大文件、修复跨层依赖、接入还没 wiring 的子系统（hook、session、mcp）。项目已经有 harness 设施（AGENTS.md, docs/, scripts/）。之前有过类似的层级依赖修复经验，记录在 harness/memory 里。",
+      "expected_output": "Agent 应该：1) 检测 harness 存在；2) 检查有无被中断的任务；3) 查询 memory；4) 创建执行计划；5) 初始化 task state；6) 请求用户审批；7) 每个 phase 完成后 checkpoint；8) 完整验证（validate + Verifier subagent）；9) 完成时记录 lessons",
+      "files": [],
+      "assertions": [
+        {
+          "type": "tool_call",
+          "description": "Should check for interrupted tasks at start",
+          "pattern": "task_state.py list"
+        },
+        {
+          "type": "tool_call",
+          "description": "Should query memory for prior lessons",
+          "pattern": "memory_query.py search"
+        },
+        {
+          "type": "tool_call",
+          "description": "CRITICAL: Should initialize task state with phases",
+          "pattern": "task_state.py init.*--phases"
+        },
+        {
+          "type": "tool_call",
+          "description": "CRITICAL: Should checkpoint after phase completion",
+          "pattern": "task_state.py checkpoint"
+        },
+        {
+          "type": "functional_verification",
+          "description": "CRITICAL: Must spawn Verifier subagent before completing task",
+          "pattern": "(Verifier|verification-report|agents/verifier\\.md)"
+        },
+        {
+          "type": "tool_call",
+          "description": "CRITICAL: Should record lessons on completion",
+          "pattern": "task_state.py complete.*--lessons"
+        },
+        {
+          "type": "user_approval",
+          "description": "Should request user approval for major refactor"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "上次在这个项目重构 message queue 的时候被中断了，我记得做到一半，Phase 2 完成了但 Phase 3 还没开始。帮我继续完成。项目有完整 harness 和之前的 task state。",
+      "expected_output": "Agent 应该：1) 检测 harness 存在；2) task_state.py list 发现 in_progress 任务；3) task_state.py show 读取完整状态；4) 从 Phase 3 继续执行；5) 完整验证（validate + Verifier subagent）；6) checkpoint + complete with lessons",
+      "files": [],
+      "assertions": [
+        {
+          "type": "tool_call",
+          "description": "CRITICAL: Should detect interrupted task",
+          "pattern": "task_state.py list"
+        },
+        {
+          "type": "tool_call",
+          "description": "CRITICAL: Should read full task state",
+          "pattern": "task_state.py show"
+        },
+        {
+          "type": "no_restart",
+          "description": "Should NOT start from Phase 1 — should resume from Phase 3"
+        },
+        {
+          "type": "decision_respect",
+          "description": "Should read and follow key_decisions from context.json"
+        },
+        {
+          "type": "functional_verification",
+          "description": "CRITICAL: Must spawn Verifier subagent in completion phase",
+          "pattern": "(Verifier|verification-report|agents/verifier\\.md)"
+        },
+        {
+          "type": "tool_call",
+          "description": "Should checkpoint progress",
+          "pattern": "task_state.py checkpoint"
+        },
+        {
+          "type": "tool_call",
+          "description": "Should complete with lessons",
+          "pattern": "task_state.py complete.*--lessons"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "帮我给这个 Go 项目的 provider 包添加 retry 逻辑和指数退避。项目有完整 harness 设施，而且 memory 里有之前处理 provider 相关问题的经验记录。大概改 3 个文件。",
+      "expected_output": "Agent 应该：1) 检测 harness 存在；2) 查询 memory 找到 provider 相关的经验；3) 创建计划文件；4) 初始化 task state；5) 执行修改；6) 运行 validate + Verifier subagent 完整管线；7) 完成时记录新 lessons",
+      "files": [],
+      "assertions": [
+        {
+          "type": "tool_call",
+          "description": "Should query memory about provider",
+          "pattern": "memory_query.py search.*(provider|retry)"
+        },
+        {
+          "type": "tool_call",
+          "description": "Should init task state",
+          "pattern": "task_state.py init"
+        },
+        {
+          "type": "memory_influenced",
+          "description": "Implementation should reference or incorporate lessons from memory query results"
+        },
+        {
+          "type": "validation",
+          "description": "Should validate changes",
+          "pattern": "validate.py"
+        },
+        {
+          "type": "functional_verification",
+          "description": "CRITICAL: Must spawn Verifier subagent as part of validation pipeline",
+          "pattern": "(Verifier|verification-report|agents/verifier\\.md)"
+        },
+        {
+          "type": "tool_call",
+          "description": "Should complete with lessons",
+          "pattern": "task_state.py complete.*--lessons"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "帮我修复这个 Go API 服务里 /api/v1/users 接口返回的分页 metadata 不正确的 bug。total_count 字段总是返回 0。项目已有完整 harness 设施和 verify.json 配置。就改一两行代码。",
+      "expected_output": "Agent 应该：1) 定位 bug 并修复；2) 运行完整验证管线（validate + Verifier subagent）。即使改动很小，functional verification 仍是必需的——静态测试可能不覆盖这个分页 metadata 的返回值，但 Verifier subagent 的端点测试会直接检查 API 返回。",
+      "files": [],
+      "assertions": [
+        {
+          "type": "validation",
+          "description": "Should run static validation",
+          "pattern": "validate.py"
+        },
+        {
+          "type": "functional_verification",
+          "description": "CRITICAL: Must spawn Verifier subagent even for small bug fix — the endpoint test directly validates this fix",
+          "pattern": "(Verifier|verification-report|agents/verifier\\.md)"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "prompt": "这个 Node.js Express 项目需要把用户认证从 session-based 改成 JWT。改动涉及 middleware、login/logout 路由和 token 验证逻辑。项目有 harness 设施，verify.json 里配了 login 和 protected-route 的端点测试。",
+      "expected_output": "Agent 应该：1) 创建计划；2) 实现 JWT 改造；3) 运行完整验证管线（validate + Verifier subagent）。Verifier subagent 在这里特别重要：改了认证逻辑后，设计的功能场景能直接验证新的 JWT 流程是否正常工作。",
+      "files": [],
+      "assertions": [
+        {
+          "type": "validation",
+          "description": "Should run static validation",
+          "pattern": "validate.py"
+        },
+        {
+          "type": "functional_verification",
+          "description": "CRITICAL: Must spawn Verifier subagent — auth changes need functional verification against designed scenarios",
+          "pattern": "(Verifier|verification-report|agents/verifier\\.md)"
+        },
+        {
+          "type": "tool_call",
+          "description": "Should complete with lessons",
+          "pattern": "task_state.py complete.*--lessons"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "prompt": "帮我给这个 FastAPI 项目添加订单创建 API (POST /api/orders)，需要验证用户登录、检查库存、扣减库存、创建订单记录。项目有完整 harness 设施和 environment.json 配置（有 postgres 和 redis）。",
+      "expected_output": "Agent 应该：1) 创建计划并初始化 task state；2) 实现订单创建逻辑；3) Step 5.1: 设计 2-5 个任务特定的功能验证场景（如：创建订单成功、库存不足拒绝、未登录拒绝、订单数据持久化验证）；4) Step 5.2: 启动 Verifier subagent 执行设计的功能场景",
+      "files": [],
+      "assertions": [
+        {
+          "type": "scenario_design",
+          "description": "CRITICAL: Should design task-specific functional scenarios (mentions verify_order, scenarios, or similar)",
+          "pattern": "(task_specific_scenarios|verify_order|scenario.*order)"
+        },
+        {
+          "type": "functional_verification",
+          "description": "CRITICAL: Should spawn Verifier subagent for functional verification",
+          "pattern": "(Verifier.*agent|agents/verifier\\.md|verification-report\\.json)"
+        },
+        {
+          "type": "tool_call",
+          "description": "Should complete with lessons after all verification passes",
+          "pattern": "task_state.py complete.*--lessons"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "prompt": "帮我修改这个 Go 项目的用户注册逻辑，添加邮箱格式校验和密码强度检查。项目有完整 harness 设施，environment.json 里配置了 postgres 数据库和一些通用的 functional_scenarios。",
+      "expected_output": "Agent 应该：1) 实现邮箱和密码校验逻辑；2) Step 5.1: 基于 environment.json 的数据库配置和任务目标，设计校验相关场景（有效邮箱通过、无效邮箱拒绝、弱密码拒绝、强密码通过）；3) Verifier subagent 执行任务场景 + 预定义场景",
+      "files": [],
+      "assertions": [
+        {
+          "type": "scenario_design",
+          "description": "CRITICAL: Should design validation-specific scenarios (email, password)",
+          "pattern": "(verify_email|verify_password|validation.*scenario|invalid.*email|weak.*password)"
+        },
+        {
+          "type": "environment_usage",
+          "description": "Should reference environment.json for database context",
+          "pattern": "(environment\\.json|postgres|requires.*postgres)"
+        },
+        {
+          "type": "functional_verification",
+          "description": "Should spawn Verifier subagent with both predefined AND task-specific scenarios",
+          "pattern": "(task_specific_scenarios|Pre-defined.*environment\\.json|verifier.*subagent|Verifier|verification-report)"
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "prompt": "帮我在这个 TypeScript Express 项目添加商品搜索 API (GET /api/products/search)，支持按名称、类别、价格范围搜索，返回分页结果。项目有 harness 但 environment.json 里没有配置 functional_scenarios（空数组）。",
+      "expected_output": "Agent 应该：1) 即使 environment.json 没有预定义场景，仍然必须设计任务特定场景；2) Step 5.1: 设计搜索相关场景（按名称搜索、按价格范围、分页验证、无结果返回空数组）；3) Verifier subagent 执行设计的场景（即使没有预定义场景）。关键：functional_scenarios 为空不能成为跳过功能验证的理由",
+      "files": [],
+      "assertions": [
+        {
+          "type": "scenario_design",
+          "description": "CRITICAL: Should design task-specific scenarios even when predefined scenarios are empty",
+          "pattern": "(verify_search|search.*scenario|task_specific_scenarios.*search)"
+        },
+        {
+          "type": "functional_verification",
+          "description": "CRITICAL: Should spawn Verifier even with empty predefined scenarios — task-specific scenarios make it mandatory",
+          "pattern": "(Verifier|verification-report|functional.*verification)"
+        },
+        {
+          "type": "no_skip",
+          "description": "Should NOT skip functional verification due to empty predefined scenarios",
+          "anti_pattern": "(skip.*functional|no.*scenarios.*skip)"
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "prompt": "这个 Python Flask 项目需要添加管理员删除用户的功能 (DELETE /api/admin/users/{id})，只有 admin 角色才能访问。项目有 harness 设施，environment.json 配了 postgres 和 redis（用于 session）。Medium 任务。",
+      "expected_output": "Agent 应该设计权限相关的验证场景：1) admin 可以删除用户；2) 普通用户无法删除（403）；3) 未登录无法删除（401）；4) 删除后用户确实从数据库移除。这些场景需要利用 environment.json 中的 postgres（验证删除）和 redis（session/auth）。",
+      "files": [],
+      "assertions": [
+        {
+          "type": "scenario_design",
+          "description": "CRITICAL: Should design permission/auth scenarios (admin, 403, 401)",
+          "pattern": "(verify_admin|admin.*delete|403|401|permission.*scenario|unauthorized)"
+        },
+        {
+          "type": "environment_usage",
+          "description": "Should use environment context (postgres for persistence check, redis for auth)",
+          "pattern": "(requires.*postgres|requires.*redis|environment.*postgres|environment.*redis)"
+        },
+        {
+          "type": "side_effect_check",
+          "description": "Should verify side effects (user actually deleted from DB)",
+          "pattern": "(verify.*persist|GET.*users.*404|deleted.*database|side.?effect)"
+        },
+        {
+          "type": "functional_verification",
+          "description": "Should spawn Verifier with auth-focused scenarios",
+          "pattern": "(Verifier|verification-report)"
+        }
+      ]
+    }
+  ]
+}

@@ -20,9 +20,11 @@ import RelatedSkills from "../components/skill/RelatedSkills";
 import { copyToClipboard } from "../lib/utils";
 import { SkillWorkerDetailSkeleton } from "../components/loading";
 
-type IdeType = 'qoder' | 'qoderwork' | 'claude' | 'codex' | 'cursor' | 'kiro' | 'lingma';
+type IdeType = 'qoder' | 'qoderwork' | 'claude' | 'codex' | 'cursor' | 'kiro' | 'lingma' | 'copaw' | 'openclaw';
 
 const IDE_OPTIONS: { value: IdeType; label: string; icon: string }[] = [
+  { value: 'copaw', label: 'CoPaw', icon: '/copaw.png' },
+  { value: 'openclaw', label: 'OpenClaw', icon: '/openclaw.svg' },
   { value: 'qoder', label: 'Qoder', icon: 'https://g.alicdn.com/qbase/qoder/0.0.65/favIcon.svg' },
   { value: 'qoderwork', label: 'QoderWork', icon: 'https://img.alicdn.com/imgextra/i1/O1CN01clv0Oy1Tia1VN1WEO_!!6000000002416-1-tps-1200-1200.gif' },
   { value: 'claude', label: 'Claude', icon: 'https://img.alicdn.com/imgextra/i3/O1CN01JqyNKC1VmMU2MHdF9_!!6000000002695-55-tps-100-101.svg' },
@@ -41,6 +43,8 @@ const getDefaultOutputDir = (ide: IdeType): string => {
     cursor: '~/.cursor/skills',
     kiro: '~/.kiro/skills',
     lingma: '~/.lingma/skills',
+    copaw: '~/.copaw/skill_pool',
+    openclaw: '~/.openclaw/skills',
   };
   return dirMap[ide];
 };
@@ -112,8 +116,8 @@ function SkillDetail() {
   const [versions, setVersions] = useState<SkillVersion[]>([]);
   const [selectedVersion, setSelectedVersion] = useState<string | undefined>();
   const [cliInfo, setCliInfo] = useState<SkillCliInfo | null>(null);
-  const [selectedIde, setSelectedIde] = useState<IdeType>('qoder');
-  const [outputDir, setOutputDir] = useState<string>('~/.qoder/skills');
+  const [selectedIde, setSelectedIde] = useState<IdeType>('copaw');
+  const [outputDir, setOutputDir] = useState<string>('~/.copaw/skill_pool');
 
   const handleDragStart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -561,9 +565,8 @@ function SkillDetail() {
                   <span className="text-xs font-semibold text-gray-600 tracking-wide">{t('npxDownload')}</span>
                 </div>
 
-                {/* IDE Selection */}
+                {/* IDE/Tool Selection */}
                 <div className="mb-3">
-                  <div className="text-xs font-medium text-gray-600 mb-2">{t('selectIde')}</div>
                   <div className="flex flex-wrap gap-2">
                     {IDE_OPTIONS.map((ide) => (
                       <button
