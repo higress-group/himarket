@@ -296,16 +296,6 @@ public class ConsumerServiceImpl implements ConsumerService {
 
         ProductResult product = productService.getProduct(param.getProductId());
         ProductRefResult productRef = productService.getProductRef(param.getProductId());
-        if (productRef == null) {
-            throw new BusinessException(
-                    ErrorCode.INTERNAL_ERROR, "API product is not associated with any API");
-        }
-
-        // Only gateway source type is supported
-        if (productRef.getSourceType() != SourceType.GATEWAY) {
-            throw new BusinessException(
-                    ErrorCode.INVALID_REQUEST, "API product does not support subscription");
-        }
 
         ConsumerCredential credential = findCredential(consumerId);
 
@@ -313,25 +303,23 @@ public class ConsumerServiceImpl implements ConsumerService {
         subscription.setSubscriptionId(IdGenerator.genSubscriptionId());
         subscription.setConsumerId(consumerId);
 
-        boolean autoApprove;
-        if (product.getAutoApprove() != null) {
-            autoApprove = product.getAutoApprove();
-        } else {
-            PortalResult portal = portalService.getPortal(consumer.getPortalId());
-            autoApprove =
-                    portal.getPortalSettingConfig() != null
-                            && BooleanUtil.isTrue(
-                                    portal.getPortalSettingConfig().getAutoApproveSubscriptions());
-        }
+        // 判断是否自动审批
+        boolean autoApprove = resolveAutoApprove(product, consumer);
 
-        // If autoApprove is true, immediately authorize and set status to APPROVED
-        if (autoApprove) {
-            ConsumerAuthConfig consumerAuthConfig =
-                    authorizeConsumer(consumer, credential, productRef);
-            subscription.setConsumerAuthConfig(consumerAuthConfig);
-            subscription.setStatus(SubscriptionStatus.APPROVED);
+        // 网关来源：需要同步授权到网关
+        if (productRef != null && productRef.getSourceType() == SourceType.GATEWAY) {
+            if (autoApprove) {
+                ConsumerAuthConfig consumerAuthConfig =
+                        authorizeConsumer(consumer, credential, productRef);
+                subscription.setConsumerAuthConfig(consumerAuthConfig);
+                subscription.setStatus(SubscriptionStatus.APPROVED);
+            } else {
+                subscription.setStatus(SubscriptionStatus.PENDING);
+            }
         } else {
-            subscription.setStatus(SubscriptionStatus.PENDING);
+            // Non-gateway source: respect product's autoApprove setting
+            subscription.setStatus(
+                    autoApprove ? SubscriptionStatus.APPROVED : SubscriptionStatus.PENDING);
         }
 
         subscriptionRepository.save(subscription);
@@ -840,5 +828,15 @@ public class ConsumerServiceImpl implements ConsumerService {
                 .headers(headers)
                 .queryParams(queryParams)
                 .build();
+    }
+
+    private boolean resolveAutoApprove(ProductResult product, Consumer consumer) {
+        if (product.getAutoApprove() != null) {
+            return product.getAutoApprove();
+        }
+        PortalResult portal = portalService.getPortal(consumer.getPortalId());
+        return portal.getPortalSettingConfig() != null
+                && BooleanUtil.isTrue(
+                        portal.getPortalSettingConfig().getAutoApproveSubscriptions());
     }
 }

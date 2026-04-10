@@ -22,6 +22,7 @@ package com.alibaba.himarket.controller;
 import com.alibaba.himarket.core.annotation.AdminAuth;
 import com.alibaba.himarket.core.annotation.AdminOrDeveloperAuth;
 import com.alibaba.himarket.core.annotation.PublicAccess;
+import com.alibaba.himarket.core.security.ContextHolder;
 import com.alibaba.himarket.dto.params.product.*;
 import com.alibaba.himarket.dto.params.product.CreateProductParam;
 import com.alibaba.himarket.dto.params.product.CreateProductRefParam;
@@ -31,8 +32,11 @@ import com.alibaba.himarket.dto.params.product.QueryProductSubscriptionParam;
 import com.alibaba.himarket.dto.params.product.UpdateProductParam;
 import com.alibaba.himarket.dto.result.ProductCategoryResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
+import com.alibaba.himarket.dto.result.mcp.McpMetaPublicResult;
+import com.alibaba.himarket.dto.result.mcp.McpMetaResult;
 import com.alibaba.himarket.dto.result.mcp.McpToolListResult;
 import com.alibaba.himarket.dto.result.product.*;
+import com.alibaba.himarket.service.McpServerService;
 import com.alibaba.himarket.service.ProductCategoryService;
 import com.alibaba.himarket.service.ProductService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -54,6 +58,10 @@ public class ProductController {
     private final ProductService productService;
 
     private final ProductCategoryService productCategoryService;
+
+    private final McpServerService mcpServerService;
+
+    private final ContextHolder contextHolder;
 
     @Operation(summary = "创建API产品")
     @PostMapping
@@ -128,6 +136,25 @@ public class ProductController {
     @PublicAccess
     public ProductRefResult getProductRef(@PathVariable String productId) {
         return productService.getProductRef(productId);
+    }
+
+    @Operation(summary = "获取产品关联的 MCP 元信息")
+    @GetMapping("/{productId}/mcp-meta")
+    public List<McpMetaResult> listMcpMeta(@PathVariable String productId) {
+        List<McpMetaResult> results = mcpServerService.listMetaByProduct(productId);
+        if (!contextHolder.isAdministrator()) {
+            results.forEach(McpMetaResult::sanitize);
+        }
+        return results;
+    }
+
+    @Operation(summary = "获取产品关联的 MCP 公开信息（匿名可访问，脱敏）")
+    @GetMapping("/{productId}/mcp-meta/public")
+    @PublicAccess
+    public List<McpMetaPublicResult> listMcpMetaPublic(@PathVariable String productId) {
+        return mcpServerService.listMetaByProduct(productId).stream()
+                .map(McpMetaPublicResult::fromFull)
+                .collect(java.util.stream.Collectors.toList());
     }
 
     @Operation(summary = "删除API产品关联的API或MCP Server")

@@ -24,7 +24,6 @@ function ConsumersPage() {
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [addLoading, setAddLoading] = useState(false);
   const [addForm, setAddForm] = useState({ name: '', description: '' });
-  const [_refreshIndex, setRefreshIndex] = useState(0);
   const [primaryConsumer, setPrimaryConsumer] = useState<IGetPrimaryConsumerResp>();
 
   const [consumersForSelect, setConsumersForSelect] = useState<IConsumer[]>([]);
@@ -45,7 +44,7 @@ function ConsumersPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize]); // refreshIndex is intentionally excluded to prevent unnecessary re-fetches
+  }, [page, pageSize]);
 
   const fetchConsumersForSelect = async (searchKeyword?: string, targetPage?: number, size = 100, isRefresh = false) => {
     try {
@@ -241,7 +240,7 @@ function ConsumersPage() {
               />
             </div>
             <div>
-              <Button className="rounded-lg" icon={<ReloadOutlined />} onClick={() => setRefreshIndex(v => v + 1)} />
+              <Button className="rounded-lg" icon={<ReloadOutlined />} onClick={() => fetchConsumers(searchName)} />
             </div>
           </div>
 

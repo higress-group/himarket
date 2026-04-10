@@ -69,12 +69,12 @@
         <caffeine.version>3.2.3</caffeine.version>
         <guava-retrying.version>2.0.0</guava-retrying.version>
         <snakeyaml.version>2.0</snakeyaml.version>
+        <fabric8.version>6.1.1</fabric8.version>
         <agentscope.version>1.0.10</agentscope.version>
         <jackson-databind.version>2.17.2</jackson-databind.version>
         <openai.java.version>4.6.1</openai.java.version>
         <dashscope.java.version>2.22.4</dashscope.java.version>
         <google-genai.version>1.34.0</google-genai.version>
-        <fabric8.version>6.1.1</fabric8.version>
         <jqwik.version>1.9.2</jqwik.version>
 
         <!-- Plugins Versions -->
@@ -231,6 +231,13 @@
                 <groupId>org.yaml</groupId>
                 <artifactId>snakeyaml</artifactId>
                 <version>${snakeyaml.version}</version>
+            </dependency>
+
+            <!-- Fabric8 Kubernetes Client -->
+            <dependency>
+                <groupId>io.fabric8</groupId>
+                <artifactId>kubernetes-client</artifactId>
+                <version>${fabric8.version}</version>
             </dependency>
 
             <!-- Aliyun Log Service -->

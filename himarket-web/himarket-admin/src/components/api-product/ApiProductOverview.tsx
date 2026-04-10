@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, Row, Col, Statistic, Button, message } from 'antd'
+import { Card, Row, Col, Statistic, Button, Tag, message } from 'antd'
 import { 
   ApiOutlined, 
   GlobalOutlined,
@@ -14,7 +14,7 @@ import {
 } from '@ant-design/icons'
 import type { ApiProduct } from '@/types/api-product'
 import { getServiceName, formatDateTime, copyToClipboard } from '@/lib/utils'
-import { apiProductApi } from '@/lib/api'
+import { apiProductApi, mcpServerApi } from '@/lib/api'
 import { getProductCategories } from '@/lib/productCategoryApi'
 import type { ProductCategory } from '@/types/product-category'
 
@@ -30,6 +30,7 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
   const [portalCount, setPortalCount] = useState(0)
   const [subscriberCount, setSubscriberCount] = useState(0)
   const [productCategories, setProductCategories] = useState<ProductCategory[]>([])
+  const [mcpMetaList, setMcpMetaList] = useState<any[]>([])
 
   const navigate = useNavigate()
 
@@ -38,6 +39,9 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
       fetchPublishedPortals()
       fetchProductCategories()
       fetchSubscriberCount()
+      if (apiProduct.type === 'MCP_SERVER') {
+        fetchMcpMeta()
+      }
     }
   }, [apiProduct.productId, apiProduct])
 
@@ -90,6 +94,15 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
     } catch (error) {
       console.error('获取产品类别失败:', error)
       setProductCategories([])
+    }
+  }
+
+  const fetchMcpMeta = async () => {
+    try {
+      const res = await mcpServerApi.listMetaByProduct(apiProduct.productId)
+      setMcpMetaList(res.data || [])
+    } catch {
+      setMcpMetaList([])
     }
   }
 
@@ -249,6 +262,101 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
         </div>
       </Card>
 
+
+      {/* MCP 配置信息 - 仅 MCP_SERVER 类型显示 */}
+      {apiProduct.type === 'MCP_SERVER' && mcpMetaList.length > 0 && (
+        <Card title="MCP 配置信息">
+          {mcpMetaList.map((meta: any) => (
+            <div key={meta.mcpServerId} className="space-y-2">
+              <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
+                <span className="text-xs text-gray-600">MCP 名称:</span>
+                <span className="col-span-2 text-xs text-gray-900 font-mono">{meta.mcpName}</span>
+                <span className="text-xs text-gray-600">展示名称:</span>
+                <span className="col-span-2 text-xs text-gray-900">{meta.displayName}</span>
+              </div>
+              <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
+                <span className="text-xs text-gray-600">协议类型:</span>
+                <div className="col-span-2">
+                  <Tag color={meta.protocolType === 'stdio' ? 'orange' : meta.protocolType === 'sse' ? 'blue' : 'green'} className="m-0">
+                    {meta.protocolType?.toUpperCase()}
+                  </Tag>
+                </div>
+                <span className="text-xs text-gray-600">来源:</span>
+                <span className="col-span-2 text-xs text-gray-900">{meta.origin === 'GATEWAY' ? '网关导入' : meta.origin === 'NACOS' ? 'Nacos导入' : meta.origin === 'AGENTRUNTIME' ? 'AgentRuntime导入' : meta.origin === 'OPEN_API' ? 'Open API 导入' : meta.origin === 'ADMIN' ? '管理员手动创建' : '管理员手动创建'}</span>
+              </div>
+              {meta.repoUrl && (
+                <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
+                  <span className="text-xs text-gray-600">仓库地址:</span>
+                  <a href={meta.repoUrl} target="_blank" rel="noopener noreferrer" className="col-span-5 text-xs text-blue-500 hover:underline truncate">
+                    {meta.repoUrl}
+                  </a>
+                </div>
+              )}
+              {meta.tags && (() => {
+                try {
+                  const tags = JSON.parse(meta.tags)
+                  return Array.isArray(tags) && tags.length > 0 ? (
+                    <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
+                      <span className="text-xs text-gray-600">标签:</span>
+                      <div className="col-span-5 flex flex-wrap gap-1">
+                        {tags.map((tag: string) => (
+                          <Tag key={tag} color="blue" className="m-0">{tag}</Tag>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null
+                } catch { return null }
+              })()}
+              {meta.description && (
+                <div className="grid grid-cols-6 gap-8 pt-2 pb-2">
+                  <span className="text-xs text-gray-600">描述:</span>
+                  <span className="col-span-5 text-xs text-gray-700 leading-relaxed">{meta.description}</span>
+                </div>
+              )}
+
+              <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
+                {meta.createdBy && (
+                  <>
+                    <span className="text-xs text-gray-600">创建人:</span>
+                    <span className="col-span-2 text-xs text-gray-900">{meta.createdBy}</span>
+                  </>
+                )}
+                {meta.createAt && (
+                  <>
+                    <span className="text-xs text-gray-600">创建时间:</span>
+                    <span className="col-span-2 text-xs text-gray-700">{formatDateTime(meta.createAt)}</span>
+                  </>
+                )}
+              </div>
+              {meta.sandboxRequired && meta.endpointUrl && (
+                <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
+                  <span className="text-xs text-gray-600">沙箱连接点:</span>
+                  <div className="col-span-5 flex items-center gap-2">
+                    <Tag color={meta.endpointStatus === 'ACTIVE' ? 'green' : 'default'} className="m-0">
+                      {meta.endpointStatus === 'ACTIVE' ? '运行中' : meta.endpointStatus || '未知'}
+                    </Tag>
+                    <span className="text-xs text-gray-700 font-mono break-all">{meta.endpointUrl}</span>
+                    <CopyOutlined
+                      className="text-gray-400 hover:text-blue-600 cursor-pointer transition-colors flex-shrink-0"
+                      style={{ fontSize: '12px' }}
+                      onClick={async () => {
+                        try {
+                          await copyToClipboard(meta.endpointUrl);
+                          message.success('连接地址已复制');
+                        } catch {
+                          message.error('复制失败');
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </Card>
+      )}
+
+
       {/* 统计数据 - AGENT_SKILL 不展示 */}
       {apiProduct.type !== 'AGENT_SKILL' && (
         <Row gutter={[16, 16]}>
@@ -275,8 +383,10 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
               }}
             >
               <Statistic
-                title="关联API"
-                value={getServiceName(linkedService) || '未关联'}
+                title={apiProduct.type === 'MCP_SERVER' ? 'MCP 配置' : '关联API'}
+                value={apiProduct.type === 'MCP_SERVER' 
+                  ? (mcpMetaList.length > 0 ? `${mcpMetaList.length} 个 MCP` : '未配置')
+                  : (getServiceName(linkedService) || '未关联')}
                 prefix={<ApiOutlined className="text-blue-500" />}
                 valueStyle={{ color: '#1677ff', fontSize: '24px' }}
               />

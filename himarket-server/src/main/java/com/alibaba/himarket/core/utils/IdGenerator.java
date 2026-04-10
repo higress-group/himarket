@@ -49,8 +49,11 @@ public class IdGenerator {
     private static final String SESSION_PREFIX = "session-";
     private static final String CHAT_PREFIX = "chat-";
     private static final String CHAT_ATTACHMENT_PREFIX = "attachment-";
+    private static final String SANDBOX_PREFIX = "sandbox-";
     private static final String SUBSCRIPTION_PREFIX = "subscription-";
     private static final String PUBLICATION_PREFIX = "publication-";
+    private static final String MCP_SERVER_PREFIX = "mcp-";
+    private static final String ENDPOINT_PREFIX = "ep-";
 
     public static String genHigressGatewayId() {
         return HIGRESS_PREFIX + ObjectId.next();
@@ -106,5 +109,17 @@ public class IdGenerator {
 
     public static String genChatAttachmentId() {
         return CHAT_ATTACHMENT_PREFIX + ObjectId.next();
+    }
+
+    public static String genSandboxId() {
+        return SANDBOX_PREFIX + ObjectId.next();
+    }
+
+    public static String genMcpServerId() {
+        return MCP_SERVER_PREFIX + ObjectId.next();
+    }
+
+    public static String genEndpointId() {
+        return ENDPOINT_PREFIX + ObjectId.next();
     }
 }

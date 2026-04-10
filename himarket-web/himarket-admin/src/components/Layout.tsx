@@ -94,19 +94,10 @@ const Layout: React.FC = () => {
       href: "/consoles",
       icon: SettingOutlined,
       children: [
-        {
-          name: "Nacos实例",
-          cn: "Nacos实例",
-          href: "/consoles/nacos",
-          icon: DesktopOutlined,
-        },
-        {
-          name: "网关实例",
-          cn: "网关实例",
-          href: "/consoles/gateway",
-          icon: DesktopOutlined,
-        },
-      ],
+        { name: 'Nacos实例', cn: 'Nacos实例', href: '/consoles/nacos', icon: DesktopOutlined },
+        { name: '网关实例', cn: '网关实例', href: '/consoles/gateway', icon: DesktopOutlined },
+        { name: 'Sandbox实例', cn: 'Sandbox实例', href: '/consoles/sandbox', icon: DesktopOutlined },
+      ]
     },
     {
       name: "观测分析",

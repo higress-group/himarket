@@ -36,8 +36,12 @@ import com.alibaba.himarket.dto.result.product.SubscriptionResult;
 import com.alibaba.himarket.entity.Chat;
 import com.alibaba.himarket.entity.ChatAttachment;
 import com.alibaba.himarket.entity.ChatSession;
+import com.alibaba.himarket.entity.McpServerEndpoint;
+import com.alibaba.himarket.entity.McpServerMeta;
 import com.alibaba.himarket.repository.ChatAttachmentRepository;
 import com.alibaba.himarket.repository.ChatRepository;
+import com.alibaba.himarket.repository.McpServerEndpointRepository;
+import com.alibaba.himarket.repository.McpServerMetaRepository;
 import com.alibaba.himarket.service.*;
 import com.alibaba.himarket.service.hichat.support.ChatEvent;
 import com.alibaba.himarket.service.hichat.support.InvokeModelParam;
@@ -45,6 +49,9 @@ import com.alibaba.himarket.support.chat.attachment.ChatAttachmentConfig;
 import com.alibaba.himarket.support.chat.mcp.MCPTransportConfig;
 import com.alibaba.himarket.support.enums.ChatAttachmentType;
 import com.alibaba.himarket.support.enums.ChatStatus;
+import com.alibaba.himarket.support.enums.MCPTransportMode;
+import com.alibaba.himarket.support.enums.McpEndpointStatus;
+import com.alibaba.himarket.support.enums.McpProtocolType;
 import com.alibaba.himarket.support.enums.ProductType;
 import io.agentscope.core.message.*;
 import java.nio.charset.StandardCharsets;
@@ -77,6 +84,10 @@ public class ChatService {
     private final ProductService productService;
 
     private final ConsumerService consumerService;
+
+    private final McpServerMetaRepository mcpServerMetaRepository;
+
+    private final McpServerEndpointRepository mcpServerEndpointRepository;
 
     public Flux<ChatEvent> chat(CreateChatParam param) {
         performAllChecks(param);
@@ -386,22 +397,78 @@ public class ChatService {
             return CollUtil.empty(List.class);
         }
 
-        return productService.getProducts(param.getMcpProducts()).values().stream()
+        Map<String, ProductResult> productMap = productService.getProducts(param.getMcpProducts());
+
+        // 批量查 meta 和公共 endpoint，避免 N+1
+        List<String> productIds = new java.util.ArrayList<>(productMap.keySet());
+        Map<String, McpServerMeta> metaByProductId =
+                mcpServerMetaRepository.findByProductIdIn(productIds).stream()
+                        .collect(
+                                Collectors.toMap(McpServerMeta::getProductId, m -> m, (a, b) -> a));
+        List<String> mcpServerIds =
+                metaByProductId.values().stream()
+                        .map(McpServerMeta::getMcpServerId)
+                        .collect(Collectors.toList());
+        Map<String, McpServerEndpoint> endpointByMcpServerId =
+                mcpServerIds.isEmpty()
+                        ? java.util.Collections.emptyMap()
+                        : mcpServerEndpointRepository
+                                .findByMcpServerIdInAndUserIdInAndStatus(
+                                        mcpServerIds,
+                                        List.of(McpEndpointStatus.PUBLIC_USER_ID),
+                                        McpEndpointStatus.ACTIVE.name())
+                                .stream()
+                                .collect(
+                                        Collectors.toMap(
+                                                McpServerEndpoint::getMcpServerId,
+                                                ep -> ep,
+                                                (a, b) -> a));
+
+        return productMap.values().stream()
                 .filter(
                         product ->
                                 product.getType() == ProductType.MCP_SERVER
                                         || product.getMcpConfig() != null)
                 .map(
                         product -> {
+                            // 优先从 endpoint 热数据构建（沙箱/自定义 MCP）
+                            McpServerMeta meta = metaByProductId.get(product.getProductId());
+                            if (meta != null) {
+                                McpServerEndpoint ep =
+                                        endpointByMcpServerId.get(meta.getMcpServerId());
+                                if (ep != null && StrUtil.isNotBlank(ep.getEndpointUrl())) {
+                                    String protocol =
+                                            StrUtil.blankToDefault(ep.getProtocol(), "sse");
+                                    MCPTransportMode mode =
+                                            McpProtocolType.resolveTransportMode(protocol);
+                                    MCPTransportConfig config =
+                                            MCPTransportConfig.builder()
+                                                    .mcpServerName(meta.getMcpName())
+                                                    .productId(product.getProductId())
+                                                    .transportMode(mode)
+                                                    .url(ep.getEndpointUrl())
+                                                    .headers(credentialContext.copyHeaders())
+                                                    .queryParams(
+                                                            credentialContext.copyQueryParams())
+                                                    .build();
+                                    return config;
+                                }
+                            }
+
+                            // fallback：从冷数据 mcpConfig 构建（网关导入的 MCP）
+                            if (product.getMcpConfig() == null) {
+                                return null;
+                            }
                             MCPTransportConfig transportConfig =
                                     product.getMcpConfig().toTransportConfig();
-
-                            // Add authentication credentials
+                            if (transportConfig == null) {
+                                return null;
+                            }
                             transportConfig.setHeaders(credentialContext.copyHeaders());
                             transportConfig.setQueryParams(credentialContext.copyQueryParams());
-
                             return transportConfig;
                         })
+                .filter(java.util.Objects::nonNull)
                 .collect(Collectors.toList());
     }
 

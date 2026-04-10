@@ -79,4 +79,14 @@ public interface SubscriptionRepository extends BaseRepository<ProductSubscripti
      * @param productId the product ID
      */
     void deleteByConsumerIdAndProductId(String consumerId, String productId);
+
+    /**
+     * 批量查询指定 consumer 对多个产品的订阅（避免 N+1）。
+     *
+     * @param consumerId the consumer ID
+     * @param productIds the product IDs
+     * @return the list of product subscriptions
+     */
+    List<ProductSubscription> findByConsumerIdAndProductIdIn(
+            String consumerId, java.util.Collection<String> productIds);
 }

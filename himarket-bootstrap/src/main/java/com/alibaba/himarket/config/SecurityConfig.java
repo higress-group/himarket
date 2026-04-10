@@ -80,6 +80,9 @@ public class SecurityConfig {
     // System endpoints
     private static final String[] SYSTEM_WHITELIST = {"/favicon.ico", "/error"};
 
+    // Open API endpoints (API Key auth handled in controller)
+    private static final String[] OPEN_API_WHITELIST = {"/open-api/**"};
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         List<PublicAccessEndpoint> publicEndpoints =
@@ -108,6 +111,9 @@ public class SecurityConfig {
                                     .permitAll()
                                     // Permit system endpoints
                                     .requestMatchers(SYSTEM_WHITELIST)
+                                    .permitAll()
+                                    // Permit open API endpoints
+                                    .requestMatchers(OPEN_API_WHITELIST)
                                     .permitAll();
                             // Permit @PublicAccess annotated endpoints with HTTP method precision
                             for (PublicAccessEndpoint endpoint : publicEndpoints) {

@@ -429,3 +429,159 @@ export const skillApi = {
     return api.post(`/skills/import`, null, { params: { nacosId, namespace }, timeout: 120000 })
   },
 }
+
+// MCP Server 管理 API
+export const mcpServerApi = {
+  // 保存 MCP 元信息（创建/更新）
+  saveMeta: (data: {
+    productId: string
+    mcpName: string
+    displayName: string
+    description?: string
+    repoUrl?: string
+    sourceType?: string
+    origin?: string
+    gatewayId?: string
+    nacosId?: string
+    refConfig?: string
+    tags?: string
+    icon?: string
+    protocolType: string
+    connectionConfig: string
+    extraParams?: string
+    serviceIntro?: string
+    visibility?: string
+    publishStatus?: string
+    toolsConfig?: string
+    sandboxRequired?: boolean
+    sandboxId?: string
+    transportType?: string
+    authType?: string
+    paramValues?: string
+    namespace?: string
+    resourceSpec?: string
+  }) => {
+    return api.post(`/mcp-servers/meta`, data, { timeout: 120000 })
+  },
+  // 获取 MCP 元信息
+  getMeta: (mcpServerId: string) => {
+    return api.get(`/mcp-servers/meta/${mcpServerId}`)
+  },
+  // 获取产品下所有 MCP 元信息
+  listMetaByProduct: (productId: string) => {
+    return api.get(`/mcp-servers/meta`, { params: { productId } })
+  },
+  // 删除 MCP 元信息
+  deleteMeta: (mcpServerId: string) => {
+    return api.delete(`/mcp-servers/meta/${mcpServerId}`)
+  },
+  // 删除产品下所有 MCP 配置（meta + endpoint + ref + 重置状态）
+  deleteMetaByProduct: (productId: string) => {
+    return api.delete(`/mcp-servers/meta/by-product/${productId}`)
+  },
+  // 保存 endpoint
+  saveEndpoint: (data: {
+    mcpServerId: string
+    endpointUrl: string
+    hostingType: string
+    protocol: string
+    userId?: string
+    hostingInstanceId?: string
+    hostingIdentifier?: string
+  }) => {
+    return api.post(`/mcp-servers/endpoints`, data)
+  },
+  // 获取 endpoint 列表
+  listEndpoints: (mcpServerId: string) => {
+    return api.get(`/mcp-servers/endpoints`, { params: { mcpServerId } })
+  },
+  // 删除 endpoint
+  deleteEndpoint: (endpointId: string) => {
+    return api.delete(`/mcp-servers/endpoints/${endpointId}`)
+  },
+  // 市场列表
+  listPublished: (params?: { page?: number; size?: number }) => {
+    return api.get(`/mcp-servers/published`, { params })
+  },
+  // 刷新工具列表
+  refreshTools: (mcpServerId: string) => {
+    return api.post(`/mcp-servers/meta/${mcpServerId}/refresh-tools`, {}, { timeout: 120000 })
+  },
+  // 更新服务介绍
+  updateServiceIntro: (mcpServerId: string, serviceIntro: string) => {
+    return api.put(`/mcp-servers/meta/${mcpServerId}/service-intro`, { serviceIntro })
+  },
+  // 取消沙箱托管
+  undeploySandbox: (mcpServerId: string) => {
+    return api.delete(`/mcp-servers/meta/${mcpServerId}/deploy-sandbox`)
+  },
+  // 部署沙箱（独立于 saveMeta，管理员手动触发）
+  deploySandbox: (mcpServerId: string, data: {
+    sandboxId: string
+    transportType?: string
+    authType?: string
+    paramValues?: string
+    namespace?: string
+    resourceSpec?: string
+  }) => {
+    return api.post(`/mcp-servers/meta/${mcpServerId}/deploy-sandbox`, data, { timeout: 120000 })
+  },
+  // 更新工具配置（手动编辑）
+  updateToolsConfig: (mcpServerId: string, toolsConfig: string) => {
+    return api.put(`/mcp-servers/meta/${mcpServerId}/tools-config`, toolsConfig, {
+      headers: { 'Content-Type': 'application/json' }
+    })
+  },
+}
+
+// Sandbox 实例相关 API
+export const sandboxApi = {
+  // 获取所有运行中的沙箱实例（部署用，不按 adminId 过滤）
+  getActiveSandboxes: () => {
+    return api.get(`/sandboxes/active`)
+  },
+  // 获取沙箱实例列表
+  getSandboxes: (params?: { sandboxType?: string; page?: number; size?: number }) => {
+    return api.get(`/sandboxes`, { params })
+  },
+  // 导入沙箱实例
+  importSandbox: (data: { sandboxName: string; sandboxType: string; kubeConfig: string; description?: string }) => {
+    return api.post(`/sandboxes`, data)
+  },
+  // 更新沙箱实例
+  updateSandbox: (sandboxId: string, data: { sandboxName?: string; kubeConfig?: string; description?: string }) => {
+    return api.put(`/sandboxes/${sandboxId}`, data)
+  },
+  // 删除沙箱实例
+  deleteSandbox: (sandboxId: string) => {
+    return api.delete(`/sandboxes/${sandboxId}`)
+  },
+  // 获取集群信息
+  fetchClusterInfo: (kubeConfig: string) => {
+    return api.post(`/sandboxes/cluster-info`, { kubeConfig })
+  },
+  // 手动触发健康检查
+  healthCheck: (sandboxId: string) => {
+    return api.post(`/sandboxes/${sandboxId}/health-check`)
+  },
+  // 获取沙箱集群的 Namespace 列表
+  listNamespaces: (sandboxId: string) => {
+    return api.get(`/sandboxes/${sandboxId}/namespaces`)
+  },
+  // 查询沙箱上的活跃 MCP 部署数量
+  getActiveDeployments: (sandboxId: string) => {
+    return api.get(`/sandboxes/${sandboxId}/active-deployments`)
+  },
+}
+
+// MCP 供应商导入 API
+export const mcpVendorApi = {
+  // 查询供应商 MCP 列表
+  listRemoteMcpItems: (params: { vendorType: string; keyword?: string; page?: number; size?: number }) => {
+    return api.get('/admin/mcp-vendor/mcp-list', { params })
+  },
+  // 批量导入（超时设长一些，因为后端需要逐条调详情 API 补充数据）
+  batchImport: (data: { vendorType: string; items: any[] }) => {
+    return api.post('/admin/mcp-vendor/import', data, { timeout: 300000 })
+  },
+}

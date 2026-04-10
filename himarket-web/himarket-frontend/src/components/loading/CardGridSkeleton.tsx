@@ -7,11 +7,16 @@
 interface CardGridSkeletonProps {
   /** 卡片数量，默认 8 */
   count?: number;
+  /** 响应式列数配置 */
+  columns?: { sm?: number; md?: number; lg?: number };
 }
 
-export function CardGridSkeleton({ count = 8 }: CardGridSkeletonProps) {
+export function CardGridSkeleton({ count = 8, columns }: CardGridSkeletonProps) {
+  const gridCols = columns
+    ? `grid-cols-1 sm:grid-cols-${columns.sm ?? 2} md:grid-cols-${columns.md ?? 3} lg:grid-cols-${columns.lg ?? 4}`
+    : 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4';
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 max-w-[1600px] mx-auto">
+    <div className={`grid ${gridCols} gap-6 max-w-[1600px] mx-auto`}>
       {Array.from({ length: count }).map((_, index) => (
         <div
           key={index}
