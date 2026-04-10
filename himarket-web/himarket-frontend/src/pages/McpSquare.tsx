@@ -215,44 +215,6 @@ function McpSquare() {
     setCurrentPage(1);
   };
 
-  const handleSubscribe = async (productId: string) => {
-    try {
-      const consumerId = consumerIdRef.current;
-      if (!consumerId) {
-        const consumerRes = await APIs.getPrimaryConsumer();
-        if (consumerRes.code !== "SUCCESS" || !consumerRes.data) {
-          message.error("获取消费者信息失败");
-          return;
-        }
-        consumerIdRef.current = consumerRes.data.consumerId;
-      }
-      await APIs.subscribeProduct(consumerIdRef.current!, productId);
-      message.success("订阅成功");
-      fetchConsumerData();
-    } catch (error: any) {
-      message.error(error?.response?.data?.message || error?.message || "订阅失败");
-    }
-  };
-
-  const handleUnsubscribe = async (productId: string) => {
-    try {
-      const consumerId = consumerIdRef.current;
-      if (!consumerId) {
-        const consumerRes = await APIs.getPrimaryConsumer();
-        if (consumerRes.code !== "SUCCESS" || !consumerRes.data) {
-          message.error("获取消费者信息失败");
-          return;
-        }
-        consumerIdRef.current = consumerRes.data.consumerId;
-      }
-      await APIs.unsubscribeProduct(consumerIdRef.current!, productId);
-      message.success("已取消订阅");
-      fetchConsumerData();
-    } catch (error: any) {
-      message.error(error?.response?.data?.message || error?.message || "取消订阅失败");
-    }
-  };
-
   return (
     <Layout>
       <div className="flex flex-col h-[calc(100vh-96px)] overflow-auto scrollbar-hide" ref={scrollContainerRef}>
@@ -359,7 +321,6 @@ function McpSquare() {
               <MyMcpContent
                 items={myMcpItems}
                 loading={myMcpsLoading}
-                onDisconnect={handleUnsubscribe}
                 onViewDetail={(pid) => navigate(`/mcp/${pid}`)}
               />
             )}
@@ -551,10 +512,9 @@ function McpCard({ item, subscribed, isLoggedIn, onViewDetail }: {
 }
 
 /* ==================== 我的 MCP 内容 ==================== */
-function MyMcpContent({ items, loading, onDisconnect, onViewDetail }: {
+function MyMcpContent({ items, loading, onViewDetail }: {
   items: McpProductItem[];
   loading: boolean;
-  onDisconnect: (productId: string) => void;
   onViewDetail: (productId: string) => void;
 }) {
   if (loading) {
@@ -579,7 +539,6 @@ function MyMcpContent({ items, loading, onDisconnect, onViewDetail }: {
           <MyMcpCard
             key={item.product.productId}
             item={item}
-            onDisconnect={() => onDisconnect(item.product.productId)}
             onViewDetail={() => onViewDetail(item.product.productId)}
           />
         ))}
@@ -589,9 +548,8 @@ function MyMcpContent({ items, loading, onDisconnect, onViewDetail }: {
 }
 
 /* ==================== 我的 MCP 卡片 ==================== */
-function MyMcpCard({ item, onDisconnect, onViewDetail }: {
+function MyMcpCard({ item, onViewDetail }: {
   item: McpProductItem;
-  onDisconnect: () => void;
   onViewDetail: () => void;
 }) {
   const { product, meta } = item;
