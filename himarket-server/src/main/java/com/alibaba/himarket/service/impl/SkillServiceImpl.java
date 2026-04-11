@@ -17,6 +17,7 @@ import com.alibaba.himarket.dto.result.common.FileContentResult;
 import com.alibaba.himarket.dto.result.common.FileTreeNode;
 import com.alibaba.himarket.dto.result.common.ImportResult;
 import com.alibaba.himarket.dto.result.common.VersionResult;
+import com.alibaba.himarket.entity.NacosInstance;
 import com.alibaba.himarket.entity.Product;
 import com.alibaba.himarket.repository.ProductRepository;
 import com.alibaba.himarket.service.NacosService;
@@ -516,10 +517,111 @@ public class SkillServiceImpl implements SkillService {
     public void downloadPackage(String productId, String version, HttpServletResponse response)
             throws IOException {
         SkillRef ref = getSkillRef(productId, true);
+
+        // 先调用 Nacos HTTP API 下载，让 Nacos 增加下载计数
+        downloadFromNacos(ref, version, response);
+    }
+
+    /**
+     * 通过调用 Nacos HTTP API 下载 Skill ZIP 包，使 Nacos 自动增加下载计数
+     * API: GET /v3/console/ai/skills/version/download?namespaceId=xxx&skillName=xxx&version=xxx
+     */
+    private void downloadFromNacos(SkillRef ref, String version, HttpServletResponse response)
+            throws IOException {
+        try {
+            NacosInstance nacosInstance = nacosService.findNacosInstanceById(ref.getNacosId());
+            // 优先使用展示地址，不存在则使用 serverUrl
+            String nacosBaseUrl =
+                    StrUtil.isNotBlank(nacosInstance.getDisplayServerUrl())
+                            ? nacosInstance.getDisplayServerUrl()
+                            : nacosInstance.getServerUrl();
+
+            // 构建 Nacos 下载 URL:
+            // /v3/console/ai/skills/version/download?namespaceId=xxx&skillName=xxx&version=xxx
+            StringBuilder urlBuilder = new StringBuilder();
+            urlBuilder.append(nacosBaseUrl);
+            if (!nacosBaseUrl.endsWith("/")) {
+                urlBuilder.append("/");
+            }
+            urlBuilder.append("v3/console/ai/skills/version/download?");
+            urlBuilder.append("namespaceId=").append(ref.getNamespace());
+            urlBuilder
+                    .append("&skillName=")
+                    .append(
+                            java.net.URLEncoder.encode(
+                                    ref.getSkillName(), StandardCharsets.UTF_8.name()));
+            if (StrUtil.isNotBlank(version)) {
+                urlBuilder
+                        .append("&version=")
+                        .append(java.net.URLEncoder.encode(version, StandardCharsets.UTF_8.name()));
+            }
+
+            // 添加认证参数（如果 Nacos 有用户名密码）
+            if (StrUtil.isNotBlank(nacosInstance.getUsername())
+                    && StrUtil.isNotBlank(nacosInstance.getPassword())) {
+                urlBuilder
+                        .append("&username=")
+                        .append(
+                                java.net.URLEncoder.encode(
+                                        nacosInstance.getUsername(),
+                                        StandardCharsets.UTF_8.name()));
+                urlBuilder
+                        .append("&password=")
+                        .append(
+                                java.net.URLEncoder.encode(
+                                        nacosInstance.getPassword(),
+                                        StandardCharsets.UTF_8.name()));
+            }
+
+            String downloadUrl = urlBuilder.toString();
+            // 日志中密码脱敏
+            String loggedUrl = downloadUrl.replaceAll("password=[^&]+", "password=***");
+            log.info("Calling Nacos download API: {}", loggedUrl);
+
+            // 创建 HTTP 连接
+            java.net.URL url = new java.net.URL(downloadUrl);
+            java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+            conn.setConnectTimeout(30000);
+            conn.setReadTimeout(60000);
+
+            int responseCode = conn.getResponseCode();
+            if (responseCode == java.net.HttpURLConnection.HTTP_OK) {
+                // 设置响应头
+                response.setContentType("application/zip");
+                String encodedName =
+                        java.net.URLEncoder.encode(
+                                        ref.getSkillName() + ".zip", StandardCharsets.UTF_8)
+                                .replace("+", "%20");
+                response.setHeader(
+                        "Content-Disposition", "attachment; filename*=UTF-8''" + encodedName);
+
+                // 流式传输 ZIP 文件
+                try (var input = conn.getInputStream();
+                        var output = response.getOutputStream()) {
+                    input.transferTo(output);
+                }
+                log.info("Downloaded skill {} from Nacos successfully", ref.getSkillName());
+            } else {
+                log.warn("Nacos download API returned non-OK status: {}", responseCode);
+                // 降级为本地生成 ZIP
+                fallbackToLocalDownload(ref, version, response);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to download from Nacos, fallback to local generation", e);
+            // 降级为本地生成 ZIP
+            fallbackToLocalDownload(ref, version, response);
+        }
+    }
+
+    /**
+     * 降级方案：本地生成 ZIP 包（不增加 Nacos 下载计数）
+     */
+    private void fallbackToLocalDownload(SkillRef ref, String version, HttpServletResponse response)
+            throws IOException {
         Skill skill = fetchSkill(ref, version);
 
         response.setContentType("application/zip");
-        // Use RFC 5987 encoding for Unicode filenames
         String encodedName =
                 java.net.URLEncoder.encode(skill.getName() + ".zip", StandardCharsets.UTF_8)
                         .replace("+", "%20");
