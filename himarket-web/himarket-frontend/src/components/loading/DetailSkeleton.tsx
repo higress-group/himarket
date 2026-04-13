@@ -1,6 +1,6 @@
 /**
- * 详情页骨架屏组件
- * 用于 SkillDetail、WorkerDetail、ModelDetail、McpDetail 等页面
+ * 详情页骨架屏组件（通用版本）
+ * 用于 ModelDetail、McpDetail、ApiDetail、AgentDetail 等使用 ProductDetailLayout 的页面
  */
 
 export function DetailSkeleton() {

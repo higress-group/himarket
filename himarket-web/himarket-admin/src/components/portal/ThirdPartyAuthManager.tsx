@@ -31,6 +31,9 @@ export function ThirdPartyAuthManager({configs, onSave}: ThirdPartyAuthManagerPr
     setEditingConfig(config)
     setSelectedType(config.type)
     setCurrentStep(1) // 直接进入配置步骤
+    
+    // 先重置表单，再设置新值
+    form.resetFields()
     setModalVisible(true)
     
     // 根据类型设置表单值
@@ -140,6 +143,13 @@ export function ThirdPartyAuthManager({configs, onSave}: ThirdPartyAuthManagerPr
         // OIDC配置：根据配置模式创建不同的authCodeConfig
         let authCodeConfig: AuthCodeConfig
         
+        // 构建身份映射配置（放在OidcConfig根级别）
+        const identityMapping = (values.userIdField || values.userNameField || values.emailField) ? {
+          userIdField: values.userIdField || null,
+          userNameField: values.userNameField || null,
+          emailField: values.emailField || null
+        } : undefined
+
         if (values.configMode === 'auto') {
           // 自动发现模式：只保存issuer，端点置空（后端会通过issuer自动发现）
           authCodeConfig = {
@@ -151,12 +161,8 @@ export function ThirdPartyAuthManager({configs, onSave}: ThirdPartyAuthManagerPr
             tokenEndpoint: '',
             userInfoEndpoint: '',
             jwkSetUri: '',
-            // 可选的身份映射配置
-            identityMapping: (values.userIdField || values.userNameField || values.emailField) ? {
-              userIdField: values.userIdField || null,
-              userNameField: values.userNameField || null,
-              emailField: values.emailField || null
-            } : undefined
+            // 可选的自定义回调地址
+            redirectUri: values.redirectUri || undefined
           }
         } else {
           // 手动配置模式：保存具体的端点地址
@@ -169,12 +175,8 @@ export function ThirdPartyAuthManager({configs, onSave}: ThirdPartyAuthManagerPr
             tokenEndpoint: values.tokenEndpoint,
             userInfoEndpoint: values.userInfoEndpoint,
             jwkSetUri: values.jwkSetUri || '',
-            // 可选的身份映射配置
-            identityMapping: (values.userIdField || values.userNameField || values.emailField) ? {
-              userIdField: values.userIdField || null,
-              userNameField: values.userNameField || null,
-              emailField: values.emailField || null
-            } : undefined
+            // 可选的自定义回调地址
+            redirectUri: values.redirectUri || undefined
           }
         }
 
@@ -185,8 +187,8 @@ export function ThirdPartyAuthManager({configs, onSave}: ThirdPartyAuthManagerPr
           enabled: values.enabled ?? true,
           grantType: values.oidcGrantType || 'AUTHORIZATION_CODE' as const, // 使用oidcGrantType字段
           authCodeConfig,
-          // 根级别的身份映射（为兼容后端格式）
-          identityMapping: authCodeConfig.identityMapping,
+          // 根级别的身份映射
+          identityMapping,
           type: AuthenticationType.OIDC
         } as (OidcConfig & { type: AuthenticationType.OIDC })
       } else {
@@ -420,7 +422,13 @@ export function ThirdPartyAuthManager({configs, onSave}: ThirdPartyAuthManagerPr
         >
           <Input placeholder="如: openid profile email"/>
         </Form.Item>
-        <div></div>
+        <Form.Item
+          name="redirectUri"
+          label="回调地址"
+          tooltip="可选，用于指定OIDC回调地址。格式：门户访问地址 + /oidc/callback。如不填写，系统将自动构建"
+        >
+          <Input placeholder="如: http://localhost:5173/oidc/callback"/>
+        </Form.Item>
       </div>
 
       <Divider />
@@ -516,6 +524,7 @@ export function ThirdPartyAuthManager({configs, onSave}: ThirdPartyAuthManagerPr
           items={[
             {
               key: 'advanced',
+              forceRender: true,  // 确保折叠时表单字段仍然渲染，值能被收集
               label: (
                 <div className="flex items-center text-gray-600">
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
@@ -712,6 +721,7 @@ export function ThirdPartyAuthManager({configs, onSave}: ThirdPartyAuthManagerPr
           items={[
             {
               key: 'advanced',
+              forceRender: true,  // 确保折叠时表单字段仍然渲染，值能被收集
               label: (
                 <div className="flex items-center text-gray-600">
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">

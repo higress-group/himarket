@@ -85,6 +85,9 @@ acp:
       supports-mcp: true
       supports-skill: true
 
+open-api:
+  api-key: ${OPEN_API_KEY:}
+
 observability:
   log-source: ${OBSERVABILITY_LOG_SOURCE:SLS}
 

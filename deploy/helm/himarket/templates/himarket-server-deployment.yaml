@@ -5,7 +5,7 @@ metadata:
   labels:
     app: himarket-server
 spec:
-  replicas: {{ .Values.server.replicaCount }}
+  replicas: {{ .Values.server.replicaCount | default (include "himarket.sizeToReplicas" (.Values.server.size | default .Values.size)) }}
   selector:
     matchLabels:
       app: himarket-server
@@ -40,10 +40,8 @@ spec:
 {{/*          readinessProbe:*/}}
 {{/*            {{- toYaml . | nindent 12 }}*/}}
 {{/*          {{- end }}*/}}
-          {{- with .Values.resources }}
           resources:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
+            {{- include "himarket.sizeToResources" (.Values.server.size | default .Values.size) | nindent 12 }}
           {{- with .Values.volumeMounts }}
           volumeMounts:
             {{- toYaml . | nindent 12 }}

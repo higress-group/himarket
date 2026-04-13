@@ -5,7 +5,7 @@ metadata:
   labels:
     app: himarket-admin
 spec:
-  replicas: {{ .Values.admin.replicaCount }}
+  replicas: {{ .Values.admin.replicaCount | default (include "himarket.sizeToReplicas" (.Values.admin.size | default .Values.size)) }}
   selector:
     matchLabels:
       app: himarket-admin
@@ -30,10 +30,8 @@ spec:
           envFrom:
             - configMapRef:
                 name: himarket-admin
-          {{- with .Values.resources }}
           resources:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
+            {{- include "himarket.sizeToResourcesLight" (.Values.admin.size | default .Values.size) | nindent 12 }}
           {{- with .Values.volumeMounts }}
           volumeMounts:
             {{- toYaml . | nindent 12 }}

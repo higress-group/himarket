@@ -8,12 +8,14 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Profile from "./pages/Profile";
 import McpDetail from "./pages/McpDetail";
-import Agent from "./pages/Agent";
 import AgentDetail from "./pages/AgentDetail";
 import ModelDetail from "./pages/ModelDetail";
 import Callback from "./pages/Callback";
 import OidcCallback from "./pages/OidcCallback";
 import Square from "./pages/Square";
+import McpSquare from "./pages/McpSquare";
+import MyMcp from "./pages/MyMcp";
+import McpCreatePage from "./pages/McpCreatePage";
 import Chat from "./pages/Chat";
 import Coding from "./pages/Coding";
 import SkillDetail from "./pages/SkillDetail";
@@ -63,7 +65,9 @@ export function Router() {
       <Routes>
         <Route path="/" element={<DynamicHome />} />
         <Route path="/models" element={<Square activeType="MODEL_API" />} />
-        <Route path="/mcp" element={<Square activeType="MCP_SERVER" />} />
+        <Route path="/mcp" element={<McpSquare />} />
+        <Route path="/mcp/my" element={<RequireAuth><MyMcp /></RequireAuth>} />
+        <Route path="/mcp/create" element={<RequireAuth><McpCreatePage /></RequireAuth>} />
         <Route path="/agents" element={<Square activeType="AGENT_API" />} />
         <Route path="/apis" element={<Square activeType="REST_API" />} />
         <Route path="/skills" element={<Square activeType="AGENT_SKILL" />} />
@@ -78,7 +82,6 @@ export function Router() {
         <Route path="/consumers/:consumerId" element={<RequireAuth><ConsumerDetail /></RequireAuth>} />
         <Route path="/consumers" element={<RequireAuth><Consumers /></RequireAuth>} />
         <Route path="/mcp/:mcpProductId" element={<McpDetail />} />
-        <Route path="/agents" element={<Agent />} />
         <Route path="/agents/:agentProductId" element={<AgentDetail />} />
         <Route path="/models/:modelProductId" element={<ModelDetail />} />
         <Route path="/login" element={<Login />} />

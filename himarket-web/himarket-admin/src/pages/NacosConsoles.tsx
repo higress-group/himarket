@@ -197,6 +197,12 @@ export default function NacosConsoles() {
       key: 'serverUrl',
     },
     {
+      title: '展示地址',
+      dataIndex: 'displayServerUrl',
+      key: 'displayServerUrl',
+      render: (url: string) => url || <span style={{ color: '#999' }}>-</span>,
+    },
+    {
       title: '默认命名空间',
       dataIndex: 'defaultNamespace',
       key: 'defaultNamespace',
@@ -330,8 +336,12 @@ export default function NacosConsoles() {
           </Form.Item>
       {/* 命名空间字段已移除 */}
 
-          <Form.Item name="displayServerUrl" label="展示地址">
-            <Input placeholder="可选，用于前台下载命令展示的公网地址，如 http://nacos.example.com:8848" />
+          <Form.Item
+            name="displayServerUrl"
+            label="展示地址"
+            extra="配置后，开发者门户中 Skill / Worker 的下载命令将使用此地址替代上方的服务器地址。适用于服务器地址为内网地址、但需要通过公网域名或 IP 对外提供访问的场景。"
+          >
+            <Input placeholder="例如 https://nacos.example.com:8848 或 http://114.215.180.147:8848" />
           </Form.Item>
 
           {/* 用户名/密码改为非必填 */}

@@ -1,6 +1,27 @@
 import axios, { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 import { getToken, removeToken } from './utils'
 import {  message } from 'antd'
+import type {
+  CreatePortalRequest,
+  UpdatePortalRequest,
+  UpdatePortalSettingsRequest,
+  GetApiProductsParams,
+  CreateApiProductRequest,
+  UpdateApiProductRequest,
+  CreateApiProductRefRequest,
+  GetApiProductPublicationsParams,
+  GetGatewaysParams,
+  GetApigGatewayParams,
+  GetApsaraGatewaysRequest,
+  GetAdpGatewaysRequest,
+  ImportGatewayRequest,
+  UpdateGatewayRequest,
+  GetGatewayApisParams,
+  GetNacosParams,
+  CreateNacosRequest,
+  UpdateNacosRequest,
+  GetNacosMcpServersParams,
+} from '@/types'
 
 
 
@@ -64,7 +85,7 @@ export const portalApi = {
   deletePortal: (portalId: string) => {
     return api.delete(`/portals/${portalId}`)
   },
-  createPortal: (data: any) => {
+  createPortal: (data: CreatePortalRequest) => {
     return api.post(`/portals`, data)
   },
   // 获取portal详情
@@ -81,11 +102,11 @@ export const portalApi = {
     return api.delete(`/portals/${portalId}/domains/${encodedDomain}`)
   },
   // 更新Portal
-  updatePortal: (portalId: string, data: any) => {
+  updatePortal: (portalId: string, data: UpdatePortalRequest) => {
     return api.put(`/portals/${portalId}`, data)
   },
   // 更新Portal设置
-  updatePortalSettings: (portalId: string, settings: any) => {
+  updatePortalSettings: (portalId: string, settings: UpdatePortalSettingsRequest) => {
     return api.put(`/portals/${portalId}/setting`, settings)
   },
   // 获取Portal的开发者列表
@@ -141,7 +162,7 @@ export const portalApi = {
 // API Product相关API
 export const apiProductApi = {
   // 获取API产品列表
-  getApiProducts: (params?: any) => {
+  getApiProducts: (params?: GetApiProductsParams) => {
     return api.get(`/products`, { params })
   },
   // 获取API产品详情
@@ -149,7 +170,7 @@ export const apiProductApi = {
     return api.get(`/products/${productId}`)
   },
   // 创建API产品
-  createApiProduct: (data: any) => {
+  createApiProduct: (data: CreateApiProductRequest) => {
     return api.post(`/products`, data)
   },
   // 删除API产品
@@ -157,7 +178,7 @@ export const apiProductApi = {
     return api.delete(`/products/${productId}`)
   },
   // 更新API产品
-  updateApiProduct: (productId: string, data: any) => {
+  updateApiProduct: (productId: string, data: UpdateApiProductRequest) => {
     return api.put(`/products/${productId}`, data)
   },
   // 获取API产品关联的服务
@@ -173,7 +194,7 @@ export const apiProductApi = {
     return api.delete(`/products/${productId}/ref`)
   },
   // 获取API产品已发布的门户列表
-  getApiProductPublications: (productId: string, params?: any) => {
+  getApiProductPublications: (productId: string, params?: GetApiProductPublicationsParams) => {
     return api.get(`/products/${productId}/publications`, { params })
   },
   // 发布API产品到门户
@@ -204,26 +225,49 @@ export const apiProductApi = {
   getProductSubscriptions: (productId: string, params?: { page?: number; size?: number; status?: string }) => {
     return api.get(`/products/${productId}/subscriptions`, { params })
   },
+  // 批量导入 AI API 资源为产品
+  importProducts: (data: {
+    productType: string;
+    sourceType: 'GATEWAY' | 'NACOS';
+    gatewayId?: string;
+    nacosId?: string;
+    namespaceId?: string;
+    services: Array<{
+      name: string;
+      description?: string;
+      apiId?: string;
+      mcpServerId?: string;
+      mcpRouteId?: string;
+      agentApiId?: string;
+      modelApiId?: string;
+      mcpServerName?: string;
+      agentName?: string;
+      namespaceId?: string;
+    }>;
+    categories?: string[];
+  }) => {
+    return api.post(`/products/import`, data, { timeout: 120000 })
+  },
 }
 
 // Gateway相关API
 export const gatewayApi = {
   // 获取网关列表
-  getGateways: (params?: any) => {
+  getGateways: (params?: GetGatewaysParams) => {
     return api.get(`/gateways`, { params })
   },
   // 获取APIG网关
-  getApigGateway: (data: any) => {
+  getApigGateway: (data: GetApigGatewayParams) => {
     return api.get(`/gateways/apig`, { params: {
       ...data,
     } })
   },
   // 获取Apsara网关
-  getApsaraGateways: (data: any) => {
+  getApsaraGateways: (data: GetApsaraGatewaysRequest) => {
     return api.post(`/gateways/apsara`, data)
   },
   // 获取ADP网关
-  getAdpGateways: (data: any) => {
+  getAdpGateways: (data: GetAdpGatewaysRequest) => {
     return api.post(`/gateways/adp`, data)
   },
   // 删除网关
@@ -231,33 +275,33 @@ export const gatewayApi = {
     return api.delete(`/gateways/${gatewayId}`)
   },
   // 导入网关
-  importGateway: (data: any) => {
+  importGateway: (data: ImportGatewayRequest) => {
     return api.post(`/gateways`, { ...data })
   },
   // 更新网关
-  updateGateway: (gatewayId: string, data: any) => {
+  updateGateway: (gatewayId: string, data: UpdateGatewayRequest) => {
     return api.put(`/gateways/${gatewayId}`, data)
   },
   // 获取网关的REST API列表
-  getGatewayRestApis: (gatewayId: string, data: any) => {
+  getGatewayRestApis: (gatewayId: string, data: GetGatewayApisParams) => {
     return api.get(`/gateways/${gatewayId}/rest-apis`, {
       params: data
     })
   },
   // 获取网关的MCP Server列表
-  getGatewayMcpServers: (gatewayId: string, data: any) => {
+  getGatewayMcpServers: (gatewayId: string, data: GetGatewayApisParams) => {
     return api.get(`/gateways/${gatewayId}/mcp-servers`, {
       params: data
     })
   },
   // 获取网关的Agent API列表
-  getGatewayAgentApis: (gatewayId: string, data: any) => {
+  getGatewayAgentApis: (gatewayId: string, data: GetGatewayApisParams) => {
     return api.get(`/gateways/${gatewayId}/agent-apis`, {
       params: data
     })
   },
   // 获取网关的Model API列表
-  getGatewayModelApis: (gatewayId: string, data: any) => {
+  getGatewayModelApis: (gatewayId: string, data: GetGatewayApisParams) => {
     return api.get(`/gateways/${gatewayId}/model-apis`, {
       params: data
     })
@@ -269,23 +313,23 @@ export const gatewayApi = {
 } 
 
 export const nacosApi = {
-  getNacos: (params?: any) => {
+  getNacos: (params?: GetNacosParams) => {
     return api.get(`/nacos`, { params })
   },
   // 从阿里云 MSE 获取 Nacos 集群列表
   getMseNacos: (params: { regionId: string; accessKey: string; secretKey: string; page?: number; size?: number }) => {
     return api.get(`/nacos/mse`, { params })
   },
-  createNacos: (data: any) => {
+  createNacos: (data: CreateNacosRequest) => {
     return api.post(`/nacos`, data)
   },
   deleteNacos: (nacosId: string) => {
     return api.delete(`/nacos/${nacosId}`)
   },
-  updateNacos: (nacosId: string, data: any) => {
+  updateNacos: (nacosId: string, data: UpdateNacosRequest) => {
     return api.put(`/nacos/${nacosId}`, data)
   },
-  getNacosMcpServers: (nacosId: string, data: any) => {
+  getNacosMcpServers: (nacosId: string, data: GetNacosMcpServersParams) => {
     return api.get(`/nacos/${nacosId}/mcp-servers`, {
       params: data
     })
@@ -378,8 +422,166 @@ export const skillApi = {
     api.delete(`/skills/${productId}/draft`),
   setLatestVersion: (productId: string, version: string) =>
     api.put(`/skills/${productId}/versions/latest`, { version }),
+  forcePublishVersion: (productId: string, version: string) =>
+    api.post(`/skills/${productId}/versions/${version}/force-publish`),
   // 从 Nacos 导入 Skills
   importFromNacos: (nacosId: string, namespace?: string) => {
     return api.post(`/skills/import`, null, { params: { nacosId, namespace }, timeout: 120000 })
+  },
+}
+
+// MCP Server 管理 API
+export const mcpServerApi = {
+  // 保存 MCP 元信息（创建/更新）
+  saveMeta: (data: {
+    productId: string
+    mcpName: string
+    displayName: string
+    description?: string
+    repoUrl?: string
+    sourceType?: string
+    origin?: string
+    gatewayId?: string
+    nacosId?: string
+    refConfig?: string
+    tags?: string
+    icon?: string
+    protocolType: string
+    connectionConfig: string
+    extraParams?: string
+    serviceIntro?: string
+    visibility?: string
+    publishStatus?: string
+    toolsConfig?: string
+    sandboxRequired?: boolean
+    sandboxId?: string
+    transportType?: string
+    authType?: string
+    paramValues?: string
+    namespace?: string
+    resourceSpec?: string
+  }) => {
+    return api.post(`/mcp-servers/meta`, data, { timeout: 120000 })
+  },
+  // 获取 MCP 元信息
+  getMeta: (mcpServerId: string) => {
+    return api.get(`/mcp-servers/meta/${mcpServerId}`)
+  },
+  // 获取产品下所有 MCP 元信息
+  listMetaByProduct: (productId: string) => {
+    return api.get(`/mcp-servers/meta`, { params: { productId } })
+  },
+  // 删除 MCP 元信息
+  deleteMeta: (mcpServerId: string) => {
+    return api.delete(`/mcp-servers/meta/${mcpServerId}`)
+  },
+  // 删除产品下所有 MCP 配置（meta + endpoint + ref + 重置状态）
+  deleteMetaByProduct: (productId: string) => {
+    return api.delete(`/mcp-servers/meta/by-product/${productId}`)
+  },
+  // 保存 endpoint
+  saveEndpoint: (data: {
+    mcpServerId: string
+    endpointUrl: string
+    hostingType: string
+    protocol: string
+    userId?: string
+    hostingInstanceId?: string
+    hostingIdentifier?: string
+  }) => {
+    return api.post(`/mcp-servers/endpoints`, data)
+  },
+  // 获取 endpoint 列表
+  listEndpoints: (mcpServerId: string) => {
+    return api.get(`/mcp-servers/endpoints`, { params: { mcpServerId } })
+  },
+  // 删除 endpoint
+  deleteEndpoint: (endpointId: string) => {
+    return api.delete(`/mcp-servers/endpoints/${endpointId}`)
+  },
+  // 市场列表
+  listPublished: (params?: { page?: number; size?: number }) => {
+    return api.get(`/mcp-servers/published`, { params })
+  },
+  // 刷新工具列表
+  refreshTools: (mcpServerId: string) => {
+    return api.post(`/mcp-servers/meta/${mcpServerId}/refresh-tools`, {}, { timeout: 120000 })
+  },
+  // 更新服务介绍
+  updateServiceIntro: (mcpServerId: string, serviceIntro: string) => {
+    return api.put(`/mcp-servers/meta/${mcpServerId}/service-intro`, { serviceIntro })
+  },
+  // 取消沙箱托管
+  undeploySandbox: (mcpServerId: string) => {
+    return api.delete(`/mcp-servers/meta/${mcpServerId}/deploy-sandbox`)
+  },
+  // 部署沙箱（独立于 saveMeta，管理员手动触发）
+  deploySandbox: (mcpServerId: string, data: {
+    sandboxId: string
+    transportType?: string
+    authType?: string
+    paramValues?: string
+    namespace?: string
+    resourceSpec?: string
+  }) => {
+    return api.post(`/mcp-servers/meta/${mcpServerId}/deploy-sandbox`, data, { timeout: 120000 })
+  },
+  // 更新工具配置（手动编辑）
+  updateToolsConfig: (mcpServerId: string, toolsConfig: string) => {
+    return api.put(`/mcp-servers/meta/${mcpServerId}/tools-config`, toolsConfig, {
+      headers: { 'Content-Type': 'application/json' }
+    })
+  },
+}
+
+// Sandbox 实例相关 API
+export const sandboxApi = {
+  // 获取所有运行中的沙箱实例（部署用，不按 adminId 过滤）
+  getActiveSandboxes: () => {
+    return api.get(`/sandboxes/active`)
+  },
+  // 获取沙箱实例列表
+  getSandboxes: (params?: { sandboxType?: string; page?: number; size?: number }) => {
+    return api.get(`/sandboxes`, { params })
+  },
+  // 导入沙箱实例
+  importSandbox: (data: { sandboxName: string; sandboxType: string; kubeConfig: string; description?: string }) => {
+    return api.post(`/sandboxes`, data)
+  },
+  // 更新沙箱实例
+  updateSandbox: (sandboxId: string, data: { sandboxName?: string; kubeConfig?: string; description?: string }) => {
+    return api.put(`/sandboxes/${sandboxId}`, data)
+  },
+  // 删除沙箱实例
+  deleteSandbox: (sandboxId: string) => {
+    return api.delete(`/sandboxes/${sandboxId}`)
+  },
+  // 获取集群信息
+  fetchClusterInfo: (kubeConfig: string) => {
+    return api.post(`/sandboxes/cluster-info`, { kubeConfig })
+  },
+  // 手动触发健康检查
+  healthCheck: (sandboxId: string) => {
+    return api.post(`/sandboxes/${sandboxId}/health-check`)
+  },
+  // 获取沙箱集群的 Namespace 列表
+  listNamespaces: (sandboxId: string) => {
+    return api.get(`/sandboxes/${sandboxId}/namespaces`)
+  },
+  // 查询沙箱上的活跃 MCP 部署数量
+  getActiveDeployments: (sandboxId: string) => {
+    return api.get(`/sandboxes/${sandboxId}/active-deployments`)
+  },
+}
+
+// MCP 供应商导入 API
+export const mcpVendorApi = {
+  // 查询供应商 MCP 列表
+  listRemoteMcpItems: (params: { vendorType: string; keyword?: string; page?: number; size?: number }) => {
+    return api.get('/admin/mcp-vendor/mcp-list', { params })
+  },
+  // 批量导入（超时设长一些，因为后端需要逐条调详情 API 补充数据）
+  batchImport: (data: { vendorType: string; items: any[] }) => {
+    return api.post('/admin/mcp-vendor/import', data, { timeout: 300000 })
   },
 }

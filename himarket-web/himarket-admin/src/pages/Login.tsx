@@ -69,89 +69,111 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-white">
-      <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md flex flex-col items-center border border-gray-100">
-        {/* Logo */}
-        <div className="mb-4">
-          <img src="/logo.png" alt="Logo" className="w-16 h-16 mx-auto mb-4" />
+    <div className="flex min-h-screen">
+      {/* 左侧品牌区域 - 移动端隐藏 */}
+      <div
+        className="hidden md:flex w-1/2 items-center justify-center relative overflow-hidden"
+        style={{ background: 'linear-gradient(135deg, #6366F1 0%, #4F46E5 50%, #818CF8 100%)' }}
+      >
+        {/* 装饰性背景元素 */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-20 left-10 w-32 h-32 rounded-full bg-white" />
+          <div className="absolute bottom-32 right-16 w-48 h-48 rounded-full bg-white" />
+          <div className="absolute top-1/2 left-1/3 w-24 h-24 rounded-full bg-white" />
         </div>
-        <h2 className="text-2xl font-bold mb-6 text-gray-900 text-center">
-          {isRegister ? "注册Admin账号" : "登录HiMarket-后台"}
-        </h2>
+        <div className="text-center text-white relative z-10">
+          <img src="/logo.png" alt="Logo" className="w-20 h-20 mx-auto mb-6 drop-shadow-lg" />
+          <h1 className="text-3xl font-bold mb-3">HiMarket</h1>
+          <p className="text-lg opacity-80">企业级 AI 开放平台管理后台</p>
+        </div>
+      </div>
 
-        {/* 登录表单 */}
-        {!isRegister && (
-          <Form
-            className="w-full flex flex-col gap-4"
-            layout="vertical"
-            onFinish={handleLogin}
-          >
-            <Form.Item
-              name="username"
-              rules={[{ required: true, message: "请输入账号" }]}
-            >
-              <Input placeholder="账号" size="large" />
-            </Form.Item>
-            <Form.Item
-              name="password"
-              rules={[{ required: true, message: "请输入密码" }]}
-            >
-              <Input.Password placeholder="密码" size="large" />
-            </Form.Item>
-            {error && <Alert message={error} type="error" showIcon className="mb-2" />}
-            <Form.Item>
-              <Button
-                type="primary"
-                htmlType="submit"
-                className="w-full"
-                loading={loading}
-                size="large"
-              >
-                登录
-              </Button>
-            </Form.Item>
-          </Form>
-        )}
+      {/* 右侧表单区域 */}
+      <div className="w-full md:w-1/2 flex items-center justify-center bg-gradient-to-br from-indigo-50 to-white md:bg-white">
+        <div className="w-full max-w-md px-8">
+          {/* 移动端 Logo */}
+          <div className="md:hidden mb-6 text-center">
+            <img src="/logo.png" alt="Logo" className="w-16 h-16 mx-auto mb-4" />
+          </div>
 
-        {/* 注册表单 */}
-        {isRegister && (
-          <Form
-            className="w-full flex flex-col gap-4"
-            layout="vertical"
-            onFinish={handleRegister}
-          >
-            <Form.Item
-              name="username"
-              rules={[{ required: true, message: "请输入账号" }]}
+          <h2 className="text-2xl font-bold mb-6 text-gray-900 text-center">
+            {isRegister ? "注册Admin账号" : "登录HiMarket-后台"}
+          </h2>
+
+          {/* 登录表单 */}
+          {!isRegister && (
+            <Form
+              className="w-full flex flex-col gap-4"
+              layout="vertical"
+              onFinish={handleLogin}
             >
-              <Input placeholder="账号" size="large" />
-            </Form.Item>
-            <Form.Item
-              name="password"
-              rules={[{ required: true, message: "请输入密码" }]}
-            >
-              <Input.Password placeholder="密码" size="large" />
-            </Form.Item>
-            <Form.Item
-              name="confirmPassword"
-              rules={[{ required: true, message: "请确认密码" }]}
-            >
-              <Input.Password placeholder="确认密码" size="large" />
-            </Form.Item>
-            {error && <Alert message={error} type="error" showIcon className="mb-2" />}
-            <Form.Item>
-              <Button
-                type="primary"
-                htmlType="submit"
-                className="w-full"
-                loading={loading}
-                size="large"
+              <Form.Item
+                name="username"
+                rules={[{ required: true, message: "请输入账号" }]}
               >
-                初始化
-              </Button>
-            </Form.Item>
-          </Form>
-        )}
+                <Input placeholder="账号" size="large" />
+              </Form.Item>
+              <Form.Item
+                name="password"
+                rules={[{ required: true, message: "请输入密码" }]}
+              >
+                <Input.Password placeholder="密码" size="large" />
+              </Form.Item>
+              {error && <Alert message={error} type="error" showIcon className="mb-2" />}
+              <Form.Item>
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  className="w-full"
+                  loading={loading}
+                  size="large"
+                >
+                  登录
+                </Button>
+              </Form.Item>
+            </Form>
+          )}
+
+          {/* 注册表单 */}
+          {isRegister && (
+            <Form
+              className="w-full flex flex-col gap-4"
+              layout="vertical"
+              onFinish={handleRegister}
+            >
+              <Form.Item
+                name="username"
+                rules={[{ required: true, message: "请输入账号" }]}
+              >
+                <Input placeholder="账号" size="large" />
+              </Form.Item>
+              <Form.Item
+                name="password"
+                rules={[{ required: true, message: "请输入密码" }]}
+              >
+                <Input.Password placeholder="密码" size="large" />
+              </Form.Item>
+              <Form.Item
+                name="confirmPassword"
+                rules={[{ required: true, message: "请确认密码" }]}
+              >
+                <Input.Password placeholder="确认密码" size="large" />
+              </Form.Item>
+              {error && <Alert message={error} type="error" showIcon className="mb-2" />}
+              <Form.Item>
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  className="w-full"
+                  loading={loading}
+                  size="large"
+                >
+                  初始化
+                </Button>
+              </Form.Item>
+            </Form>
+          )}
+        </div>
       </div>
     </div>
   );

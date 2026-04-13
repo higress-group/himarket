@@ -1,0 +1,14 @@
+{
+  "allCategory": "全部",
+  "fetchCategoriesFailed": "获取分类列表失败",
+  "fetchProductsFailed": "获取产品列表失败",
+  "sortMostDownloads": "最多下载",
+  "sortRecentlyUpdated": "最近更新",
+  "searchPlaceholder": "搜索名称...",
+  "skillMarketTitle": "Skill 市场",
+  "skillMarketSubtitle": "发现和分享 Agent Skills · 找到 <1>{{count}}</1> 项技能",
+  "workerMarketTitle": "Worker 市场",
+  "workerMarketSubtitle": "领养你的 OpenClaw，即刻上岗 · 找到 <1>{{count}}</1> 个 Workers",
+  "unknownProductType": "未知的产品类型",
+  "loginPromptContext": "登录后即可试用 AI 模型，体验智能对话能力"
+}

@@ -61,4 +61,41 @@ public interface ProductRepository extends BaseRepository<Product, Long> {
      * @return the list of products
      */
     List<Product> findAllByType(ProductType type);
+
+    /**
+     * /**
+     * Find products by type and status (paginated)
+     *
+     * @param type the product type
+     * @param status the product status
+     * @param pageable pagination info
+     * @return the page of products
+     */
+    org.springframework.data.domain.Page<Product> findByTypeAndStatus(
+            ProductType type,
+            com.alibaba.himarket.support.enums.ProductStatus status,
+            org.springframework.data.domain.Pageable pageable);
+
+    /**
+     * Find all product IDs by type and status (no pagination).
+     *
+     * @param type the product type
+     * @param status the product status
+     * @return the list of product IDs
+     */
+    @org.springframework.data.jpa.repository.Query(
+            "SELECT p.productId FROM Product p WHERE p.type = :type AND p.status = :status")
+    List<String> findProductIdsByTypeAndStatus(
+            @org.springframework.data.repository.query.Param("type") ProductType type,
+            @org.springframework.data.repository.query.Param("status")
+                    com.alibaba.himarket.support.enums.ProductStatus status);
+
+    /**
+     * Find products by names and admin ID (for batch name conflict check)
+     *
+     * @param names the collection of product names
+     * @param adminId the admin ID
+     * @return the list of products matching the names
+     */
+    List<Product> findByNameInAndAdminId(Collection<String> names, String adminId);
 }

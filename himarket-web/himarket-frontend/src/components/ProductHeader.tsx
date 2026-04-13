@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useImperativeHandle, forwardRef } from "react";
+import { useTranslation } from 'react-i18next';
 import { Typography, Button, Modal, Select, message, Popconfirm, Input, Pagination, Spin } from "antd";
 import { ApiOutlined, CheckCircleFilled, ClockCircleFilled, ExclamationCircleFilled, PlusOutlined, RobotOutlined, BulbOutlined } from "@ant-design/icons";
 import { useParams } from "react-router-dom";
-import { getConsumers, subscribeProduct, unsubscribeProduct, getProductSubscriptions } from "../lib/api";
+import { getConsumers, subscribeProduct, unsubscribeProduct, getProductSubscriptions } from "../lib/apis";
 import type { Consumer } from "../types/consumer";
 import type { IMCPConfig, IProductIcon, IAgentConfig } from "../lib/apis/typing";
 import APIs, { getProductSubscriptionStatus, type ISubscription } from "../lib/apis";
@@ -68,6 +69,7 @@ export const ProductHeader = forwardRef<ProductHeaderHandle, ProductHeaderProps>
   } = useParams();
   
   const { isLoggedIn } = useAuth();
+  const { t: tLoginPrompt } = useTranslation('loginPrompt');
   const [loginPromptOpen, setLoginPromptOpen] = useState(false);
   const [isManageModalVisible, setIsManageModalVisible] = useState(false);
   const [isApplyingSubscription, setIsApplyingSubscription] = useState(false);
@@ -177,7 +179,7 @@ export const ProductHeader = forwardRef<ProductHeaderHandle, ProductHeaderProps>
   const fetchConsumers = async () => {
     try {
       setConsumersLoading(true);
-      const response = await getConsumers({}, { page: 1, size: 100 });
+      const response = await getConsumers({ page: 1, size: 100 });
       if (response.data) {
         setConsumers(response.data.content || response.data);
       }
@@ -620,7 +622,7 @@ export const ProductHeader = forwardRef<ProductHeaderHandle, ProductHeaderProps>
       <LoginPrompt
         open={loginPromptOpen}
         onClose={() => setLoginPromptOpen(false)}
-        contextMessage="登录后即可订阅产品，获取 API 访问凭证"
+        contextMessage={tLoginPrompt('contextSubscribeProduct')}
       />
     </>
   );

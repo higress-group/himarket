@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Button, Typography, Table, Popconfirm, Modal, Radio, Input, Select, Form, message } from "antd";
 import { EditOutlined, PlusOutlined, CopyOutlined, DeleteOutlined } from "@ant-design/icons";
-import api from "../../lib/api";
+import request from "../../lib/request";
 import type {
   ConsumerCredentialResult,
   CreateCredentialParam,
@@ -44,7 +44,7 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
   // 获取当前配置
   const fetchCurrentConfig = React.useCallback(async () => {
     try {
-      const response: ApiResponse<ConsumerCredentialResult> = await api.get(`/consumers/${consumerId}/credentials`);
+      const response: ApiResponse<ConsumerCredentialResult> = await request.get(`/consumers/${consumerId}/credentials`);
       if (response.code === "SUCCESS" && response.data) {
         const config = response.data;
         setCurrentConfig(config);
@@ -68,7 +68,7 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
       const values = await credentialForm.validateFields();
       setCredentialLoading(true);
 
-      const currentResponse: ApiResponse<ConsumerCredentialResult> = await api.get(`/consumers/${consumerId}/credentials`);
+      const currentResponse: ApiResponse<ConsumerCredentialResult> = await request.get(`/consumers/${consumerId}/credentials`);
       let currentConfig: ConsumerCredentialResult = {};
 
       if (currentResponse.code === "SUCCESS" && currentResponse.data) {
@@ -100,7 +100,7 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
         };
       }
 
-      const response: ApiResponse<ConsumerCredentialResult> = await api.put(`/consumers/${consumerId}/credentials`, param);
+      const response: ApiResponse<ConsumerCredentialResult> = await request.put(`/consumers/${consumerId}/credentials`, param);
       if (response?.code === "SUCCESS") {
         message.success('凭证添加成功');
         setCredentialModalVisible(false);
@@ -116,7 +116,7 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
 
   const handleDeleteCredential = async (credentialType: string, credential: ConsumerCredential) => {
     try {
-      const currentResponse: ApiResponse<ConsumerCredentialResult> = await api.get(`/consumers/${consumerId}/credentials`);
+      const currentResponse: ApiResponse<ConsumerCredentialResult> = await request.get(`/consumers/${consumerId}/credentials`);
       let currentConfig: ConsumerCredentialResult = {};
 
       if (currentResponse.code === "SUCCESS" && currentResponse.data) {
@@ -139,7 +139,7 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
         };
       }
 
-      const response: ApiResponse<ConsumerCredentialResult> = await api.put(`/consumers/${consumerId}/credentials`, param);
+      const response: ApiResponse<ConsumerCredentialResult> = await request.put(`/consumers/${consumerId}/credentials`, param);
       if (response?.code === "SUCCESS") {
         message.success('凭证删除成功');
         await fetchCurrentConfig();
@@ -177,7 +177,7 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
 
   const handleEditSource = async (source: string, key: string) => {
     try {
-      const currentResponse: ApiResponse<ConsumerCredentialResult> = await api.get(`/consumers/${consumerId}/credentials`);
+      const currentResponse: ApiResponse<ConsumerCredentialResult> = await request.get(`/consumers/${consumerId}/credentials`);
       let currentConfig: ConsumerCredentialResult = {};
 
       if (currentResponse.code === "SUCCESS" && currentResponse.data) {
@@ -200,10 +200,10 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
         };
       }
 
-      const response: ApiResponse<ConsumerCredentialResult> = await api.put(`/consumers/${consumerId}/credentials`, param);
+      const response: ApiResponse<ConsumerCredentialResult> = await request.put(`/consumers/${consumerId}/credentials`, param);
       if (response?.code === "SUCCESS") {
         message.success('凭证来源更新成功');
-        const updatedResponse: ApiResponse<ConsumerCredentialResult> = await api.get(`/consumers/${consumerId}/credentials`);
+        const updatedResponse: ApiResponse<ConsumerCredentialResult> = await request.get(`/consumers/${consumerId}/credentials`);
         if (updatedResponse.code === "SUCCESS" && updatedResponse.data) {
           const updatedConfig = updatedResponse.data;
           if (updatedConfig.apiKeyConfig) {

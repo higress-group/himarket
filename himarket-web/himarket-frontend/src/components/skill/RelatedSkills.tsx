@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { StarFilled, ThunderboltOutlined } from "@ant-design/icons";
 import APIs from "../../lib/apis";
 import type { IProductDetail } from "../../lib/apis";
@@ -11,6 +12,7 @@ interface RelatedSkillsProps {
 
 function RelatedSkills({ currentProductId, currentSkillTags }: RelatedSkillsProps) {
   const navigate = useNavigate();
+  const { t } = useTranslation('skillDetail');
   const [skills, setSkills] = useState<IProductDetail[]>([]);
 
   useEffect(() => {
@@ -67,7 +69,7 @@ function RelatedSkills({ currentProductId, currentSkillTags }: RelatedSkillsProp
 
   return (
     <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-5">
-      <h3 className="text-base font-semibold text-gray-900 mb-4">相关技能</h3>
+      <h3 className="text-base font-semibold text-gray-900 mb-4">{t('relatedSkills')}</h3>
       <div className="space-y-2">
         {skills.map((skill) => (
           <button

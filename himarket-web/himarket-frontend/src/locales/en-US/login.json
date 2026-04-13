@@ -1,0 +1,19 @@
+{
+  "greeting": "Hi, ",
+  "hello": "there",
+  "welcomeMessage": "Welcome to HiMarket, log in to continue",
+  "usernameRequired": "Please enter your username",
+  "usernamePlaceholder": "Username",
+  "passwordRequired": "Please enter your password",
+  "passwordPlaceholder": "Password",
+  "loggingIn": "Logging in...",
+  "login": "Login",
+  "loginSuccess": "Login successful!",
+  "loginFailedNoToken": "Login failed, access_token not received",
+  "loginFailedCheckCredentials": "Login failed, please check your username and password",
+  "loginFailed": "Login failed",
+  "or": "or",
+  "loginWithProvider": "Login with {{provider}}",
+  "noAccount": "Don't have an account?",
+  "registerLink": "Register"
+}

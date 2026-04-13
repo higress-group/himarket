@@ -191,7 +191,7 @@ export interface LinkedService {
   productId: string;
   gatewayId?: string;
   nacosId?: string;
-  sourceType: 'GATEWAY' | 'NACOS';
+  sourceType: 'GATEWAY' | 'NACOS' | 'CUSTOM';
   apigRefConfig?: RestAPIItem | APIGAIMCPItem | AIGatewayAgentItem | AIGatewayModelItem;
   higressRefConfig?: HigressMCPItem;
   nacosRefConfig?: NacosMCPItem | NacosAgentItem;  // 扩展支持 Agent

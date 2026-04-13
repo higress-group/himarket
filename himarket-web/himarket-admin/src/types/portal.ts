@@ -10,6 +10,8 @@ export interface AuthCodeConfig {
   issuer?: string;
   // 可选的身份映射配置
   identityMapping?: IdentityMapping;
+  // 自定义回调地址（可选，不配置则自动构建）
+  redirectUri?: string;
 }
 
 export interface OidcConfig {

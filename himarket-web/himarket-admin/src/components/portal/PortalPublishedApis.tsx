@@ -101,7 +101,7 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
         <Space size="middle">
           <Button
             onClick={() => {
-              navigate(`/api-products/detail?productId=${record.productId}`)
+              navigate(`/api-products/${record.productId}`)
             }}
             type="link" icon={<EyeOutlined />}>
             查看

@@ -382,7 +382,7 @@ export default function ProductCategoryDetail() {
             <Card
               key={product.productId}
               className="hover:shadow-lg transition-shadow cursor-pointer rounded-xl border border-gray-200 shadow-sm hover:border-blue-300"
-              onClick={() => navigate(`/api-products/detail?productId=${product.productId}`)}
+              onClick={() => navigate(`/api-products/${product.productId}`)}
               bodyStyle={{ padding: '16px' }}
             >
               <div className="flex items-center justify-between mb-4">

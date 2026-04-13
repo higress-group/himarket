@@ -15,7 +15,8 @@ import MarkdownRender from "../components/MarkdownRender";
 import { parseSkillMd } from "../lib/skillMdUtils";
 import SkillFileTree from "../components/skill/SkillFileTree";
 import { copyToClipboard } from "../lib/utils";
-import { DetailSkeleton } from "../components/loading";
+import { SkillWorkerDetailSkeleton } from "../components/loading";
+import { useTranslation } from 'react-i18next';
 
 function MdPreview({ content }: { content: string }) {
   const { frontmatter, body } = parseSkillMd(content);
@@ -91,6 +92,7 @@ function ProductIcon({ name, icon }: { name: string; icon?: IProductIcon }) {
 }
 
 function WorkerDetail() {
+  const { t } = useTranslation('workerDetail');
   const { workerProductId } = useParams<{ workerProductId: string }>();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -145,7 +147,7 @@ function WorkerDetail() {
             setWorkerConfig(productRes.data.workerConfig);
           }
         } else {
-          setError(productRes.message || "数据加载失败");
+          setError(productRes.message || t('dataLoadFailed'));
         }
 
         // Set CLI download info
@@ -169,7 +171,7 @@ function WorkerDetail() {
         }
       } catch (err) {
         console.error("API请求失败:", err);
-        setError("加载失败，请稍后重试");
+        setError(t('loadFailed'));
       } finally {
         setLoading(false);
       }
@@ -245,16 +247,17 @@ function WorkerDetail() {
 
   const [copiedCmd, setCopiedCmd] = useState(false);
   const [copiedHiclaw, setCopiedHiclaw] = useState(false);
+  const [copiedNl, setCopiedNl] = useState(false);
   const [copiedHttp, setCopiedHttp] = useState(false);
   const [cliInfo, setCliInfo] = useState<WorkerCliInfo | null>(null);
   const [mdRawMode, setMdRawMode] = useState(true);
   const [hiclawPlatform, setHiclawPlatform] = useState<'unix' | 'windows'>('unix');
+  const [installMethod, setInstallMethod] = useState<'nl' | 'script'>('nl');
 
   const handleDownload = useCallback(() => {
     if (!workerProductId) return;
     const a = document.createElement("a");
     a.href = getWorkerPackageUrl(workerProductId, selectedVersion);
-    a.download = "";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -263,9 +266,7 @@ function WorkerDetail() {
   if (loading) {
     return (
       <Layout>
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <DetailSkeleton />
-        </div>
+        <SkillWorkerDetailSkeleton />
       </Layout>
     );
   }
@@ -274,7 +275,7 @@ function WorkerDetail() {
     return (
       <Layout>
         <div className="p-8">
-          <Alert message="错误" description={error || "Worker 不存在"} type="error" showIcon />
+          <Alert message={t('error')} description={error || t('workerNotExist')} type="error" showIcon />
         </div>
       </Layout>
     );
@@ -290,7 +291,7 @@ function WorkerDetail() {
         <div className="flex items-center justify-center h-full text-gray-400">
           <div className="text-center">
             <FileFilled className="text-5xl mb-3 text-gray-300" />
-            <p className="text-sm text-gray-400">点击左侧文件查看内容</p>
+            <p className="text-sm text-gray-400">{t('clickFileToView')}</p>
           </div>
         </div>
       );
@@ -299,11 +300,11 @@ function WorkerDetail() {
       return <div className="flex justify-center py-16"><div className="w-8 h-8 border-2 border-gray-200 border-t-blue-500 rounded-full animate-spin" /></div>;
     }
     if (!fileContent) {
-      return <div className="text-gray-400 text-center py-16 text-sm">加载失败</div>;
+      return <div className="text-gray-400 text-center py-16 text-sm">{t('fileLoadFailed')}</div>;
     }
     if (fileContent.encoding === "base64") {
       return (
-        <div className="text-gray-400 text-center py-16 text-sm">二进制文件，不支持预览</div>
+        <div className="text-gray-400 text-center py-16 text-sm">{t('binaryNotSupported')}</div>
       );
     }
     if (selectedFilePath.endsWith(".md")) {
@@ -323,7 +324,7 @@ function WorkerDetail() {
         <div className="flex-1 overflow-auto bg-white h-full flex flex-col relative">
           {/* Toggle button - floats top-right */}
           <div className="absolute top-2 right-3 z-20">
-            <Tooltip title={mdRawMode ? "渲染预览" : "源代码"}>
+            <Tooltip title={mdRawMode ? t('renderPreview') : t('sourceCode')}>
               <button
                 onClick={() => setMdRawMode(!mdRawMode)}
                 className="flex items-center gap-1 px-2 py-0.5 rounded text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
@@ -406,7 +407,7 @@ function WorkerDetail() {
             className="flex items-center gap-2 mb-4 px-4 py-2 rounded-xl text-gray-600 hover:text-colorPrimary hover:bg-colorPrimaryBgHover transition-all duration-200"
           >
             <ArrowLeftOutlined />
-            <span>返回</span>
+            <span>{t('back')}</span>
           </button>
 
           <div className="flex items-center gap-4 mb-3">
@@ -472,7 +473,7 @@ function WorkerDetail() {
                   <MdPreview content={overviewContent} />
                 ) : (
                   <div className="text-gray-400 text-sm text-center pt-8">
-                    该版本未包含 AGENTS.md 文件
+                    {t('noAgentsMd')}
                   </div>
                 )}
               </div>
@@ -490,7 +491,7 @@ function WorkerDetail() {
                       onSelect={handleSelectFile}
                     />
                   ) : (
-                    <div className="flex items-center justify-center h-full text-gray-400 text-sm">暂无文件</div>
+                    <div className="flex items-center justify-center h-full text-gray-400 text-sm">{t('noFiles')}</div>
                   )}
                 </div>
                 {/* Drag handle */}
@@ -508,16 +509,16 @@ function WorkerDetail() {
         </div>
 
         {/* Right sidebar: download card */}
-        <div className="w-full lg:w-[420px] flex-shrink-0 order-1 lg:order-2">
-          <div className="bg-white rounded-lg overflow-hidden" style={{ border: '1px solid #f0f0f0' }}>
+        <div className="w-full lg:w-[420px] flex-shrink-0 order-1 lg:order-2 lg:sticky lg:top-4 lg:self-start">
+          <div className="bg-white rounded-xl overflow-hidden shadow-sm" style={{ border: '1px solid #e8eaef' }}>
             {/* Card header: title + version selector */}
-            <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid #f0f0f0' }}>
-              <span className="text-sm font-semibold text-gray-800">下载</span>
+            <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid #edeef3' }}>
+              <span className="text-sm font-semibold text-gray-800">{t('download')}</span>
               <Select
                 value={selectedVersion}
                 onChange={handleVersionChange}
                 size="large"
-                placeholder="暂无版本"
+                placeholder={t('noVersion')}
                 disabled={versions.length === 0}
                 style={{ width: 180, fontSize: 15 }}
                 options={versions.map((v) => ({
@@ -535,93 +536,182 @@ function WorkerDetail() {
             </div>
 
             {/* Action buttons */}
-            <div className="px-4 py-3" style={{ borderBottom: '1px solid #f0f0f0' }}>
+            <div className="px-4 py-3" style={{ borderBottom: '1px solid #edeef3' }}>
               <Button
                 type="primary"
                 icon={<DownloadOutlined />}
                 onClick={handleDownload}
-                disabled={!selectedVersion}
+                disabled={versions.length === 0}
                 block
                 size="middle"
               >
-                下载 Worker 包
+                {t('downloadWorkerPackage')}
               </Button>
             </div>
 
             {/* HiClaw 安装 */}
             {cliInfo && (
-              <div className="px-4 py-3" style={{ borderBottom: '1px solid #f0f0f0' }}>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-1.5">
-                    <CloudUploadOutlined className="text-gray-400 text-xs" />
-                    <span className="text-xs font-medium text-gray-500">安装到 HiClaw</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => setHiclawPlatform('unix')}
-                      className={`text-xs px-1.5 py-0.5 rounded transition-colors ${hiclawPlatform === 'unix' ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-400 hover:text-gray-600'}`}
-                    >
-                      Linux / Mac
-                    </button>
-                    <button
-                      onClick={() => setHiclawPlatform('windows')}
-                      className={`text-xs px-1.5 py-0.5 rounded transition-colors ${hiclawPlatform === 'windows' ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-400 hover:text-gray-600'}`}
-                    >
-                      Windows
-                    </button>
-                    <button
-                      onClick={() => {
-                        const quotedName = cliInfo.resourceName.includes(' ') ? `"${cliInfo.resourceName}"` : cliInfo.resourceName;
-                        const cmd = hiclawPlatform === 'unix'
-                          ? `curl -fsSL https://higress.ai/hiclaw/import.sh | bash -s -- --nacos --host ${cliInfo.nacosHost} --name ${quotedName}`
-                          : `irm https://higress.ai/hiclaw/import.ps1 -OutFile import.ps1; .\\import.ps1 --nacos --host ${cliInfo.nacosHost} --name ${quotedName}`;
-                        copyToClipboard(cmd).then(() => {
-                          setCopiedHiclaw(true);
-                          setTimeout(() => setCopiedHiclaw(false), 2000);
-                        });
-                      }}
-                      className="text-xs text-gray-400 hover:text-gray-600 transition-colors ml-1"
-                    >
-                      {copiedHiclaw ? <CheckOutlined className="text-green-500" /> : <CopyOutlined />}
-                    </button>
-                  </div>
+              <div className="px-4 py-3" style={{ borderBottom: '1px solid #edeef3' }}>
+                <div className="flex items-center gap-1.5 mb-3">
+                  <CloudUploadOutlined className="text-indigo-400/80 text-[13px]" />
+                  <span className="text-xs font-semibold text-gray-600 tracking-wide">{t('installToHiClaw')}</span>
+                  <span className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 ml-auto">{t('requiresHiClaw')}</span>
                 </div>
-                <div className="rounded-md bg-gray-100 border border-gray-200 px-3 py-2">
-                  <code className="text-[12px] text-gray-700 break-all" style={{ fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace" }}>
-                    {hiclawPlatform === 'unix'
-                      ? `curl -fsSL https://higress.ai/hiclaw/import.sh | bash -s -- --nacos --host ${cliInfo.nacosHost} --name ${cliInfo.resourceName.includes(' ') ? `"${cliInfo.resourceName}"` : cliInfo.resourceName}`
-                      : `irm https://higress.ai/hiclaw/import.ps1 -OutFile import.ps1; .\\import.ps1 --nacos --host ${cliInfo.nacosHost} --name ${cliInfo.resourceName.includes(' ') ? `"${cliInfo.resourceName}"` : cliInfo.resourceName}`
-                    }
-                  </code>
+
+                {/* 安装方式切换 Tab */}
+                <div className="flex bg-gray-100 rounded-lg p-1 mb-3">
+                  <button
+                    onClick={() => setInstallMethod('nl')}
+                    className={`flex-1 py-2 text-xs rounded-md transition-all ${
+                      installMethod === 'nl'
+                        ? 'bg-white text-gray-800 font-medium shadow-sm'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    {t('naturalLanguage')}
+                  </button>
+                  <button
+                    onClick={() => setInstallMethod('script')}
+                    className={`flex-1 py-2 text-xs rounded-md transition-all ${
+                      installMethod === 'script'
+                        ? 'bg-white text-gray-800 font-medium shadow-sm'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    {t('scriptCommand')}
+                  </button>
                 </div>
+
+                {/* 自然语言面板 */}
+                {installMethod === 'nl' && (
+                  <div>
+                    <div className="relative bg-indigo-50/40 border border-dashed border-indigo-200/60 rounded-lg pl-4 pr-9 py-3">
+                      <div className="text-sm text-gray-700">
+                        {t('nlImportCommand', { name: cliInfo.resourceName })}
+                      </div>
+                      <button
+                        onClick={() => {
+                          const text = t('nlImportCommand', { name: cliInfo.resourceName });
+                          copyToClipboard(text).then(() => {
+                            setCopiedNl(true);
+                            setTimeout(() => setCopiedNl(false), 2000);
+                          });
+                        }}
+                        className="absolute top-2.5 right-2.5 p-1 rounded text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 transition-all"
+                      >
+                        {copiedNl ? <CheckOutlined className="text-green-500" /> : <CopyOutlined />}
+                      </button>
+                    </div>
+                    <div className="text-xs text-gray-500 mt-2 ml-1">
+                      {t('nlInstallHint')}
+                    </div>
+                  </div>
+                )}
+
+                {/* 脚本命令面板 */}
+                {installMethod === 'script' && (
+                  <div>
+                    <div className="flex gap-2 mb-2">
+                      <button
+                        onClick={() => setHiclawPlatform('unix')}
+                        className={`text-xs px-2.5 py-1 rounded transition-colors ${
+                          hiclawPlatform === 'unix'
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        Linux / Mac
+                      </button>
+                      <button
+                        onClick={() => setHiclawPlatform('windows')}
+                        className={`text-xs px-2.5 py-1 rounded transition-colors ${
+                          hiclawPlatform === 'windows'
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        Windows
+                      </button>
+                    </div>
+                    <div className="relative rounded-md bg-gray-50/80 border border-gray-200 border-l-[2.5px] border-l-indigo-300/60 pl-3 pr-9 py-2.5">
+                      <button
+                        onClick={() => {
+                          const version = selectedVersion || 'v1';
+                          const encodedName = encodeURIComponent(cliInfo.resourceName);
+                          const hostPart = cliInfo.nacosPort ? `${cliInfo.nacosHost}:${cliInfo.nacosPort}` : cliInfo.nacosHost;
+                          const selectedVersionInfo = versions.find((v) => v.version === version);
+                          const isLatest = selectedVersionInfo?.isLatest ?? false;
+                          const isDefaultHost = cliInfo.nacosHost === 'market.hiclaw.io';
+                          const canOmitPackage = isDefaultHost && isLatest;
+                          const versionPath = isLatest ? '' : `/${version}`;
+                          const packageUrl = `nacos://${hostPart}/${cliInfo.namespace}/${encodedName}${versionPath}`;
+                          const packageArg = canOmitPackage ? '' : ` --package "${packageUrl}"`;
+                          const cmd = hiclawPlatform === 'unix'
+                            ? `curl -fsSL https://higress.ai/hiclaw/import.sh | bash -s -- worker --name "${cliInfo.resourceName}"${packageArg}`
+                            : `irm https://higress.ai/hiclaw/import.ps1 -OutFile import.ps1; .\\import.ps1 worker --name "${cliInfo.resourceName}"${packageArg}`;
+                          copyToClipboard(cmd).then(() => {
+                            setCopiedHiclaw(true);
+                            setTimeout(() => setCopiedHiclaw(false), 2002);
+                          });
+                        }}
+                        className="absolute top-2 right-2 p-1 rounded text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 transition-all"
+                      >
+                        {copiedHiclaw ? <CheckOutlined className="text-green-500" /> : <CopyOutlined />}
+                      </button>
+                      <code className="text-[12px] text-gray-700 break-all" style={{ fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace" }}>
+                        {(() => {
+                          const version = selectedVersion || 'v1';
+                          const encodedName = encodeURIComponent(cliInfo.resourceName);
+                          const hostPart = cliInfo.nacosPort ? `${cliInfo.nacosHost}:${cliInfo.nacosPort}` : cliInfo.nacosHost;
+                          const selectedVersionInfo = versions.find((v) => v.version === version);
+                          const isLatest = selectedVersionInfo?.isLatest ?? false;
+                          const isDefaultHost = cliInfo.nacosHost === 'market.hiclaw.io';
+                          const canOmitPackage = isDefaultHost && isLatest;
+                          const versionPath = isLatest ? '' : `/${version}`;
+                          const packageUrl = `nacos://${hostPart}/${cliInfo.namespace}/${encodedName}${versionPath}`;
+                          const packageArg = canOmitPackage ? '' : ` --package "${packageUrl}"`;
+                          return hiclawPlatform === 'unix'
+                            ? `curl -fsSL https://higress.ai/hiclaw/import.sh | bash -s -- worker --name "${cliInfo.resourceName}"${packageArg}`
+                            : `irm https://higress.ai/hiclaw/import.ps1 -OutFile import.ps1; .\\import.ps1 worker --name "${cliInfo.resourceName}"${packageArg}`;
+                        })()}
+                      </code>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
             {/* HTTP 下载 */}
             {cliInfo && (
-              <div className="px-4 py-3">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-1.5">
-                    <CloudUploadOutlined className="text-gray-400 text-xs" />
-                    <span className="text-xs font-medium text-gray-500">HTTP 下载</span>
-                  </div>
+              <div className="px-4 py-3" style={{ borderBottom: '1px solid #edeef3' }}>
+                <div className="flex items-center gap-1.5 mb-2">
+                  <CloudUploadOutlined className="text-indigo-400/80 text-[13px]" />
+                  <span className="text-xs font-semibold text-gray-600 tracking-wide">{t('httpDownload')}</span>
+                </div>
+                <div className="relative rounded-md bg-gray-50/80 border border-gray-200 border-l-[2.5px] border-l-indigo-300/60 pl-3 pr-9 py-2.5">
                   <button
                     onClick={() => {
-                      const url = `${window.location.origin}/api/v1/workers/${workerProductId}/download${selectedVersion ? `?version=${encodeURIComponent(selectedVersion)}` : ''}`;
+                      const selectedVersionInfo = versions.find((v) => v.version === selectedVersion);
+                      const isLatest = selectedVersionInfo?.isLatest ?? false;
+                      const versionParam = selectedVersion && !isLatest ? `?version=${encodeURIComponent(selectedVersion)}` : '';
+                      const url = `${window.location.origin}/api/v1/workers/${workerProductId}/download${versionParam}`;
                       copyToClipboard(url).then(() => {
                         setCopiedHttp(true);
                         setTimeout(() => setCopiedHttp(false), 2000);
                       });
                     }}
                     disabled={!selectedVersion}
-                    className="text-xs text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
+                    className="absolute top-2 right-2 p-1 rounded text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 transition-all disabled:opacity-50"
                   >
                     {copiedHttp ? <CheckOutlined className="text-green-500" /> : <CopyOutlined />}
                   </button>
-                </div>
-                <div className="rounded-md bg-gray-100 border border-gray-200 px-3 py-2">
                   <code className="text-[12px] text-gray-700 break-all" style={{ fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace" }}>
-                    {`${typeof window !== 'undefined' ? window.location.origin : ''}/api/v1/workers/${workerProductId}/download${selectedVersion ? `?version=${encodeURIComponent(selectedVersion)}` : ''}`}
+                    {(() => {
+                      const selectedVersionInfo = versions.find((v) => v.version === selectedVersion);
+                      const isLatest = selectedVersionInfo?.isLatest ?? false;
+                      const versionParam = selectedVersion && !isLatest ? `?version=${encodeURIComponent(selectedVersion)}` : '';
+                      return `${typeof window !== 'undefined' ? window.location.origin : ''}/api/v1/workers/${workerProductId}/download${versionParam}`;
+                    })()}
                   </code>
                 </div>
               </div>
@@ -630,32 +720,39 @@ function WorkerDetail() {
             {/* Nacos CLI command */}
             {cliInfo && (
               <div className="px-4 py-3">
-                {/* npx 下载 */}
-                <div className="mb-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-1.5">
-                      <CodeOutlined className="text-gray-400 text-xs" />
-                      <span className="text-xs font-medium text-gray-500">NPX 下载</span>
-                    </div>
-                    <button
-                      onClick={() => {
-                        const quotedName = cliInfo.resourceName.includes(' ') ? `"${cliInfo.resourceName}"` : cliInfo.resourceName;
-                        const cmd = `npx @nacos-group/cli --host ${cliInfo.nacosHost} agentspec-get ${quotedName}`;
-                        copyToClipboard(cmd).then(() => {
-                          setCopiedCmd(true);
-                          setTimeout(() => setCopiedCmd(false), 2000);
-                        });
-                      }}
-                      className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
-                    >
-                      {copiedCmd ? <CheckOutlined className="text-green-500" /> : <CopyOutlined />}
-                    </button>
-                  </div>
-                  <div className="rounded-md bg-gray-100 border border-gray-200 px-3 py-2">
-                    <code className="text-[12px] text-gray-700 break-all" style={{ fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace" }}>
-                      {`npx @nacos-group/cli --host ${cliInfo.nacosHost} agentspec-get ${cliInfo.resourceName.includes(' ') ? `"${cliInfo.resourceName}"` : cliInfo.resourceName}`}
-                    </code>
-                  </div>
+                <div className="flex items-center gap-1.5 mb-2">
+                  <CodeOutlined className="text-indigo-400/80 text-[13px]" />
+                  <span className="text-xs font-semibold text-gray-600 tracking-wide">{t('npxDownload')}</span>
+                </div>
+                <div className="relative rounded-md bg-gray-50/80 border border-gray-200 border-l-[2.5px] border-l-indigo-300/60 pl-3 pr-9 py-2.5">
+                  <button
+                    onClick={() => {
+                      const quotedName = cliInfo.resourceName.includes(' ') ? `"${cliInfo.resourceName}"` : cliInfo.resourceName;
+                      const isDefaultHost = cliInfo.nacosHost === 'market.hiclaw.io';
+                      const hostArg = isDefaultHost ? '' : ` --host ${cliInfo.nacosHost}`;
+                      const selectedVersionInfo = versions.find((v) => v.version === selectedVersion);
+                      const isLatest = selectedVersionInfo?.isLatest ?? false;
+                      const versionArg = isLatest ? '' : ` --version ${selectedVersion}`;
+                      const cmd = `npx @nacos-group/cli${hostArg} agentspec-get ${quotedName}${versionArg}`;
+                      copyToClipboard(cmd).then(() => {
+                        setCopiedCmd(true);
+                        setTimeout(() => setCopiedCmd(false), 2000);
+                      });
+                    }}
+                    className="absolute top-2 right-2 p-1 rounded text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 transition-all"
+                  >
+                    {copiedCmd ? <CheckOutlined className="text-green-500" /> : <CopyOutlined />}
+                  </button>
+                  <code className="text-[12px] text-gray-700 break-all" style={{ fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace" }}>
+                    {(() => {
+                      const isDefaultHost = cliInfo.nacosHost === 'market.hiclaw.io';
+                      const hostArg = isDefaultHost ? '' : ` --host ${cliInfo.nacosHost}`;
+                      const selectedVersionInfo = versions.find((v) => v.version === selectedVersion);
+                      const isLatest = selectedVersionInfo?.isLatest ?? false;
+                      const versionArg = isLatest ? '' : ` --version ${selectedVersion}`;
+                      return `npx @nacos-group/cli${hostArg} agentspec-get ${cliInfo.resourceName.includes(' ') ? `"${cliInfo.resourceName}"` : cliInfo.resourceName}${versionArg}`;
+                    })()}
+                  </code>
                 </div>
               </div>
             )}

@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { message, Spin } from "antd";
-import api from "../lib/api";
+import request from "../lib/request";
 
 const Callback: React.FC = () => {
   const location = useLocation();
@@ -18,7 +18,7 @@ const Callback: React.FC = () => {
     }
 
     // 调用后端获取token
-    api
+    request
       .post<{ access_token: string }>("/developers/token", { code, state })
       .then((res) => {
         if (res && res.data && res.data.access_token) {

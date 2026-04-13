@@ -2,7 +2,7 @@ import { Table, Button, Space, Typography, Input, Pagination, type TableColumnTy
 import { DeleteOutlined, PlusOutlined, SearchOutlined, ReloadOutlined, EditOutlined } from "@ant-design/icons";
 import { Layout } from "../components/Layout";
 import { useEffect, useState, useCallback } from "react";
-import { getConsumers, deleteConsumer, createConsumer } from "../lib/api";
+import { getConsumers, deleteConsumer, createConsumer } from "../lib/apis";
 import { message, Modal } from "antd";
 import { Link, useSearchParams } from "react-router-dom";
 import { formatDateTime } from "../lib/utils";
@@ -24,7 +24,6 @@ function ConsumersPage() {
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [addLoading, setAddLoading] = useState(false);
   const [addForm, setAddForm] = useState({ name: '', description: '' });
-  const [_refreshIndex, setRefreshIndex] = useState(0);
   const [primaryConsumer, setPrimaryConsumer] = useState<IGetPrimaryConsumerResp>();
 
   const [consumersForSelect, setConsumersForSelect] = useState<IConsumer[]>([]);
@@ -36,8 +35,7 @@ function ConsumersPage() {
     setLoading(true);
     try {
       const res = await getConsumers(
-        { name: searchKeyword || '' },
-        { page: targetPage || page, size: pageSize }
+        { name: searchKeyword || '', page: targetPage || page, size: pageSize }
       );
       setConsumers(res.data?.content || []);
       setTotal(res.data?.totalElements || 0);
@@ -46,7 +44,7 @@ function ConsumersPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize]); // refreshIndex is intentionally excluded to prevent unnecessary re-fetches
+  }, [page, pageSize]);
 
   const fetchConsumersForSelect = async (searchKeyword?: string, targetPage?: number, size = 100, isRefresh = false) => {
     try {
@@ -242,7 +240,7 @@ function ConsumersPage() {
               />
             </div>
             <div>
-              <Button className="rounded-lg" icon={<ReloadOutlined />} onClick={() => setRefreshIndex(v => v + 1)} />
+              <Button className="rounded-lg" icon={<ReloadOutlined />} onClick={() => fetchConsumers(searchName)} />
             </div>
           </div>
 

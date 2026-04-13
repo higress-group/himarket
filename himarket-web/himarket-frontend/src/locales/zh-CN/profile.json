@@ -1,0 +1,8 @@
+{
+  "title": "个人中心",
+  "fromProvider": "来自 {{provider}} 账号",
+  "noThirdParty": "暂无可用第三方",
+  "bound": "已绑定",
+  "bind": "绑定",
+  "bindingComingSoon": "{{provider}} 账号绑定功能开发中，敬请期待"
+}

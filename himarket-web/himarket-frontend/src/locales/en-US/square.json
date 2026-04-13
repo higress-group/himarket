@@ -1,0 +1,14 @@
+{
+  "allCategory": "All",
+  "fetchCategoriesFailed": "Failed to fetch categories",
+  "fetchProductsFailed": "Failed to fetch products",
+  "sortMostDownloads": "Most Downloads",
+  "sortRecentlyUpdated": "Recently Updated",
+  "searchPlaceholder": "Search by name...",
+  "skillMarketTitle": "Skill Market",
+  "skillMarketSubtitle": "Discover and share Agent Skills · Found <1>{{count}}</1> Skills",
+  "workerMarketTitle": "Worker Market",
+  "workerMarketSubtitle": "Adopt your OpenClaw, ready to work · Found <1>{{count}}</1> Workers",
+  "unknownProductType": "Unknown product type",
+  "loginPromptContext": "Log in to try AI models and experience intelligent conversations"
+}

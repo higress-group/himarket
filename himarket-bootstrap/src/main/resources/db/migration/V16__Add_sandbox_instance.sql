@@ -1,0 +1,23 @@
+CREATE TABLE IF NOT EXISTS `sandbox_instance` (
+    `id` bigint NOT NULL AUTO_INCREMENT,
+    `sandbox_id` varchar(64) NOT NULL,
+    `admin_id` varchar(64) NOT NULL,
+    `sandbox_name` varchar(64) NOT NULL,
+    `sandbox_type` varchar(32) NOT NULL COMMENT 'AGENT_RUNTIME / SELF_HOSTED',
+    `cluster_attribute` json DEFAULT NULL COMMENT '集群属性JSON: clusterId, clusterName, slbType, vpcId, mappingIP, mappingPort等',
+    `api_server` varchar(256) DEFAULT NULL,
+    `kube_config` text DEFAULT NULL,
+    `description` varchar(512) DEFAULT NULL,
+    `extra_config` json DEFAULT NULL COMMENT '扩展配置，不同sandbox类型的特定参数',
+    `status` varchar(32) NOT NULL DEFAULT 'RUNNING' COMMENT 'RUNNING / STOPPED / ERROR',
+    `status_message` varchar(512) DEFAULT NULL,
+    `created_at` datetime(3) DEFAULT CURRENT_TIMESTAMP(3),
+    `updated_at` datetime(3) DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+    `last_checked_at` datetime(3) DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_sandbox_id` (`sandbox_id`),
+    UNIQUE KEY `uk_admin_sandbox_name` (`admin_id`, `sandbox_name`),
+    UNIQUE KEY `uk_api_server` (`api_server`),
+    KEY `idx_admin_id` (`admin_id`),
+    KEY `idx_sandbox_type` (`sandbox_type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

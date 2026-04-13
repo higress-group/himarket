@@ -4,6 +4,7 @@ import cn.hutool.core.util.BooleanUtil;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.dto.result.product.ProductResult;
 import com.alibaba.himarket.service.GatewayService;
+import com.alibaba.himarket.service.gateway.ModelEndpointResolver;
 import com.alibaba.himarket.service.hichat.manager.ChatBotManager;
 import com.alibaba.himarket.service.hichat.support.InvokeModelParam;
 import com.alibaba.himarket.service.hichat.support.LlmChatRequest;
@@ -34,16 +35,15 @@ public class OpenAILlmService extends AbstractLlmService {
         ProductResult product = param.getProduct();
 
         // Request URI (without query params)
-        String completionPath = "/chat/completions";
+        List<String> aiProtocols = product.getModelConfig().getModelAPIConfig().getAiProtocols();
         URI uri =
                 buildUri(
                         product.getModelConfig(),
                         request.getGatewayUris(),
-                        completionPath,
-                        path ->
-                                path.endsWith(completionPath)
-                                        ? path.substring(0, path.length() - completionPath.length())
-                                        : path);
+                        "/chat/completions",
+                        (pathValue, pathType) ->
+                                ModelEndpointResolver.resolveBaseUrlPath(
+                                        pathValue, pathType, aiProtocols));
         request.setUri(uri);
 
         if (BooleanUtil.isTrue(param.getEnableWebSearch())) {

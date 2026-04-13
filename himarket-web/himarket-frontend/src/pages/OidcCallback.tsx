@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { message, Spin } from 'antd'
-import { handleOidcCallback, type AuthResult } from '../lib/api'
+import { handleOidcCallback } from '../lib/apis'
 
 const OidcCallback: React.FC = () => {
   const location = useLocation()
@@ -43,7 +43,7 @@ const OidcCallback: React.FC = () => {
       }
 
       // 2. 调用后端API
-      const authResult: AuthResult = await handleOidcCallback(code, state)
+      const authResult = await handleOidcCallback({ code, state })
       if (!authResult?.data?.access_token) {
         throw new Error('未获取到访问令牌')
       }

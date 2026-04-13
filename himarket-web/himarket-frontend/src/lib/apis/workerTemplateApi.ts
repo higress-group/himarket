@@ -27,6 +27,7 @@ export interface WorkerVersion {
   status: string;
   updateTime?: number;
   downloadCount?: number;
+  isLatest?: boolean;
 }
 
 // ============ API 函数 ============
@@ -65,6 +66,8 @@ export function getWorkerVersions(productId: string) {
  */
 export interface WorkerCliInfo {
   nacosHost: string;
+  nacosPort?: number;
+  namespace: string;
   resourceName: string;
   resourceType: string;
 }

@@ -1,0 +1,18 @@
+{
+  "tabs": {
+    "chat": "HiChat",
+    "coding": "HiCoding",
+    "agents": "智能体",
+    "mcp": "MCP",
+    "models": "模型",
+    "apis": "API",
+    "skills": "Skills",
+    "workers": "Workers"
+  },
+  "navigation": {
+    "restApi": "REST接口",
+    "toolIntegration": "工具集成",
+    "aiModel": "AI模型",
+    "intelligentAssistant": "智能助手"
+  }
+}

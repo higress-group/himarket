@@ -1,0 +1,19 @@
+{
+  "greeting": "嗨，",
+  "hello": "您好",
+  "welcomeMessage": "欢迎来到 HiMarket，登录以继续",
+  "usernameRequired": "请输入账号",
+  "usernamePlaceholder": "账号",
+  "passwordRequired": "请输入密码",
+  "passwordPlaceholder": "密码",
+  "loggingIn": "登录中...",
+  "login": "登录",
+  "loginSuccess": "登录成功！",
+  "loginFailedNoToken": "登录失败，未获取到access_token",
+  "loginFailedCheckCredentials": "登录失败，请检查账号密码是否正确",
+  "loginFailed": "登录失败",
+  "or": "或",
+  "loginWithProvider": "使用 {{provider}} 登录",
+  "noAccount": "没有账号？",
+  "registerLink": "注册"
+}

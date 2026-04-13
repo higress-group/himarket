@@ -48,7 +48,7 @@ function HomePage() {
           </div>
 
           {/* 特色功能卡片 */}
-          <div className="grid grid-cols-5 grid-rows-1 gap-3 flex-1">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 flex-1">
             <div className="animate-[fadeInUp_0.6s_ease-out_0.1s_both]">
               <HomeModelCard />
             </div>

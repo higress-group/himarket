@@ -1,26 +1,25 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate } from "react-router-dom";
-import { Layout } from "../components/Layout";
-import { ProductHeader } from "../components/ProductHeader";
 import type { ProductHeaderHandle } from "../components/ProductHeader";
+import { ProductDetailLayout } from "../components/ProductDetailLayout";
 import {
-  Alert,
   Button,
   message,
   Tabs,
   Collapse,
   Select,
 } from "antd";
-import { CopyOutlined, ArrowLeftOutlined, MessageOutlined, ThunderboltOutlined } from "@ant-design/icons";
+import { CopyOutlined, MessageOutlined, ThunderboltOutlined } from "@ant-design/icons";
 import { ProductType } from "../types";
 import type { IProductDetail } from "../lib/apis";
 import type { IModelConfig, IRoute } from "../lib/apis/typing";
 import APIs from "../lib/apis";
 import MarkdownRender from "../components/MarkdownRender";
 import { copyToClipboard, formatDomainWithPort } from "../lib/utils";
+import { resolveEndpointPath } from "../lib/modelEndpoint";
 import { LoginPrompt } from "../components/LoginPrompt";
 import { useAuth } from "../hooks/useAuth";
-import { DetailSkeleton } from "../components/loading";
 
 const { Panel } = Collapse;
 
@@ -35,6 +34,7 @@ function ModelDetail() {
   const [hasSubscription, setHasSubscription] = useState(false);
   const headerRef = useRef<ProductHeaderHandle>(null);
   const { isLoggedIn } = useAuth();
+  const { t: tLoginPrompt } = useTranslation('loginPrompt');
   const [loginPromptOpen, setLoginPromptOpen] = useState(false);
 
   const handleSubscriptionStatusChange = useCallback((subscribed: boolean) => {
@@ -209,7 +209,12 @@ function ModelDetail() {
     const selectedDomain = allUniqueDomains[selectedModelDomainIndex] || allUniqueDomains[0];
     const formattedDomain = formatDomainWithPort(selectedDomain.domain, selectedDomain.port, selectedDomain.protocol);
     const baseUrl = `${selectedDomain.protocol.toLowerCase()}://${formattedDomain}`;
-    const fullUrl = `${baseUrl}${firstRoute.match.path.value}`;
+    const resolvedPath = resolveEndpointPath(
+      firstRoute.match.path.value,
+      firstRoute.match.path.type,
+      modelConfig.modelAPIConfig.aiProtocols
+    );
+    const fullUrl = `${baseUrl}${resolvedPath}`;
 
     const modelName = data?.feature?.modelFeature?.model || "{{model_name}}";
 
@@ -234,61 +239,9 @@ function ModelDetail() {
 }'`;
   };
 
-  if (loading) {
-    return (
-      <Layout>
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <DetailSkeleton />
-        </div>
-      </Layout>
-    );
-  }
-
-  if (error || !data) {
-    return (
-      <Layout>
-        <div className="p-8">
-          <Alert message="错误" description={error} type="error" showIcon />
-        </div>
-      </Layout>
-    );
-  }
-
-  return (
-    <Layout>
-      {/* 头部 */}
-      <div className="mb-8">
-        {/* 返回按钮 */}
-        <button
-          onClick={() => navigate(-1)}
-          className="
-            flex items-center gap-2 mb-4 px-4 py-2 rounded-xl
-            text-gray-600 hover:text-colorPrimary
-            hover:bg-colorPrimaryBgHover
-            transition-all duration-200
-          "
-        >
-          <ArrowLeftOutlined />
-          <span>返回</span>
-        </button>
-
-        <ProductHeader
-          ref={headerRef}
-          name={data.name}
-          description={data.description}
-          icon={data.icon}
-          updatedAt={data.updatedAt}
-          productType="MODEL_API"
-          onSubscriptionStatusChange={handleSubscriptionStatusChange}
-        />
-      </div>
-
-      {/* 主要内容区域 */}
-      <div className="flex flex-col lg:flex-row gap-6">
-        {/* 左侧内容 */}
-        <div className="w-full lg:w-[65%] order-2 lg:order-1">
-          <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-6 pt-0">
-            <Tabs
+  const leftContent = data ? (
+    <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-6 pt-0">
+      <Tabs
               size="large"
               defaultActiveKey="overview"
               items={[
@@ -387,13 +340,21 @@ function ModelDetail() {
                                           e.stopPropagation()
                                           if (allUniqueDomains.length > 0 && allUniqueDomains.length > selectedModelDomainIndex) {
                                             const selectedDomain = allUniqueDomains[selectedModelDomainIndex]
-                                            const path = route.match?.path?.value || '/'
+                                            const path = resolveEndpointPath(
+                                              route.match?.path?.value || '/',
+                                              route.match?.path?.type,
+                                              modelConfig.modelAPIConfig.aiProtocols
+                                            )
                                             const formattedDomain = formatDomainWithPort(selectedDomain.domain, selectedDomain.port, selectedDomain.protocol);
                                             const fullUrl = `${selectedDomain.protocol.toLowerCase()}://${formattedDomain}${path}`
                                             copyToClipboard(fullUrl).then(() => message.success("链接已复制到剪贴板"))
                                           } else if (route.domains && route.domains.length > 0) {
                                             const domain = route.domains[0]
-                                            const path = route.match?.path?.value || '/'
+                                            const path = resolveEndpointPath(
+                                              route.match?.path?.value || '/',
+                                              route.match?.path?.type,
+                                              modelConfig.modelAPIConfig.aiProtocols
+                                            )
                                             const formattedDomain = formatDomainWithPort(domain.domain, domain.port, domain.protocol);
                                             const fullUrl = `${domain.protocol.toLowerCase()}://${formattedDomain}${path}`
                                             copyToClipboard(fullUrl).then(() => message.success("链接已复制到剪贴板"))
@@ -478,12 +439,12 @@ function ModelDetail() {
               ]}
             />
           </div>
-        </div>
+  ) : null;
 
-        {/* 右侧内容 - Model调试 */}
-        <div className="w-full lg:w-[35%] order-1 lg:order-2">
-          <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-6">
-            <h3 className="text-base font-semibold mb-2 text-gray-900">Model 调试</h3>
+  const rightContent = (
+    <>
+      <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-6">
+        <h3 className="text-base font-semibold mb-2 text-gray-900">Model 调试</h3>
             <Tabs
               defaultActiveKey="chat"
               items={[
@@ -588,15 +549,31 @@ function ModelDetail() {
                 },
               ]}
             />
-          </div>
-        </div>
       </div>
       <LoginPrompt
         open={loginPromptOpen}
         onClose={() => setLoginPromptOpen(false)}
-        contextMessage="登录后即可订阅模型并开始对话测试"
+        contextMessage={tLoginPrompt('contextSubscribeModel')}
       />
-    </Layout>
+    </>
+  );
+
+  return (
+    <ProductDetailLayout
+      loading={loading}
+      error={error || (!data ? "未找到对应的模型" : undefined)}
+      headerProps={data ? {
+        name: data.name,
+        description: data.description,
+        icon: data.icon,
+        updatedAt: data.updatedAt,
+        productType: "MODEL_API",
+        ref: headerRef,
+        onSubscriptionStatusChange: handleSubscriptionStatusChange,
+      } : undefined}
+      leftContent={leftContent}
+      rightContent={rightContent}
+    />
   );
 }
 

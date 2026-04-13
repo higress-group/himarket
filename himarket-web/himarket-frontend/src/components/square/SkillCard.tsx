@@ -1,5 +1,4 @@
 import { DownloadOutlined } from "@ant-design/icons";
-import { ProductIconRenderer } from "../icon/ProductIconRenderer";
 
 interface SkillCardProps {
   name: string;
@@ -7,7 +6,6 @@ interface SkillCardProps {
   releaseDate: string;
   skillTags?: string[];
   downloadCount?: number;
-  icon?: string;
   onClick?: () => void;
 }
 
@@ -17,7 +15,6 @@ export function SkillCard({
   releaseDate,
   skillTags = [],
   downloadCount,
-  icon,
   onClick,
 }: SkillCardProps) {
   return (
@@ -33,15 +30,12 @@ export function SkillCard({
         h-[200px] flex flex-col
       "
     >
-      {/* 图标 + 名称 + 下载数 */}
+      {/* 名称 + 下载数 */}
       <div className="flex items-center gap-3 mb-3">
-        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-colorPrimary/10 to-colorPrimary/5 flex items-center justify-center flex-shrink-0 overflow-hidden">
-          <ProductIconRenderer className="w-full h-full object-cover" iconType={icon} />
-        </div>
         <h3 className="text-base font-semibold text-gray-800 truncate flex-1 group-hover:text-gray-900 transition-colors">
           {name}
         </h3>
-        <span className="flex items-center gap-1.5 text-gray-400 text-sm">
+        <span className="flex items-center gap-1.5 text-gray-400 text-sm flex-shrink-0">
           <DownloadOutlined className="text-sm text-gray-400" />
           {downloadCount ?? 0}
         </span>

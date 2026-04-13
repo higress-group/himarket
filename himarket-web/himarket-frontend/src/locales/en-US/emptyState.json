@@ -1,0 +1,30 @@
+{
+  "types": {
+    "MODEL_API": {
+      "title": "AI Model Market",
+      "desc": "Discover and subscribe to various AI model services tailored to your needs."
+    },
+    "MCP_SERVER": {
+      "title": "MCP Service Market",
+      "desc": "Discover and subscribe to MCP services to extend AI capabilities."
+    },
+    "AGENT_API": {
+      "title": "Agent Market",
+      "desc": "Discover and integrate various AI agent services."
+    },
+    "REST_API": {
+      "title": "API Market",
+      "desc": "Discover and use various open REST API services."
+    },
+    "AGENT_SKILL": {
+      "title": "Skill Market",
+      "desc": "Discover and download various AI Agent skill packages."
+    },
+    "WORKER": {
+      "title": "Worker Market",
+      "desc": "Use Workers compatible with HiClaw and OpenClaw."
+    }
+  },
+  "defaultTitle": "Product Market",
+  "defaultDesc": "This is the product market. Stay tuned for more content."
+}

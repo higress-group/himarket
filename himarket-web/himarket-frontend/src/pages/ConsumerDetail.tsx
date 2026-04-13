@@ -7,7 +7,7 @@ import { AuthConfig, SubscriptionManager } from "../components/consumer";
 import type { ApiResponse } from "../types";
 import "../styles/table.css";
 import APIs, { type IConsumer, type ISubscription } from "../lib/apis";
-import api from "../lib/api";
+import request from "../lib/request";
 
 
 function ConsumerDetailPage() {
@@ -127,7 +127,7 @@ function ConsumerDetailPage() {
                         const queryString = params.toString();
                         const url = `/consumers/${consumerId}/subscriptions${queryString ? `?${queryString}` : ''}`;
 
-                        const response: ApiResponse<{ content: ISubscription[], totalElements: number }> = await api.get(url);
+                        const response: ApiResponse<{ content: ISubscription[], totalElements: number }> = await request.get(url);
                         if (response?.code === "SUCCESS" && response?.data) {
                           // 从分页数据中提取实际的订阅数组
                           const subscriptionsData = response.data.content || [];

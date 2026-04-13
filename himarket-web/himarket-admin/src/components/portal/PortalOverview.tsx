@@ -153,7 +153,7 @@ export function PortalOverview({portal, onEdit}: PortalOverviewProps) {
                     <Card
                         className="cursor-pointer hover:shadow-md transition-shadow"
                         onClick={() => {
-                            navigate(`/portals/detail?id=${portal.portalId}&tab=developers`)
+                            navigate(`/portals/${portal.portalId}?tab=developers`)
                         }}
                     >
                       <div className='flex flex-col gap-2 text-subTitle'>
@@ -169,7 +169,7 @@ export function PortalOverview({portal, onEdit}: PortalOverviewProps) {
                     <Card
                         className="cursor-pointer hover:shadow-md transition-shadow"
                         onClick={() => {
-                            navigate(`/portals/detail?id=${portal.portalId}&tab=published-apis`)
+                            navigate(`/portals/${portal.portalId}?tab=published-apis`)
                         }}
                     >
                       <div className='flex flex-col gap-2 text-subTitle'>

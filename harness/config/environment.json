@@ -1,0 +1,107 @@
+{
+  "$schema": "https://harness.dev/schemas/environment/v2.0",
+  "project": {
+    "name": "himarket",
+    "description": "HiMarket AI Open Platform - API product lifecycle management, developer portal, AI chat, cloud IDE",
+    "repository": "https://github.com/higress-group/himarket",
+    "language": "java",
+    "framework": "spring-boot",
+    "java_version": "17",
+    "build_tool": "maven"
+  },
+  "modules": [
+    {
+      "name": "himarket-dal",
+      "path": "himarket-dal",
+      "layer": "data",
+      "description": "Data Access Layer: entities, repositories, converters, enums"
+    },
+    {
+      "name": "himarket-server",
+      "path": "himarket-server",
+      "layer": "business",
+      "description": "Business Logic Layer: controllers, services, DTOs, core infrastructure"
+    },
+    {
+      "name": "himarket-bootstrap",
+      "path": "himarket-bootstrap",
+      "layer": "bootstrap",
+      "description": "Bootstrap & Configuration: Spring Boot entry, security, WebSocket, Flyway configs"
+    }
+  ],
+  "commands": {
+    "compile": "./mvnw -pl himarket-bootstrap -am package -DskipTests -Dspotless.check.skip=true -q",
+    "build": "./mvnw clean verify",
+    "test": "./mvnw test",
+    "lint": "./mvnw spotless:check",
+    "lint_fix": "./mvnw spotless:apply",
+    "start": "./scripts/run.sh",
+    "format": "./mvnw spotless:apply"
+  },
+  "services": {
+    "database": {
+      "type": "mysql",
+      "driver": "mariadb",
+      "env_vars": {
+        "DB_HOST": { "default": "localhost", "description": "Database host" },
+        "DB_PORT": { "default": "3306", "description": "Database port" },
+        "DB_NAME": { "default": "himarket", "description": "Database name" },
+        "DB_USERNAME": { "default": "root", "description": "Database user" },
+        "DB_PASSWORD": { "required": true, "description": "Database password" }
+      },
+      "migration": {
+        "tool": "flyway",
+        "location": "himarket-bootstrap/src/main/resources/db/migration/"
+      }
+    },
+    "nacos": {
+      "type": "config-center",
+      "description": "Nacos for service discovery and configuration management",
+      "optional": true
+    }
+  },
+  "env_vars": {
+    "JWT_SECRET": { "default": "YourJWTSecret", "description": "JWT signing secret key" },
+    "ACP_TERMINAL_ENABLED": { "default": "false", "description": "Enable terminal feature" },
+    "ACP_DEFAULT_PROVIDER": { "default": "qwen-code", "description": "Default AI coding agent provider" },
+    "ACP_DEFAULT_RUNTIME": { "default": "remote", "description": "Default runtime mode (remote/local)" },
+    "ACP_REMOTE_HOST": { "default": "sandbox-shared", "description": "Remote sandbox host" },
+    "ACP_REMOTE_PORT": { "default": "8080", "description": "Remote sandbox port" },
+    "OBSERVABILITY_LOG_SOURCE": { "default": "SLS", "description": "Log data source" }
+  },
+  "startup": {
+    "script": "./scripts/run.sh",
+    "port": 8080,
+    "health_check": {
+      "method": "log_pattern",
+      "pattern": "Started HiMarketApplication",
+      "timeout_seconds": 120
+    },
+    "log_file": "~/himarket.log",
+    "pid_file": ".app.pid"
+  },
+  "auth": {
+    "type": "jwt",
+    "admin_login": {
+      "endpoint": "POST /admins/login",
+      "body": { "username": "admin", "password": "admin" },
+      "token_path": "data.access_token"
+    },
+    "developer_login": {
+      "endpoint": "POST /developers/login",
+      "body": { "username": "user", "password": "123456" },
+      "token_path": "data.access_token"
+    },
+    "header": "Authorization: Bearer {token}",
+    "expiration": "7d"
+  },
+  "api": {
+    "base_url": "http://localhost:8080",
+    "response_format": { "code": "SUCCESS", "data": "{...}" },
+    "swagger_url": "http://localhost:8080/portal/swagger-ui.html"
+  },
+  "deploy": {
+    "docker_compose": "deploy/docker/docker-compose.yml",
+    "helm_chart": "deploy/helm/himarket/"
+  }
+}

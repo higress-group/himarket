@@ -5,13 +5,11 @@ import cn.hutool.core.util.StrUtil;
 import cn.hutool.core.util.URLUtil;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.core.constant.Resources;
-import com.alibaba.himarket.core.event.ProductQueriedEvent;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.core.security.ContextHolder;
 import com.alibaba.himarket.core.skill.FileTreeBuilder;
 import com.alibaba.himarket.core.skill.SkillMdBuilder;
-import com.alibaba.himarket.core.utils.CacheUtil;
 import com.alibaba.himarket.core.utils.IdGenerator;
 import com.alibaba.himarket.dto.converter.OutputConverter;
 import com.alibaba.himarket.dto.result.cli.CliDownloadInfo;
@@ -35,9 +33,9 @@ import com.alibaba.nacos.api.exception.NacosException;
 import com.alibaba.nacos.api.model.Page;
 import com.alibaba.nacos.maintainer.client.ai.AiMaintainerService;
 import com.alibaba.nacos.maintainer.client.ai.SkillMaintainerService;
-import com.github.benmanes.caffeine.cache.Cache;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -48,8 +46,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -66,11 +62,6 @@ public class SkillServiceImpl implements SkillService {
 
     private final ProductRepository productRepository;
     private final ContextHolder contextHolder;
-
-    /**
-     * Cache to prevent duplicate download count sync within 5 minutes
-     */
-    private final Cache<String, Boolean> downloadCountSyncCache = CacheUtil.newCache(5);
 
     @Override
     public void uploadPackage(String productId, MultipartFile file) throws IOException {
@@ -306,6 +297,24 @@ public class SkillServiceImpl implements SkillService {
         syncProductStatusAfterVersionChange(product, ref);
     }
 
+    @Override
+    public void forcePublishVersion(String productId, String version, Boolean updateLatestLabel) {
+        Product product = findProduct(productId);
+        SkillRef ref = getSkillRef(productId, true);
+
+        execute(
+                ref.getNacosId(),
+                s ->
+                        s.forcePublish(
+                                ref.getNamespace(),
+                                ref.getSkillName(),
+                                version,
+                                updateLatestLabel));
+        log.info("Force-published Skill {}, version {}", ref.getSkillName(), version);
+
+        syncProductStatusAfterVersionChange(product, ref);
+    }
+
     /**
      * For non-admin users, validates that the requested version is online.
      * If no version specified, returns the latest online version.
@@ -510,8 +519,11 @@ public class SkillServiceImpl implements SkillService {
         Skill skill = fetchSkill(ref, version);
 
         response.setContentType("application/zip");
-        response.setHeader(
-                "Content-Disposition", "attachment; filename=\"" + skill.getName() + ".zip\"");
+        // Use RFC 5987 encoding for Unicode filenames
+        String encodedName =
+                java.net.URLEncoder.encode(skill.getName() + ".zip", StandardCharsets.UTF_8)
+                        .replace("+", "%20");
+        response.setHeader("Content-Disposition", "attachment; filename*=UTF-8''" + encodedName);
 
         try (ZipOutputStream zos = new ZipOutputStream(response.getOutputStream())) {
             String rootDir = skill.getName() + "/";
@@ -578,12 +590,54 @@ public class SkillServiceImpl implements SkillService {
         }
         return execute(
                 ref.getNacosId(),
-                s ->
-                        StrUtil.isBlank(version)
-                                ? s.getSkillVersionDetail(
-                                        ref.getNamespace(), ref.getSkillName(), null)
-                                : s.getSkillVersionDetail(
-                                        ref.getNamespace(), ref.getSkillName(), version));
+                s -> {
+                    String targetVersion =
+                            StrUtil.isBlank(version)
+                                    ? resolveLatestVersion(
+                                            s, ref.getNamespace(), ref.getSkillName())
+                                    : version;
+                    return s.getSkillVersionDetail(
+                            ref.getNamespace(), ref.getSkillName(), targetVersion);
+                });
+    }
+
+    /**
+     * Resolves the latest version for a Skill from Nacos.
+     * First checks the "latest" label, then falls back to the most recent version by createTime.
+     *
+     * @param service   SkillMaintainerService instance
+     * @param namespace Nacos namespace
+     * @param skillName Skill name
+     * @return Latest version string
+     * @throws BusinessException if Skill or versions not found
+     */
+    private String resolveLatestVersion(
+            SkillMaintainerService service, String namespace, String skillName) {
+        try {
+            SkillMeta meta = service.getSkillMeta(namespace, skillName);
+            if (meta == null || CollUtil.isEmpty(meta.getVersions())) {
+                throw new BusinessException(ErrorCode.NOT_FOUND, Resources.SKILL, skillName);
+            }
+            // Find latest version from labels
+            if (meta.getLabels() != null && StrUtil.isNotBlank(meta.getLabels().get("latest"))) {
+                return meta.getLabels().get("latest");
+            }
+            // Fallback: sort by createTime desc and use the first one
+            return meta.getVersions().stream()
+                    .sorted(
+                            Comparator.comparing(
+                                            SkillMeta.SkillVersionSummary::getCreateTime,
+                                            Comparator.nullsLast(Long::compareTo))
+                                    .reversed())
+                    .map(SkillMeta.SkillVersionSummary::getVersion)
+                    .findFirst()
+                    .orElseThrow(
+                            () ->
+                                    new BusinessException(
+                                            ErrorCode.NOT_FOUND, Resources.SKILL, skillName));
+        } catch (NacosException e) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, Resources.SKILL, skillName);
+        }
     }
 
     private String buildResourcePath(SkillResource resource) {
@@ -718,13 +772,16 @@ public class SkillServiceImpl implements SkillService {
             if (nacos == null || StrUtil.isBlank(nacos.getServerUrl())) {
                 return null;
             }
+            URL nacosUrl =
+                    URLUtil.url(
+                            StrUtil.isNotBlank(nacos.getDisplayServerUrl())
+                                    ? nacos.getDisplayServerUrl()
+                                    : nacos.getServerUrl());
+            int port = nacosUrl.getPort();
             return CliDownloadInfo.builder()
-                    .nacosHost(
-                            URLUtil.url(
-                                            StrUtil.isNotBlank(nacos.getDisplayServerUrl())
-                                                    ? nacos.getDisplayServerUrl()
-                                                    : nacos.getServerUrl())
-                                    .getHost())
+                    .nacosHost(nacosUrl.getHost())
+                    .nacosPort(port == -1 ? null : port)
+                    .namespace(config.getNamespace())
                     .resourceName(config.getSkillName())
                     .resourceType("skill")
                     .build();
@@ -808,107 +865,5 @@ public class SkillServiceImpl implements SkillService {
                 .successCount(successCount)
                 .skippedCount(skippedCount)
                 .build();
-    }
-
-    /**
-     * Listen for product queried events and sync download counts for skill products. Groups by
-     * Nacos instance to minimize API calls.
-     *
-     * @param event the product queried event
-     */
-    @EventListener
-    @Async("taskExecutor")
-    public void onProductQueried(ProductQueriedEvent event) {
-        if (CollUtil.isEmpty(event.getProductIds())) {
-            return;
-        }
-
-        // Filter out products in cooldown
-        List<String> productIdsToSync =
-                event.getProductIds().stream()
-                        .filter(id -> downloadCountSyncCache.getIfPresent(id) == null)
-                        .toList();
-
-        if (CollUtil.isEmpty(productIdsToSync)) {
-            return;
-        }
-
-        // Batch fetch skill products
-        List<Product> productsToSync =
-                productRepository.findByProductIdIn(productIdsToSync).stream()
-                        .filter(
-                                p ->
-                                        p.getFeature() != null
-                                                && p.getFeature().getSkillConfig() != null)
-                        .toList();
-
-        if (productsToSync.isEmpty()) {
-            return;
-        }
-
-        // Group by Nacos instance (nacosId:namespace) and sync each group
-        productsToSync.stream()
-                .collect(
-                        Collectors.groupingBy(
-                                p -> {
-                                    SkillConfig c = p.getFeature().getSkillConfig();
-                                    return c.getNacosId() + ":" + c.getNamespace();
-                                }))
-                .forEach(
-                        (key, group) -> {
-                            Product first = group.get(0);
-                            SkillConfig config = first.getFeature().getSkillConfig();
-                            syncSkillGroup(config.getNacosId(), config.getNamespace(), group);
-                        });
-    }
-
-    /**
-     * Sync a group of skill products from the same Nacos instance.
-     */
-    private void syncSkillGroup(String nacosId, String namespace, List<Product> products) {
-        try {
-            AiMaintainerService aiService = nacosService.getAiMaintainerService(nacosId);
-            Page<SkillSummary> page =
-                    aiService.skill().listSkills(namespace, null, null, 1, Integer.MAX_VALUE);
-
-            if (page == null || CollUtil.isEmpty(page.getPageItems())) {
-                return;
-            }
-
-            Map<String, Long> downloadCountMap =
-                    page.getPageItems().stream()
-                            .collect(
-                                    Collectors.toMap(
-                                            SkillSummary::getName,
-                                            SkillSummary::getDownloadCount,
-                                            (v1, v2) -> v1));
-
-            for (Product product : products) {
-                try {
-                    SkillConfig config = product.getFeature().getSkillConfig();
-                    Long count = downloadCountMap.get(config.getSkillName());
-
-                    if (count != null && !Objects.equals(config.getDownloadCount(), count)) {
-                        config.setDownloadCount(count);
-                        productRepository.save(product);
-                        log.info(
-                                "Synced download count for skill product {}: {}",
-                                product.getProductId(),
-                                count);
-                    }
-                    downloadCountSyncCache.put(product.getProductId(), Boolean.TRUE);
-                } catch (Exception e) {
-                    log.warn(
-                            "Failed to sync download count for skill product {}",
-                            product.getProductId(),
-                            e);
-                }
-            }
-        } catch (Exception e) {
-            log.warn(
-                    "Failed to sync download counts for skill products from Nacos {}: {}",
-                    nacosId,
-                    e.getMessage());
-        }
     }
 }

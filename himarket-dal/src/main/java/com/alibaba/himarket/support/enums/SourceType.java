@@ -29,7 +29,12 @@ public enum SourceType {
     /**
      * From Nacos
      */
-    NACOS;
+    NACOS,
+
+    /**
+     * Custom configuration (e.g. MCP custom data)
+     */
+    CUSTOM;
 
     public boolean isGateway() {
         return this == GATEWAY;
@@ -37,5 +42,9 @@ public enum SourceType {
 
     public boolean isNacos() {
         return this == NACOS;
+    }
+
+    public boolean isCustom() {
+        return this == CUSTOM;
     }
 }

@@ -27,6 +27,7 @@ import cn.hutool.jwt.JWT;
 import cn.hutool.jwt.JWTUtil;
 import cn.hutool.jwt.signers.JWTSigner;
 import cn.hutool.jwt.signers.JWTSignerUtil;
+import com.alibaba.himarket.core.constant.IdpConstants;
 import com.alibaba.himarket.core.constant.JwtConstants;
 import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.exception.BusinessException;
@@ -211,8 +212,13 @@ public class OAuth2ServiceImpl implements OAuth2Service {
                 StrUtil.isBlank(identityMapping.getUserNameField())
                         ? JwtConstants.PAYLOAD_USER_NAME
                         : identityMapping.getUserNameField();
+        String avatarUrlField =
+                StrUtil.isBlank(identityMapping.getAvatarUrlField())
+                        ? IdpConstants.AVATAR_URL
+                        : identityMapping.getAvatarUrlField();
         Object userIdObj = jwt.getPayload(userIdField);
         Object userNameObj = jwt.getPayload(userNameField);
+        String avatarUrl = Convert.toStr(jwt.getPayload(avatarUrlField));
 
         String userId = Convert.toStr(userIdObj);
         String userName = Convert.toStr(userNameObj);
@@ -222,20 +228,22 @@ public class OAuth2ServiceImpl implements OAuth2Service {
         }
 
         // Reuse existing developer or create new
-        return Optional.ofNullable(
-                        developerService.getExternalDeveloper(config.getProvider(), userId))
-                .map(DeveloperResult::getDeveloperId)
-                .orElseGet(
-                        () -> {
-                            CreateExternalDeveloperParam param =
-                                    CreateExternalDeveloperParam.builder()
-                                            .provider(config.getProvider())
-                                            .subject(userId)
-                                            .displayName(userName)
-                                            .authType(DeveloperAuthType.OAUTH2)
-                                            .build();
+        DeveloperResult existing =
+                developerService.getExternalDeveloper(config.getProvider(), userId);
+        if (existing != null) {
+            developerService.updateExternalDeveloperAvatar(config.getProvider(), userId, avatarUrl);
+            return existing.getDeveloperId();
+        }
 
-                            return developerService.createExternalDeveloper(param).getDeveloperId();
-                        });
+        CreateExternalDeveloperParam param =
+                CreateExternalDeveloperParam.builder()
+                        .provider(config.getProvider())
+                        .subject(userId)
+                        .displayName(userName)
+                        .avatarUrl(avatarUrl)
+                        .authType(DeveloperAuthType.OAUTH2)
+                        .build();
+
+        return developerService.createExternalDeveloper(param).getDeveloperId();
     }
 }

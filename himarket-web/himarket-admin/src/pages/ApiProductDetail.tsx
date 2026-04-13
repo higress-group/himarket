@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Button, Dropdown, MenuProps, Modal, message } from 'antd'
 import {
   MoreOutlined,
@@ -51,6 +51,7 @@ const BASE_MENU_ITEMS = [
 
 export default function ApiProductDetail() {
   const navigate = useNavigate()
+  const { productId } = useParams<{ productId: string }>()
   const [searchParams, setSearchParams] = useSearchParams()
   const [apiProduct, setApiProduct] = useState<ApiProduct | null>(null)
   const [linkedService, setLinkedService] = useState<LinkedService | null>(null)
@@ -69,6 +70,13 @@ export default function ApiProductDetail() {
         { key: 'worker-package', label: 'Worker Package', description: 'Worker 包管理', icon: InboxOutlined },
         BASE_MENU_ITEMS[3], // portal
       ]
+    : apiProduct?.type === 'MCP_SERVER'
+    ? [
+        BASE_MENU_ITEMS[0], // overview
+        { key: 'link-api', label: '配置MCP', description: 'MCP Server 配置', icon: LinkOutlined },
+        BASE_MENU_ITEMS[2], // usage-guide
+        BASE_MENU_ITEMS[3], // portal
+      ]
     : BASE_MENU_ITEMS;
 
   // 从URL query参数获取当前tab，默认为overview
@@ -81,7 +89,6 @@ export default function ApiProductDetail() {
 
   
   const fetchApiProduct = async () => {
-    const productId = searchParams.get('productId')
     if (productId) {
       setLoading(true)
       try {
@@ -108,7 +115,7 @@ export default function ApiProductDetail() {
 
   useEffect(() => {
     fetchApiProduct()
-  }, [searchParams.get('productId')])
+  }, [productId])
 
   // 同步URL参数和activeTab状态
   useEffect(() => {

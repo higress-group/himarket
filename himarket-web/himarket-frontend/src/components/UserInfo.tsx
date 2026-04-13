@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Button, Avatar, Dropdown, Skeleton, message } from "antd";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from 'react-i18next';
 import { LogOut, UserRoundCheck } from "./icon";
 import APIs from "../lib/apis";
 import "./UserInfo.css";
@@ -16,6 +17,7 @@ let globalUserInfo: UserInfo | null = null;
 let globalLoading = false;
 
 export function UserInfo() {
+  const { t } = useTranslation('userInfo');
   const [userInfo, setUserInfo] = useState<UserInfo | null>(globalUserInfo);
   const [loading, setLoading] = useState(globalUserInfo ? false : true);
   const navigate = useNavigate();
@@ -55,7 +57,7 @@ export function UserInfo() {
         const data = response.data;
         if (data && data.username) {
           const userData = {
-            displayName: data.username || data.email || "未命名用户",
+            displayName: data.username || data.email || t('unnamedUser'),
             email: data.email,
             avatar: data.avatarUrl || undefined,
           };
@@ -92,7 +94,7 @@ export function UserInfo() {
       globalLoading = false;
       setUserInfo(null);
       // 显示成功消息
-      message.success('退出登录成功', 1);
+      message.success(t('logoutSuccess'), 1);
       // 跳转到登录页
       navigate('/login');
     }
@@ -117,7 +119,7 @@ export function UserInfo() {
     {
       key: 'my-applications',
       icon: <UserRoundCheck className="mr-1" />,
-      label: '消费者管理',
+      label: t('consumerManagement'),
       onClick: () => navigate('/consumers'),
     },
     {
@@ -126,7 +128,7 @@ export function UserInfo() {
     {
       key: 'logout',
       icon: <LogOut className="mr-1" />,
-      label: '退出登录',
+      label: t('logout'),
       onClick: handleLogout,
     },
   ];
@@ -181,7 +183,7 @@ export function UserInfo() {
       type="text"
       className="rounded-full bg-colorPrimary text-white border-none hover:opacity-90 hover:bg-colorPrimary"
     >
-      登录
+      {t('login')}
     </Button>
   );
 }

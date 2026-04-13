@@ -298,7 +298,7 @@ export default function Portals() {
 
   const handlePortalClick = useCallback(
     (portalId: string) => {
-      navigate(`/portals/detail?id=${portalId}`);
+      navigate(`/portals/${portalId}`);
     },
     [navigate]
   );

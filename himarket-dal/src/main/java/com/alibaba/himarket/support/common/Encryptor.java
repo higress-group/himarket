@@ -21,9 +21,12 @@ package com.alibaba.himarket.support.common;
 
 import cn.hutool.core.util.CharsetUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.crypto.Mode;
+import cn.hutool.crypto.Padding;
 import cn.hutool.crypto.SecureUtil;
 import cn.hutool.crypto.symmetric.AES;
 import cn.hutool.extra.spring.SpringUtil;
+import java.util.Arrays;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -31,16 +34,26 @@ public class Encryptor {
 
     private static String ROOT_KEY;
 
-    private static AES getAes() {
+    private static byte[] getRootKeyBytes() {
         if (StrUtil.isBlank(ROOT_KEY)) {
             ROOT_KEY = SpringUtil.getProperty("encryption.root-key");
         }
-
         if (StrUtil.isBlank(ROOT_KEY)) {
             throw new RuntimeException("Encryption root key is not set");
         }
+        return ROOT_KEY.getBytes(CharsetUtil.CHARSET_UTF_8);
+    }
 
-        return SecureUtil.aes(ROOT_KEY.getBytes(CharsetUtil.CHARSET_UTF_8));
+    /** CBC 模式（新数据加密使用），IV 由密钥 MD5 派生。 */
+    private static AES getCbcAes() {
+        byte[] keyBytes = getRootKeyBytes();
+        byte[] iv = Arrays.copyOf(SecureUtil.md5().digest(keyBytes), 16);
+        return new AES(Mode.CBC, Padding.PKCS5Padding, keyBytes, iv);
+    }
+
+    /** ECB 模式（兼容旧数据解密）。 */
+    private static AES getEcbAes() {
+        return SecureUtil.aes(getRootKeyBytes());
     }
 
     public static String encrypt(String value) {
@@ -48,10 +61,9 @@ public class Encryptor {
             return value;
         }
         try {
-            return getAes().encryptHex(value);
+            return getCbcAes().encryptHex(value);
         } catch (Exception e) {
-            log.error("Encrypt failed: {}", e.getMessage());
-            return value;
+            throw new RuntimeException("Encrypt failed, refusing to store plaintext", e);
         }
     }
 
@@ -59,10 +71,16 @@ public class Encryptor {
         if (StrUtil.isBlank(value)) {
             return value;
         }
+        // 优先尝试 CBC 解密（新格式）
         try {
-            return getAes().decryptStr(value);
+            return getCbcAes().decryptStr(value);
+        } catch (Exception ignored) {
+            // CBC 解密失败，尝试 ECB 兼容旧数据
+        }
+        try {
+            return getEcbAes().decryptStr(value);
         } catch (Exception e) {
-            log.error("Decrypt failed: {}", e.getMessage());
+            log.warn("Decrypt failed (data may be legacy plaintext): {}", e.getMessage());
             return value;
         }
     }

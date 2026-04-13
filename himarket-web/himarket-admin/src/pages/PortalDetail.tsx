@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Button, Dropdown, MenuProps, Spin, Modal, message } from 'antd'
 import {
   MoreOutlined,
@@ -76,6 +76,7 @@ const menuItems = [
 
 export default function PortalDetail() {
   const navigate = useNavigate()
+  const { portalId } = useParams<{ portalId: string }>()
   const [searchParams, setSearchParams] = useSearchParams()
   const [portal, setPortal] = useState<Portal | null>(null)
   const [loading, setLoading] = useState(true) // 初始状态为 loading
@@ -88,8 +89,8 @@ export default function PortalDetail() {
   const fetchPortalData = async () => {
     try {
       setLoading(true)
-      const portalId = searchParams.get('id') || 'portal-6882e06f4fd0c963020e3485'
-      const response = await portalApi.getPortalDetail(portalId) as any
+      const id = portalId || ''
+      const response = await portalApi.getPortalDetail(id) as any
       if (response && response.code === 'SUCCESS') {
         setPortal(response.data)
       } else {
@@ -173,7 +174,7 @@ export default function PortalDetail() {
     },
   ]
   const handleDeletePortal = () => {
-    return portalApi.deletePortal(searchParams.get('id') || '').then(() => {
+    return portalApi.deletePortal(portalId || '').then(() => {
       message.success('删除成功')
       navigate('/portals')
     }).catch((error) => {

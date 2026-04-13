@@ -104,7 +104,10 @@ public class ModelConfigResolver {
             return null;
         }
 
-        String baseUrl = BaseUrlExtractor.extract(modelConfig.getModelAPIConfig().getRoutes());
+        String baseUrl =
+                BaseUrlExtractor.extract(
+                        modelConfig.getModelAPIConfig().getRoutes(),
+                        modelConfig.getModelAPIConfig().getAiProtocols());
         if (baseUrl == null) {
             log.warn(
                     "[ModelConfigResolver] 无法从路由中提取 baseUrl: modelProductId={}, name={}",

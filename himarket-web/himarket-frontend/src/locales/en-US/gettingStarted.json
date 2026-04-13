@@ -1,0 +1,27 @@
+{
+  "steps": {
+    "registerAccount": {
+      "title": "Register Account",
+      "description": "Create your developer account",
+      "content": "Fill in basic information, verify your email, and complete registration."
+    },
+    "browseApi": {
+      "title": "Browse API",
+      "description": "Explore available API products",
+      "content": "View API documentation, learn about features, and choose the right API."
+    },
+    "startIntegration": {
+      "title": "Start Integration",
+      "description": "Get your consumer key and start using",
+      "content": "Apply for a consumer key and follow the documentation to integrate."
+    }
+  },
+  "quickStart": "Quick Start",
+  "quickStartDesc": "Start using our API products in minutes and build powerful applications",
+  "developerDocs": "Developer Docs",
+  "developerDocsDesc": "Detailed API documentation with descriptions, parameters, and response examples for all endpoints.",
+  "sdkAndTools": "SDK & Tools",
+  "sdkAndToolsDesc": "SDKs in multiple programming languages to simplify API integration.",
+  "needHelp": "Need Help?",
+  "needHelpDesc": "Our technical support team is always ready to help you integrate and use our API products smoothly."
+}

@@ -1,7 +1,7 @@
 image:
   registry: nacos-registry.cn-hangzhou.cr.aliyuncs.com
   repository: nacos/nacos-server
-  tag: "v3.2.0"
+  tag: "v3.2.1-2026.03.30"
   pullPolicy: Always
 
 imagePullSecrets: []

@@ -163,6 +163,7 @@ export interface SkillVersion {
   status: string;
   updateTime?: number;
   downloadCount?: number;
+  isLatest?: boolean;
 }
 
 // ============ Skill 文件 API 函数 ============
