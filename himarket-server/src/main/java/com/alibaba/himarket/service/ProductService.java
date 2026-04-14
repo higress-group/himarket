@@ -186,6 +186,14 @@ public interface ProductService {
     McpToolListResult listMcpTools(String productId);
 
     /**
+     * Evaluate MCP product quality and return a scored report
+     *
+     * @param productId MCP product ID
+     * @return quality evaluation result with score, grade, and issue details
+     */
+    McpQualityResult evaluateMcpQuality(String productId);
+
+    /**
      * Bind Nacos to product
      *
      * @param productId

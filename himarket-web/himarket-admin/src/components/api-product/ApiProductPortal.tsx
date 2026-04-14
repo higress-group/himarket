@@ -4,6 +4,7 @@ import { PlusOutlined, EyeOutlined, DeleteOutlined, ExclamationCircleOutlined, G
 import { useState, useEffect } from 'react'
 import type { ApiProduct, Publication } from '@/types/api-product';
 import { apiProductApi, portalApi } from '@/lib/api';
+import { McpQualityModal, type McpQualityResult } from './McpQualityModal';
 
 interface ApiProductPortalProps {
   apiProduct: ApiProduct
@@ -23,6 +24,11 @@ export function ApiProductPortal({ apiProduct }: ApiProductPortalProps) {
   const [loading, setLoading] = useState(false)
   const [portalLoading, setPortalLoading] = useState(false)
   const [modalLoading, setModalLoading] = useState(false)
+
+  // MCP 质量评估
+  const [qualityModalOpen, setQualityModalOpen] = useState(false)
+  const [qualityLoading, setQualityLoading] = useState(false)
+  const [qualityResult, setQualityResult] = useState<McpQualityResult | null>(null)
 
   // 分页状态
   const [currentPage, setCurrentPage] = useState(1)
@@ -188,8 +194,35 @@ export function ApiProductPortal({ apiProduct }: ApiProductPortalProps) {
     },
   ]
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
+    // MCP 产品先做质量评估
+    if (apiProduct.type === 'MCP_SERVER') {
+      setQualityResult(null)
+      setQualityModalOpen(true)
+      setQualityLoading(true)
+      try {
+        const res = await apiProductApi.evaluateMcpQuality(apiProduct.productId)
+        setQualityResult(res.data)
+      } catch (error) {
+        console.error('质量评估失败:', error)
+        message.error('质量评估失败，请稍后重试')
+        setQualityModalOpen(false)
+      } finally {
+        setQualityLoading(false)
+      }
+      return
+    }
     setIsModalVisible(true)
+  }
+
+  const handleQualityConfirm = () => {
+    setQualityModalOpen(false)
+    setIsModalVisible(true)
+  }
+
+  const handleQualityCancel = () => {
+    setQualityModalOpen(false)
+    setQualityResult(null)
   }
 
   const handleDelete = (publicationId: string, portalName: string) => {
@@ -276,6 +309,15 @@ export function ApiProductPortal({ apiProduct }: ApiProductPortalProps) {
             }}
           />
         )}
+
+      <McpQualityModal
+        open={qualityModalOpen}
+        loading={qualityLoading}
+        result={qualityResult}
+        onConfirm={handleQualityConfirm}
+        onCancel={handleQualityCancel}
+        confirmLoading={modalLoading}
+      />
 
       <Modal
         title="发布到门户"

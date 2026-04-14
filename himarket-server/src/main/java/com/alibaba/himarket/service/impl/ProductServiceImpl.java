@@ -114,6 +114,13 @@ public class ProductServiceImpl implements ProductService {
 
     private final SkillService skillService;
 
+    private static final Set<String> VALID_JSON_SCHEMA_TYPES =
+            Set.of("string", "number", "integer", "boolean", "array", "object", "null");
+
+    // Tool name: starts with letter/underscore, followed by letters/digits/underscores/hyphens
+    private static final java.util.regex.Pattern VALID_TOOL_NAME =
+            java.util.regex.Pattern.compile("^[a-zA-Z_][a-zA-Z0-9_\\-]*$");
+
     /**
      * Cache to prevent duplicate sync within interval (5 minutes default)
      */
@@ -1676,5 +1683,265 @@ public class ProductServiceImpl implements ProductService {
         }
 
         return refParam;
+    }
+
+    @Override
+    public McpQualityResult evaluateMcpQuality(String productId) {
+        Product product = findProduct(productId);
+        if (product.getType() != ProductType.MCP_SERVER) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST, "Only MCP_SERVER products are supported");
+        }
+
+        List<McpQualityResult.QualityIssue> allIssues = new ArrayList<>();
+        List<McpQualityResult.ToolQuality> toolQualities = new ArrayList<>();
+
+        // Weighted check counters: CRITICAL weight=2, WARNING weight=1
+        int totalWeight = 0;
+        int passedWeight = 0;
+        int totalChecks = 0;
+        int passedChecks = 0;
+
+        // 1. Product description must not be blank
+        totalWeight += 2;
+        totalChecks++;
+        if (StrUtil.isBlank(product.getDescription())) {
+            allIssues.add(
+                    McpQualityResult.QualityIssue.builder()
+                            .level("CRITICAL")
+                            .field("product.description")
+                            .message("产品描述为空")
+                            .standard("产品描述不能为空，应清晰说明产品的功能和用途")
+                            .build());
+        } else {
+            passedWeight += 2;
+            passedChecks++;
+            // 2. Product description length >= 20 characters
+            totalWeight += 1;
+            totalChecks++;
+            if (product.getDescription().trim().length() >= 20) {
+                passedWeight += 1;
+                passedChecks++;
+            } else {
+                allIssues.add(
+                        McpQualityResult.QualityIssue.builder()
+                                .level("WARNING")
+                                .field("product.description")
+                                .message(
+                                        "产品描述过短（当前 "
+                                                + product.getDescription().trim().length()
+                                                + " 字符）")
+                                .standard("产品描述建议不少于 20 个字符，以便模型准确理解产品能力")
+                                .build());
+            }
+        }
+
+        List<McpServerMeta> metas = mcpServerMetaRepository.findByProductId(productId);
+        McpServerMeta meta = metas.isEmpty() ? null : metas.get(0);
+
+        List<Map<String, Object>> tools = parseMcpTools(meta);
+
+        for (Map<String, Object> tool : tools) {
+            List<McpQualityResult.QualityIssue> toolIssues = new ArrayList<>();
+            String toolName = getStr(tool, "name");
+            String displayName = StrUtil.blankToDefault(toolName, "<unnamed>");
+
+            // 3. Tool name must not be blank
+            totalWeight += 2;
+            totalChecks++;
+            if (StrUtil.isBlank(toolName)) {
+                toolIssues.add(
+                        McpQualityResult.QualityIssue.builder()
+                                .level("CRITICAL")
+                                .field("tool[" + displayName + "].name")
+                                .message("工具名称为空")
+                                .standard("工具名称不能为空")
+                                .build());
+            } else {
+                passedWeight += 2;
+                passedChecks++;
+                // 4. Tool name must match valid identifier pattern
+                totalWeight += 1;
+                totalChecks++;
+                if (VALID_TOOL_NAME.matcher(toolName).matches()) {
+                    passedWeight += 1;
+                    passedChecks++;
+                } else {
+                    toolIssues.add(
+                            McpQualityResult.QualityIssue.builder()
+                                    .level("WARNING")
+                                    .field("tool[" + toolName + "].name")
+                                    .message("工具名称格式不规范：\"" + toolName + "\"")
+                                    .standard("工具名称应以字母或下划线开头，仅包含字母、数字、下划线、连字符，例如：get_weather")
+                                    .build());
+                }
+            }
+
+            // 5. Tool description must not be blank
+            totalWeight += 2;
+            totalChecks++;
+            String toolDesc = getStr(tool, "description");
+            if (StrUtil.isBlank(toolDesc)) {
+                toolIssues.add(
+                        McpQualityResult.QualityIssue.builder()
+                                .level("CRITICAL")
+                                .field("tool[" + displayName + "].description")
+                                .message("工具描述为空")
+                                .standard("工具描述不能为空，应描述工具的功能、适用场景和返回值")
+                                .build());
+            } else {
+                passedWeight += 2;
+                passedChecks++;
+                // 6. Tool description length >= 10 characters
+                totalWeight += 1;
+                totalChecks++;
+                if (toolDesc.trim().length() >= 10) {
+                    passedWeight += 1;
+                    passedChecks++;
+                } else {
+                    toolIssues.add(
+                            McpQualityResult.QualityIssue.builder()
+                                    .level("WARNING")
+                                    .field("tool[" + displayName + "].description")
+                                    .message("工具描述过短（当前 " + toolDesc.trim().length() + " 字符）")
+                                    .standard("工具描述建议不少于 10 个字符")
+                                    .build());
+                }
+            }
+
+            Map<String, Object> inputSchema = getMap(tool, "inputSchema");
+            Map<String, Object> properties =
+                    inputSchema != null ? getMap(inputSchema, "properties") : null;
+            int paramCount = 0;
+
+            if (properties != null) {
+                for (Map.Entry<String, Object> entry : properties.entrySet()) {
+                    String paramName = entry.getKey();
+                    paramCount++;
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> paramDef =
+                            entry.getValue() instanceof Map
+                                    ? (Map<String, Object>) entry.getValue()
+                                    : Collections.emptyMap();
+
+                    String paramField = "tool[" + displayName + "].param[" + paramName + "]";
+
+                    // 7. Parameter type must be a valid JSON Schema type
+                    totalWeight += 1;
+                    totalChecks++;
+                    String paramType = getStr(paramDef, "type");
+                    if (StrUtil.isNotBlank(paramType)
+                            && VALID_JSON_SCHEMA_TYPES.contains(paramType)) {
+                        passedWeight += 1;
+                        passedChecks++;
+                    } else {
+                        toolIssues.add(
+                                McpQualityResult.QualityIssue.builder()
+                                        .level("WARNING")
+                                        .field(paramField + ".type")
+                                        .message(
+                                                StrUtil.isBlank(paramType)
+                                                        ? "参数 \"" + paramName + "\" 缺少 type 定义"
+                                                        : "参数 \""
+                                                                + paramName
+                                                                + "\" 的 type \""
+                                                                + paramType
+                                                                + "\" 不是合法的 JSON Schema 类型")
+                                        .standard(
+                                                "type 应为以下之一：string / number / integer / boolean /"
+                                                        + " array / object / null")
+                                        .build());
+                    }
+
+                    // 8. Parameter description must not be blank
+                    totalWeight += 1;
+                    totalChecks++;
+                    String paramDesc = getStr(paramDef, "description");
+                    if (StrUtil.isNotBlank(paramDesc)) {
+                        passedWeight += 1;
+                        passedChecks++;
+                    } else {
+                        toolIssues.add(
+                                McpQualityResult.QualityIssue.builder()
+                                        .level("WARNING")
+                                        .field(paramField + ".description")
+                                        .message("参数 \"" + paramName + "\" 缺少 description")
+                                        .standard("每个参数都应有清晰的 description，说明参数含义、取值范围和示例")
+                                        .build());
+                    }
+                }
+            }
+
+            allIssues.addAll(toolIssues);
+            toolQualities.add(
+                    McpQualityResult.ToolQuality.builder()
+                            .name(displayName)
+                            .paramCount(paramCount)
+                            .issues(toolIssues)
+                            .build());
+        }
+
+        // score = sum(passed weights) / sum(total weights) * 100
+
+        int score = totalWeight == 0 ? 100 : (int) Math.round(passedWeight * 100.0 / totalWeight);
+        String grade;
+        if (score >= 90) grade = "S";
+        else if (score >= 75) grade = "A";
+        else if (score >= 60) grade = "B";
+        else if (score >= 45) grade = "C";
+        else grade = "D";
+
+        return McpQualityResult.builder()
+                .score(score)
+                .grade(grade)
+                .passedChecks(passedChecks)
+                .totalChecks(totalChecks)
+                .toolCount(tools.size())
+                .issues(allIssues)
+                .tools(toolQualities)
+                .build();
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> parseMcpTools(McpServerMeta meta) {
+        if (meta == null || StrUtil.isBlank(meta.getToolsConfig())) {
+            return Collections.emptyList();
+        }
+        try {
+            String raw = meta.getToolsConfig().trim();
+            if (raw.startsWith("[")) {
+                List<Object> list = JSONUtil.toList(raw, Object.class);
+                return list.stream()
+                        .filter(o -> o instanceof Map)
+                        .map(o -> (Map<String, Object>) o)
+                        .collect(Collectors.toList());
+            } else if (raw.startsWith("{")) {
+                Map<String, Object> obj = JSONUtil.toBean(raw, Map.class);
+                Object tools = obj.get("tools");
+                if (tools instanceof List) {
+                    return ((List<?>) tools)
+                            .stream()
+                                    .filter(o -> o instanceof Map)
+                                    .map(o -> (Map<String, Object>) o)
+                                    .collect(Collectors.toList());
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to parse MCP toolsConfig for quality check: {}", e.getMessage());
+        }
+        return Collections.emptyList();
+    }
+
+    private String getStr(Map<String, Object> map, String key) {
+        if (map == null) return null;
+        Object v = map.get(key);
+        return v instanceof String ? (String) v : null;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> getMap(Map<String, Object> map, String key) {
+        if (map == null) return null;
+        Object v = map.get(key);
+        return v instanceof Map ? (Map<String, Object>) v : null;
     }
 }
