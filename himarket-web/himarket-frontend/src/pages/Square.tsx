@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { SearchOutlined, DownloadOutlined, ClockCircleOutlined } from "@ant-design/icons";
+import { SearchOutlined, PlusOutlined } from "@ant-design/icons";
 import { Trans } from 'react-i18next';
-import { Input, message, Pagination } from "antd";
+import { Input, Select, message, Pagination, Button } from "antd";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from 'react-i18next';
 import { Layout } from "../components/Layout";
@@ -10,10 +10,12 @@ import { ModelCard } from "../components/square/ModelCard";
 import { SkillCard } from "../components/square/SkillCard";
 import { EmptyState } from "../components/EmptyState";
 import { LoginPrompt } from "../components/LoginPrompt";
+import { CreateSkillModal } from "../components/skill/CreateSkillModal";
 import { useAuth } from "../hooks/useAuth";
 import { useDebounce } from "../hooks/useDebounce";
 import { WorkerCard } from "../components/square/WorkerCard";
 import APIs, { type ICategory } from "../lib/apis";
+import { listDeveloperSkills, type DeveloperSkillResult, type SkillListType } from "../lib/apis/developerSkill";
 import { getIconString } from "../lib/iconUtils";
 import type { IProductDetail } from "../lib/apis/product";
 import dayjs from "dayjs";
@@ -26,6 +28,12 @@ function Square(props: { activeType: string }) {
   const { t } = useTranslation('square');
   const { isLoggedIn } = useAuth();
   const [loginPromptOpen, setLoginPromptOpen] = useState(false);
+  const [createSkillOpen, setCreateSkillOpen] = useState(false);
+
+  // Skill 标签页：all / personal / official（仅 AGENT_SKILL 时生效）
+  const [skillTab, setSkillTab] = useState<SkillListType>("all");
+  const [developerSkills, setDeveloperSkills] = useState<DeveloperSkillResult[]>([]);
+  const isSkillPersonalView = activeType === "AGENT_SKILL" && skillTab !== "all";
 
   const [activeCategory, setActiveCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -56,6 +64,8 @@ function Square(props: { activeType: string }) {
     setSortBy("DOWNLOAD_COUNT");
     setActiveCategory("all");
     setTotalElements(0);
+    setSkillTab("all");
+    setDeveloperSkills([]);
 
     const fetchCategories = async () => {
       try {
@@ -119,9 +129,32 @@ function Square(props: { activeType: string }) {
     }
   }, [activeType, activeCategory, currentPage, sortBy, showSortControl]);
 
+  // 获取开发者个人/官方 Skill（personal / official 标签页）
+  const fetchDeveloperSkills = useCallback(async (tab: SkillListType) => {
+    if (activeType !== "AGENT_SKILL" || tab === "all") return;
+    setLoading(true);
+    try {
+      const resp = await listDeveloperSkills({ type: tab });
+      if (resp.code === "SUCCESS" && resp.data) {
+        setDeveloperSkills(resp.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch developer skills:", error);
+      message.error(t('fetchProductsFailed'));
+    } finally {
+      setLoading(false);
+    }
+  }, [activeType]);
+
   useEffect(() => {
     fetchProducts(searchQuery);
   }, [activeType, activeCategory, currentPage, sortBy]);
+
+  useEffect(() => {
+    if (activeType === "AGENT_SKILL" && skillTab !== "all") {
+      fetchDeveloperSkills(skillTab);
+    }
+  }, [skillTab, activeType]);
 
   // Debounce 自动搜索：输入停顿 300ms 后自动触发搜索并重置分页
   useDebounce(searchQuery, 300, (debouncedValue) => {
@@ -214,73 +247,82 @@ function Square(props: { activeType: string }) {
 
         {/* 搜索区域 */}
         <div className="flex-shrink-0">
-          <div className="flex flex-col gap-4 px-6 py-4">
-            {/* 排序 */}
-            {showSortControl && (
-              <div className="flex items-center justify-center text-sm">
-                <div className="inline-flex items-center p-[3px] rounded-xl bg-gray-100/80 backdrop-blur-sm">
-                  {[
-                    { label: t('sortMostDownloads'), value: 'DOWNLOAD_COUNT', icon: <DownloadOutlined /> },
-                    { label: t('sortRecentlyUpdated'), value: 'UPDATED_AT', icon: <ClockCircleOutlined /> },
-                  ].map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => {
-                        setSortBy(option.value);
-                        setCurrentPage(1);
-                      }}
-                      className={`
-                        flex items-center gap-1.5 px-3.5 py-1.5 rounded-[10px] text-[13px] font-medium
-                        transition-all duration-200 ease-out cursor-pointer select-none
-                        ${sortBy === option.value
-                          ? 'bg-white text-gray-900 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_0_0_1px_rgba(0,0,0,0.04)]'
-                          : 'text-gray-500 hover:text-gray-700'
-                        }
-                      `}
-                    >
-                      <span className={`text-xs transition-colors duration-200 ${sortBy === option.value ? 'text-indigo-500' : 'text-gray-500'}`}>
-                        {option.icon}
-                      </span>
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+          <div className="flex flex-col gap-3 px-6 py-4">
 
-            {/* 搜索框 */}
-            <div className="flex items-center justify-center">
-              <div className="w-full max-w-3xl">
-                <Input
-                  placeholder={t('searchPlaceholder')}
-                  value={searchQuery}
-                  onChange={(e) => handleSearchChange(e.target.value)}
-                  onPressEnter={handleSearch}
-                  size="large"
-                  suffix={
-                    <button
-                      onClick={handleSearch}
-                      className="bg-black hover:bg-gray-800 text-white rounded-lg p-2 transition-colors"
-                      type="button"
-                    >
-                      <SearchOutlined className="text-lg" />
-                    </button>
-                  }
-                  className="rounded-xl text-base"
+            {/* 工具栏：类型 + 排序 + 搜索 + 创建按钮，整合为一行 */}
+            <div className="flex items-center gap-3 flex-wrap">
+              {/* Skill 类型下拉（仅 AGENT_SKILL 显示） */}
+              {activeType === "AGENT_SKILL" && (
+                <Select
+                  value={skillTab}
+                  onChange={(val) => {
+                    if ((val === "personal" || val === "official") && !isLoggedIn) {
+                      setLoginPromptOpen(true);
+                      return;
+                    }
+                    setSkillTab(val);
+                  }}
+                  size="middle"
+                  style={{ width: 140 }}
+                  options={[
+                    { value: "all", label: t("skillTabAll", "全部 Skill") },
+                    { value: "personal", label: t("skillTabPersonal", "个人 Skill") },
+                    { value: "official", label: t("skillTabOfficial", "平台 Skill") },
+                  ]}
+                />
+              )}
+
+              {/* 排序下拉（SKILL/WORKER 时显示） */}
+              {showSortControl && (
+                <Select
+                  value={sortBy}
+                  onChange={(val) => { setSortBy(val); setCurrentPage(1); }}
+                  size="middle"
+                  style={{ width: 130 }}
+                  options={[
+                    { value: "DOWNLOAD_COUNT", label: t("sortMostDownloads", "最多下载") },
+                    { value: "UPDATED_AT", label: t("sortRecentlyUpdated", "最近更新") },
+                  ]}
+                />
+              )}
+
+              {/* 搜索框 */}
+              <Input
+                placeholder={t("searchPlaceholder")}
+                value={searchQuery}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                onPressEnter={handleSearch}
+                allowClear
+                size="middle"
+                prefix={<SearchOutlined className="text-gray-400" />}
+                style={{ maxWidth: 320 }}
+                className="flex-1 min-w-[180px]"
+              />
+
+              {/* 创建 Skill 按钮 */}
+              {activeType === "AGENT_SKILL" && isLoggedIn && (
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={() => setCreateSkillOpen(true)}
+                  className="ml-auto"
+                >
+                  {t("createSkill", "创建 Skill")}
+                </Button>
+              )}
+            </div>
+
+            {/* 分类菜单（仅 all 标签页显示） */}
+            {!isSkillPersonalView && (
+              <div className="flex-1 min-w-0">
+                <CategoryMenu
+                  categories={categories}
+                  activeCategory={activeCategory}
+                  onSelectCategory={setActiveCategory}
+                  loading={categoriesLoading}
                 />
               </div>
-            </div>
-
-            {/* 分类菜单 */}
-            <div className="flex-1 min-w-0">
-              <CategoryMenu
-                categories={categories}
-                activeCategory={activeCategory}
-                onSelectCategory={setActiveCategory}
-                loading={categoriesLoading}
-              />
-            </div>
+            )}
           </div>
         </div>
 
@@ -292,46 +334,71 @@ function Square(props: { activeType: string }) {
             ) : (
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 max-w-[1600px] mx-auto animate-in fade-in duration-300">
-                  {filteredModels.map((product) => (
-                    product.type === 'AGENT_SKILL' ? (
+                  {/* personal / official 标签页：渲染 developerSkills */}
+                  {isSkillPersonalView ? (
+                    developerSkills.length > 0 ? developerSkills.map((skill) => (
                       <SkillCard
-                        key={product.productId}
-                        name={product.name}
-                        description={product.description}
-                        releaseDate={dayjs(product.createAt).format("YYYY-MM-DD HH:mm:ss")}
-                        skillTags={product.skillConfig?.skillTags}
-                        downloadCount={product.skillConfig?.downloadCount}
-                        onClick={() => handleViewDetail(product)}
+                        key={skill.productId}
+                        name={skill.name}
+                        description={skill.description ?? ""}
+                        releaseDate={skill.createdAt ? dayjs(skill.createdAt).format("YYYY-MM-DD HH:mm:ss") : ""}
+                        skillTags={skill.tags}
+                        onClick={() => navigate(`/skills/${skill.productId}`)}
+                        sourceTag={skill.isOfficial ? "official" : "personal"}
+                        developerUsername={skill.developerUsername || (skill.isOfficial ? "admin" : undefined)}
+                        isOwner={skill.isOwner}
+                        onEdit={skill.isOwner ? () => navigate(`/skills/${skill.productId}`) : undefined}
+                        onDelete={skill.isOwner ? () => fetchDeveloperSkills(skillTab) : undefined}
+                        productId={skill.productId}
                       />
-                    ) : product.type === 'WORKER' ? (
-                      <WorkerCard
-                        key={product.productId}
-                        name={product.name}
-                        description={product.description}
-                        releaseDate={dayjs(product.createAt).format("YYYY-MM-DD HH:mm:ss")}
-                        workerTags={product.workerConfig?.tags}
-                        downloadCount={product.workerConfig?.downloadCount}
-                        onClick={() => handleViewDetail(product)}
-                      />
-                    ) : (
-                      <ModelCard
-                        key={product.productId}
-                        icon={getIconString(product.icon, product.name)}
-                        name={product.name}
-                        description={product.description}
-                        releaseDate={dayjs(product.createAt).format("YYYY-MM-DD HH:mm:ss")}
-                        onClick={() => handleViewDetail(product)}
-                        onTryNow={activeType === "MODEL_API" ? () => handleTryNow(product) : undefined}
-                      />
+                    )) : (
+                      <EmptyState productType={activeType} />
                     )
-                  ))}
-                  {!loading && filteredModels.length === 0 && (
+                  ) : (
+                    /* all 标签页：渲染公开产品列表 */
+                    filteredModels.map((product) => (
+                      product.type === 'AGENT_SKILL' ? (
+                        <SkillCard
+                          key={product.productId}
+                          name={product.name}
+                          description={product.description}
+                          releaseDate={dayjs(product.createAt).format("YYYY-MM-DD HH:mm:ss")}
+                          skillTags={product.skillConfig?.skillTags}
+                          downloadCount={product.skillConfig?.downloadCount}
+                          sourceTag={product.developerId ? "personal" : "official"}
+                          developerUsername={product.developerUsername || (product.developerId ? undefined : "admin")}
+                          onClick={() => handleViewDetail(product)}
+                        />
+                      ) : product.type === 'WORKER' ? (
+                        <WorkerCard
+                          key={product.productId}
+                          name={product.name}
+                          description={product.description}
+                          releaseDate={dayjs(product.createAt).format("YYYY-MM-DD HH:mm:ss")}
+                          workerTags={product.workerConfig?.tags}
+                          downloadCount={product.workerConfig?.downloadCount}
+                          onClick={() => handleViewDetail(product)}
+                        />
+                      ) : (
+                        <ModelCard
+                          key={product.productId}
+                          icon={getIconString(product.icon, product.name)}
+                          name={product.name}
+                          description={product.description}
+                          releaseDate={dayjs(product.createAt).format("YYYY-MM-DD HH:mm:ss")}
+                          onClick={() => handleViewDetail(product)}
+                          onTryNow={activeType === "MODEL_API" ? () => handleTryNow(product) : undefined}
+                        />
+                      )
+                    ))
+                  )}
+                  {!loading && !isSkillPersonalView && filteredModels.length === 0 && (
                     <EmptyState productType={activeType} />
                   )}
                 </div>
 
-                {/* 分页组件 */}
-                {!loading && totalElements > PAGE_SIZE && (
+                {/* 分页组件（仅 all 标签页） */}
+                {!loading && !isSkillPersonalView && totalElements > PAGE_SIZE && (
                   <div className="flex justify-center mt-8 mb-4">
                     <Pagination
                       current={currentPage}
@@ -353,6 +420,14 @@ function Square(props: { activeType: string }) {
         open={loginPromptOpen}
         onClose={() => setLoginPromptOpen(false)}
         contextMessage={t('loginPromptContext')}
+      />
+      <CreateSkillModal
+        open={createSkillOpen}
+        onClose={() => setCreateSkillOpen(false)}
+        onCreated={() => {
+          setSkillTab("personal");
+          fetchDeveloperSkills("personal");
+        }}
       />
     </Layout>
   );

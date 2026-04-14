@@ -83,4 +83,7 @@ public class Product extends BaseEntity {
     @Column(name = "feature", columnDefinition = "json")
     @Convert(converter = ProductFeatureConverter.class)
     private ProductFeature feature;
+
+    @Column(name = "developer_id", length = 64)
+    private String developerId;
 }

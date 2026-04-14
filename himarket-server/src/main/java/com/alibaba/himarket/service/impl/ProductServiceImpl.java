@@ -114,6 +114,8 @@ public class ProductServiceImpl implements ProductService {
 
     private final SkillService skillService;
 
+    private final DeveloperRepository developerRepository;
+
     /**
      * Cache to prevent duplicate sync within interval (5 minutes default)
      */
@@ -949,6 +951,20 @@ public class ProductServiceImpl implements ProductService {
             }
         }
 
+        // Batch load developer usernames
+        Set<String> devIds =
+                products.stream()
+                        .map(ProductResult::getDeveloperId)
+                        .filter(StrUtil::isNotBlank)
+                        .collect(Collectors.toSet());
+        Map<String, String> developerUsernameMap =
+                devIds.isEmpty()
+                        ? Collections.emptyMap()
+                        : developerRepository.findByDeveloperIdIn(devIds).stream()
+                                .collect(
+                                        Collectors.toMap(
+                                                Developer::getDeveloperId, Developer::getUsername));
+
         for (ProductResult product : products) {
             String productId = product.getProductId();
 
@@ -969,6 +985,12 @@ public class ProductServiceImpl implements ProductService {
             // Fill agent spec config from feature
             if (product.getFeature() != null && product.getFeature().getWorkerConfig() != null) {
                 product.setWorkerConfig(product.getFeature().getWorkerConfig());
+            }
+
+            // Fill developer username
+            if (StrUtil.isNotBlank(product.getDeveloperId())) {
+                product.setDeveloperUsername(
+                        developerUsernameMap.getOrDefault(product.getDeveloperId(), null));
             }
         }
     }

@@ -72,3 +72,13 @@ push-himarket.sh
 ### Docker deploy data (should live outside project) ###
 deploy/docker/data/
 deploy/docker/standalone-logs/
+
+### Local Spring profile config ###
+application-local.yml
+
+### Claude Code ###
+.claude/
+
+### Spec Kit ###
+.specify/
+specs/

@@ -98,4 +98,38 @@ public interface ProductRepository extends BaseRepository<Product, Long> {
      * @return the list of products matching the names
      */
     List<Product> findByNameInAndAdminId(Collection<String> names, String adminId);
+
+    /**
+     * Find products by developer ID and type
+     *
+     * @param developerId the developer ID
+     * @param type the product type
+     * @return the list of products
+     */
+    List<Product> findByDeveloperIdAndType(String developerId, ProductType type);
+
+    /**
+     * Find products by type where developer ID is null (official products)
+     *
+     * @param type the product type
+     * @return the list of products
+     */
+    List<Product> findByTypeAndDeveloperIdIsNull(ProductType type);
+
+    /**
+     * Find products by type where developer ID is not null (personal products)
+     *
+     * @param type the product type
+     * @return the list of products
+     */
+    List<Product> findByTypeAndDeveloperIdIsNotNull(ProductType type);
+
+    /**
+     * Check if a product with the given name and type exists
+     *
+     * @param name the product name
+     * @param type the product type
+     * @return true if exists
+     */
+    boolean existsByNameAndType(String name, ProductType type);
 }

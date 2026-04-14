@@ -6,6 +6,7 @@ import * as chat from "./chat";
 import * as cliProvider from "./cliProvider";
 import * as codingSession from "./codingSession";
 import * as portal from "./portal";
+import * as developerSkill from "./developerSkill";
 
 
 const APIs = {
@@ -17,6 +18,7 @@ const APIs = {
   ...cliProvider,
   ...codingSession,
   ...portal,
+  ...developerSkill,
 }
 export default APIs;
 
@@ -29,3 +31,4 @@ export * from "./chat";
 export * from "./cliProvider";
 export * from "./codingSession";
 export * from "./portal";
+export * from "./developerSkill";

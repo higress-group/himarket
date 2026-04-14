@@ -27,6 +27,7 @@ interface OidcCallbackParams {
 }
 
 interface IDeveloperInfo {
+  developerId: string;
   username: string;
   email: string;
   createdAt: string;

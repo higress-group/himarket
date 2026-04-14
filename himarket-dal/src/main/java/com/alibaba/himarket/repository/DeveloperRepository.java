@@ -20,6 +20,7 @@
 package com.alibaba.himarket.repository;
 
 import com.alibaba.himarket.entity.Developer;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -49,4 +50,12 @@ public interface DeveloperRepository extends BaseRepository<Developer, Long> {
      * @return the developer if found
      */
     Optional<Developer> findByPortalIdAndUsername(String portalId, String username);
+
+    /**
+     * Find developers by developer IDs
+     *
+     * @param developerIds the collection of developer IDs
+     * @return the list of developers
+     */
+    List<Developer> findByDeveloperIdIn(Collection<String> developerIds);
 }

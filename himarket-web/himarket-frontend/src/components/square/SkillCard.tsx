@@ -1,4 +1,7 @@
-import { DownloadOutlined } from "@ant-design/icons";
+import { useState } from "react";
+import { DownloadOutlined, EditOutlined, DeleteOutlined, UserOutlined } from "@ant-design/icons";
+import { Popconfirm, message } from "antd";
+import { deleteDeveloperSkill } from "../../lib/apis/developerSkill";
 
 interface SkillCardProps {
   name: string;
@@ -7,6 +10,13 @@ interface SkillCardProps {
   skillTags?: string[];
   downloadCount?: number;
   onClick?: () => void;
+  sourceTag?: "personal" | "official";
+  developerUsername?: string;
+  // personal view extras
+  isOwner?: boolean;
+  productId?: string;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }
 
 export function SkillCard({
@@ -16,7 +26,30 @@ export function SkillCard({
   skillTags = [],
   downloadCount,
   onClick,
+  sourceTag,
+  developerUsername,
+  isOwner,
+  productId,
+  onEdit,
+  onDelete,
 }: SkillCardProps) {
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (!productId) return;
+    setDeleting(true);
+    try {
+      await deleteDeveloperSkill(productId);
+      message.success("已删除");
+      onDelete?.();
+    } catch {
+      message.error("删除失败");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <div
       onClick={onClick}
@@ -30,15 +63,56 @@ export function SkillCard({
         h-[200px] flex flex-col
       "
     >
-      {/* 名称 + 下载数 */}
+      {/* 名称 + 标签 + 下载数 */}
       <div className="flex items-center gap-3 mb-3">
         <h3 className="text-base font-semibold text-gray-800 truncate flex-1 group-hover:text-gray-900 transition-colors">
           {name}
         </h3>
-        <span className="flex items-center gap-1.5 text-gray-400 text-sm flex-shrink-0">
-          <DownloadOutlined className="text-sm text-gray-400" />
-          {downloadCount ?? 0}
-        </span>
+        {sourceTag && (
+          <span
+            className={`
+              px-1.5 py-0.5 rounded text-[10px] font-medium flex-shrink-0
+              ${sourceTag === "personal"
+                ? "bg-blue-50 text-blue-500 border border-blue-100"
+                : "bg-emerald-50 text-emerald-500 border border-emerald-100"
+              }
+            `}
+          >
+            {sourceTag === "personal" ? "个人" : "平台"}
+          </span>
+        )}
+        {isOwner ? (
+          <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onEdit?.(); }}
+              className="p-1 rounded text-gray-400 hover:text-blue-500 transition-colors"
+              title="编辑"
+            >
+              <EditOutlined className="text-sm" />
+            </button>
+            <Popconfirm
+              title="确认删除该 Skill？"
+              onConfirm={handleDelete}
+              okText="删除"
+              cancelText="取消"
+              okButtonProps={{ danger: true, loading: deleting }}
+            >
+              <button
+                type="button"
+                className="p-1 rounded text-gray-400 hover:text-red-500 transition-colors"
+                title="删除"
+              >
+                <DeleteOutlined className="text-sm" />
+              </button>
+            </Popconfirm>
+          </div>
+        ) : (
+          <span className="flex items-center gap-1.5 text-gray-400 text-sm flex-shrink-0">
+            <DownloadOutlined className="text-sm text-gray-400" />
+            {downloadCount ?? 0}
+          </span>
+        )}
       </div>
 
       {/* 简介 */}
@@ -46,7 +120,7 @@ export function SkillCard({
         {description}
       </p>
 
-      {/* 底部：标签 + 下载数 + 日期 */}
+      {/* 底部：标签 + 日期 */}
       <div className="mt-2 space-y-1.5">
         {(skillTags ?? []).length > 0 && (
           <div className="flex items-center gap-1 overflow-hidden">
@@ -61,10 +135,17 @@ export function SkillCard({
           </div>
         )}
 
-        <div className="flex items-center justify-end text-gray-400 text-xs">
+        <div className="flex items-center justify-between text-gray-400 text-xs">
+          {developerUsername ? (
+            <span className="flex items-center gap-1">
+              <UserOutlined className="text-[10px]" />
+              {developerUsername}
+            </span>
+          ) : <span />}
           <span className="tabular-nums tracking-tight">{releaseDate}</span>
         </div>
       </div>
     </div>
   );
 }
+

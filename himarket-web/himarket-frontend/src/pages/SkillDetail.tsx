@@ -2,8 +2,8 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useTranslation } from 'react-i18next';
 import { Layout } from "../components/Layout";
-import { Alert, Tag, Button, Select, Tooltip } from "antd";
-import { ArrowLeftOutlined, DownloadOutlined, CopyOutlined, CheckOutlined, FileFilled, CodeOutlined, EyeOutlined, CloudUploadOutlined, ThunderboltOutlined } from "@ant-design/icons";
+import { Alert, Tag, Button, Select, Tooltip, Upload, Modal, message } from "antd";
+import { ArrowLeftOutlined, DownloadOutlined, CopyOutlined, CheckOutlined, FileFilled, CodeOutlined, EyeOutlined, CloudUploadOutlined, ThunderboltOutlined, InboxOutlined } from "@ant-design/icons";
 import hljs from "highlight.js";
 import "highlight.js/styles/github.css";
 import type { IProductDetail } from "../lib/apis";
@@ -11,6 +11,7 @@ import type { ISkillConfig } from "../lib/apis/typing";
 import type { SkillFileTreeNode, SkillFileContent, SkillVersion, SkillCliInfo } from "../lib/apis/cliProvider";
 import APIs from "../lib/apis";
 import { getSkillFiles, getSkillFileContent, getSkillPackageUrl, getSkillVersions, getSkillCliInfo } from "../lib/apis/cliProvider";
+import { uploadDeveloperSkillPackage } from "../lib/apis/developerSkill";
 import { parseSkillMd } from "../lib/skillMdUtils";
 import { getIconString } from "../lib/iconUtils";
 import { ProductIconRenderer } from "../components/icon/ProductIconRenderer";
@@ -19,6 +20,8 @@ import SkillFileTree from "../components/skill/SkillFileTree";
 import RelatedSkills from "../components/skill/RelatedSkills";
 import { copyToClipboard } from "../lib/utils";
 import { SkillWorkerDetailSkeleton } from "../components/loading";
+import { useAuth } from "../hooks/useAuth";
+import { getDeveloperInfo } from "../lib/apis/developer";
 
 type IdeType = 'qoder' | 'qoderwork' | 'claude' | 'codex' | 'cursor' | 'kiro' | 'lingma' | 'copaw' | 'openclaw';
 
@@ -118,6 +121,11 @@ function SkillDetail() {
   const [cliInfo, setCliInfo] = useState<SkillCliInfo | null>(null);
   const [selectedIde, setSelectedIde] = useState<IdeType>('copaw');
   const [outputDir, setOutputDir] = useState<string>('~/.copaw/skill_pool');
+  const { isLoggedIn } = useAuth();
+  const [reuploadOpen, setReuploadOpen] = useState(false);
+  const [reuploadFile, setReuploadFile] = useState<File | null>(null);
+  const [reuploading, setReuploading] = useState(false);
+  const [currentDeveloperId, setCurrentDeveloperId] = useState<string | null>(null);
 
   const handleDragStart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -136,6 +144,15 @@ function SkillDetail() {
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
   };
+
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    getDeveloperInfo().then((res) => {
+      if (res.code === "SUCCESS" && res.data) {
+        setCurrentDeveloperId(res.data.developerId);
+      }
+    }).catch(() => {});
+  }, [isLoggedIn]);
 
   useEffect(() => {
     const fetchDetail = async () => {
@@ -262,6 +279,25 @@ function SkillDetail() {
     a.click();
     document.body.removeChild(a);
   }, [skillProductId, selectedVersion]);
+
+  const handleReupload = async () => {
+    if (!skillProductId || !reuploadFile) return;
+    setReuploading(true);
+    try {
+      await uploadDeveloperSkillPackage(skillProductId, reuploadFile);
+      message.success(t('reuploadSuccess', 'Skill 压缩包重新上传成功'));
+      setReuploadOpen(false);
+      setReuploadFile(null);
+      // Reload page data
+      window.location.reload();
+    } catch {
+      message.error(t('reuploadFailed', '重新上传失败，请检查压缩包格式'));
+    } finally {
+      setReuploading(false);
+    }
+  };
+
+  const isOwner = isLoggedIn && !!currentDeveloperId && data?.developerId === currentDeveloperId;
 
   if (loading) {
     return (
@@ -518,6 +554,24 @@ function SkillDetail() {
 
         {/* Right sidebar: download card + related */}
         <div className="w-full lg:w-[420px] flex-shrink-0 order-1 lg:order-2 space-y-3">
+          {/* Re-upload card (owner only) */}
+          {isOwner && (
+            <div className="bg-white rounded-xl overflow-hidden shadow-sm" style={{ border: '1px solid #e8eaef' }}>
+              <div className="px-4 py-3">
+                <span className="text-sm font-semibold text-gray-800">{t('manageSkill', '管理 Skill')}</span>
+              </div>
+              <div className="px-4 pb-4">
+                <Button
+                  icon={<CloudUploadOutlined />}
+                  onClick={() => setReuploadOpen(true)}
+                  block
+                >
+                  {t('reuploadPackage', '重新上传压缩包')}
+                </Button>
+              </div>
+            </div>
+          )}
+
           <div className="bg-white rounded-xl overflow-hidden shadow-sm" style={{ border: '1px solid #e8eaef' }}>
             {/* Card header: title + version selector */}
             <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid #edeef3' }}>
@@ -681,6 +735,37 @@ function SkillDetail() {
         </div>
       </div>
       </div>
+
+      {/* Re-upload Modal */}
+      <Modal
+        title={t('reuploadTitle', '重新上传 Skill 压缩包')}
+        open={reuploadOpen}
+        onCancel={() => { setReuploadOpen(false); setReuploadFile(null); }}
+        footer={[
+          <Button key="cancel" onClick={() => { setReuploadOpen(false); setReuploadFile(null); }} disabled={reuploading}>
+            {t('cancel', '取消')}
+          </Button>,
+          <Button key="submit" type="primary" loading={reuploading} onClick={handleReupload} disabled={!reuploadFile}>
+            {t('upload', '上传')}
+          </Button>,
+        ]}
+        width={480}
+        destroyOnClose
+      >
+        <Upload.Dragger
+          accept=".zip"
+          maxCount={1}
+          beforeUpload={(file) => {
+            setReuploadFile(file);
+            return false;
+          }}
+          onRemove={() => setReuploadFile(null)}
+          fileList={reuploadFile ? [{ uid: '-1', name: reuploadFile.name, status: 'done' as const }] : []}
+        >
+          <p className="ant-upload-drag-icon"><InboxOutlined /></p>
+          <p className="ant-upload-text">{t('uploadDragHint', '点击或拖拽 .zip 文件到此处')}</p>
+        </Upload.Dragger>
+      </Modal>
     </Layout>
   );
 }

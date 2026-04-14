@@ -167,3 +167,10 @@ websocat -H "Authorization: Bearer $TOKEN" ws://localhost:8080/your-ws-endpoint
 - **命名空间**: `NacosServiceImpl` → `NamingMaintainerService` → Nacos `core/namespace/`
 
 详细映射见 `docs/NACOS_SOURCE_INDEX.md`。
+
+## Active Technologies
+- Java 17 + TypeScript (React) + Spring Boot 3.2.11, Spring Data JPA, MariaDB/MySQL, React + Vite (001-developer-personal-skill)
+- MariaDB（Product 表扩展）+ Nacos（Skill 文件存储，现有机制复用） (001-developer-personal-skill)
+
+## Recent Changes
+- 001-developer-personal-skill: Added Java 17 + TypeScript (React) + Spring Boot 3.2.11, Spring Data JPA, MariaDB/MySQL, React + Vite

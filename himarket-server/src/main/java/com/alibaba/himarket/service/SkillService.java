@@ -92,6 +92,15 @@ public interface SkillService {
     void forcePublishVersion(String productId, String version, Boolean updateLatestLabel);
 
     /**
+     * Auto-publishes the latest draft/reviewing version to online state.
+     * Reads the current editing/reviewing version from Nacos meta, submits it, then force-publishes.
+     * Used for personal skills that bypass the admin review workflow.
+     *
+     * @param productId the product identifier
+     */
+    void autoPublishLatest(String productId);
+
+    /**
      * Deletes the current editing draft.
      *
      * @param productId the product identifier

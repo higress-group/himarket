@@ -41,6 +41,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -48,6 +49,7 @@ import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -76,6 +78,14 @@ public class SkillServiceImpl implements SkillService {
 
         byte[] zipBytes = file.getBytes();
 
+        // 校验 SKILL.md 中的 name 与产品名称是否一致
+        String skillMdName = extractNameFromZip(zipBytes);
+        if (StrUtil.isNotBlank(skillMdName) && !skillMdName.equals(product.getName())) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_PARAMETER,
+                    "压缩包中 SKILL.md 的名称(" + skillMdName + ")与产品名称(" + product.getName() + ")不一致");
+        }
+
         SkillConfig config = product.getFeature().getSkillConfig();
 
         if (StrUtil.isBlank(ref.getSkillName())) {
@@ -98,6 +108,7 @@ public class SkillServiceImpl implements SkillService {
     }
 
     @Override
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void deleteSkill(String productId) {
         Product product = findProduct(productId);
         SkillRef ref = getSkillRef(productId, false);
@@ -312,6 +323,51 @@ public class SkillServiceImpl implements SkillService {
                                 version,
                                 updateLatestLabel));
         log.info("Force-published Skill {}, version {}", ref.getSkillName(), version);
+
+        syncProductStatusAfterVersionChange(product, ref);
+    }
+
+    @Override
+    public void autoPublishLatest(String productId) {
+        Product product = findProduct(productId);
+        SkillRef ref = getSkillRef(productId, true);
+
+        SkillMeta meta =
+                execute(
+                        ref.getNacosId(),
+                        s -> s.getSkillMeta(ref.getNamespace(), ref.getSkillName()));
+        if (meta == null) {
+            log.warn("autoPublishLatest: no Nacos meta found for skill {}", ref.getSkillName());
+            return;
+        }
+
+        // 优先取 editingVersion，其次 reviewingVersion
+        String version = meta.getEditingVersion();
+        if (StrUtil.isBlank(version)) {
+            version = meta.getReviewingVersion();
+        }
+        if (StrUtil.isBlank(version)) {
+            log.warn(
+                    "autoPublishLatest: no draft/reviewing version for skill {}",
+                    ref.getSkillName());
+            return;
+        }
+
+        final String v = version;
+        // submit（草稿 → 审核中），忽略已在审核中的错误
+        try {
+            execute(ref.getNacosId(), s -> s.submit(ref.getNamespace(), ref.getSkillName(), v));
+            log.info("autoPublishLatest: submitted skill {} version ", ref.getSkillName(), v);
+        } catch (Exception e) {
+            log.warn(
+                    "autoPublishLatest: submit failed (may already be reviewing): {}",
+                    e.getMessage());
+        }
+        // forcePublish（审核中 → online）
+        execute(
+                ref.getNacosId(),
+                s -> s.forcePublish(ref.getNamespace(), ref.getSkillName(), v, true));
+        log.info("autoPublishLatest: force-published skill {} version {}", ref.getSkillName(), v);
 
         syncProductStatusAfterVersionChange(product, ref);
     }
@@ -847,6 +903,63 @@ public class SkillServiceImpl implements SkillService {
             return message.substring(idx + "last errMsg: ".length());
         }
         return message;
+    }
+
+    /**
+     * 从 ZIP 中解析 SKILL.md 的 YAML front matter，提取 name 字段。
+     * 如果 SKILL.md 不存在或无 name 字段，返回 null。
+     */
+    private String extractNameFromZip(byte[] zipBytes) {
+        try (ZipInputStream zis = new ZipInputStream(new java.io.ByteArrayInputStream(zipBytes))) {
+            ZipEntry entry;
+            while ((entry = zis.getNextEntry()) != null) {
+                String entryName = entry.getName();
+                // 匹配 SKILL.md（可能在根目录或子目录中）
+                String fileName =
+                        entryName.contains("/")
+                                ? entryName.substring(entryName.lastIndexOf('/') + 1)
+                                : entryName;
+                if ("SKILL.md".equals(fileName)) {
+                    String content = new String(zis.readAllBytes(), StandardCharsets.UTF_8);
+                    return parseNameFromFrontMatter(content);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to extract name from ZIP", e);
+        }
+        return null;
+    }
+
+    /**
+     * 解析 YAML front matter 中的 name 字段。
+     * front matter 格式：---\nkey: value\n---\n
+     */
+    private String parseNameFromFrontMatter(String content) {
+        if (content == null) {
+            return null;
+        }
+        String trimmed = content.stripLeading();
+        if (!trimmed.startsWith("---")) {
+            return null;
+        }
+        int end = trimmed.indexOf("---", 3);
+        if (end < 0) {
+            return null;
+        }
+        String frontMatter = trimmed.substring(3, end);
+        for (String line : frontMatter.split("\n")) {
+            String trimmedLine = line.trim();
+            if (trimmedLine.startsWith("name:")) {
+                String value = trimmedLine.substring("name:".length()).trim();
+                // 去除引号
+                if ((value.startsWith("\"") && value.endsWith("\""))
+                        || (value.startsWith("'") && value.endsWith("'"))) {
+                    value = value.substring(1, value.length() - 1);
+                }
+                return value;
+            }
+        }
+        return null;
     }
 
     @Data
