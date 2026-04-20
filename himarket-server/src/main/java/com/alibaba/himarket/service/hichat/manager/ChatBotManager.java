@@ -294,12 +294,11 @@ public class ChatBotManager {
      */
     private void registerTool(Toolkit toolkit, McpClientWrapper client, McpSchema.Tool tool) {
         try {
-            java.util.Set<String> required =
-                    tool.inputSchema() != null && tool.inputSchema().required() != null
-                            ? new java.util.HashSet<>(tool.inputSchema().required())
-                            : java.util.Collections.emptySet();
+            // Note: The second parameter of convertMcpSchemaToParameters is presetKeys
+            // (parameters to exclude from schema because they have preset values).
+            // Pass null since we have no preset parameters here.
             Map<String, Object> parameters =
-                    McpTool.convertMcpSchemaToParameters(tool.inputSchema(), required);
+                    McpTool.convertMcpSchemaToParameters(tool.inputSchema(), null);
             McpTool mcpTool =
                     new McpTool(
                             tool.name(),
