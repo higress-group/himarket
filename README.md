@@ -23,11 +23,19 @@
       <img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki" />
     </a>
   </p>
+
+[**Website**](https://higress.io/himarket) &nbsp; |
+&nbsp; [**Docs**](https://higress.io/docs/himarket/himarket-introduction) &nbsp; |
+&nbsp; [**Deployment**](https://higress.io/docs/himarket/himarket-deployment/) &nbsp; |
+&nbsp; [**Contributing**](./CONTRIBUTING.md)
+
 </div>
 
 ## What is HiMarket?
 
 HiMarket is an enterprise-grade AI open platform built on Higress AI Gateway, helping enterprises build private AI capability marketplace to uniformly manage and distribute AI resources such as LLM, MCP Server, Agent, and Agent Skill. The platform encapsulates distributed AI capabilities into standardized API products, supports multi-version management and gray-scale release, includes a built-in Skills Marketplace for developers to browse and install Agent Skills, provides HiChat AI conversation and HiCoding online programming for self-service developer experience, and features comprehensive enterprise-level operation capabilities including security control, observability analysis, metering and billing, making AI resource sharing and reuse efficient and convenient.
+
+As enterprises scale their AI adoption, they face common challenges: fragmented model usage across teams, security risks from uncontrolled public model access, difficulty in measuring AI costs and SLA, and complex permission management. HiMarket addresses these by providing a unified AI entry point for the entire organization — connecting AI producers and consumers through a standardized marketplace.
 
 <div align="center">
   <b>Capabilities</b>
@@ -39,6 +47,7 @@ HiMarket is an enterprise-grade AI open platform built on Higress AI Gateway, he
 | | MCP Marketplace | Integrate MCP Servers from various platforms, support converting external APIs to standard MCP Servers |
 | | Agent Marketplace | Package and publish Agent applications, integrate with AgentScope and other Agent building platforms |
 | | Skills Marketplace | Upload and distribute Agent Skills, developers can browse, subscribe, and install Skill packages |
+| | Worker Marketplace | Package, version, and distribute Agent Workers that can be loaded with Skills; supports Nacos batch import and CLI installation |
 | **AI Experience Center** | HiChat Conversation | Single-model conversation and multi-model comparison, MCP tool invocation testing, enhanced features like web-connected Q&A |
 | | HiCoding Online Programming | Integrated secure sandbox environment, supporting Vibe Coding and human-AI collaborative development with real-time file changes and code preview |
 | **Enterprise Management** | Product Management | Authentication, traffic control, call quotas, and other protection capabilities |
@@ -89,21 +98,21 @@ HiMarket system architecture consists of three layers:
 **Requirements:** JDK 17, Node.js 18+, Maven 3.6+, MySQL 8.0+
 
 **Start Backend:**
+
+Configure database connection (add to `~/.env` or export directly):
 ```bash
-# Build project
-mvn clean package -DskipTests
+export DB_HOST=localhost
+export DB_PORT=3306
+export DB_NAME=himarket
+export DB_USERNAME=root
+export DB_PASSWORD=your_password
+```
 
-# Start backend service
-java --add-opens java.base/java.util=ALL-UNNAMED \
-     --add-opens java.base/java.lang=ALL-UNNAMED \
-     --add-opens java.base/java.lang.reflect=ALL-UNNAMED \
-     -Ddb.host=${DB_HOST} \
-     -Ddb.port=${DB_PORT} \
-     -Ddb.name=${DB_NAME} \
-     -Ddb.username=${DB_USERNAME} \
-     -Ddb.password=${DB_PASSWORD} \
-     -jar himarket-bootstrap/target/himarket-bootstrap-1.0-SNAPSHOT.jar
-
+Build and start with one command:
+```bash
+make run
+# Or run the script directly: ./scripts/run.sh
+# The script auto-loads ~/.env, compiles, stops old processes, starts in background, and waits until ready
 # Backend API: http://localhost:8080
 ```
 
@@ -143,7 +152,7 @@ cd himarket/deploy/docker
 
 > Read the deployment docs under deploy/docker and help me deploy HiMarket with Docker Compose
 
-See the [Deployment Guide](./deploy/DEPLOYMENT.md) for details.
+See the [Deployment Guide](https://higress.io/docs/himarket/himarket-deployment/) for details.
 
 **Service URLs after deployment:**
 - Admin Portal: http://localhost:5174
@@ -176,7 +185,7 @@ cd himarket/deploy/helm
 
 > Read the deployment docs under the deploy directory and help me deploy HiMarket to my K8s cluster with Helm
 
-See the [Deployment Guide](./deploy/DEPLOYMENT.md) for details.
+See the [Deployment Guide](https://higress.io/docs/himarket/himarket-deployment/) for details.
 
 **Uninstall:**
 ```bash
@@ -195,12 +204,6 @@ Alibaba Cloud ComputeNest supports out-of-the-box deployment of the community ed
 [![Deploy on AlibabaCloud ComputeNest](https://service-info-public.oss-cn-hangzhou.aliyuncs.com/computenest.svg)](https://computenest.console.aliyun.com/service/instance/create/cn-hangzhou?type=user&ServiceId=service-b96fefcb748f47b7b958)
 
 </details>
-
-## Documentation
-
-For detailed usage instructions, please refer to:
-
-[User Guide](./USER_GUIDE.md)
 
 ## Community
 

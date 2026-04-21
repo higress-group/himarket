@@ -40,7 +40,6 @@ function ConsumersPage() {
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [addLoading, setAddLoading] = useState(false);
   const [addForm, setAddForm] = useState({ description: '', name: '' });
-  const [_refreshIndex, setRefreshIndex] = useState(0);
   const [primaryConsumer, setPrimaryConsumer] = useState<IGetPrimaryConsumerResp>();
 
   const [consumersForSelect, setConsumersForSelect] = useState<IConsumer[]>([]);
@@ -65,7 +64,7 @@ function ConsumersPage() {
       }
     },
     [page, pageSize],
-  ); // refreshIndex is intentionally excluded to prevent unnecessary re-fetches
+  );
 
   const fetchConsumersForSelect = async (
     searchKeyword?: string,
@@ -172,17 +171,16 @@ function ConsumersPage() {
         <div className="flex gap-2 items-center">
           <div className="font-medium">{name}</div>
           {record.consumerId === primaryConsumer?.consumerId && (
-            <button
-              className="px-2 py-1 gap-2 cursor-pointer rounded-md bg-black/70 text-white border-0"
+            <div
+              className="px-2 py-1 gap-2 cursor-pointer rounded-md bg-black/70 text-white"
               onClick={() => {
                 setShowModifyPrimaryConsumerModal(true);
                 fetchConsumersForSelect(undefined, 1, 1000, true);
               }}
-              type="button"
             >
               <span> 默认消费者 </span>
               <EditOutlined />
-            </button>
+            </div>
           )}
         </div>
       ),
@@ -273,7 +271,7 @@ function ConsumersPage() {
               <Button
                 className="rounded-lg"
                 icon={<ReloadOutlined />}
-                onClick={() => setRefreshIndex((v) => v + 1)}
+                onClick={() => fetchConsumers(searchName)}
               />
             </div>
           </div>

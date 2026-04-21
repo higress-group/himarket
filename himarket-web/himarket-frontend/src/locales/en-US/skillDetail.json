@@ -8,7 +8,6 @@
   "noVersion": "No versions",
   "downloadSkillPackage": "Download Skill Package",
   "npxDownload": "NPX Download",
-  "selectIde": "Select IDE",
   "outputDir": "Output Directory",
   "outputDirPlaceholder": "Enter output directory path",
   "httpDownload": "HTTP Download",

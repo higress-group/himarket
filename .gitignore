@@ -60,11 +60,14 @@ push-himarket.sh
 ### OpenSandbox (local clone, not committed) ###
 /OpenSandbox/
 
-### Nacos (local symlink/clone, not committed) ###
-/nacos
+### Reference projects (local clones/forks, not committed) ###
+/reference-projects/
 
 ### Kiro (AWS Kira AI coding agent) ###
 .kiro/
+
+### Qoder repo wiki ###
+.qoder/repowiki/
 
 ### Docker deploy data (should live outside project) ###
 deploy/docker/data/

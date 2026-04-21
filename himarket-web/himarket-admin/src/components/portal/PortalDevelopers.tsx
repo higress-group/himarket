@@ -7,13 +7,13 @@ import {
   CheckCircleFilled,
   ClockCircleOutlined,
 } from '@ant-design/icons';
-import { Table, Button, Space, message, Modal } from 'antd';
+import { Table, Badge, Button, Space, message, Modal } from 'antd';
 import { useEffect, useState } from 'react';
 
 import { SubscriptionListModal } from '@/components/subscription/SubscriptionListModal';
 import { portalApi } from '@/lib/api';
 import { formatDateTime } from '@/lib/utils';
-import type { ApiResponse, Consumer, Developer, PaginatedResponse, Portal } from '@/types';
+import type { Portal, Developer, Consumer } from '@/types';
 
 interface PortalDevelopersProps {
   portal: Portal;
@@ -26,7 +26,7 @@ export function PortalDevelopers({ portal }: PortalDevelopersProps) {
     pageSize: 10,
     showQuickJumper: true,
     showSizeChanger: true,
-    showTotal: (total: number, _range: [number, number]) => `共 ${total} 条`,
+    showTotal: (total: number, range: [number, number]) => `共 ${total} 条`,
     total: 0,
   });
 
@@ -39,7 +39,7 @@ export function PortalDevelopers({ portal }: PortalDevelopersProps) {
     pageSize: 10,
     showQuickJumper: true,
     showSizeChanger: true,
-    showTotal: (total: number, _range: [number, number]) => `共 ${total} 条`,
+    showTotal: (total: number, range: [number, number]) => `共 ${total} 条`,
     total: 0,
   });
 
@@ -49,7 +49,6 @@ export function PortalDevelopers({ portal }: PortalDevelopersProps) {
 
   useEffect(() => {
     fetchDevelopers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [portal.portalId, pagination.current, pagination.pageSize]);
 
   const fetchDevelopers = () => {
@@ -83,11 +82,11 @@ export function PortalDevelopers({ portal }: PortalDevelopersProps) {
       });
   };
 
-  const handleTableChange = (paginationInfo: { current?: number; pageSize?: number }) => {
+  const handleTableChange = (paginationInfo: any) => {
     setPagination((prev) => ({
       ...prev,
-      current: paginationInfo.current ?? prev.current,
-      pageSize: paginationInfo.pageSize ?? prev.pageSize,
+      current: paginationInfo.current,
+      pageSize: paginationInfo.pageSize,
     }));
   };
 
@@ -123,25 +122,41 @@ export function PortalDevelopers({ portal }: PortalDevelopersProps) {
 
   const fetchConsumers = (developerId: string, page: number, size: number) => {
     portalApi.getConsumerList(portal.portalId, developerId, { page: page, size }).then((res) => {
-      const body = res as unknown as ApiResponse<PaginatedResponse<Consumer>>;
-      setConsumers(body.data.content || []);
+      setConsumers(res.data.content || []);
       setConsumerPagination((prev) => ({
         ...prev,
-        total: body.data.totalElements || 0,
+        total: res.data.totalElements || 0,
       }));
     });
   };
 
-  const handleConsumerTableChange = (paginationInfo: { current?: number; pageSize?: number }) => {
-    if (!currentDeveloper) return;
-    const nextCurrent = paginationInfo.current ?? consumerPagination.current;
-    const nextPageSize = paginationInfo.pageSize ?? consumerPagination.pageSize;
-    setConsumerPagination((prev) => ({
-      ...prev,
-      current: nextCurrent,
-      pageSize: nextPageSize,
-    }));
-    fetchConsumers(currentDeveloper.developerId, nextCurrent, nextPageSize);
+  const handleConsumerTableChange = (paginationInfo: any) => {
+    if (currentDeveloper) {
+      setConsumerPagination((prev) => ({
+        ...prev,
+        current: paginationInfo.current,
+        pageSize: paginationInfo.pageSize,
+      }));
+      fetchConsumers(currentDeveloper.developerId, paginationInfo.current, paginationInfo.pageSize);
+    }
+  };
+
+  const handleConsumerStatusUpdate = (consumerId: string) => {
+    if (currentDeveloper) {
+      portalApi
+        .approveConsumer(consumerId)
+        .then((res) => {
+          message.success('审批成功');
+          fetchConsumers(
+            currentDeveloper.developerId,
+            consumerPagination.current,
+            consumerPagination.pageSize,
+          );
+        })
+        .catch((err) => {
+          // message.error('审批失败')
+        });
+    }
   };
 
   // 查看订阅列表
@@ -203,7 +218,7 @@ export function PortalDevelopers({ portal }: PortalDevelopersProps) {
     {
       fixed: 'right' as const,
       key: 'action',
-      render: (_: unknown, record: Developer) => (
+      render: (_: any, record: Developer) => (
         <Space size="middle">
           <Button icon={<EyeOutlined />} onClick={() => handleViewConsumers(record)} type="link">
             查看Consumer
@@ -280,15 +295,14 @@ export function PortalDevelopers({ portal }: PortalDevelopersProps) {
     },
     {
       key: 'action',
-      render: (_: unknown, record: Consumer) => (
-        <button
-          className="text-colorPrimary/80 text-colorPrimary flex items-center gap-2 bg-transparent border-none p-0 cursor-pointer"
+      render: (_: any, record: Consumer) => (
+        <div
+          className="text-colorPrimary/80 text-colorPrimary flex items-center gap-2"
           onClick={() => handleViewSubscriptions(record)}
-          type="button"
         >
           <UnorderedListOutlined />
           订阅列表
-        </button>
+        </div>
       ),
       title: '操作',
       width: 120,

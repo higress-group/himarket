@@ -8,7 +8,7 @@ import {
   InboxOutlined,
 } from '@ant-design/icons';
 import { Button, Dropdown, Modal, message } from 'antd';
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import ApiProductFormModal from '@/components/api-product/ApiProductFormModal';
@@ -49,7 +49,7 @@ const BASE_MENU_ITEMS = [
     key: 'portal',
     label: 'Portal',
   },
-] as const;
+];
 
 export default function ApiProductDetail() {
   const navigate = useNavigate();
@@ -60,33 +60,42 @@ export default function ApiProductDetail() {
   const [, setLoading] = useState(true); // 添加 loading 状态
 
   // 动态计算 menuItems（AGENT_SKILL / WORKER 类型：隐藏 Link API 和 Usage Guide，插入包管理和 Link Nacos）
-  const menuItems = useMemo(
-    () =>
-      apiProduct?.type === 'AGENT_SKILL'
+  const menuItems =
+    apiProduct?.type === 'AGENT_SKILL'
+      ? [
+          BASE_MENU_ITEMS[0], // overview
+          {
+            description: '技能包管理',
+            icon: InboxOutlined,
+            key: 'skill-package',
+            label: 'Skill Package',
+          },
+          BASE_MENU_ITEMS[3], // portal
+        ]
+      : apiProduct?.type === 'WORKER'
         ? [
             BASE_MENU_ITEMS[0], // overview
             {
-              description: '技能包管理',
+              description: 'Worker 包管理',
               icon: InboxOutlined,
-              key: 'skill-package',
-              label: 'Skill Package',
+              key: 'worker-package',
+              label: 'Worker Package',
             },
             BASE_MENU_ITEMS[3], // portal
           ]
-        : apiProduct?.type === 'WORKER'
+        : apiProduct?.type === 'MCP_SERVER'
           ? [
               BASE_MENU_ITEMS[0], // overview
               {
-                description: 'Worker 包管理',
-                icon: InboxOutlined,
-                key: 'worker-package',
-                label: 'Worker Package',
+                description: 'MCP Server 配置',
+                icon: LinkOutlined,
+                key: 'link-api',
+                label: '配置MCP',
               },
+              BASE_MENU_ITEMS[2], // usage-guide
               BASE_MENU_ITEMS[3], // portal
             ]
-          : BASE_MENU_ITEMS,
-    [apiProduct],
-  );
+          : BASE_MENU_ITEMS;
 
   // 从URL query参数获取当前tab，默认为overview
   const currentTab = searchParams.get('tab') || 'overview';
@@ -96,7 +105,7 @@ export default function ApiProductDetail() {
 
   const [editModalVisible, setEditModalVisible] = useState(false);
 
-  const fetchApiProduct = useCallback(async () => {
+  const fetchApiProduct = async () => {
     if (productId) {
       setLoading(true);
       try {
@@ -114,7 +123,7 @@ export default function ApiProductDetail() {
         setLoading(false);
       }
     }
-  }, [productId]);
+  };
 
   // 更新关联信息的回调函数
   const handleLinkedServiceUpdate = (newLinkedService: LinkedService | null) => {
@@ -123,14 +132,14 @@ export default function ApiProductDetail() {
 
   useEffect(() => {
     fetchApiProduct();
-  }, [fetchApiProduct]);
+  }, [productId]);
 
   // 同步URL参数和activeTab状态
   useEffect(() => {
     const currentTab = searchParams.get('tab') || 'overview';
     const valid = menuItems.some((item) => item.key === currentTab) ? currentTab : 'overview';
     setActiveTab(valid);
-  }, [searchParams, menuItems]);
+  }, [searchParams, apiProduct]);
 
   const handleBackToApiProducts = () => {
     navigate('/api-products');

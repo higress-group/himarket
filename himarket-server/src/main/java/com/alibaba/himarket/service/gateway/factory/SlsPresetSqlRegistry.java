@@ -616,6 +616,16 @@ public class SlsPresetSqlRegistry {
                                 + " '$.mcp_tool_name') is not null limit 100",
                         null,
                         null));
+        // MCP Server列表
+        presets.put(
+                "filter_mcp_server_options",
+                new Preset(
+                        "filter_mcp_server_options",
+                        DisplayType.TABLE,
+                        "(*) | select distinct route_name as mcp_server from log where"
+                                + " route_name is not null limit 100",
+                        null,
+                        null));
     }
 
     /** 根据场景名获取预设 */

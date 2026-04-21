@@ -5,7 +5,7 @@ metadata:
   labels:
     app: himarket-frontend
 spec:
-  replicas: {{ .Values.frontend.replicaCount | default (include "himarket.sizeToReplicas" (.Values.frontend.size | default .Values.size)) }}
+  replicas: {{ .Values.frontend.replicaCount | default (include "himarket.sizeToReplicas" ((.Values.frontend.size | default .Values.size) | toString)) }}
   selector:
     matchLabels:
       app: himarket-frontend
@@ -31,7 +31,7 @@ spec:
             - configMapRef:
                 name: himarket-frontend
           resources:
-            {{- include "himarket.sizeToResourcesLight" (.Values.frontend.size | default .Values.size) | nindent 12 }}
+            {{- include "himarket.sizeToResourcesLight" ((.Values.frontend.size | default .Values.size) | toString) | nindent 12 }}
           {{- with .Values.volumeMounts }}
           volumeMounts:
             {{- toYaml . | nindent 12 }}

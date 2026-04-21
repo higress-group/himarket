@@ -1,0 +1,270 @@
+networks:
+  himarket-network:
+    driver: bridge
+
+services:
+  # ============================================================
+  # 第一层：基础设施（MySQL, Redis）—— 同时启动
+  # ============================================================
+
+  # MySQL 数据库(Himarket + Nacos) - 内置 MySQL，始终启动
+  mysql:
+    # Apple Silicon 用户可通过环境变量注入 ARM64 原生镜像，加快初始化速度：
+    # MYSQL_IMAGE="docker.io/arm64v8/mysql:8.0" ./install-podman.sh
+    image: ${MYSQL_IMAGE:-opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/mysql:latest}
+    pull_policy: always
+    container_name: himarket-mysql
+    # Podman 适配：InnoDB 轻量化参数，缓解 Podman VM I/O 开销导致的首次初始化缓慢问题
+    command:
+      - --innodb_buffer_pool_size=32M
+      - --innodb_log_file_size=8M
+      - --innodb_flush_log_at_trx_commit=2
+      - --innodb_doublewrite=OFF
+      - --skip-log-bin
+      - --performance_schema=OFF
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-himarket_root_2024}
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-portal_db}
+      - MYSQL_USER=${MYSQL_USER:-portal_user}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-himarket_app_2024}
+    ports:
+      - "3306:3306"
+    volumes:
+      # Podman 适配：使用 named volume 替代 host bind mount，避免 Podman VM 跨文件系统 I/O 性能问题
+      - himarket-mysql-data:/var/lib/mysql:Z
+      - ./init-nacos-db.sh:/docker-entrypoint-initdb.d/02-init-nacos-db.sh:ro
+      - ../helm/nacos/sql:/nacos-sql:ro
+    networks:
+      - himarket-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-himarket_root_2024}"]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      # Podman 适配：start_period 容忍 Podman VM 下 MySQL 初始化耗时较长
+      start_period: 30s
+    restart: always
+
+  # ============================================================
+  # 第二层：Nacos —— 等 MySQL healthy 后启动（与 Helm 对齐，使用 MySQL 存储）
+  # ============================================================
+
+  # Nacos Server - 使用 MySQL 作为数据源（与 Helm 部署一致）
+  nacos:
+    image: ${NACOS_IMAGE:-nacos-registry.cn-hangzhou.cr.aliyuncs.com/nacos/nacos-server:v3.2.1-2026.03.30}
+    pull_policy: always
+    container_name: nacos-standalone
+    environment:
+      - PREFER_HOST_MODE=hostname
+      - MODE=standalone
+      - SPRING_DATASOURCE_PLATFORM=mysql
+      - MYSQL_SERVICE_HOST=mysql
+      - MYSQL_SERVICE_PORT=3306
+      - MYSQL_SERVICE_DB_NAME=nacos
+      - MYSQL_SERVICE_USER=root
+      - MYSQL_SERVICE_PASSWORD=${MYSQL_ROOT_PASSWORD:-himarket_root_2024}
+      - MYSQL_SERVICE_DB_PARAM=characterEncoding=utf8&connectTimeout=10000&socketTimeout=30000&autoReconnect=true&useSSL=false&allowPublicKeyRetrieval=true
+      - NACOS_AUTH_IDENTITY_KEY=${NACOS_AUTH_IDENTITY_KEY:-serverIdentity}
+      - NACOS_AUTH_IDENTITY_VALUE=${NACOS_AUTH_IDENTITY_VALUE:-security}
+      - NACOS_AUTH_ENABLE=true
+      - NACOS_AUTH_ALLOW_ANONYMOUS_AI_ENABLED=true
+      - NACOS_AUTH_TOKEN=${NACOS_AUTH_TOKEN:-VGhpc0lzTXlDdXN0b21TZWNyZXRLZXkwMTIzNDU2Nzg=}
+    volumes:
+      - ${HIMARKET_DATA_DIR:-${HOME}/himarket-data}/standalone-logs/:/home/nacos/logs
+    ports:
+      - "8080:8080"
+      - "8848:8848"
+      - "9848:9848"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - himarket-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/v3/console/health/readiness"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+    restart: always
+    profiles:
+      - opensource-nacos
+
+  # Redis Stack Server(for Higress MCP)
+  redis-stack-server:
+    image: ${REDIS_IMAGE:-higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/redis-stack-server:7.4.0-v3}
+    pull_policy: always
+    container_name: redis-stack-server
+    ports:
+      - "6379:6379"
+    networks:
+      - himarket-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: always
+    profiles:
+      - higress-gateway
+
+  # ============================================================
+  # 第三层：网关 + 沙箱 —— 等 Redis healthy 后启动
+  # ============================================================
+
+  # Higress All-in-One (Gateway + Console)
+  higress:
+    image: ${HIGRESS_IMAGE:-higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/all-in-one:latest}
+    pull_policy: always
+    container_name: higress
+    ports:
+      - "8001:8001"  # Console
+      - "8082:8080"  # Gateway HTTP
+      - "8443:8443"  # Gateway HTTPS
+    depends_on:
+      redis-stack-server:
+        condition: service_healthy
+    networks:
+      - himarket-network
+    volumes:
+      - ${HIMARKET_DATA_DIR:-${HOME}/himarket-data}/data/higress:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 15s
+    restart: always
+    profiles:
+      - higress-gateway
+
+  # Sandbox Shared (远程沙箱)
+  sandbox-shared:
+    image: ${SANDBOX_IMAGE:-opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/sandbox:latest}
+    pull_policy: always
+    container_name: sandbox-shared
+    environment:
+      - ALLOWED_COMMANDS=${SANDBOX_ALLOWED_COMMANDS:-qodercli,qwen,claude-agent-acp,opencode}
+    volumes:
+      # Podman 适配：使用 named volume 替代 host bind mount
+      - himarket-sandbox-workspace:/workspace
+    networks:
+      - himarket-network
+    restart: always
+
+  # ============================================================
+  # 第四层：业务后端 —— 等 MySQL healthy 后启动
+  # ============================================================
+
+  # Himarket Server
+  himarket-server:
+    image: ${HIMARKET_SERVER_IMAGE:-opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-server:latest}
+    pull_policy: always
+    # Podman 适配：固定 container_name，供 wait_service 通过 podman inspect 查询状态
+    container_name: himarket-server
+    environment:
+      - TZ=${TZ:-Asia/Shanghai}
+      - JAVA_OPTS=${JAVA_OPTS:--XX:+UseG1GC -XX:MaxRAMPercentage=75.0 -XX:InitialRAMPercentage=50.0 -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp/heapdump.hprof}
+      - DB_HOST=${DB_HOST:-mysql}
+      - DB_PORT=${DB_PORT:-3306}
+      - DB_NAME=${DB_NAME:-portal_db}
+      - DB_USERNAME=${DB_USERNAME:-portal_user}
+      - DB_PASSWORD=${DB_PASSWORD:-himarket_app_2024}
+      - JWT_SECRET=${JWT_SECRET}
+      - ACP_REMOTE_HOST=${ACP_REMOTE_HOST:-sandbox-shared}
+      - ACP_REMOTE_PORT=${ACP_REMOTE_PORT:-8080}
+      - ACP_DEFAULT_RUNTIME=${ACP_DEFAULT_RUNTIME:-remote}
+    ports:
+      # Podman 适配：podman-compose 不支持端口范围，使用单端口映射
+      - "18081:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      sandbox-shared:
+        condition: service_started
+    networks:
+      - himarket-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/admins/need-init || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 60s
+    deploy:
+      replicas: ${HIMARKET_REPLICAS:-1}
+      resources:
+        limits:
+          cpus: "${HIMARKET_CPU_LIMIT:-2}"
+          memory: "${HIMARKET_MEM_LIMIT:-4g}"
+    restart: always
+
+  # ============================================================
+  # 第五层：前端 —— 等 Server healthy 后启动
+  # ============================================================
+
+  # Himarket Admin
+  himarket-admin:
+    image: ${HIMARKET_ADMIN_IMAGE:-opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-admin:latest}
+    pull_policy: always
+    # Podman 适配：固定 container_name
+    container_name: himarket-admin
+    environment:
+      - HIMARKET_SERVER=http://himarket-server:8080
+    ports:
+      # Podman 适配：podman-compose 不支持端口范围，使用单端口映射
+      - "5175:8000"
+    depends_on:
+      himarket-server:
+        condition: service_healthy
+    networks:
+      - himarket-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/api/v1/admins/need-init > /dev/null || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    deploy:
+      replicas: ${HIMARKET_REPLICAS:-1}
+      resources:
+        limits:
+          cpus: "${HIMARKET_LIGHT_CPU_LIMIT:-1}"
+          memory: "${HIMARKET_LIGHT_MEM_LIMIT:-1g}"
+    restart: always
+
+  # Himarket Frontend
+  himarket-frontend:
+    image: ${HIMARKET_FRONTEND_IMAGE:-opensource-registry.cn-hangzhou.cr.aliyuncs.com/higress-group/himarket-frontend:latest}
+    pull_policy: always
+    # Podman 适配：固定 container_name
+    container_name: himarket-frontend
+    environment:
+      - HIMARKET_SERVER=http://himarket-server:8080
+    ports:
+      # Podman 适配：podman-compose 不支持端口范围，使用单端口映射
+      - "5173:8000"
+    depends_on:
+      himarket-server:
+        condition: service_healthy
+    networks:
+      - himarket-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/api/v1/admins/need-init > /dev/null || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    deploy:
+      replicas: ${HIMARKET_REPLICAS:-1}
+      resources:
+        limits:
+          cpus: "${HIMARKET_LIGHT_CPU_LIMIT:-1}"
+          memory: "${HIMARKET_LIGHT_MEM_LIMIT:-1g}"
+    restart: always
+
+# Podman 适配：使用 named volume 避免 Podman VM 跨文件系统 I/O 性能问题
+volumes:
+  himarket-mysql-data:
+    driver: local
+  himarket-sandbox-workspace:
+    driver: local

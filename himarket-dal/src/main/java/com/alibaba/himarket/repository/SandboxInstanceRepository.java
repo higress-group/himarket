@@ -17,22 +17,19 @@
  * under the License.
  */
 
-package com.alibaba.himarket.core.event;
+package com.alibaba.himarket.repository;
 
+import com.alibaba.himarket.entity.SandboxInstance;
 import java.util.List;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import java.util.Optional;
 
-/**
- * Event triggered when products are queried (list or get). Used to trigger async sync of download
- * counts from Nacos.
- */
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-public class ProductQueriedEvent {
+public interface SandboxInstanceRepository extends BaseRepository<SandboxInstance, Long> {
 
-    /** List of product IDs that were queried */
-    private List<String> productIds;
+    Optional<SandboxInstance> findBySandboxId(String sandboxId);
+
+    Optional<SandboxInstance> findBySandboxName(String sandboxName);
+
+    long countByStatus(String status);
+
+    List<SandboxInstance> findByStatus(String status);
 }

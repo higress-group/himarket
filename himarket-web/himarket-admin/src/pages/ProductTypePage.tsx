@@ -2,10 +2,14 @@ import { PlusOutlined, ImportOutlined } from '@ant-design/icons';
 import { Button, Modal, message } from 'antd';
 import { useEffect, useRef, useState } from 'react';
 
+import ImportProductsModal from '@/components/api-product/ImportProductsModal';
 import ProductTable from '@/components/api-product/ProductTable';
 import type { ProductTableRef } from '@/components/api-product/ProductTable';
-import { nacosApi, skillApi, workerApi } from '@/lib/api';
-import type { NacosInstance } from '@/types/gateway';
+import McpCreationSelector from '@/components/mcp-creation/McpCreationSelector';
+import McpStepWizard from '@/components/mcp-creation/McpStepWizard';
+import type { CreationMode } from '@/components/mcp-creation/types';
+import ImportMcpModal from '@/components/mcp-vendor/ImportMcpModal';
+import { nacosApi, workerApi, skillApi } from '@/lib/api';
 
 // 产品类型标题映射
 const TYPE_TITLES: Record<string, string> = {
@@ -33,16 +37,25 @@ interface ProductTypePageProps {
 const ProductTypePage: React.FC<ProductTypePageProps> = ({ productType }) => {
   const tableRef = useRef<ProductTableRef>(null);
   const [importLoading, setImportLoading] = useState(false);
-  const [defaultNacos, setDefaultNacos] = useState<NacosInstance | null>(null);
+  const [defaultNacos, setDefaultNacos] = useState<any>(null);
+  const [importModalVisible, setImportModalVisible] = useState(false);
 
   const showNacosImport = productType === 'AGENT_SKILL' || productType === 'WORKER';
+  const showBatchImport = productType !== 'AGENT_SKILL' && productType !== 'WORKER';
+  const isMcpServer = productType === 'MCP_SERVER';
+  const [mcpImportOpen, setMcpImportOpen] = useState(false);
+
+  // Unified MCP creation flow state
+  const [selectorVisible, setSelectorVisible] = useState(false);
+  const [wizardVisible, setWizardVisible] = useState(false);
+  const [wizardMode, setWizardMode] = useState<Exclude<CreationMode, 'vendor'>>('manual');
 
   // Fetch default Nacos instance for import feature
   useEffect(() => {
     if (showNacosImport) {
       nacosApi
         .getDefaultNacos()
-        .then((res) => {
+        .then((res: any) => {
           setDefaultNacos(res.data);
         })
         .catch(() => {
@@ -79,17 +92,33 @@ const ProductTypePage: React.FC<ProductTypePageProps> = ({ productType }) => {
           } else {
             message.info(`没有新的 ${typeName} 需要导入`);
           }
-        } catch (error: unknown) {
-          message.error(
-            (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-              `导入 ${typeName} 失败`,
-          );
+        } catch (error: any) {
+          message.error(error.response?.data?.message || `导入 ${typeName} 失败`);
         } finally {
           setImportLoading(false);
         }
       },
       title: `从 Nacos 导入 ${typeName}`,
     });
+  };
+
+  /** Handle creation mode selection from McpCreationSelector */
+  const handleMcpModeSelect = (mode: CreationMode) => {
+    setSelectorVisible(false);
+    if (mode === 'vendor') {
+      // Open existing ImportMcpModal for third-party market import
+      setMcpImportOpen(true);
+    } else {
+      // Open McpStepWizard for manual / gateway / nacos modes
+      setWizardMode(mode);
+      setWizardVisible(true);
+    }
+  };
+
+  /** Handle wizard success — refresh product list */
+  const handleWizardSuccess = () => {
+    setWizardVisible(false);
+    tableRef.current?.refresh();
   };
 
   return (
@@ -100,7 +129,14 @@ const ProductTypePage: React.FC<ProductTypePageProps> = ({ productType }) => {
           <p className="text-gray-500 mt-2">{TYPE_SUBTITLES[productType]}</p>
         </div>
         <div className="flex items-center gap-3">
-          {showNacosImport && (
+          {/* MCP_SERVER: single unified "创建 MCP" button */}
+          {isMcpServer && (
+            <Button icon={<PlusOutlined />} onClick={() => setSelectorVisible(true)} type="primary">
+              创建 MCP
+            </Button>
+          )}
+          {/* Non-MCP types: keep original buttons */}
+          {!isMcpServer && showNacosImport && (
             <Button
               disabled={!defaultNacos}
               icon={<ImportOutlined />}
@@ -110,17 +146,56 @@ const ProductTypePage: React.FC<ProductTypePageProps> = ({ productType }) => {
               从 Nacos 导入
             </Button>
           )}
-          <Button
-            icon={<PlusOutlined />}
-            onClick={() => tableRef.current?.handleCreate()}
-            type="primary"
-          >
-            创建 API Product
-          </Button>
+          {showBatchImport && (
+            <Button icon={<ImportOutlined />} onClick={() => setImportModalVisible(true)}>
+              批量导入
+            </Button>
+          )}
+          {!isMcpServer && (
+            <Button
+              icon={<PlusOutlined />}
+              onClick={() => tableRef.current?.handleCreate()}
+              type="primary"
+            >
+              创建 API Product
+            </Button>
+          )}
         </div>
       </div>
 
       <ProductTable productType={productType} ref={tableRef} />
+
+      {/* MCP creation flow modals */}
+      {isMcpServer && (
+        <>
+          <McpCreationSelector
+            onCancel={() => setSelectorVisible(false)}
+            onSelect={handleMcpModeSelect}
+            visible={selectorVisible}
+          />
+          <McpStepWizard
+            mode={wizardMode}
+            onCancel={() => setWizardVisible(false)}
+            onSuccess={handleWizardSuccess}
+            visible={wizardVisible}
+          />
+          <ImportMcpModal
+            onClose={() => setMcpImportOpen(false)}
+            onImportSuccess={() => tableRef.current?.refresh()}
+            open={mcpImportOpen}
+          />
+        </>
+      )}
+
+      <ImportProductsModal
+        onCancel={() => setImportModalVisible(false)}
+        onSuccess={() => {
+          setImportModalVisible(false);
+          tableRef.current?.refresh();
+        }}
+        productType={productType}
+        visible={importModalVisible}
+      />
     </div>
   );
 };

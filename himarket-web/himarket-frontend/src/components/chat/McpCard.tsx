@@ -1,4 +1,4 @@
-import { Button, Popover, Skeleton, Divider } from 'antd';
+import { Button, Popover, Skeleton, Divider, message } from 'antd';
 import { useState } from 'react';
 
 import APIs, { type IProductDetail, type IMcpTool } from '../../lib/apis';
@@ -10,6 +10,8 @@ interface McpCardProps {
   data: IProductDetail;
   isSubscribed?: boolean;
   isAdded?: boolean;
+  /** 是否有可用 endpoint，默认 true（向后兼容） */
+  hasEndpoint?: boolean;
   onAdd?: (product: IProductDetail) => void;
   onRemove?: (product: IProductDetail) => void;
   onQuickSubscribe?: (product: IProductDetail) => void;
@@ -20,6 +22,7 @@ interface McpCardProps {
 function McpCard(props: McpCardProps) {
   const {
     data,
+    hasEndpoint = true,
     isAdded = false,
     isSubscribed = false,
     onAdd,
@@ -31,17 +34,14 @@ function McpCard(props: McpCardProps) {
   const [toolsLoading, setToolsLoading] = useState(false);
   const [tools, setTools] = useState<IMcpTool[]>([]);
   const [popoverVisible, setPopoverVisible] = useState(false);
+  const [subscribing, setSubscribing] = useState(false);
 
-  // 加载工具列表
   const loadTools = async () => {
-    if (tools.length > 0) return; // 已加载过则不重复加载
-
+    if (tools.length > 0) return;
     setToolsLoading(true);
     try {
       const resp = await APIs.getMcpTools({ productId: data.productId });
-      if (resp.data?.tools) {
-        setTools(resp.data.tools);
-      }
+      if (resp.data?.tools) setTools(resp.data.tools);
     } catch (error) {
       console.error('Failed to load MCP tools:', error);
     } finally {
@@ -49,7 +49,6 @@ function McpCard(props: McpCardProps) {
     }
   };
 
-  // 当 Popover 打开时加载工具列表
   const handleVisibleChange = (visible: boolean) => {
     setPopoverVisible(visible);
     if (visible) {
@@ -66,8 +65,22 @@ function McpCard(props: McpCardProps) {
     }
   };
 
-  const handleQuickSubscribe = () => {
-    onQuickSubscribe?.(data);
+  const handleDirectSubscribe = async () => {
+    setSubscribing(true);
+    try {
+      const consumerRes = await APIs.getPrimaryConsumer();
+      if (consumerRes.code !== 'SUCCESS' || !consumerRes.data) {
+        message.error('获取消费者信息失败');
+        return;
+      }
+      await APIs.subscribeProduct(consumerRes.data.consumerId, data.productId);
+      message.success('订阅成功');
+      onQuickSubscribe?.(data);
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || e?.message || '订阅失败');
+    } finally {
+      setSubscribing(false);
+    }
   };
 
   return (
@@ -93,7 +106,7 @@ function McpCard(props: McpCardProps) {
         </div>
         <div className="flex w-full h-full justify-between">
           <div className="flex h-full flex-col justify-between">
-            <h3 className="font-medium text-base  truncate">{data.name}</h3>
+            <h3 className="font-medium text-base truncate">{data.name}</h3>
             <div>
               <span
                 className={`text-xs px-2 py-1 rounded-lg ${
@@ -110,7 +123,6 @@ function McpCard(props: McpCardProps) {
             content={
               <div className="w-80 max-h-96 overflow-y-auto">
                 {toolsLoading ? (
-                  // 骨架屏
                   <div className="space-y-3">
                     <Skeleton.Input active size="small" style={{ width: 100 }} />
                     {[1, 2, 3].map((i) => (
@@ -122,10 +134,7 @@ function McpCard(props: McpCardProps) {
                   </div>
                 ) : (
                   <div>
-                    {/* 顶部标题 */}
                     <div className="font-medium text-base mb-3">工具({tools.length})</div>
-
-                    {/* 工具列表 */}
                     {tools.length === 0 ? (
                       <div className="text-sm text-gray-400">暂无工具</div>
                     ) : (
@@ -152,9 +161,9 @@ function McpCard(props: McpCardProps) {
             placement="bottom"
             trigger={'click'}
           >
-            <button onClick={(e) => e.stopPropagation()} type="button">
+            <div onClick={(e) => e.stopPropagation()}>
               <More className="fill-mainTitle" />
-            </button>
+            </div>
           </Popover>
         </div>
       </div>
@@ -172,13 +181,11 @@ function McpCard(props: McpCardProps) {
           <Button block onClick={handleAdd} type={isAdded ? 'default' : 'primary'}>
             {isAdded ? '取消添加' : '添加'}
           </Button>
-        ) : (
-          <div className="flex gap-2 justify-between w-full">
-            <Button className="flex-1" onClick={handleQuickSubscribe}>
-              快速订阅
-            </Button>
-          </div>
-        )}
+        ) : hasEndpoint ? (
+          <Button block loading={subscribing} onClick={handleDirectSubscribe} type="primary">
+            订阅
+          </Button>
+        ) : null}
       </div>
     </div>
   );

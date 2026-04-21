@@ -200,6 +200,22 @@ msg() {
             text="  2) English" ;;
         lang.prompt)
             [[ "$lang" == "zh" ]] && text="请输入选项" || text="Enter choice" ;;
+        validate.size_invalid)
+            [[ "$lang" == "zh" ]] && text="无效的资源规格: '%s'，有效值为 small / standard / large" || text="Invalid resource size: '%s', valid values are small / standard / large" ;;
+        validate.image_checking)
+            [[ "$lang" == "zh" ]] && text="检查镜像仓库连通性: %s" || text="Checking image registry connectivity: %s" ;;
+        validate.image_ok)
+            [[ "$lang" == "zh" ]] && text="镜像仓库可达 ✓" || text="Image registry reachable ✓" ;;
+        validate.image_warn)
+            [[ "$lang" == "zh" ]] && text="无法连接镜像仓库 %s，部署时可能拉取镜像失败" || text="Cannot reach image registry %s, image pull may fail during deployment" ;;
+        validate.data_dir_ok)
+            [[ "$lang" == "zh" ]] && text="数据目录可用: %s ✓" || text="Data directory available: %s ✓" ;;
+        validate.data_dir_fail)
+            [[ "$lang" == "zh" ]] && text="无法创建数据目录: %s" || text="Cannot create data directory: %s" ;;
+        validate.all_ok)
+            [[ "$lang" == "zh" ]] && text="配置校验通过 ✓" || text="Config validation passed ✓" ;;
+        validate.title)
+            [[ "$lang" == "zh" ]] && text="--- 配置校验 ---" || text="--- Config Validation ---" ;;
         *)
             text="${key}" ;;
     esac
@@ -991,6 +1007,51 @@ docker_preflight() {
     log "$(msg deploy.preflight_ok "Docker ${docker_ver}")"
 }
 
+# ── validate_config — 部署前校验用户配置 ─────────────────────────────────────
+validate_config() {
+    log ""
+    log "$(msg validate.title)"
+    local has_error=false
+
+    # 1. 校验 HIMARKET_SIZE 值
+    case "${HIMARKET_SIZE}" in
+        small|standard|large) ;;
+        *)
+            warn "$(msg validate.size_invalid "${HIMARKET_SIZE}")"
+            has_error=true
+            ;;
+    esac
+
+    # 2. 校验数据目录可写
+    if [[ -n "${HIMARKET_DATA_DIR:-}" ]]; then
+        if mkdir -p "${HIMARKET_DATA_DIR}" 2>/dev/null; then
+            log "$(msg validate.data_dir_ok "${HIMARKET_DATA_DIR}")"
+        else
+            warn "$(msg validate.data_dir_fail "${HIMARKET_DATA_DIR}")"
+            has_error=true
+        fi
+    fi
+
+    # 3. 校验镜像仓库连通性（仅警告，不阻断）
+    local registry_host
+    registry_host=$(echo "${HIMARKET_SERVER_IMAGE}" | cut -d'/' -f1)
+    log "$(msg validate.image_checking "${registry_host}")"
+    if curl -s --connect-timeout 5 --max-time 10 "https://${registry_host}/v2/" >/dev/null 2>&1 \
+       || curl -s --connect-timeout 5 --max-time 10 "http://${registry_host}/v2/" >/dev/null 2>&1; then
+        log "$(msg validate.image_ok)"
+    else
+        warn "$(msg validate.image_warn "${registry_host}")"
+    fi
+
+    # 校验失败则终止
+    if [[ "${has_error}" == "true" ]]; then
+        error "$(msg validate.title) — FAILED"
+    fi
+
+    log "$(msg validate.all_ok)"
+    log ""
+}
+
 deploy_all() {
     # 1. 预检查
     docker_preflight
@@ -1000,6 +1061,9 @@ deploy_all() {
 
     # 3. 交互式配置
     interactive_config
+
+    # 3.5 配置校验（size、数据目录、镜像仓库等）
+    validate_config
 
     # 4. 重新安装模式：先清理现有资源
     if [[ "${DEPLOY_MODE}" == "reinstall" ]]; then

@@ -8,7 +8,6 @@
   "noVersion": "暂无版本",
   "downloadSkillPackage": "下载 Skill 包",
   "npxDownload": "NPX 下载",
-  "selectIde": "选择 IDE",
   "outputDir": "输出目录",
   "outputDirPlaceholder": "输入输出目录路径",
   "httpDownload": "HTTP 下载",

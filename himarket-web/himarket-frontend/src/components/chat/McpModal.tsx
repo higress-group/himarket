@@ -17,6 +17,10 @@ interface McpModal extends ModalProps {
   onRemove: (product: IProductDetail) => void;
   onRemoveAll: () => void;
   subscripts: ISubscription[];
+  /** 已订阅（APPROVED）的 productId 集合 */
+  subscribedProductIds?: Set<string>;
+  /** productId → 是否有可用 endpoint 的映射 */
+  endpointMap?: Map<string, boolean>;
   enabled?: boolean;
   onEnabled: (enabled: boolean) => void;
   onClose: () => void;
@@ -29,6 +33,7 @@ function McpModal(props: McpModal) {
     categories,
     data,
     enabled,
+    endpointMap,
     mcpLoading,
     onAdd,
     onClose,
@@ -38,6 +43,7 @@ function McpModal(props: McpModal) {
     onRemove,
     onRemoveAll,
     onSearch,
+    subscribedProductIds,
     subscripts,
     ...modalProps
   } = props;
@@ -46,8 +52,13 @@ function McpModal(props: McpModal) {
   const [active, setActive] = useState('all');
 
   const scbscriptsIds = useMemo(() => {
-    return subscripts.map((v) => v.productId);
-  }, [subscripts]);
+    // 订阅状态统一基于 subscribedProductIds（仅 APPROVED 状态）
+    if (subscribedProductIds) {
+      return [...subscribedProductIds];
+    }
+    // fallback: 从 subscripts 中过滤 APPROVED
+    return subscripts.filter((v) => v.status === 'APPROVED').map((v) => v.productId);
+  }, [subscribedProductIds, subscripts]);
 
   const addedIds = useMemo(() => {
     return added.map((v) => v.productId);
@@ -61,13 +72,7 @@ function McpModal(props: McpModal) {
   }, [data, active, added]);
 
   return (
-    <Modal
-      closable={false}
-      footer={null}
-      height={window.innerHeight * 0.8}
-      width={window.innerWidth * 0.9}
-      {...modalProps}
-    >
+    <Modal closable={false} footer={null} width={window.innerWidth * 0.9} {...modalProps}>
       <div className="flex p-2 gap-2 h-[70vh]">
         <div className="flex-1 flex flex-col overflow-y-auto" data-sign-name="sidebar">
           <div className="flex px-1 flex-col gap-3">
@@ -142,14 +147,6 @@ function McpModal(props: McpModal) {
               <div
                 className="flex h-full items-center justify-center cursor-pointer"
                 onClick={onClose}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    onClose();
-                  }
-                }}
-                role="button"
-                tabIndex={0}
               >
                 <CloseOutlined />
               </div>
@@ -197,17 +194,25 @@ function McpModal(props: McpModal) {
               className="grid grid-cols-3 gap-4 content-start overflow-y-auto p-1 flex-1"
               data-sign-name="mcp-card-grid"
             >
-              {filteredData.map((item) => (
-                <McpCard
-                  data={item}
-                  isAdded={addedIds.includes(item.productId)}
-                  isSubscribed={scbscriptsIds.includes(item.productId)}
-                  key={item.productId}
-                  onAdd={onAdd}
-                  onQuickSubscribe={onQuickSubscribe}
-                  onRemove={onRemove}
-                />
-              ))}
+              {filteredData
+                .filter((item) => {
+                  // 未订阅且无可用 endpoint 的不显示
+                  const isSubscribed = scbscriptsIds.includes(item.productId);
+                  const hasEp = endpointMap ? (endpointMap.get(item.productId) ?? true) : true;
+                  return isSubscribed || hasEp;
+                })
+                .map((item) => (
+                  <McpCard
+                    data={item}
+                    hasEndpoint={endpointMap ? (endpointMap.get(item.productId) ?? true) : true}
+                    isAdded={addedIds.includes(item.productId)}
+                    isSubscribed={scbscriptsIds.includes(item.productId)}
+                    key={item.productId}
+                    onAdd={onAdd}
+                    onQuickSubscribe={onQuickSubscribe}
+                    onRemove={onRemove}
+                  />
+                ))}
             </div>
           )}
           {active === 'added' && filteredData.length > 0 && (

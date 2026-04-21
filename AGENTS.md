@@ -1,21 +1,115 @@
+# AGENTS.md
+
 **ALWAYS RESPOND IN CHINESE-SIMPLIFIED**
 
-## 本地开发环境
+## 1. 项目概述
 
-### 数据库访问
+HiMarket 是一个 AI 开放平台，提供 API 产品管理、开发者门户、AI 对话、云 IDE（HiCoding）、MCP Server 托管等功能。
 
-本地开发时，数据库连接信息可以通过以下任意方式提供（优先级从高到低）：
+本仓库是前后端一体的 monorepo：`himarket-server/`（Spring Boot 3.2.11 / Java 17）+ `himarket-web/`（React 18 / TypeScript / Vite）。
+
+## 2. 快速命令
+
+```bash
+make compile                    # 快速编译（跳过测试和格式检查）
+make build                      # 完整构建（编译 + 格式检查 + 测试）
+make test                       # 运行单元测试
+make lint                       # 代码格式检查（Spotless）
+make lint-fix                   # 自动修复代码格式
+make run                        # 编译并启动后端服务
+```
+
+Demo 凭据：管理员 `admin` / `admin` | 开发者 `user` / `123456` | 后端端口：`8080`
+
+## 3. 后端架构（himarket-server）
+
+### 模块依赖
+
+```
+himarket-dal (数据层)  ←  himarket-server (业务层)  ←  himarket-bootstrap (启动配置层)
+```
+
+严格单向依赖：上层可以依赖下层，下层不能依赖上层。
+
+### 包结构
+
+```
+com.alibaba.himarket
+├── config/                 # Spring 配置（ACP、SLS、可观测性）
+├── controller/             # 26 REST Controllers，按领域组织
+│   ├── AdministratorController   /admins        @AdminAuth
+│   ├── DeveloperController       /developers    @DeveloperAuth
+│   ├── ProductController         /products      @AdminAuth
+│   ├── ConsumerController        /consumers     @DeveloperAuth
+│   ├── PortalController          /portals       @AdminAuth
+│   ├── GatewayController         /gateways      @AdminAuth
+│   ├── NacosController           /nacos         @AdminAuth
+│   ├── ChatController            /chats         SSE 流式
+│   ├── CodingSessionController                  云 IDE
+│   ├── McpServerController       /mcp-servers   MCP 管理
+│   ├── SkillController           /skills        技能管理
+│   ├── WorkerController          /workers       Worker 管理
+│   ├── SandboxController         /sandboxes     沙箱管理
+│   └── ...
+├── core/                   # 横切关注点
+│   ├── advice/             # ResponseAdvice（统一响应包装）、ExceptionAdvice
+│   ├── annotation/         # @AdminAuth, @DeveloperAuth, @AdminOrDeveloperAuth, @PublicAccess
+│   ├── security/           # JWT 过滤器、SecurityContext
+│   ├── exception/          # BusinessException + ErrorCode
+│   ├── event/              # Spring Events（ProductDeletingEvent 等）
+│   └── utils/              # 工具类
+├── dto/                    # 请求/响应 DTO
+│   ├── params/             # 请求参数
+│   └── result/             # 响应结果
+├── service/                # 业务逻辑
+│   ├── impl/               # Service 实现
+│   ├── hichat/             # AI 对话模块（SSE + 多 LLM 策略）
+│   ├── hicoding/           # 云 IDE 模块（WebSocket JSON-RPC 2.0）
+│   ├── gateway/            # 网关集成（APIG/Apsara/Higress/MSE）
+│   ├── mcp/                # MCP Server 管理
+│   ├── sandbox/            # 沙箱管理
+│   ├── vendor/             # 供应商集成
+│   └── task/               # 异步任务
+└── (himarket-dal)
+    ├── entity/             # JPA 实体
+    ├── repository/         # Spring Data JPA Repository
+    ├── converter/          # 类型转换器
+    └── support/            # 枚举与支持类
+```
+
+### 关键约定
+
+- 响应包装：Controller 直接返回业务对象，`ResponseAdvice` 自动包装为 `{"code":"SUCCESS","data":{...}}`，禁止手动包装
+- 业务异常：`throw new BusinessException(ErrorCode.XXX, detail)`，`ExceptionAdvice` 统一处理
+- 认证注解：`@AdminAuth`(管理员)、`@DeveloperAuth`(开发者)、`@AdminOrDeveloperAuth`(两者皆可)、`@PublicAccess`(无需认证)
+- 安全：无状态 JWT，Token 有效期 7 天
+- 数据库：Flyway 迁移（`himarket-bootstrap/src/main/resources/db/migration/`），MariaDB/MySQL
+- 代码风格：Spotless + Google Java Format（AOSP），编译阶段自动检查
+- 事件驱动：Spring Events 实现模块间松耦合（`ProductDeletingEvent`、`PortalDeletingEvent` 等）
+
+
+## 4. 前端架构（himarket-web）
+
+两个独立前端应用，均基于 React 18 + TypeScript + Vite + Ant Design + Tailwind CSS：
+
+| 应用 | 路径 | 说明 |
+|------|------|------|
+| 开发者门户 | `himarket-web/himarket-frontend/` | 面向开发者的产品浏览、订阅、AI 对话、HiCoding |
+| 管理后台 | `himarket-web/himarket-admin/` | 面向管理员的产品管理、网关配置、用户管理 |
+
+技术栈：React Router、Axios、i18next 国际化、Monaco Editor、react-markdown。
+
+> 前端各自有独立的 `package.json`，在对应目录下 `npm install && npm run dev` 启动。
+
+## 5. 本地开发及验证流程
+
+### 5.1 数据库访问
+
+数据库连接信息通过以下方式提供（优先级从高到低）：
 - shell 环境变量（直接 export 或写入 `~/.zshrc` / `~/.bashrc`）
 - `~/.env` 文件（`scripts/run.sh` 启动时会自动 source）
 
-需要包含以下变量：
-- `DB_HOST`：数据库地址
-- `DB_PORT`：端口（默认 3306）
-- `DB_NAME`：数据库名
-- `DB_USERNAME`：用户名
-- `DB_PASSWORD`：密码
-
-查询数据库时，使用 mysql CLI（环境变量已在 shell 中或通过 `~/.env` 加载）：
+需要包含以下变量：`DB_HOST`, `DB_PORT`(3306), `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD`
 
 ```bash
 mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USERNAME" -p"$DB_PASSWORD" "$DB_NAME" -e "YOUR_SQL_HERE"
@@ -24,183 +118,121 @@ mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USERNAME" -p"$DB_PASSWORD" "$DB_NAME" 
 注意事项：
 - 只执行 SELECT 查询，除非用户明确要求修改数据
 - 不要在回复中展示完整的密码、密钥等敏感字段
-- 数据库 schema 由 Flyway 管理，迁移文件在 `himarket-bootstrap/src/main/resources/db/migration/`
 
-### 启动后端服务
-
-使用 `scripts/run.sh` 脚本编译并启动 Java 后端：
+### 5.2 启动后端服务
 
 ```bash
 ./scripts/run.sh
 ```
 
-脚本会自动完成：加载环境变量 → 优雅关闭旧进程 → 编译打包 → 后台启动 jar → 轮询等待就绪。
-脚本退出码为 0 表示启动成功，非 0 表示失败（编译错误或启动超时）。
+脚本自动完成：加载 `~/.env` → 优雅关闭旧进程 → 编译打包 → 后台启动 jar → 轮询等待就绪。
+退出码为 0 表示启动成功，非 0 表示失败。
 
-### 修改代码后的验证
-
-以下场景建议主动进行"重启 → 接口验证"闭环，而不是只改代码就结束：
-- 用户明确要求调试某个 bug 或修复接口问题
-- 新增或修改了 REST/WebSocket 接口
-- 用户要求端到端验证
-- 完成 spec 任务的代码开发后，进行端到端功能验证
-
-#### 验证流程
-
-1. `./scripts/run.sh` 重启，确认退出码为 0
-2. 用 curl 调用相关接口，检查返回结果
-3. 如果涉及数据变更，用 mysql CLI 查询确认
-4. 验证失败时读取 `~/himarket.log` 排查，修复后重试
-
-### API 接口测试
+### 5.3 接口验证
 
 后端运行在 `http://localhost:8080`，接口路径不带 `/portal` 前缀。使用 JWT Bearer Token 认证。
 
-接口返回格式为 `{"code":"SUCCESS","data":{...}}`，token 在 `data.access_token` 中。
+**⚠️ curl 验证规范（必须遵守）**：
 
-#### 获取管理员 Token（后台管理）
+1. **每个 curl 调用独立执行**：禁止在一个 shell 命令中串联多个 curl 调用。一个命令只做一件事，分步执行、逐步验证。
+2. **用临时文件传递数据**：curl 输出写入 `/tmp/hm_*.json`，后续用 `python3 -c` 单独解析。避免在 shell 命令中内联 Python 解析（zsh glob 会把 `['key']` 当文件匹配导致报错）。
+3. **Token 获取模板**：
+   ```bash
+   # Step 1: 登录，结果写文件
+   curl -s -X POST http://localhost:8080/admins/login \
+     -H 'Content-Type: application/json' \
+     -d '{"username":"admin","password":"admin"}' > /tmp/hm_login.json
 
-```bash
-TOKEN=$(curl -s -X POST http://localhost:8080/admins/login \
-  -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"admin"}' | jq -r '.data.access_token')
-```
+   # Step 2: 提取 token（独立命令）
+   python3 -c "import json; print(json.load(open('/tmp/hm_login.json'))['data']['access_token'])" > /tmp/hm_token.txt
+   ```
+4. **业务接口调用模板**：
+   ```bash
+   TOKEN=$(cat /tmp/hm_token.txt)
+   curl -s -H "Authorization: Bearer $TOKEN" \
+     http://localhost:8080/your-endpoint > /tmp/hm_result.json
 
-#### 获取开发者 Token（前台门户）
+   # 独立命令解析结果
+   python3 -c "import json; print(json.dumps(json.load(open('/tmp/hm_result.json')), indent=2, ensure_ascii=False))"
+   ```
+5. **禁止事项**：
+   - ❌ 在 shell 命令中用管道 `| python3 -c "..."` 内联解析 JSON（zsh 方括号 glob 问题）
+   - ❌ 一个命令块中串联多个 curl（一个失败全部中断）
+   - ❌ 在 `python3 -c` 中内联大段代码（超过 3-4 行）——会导致执行卡住。**超过 3 行的脚本必须先写入 `/tmp/hm_*.py` 文件，再用 `python3 /tmp/hm_*.py` 执行**
 
-```bash
-TOKEN=$(curl -s -X POST http://localhost:8080/developers/login \
-  -H "Content-Type: application/json" \
-  -d '{"username":"user","password":"123456"}' | jq -r '.data.access_token')
-```
+### 5.4 修改代码后的验证
 
-#### 带认证请求示例
+以下场景建议主动进行"重启 → 接口验证"闭环：
+- 用户明确要求调试 bug 或修复接口
+- 新增或修改了 REST/WebSocket 接口
+- 用户要求端到端验证
+- 完成 spec 任务的代码开发后
 
-```bash
-curl -s -H "Authorization: Bearer $TOKEN" http://localhost:8080/your-endpoint | jq .
-```
+验证流程：`./scripts/run.sh` → curl 调用接口 → mysql 确认数据 → 失败时读 `~/himarket.log`
 
-#### WebSocket 接口验证
-
-对于 WebSocket 接口，使用 `websocat` 工具：
-
-```bash
-websocat -H "Authorization: Bearer $TOKEN" ws://localhost:8080/your-ws-endpoint
-```
-
-#### 认证注解说明
-
-接口上的注解决定了需要哪种角色的 token：
-- `@AdminAuth`：需要管理员 token
-- `@DeveloperAuth`：需要开发者 token
-- `@AdminOrDeveloperAuth`：两种都可以
-- 无注解：无需认证
-
-Token 有效期为 7 天。Swagger 文档：`http://localhost:8080/portal/swagger-ui.html`
-
-### 应用日志
+### 5.5 应用日志
 
 本地运行时日志文件位于 `~/himarket.log`。排查后端问题时应主动读取该日志。
 
-## OpenSandbox 集成
+## 6. 质量检查
 
-HiMarket 集成了阿里巴巴开源的 OpenSandbox 项目，用于提供安全的代码执行沙箱环境。
+| 命令 | 说明 |
+|------|------|
+| `make compile` | 快速编译（跳过测试和格式检查） |
+| `make build` | 完整构建（编译 + 格式检查 + 测试） |
+| `make test` | 运行单元测试 |
+| `make lint` | Spotless 格式检查 |
+| `make lint-fix` | 自动格式修复 |
+| `make run` | 编译并启动后端服务 |
 
-### 项目位置
-
-OpenSandbox 仓库位于 `OpenSandbox/` 目录（本地 clone，不提交到 git）。
-
-**首次设置：**
-```bash
-cd /Users/xujingfeng/IdeaProjects/himarket
-git clone https://github.com/alibaba/OpenSandbox.git
-```
-
-该目录已在 `.gitignore` 中配置，不会被提交到版本控制，但 AI Agent 可以正常访问和探索其中的源码和文档。
-
-### 渐进性探索指南
-
-当需要对接或调试 OpenSandbox 相关功能时，按以下顺序探索：
-
-1. **快速了解**：阅读 `OpenSandbox/README.md` 了解项目概述、核心功能和基本用法
-2. **开发指导**：
-   - `OpenSandbox/CLAUDE.md` - Claude Code 的开发指导（中文）
-   - `OpenSandbox/AGENTS.md` - AI Agent 的仓库指南
-3. **架构文档**：`OpenSandbox/docs/architecture.md` - 整体架构和设计理念
-4. **关键目录**：
-   - `OpenSandbox/server/` - Python FastAPI 沙箱生命周期管理服务
-   - `OpenSandbox/sdks/` - 多语言 SDK（Python、Java/Kotlin、TypeScript、C#）
-   - `OpenSandbox/components/execd/` - Go 执行守护进程
-   - `OpenSandbox/examples/` - 集成示例（包括 claude-code、kimi-cli 等）
-   - `OpenSandbox/specs/` - OpenAPI 规范文档
-   - `OpenSandbox/kubernetes/` - Kubernetes 部署和 Operator
-
-### 何时探索 OpenSandbox
-
-仅在以下场景需要深入探索 OpenSandbox 源码和文档：
-- 实现或调试沙箱创建、生命周期管理功能
-- 集成代码执行、命令执行、文件操作等沙箱能力
-- 排查沙箱相关的错误或性能问题
-- 扩展或定制沙箱运行时行为
-- 对接 OpenSandbox 的 API 或 SDK
-
-对于其他 HiMarket 功能开发，无需关注 OpenSandbox 目录。
-
-## Nacos 集成
-
-HiMarket 使用阿里巴巴开源的 Nacos 作为服务发现和配置管理基础设施。本地通过符号链接引入了 Nacos 源码仓库，方便 AI Agent 理解 Nacos 内部实现。
-
-### 项目位置
-
-Nacos 源码位于 `nacos/` 目录（本地符号链接，指向 `/Users/xujingfeng/AIProjects/nacos`，不提交到 git）。
-
-**首次设置：**
-```bash
-cd /Users/xujingfeng/IdeaProjects/himarket
-ln -s /Users/xujingfeng/AIProjects/nacos nacos
-```
-
-该目录已在 `.gitignore` 中配置，不会被提交到版本控制，但 AI Agent 可以正常访问和探索其中的源码和文档。
-
-### 渐进性探索指南
-
-当需要对接或调试 Nacos 相关功能时，按以下顺序探索：
-
-1. **快速了解**：阅读 `nacos/README.md` 了解项目概述（动态服务发现、配置管理、DNS 服务）
-2. **架构文档**：`nacos/doc/` 目录下的设计文档
-3. **关键模块**：
-   - `nacos/api/` - Nacos 公共 API 定义（SPI 接口、模型类）
-   - `nacos/client/` - Java 客户端 SDK（服务注册/发现、配置监听）
-   - `nacos/naming/` - 服务注册与发现核心实现
-   - `nacos/config/` - 配置管理核心实现
-   - `nacos/server/` - Nacos Server 启动入口
-   - `nacos/console/` - 管理控制台后端
-   - `nacos/console-ui/` - 管理控制台前端
-   - `nacos/core/` - 核心通用模块（集群、鉴权、分布式协议）
-   - `nacos/consistency/` - 一致性协议（Raft/Distro）
-   - `nacos/auth/` - 认证鉴权模块
-   - `nacos/plugin/` - 插件体系（鉴权、配置加密、数据源等）
-   - `nacos/persistence/` - 持久化层
-   - `nacos/distribution/` - 打包和发布配置
-4. **高级主题**（特定场景）：
-   - `nacos/mcp-registry-adaptor/` - MCP 注册适配器
-   - `nacos/istio/` - Istio 集成（MCP/xDS 协议）
-   - `nacos/k8s-sync/` - Kubernetes 服务同步
-   - `nacos/ai/` - AI 相关能力
-   - `nacos/skills/` - Skill 市场能力
-
-### 何时探索 Nacos
-
-仅在以下场景需要深入探索 Nacos 源码和文档：
-- 实现或调试 HiMarket 与 Nacos 的服务注册/发现集成
-- 对接 Nacos 配置管理能力（动态配置推送、监听）
-- 排查 Nacos 客户端连接、心跳、同步等问题
-- 理解 Nacos 的一致性协议（Raft/Distro）实现细节
-- 扩展 Nacos 插件（鉴权、数据源、配置加密等）
-- 对接 Nacos 的 Open API 或使用其 Java SDK
-
-对于其他 HiMarket 功能开发，无需关注 Nacos 目录。
-
-## 创建 Pull Request
+## 7. 创建 Pull Request
 
 创建 PR 前先检查 `.github/PULL_REQUEST_TEMPLATE.md` 是否存在，如存在则按模板格式填写 PR body。
+
+## 8. 外部项目
+
+`reference-projects/` 下的外部项目由开发者自行管理（目录已在 `.gitignore` 中），分为两类。
+
+快速初始化：
+
+```bash
+./scripts/setup-repos.sh          # 克隆所有外部仓库（可编辑项目会提示输入 fork 地址）
+./scripts/setup-repos.sh nacos    # 只克隆 nacos（只读）
+./scripts/setup-repos.sh higress-doc  # 克隆 higress 文档站（交互式输入 fork 地址）
+./scripts/setup-repos.sh higress-doc git@github.com:yourname/higress-group.github.io.git
+                                  # 直接指定 fork 地址，跳过交互提示
+```
+
+### 只读参考
+
+仅供查阅源码，禁止修改。
+
+| 项目 | 本地路径 | 仓库 | 分支 | 何时参考 |
+|------|---------|------|------|---------|
+| Nacos | `reference-projects/nacos/` | `alibaba/nacos` | `develop` | 需要理解 `nacos-maintainer-client` API 的服务端实现、排查与 Nacos 交互的问题时 |
+
+### 可编辑关联项目
+
+HiMarket 相关的独立仓库，采用 Fork 工作流：先 fork 上游仓库到自己账号，再 `git clone` 自己的 fork 至本地路径，通过 PR 向上游提交改动。
+
+| 项目 | 本地路径 | 上游仓库 | 分支 | 说明 |
+|------|---------|---------|------|------|
+| Higress 文档站 | `reference-projects/higress-group.github.io/` | `higress-group/higress-group.github.io` | `ai` | Higress 官网与文档，基于 Astro + Starlight |
+
+> 添加新项目：在对应表格追加行，clone 至 `reference-projects/` 下。只读参考项目可在 `docs/design-docs/` 下新建 `ref-*.md` 提供详细索引。
+
+## 9. 文档导航
+
+| 文档 | 路径 | 内容 |
+|------|------|------|
+| 系统架构 | `docs/ARCHITECTURE.md` | 模块设计、层级图、关键流程、数据模型 |
+| 贡献指南 | `CONTRIBUTING.md` / `CONTRIBUTING_zh.md` | Fork 工作流、提交规范、PR 要求 |
+| 用户指南 | `USER_GUIDE.md` / `USER_GUIDE_zh.md` | 产品使用文档 |
+| Nacos 源码索引 | `docs/design-docs/ref-nacos.md` | Nacos 模块架构、HiMarket 集成点映射、API 快速查找 |
+
+## 10. 禁止事项
+
+### Shell 命令
+
+- **禁止使用 HEREDOC 语法**（`<<EOF ... EOF`、`<<'EOF' ... EOF`）：Agent 执行环境不支持 HEREDOC，会导致命令永久挂起。需要传递多行文本时，先写入临时文件，再通过文件执行
+- **禁止使用交互式命令**：如 `gh pr create` 不带 `--yes` 或必要参数时可能进入交互模式等待输入

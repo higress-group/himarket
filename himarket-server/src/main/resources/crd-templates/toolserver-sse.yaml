@@ -1,0 +1,41 @@
+apiVersion: agentruntime.alibabacloud.com/v1alpha1
+kind: ToolServer
+metadata:
+  annotations:
+    agentruntime.alibabacloud.com/release: "true"
+  name: ${RESOURCE_NAME}
+  namespace: ${NAMESPACE}
+spec:
+  cluster:
+    id: ${CLUSTER_ID}
+  showName: ${SHOW_NAME}
+  template:
+    spec:
+      revisionDescription: himarket-release
+      version: v1.0.0
+      accesses:
+${ACCESSES_YAML}
+      artifact:
+        type: McpDefinition
+      concurrency: 100
+      idleTimeoutSeconds: 1800
+      isolation: shared
+${ENV_YAML}
+      mcpServers: |-
+        ${MCP_SERVERS_JSON}
+      protocol: ${PROTOCOL}
+      resources:
+        limits:
+          cpu: ${CPU_LIMIT}
+          memory: ${MEMORY_LIMIT}
+        requests:
+          cpu: ${CPU_REQUEST}
+          memory: ${MEMORY_REQUEST}
+      scaling:
+        maxReplicas: 10
+        minReplicas: 0
+        scaleDownSeconds: 300
+      storage:
+        ephemeral:
+          capacity: ${EPHEMERAL_STORAGE}
+      type: managed

@@ -2,9 +2,8 @@ package com.alibaba.himarket.service.hicoding.session;
 
 import com.alibaba.himarket.core.security.ContextHolder;
 import com.alibaba.himarket.dto.result.consumer.CredentialContext;
-import com.alibaba.himarket.dto.result.product.ProductResult;
 import com.alibaba.himarket.service.ConsumerService;
-import com.alibaba.himarket.service.ProductService;
+import com.alibaba.himarket.service.McpServerService;
 import com.alibaba.himarket.support.chat.mcp.MCPTransportConfig;
 import com.alibaba.himarket.support.enums.MCPTransportMode;
 import java.util.ArrayList;
@@ -19,13 +18,8 @@ import org.springframework.stereotype.Service;
 /**
  * 根据 MCP 产品 ID 列表解析完整 MCP 连接配置的服务。
  *
- * <p>复用 {@code CliProviderController.buildMarketMcpInfo()} 和 {@code extractAuthHeaders()} 中的逻辑：
- * <ol>
- *   <li>批量获取产品详情</li>
- *   <li>通过 {@code product.getMcpConfig().toTransportConfig()} 提取 url 和 transportType</li>
- *   <li>通过 {@code ConsumerService.getDefaultCredential()} 提取认证请求头</li>
- *   <li>组装 ResolvedMcpEntry</li>
- * </ol>
+ * <p>优先通过 {@code McpServerService.resolveTransportConfigs()} 从热数据（endpoint）解析，
+ * 同时校验用户订阅状态。未订阅的产品会被跳过。
  */
 @Service
 @RequiredArgsConstructor
@@ -33,14 +27,14 @@ import org.springframework.stereotype.Service;
 public class McpConfigResolver {
 
     private final ConsumerService consumerService;
-    private final ProductService productService;
+    private final McpServerService mcpServerService;
     private final ContextHolder contextHolder;
 
     /**
      * 根据 MCP 产品 ID 列表解析完整 MCP 连接配置。
      *
      * @param mcpEntries 前端传入的 MCP 标识符列表
-     * @return 解析后的 ResolvedMcpEntry 列表（解析失败的条目被跳过）
+     * @return 解析后的 ResolvedMcpEntry 列表（未订阅或解析失败的条目被跳过）
      */
     public List<ResolvedSessionConfig.ResolvedMcpEntry> resolve(
             List<CliSessionConfig.McpServerEntry> mcpEntries) {
@@ -48,80 +42,63 @@ public class McpConfigResolver {
             return Collections.emptyList();
         }
 
-        // 1. 批量获取产品详情
+        String userId = contextHolder.getUser();
+
+        // 1. 提取 productId 列表，构建 name 映射
         List<String> productIds =
                 mcpEntries.stream()
                         .map(CliSessionConfig.McpServerEntry::getProductId)
                         .collect(Collectors.toList());
-        Map<String, ProductResult> productMap = productService.getProducts(productIds);
+        Map<String, String> nameByProductId =
+                mcpEntries.stream()
+                        .collect(
+                                Collectors.toMap(
+                                        CliSessionConfig.McpServerEntry::getProductId,
+                                        CliSessionConfig.McpServerEntry::getName,
+                                        (a, b) -> a));
 
-        // 2. 获取认证头（所有 MCP 共用同一个开发者的认证信息）
+        // 2. 通过 McpServerService 解析热数据（含订阅校验）
+        List<MCPTransportConfig> hotConfigs =
+                mcpServerService.resolveTransportConfigs(productIds, userId);
+        Map<String, MCPTransportConfig> hotConfigMap =
+                hotConfigs.stream()
+                        .collect(
+                                Collectors.toMap(
+                                        MCPTransportConfig::getProductId, c -> c, (a, b) -> a));
+
+        // 3. 获取认证头（热数据已自带 headers，但冷数据 fallback 需要）
         Map<String, String> authHeaders = extractAuthHeaders();
 
-        // 3. 逐个解析 MCP 配置
+        // 4. 逐个组装结果：优先热数据，fallback 冷数据
         List<ResolvedSessionConfig.ResolvedMcpEntry> result = new ArrayList<>();
         for (CliSessionConfig.McpServerEntry entry : mcpEntries) {
-            ResolvedSessionConfig.ResolvedMcpEntry resolved =
-                    resolveEntry(entry, productMap, authHeaders);
-            if (resolved != null) {
+            String productId = entry.getProductId();
+            MCPTransportConfig hotConfig = hotConfigMap.get(productId);
+
+            if (hotConfig != null) {
+                // 热数据可用（已通过订阅校验）
+                String transportType =
+                        hotConfig.getTransportMode() == MCPTransportMode.STREAMABLE_HTTP
+                                ? "streamable-http"
+                                : "sse";
+                ResolvedSessionConfig.ResolvedMcpEntry resolved =
+                        new ResolvedSessionConfig.ResolvedMcpEntry();
+                resolved.setName(entry.getName());
+                resolved.setUrl(hotConfig.getUrl());
+                resolved.setTransportType(transportType);
+                resolved.setHeaders(
+                        hotConfig.getHeaders() != null ? hotConfig.getHeaders() : authHeaders);
                 result.add(resolved);
+            } else {
+                // 热数据不可用：可能未订阅，也可能无 endpoint
+                // 跳过并记录日志（订阅校验已在 resolveTransportConfigs 中完成）
+                log.info(
+                        "MCP 产品无可用热数据或未订阅，跳过: productId={}, name={}",
+                        productId,
+                        nameByProductId.get(productId));
             }
         }
         return result;
-    }
-
-    private ResolvedSessionConfig.ResolvedMcpEntry resolveEntry(
-            CliSessionConfig.McpServerEntry entry,
-            Map<String, ProductResult> productMap,
-            Map<String, String> authHeaders) {
-        String productId = entry.getProductId();
-        ProductResult product = productMap.get(productId);
-
-        if (product == null) {
-            log.warn("MCP product not found, skipping: productId={}", productId);
-            return null;
-        }
-
-        if (product.getMcpConfig() == null) {
-            log.warn(
-                    "Product mcpConfig is incomplete, skipping: productId={}, name={}",
-                    productId,
-                    product.getName());
-            return null;
-        }
-
-        try {
-            MCPTransportConfig transportConfig = product.getMcpConfig().toTransportConfig();
-            if (transportConfig == null) {
-                log.warn(
-                        "Failed to extract transport config from product, skipping: productId={},"
-                                + " name={}",
-                        productId,
-                        product.getName());
-                return null;
-            }
-
-            String transportType =
-                    transportConfig.getTransportMode() == MCPTransportMode.STREAMABLE_HTTP
-                            ? "streamable-http"
-                            : "sse";
-
-            ResolvedSessionConfig.ResolvedMcpEntry resolved =
-                    new ResolvedSessionConfig.ResolvedMcpEntry();
-            resolved.setName(entry.getName());
-            resolved.setUrl(transportConfig.getUrl());
-            resolved.setTransportType(transportType);
-            resolved.setHeaders(authHeaders);
-            return resolved;
-        } catch (Exception e) {
-            log.warn(
-                    "Error processing mcpConfig for product, skipping: productId={}, name={},"
-                            + " error={}",
-                    productId,
-                    product.getName(),
-                    e.getMessage());
-            return null;
-        }
     }
 
     /**

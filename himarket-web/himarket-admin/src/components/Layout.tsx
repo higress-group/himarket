@@ -63,9 +63,8 @@ const Layout: React.FC = () => {
       'rest-api',
     ];
     const isApiProductDetail = location.pathname.match(/^\/api-products\/([^/]+)$/);
-    const apiProductSegment = isApiProductDetail?.[1];
     const isSubMenuRoute =
-      apiProductSegment !== undefined && apiProductSubRoutes.includes(apiProductSegment);
+      isApiProductDetail && apiProductSubRoutes.includes(isApiProductDetail[1]);
 
     if (location.pathname.match(/^\/portals\/[^/]+$/) || (isApiProductDetail && !isSubMenuRoute)) {
       setSidebarCollapsed(true);
@@ -113,17 +112,13 @@ const Layout: React.FC = () => {
     },
     {
       children: [
+        { cn: 'Nacos实例', href: '/consoles/nacos', icon: DesktopOutlined, name: 'Nacos实例' },
+        { cn: '网关实例', href: '/consoles/gateway', icon: DesktopOutlined, name: '网关实例' },
         {
-          cn: 'Nacos实例',
-          href: '/consoles/nacos',
+          cn: 'Sandbox实例',
+          href: '/consoles/sandbox',
           icon: DesktopOutlined,
-          name: 'Nacos实例',
-        },
-        {
-          cn: '网关实例',
-          href: '/consoles/gateway',
-          icon: DesktopOutlined,
-          name: '网关实例',
+          name: 'Sandbox实例',
         },
       ],
       cn: '实例管理',
@@ -214,7 +209,7 @@ const Layout: React.FC = () => {
         </Link>
         {hasChildren && (
           <div className="ml-2">
-            {item.children?.map((child) => renderMenuItem(child, level + 1))}
+            {item.children!.map((child) => renderMenuItem(child, level + 1))}
           </div>
         )}
       </div>

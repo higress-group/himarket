@@ -17,6 +17,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 
 import { ProductIconRenderer } from '../components/icon/ProductIconRenderer';
 import { Layout } from '../components/Layout';
+
 import 'highlight.js/styles/github.css';
 import { SkillWorkerDetailSkeleton } from '../components/loading';
 import MarkdownRender from '../components/MarkdownRender';
@@ -43,9 +44,20 @@ import type {
 } from '../lib/apis/cliProvider';
 import type { ISkillConfig } from '../lib/apis/typing';
 
-type IdeType = 'qoder' | 'qoderwork' | 'claude' | 'codex' | 'cursor' | 'kiro' | 'lingma';
+type IdeType =
+  | 'qoder'
+  | 'qoderwork'
+  | 'claude'
+  | 'codex'
+  | 'cursor'
+  | 'kiro'
+  | 'lingma'
+  | 'copaw'
+  | 'openclaw';
 
 const IDE_OPTIONS: { value: IdeType; label: string; icon: string }[] = [
+  { icon: '/copaw.png', label: 'CoPaw', value: 'copaw' },
+  { icon: '/openclaw.svg', label: 'OpenClaw', value: 'openclaw' },
   { icon: 'https://g.alicdn.com/qbase/qoder/0.0.65/favIcon.svg', label: 'Qoder', value: 'qoder' },
   {
     icon: 'https://img.alicdn.com/imgextra/i1/O1CN01clv0Oy1Tia1VN1WEO_!!6000000002416-1-tps-1200-1200.gif',
@@ -79,9 +91,11 @@ const getDefaultOutputDir = (ide: IdeType): string => {
   const dirMap: Record<IdeType, string> = {
     claude: '~/.claude/skills',
     codex: '~/.codex/skills',
+    copaw: '~/.copaw/skill_pool',
     cursor: '~/.cursor/skills',
     kiro: '~/.kiro/skills',
     lingma: '~/.lingma/skills',
+    openclaw: '~/.openclaw/skills',
     qoder: '~/.qoder/skills',
     qoderwork: '~/.qoderwork/skills',
   };
@@ -187,8 +201,8 @@ function SkillDetail() {
   const [versions, setVersions] = useState<SkillVersion[]>([]);
   const [selectedVersion, setSelectedVersion] = useState<string | undefined>();
   const [cliInfo, setCliInfo] = useState<SkillCliInfo | null>(null);
-  const [selectedIde, setSelectedIde] = useState<IdeType>('qoder');
-  const [outputDir, setOutputDir] = useState<string>('~/.qoder/skills');
+  const [selectedIde, setSelectedIde] = useState<IdeType>('copaw');
+  const [outputDir, setOutputDir] = useState<string>('~/.copaw/skill_pool');
 
   const handleDragStart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -207,53 +221,6 @@ function SkillDetail() {
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
   };
-
-  const loadVersionContent = useCallback(
-    async (version?: string) => {
-      if (!skillProductId) return;
-      try {
-        const filesRes = await getSkillFiles(skillProductId, version).catch(() => null);
-        if (
-          filesRes?.code === 'SUCCESS' &&
-          Array.isArray(filesRes.data) &&
-          filesRes.data.length > 0
-        ) {
-          const nodes = filesRes.data;
-          setFileTree(nodes);
-          const hasSkillMd = nodes.some((n: SkillFileTreeNode) => n.path === 'SKILL.md');
-          if (hasSkillMd) {
-            setSelectedFilePath('SKILL.md');
-            setFileLoading(true);
-            setOverviewLoading(true);
-            getSkillFileContent(skillProductId, 'SKILL.md', version)
-              .then((r) => {
-                if (r.code === 'SUCCESS' && r.data) {
-                  setFileContent(r.data);
-                  setOverviewContent(r.data.content);
-                }
-              })
-              .catch(() => {})
-              .finally(() => {
-                setFileLoading(false);
-                setOverviewLoading(false);
-              });
-          } else {
-            setOverviewContent(null);
-            setSelectedFilePath(undefined);
-            setFileContent(null);
-          }
-        } else {
-          setFileTree([]);
-          setFileContent(null);
-          setSelectedFilePath(undefined);
-          setOverviewContent(null);
-        }
-      } catch {
-        setFileTree([]);
-      }
-    },
-    [skillProductId],
-  );
 
   useEffect(() => {
     const fetchDetail = async () => {
@@ -307,7 +274,51 @@ function SkillDetail() {
       }
     };
     fetchDetail();
-  }, [skillProductId, t, loadVersionContent]);
+  }, [skillProductId]);
+
+  const loadVersionContent = async (version?: string) => {
+    if (!skillProductId) return;
+    try {
+      const filesRes = await getSkillFiles(skillProductId, version).catch(() => null);
+      if (
+        filesRes?.code === 'SUCCESS' &&
+        Array.isArray(filesRes.data) &&
+        filesRes.data.length > 0
+      ) {
+        const nodes = filesRes.data;
+        setFileTree(nodes);
+        const hasSkillMd = nodes.some((n: SkillFileTreeNode) => n.path === 'SKILL.md');
+        if (hasSkillMd) {
+          setSelectedFilePath('SKILL.md');
+          setFileLoading(true);
+          setOverviewLoading(true);
+          getSkillFileContent(skillProductId, 'SKILL.md', version)
+            .then((r) => {
+              if (r.code === 'SUCCESS' && r.data) {
+                setFileContent(r.data);
+                setOverviewContent(r.data.content);
+              }
+            })
+            .catch(() => {})
+            .finally(() => {
+              setFileLoading(false);
+              setOverviewLoading(false);
+            });
+        } else {
+          setOverviewContent(null);
+          setSelectedFilePath(undefined);
+          setFileContent(null);
+        }
+      } else {
+        setFileTree([]);
+        setFileContent(null);
+        setSelectedFilePath(undefined);
+        setOverviewContent(null);
+      }
+    } catch {
+      setFileTree([]);
+    }
+  };
 
   const handleVersionChange = useCallback(
     async (version: string) => {
@@ -316,7 +327,7 @@ function SkillDetail() {
       setSelectedFilePath(undefined);
       await loadVersionContent(version);
     },
-    [loadVersionContent],
+    [skillProductId],
   );
 
   const handleSelectFile = useCallback(
@@ -651,10 +662,8 @@ function SkillDetail() {
                   </div>
                   {/* Drag handle */}
                   <div
-                    aria-hidden="true"
                     className="w-1 flex-shrink-0 cursor-col-resize hover:bg-blue-200 transition-colors bg-transparent"
                     onMouseDown={handleDragStart}
-                    role="separator"
                   />
                   {/* File preview */}
                   <div className="flex-1 overflow-auto flex flex-col">{renderFilePreview()}</div>
@@ -722,9 +731,8 @@ function SkillDetail() {
                     </span>
                   </div>
 
-                  {/* IDE Selection */}
+                  {/* IDE/Tool Selection */}
                   <div className="mb-3">
-                    <div className="text-xs font-medium text-gray-600 mb-2">{t('selectIde')}</div>
                     <div className="flex flex-wrap gap-2">
                       {IDE_OPTIONS.map((ide) => (
                         <button
@@ -860,7 +868,7 @@ function SkillDetail() {
             </div>
 
             <RelatedSkills
-              currentProductId={skillProductId ?? ''}
+              currentProductId={skillProductId!}
               currentSkillTags={skillConfig?.skillTags}
             />
           </div>

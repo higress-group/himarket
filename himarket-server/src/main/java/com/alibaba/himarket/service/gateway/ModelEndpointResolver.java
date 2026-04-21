@@ -43,7 +43,7 @@ public class ModelEndpointResolver {
             return path;
         }
 
-        if ("Prefix".equalsIgnoreCase(pathType)) {
+        if (isPrefixType(pathType)) {
             return ensureVersionPrefix(path, protocol);
         }
 
@@ -75,7 +75,7 @@ public class ModelEndpointResolver {
             return path;
         }
 
-        if ("Prefix".equalsIgnoreCase(pathType)) {
+        if (isPrefixType(pathType)) {
             String base = ensureVersionPrefix(path, protocol);
             return base + getEndpointSuffix(protocol);
         }
@@ -159,5 +159,12 @@ public class ModelEndpointResolver {
             return path.substring(0, path.length() - 1);
         }
         return path;
+    }
+
+    /**
+     * 判断路径类型是否为前缀匹配（Higress 的 Prefix/Pre 均视为前缀匹配）。
+     */
+    private static boolean isPrefixType(String pathType) {
+        return "Prefix".equalsIgnoreCase(pathType) || "Pre".equalsIgnoreCase(pathType);
     }
 }

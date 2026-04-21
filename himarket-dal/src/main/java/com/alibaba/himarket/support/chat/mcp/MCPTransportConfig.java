@@ -30,6 +30,10 @@ public class MCPTransportConfig {
 
     private String mcpServerName;
 
+    private String productId;
+
+    private String description;
+
     private MCPTransportMode transportMode;
 
     private String url;

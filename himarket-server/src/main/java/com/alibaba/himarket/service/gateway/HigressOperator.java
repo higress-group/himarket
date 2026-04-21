@@ -116,7 +116,7 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
 
     @Override
     public PageResult<AgentAPIResult> fetchAgentAPIs(Gateway gateway, int page, int size) {
-        return null;
+        return PageResult.of(Collections.emptyList(), page, size, 0);
     }
 
     @Override

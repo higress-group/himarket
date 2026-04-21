@@ -12,6 +12,7 @@ import Portals from '@/pages/Portals';
 import ProductCategories from '@/pages/ProductCategories';
 import ProductCategoryDetail from '@/pages/ProductCategoryDetail';
 import ProductTypePage from '@/pages/ProductTypePage';
+import SandboxConsoles from '@/pages/SandboxConsoles';
 
 export const router = createBrowserRouter([
   {
@@ -88,6 +89,10 @@ export const router = createBrowserRouter([
       {
         element: <NacosConsoles />,
         path: 'consoles/nacos',
+      },
+      {
+        element: <SandboxConsoles />,
+        path: 'consoles/sandbox',
       },
       {
         element: <Navigate replace to="/observability/model-dashboard" />,

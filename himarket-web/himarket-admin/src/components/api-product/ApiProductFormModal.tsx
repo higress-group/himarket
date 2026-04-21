@@ -572,7 +572,9 @@ export default function ApiProductFormModal({
         )}
 
         {/* Feature Configuration */}
-        {productType === 'MODEL_API' && <ModelFeatureForm />}
+        {productType === 'MODEL_API' && (
+          <ModelFeatureForm initialExpanded={isEditMode && !!initialData?.feature} />
+        )}
         {productType === 'AGENT_SKILL' && <SkillConfigForm />}
         {productType === 'WORKER' && <WorkerConfigForm />}
       </Form>

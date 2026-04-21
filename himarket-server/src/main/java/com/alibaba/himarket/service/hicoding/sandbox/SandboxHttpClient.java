@@ -193,6 +193,26 @@ public class SandboxHttpClient {
     // ===== 内部 HTTP 调用方法 =====
 
     /**
+     * 验证 sidecar 中是否存在指定会话。
+     *
+     * <p>调用 Sidecar GET /sessions/{sessionId}，检查会话是否仍然有效。
+     * 任何异常（连接超时、网络错误等）均视为会话不存在。
+     *
+     * @param baseUrl   Sidecar 基础 URL
+     * @param sessionId sidecar 会话 ID
+     * @return true 表示会话存在，false 表示不存在或请求失败
+     */
+    public boolean sessionExists(String baseUrl, String sessionId) {
+        try {
+            String url = baseUrl + "/sessions/" + sessionId;
+            HttpResponse<String> response = doGet(url, HEALTH_CHECK_TIMEOUT);
+            return response.statusCode() == 200;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
      * 发送 POST 请求（JSON body）。
      * 统一处理 InterruptedException：恢复中断标志 + 包装为 IOException。
      */

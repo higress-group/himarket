@@ -23,6 +23,7 @@ export interface ISubscription {
   consumerName: string;
   productId: string;
   productName: string;
+  productType?: string;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   createAt: string;
   updatedAt: string;
@@ -184,8 +185,11 @@ export async function getProductSubscriptionStatus(productId: string) {
     const response = await getProductSubscriptions(productId, { size: 100 });
     const subscriptions = response.data.content || [];
 
+    // 只有 APPROVED 状态才算已订阅
+    const approvedSubscriptions = subscriptions.filter((sub) => sub.status === 'APPROVED');
+
     // 转换为原有格式以保持兼容性
-    const subscribedConsumers = subscriptions.map((sub) => ({
+    const subscribedConsumers = approvedSubscriptions.map((sub) => ({
       consumer: {
         consumerId: sub.consumerId,
         name: sub.consumerName,
@@ -196,7 +200,7 @@ export async function getProductSubscriptionStatus(productId: string) {
 
     return {
       allConsumers: [], // 延迟加载，在申请订阅时才获取
-      // 新增：返回完整的订阅数据供管理弹窗使用
+      // 新增：返回完整的订阅数据供管理弹窗使用（包含所有状态）
       fullSubscriptionData: {
         content: subscriptions,
         totalElements: response.data.totalElements || subscriptions.length,

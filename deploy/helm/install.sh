@@ -226,6 +226,28 @@ msg() {
             [[ "$lang" == "zh" ]] && text="  4) 跳过（不使用 AI 模型）" || text="  4) Skip (no AI models)" ;;
         install.ai_model_existing_choice)
             [[ "$lang" == "zh" ]] && text="请输入选项" || text="Enter choice" ;;
+        validate.title)
+            [[ "$lang" == "zh" ]] && text="--- 配置校验 ---" || text="--- Config Validation ---" ;;
+        validate.size_invalid)
+            [[ "$lang" == "zh" ]] && text="无效的资源规格: '%s'，有效值为 small / standard / large" || text="Invalid resource size: '%s', valid values are small / standard / large" ;;
+        validate.sc_checking)
+            [[ "$lang" == "zh" ]] && text="检查 StorageClass: %s" || text="Checking StorageClass: %s" ;;
+        validate.sc_ok)
+            [[ "$lang" == "zh" ]] && text="StorageClass '%s' 存在 ✓" || text="StorageClass '%s' exists ✓" ;;
+        validate.sc_not_found)
+            [[ "$lang" == "zh" ]] && text="StorageClass '%s' 在集群中不存在" || text="StorageClass '%s' not found in cluster" ;;
+        validate.sc_available)
+            [[ "$lang" == "zh" ]] && text="集群中可用的 StorageClass:" || text="Available StorageClasses in cluster:" ;;
+        validate.sc_none)
+            [[ "$lang" == "zh" ]] && text="集群中没有任何 StorageClass，请先创建" || text="No StorageClass found in cluster, please create one first" ;;
+        validate.image_checking)
+            [[ "$lang" == "zh" ]] && text="检查镜像仓库连通性: %s" || text="Checking image registry connectivity: %s" ;;
+        validate.image_ok)
+            [[ "$lang" == "zh" ]] && text="镜像仓库可达 ✓" || text="Image registry reachable ✓" ;;
+        validate.image_warn)
+            [[ "$lang" == "zh" ]] && text="无法连接镜像仓库 %s，部署时可能拉取镜像失败" || text="Cannot reach image registry %s, image pull may fail during deployment" ;;
+        validate.all_ok)
+            [[ "$lang" == "zh" ]] && text="配置校验通过 ✓" || text="Config validation passed ✓" ;;
         *)
             text="${key}" ;;
     esac
@@ -555,7 +577,7 @@ load_config() {
                NACOS_USERNAME NACOS_ADMIN_PASSWORD HIGRESS_USERNAME HIGRESS_PASSWORD \
                ADMIN_USERNAME ADMIN_PASSWORD FRONT_USERNAME FRONT_PASSWORD \
                MYSQL_STORAGE_CLASS MYSQL_STORAGE_SIZE SANDBOX_STORAGE_CLASS SANDBOX_STORAGE_SIZE \
-               HIGRESS_INGRESS_CLASS HIMARKET_LANGUAGE \
+               HIGRESS_INGRESS_CLASS SERVICE_TYPE HIMARKET_LANGUAGE \
                SKIP_HOOK_ERRORS \
                SKIP_AI_MODEL_INIT AI_MODEL_COUNT SKIP_NACOS_SYNC; do
         eval "local _val=\"\${${var}:-}\""
@@ -815,6 +837,7 @@ interactive_config() {
         SANDBOX_STORAGE_CLASS="${SANDBOX_STORAGE_CLASS:-alicloud-disk-essd}"
         SANDBOX_STORAGE_SIZE="${SANDBOX_STORAGE_SIZE:-50Gi}"
         HIGRESS_INGRESS_CLASS="${HIGRESS_INGRESS_CLASS:-himarket}"
+        SERVICE_TYPE="${SERVICE_TYPE:-LoadBalancer}"
         SKIP_AI_MODEL_INIT="${SKIP_AI_MODEL_INIT:-true}"
         export SKIP_AI_MODEL_INIT AI_MODEL_COUNT
         local _ei
@@ -910,6 +933,7 @@ interactive_config() {
     if [[ "${INSTALL_HIGRESS}" == "true" ]]; then
         prompt HIGRESS_INGRESS_CLASS "Higress IngressClass" "himarket"
     fi
+    prompt SERVICE_TYPE "Service type (LoadBalancer / NodePort / ClusterIP)" "LoadBalancer"
 
     # ─── AI 模型配置（可选，支持多个）───
     log ""
@@ -1014,6 +1038,7 @@ interactive_config() {
     log "  HIMARKET_IMAGE_TAG:${HIMARKET_IMAGE_TAG}"
     log "  MYSQL_STORAGE:     ${MYSQL_STORAGE_CLASS} / ${MYSQL_STORAGE_SIZE}"
     log "  SANDBOX_STORAGE:   ${SANDBOX_STORAGE_CLASS} / ${SANDBOX_STORAGE_SIZE}"
+    log "  SERVICE_TYPE:      ${SERVICE_TYPE}"
     if [[ "${INSTALL_NACOS}" == "true" ]]; then
         log "  NACOS_VERSION:     ${NACOS_VERSION}"
     fi
@@ -1098,6 +1123,9 @@ SANDBOX_STORAGE_SIZE="${SANDBOX_STORAGE_SIZE}"
 # ========== Higress IngressClass ==========
 HIGRESS_INGRESS_CLASS="${HIGRESS_INGRESS_CLASS:-himarket}"
 
+# ========== Service Type ==========
+SERVICE_TYPE="${SERVICE_TYPE:-LoadBalancer}"
+
 # ========== AI 模型配置 ==========
 SKIP_AI_MODEL_INIT="${SKIP_AI_MODEL_INIT:-true}"
 AI_MODEL_COUNT="${AI_MODEL_COUNT:-0}"
@@ -1141,6 +1169,81 @@ cluster_preflight() {
     log "$(msg deploy.preflight_ok "${ctx}")"
 }
 
+# ── validate_config — 部署前校验用户配置 ─────────────────────────────────────
+validate_config() {
+    log ""
+    log "$(msg validate.title)"
+    local has_error=false
+
+    # 1. 校验 HIMARKET_SIZE 值
+    case "${HIMARKET_SIZE}" in
+        small|standard|large) ;;
+        *)
+            warn "$(msg validate.size_invalid "${HIMARKET_SIZE}")"
+            has_error=true
+            ;;
+    esac
+
+    # 2. 校验 StorageClass 是否存在
+    local sc_list
+    sc_list=$(kubectl get sc -o jsonpath='{.items[*].metadata.name}' 2>/dev/null || echo "")
+    local sc_error=false
+
+    if [[ -z "${sc_list}" ]]; then
+        warn "$(msg validate.sc_none)"
+        has_error=true
+        sc_error=true
+    else
+        # 收集需要校验的 StorageClass（去重）
+        local -A sc_to_check
+        sc_to_check["${MYSQL_STORAGE_CLASS}"]="MySQL"
+        if [[ "${SANDBOX_STORAGE_CLASS}" != "${MYSQL_STORAGE_CLASS}" ]]; then
+            sc_to_check["${SANDBOX_STORAGE_CLASS}"]="Sandbox"
+        else
+            sc_to_check["${SANDBOX_STORAGE_CLASS}"]="MySQL, Sandbox"
+        fi
+
+        for sc_name in "${!sc_to_check[@]}"; do
+            log "$(msg validate.sc_checking "${sc_name}")"
+            if kubectl get sc "${sc_name}" >/dev/null 2>&1; then
+                log "$(msg validate.sc_ok "${sc_name}")"
+            else
+                warn "$(msg validate.sc_not_found "${sc_name}")"
+                has_error=true
+                sc_error=true
+            fi
+        done
+
+        # 仅在 SC 校验失败时列出可用的 SC 供参考
+        if [[ "${sc_error}" == "true" ]]; then
+            warn "$(msg validate.sc_available)"
+            kubectl get sc --no-headers 2>/dev/null | while IFS= read -r line; do
+                warn "  ${line}"
+            done
+        fi
+    fi
+
+    # 3. 校验镜像仓库连通性（仅警告，不阻断）
+    local registry_host
+    registry_host=$(echo "${HIMARKET_HUB}" | cut -d'/' -f1)
+    log "$(msg validate.image_checking "${registry_host}")"
+    if curl -s --connect-timeout 5 --max-time 10 "https://${registry_host}/v2/" >/dev/null 2>&1 \
+       || curl -s --connect-timeout 5 --max-time 10 "http://${registry_host}/v2/" >/dev/null 2>&1; then
+        log "$(msg validate.image_ok)"
+    else
+        warn "$(msg validate.image_warn "${registry_host}")"
+        # 镜像仓库不可达仅警告，不阻断部署（可能是私有仓库需要认证）
+    fi
+
+    # 校验失败则终止
+    if [[ "${has_error}" == "true" ]]; then
+        error "$(msg validate.title) — FAILED"
+    fi
+
+    log "$(msg validate.all_ok)"
+    log ""
+}
+
 create_ns() {
     local ns="$1"
     if ! kubectl get ns "${ns}" >/dev/null 2>&1; then
@@ -1163,6 +1266,9 @@ deploy_all() {
 
     # 3. 交互式配置
     interactive_config
+
+    # 3.5 配置校验（StorageClass、size 等）
+    validate_config
 
     local NS="${NAMESPACE}"
     local NACOS_DB_NAME="nacos"
@@ -1199,7 +1305,9 @@ deploy_all() {
         --set "mysql.persistence.size=${MYSQL_STORAGE_SIZE}" \
         --set "sandbox.persistence.storageClass=${SANDBOX_STORAGE_CLASS}" \
         --set "sandbox.persistence.size=${SANDBOX_STORAGE_SIZE}" \
-        --set "server.jwtSecret=${JWT_SECRET}"
+        --set "server.jwtSecret=${JWT_SECRET}" \
+        --set "frontend.service.type=${SERVICE_TYPE}" \
+        --set "admin.service.type=${SERVICE_TYPE}"
 
     # 6.1 升级模式：tag 不变（如 latest）时 helm upgrade 不会触发 rollout，
     #     需要显式 rollout restart 让 imagePullPolicy: Always 生效拉取最新镜像
@@ -1237,7 +1345,8 @@ deploy_all() {
             --set "database.password=${nacos_db_pass}" \
             --set "image.registry=${NACOS_IMAGE_REGISTRY}" \
             --set "image.repository=${NACOS_IMAGE_REPOSITORY}" \
-            --set "image.tag=${NACOS_VERSION}"
+            --set "image.tag=${NACOS_VERSION}" \
+            --set "service.type=${SERVICE_TYPE}"
 
         # 8.1 升级模式：Nacos 使用 latest 镜像时强制重启
         if [[ "${DEPLOY_MODE}" == "upgrade" && "${NACOS_VERSION}" == "latest" ]]; then
@@ -1256,9 +1365,16 @@ deploy_all() {
             --set "higress-core.global.enableRedis=true" \
             --set "higress-core.global.ingressClass=${HIGRESS_INGRESS_CLASS}" \
             --set "higress-console.global.ingressClass=${HIGRESS_INGRESS_CLASS}" \
-            --set "higress-console.service.type=LoadBalancer" \
+            --set "higress-console.service.type=${SERVICE_TYPE}" \
             --set "higress-console.admin.username=${HIGRESS_USERNAME}" \
-            --set "higress-console.admin.password=${HIGRESS_PASSWORD}"
+            --set "higress-console.admin.password=${HIGRESS_PASSWORD}" \
+            $(if [[ "${HIMARKET_SIZE}" == "small" ]]; then
+                echo "--set higress-core.gateway.replicas=1"
+                echo "--set higress-core.gateway.resources.requests.cpu=500m"
+                echo "--set higress-core.gateway.resources.requests.memory=512Mi"
+                echo "--set higress-core.gateway.resources.limits.cpu=1000m"
+                echo "--set higress-core.gateway.resources.limits.memory=1Gi"
+            fi)
 
         wait_rollout "${NS}" "deployment" "higress-gateway" 900
         wait_rollout "${NS}" "deployment" "higress-controller" 600
