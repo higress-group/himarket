@@ -17,95 +17,110 @@ import { apiProductApi, mcpServerApi } from '@/lib/api';
 import { getProductCategories } from '@/lib/productCategoryApi';
 import { getServiceName, formatDateTime, copyToClipboard } from '@/lib/utils';
 import type { ApiProduct } from '@/types/api-product';
+import type { LinkedService } from '@/types/api-product';
 import type { ProductCategory } from '@/types/product-category';
 
 interface ApiProductOverviewProps {
   apiProduct: ApiProduct;
-  linkedService: any | null;
+  linkedService: LinkedService | null;
   onEdit: () => void;
+}
+
+interface McpMetaItem {
+  createAt?: string;
+  createdBy?: string;
+  description?: string;
+  displayName?: string;
+  endpointStatus?: string;
+  endpointUrl?: string;
+  mcpName?: string;
+  mcpServerId?: string;
+  origin?: string;
+  protocolType?: string;
+  repoUrl?: string;
+  sandboxRequired?: boolean;
+  tags?: string;
 }
 
 export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiProductOverviewProps) {
   const [portalCount, setPortalCount] = useState(0);
   const [subscriberCount, setSubscriberCount] = useState(0);
   const [productCategories, setProductCategories] = useState<ProductCategory[]>([]);
-  const [mcpMetaList, setMcpMetaList] = useState<any[]>([]);
+  const [mcpMetaList, setMcpMetaList] = useState<McpMetaItem[]>([]);
 
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (apiProduct.productId) {
-      fetchPublishedPortals();
-      fetchProductCategories();
-      fetchSubscriberCount();
-      if (apiProduct.type === 'MCP_SERVER') {
-        fetchMcpMeta();
+    if (!apiProduct.productId) {
+      return;
+    }
+
+    const fetchPublishedPortals = async () => {
+      try {
+        const res = await apiProductApi.getApiProductPublications(apiProduct.productId);
+        setPortalCount(res.data.content?.length || 0);
+      } catch {
+        // ignore
       }
-    }
-  }, [apiProduct.productId, apiProduct]);
+    };
 
-  const fetchPublishedPortals = async () => {
-    try {
-      const res = await apiProductApi.getApiProductPublications(apiProduct.productId);
-      setPortalCount(res.data.content?.length || 0);
-    } catch (error) {
-    } finally {
-    }
-  };
+    const fetchSubscriberCount = async () => {
+      try {
+        const res = await apiProductApi.getProductSubscriptions(apiProduct.productId, {
+          page: 0,
+          size: 1,
+        });
+        setSubscriberCount(res.data.totalElements || 0);
+      } catch {
+        // ignore
+      }
+    };
 
-  const fetchSubscriberCount = async () => {
-    try {
-      const res = await apiProductApi.getProductSubscriptions(apiProduct.productId, {
-        page: 0,
-        size: 1,
-      });
-      setSubscriberCount(res.data.totalElements || 0);
-    } catch (error) {}
-  };
+    const fetchProductCategories = async () => {
+      try {
+        const res = await apiProductApi.getProductCategories(apiProduct.productId);
+        const categoriesData = res.data as unknown;
 
-  const fetchProductCategories = async () => {
-    try {
-      // 获取产品关联的类别信息
-      const res = await apiProductApi.getProductCategories(apiProduct.productId);
+        if (!Array.isArray(categoriesData) || categoriesData.length === 0) {
+          setProductCategories([]);
+          return;
+        }
 
-      // 检查返回的数据结构，确保是数组
-      const categoriesData = res.data;
+        const allCategoriesRes = await getProductCategories();
+        const allCategories = allCategoriesRes.data.content || allCategoriesRes.data || [];
 
-      // 如果没有关联类别，直接设置空数组
-      if (!categoriesData || categoriesData.length === 0) {
+        const categoriesWithNames = categoriesData.map((category: unknown) => {
+          const cat = category as { categoryId?: string; id?: string };
+          const categoryId = cat.categoryId || cat.id;
+          const fullCategoryInfo = allCategories.find(
+            (c: ProductCategory) => c.categoryId === categoryId || c.id === categoryId,
+          );
+          return fullCategoryInfo || (cat as ProductCategory);
+        });
+
+        setProductCategories(categoriesWithNames);
+      } catch (_error) {
+        console.error('获取产品类别失败:', _error);
         setProductCategories([]);
-        return;
       }
+    };
 
-      // 获取所有类别信息以显示类别名称
-      const allCategoriesRes = await getProductCategories();
-      const allCategories = allCategoriesRes.data.content || allCategoriesRes.data || [];
+    const fetchMcpMeta = async () => {
+      try {
+        const res = await mcpServerApi.listMetaByProduct(apiProduct.productId);
+        setMcpMetaList(res.data || []);
+      } catch {
+        setMcpMetaList([]);
+      }
+    };
 
-      // 将产品关联的类别ID映射为类别名称
-      const categoriesWithNames = categoriesData.map((category: any) => {
-        // 处理不同的数据格式
-        const categoryId = category.categoryId || category.id;
-        const fullCategoryInfo = allCategories.find(
-          (c: ProductCategory) => c.categoryId === categoryId || c.id === categoryId,
-        );
-        return fullCategoryInfo || category;
-      });
-
-      setProductCategories(categoriesWithNames);
-    } catch (error) {
-      console.error('获取产品类别失败:', error);
-      setProductCategories([]);
+    fetchPublishedPortals();
+    fetchProductCategories();
+    fetchSubscriberCount();
+    if (apiProduct.type === 'MCP_SERVER') {
+      fetchMcpMeta();
     }
-  };
-
-  const fetchMcpMeta = async () => {
-    try {
-      const res = await mcpServerApi.listMetaByProduct(apiProduct.productId);
-      setMcpMetaList(res.data || []);
-    } catch {
-      setMcpMetaList([]);
-    }
-  };
+  }, [apiProduct]);
 
   return (
     <div className="p-6 space-y-6">
@@ -219,6 +234,14 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
                       <span
                         className="text-gray-900 hover:text-blue-600 cursor-pointer hover:underline transition-colors"
                         onClick={() => navigate(`/product-categories/${category.categoryId}`)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            navigate(`/product-categories/${category.categoryId}`);
+                          }
+                        }}
+                        role="button"
+                        tabIndex={0}
                       >
                         {category.name}
                       </span>
@@ -282,7 +305,7 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
       {/* MCP 配置信息 - 仅 MCP_SERVER 类型显示 */}
       {apiProduct.type === 'MCP_SERVER' && mcpMetaList.length > 0 && (
         <Card title="MCP 配置信息">
-          {mcpMetaList.map((meta: any) => (
+          {mcpMetaList.map((meta: McpMetaItem) => (
             <div className="space-y-2" key={meta.mcpServerId}>
               <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
                 <span className="text-xs text-gray-600">MCP 名称:</span>
@@ -396,7 +419,7 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
                       className="text-gray-400 hover:text-blue-600 cursor-pointer transition-colors flex-shrink-0"
                       onClick={async () => {
                         try {
-                          await copyToClipboard(meta.endpointUrl);
+                          await copyToClipboard(meta.endpointUrl || '');
                           message.success('连接地址已复制');
                         } catch {
                           message.error('复制失败');

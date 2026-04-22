@@ -34,7 +34,7 @@ import type { ProductIcon } from '@/types/api-product';
 interface McpCustomConfigModalProps {
   visible: boolean;
   onCancel: () => void;
-  onOk: (values: any) => void | Promise<void>;
+  onOk: (values: unknown) => void | Promise<void>;
   productName?: string;
   productDescription?: string;
   productIcon?: ProductIcon;
@@ -114,7 +114,7 @@ export function McpCustomConfigModal({
     }
   }, [sandboxRequired, currentStep]);
 
-  const [sandboxList, setSandboxList] = useState<any[]>([]);
+  const [sandboxList, setSandboxList] = useState<unknown[]>([]);
   const [sandboxLoading, setSandboxLoading] = useState(false);
   const [namespaceList, setNamespaceList] = useState<string[]>([]);
   const [namespaceLoading, setNamespaceLoading] = useState(false);
@@ -124,8 +124,8 @@ export function McpCustomConfigModal({
       setSandboxLoading(true);
       sandboxApi
         .getActiveSandboxes()
-        .then((res: any) => {
-          const list = res?.data || [];
+        .then((res: unknown) => {
+          const list = (res as { data?: unknown[] }).data || [];
           setSandboxList(Array.isArray(list) ? list : []);
         })
         .catch(() => setSandboxList([]))
@@ -136,7 +136,7 @@ export function McpCustomConfigModal({
   // 打开弹窗时自动填充产品信息到展示字段（只读）
   useEffect(() => {
     if (visible) {
-      const formValues: Record<string, any> = {
+      const formValues: Record<string, unknown> = {
         description: productDescription || '',
         mcpDisplayName: productName || '',
         sandboxRequired: true,
@@ -171,14 +171,17 @@ export function McpCustomConfigModal({
             const params = JSON.parse(initialMcpMeta.extraParams);
             if (Array.isArray(params)) {
               setExtraParams(
-                params.map((p: any, i: number) => ({
-                  description: p.description || '',
-                  example: p.example || '',
-                  key: p.name || `param-${i}`,
-                  name: p.name || '',
-                  position: p.position || 'env',
-                  required: p.required ?? false,
-                })),
+                (params as unknown[]).map((p: unknown, i: number) => {
+                  const param = p as Record<string, unknown>;
+                  return {
+                    description: (param.description as string) || '',
+                    example: (param.example as string) || '',
+                    key: (param.name as string) || `param-${i}`,
+                    name: (param.name as string) || '',
+                    position: (param.position as string) || 'env',
+                    required: (param.required as boolean) ?? false,
+                  };
+                }),
               );
             }
           } catch {
@@ -189,7 +192,7 @@ export function McpCustomConfigModal({
 
       form.setFieldsValue(formValues);
     }
-  }, [visible, productName, productDescription, productDocument, initialMcpMeta]);
+  }, [visible, productName, productDescription, productDocument, initialMcpMeta, form]);
 
   const handleAddTag = () => {
     const val = tagInput.trim();
@@ -281,8 +284,9 @@ export function McpCustomConfigModal({
       }
       message.success(values.deployNow ? '保存并部署成功' : '配置已保存');
       resetAll();
-    } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.message || '保存失败';
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { message?: string } }; message?: string };
+      const msg = err?.response?.data?.message || err?.message || '保存失败';
       if (values.deployNow) {
         if (msg.includes('部署沙箱') || msg.includes('创建连接')) setDeployStep(1);
       }
@@ -465,6 +469,18 @@ export function McpCustomConfigModal({
                     });
                     setExtraParams([]);
                   }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      form.setFieldsValue({
+                        protocolType: p.key,
+                        ...(p.key === 'stdio' ? { sandboxRequired: true } : {}),
+                      });
+                      setExtraParams([]);
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
                 >
                   {selected && (
                     <CheckCircleFilled className="absolute top-1.5 right-1.5 text-blue-500 text-[10px]" />
@@ -669,7 +685,7 @@ export function McpCustomConfigModal({
                 },
                 {
                   align: 'center' as const,
-                  render: (_: any, record: ExtraParam) => (
+                  render: (_: unknown, record: ExtraParam) => (
                     <Space size={4}>
                       <Button
                         className="text-gray-400 hover:text-blue-500"
@@ -736,8 +752,8 @@ export function McpCustomConfigModal({
     form.setFieldsValue({ namespace: undefined });
     setNamespaceLoading(true);
     try {
-      const res: any = await sandboxApi.listNamespaces(sandboxId);
-      const list = res?.data || res || [];
+      const res: unknown = await sandboxApi.listNamespaces(sandboxId);
+      const list = (res as { data?: unknown[] }).data || res || [];
       setNamespaceList(Array.isArray(list) ? list : []);
     } catch {
       message.error('获取 Namespace 列表失败');
@@ -767,10 +783,13 @@ export function McpCustomConfigModal({
                   <Select
                     loading={sandboxLoading}
                     onChange={handleSandboxChange}
-                    options={sandboxList.map((s: any) => ({
-                      label: s.sandboxName,
-                      value: s.sandboxId,
-                    }))}
+                    options={sandboxList.map((s: unknown) => {
+                      const sb = s as { sandboxName: string; sandboxId: string };
+                      return {
+                        label: sb.sandboxName,
+                        value: sb.sandboxId,
+                      };
+                    })}
                     placeholder="选择沙箱实例"
                   />
                 </Form.Item>
@@ -827,7 +846,7 @@ export function McpCustomConfigModal({
                   <Radio.Group
                     className="w-full"
                     onChange={(e) => {
-                      const presets: Record<string, any> = {
+                      const presets: Record<string, unknown> = {
                         large: {
                           cpuLimit: '2',
                           cpuRequest: '1',
@@ -850,7 +869,7 @@ export function McpCustomConfigModal({
                           memoryRequest: '256Mi',
                         },
                       };
-                      const p = presets[e.target.value];
+                      const p = presets[e.target.value] as Record<string, string> | undefined;
                       if (p) form.setFieldsValue(p);
                     }}
                   >
@@ -1044,7 +1063,19 @@ export function McpCustomConfigModal({
               const isDone = completedSteps.has(item.key);
               const isLast = idx === navItems.length - 1;
               return (
-                <div className="flex gap-3" key={item.key} onClick={() => navigateTo(item.key)}>
+                <div
+                  className="flex gap-3"
+                  key={item.key}
+                  onClick={() => navigateTo(item.key)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      navigateTo(item.key);
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
+                >
                   {/* 左侧：圆点 + 连线 */}
                   <div className="flex flex-col items-center flex-shrink-0">
                     <div
@@ -1088,11 +1119,17 @@ export function McpCustomConfigModal({
           {/* 顶部标题栏 */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
             <div className="flex items-center gap-2">
-              <span className="text-gray-400">{navItems[currentStep].icon}</span>
-              <span className="text-sm font-medium text-gray-800">
-                {navItems[currentStep].label}
-              </span>
-              <span className="text-xs text-gray-400">— {navItems[currentStep].desc}</span>
+              {(() => {
+                const nav = navItems[currentStep];
+                if (!nav) return null;
+                return (
+                  <>
+                    <span className="text-gray-400">{nav.icon}</span>
+                    <span className="text-sm font-medium text-gray-800">{nav.label}</span>
+                    <span className="text-xs text-gray-400">— {nav.desc}</span>
+                  </>
+                );
+              })()}
             </div>
             <Button
               className="text-gray-400 hover:text-gray-600"
@@ -1111,7 +1148,10 @@ export function McpCustomConfigModal({
               <Form.Item hidden name="sandboxRequired">
                 <input type="hidden" />
               </Form.Item>
-              {stepContent[currentStep]()}
+              {(() => {
+                const contentFn = stepContent[currentStep];
+                return contentFn ? contentFn() : null;
+              })()}
             </Form>
           </div>
 

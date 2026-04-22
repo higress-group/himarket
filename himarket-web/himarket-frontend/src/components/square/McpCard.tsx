@@ -46,6 +46,13 @@ export function McpCard({
         flex flex-col
       "
       onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          onClick?.();
+        }
+      }}
+      role="button"
+      tabIndex={0}
     >
       {/* 已订阅角标 */}
       {isLoggedIn && subscribed && (

@@ -58,9 +58,14 @@ function McpSquare() {
   useEffect(() => {
     const sentinel = sentinelRef.current;
     if (!sentinel) return;
-    const observer = new IntersectionObserver(([entry]) => setIsStuck(!entry.isIntersecting), {
-      threshold: 0,
-    });
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry) setIsStuck(!entry.isIntersecting);
+      },
+      {
+        threshold: 0,
+      },
+    );
     observer.observe(sentinel);
     return () => observer.disconnect();
   }, []);
@@ -90,28 +95,31 @@ function McpSquare() {
     fetchCategories();
   }, []);
 
-  const fetchMetaForProducts = async (products: IProductDetail[]): Promise<McpProductItem[]> => {
-    if (products.length === 0) return [];
-    const productIds = products.map((p) => p.productId);
-    try {
-      const fetchFn = isLoggedIn ? getProductMcpMetaBatch : getProductMcpMetaBatchPublic;
-      const res = await fetchFn(productIds);
-      const metaList = res.code === 'SUCCESS' ? res.data || [] : [];
-      // 按 productId 分组，取每个产品的第一条 meta
-      const metaByProduct = new Map<string, IMcpMeta>();
-      for (const meta of metaList) {
-        if (!metaByProduct.has(meta.productId)) {
-          metaByProduct.set(meta.productId, meta);
+  const fetchMetaForProducts = useCallback(
+    async (products: IProductDetail[]): Promise<McpProductItem[]> => {
+      if (products.length === 0) return [];
+      const productIds = products.map((p) => p.productId);
+      try {
+        const fetchFn = isLoggedIn ? getProductMcpMetaBatch : getProductMcpMetaBatchPublic;
+        const res = await fetchFn(productIds);
+        const metaList = res.code === 'SUCCESS' ? res.data || [] : [];
+        // 按 productId 分组，取每个产品的第一条 meta
+        const metaByProduct = new Map<string, IMcpMeta>();
+        for (const meta of metaList) {
+          if (!metaByProduct.has(meta.productId)) {
+            metaByProduct.set(meta.productId, meta);
+          }
         }
+        return products.map((product) => ({
+          meta: metaByProduct.get(product.productId) || null,
+          product,
+        }));
+      } catch {
+        return products.map((product) => ({ meta: null, product }));
       }
-      return products.map((product) => ({
-        meta: metaByProduct.get(product.productId) || null,
-        product,
-      }));
-    } catch {
-      return products.map((product) => ({ meta: null, product }));
-    }
-  };
+    },
+    [isLoggedIn],
+  );
 
   useEffect(() => {
     if (activeTab !== 'market') return;
@@ -139,7 +147,7 @@ function McpSquare() {
       }
     };
     fetchProducts();
-  }, [activeCategory, activeTab, committedSearch, isLoggedIn, currentPage]);
+  }, [activeCategory, activeTab, committedSearch, isLoggedIn, currentPage, fetchMetaForProducts]);
 
   // Unified consumer data loader: fetches subscriptions once and derives both
   // subscribedProductIds (for market tab badges) and myMcpItems (for "My MCP" tab)
@@ -357,7 +365,7 @@ function McpSquare() {
           </div>
         </div>
       </div>
-      <BackToTopButton container={scrollContainerRef.current!} />
+      <BackToTopButton container={scrollContainerRef.current ?? undefined} />
     </Layout>
   );
 }
@@ -518,6 +526,13 @@ function McpCard({
         h-[200px] flex flex-col
       "
       onClick={onViewDetail}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          onViewDetail();
+        }
+      }}
+      role="button"
+      tabIndex={0}
     >
       {/* 已订阅角标 */}
       {isLoggedIn && subscribed && (
@@ -704,6 +719,13 @@ function MyMcpCard({ item, onViewDetail }: { item: McpProductItem; onViewDetail:
         h-[200px] flex flex-col
       "
       onClick={onViewDetail}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          onViewDetail();
+        }
+      }}
+      role="button"
+      tabIndex={0}
     >
       {/* 头部：icon + 名称 + 标签 */}
       <div className="flex items-center gap-3 mb-3">

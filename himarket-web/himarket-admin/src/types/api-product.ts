@@ -41,6 +41,7 @@ export interface ApiProductAgentConfig {
       // HTTP 路由（非 A2A 协议使用）
       domains: Array<{
         domain: string;
+        port?: number;
         protocol: string;
       }>;
       description: string;
@@ -102,6 +103,7 @@ export interface ApiProductModelConfig {
     routes: Array<{
       domains: Array<{
         domain: string;
+        port?: number;
         protocol: string;
       }>;
       description: string;

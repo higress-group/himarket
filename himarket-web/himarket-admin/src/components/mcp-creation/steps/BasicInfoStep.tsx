@@ -240,6 +240,14 @@ export default function BasicInfoStep({ mode }: StepProps) {
               <div
                 className="w-16 h-16 border border-dashed border-gray-300 rounded-lg flex items-center justify-center cursor-pointer relative transition-colors hover:border-blue-400"
                 onClick={handleFileSelect}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleFileSelect();
+                  }
+                }}
+                role="button"
+                tabIndex={0}
               >
                 {fileList.length > 0 ? (
                   <img
@@ -247,10 +255,20 @@ export default function BasicInfoStep({ mode }: StepProps) {
                     className="w-full h-full object-cover rounded-md"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setPreviewImage(fileList[0].url || '');
+                      setPreviewImage(fileList[0]?.url || '');
                       setPreviewOpen(true);
                     }}
-                    src={fileList[0].url}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setPreviewImage(fileList[0]?.url || '');
+                        setPreviewOpen(true);
+                      }
+                    }}
+                    role="button"
+                    src={fileList[0]?.url || ''}
+                    tabIndex={0}
                   />
                 ) : (
                   <div className="flex flex-col items-center text-gray-400">
@@ -266,6 +284,16 @@ export default function BasicInfoStep({ mode }: StepProps) {
                       setFileList([]);
                       form.setFieldsValue({ icon: null });
                     }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setFileList([]);
+                        form.setFieldsValue({ icon: null });
+                      }
+                    }}
+                    role="button"
+                    tabIndex={0}
                   >
                     ×
                   </div>

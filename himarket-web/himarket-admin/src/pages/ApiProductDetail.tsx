@@ -8,7 +8,7 @@ import {
   InboxOutlined,
 } from '@ant-design/icons';
 import { Button, Dropdown, Modal, message } from 'antd';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import ApiProductFormModal from '@/components/api-product/ApiProductFormModal';
@@ -24,7 +24,14 @@ import type { ApiProduct, LinkedService } from '@/types/api-product';
 
 import type { MenuProps } from 'antd';
 
-const BASE_MENU_ITEMS = [
+interface MenuItem {
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+  key: string;
+  label: string;
+}
+
+const BASE_MENU_ITEMS: MenuItem[] = [
   {
     description: '产品概览',
     icon: EyeOutlined,
@@ -60,52 +67,55 @@ export default function ApiProductDetail() {
   const [, setLoading] = useState(true); // 添加 loading 状态
 
   // 动态计算 menuItems（AGENT_SKILL / WORKER 类型：隐藏 Link API 和 Usage Guide，插入包管理和 Link Nacos）
-  const menuItems =
-    apiProduct?.type === 'AGENT_SKILL'
-      ? [
-          BASE_MENU_ITEMS[0], // overview
-          {
-            description: '技能包管理',
-            icon: InboxOutlined,
-            key: 'skill-package',
-            label: 'Skill Package',
-          },
-          BASE_MENU_ITEMS[3], // portal
-        ]
-      : apiProduct?.type === 'WORKER'
+  const menuItems = useMemo(
+    () =>
+      apiProduct?.type === 'AGENT_SKILL'
         ? [
             BASE_MENU_ITEMS[0], // overview
             {
-              description: 'Worker 包管理',
+              description: '技能包管理',
               icon: InboxOutlined,
-              key: 'worker-package',
-              label: 'Worker Package',
+              key: 'skill-package',
+              label: 'Skill Package',
             },
             BASE_MENU_ITEMS[3], // portal
           ]
-        : apiProduct?.type === 'MCP_SERVER'
+        : apiProduct?.type === 'WORKER'
           ? [
               BASE_MENU_ITEMS[0], // overview
               {
-                description: 'MCP Server 配置',
-                icon: LinkOutlined,
-                key: 'link-api',
-                label: '配置MCP',
+                description: 'Worker 包管理',
+                icon: InboxOutlined,
+                key: 'worker-package',
+                label: 'Worker Package',
               },
-              BASE_MENU_ITEMS[2], // usage-guide
               BASE_MENU_ITEMS[3], // portal
             ]
-          : BASE_MENU_ITEMS;
+          : apiProduct?.type === 'MCP_SERVER'
+            ? [
+                BASE_MENU_ITEMS[0], // overview
+                {
+                  description: 'MCP Server 配置',
+                  icon: LinkOutlined,
+                  key: 'link-api',
+                  label: '配置MCP',
+                },
+                BASE_MENU_ITEMS[2], // usage-guide
+                BASE_MENU_ITEMS[3], // portal
+              ]
+            : BASE_MENU_ITEMS,
+    [apiProduct?.type],
+  );
 
   // 从URL query参数获取当前tab，默认为overview
   const currentTab = searchParams.get('tab') || 'overview';
   // 验证tab值是否有效，如果无效则使用默认值
-  const validTab = menuItems.some((item) => item.key === currentTab) ? currentTab : 'overview';
+  const validTab = menuItems.some((item) => item?.key === currentTab) ? currentTab : 'overview';
   const [activeTab, setActiveTab] = useState(validTab);
 
   const [editModalVisible, setEditModalVisible] = useState(false);
 
-  const fetchApiProduct = async () => {
+  const fetchApiProduct = useCallback(async () => {
     if (productId) {
       setLoading(true);
       try {
@@ -123,7 +133,7 @@ export default function ApiProductDetail() {
         setLoading(false);
       }
     }
-  };
+  }, [productId]);
 
   // 更新关联信息的回调函数
   const handleLinkedServiceUpdate = (newLinkedService: LinkedService | null) => {
@@ -132,14 +142,14 @@ export default function ApiProductDetail() {
 
   useEffect(() => {
     fetchApiProduct();
-  }, [productId]);
+  }, [fetchApiProduct]);
 
   // 同步URL参数和activeTab状态
   useEffect(() => {
     const currentTab = searchParams.get('tab') || 'overview';
-    const valid = menuItems.some((item) => item.key === currentTab) ? currentTab : 'overview';
+    const valid = menuItems.some((item) => item?.key === currentTab) ? currentTab : 'overview';
     setActiveTab(valid);
-  }, [searchParams, apiProduct]);
+  }, [searchParams, menuItems]);
 
   const handleBackToApiProducts = () => {
     navigate('/api-products');
@@ -286,24 +296,26 @@ export default function ApiProductDetail() {
         {/* 导航菜单 - 等待产品数据加载后再渲染，避免菜单项闪烁 */}
         <nav className="flex-1 p-4 space-y-1">
           {apiProduct ? (
-            menuItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <button
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
-                    activeTab === item.key ? 'bg-blue-500 text-white' : 'hover:bg-gray-100'
-                  }`}
-                  key={item.key}
-                  onClick={() => handleTabChange(item.key)}
-                >
-                  <Icon className="h-4 w-4 flex-shrink-0" />
-                  <div>
-                    <div className="font-medium">{item.label}</div>
-                    <div className="text-xs opacity-70">{item.description}</div>
-                  </div>
-                </button>
-              );
-            })
+            menuItems
+              .filter((item): item is MenuItem => !!item)
+              .map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
+                      activeTab === item.key ? 'bg-blue-500 text-white' : 'hover:bg-gray-100'
+                    }`}
+                    key={item.key}
+                    onClick={() => handleTabChange(item.key)}
+                  >
+                    <Icon className="h-4 w-4 flex-shrink-0" />
+                    <div>
+                      <div className="font-medium">{item.label}</div>
+                      <div className="text-xs opacity-70">{item.description}</div>
+                    </div>
+                  </button>
+                );
+              })
           ) : (
             <div className="space-y-2">
               {[1, 2, 3, 4].map((i) => (

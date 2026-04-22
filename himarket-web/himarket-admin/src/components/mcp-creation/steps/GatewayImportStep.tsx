@@ -1,5 +1,5 @@
 import { ReloadOutlined } from '@ant-design/icons';
-import { Form, Select, Alert, Button, Spin, message } from 'antd';
+import { Form, Select, Alert, Button, Spin } from 'antd';
 import { useState, useEffect, useCallback } from 'react';
 
 import { gatewayApi } from '@/lib/api';
@@ -9,7 +9,7 @@ import type { Gateway } from '@/types/gateway';
 interface McpServerItem {
   mcpServerName: string;
   type?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 const MCP_GATEWAY_TYPES = ['HIGRESS', 'APIG_AI', 'ADP_AI_GATEWAY', 'APSARA_GATEWAY'] as const;
@@ -126,7 +126,7 @@ export default function GatewayImportStep() {
               <div>
                 <div className="font-medium">{gw.gatewayName}</div>
                 <div className="text-sm text-gray-500">
-                  {gw.gatewayId} - {getGatewayTypeLabel(gw.gatewayType as any)}
+                  {gw.gatewayId} - {getGatewayTypeLabel(gw.gatewayType)}
                 </div>
               </div>
             </Select.Option>

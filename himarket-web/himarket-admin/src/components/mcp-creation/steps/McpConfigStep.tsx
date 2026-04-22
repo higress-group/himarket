@@ -267,6 +267,14 @@ export default function McpConfigStep() {
                 }`}
                 key={p.key}
                 onClick={() => handleProtocolChange(p.key)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleProtocolChange(p.key);
+                  }
+                }}
+                role="button"
+                tabIndex={0}
               >
                 {selected && (
                   <CheckCircleFilled className="absolute top-1.5 right-1.5 text-blue-500 text-[10px]" />

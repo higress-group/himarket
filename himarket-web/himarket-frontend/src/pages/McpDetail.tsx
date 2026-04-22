@@ -50,6 +50,23 @@ import type { ISubscription } from '../lib/apis/consumer';
 import type { IProductDetail, IMcpMeta } from '../lib/apis/product';
 import type { Consumer } from '../types/consumer';
 
+interface McpToolProperty {
+  default?: unknown;
+  description?: string;
+  enum?: unknown[];
+  items?: unknown;
+  type?: string;
+}
+
+interface McpTool {
+  description?: string;
+  inputSchema?: {
+    properties?: Record<string, McpToolProperty>;
+    required?: string[];
+  };
+  name?: string;
+}
+
 function McpDetail() {
   const { mcpProductId } = useParams();
   const navigate = useNavigate();
@@ -89,7 +106,7 @@ function McpDetail() {
               ? await APIs.getProductMcpMeta(mcpProductId)
               : await getProductMcpMetaPublic(mcpProductId);
             if (metaRes.code === 'SUCCESS' && metaRes.data?.length > 0) {
-              setMeta(metaRes.data[0]);
+              setMeta(metaRes.data[0] ?? null);
             }
           } catch {
             // meta 可能不存在，不影响页面展示
@@ -106,8 +123,9 @@ function McpDetail() {
         } else {
           setError('MCP 不存在');
         }
-      } catch (e: any) {
-        setError(e?.message || '加载失败');
+      } catch (e: unknown) {
+        const err = e as { message?: string };
+        setError(err?.message || '加载失败');
       } finally {
         setLoading(false);
       }
@@ -186,7 +204,7 @@ function McpDetail() {
   const serviceIntro = meta?.serviceIntro || '';
 
   // 解析 tools：优先 meta.toolsConfig，fallback 到 product.mcpConfig.tools
-  const parsedTools: any[] = (() => {
+  const parsedTools: McpTool[] = (() => {
     const toolsSource = meta?.toolsConfig || product?.mcpConfig?.tools;
     if (!toolsSource) return [];
     try {
@@ -263,8 +281,9 @@ function McpDetail() {
       setIsApplyingSubscription(false);
       setSelectedConsumerId('');
       await fetchSubscriptionList();
-    } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.message || '订阅失败';
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { message?: string } }; message?: string };
+      const msg = err?.response?.data?.message || err?.message || '订阅失败';
       message.error(msg);
     } finally {
       setSubscribing(false);
@@ -278,8 +297,9 @@ function McpDetail() {
       await unsubscribeProduct(consumerId, mcpProductId);
       message.success('已取消订阅');
       await fetchSubscriptionList();
-    } catch (e: any) {
-      message.error(e?.response?.data?.message || '取消订阅失败');
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { message?: string } } };
+      message.error(err?.response?.data?.message || '取消订阅失败');
     }
   };
 
@@ -288,11 +308,12 @@ function McpDetail() {
     const tabs: { key: string; label: string; json: string }[] = [];
 
     // 辅助：检测协议类型，优先用 meta.protocolType，fallback 到 JSON 内容推断
-    const detectProtoFromEntry = (entry: any): 'stdio' | 'sse' | 'http' => {
-      if (entry?.command) return 'stdio';
-      if (entry?.type === 'sse') return 'sse';
-      if (entry?.type === 'streamable-http') return 'http';
-      if (entry?.url) return 'http';
+    const detectProtoFromEntry = (entry: unknown): 'stdio' | 'sse' | 'http' => {
+      const e = entry as Record<string, unknown> | undefined;
+      if (e?.command) return 'stdio';
+      if (e?.type === 'sse') return 'sse';
+      if (e?.type === 'streamable-http') return 'http';
+      if (e?.url) return 'http';
       return 'stdio';
     };
     const normalizeProto = (raw: string): 'stdio' | 'sse' | 'http' | null => {
@@ -313,15 +334,17 @@ function McpDetail() {
     if (meta?.resolvedConfig) {
       try {
         const parsed = JSON.parse(meta.resolvedConfig);
-        const firstEntry = Object.values(parsed?.mcpServers || {})[0] as any;
+        const firstEntry = Object.values(parsed?.mcpServers || {})[0] as
+          | Record<string, unknown>
+          | undefined;
         if (firstEntry) {
           const proto =
             normalizeProto(meta?.endpointProtocol || '') || detectProtoFromEntry(firstEntry);
           hotProto = proto;
           tabs.push({
             json: JSON.stringify(parsed, null, 2),
-            key: proto,
-            label: protoLabel[proto],
+            key: proto ?? 'stdio',
+            label: protoLabel[proto ?? 'stdio'] ?? 'Stdio',
           });
         }
       } catch {
@@ -359,7 +382,7 @@ function McpDetail() {
           } else {
             coldJson = JSON.stringify(parsed, null, 2);
           }
-          tabs.push({ json: coldJson, key: coldProto, label: protoLabel[coldProto] });
+          tabs.push({ json: coldJson, key: coldProto, label: protoLabel[coldProto] ?? coldProto });
         }
       } catch {
         /* ignore */
@@ -384,6 +407,7 @@ function McpDetail() {
 
       if (domains?.length > 0 && path) {
         const domain = domains[0];
+        if (!domain) return;
         const proto = domain.protocol || 'https';
         let formattedDomain = domain.domain;
         if (domain.port) {
@@ -444,17 +468,22 @@ function McpDetail() {
   const toggleToolExpand = (idx: number) => {
     setExpandedTools((prev) => {
       const next = new Set(prev);
-      next.has(idx) ? next.delete(idx) : next.add(idx);
+      if (next.has(idx)) {
+        next.delete(idx);
+      } else {
+        next.add(idx);
+      }
       return next;
     });
   };
 
   // 解析参数类型的友好显示
-  const getTypeLabel = (prop: any): string => {
+  const getTypeLabel = (prop: unknown): string => {
     if (!prop) return 'any';
-    if (prop.enum) return prop.enum.join(' | ');
-    if (prop.type === 'array') return `${getTypeLabel(prop.items)}[]`;
-    return prop.type || 'any';
+    const p = prop as Record<string, unknown>;
+    if (Array.isArray(p.enum)) return p.enum.join(' | ');
+    if (p.type === 'array') return `${getTypeLabel(p.items)}[]`;
+    return (p.type as string) || 'any';
   };
 
   if (loading) {
@@ -587,9 +616,10 @@ function McpDetail() {
                             <div className="text-xs text-gray-400 mb-1">
                               共 {parsedTools.length} 个工具
                             </div>
-                            {parsedTools.map((tool: any, idx: number) => {
+                            {parsedTools.map((tool: McpTool, idx: number) => {
                               const schema = tool.inputSchema;
-                              const properties = schema?.properties || {};
+                              const properties =
+                                schema?.properties || ({} as Record<string, McpToolProperty>);
                               const required: string[] = schema?.required || [];
                               const paramKeys = Object.keys(properties);
                               const isExpanded = expandedTools.has(idx);
@@ -603,6 +633,13 @@ function McpDetail() {
                                   <div
                                     className="flex items-start gap-3 p-4 cursor-pointer select-none"
                                     onClick={() => toggleToolExpand(idx)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter' || e.key === ' ') {
+                                        toggleToolExpand(idx);
+                                      }
+                                    }}
+                                    role="button"
+                                    tabIndex={0}
                                   >
                                     <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-50 to-purple-50 flex items-center justify-center flex-shrink-0 mt-0.5">
                                       <CodeOutlined className="text-indigo-400 text-sm" />
@@ -671,7 +708,9 @@ function McpDetail() {
                                         </div>
                                         <div className="divide-y divide-gray-100">
                                           {paramKeys.map((key) => {
-                                            const prop = properties[key];
+                                            const prop = properties[key] as
+                                              | McpToolProperty
+                                              | undefined;
                                             const isRequired = required.includes(key);
                                             return (
                                               <div

@@ -8,7 +8,7 @@ interface NacosInstance {
   nacosId: string;
   nacosName: string;
   nacosType?: 'OPEN_SOURCE' | 'MSE';
-  [key: string]: any;
+  serverUrl?: string;
 }
 
 interface Namespace {
@@ -19,7 +19,7 @@ interface Namespace {
 
 interface McpServerItem {
   mcpServerName: string;
-  [key: string]: any;
+  version?: string;
 }
 
 export default function NacosImportStep() {
@@ -64,11 +64,14 @@ export default function NacosImportStep() {
     setMcpServers([]);
     try {
       const res = await nacosApi.getNamespaces(nacosId, { page: 1, size: 1000 });
+      const content =
+        ((res as unknown as Record<string, unknown>).data as Record<string, unknown> | undefined)
+          ?.content || [];
       setNamespaces(
-        (res.data?.content || []).map((ns: any) => ({
-          namespaceDesc: ns.namespaceDesc,
-          namespaceId: ns.namespaceId,
-          namespaceName: ns.namespaceName || ns.namespaceId,
+        (content as Array<Record<string, unknown>>).map((ns) => ({
+          namespaceDesc: String(ns.namespaceDesc ?? ''),
+          namespaceId: String(ns.namespaceId ?? ''),
+          namespaceName: String((ns.namespaceName || ns.namespaceId) ?? ''),
         })),
       );
     } catch {

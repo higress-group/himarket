@@ -62,28 +62,43 @@ export default function ImportMcpModal({ onClose, onImportSuccess, open }: Impor
       setLoading(true);
       setError(null);
       try {
-        const res: any = await mcpVendorApi.listRemoteMcpItems({
+        const res: unknown = await mcpVendorApi.listRemoteMcpItems({
           keyword: keyword.trim() || undefined,
           page,
           size,
           vendorType,
         });
-        const data = res.data ?? res;
-        setItems(data.content ?? []);
+        const data =
+          (
+            res as {
+              data?: {
+                content?: unknown[];
+                number?: number;
+                size?: number;
+                totalElements?: number;
+              };
+            }
+          ).data ??
+          (res as { content?: unknown[]; number?: number; size?: number; totalElements?: number });
+        setItems((data.content ?? []) as RemoteMcpItemResult[]);
         setPagination({
           current: data.number ?? page,
           pageSize: data.size ?? size,
           total: data.totalElements ?? 0,
         });
-      } catch (err: any) {
-        const msg = err?.response?.data?.message || err?.message || '查询失败';
+      } catch (err: unknown) {
+        const msg =
+          (err as { response?: { data?: { message?: string } }; message?: string }).response?.data
+            ?.message ||
+          (err as { message?: string }).message ||
+          '查询失败';
         setError(msg);
         setItems([]);
       } finally {
         setLoading(false);
       }
     },
-    [vendorType, keyword, pagination.pageSize],
+    [vendorType, keyword, pagination],
   );
 
   const handlePageChange = useCallback(
@@ -130,7 +145,7 @@ export default function ImportMcpModal({ onClose, onImportSuccess, open }: Impor
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 300000);
 
-      let res: any;
+      let res: unknown;
       try {
         res = await mcpVendorApi.batchImport({ items: importItems, vendorType });
       } finally {
@@ -139,10 +154,10 @@ export default function ImportMcpModal({ onClose, onImportSuccess, open }: Impor
 
       // 后端可能有全局响应包装 {code, message, data} 或直接返回 BatchImportResult
       const result: BatchImportResult | null =
-        res?.data?.successCount !== undefined
-          ? res.data
-          : res?.successCount !== undefined
-            ? res
+        (res as { data?: { successCount?: number } }).data?.successCount !== undefined
+          ? ((res as { data?: BatchImportResult }).data ?? null)
+          : (res as { successCount?: number }).successCount !== undefined
+            ? (res as BatchImportResult)
             : null;
       if (result && typeof result.successCount === 'number') {
         setImportResult(result);
@@ -151,12 +166,19 @@ export default function ImportMcpModal({ onClose, onImportSuccess, open }: Impor
         message.success('导入完成');
         onImportSuccess();
       }
-    } catch (err: any) {
-      if (err?.name === 'AbortError' || err?.code === 'ECONNABORTED') {
+    } catch (err: unknown) {
+      if (
+        (err as { name?: string }).name === 'AbortError' ||
+        (err as { code?: string }).code === 'ECONNABORTED'
+      ) {
         message.warning('导入请求超时，但后台可能已完成导入，请刷新页面查看');
         onImportSuccess();
       } else {
-        const msg = err?.response?.data?.message || err?.message || '导入失败';
+        const msg =
+          (err as { response?: { data?: { message?: string } }; message?: string }).response?.data
+            ?.message ||
+          (err as { message?: string }).message ||
+          '导入失败';
         message.error(msg);
       }
     } finally {
@@ -183,7 +205,7 @@ export default function ImportMcpModal({ onClose, onImportSuccess, open }: Impor
     setSelectedKeys([]);
     setSelectedItems([]);
     handleQuery(pagination.current, pagination.pageSize);
-  }, [handleQuery, pagination.current, pagination.pageSize]);
+  }, [handleQuery, pagination]);
 
   return (
     <>
@@ -248,6 +270,14 @@ export default function ImportMcpModal({ onClose, onImportSuccess, open }: Impor
                   className="group cursor-pointer rounded-xl border-2 border-gray-100 hover:border-blue-300 p-5 transition-all duration-200 hover:shadow-md hover:bg-blue-50/30 flex items-center gap-4"
                   key={vendor.value}
                   onClick={() => handleSelectVendor(vendor)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleSelectVendor(vendor);
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
                 >
                   <div
                     className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-110 overflow-hidden"
@@ -318,7 +348,7 @@ export default function ImportMcpModal({ onClose, onImportSuccess, open }: Impor
 
             {items.length === 0 && !loading && !error && (
               <div className="text-center py-12 text-gray-400">
-                输入关键词搜索，或直接点击"搜索"浏览全部 MCP Server
+                输入关键词搜索，或直接点击&ldquo;搜索&rdquo;浏览全部 MCP Server
               </div>
             )}
           </div>

@@ -147,6 +147,13 @@ function McpModal(props: McpModal) {
               <div
                 className="flex h-full items-center justify-center cursor-pointer"
                 onClick={onClose}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    onClose();
+                  }
+                }}
+                role="button"
+                tabIndex={0}
               >
                 <CloseOutlined />
               </div>

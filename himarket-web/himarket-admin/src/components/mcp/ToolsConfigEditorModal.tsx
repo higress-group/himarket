@@ -45,17 +45,18 @@ function parseToolsConfig(raw: string): ToolItem[] {
   try {
     const arr = typeof raw === 'string' ? JSON.parse(raw) : raw;
     if (!Array.isArray(arr)) return [];
-    return arr.map((t: any) => {
-      const props = t.inputSchema?.properties || {};
-      const required: string[] = t.inputSchema?.required || [];
+    return arr.map((t: Record<string, unknown>) => {
+      const inputSchema = (t.inputSchema as Record<string, unknown>) || {};
+      const props = (inputSchema.properties as Record<string, Record<string, unknown>>) || {};
+      const required: string[] = (inputSchema.required as string[]) || [];
       return {
-        description: t.description || '',
-        name: t.name || '',
-        params: Object.entries(props).map(([key, val]: [string, any]) => ({
-          description: val.description || '',
+        description: (t.description as string) || '',
+        name: (t.name as string) || '',
+        params: Object.entries(props).map(([key, val]: [string, Record<string, unknown>]) => ({
+          description: (val.description as string) || '',
           name: key,
           required: required.includes(key),
-          type: val.type || 'string',
+          type: (val.type as string) || 'string',
         })),
       };
     });
@@ -68,7 +69,7 @@ function parseToolsConfig(raw: string): ToolItem[] {
 function toToolsConfigJson(tools: ToolItem[]): string {
   return JSON.stringify(
     tools.map((t) => {
-      const properties: Record<string, any> = {};
+      const properties: Record<string, unknown> = {};
       const required: string[] = [];
       for (const p of t.params) {
         if (!p.name.trim()) continue;
@@ -124,21 +125,25 @@ export default function ToolsConfigEditorModal({
     else if (expandedTool !== null && expandedTool > index) setExpandedTool(expandedTool - 1);
   };
 
-  const updateTool = (index: number, field: keyof ToolItem, value: any) => {
+  const updateTool = (index: number, field: keyof ToolItem, value: unknown) => {
     const updated = [...tools];
-    (updated[index] as any)[field] = value;
+    if (updated[index]) (updated[index] as Record<keyof ToolItem, unknown>)[field] = value;
     setTools(updated);
   };
 
   const addParam = (toolIndex: number) => {
     const updated = [...tools];
-    updated[toolIndex].params.push({ description: '', name: '', required: false, type: 'string' });
+    const tool = updated[toolIndex];
+    if (!tool) return;
+    tool.params.push({ description: '', name: '', required: false, type: 'string' });
     setTools(updated);
   };
 
   const removeParam = (toolIndex: number, paramIndex: number) => {
     const updated = [...tools];
-    updated[toolIndex].params = updated[toolIndex].params.filter((_, i) => i !== paramIndex);
+    const tool = updated[toolIndex];
+    if (!tool) return;
+    tool.params = tool.params.filter((_, i) => i !== paramIndex);
     setTools(updated);
   };
 
@@ -146,10 +151,11 @@ export default function ToolsConfigEditorModal({
     toolIndex: number,
     paramIndex: number,
     field: keyof ToolParam,
-    value: any,
+    value: unknown,
   ) => {
     const updated = [...tools];
-    (updated[toolIndex].params[paramIndex] as any)[field] = value;
+    if (updated[toolIndex] && updated[toolIndex].params[paramIndex])
+      (updated[toolIndex].params[paramIndex] as Record<keyof ToolParam, unknown>)[field] = value;
     setTools(updated);
   };
 
@@ -242,6 +248,13 @@ export default function ToolsConfigEditorModal({
                 {/* 工具头部 */}
                 <div
                   onClick={() => setExpandedTool(isExpanded ? null : toolIdx)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setExpandedTool(isExpanded ? null : toolIdx);
+                    }
+                  }}
+                  role="button"
                   style={{
                     alignItems: 'center',
                     cursor: 'pointer',
@@ -250,6 +263,7 @@ export default function ToolsConfigEditorModal({
                     padding: '10px 16px',
                     userSelect: 'none',
                   }}
+                  tabIndex={0}
                 >
                   <div
                     style={{ alignItems: 'center', display: 'flex', flex: 1, gap: 8, minWidth: 0 }}

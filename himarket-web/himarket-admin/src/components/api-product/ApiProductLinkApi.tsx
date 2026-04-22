@@ -1,4 +1,14 @@
 import {
+  PlusOutlined,
+  DeleteOutlined,
+  ExclamationCircleOutlined,
+  CopyOutlined,
+  CloudUploadOutlined,
+  SettingOutlined,
+  SyncOutlined,
+  EditOutlined,
+} from '@ant-design/icons';
+import {
   Card,
   Button,
   Modal,
@@ -17,18 +27,8 @@ import {
 } from 'antd';
 import 'highlight.js/styles/github.css';
 import 'github-markdown-css/github-markdown-light.css';
-import {
-  PlusOutlined,
-  DeleteOutlined,
-  ExclamationCircleOutlined,
-  CopyOutlined,
-  CloudUploadOutlined,
-  SettingOutlined,
-  SyncOutlined,
-  EditOutlined,
-} from '@ant-design/icons';
 import * as yaml from 'js-yaml';
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { apiProductApi, gatewayApi, nacosApi, mcpServerApi, sandboxApi } from '@/lib/api';
 import { getGatewayTypeLabel } from '@/lib/constant';
@@ -37,13 +37,13 @@ import type {
   ApiProduct,
   LinkedService,
   RestAPIItem,
-  NacosMCPItem,
   APIGAIMCPItem,
   AIGatewayAgentItem,
   AIGatewayModelItem,
-  ApiItem,
   AdpAIGatewayModelItem,
   ApsaraGatewayModelItem,
+  NacosMCPItem,
+  NacosAgentItem,
 } from '@/types/api-product';
 import type { Gateway, NacosInstance } from '@/types/gateway';
 
@@ -56,6 +56,59 @@ interface ApiProductLinkApiProps {
   linkedService: LinkedService | null;
   onLinkedServiceUpdate: (linkedService: LinkedService | null) => void;
   handleRefresh: () => void;
+}
+
+interface McpMetaItem {
+  connectionConfig?: string;
+  createAt?: string;
+  createdBy?: string;
+  description?: string;
+  displayName?: string;
+  endpointHostingType?: string;
+  endpointProtocol?: string;
+  endpointStatus?: string;
+  endpointUrl?: string;
+  extraParams?: string | unknown[];
+  mcpName?: string;
+  mcpServerId?: string;
+  origin?: string;
+  protocolType?: string;
+  repoUrl?: string;
+  sandboxRequired?: boolean;
+  subscribeParams?: string | Record<string, unknown>;
+  tags?: string;
+  toolsConfig?: string | unknown[];
+}
+
+interface ApiListItem extends Record<string, unknown> {
+  agentApiId?: string;
+  agentApiName?: string;
+  agentName?: string;
+  apiId?: string;
+  apiName?: string;
+  description?: string;
+  fromGatewayType?: string;
+  modelApiId?: string;
+  modelApiName?: string;
+  modelRouteName?: string;
+  mcpRouteId?: string;
+  mcpServerId?: string;
+  mcpServerName?: string;
+  type?: string;
+}
+
+interface DeploySandboxItem {
+  sandboxId: string;
+  sandboxName?: string;
+}
+
+interface ExtraParamDef {
+  default?: unknown;
+  description?: string;
+  example?: unknown;
+  name: string;
+  position?: string;
+  required?: boolean;
 }
 
 function ApiKeyDisplay({ apiKey }: { apiKey: string }) {
@@ -164,9 +217,11 @@ export function ApiProductLinkApi({
   const [nacosLoading, setNacosLoading] = useState(false);
   const [selectedGateway, setSelectedGateway] = useState<Gateway | null>(null);
   const [selectedNacos, setSelectedNacos] = useState<NacosInstance | null>(null);
-  const [nacosNamespaces, setNacosNamespaces] = useState<any[]>([]);
+  const [nacosNamespaces, setNacosNamespaces] = useState<
+    Array<{ namespaceId: string; namespaceName: string }>
+  >([]);
   const [selectedNamespace, setSelectedNamespace] = useState<string | null>(null);
-  const [apiList, setApiList] = useState<ApiItem[] | NacosMCPItem[]>([]);
+  const [apiList, setApiList] = useState<ApiListItem[]>([]);
   const [apiLoading, setApiLoading] = useState(false);
   const [sourceType, setSourceType] = useState<'GATEWAY' | 'NACOS'>('GATEWAY');
   const [parsedTools, setParsedTools] = useState<
@@ -192,22 +247,14 @@ export function ApiProductLinkApi({
   const [selectedDomainIndex, setSelectedDomainIndex] = useState<number>(0);
   const [selectedAgentDomainIndex, setSelectedAgentDomainIndex] = useState<number>(0);
   const [selectedModelDomainIndex, setSelectedModelDomainIndex] = useState<number>(0);
-  const [mcpMetaList, setMcpMetaList] = useState<any[]>([]);
+  const [mcpMetaList, setMcpMetaList] = useState<McpMetaItem[]>([]);
   const [fetchingTools, setFetchingTools] = useState(false);
   const [toolsEditorOpen, setToolsEditorOpen] = useState(false);
   const [mcpToolsTab, setMcpToolsTab] = useState('tools');
   const [deployModalMcpServerId, setDeployModalMcpServerId] = useState<string | null>(null);
   const [deploying, setDeploying] = useState(false);
-  const [deploySandboxList, setDeploySandboxList] = useState<any[]>([]);
+  const [deploySandboxList, setDeploySandboxList] = useState<DeploySandboxItem[]>([]);
   const [deploySandboxLoading, setDeploySandboxLoading] = useState(false);
-
-  useEffect(() => {
-    fetchGateways();
-    fetchNacosInstances();
-    if (apiProduct.type === 'MCP_SERVER') {
-      fetchMcpMeta();
-    }
-  }, []);
 
   // 解析MCP tools配置：优先从冷数据 mcpMetaList[0].toolsConfig 读取，fallback 到 apiProduct.mcpConfig.tools
   useEffect(() => {
@@ -227,15 +274,24 @@ export function ApiProductLinkApi({
         }
         if (Array.isArray(toolsArr) && toolsArr.length > 0) {
           // toolsConfig 存的是 McpSchema.Tool[]，字段为 name/description/inputSchema
-          const mapped = toolsArr.map((t: any) => ({
+          const mapped = (
+            toolsArr as Array<{
+              description?: string;
+              inputSchema?: {
+                properties?: Record<string, unknown>;
+                required?: string[];
+              };
+              name?: string;
+            }>
+          ).map((t) => ({
             args: t.inputSchema?.properties
-              ? Object.entries(t.inputSchema.properties).map(([key, val]: [string, any]) => ({
-                  description: val.description || '',
+              ? Object.entries(t.inputSchema.properties).map(([key, val]) => ({
+                  description: String((val as Record<string, unknown>).description || ''),
                   name: key,
                   position: 'query',
                   required:
-                    Array.isArray(t.inputSchema.required) && t.inputSchema.required.includes(key),
-                  type: val.type || 'string',
+                    Array.isArray(t.inputSchema?.required) && t.inputSchema.required.includes(key),
+                  type: String((val as Record<string, unknown>).type || 'string'),
                 }))
               : undefined,
             description: t.description || '',
@@ -340,6 +396,7 @@ export function ApiProductLinkApi({
       return;
     }
     const meta = mcpMetaList[0];
+    if (!meta) return;
     if (!meta.endpointUrl || meta.endpointStatus !== 'ACTIVE') {
       setHotSseJson('');
       setHotHttpJson('');
@@ -385,6 +442,7 @@ export function ApiProductLinkApi({
     if (mcpMetaList.length === 0) return;
 
     const meta = mcpMetaList[0];
+    if (!meta) return;
     const connCfg = meta.connectionConfig;
     if (!connCfg) {
       // 没有 mcpConfig 时才清空（避免覆盖网关 useEffect 的结果）
@@ -415,7 +473,12 @@ export function ApiProductLinkApi({
       // SSE / HTTP：尝试提取 URL 并标准化格式
       const servers = parsed?.mcpServers || parsed;
       const firstKey = servers ? Object.keys(servers)[0] : null;
-      const entry = firstKey ? servers[firstKey] : null;
+      const entry = firstKey
+        ? ((servers as Record<string, unknown> | null)?.[firstKey] as Record<
+            string,
+            unknown
+          > | null)
+        : null;
       const url = entry?.url;
 
       if (protocol === 'SSE') {
@@ -506,8 +569,8 @@ export function ApiProductLinkApi({
         }>;
       };
       return parsed;
-    } catch (error) {
-      console.error('YAML解析失败:', error);
+    } catch (_error) {
+      console.error('YAML解析失败:', _error);
       return null;
     }
   };
@@ -535,11 +598,16 @@ export function ApiProductLinkApi({
       // SSE / HTTP 类型的自定义 MCP：尝试从 rawConfig 中提取 URL
       const cfg =
         typeof localConfig === 'object' && localConfig !== null
-          ? (localConfig as Record<string, any>)
+          ? (localConfig as Record<string, unknown>)
           : null;
       const servers = cfg?.mcpServers || cfg;
       const firstKey = servers ? Object.keys(servers)[0] : null;
-      const entry = firstKey ? servers[firstKey] : null;
+      const entry = firstKey
+        ? ((servers as Record<string, unknown> | null)?.[firstKey] as Record<
+            string,
+            unknown
+          > | null)
+        : null;
       const url = entry?.url;
       if (url) {
         if (upperProto === 'SSE') {
@@ -570,6 +638,7 @@ export function ApiProductLinkApi({
     // 网关导入的 MCP（有 domains + path）
     if (domains && domains.length > 0 && path && domainIndex < domains.length) {
       const domain = domains[domainIndex];
+      if (!domain) return;
       const formattedDomain = formatDomainWithPort(domain.domain, domain.port, domain.protocol);
       const baseUrl = `${domain.protocol}://${formattedDomain}`;
       const fullUrl = `${baseUrl}${path || '/'}`;
@@ -647,7 +716,7 @@ export function ApiProductLinkApi({
     }
   };
 
-  const fetchGateways = async () => {
+  const fetchGateways = useCallback(async () => {
     setGatewayLoading(true);
     try {
       const res = await gatewayApi.getGateways({
@@ -684,14 +753,14 @@ export function ApiProductLinkApi({
         );
       }
       setGateways(result || []);
-    } catch (error) {
-      console.error('获取网关列表失败:', error);
+    } catch (_error) {
+      console.error('获取网关列表失败:', _error);
     } finally {
       setGatewayLoading(false);
     }
-  };
+  }, [apiProduct.type]);
 
-  const fetchNacosInstances = async () => {
+  const fetchNacosInstances = useCallback(async () => {
     setNacosLoading(true);
     try {
       const res = await nacosApi.getNacos({
@@ -699,21 +768,29 @@ export function ApiProductLinkApi({
         size: 1000, // 获取所有 Nacos 实例
       });
       setNacosInstances(res.data.content || []);
-    } catch (error) {
-      console.error('获取Nacos实例列表失败:', error);
+    } catch (_error) {
+      console.error('获取Nacos实例列表失败:', _error);
     } finally {
       setNacosLoading(false);
     }
-  };
+  }, []);
 
-  const fetchMcpMeta = async () => {
+  const fetchMcpMeta = useCallback(async () => {
     try {
       const res = await mcpServerApi.listMetaByProduct(apiProduct.productId);
       setMcpMetaList(res.data || []);
     } catch {
       setMcpMetaList([]);
     }
-  };
+  }, [apiProduct.productId]);
+
+  useEffect(() => {
+    fetchGateways();
+    fetchNacosInstances();
+    if (apiProduct.type === 'MCP_SERVER') {
+      fetchMcpMeta();
+    }
+  }, [apiProduct.type, fetchGateways, fetchMcpMeta, fetchNacosInstances]);
 
   const handleRefreshTools = async () => {
     const meta = mcpMetaList[0];
@@ -724,8 +801,11 @@ export function ApiProductLinkApi({
       message.success('工具列表获取成功');
       await fetchMcpMeta();
       await handleRefresh();
-    } catch (e: any) {
-      message.error(e?.response?.data?.message || '获取工具列表失败');
+    } catch (e: unknown) {
+      message.error(
+        (e as { response?: { data?: { message?: string } } }).response?.data?.message ||
+          '获取工具列表失败',
+      );
     } finally {
       setFetchingTools(false);
     }
@@ -737,7 +817,7 @@ export function ApiProductLinkApi({
     setDeploySandboxLoading(true);
     sandboxApi
       .getActiveSandboxes()
-      .then((res: any) => {
+      .then((res) => {
         const list = res?.data || [];
         setDeploySandboxList(Array.isArray(list) ? list : []);
       })
@@ -761,7 +841,7 @@ export function ApiProductLinkApi({
     deployForm.setFieldsValue({ namespace: undefined });
     setDeployNamespaceLoading(true);
     try {
-      const res: any = await sandboxApi.listNamespaces(sandboxId);
+      const res = await sandboxApi.listNamespaces(sandboxId);
       const list = res?.data || res || [];
       setDeployNamespaceList(Array.isArray(list) ? list : []);
     } catch {
@@ -773,8 +853,8 @@ export function ApiProductLinkApi({
   };
 
   // 获取当前部署弹窗对应 meta 的额外参数定义
-  const getDeployExtraParamDefs = (): any[] => {
-    const meta = mcpMetaList.find((m: any) => m.mcpServerId === deployModalMcpServerId);
+  const getDeployExtraParamDefs = (): ExtraParamDef[] => {
+    const meta = mcpMetaList.find((m) => m.mcpServerId === deployModalMcpServerId);
     if (!meta?.extraParams) return [];
     try {
       const parsed =
@@ -792,8 +872,8 @@ export function ApiProductLinkApi({
       // 校验必填的额外参数
       const paramDefs = getDeployExtraParamDefs();
       const missingParams = paramDefs
-        .filter((p: any) => p.required && !deployParamValues[p.name]?.trim())
-        .map((p: any) => p.name);
+        .filter((p) => p.required && !deployParamValues[p.name]?.trim())
+        .map((p) => p.name);
       if (missingParams.length > 0) {
         message.error(`请填写必填参数: ${missingParams.join(', ')}`);
         return;
@@ -840,7 +920,7 @@ export function ApiProductLinkApi({
         const metaRes = await mcpServerApi.listMetaByProduct(apiProduct.productId);
         const metaList = metaRes?.data || [];
         const activeMeta = (Array.isArray(metaList) ? metaList : []).find(
-          (m: any) => m.mcpServerId === targetMcpServerId,
+          (m) => m.mcpServerId === targetMcpServerId,
         );
         if (activeMeta?.endpointStatus === 'ACTIVE' && activeMeta?.endpointUrl) {
           message.success('沙箱部署完成');
@@ -853,9 +933,12 @@ export function ApiProductLinkApi({
       }
       await fetchMcpMeta();
       await handleRefresh();
-    } catch (e: any) {
-      if (e?.errorFields) return; // form validation error
-      message.error(e?.response?.data?.message || '沙箱部署失败');
+    } catch (e: unknown) {
+      if ((e as { errorFields?: unknown }).errorFields) return; // form validation error
+      message.error(
+        (e as { response?: { data?: { message?: string } } }).response?.data?.message ||
+          '沙箱部署失败',
+      );
     } finally {
       setDeploying(false);
     }
@@ -886,12 +969,14 @@ export function ApiProductLinkApi({
       if (gateway.gatewayType === 'APIG_API') {
         // APIG_API类型：获取REST API列表
         const restRes = await gatewayApi.getGatewayRestApis(gatewayId, {});
-        const restApis = (restRes.data?.content || []).map((api: any) => ({
-          apiId: api.apiId,
-          apiName: api.apiName,
-          type: 'REST API',
-        }));
-        setApiList(restApis);
+        const restApis = ((restRes.data?.content || []) as Record<string, unknown>[]).map(
+          (api) => ({
+            apiId: api.apiId,
+            apiName: api.apiName,
+            type: 'REST API',
+          }),
+        );
+        setApiList(restApis as ApiListItem[]);
       } else if (gateway.gatewayType === 'HIGRESS') {
         // HIGRESS类型：对于Model API产品，获取Model API列表；其他情况获取MCP Server列表
         if (apiProduct.type === 'MODEL_API') {
@@ -900,24 +985,26 @@ export function ApiProductLinkApi({
             page: 1,
             size: 1000, // 获取所有Model API
           });
-          const modelApis = (res.data?.content || []).map((api: any) => ({
+          const modelApis = ((res.data?.content || []) as Record<string, unknown>[]).map((api) => ({
             fromGatewayType: 'HIGRESS' as const,
             modelRouteName: api.modelRouteName,
             type: 'Model API',
           }));
-          setApiList(modelApis);
+          setApiList(modelApis as ApiListItem[]);
         } else {
           // HIGRESS类型：获取MCP Server列表
           const res = await gatewayApi.getGatewayMcpServers(gatewayId, {
             page: 1,
             size: 1000, // 获取所有MCP Server
           });
-          const mcpServers = (res.data?.content || []).map((api: any) => ({
-            fromGatewayType: 'HIGRESS' as const,
-            mcpServerName: api.mcpServerName,
-            type: 'MCP Server',
-          }));
-          setApiList(mcpServers);
+          const mcpServers = ((res.data?.content || []) as Record<string, unknown>[]).map(
+            (api) => ({
+              fromGatewayType: 'HIGRESS' as const,
+              mcpServerName: api.mcpServerName,
+              type: 'MCP Server',
+            }),
+          );
+          setApiList(mcpServers as ApiListItem[]);
         }
       } else if (gateway.gatewayType === 'APIG_AI') {
         if (apiProduct.type === 'AGENT_API') {
@@ -926,41 +1013,43 @@ export function ApiProductLinkApi({
             page: 1,
             size: 500, // 获取所有Agent API
           });
-          const agentApis = (res.data?.content || []).map((api: any) => ({
+          const agentApis = ((res.data?.content || []) as Record<string, unknown>[]).map((api) => ({
             agentApiId: api.agentApiId,
             agentApiName: api.agentApiName,
             fromGatewayType: 'APIG_AI' as const,
             type: 'Agent API',
           }));
-          setApiList(agentApis);
+          setApiList(agentApis as ApiListItem[]);
         } else if (apiProduct.type === 'MODEL_API') {
           // APIG_AI类型 + Model API产品：获取Model API列表
           const res = await gatewayApi.getGatewayModelApis(gatewayId, {
             page: 1,
             size: 500, // 获取所有Model API
           });
-          const modelApis = (res.data?.content || []).map((api: any) => ({
+          const modelApis = ((res.data?.content || []) as Record<string, unknown>[]).map((api) => ({
             fromGatewayType: 'APIG_AI' as const,
             modelApiId: api.modelApiId,
             modelApiName: api.modelApiName,
             type: 'Model API',
           }));
-          setApiList(modelApis);
+          setApiList(modelApis as ApiListItem[]);
         } else {
           // APIG_AI类型 + MCP Server产品：获取MCP Server列表
           const res = await gatewayApi.getGatewayMcpServers(gatewayId, {
             page: 1,
             size: 500, // 获取所有MCP Server
           });
-          const mcpServers = (res.data?.content || []).map((api: any) => ({
-            apiId: api.apiId,
-            fromGatewayType: 'APIG_AI' as const,
-            mcpRouteId: api.mcpRouteId,
-            mcpServerId: api.mcpServerId,
-            mcpServerName: api.mcpServerName,
-            type: 'MCP Server',
-          }));
-          setApiList(mcpServers);
+          const mcpServers = ((res.data?.content || []) as Record<string, unknown>[]).map(
+            (api) => ({
+              apiId: api.apiId,
+              fromGatewayType: 'APIG_AI' as const,
+              mcpRouteId: api.mcpRouteId,
+              mcpServerId: api.mcpServerId,
+              mcpServerName: api.mcpServerName,
+              type: 'MCP Server',
+            }),
+          );
+          setApiList(mcpServers as ApiListItem[]);
         }
       } else if (gateway.gatewayType === 'ADP_AI_GATEWAY') {
         if (apiProduct.type === 'MODEL_API') {
@@ -969,27 +1058,29 @@ export function ApiProductLinkApi({
             page: 1,
             size: 500, // 获取所有Model API
           });
-          const modelApis = (res.data?.content || []).map((api: any) => ({
+          const modelApis = ((res.data?.content || []) as Record<string, unknown>[]).map((api) => ({
             fromGatewayType: 'ADP_AI_GATEWAY' as const,
             modelApiId: api.modelApiId,
             modelApiName: api.modelApiName,
             type: 'Model API',
           }));
-          setApiList(modelApis);
+          setApiList(modelApis as ApiListItem[]);
         } else {
           // ADP_AI_GATEWAY类型：获取MCP Server列表
           const res = await gatewayApi.getGatewayMcpServers(gatewayId, {
             page: 1,
             size: 500, // 获取所有MCP Server
           });
-          const mcpServers = (res.data?.content || []).map((api: any) => ({
-            fromGatewayType: 'ADP_AI_GATEWAY' as const,
-            mcpRouteId: api.mcpRouteId,
-            mcpServerId: api.mcpServerId,
-            mcpServerName: api.mcpServerName || api.name,
-            type: 'MCP Server',
-          }));
-          setApiList(mcpServers);
+          const mcpServers = ((res.data?.content || []) as Record<string, unknown>[]).map(
+            (api) => ({
+              fromGatewayType: 'ADP_AI_GATEWAY' as const,
+              mcpRouteId: api.mcpRouteId,
+              mcpServerId: api.mcpServerId,
+              mcpServerName: api.mcpServerName || api.name,
+              type: 'MCP Server',
+            }),
+          );
+          setApiList(mcpServers as ApiListItem[]);
         }
       } else if (gateway.gatewayType === 'APSARA_GATEWAY') {
         if (apiProduct.type === 'AGENT_API') {
@@ -998,43 +1089,45 @@ export function ApiProductLinkApi({
             page: 1,
             size: 500, // 获取所有Agent API
           });
-          const agentApis = (res.data?.content || []).map((api: any) => ({
+          const agentApis = ((res.data?.content || []) as Record<string, unknown>[]).map((api) => ({
             agentApiId: api.agentApiId,
             agentApiName: api.agentApiName,
             fromGatewayType: 'APSARA_GATEWAY' as const,
             type: 'Agent API',
           }));
-          setApiList(agentApis);
+          setApiList(agentApis as ApiListItem[]);
         } else if (apiProduct.type === 'MODEL_API') {
           // APSARA_GATEWAY类型 + Model API产品：获取Model API列表
           const res = await gatewayApi.getGatewayModelApis(gatewayId, {
             page: 1,
             size: 500, // 获取所有Model API
           });
-          const modelApis = (res.data?.content || []).map((api: any) => ({
+          const modelApis = ((res.data?.content || []) as Record<string, unknown>[]).map((api) => ({
             fromGatewayType: 'APSARA_GATEWAY' as const,
             modelApiId: api.modelApiId,
             modelApiName: api.modelApiName,
             type: 'Model API',
           }));
-          setApiList(modelApis);
+          setApiList(modelApis as ApiListItem[]);
         } else {
           // APSARA_GATEWAY类型：获取MCP Server列表
           const res = await gatewayApi.getGatewayMcpServers(gatewayId, {
             page: 1,
             size: 500, // 获取所有MCP Server
           });
-          const mcpServers = (res.data?.content || []).map((api: any) => ({
-            fromGatewayType: 'APSARA_GATEWAY' as const,
-            mcpRouteId: api.mcpRouteId,
-            mcpServerId: api.mcpServerId,
-            mcpServerName: api.mcpServerName || api.name,
-            type: 'MCP Server',
-          }));
-          setApiList(mcpServers);
+          const mcpServers = ((res.data?.content || []) as Record<string, unknown>[]).map(
+            (api) => ({
+              fromGatewayType: 'APSARA_GATEWAY' as const,
+              mcpRouteId: api.mcpRouteId,
+              mcpServerId: api.mcpServerId,
+              mcpServerName: api.mcpServerName || api.name,
+              type: 'MCP Server',
+            }),
+          );
+          setApiList(mcpServers as ApiListItem[]);
         }
       }
-    } catch (error) {
+    } catch (_error) {
     } finally {
       setApiLoading(false);
     }
@@ -1051,12 +1144,12 @@ export function ApiProductLinkApi({
     // 获取命名空间列表
     try {
       const nsRes = await nacosApi.getNamespaces(nacosId, { page: 1, size: 1000 });
-      const namespaces = (nsRes.data?.content || []).map((ns: any) => ({
+      const namespaces = ((nsRes.data?.content || []) as Record<string, unknown>[]).map((ns) => ({
         namespaceDesc: ns.namespaceDesc,
         namespaceId: ns.namespaceId,
         namespaceName: ns.namespaceName || ns.namespaceId,
       }));
-      setNacosNamespaces(namespaces);
+      setNacosNamespaces(namespaces as Array<{ namespaceId: string; namespaceName: string }>);
     } catch (e) {
       console.error('获取命名空间失败', e);
     }
@@ -1076,13 +1169,13 @@ export function ApiProductLinkApi({
           page: 1,
           size: 1000,
         });
-        const agents = (res.data?.content || []).map((api: any) => ({
+        const agents = ((res.data?.content || []) as Record<string, unknown>[]).map((api) => ({
           agentName: api.agentName,
           description: api.description,
           fromGatewayType: 'NACOS' as const,
           type: `Agent API (${namespaceId})`,
         }));
-        setApiList(agents);
+        setApiList(agents as ApiListItem[]);
       } else if (apiProduct.type === 'MCP_SERVER') {
         // 获取 MCP Server 列表（现有逻辑）
         const res = await nacosApi.getNacosMcpServers(selectedNacos.nacosId, {
@@ -1090,12 +1183,12 @@ export function ApiProductLinkApi({
           page: 1,
           size: 1000,
         });
-        const mcpServers = (res.data?.content || []).map((api: any) => ({
+        const mcpServers = ((res.data?.content || []) as Record<string, unknown>[]).map((api) => ({
           fromGatewayType: 'NACOS' as const,
           mcpServerName: api.mcpServerName,
           type: `MCP Server (${namespaceId})`,
         }));
-        setApiList(mcpServers);
+        setApiList(mcpServers as ApiListItem[]);
       }
     } catch (e) {
       console.error('获取 Nacos 资源列表失败:', e);
@@ -1107,7 +1200,7 @@ export function ApiProductLinkApi({
   const handleModalOk = () => {
     form.validateFields().then(async (values) => {
       const { apiId, gatewayId, nacosId, sourceType } = values;
-      const selectedApi = apiList.find((item: any) => {
+      const selectedApi = apiList.find((item) => {
         if ('apiId' in item) {
           if ('mcpRouteId' in item) {
             return item.mcpRouteId === apiId;
@@ -1131,7 +1224,7 @@ export function ApiProductLinkApi({
       // MCP 产品：统一走 saveMeta 接口
       if (apiProduct.type === 'MCP_SERVER' && selectedApi) {
         try {
-          const mcpServerName = (selectedApi as any).mcpServerName || apiId;
+          const mcpServerName = (selectedApi as Record<string, unknown>).mcpServerName || apiId;
           await mcpServerApi.saveMeta({
             connectionConfig: '{}',
             displayName: apiProduct.name,
@@ -1183,8 +1276,8 @@ export function ApiProductLinkApi({
             ? apiProduct.type === 'MODEL_API'
               ? ({
                   fromGatewayType: 'ADP_AI_GATEWAY' as const,
-                  modelApiId: (selectedApi as any).modelApiId,
-                  modelApiName: (selectedApi as any).modelApiName,
+                  modelApiId: (selectedApi as Record<string, unknown>).modelApiId,
+                  modelApiName: (selectedApi as Record<string, unknown>).modelApiName,
                 } as AdpAIGatewayModelItem)
               : (selectedApi as APIGAIMCPItem)
             : undefined,
@@ -1208,8 +1301,8 @@ export function ApiProductLinkApi({
             ? apiProduct.type === 'MODEL_API'
               ? ({
                   fromGatewayType: 'APSARA_GATEWAY' as const,
-                  modelApiId: (selectedApi as any).modelApiId,
-                  modelApiName: (selectedApi as any).modelApiName,
+                  modelApiId: (selectedApi as Record<string, unknown>).modelApiId,
+                  modelApiName: (selectedApi as Record<string, unknown>).modelApiName,
                 } as ApsaraGatewayModelItem)
               : (selectedApi as APIGAIMCPItem)
             : undefined,
@@ -1221,11 +1314,15 @@ export function ApiProductLinkApi({
             ? apiProduct.type === 'MODEL_API'
               ? {
                   fromGatewayType: 'HIGRESS' as const,
-                  modelRouteName: (selectedApi as any).modelRouteName,
+                  modelRouteName: (selectedApi as Record<string, unknown>).modelRouteName as
+                    | string
+                    | undefined,
                 }
               : {
                   fromGatewayType: 'HIGRESS' as const,
-                  mcpServerName: (selectedApi as any).mcpServerName,
+                  mcpServerName: (selectedApi as Record<string, unknown>).mcpServerName as
+                    | string
+                    | undefined,
                 }
             : undefined,
         nacosId: sourceType === 'NACOS' ? nacosId : undefined,
@@ -1234,10 +1331,10 @@ export function ApiProductLinkApi({
           selectedApi &&
           'fromGatewayType' in selectedApi &&
           selectedApi.fromGatewayType === 'NACOS'
-            ? {
-                ...selectedApi,
+            ? ({
+                ...(selectedApi as unknown as Record<string, unknown>),
                 namespaceId: selectedNamespace || 'public',
-              }
+              } as NacosMCPItem | NacosAgentItem)
             : undefined,
         productId: apiProduct.productId,
         sourceType,
@@ -1251,8 +1348,8 @@ export function ApiProductLinkApi({
           try {
             const res = await apiProductApi.getApiProductRef(apiProduct.productId);
             onLinkedServiceUpdate(res.data || null);
-          } catch (error) {
-            console.error('获取关联API失败:', error);
+          } catch (_error) {
+            console.error('获取关联API失败:', _error);
             onLinkedServiceUpdate(null);
           }
 
@@ -1477,7 +1574,7 @@ export function ApiProductLinkApi({
               {mcpMetaList[0]?.sandboxRequired && !mcpMetaList[0]?.endpointUrl && (
                 <Button
                   icon={<CloudUploadOutlined />}
-                  onClick={() => setDeployModalMcpServerId(mcpMetaList[0].mcpServerId)}
+                  onClick={() => setDeployModalMcpServerId(mcpMetaList[0]?.mcpServerId || null)}
                   type="primary"
                 >
                   部署到沙箱
@@ -1496,7 +1593,7 @@ export function ApiProductLinkApi({
                       okText: '确认取消',
                       onOk: async () => {
                         try {
-                          await mcpServerApi.undeploySandbox(mcpMetaList[0].mcpServerId);
+                          await mcpServerApi.undeploySandbox(mcpMetaList[0]?.mcpServerId || '');
                           message.success('已取消沙箱托管');
                           fetchMcpMeta();
                         } catch {
@@ -1531,7 +1628,7 @@ export function ApiProductLinkApi({
           }
           title="MCP 配置信息"
         >
-          {mcpMetaList.map((meta: any) => (
+          {mcpMetaList.map((meta) => (
             <div className="space-y-1" key={meta.mcpServerId}>
               <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
                 <span className="text-xs text-gray-600">MCP 名称:</span>
@@ -1601,7 +1698,7 @@ export function ApiProductLinkApi({
                           className="text-gray-400 hover:text-blue-600 cursor-pointer transition-colors flex-shrink-0"
                           onClick={async () => {
                             try {
-                              await copyToClipboard(meta.endpointUrl);
+                              await copyToClipboard(meta.endpointUrl || '');
                               message.success('连接地址已复制');
                             } catch {
                               message.error('复制失败');
@@ -1617,7 +1714,7 @@ export function ApiProductLinkApi({
                         </Tag>
                         <Button
                           className="p-0 text-xs"
-                          onClick={() => setDeployModalMcpServerId(meta.mcpServerId)}
+                          onClick={() => setDeployModalMcpServerId(meta.mcpServerId || null)}
                           size="small"
                           type="link"
                         >
@@ -1688,6 +1785,13 @@ export function ApiProductLinkApi({
                   <div
                     className="group cursor-pointer rounded-xl border-2 border-dashed border-gray-200 hover:border-blue-400 p-5 transition-all duration-200 hover:bg-blue-50/50"
                     onClick={() => setIsModalVisible(true)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        setIsModalVisible(true);
+                      }
+                    }}
+                    role="button"
+                    tabIndex={0}
                   >
                     <div className="w-10 h-10 rounded-lg bg-blue-50 group-hover:bg-blue-100 flex items-center justify-center mx-auto mb-3 transition-colors">
                       <CloudUploadOutlined className="text-blue-500 text-lg" />
@@ -1700,6 +1804,13 @@ export function ApiProductLinkApi({
                   <div
                     className="group cursor-pointer rounded-xl border-2 border-dashed border-gray-200 hover:border-purple-400 p-5 transition-all duration-200 hover:bg-purple-50/50"
                     onClick={() => setIsCustomConfigModalVisible(true)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        setIsCustomConfigModalVisible(true);
+                      }
+                    }}
+                    role="button"
+                    tabIndex={0}
                   >
                     <div className="w-10 h-10 rounded-lg bg-purple-50 group-hover:bg-purple-100 flex items-center justify-center mx-auto mb-3 transition-colors">
                       <SettingOutlined className="text-purple-500 text-lg" />
@@ -1763,7 +1874,7 @@ export function ApiProductLinkApi({
           {/* CUSTOM 类型：展示 MCP Meta 详情 */}
           {linkedService?.sourceType === 'CUSTOM' && mcpMetaList.length > 0 && (
             <>
-              {mcpMetaList.map((meta: any) => (
+              {mcpMetaList.map((meta) => (
                 <div key={meta.mcpServerId}>
                   <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
                     <span className="text-xs text-gray-600">MCP 名称:</span>
@@ -1916,7 +2027,7 @@ export function ApiProductLinkApi({
                     {
                       children: (() => {
                         const meta = mcpMetaList[0];
-                        let extraParamDefs: any[] = [];
+                        let extraParamDefs: ExtraParamDef[] = [];
                         try {
                           const raw = meta?.extraParams;
                           extraParamDefs = raw
@@ -1945,7 +2056,7 @@ export function ApiProductLinkApi({
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-gray-100">
-                                {extraParamDefs.map((p: any, i: number) => (
+                                {extraParamDefs.map((p: ExtraParamDef, i: number) => (
                                   <tr className="hover:bg-gray-50/50 transition-colors" key={i}>
                                     <td className="px-4 py-3 align-top">
                                       <div className="flex items-center gap-1.5">
@@ -1972,11 +2083,11 @@ export function ApiProductLinkApi({
                                       <div className="text-gray-600 text-xs leading-relaxed">
                                         {p.description || '-'}
                                       </div>
-                                      {p.example && (
+                                      {p.example !== undefined && (
                                         <div className="mt-1">
                                           <span className="text-[10px] text-gray-400">示例: </span>
                                           <code className="text-[11px] font-mono text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded">
-                                            {p.example}
+                                            {String(p.example)}
                                           </code>
                                         </div>
                                       )}
@@ -2118,7 +2229,7 @@ export function ApiProductLinkApi({
                       const renderSandboxConfig = () => {
                         const meta = mcpMetaList[0];
                         if (!meta?.subscribeParams) return null;
-                        let sp: Record<string, any> = {};
+                        let sp: Record<string, unknown> = {};
                         try {
                           sp =
                             typeof meta.subscribeParams === 'string'
@@ -2129,15 +2240,14 @@ export function ApiProductLinkApi({
                         }
 
                         const sandboxId = sp.sandboxId || '-';
-                        const namespace = sp.namespace || 'default';
                         const authType = sp.authType || 'none';
-                        const extraParams: Record<string, any> = sp.extraParams || {};
+                        const extraParams = sp.extraParams || {};
                         const extraEntries = Object.entries(extraParams).filter(
                           ([, v]) => v !== null && v !== undefined && v !== '',
                         );
 
                         // 从 meta.extraParams 获取参数定义（name/position/required/description）
-                        let paramDefs: any[] = [];
+                        let paramDefs: ExtraParamDef[] = [];
                         try {
                           paramDefs = meta.extraParams
                             ? typeof meta.extraParams === 'string'
@@ -2156,14 +2266,16 @@ export function ApiProductLinkApi({
                                 <div className="text-gray-400 mb-0.5">沙箱</div>
                                 <div
                                   className="font-mono text-gray-700 truncate"
-                                  title={sp.sandboxName || sandboxId}
+                                  title={String((sp.sandboxName as string) || sandboxId)}
                                 >
-                                  {sp.sandboxName || sandboxId}
+                                  {String((sp.sandboxName as string) || sandboxId)}
                                 </div>
                               </div>
                               <div>
                                 <div className="text-gray-400 mb-0.5">Namespace</div>
-                                <div className="font-mono text-gray-700">{namespace}</div>
+                                <div className="font-mono text-gray-700">
+                                  {(sp.namespace as string) || 'default'}
+                                </div>
                               </div>
                               <div>
                                 <div className="text-gray-400 mb-0.5">鉴权类型</div>
@@ -2177,9 +2289,13 @@ export function ApiProductLinkApi({
                               </div>
                             </div>
                             {/* 鉴权信息卡片 - 默认折叠 */}
-                            {authType === 'apikey' && (sp.secretName || sp.apiKey) && (
-                              <AuthCredentialPanel apiKey={sp.apiKey} secretName={sp.secretName} />
-                            )}
+                            {authType === 'apikey' &&
+                              ((sp.secretName as string) || (sp.apiKey as string)) && (
+                                <AuthCredentialPanel
+                                  apiKey={sp.apiKey as string}
+                                  secretName={sp.secretName as string}
+                                />
+                              )}
                             {extraEntries.length > 0 && (
                               <div className="mt-3 rounded-lg border border-gray-200 overflow-hidden">
                                 <div className="px-3 py-1.5 bg-gray-50 border-b border-gray-200">
@@ -2190,7 +2306,7 @@ export function ApiProductLinkApi({
                                 <div className="p-3 space-y-2.5">
                                   {extraEntries.map(([key, val]) => {
                                     const def = Array.isArray(paramDefs)
-                                      ? paramDefs.find((d: any) => d.name === key)
+                                      ? paramDefs.find((d: ExtraParamDef) => d.name === key)
                                       : null;
                                     return (
                                       <div key={key}>
@@ -2393,7 +2509,7 @@ export function ApiProductLinkApi({
 
         routes.forEach((route) => {
           if (route.domains && route.domains.length > 0) {
-            route.domains.forEach((domain: any) => {
+            route.domains.forEach((domain) => {
               const key = `${domain.protocol}://${domain.domain}${domain.port ? `:${domain.port}` : ''}`;
               domainsMap.set(key, domain);
             });
@@ -2414,8 +2530,19 @@ export function ApiProductLinkApi({
         };
       });
 
+      interface RouteItem {
+        description?: string;
+        domains?: Array<{ domain: string; port?: number; protocol: string }>;
+        match?: {
+          headers?: Array<{ name?: string; type?: string; value?: string }> | null;
+          methods?: string[] | null;
+          path?: { type?: string; value?: string };
+          queryParams?: Array<{ name?: string; type?: string; value?: string }> | null;
+        };
+      }
+
       // 生成路由显示文本（优化方法显示）
-      const getRouteDisplayText = (route: any, domainIndex: number = 0) => {
+      const getRouteDisplayText = (route: RouteItem, domainIndex: number = 0) => {
         if (!route.match) return 'Unknown Route';
 
         const path = route.match.path?.value || '/';
@@ -2424,16 +2551,22 @@ export function ApiProductLinkApi({
         // 拼接域名信息 - 使用选择的域名索引
         let domainInfo = '';
         if (allUniqueDomains.length > 0 && allUniqueDomains.length > domainIndex) {
-          const selectedDomain = allUniqueDomains[domainIndex];
-          const formattedDomain = formatDomainWithPort(
-            selectedDomain.domain,
-            selectedDomain.port,
-            selectedDomain.protocol,
-          );
-          domainInfo = `${selectedDomain.protocol.toLowerCase()}://${formattedDomain}`;
+          const selectedDomain = allUniqueDomains[domainIndex] as {
+            domain: string;
+            port?: number;
+            protocol: string;
+          };
+          if (selectedDomain) {
+            const formattedDomain = formatDomainWithPort(
+              selectedDomain.domain,
+              selectedDomain.port,
+              selectedDomain.protocol,
+            );
+            domainInfo = `${selectedDomain.protocol.toLowerCase()}://${formattedDomain}`;
+          }
         } else if (route.domains && route.domains.length > 0) {
           // 回退到路由的第一个域名
-          const domain = route.domains[0];
+          const domain = route.domains[0] as { domain: string; port?: number; protocol: string };
           const formattedDomain = formatDomainWithPort(domain.domain, domain.port, domain.protocol);
           domainInfo = `${domain.protocol.toLowerCase()}://${formattedDomain}`;
         }
@@ -2458,9 +2591,14 @@ export function ApiProductLinkApi({
       };
 
       // 生成完整URL
-      const getFullUrl = (route: any, domainIndex: number = 0) => {
+      const getFullUrl = (route: RouteItem, domainIndex: number = 0) => {
         if (allUniqueDomains.length > 0 && allUniqueDomains.length > domainIndex) {
-          const selectedDomain = allUniqueDomains[domainIndex];
+          const selectedDomain = allUniqueDomains[domainIndex] as {
+            domain: string;
+            port?: number;
+            protocol: string;
+          };
+          if (!selectedDomain) return '/';
           const formattedDomain = formatDomainWithPort(
             selectedDomain.domain,
             selectedDomain.port,
@@ -2469,7 +2607,7 @@ export function ApiProductLinkApi({
           const path = route.match?.path?.value || '/';
           return `${selectedDomain.protocol.toLowerCase()}://${formattedDomain}${path}`;
         } else if (route.domains && route.domains.length > 0) {
-          const domain = route.domains[0];
+          const domain = route.domains[0] as { domain: string; port?: number; protocol: string };
           const formattedDomain = formatDomainWithPort(domain.domain, domain.port, domain.protocol);
           const path = route.match?.path?.value || '/';
           return `${domain.protocol.toLowerCase()}://${formattedDomain}${path}`;
@@ -2538,31 +2676,36 @@ export function ApiProductLinkApi({
                     <div>
                       <div className="text-sm text-gray-600 mb-2">附加接口</div>
                       <div className="space-y-2">
-                        {agentCard.additionalInterfaces.map((iface: any, idx: number) => (
-                          <div className="border border-gray-200 rounded p-3 bg-gray-50" key={idx}>
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-medium">
-                                {iface.transport || 'Unknown'}
-                              </span>
-                            </div>
-                            <div className="font-mono text-sm text-gray-700 break-all">
-                              {iface.url}
-                            </div>
-                            {/* 显示其他附加字段 */}
-                            {Object.keys(iface).filter((k) => k !== 'transport' && k !== 'url')
-                              .length > 0 && (
-                              <div className="mt-2 text-xs text-gray-500">
-                                {Object.entries(iface)
-                                  .filter(([k]) => k !== 'transport' && k !== 'url')
-                                  .map(([k, v]) => (
-                                    <div key={k}>
-                                      <span className="font-medium">{k}:</span> {String(v)}
-                                    </div>
-                                  ))}
+                        {agentCard.additionalInterfaces.map(
+                          (iface: Record<string, unknown>, idx: number) => (
+                            <div
+                              className="border border-gray-200 rounded p-3 bg-gray-50"
+                              key={idx}
+                            >
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-medium">
+                                  {(iface.transport as string) || 'Unknown'}
+                                </span>
                               </div>
-                            )}
-                          </div>
-                        ))}
+                              <div className="font-mono text-sm text-gray-700 break-all">
+                                {String(iface.url)}
+                              </div>
+                              {/* 显示其他附加字段 */}
+                              {Object.keys(iface).filter((k) => k !== 'transport' && k !== 'url')
+                                .length > 0 && (
+                                <div className="mt-2 text-xs text-gray-500">
+                                  {Object.entries(iface)
+                                    .filter(([k]) => k !== 'transport' && k !== 'url')
+                                    .map(([k, v]) => (
+                                      <div key={k}>
+                                        <span className="font-medium">{k}:</span> {String(v)}
+                                      </div>
+                                    ))}
+                                </div>
+                              )}
+                            </div>
+                          ),
+                        )}
                       </div>
                     </div>
                   )}
@@ -2572,15 +2715,17 @@ export function ApiProductLinkApi({
                     <div>
                       <div className="text-sm text-gray-600 mb-2">技能列表</div>
                       <div className="space-y-2">
-                        {agentCard.skills.map((skill: any, idx: number) => (
+                        {agentCard.skills.map((skill: Record<string, unknown>, idx: number) => (
                           <div className="border border-gray-200 rounded p-3" key={idx}>
-                            <div className="font-medium">{skill.name}</div>
-                            {skill.description && (
-                              <div className="text-sm text-gray-600 mt-1">{skill.description}</div>
+                            <div className="font-medium">{(skill.name as string) || ''}</div>
+                            {(skill.description as string) && (
+                              <div className="text-sm text-gray-600 mt-1">
+                                {skill.description as string}
+                              </div>
                             )}
-                            {skill.tags && skill.tags.length > 0 && (
+                            {(skill.tags as string[]) && (skill.tags as string[]).length > 0 && (
                               <div className="flex gap-2 mt-2">
-                                {skill.tags.map((tag: string, tagIdx: number) => (
+                                {(skill.tags as string[]).map((tag: string, tagIdx: number) => (
                                   <span
                                     className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded"
                                     key={tagIdx}
@@ -2666,7 +2811,7 @@ export function ApiProductLinkApi({
                                   try {
                                     await copyToClipboard(fullUrl);
                                     message.success('链接已复制到剪贴板');
-                                  } catch (error) {
+                                  } catch (_error) {
                                     message.error('复制失败');
                                   }
                                 }
@@ -2687,20 +2832,25 @@ export function ApiProductLinkApi({
                           {/* 域名信息 */}
                           <div>
                             <div className="text-xs text-gray-500 mb-1">域名:</div>
-                            {route.domains?.map((domain: any, domainIndex: number) => {
-                              const formattedDomain = formatDomainWithPort(
-                                domain.domain,
-                                domain.port,
-                                domain.protocol,
-                              );
-                              return (
-                                <div className="text-sm" key={domainIndex}>
-                                  <span className="font-mono">
-                                    {domain.protocol.toLowerCase()}://{formattedDomain}
-                                  </span>
-                                </div>
-                              );
-                            })}
+                            {route.domains?.map(
+                              (
+                                domain: { domain: string; port?: number; protocol: string },
+                                domainIndex: number,
+                              ) => {
+                                const formattedDomain = formatDomainWithPort(
+                                  domain.domain,
+                                  domain.port,
+                                  domain.protocol,
+                                );
+                                return (
+                                  <div className="text-sm" key={domainIndex}>
+                                    <span className="font-mono">
+                                      {domain.protocol.toLowerCase()}://{formattedDomain}
+                                    </span>
+                                  </div>
+                                );
+                              },
+                            )}
                           </div>
 
                           {/* 匹配规则 */}
@@ -2725,11 +2875,17 @@ export function ApiProductLinkApi({
                             <div>
                               <div className="text-xs text-gray-500 mb-1">请求头匹配:</div>
                               <div className="space-y-1">
-                                {route.match.headers.map((header: any, headerIndex: number) => (
-                                  <div className="text-sm font-mono" key={headerIndex}>
-                                    {header.name} {getMatchTypePrefix(header.type)} {header.value}
-                                  </div>
-                                ))}
+                                {route.match.headers.map(
+                                  (
+                                    header: { name?: string; type?: string; value?: string },
+                                    headerIndex: number,
+                                  ) => (
+                                    <div className="text-sm font-mono" key={headerIndex}>
+                                      {header.name} {getMatchTypePrefix(header.type || '')}{' '}
+                                      {header.value}
+                                    </div>
+                                  ),
+                                )}
                               </div>
                             </div>
                           )}
@@ -2739,11 +2895,17 @@ export function ApiProductLinkApi({
                             <div>
                               <div className="text-xs text-gray-500 mb-1">查询参数匹配:</div>
                               <div className="space-y-1">
-                                {route.match.queryParams.map((param: any, paramIndex: number) => (
-                                  <div className="text-sm font-mono" key={paramIndex}>
-                                    {param.name} {getMatchTypePrefix(param.type)} {param.value}
-                                  </div>
-                                ))}
+                                {route.match.queryParams.map(
+                                  (
+                                    param: { name?: string; type?: string; value?: string },
+                                    paramIndex: number,
+                                  ) => (
+                                    <div className="text-sm font-mono" key={paramIndex}>
+                                      {param.name} {getMatchTypePrefix(param.type || '')}{' '}
+                                      {param.value}
+                                    </div>
+                                  ),
+                                )}
                               </div>
                             </div>
                           )}
@@ -2779,7 +2941,7 @@ export function ApiProductLinkApi({
 
         routes.forEach((route) => {
           if (route.domains && route.domains.length > 0) {
-            route.domains.forEach((domain: any) => {
+            route.domains.forEach((domain) => {
               const key = `${domain.protocol}://${domain.domain}${domain.port ? `:${domain.port}` : ''}`;
               domainsMap.set(key, domain);
             });
@@ -2814,8 +2976,19 @@ export function ApiProductLinkApi({
         }
       };
 
+      interface RouteItem {
+        description?: string;
+        domains?: Array<{ domain: string; port?: number; protocol: string }>;
+        match?: {
+          headers?: Array<{ name?: string; type?: string; value?: string }> | null;
+          methods?: string[] | null;
+          path?: { type?: string; value?: string };
+          queryParams?: Array<{ name?: string; type?: string; value?: string }> | null;
+        };
+      }
+
       // 生成路由显示文本
-      const getRouteDisplayText = (route: any, domainIndex: number = 0) => {
+      const getRouteDisplayText = (route: RouteItem, domainIndex: number = 0) => {
         if (!route.match) return 'Unknown Route';
 
         const path = route.match.path?.value || '/';
@@ -2824,7 +2997,11 @@ export function ApiProductLinkApi({
         // 拼接域名信息 - 使用选择的域名索引
         let domainInfo = '';
         if (allModelUniqueDomains.length > 0 && allModelUniqueDomains.length > domainIndex) {
-          const selectedDomain = allModelUniqueDomains[domainIndex];
+          const selectedDomain = allModelUniqueDomains[domainIndex] as {
+            domain: string;
+            port?: number;
+            protocol: string;
+          };
           const formattedDomain = formatDomainWithPort(
             selectedDomain.domain,
             selectedDomain.port,
@@ -2833,7 +3010,7 @@ export function ApiProductLinkApi({
           domainInfo = `${selectedDomain.protocol.toLowerCase()}://${formattedDomain}`;
         } else if (route.domains && route.domains.length > 0) {
           // 回退到路由的第一个域名
-          const domain = route.domains[0];
+          const domain = route.domains[0] as { domain: string; port?: number; protocol: string };
           const formattedDomain = formatDomainWithPort(domain.domain, domain.port, domain.protocol);
           domainInfo = `${domain.protocol.toLowerCase()}://${formattedDomain}`;
         }
@@ -2857,7 +3034,7 @@ export function ApiProductLinkApi({
       };
 
       // 生成方法文本
-      const getMethodsText = (route: any) => {
+      const getMethodsText = (route: RouteItem) => {
         const methods = route.match?.methods;
         if (!methods || methods.length === 0) {
           return 'ANY';
@@ -2866,9 +3043,13 @@ export function ApiProductLinkApi({
       };
 
       // 获取完整URL用于复制
-      const getFullUrl = (route: any, domainIndex: number = 0) => {
+      const getFullUrl = (route: RouteItem, domainIndex: number = 0) => {
         if (allModelUniqueDomains.length > 0 && allModelUniqueDomains.length > domainIndex) {
-          const selectedDomain = allModelUniqueDomains[domainIndex];
+          const selectedDomain = allModelUniqueDomains[domainIndex] as {
+            domain: string;
+            port?: number;
+            protocol: string;
+          };
           const formattedDomain = formatDomainWithPort(
             selectedDomain.domain,
             selectedDomain.port,
@@ -2877,7 +3058,7 @@ export function ApiProductLinkApi({
           const path = route.match?.path?.value || '/';
           return `${selectedDomain.protocol.toLowerCase()}://${formattedDomain}${path}`;
         } else if (route.domains && route.domains.length > 0) {
-          const domain = route.domains[0];
+          const domain = route.domains[0] as { domain: string; port?: number; protocol: string };
           const formattedDomain = formatDomainWithPort(domain.domain, domain.port, domain.protocol);
           const path = route.match?.path?.value || '/';
           return `${domain.protocol.toLowerCase()}://${formattedDomain}${path}`;
@@ -2994,7 +3175,7 @@ export function ApiProductLinkApi({
                                   try {
                                     await copyToClipboard(fullUrl);
                                     message.success('链接已复制到剪贴板');
-                                  } catch (error) {
+                                  } catch (_error) {
                                     message.error('复制失败');
                                   }
                                 }
@@ -3015,20 +3196,25 @@ export function ApiProductLinkApi({
                           {/* 域名信息 */}
                           <div>
                             <div className="text-xs text-gray-500 mb-1">域名:</div>
-                            {route.domains?.map((domain: any, domainIndex: number) => {
-                              const formattedDomain = formatDomainWithPort(
-                                domain.domain,
-                                domain.port,
-                                domain.protocol,
-                              );
-                              return (
-                                <div className="text-sm" key={domainIndex}>
-                                  <span className="font-mono">
-                                    {domain.protocol.toLowerCase()}://{formattedDomain}
-                                  </span>
-                                </div>
-                              );
-                            })}
+                            {route.domains?.map(
+                              (
+                                domain: { domain: string; port?: number; protocol: string },
+                                domainIndex: number,
+                              ) => {
+                                const formattedDomain = formatDomainWithPort(
+                                  domain.domain,
+                                  domain.port,
+                                  domain.protocol,
+                                );
+                                return (
+                                  <div className="text-sm" key={domainIndex}>
+                                    <span className="font-mono">
+                                      {domain.protocol.toLowerCase()}://{formattedDomain}
+                                    </span>
+                                  </div>
+                                );
+                              },
+                            )}
                           </div>
 
                           {/* 匹配规则 */}
@@ -3053,11 +3239,17 @@ export function ApiProductLinkApi({
                             <div>
                               <div className="text-xs text-gray-500 mb-1">请求头匹配:</div>
                               <div className="space-y-1">
-                                {route.match.headers.map((header: any, headerIndex: number) => (
-                                  <div className="text-sm font-mono" key={headerIndex}>
-                                    {header.name} {getMatchTypePrefix(header.type)} {header.value}
-                                  </div>
-                                ))}
+                                {route.match.headers.map(
+                                  (
+                                    header: { name?: string; type?: string; value?: string },
+                                    headerIndex: number,
+                                  ) => (
+                                    <div className="text-sm font-mono" key={headerIndex}>
+                                      {header.name} {getMatchTypePrefix(header.type || '')}{' '}
+                                      {header.value}
+                                    </div>
+                                  ),
+                                )}
                               </div>
                             </div>
                           )}
@@ -3067,11 +3259,17 @@ export function ApiProductLinkApi({
                             <div>
                               <div className="text-xs text-gray-500 mb-1">查询参数匹配:</div>
                               <div className="space-y-1">
-                                {route.match.queryParams.map((param: any, paramIndex: number) => (
-                                  <div className="text-sm font-mono" key={paramIndex}>
-                                    {param.name} {getMatchTypePrefix(param.type)} {param.value}
-                                  </div>
-                                ))}
+                                {route.match.queryParams.map(
+                                  (
+                                    param: { name?: string; type?: string; value?: string },
+                                    paramIndex: number,
+                                  ) => (
+                                    <div className="text-sm font-mono" key={paramIndex}>
+                                      {param.name} {getMatchTypePrefix(param.type || '')}{' '}
+                                      {param.value}
+                                    </div>
+                                  ),
+                                )}
                               </div>
                             </div>
                           )}
@@ -3197,7 +3395,15 @@ export function ApiProductLinkApi({
                       <div>
                         <div className="font-medium">{gateway.gatewayName}</div>
                         <div className="text-sm text-gray-500">
-                          {gateway.gatewayId} - {getGatewayTypeLabel(gateway.gatewayType as any)}
+                          {gateway.gatewayId} -{' '}
+                          {getGatewayTypeLabel(
+                            gateway.gatewayType as
+                              | 'HIGRESS'
+                              | 'APIG_AI'
+                              | 'ADP_AI_GATEWAY'
+                              | 'APSARA_GATEWAY'
+                              | 'APIG_API',
+                          )}
                         </div>
                       </div>
                     </Select.Option>
@@ -3252,7 +3458,7 @@ export function ApiProductLinkApi({
                 placeholder="请选择命名空间"
                 showSearch
               >
-                {nacosNamespaces.map((ns) => (
+                {nacosNamespaces.map((ns: { namespaceId: string; namespaceName: string }) => (
                   <Select.Option
                     key={ns.namespaceId}
                     label={ns.namespaceName}
@@ -3311,51 +3517,51 @@ export function ApiProductLinkApi({
                 }
                 showSearch
               >
-                {apiList.map((api: any) => {
-                  let key, value, displayName;
+                {apiList.map((api: ApiListItem) => {
+                  let key: string, value: string, displayName: string;
                   if (apiProduct.type === 'REST_API') {
-                    key = api.apiId;
-                    value = api.apiId;
-                    displayName = api.apiName;
+                    key = api.apiId || '';
+                    value = api.apiId || '';
+                    displayName = api.apiName || '';
                   } else if (apiProduct.type === 'AGENT_API') {
                     // Gateway Agent: 使用 agentApiId/agentApiName
                     // Nacos Agent: 使用 agentName
                     if ('agentName' in api) {
                       // Nacos Agent
-                      key = api.agentName;
-                      value = api.agentName;
-                      displayName = api.agentName;
+                      key = api.agentName || '';
+                      value = api.agentName || '';
+                      displayName = api.agentName || '';
                     } else {
                       // Gateway Agent
-                      key = api.agentApiId || api.agentApiName;
-                      value = api.agentApiId || api.agentApiName;
-                      displayName = api.agentApiName;
+                      key = api.agentApiId || api.agentApiName || '';
+                      value = api.agentApiId || api.agentApiName || '';
+                      displayName = api.agentApiName || '';
                     }
                   } else if (apiProduct.type === 'MODEL_API') {
                     if (api.fromGatewayType === 'HIGRESS') {
                       // Higress: 只有 modelRouteName 字段
-                      key = api.modelRouteName;
-                      value = api.modelRouteName;
-                      displayName = api.modelRouteName;
+                      key = api.modelRouteName || '';
+                      value = api.modelRouteName || '';
+                      displayName = api.modelRouteName || '';
                     } else {
                       // AI Gateway (APIG_AI): 有 modelApiId 和 modelApiName
-                      key = api.modelApiId || api.modelApiName;
-                      value = api.modelApiId || api.modelApiName;
-                      displayName = api.modelApiName;
+                      key = api.modelApiId || api.modelApiName || '';
+                      value = api.modelApiId || api.modelApiName || '';
+                      displayName = api.modelApiName || '';
                     }
                   } else {
                     // MCP Server
-                    key = api.mcpRouteId || api.mcpServerName || api.name;
-                    value = api.mcpRouteId || api.mcpServerName || api.name;
-                    displayName = api.mcpServerName || api.name;
+                    key = String(api.mcpRouteId || api.mcpServerName || api.name || '');
+                    value = String(api.mcpRouteId || api.mcpServerName || api.name || '');
+                    displayName = String(api.mcpServerName || api.name || '');
                   }
 
                   return (
-                    <Select.Option key={key} label={displayName} value={value}>
+                    <Select.Option key={key || ''} label={displayName || ''} value={value || ''}>
                       <div>
                         <div className="font-medium">{displayName}</div>
                         <div className="text-sm text-gray-500">
-                          {api.type} - {api.description || key}
+                          {(api.type as string) || ''} - {api.description || key || ''}
                         </div>
                       </div>
                     </Select.Option>
@@ -3369,67 +3575,71 @@ export function ApiProductLinkApi({
 
       {/* 自定义数据配置弹窗 */}
       <McpCustomConfigModal
-        initialMcpMeta={mcpMetaList.length > 0 ? mcpMetaList[0] : null}
+        initialMcpMeta={mcpMetaList.length > 0 ? (mcpMetaList[0] as Record<string, unknown>) : null}
         onCancel={() => setIsCustomConfigModalVisible(false)}
-        onOk={async (values) => {
-          const iconJson = values.icon
-            ? JSON.stringify({ data: values.icon, type: 'BASE64' })
-            : values.iconUrl
-              ? JSON.stringify({ type: 'URL', url: values.iconUrl })
+        onOk={async (values: unknown) => {
+          const v = values as Record<string, unknown>;
+          const iconJson = v.icon
+            ? JSON.stringify({ data: v.icon, type: 'BASE64' })
+            : v.iconUrl
+              ? JSON.stringify({ type: 'URL', url: v.iconUrl })
               : undefined;
 
           // 不 try-catch，让错误传播到 McpCustomConfigModal 的 handleSubmit
           await mcpServerApi.saveMeta({
-            connectionConfig: values.mcpConfigJson,
-            description: values.description,
-            displayName: values.mcpDisplayName,
-            extraParams: values.extraParams?.length
-              ? JSON.stringify(values.extraParams)
+            connectionConfig: v.mcpConfigJson as string,
+            description: v.description as string,
+            displayName: v.mcpDisplayName as string,
+            extraParams: (v.extraParams as string[])?.length
+              ? JSON.stringify(v.extraParams as string[])
               : undefined,
             icon: iconJson,
-            mcpName: values.mcpServerName,
+            mcpName: v.mcpServerName as string,
             origin: 'ADMIN',
             productId: apiProduct.productId,
-            protocolType: values.protocolType,
+            protocolType: v.protocolType as string,
             publishStatus: 'DRAFT',
-            repoUrl: values.repoUrl,
-            sandboxRequired: values.sandboxRequired || false,
-            serviceIntro: values.serviceIntro,
+            repoUrl: v.repoUrl as string,
+            sandboxRequired: (v.sandboxRequired as boolean) || false,
+            serviceIntro: v.serviceIntro as string,
             sourceType: 'config',
-            tags: values.tags ? JSON.stringify(values.tags) : undefined,
+            tags: v.tags ? JSON.stringify(v.tags as string[]) : undefined,
             visibility: 'PUBLIC',
           });
 
           // 如果需要沙箱部署且选择了立即部署，单独调用 deploySandbox
-          if (values.sandboxRequired && values.deployNow && values.sandboxId) {
+          if ((v.sandboxRequired as boolean) && v.deployNow && v.sandboxId) {
             // 先刷新 meta 获取 mcpServerId
             const metaRes = await mcpServerApi.listMetaByProduct(apiProduct.productId);
             const metaList = metaRes?.data || [];
-            const newMeta = metaList.find((m: any) => m.mcpName === values.mcpServerName);
+            const newMeta = metaList.find(
+              (m: Record<string, unknown>) => m.mcpName === v.mcpServerName,
+            );
             if (newMeta?.mcpServerId) {
               await mcpServerApi.deploySandbox(newMeta.mcpServerId, {
-                authType: values.authType || 'none',
-                namespace: values.namespace,
+                authType: (v.authType as string) || 'none',
+                namespace: v.namespace as string,
                 paramValues:
-                  values.adminParamValues && Object.keys(values.adminParamValues).length > 0
-                    ? JSON.stringify(values.adminParamValues)
+                  (v.adminParamValues as Record<string, unknown>) &&
+                  Object.keys(v.adminParamValues as Record<string, unknown>).length > 0
+                    ? JSON.stringify(v.adminParamValues as Record<string, unknown>)
                     : undefined,
                 resourceSpec:
-                  values.cpuRequest ||
-                  values.cpuLimit ||
-                  values.memoryRequest ||
-                  values.memoryLimit ||
-                  values.ephemeralStorage
+                  (v.cpuRequest as string) ||
+                  (v.cpuLimit as string) ||
+                  (v.memoryRequest as string) ||
+                  (v.memoryLimit as string) ||
+                  (v.ephemeralStorage as string)
                     ? JSON.stringify({
-                        cpuLimit: values.cpuLimit || undefined,
-                        cpuRequest: values.cpuRequest || undefined,
-                        ephemeralStorage: values.ephemeralStorage || undefined,
-                        memoryLimit: values.memoryLimit || undefined,
-                        memoryRequest: values.memoryRequest || undefined,
+                        cpuLimit: (v.cpuLimit as string) || undefined,
+                        cpuRequest: (v.cpuRequest as string) || undefined,
+                        ephemeralStorage: (v.ephemeralStorage as string) || undefined,
+                        memoryLimit: (v.memoryLimit as string) || undefined,
+                        memoryRequest: (v.memoryRequest as string) || undefined,
                       })
                     : undefined,
-                sandboxId: values.sandboxId,
-                transportType: values.transportType || 'sse',
+                sandboxId: v.sandboxId as string,
+                transportType: (v.transportType as string) || 'sse',
               });
 
               // 轮询等待 endpoint 状态变为 ACTIVE
@@ -3440,7 +3650,7 @@ export function ApiProductLinkApi({
                 const pollRes = await mcpServerApi.listMetaByProduct(apiProduct.productId);
                 const pollList = pollRes?.data || [];
                 const activeMeta = (Array.isArray(pollList) ? pollList : []).find(
-                  (m: any) => m.mcpServerId === newMeta.mcpServerId,
+                  (m) => m.mcpServerId === newMeta.mcpServerId,
                 );
                 if (activeMeta?.endpointStatus === 'ACTIVE' && activeMeta?.endpointUrl) {
                   message.success('沙箱部署完成');
@@ -3513,7 +3723,7 @@ export function ApiProductLinkApi({
                   <Select
                     loading={deploySandboxLoading}
                     onChange={handleDeploySandboxChange}
-                    options={deploySandboxList.map((s: any) => ({
+                    options={deploySandboxList.map((s) => ({
                       label: s.sandboxName || s.sandboxId,
                       value: s.sandboxId,
                     }))}
@@ -3568,7 +3778,7 @@ export function ApiProductLinkApi({
                     className="w-full"
                     onChange={(e) => {
                       setDeployResourcePreset(e.target.value);
-                      const presets: Record<string, any> = {
+                      const presets = {
                         large: {
                           cpuLimit: '2',
                           cpuRequest: '1',
@@ -3591,7 +3801,7 @@ export function ApiProductLinkApi({
                           memoryRequest: '256Mi',
                         },
                       };
-                      const p = presets[e.target.value];
+                      const p = presets[e.target.value as keyof typeof presets];
                       if (p) deployForm.setFieldsValue(p);
                     }}
                     value={deployResourcePreset}
@@ -3669,7 +3879,7 @@ export function ApiProductLinkApi({
                     </span>
                   </div>
                   <div className="p-4 space-y-3">
-                    {paramDefs.map((p: any) => (
+                    {paramDefs.map((p) => (
                       <div key={p.name}>
                         <div className="flex items-center gap-1.5 mb-1">
                           <span className="text-xs font-mono text-gray-700">{p.name}</span>
@@ -3686,7 +3896,7 @@ export function ApiProductLinkApi({
                           onChange={(e) =>
                             setDeployParamValues((prev) => ({ ...prev, [p.name]: e.target.value }))
                           }
-                          placeholder={p.example || `请输入 ${p.name}`}
+                          placeholder={p.example ? String(p.example) : `请输入 ${p.name}`}
                           size="small"
                           value={deployParamValues[p.name] || ''}
                         />

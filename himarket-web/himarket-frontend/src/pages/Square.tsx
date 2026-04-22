@@ -88,7 +88,7 @@ function Square(props: { activeType: string }) {
     };
 
     fetchCategories();
-  }, [activeType]);
+  }, [activeType, t]);
 
   // 获取产品列表
   const fetchProducts = useCallback(
@@ -120,12 +120,12 @@ function Square(props: { activeType: string }) {
         setLoading(false);
       }
     },
-    [activeType, activeCategory, currentPage, sortBy, showSortControl],
+    [activeType, activeCategory, currentPage, sortBy, showSortControl, t],
   );
 
   useEffect(() => {
     fetchProducts(searchQuery);
-  }, [activeType, activeCategory, currentPage, sortBy]);
+  }, [activeType, activeCategory, currentPage, sortBy, fetchProducts, searchQuery]);
 
   // Debounce 自动搜索：输入停顿 300ms 后自动触发搜索并重置分页
   useDebounce(searchQuery, 300, (debouncedValue) => {
@@ -190,7 +190,7 @@ function Square(props: { activeType: string }) {
         navigate(`/workers/${product.productId}`);
         break;
       default:
-        console.log(t('unknownProductType'), product.type);
+        console.warn(t('unknownProductType'), product.type);
     }
   };
 
@@ -370,7 +370,7 @@ function Square(props: { activeType: string }) {
           </div>
         </div>
       </div>
-      <BackToTopButton container={scrollContainerRef.current!} />
+      <BackToTopButton container={scrollContainerRef.current ?? undefined} />
       <LoginPrompt
         contextMessage={t('loginPromptContext')}
         onClose={() => setLoginPromptOpen(false)}

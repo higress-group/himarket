@@ -177,6 +177,14 @@ function ConsumersPage() {
                 setShowModifyPrimaryConsumerModal(true);
                 fetchConsumersForSelect(undefined, 1, 1000, true);
               }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  setShowModifyPrimaryConsumerModal(true);
+                  fetchConsumersForSelect(undefined, 1, 1000, true);
+                }
+              }}
+              role="button"
+              tabIndex={0}
             >
               <span> 默认消费者 </span>
               <EditOutlined />

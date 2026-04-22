@@ -7,7 +7,13 @@ const tooltipStyle = {
   },
 };
 
-export default function ModelFeatureForm() {
+interface ModelFeatureFormProps {
+  initialExpanded?: boolean;
+}
+
+export default function ModelFeatureForm({
+  initialExpanded: _initialExpanded,
+}: ModelFeatureFormProps) {
   return (
     <>
       <Divider style={{ marginBottom: 16, marginTop: 0 }} titlePlacement="left">

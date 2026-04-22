@@ -110,6 +110,20 @@ export interface McpCreationFormData {
   resourceSpec?: ResourceSpec;
   /** 额外参数实际值（如 {"API_KEY":"sk-xxx"}） */
   paramValues?: Record<string, string>;
+  /** 图标 URL */
+  iconUrl?: string;
+  /** CPU 限制 */
+  cpuLimit?: string;
+  /** CPU 请求 */
+  cpuRequest?: string;
+  /** 临时存储 */
+  ephemeralStorage?: string;
+  /** 内存限制 */
+  memoryLimit?: string;
+  /** 内存请求 */
+  memoryRequest?: string;
+  /** 资源预设 */
+  resourcePreset?: string;
 }
 
 // ==================== 组件 Props ====================

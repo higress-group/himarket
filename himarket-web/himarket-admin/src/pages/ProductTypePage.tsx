@@ -10,6 +10,7 @@ import McpStepWizard from '@/components/mcp-creation/McpStepWizard';
 import type { CreationMode } from '@/components/mcp-creation/types';
 import ImportMcpModal from '@/components/mcp-vendor/ImportMcpModal';
 import { nacosApi, workerApi, skillApi } from '@/lib/api';
+import type { NacosInstance } from '@/types/gateway';
 
 // 产品类型标题映射
 const TYPE_TITLES: Record<string, string> = {
@@ -37,7 +38,7 @@ interface ProductTypePageProps {
 const ProductTypePage: React.FC<ProductTypePageProps> = ({ productType }) => {
   const tableRef = useRef<ProductTableRef>(null);
   const [importLoading, setImportLoading] = useState(false);
-  const [defaultNacos, setDefaultNacos] = useState<any>(null);
+  const [defaultNacos, setDefaultNacos] = useState<NacosInstance | null>(null);
   const [importModalVisible, setImportModalVisible] = useState(false);
 
   const showNacosImport = productType === 'AGENT_SKILL' || productType === 'WORKER';
@@ -55,8 +56,8 @@ const ProductTypePage: React.FC<ProductTypePageProps> = ({ productType }) => {
     if (showNacosImport) {
       nacosApi
         .getDefaultNacos()
-        .then((res: any) => {
-          setDefaultNacos(res.data);
+        .then((res: unknown) => {
+          setDefaultNacos((res as { data: NacosInstance | null }).data ?? null);
         })
         .catch(() => {
           setDefaultNacos(null);
@@ -92,8 +93,11 @@ const ProductTypePage: React.FC<ProductTypePageProps> = ({ productType }) => {
           } else {
             message.info(`没有新的 ${typeName} 需要导入`);
           }
-        } catch (error: any) {
-          message.error(error.response?.data?.message || `导入 ${typeName} 失败`);
+        } catch (error: unknown) {
+          message.error(
+            (error as { response?: { data?: { message?: string } } }).response?.data?.message ||
+              `导入 ${typeName} 失败`,
+          );
         } finally {
           setImportLoading(false);
         }
@@ -193,7 +197,7 @@ const ProductTypePage: React.FC<ProductTypePageProps> = ({ productType }) => {
           setImportModalVisible(false);
           tableRef.current?.refresh();
         }}
-        productType={productType}
+        productType={productType as 'REST_API' | 'MCP_SERVER' | 'AGENT_API' | 'MODEL_API'}
         visible={importModalVisible}
       />
     </div>

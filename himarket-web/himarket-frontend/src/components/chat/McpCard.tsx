@@ -76,8 +76,9 @@ function McpCard(props: McpCardProps) {
       await APIs.subscribeProduct(consumerRes.data.consumerId, data.productId);
       message.success('订阅成功');
       onQuickSubscribe?.(data);
-    } catch (e: any) {
-      message.error(e?.response?.data?.message || e?.message || '订阅失败');
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { message?: string } }; message?: string };
+      message.error(err?.response?.data?.message || err?.message || '订阅失败');
     } finally {
       setSubscribing(false);
     }
@@ -161,7 +162,16 @@ function McpCard(props: McpCardProps) {
             placement="bottom"
             trigger={'click'}
           >
-            <div onClick={(e) => e.stopPropagation()}>
+            <div
+              onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.stopPropagation();
+                }
+              }}
+              role="button"
+              tabIndex={0}
+            >
               <More className="fill-mainTitle" />
             </div>
           </Popover>

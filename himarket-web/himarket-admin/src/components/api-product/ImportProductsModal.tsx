@@ -59,8 +59,10 @@ export default function ImportProductsModal({
   const [sourceType, setSourceType] = useState<SourceType>('HIGRESS');
   const [higressGateways, setHigressGateways] = useState<Gateway[]>([]);
   const [aiGateways, setAiGateways] = useState<Gateway[]>([]);
-  const [nacosInstances, setNacosInstances] = useState<any[]>([]);
-  const [namespaces, setNamespaces] = useState<any[]>([]);
+  const [nacosInstances, setNacosInstances] = useState<
+    Array<{ nacosId: string; nacosName: string }>
+  >([]);
+  const [namespaces, setNamespaces] = useState<unknown[]>([]);
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [selectedServiceKeys, setSelectedServiceKeys] = useState<string[]>([]);
   const [searchText, setSearchText] = useState<string>('');
@@ -73,8 +75,6 @@ export default function ImportProductsModal({
   // Higress 网关仅支持 MCP_SERVER 批量导入
   // REST_API, MODEL_API: 仅支持 AI 网关
   // MCP_SERVER, AGENT_API: 支持 AI 网关和 Nacos
-  const supportsNacos = productType === 'MCP_SERVER' || productType === 'AGENT_API';
-
   const supportsHigress = productType === 'MCP_SERVER';
 
   const supportsAIGateway =
@@ -156,7 +156,7 @@ export default function ImportProductsModal({
 
       setHigressGateways(higress);
       setAiGateways(aiGws);
-    } catch (error) {
+    } catch (_error) {
       message.error('获取网关列表失败');
     }
   };
@@ -167,8 +167,9 @@ export default function ImportProductsModal({
       const res = await nacosApi.getNacos({ page: 0, size: 100 });
       const instances = res.data?.content || [];
       setNacosInstances(instances);
-    } catch (error: any) {
-      message.error(`获取 Nacos 列表失败: ${error.response?.data?.message || error.message}`);
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } }; message?: string };
+      message.error(`获取 Nacos 列表失败: ${err.response?.data?.message || err.message}`);
       setNacosInstances([]);
     }
   };
@@ -177,13 +178,17 @@ export default function ImportProductsModal({
   const fetchNamespaces = async (nacosId: string) => {
     try {
       const res = await nacosApi.getNamespaces(nacosId, { page: 0, size: 100 });
-      setNamespaces(res.data?.content || []);
+      const nsContent = (res.data?.content || []) as unknown[];
+      setNamespaces(nsContent);
       // 默认选择 public 命名空间
-      const publicNs = res.data?.content?.find((ns: any) => ns.namespaceId === 'public');
+      const publicNs = nsContent.find((ns: unknown) => {
+        const n = ns as { namespaceId?: string };
+        return n.namespaceId === 'public';
+      });
       if (publicNs) {
         form.setFieldValue('namespaceId', 'public');
       }
-    } catch (error) {
+    } catch (_error) {
       message.error('获取命名空间列表失败');
       setNamespaces([]);
     }
@@ -206,8 +211,7 @@ export default function ImportProductsModal({
     setServicesLoading(true);
     setCurrentPage(1); // 加载新服务列表时重置分页
     try {
-      let res: any;
-      let loadedCount = 0;
+      let res: unknown;
 
       if (isGatewaySource) {
         // 根据产品类型调用不同的 API
@@ -218,14 +222,17 @@ export default function ImportProductsModal({
               size: pageSize,
             });
             {
-              const items = (res.data?.content || []).map((item: any) => ({
-                apiId: item.apiId,
-                description: item.description,
-                key: item.apiId,
-                name: item.apiName,
-              }));
+              const responseData = res as { data?: { content?: unknown[] } };
+              const items = (responseData.data?.content || []).map((item: unknown) => {
+                const it = item as Record<string, string>;
+                return {
+                  apiId: it.apiId,
+                  description: it.description,
+                  key: it.apiId || '',
+                  name: it.apiName || '',
+                };
+              });
               setServices(items);
-              loadedCount = items.length;
             }
             break;
           case 'MCP_SERVER':
@@ -234,16 +241,19 @@ export default function ImportProductsModal({
               size: pageSize,
             });
             {
-              const items = (res.data?.content || []).map((item: any) => ({
-                description: item.description,
-                key: item.mcpServerId || item.mcpServerName,
-                mcpRouteId: item.mcpRouteId,
-                mcpServerId: item.mcpServerId,
-                mcpServerName: item.mcpServerName,
-                name: item.mcpServerName,
-              }));
+              const responseData = res as { data?: { content?: unknown[] } };
+              const items = (responseData.data?.content || []).map((item: unknown) => {
+                const it = item as Record<string, string>;
+                return {
+                  description: it.description,
+                  key: it.mcpServerId || it.mcpServerName || '',
+                  mcpRouteId: it.mcpRouteId,
+                  mcpServerId: it.mcpServerId,
+                  mcpServerName: it.mcpServerName,
+                  name: it.mcpServerName || '',
+                };
+              });
               setServices(items);
-              loadedCount = items.length;
             }
             break;
           case 'AGENT_API':
@@ -252,14 +262,17 @@ export default function ImportProductsModal({
               size: pageSize,
             });
             {
-              const items = (res.data?.content || []).map((item: any) => ({
-                agentApiId: item.agentApiId,
-                description: item.description,
-                key: item.agentApiId,
-                name: item.agentApiName,
-              }));
+              const responseData = res as { data?: { content?: unknown[] } };
+              const items = (responseData.data?.content || []).map((item: unknown) => {
+                const it = item as Record<string, string>;
+                return {
+                  agentApiId: it.agentApiId,
+                  description: it.description,
+                  key: it.agentApiId || '',
+                  name: it.agentApiName || '',
+                };
+              });
               setServices(items);
-              loadedCount = items.length;
             }
             break;
           case 'MODEL_API':
@@ -268,14 +281,17 @@ export default function ImportProductsModal({
               size: pageSize,
             });
             {
-              const items = (res.data?.content || []).map((item: any) => ({
-                description: item.description,
-                key: item.modelApiId,
-                modelApiId: item.modelApiId,
-                name: item.modelApiName || item.name,
-              }));
+              const responseData = res as { data?: { content?: unknown[] } };
+              const items = (responseData.data?.content || []).map((item: unknown) => {
+                const it = item as Record<string, string>;
+                return {
+                  description: it.description,
+                  key: it.modelApiId || '',
+                  modelApiId: it.modelApiId,
+                  name: it.modelApiName || it.name || '',
+                };
+              });
               setServices(items);
-              loadedCount = items.length;
             }
             break;
           default:
@@ -291,15 +307,18 @@ export default function ImportProductsModal({
             size: pageSize,
           });
           {
-            const items = (res.data?.content || []).map((item: any) => ({
-              description: item.description,
-              key: item.mcpServerName,
-              mcpServerName: item.mcpServerName,
-              name: item.mcpServerName,
-              namespaceId: values.namespaceId,
-            }));
+            const responseData = res as { data?: { content?: unknown[] } };
+            const items = (responseData.data?.content || []).map((item: unknown) => {
+              const it = item as Record<string, string>;
+              return {
+                description: it.description,
+                key: it.mcpServerName || '',
+                mcpServerName: it.mcpServerName,
+                name: it.mcpServerName || '',
+                namespaceId: values.namespaceId,
+              };
+            });
             setServices(items);
-            loadedCount = items.length;
           }
         } else if (productType === 'AGENT_API') {
           res = await nacosApi.getNacosAgents(values.nacosId, {
@@ -308,27 +327,27 @@ export default function ImportProductsModal({
             size: pageSize,
           });
           {
-            const items = (res.data?.content || []).map((item: any) => ({
-              agentName: item.agentName,
-              description: item.description,
-              key: item.agentName,
-              name: item.agentName,
-              namespaceId: values.namespaceId,
-            }));
+            const responseData = res as { data?: { content?: unknown[] } };
+            const items = (responseData.data?.content || []).map((item: unknown) => {
+              const it = item as Record<string, string>;
+              return {
+                agentName: it.agentName,
+                description: it.description,
+                key: it.agentName || '',
+                name: it.agentName || '',
+                namespaceId: values.namespaceId,
+              };
+            });
             setServices(items);
-            loadedCount = items.length;
           }
         }
       }
-    } catch (error: any) {
-      message.error(error.response?.data?.message || '获取服务列表失败');
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } }; message?: string };
+      message.error(err.response?.data?.message || '获取服务列表失败');
       setServices([]);
     } finally {
       setServicesLoading(false);
-      // 如果达到上限，提示用户
-      if (loadedCount >= pageSize) {
-        message.info(`已加载 ${pageSize} 个服务，如有更多服务请使用搜索或分页功能`);
-      }
     }
   };
 
@@ -409,7 +428,9 @@ export default function ImportProductsModal({
 
       // 如果有失败的，显示详细信息
       if (result.failureCount > 0) {
-        const failedResults = result.results.filter((r: any) => !r.success);
+        const failedResults = (result.results as unknown[]).filter(
+          (r: unknown) => !(r as { success?: boolean }).success,
+        );
 
         Modal.error({
           content: (
@@ -419,15 +440,22 @@ export default function ImportProductsModal({
               </div>
               <div className="font-semibold mb-2">失败详情：</div>
               <div className="max-h-96 overflow-y-auto">
-                {failedResults.map((item: any, index: number) => (
-                  <div className="mb-3 p-2 bg-red-50 rounded border border-red-200" key={index}>
-                    <div className="font-medium text-red-700">{item.serviceName}</div>
-                    <div className="text-sm text-red-600 mt-1">
-                      {item.errorCode && <span className="font-mono">[{item.errorCode}] </span>}
-                      {item.errorMessage || '未知错误'}
+                {failedResults.map((item: unknown, index: number) => {
+                  const it = item as {
+                    serviceName?: string;
+                    errorCode?: string;
+                    errorMessage?: string;
+                  };
+                  return (
+                    <div className="mb-3 p-2 bg-red-50 rounded border border-red-200" key={index}>
+                      <div className="font-medium text-red-700">{it.serviceName}</div>
+                      <div className="text-sm text-red-600 mt-1">
+                        {it.errorCode && <span className="font-mono">[{it.errorCode}] </span>}
+                        {it.errorMessage || '未知错误'}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           ),
@@ -448,8 +476,9 @@ export default function ImportProductsModal({
       } else {
         message.warning('没有成功导入任何产品');
       }
-    } catch (error: any) {
-      message.error(error.response?.data?.message || '导入失败');
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } }; message?: string };
+      message.error(err.response?.data?.message || '导入失败');
     } finally {
       setLoading(false);
     }
@@ -591,11 +620,14 @@ export default function ImportProductsModal({
                 placeholder="请选择命名空间"
                 showSearch
               >
-                {namespaces.map((ns: any) => (
-                  <Select.Option key={ns.namespaceId} value={ns.namespaceId}>
-                    {ns.namespaceName || ns.namespaceId}
-                  </Select.Option>
-                ))}
+                {namespaces.map((ns: unknown) => {
+                  const n = ns as { namespaceId: string; namespaceName?: string };
+                  return (
+                    <Select.Option key={n.namespaceId} value={n.namespaceId}>
+                      {n.namespaceName || n.namespaceId}
+                    </Select.Option>
+                  );
+                })}
               </Select>
             </Form.Item>
           </>

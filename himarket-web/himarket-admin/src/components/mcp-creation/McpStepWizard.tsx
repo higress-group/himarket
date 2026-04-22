@@ -107,7 +107,7 @@ export function McpStepWizard({ mode, onCancel, onSuccess, visible }: McpStepWiz
 
   /** Dynamic step fields for validation */
   const stepFields = useMemo<string[][]>(() => {
-    const fields = STEP_FIELDS[mode];
+    const fields = STEP_FIELDS[mode] as string[][];
     if (mode === 'manual' && !sandboxRequired) {
       // Remove sandbox step fields (last entry) when not required
       return fields.slice(0, 3);
@@ -165,8 +165,9 @@ export function McpStepWizard({ mode, onCancel, onSuccess, visible }: McpStepWiz
           size: 1,
           type: 'MCP_SERVER',
         });
-        const existing = (checkRes as any).data?.content || [];
-        if (existing.length > 0 && existing.some((p: any) => p.name === values.name)) {
+        const checkData = checkRes as { data?: { content?: Array<{ name?: string }> } };
+        const existing = checkData.data?.content || [];
+        if (existing.length > 0 && existing.some((p) => p.name === values.name)) {
           message.error(`产品名称「${values.name}」已存在，请更换名称`);
           return;
         }
@@ -191,7 +192,9 @@ export function McpStepWizard({ mode, onCancel, onSuccess, visible }: McpStepWiz
         name: values.name,
         type: 'MCP_SERVER',
       });
-      const productId = (productRes as any).data?.productId ?? (productRes as any).productId;
+      const productData = productRes as { data?: { productId?: string }; productId?: string };
+      const productId = productData.data?.productId ?? productData.productId;
+      if (!productId) throw new Error('创建产品失败，未返回 productId');
 
       // Step 2: Save MCP meta — 失败时回滚已创建的 Product
       try {
@@ -206,7 +209,7 @@ export function McpStepWizard({ mode, onCancel, onSuccess, visible }: McpStepWiz
             namespace: values.namespace,
             origin: 'ADMIN',
             paramValues: values.paramValues ? JSON.stringify(values.paramValues) : undefined,
-            productId,
+            productId: productId,
             protocolType: values.protocolType ?? 'sse',
             repoUrl: values.repoUrl,
             resourceSpec: values.sandboxRequired
@@ -234,7 +237,7 @@ export function McpStepWizard({ mode, onCancel, onSuccess, visible }: McpStepWiz
             gatewayId: values.gatewayId,
             mcpName: values.mcpName,
             origin: 'GATEWAY',
-            productId,
+            productId: productId,
             protocolType: 'sse',
             refConfig: values.gatewayRefConfig
               ? JSON.stringify(values.gatewayRefConfig)
@@ -251,7 +254,7 @@ export function McpStepWizard({ mode, onCancel, onSuccess, visible }: McpStepWiz
             mcpName: values.mcpName,
             nacosId: values.nacosId,
             origin: 'NACOS',
-            productId,
+            productId: productId,
             protocolType: 'sse',
             refConfig: values.nacosRefConfig ? JSON.stringify(values.nacosRefConfig) : undefined,
             serviceIntro: values.serviceIntro,
@@ -259,7 +262,7 @@ export function McpStepWizard({ mode, onCancel, onSuccess, visible }: McpStepWiz
             tags: values.tags ? JSON.stringify(values.tags) : undefined,
           });
         }
-      } catch (metaErr: any) {
+      } catch (metaErr: unknown) {
         // saveMeta 失败，回滚已创建的 Product 避免脏数据
         try {
           await apiProductApi.deleteApiProduct(productId);
@@ -271,13 +274,18 @@ export function McpStepWizard({ mode, onCancel, onSuccess, visible }: McpStepWiz
 
       // Success: close wizard and refresh list
       onSuccess();
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Show error but keep form data
-      if (err?.errorFields) {
+      const e = err as {
+        errorFields?: unknown;
+        message?: string;
+        response?: { data?: { message?: string } };
+      };
+      if (e.errorFields) {
         // Form validation error — already shown inline
         return;
       }
-      message.error(err?.response?.data?.message || err?.message || '创建失败，请重试');
+      message.error(e.response?.data?.message || e.message || '创建失败，请重试');
     } finally {
       setSubmitting(false);
     }
@@ -373,7 +381,19 @@ export function McpStepWizard({ mode, onCancel, onSuccess, visible }: McpStepWiz
               const isDone = completedSteps.has(item.key);
               const isLast = idx === navItems.length - 1;
               return (
-                <div className="flex gap-3" key={item.key} onClick={() => navigateTo(item.key)}>
+                <div
+                  className="flex gap-3"
+                  key={item.key}
+                  onClick={() => navigateTo(item.key)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      navigateTo(item.key);
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
+                >
                   {/* 圆点 + 连线 */}
                   <div className="flex flex-col items-center flex-shrink-0">
                     <div

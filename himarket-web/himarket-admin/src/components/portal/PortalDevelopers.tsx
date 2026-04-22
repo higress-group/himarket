@@ -7,8 +7,8 @@ import {
   CheckCircleFilled,
   ClockCircleOutlined,
 } from '@ant-design/icons';
-import { Table, Badge, Button, Space, message, Modal } from 'antd';
-import { useEffect, useState } from 'react';
+import { Table, Button, Space, message, Modal } from 'antd';
+import { useCallback, useEffect, useState } from 'react';
 
 import { SubscriptionListModal } from '@/components/subscription/SubscriptionListModal';
 import { portalApi } from '@/lib/api';
@@ -26,7 +26,7 @@ export function PortalDevelopers({ portal }: PortalDevelopersProps) {
     pageSize: 10,
     showQuickJumper: true,
     showSizeChanger: true,
-    showTotal: (total: number, range: [number, number]) => `共 ${total} 条`,
+    showTotal: (total: number, _range: [number, number]) => `共 ${total} 条`,
     total: 0,
   });
 
@@ -39,7 +39,7 @@ export function PortalDevelopers({ portal }: PortalDevelopersProps) {
     pageSize: 10,
     showQuickJumper: true,
     showSizeChanger: true,
-    showTotal: (total: number, range: [number, number]) => `共 ${total} 条`,
+    showTotal: (total: number, _range: [number, number]) => `共 ${total} 条`,
     total: 0,
   });
 
@@ -47,15 +47,13 @@ export function PortalDevelopers({ portal }: PortalDevelopersProps) {
   const [subscriptionModalVisible, setSubscriptionModalVisible] = useState(false);
   const [currentConsumer, setCurrentConsumer] = useState<Consumer | null>(null);
 
-  useEffect(() => {
-    fetchDevelopers();
-  }, [portal.portalId, pagination.current, pagination.pageSize]);
+  const { current: page, pageSize } = pagination;
 
-  const fetchDevelopers = () => {
+  const fetchDevelopers = useCallback(() => {
     portalApi
       .getDeveloperList(portal.portalId, {
-        page: pagination.current, // 后端从0开始
-        size: pagination.pageSize,
+        page,
+        size: pageSize,
       })
       .then((res) => {
         setDevelopers(res.data.content);
@@ -64,7 +62,11 @@ export function PortalDevelopers({ portal }: PortalDevelopersProps) {
           total: res.data.totalElements || 0,
         }));
       });
-  };
+  }, [page, pageSize, portal.portalId]);
+
+  useEffect(() => {
+    fetchDevelopers();
+  }, [fetchDevelopers]);
 
   const handleUpdateDeveloperStatus = (developerId: string, status: string) => {
     portalApi
@@ -82,11 +84,11 @@ export function PortalDevelopers({ portal }: PortalDevelopersProps) {
       });
   };
 
-  const handleTableChange = (paginationInfo: any) => {
+  const handleTableChange = (paginationInfo: { current?: number; pageSize?: number }) => {
     setPagination((prev) => ({
       ...prev,
-      current: paginationInfo.current,
-      pageSize: paginationInfo.pageSize,
+      current: paginationInfo.current ?? prev.current,
+      pageSize: paginationInfo.pageSize ?? prev.pageSize,
     }));
   };
 
@@ -130,32 +132,18 @@ export function PortalDevelopers({ portal }: PortalDevelopersProps) {
     });
   };
 
-  const handleConsumerTableChange = (paginationInfo: any) => {
+  const handleConsumerTableChange = (paginationInfo: { current?: number; pageSize?: number }) => {
     if (currentDeveloper) {
       setConsumerPagination((prev) => ({
         ...prev,
-        current: paginationInfo.current,
-        pageSize: paginationInfo.pageSize,
+        current: paginationInfo.current ?? prev.current,
+        pageSize: paginationInfo.pageSize ?? prev.pageSize,
       }));
-      fetchConsumers(currentDeveloper.developerId, paginationInfo.current, paginationInfo.pageSize);
-    }
-  };
-
-  const handleConsumerStatusUpdate = (consumerId: string) => {
-    if (currentDeveloper) {
-      portalApi
-        .approveConsumer(consumerId)
-        .then((res) => {
-          message.success('审批成功');
-          fetchConsumers(
-            currentDeveloper.developerId,
-            consumerPagination.current,
-            consumerPagination.pageSize,
-          );
-        })
-        .catch((err) => {
-          // message.error('审批失败')
-        });
+      fetchConsumers(
+        currentDeveloper.developerId,
+        paginationInfo.current ?? consumerPagination.current,
+        paginationInfo.pageSize ?? consumerPagination.pageSize,
+      );
     }
   };
 
@@ -218,7 +206,7 @@ export function PortalDevelopers({ portal }: PortalDevelopersProps) {
     {
       fixed: 'right' as const,
       key: 'action',
-      render: (_: any, record: Developer) => (
+      render: (_: unknown, record: Developer) => (
         <Space size="middle">
           <Button icon={<EyeOutlined />} onClick={() => handleViewConsumers(record)} type="link">
             查看Consumer
@@ -295,10 +283,18 @@ export function PortalDevelopers({ portal }: PortalDevelopersProps) {
     },
     {
       key: 'action',
-      render: (_: any, record: Consumer) => (
+      render: (_: unknown, record: Consumer) => (
         <div
           className="text-colorPrimary/80 text-colorPrimary flex items-center gap-2"
           onClick={() => handleViewSubscriptions(record)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              handleViewSubscriptions(record);
+            }
+          }}
+          role="button"
+          tabIndex={0}
         >
           <UnorderedListOutlined />
           订阅列表

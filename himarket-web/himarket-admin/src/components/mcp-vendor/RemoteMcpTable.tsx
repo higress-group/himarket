@@ -131,6 +131,14 @@ export default function RemoteMcpTable({
               `}
               key={item.remoteId}
               onClick={() => handleToggle(item)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  handleToggle(item);
+                }
+              }}
+              role="button"
+              tabIndex={isDisabled ? -1 : 0}
             >
               {/* Checkbox */}
               <div className="absolute top-3 right-3">

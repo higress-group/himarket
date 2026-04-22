@@ -55,9 +55,15 @@ export default function SandboxConsoles() {
   const fetchList = useCallback(async (type: SandboxType, page = 1, size = 10) => {
     setLoading(true);
     try {
-      const res: any = await sandboxApi.getSandboxes({ page: page - 1, sandboxType: type, size });
-      const data = res.data || res;
-      setSandboxes(data.content || []);
+      const res: unknown = await sandboxApi.getSandboxes({
+        page: page - 1,
+        sandboxType: type,
+        size,
+      });
+      const data =
+        (res as { data?: { content?: unknown[]; totalElements?: number } }).data ||
+        (res as { content?: unknown[]; totalElements?: number });
+      setSandboxes((data.content || []) as SandboxInstance[]);
       setPagination({ current: page, pageSize: size, total: data.totalElements || 0 });
     } catch {
       setSandboxes([]);
@@ -116,8 +122,9 @@ export default function SandboxConsoles() {
   const handleHealthCheck = async (record: SandboxInstance) => {
     setCheckingId(record.sandboxId);
     try {
-      const res: any = await sandboxApi.healthCheck(record.sandboxId);
-      const updated = res.data || res;
+      const res: unknown = await sandboxApi.healthCheck(record.sandboxId);
+      const updated =
+        (res as { data?: Partial<SandboxInstance> }).data || (res as Partial<SandboxInstance>);
       setSandboxes((prev) =>
         prev.map((s) => (s.sandboxId === record.sandboxId ? { ...s, ...updated } : s)),
       );
@@ -143,8 +150,10 @@ export default function SandboxConsoles() {
     setClusterFetched(false);
     setFetchFailed(false);
     try {
-      const res: any = await sandboxApi.fetchClusterInfo(kubeConfig);
-      const result = res.data || res;
+      const res: unknown = await sandboxApi.fetchClusterInfo(kubeConfig);
+      const result =
+        (res as { data?: { ok?: boolean; message?: string } }).data ||
+        (res as { ok?: boolean; message?: string });
       if (result.ok) {
         setClusterFetched(true);
         message.success('集群连接成功');
@@ -174,8 +183,9 @@ export default function SandboxConsoles() {
     // 编辑模式下更换 KubeConfig 时，检查是否有活跃的 MCP 部署
     if (editingSandbox && form.getFieldValue('kubeConfig') && clusterFetched) {
       try {
-        const res: any = await sandboxApi.getActiveDeployments(editingSandbox.sandboxId);
-        const count = (res.data || res).count || 0;
+        const res: unknown = await sandboxApi.getActiveDeployments(editingSandbox.sandboxId);
+        const count =
+          ((res as { data?: { count?: number } }).data || (res as { count?: number })).count || 0;
         if (count > 0) {
           Modal.confirm({
             cancelText: '取消',
@@ -261,7 +271,7 @@ export default function SandboxConsoles() {
   const columns = [
     {
       key: 'nameAndId',
-      render: (_: any, record: SandboxInstance) => (
+      render: (_: unknown, record: SandboxInstance) => (
         <div>
           <div className="text-sm font-medium text-gray-900 truncate">{record.sandboxName}</div>
           <div className="text-xs text-gray-500 truncate">{record.sandboxId}</div>
@@ -272,7 +282,7 @@ export default function SandboxConsoles() {
     },
     {
       key: 'clusterId',
-      render: (_: any, record: SandboxInstance) => {
+      render: (_: unknown, record: SandboxInstance) => {
         try {
           const attr = record.clusterAttribute ? JSON.parse(record.clusterAttribute) : {};
           return attr.clusterId ? (
@@ -335,7 +345,7 @@ export default function SandboxConsoles() {
     },
     {
       key: 'action',
-      render: (_: any, record: SandboxInstance) => (
+      render: (_: unknown, record: SandboxInstance) => (
         <>
           <Tooltip title="检查集群连通性">
             <Button

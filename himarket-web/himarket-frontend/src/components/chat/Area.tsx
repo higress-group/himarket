@@ -180,7 +180,7 @@ export function ChatArea(props: ChatAreaProps) {
         });
       }
     },
-    [addedMcps, getMcpList],
+    [getMcpList],
   );
 
   const toggleMcpModal = useCallback(() => {

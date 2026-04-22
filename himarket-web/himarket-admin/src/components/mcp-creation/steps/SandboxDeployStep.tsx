@@ -5,6 +5,11 @@ import { sandboxApi } from '@/lib/api';
 
 import type { ExtraParam } from '../types';
 
+interface SandboxItem {
+  sandboxId: string;
+  sandboxName: string;
+}
+
 /**
  * SandboxDeployStep — 沙箱部署配置步骤。
  *
@@ -15,7 +20,7 @@ export default function SandboxDeployStep() {
   const form = Form.useFormInstance();
 
   // ── 沙箱实例列表 ──
-  const [sandboxList, setSandboxList] = useState<any[]>([]);
+  const [sandboxList, setSandboxList] = useState<SandboxItem[]>([]);
   const [sandboxLoading, setSandboxLoading] = useState(false);
 
   // ── Namespace 列表 ──
@@ -33,9 +38,9 @@ export default function SandboxDeployStep() {
     setSandboxLoading(true);
     sandboxApi
       .getActiveSandboxes()
-      .then((res: any) => {
-        const list = res?.data || [];
-        setSandboxList(Array.isArray(list) ? list : []);
+      .then((res: unknown) => {
+        const list = (res as Record<string, unknown>).data ?? [];
+        setSandboxList(Array.isArray(list) ? (list as SandboxItem[]) : []);
       })
       .catch(() => {
         message.error('获取沙箱实例列表失败');
@@ -50,9 +55,9 @@ export default function SandboxDeployStep() {
     form.setFieldsValue({ namespace: undefined });
     setNamespaceLoading(true);
     try {
-      const res: any = await sandboxApi.listNamespaces(sandboxId);
-      const list = res?.data || res || [];
-      setNamespaceList(Array.isArray(list) ? list : []);
+      const res: unknown = await sandboxApi.listNamespaces(sandboxId);
+      const list = (res as Record<string, unknown>).data ?? (Array.isArray(res) ? res : []);
+      setNamespaceList(Array.isArray(list) ? (list as string[]) : []);
     } catch {
       message.error('获取 Namespace 列表失败');
       setNamespaceList([]);
@@ -78,7 +83,7 @@ export default function SandboxDeployStep() {
             <Select
               loading={sandboxLoading}
               onChange={handleSandboxChange}
-              options={sandboxList.map((s: any) => ({
+              options={sandboxList.map((s) => ({
                 label: s.sandboxName,
                 value: s.sandboxId,
               }))}
@@ -136,7 +141,7 @@ export default function SandboxDeployStep() {
             <Radio.Group
               className="w-full"
               onChange={(e) => {
-                const presets: Record<string, any> = {
+                const presets: Record<string, Record<string, string>> = {
                   large: {
                     cpuLimit: '2',
                     cpuRequest: '1',

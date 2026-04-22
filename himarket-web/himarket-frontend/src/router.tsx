@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 
 import { RequireAuth } from './components/RequireAuth';
-import { usePortalConfig } from './context/PortalConfigContext';
+import { usePortalConfig } from './context/usePortalConfig';
 import AgentDetail from './pages/AgentDetail';
 import ApiDetail from './pages/ApiDetail';
 import Callback from './pages/Callback';
@@ -14,14 +14,14 @@ import GettingStarted from './pages/GettingStarted';
 import Login from './pages/Login';
 import McpCreatePage from './pages/McpCreatePage';
 import McpDetail from './pages/McpDetail';
+import McpSquare from './pages/McpSquare';
 import ModelDetail from './pages/ModelDetail';
+import MyMcp from './pages/MyMcp';
+import OidcCallback from './pages/OidcCallback';
 import Profile from './pages/Profile';
 import Register from './pages/Register';
-import OidcCallback from './pages/OidcCallback';
 import SkillDetail from './pages/SkillDetail';
 import Square from './pages/Square';
-import McpSquare from './pages/McpSquare';
-import MyMcp from './pages/MyMcp';
 import WorkerDetail from './pages/WorkerDetail';
 
 function DynamicHome() {

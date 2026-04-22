@@ -41,7 +41,8 @@ function McpDetailModal({ onClose, onSubscribed, open, product }: McpDetailModal
       APIs.getProductSubscriptionStatus(pid).catch(() => null),
     ])
       .then(([metaRes, subStatus]) => {
-        if (metaRes?.code === 'SUCCESS' && metaRes.data?.length > 0) setMeta(metaRes.data[0]);
+        if (metaRes?.code === 'SUCCESS' && metaRes.data?.length > 0)
+          setMeta(metaRes.data[0] ?? null);
         if (subStatus?.hasSubscription) setSubscribed(true);
       })
       .finally(() => setLoading(false));

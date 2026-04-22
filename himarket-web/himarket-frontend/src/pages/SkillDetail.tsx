@@ -17,7 +17,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 
 import { ProductIconRenderer } from '../components/icon/ProductIconRenderer';
 import { Layout } from '../components/Layout';
-
 import 'highlight.js/styles/github.css';
 import { SkillWorkerDetailSkeleton } from '../components/loading';
 import MarkdownRender from '../components/MarkdownRender';
@@ -222,6 +221,53 @@ function SkillDetail() {
     window.addEventListener('mouseup', onUp);
   };
 
+  const loadVersionContent = useCallback(
+    async (version?: string) => {
+      if (!skillProductId) return;
+      try {
+        const filesRes = await getSkillFiles(skillProductId, version).catch(() => null);
+        if (
+          filesRes?.code === 'SUCCESS' &&
+          Array.isArray(filesRes.data) &&
+          filesRes.data.length > 0
+        ) {
+          const nodes = filesRes.data;
+          setFileTree(nodes);
+          const hasSkillMd = nodes.some((n: SkillFileTreeNode) => n.path === 'SKILL.md');
+          if (hasSkillMd) {
+            setSelectedFilePath('SKILL.md');
+            setFileLoading(true);
+            setOverviewLoading(true);
+            getSkillFileContent(skillProductId, 'SKILL.md', version)
+              .then((r) => {
+                if (r.code === 'SUCCESS' && r.data) {
+                  setFileContent(r.data);
+                  setOverviewContent(r.data.content);
+                }
+              })
+              .catch(() => {})
+              .finally(() => {
+                setFileLoading(false);
+                setOverviewLoading(false);
+              });
+          } else {
+            setOverviewContent(null);
+            setSelectedFilePath(undefined);
+            setFileContent(null);
+          }
+        } else {
+          setFileTree([]);
+          setFileContent(null);
+          setSelectedFilePath(undefined);
+          setOverviewContent(null);
+        }
+      } catch {
+        setFileTree([]);
+      }
+    },
+    [skillProductId],
+  );
+
   useEffect(() => {
     const fetchDetail = async () => {
       if (!skillProductId) return;
@@ -274,51 +320,7 @@ function SkillDetail() {
       }
     };
     fetchDetail();
-  }, [skillProductId]);
-
-  const loadVersionContent = async (version?: string) => {
-    if (!skillProductId) return;
-    try {
-      const filesRes = await getSkillFiles(skillProductId, version).catch(() => null);
-      if (
-        filesRes?.code === 'SUCCESS' &&
-        Array.isArray(filesRes.data) &&
-        filesRes.data.length > 0
-      ) {
-        const nodes = filesRes.data;
-        setFileTree(nodes);
-        const hasSkillMd = nodes.some((n: SkillFileTreeNode) => n.path === 'SKILL.md');
-        if (hasSkillMd) {
-          setSelectedFilePath('SKILL.md');
-          setFileLoading(true);
-          setOverviewLoading(true);
-          getSkillFileContent(skillProductId, 'SKILL.md', version)
-            .then((r) => {
-              if (r.code === 'SUCCESS' && r.data) {
-                setFileContent(r.data);
-                setOverviewContent(r.data.content);
-              }
-            })
-            .catch(() => {})
-            .finally(() => {
-              setFileLoading(false);
-              setOverviewLoading(false);
-            });
-        } else {
-          setOverviewContent(null);
-          setSelectedFilePath(undefined);
-          setFileContent(null);
-        }
-      } else {
-        setFileTree([]);
-        setFileContent(null);
-        setSelectedFilePath(undefined);
-        setOverviewContent(null);
-      }
-    } catch {
-      setFileTree([]);
-    }
-  };
+  }, [skillProductId, loadVersionContent, t]);
 
   const handleVersionChange = useCallback(
     async (version: string) => {
@@ -327,7 +329,7 @@ function SkillDetail() {
       setSelectedFilePath(undefined);
       await loadVersionContent(version);
     },
-    [skillProductId],
+    [loadVersionContent],
   );
 
   const handleSelectFile = useCallback(
@@ -662,8 +664,10 @@ function SkillDetail() {
                   </div>
                   {/* Drag handle */}
                   <div
+                    aria-orientation="vertical"
                     className="w-1 flex-shrink-0 cursor-col-resize hover:bg-blue-200 transition-colors bg-transparent"
                     onMouseDown={handleDragStart}
+                    role="separator"
                   />
                   {/* File preview */}
                   <div className="flex-1 overflow-auto flex flex-col">{renderFilePreview()}</div>
@@ -868,7 +872,7 @@ function SkillDetail() {
             </div>
 
             <RelatedSkills
-              currentProductId={skillProductId!}
+              currentProductId={skillProductId ?? ''}
               currentSkillTags={skillConfig?.skillTags}
             />
           </div>

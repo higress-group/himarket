@@ -64,7 +64,9 @@ const Layout: React.FC = () => {
     ];
     const isApiProductDetail = location.pathname.match(/^\/api-products\/([^/]+)$/);
     const isSubMenuRoute =
-      isApiProductDetail && apiProductSubRoutes.includes(isApiProductDetail[1]);
+      isApiProductDetail &&
+      isApiProductDetail[1] !== undefined &&
+      apiProductSubRoutes.includes(isApiProductDetail[1]);
 
     if (location.pathname.match(/^\/portals\/[^/]+$/) || (isApiProductDetail && !isSubMenuRoute)) {
       setSidebarCollapsed(true);
@@ -209,7 +211,7 @@ const Layout: React.FC = () => {
         </Link>
         {hasChildren && (
           <div className="ml-2">
-            {item.children!.map((child) => renderMenuItem(child, level + 1))}
+            {(item.children || []).map((child) => renderMenuItem(child, level + 1))}
           </div>
         )}
       </div>

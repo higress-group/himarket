@@ -47,12 +47,12 @@ const STEPS = [
   { desc: '名称、仓库、标签', icon: <InfoCircleOutlined />, key: 0, label: '基础信息' },
   { desc: '协议与连接方式', icon: <SettingOutlined />, key: 1, label: 'MCP 配置' },
   { desc: 'Markdown 文档', icon: <FileTextOutlined />, key: 2, label: '服务介绍' },
-];
+] as const;
 
 function McpCreatePage() {
   const navigate = useNavigate();
   const [form] = Form.useForm();
-  const [currentStep, setCurrentStep] = useState(0);
+  const [currentStep, setCurrentStep] = useState<0 | 1 | 2>(0);
   const [iconMode, setIconMode] = useState<'URL' | 'BASE64'>('URL');
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -109,7 +109,7 @@ function McpCreatePage() {
     [],
   ];
 
-  const navigateTo = async (target: number) => {
+  const navigateTo = async (target: 0 | 1 | 2) => {
     if (target > currentStep) {
       try {
         await form.validateFields(stepFields[currentStep]);
@@ -125,7 +125,7 @@ function McpCreatePage() {
     try {
       await form.validateFields(stepFields[currentStep]);
       setCompletedSteps((prev) => new Set(prev).add(currentStep));
-      setCurrentStep(currentStep + 1);
+      setCurrentStep((currentStep + 1) as 0 | 1 | 2);
     } catch {
       /* validation failed */
     }
@@ -163,9 +163,10 @@ function McpCreatePage() {
         message.success('MCP 提交成功，等待管理员审核发布');
         navigate('/mcp');
       }
-    } catch (error: any) {
-      if (error?.errorFields) return;
-      message.error(error?.message || '提交失败');
+    } catch (error: unknown) {
+      const err = error as { errorFields?: unknown[]; message?: string };
+      if (err?.errorFields) return;
+      message.error(err?.message || '提交失败');
     } finally {
       setSubmitting(false);
     }
@@ -286,13 +287,41 @@ function McpCreatePage() {
                 };
                 input.click();
               }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  const input = document.createElement('input');
+                  input.type = 'file';
+                  input.accept = 'image/*';
+                  input.onchange = (ev) => {
+                    const file = (ev.target as HTMLInputElement).files?.[0];
+                    if (!file) return;
+                    if (file.size > 16 * 1024) {
+                      message.error('图片不能超过 16KB');
+                      return;
+                    }
+                    setFileList([
+                      {
+                        name: file.name,
+                        status: 'done',
+                        uid: Date.now().toString(),
+                        url: URL.createObjectURL(file),
+                      },
+                    ]);
+                    getBase64(file).then((b64) => form.setFieldsValue({ icon: b64 }));
+                  };
+                  input.click();
+                }
+              }}
+              role="button"
+              tabIndex={0}
             >
               {fileList.length > 0 ? (
                 <>
                   <img
                     alt="icon"
                     className="w-full h-full object-cover rounded-[10px]"
-                    src={fileList[0].url}
+                    src={fileList[0]?.url}
                   />
                   <div
                     className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-white text-[10px] cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
@@ -301,6 +330,15 @@ function McpCreatePage() {
                       setFileList([]);
                       form.setFieldsValue({ icon: null });
                     }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.stopPropagation();
+                        setFileList([]);
+                        form.setFieldsValue({ icon: null });
+                      }
+                    }}
+                    role="button"
+                    tabIndex={0}
                   >
                     ×
                   </div>
@@ -388,6 +426,17 @@ function McpCreatePage() {
                     });
                     setExtraParams([]);
                   }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      form.setFieldsValue({
+                        protocolType: p.key,
+                        ...(p.key === 'stdio' ? { sandboxRequired: true } : {}),
+                      });
+                      setExtraParams([]);
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
                 >
                   {selected && (
                     <CheckCircleFilled className="absolute top-2 right-2 text-colorPrimary text-xs" />
@@ -578,7 +627,7 @@ function McpCreatePage() {
                 },
                 {
                   align: 'center' as const,
-                  render: (_: any, record: ExtraParam) => (
+                  render: (_: unknown, record: ExtraParam) => (
                     <Space size={4}>
                       <Button
                         className="text-gray-400 hover:text-colorPrimary"
@@ -687,6 +736,13 @@ function McpCreatePage() {
                         className="flex gap-3 cursor-pointer"
                         key={item.key}
                         onClick={() => navigateTo(item.key)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            navigateTo(item.key);
+                          }
+                        }}
+                        role="button"
+                        tabIndex={0}
                       >
                         <div className="flex flex-col items-center flex-shrink-0">
                           <div
@@ -738,7 +794,7 @@ function McpCreatePage() {
                 {/* 表单区域 */}
                 <div className="flex-1 overflow-auto px-7 py-6">
                   <Form form={form} layout="vertical" requiredMark="optional">
-                    {stepContent[currentStep]()}
+                    {stepContent[currentStep]?.()}
                   </Form>
                 </div>
 
@@ -746,7 +802,9 @@ function McpCreatePage() {
                 <div className="flex items-center justify-between px-7 py-4 border-t border-gray-100/80 bg-gray-50/30">
                   <div>
                     {currentStep > 0 && (
-                      <Button onClick={() => setCurrentStep(currentStep - 1)}>上一步</Button>
+                      <Button onClick={() => setCurrentStep((currentStep - 1) as 0 | 1 | 2)}>
+                        上一步
+                      </Button>
                     )}
                   </div>
                   <Space>

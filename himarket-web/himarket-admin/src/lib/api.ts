@@ -8,7 +8,6 @@ import type {
   GetApiProductsParams,
   CreateApiProductRequest,
   UpdateApiProductRequest,
-  CreateApiProductRefRequest,
   GetApiProductPublicationsParams,
   GetGatewaysParams,
   GetApigGatewayParams,
@@ -178,7 +177,7 @@ export const apiProductApi = {
     return api.post(`/products`, data);
   },
   // 创建API产品关联
-  createApiProductRef: (productId: string, data: any) => {
+  createApiProductRef: (productId: string, data: unknown) => {
     return api.post(`/products/${productId}/ref`, data);
   },
   // 删除API产品
@@ -605,7 +604,7 @@ export const sandboxApi = {
 // MCP 供应商导入 API
 export const mcpVendorApi = {
   // 批量导入（超时设长一些，因为后端需要逐条调详情 API 补充数据）
-  batchImport: (data: { vendorType: string; items: any[] }) => {
+  batchImport: (data: { vendorType: string; items: unknown[] }) => {
     return api.post('/admin/mcp-vendor/import', data, { timeout: 300000 });
   },
   // 查询供应商 MCP 列表
