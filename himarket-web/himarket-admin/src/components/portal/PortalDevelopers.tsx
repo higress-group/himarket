@@ -8,12 +8,12 @@ import {
   ClockCircleOutlined,
 } from '@ant-design/icons';
 import { Table, Button, Space, message, Modal } from 'antd';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { SubscriptionListModal } from '@/components/subscription/SubscriptionListModal';
 import { portalApi } from '@/lib/api';
 import { formatDateTime } from '@/lib/utils';
-import type { ApiResponse, Consumer, Developer, PaginatedResponse, Portal } from '@/types';
+import type { Portal, Developer, Consumer } from '@/types';
 
 interface PortalDevelopersProps {
   portal: Portal;
@@ -47,16 +47,13 @@ export function PortalDevelopers({ portal }: PortalDevelopersProps) {
   const [subscriptionModalVisible, setSubscriptionModalVisible] = useState(false);
   const [currentConsumer, setCurrentConsumer] = useState<Consumer | null>(null);
 
-  useEffect(() => {
-    fetchDevelopers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [portal.portalId, pagination.current, pagination.pageSize]);
+  const { current: page, pageSize } = pagination;
 
-  const fetchDevelopers = () => {
+  const fetchDevelopers = useCallback(() => {
     portalApi
       .getDeveloperList(portal.portalId, {
-        page: pagination.current, // 后端从0开始
-        size: pagination.pageSize,
+        page,
+        size: pageSize,
       })
       .then((res) => {
         setDevelopers(res.data.content);
@@ -65,7 +62,11 @@ export function PortalDevelopers({ portal }: PortalDevelopersProps) {
           total: res.data.totalElements || 0,
         }));
       });
-  };
+  }, [page, pageSize, portal.portalId]);
+
+  useEffect(() => {
+    fetchDevelopers();
+  }, [fetchDevelopers]);
 
   const handleUpdateDeveloperStatus = (developerId: string, status: string) => {
     portalApi
@@ -123,25 +124,27 @@ export function PortalDevelopers({ portal }: PortalDevelopersProps) {
 
   const fetchConsumers = (developerId: string, page: number, size: number) => {
     portalApi.getConsumerList(portal.portalId, developerId, { page: page, size }).then((res) => {
-      const body = res as unknown as ApiResponse<PaginatedResponse<Consumer>>;
-      setConsumers(body.data.content || []);
+      setConsumers(res.data.content || []);
       setConsumerPagination((prev) => ({
         ...prev,
-        total: body.data.totalElements || 0,
+        total: res.data.totalElements || 0,
       }));
     });
   };
 
   const handleConsumerTableChange = (paginationInfo: { current?: number; pageSize?: number }) => {
-    if (!currentDeveloper) return;
-    const nextCurrent = paginationInfo.current ?? consumerPagination.current;
-    const nextPageSize = paginationInfo.pageSize ?? consumerPagination.pageSize;
-    setConsumerPagination((prev) => ({
-      ...prev,
-      current: nextCurrent,
-      pageSize: nextPageSize,
-    }));
-    fetchConsumers(currentDeveloper.developerId, nextCurrent, nextPageSize);
+    if (currentDeveloper) {
+      setConsumerPagination((prev) => ({
+        ...prev,
+        current: paginationInfo.current ?? prev.current,
+        pageSize: paginationInfo.pageSize ?? prev.pageSize,
+      }));
+      fetchConsumers(
+        currentDeveloper.developerId,
+        paginationInfo.current ?? consumerPagination.current,
+        paginationInfo.pageSize ?? consumerPagination.pageSize,
+      );
+    }
   };
 
   // 查看订阅列表
@@ -281,14 +284,21 @@ export function PortalDevelopers({ portal }: PortalDevelopersProps) {
     {
       key: 'action',
       render: (_: unknown, record: Consumer) => (
-        <button
-          className="text-colorPrimary/80 text-colorPrimary flex items-center gap-2 bg-transparent border-none p-0 cursor-pointer"
+        <div
+          className="text-colorPrimary/80 text-colorPrimary flex items-center gap-2"
           onClick={() => handleViewSubscriptions(record)}
-          type="button"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              handleViewSubscriptions(record);
+            }
+          }}
+          role="button"
+          tabIndex={0}
         >
           <UnorderedListOutlined />
           订阅列表
-        </button>
+        </div>
       ),
       title: '操作',
       width: 120,

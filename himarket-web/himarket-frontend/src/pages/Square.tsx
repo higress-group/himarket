@@ -49,11 +49,6 @@ function Square(props: { activeType: string }) {
   // 滚动容器 ref，供 BackToTopButton 使用
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Ref to track searchQuery in the effect without triggering re-fetches on every keystroke
-  // (search queries are handled by the debounce hook instead)
-  const searchQueryRef = useRef(searchQuery);
-  searchQueryRef.current = searchQuery;
-
   // activeType 切换时立即重置全部状态，避免旧数据闪烁
   useEffect(() => {
     setProducts([]);
@@ -103,7 +98,8 @@ function Square(props: { activeType: string }) {
         const productType = activeType;
         const categoryIds = activeCategory === 'all' ? undefined : [activeCategory];
         const name = (searchText ?? '').trim() || undefined;
-        const pageIndex = (page ?? currentPage) - 1;
+        // page 从 0 开始，currentPage 从 1 开始
+        const pageIndex = page ?? currentPage;
 
         const response = await APIs.getProducts({
           categoryIds,
@@ -127,12 +123,9 @@ function Square(props: { activeType: string }) {
     [activeType, activeCategory, currentPage, sortBy, showSortControl, t],
   );
 
-  // Fetch products when filter/sort/page changes.
-  // Uses searchQueryRef to avoid double-fetching with the debounce hook
-  // (search query changes are handled by useDebounce instead).
   useEffect(() => {
-    fetchProducts(searchQueryRef.current);
-  }, [fetchProducts]);
+    fetchProducts(searchQuery);
+  }, [activeType, activeCategory, currentPage, sortBy, fetchProducts, searchQuery]);
 
   // Debounce 自动搜索：输入停顿 300ms 后自动触发搜索并重置分页
   useDebounce(searchQuery, 300, (debouncedValue) => {

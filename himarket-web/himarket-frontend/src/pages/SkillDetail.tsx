@@ -43,9 +43,20 @@ import type {
 } from '../lib/apis/cliProvider';
 import type { ISkillConfig } from '../lib/apis/typing';
 
-type IdeType = 'qoder' | 'qoderwork' | 'claude' | 'codex' | 'cursor' | 'kiro' | 'lingma';
+type IdeType =
+  | 'qoder'
+  | 'qoderwork'
+  | 'claude'
+  | 'codex'
+  | 'cursor'
+  | 'kiro'
+  | 'lingma'
+  | 'copaw'
+  | 'openclaw';
 
 const IDE_OPTIONS: { value: IdeType; label: string; icon: string }[] = [
+  { icon: '/copaw.png', label: 'CoPaw', value: 'copaw' },
+  { icon: '/openclaw.svg', label: 'OpenClaw', value: 'openclaw' },
   { icon: 'https://g.alicdn.com/qbase/qoder/0.0.65/favIcon.svg', label: 'Qoder', value: 'qoder' },
   {
     icon: 'https://img.alicdn.com/imgextra/i1/O1CN01clv0Oy1Tia1VN1WEO_!!6000000002416-1-tps-1200-1200.gif',
@@ -79,9 +90,11 @@ const getDefaultOutputDir = (ide: IdeType): string => {
   const dirMap: Record<IdeType, string> = {
     claude: '~/.claude/skills',
     codex: '~/.codex/skills',
+    copaw: '~/.copaw/skill_pool',
     cursor: '~/.cursor/skills',
     kiro: '~/.kiro/skills',
     lingma: '~/.lingma/skills',
+    openclaw: '~/.openclaw/skills',
     qoder: '~/.qoder/skills',
     qoderwork: '~/.qoderwork/skills',
   };
@@ -187,8 +200,8 @@ function SkillDetail() {
   const [versions, setVersions] = useState<SkillVersion[]>([]);
   const [selectedVersion, setSelectedVersion] = useState<string | undefined>();
   const [cliInfo, setCliInfo] = useState<SkillCliInfo | null>(null);
-  const [selectedIde, setSelectedIde] = useState<IdeType>('qoder');
-  const [outputDir, setOutputDir] = useState<string>('~/.qoder/skills');
+  const [selectedIde, setSelectedIde] = useState<IdeType>('copaw');
+  const [outputDir, setOutputDir] = useState<string>('~/.copaw/skill_pool');
 
   const handleDragStart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -307,7 +320,7 @@ function SkillDetail() {
       }
     };
     fetchDetail();
-  }, [skillProductId, t, loadVersionContent]);
+  }, [skillProductId, loadVersionContent, t]);
 
   const handleVersionChange = useCallback(
     async (version: string) => {
@@ -651,7 +664,7 @@ function SkillDetail() {
                   </div>
                   {/* Drag handle */}
                   <div
-                    aria-hidden="true"
+                    aria-orientation="vertical"
                     className="w-1 flex-shrink-0 cursor-col-resize hover:bg-blue-200 transition-colors bg-transparent"
                     onMouseDown={handleDragStart}
                     role="separator"
@@ -722,9 +735,8 @@ function SkillDetail() {
                     </span>
                   </div>
 
-                  {/* IDE Selection */}
+                  {/* IDE/Tool Selection */}
                   <div className="mb-3">
-                    <div className="text-xs font-medium text-gray-600 mb-2">{t('selectIde')}</div>
                     <div className="flex flex-wrap gap-2">
                       {IDE_OPTIONS.map((ide) => (
                         <button

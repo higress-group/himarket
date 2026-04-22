@@ -9,91 +9,118 @@ import {
   ExclamationCircleFilled,
   ClockCircleFilled,
 } from '@ant-design/icons';
-import { Card, Row, Col, Statistic, Button, message } from 'antd';
+import { Card, Row, Col, Statistic, Button, Tag, message } from 'antd';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { apiProductApi } from '@/lib/api';
+import { apiProductApi, mcpServerApi } from '@/lib/api';
 import { getProductCategories } from '@/lib/productCategoryApi';
 import { getServiceName, formatDateTime, copyToClipboard } from '@/lib/utils';
-import type { ApiProduct, LinkedService } from '@/types/api-product';
+import type { ApiProduct } from '@/types/api-product';
+import type { LinkedService } from '@/types/api-product';
 import type { ProductCategory } from '@/types/product-category';
 
 interface ApiProductOverviewProps {
   apiProduct: ApiProduct;
-  linkedService: unknown | null;
+  linkedService: LinkedService | null;
   onEdit: () => void;
+}
+
+interface McpMetaItem {
+  createAt?: string;
+  createdBy?: string;
+  description?: string;
+  displayName?: string;
+  endpointStatus?: string;
+  endpointUrl?: string;
+  mcpName?: string;
+  mcpServerId?: string;
+  origin?: string;
+  protocolType?: string;
+  repoUrl?: string;
+  sandboxRequired?: boolean;
+  tags?: string;
 }
 
 export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiProductOverviewProps) {
   const [portalCount, setPortalCount] = useState(0);
   const [subscriberCount, setSubscriberCount] = useState(0);
   const [productCategories, setProductCategories] = useState<ProductCategory[]>([]);
+  const [mcpMetaList, setMcpMetaList] = useState<McpMetaItem[]>([]);
 
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (apiProduct.productId) {
-      fetchPublishedPortals();
-      fetchProductCategories();
-      fetchSubscriberCount();
+    if (!apiProduct.productId) {
+      return;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiProduct.productId, apiProduct]);
 
-  const fetchPublishedPortals = async () => {
-    try {
-      const res = await apiProductApi.getApiProductPublications(apiProduct.productId);
-      setPortalCount(res.data.content?.length || 0);
-    } catch (_error) {
-    } finally {
-    }
-  };
-
-  const fetchSubscriberCount = async () => {
-    try {
-      const res = await apiProductApi.getProductSubscriptions(apiProduct.productId, {
-        page: 0,
-        size: 1,
-      });
-      setSubscriberCount(res.data.totalElements || 0);
-    } catch (_error) {}
-  };
-
-  const fetchProductCategories = async () => {
-    try {
-      // 获取产品关联的类别信息
-      const res = await apiProductApi.getProductCategories(apiProduct.productId);
-
-      // 检查返回的数据结构，确保是数组
-      const categoriesData = res.data;
-
-      // 如果没有关联类别，直接设置空数组
-      if (!categoriesData || categoriesData.length === 0) {
-        setProductCategories([]);
-        return;
+    const fetchPublishedPortals = async () => {
+      try {
+        const res = await apiProductApi.getApiProductPublications(apiProduct.productId);
+        setPortalCount(res.data.content?.length || 0);
+      } catch {
+        // ignore
       }
+    };
 
-      // 获取所有类别信息以显示类别名称
-      const allCategoriesRes = await getProductCategories();
-      const allCategories = allCategoriesRes.data.content || allCategoriesRes.data || [];
+    const fetchSubscriberCount = async () => {
+      try {
+        const res = await apiProductApi.getProductSubscriptions(apiProduct.productId, {
+          page: 0,
+          size: 1,
+        });
+        setSubscriberCount(res.data.totalElements || 0);
+      } catch {
+        // ignore
+      }
+    };
 
-      // 将产品关联的类别ID映射为类别名称
-      const categoriesWithNames = categoriesData.map((category: ProductCategory) => {
-        // 处理不同的数据格式
-        const categoryId = category.categoryId || category.id;
-        const fullCategoryInfo = allCategories.find(
-          (c: ProductCategory) => c.categoryId === categoryId || c.id === categoryId,
-        );
-        return fullCategoryInfo || category;
-      });
+    const fetchProductCategories = async () => {
+      try {
+        const res = await apiProductApi.getProductCategories(apiProduct.productId);
+        const categoriesData = res.data as unknown;
 
-      setProductCategories(categoriesWithNames);
-    } catch (error: unknown) {
-      console.error('获取产品类别失败:', error);
-      setProductCategories([]);
+        if (!Array.isArray(categoriesData) || categoriesData.length === 0) {
+          setProductCategories([]);
+          return;
+        }
+
+        const allCategoriesRes = await getProductCategories();
+        const allCategories = allCategoriesRes.data.content || allCategoriesRes.data || [];
+
+        const categoriesWithNames = categoriesData.map((category: unknown) => {
+          const cat = category as { categoryId?: string; id?: string };
+          const categoryId = cat.categoryId || cat.id;
+          const fullCategoryInfo = allCategories.find(
+            (c: ProductCategory) => c.categoryId === categoryId || c.id === categoryId,
+          );
+          return fullCategoryInfo || (cat as ProductCategory);
+        });
+
+        setProductCategories(categoriesWithNames);
+      } catch (_error) {
+        console.error('获取产品类别失败:', _error);
+        setProductCategories([]);
+      }
+    };
+
+    const fetchMcpMeta = async () => {
+      try {
+        const res = await mcpServerApi.listMetaByProduct(apiProduct.productId);
+        setMcpMetaList(res.data || []);
+      } catch {
+        setMcpMetaList([]);
+      }
+    };
+
+    fetchPublishedPortals();
+    fetchProductCategories();
+    fetchSubscriberCount();
+    if (apiProduct.type === 'MCP_SERVER') {
+      fetchMcpMeta();
     }
-  };
+  }, [apiProduct]);
 
   return (
     <div className="p-6 space-y-6">
@@ -204,13 +231,20 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
                 <span>
                   {productCategories.map((category, index) => (
                     <span key={category.categoryId}>
-                      <button
-                        className="text-gray-900 hover:text-blue-600 cursor-pointer bg-transparent border-none p-0 hover:underline transition-colors"
+                      <span
+                        className="text-gray-900 hover:text-blue-600 cursor-pointer hover:underline transition-colors"
                         onClick={() => navigate(`/product-categories/${category.categoryId}`)}
-                        type="button"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            navigate(`/product-categories/${category.categoryId}`);
+                          }
+                        }}
+                        role="button"
+                        tabIndex={0}
                       >
                         {category.name}
-                      </button>
+                      </span>
                       {index < productCategories.length - 1 && (
                         <span className="text-gray-400 mx-2">|</span>
                       )}
@@ -268,6 +302,139 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
         </div>
       </Card>
 
+      {/* MCP 配置信息 - 仅 MCP_SERVER 类型显示 */}
+      {apiProduct.type === 'MCP_SERVER' && mcpMetaList.length > 0 && (
+        <Card title="MCP 配置信息">
+          {mcpMetaList.map((meta: McpMetaItem) => (
+            <div className="space-y-2" key={meta.mcpServerId}>
+              <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
+                <span className="text-xs text-gray-600">MCP 名称:</span>
+                <span className="col-span-2 text-xs text-gray-900 font-mono">{meta.mcpName}</span>
+                <span className="text-xs text-gray-600">展示名称:</span>
+                <span className="col-span-2 text-xs text-gray-900">{meta.displayName}</span>
+              </div>
+              <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
+                <span className="text-xs text-gray-600">协议类型:</span>
+                <div className="col-span-2">
+                  <Tag
+                    className="m-0"
+                    color={
+                      meta.protocolType === 'stdio'
+                        ? 'orange'
+                        : meta.protocolType === 'sse'
+                          ? 'blue'
+                          : 'green'
+                    }
+                  >
+                    {meta.protocolType?.toUpperCase()}
+                  </Tag>
+                </div>
+                <span className="text-xs text-gray-600">来源:</span>
+                <span className="col-span-2 text-xs text-gray-900">
+                  {meta.origin === 'GATEWAY'
+                    ? '网关导入'
+                    : meta.origin === 'NACOS'
+                      ? 'Nacos导入'
+                      : meta.origin === 'AGENTRUNTIME'
+                        ? 'AgentRuntime导入'
+                        : meta.origin === 'OPEN_API'
+                          ? 'Open API 导入'
+                          : meta.origin === 'ADMIN'
+                            ? '管理员手动创建'
+                            : '管理员手动创建'}
+                </span>
+              </div>
+              {meta.repoUrl && (
+                <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
+                  <span className="text-xs text-gray-600">仓库地址:</span>
+                  <a
+                    className="col-span-5 text-xs text-blue-500 hover:underline truncate"
+                    href={meta.repoUrl}
+                    rel="noopener noreferrer"
+                    target="_blank"
+                  >
+                    {meta.repoUrl}
+                  </a>
+                </div>
+              )}
+              {meta.tags &&
+                (() => {
+                  try {
+                    const tags = JSON.parse(meta.tags);
+                    return Array.isArray(tags) && tags.length > 0 ? (
+                      <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
+                        <span className="text-xs text-gray-600">标签:</span>
+                        <div className="col-span-5 flex flex-wrap gap-1">
+                          {tags.map((tag: string) => (
+                            <Tag className="m-0" color="blue" key={tag}>
+                              {tag}
+                            </Tag>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null;
+                  } catch {
+                    return null;
+                  }
+                })()}
+              {meta.description && (
+                <div className="grid grid-cols-6 gap-8 pt-2 pb-2">
+                  <span className="text-xs text-gray-600">描述:</span>
+                  <span className="col-span-5 text-xs text-gray-700 leading-relaxed">
+                    {meta.description}
+                  </span>
+                </div>
+              )}
+
+              <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
+                {meta.createdBy && (
+                  <>
+                    <span className="text-xs text-gray-600">创建人:</span>
+                    <span className="col-span-2 text-xs text-gray-900">{meta.createdBy}</span>
+                  </>
+                )}
+                {meta.createAt && (
+                  <>
+                    <span className="text-xs text-gray-600">创建时间:</span>
+                    <span className="col-span-2 text-xs text-gray-700">
+                      {formatDateTime(meta.createAt)}
+                    </span>
+                  </>
+                )}
+              </div>
+              {meta.sandboxRequired && meta.endpointUrl && (
+                <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
+                  <span className="text-xs text-gray-600">沙箱连接点:</span>
+                  <div className="col-span-5 flex items-center gap-2">
+                    <Tag
+                      className="m-0"
+                      color={meta.endpointStatus === 'ACTIVE' ? 'green' : 'default'}
+                    >
+                      {meta.endpointStatus === 'ACTIVE' ? '运行中' : meta.endpointStatus || '未知'}
+                    </Tag>
+                    <span className="text-xs text-gray-700 font-mono break-all">
+                      {meta.endpointUrl}
+                    </span>
+                    <CopyOutlined
+                      className="text-gray-400 hover:text-blue-600 cursor-pointer transition-colors flex-shrink-0"
+                      onClick={async () => {
+                        try {
+                          await copyToClipboard(meta.endpointUrl || '');
+                          message.success('连接地址已复制');
+                        } catch {
+                          message.error('复制失败');
+                        }
+                      }}
+                      style={{ fontSize: '12px' }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </Card>
+      )}
+
       {/* 统计数据 - AGENT_SKILL 不展示 */}
       {apiProduct.type !== 'AGENT_SKILL' && (
         <Row gutter={[16, 16]}>
@@ -295,8 +462,14 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
             >
               <Statistic
                 prefix={<ApiOutlined className="text-blue-500" />}
-                title="关联API"
-                value={getServiceName(linkedService as LinkedService | null) || '未关联'}
+                title={apiProduct.type === 'MCP_SERVER' ? 'MCP 配置' : '关联API'}
+                value={
+                  apiProduct.type === 'MCP_SERVER'
+                    ? mcpMetaList.length > 0
+                      ? `${mcpMetaList.length} 个 MCP`
+                      : '未配置'
+                    : getServiceName(linkedService) || '未关联'
+                }
                 valueStyle={{ color: '#1677ff', fontSize: '24px' }}
               />
             </Card>
