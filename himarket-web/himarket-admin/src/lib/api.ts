@@ -201,6 +201,10 @@ export const apiProductApi = {
   publishToPortal: (productId: string, portalId: string) => {
     return api.post(`/products/${productId}/publications`, { portalId })
   },
+  // 评估 MCP 产品质量
+  evaluateMcpQuality: (productId: string) => {
+    return api.get(`/products/${productId}/quality`)
+  },
   // 取消发布API产品到门户
   cancelPublishToPortal: (productId: string, publicationId: string) => {
     return api.delete(`/products/${productId}/publications/${publicationId}`)

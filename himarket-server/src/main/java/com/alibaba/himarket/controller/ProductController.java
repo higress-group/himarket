@@ -92,6 +92,13 @@ public class ProductController {
         return productService.updateProduct(productId, param);
     }
 
+    @Operation(summary = "评估 MCP 产品质量")
+    @GetMapping("/{productId}/quality")
+    @AdminAuth
+    public McpQualityResult evaluateMcpQuality(@PathVariable String productId) {
+        return productService.evaluateMcpQuality(productId);
+    }
+
     @Operation(summary = "发布API产品")
     @PostMapping("/{productId}/publications")
     @AdminAuth
