@@ -2,15 +2,15 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useTranslation } from 'react-i18next';
 import { Layout } from "../components/Layout";
-import { Alert, Tag, Button, Select, Tooltip } from "antd";
-import { ArrowLeftOutlined, DownloadOutlined, CopyOutlined, CheckOutlined, FileFilled, CodeOutlined, EyeOutlined, CloudUploadOutlined, ThunderboltOutlined } from "@ant-design/icons";
+import { Alert, Tag, Select, Tooltip } from "antd";
+import { ArrowLeftOutlined, CopyOutlined, CheckOutlined, FileFilled, CodeOutlined, EyeOutlined, ThunderboltOutlined } from "@ant-design/icons";
 import hljs from "highlight.js";
 import "highlight.js/styles/github.css";
 import type { IProductDetail } from "../lib/apis";
 import type { ISkillConfig } from "../lib/apis/typing";
 import type { SkillFileTreeNode, SkillFileContent, SkillVersion, SkillCliInfo } from "../lib/apis/cliProvider";
 import APIs from "../lib/apis";
-import { getSkillFiles, getSkillFileContent, getSkillPackageUrl, getSkillVersions, getSkillCliInfo } from "../lib/apis/cliProvider";
+import { getSkillFiles, getSkillFileContent, getSkillVersions, getSkillCliInfo } from "../lib/apis/cliProvider";
 import { parseSkillMd } from "../lib/skillMdUtils";
 import { getIconString } from "../lib/iconUtils";
 import { ProductIconRenderer } from "../components/icon/ProductIconRenderer";
@@ -111,7 +111,6 @@ function SkillDetail() {
   const [overviewContent, setOverviewContent] = useState<string | null>(null);
   const [overviewLoading, setOverviewLoading] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [copiedHttp, setCopiedHttp] = useState(false);
   const [mdRawMode, setMdRawMode] = useState(true);
   const [versions, setVersions] = useState<SkillVersion[]>([]);
   const [selectedVersion, setSelectedVersion] = useState<string | undefined>();
@@ -252,15 +251,6 @@ function SkillDetail() {
     } finally {
       setFileLoading(false);
     }
-  }, [skillProductId, selectedVersion]);
-
-  const handleDownload = useCallback(() => {
-    if (!skillProductId) return;
-    const a = document.createElement("a");
-    a.href = getSkillPackageUrl(skillProductId, selectedVersion);
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
   }, [skillProductId, selectedVersion]);
 
   if (loading) {
@@ -543,19 +533,7 @@ function SkillDetail() {
               />
             </div>
 
-            {/* Action buttons */}
-            <div className="px-4 py-3" style={{ borderBottom: '1px solid #edeef3' }}>
-              <Button
-                type="primary"
-                icon={<DownloadOutlined />}
-                onClick={handleDownload}
-                disabled={versions.length === 0}
-                block
-                size="middle"
-              >
-                {t('downloadSkillPackage')}
-              </Button>
-            </div>
+            {/* Action buttons - hidden: Nacos console port mismatch, see TODO: add consoleUrl field */}
 
             {/* Nacos CLI command */}
             {cliInfo && (
@@ -640,41 +618,7 @@ function SkillDetail() {
               </div>
             )}
 
-            {/* HTTP 下载 */}
-            {cliInfo && (
-              <div className="px-4 py-3">
-                <div className="flex items-center gap-1.5 mb-2">
-                  <CloudUploadOutlined className="text-indigo-400/80 text-[13px]" />
-                  <span className="text-xs font-semibold text-gray-600 tracking-wide">{t('httpDownload')}</span>
-                </div>
-                <div className="relative rounded-md bg-gray-50/80 border border-gray-200 border-l-[2.5px] border-l-indigo-300/60 pl-3 pr-9 py-2.5">
-                  <button
-                    onClick={() => {
-                      const selectedVersionInfo = versions.find((v) => v.version === selectedVersion);
-                      const isLatest = selectedVersionInfo?.isLatest ?? false;
-                      const versionParam = selectedVersion && !isLatest ? `?version=${encodeURIComponent(selectedVersion)}` : '';
-                      const url = `${window.location.origin}/api/v1/skills/${skillProductId}/download${versionParam}`;
-                      copyToClipboard(url).then(() => {
-                        setCopiedHttp(true);
-                        setTimeout(() => setCopiedHttp(false), 2000);
-                      });
-                    }}
-                    disabled={!selectedVersion}
-                    className="absolute top-2 right-2 p-1 rounded text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 transition-all disabled:opacity-50"
-                  >
-                    {copiedHttp ? <CheckOutlined className="text-green-500" /> : <CopyOutlined />}
-                  </button>
-                  <code className="text-[12px] text-gray-700 break-all" style={{ fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace" }}>
-                    {(() => {
-                      const selectedVersionInfo = versions.find((v) => v.version === selectedVersion);
-                      const isLatest = selectedVersionInfo?.isLatest ?? false;
-                      const versionParam = selectedVersion && !isLatest ? `?version=${encodeURIComponent(selectedVersion)}` : '';
-                      return `${typeof window !== 'undefined' ? window.location.origin : ''}/api/v1/skills/${skillProductId}/download${versionParam}`;
-                    })()}
-                  </code>
-                </div>
-              </div>
-            )}
+            {/* HTTP 下载 - hidden: Nacos console port mismatch, see TODO: add consoleUrl field */}
           </div>
 
           <RelatedSkills currentProductId={skillProductId!} currentSkillTags={skillConfig?.skillTags} />

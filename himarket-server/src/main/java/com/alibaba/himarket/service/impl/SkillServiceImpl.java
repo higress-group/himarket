@@ -95,6 +95,9 @@ public class SkillServiceImpl implements SkillService {
         }
 
         productRepository.save(product);
+
+        // Set scope to PUBLIC immediately after creation
+        setScopeToPublic(ref);
     }
 
     @Override
@@ -295,6 +298,11 @@ public class SkillServiceImpl implements SkillService {
                 ref.getSkillName(),
                 version);
 
+        // Set scope to PUBLIC after going online so that downloads work without auth issues
+        if (online) {
+            setScopeToPublic(ref);
+        }
+
         syncProductStatusAfterVersionChange(product, ref);
     }
 
@@ -312,6 +320,9 @@ public class SkillServiceImpl implements SkillService {
                                 version,
                                 updateLatestLabel));
         log.info("Force-published Skill {}, version {}", ref.getSkillName(), version);
+
+        // Set scope to PUBLIC after publishing so that downloads work without auth issues
+        setScopeToPublic(ref);
 
         syncProductStatusAfterVersionChange(product, ref);
     }
@@ -501,7 +512,21 @@ public class SkillServiceImpl implements SkillService {
         if (meta == null) {
             return;
         }
-        // Check if the version is still the reviewingVersion in Nacos metadata
+        // If the version is still editing, submit then publish it
+        if (version.equals(meta.getEditingVersion())) {
+            execute(
+                    ref.getNacosId(),
+                    s -> s.submit(ref.getNamespace(), ref.getSkillName(), version));
+            execute(
+                    ref.getNacosId(),
+                    s -> s.publish(ref.getNamespace(), ref.getSkillName(), version, false));
+            log.info(
+                    "Auto submit+published Skill {} version {} from editing state",
+                    ref.getSkillName(),
+                    version);
+            setScopeToPublic(ref);
+        }
+        // If the version is still reviewing, publish it to clear the reviewing pointer
         if (version.equals(meta.getReviewingVersion())) {
             execute(
                     ref.getNacosId(),
@@ -510,6 +535,7 @@ public class SkillServiceImpl implements SkillService {
                     "Auto-published Skill {} version {} to clear reviewing state",
                     ref.getSkillName(),
                     version);
+            setScopeToPublic(ref);
         }
     }
 
@@ -826,6 +852,24 @@ public class SkillServiceImpl implements SkillService {
         } catch (NacosException e) {
             log.error("Nacos operation failed", e);
             throw toBusinessException(e);
+        }
+    }
+
+    /**
+     * Set skill scope to PUBLIC so that it can be downloaded without authentication.
+     * Failures are logged but do not block the main operation.
+     */
+    private void setScopeToPublic(SkillRef ref) {
+        try {
+            execute(
+                    ref.getNacosId(),
+                    s -> s.updateScope(ref.getNamespace(), ref.getSkillName(), "PUBLIC"));
+            log.info("Set Skill {} scope to PUBLIC", ref.getSkillName());
+        } catch (Exception e) {
+            log.warn(
+                    "Failed to set Skill {} scope to PUBLIC: {}",
+                    ref.getSkillName(),
+                    e.getMessage());
         }
     }
 

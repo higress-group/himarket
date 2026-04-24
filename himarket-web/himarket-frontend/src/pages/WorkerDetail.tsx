@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Layout } from "../components/Layout";
-import { Alert, Button, Select, Tag, Tooltip } from "antd";
-import { ArrowLeftOutlined, DownloadOutlined, CopyOutlined, CheckOutlined, UserOutlined, FileFilled, CodeOutlined, EyeOutlined, CloudUploadOutlined } from "@ant-design/icons";
+import { Alert, Select, Tag, Tooltip } from "antd";
+import { ArrowLeftOutlined, CopyOutlined, CheckOutlined, UserOutlined, FileFilled, CodeOutlined, EyeOutlined, CloudUploadOutlined } from "@ant-design/icons";
 import hljs from "highlight.js";
 import "highlight.js/styles/github.css";
 import type { IProductDetail } from "../lib/apis";
@@ -10,7 +10,7 @@ import type { IProductIcon } from "../lib/apis/typing";
 import type { IWorkerConfig } from "../lib/apis/typing";
 import type { WorkerFileTreeNode, WorkerFileContent, WorkerVersion, WorkerCliInfo } from "../lib/apis/workerTemplateApi";
 import APIs from "../lib/apis";
-import { getWorkerFileTree, getWorkerFileContent, getWorkerVersions, getWorkerPackageUrl, getWorkerCliInfo } from "../lib/apis/workerTemplateApi";
+import { getWorkerFileTree, getWorkerFileContent, getWorkerVersions, getWorkerCliInfo } from "../lib/apis/workerTemplateApi";
 import MarkdownRender from "../components/MarkdownRender";
 import { parseSkillMd } from "../lib/skillMdUtils";
 import SkillFileTree from "../components/skill/SkillFileTree";
@@ -248,20 +248,10 @@ function WorkerDetail() {
   const [copiedCmd, setCopiedCmd] = useState(false);
   const [copiedHiclaw, setCopiedHiclaw] = useState(false);
   const [copiedNl, setCopiedNl] = useState(false);
-  const [copiedHttp, setCopiedHttp] = useState(false);
   const [cliInfo, setCliInfo] = useState<WorkerCliInfo | null>(null);
   const [mdRawMode, setMdRawMode] = useState(true);
   const [hiclawPlatform, setHiclawPlatform] = useState<'unix' | 'windows'>('unix');
   const [installMethod, setInstallMethod] = useState<'nl' | 'script'>('nl');
-
-  const handleDownload = useCallback(() => {
-    if (!workerProductId) return;
-    const a = document.createElement("a");
-    a.href = getWorkerPackageUrl(workerProductId, selectedVersion);
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-  }, [workerProductId, selectedVersion]);
 
   if (loading) {
     return (
@@ -535,19 +525,7 @@ function WorkerDetail() {
               />
             </div>
 
-            {/* Action buttons */}
-            <div className="px-4 py-3" style={{ borderBottom: '1px solid #edeef3' }}>
-              <Button
-                type="primary"
-                icon={<DownloadOutlined />}
-                onClick={handleDownload}
-                disabled={versions.length === 0}
-                block
-                size="middle"
-              >
-                {t('downloadWorkerPackage')}
-              </Button>
-            </div>
+            {/* Action buttons - hidden: Nacos console port mismatch, see TODO: add consoleUrl field */}
 
             {/* HiClaw 安装 */}
             {cliInfo && (
@@ -681,41 +659,7 @@ function WorkerDetail() {
               </div>
             )}
 
-            {/* HTTP 下载 */}
-            {cliInfo && (
-              <div className="px-4 py-3" style={{ borderBottom: '1px solid #edeef3' }}>
-                <div className="flex items-center gap-1.5 mb-2">
-                  <CloudUploadOutlined className="text-indigo-400/80 text-[13px]" />
-                  <span className="text-xs font-semibold text-gray-600 tracking-wide">{t('httpDownload')}</span>
-                </div>
-                <div className="relative rounded-md bg-gray-50/80 border border-gray-200 border-l-[2.5px] border-l-indigo-300/60 pl-3 pr-9 py-2.5">
-                  <button
-                    onClick={() => {
-                      const selectedVersionInfo = versions.find((v) => v.version === selectedVersion);
-                      const isLatest = selectedVersionInfo?.isLatest ?? false;
-                      const versionParam = selectedVersion && !isLatest ? `?version=${encodeURIComponent(selectedVersion)}` : '';
-                      const url = `${window.location.origin}/api/v1/workers/${workerProductId}/download${versionParam}`;
-                      copyToClipboard(url).then(() => {
-                        setCopiedHttp(true);
-                        setTimeout(() => setCopiedHttp(false), 2000);
-                      });
-                    }}
-                    disabled={!selectedVersion}
-                    className="absolute top-2 right-2 p-1 rounded text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 transition-all disabled:opacity-50"
-                  >
-                    {copiedHttp ? <CheckOutlined className="text-green-500" /> : <CopyOutlined />}
-                  </button>
-                  <code className="text-[12px] text-gray-700 break-all" style={{ fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace" }}>
-                    {(() => {
-                      const selectedVersionInfo = versions.find((v) => v.version === selectedVersion);
-                      const isLatest = selectedVersionInfo?.isLatest ?? false;
-                      const versionParam = selectedVersion && !isLatest ? `?version=${encodeURIComponent(selectedVersion)}` : '';
-                      return `${typeof window !== 'undefined' ? window.location.origin : ''}/api/v1/workers/${workerProductId}/download${versionParam}`;
-                    })()}
-                  </code>
-                </div>
-              </div>
-            )}
+            {/* HTTP 下载 - hidden: Nacos console port mismatch, see TODO: add consoleUrl field */}
 
             {/* Nacos CLI command */}
             {cliInfo && (

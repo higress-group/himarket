@@ -92,6 +92,16 @@ public class WorkerController {
         workerService.changeVersionStatus(productId, version, "online".equals(param.getStatus()));
     }
 
+    @Operation(summary = "Force-publish a Worker version, bypassing pipeline")
+    @PostMapping("/{productId}/versions/{version}/force-publish")
+    @AdminAuth
+    public void forcePublishVersion(
+            @PathVariable String productId,
+            @PathVariable String version,
+            @RequestParam(required = false, defaultValue = "true") Boolean updateLatestLabel) {
+        workerService.forcePublishVersion(productId, version, updateLatestLabel);
+    }
+
     @Operation(summary = "Set a version as latest")
     @PutMapping("/{productId}/versions/latest")
     @AdminAuth

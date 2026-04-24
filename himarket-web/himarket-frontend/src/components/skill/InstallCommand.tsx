@@ -6,8 +6,6 @@ import {
   GithubOutlined,
   ShareAltOutlined,
   HeartOutlined,
-  DownloadOutlined,
-  InfoCircleOutlined,
 } from "@ant-design/icons";
 import { copyToClipboard } from "../../lib/utils";
 import { parseSkillMd } from "../../lib/skillMdUtils";
@@ -20,7 +18,7 @@ interface InstallCommandProps {
 
 type PackageManager = "npx" | "bunx" | "pnpm";
 
-function InstallCommand({ productId, skillName, document }: InstallCommandProps) {
+function InstallCommand({ skillName, document }: InstallCommandProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [activePM, setActivePM] = useState<PackageManager>("pnpm");
 
@@ -31,29 +29,6 @@ function InstallCommand({ productId, skillName, document }: InstallCommandProps)
   const repository = fm.repository || fm.repo || "";
   const dirName = fm.name || skillName.toLowerCase().replace(/\s+/g, "-");
   const skillPath = author ? `${author}/${dirName}` : dirName;
-
-  const handleDownloadPackage = async () => {
-    try {
-      const headers: Record<string, string> = {};
-      const token = localStorage.getItem("access_token");
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
-      }
-      const res = await fetch(`/api/v1/skills/${productId}/download`, { headers });
-      if (!res.ok) throw new Error("下载失败");
-      const blob = await res.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      const a = window.document.createElement("a");
-      a.href = blobUrl;
-      const disposition = res.headers.get("Content-Disposition") ?? "";
-      const match = disposition.match(/filename\*?=(?:UTF-8'')?["']?([^"';\n]+)/i);
-      a.download = match ? decodeURIComponent(match[1]) : `${dirName}.zip`;
-      a.click();
-      URL.revokeObjectURL(blobUrl);
-    } catch {
-      message.error("下载失败");
-    }
-  };
 
   const installCommands: Record<PackageManager, string> = {
     npx: `npx skills add ${skillPath}`,
@@ -187,52 +162,7 @@ function InstallCommand({ productId, skillName, document }: InstallCommandProps)
         </div>
       </div>
 
-      {/* 卡片3: 本地下载 */}
-      <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-5">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-base font-semibold text-gray-900">本地下载</h3>
-          <Tooltip title="下载包含 SKILL.md 和所有相关文件的完整技能目录">
-            <InfoCircleOutlined className="text-gray-400 text-sm" />
-          </Tooltip>
-        </div>
-
-        <div className="space-y-2">
-          <button
-            onClick={handleDownloadPackage}
-            className="
-              flex items-center justify-center gap-2 w-full px-4 py-2.5
-              rounded-lg text-sm font-medium text-white
-              bg-gradient-to-r from-purple-500 to-indigo-500
-              hover:from-purple-600 hover:to-indigo-600
-              transition-all duration-200 shadow-sm
-            "
-          >
-            <DownloadOutlined />
-            <span>下载技能包</span>
-          </button>
-
-          <button
-            onClick={() => handleCopy(document, "content")}
-            className="
-              flex items-center justify-center gap-2 w-full px-4 py-2
-              rounded-lg border border-gray-200 text-sm
-              text-gray-700 bg-white hover:bg-gray-50
-              transition-colors duration-200
-            "
-          >
-            {copiedId === "content" ? (
-              <CheckOutlined className="text-green-500" />
-            ) : (
-              <CopyOutlined />
-            )}
-            <span>复制 SKILL.md 内容</span>
-          </button>
-
-          <p className="text-xs text-gray-400 pt-1">
-            下载包含 SKILL.md 和所有相关文件的完整技能目录
-          </p>
-        </div>
-      </div>
+      {/* 卡片3: 本地下载 - hidden: Nacos console port mismatch, see TODO: add consoleUrl field */}
     </div>
   );
 }

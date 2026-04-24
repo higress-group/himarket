@@ -71,6 +71,15 @@ public interface WorkerService {
     void changeVersionStatus(String productId, String version, boolean online);
 
     /**
+     * Force-publishes a specific version, bypassing the review pipeline.
+     *
+     * @param productId the product identifier
+     * @param version the target version
+     * @param updateLatestLabel whether to update the "latest" label, null defaults to true
+     */
+    void forcePublishVersion(String productId, String version, Boolean updateLatestLabel);
+
+    /**
      * Deletes the current editing draft.
      *
      * @param productId the product identifier

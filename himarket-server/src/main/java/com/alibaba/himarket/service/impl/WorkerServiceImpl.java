@@ -89,6 +89,9 @@ public class WorkerServiceImpl implements WorkerService {
         }
 
         productRepository.save(product);
+
+        // Set scope to PUBLIC immediately after creation
+        setScopeToPublic(ref);
     }
 
     @Override
@@ -402,6 +405,32 @@ public class WorkerServiceImpl implements WorkerService {
                 ref.getAgentSpecName(),
                 version);
 
+        // Set scope to PUBLIC after going online so that downloads work without auth issues
+        if (online) {
+            setScopeToPublic(ref);
+        }
+
+        syncProductStatusAfterVersionChange(product, ref);
+    }
+
+    @Override
+    public void forcePublishVersion(String productId, String version, Boolean updateLatestLabel) {
+        Product product = findProduct(productId);
+        AgentSpecRef ref = getAgentSpecRef(productId, true);
+
+        execute(
+                ref.getNacosId(),
+                s ->
+                        s.forcePublish(
+                                ref.getNamespace(),
+                                ref.getAgentSpecName(),
+                                version,
+                                updateLatestLabel));
+        log.info("Force-published AgentSpec {}, version {}", ref.getAgentSpecName(), version);
+
+        // Set scope to PUBLIC after publishing so that downloads work without auth issues
+        setScopeToPublic(ref);
+
         syncProductStatusAfterVersionChange(product, ref);
     }
 
@@ -603,6 +632,21 @@ public class WorkerServiceImpl implements WorkerService {
         if (meta == null) {
             return;
         }
+        // If the version is still editing, submit then publish it
+        if (version.equals(meta.getEditingVersion())) {
+            execute(
+                    ref.getNacosId(),
+                    s -> s.submit(ref.getNamespace(), ref.getAgentSpecName(), version));
+            execute(
+                    ref.getNacosId(),
+                    s -> s.publish(ref.getNamespace(), ref.getAgentSpecName(), version, false));
+            log.info(
+                    "Auto submit+published AgentSpec {} version {} from editing state",
+                    ref.getAgentSpecName(),
+                    version);
+            setScopeToPublic(ref);
+        }
+        // If the version is still reviewing, publish it to clear the reviewing pointer
         if (version.equals(meta.getReviewingVersion())) {
             execute(
                     ref.getNacosId(),
@@ -611,6 +655,7 @@ public class WorkerServiceImpl implements WorkerService {
                     "Auto-published AgentSpec {} version {} to clear reviewing state",
                     ref.getAgentSpecName(),
                     version);
+            setScopeToPublic(ref);
         }
     }
 
@@ -869,6 +914,24 @@ public class WorkerServiceImpl implements WorkerService {
         } catch (NacosException e) {
             log.error("Nacos operation failed", e);
             throw toBusinessException(e);
+        }
+    }
+
+    /**
+     * Set agentspec scope to PUBLIC so that it can be downloaded without authentication.
+     * Failures are logged but do not block the main operation.
+     */
+    private void setScopeToPublic(AgentSpecRef ref) {
+        try {
+            execute(
+                    ref.getNacosId(),
+                    s -> s.updateScope(ref.getNamespace(), ref.getAgentSpecName(), "PUBLIC"));
+            log.info("Set AgentSpec {} scope to PUBLIC", ref.getAgentSpecName());
+        } catch (Exception e) {
+            log.warn(
+                    "Failed to set AgentSpec {} scope to PUBLIC: {}",
+                    ref.getAgentSpecName(),
+                    e.getMessage());
         }
     }
 

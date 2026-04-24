@@ -428,14 +428,51 @@ public class ProductServiceImpl implements ProductService {
     private void validateNacosOnlineVersion(Product product) {
         if (product.getType() == ProductType.AGENT_SKILL) {
             List<VersionResult> versions = skillService.listVersions(product.getProductId());
-            if (versions.stream().noneMatch(v -> "online".equals(v.getStatus()))) {
+            boolean hasOnline = versions.stream().anyMatch(v -> "online".equals(v.getStatus()));
+            if (!hasOnline && !versions.isEmpty()) {
+                // Pick the most recent version and try to publish + bring online
+                String version = versions.get(versions.size() - 1).getVersion();
+                try {
+                    skillService.setLatestVersion(product.getProductId(), version);
+                    skillService.changeVersionStatus(product.getProductId(), version, true);
+                    log.info(
+                            "Auto published Skill version {} for product {}",
+                            version,
+                            product.getProductId());
+                    return;
+                } catch (Exception e) {
+                    log.warn(
+                            "Auto publish Skill failed for product {}: {}",
+                            product.getProductId(),
+                            e.getMessage());
+                }
+            }
+            if (!hasOnline) {
                 throw new BusinessException(
                         ErrorCode.INVALID_REQUEST,
                         "Cannot publish: no online version found in Nacos");
             }
         } else if (product.getType() == ProductType.WORKER) {
             List<VersionResult> versions = workerService.listVersions(product.getProductId());
-            if (versions.stream().noneMatch(v -> "online".equals(v.getStatus()))) {
+            boolean hasOnline = versions.stream().anyMatch(v -> "online".equals(v.getStatus()));
+            if (!hasOnline && !versions.isEmpty()) {
+                String version = versions.get(versions.size() - 1).getVersion();
+                try {
+                    workerService.setLatestVersion(product.getProductId(), version);
+                    workerService.changeVersionStatus(product.getProductId(), version, true);
+                    log.info(
+                            "Auto published Worker version {} for product {}",
+                            version,
+                            product.getProductId());
+                    return;
+                } catch (Exception e) {
+                    log.warn(
+                            "Auto publish Worker failed for product {}: {}",
+                            product.getProductId(),
+                            e.getMessage());
+                }
+            }
+            if (!hasOnline) {
                 throw new BusinessException(
                         ErrorCode.INVALID_REQUEST,
                         "Cannot publish: no online version found in Nacos");
