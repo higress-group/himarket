@@ -14,12 +14,19 @@ else
   exit 0
 fi
 
+# Detect npm dynamically; gracefully skip if not found (e.g., IDE with incomplete PATH)
+NPM_CMD=$(command -v npm 2>/dev/null)
+if [ -z "$NPM_CMD" ]; then
+  echo "warning: npm not found in PATH, skipping type-check"
+  exit 0
+fi
+
 # Type-check himarket-frontend only if frontend files are in the push
 if git diff --name-only "$RANGE" | grep -q '^himarket-web/himarket-frontend/'; then
-  cd "$ROOT_DIR/himarket-web/himarket-frontend" && npm run type-check
+  cd "$ROOT_DIR/himarket-web/himarket-frontend" && "$NPM_CMD" run type-check
 fi
 
 # Type-check himarket-admin only if admin files are in the push
 if git diff --name-only "$RANGE" | grep -q '^himarket-web/himarket-admin/'; then
-  cd "$ROOT_DIR/himarket-web/himarket-admin" && npm run type-check
+  cd "$ROOT_DIR/himarket-web/himarket-admin" && "$NPM_CMD" run type-check
 fi
