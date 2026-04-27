@@ -52,7 +52,7 @@ export default function GatewayImportStep() {
     setMcpError(null);
     setMcpServers([]);
     try {
-      const res = await gatewayApi.getGatewayMcpServers(gatewayId, { page: 1, size: 1000 });
+      const res = await gatewayApi.getGatewayMcpServers(gatewayId, { page: 1, size: 500 });
       setMcpServers(res.data?.content || []);
     } catch {
       setMcpError('获取 MCP Server 列表失败，请重试');

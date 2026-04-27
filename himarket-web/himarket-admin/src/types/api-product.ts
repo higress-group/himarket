@@ -28,6 +28,7 @@ export interface ApiProductMcpConfig {
     path: string;
     domains: {
       domain: string;
+      port?: number;
       protocol: string;
     }[];
     rawConfig?: unknown;
@@ -265,6 +266,59 @@ export interface ApiProduct {
   feature?: ProductFeature;
   skillConfig?: ApiProductSkillConfig;
   workerConfig?: ApiProductWorkerConfig;
+}
+
+export interface McpMetaItem {
+  connectionConfig?: string;
+  createAt?: string;
+  createdBy?: string;
+  description?: string;
+  displayName?: string;
+  endpointHostingType?: string;
+  endpointProtocol?: string;
+  endpointStatus?: string;
+  endpointUrl?: string;
+  extraParams?: string | unknown[];
+  mcpName?: string;
+  mcpServerId?: string;
+  origin?: string;
+  protocolType?: string;
+  repoUrl?: string;
+  sandboxRequired?: boolean;
+  subscribeParams?: string | Record<string, unknown>;
+  tags?: string;
+  toolsConfig?: string | unknown[];
+}
+
+export interface ApiListItem extends Record<string, unknown> {
+  agentApiId?: string;
+  agentApiName?: string;
+  agentName?: string;
+  apiId?: string;
+  apiName?: string;
+  description?: string;
+  fromGatewayType?: string;
+  modelApiId?: string;
+  modelApiName?: string;
+  modelRouteName?: string;
+  mcpRouteId?: string;
+  mcpServerId?: string;
+  mcpServerName?: string;
+  type?: string;
+}
+
+export interface DeploySandboxItem {
+  sandboxId: string;
+  sandboxName?: string;
+}
+
+export interface ExtraParamDef {
+  default?: unknown;
+  description?: string;
+  example?: unknown;
+  name: string;
+  position?: string;
+  required?: boolean;
 }
 
 // Publication 类型定义（Product 和 Portal 的发布关系）
