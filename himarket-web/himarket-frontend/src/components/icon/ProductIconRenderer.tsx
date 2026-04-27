@@ -15,34 +15,6 @@ function isSingleChar(str: string): boolean {
 }
 
 /**
- * 预定义的渐变背景色配置，确保字体颜色与背景搭配良好
- */
-const GRADIENT_COLORS: { bg: string; text: string }[] = [
-  { bg: 'from-blue-500 to-indigo-600', text: 'text-white' },
-  { bg: 'from-emerald-500 to-teal-600', text: 'text-white' },
-  { bg: 'from-violet-500 to-purple-600', text: 'text-white' },
-  { bg: 'from-rose-500 to-pink-600', text: 'text-white' },
-  { bg: 'from-amber-500 to-orange-600', text: 'text-white' },
-  { bg: 'from-cyan-500 to-sky-600', text: 'text-white' },
-  { bg: 'from-fuchsia-500 to-pink-600', text: 'text-white' },
-  { bg: 'from-lime-500 to-green-600', text: 'text-white' },
-];
-
-// Safe accessor: array is guaranteed non-empty (8 elements)
-const DEFAULT_COLOR = GRADIENT_COLORS[0] as { bg: string; text: string };
-
-/**
- * 根据字符获取固定的颜色索引（确保同一字符始终显示相同颜色）
- * @param char - 单个字符
- * @returns 颜色配置
- */
-function getColorByChar(char: string) {
-  const code = char.charCodeAt(0);
-  const index = code % GRADIENT_COLORS.length;
-  return GRADIENT_COLORS[index] ?? DEFAULT_COLOR;
-}
-
-/**
  * 通用的产品图标渲染组件
  * 支持：URL 图片、Base64 图片、首字母/首字、默认图标
  */
@@ -57,12 +29,11 @@ export function ProductIconRenderer({ className = 'w-4 h-4', iconType }: Product
     return <img alt="icon" className={`${className} object-cover rounded`} src={iconType} />;
   }
 
-  // 如果是单个字符（首字母/首字），渲染文字图标
+  // 如果是单个字符（首字母/首字），渲染文字图标（统一中性色）
   if (isSingleChar(iconType)) {
-    const colorConfig = getColorByChar(iconType);
     return (
       <div
-        className={`${className} flex items-center justify-center bg-gradient-to-br ${colorConfig.bg} ${colorConfig.text} font-bold rounded`}
+        className={`${className} flex items-center justify-center bg-slate-100 text-slate-600 font-bold rounded`}
       >
         <span className="text-lg">{iconType}</span>
       </div>
