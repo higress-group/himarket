@@ -11,7 +11,9 @@ import { SuggestedQuestions } from './SuggestedQuestions';
 import useCategories from '../../hooks/useCategories';
 import useProducts from '../../hooks/useProducts';
 import APIs from '../../lib/apis';
+import { getProductMcpMetaBatch } from '../../lib/apis/product';
 import { safeJSONParse } from '../../lib/utils';
+import { hasAvailableEndpoint } from '../../lib/utils/mcpUtils';
 import TextType from '../TextType';
 
 import type {
@@ -95,6 +97,34 @@ export function ChatArea(props: ChatAreaProps) {
   const [addedMcps, setAddedMcps] = useState<IProductDetail[]>([]);
   const addedMcpsRef = useRef<IProductDetail[]>([]);
   const [mcpSubscripts, setMcpSubscripts] = useState<ISubscription[]>([]);
+  const [mcpEndpointProductIds, setMcpEndpointProductIds] = useState<Set<string>>(new Set());
+  // 从 consumer subscriptions 派生已订阅的 MCP productId 集合
+  useEffect(() => {
+    const ids = new Set(
+      mcpSubscripts.filter((s) => s.status === 'APPROVED').map((s) => s.productId),
+    );
+    setMcpEndpointProductIds(ids);
+  }, [mcpSubscripts]);
+
+  // productId → 是否有可用 endpoint 的映射
+  const [mcpEndpointMap, setMcpEndpointMap] = useState<Map<string, boolean>>(new Map());
+  useEffect(() => {
+    if (!mcpList || mcpList.length === 0) return;
+    const productIds = mcpList.map((p) => p.productId);
+    getProductMcpMetaBatch(productIds)
+      .then((res) => {
+        if (res.code === 'SUCCESS' && res.data) {
+          const map = new Map<string, boolean>();
+          for (const meta of res.data) {
+            map.set(meta.productId, hasAvailableEndpoint(meta));
+          }
+          setMcpEndpointMap(map);
+        }
+      })
+      .catch(() => {
+        /* 静默失败，默认允许订阅 */
+      });
+  }, [mcpList]);
   const [modelSubscriptions, setModelSubscriptions] = useState<ISubscription[]>([]);
   const [mcpEnabled, setMcpEnabled] = useState(() => {
     return safeJSONParse(window.localStorage.getItem('mcpEnabled') || 'false', false);
@@ -127,7 +157,7 @@ export function ChatArea(props: ChatAreaProps) {
   const handleMcpFilter = useCallback(
     (id: string) => {
       if (id === 'added') {
-        setMcpList(addedMcpsRef.current);
+        setMcpList(addedMcps);
       } else {
         getMcpList({
           categoryIds: ['all', 'added'].includes(id) ? [] : [id],
@@ -135,7 +165,7 @@ export function ChatArea(props: ChatAreaProps) {
         });
       }
     },
-    [getMcpList, setMcpList],
+    [addedMcps, setMcpList, getMcpList],
   );
 
   const handleMcpSearch = useCallback(
@@ -200,22 +230,14 @@ export function ChatArea(props: ChatAreaProps) {
     addedMcpsRef.current = [];
   }, []);
 
-  const handleQuickSubscribe = useCallback((product: IProductDetail) => {
+  const handleQuickSubscribe = useCallback((_product: IProductDetail) => {
     if (!primaryConsumer.current) return;
-    APIs.subscribeProduct(primaryConsumer.current.consumerId, product.productId)
+    // 弹窗内已完成产品订阅，这里只刷新订阅列表
+    APIs.getConsumerSubscriptions(primaryConsumer.current.consumerId, { size: 1000 })
       .then(({ data }) => {
-        if (data) {
-          message.success('订阅成功');
-          APIs.getConsumerSubscriptions(data.consumerId, { size: 1000 }).then(({ data }) => {
-            setMcpSubscripts(data.content);
-          });
-        } else {
-          message.error('订阅失败');
-        }
+        setMcpSubscripts(data.content);
       })
-      .catch(() => {
-        message.error('订阅失败');
-      });
+      .catch(() => {});
   }, []);
 
   const handleMcpEnable = (enable: boolean) => {
@@ -481,6 +503,7 @@ export function ChatArea(props: ChatAreaProps) {
         categories={mcpCategories}
         data={mcpList}
         enabled={mcpEnabled}
+        endpointMap={mcpEndpointMap}
         mcpLoading={mcpListLoading}
         onAdd={handleAddMcp}
         onClose={() => setShowMcpModal(false)}
@@ -491,6 +514,7 @@ export function ChatArea(props: ChatAreaProps) {
         onRemoveAll={handleRemoveAll}
         onSearch={handleMcpSearch}
         open={showMcpModal}
+        subscribedProductIds={mcpEndpointProductIds}
         subscripts={mcpSubscripts}
       />
     </div>
