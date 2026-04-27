@@ -47,9 +47,7 @@ public class JacksonConfig {
 
     static {
         StreamReadConstraints constraints =
-                StreamReadConstraints.builder()
-                        .maxStringLength(MAX_STRING_LENGTH)
-                        .build();
+                StreamReadConstraints.builder().maxStringLength(MAX_STRING_LENGTH).build();
         StreamReadConstraints.overrideDefaultStreamReadConstraints(constraints);
     }
 }

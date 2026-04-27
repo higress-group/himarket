@@ -798,8 +798,7 @@ public class SkillServiceImpl implements SkillService {
                 throw new BusinessException(
                         ErrorCode.INVALID_PARAMETER,
                         String.format(
-                                "资源文件路径过长，Nacos 编码后为 %d 字符（上限 %d）。"
-                                        + "请缩短文件名或减少目录层级: %s",
+                                "资源文件路径过长，Nacos 编码后为 %d 字符（上限 %d）。" + "请缩短文件名或减少目录层级: %s",
                                 encoded.length(), NACOS_DATA_ID_MAX_LENGTH, path));
             }
         }
