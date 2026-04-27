@@ -87,6 +87,7 @@ com.alibaba.himarket
 - 代码风格：Spotless + Google Java Format（AOSP），编译阶段自动检查
 - 事件驱动：Spring Events 实现模块间松耦合（`ProductDeletingEvent`、`PortalDeletingEvent` 等）
 
+> 后端代码规范详见：`himarket-server/BACKEND_CODING_STANDARDS.md`
 
 ## 4. 前端架构（himarket-web）
 
@@ -100,6 +101,10 @@ com.alibaba.himarket
 技术栈：React Router、Axios、i18next 国际化、Monaco Editor、react-markdown。
 
 > 前端各自有独立的 `package.json`，在对应目录下 `npm install && npm run dev` 启动。
+>
+> 前端代码规范详见：
+> - 开发者门户：`himarket-web/himarket-frontend/FRONTEND_CODING_STANDARDS.md`
+> - 管理后台：`himarket-web/himarket-admin/ADMIN_CODING_STANDARDS.md`
 
 ## 5. 本地开发及验证流程
 
@@ -176,14 +181,13 @@ mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USERNAME" -p"$DB_PASSWORD" "$DB_NAME" 
 
 ## 6. 质量检查
 
-| 命令 | 说明 |
-|------|------|
-| `make compile` | 快速编译（跳过测试和格式检查） |
-| `make build` | 完整构建（编译 + 格式检查 + 测试） |
-| `make test` | 运行单元测试 |
-| `make lint` | Spotless 格式检查 |
-| `make lint-fix` | 自动格式修复 |
-| `make run` | 编译并启动后端服务 |
+任何代码修改后，提交前运行：
+
+```bash
+./scripts/code-check.sh
+```
+
+覆盖后端 Java Spotless + 两个前端的 Prettier / ESLint / TypeScript。
 
 ## 7. 创建 Pull Request
 
