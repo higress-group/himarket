@@ -38,11 +38,11 @@ const CategoryTable = forwardRef<CategoryTableRef>((_, ref) => {
     (page = 1, size = 20, name = nameFilter) => {
       setLoading(true);
       const params: QueryProductCategoryParam = name.trim() ? { name: name.trim() } : {};
-      getProductCategoriesByPage(page - 1, size, params)
+      getProductCategoriesByPage(page, size, params)
         .then((res) => {
           setCategories(res.data.content || []);
           setPagination({
-            current: res.data.number + 1,
+            current: res.data.number,
             pageSize: res.data.size,
             total: res.data.totalElements,
           });

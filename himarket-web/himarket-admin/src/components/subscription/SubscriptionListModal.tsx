@@ -44,7 +44,7 @@ export function SubscriptionListModal({
     setLoading(true);
     portalApi
       .getConsumerSubscriptions(consumerId, {
-        page: pagination.current - 1, // 后端从0开始
+        page: pagination.current,
         size: pagination.pageSize,
       })
       .then((res) => {

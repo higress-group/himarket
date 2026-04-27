@@ -187,7 +187,7 @@ export const ProductHeader = forwardRef<ProductHeaderHandle, ProductHeaderProps>
       try {
         const response = await getProductSubscriptions(productId, {
           consumerName: search.trim() || undefined,
-          page: page - 1, // 后端使用0基索引
+          page: page,
           size: pageSize,
         });
 

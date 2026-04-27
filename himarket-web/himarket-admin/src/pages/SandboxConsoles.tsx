@@ -56,7 +56,7 @@ export default function SandboxConsoles() {
     setLoading(true);
     try {
       const res: unknown = await sandboxApi.getSandboxes({
-        page: page - 1,
+        page: page,
         sandboxType: type,
         size,
       });

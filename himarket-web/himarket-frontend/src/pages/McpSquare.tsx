@@ -131,7 +131,7 @@ function McpSquare() {
         const response = await APIs.getProducts({
           categoryIds,
           name: committedSearch || undefined,
-          page: currentPage - 1,
+          page: currentPage,
           size: PAGE_SIZE,
           type: 'MCP_SERVER',
         });
