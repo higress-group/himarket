@@ -102,7 +102,7 @@ function McpCard(props: McpCardProps) {
         <div className="w-14 h-14">
           <ProductIconRenderer
             className="w-full h-full object-cover"
-            iconType={getIconString(data.icon)}
+            iconType={getIconString(data.icon, data.name)}
           />
         </div>
         <div className="flex w-full h-full justify-between">
