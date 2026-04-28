@@ -4,14 +4,16 @@ import {
   CheckCircleOutlined,
   LoadingOutlined,
   EditOutlined,
+  DeleteOutlined,
   CloudServerOutlined,
   CloseCircleOutlined,
   ReloadOutlined,
   SyncOutlined,
 } from '@ant-design/icons';
-import { Button, Table, message, Modal, Tabs, Tag, Form, Input, Steps, Space, Tooltip } from 'antd';
+import { Button, message, Modal, Tabs, Tag, Form, Input, Steps, Space, Tooltip } from 'antd';
 import { useState, useEffect, useCallback } from 'react';
 
+import { DataTable } from '@/components/common/DataTable';
 import { sandboxApi } from '@/lib/api';
 import { formatDateTime } from '@/lib/utils';
 
@@ -346,59 +348,64 @@ export default function SandboxConsoles() {
     {
       key: 'action',
       render: (_: unknown, record: SandboxInstance) => (
-        <>
+        <div className="flex items-center gap-1">
           <Tooltip title="检查集群连通性">
             <Button
+              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 !px-2 text-xs"
               icon={checkingId === record.sandboxId ? <SyncOutlined spin /> : <ReloadOutlined />}
               loading={checkingId === record.sandboxId}
               onClick={() => handleHealthCheck(record)}
-              size="small"
-              type="link"
+              type="text"
             >
               检查
             </Button>
           </Tooltip>
-          <Button onClick={() => handleEdit(record)} type="link">
+          <Button
+            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 !px-2 text-xs"
+            icon={<EditOutlined />}
+            onClick={() => handleEdit(record)}
+            type="text"
+          >
             编辑
           </Button>
-          <Button danger onClick={() => handleDelete(record)} type="link">
+          <Button
+            className="text-red-500 hover:text-red-600 hover:bg-red-50 !px-2 text-xs"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={() => handleDelete(record)}
+            type="text"
+          >
             删除
           </Button>
-        </>
+        </div>
       ),
       title: '操作',
-      width: 200,
+      width: 220,
     },
   ];
-
-  const renderTable = () => (
-    <Table
-      columns={columns}
-      dataSource={sandboxes}
-      loading={loading}
-      pagination={{
-        ...pagination,
-        onChange: (page: number, size: number) => fetchList(activeTab, page, size),
-        onShowSizeChange: (_: number, size: number) => fetchList(activeTab, 1, size),
-        showQuickJumper: true,
-        showSizeChanger: true,
-        showTotal: (total: number) => `共 ${total} 条`,
-      }}
-      rowKey="sandboxId"
-    />
-  );
 
   const tabItems = [
     {
       children: (
         <div className="bg-white rounded-lg">
-          <div className="py-4 pl-4 border-b border-gray-200">
+          <div className="py-4 pl-4">
             <h3 className="text-lg font-medium text-gray-900">AgentRuntime 实例</h3>
             <p className="text-sm text-gray-500 mt-1">
               导入 AgentRuntime 实例，用于 MCP Server 沙箱运行
             </p>
           </div>
-          {renderTable()}
+          <DataTable<SandboxInstance>
+            columns={columns}
+            dataSource={sandboxes}
+            loading={loading}
+            pagination={{
+              current: pagination.current,
+              onChange: (page: number, size?: number) => fetchList(activeTab, page, size || 10),
+              pageSize: pagination.pageSize,
+              total: pagination.total,
+            }}
+            rowKey="sandboxId"
+          />
         </div>
       ),
       key: 'AGENT_RUNTIME',
@@ -407,13 +414,24 @@ export default function SandboxConsoles() {
     {
       children: (
         <div className="bg-white rounded-lg">
-          <div className="py-4 pl-4 border-b border-gray-200">
+          <div className="py-4 pl-4">
             <h3 className="text-lg font-medium text-gray-900">自建 Sandbox 实例</h3>
             <p className="text-sm text-gray-500 mt-1">
               导入自建的 Sandbox 实例，用于自定义 MCP 运行环境
             </p>
           </div>
-          {renderTable()}
+          <DataTable<SandboxInstance>
+            columns={columns}
+            dataSource={sandboxes}
+            loading={loading}
+            pagination={{
+              current: pagination.current,
+              onChange: (page: number, size?: number) => fetchList(activeTab, page, size || 10),
+              pageSize: pagination.pageSize,
+              total: pagination.total,
+            }}
+            rowKey="sandboxId"
+          />
         </div>
       ),
       disabled: true,

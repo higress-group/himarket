@@ -65,17 +65,14 @@ public class NacosController {
         return nacosService.getDefaultNacosInstance();
     }
 
-    @Operation(summary = "设置默认Nacos实例", description = "设为默认后，新建的 Agent Skill 将自动绑定该 Nacos 实例")
+    @Operation(
+            summary = "设置默认Nacos实例",
+            description = "设为默认后，新建的 Agent Skill 将自动绑定该 Nacos 实例。可同步指定默认命名空间")
     @PutMapping("/{nacosId}/default")
-    public void setDefaultNacosInstance(@PathVariable String nacosId) {
-        nacosService.setDefaultNacosInstance(nacosId);
-    }
-
-    @Operation(summary = "设置默认命名空间", description = "用已保存的认证信息连接 Nacos 验证命名空间存在后，设置为该实例的默认命名空间")
-    @PutMapping("/{nacosId}/default-namespace")
-    public void setDefaultNamespace(
-            @PathVariable String nacosId, @RequestParam("namespaceId") String namespaceId) {
-        nacosService.setDefaultNamespace(nacosId, namespaceId);
+    public void setDefaultNacosInstance(
+            @PathVariable String nacosId,
+            @RequestParam(value = "namespaceId", required = false) String namespaceId) {
+        nacosService.setDefaultNacos(nacosId, namespaceId);
     }
 
     @Operation(summary = "获取Nacos实例详情", description = "根据ID获取Nacos实例详细信息")

@@ -102,20 +102,20 @@ export const portalApi = {
   getConsumerList: (
     portalId: string,
     developerId: string,
-    pagination?: { page: number; size: number },
+    params?: { page?: number; size?: number; name?: string },
   ) => {
     return api.get(`/consumers`, {
       params: {
         developerId,
         portalId,
-        ...pagination,
+        ...params,
       },
     });
   },
   // 获取Consumer的订阅列表
   getConsumerSubscriptions: (
     consumerId: string,
-    params?: { page?: number; size?: number; status?: string },
+    params?: { page?: number; size?: number; status?: string; productName?: string },
   ) => {
     return api.get(`/consumers/${consumerId}/subscriptions`, { params });
   },
@@ -368,13 +368,11 @@ export const nacosApi = {
   getNamespaces: (nacosId: string, params?: { page?: number; size?: number }) => {
     return api.get(`/nacos/${nacosId}/namespaces`, { params });
   },
-  // 设置默认 Nacos 实例
-  setDefaultNacos: (nacosId: string) => {
-    return api.put(`/nacos/${nacosId}/default`);
-  },
-  // 设置默认命名空间
-  setDefaultNamespace: (nacosId: string, namespaceId: string) => {
-    return api.put(`/nacos/${nacosId}/default-namespace`, null, { params: { namespaceId } });
+  // 设置默认 Nacos 实例，可同步指定默认命名空间
+  setDefaultNacos: (nacosId: string, namespaceId?: string) => {
+    return api.put(`/nacos/${nacosId}/default`, null, {
+      params: namespaceId ? { namespaceId } : undefined,
+    });
   },
   updateNacos: (nacosId: string, data: UpdateNacosRequest) => {
     return api.put(`/nacos/${nacosId}`, data);

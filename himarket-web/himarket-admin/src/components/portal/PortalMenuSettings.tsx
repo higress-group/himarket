@@ -119,16 +119,12 @@ export function PortalMenuSettings({ onRefresh, portal }: PortalMenuSettingsProp
 
       <div className="mb-4">
         <h3 className="text-sm font-medium text-gray-600 mb-4">导航菜单项</h3>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-4 gap-2">
           {MENU_ITEMS.map((item) => {
             const enabled = getMenuVisibility(item.key);
             return (
               <div
-                className={`
-                  flex items-center gap-2 px-3 py-2 rounded border transition-all duration-200 cursor-pointer
-                  hover:border-blue-300
-                  ${enabled ? 'border-blue-300 bg-blue-50/50' : 'border-gray-200 bg-white'}
-                `}
+                className="flex items-center gap-2 px-3 py-2 rounded border border-gray-200 bg-white transition-all duration-200 cursor-pointer hover:border-blue-300"
                 key={item.key}
               >
                 <span className="text-base text-gray-600 flex-shrink-0">{item.icon}</span>

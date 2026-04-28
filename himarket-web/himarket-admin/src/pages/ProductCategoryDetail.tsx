@@ -2,29 +2,73 @@ import {
   ArrowLeftOutlined,
   EditOutlined,
   FolderOutlined,
-  ApiOutlined,
-  RobotOutlined,
-  BulbOutlined,
-  ExclamationCircleFilled,
-  ClockCircleFilled,
   CheckCircleFilled,
+  ClockCircleFilled,
+  ExclamationCircleFilled,
   DeleteOutlined,
-  ExclamationCircleOutlined,
   PlusOutlined,
-  UserOutlined,
 } from '@ant-design/icons';
-import { Button, Card, Skeleton, Empty, Divider, message, Checkbox, Modal, Space } from 'antd';
+import { Button, Card, Skeleton, Empty, Divider, message, Modal } from 'antd';
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 
-import McpServerIcon from '@/components/icons/McpServerIcon';
+import { DataTable } from '@/components/common/DataTable';
 import AddProductModal from '@/components/product-category/AddProductModal';
 import CategoryFormModal from '@/components/product-category/CategoryFormModal';
 import { apiProductApi } from '@/lib/api';
 import { getProductCategory, unbindProductsFromCategory } from '@/lib/productCategoryApi';
-import { formatDateTime } from '@/lib/utils';
-import type { ApiProduct, ProductIcon } from '@/types/api-product';
+import { copyToClipboard, formatDateTime } from '@/lib/utils';
+import type { ApiProduct } from '@/types/api-product';
 import type { ProductCategory } from '@/types/product-category';
+
+import type { TableProps } from 'antd';
+
+function renderStatusTag(status: string) {
+  if (status === 'PUBLISHED') {
+    return (
+      <div className="flex items-center gap-1.5 text-xs">
+        <CheckCircleFilled className="text-green-500" style={{ fontSize: '12px' }} />
+        <span className="text-gray-700">已发布</span>
+      </div>
+    );
+  }
+  if (status === 'READY') {
+    return (
+      <div className="flex items-center gap-1.5 text-xs">
+        <ClockCircleFilled className="text-blue-500" style={{ fontSize: '12px' }} />
+        <span className="text-gray-700">待发布</span>
+      </div>
+    );
+  }
+  if (status === 'PENDING') {
+    return (
+      <div className="flex items-center gap-1.5 text-xs">
+        <ExclamationCircleFilled className="text-yellow-500" style={{ fontSize: '12px' }} />
+        <span className="text-gray-700">待配置</span>
+      </div>
+    );
+  }
+  return <span className="text-xs text-gray-700">{status}</span>;
+}
+
+function getTypeLabel(type: string) {
+  switch (type) {
+    case 'REST_API':
+      return 'REST API';
+    case 'MCP_SERVER':
+      return 'MCP Server';
+    case 'AGENT_API':
+      return 'Agent API';
+    case 'AGENT_SKILL':
+      return 'Agent Skill';
+    case 'MODEL_API':
+      return 'Model API';
+    case 'WORKER':
+      return 'Worker';
+    default:
+      return type;
+  }
+}
 
 export default function ProductCategoryDetail() {
   const { categoryId } = useParams<{ categoryId: string }>();
@@ -36,8 +80,9 @@ export default function ProductCategoryDetail() {
   const [productsLoading, setProductsLoading] = useState(true);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [addModalVisible, setAddModalVisible] = useState(false);
-  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(new Set());
   const [removeLoading, setRemoveLoading] = useState(false);
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
 
   // 获取类别详情
   const fetchCategoryDetail = useCallback(async () => {
@@ -56,24 +101,32 @@ export default function ProductCategoryDetail() {
   }, [categoryId]);
 
   // 获取该类别下的产品
-  const fetchCategoryProducts = useCallback(async () => {
-    if (!categoryId) return;
+  const fetchCategoryProducts = useCallback(
+    async (page = 1, size = 10) => {
+      if (!categoryId) return;
 
-    try {
-      setProductsLoading(true);
-      const response = await apiProductApi.getApiProducts({
-        categoryIds: categoryId,
-        page: 0,
-        size: 100, // 获取所有产品
-      });
-      setProducts(response.data.content || []);
-    } catch (error) {
-      console.error('获取类别产品失败:', error);
-      message.error('获取类别产品失败');
-    } finally {
-      setProductsLoading(false);
-    }
-  }, [categoryId]);
+      try {
+        setProductsLoading(true);
+        const response = await apiProductApi.getApiProducts({
+          categoryIds: categoryId,
+          page,
+          size,
+        });
+        setProducts(response.data.content || []);
+        setPagination({
+          current: response.data.number ?? page,
+          pageSize: response.data.size ?? size,
+          total: response.data.totalElements ?? 0,
+        });
+      } catch (error) {
+        console.error('获取类别产品失败:', error);
+        message.error('获取类别产品失败');
+      } finally {
+        setProductsLoading(false);
+      }
+    },
+    [categoryId],
+  );
 
   useEffect(() => {
     if (categoryId) {
@@ -139,85 +192,6 @@ export default function ProductCategoryDetail() {
     }
   };
 
-  // 获取产品类型图标 - 与API Products页保持一致
-  const getTypeIcon = (icon: ProductIcon | null | undefined, type: string) => {
-    if (icon) {
-      switch (icon.type) {
-        case 'URL':
-          return (
-            <img
-              alt="icon"
-              src={icon.value}
-              style={{
-                borderRadius: '8px',
-                height: '40px',
-                minHeight: '40px',
-                objectFit: 'cover',
-                width: '40px',
-              }}
-            />
-          );
-        case 'BASE64':
-          const src = icon.value.startsWith('data:')
-            ? icon.value
-            : `data:image/png;base64,${icon.value}`;
-          return (
-            <img
-              alt="icon"
-              src={src}
-              style={{
-                borderRadius: '8px',
-                height: '40px',
-                minHeight: '40px',
-                objectFit: 'cover',
-                width: '40px',
-              }}
-            />
-          );
-        default:
-          return type === 'REST_API' ? (
-            <ApiOutlined style={{ fontSize: '16px', height: '16px', width: '16px' }} />
-          ) : type === 'AGENT_API' ? (
-            <RobotOutlined style={{ fontSize: '16px', height: '16px', width: '16px' }} />
-          ) : type === 'MODEL_API' ? (
-            <BulbOutlined style={{ fontSize: '16px', height: '16px', width: '16px' }} />
-          ) : type === 'WORKER' ? (
-            <UserOutlined style={{ fontSize: '16px', height: '16px', width: '16px' }} />
-          ) : (
-            <McpServerIcon style={{ fontSize: '16px', height: '16px', width: '16px' }} />
-          );
-      }
-    } else {
-      return type === 'REST_API' ? (
-        <ApiOutlined style={{ fontSize: '16px', height: '16px', width: '16px' }} />
-      ) : type === 'AGENT_API' ? (
-        <RobotOutlined style={{ fontSize: '16px', height: '16px', width: '16px' }} />
-      ) : type === 'MODEL_API' ? (
-        <BulbOutlined style={{ fontSize: '16px', height: '16px', width: '16px' }} />
-      ) : type === 'WORKER' ? (
-        <UserOutlined style={{ fontSize: '16px', height: '16px', width: '16px' }} />
-      ) : (
-        <McpServerIcon style={{ fontSize: '16px', height: '16px', width: '16px' }} />
-      );
-    }
-  };
-
-  // 获取产品类型标签
-  const getTypeLabel = (type: string) => {
-    switch (type) {
-      case 'REST_API':
-        return 'REST API';
-      case 'MCP_SERVER':
-        return 'MCP Server';
-      case 'AGENT_API':
-        return 'Agent API';
-      case 'MODEL_API':
-        return 'Model API';
-      default:
-        return type;
-    }
-  };
-
   // 编辑成功回调
   const handleEditSuccess = () => {
     setEditModalVisible(false);
@@ -228,48 +202,30 @@ export default function ProductCategoryDetail() {
   // 添加产品成功回调
   const handleAddSuccess = () => {
     setAddModalVisible(false);
-    fetchCategoryProducts(); // Refresh product list
-  };
-
-  // 处理产品选择
-  const handleProductSelect = (productId: string, checked: boolean) => {
-    if (checked) {
-      setSelectedProductIds((prev) => [...prev, productId]);
-    } else {
-      setSelectedProductIds((prev) => prev.filter((id) => id !== productId));
-    }
-  };
-
-  // 全选/取消全选
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedProductIds(products.map((p) => p.productId));
-    } else {
-      setSelectedProductIds([]);
-    }
+    fetchCategoryProducts();
   };
 
   // 从类别中移除选中的产品
   const handleRemoveProducts = () => {
-    if (selectedProductIds.length === 0) {
+    if (selectedProductIds.size === 0) {
       message.warning('请先选择要移除的产品');
       return;
     }
 
     Modal.confirm({
       cancelText: '取消',
-      content: `确定要从该类别中移除选中的 ${selectedProductIds.length} 个产品吗？`,
-      icon: <ExclamationCircleOutlined />,
+      content: `确定要从该类别中移除选中的 ${selectedProductIds.size} 个产品吗？`,
+      icon: <ExclamationCircleFilled />,
       okText: '确认',
       onOk: async () => {
         if (!categoryId) return;
 
         try {
           setRemoveLoading(true);
-          await unbindProductsFromCategory(categoryId, selectedProductIds);
+          await unbindProductsFromCategory(categoryId, [...selectedProductIds]);
           message.success('移除成功');
-          setSelectedProductIds([]);
-          fetchCategoryProducts(); // 重新获取产品列表
+          setSelectedProductIds(new Set());
+          fetchCategoryProducts(pagination.current, pagination.pageSize);
         } catch (error) {
           console.error('移除产品失败:', error);
           message.error('移除产品失败');
@@ -280,6 +236,98 @@ export default function ProductCategoryDetail() {
       title: '确认移除',
     });
   };
+
+  const rowSelection: TableProps<ApiProduct>['rowSelection'] = {
+    onChange: (selectedRowKeys) => {
+      setSelectedProductIds(new Set(selectedRowKeys as string[]));
+    },
+    selectedRowKeys: [...selectedProductIds],
+  };
+
+  const columns: TableProps<ApiProduct>['columns'] = [
+    {
+      dataIndex: 'name',
+      render: (_text: unknown, record: ApiProduct) => (
+        <div className="min-w-0">
+          <button
+            className="text-blue-600 hover:text-blue-500 font-medium cursor-pointer bg-transparent border-none p-0 truncate block max-w-[200px] text-left text-xs"
+            onClick={() => navigate(`/api-products/${record.productId}`)}
+            type="button"
+          >
+            {record.name}
+          </button>
+          <button
+            className="text-xs text-gray-400 mt-0.5 truncate max-w-[200px] cursor-pointer hover:text-blue-500 bg-transparent border-none p-0 block text-left"
+            onClick={() =>
+              copyToClipboard(record.productId).then(() => {
+                message.success('已复制到剪贴板');
+              })
+            }
+            type="button"
+          >
+            {record.productId}
+          </button>
+        </div>
+      ),
+      title: '产品名称/ID',
+      width: 280,
+    },
+    {
+      dataIndex: 'type',
+      render: (type: string) => <span className="text-xs text-gray-600">{getTypeLabel(type)}</span>,
+      title: '类型',
+      width: 120,
+    },
+    {
+      dataIndex: 'status',
+      render: (status: string) => renderStatusTag(status),
+      title: '状态',
+      width: 110,
+    },
+    {
+      dataIndex: 'description',
+      ellipsis: { showTitle: false },
+      render: (description: string) => (
+        <span className="text-gray-600 text-xs" title={description}>
+          {description || '-'}
+        </span>
+      ),
+      title: '描述',
+    },
+    {
+      render: (_text: unknown, record: ApiProduct) => (
+        <Button
+          className="text-red-500 hover:text-red-600 hover:bg-red-50 !px-2 text-xs"
+          icon={<DeleteOutlined />}
+          onClick={() => {
+            Modal.confirm({
+              cancelText: '取消',
+              content: `确定要从该类别中移除 "${record.name}" 吗？`,
+              icon: <ExclamationCircleFilled />,
+              okText: '确认',
+              onOk: async () => {
+                if (!categoryId) return;
+                try {
+                  await unbindProductsFromCategory(categoryId, [record.productId]);
+                  message.success('移除成功');
+                  fetchCategoryProducts(pagination.current, pagination.pageSize);
+                } catch (error) {
+                  console.error('移除产品失败:', error);
+                  message.error('移除产品失败');
+                }
+              },
+              title: '确认移除',
+            });
+          }}
+          type="text"
+        >
+          移除
+        </Button>
+      ),
+      title: '操作',
+      width: 120,
+    },
+  ];
 
   if (categoryLoading) {
     return (
@@ -349,158 +397,40 @@ export default function ProductCategoryDetail() {
       <div className="mb-6">
         <div className="flex items-center justify-between">
           <span className="text-lg font-medium">关联产品</span>
-          <Space size="large">
+          <div className="flex items-center gap-2">
+            {selectedProductIds.size > 0 && (
+              <Button
+                danger
+                icon={<DeleteOutlined />}
+                loading={removeLoading}
+                onClick={handleRemoveProducts}
+                type="primary"
+              >
+                移除选中 ({selectedProductIds.size})
+              </Button>
+            )}
             <Button icon={<PlusOutlined />} onClick={() => setAddModalVisible(true)} type="primary">
               添加产品
             </Button>
-            {products.length > 0 && (
-              <>
-                <Checkbox
-                  checked={selectedProductIds.length === products.length}
-                  indeterminate={
-                    selectedProductIds.length > 0 && selectedProductIds.length < products.length
-                  }
-                  onChange={(e) => handleSelectAll(e.target.checked)}
-                >
-                  全选 ({selectedProductIds.length}/{products.length})
-                </Checkbox>
-                <Button
-                  danger
-                  disabled={selectedProductIds.length === 0}
-                  icon={<DeleteOutlined />}
-                  loading={removeLoading}
-                  onClick={handleRemoveProducts}
-                  type="primary"
-                >
-                  移除选中
-                </Button>
-              </>
-            )}
-          </Space>
+          </div>
         </div>
         <Divider className="mt-2" />
       </div>
 
-      {/* 产品列表 */}
-      {productsLoading ? (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, index) => (
-            <Card
-              className="bg-gradient-to-br from-white to-gray-50/30 border border-gray-100"
-              key={index}
-            >
-              <div className="flex items-center space-x-4">
-                <Skeleton.Avatar size={48} />
-                <div className="flex-1">
-                  <Skeleton.Input style={{ marginBottom: 8, width: '60%' }} />
-                  <Skeleton paragraph={{ rows: 2, width: '100%' }} />
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
-      ) : products.length > 0 ? (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {products.map((product) => (
-            <Card
-              bodyStyle={{ padding: '16px' }}
-              className="hover:shadow-lg transition-shadow cursor-pointer rounded-xl border border-gray-200 shadow-sm hover:border-blue-300"
-              key={product.productId}
-              onClick={() => navigate(`/api-products/${product.productId}`)}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center space-x-3">
-                  {/* 复选框 */}
-                  <Checkbox
-                    checked={selectedProductIds.includes(product.productId)}
-                    onChange={(e) => {
-                      e.stopPropagation();
-                      handleProductSelect(product.productId, e.target.checked);
-                    }}
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                  {/* 产品图标 */}
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100">
-                    {getTypeIcon(product.icon, product.type)}
-                  </div>
-                  {/* 产品信息 */}
-                  <div>
-                    <h3 className="text-lg font-semibold">{product.name}</h3>
-                    <div className="flex items-center gap-3 mt-1 flex-wrap">
-                      <div className="flex items-center">
-                        {product.type === 'REST_API' ? (
-                          <ApiOutlined
-                            className="text-blue-500 mr-1"
-                            style={{ fontSize: '12px', height: '12px', width: '12px' }}
-                          />
-                        ) : product.type === 'AGENT_API' ? (
-                          <RobotOutlined
-                            className="text-gray-600 mr-1"
-                            style={{ fontSize: '12px', height: '12px', width: '12px' }}
-                          />
-                        ) : product.type === 'MODEL_API' ? (
-                          <BulbOutlined
-                            className="text-gray-600 mr-1"
-                            style={{ fontSize: '12px', height: '12px', width: '12px' }}
-                          />
-                        ) : product.type === 'WORKER' ? (
-                          <UserOutlined
-                            className="text-gray-600 mr-1"
-                            style={{ fontSize: '12px', height: '12px', width: '12px' }}
-                          />
-                        ) : (
-                          <McpServerIcon
-                            className="text-black mr-1"
-                            style={{ fontSize: '12px', height: '12px', width: '12px' }}
-                          />
-                        )}
-                        <span className="text-xs text-gray-700">{getTypeLabel(product.type)}</span>
-                      </div>
-                      <div className="flex items-center">
-                        {product.status === 'PENDING' ? (
-                          <ExclamationCircleFilled
-                            className="text-yellow-500 mr-1"
-                            style={{ fontSize: '12px', height: '12px', width: '12px' }}
-                          />
-                        ) : product.status === 'READY' ? (
-                          <ClockCircleFilled
-                            className="text-blue-500 mr-1"
-                            style={{ fontSize: '12px', height: '12px', width: '12px' }}
-                          />
-                        ) : (
-                          <CheckCircleFilled
-                            className="text-green-500 mr-1"
-                            style={{ fontSize: '12px', height: '12px', width: '12px' }}
-                          />
-                        )}
-                        <span className="text-xs text-gray-700">
-                          {product.status === 'PENDING'
-                            ? '待配置'
-                            : product.status === 'READY'
-                              ? '待发布'
-                              : '已发布'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                {product.description && (
-                  <p className="text-sm text-gray-600">{product.description}</p>
-                )}
-              </div>
-            </Card>
-          ))}
-        </div>
-      ) : (
-        <Card className="bg-gradient-to-br from-white to-gray-50/30 border border-gray-100 shadow-sm">
-          <div className="text-center py-8">
-            <Empty description="该类别下暂无产品" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-          </div>
-        </Card>
-      )}
+      {/* 产品表格 */}
+      <DataTable<ApiProduct>
+        columns={columns}
+        dataSource={products}
+        loading={productsLoading}
+        pagination={{
+          current: pagination.current,
+          onChange: (page, pageSize) => fetchCategoryProducts(page, pageSize),
+          pageSize: pagination.pageSize,
+          total: pagination.total,
+        }}
+        rowKey="productId"
+        rowSelection={rowSelection}
+      />
 
       {/* 编辑类别弹窗 */}
       <CategoryFormModal

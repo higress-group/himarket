@@ -166,18 +166,11 @@ public interface NacosService {
     NacosResult getDefaultNacosInstance();
 
     /**
-     * 设置指定 Nacos 实例为默认。
+     * 设置指定 Nacos 实例为默认，可同步指定默认命名空间。
+     * 若提供 namespaceId，会先用已保存的认证信息连接 Nacos 验证命名空间是否存在，再保存。
      *
      * @param nacosId 要设为默认的实例 ID
+     * @param namespaceId 要设为默认的命名空间 ID（可选）
      */
-    void setDefaultNacosInstance(String nacosId);
-
-    /**
-     * 设置指定 Nacos 实例的默认命名空间。
-     * 会先用已保存的认证信息连接 Nacos 验证命名空间是否存在，再保存。
-     *
-     * @param nacosId Nacos 实例 ID
-     * @param namespaceId 要设为默认的命名空间 ID
-     */
-    void setDefaultNamespace(String nacosId, String namespaceId);
+    void setDefaultNacos(String nacosId, String namespaceId);
 }

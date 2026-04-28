@@ -1,16 +1,15 @@
-import { PlusOutlined } from '@ant-design/icons';
-import { Button, Table, message, Modal, Tabs } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Button, message, Modal, Tabs, Tooltip } from 'antd';
 import { useState, useEffect, useCallback } from 'react';
 
+import { DataTable } from '@/components/common/DataTable';
 import EditGatewayModal from '@/components/console/EditGatewayModal';
 import GatewayTypeSelector from '@/components/console/GatewayTypeSelector';
 import ImportGatewayModal from '@/components/console/ImportGatewayModal';
 import ImportHigressModal from '@/components/console/ImportHigressModal';
 import { gatewayApi } from '@/lib/api';
-import { formatDateTime } from '@/lib/utils';
+import { copyToClipboard, formatDateTime } from '@/lib/utils';
 import type { Gateway, GatewayType } from '@/types';
-
-import type { ColumnsType } from 'antd/es/table';
 
 export default function Consoles() {
   const [gateways, setGateways] = useState<Gateway[]>([]);
@@ -66,8 +65,8 @@ export default function Consoles() {
   };
 
   // 处理分页变化
-  const handlePaginationChange = (page: number, pageSize: number) => {
-    fetchGatewaysByType(activeTab, page, pageSize);
+  const handlePaginationChange = (page: number, pageSize?: number) => {
+    fetchGatewaysByType(activeTab, page, pageSize ?? 10);
   };
 
   // 处理Tab切换
@@ -99,14 +98,53 @@ export default function Consoles() {
     });
   };
 
+  const actionColumn = {
+    key: 'action',
+    render: (_text: unknown, record: Gateway) => (
+      <div className="flex items-center gap-1">
+        <Button
+          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 !px-2 text-xs"
+          icon={<EditOutlined />}
+          onClick={() => handleEditGateway(record)}
+          type="text"
+        >
+          编辑
+        </Button>
+        <Button
+          className="text-red-500 hover:text-red-600 hover:bg-red-50 !px-2 text-xs"
+          danger
+          icon={<DeleteOutlined />}
+          onClick={() => handleDeleteGateway(record.gatewayId)}
+          type="text"
+        >
+          删除
+        </Button>
+      </div>
+    ),
+    title: '操作',
+    width: 160,
+  };
+
   // APIG 网关的列定义
-  const apigColumns: ColumnsType<Gateway> = [
+  const apigColumns = [
     {
       key: 'nameAndId',
       render: (_text: unknown, record: Gateway) => (
         <div>
           <div className="text-sm font-medium text-gray-900 truncate">{record.gatewayName}</div>
-          <div className="text-xs text-gray-500 truncate">{record.gatewayId}</div>
+          <Tooltip title="点击复制">
+            <button
+              className="text-xs text-gray-400 mt-0.5 truncate max-w-[200px] cursor-pointer hover:text-blue-500 bg-transparent border-none p-0 block text-left"
+              onClick={() =>
+                copyToClipboard(record.gatewayId).then(() => {
+                  message.success('已复制到剪贴板');
+                })
+              }
+              type="button"
+            >
+              {record.gatewayId}
+            </button>
+          </Tooltip>
         </div>
       ),
       title: '网关名称/ID',
@@ -126,30 +164,29 @@ export default function Consoles() {
       render: (date: string) => formatDateTime(date),
       title: '创建时间',
     },
-    {
-      key: 'action',
-      render: (_text: unknown, record: Gateway) => (
-        <>
-          <Button onClick={() => handleEditGateway(record)} type="link">
-            编辑
-          </Button>
-          <Button danger onClick={() => handleDeleteGateway(record.gatewayId)} type="link">
-            删除
-          </Button>
-        </>
-      ),
-      title: '操作',
-    },
+    actionColumn,
   ];
 
   // 专有云 AI 网关的列定义
-  const adpAiColumns: ColumnsType<Gateway> = [
+  const adpAiColumns = [
     {
       key: 'nameAndId',
       render: (_text: unknown, record: Gateway) => (
         <div>
           <div className="text-sm font-medium text-gray-900 truncate">{record.gatewayName}</div>
-          <div className="text-xs text-gray-500 truncate">{record.gatewayId}</div>
+          <Tooltip title="点击复制">
+            <button
+              className="text-xs text-gray-400 mt-0.5 truncate max-w-[200px] cursor-pointer hover:text-blue-500 bg-transparent border-none p-0 block text-left"
+              onClick={() =>
+                copyToClipboard(record.gatewayId).then(() => {
+                  message.success('已复制到剪贴板');
+                })
+              }
+              type="button"
+            >
+              {record.gatewayId}
+            </button>
+          </Tooltip>
         </div>
       ),
       title: '网关名称/ID',
@@ -161,30 +198,29 @@ export default function Consoles() {
       render: (date: string) => formatDateTime(date),
       title: '创建时间',
     },
-    {
-      key: 'action',
-      render: (_text: unknown, record: Gateway) => (
-        <>
-          <Button onClick={() => handleEditGateway(record)} type="link">
-            编辑
-          </Button>
-          <Button danger onClick={() => handleDeleteGateway(record.gatewayId)} type="link">
-            删除
-          </Button>
-        </>
-      ),
-      title: '操作',
-    },
+    actionColumn,
   ];
 
   // 飞天企业版 AI 网关的列定义
-  const apsaraGatewayColumns: ColumnsType<Gateway> = [
+  const apsaraGatewayColumns = [
     {
       key: 'nameAndId',
       render: (_text: unknown, record: Gateway) => (
         <div>
           <div className="text-sm font-medium text-gray-900 truncate">{record.gatewayName}</div>
-          <div className="text-xs text-gray-500 truncate">{record.gatewayId}</div>
+          <Tooltip title="点击复制">
+            <button
+              className="text-xs text-gray-400 mt-0.5 truncate max-w-[200px] cursor-pointer hover:text-blue-500 bg-transparent border-none p-0 block text-left"
+              onClick={() =>
+                copyToClipboard(record.gatewayId).then(() => {
+                  message.success('已复制到剪贴板');
+                })
+              }
+              type="button"
+            >
+              {record.gatewayId}
+            </button>
+          </Tooltip>
         </div>
       ),
       title: '网关名称/ID',
@@ -196,30 +232,29 @@ export default function Consoles() {
       render: (date: string) => formatDateTime(date),
       title: '创建时间',
     },
-    {
-      key: 'action',
-      render: (_text: unknown, record: Gateway) => (
-        <>
-          <Button onClick={() => handleEditGateway(record)} type="link">
-            编辑
-          </Button>
-          <Button danger onClick={() => handleDeleteGateway(record.gatewayId)} type="link">
-            删除
-          </Button>
-        </>
-      ),
-      title: '操作',
-    },
+    actionColumn,
   ];
 
   // Higress 网关的列定义
-  const higressColumns: ColumnsType<Gateway> = [
+  const higressColumns = [
     {
       key: 'nameAndId',
       render: (_text: unknown, record: Gateway) => (
         <div>
           <div className="text-sm font-medium text-gray-900 truncate">{record.gatewayName}</div>
-          <div className="text-xs text-gray-500 truncate">{record.gatewayId}</div>
+          <Tooltip title="点击复制">
+            <button
+              className="text-xs text-gray-400 mt-0.5 truncate max-w-[200px] cursor-pointer hover:text-blue-500 bg-transparent border-none p-0 block text-left"
+              onClick={() =>
+                copyToClipboard(record.gatewayId).then(() => {
+                  message.success('已复制到剪贴板');
+                })
+              }
+              type="button"
+            >
+              {record.gatewayId}
+            </button>
+          </Tooltip>
         </div>
       ),
       title: '网关名称/ID',
@@ -247,21 +282,15 @@ export default function Consoles() {
       render: (date: string) => formatDateTime(date),
       title: '创建时间',
     },
-    {
-      key: 'action',
-      render: (_text: unknown, record: Gateway) => (
-        <>
-          <Button onClick={() => handleEditGateway(record)} type="link">
-            编辑
-          </Button>
-          <Button danger onClick={() => handleDeleteGateway(record.gatewayId)} type="link">
-            删除
-          </Button>
-        </>
-      ),
-      title: '操作',
-    },
+    actionColumn,
   ];
+
+  const dataTablePagination = {
+    current: pagination.current,
+    onChange: handlePaginationChange,
+    pageSize: pagination.pageSize,
+    total: pagination.total,
+  };
 
   return (
     <div className="space-y-6">
@@ -285,20 +314,11 @@ export default function Consoles() {
                   <h3 className="text-lg font-medium text-gray-900">Higress 网关</h3>
                   <p className="text-sm text-gray-500 mt-1">Higress 云原生网关</p>
                 </div>
-                <Table
+                <DataTable<Gateway>
                   columns={higressColumns}
                   dataSource={gateways}
                   loading={loading}
-                  pagination={{
-                    current: pagination.current,
-                    onChange: handlePaginationChange,
-                    onShowSizeChange: handlePaginationChange,
-                    pageSize: pagination.pageSize,
-                    showQuickJumper: true,
-                    showSizeChanger: true,
-                    showTotal: (total) => `共 ${total} 条`,
-                    total: pagination.total,
-                  }}
+                  pagination={dataTablePagination}
                   rowKey="gatewayId"
                 />
               </div>
@@ -313,20 +333,11 @@ export default function Consoles() {
                   <h3 className="text-lg font-medium text-gray-900">API 网关</h3>
                   <p className="text-sm text-gray-500 mt-1">阿里云 API 网关服务</p>
                 </div>
-                <Table
+                <DataTable<Gateway>
                   columns={apigColumns}
                   dataSource={gateways}
                   loading={loading}
-                  pagination={{
-                    current: pagination.current,
-                    onChange: handlePaginationChange,
-                    onShowSizeChange: handlePaginationChange,
-                    pageSize: pagination.pageSize,
-                    showQuickJumper: true,
-                    showSizeChanger: true,
-                    showTotal: (total) => `共 ${total} 条`,
-                    total: pagination.total,
-                  }}
+                  pagination={dataTablePagination}
                   rowKey="gatewayId"
                 />
               </div>
@@ -341,20 +352,11 @@ export default function Consoles() {
                   <h3 className="text-lg font-medium text-gray-900">AI 网关</h3>
                   <p className="text-sm text-gray-500 mt-1">阿里云 AI 网关服务</p>
                 </div>
-                <Table
+                <DataTable<Gateway>
                   columns={apigColumns}
                   dataSource={gateways}
                   loading={loading}
-                  pagination={{
-                    current: pagination.current,
-                    onChange: handlePaginationChange,
-                    onShowSizeChange: handlePaginationChange,
-                    pageSize: pagination.pageSize,
-                    showQuickJumper: true,
-                    showSizeChanger: true,
-                    showTotal: (total) => `共 ${total} 条`,
-                    total: pagination.total,
-                  }}
+                  pagination={dataTablePagination}
                   rowKey="gatewayId"
                 />
               </div>
@@ -369,20 +371,11 @@ export default function Consoles() {
                   <h3 className="text-lg font-medium text-gray-900">AI 网关</h3>
                   <p className="text-sm text-gray-500 mt-1">专有云 AI 网关服务</p>
                 </div>
-                <Table
+                <DataTable<Gateway>
                   columns={adpAiColumns}
                   dataSource={gateways}
                   loading={loading}
-                  pagination={{
-                    current: pagination.current,
-                    onChange: handlePaginationChange,
-                    onShowSizeChange: handlePaginationChange,
-                    pageSize: pagination.pageSize,
-                    showQuickJumper: true,
-                    showSizeChanger: true,
-                    showTotal: (total) => `共 ${total} 条`,
-                    total: pagination.total,
-                  }}
+                  pagination={dataTablePagination}
                   rowKey="gatewayId"
                 />
               </div>
@@ -397,20 +390,11 @@ export default function Consoles() {
                   <h3 className="text-lg font-medium text-gray-900">飞天企业版 AI 网关</h3>
                   <p className="text-sm text-gray-500 mt-1">阿里云飞天企业版 AI 网关服务</p>
                 </div>
-                <Table
+                <DataTable<Gateway>
                   columns={apsaraGatewayColumns}
                   dataSource={gateways}
                   loading={loading}
-                  pagination={{
-                    current: pagination.current,
-                    onChange: handlePaginationChange,
-                    onShowSizeChange: handlePaginationChange,
-                    pageSize: pagination.pageSize,
-                    showQuickJumper: true,
-                    showSizeChanger: true,
-                    showTotal: (total) => `共 ${total} 条`,
-                    total: pagination.total,
-                  }}
+                  pagination={dataTablePagination}
                   rowKey="gatewayId"
                 />
               </div>

@@ -51,6 +51,7 @@ import com.alibaba.nacos.api.ai.model.a2a.AgentCardVersionInfo;
 import com.alibaba.nacos.api.ai.model.mcp.McpServerBasicInfo;
 import com.alibaba.nacos.api.ai.model.mcp.McpServerDetailInfo;
 import com.alibaba.nacos.api.exception.NacosException;
+import com.alibaba.nacos.api.model.response.Namespace;
 import com.alibaba.nacos.maintainer.client.ai.AiMaintainerFactory;
 import com.alibaba.nacos.maintainer.client.ai.AiMaintainerService;
 import com.alibaba.nacos.maintainer.client.ai.McpMaintainerService;
@@ -813,7 +814,7 @@ public class NacosServiceImpl implements NacosService {
 
     @Override
     @Transactional
-    public void setDefaultNacosInstance(String nacosId) {
+    public void setDefaultNacos(String nacosId, String namespaceId) {
         NacosInstance newDefault = findNacosInstance(nacosId);
         // 取消旧默认
         nacosInstanceRepository
@@ -826,52 +827,42 @@ public class NacosServiceImpl implements NacosService {
         // 设置新默认
         newDefault.setIsDefault(true);
         nacosInstanceRepository.save(newDefault);
-    }
 
-    @Override
-    public void setDefaultNamespace(String nacosId, String namespaceId) {
-        NacosInstance instance = findNacosInstance(nacosId);
-
-        // 用已保存的认证信息连接 Nacos，验证命名空间是否存在
-        NamingMaintainerService namingService = buildDynamicNamingService(instance, "");
-        try {
-            List<?> namespaces = namingService.getNamespaceList();
-            boolean exists =
-                    namespaces != null
-                            && namespaces.stream()
-                                    .anyMatch(
-                                            ns -> {
-                                                try {
-                                                    java.lang.reflect.Method getId =
-                                                            ns.getClass().getMethod("getNamespace");
-                                                    Object id = getId.invoke(ns);
-                                                    // Nacos 中 public namespace 的 ID 为空字符串
-                                                    if ("public".equals(namespaceId)) {
-                                                        return id == null
-                                                                || "".equals(id)
-                                                                || "public".equals(id);
-                                                    }
-                                                    return namespaceId.equals(id);
-                                                } catch (Exception e) {
-                                                    return false;
-                                                }
-                                            });
-            if (!exists) {
-                throw new BusinessException(ErrorCode.NOT_FOUND, "命名空间不存在: " + namespaceId);
+        // 若指定了命名空间，验证并保存
+        if (StrUtil.isNotBlank(namespaceId)) {
+            NamingMaintainerService namingService = buildDynamicNamingService(newDefault, "");
+            try {
+                List<Namespace> namespaces = namingService.getNamespaceList();
+                boolean exists =
+                        namespaces != null
+                                && namespaces.stream()
+                                        .anyMatch(
+                                                ns ->
+                                                        StrUtil.equals(
+                                                                        namespaceId,
+                                                                        ns.getNamespace())
+                                                                || (StrUtil.isBlank(
+                                                                                ns.getNamespace())
+                                                                        && StrUtil.equalsIgnoreCase(
+                                                                                namespaceId,
+                                                                                "public")));
+                if (!exists) {
+                    throw new BusinessException(
+                            ErrorCode.NOT_FOUND, Resources.NACOS_NAMESPACE, namespaceId);
+                }
+            } catch (NacosException e) {
+                log.error(
+                        "Error verifying namespace from Nacos: nacosId={}, namespaceId={}",
+                        nacosId,
+                        namespaceId,
+                        e);
+                throw new BusinessException(
+                        ErrorCode.INTERNAL_ERROR,
+                        "Failed to verify namespace from Nacos: " + e.getErrMsg());
             }
-        } catch (BusinessException e) {
-            throw e;
-        } catch (NacosException e) {
-            log.error(
-                    "Error verifying namespace from Nacos: nacosId={}, namespaceId={}",
-                    nacosId,
-                    namespaceId,
-                    e);
-            throw new BusinessException(
-                    ErrorCode.INTERNAL_ERROR, "连接 Nacos 验证命名空间失败: " + e.getErrMsg());
-        }
 
-        instance.setDefaultNamespace(namespaceId);
-        nacosInstanceRepository.save(instance);
+            newDefault.setDefaultNamespace(namespaceId);
+            nacosInstanceRepository.save(newDefault);
+        }
     }
 }

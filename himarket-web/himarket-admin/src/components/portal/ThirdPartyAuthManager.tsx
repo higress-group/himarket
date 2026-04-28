@@ -14,7 +14,6 @@ import {
   Input,
   Select,
   Switch,
-  Table,
   Modal,
   Space,
   message,
@@ -27,6 +26,7 @@ import {
 } from 'antd';
 import { useState } from 'react';
 
+import { DataTable } from '@/components/common/DataTable';
 import type { ThirdPartyAuthConfig, AuthCodeConfig, OAuth2Config, OidcConfig } from '@/types';
 import { AuthenticationType, GrantType, PublicKeyFormat } from '@/types';
 
@@ -833,15 +833,13 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
                     支持OpenID Connect标准协议的身份提供商
                   </p>
                 </div>
-                <Table
+                <DataTable<ThirdPartyAuthConfig>
                   columns={oidcColumns}
                   dataSource={oidcConfigs}
                   locale={{
                     emptyText: '暂无OIDC配置',
                   }}
-                  pagination={false}
                   rowKey="provider"
-                  size="small"
                 />
               </div>
             ),
@@ -855,15 +853,13 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
                   <h4 className="text-lg font-medium text-gray-900">OAuth2配置</h4>
                   <p className="text-sm text-gray-500 mt-1">支持OAuth 2.0标准协议的身份提供商</p>
                 </div>
-                <Table
+                <DataTable<ThirdPartyAuthConfig>
                   columns={oauth2Columns}
                   dataSource={oauth2Configs}
                   locale={{
                     emptyText: '暂无OAuth2配置',
                   }}
-                  pagination={false}
                   rowKey="provider"
-                  size="small"
                 />
               </div>
             ),

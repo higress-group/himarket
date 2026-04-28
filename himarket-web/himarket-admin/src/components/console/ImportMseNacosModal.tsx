@@ -52,12 +52,12 @@ export default function ImportMseNacosModal({
   });
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
 
-  const fetchMseNacos = async (values: MseNacosAuthFormValues, page = 0, size = 10) => {
+  const fetchMseNacos = async (values: MseNacosAuthFormValues, page = 1, size = 10) => {
     setLoading(true);
     try {
       const res = await nacosApi.getMseNacos({ ...values, page, size });
       setList(res.data?.content || []);
-      setPagination({ current: page + 1, pageSize: size, total: res.data?.totalElements || 0 });
+      setPagination({ current: page, pageSize: size, total: res.data?.totalElements || 0 });
     } catch (_e: unknown) {
       // message.error(e?.response?.data?.message || '获取 MSE Nacos 列表失败')
     } finally {
@@ -152,7 +152,7 @@ export default function ImportMseNacosModal({
               dataSource={list}
               pagination={{
                 current: pagination.current,
-                onChange: (page, pageSize) => fetchMseNacos(auth, page - 1, pageSize),
+                onChange: (page, pageSize) => fetchMseNacos(auth, page, pageSize),
                 pageSize: pagination.pageSize,
                 showQuickJumper: true,
                 showSizeChanger: true,

@@ -57,6 +57,8 @@ public class Resources {
 
     public static final String NACOS_INSTANCE = "NacosInstance";
 
+    public static final String NACOS_NAMESPACE = "NacosNamespace";
+
     public static final String SUBSCRIPTION = "Subscription";
 
     public static final String CHAT_SESSION = "ChatSession";

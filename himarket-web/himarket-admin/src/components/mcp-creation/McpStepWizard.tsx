@@ -161,7 +161,7 @@ export function McpStepWizard({ mode, onCancel, onSuccess, visible }: McpStepWiz
       try {
         const checkRes = await apiProductApi.getApiProducts({
           name: values.name,
-          page: 0,
+          page: 1,
           size: 1,
           type: 'MCP_SERVER',
         });
@@ -354,7 +354,7 @@ export function McpStepWizard({ mode, onCancel, onSuccess, visible }: McpStepWiz
       onCancel={handleCancel}
       open={visible}
       styles={{
-        body: { padding: 0 },
+        body: { borderRadius: '8px', overflow: 'hidden', padding: 0 },
         header: { display: 'none' },
       }}
       width={820}

@@ -1,17 +1,18 @@
 import {
   PlusOutlined,
-  EyeOutlined,
   DeleteOutlined,
   ExclamationCircleOutlined,
   GlobalOutlined,
   CheckCircleFilled,
   MinusCircleFilled,
 } from '@ant-design/icons';
-import { Button, Table, Space, Modal, message } from 'antd';
-import { useState, useEffect } from 'react';
+import { Button, Modal, message, Tooltip, Table } from 'antd';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { DataTable } from '@/components/common/DataTable';
 import { apiProductApi, portalApi } from '@/lib/api';
+import { copyToClipboard } from '@/lib/utils';
 import type { ApiProduct, Publication } from '@/types/api-product';
 
 interface ApiProductPortalProps {
@@ -39,17 +40,29 @@ export function ApiProductPortal({ apiProduct }: ApiProductPortalProps) {
   const [total, setTotal] = useState(0);
 
   const navigate = useNavigate();
+  const lastPublishedKeyRef = useRef<string>('');
+  const allPortalsFetchedRef = useRef(false);
 
   // 获取已发布的门户列表
   useEffect(() => {
-    if (apiProduct.productId) {
-      fetchPublishedPortals();
+    if (!apiProduct.productId) {
+      return;
     }
+    const key = `${apiProduct.productId}-${currentPage}-${pageSize}`;
+    if (lastPublishedKeyRef.current === key) {
+      return;
+    }
+    lastPublishedKeyRef.current = key;
+    fetchPublishedPortals();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiProduct.productId, currentPage, pageSize]);
 
   // 获取所有门户列表
   useEffect(() => {
+    if (allPortalsFetchedRef.current) {
+      return;
+    }
+    allPortalsFetchedRef.current = true;
     fetchAllPortals();
   }, []);
 
@@ -117,11 +130,31 @@ export function ApiProductPortal({ apiProduct }: ApiProductPortalProps) {
       key: 'portalInfo',
       render: (_: unknown, record: Publication) => (
         <div>
-          <div className="text-sm font-medium text-gray-900 truncate">{record.portalName}</div>
-          <div className="text-xs text-gray-500 truncate">{record.portalId}</div>
+          <Tooltip placement="topLeft" title={record.portalName}>
+            <button
+              className="text-blue-600 hover:text-blue-500 font-medium cursor-pointer bg-transparent border-none p-0 truncate block max-w-[200px] text-left text-xs"
+              onClick={() => navigate(`/portals/${record.portalId}`)}
+              type="button"
+            >
+              {record.portalName}
+            </button>
+          </Tooltip>
+          <Tooltip title="点击复制">
+            <button
+              className="text-xs text-gray-400 mt-0.5 truncate max-w-[200px] cursor-pointer hover:text-blue-500 bg-transparent border-none p-0 block text-left"
+              onClick={() =>
+                copyToClipboard(record.portalId).then(() => {
+                  message.success('已复制到剪贴板');
+                })
+              }
+              type="button"
+            >
+              {record.portalId}
+            </button>
+          </Tooltip>
         </div>
       ),
-      title: '门户信息',
+      title: '门户名称/ID',
       width: 400,
     },
     {
@@ -147,29 +180,17 @@ export function ApiProductPortal({ apiProduct }: ApiProductPortalProps) {
     {
       key: 'action',
       render: (_: unknown, record: Publication) => (
-        <Space size="middle">
-          <Button
-            icon={<EyeOutlined />}
-            onClick={() => {
-              navigate(`/portals/${record.portalId}`);
-            }}
-            type="link"
-          >
-            查看
-          </Button>
-
-          <Button
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => handleDelete(record.publicationId, record.portalName)}
-            type="link"
-          >
-            移除
-          </Button>
-        </Space>
+        <Button
+          danger
+          icon={<DeleteOutlined />}
+          onClick={() => handleDelete(record.publicationId, record.portalName)}
+          type="link"
+        >
+          移除
+        </Button>
       ),
       title: '操作',
-      width: 180,
+      width: 120,
     },
   ];
 
@@ -280,18 +301,14 @@ export function ApiProductPortal({ apiProduct }: ApiProductPortalProps) {
           <p>暂未发布到任何门户</p>
         </div>
       ) : (
-        <Table
+        <DataTable<Publication>
           columns={columns}
           dataSource={publishedPortals}
           loading={loading}
           pagination={{
             current: currentPage,
             onChange: handlePageChange,
-            onShowSizeChange: handlePageChange,
             pageSize: pageSize,
-            showQuickJumper: true,
-            showSizeChanger: true,
-            showTotal: (total) => `共 ${total} 条`,
             total: total,
           }}
           rowKey="portalId"
@@ -329,7 +346,7 @@ export function ApiProductPortal({ apiProduct }: ApiProductPortalProps) {
               ),
             }}
             pagination={false}
-            rowClassName={(record) =>
+            rowClassName={(record: Portal) =>
               selectedPortalIds.includes(record.portalId)
                 ? 'bg-blue-50 hover:bg-blue-100'
                 : 'hover:bg-gray-50'
@@ -337,7 +354,7 @@ export function ApiProductPortal({ apiProduct }: ApiProductPortalProps) {
             rowKey="portalId"
             rowSelection={{
               columnWidth: 50,
-              onChange: (selectedRowKeys) => {
+              onChange: (selectedRowKeys: React.Key[]) => {
                 setSelectedPortalIds(selectedRowKeys as string[]);
               },
               selectedRowKeys: selectedPortalIds,

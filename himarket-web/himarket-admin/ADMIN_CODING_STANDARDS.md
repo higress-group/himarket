@@ -372,6 +372,187 @@ const servers = await gatewayApi.getGatewayMcpServers(gatewayId, { page: 1, size
 - Automatic redirect to login on 401
 - Pagination params: `page` (1-based) + `size`
 
+### 6.5 API Request Deduplication (StrictMode Guard)
+
+React 18 `StrictMode` intentionally double-invokes component effects in development (mount → cleanup → remount). `useEffect` containing data requests will fire twice on initial mount, producing duplicate API calls. This clutters backend logs, complicates debugging, and may cause race conditions. **All initialization data requests inside `useEffect` must be guarded.**
+
+#### Scenarios Requiring Deduplication
+
+| Scenario                     | Example                                                           | Why it duplicates                           |
+| ---------------------------- | ----------------------------------------------------------------- | ------------------------------------------- |
+| List page initial load       | `ProductTable` fetching product list                              | Component mounts twice under StrictMode     |
+| Detail page data load        | `ApiProductDetail` fetching product detail                        | Same as above                               |
+| Tab-dependent data load      | `ApiProductOverview` fetching tab-specific data                   | Mount + tab prop change both trigger effect |
+| Multi-endpoint parallel load | Detail page fetching refs, categories, subscriptions concurrently | Every endpoint fires twice                  |
+| Global static data load      | Dropdown options, enum mappings fetched on app start              | `useEffect(() => {...}, [])` runs twice     |
+| Conditional data load        | Fetching portal list only when a specific product type is active  | Component remount resets condition state    |
+
+#### Standard Guard Pattern: `useRef`
+
+Use `useRef` to record the last successfully initiated request key. Skip the request when the key has not changed.
+
+**Pattern 1: Single identifier**
+
+```tsx
+const lastFetchedIdRef = useRef<string | null>(null);
+
+useEffect(() => {
+  if (!productId || lastFetchedIdRef.current === productId) return;
+  lastFetchedIdRef.current = productId;
+  fetchProductDetail(productId);
+}, [productId]);
+```
+
+**Pattern 2: Composite identifier**
+
+```tsx
+const lastFetchedKeyRef = useRef<string>('');
+
+useEffect(() => {
+  if (!productId) return;
+  const key = `${productId}-${activeTab}`;
+  if (lastFetchedKeyRef.current === key) return;
+  lastFetchedKeyRef.current = key;
+  fetchTabData(productId, activeTab);
+}, [productId, activeTab]);
+```
+
+**Pattern 3: Execute once globally**
+
+```tsx
+const hasFetchedRef = useRef(false);
+
+useEffect(() => {
+  if (hasFetchedRef.current) return;
+  hasFetchedRef.current = true;
+  fetchGlobalConfig();
+}, []);
+```
+
+**Pattern 4: List page with search reset**
+
+```tsx
+const lastFetchedTypeRef = useRef<string | null>(null);
+
+useEffect(() => {
+  if (lastFetchedTypeRef.current === productType) return;
+  lastFetchedTypeRef.current = productType;
+  setSearchInput('');
+  setSelectedIds(new Set());
+  fetchProducts(1, 10, '');
+}, [productType]);
+```
+
+**Pattern 5: Multiple independent endpoints**
+
+```tsx
+const lastDetailRef = useRef<string>('');
+const lastRefsRef = useRef<string>('');
+const lastCategoriesRef = useRef<string>('');
+
+useEffect(() => {
+  if (!productId) return;
+
+  if (lastDetailRef.current !== productId) {
+    lastDetailRef.current = productId;
+    fetchProductDetail(productId);
+  }
+
+  if (lastRefsRef.current !== productId) {
+    lastRefsRef.current = productId;
+    fetchProductRefs(productId);
+  }
+
+  if (lastCategoriesRef.current !== productId) {
+    lastCategoriesRef.current = productId;
+    fetchCategories(productId);
+  }
+}, [productId]);
+```
+
+#### Dependency Array Pitfalls
+
+Never place an **object reference** in a `useEffect` dependency array. A new object reference from parent `setState` will spuriously re-trigger the effect even when the underlying data is unchanged.
+
+```tsx
+// ❌ Wrong: apiProduct is an object; new reference triggers extra fetch
+useEffect(() => {
+  fetchRelatedData();
+}, [apiProduct]);
+
+// ✅ Correct: depend on primitive values only
+useEffect(() => {
+  fetchRelatedData();
+}, [apiProduct.productId, apiProduct.type]);
+```
+
+#### Custom Hook Deduplication
+
+When encapsulating data fetching in custom hooks, apply the same guard inside the hook so consumers do not need to think about it:
+
+```tsx
+export function useApiList(productType: string) {
+  const [list, setList] = useState<ApiProduct[]>([]);
+  const lastTypeRef = useRef<string | null>(null);
+
+  const fetch = useCallback(
+    async (page = 1, size = 10) => {
+      if (lastTypeRef.current === productType) return;
+      lastTypeRef.current = productType;
+      const res = await apiProductApi.getApiProducts({ type: productType, page, size });
+      setList(res.data.content);
+    },
+    [productType],
+  );
+
+  return { list, fetch };
+}
+```
+
+#### Manual Refresh vs Auto Load
+
+The `useRef` guard must **only block automatic initialization loads**. User-initiated actions (clicking Refresh, Search, Submit, pagination changes) must bypass the ref and always execute:
+
+```tsx
+// ✅ Auto-load guarded by ref
+useEffect(() => {
+  if (lastFetchedTypeRef.current === productType) return;
+  lastFetchedTypeRef.current = productType;
+  fetchProducts(1, 10, '');
+}, [productType]);
+
+// ✅ Manual refresh bypasses the ref
+const handleRefresh = () => {
+  fetchProducts(pagination.current, pagination.pageSize, searchInput);
+};
+
+// ✅ Search bypasses the ref
+const handleSearch = () => {
+  fetchProducts(1, pagination.pageSize, searchInput);
+};
+```
+
+#### Naming Convention for Refs
+
+Use consistent names so reviewers can instantly recognize deduplication refs:
+
+| Pattern        | Ref name                   |
+| -------------- | -------------------------- |
+| Single id      | `lastFetched{Entity}IdRef` |
+| Composite key  | `lastFetched{Scope}KeyRef` |
+| Once-only flag | `hasFetched{Scope}Ref`     |
+
+Examples: `lastFetchedProductIdRef`, `lastFetchedTypeRef`, `lastPublishedKeyRef`, `allPortalsFetchedRef`.
+
+#### Scenarios That Do NOT Need Deduplication
+
+Do not add guards for:
+
+- User-triggered actions (button clicks, search submit, pagination change)
+- Form submission callbacks
+- Polling intervals (`setInterval`)
+- Real-time SSE / WebSocket listeners
+
 ---
 
 ## 7. Path Aliases

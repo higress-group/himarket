@@ -1,7 +1,8 @@
 import { PlusOutlined, ExclamationCircleOutlined, DeleteOutlined } from '@ant-design/icons';
-import { Button, Table, Modal, Form, Input, message, Space } from 'antd';
+import { Button, Modal, Form, Input, message, Space } from 'antd';
 import { useState } from 'react';
 
+import { DataTable } from '@/components/common/DataTable';
 import { portalApi } from '@/lib/api';
 import type { Portal, PortalDomainConfig } from '@/types';
 
@@ -110,15 +111,13 @@ export function PortalDomain({ onRefresh, portal }: PortalDomainProps) {
         </Space>
       </div>
 
-      <Table
+      <DataTable<PortalDomainConfig>
         columns={domainColumns}
         dataSource={domains}
         locale={{
           emptyText: '暂无绑定域名',
         }}
-        pagination={false}
         rowKey="domain"
-        size="small"
       />
 
       {/* 域名绑定模态框 */}

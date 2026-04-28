@@ -142,7 +142,7 @@ export default function ImportProductsModal({
   // 加载网关列表并分类
   const fetchGateways = async () => {
     try {
-      const res = await gatewayApi.getGateways({ page: 0, size: 100 });
+      const res = await gatewayApi.getGateways({ page: 1, size: 100 });
       const allGateways = res.data?.content || [];
 
       // 分类网关
@@ -164,7 +164,7 @@ export default function ImportProductsModal({
   // 加载 Nacos 列表
   const fetchNacosInstances = async () => {
     try {
-      const res = await nacosApi.getNacos({ page: 0, size: 100 });
+      const res = await nacosApi.getNacos({ page: 1, size: 100 });
       const instances = res.data?.content || [];
       setNacosInstances(instances);
     } catch (error: unknown) {
@@ -177,7 +177,7 @@ export default function ImportProductsModal({
   // 加载 Nacos 命名空间列表
   const fetchNamespaces = async (nacosId: string) => {
     try {
-      const res = await nacosApi.getNamespaces(nacosId, { page: 0, size: 100 });
+      const res = await nacosApi.getNamespaces(nacosId, { page: 1, size: 100 });
       const nsContent = (res.data?.content || []) as unknown[];
       setNamespaces(nsContent);
       // 默认选择 public 命名空间
@@ -218,7 +218,7 @@ export default function ImportProductsModal({
         switch (productType) {
           case 'REST_API':
             res = await gatewayApi.getGatewayRestApis(values.gatewayId, {
-              page: 0,
+              page: 1,
               size: pageSize,
             });
             {
@@ -237,7 +237,7 @@ export default function ImportProductsModal({
             break;
           case 'MCP_SERVER':
             res = await gatewayApi.getGatewayMcpServers(values.gatewayId, {
-              page: 0,
+              page: 1,
               size: pageSize,
             });
             {
@@ -258,7 +258,7 @@ export default function ImportProductsModal({
             break;
           case 'AGENT_API':
             res = await gatewayApi.getGatewayAgentApis(values.gatewayId, {
-              page: 0,
+              page: 1,
               size: pageSize,
             });
             {
@@ -277,7 +277,7 @@ export default function ImportProductsModal({
             break;
           case 'MODEL_API':
             res = await gatewayApi.getGatewayModelApis(values.gatewayId, {
-              page: 0,
+              page: 1,
               size: pageSize,
             });
             {
@@ -303,7 +303,7 @@ export default function ImportProductsModal({
         if (productType === 'MCP_SERVER') {
           res = await nacosApi.getNacosMcpServers(values.nacosId, {
             namespaceId: values.namespaceId,
-            page: 0,
+            page: 1,
             size: pageSize,
           });
           {
@@ -323,7 +323,7 @@ export default function ImportProductsModal({
         } else if (productType === 'AGENT_API') {
           res = await nacosApi.getNacosAgents(values.nacosId, {
             namespaceId: values.namespaceId,
-            page: 0,
+            page: 1,
             size: pageSize,
           });
           {

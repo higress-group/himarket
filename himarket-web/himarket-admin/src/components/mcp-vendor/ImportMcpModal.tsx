@@ -31,7 +31,7 @@ export default function ImportMcpModal({ onClose, onImportSuccess, open }: Impor
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [importResult, setImportResult] = useState<BatchImportResult | null>(null);
-  const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 });
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
 
   const selectedVendor = VENDOR_OPTIONS.find((v) => v.value === vendorType);
 
@@ -43,7 +43,7 @@ export default function ImportMcpModal({ onClose, onImportSuccess, open }: Impor
     setSelectedItems([]);
     setKeyword('');
     setError(null);
-    setPagination({ current: 1, pageSize: 20, total: 0 });
+    setPagination({ current: 1, pageSize: 10, total: 0 });
   }, []);
 
   const handleBack = useCallback(() => {
@@ -196,7 +196,7 @@ export default function ImportMcpModal({ onClose, onImportSuccess, open }: Impor
     setKeyword('');
     setError(null);
     setImportResult(null);
-    setPagination({ current: 1, pageSize: 20, total: 0 });
+    setPagination({ current: 1, pageSize: 10, total: 0 });
     onClose();
   }, [onClose]);
 

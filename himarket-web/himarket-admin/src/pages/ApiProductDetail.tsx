@@ -8,7 +8,7 @@ import {
   InboxOutlined,
 } from '@ant-design/icons';
 import { Button, Dropdown, Modal, message } from 'antd';
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import ApiProductFormModal from '@/components/api-product/ApiProductFormModal';
@@ -114,6 +114,7 @@ export default function ApiProductDetail() {
   const [activeTab, setActiveTab] = useState(validTab);
 
   const [editModalVisible, setEditModalVisible] = useState(false);
+  const lastFetchedProductIdRef = useRef<string | null>(null);
 
   const fetchApiProduct = useCallback(async () => {
     if (productId) {
@@ -141,8 +142,12 @@ export default function ApiProductDetail() {
   };
 
   useEffect(() => {
+    if (!productId || lastFetchedProductIdRef.current === productId) {
+      return;
+    }
+    lastFetchedProductIdRef.current = productId;
     fetchApiProduct();
-  }, [fetchApiProduct]);
+  }, [productId, fetchApiProduct]);
 
   // 同步URL参数和activeTab状态
   useEffect(() => {

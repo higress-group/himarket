@@ -1,40 +1,23 @@
 import {
-  SearchOutlined,
   ExclamationCircleOutlined,
-  ApiOutlined,
-  RobotOutlined,
-  BulbOutlined,
-  ThunderboltOutlined,
-  UserOutlined,
+  CheckCircleFilled,
+  ClockCircleFilled,
+  ExclamationCircleFilled,
+  EditOutlined,
+  DeleteOutlined,
 } from '@ant-design/icons';
-import { Table, Input, Button, Select, Modal, Tooltip, message } from 'antd';
-import { useCallback, useEffect, useState, useImperativeHandle, forwardRef } from 'react';
+import { Button, Modal, Tooltip, message } from 'antd';
+import { useCallback, useEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import ApiProductFormModal from '@/components/api-product/ApiProductFormModal';
 import BatchActionBar from '@/components/api-product/BatchActionBar';
-import McpServerIcon from '@/components/icons/McpServerIcon';
+import { DataTable } from '@/components/common/DataTable';
 import { apiProductApi } from '@/lib/api';
+import { copyToClipboard, formatDateTime } from '@/lib/utils';
 import type { ApiProduct } from '@/types/api-product';
 
 import type { TableProps } from 'antd';
-
-// 产品类型标签映射
-const TYPE_LABELS: Record<string, string> = {
-  AGENT_API: 'Agent API',
-  AGENT_SKILL: 'Agent Skill',
-  MCP_SERVER: 'MCP Server',
-  MODEL_API: 'Model API',
-  REST_API: 'REST API',
-  WORKER: 'Worker',
-};
-
-// 状态配置
-const STATUS_CONFIG: Record<string, { color: string; text: string }> = {
-  PENDING: { color: '#faad14', text: '待配置' },
-  PUBLISHED: { color: '#52c41a', text: '已发布' },
-  READY: { color: '#1677ff', text: '待发布' },
-};
 
 export interface ProductTableProps {
   productType: 'MODEL_API' | 'MCP_SERVER' | 'AGENT_SKILL' | 'WORKER' | 'AGENT_API' | 'REST_API';
@@ -45,30 +28,32 @@ export interface ProductTableRef {
   refresh: () => void;
 }
 
-function getEmptyIcon(type: string) {
-  const style = { color: '#d9d9d9', fontSize: '48px' };
-  switch (type) {
-    case 'REST_API':
-      return <ApiOutlined style={style} />;
-    case 'MCP_SERVER':
-      return <McpServerIcon style={style} />;
-    case 'AGENT_API':
-      return <RobotOutlined style={style} />;
-    case 'MODEL_API':
-      return <BulbOutlined style={style} />;
-    case 'AGENT_SKILL':
-      return <ThunderboltOutlined style={style} />;
-    case 'WORKER':
-      return <UserOutlined style={style} />;
-    default:
-      return <ApiOutlined style={style} />;
+function renderStatusTag(status: string) {
+  if (status === 'PUBLISHED') {
+    return (
+      <div className="flex items-center gap-1.5 text-xs">
+        <CheckCircleFilled className="text-green-500" style={{ fontSize: '12px' }} />
+        <span className="text-gray-700">已发布</span>
+      </div>
+    );
   }
-}
-
-function getDownloadCount(product: ApiProduct): string | number {
-  if (product.type === 'AGENT_SKILL') return product.skillConfig?.downloadCount ?? 0;
-  if (product.type === 'WORKER') return product.workerConfig?.downloadCount ?? 0;
-  return '-';
+  if (status === 'READY') {
+    return (
+      <div className="flex items-center gap-1.5 text-xs">
+        <ClockCircleFilled className="text-blue-500" style={{ fontSize: '12px' }} />
+        <span className="text-gray-700">待发布</span>
+      </div>
+    );
+  }
+  if (status === 'PENDING') {
+    return (
+      <div className="flex items-center gap-1.5 text-xs">
+        <ExclamationCircleFilled className="text-yellow-500" style={{ fontSize: '12px' }} />
+        <span className="text-gray-700">待配置</span>
+      </div>
+    );
+  }
+  return <span className="text-xs text-gray-700">{status}</span>;
 }
 
 const ProductTable = forwardRef<ProductTableRef, ProductTableProps>(({ productType }, ref) => {
@@ -76,19 +61,14 @@ const ProductTable = forwardRef<ProductTableRef, ProductTableProps>(({ productTy
   const [products, setProducts] = useState<ApiProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchInput, setSearchInput] = useState('');
-  const [nameFilter, setNameFilter] = useState('');
-  const [sortBy, setSortBy] = useState<string | undefined>(
-    productType === 'AGENT_SKILL' || productType === 'WORKER' ? 'UPDATED_AT' : undefined,
-  );
-  const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 });
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [modalVisible, setModalVisible] = useState(false);
   const [editingProduct, setEditingProduct] = useState<ApiProduct | null>(null);
-
-  const showSortControl = productType === 'AGENT_SKILL' || productType === 'WORKER';
+  const lastFetchedTypeRef = useRef<string | null>(null);
 
   const fetchProducts = useCallback(
-    (page = 1, size = 20, name = '') => {
+    (page = 1, size = 10, name = '') => {
       setLoading(true);
       const params: Record<string, string | number | undefined> = {
         page,
@@ -96,7 +76,6 @@ const ProductTable = forwardRef<ProductTableRef, ProductTableProps>(({ productTy
         type: productType,
       };
       if (name.trim()) params.name = name.trim();
-      if (showSortControl && sortBy) params.sortBy = sortBy;
 
       apiProductApi
         .getApiProducts(params)
@@ -110,34 +89,20 @@ const ProductTable = forwardRef<ProductTableRef, ProductTableProps>(({ productTy
         })
         .finally(() => setLoading(false));
     },
-    [productType, showSortControl, sortBy],
+    [productType],
   );
 
   useEffect(() => {
+    if (lastFetchedTypeRef.current === productType) return;
+    lastFetchedTypeRef.current = productType;
     setSearchInput('');
-    setNameFilter('');
     setSelectedIds(new Set());
-    setSortBy(showSortControl ? 'UPDATED_AT' : undefined);
-    fetchProducts(1, 20, '');
+    fetchProducts(1, 10, '');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productType]);
 
-  useEffect(() => {
-    if (sortBy !== undefined) {
-      fetchProducts(1, pagination.pageSize, nameFilter);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sortBy, nameFilter, pagination.pageSize]);
-
   const handleSearch = () => {
-    setNameFilter(searchInput);
     fetchProducts(1, pagination.pageSize, searchInput);
-  };
-
-  const handleClearSearch = () => {
-    setSearchInput('');
-    setNameFilter('');
-    fetchProducts(1, pagination.pageSize, '');
   };
 
   const handleDelete = useCallback(
@@ -202,159 +167,124 @@ const ProductTable = forwardRef<ProductTableRef, ProductTableProps>(({ productTy
   const columns: TableProps<ApiProduct>['columns'] = [
     {
       dataIndex: 'name',
-      ellipsis: { showTitle: false },
       render: (_text: unknown, record: ApiProduct) => (
-        <Tooltip placement="topLeft" title={record.name}>
-          <button
-            className="text-colorPrimary hover:text-colorPrimary/80 font-medium cursor-pointer bg-transparent border-none p-0"
-            onClick={() => navigate(`/api-products/${record.productId}`)}
-            type="button"
-          >
-            {record.name}
-          </button>
-        </Tooltip>
+        <div className="min-w-0">
+          <Tooltip placement="topLeft" title={record.name}>
+            <button
+              className="text-blue-600 hover:text-blue-500 font-medium cursor-pointer bg-transparent border-none p-0 truncate block max-w-[200px] text-left text-xs"
+              onClick={() => navigate(`/api-products/${record.productId}`)}
+              type="button"
+            >
+              {record.name}
+            </button>
+          </Tooltip>
+          <Tooltip title="点击复制">
+            <button
+              className="text-xs text-gray-400 mt-0.5 truncate max-w-[200px] cursor-pointer hover:text-blue-500 bg-transparent border-none p-0 block text-left"
+              onClick={() =>
+                copyToClipboard(record.productId).then(() => {
+                  message.success('已复制到剪贴板');
+                })
+              }
+              type="button"
+            >
+              {record.productId}
+            </button>
+          </Tooltip>
+        </div>
       ),
-      title: '产品名称',
-      width: 200,
+      title: '产品名称/ID',
+      width: 280,
     },
     {
       dataIndex: 'status',
-      render: (status: string) => {
-        const config = STATUS_CONFIG[status] || { color: '#d9d9d9', text: status };
-        return (
-          <div className="flex items-center gap-2">
-            <span
-              className="inline-block w-2 h-2 rounded-full"
-              style={{ backgroundColor: config.color }}
-            />
-            <span className="text-sm">{config.text}</span>
-          </div>
-        );
-      },
-      title: '产品状态',
-      width: 120,
+      render: (status: string) => renderStatusTag(status),
+      title: '状态',
+      width: 110,
     },
     {
       dataIndex: 'description',
       ellipsis: { showTitle: false },
       render: (description: string) => (
         <Tooltip placement="topLeft" title={description}>
-          {description || ''}
+          <span className="text-gray-600 text-xs">{description || '-'}</span>
         </Tooltip>
       ),
       title: '描述',
     },
-    ...(productType === 'AGENT_SKILL' || productType === 'WORKER'
-      ? [
-          {
-            render: (_text: unknown, record: ApiProduct) => getDownloadCount(record),
-            title: '下载计数',
-            width: 100,
-          },
-        ]
-      : []),
+    {
+      dataIndex: 'createAt',
+      render: (createAt: string) => (
+        <span className="text-xs text-gray-500">{createAt ? formatDateTime(createAt) : '-'}</span>
+      ),
+      title: '创建时间',
+      width: 160,
+    },
     {
       render: (_text: unknown, record: ApiProduct) => (
-        <div className="flex items-center gap-1">
-          <Button onClick={() => handleEdit(record)} size="small" type="link">
+        <div className="flex items-center gap-2">
+          <Button
+            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 !px-2 text-xs"
+            icon={<EditOutlined />}
+            onClick={() => handleEdit(record)}
+            type="text"
+          >
             编辑
           </Button>
           <Button
-            danger
+            className="text-red-500 hover:text-red-600 hover:bg-red-50 !px-2 text-xs"
+            icon={<DeleteOutlined />}
             onClick={() => handleDelete(record.productId, record.name)}
-            size="small"
-            type="link"
+            type="text"
           >
             删除
           </Button>
         </div>
       ),
       title: '操作',
-      width: 120,
+      width: 160,
     },
   ];
 
   return (
     <div>
-      {/* Search & Sort toolbar */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          {showSortControl && (
-            <Select
-              onChange={(value) => setSortBy(value)}
-              options={[
-                { label: '最多下载', value: 'DOWNLOAD_COUNT' },
-                { label: '最近更新', value: 'UPDATED_AT' },
-              ]}
-              size="middle"
-              style={{ width: 140 }}
-              value={sortBy || 'UPDATED_AT'}
-            />
-          )}
-          <div
-            className="flex items-center border border-gray-300 rounded-md overflow-hidden hover:border-colorPrimary focus-within:border-colorPrimary"
-            style={{ minWidth: 260 }}
-          >
-            <Input
-              allowClear
-              className="border-0"
-              onChange={(e) => setSearchInput(e.target.value)}
-              onClear={handleClearSearch}
-              onPressEnter={handleSearch}
-              placeholder="搜索产品名称"
-              size="middle"
-              value={searchInput}
-              variant="borderless"
-            />
-            <Button
-              className="border-0 rounded-none"
-              icon={<SearchOutlined />}
-              onClick={handleSearch}
-              style={{ width: 40 }}
-              type="text"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Batch action bar */}
-      {selectedIds.size > 0 && (
-        <BatchActionBar
-          onCancel={() => setSelectedIds(new Set())}
-          onComplete={() => {
-            setSelectedIds(new Set());
-            fetchProducts(pagination.current, pagination.pageSize);
-          }}
-          products={products}
-          selectedIds={selectedIds}
-        />
-      )}
-
-      {/* Table */}
-      <Table<ApiProduct>
+      <DataTable<ApiProduct>
         columns={columns}
         dataSource={products}
         loading={loading}
-        locale={{
-          emptyText: (
-            <div className="flex flex-col items-center justify-center py-12 text-gray-400">
-              {getEmptyIcon(productType)}
-              <p className="text-base mt-3">暂无 {TYPE_LABELS[productType] || productType} 产品</p>
-            </div>
-          ),
-        }}
         pagination={{
           current: pagination.current,
           onChange: (page, pageSize) => fetchProducts(page, pageSize),
           pageSize: pagination.pageSize,
-          pageSizeOptions: ['10', '20', '50', '100'],
-          showQuickJumper: true,
-          showSizeChanger: true,
-          showTotal: (total) => `共 ${total} 条`,
           total: pagination.total,
         }}
         rowKey="productId"
         rowSelection={rowSelection}
+        search={{
+          onChange: (value) => {
+            setSearchInput(value);
+            if (!value) {
+              fetchProducts(1, pagination.pageSize, '');
+            }
+          },
+          onSearch: handleSearch,
+          placeholder: '搜索产品名称',
+          value: searchInput,
+        }}
+        toolbarRight={
+          selectedIds.size > 0 ? (
+            <BatchActionBar
+              inline
+              onCancel={() => setSelectedIds(new Set())}
+              onComplete={() => {
+                setSelectedIds(new Set());
+                fetchProducts(pagination.current, pagination.pageSize);
+              }}
+              products={products}
+              selectedIds={selectedIds}
+            />
+          ) : undefined
+        }
       />
 
       {/* Create/Edit modal */}

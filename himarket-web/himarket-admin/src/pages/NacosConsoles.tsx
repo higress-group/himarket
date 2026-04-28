@@ -1,12 +1,14 @@
-import { PlusOutlined, StarOutlined } from '@ant-design/icons';
-import { Button, Table, Modal, Form, Input, message, Select, Tag, Popconfirm } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Button, Modal, Form, Input, message, Select, Tooltip } from 'antd';
 import dayjs from 'dayjs';
 import { useState, useEffect, useCallback } from 'react';
 
+import { DataTable } from '@/components/common/DataTable';
 import ImportMseNacosModal from '@/components/console/ImportMseNacosModal';
 import type { NacosImportType } from '@/components/console/NacosTypeSelector';
 import NacosTypeSelector from '@/components/console/NacosTypeSelector';
 import { nacosApi } from '@/lib/api';
+import { copyToClipboard } from '@/lib/utils';
 import type { CreateNacosRequest, UpdateNacosRequest } from '@/types';
 import type { NacosInstance, NacosNamespace } from '@/types/gateway';
 
@@ -30,14 +32,13 @@ export default function NacosConsoles() {
   const [importNacosId, setImportNacosId] = useState<string | null>(null);
   // 创建来源：OPEN_SOURCE 或 MSE（用于控制是否展示 AK/SK）
   const [creationMode, setCreationMode] = useState<'OPEN_SOURCE' | 'MSE' | null>(null);
-  // 命名空间字段已移除
-  // 设置默认命名空间弹窗
-  const [nsModalVisible, setNsModalVisible] = useState(false);
-  const [nsTargetNacos, setNsTargetNacos] = useState<NacosInstance | null>(null);
-  const [nsNamespaces, setNsNamespaces] = useState<NacosNamespace[]>([]);
-  const [nsLoading, setNsLoading] = useState(false);
-  const [nsSelectedValue, setNsSelectedValue] = useState<string>('public');
-  const [nsSaving, setNsSaving] = useState(false);
+  // 设置默认弹窗
+  const [setDefaultVisible, setSetDefaultVisible] = useState(false);
+  const [setDefaultNacosId, setSetDefaultNacosId] = useState<string>('');
+  const [setDefaultNamespaces, setSetDefaultNamespaces] = useState<NacosNamespace[]>([]);
+  const [setDefaultNsLoading, setSetDefaultNsLoading] = useState(false);
+  const [setDefaultSelectedNs, setSetDefaultSelectedNs] = useState<string>('public');
+  const [setDefaultSaving, setSetDefaultSaving] = useState(false);
 
   // 分页状态
   const [currentPage, setCurrentPage] = useState(1);
@@ -55,7 +56,6 @@ export default function NacosConsoles() {
       setTotal(response.data.totalElements || 0);
     } catch (error) {
       console.error('获取Nacos实例列表失败:', error);
-      // message.error('获取Nacos实例列表失败')
     } finally {
       setLoading(false);
     }
@@ -69,47 +69,6 @@ export default function NacosConsoles() {
     setCurrentPage(page);
     if (size) {
       setPageSize(size);
-    }
-  };
-
-  const handleSetDefault = async (nacosId: string) => {
-    try {
-      await nacosApi.setDefaultNacos(nacosId);
-      message.success('已设为默认 Nacos 实例');
-      fetchNacosInstances();
-    } catch (error) {
-      console.error('设置默认失败:', error);
-    }
-  };
-
-  const handleOpenNsModal = async (record: NacosInstance) => {
-    setNsTargetNacos(record);
-    setNsSelectedValue(record.defaultNamespace || 'public');
-    setNsModalVisible(true);
-    setNsLoading(true);
-    try {
-      const res = await nacosApi.getNamespaces(record.nacosId, { page: 1, size: 1000 });
-      setNsNamespaces(res.data?.content || []);
-    } catch {
-      setNsNamespaces([]);
-      message.error('获取命名空间列表失败，请检查 Nacos 连接信息');
-    } finally {
-      setNsLoading(false);
-    }
-  };
-
-  const handleSaveDefaultNs = async () => {
-    if (!nsTargetNacos) return;
-    setNsSaving(true);
-    try {
-      await nacosApi.setDefaultNamespace(nsTargetNacos.nacosId, nsSelectedValue);
-      message.success('默认命名空间设置成功');
-      setNsModalVisible(false);
-      fetchNacosInstances();
-    } catch {
-      message.error('设置默认命名空间失败');
-    } finally {
-      setNsSaving(false);
     }
   };
 
@@ -134,7 +93,62 @@ export default function NacosConsoles() {
       fetchNacosInstances();
     } catch (error) {
       console.error('删除失败:', error);
-      // message.error('删除失败')
+    }
+  };
+
+  const loadNamespacesForNacos = async (nacosId: string) => {
+    setSetDefaultNsLoading(true);
+    try {
+      const res = await nacosApi.getNamespaces(nacosId, { page: 1, size: 1000 });
+      const list = res.data?.content || [];
+      setSetDefaultNamespaces(list);
+      // 默认选中该实例已保存的 defaultNamespace，若不存在则取列表第一个或 public
+      const instance = nacosInstances.find((i) => i.nacosId === nacosId);
+      const savedNs = instance?.defaultNamespace;
+      if (savedNs && list.some((ns: NacosNamespace) => ns.namespaceId === savedNs)) {
+        setSetDefaultSelectedNs(savedNs);
+      } else if (list.length > 0) {
+        setSetDefaultSelectedNs(list[0].namespaceId || 'public');
+      } else {
+        setSetDefaultSelectedNs('public');
+      }
+    } catch {
+      setSetDefaultNamespaces([]);
+      setSetDefaultSelectedNs('public');
+      message.error('获取命名空间列表失败，请检查 Nacos 连接信息');
+    } finally {
+      setSetDefaultNsLoading(false);
+    }
+  };
+
+  const handleOpenSetDefault = () => {
+    // 默认选中当前默认实例，若无则选中列表第一个
+    const defaultInstance = nacosInstances.find((i) => i.isDefault);
+    const targetId = defaultInstance?.nacosId || nacosInstances[0]?.nacosId || '';
+    setSetDefaultNacosId(targetId);
+    setSetDefaultVisible(true);
+    if (targetId) {
+      loadNamespacesForNacos(targetId);
+    }
+  };
+
+  const handleNacosChange = (nacosId: string) => {
+    setSetDefaultNacosId(nacosId);
+    loadNamespacesForNacos(nacosId);
+  };
+
+  const handleSaveDefault = async () => {
+    if (!setDefaultNacosId) return;
+    setSetDefaultSaving(true);
+    try {
+      await nacosApi.setDefaultNacos(setDefaultNacosId, setDefaultSelectedNs);
+      message.success('已设为默认 Nacos 实例');
+      setSetDefaultVisible(false);
+      fetchNacosInstances();
+    } catch {
+      message.error('设置默认失败');
+    } finally {
+      setSetDefaultSaving(false);
     }
   };
 
@@ -169,7 +183,6 @@ export default function NacosConsoles() {
       setImportNacosId(null);
     } catch (error) {
       console.error('操作失败:', error);
-      // message.error('操作失败')
     }
   };
 
@@ -181,23 +194,46 @@ export default function NacosConsoles() {
     form.resetFields();
   };
 
-  // 命名空间动态加载逻辑已移除
-
   const columns = [
     {
       dataIndex: 'nacosName',
       key: 'nacosName',
       render: (name: string, record: NacosInstance) => (
-        <span>
-          {name}
+        <div className="flex flex-col">
+          <span className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-900 truncate">{name}</span>
+            {record.isDefault && (
+              <button
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-slate-800 text-white cursor-pointer border-none"
+                onClick={handleOpenSetDefault}
+                type="button"
+              >
+                默认
+                <EditOutlined style={{ fontSize: '10px' }} />
+              </button>
+            )}
+          </span>
+          <Tooltip title="点击复制">
+            <button
+              className="text-xs text-gray-400 mt-0.5 truncate max-w-[200px] cursor-pointer hover:text-blue-500 bg-transparent border-none p-0 block text-left"
+              onClick={() =>
+                copyToClipboard(record.nacosId).then(() => {
+                  message.success('已复制到剪贴板');
+                })
+              }
+              type="button"
+            >
+              {record.nacosId}
+            </button>
+          </Tooltip>
           {record.isDefault && (
-            <Tag className="ml-2" color="blue">
-              <StarOutlined /> 默认
-            </Tag>
+            <span className="text-xs text-gray-400 mt-0.5">
+              默认命名空间: {record.defaultNamespace || 'public'}
+            </span>
           )}
-        </span>
+        </div>
       ),
-      title: '实例名称',
+      title: '实例名称/ID',
     },
     {
       dataIndex: 'serverUrl',
@@ -209,21 +245,6 @@ export default function NacosConsoles() {
       key: 'displayServerUrl',
       render: (url: string) => url || <span style={{ color: '#999' }}>-</span>,
       title: '展示地址',
-    },
-    {
-      dataIndex: 'defaultNamespace',
-      key: 'defaultNamespace',
-      render: (ns: string, record: NacosInstance) => (
-        <Button
-          onClick={() => handleOpenNsModal(record)}
-          size="small"
-          style={{ padding: 0 }}
-          type="link"
-        >
-          {ns || 'public'}
-        </Button>
-      ),
-      title: '默认命名空间',
     },
     {
       dataIndex: 'createAt',
@@ -239,35 +260,30 @@ export default function NacosConsoles() {
     {
       key: 'action',
       render: (_: NacosInstance, record: NacosInstance) => (
-        <div className="flex items-center">
-          <Button onClick={() => handleEdit(record)} type="link">
+        <div className="flex items-center gap-1">
+          <Button
+            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 !px-2 text-xs"
+            icon={<EditOutlined />}
+            onClick={() => handleEdit(record)}
+            type="text"
+          >
             编辑
           </Button>
-          {!record.isDefault && (
-            <Popconfirm
-              cancelText="取消"
-              description="设为默认后，新建的 Agent Skill 将自动绑定该 Nacos 实例"
-              okText="确认"
-              onConfirm={() => handleSetDefault(record.nacosId)}
-              title="设为默认 Nacos 实例"
-            >
-              <Button type="link">设为默认</Button>
-            </Popconfirm>
-          )}
           <Button
-            className="ml-2"
+            className="text-red-500 hover:text-red-600 hover:bg-red-50 !px-2 text-xs"
             danger
             disabled={record.isDefault}
+            icon={<DeleteOutlined />}
             onClick={() => handleDelete(record.nacosId, record.nacosName)}
             title={record.isDefault ? '默认实例不允许删除' : undefined}
-            type="link"
+            type="text"
           >
             删除
           </Button>
         </div>
       ),
       title: '操作',
-      width: 220,
+      width: 180,
     },
   ];
 
@@ -283,24 +299,18 @@ export default function NacosConsoles() {
         </Button>
       </div>
 
-      <div className="bg-white rounded-lg">
-        <Table
-          columns={columns}
-          dataSource={nacosInstances}
-          loading={loading}
-          pagination={{
-            current: currentPage,
-            onChange: handlePageChange,
-            onShowSizeChange: handlePageChange,
-            pageSize: pageSize,
-            showQuickJumper: true,
-            showSizeChanger: true,
-            showTotal: (total) => `共 ${total} 条`,
-            total: total,
-          }}
-          rowKey="nacosId"
-        />
-      </div>
+      <DataTable<NacosInstance>
+        columns={columns}
+        dataSource={nacosInstances}
+        loading={loading}
+        pagination={{
+          current: currentPage,
+          onChange: handlePageChange,
+          pageSize: pageSize,
+          total: total,
+        }}
+        rowKey="nacosId"
+      />
 
       {/* 开源 Nacos 创建/编辑弹窗（保持原有） */}
       <Modal
@@ -367,7 +377,7 @@ export default function NacosConsoles() {
             label="展示地址"
             name="displayServerUrl"
           >
-            <Input placeholder="例如 https://nacos.example.com:8848 或 http://114.215.180.147:8848" />
+            <Input placeholder="例如 https://nacos.example.com:8848" />
           </Form.Item>
 
           {/* 用户名/密码改为非必填 */}
@@ -436,35 +446,50 @@ export default function NacosConsoles() {
         visible={mseImportVisible}
       />
 
-      {/* 设置默认命名空间弹窗 */}
+      {/* 设置默认 Nacos 实例 + 命名空间弹窗 */}
       <Modal
         cancelText="取消"
-        confirmLoading={nsSaving}
+        confirmLoading={setDefaultSaving}
         okText="确认"
         onCancel={() => {
-          setNsModalVisible(false);
-          setNsTargetNacos(null);
-          setNsNamespaces([]);
+          setSetDefaultVisible(false);
+          setSetDefaultNacosId('');
+          setSetDefaultNamespaces([]);
         }}
-        onOk={handleSaveDefaultNs}
-        open={nsModalVisible}
-        title={`设置默认命名空间 - ${nsTargetNacos?.nacosName || ''}`}
+        onOk={handleSaveDefault}
+        open={setDefaultVisible}
+        title="设置默认 Nacos 实例"
         width={480}
       >
-        <div style={{ color: '#666', marginBottom: 12 }}>
-          选择该 Nacos 实例的默认命名空间，新建的 Skill 将自动使用此命名空间。
+        <div className="space-y-4">
+          <div>
+            <div className="text-sm text-gray-700 mb-1">选择实例</div>
+            <Select
+              onChange={handleNacosChange}
+              options={nacosInstances.map((inst) => ({
+                label: inst.nacosName,
+                value: inst.nacosId,
+              }))}
+              placeholder="选择 Nacos 实例"
+              style={{ width: '100%' }}
+              value={setDefaultNacosId || undefined}
+            />
+          </div>
+          <div>
+            <div className="text-sm text-gray-700 mb-1">选择命名空间</div>
+            <Select
+              loading={setDefaultNsLoading}
+              onChange={(val) => setSetDefaultSelectedNs(val)}
+              options={setDefaultNamespaces.map((ns: NacosNamespace) => ({
+                label: `${ns.namespaceName || ns.namespaceId}${ns.namespaceDesc ? ` (${ns.namespaceDesc})` : ''}`,
+                value: ns.namespaceId || 'public',
+              }))}
+              placeholder="选择命名空间"
+              style={{ width: '100%' }}
+              value={setDefaultSelectedNs}
+            />
+          </div>
         </div>
-        <Select
-          loading={nsLoading}
-          onChange={(val) => setNsSelectedValue(val)}
-          options={nsNamespaces.map((ns: NacosNamespace) => ({
-            label: `${ns.namespaceName || ns.namespaceId}${ns.namespaceDesc ? ` (${ns.namespaceDesc})` : ''}`,
-            value: ns.namespaceId || 'public',
-          }))}
-          placeholder="选择命名空间"
-          style={{ width: '100%' }}
-          value={nsSelectedValue}
-        />
       </Modal>
     </div>
   );

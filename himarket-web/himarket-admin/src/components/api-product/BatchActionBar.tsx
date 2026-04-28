@@ -10,9 +10,11 @@ interface BatchActionBarProps {
   products: ApiProduct[];
   onComplete: () => void;
   onCancel: () => void;
+  inline?: boolean;
 }
 
 export default function BatchActionBar({
+  inline,
   onCancel,
   onComplete,
   products,
@@ -130,23 +132,40 @@ export default function BatchActionBar({
 
   return (
     <>
-      <div className="flex items-center gap-4 p-4 bg-colorPrimaryBg rounded-xl border border-colorPrimaryBorderHover mb-4">
-        <span className="text-sm font-medium">已选择 {selectedIds.size} 项</span>
-        <Button danger icon={<DeleteOutlined />} onClick={handleBatchDelete}>
-          批量删除
-        </Button>
-        <Button
-          disabled={!canPublish}
-          icon={<SendOutlined />}
-          onClick={() => setPublishModalVisible(true)}
-          type="primary"
-        >
-          批量发布
-        </Button>
-        <Button icon={<CloseOutlined />} onClick={onCancel} type="text">
-          取消选择
-        </Button>
-      </div>
+      {inline ? (
+        <div className="flex items-center gap-2">
+          <Button danger icon={<DeleteOutlined />} onClick={handleBatchDelete} type="primary">
+            批量删除
+          </Button>
+          <Button
+            disabled={!canPublish}
+            icon={<SendOutlined />}
+            onClick={() => setPublishModalVisible(true)}
+            type="primary"
+          >
+            批量发布
+          </Button>
+        </div>
+      ) : (
+        <div className="flex items-center gap-4 p-4 bg-colorPrimaryBg rounded-xl border border-colorPrimaryBorderHover mb-4">
+          <span className="text-sm font-medium">已选择 {selectedIds.size} 项</span>
+          <Button danger icon={<DeleteOutlined />} onClick={handleBatchDelete} size="small">
+            批量删除
+          </Button>
+          <Button
+            disabled={!canPublish}
+            icon={<SendOutlined />}
+            onClick={() => setPublishModalVisible(true)}
+            size="small"
+            type="primary"
+          >
+            批量发布
+          </Button>
+          <Button icon={<CloseOutlined />} onClick={onCancel} size="small" type="text">
+            取消选择
+          </Button>
+        </div>
+      )}
 
       <Modal
         cancelText="取消"

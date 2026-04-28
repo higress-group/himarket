@@ -1,5 +1,5 @@
 import { Form, Modal, Select, message } from 'antd';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { apiProductApi, nacosApi, mcpServerApi } from '@/lib/api';
 import { getGatewayTypeLabel } from '@/lib/constant';
@@ -46,8 +46,12 @@ export function LinkApiModal({
   >([]);
   const [selectedNamespace, setSelectedNamespace] = useState<string | null>(null);
 
-  const { gateways, loading: gatewayLoading } = useGateways(apiProduct.type);
-  const { instances: nacosInstances, loading: nacosLoading } = useNacosInstances();
+  const { fetch: fetchGateways, gateways, loading: gatewayLoading } = useGateways(apiProduct.type);
+  const {
+    fetch: fetchNacosInstances,
+    instances: nacosInstances,
+    loading: nacosLoading,
+  } = useNacosInstances();
   const {
     apiList,
     clear,
@@ -55,6 +59,13 @@ export function LinkApiModal({
     fetchByNacos,
     loading: apiLoading,
   } = useApiList(apiProduct.type);
+
+  useEffect(() => {
+    if (open) {
+      fetchGateways();
+      fetchNacosInstances();
+    }
+  }, [open, fetchGateways, fetchNacosInstances]);
 
   const handleSourceTypeChange = (value: 'GATEWAY' | 'NACOS') => {
     setSourceType(value);

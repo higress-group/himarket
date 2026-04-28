@@ -17,12 +17,12 @@ export const createProductCategory = async (
 
 // 获取所有产品类别（无分页）
 export const getProductCategories = async (): Promise<{ data: { content: ProductCategory[] } }> => {
-  return await api.get('/product-categories?page=0&size=1000');
+  return await api.get('/product-categories?page=1&size=1000');
 };
 
 // 分页获取产品类别
 export const getProductCategoriesByPage = async (
-  page: number = 0,
+  page: number = 1,
   size: number = 10,
   params?: QueryProductCategoryParam,
 ): Promise<{ data: ProductCategoryPage }> => {

@@ -10,7 +10,7 @@ import {
   ClockCircleFilled,
 } from '@ant-design/icons';
 import { Card, Row, Col, Statistic, Button, Tag, message } from 'antd';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { apiProductApi, mcpServerApi } from '@/lib/api';
@@ -50,14 +50,23 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
 
   const navigate = useNavigate();
 
+  const { productId, type } = apiProduct;
+  const lastFetchedKeyRef = useRef<string>('');
+
   useEffect(() => {
-    if (!apiProduct.productId) {
+    if (!productId) {
       return;
     }
 
+    const key = `${productId}-${type}`;
+    if (lastFetchedKeyRef.current === key) {
+      return;
+    }
+    lastFetchedKeyRef.current = key;
+
     const fetchPublishedPortals = async () => {
       try {
-        const res = await apiProductApi.getApiProductPublications(apiProduct.productId);
+        const res = await apiProductApi.getApiProductPublications(productId);
         setPortalCount(res.data.content?.length || 0);
       } catch {
         // ignore
@@ -66,8 +75,8 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
 
     const fetchSubscriberCount = async () => {
       try {
-        const res = await apiProductApi.getProductSubscriptions(apiProduct.productId, {
-          page: 0,
+        const res = await apiProductApi.getProductSubscriptions(productId, {
+          page: 1,
           size: 1,
         });
         setSubscriberCount(res.data.totalElements || 0);
@@ -78,7 +87,7 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
 
     const fetchProductCategories = async () => {
       try {
-        const res = await apiProductApi.getProductCategories(apiProduct.productId);
+        const res = await apiProductApi.getProductCategories(productId);
         const categoriesData = res.data as unknown;
 
         if (!Array.isArray(categoriesData) || categoriesData.length === 0) {
@@ -107,7 +116,7 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
 
     const fetchMcpMeta = async () => {
       try {
-        const res = await mcpServerApi.listMetaByProduct(apiProduct.productId);
+        const res = await mcpServerApi.listMetaByProduct(productId);
         setMcpMetaList(res.data || []);
       } catch {
         setMcpMetaList([]);
@@ -117,10 +126,10 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
     fetchPublishedPortals();
     fetchProductCategories();
     fetchSubscriberCount();
-    if (apiProduct.type === 'MCP_SERVER') {
+    if (type === 'MCP_SERVER') {
       fetchMcpMeta();
     }
-  }, [apiProduct]);
+  }, [productId, type]);
 
   return (
     <div className="p-6 space-y-6">

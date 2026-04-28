@@ -1,10 +1,11 @@
-import { EyeOutlined, DeleteOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
-import { Table, Modal, Button, Space, message, Empty } from 'antd';
+import { DeleteOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
+import { Modal, Button, message, Empty, Tooltip, Table } from 'antd';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { DataTable } from '@/components/common/DataTable';
 import { apiProductApi, portalApi } from '@/lib/api';
-import { ProductTypeMap } from '@/lib/utils';
+import { ProductTypeMap, copyToClipboard } from '@/lib/utils';
 import type { Portal, ApiProduct, Publication } from '@/types';
 
 interface PortalApiProductsProps {
@@ -87,11 +88,31 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
       key: 'nameAndId',
       render: (_: unknown, record: Publication) => (
         <div>
-          <div className="text-sm font-medium text-gray-900 truncate">{record.productName}</div>
-          <div className="text-xs text-gray-500 truncate">{record.productId}</div>
+          <Tooltip placement="topLeft" title={record.productName}>
+            <button
+              className="text-blue-600 hover:text-blue-500 font-medium cursor-pointer bg-transparent border-none p-0 truncate block max-w-[200px] text-left text-xs"
+              onClick={() => navigate(`/api-products/${record.productId}`)}
+              type="button"
+            >
+              {record.productName}
+            </button>
+          </Tooltip>
+          <Tooltip title="点击复制">
+            <button
+              className="text-xs text-gray-400 mt-0.5 truncate max-w-[200px] cursor-pointer hover:text-blue-500 bg-transparent border-none p-0 block text-left"
+              onClick={() =>
+                copyToClipboard(record.productId).then(() => {
+                  message.success('已复制到剪贴板');
+                })
+              }
+              type="button"
+            >
+              {record.productId}
+            </button>
+          </Tooltip>
         </div>
       ),
-      title: '名称/ID',
+      title: '产品名称/ID',
       width: 280,
     },
     {
@@ -110,29 +131,17 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
     {
       key: 'action',
       render: (_: unknown, record: Publication) => (
-        <Space size="middle">
-          <Button
-            icon={<EyeOutlined />}
-            onClick={() => {
-              navigate(`/api-products/${record.productId}`);
-            }}
-            type="link"
-          >
-            查看
-          </Button>
-
-          <Button
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => handleDelete(record.publicationId, record.productId, record.productName)}
-            type="link"
-          >
-            移除
-          </Button>
-        </Space>
+        <Button
+          danger
+          icon={<DeleteOutlined />}
+          onClick={() => handleDelete(record.publicationId, record.productId, record.productName)}
+          type="link"
+        >
+          移除
+        </Button>
       ),
       title: '操作',
-      width: 180,
+      width: 120,
     },
   ];
 
@@ -227,7 +236,7 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
         </Button>
       </div>
 
-      <Table
+      <DataTable<Publication>
         columns={columns}
         dataSource={apiProducts}
         loading={loading}
@@ -239,11 +248,7 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
         pagination={{
           current: currentPage,
           onChange: handlePageChange,
-          onShowSizeChange: handlePageChange,
           pageSize: pageSize,
-          showQuickJumper: true,
-          showSizeChanger: true,
-          showTotal: (total) => `共 ${total} 条`,
           total: total,
         }}
         rowKey="productId"
@@ -270,7 +275,7 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
           rowKey="productId"
           rowSelection={{
             columnWidth: 60,
-            onChange: (selectedRowKeys) => {
+            onChange: (selectedRowKeys: React.Key[]) => {
               setSelectedApiIds(selectedRowKeys as string[]);
             },
             selectedRowKeys: selectedApiIds,

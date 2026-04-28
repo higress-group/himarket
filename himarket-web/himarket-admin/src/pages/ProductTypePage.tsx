@@ -126,8 +126,9 @@ const ProductTypePage: React.FC<ProductTypePageProps> = ({ productType }) => {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6">
+      {/* Page Header */}
+      <div className="flex items-start justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">{TYPE_TITLES[productType]}</h1>
           <p className="text-gray-500 mt-2">{TYPE_SUBTITLES[productType]}</p>

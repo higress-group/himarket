@@ -59,3 +59,32 @@
   background: linear-gradient(180deg, #eef2ff 0%, transparent 100%);
   padding: 24px 0 16px;
 }
+
+/* ProductTable optimized styles */
+.product-table-optimized {
+  font-size: 12px;
+}
+
+.product-table-optimized .ant-table-thead > tr > th {
+  background: #f8fafc !important;
+  border-bottom: 1px solid #e5e7eb !important;
+  color: #374151;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.product-table-optimized .ant-table-tbody > tr > td {
+  border-bottom: 1px solid #f3f4f6 !important;
+}
+
+.product-table-optimized .ant-table-tbody > tr:hover > td {
+  background: #eff6ff !important;
+}
+
+.product-table-optimized .ant-table-tbody > tr:last-child > td {
+  border-bottom: none !important;
+}
+
+.product-table-optimized .ant-table-tbody > tr.ant-table-row-selected > td {
+  background: #eff6ff !important;
+}
