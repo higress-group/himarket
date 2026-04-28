@@ -104,69 +104,6 @@ public class AIGWOperator extends APIGOperator {
         return PageResult.of(mcpServers, page, size, result.getBody().getData().getTotalSize());
     }
 
-    //    @Override
-    //    public PageResult<? extends GatewayMCPServerResult> fetchMcpServers(Gateway gateway, int
-    // page, int size) {
-    //        PopGatewayClient client = new PopGatewayClient(gateway.getApigConfig());
-    //
-    //        Map<String, String> queryParams = MapUtil.<String, String>builder()
-    //                .put("gatewayId", gateway.getGatewayId())
-    //                .put("pageNumber", String.valueOf(page))
-    //                .put("pageSize", String.valueOf(size))
-    //                .build();
-    //
-    //        return client.execute("/v1/mcp-servers", MethodType.GET, queryParams, data -> {
-    //            List<APIGMCPServerResult> mcpServers =
-    // Optional.ofNullable(data.getJSONArray("items"))
-    //                    .map(items -> items.stream()
-    //                            .map(JSONObject.class::cast)
-    //                            .map(json -> {
-    //                                APIGMCPServerResult result = new APIGMCPServerResult();
-    //                                result.setMcpServerName(json.getStr("name"));
-    //                                result.setMcpServerId(json.getStr("mcpServerId"));
-    //                                result.setMcpRouteId(json.getStr("routeId"));
-    //                                result.setApiId(json.getStr("apiId"));
-    //                                return result;
-    //                            })
-    //                            .collect(Collectors.toList()))
-    //                    .orElse(new ArrayList<>());
-    //
-    //            return PageResult.of(mcpServers, page, size, data.getInt("totalSize"));
-    //        });
-    //    }
-
-    public PageResult<? extends GatewayMCPServerResult> fetchMcpServers_V1(
-            Gateway gateway, int page, int size) {
-        PageResult<APIResult> apiPage = fetchAPIs(gateway, APIGAPIType.MCP, 0, 1);
-        if (apiPage.getTotalElements() == 0) {
-            return PageResult.empty(page, size);
-        }
-
-        // MCP Server定义在一个API下
-        String apiId = apiPage.getContent().get(0).getApiId();
-        try {
-            PageResult<HttpRoute> routesPage = fetchHttpRoutes(gateway, apiId, page, size);
-            if (routesPage.getTotalElements() == 0) {
-                return PageResult.empty(page, size);
-            }
-
-            return PageResult.<APIGMCPServerResult>builder()
-                    .build()
-                    .mapFrom(
-                            routesPage,
-                            route -> {
-                                APIGMCPServerResult r =
-                                        new APIGMCPServerResult().convertFrom(route);
-                                r.setApiId(apiId);
-                                return r;
-                            });
-        } catch (Exception e) {
-            log.error("Error fetching MCP servers", e);
-            throw new BusinessException(
-                    ErrorCode.INTERNAL_ERROR, "Error fetching MCP servers，Cause：" + e.getMessage());
-        }
-    }
-
     @Override
     public String fetchMcpConfig(Gateway gateway, Object conf) {
         APIGRefConfig config = (APIGRefConfig) conf;

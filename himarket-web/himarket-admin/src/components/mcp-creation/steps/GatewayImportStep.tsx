@@ -70,8 +70,13 @@ export default function GatewayImportStep() {
   };
 
   const handleMcpServerChange = (mcpServerName: string) => {
+    const selected = mcpServers.find((s) => s.mcpServerName === mcpServerName);
     form.setFieldsValue({
-      gatewayRefConfig: { fromGatewayType: selectedGatewayType, mcpServerName },
+      gatewayRefConfig: {
+        fromGatewayType: selectedGatewayType,
+        mcpServerId: selected?.mcpServerId,
+        mcpServerName,
+      },
       mcpName: mcpServerName,
     });
   };
