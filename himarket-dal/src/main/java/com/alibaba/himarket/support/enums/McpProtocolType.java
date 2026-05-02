@@ -19,15 +19,19 @@
 
 package com.alibaba.himarket.support.enums;
 
+import lombok.Getter;
+
 /**
  * MCP 协议类型。
  *
- * <p>标准值只有三种，兼容外部系统传入的各种写法。
+ * <p>标准值有四种，兼容外部系统传入的各种写法。
  */
+@Getter
 public enum McpProtocolType {
     STDIO("stdio"),
     SSE("sse"),
-    STREAMABLE_HTTP("streamableHttp");
+    STREAMABLE_HTTP("streamableHttp"),
+    DUAL_HTTP("dualHttp");
 
     private final String value;
 
@@ -35,13 +39,9 @@ public enum McpProtocolType {
         this.value = value;
     }
 
-    public String getValue() {
-        return value;
-    }
-
     /**
      * 从原始字符串解析，大小写不敏感。
-     * 兼容 streamable-http、StreamableHTTP、HTTP、Stdio 等写法。
+     * 兼容 streamable-http、StreamableHTTP、HTTP、Stdio、dualHttp 等写法。
      *
      * @return 解析后的枚举值，无法识别时返回 null
      */
@@ -50,6 +50,7 @@ public enum McpProtocolType {
         String lower = raw.trim().toLowerCase();
         if ("stdio".equals(lower)) return STDIO;
         if ("sse".equals(lower)) return SSE;
+        if (lower.contains("dual")) return DUAL_HTTP;
         if (lower.contains("http")) return STREAMABLE_HTTP;
         return null;
     }
@@ -72,17 +73,22 @@ public enum McpProtocolType {
     }
 
     public boolean isStreamableHttp() {
-        return this == STREAMABLE_HTTP;
+        return this == STREAMABLE_HTTP || this == DUAL_HTTP;
+    }
+
+    public boolean isDualHttp() {
+        return this == DUAL_HTTP;
     }
 
     /**
      * 转换为 MCP 传输模式。
      * STDIO 不支持远程传输，返回 null。
+     * DUAL_HTTP 默认返回 STREAMABLE_HTTP（base URL 即为 StreamableHTTP 路径）。
      */
     public MCPTransportMode toTransportMode() {
         return switch (this) {
             case SSE -> MCPTransportMode.SSE;
-            case STREAMABLE_HTTP -> MCPTransportMode.STREAMABLE_HTTP;
+            case STREAMABLE_HTTP, DUAL_HTTP -> MCPTransportMode.STREAMABLE_HTTP;
             case STDIO -> null;
         };
     }

@@ -31,58 +31,47 @@ function generateConnectionConfig(
   let sseJson = '';
   let localJson = '';
 
-  if (localConfig) {
-    const upperProto = (protocolType || '').toUpperCase();
-    if (upperProto === 'STDIO' || upperProto === '') {
-      localJson = JSON.stringify(localConfig, null, 2);
-      return { httpJson, localJson, sseJson };
-    }
-    const cfg =
-      typeof localConfig === 'object' && localConfig !== null
-        ? (localConfig as Record<string, unknown>)
-        : null;
-    const servers = cfg?.mcpServers || cfg;
-    const firstKey = servers ? Object.keys(servers)[0] : null;
-    const entry = firstKey
-      ? ((servers as Record<string, unknown> | null)?.[firstKey] as Record<string, unknown> | null)
-      : null;
-    const url = entry?.url;
-    if (url) {
-      if (upperProto === 'SSE') {
-        sseJson = JSON.stringify({ mcpServers: { [serverName]: { type: 'sse', url } } }, null, 2);
-      } else {
-        httpJson = JSON.stringify(
-          { mcpServers: { [serverName]: { type: 'streamable-http', url } } },
-          null,
-          2,
-        );
-      }
-      return { httpJson, localJson, sseJson };
-    }
+  const protoLower = (protocolType || '').toLowerCase();
+
+  // STDIO: 使用 rawConfig 展示
+  if (protoLower === 'stdio' && localConfig) {
     localJson = JSON.stringify(localConfig, null, 2);
     return { httpJson, localJson, sseJson };
   }
 
-  if (domains && domains.length > 0 && path && domainIndex < domains.length) {
+  // 网络型协议：用 domains + path 生成配置
+  if (domains && domains.length > 0 && domainIndex < domains.length) {
     const domain = domains[domainIndex];
     if (!domain) return { httpJson, localJson, sseJson };
     const formattedDomain = formatDomainWithPort(domain.domain, domain.port, domain.protocol);
     const baseUrl = `${domain.protocol}://${formattedDomain}`;
-    const fullUrl = `${baseUrl}${path || '/'}`;
+    const fullUrl = `${baseUrl}${path && path !== '/' ? path : ''}`;
 
-    const protoLower = (protocolType || '').toLowerCase();
-    const isSSE = protoLower === 'sse';
-    const isHTTP = protoLower.includes('http');
-
-    if (isSSE) {
+    if (protoLower === 'sse') {
       sseJson = JSON.stringify(
-        { mcpServers: { [serverName]: { type: 'sse', url: fullUrl } } },
+        { mcpServers: { [serverName]: { type: 'sse', url: `${fullUrl}/sse` } } },
         null,
         2,
       );
-    } else if (isHTTP) {
-      httpJson = JSON.stringify({ mcpServers: { [serverName]: { url: fullUrl } } }, null, 2);
+    } else if (protoLower === 'streamablehttp') {
+      httpJson = JSON.stringify(
+        { mcpServers: { [serverName]: { type: 'streamable-http', url: fullUrl } } },
+        null,
+        2,
+      );
+    } else if (protoLower === 'dualhttp') {
+      sseJson = JSON.stringify(
+        { mcpServers: { [serverName]: { type: 'sse', url: `${fullUrl}/sse` } } },
+        null,
+        2,
+      );
+      httpJson = JSON.stringify(
+        { mcpServers: { [serverName]: { type: 'streamable-http', url: fullUrl } } },
+        null,
+        2,
+      );
     } else {
+      // 协议未指定时，默认同时展示 SSE + HTTP
       sseJson = JSON.stringify(
         { mcpServers: { [serverName]: { type: 'sse', url: `${fullUrl}/sse` } } },
         null,
@@ -90,6 +79,12 @@ function generateConnectionConfig(
       );
       httpJson = JSON.stringify({ mcpServers: { [serverName]: { url: fullUrl } } }, null, 2);
     }
+    return { httpJson, localJson, sseJson };
+  }
+
+  // fallback: 没有 domains 时，如果 localConfig 存在则展示为 localJson
+  if (localConfig) {
+    localJson = JSON.stringify(localConfig, null, 2);
   }
 
   return { httpJson, localJson, sseJson };
@@ -162,7 +157,9 @@ export function useMcpConnectionConfig(
       apiProduct.mcpConfig.mcpServerConfig.path,
       mcpServerName,
       apiProduct.mcpConfig.mcpServerConfig.rawConfig,
-      mcpMetaList[0]?.protocolType || apiProduct.mcpConfig.meta?.protocol,
+      mcpMetaList[0]?.protocolType ||
+        apiProduct.mcpConfig.protocol ||
+        apiProduct.mcpConfig.meta?.protocol,
       selectedDomainIndex,
     );
     setHttpJson(result.httpJson);
@@ -205,7 +202,23 @@ export function useMcpConnectionConfig(
         ),
       );
       setHotSseJson('');
+    } else if (protocol === 'dualhttp') {
+      setHotSseJson(
+        JSON.stringify(
+          { mcpServers: { [serverName]: { type: 'sse', url: endpointUrl } } },
+          null,
+          2,
+        ),
+      );
+      setHotHttpJson(
+        JSON.stringify(
+          { mcpServers: { [serverName]: { type: 'streamable-http', url: endpointUrl } } },
+          null,
+          2,
+        ),
+      );
     } else {
+      // 默认 SSE
       setHotSseJson(
         JSON.stringify(
           { mcpServers: { [serverName]: { type: 'sse', url: endpointUrl } } },
@@ -233,6 +246,9 @@ export function useMcpConnectionConfig(
       }
       return;
     }
+
+    // mcpConfig 存在时优先使用 Effect 1 生成的配置，避免被非标准 connectionConfig 覆盖
+    if (apiProduct.mcpConfig) return;
 
     const serverName = meta.mcpName || apiProduct.name;
     const protocol = (meta.protocolType || '').toUpperCase();
@@ -280,6 +296,22 @@ export function useMcpConnectionConfig(
         if (!apiProduct.mcpConfig) {
           setLocalJson('');
           setSseJson('');
+        }
+      } else if (protocol === 'DUALHTTP') {
+        const jsonSSE = url
+          ? JSON.stringify({ mcpServers: { [serverName]: { type: 'sse', url } } }, null, 2)
+          : JSON.stringify(parsed, null, 2);
+        const jsonHTTP = url
+          ? JSON.stringify(
+              { mcpServers: { [serverName]: { type: 'streamable-http', url } } },
+              null,
+              2,
+            )
+          : JSON.stringify(parsed, null, 2);
+        setSseJson(jsonSSE);
+        setHttpJson(jsonHTTP);
+        if (!apiProduct.mcpConfig) {
+          setLocalJson('');
         }
       } else {
         setLocalJson(JSON.stringify(parsed, null, 2));

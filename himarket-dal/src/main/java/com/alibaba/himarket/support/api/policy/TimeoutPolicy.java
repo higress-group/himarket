@@ -17,24 +17,20 @@
  * under the License.
  */
 
-package com.alibaba.himarket.service.impl;
+package com.alibaba.himarket.support.api.policy;
 
-import com.alibaba.himarket.service.TalkSearchAbilityService;
-import java.util.List;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
 
-@Slf4j
-@Service
-public class TalkSearchFactory {
+@Data
+@EqualsAndHashCode(callSuper = true)
+@NoArgsConstructor
+@AllArgsConstructor
+public class TimeoutPolicy extends ApiPolicy {
 
-    @Autowired private List<TalkSearchAbilityService> talkSearchAbilityList;
+    private Long unitNum;
 
-    public TalkSearchAbilityService getSearchAbility(String searchType) {
-        return talkSearchAbilityList.stream()
-                .filter(searchAbility -> searchAbility.getSearchType().equals(searchType))
-                .findFirst()
-                .orElse(null);
-    }
+    private String timeUnit;
 }

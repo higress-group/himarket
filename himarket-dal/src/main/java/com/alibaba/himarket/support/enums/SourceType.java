@@ -34,7 +34,12 @@ public enum SourceType {
     /**
      * Custom configuration (e.g. MCP custom data)
      */
-    CUSTOM;
+    CUSTOM,
+
+    /**
+     * From API Definition
+     */
+    API_DEFINITION;
 
     public boolean isGateway() {
         return this == GATEWAY;
@@ -46,5 +51,9 @@ public enum SourceType {
 
     public boolean isCustom() {
         return this == CUSTOM;
+    }
+
+    public boolean isApiDefinition() {
+        return this == API_DEFINITION;
     }
 }

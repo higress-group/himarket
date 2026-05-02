@@ -45,6 +45,7 @@ import com.alibaba.himarket.service.gateway.client.AdpAIGatewayClient;
 import com.alibaba.himarket.support.consumer.AdpAIAuthConfig;
 import com.alibaba.himarket.support.consumer.ConsumerAuthConfig;
 import com.alibaba.himarket.support.enums.GatewayType;
+import com.alibaba.himarket.support.enums.McpFromType;
 import com.alibaba.himarket.support.gateway.AdpAIGatewayConfig;
 import com.alibaba.himarket.support.gateway.GatewayConfig;
 import com.alibaba.himarket.support.product.APIGRefConfig;
@@ -354,10 +355,13 @@ public class AdpAIGatewayOperator extends GatewayOperator {
         // 设置工具配置
         mcpConfig.setTools(data.getRawConfigurations());
 
-        // 设置元数据
+        mcpConfig.setFromType(
+                "OPEN_API".equalsIgnoreCase(data.getType())
+                        ? McpFromType.HTTP_TO_MCP
+                        : McpFromType.NATIVE_MCP);
+
         MCPConfigResult.McpMetadata meta = new MCPConfigResult.McpMetadata();
         meta.setSource(GatewayType.ADP_AI_GATEWAY.name());
-        meta.setCreateFromType(data.getType());
         mcpConfig.setMeta(meta);
 
         return JSONUtil.toJsonStr(mcpConfig);

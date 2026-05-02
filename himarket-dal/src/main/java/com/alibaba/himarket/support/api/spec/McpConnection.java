@@ -17,9 +17,16 @@
  * under the License.
  */
 
-package com.alibaba.himarket.service;
+package com.alibaba.himarket.support.api.spec;
 
-// public interface SearchRewriteService {
-//
-//    SearchInput rewriteWithRetry(List<ChatMessage> chatMessages, CreateChatParam createChatParam);
-// }
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "protocol")
+@JsonSubTypes({
+    @JsonSubTypes.Type(value = SseConnection.class, name = "SSE"),
+    @JsonSubTypes.Type(value = StreamableHttpConnection.class, name = "STREAMABLE_HTTP"),
+    @JsonSubTypes.Type(value = StdioConnection.class, name = "STDIO"),
+    @JsonSubTypes.Type(value = HttpConnection.class, name = "HTTP")
+})
+public interface McpConnection {}

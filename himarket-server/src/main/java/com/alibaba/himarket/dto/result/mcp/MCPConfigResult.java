@@ -19,11 +19,23 @@
 
 package com.alibaba.himarket.dto.result.mcp;
 
+import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.dto.result.common.DomainResult;
+import com.alibaba.himarket.entity.ApiDefinition;
+import com.alibaba.himarket.support.api.spec.HttpConnection;
+import com.alibaba.himarket.support.api.spec.McpServerSpec;
+import com.alibaba.himarket.support.api.spec.SseConnection;
+import com.alibaba.himarket.support.api.spec.StdioConnection;
+import com.alibaba.himarket.support.api.spec.StreamableHttpConnection;
 import com.alibaba.himarket.support.chat.mcp.MCPTransportConfig;
 import com.alibaba.himarket.support.enums.MCPTransportMode;
+import com.alibaba.himarket.support.enums.McpFromType;
 import com.alibaba.himarket.support.enums.McpProtocolType;
+import com.alibaba.himarket.utils.JsonUtil;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.net.URI;
 import java.util.List;
 import java.util.Optional;
 import lombok.Data;
@@ -38,12 +50,14 @@ public class MCPConfigResult {
 
     protected String tools;
 
+    private McpFromType fromType;
+
+    private McpProtocolType protocol;
+
     protected McpMetadata meta;
 
     public MCPTransportConfig toTransportConfig() {
-        if (mcpServerConfig == null
-                || mcpServerConfig.getDomains() == null
-                || mcpServerConfig.getDomains().isEmpty()) {
+        if (mcpServerConfig == null || CollUtil.isEmpty(mcpServerConfig.getDomains())) {
             return null;
         }
 
@@ -76,7 +90,11 @@ public class MCPConfigResult {
                         .map(path -> baseUrl + path)
                         .orElse(baseUrl);
 
-        MCPTransportMode transportMode = McpProtocolType.resolveTransportMode(meta.getProtocol());
+        String protocolStr =
+                this.protocol != null
+                        ? this.protocol.name()
+                        : (meta != null ? meta.getProtocol() : null);
+        MCPTransportMode transportMode = McpProtocolType.resolveTransportMode(protocolStr);
 
         if (transportMode == MCPTransportMode.SSE && !url.endsWith("/sse")) {
             url = url.endsWith("/") ? url + "sse" : url + "/sse";
@@ -98,16 +116,16 @@ public class MCPConfigResult {
         private String source;
 
         /**
-         * Service type
-         * For AI Gateway: HTTP (HTTP to MCP conversion) / MCP (Direct MCP proxy)
-         * For Higress: OPEN_API (OpenAPI to MCP conversion) / DIRECT_ROUTE (Direct routing) / DATABASE (Database)
+         * Service type. Deprecated: use {@link MCPConfigResult#fromType} instead.
+         * Kept for backward compatibility of serialized JSON.
          */
-        private String createFromType;
+        @Deprecated private String createFromType;
 
         /**
-         * HTTP/SSE
+         * Protocol. Deprecated: use {@link MCPConfigResult#protocol} instead.
+         * Kept for backward compatibility of serialized JSON.
          */
-        private String protocol;
+        @Deprecated private String protocol;
     }
 
     @Data
@@ -123,5 +141,84 @@ public class MCPConfigResult {
          * For nacos
          */
         private Object rawConfig;
+    }
+
+    public static MCPConfigResult fromApiDefinition(ApiDefinition definition) {
+        McpServerSpec spec = (McpServerSpec) definition.getSpec();
+
+        MCPConfigResult result = new MCPConfigResult();
+        result.setMcpServerName(definition.getName());
+
+        MCPServerConfig serverConfig = new MCPServerConfig();
+
+        if (spec.getConnection() instanceof StdioConnection stdio) {
+            // Build stdio mcp server config
+            ObjectNode serverNode = JsonUtil.createObjectNode();
+            serverNode.put("command", stdio.getCommand());
+
+            if (stdio.getArgs() != null) {
+                ArrayNode argsNode = serverNode.putArray("args");
+                stdio.getArgs().forEach(argsNode::add);
+            }
+
+            if (stdio.getCwd() != null) {
+                serverNode.put("cwd", stdio.getCwd());
+            }
+
+            if (stdio.getEnv() != null) {
+                ObjectNode envNode = serverNode.putObject("env");
+                stdio.getEnv().forEach(envNode::put);
+            }
+
+            ObjectNode root = JsonUtil.createObjectNode();
+            root.putObject("mcpServers").set(definition.getName(), serverNode);
+            serverConfig.setRawConfig(root);
+
+        } else {
+            // Extract URL from supported HTTP-based connection types
+            String url;
+            if (spec.getConnection() instanceof SseConnection sse) {
+                url = sse.getUrl();
+            } else if (spec.getConnection() instanceof StreamableHttpConnection sh) {
+                url = sh.getUrl();
+            } else if (spec.getConnection() instanceof HttpConnection http) {
+                url = http.getUrl();
+            } else {
+                throw new IllegalArgumentException(
+                        "Unsupported connection type: "
+                                + spec.getConnection().getClass().getName());
+            }
+            parseUrlToServerConfig(url, serverConfig);
+        }
+
+        result.setMcpServerConfig(serverConfig);
+
+        if (spec.getToolsConfig() != null) {
+            result.setTools(JsonUtil.toJson(spec.getToolsConfig()));
+        }
+
+        result.setFromType(spec.getFromType());
+        result.setProtocol(spec.getProtocol());
+
+        McpMetadata meta = new McpMetadata();
+        meta.setSource("API_DEFINITION");
+        result.setMeta(meta);
+
+        return result;
+    }
+
+    private static void parseUrlToServerConfig(String url, MCPServerConfig serverConfig) {
+        if (StrUtil.isBlank(url)) {
+            return;
+        }
+        URI uri = URI.create(StrUtil.removeSuffix(url, "/sse"));
+        serverConfig.setDomains(
+                List.of(
+                        DomainResult.builder()
+                                .protocol(uri.getScheme())
+                                .domain(uri.getHost())
+                                .port(uri.getPort() > 0 ? uri.getPort() : null)
+                                .build()));
+        serverConfig.setPath(uri.getPath());
     }
 }

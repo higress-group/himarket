@@ -4,21 +4,18 @@ import {
   DesktopOutlined,
   UserOutlined,
   MenuOutlined,
-  SettingOutlined,
+  CloudServerOutlined,
+  GatewayOutlined,
+  CodeSandboxOutlined,
   TagsOutlined,
   BarChartOutlined,
   DashboardOutlined,
   MonitorOutlined,
-  BulbOutlined,
-  ThunderboltOutlined,
-  RobotOutlined,
-  ApiOutlined,
+  RightOutlined,
 } from '@ant-design/icons';
 import { Button, Tooltip } from 'antd';
 import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-
-import McpServerIcon from '@/components/icons/McpServerIcon';
 
 import { isAuthenticated, removeToken } from '../lib/utils';
 
@@ -35,6 +32,7 @@ const Layout: React.FC = () => {
   const navigate = useNavigate();
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     // 检查 cookie 中的 token 来判断登录状态
@@ -53,8 +51,8 @@ const Layout: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // 进入详情页自动折叠侧边栏（排除 API Products 子菜单路由）
-    const apiProductSubRoutes = [
+    // 进入详情页自动折叠侧边栏
+    const apiProductTypeRoutes = [
       'model-api',
       'mcp-server',
       'agent-skill',
@@ -62,13 +60,13 @@ const Layout: React.FC = () => {
       'agent-api',
       'rest-api',
     ];
-    const isApiProductDetail = location.pathname.match(/^\/api-products\/([^/]+)$/);
-    const isSubMenuRoute =
-      isApiProductDetail &&
-      isApiProductDetail[1] !== undefined &&
-      apiProductSubRoutes.includes(isApiProductDetail[1]);
+    const apiProductMatch = location.pathname.match(/^\/api-products\/([^/]+)$/);
+    const isApiProductDetail =
+      apiProductMatch &&
+      apiProductMatch[1] !== undefined &&
+      !apiProductTypeRoutes.includes(apiProductMatch[1]);
 
-    if (location.pathname.match(/^\/portals\/[^/]+$/) || (isApiProductDetail && !isSubMenuRoute)) {
+    if (location.pathname.match(/^\/portals\/[^/]+$/) || isApiProductDetail) {
       setSidebarCollapsed(true);
     } else {
       setSidebarCollapsed(false);
@@ -78,31 +76,8 @@ const Layout: React.FC = () => {
   const navigation: NavigationItem[] = [
     { cn: '门户', href: '/portals', icon: HomeOutlined, name: 'Portal' },
     {
-      children: [
-        { cn: 'Model API', href: '/api-products/model-api', icon: BulbOutlined, name: 'Model API' },
-        {
-          cn: 'MCP Server',
-          href: '/api-products/mcp-server',
-          icon: McpServerIcon,
-          name: 'MCP Server',
-        },
-        {
-          cn: 'Agent Skill',
-          href: '/api-products/agent-skill',
-          icon: ThunderboltOutlined,
-          name: 'Agent Skill',
-        },
-        { cn: 'Worker', href: '/api-products/worker', icon: UserOutlined, name: 'Worker' },
-        {
-          cn: 'Agent API',
-          href: '/api-products/agent-api',
-          icon: RobotOutlined,
-          name: 'Agent API',
-        },
-        { cn: 'REST API', href: '/api-products/rest-api', icon: ApiOutlined, name: 'REST API' },
-      ],
       cn: 'API产品',
-      href: '/api-products',
+      href: '/api-products/model-api',
       icon: ProductOutlined,
       name: 'API Products',
     },
@@ -115,17 +90,17 @@ const Layout: React.FC = () => {
     {
       children: [
         { cn: 'Nacos实例', href: '/consoles/nacos', icon: DesktopOutlined, name: 'Nacos实例' },
-        { cn: '网关实例', href: '/consoles/gateway', icon: DesktopOutlined, name: '网关实例' },
+        { cn: '网关实例', href: '/consoles/gateway', icon: GatewayOutlined, name: '网关实例' },
         {
           cn: 'Sandbox实例',
           href: '/consoles/sandbox',
-          icon: DesktopOutlined,
+          icon: CodeSandboxOutlined,
           name: 'Sandbox实例',
         },
       ],
       cn: '实例管理',
       href: '/consoles',
-      icon: SettingOutlined,
+      icon: CloudServerOutlined,
       name: '实例管理',
     },
     {
@@ -160,26 +135,73 @@ const Layout: React.FC = () => {
     navigate('/login');
   };
 
+  const toggleGroup = (name: string) => {
+    setCollapsedGroups((prev) => ({ ...prev, [name]: !prev[name] }));
+  };
+
   const isMenuActive = (item: NavigationItem): boolean => {
     if (item.children) {
       return item.children.some((child) => location.pathname === child.href);
     }
-    return location.pathname === item.href || location.pathname.startsWith(item.href + '/');
+    if (location.pathname === item.href || location.pathname.startsWith(item.href + '/')) {
+      return true;
+    }
+    // API Products 菜单在所有 /api-products/* 路由下保持高亮
+    if (item.href === '/api-products/model-api' && location.pathname.startsWith('/api-products/')) {
+      return true;
+    }
+    return false;
   };
 
   const renderMenuItem = (item: NavigationItem, level: number = 0) => {
     const Icon = item.icon;
     const isActive = isMenuActive(item);
     const hasChildren = item.children && item.children.length > 0;
+    const isGroupCollapsed = collapsedGroups[item.name] ?? false;
 
     // 折叠状态：隐藏子菜单，图标居中，添加 Tooltip
     if (sidebarCollapsed) {
       if (level > 0) return null;
+      if (hasChildren) {
+        return (
+          <Tooltip
+            key={item.name}
+            placement="right"
+            title={
+              <div className="flex flex-col">
+                {(item.children || []).map((child) => (
+                  <Link
+                    className={`block px-2 py-1 rounded ${
+                      location.pathname === child.href
+                        ? 'text-white font-semibold'
+                        : 'text-gray-300 hover:text-white'
+                    }`}
+                    key={child.name}
+                    to={child.href}
+                  >
+                    {child.name}
+                  </Link>
+                ))}
+              </div>
+            }
+          >
+            <div
+              className={`flex items-center justify-center mt-2 p-3 rounded-lg transition-colors duration-150 cursor-pointer ${
+                isActive
+                  ? 'bg-gray-100 text-black'
+                  : 'text-gray-500 hover:text-black hover:bg-gray-50'
+              }`}
+            >
+              <Icon className="h-5 w-5" />
+            </div>
+          </Tooltip>
+        );
+      }
       return (
         <Tooltip key={item.name} placement="right" title={item.cn || item.name}>
           <Link
             className={`flex items-center justify-center mt-2 p-3 rounded-lg transition-colors duration-150 ${
-              isActive && !hasChildren
+              isActive
                 ? 'bg-gray-100 text-black'
                 : 'text-gray-500 hover:text-black hover:bg-gray-50'
             }`}
@@ -191,14 +213,54 @@ const Layout: React.FC = () => {
       );
     }
 
-    // 展开状态：保持现有逻辑
+    // 展开状态
+    // 分组项：可折叠
+    if (hasChildren) {
+      return (
+        <div key={item.name}>
+          <div
+            className={`flex items-center mt-2 px-3 py-3 rounded-lg transition-colors duration-150 cursor-pointer ${
+              isActive
+                ? 'bg-gray-100 text-black font-semibold'
+                : 'text-gray-500 hover:text-black hover:bg-gray-50'
+            }`}
+            onClick={() => toggleGroup(item.name)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                toggleGroup(item.name);
+              }
+            }}
+            role="button"
+            tabIndex={0}
+          >
+            <Icon className="mr-3 h-5 w-5 flex-shrink-0" />
+            <div className="flex flex-col flex-1">
+              <span className="text-base leading-none">{item.name}</span>
+            </div>
+            <RightOutlined
+              className={`text-xs transition-transform duration-200 ${isGroupCollapsed ? '' : 'rotate-90'}`}
+            />
+          </div>
+          <div
+            className={`ml-2 overflow-hidden transition-all duration-200 ${
+              isGroupCollapsed ? 'max-h-0 opacity-0' : 'max-h-96 opacity-1'
+            }`}
+          >
+            {(item.children || []).map((child) => renderMenuItem(child, level + 1))}
+          </div>
+        </div>
+      );
+    }
+
+    // 普通菜单项 / 子菜单项
     return (
       <div key={item.name}>
         <Link
           className={`flex items-center mt-2 px-3 py-3 rounded-lg transition-colors duration-150 ${
             level > 0 ? 'ml-4' : ''
           } ${
-            isActive && !hasChildren
+            isActive
               ? 'bg-gray-100 text-black font-semibold'
               : 'text-gray-500 hover:text-black hover:bg-gray-50'
           }`}
@@ -209,11 +271,6 @@ const Layout: React.FC = () => {
             <span className="text-base leading-none">{item.name}</span>
           </div>
         </Link>
-        {hasChildren && (
-          <div className="ml-2">
-            {(item.children || []).map((child) => renderMenuItem(child, level + 1))}
-          </div>
-        )}
       </div>
     );
   };

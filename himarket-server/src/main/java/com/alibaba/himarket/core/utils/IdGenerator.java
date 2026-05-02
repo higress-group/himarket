@@ -55,6 +55,8 @@ public class IdGenerator {
     private static final String MCP_SERVER_PREFIX = "mcp-";
     private static final String ENDPOINT_PREFIX = "ep-";
 
+    private static final String API_DEFINITION_PREFIX = "api-definition-";
+
     public static String genHigressGatewayId() {
         return HIGRESS_PREFIX + ObjectId.next();
     }
@@ -121,5 +123,9 @@ public class IdGenerator {
 
     public static String genEndpointId() {
         return ENDPOINT_PREFIX + ObjectId.next();
+    }
+
+    public static String genApiDefinitionId() {
+        return API_DEFINITION_PREFIX + ObjectId.next();
     }
 }

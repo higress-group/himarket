@@ -6,8 +6,8 @@ import com.alibaba.himarket.support.enums.McpProtocolType;
 /**
  * MCP 协议类型标准化工具。
  *
- * <p>标准值只有三种：{@code stdio}、{@code sse}、{@code streamableHttp}。
- * 兼容外部系统传入的各种写法：streamable-http、StreamableHTTP、HTTP、Stdio 等。
+ * <p>标准值有四种：{@code stdio}、{@code sse}、{@code streamableHttp}、{@code dualHttp}。
+ * 兼容外部系统传入的各种写法：streamable-http、StreamableHTTP、HTTP、Stdio、dualHttp 等。
  *
  * <p>委托给 {@link McpProtocolType} 枚举实现，本类保留作为静态工具入口。
  */
@@ -42,11 +42,19 @@ public final class McpProtocolUtils {
     }
 
     /**
-     * 判断是否为 StreamableHTTP 协议。
+     * 判断是否为 StreamableHTTP 协议（包含 DUAL_HTTP）。
      */
     public static boolean isStreamableHttp(String raw) {
         McpProtocolType type = McpProtocolType.fromString(raw);
         return type != null && type.isStreamableHttp();
+    }
+
+    /**
+     * 判断是否为双协议（SSE + StreamableHTTP）。
+     */
+    public static boolean isDualHttp(String raw) {
+        McpProtocolType type = McpProtocolType.fromString(raw);
+        return type != null && type.isDualHttp();
     }
 
     /**

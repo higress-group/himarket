@@ -6,6 +6,7 @@ import lombok.Data;
 @Data
 public class ServiceIdentifier {
 
+    // TODO resource
     @NotBlank(message = "Service name cannot be blank")
     private String name;
 

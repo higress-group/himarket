@@ -17,9 +17,20 @@
  * under the License.
  */
 
-package com.alibaba.himarket.service;
+package com.alibaba.himarket.support.api.spec;
 
-// public interface TalkSearchService {
-//
-//    List<ChatMessage> buildSearchMessages(List<ChatMessage> chatMessages, CreateChatParam param);
-// }
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "format", visible = true)
+@JsonSubTypes({@JsonSubTypes.Type(value = OpenAPIToolsConfig.class, name = "OPEN_API")})
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public abstract class ToolsConfig {
+
+    private String format;
+}

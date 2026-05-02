@@ -72,4 +72,8 @@ public class Resources {
     public static final String MCP_SERVER_META = "McpServerMeta";
 
     public static final String MCP_SERVER_ENDPOINT = "McpServerEndpoint";
+
+    public static final String API_DEFINITION = "ApiDefinition";
+
+    public static final String API_SANDBOX_DEPLOYMENT = "ApiSandboxDeployment";
 }

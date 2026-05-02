@@ -17,6 +17,10 @@ export interface ProductIcon {
 export interface ApiProductMcpConfig {
   mcpServerName: string;
   tools: string;
+  /** 协议类型，优先使用此字段（meta.protocol 已废弃） */
+  protocol?: string;
+  /** 来源类型，优先使用此字段（meta.fromType 已废弃） */
+  fromType?: string;
   meta: {
     source: string;
     mcpServerName: string;
@@ -200,12 +204,37 @@ export type ApiItem =
   | AIGatewayModelItem
   | NacosAgentItem;
 
+// API Definition 类型
+export interface ApiDefinition {
+  apiDefinitionId: string;
+  name: string;
+  description?: string;
+  type: 'MCP_SERVER' | 'REST_API' | 'AGENT_API' | 'MODEL_API';
+  status: string;
+  version?: string;
+  spec?: Record<string, unknown>;
+  policies?: unknown[];
+  createAt?: string;
+  updatedAt?: string;
+}
+
+export interface CreateApiDefinitionRequest {
+  name: string;
+  description?: string;
+  type: 'MCP_SERVER';
+  relatedProductId?: string;
+  version?: string;
+  spec: Record<string, unknown>;
+  policies?: unknown[];
+}
+
 // 关联服务配置
 export interface LinkedService {
   productId: string;
   gatewayId?: string;
   nacosId?: string;
-  sourceType: 'GATEWAY' | 'NACOS' | 'CUSTOM';
+  apiDefinitionId?: string;
+  sourceType: 'GATEWAY' | 'NACOS' | 'CUSTOM' | 'API_DEFINITION';
   apigRefConfig?: RestAPIItem | APIGAIMCPItem | AIGatewayAgentItem | AIGatewayModelItem;
   higressRefConfig?: HigressMCPItem;
   nacosRefConfig?: NacosMCPItem | NacosAgentItem; // 扩展支持 Agent

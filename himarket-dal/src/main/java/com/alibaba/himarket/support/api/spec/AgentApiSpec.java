@@ -17,19 +17,26 @@
  * under the License.
  */
 
-package com.alibaba.himarket.service;
+package com.alibaba.himarket.support.api.spec;
 
-import com.alibaba.himarket.support.chat.search.SearchContext;
-import com.alibaba.himarket.support.chat.search.SearchInput;
 import java.util.List;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
 
-public interface TalkSearchAbilityService<T, V> {
+@Data
+@EqualsAndHashCode(callSuper = true)
+@NoArgsConstructor
+@AllArgsConstructor
+public class AgentApiSpec extends ApiSpec {
 
-    List<SearchContext> search(SearchInput ideaTalkSearchInput);
+    private String basePath;
 
-    T buildSearchRequest(SearchInput ideaTalkSearchInput);
+    private List<HttpRoute> httpRoutes;
 
-    String getSearchType();
-
-    List<SearchContext> buildSearchResponse(V searchResponse);
+    /**
+     * Supported protocols (e.g., ["Dify", "LangChain"])
+     */
+    private List<String> protocols;
 }

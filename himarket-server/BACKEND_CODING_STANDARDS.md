@@ -328,6 +328,58 @@ All public and protected methods must have JavaDoc comments. Follow standard Jav
 private void fillProducts(List<ProductResult> products) { ... }
 ```
 
+### JavaDoc format
+
+Always use multi-line JavaDoc format:
+
+```java
+/**
+ * Create a new product.
+ *
+ * @param param the creation parameters
+ * @return the created product result
+ */
+public ProductResult createProduct(CreateProductParam param) { ... }
+```
+
+Never use single-line format:
+
+```java
+/** Create a new product. */
+public ProductResult createProduct(CreateProductParam param) { ... }
+```
+
+Even for short comments, use multi-line format for consistency:
+
+```java
+// Correct
+/**
+ * ADMIN / GATEWAY / NACOS.
+ */
+private String origin;
+
+// Incorrect
+/** ADMIN / GATEWAY / NACOS. */
+private String origin;
+```
+
+Do not write comments that merely restate the field or method name. Comments should explain what the name does not convey:
+
+```java
+// Bad: restates the name
+/** The product name. */
+private String name;
+
+// Good: explains constraints or valid values
+/**
+ * Must be unique within the same admin. Max 50 characters.
+ */
+private String name;
+
+// Good: no comment needed when the name is self-explanatory
+private String name;
+```
+
 ### Logging
 
 Use `@Slf4j` with `{}` placeholders. Place the exception object as the last argument:
@@ -489,6 +541,56 @@ public class ProductController {
 - Pagination: accept `Pageable` parameter.
 - Authorization: `@AdminAuth`, `@AdminOrDeveloperAuth`, `@DeveloperAuth`, `@PublicAccess`.
 - Controller methods are thin -- delegate all logic to the Service layer.
+
+### RESTful API conventions
+
+**Resource naming:**
+- Use plural nouns for resource collections: `/products`, `/api-definitions`
+- Use kebab-case for multi-word resources: `/sandbox-deployments`, `/mcp-servers`
+- Nested resources express ownership: `/api-definitions/{id}/deployments`
+
+**HTTP methods:**
+- `GET` -- read / query (never modify state)
+- `POST` -- create a resource or trigger an action
+- `PUT` -- full update of a resource
+- `DELETE` -- remove a resource
+
+**Avoid verbs in URLs:**
+
+```java
+// Bad: verb in URL
+@PostMapping("/{id}/deploy")
+@PutMapping("/sandbox-deployments/{id}/stop")
+
+// Good: resource-oriented
+@PostMapping("/{id}/deployments")                    // create a deployment
+@DeleteMapping("/sandbox-deployments/{id}")         // delete = stop
+```
+
+**Action endpoints** -- when an operation doesn't map naturally to CRUD, use a sub-resource under `/actions`:
+
+```java
+// Deploy is a creation action on deployments
+@PostMapping("/{id}/deployments")
+
+// When no CRUD mapping fits (e.g. "discover tools", "sync config")
+@PostMapping("/{id}/actions/discover-tools")
+@PostMapping("/{id}/actions/sync-config")
+```
+
+**Status changes** -- prefer `PATCH` for partial updates, or model status as a sub-resource:
+
+```java
+// Bad: verb in URL
+@PutMapping("/sandbox-deployments/{id}/stop")
+
+// Option 1: PATCH the status field
+@PatchMapping("/sandbox-deployments/{id}")
+// body: { "status": "INACTIVE" }
+
+// Option 2: DELETE if stopping = removing the active deployment
+@DeleteMapping("/sandbox-deployments/{id}")
+```
 
 ---
 

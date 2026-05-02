@@ -156,7 +156,7 @@ function McpDetail() {
         .filter(Boolean)
         .forEach((p) => set.add(p));
     }
-    const coldProto = product?.mcpConfig?.meta?.protocol;
+    const coldProto = product?.mcpConfig?.protocol || product?.mcpConfig?.meta?.protocol;
     if (coldProto) {
       coldProto
         .split(',')
@@ -316,14 +316,16 @@ function McpDetail() {
       if (e?.url) return 'http';
       return 'stdio';
     };
-    const normalizeProto = (raw: string): 'stdio' | 'sse' | 'http' | null => {
+    const normalizeProto = (raw: string): 'stdio' | 'sse' | 'http' | 'dual' | null => {
       const lower = raw.trim().toLowerCase();
       if (lower === 'stdio') return 'stdio';
       if (lower === 'sse') return 'sse';
+      if (lower === 'dualhttp' || lower === 'dual_http') return 'dual';
       if (lower.includes('http')) return 'http';
       return null;
     };
     const protoLabel: Record<string, string> = {
+      dual: 'Dual HTTP',
       http: 'Streamable HTTP',
       sse: 'SSE',
       stdio: 'Stdio',
@@ -334,18 +336,41 @@ function McpDetail() {
     if (meta?.resolvedConfig) {
       try {
         const parsed = JSON.parse(meta.resolvedConfig);
-        const firstEntry = Object.values(parsed?.mcpServers || {})[0] as
-          | Record<string, unknown>
-          | undefined;
+        const servers = parsed?.mcpServers || {};
+        const firstKey = Object.keys(servers)[0];
+        const firstEntry = firstKey
+          ? (servers[firstKey] as Record<string, unknown> | undefined)
+          : undefined;
         if (firstEntry) {
           const proto =
             normalizeProto(meta?.endpointProtocol || '') || detectProtoFromEntry(firstEntry);
           hotProto = proto;
-          tabs.push({
-            json: JSON.stringify(parsed, null, 2),
-            key: proto ?? 'stdio',
-            label: protoLabel[proto ?? 'stdio'] ?? 'Stdio',
-          });
+          if (proto === 'dual') {
+            const url = firstEntry.url as string | undefined;
+            const name = firstKey || 'mcp-server';
+            if (url) {
+              tabs.push({
+                json: JSON.stringify({ mcpServers: { [name]: { type: 'sse', url } } }, null, 2),
+                key: 'sse',
+                label: 'SSE',
+              });
+              tabs.push({
+                json: JSON.stringify(
+                  { mcpServers: { [name]: { type: 'streamable-http', url } } },
+                  null,
+                  2,
+                ),
+                key: 'http',
+                label: 'Streamable HTTP',
+              });
+            }
+          } else {
+            tabs.push({
+              json: JSON.stringify(parsed, null, 2),
+              key: proto ?? 'stdio',
+              label: protoLabel[proto ?? 'stdio'] ?? 'Stdio',
+            });
+          }
         }
       } catch {
         /* fallback below */
@@ -382,17 +407,46 @@ function McpDetail() {
           } else {
             coldJson = JSON.stringify(parsed, null, 2);
           }
-          tabs.push({ json: coldJson, key: coldProto, label: protoLabel[coldProto] ?? coldProto });
+          if (coldProto === 'dual') {
+            const url = (entry as Record<string, unknown> | undefined)?.url as string | undefined;
+            const name = firstKey || serverName;
+            if (url) {
+              tabs.push({
+                json: JSON.stringify({ mcpServers: { [name]: { type: 'sse', url } } }, null, 2),
+                key: 'sse',
+                label: 'SSE',
+              });
+              tabs.push({
+                json: JSON.stringify(
+                  { mcpServers: { [name]: { type: 'streamable-http', url } } },
+                  null,
+                  2,
+                ),
+                key: 'http',
+                label: 'Streamable HTTP',
+              });
+            }
+          } else {
+            tabs.push({
+              json: coldJson,
+              key: coldProto,
+              label: protoLabel[coldProto] ?? coldProto,
+            });
+          }
         }
       } catch {
         /* ignore */
       }
     }
 
-    // 3. Fallback：rawConfig（仅在无任何数据时）
+    // 3. Fallback：rawConfig（仅在协议为 STDIO 且无其他数据时）
     if (tabs.length === 0) {
       const rawConfig = product?.mcpConfig?.mcpServerConfig?.rawConfig;
-      if (rawConfig && Object.keys(rawConfig).length > 0) {
+      const proto =
+        normalizeProto(product?.mcpConfig?.protocol || '') ||
+        normalizeProto(product?.mcpConfig?.meta?.protocol || '') ||
+        normalizeProto(meta?.protocolType || '');
+      if (rawConfig && Object.keys(rawConfig).length > 0 && proto === 'stdio') {
         tabs.push({ json: JSON.stringify(rawConfig, null, 2), key: 'stdio', label: 'Stdio' });
       }
     }
@@ -403,7 +457,7 @@ function McpDetail() {
       const serverName = meta?.mcpName || product.name;
       const domains = mcpConfig.mcpServerConfig.domains;
       const path = mcpConfig.mcpServerConfig.path;
-      const protocol = mcpConfig.meta?.protocol;
+      const protocol = mcpConfig.protocol || mcpConfig.meta?.protocol;
 
       if (domains?.length > 0 && path) {
         const domain = domains[0];
@@ -417,7 +471,8 @@ function McpDetail() {
         }
         const fullUrl = `${proto}://${formattedDomain}${path || '/'}`;
 
-        if (protocol === 'SSE') {
+        const netProto = normalizeProto(protocol || '');
+        if (netProto === 'sse') {
           tabs.push({
             json: JSON.stringify(
               { mcpServers: { [serverName]: { type: 'sse', url: fullUrl } } },
@@ -427,7 +482,26 @@ function McpDetail() {
             key: 'sse',
             label: 'SSE',
           });
-        } else if (protocol === 'StreamableHTTP') {
+        } else if (netProto === 'http') {
+          tabs.push({
+            json: JSON.stringify(
+              { mcpServers: { [serverName]: { type: 'streamable-http', url: fullUrl } } },
+              null,
+              2,
+            ),
+            key: 'http',
+            label: 'Streamable HTTP',
+          });
+        } else if (netProto === 'dual') {
+          tabs.push({
+            json: JSON.stringify(
+              { mcpServers: { [serverName]: { type: 'sse', url: `${fullUrl}/sse` } } },
+              null,
+              2,
+            ),
+            key: 'sse',
+            label: 'SSE',
+          });
           tabs.push({
             json: JSON.stringify(
               { mcpServers: { [serverName]: { type: 'streamable-http', url: fullUrl } } },

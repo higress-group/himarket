@@ -95,6 +95,10 @@ export interface IMCPConfig {
     transportMode: string;
   };
   tools: string;
+  /** 协议类型，优先使用此字段（meta.protocol 已废弃） */
+  protocol?: string;
+  /** 来源类型，优先使用此字段（meta.fromType 已废弃） */
+  fromType?: string;
   meta: {
     source: string;
     createFromType: string;

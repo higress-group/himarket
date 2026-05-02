@@ -1,7 +1,7 @@
 import { Form, Modal, Select, message } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
 
-import { apiProductApi, nacosApi, mcpServerApi } from '@/lib/api';
+import { apiProductApi, nacosApi } from '@/lib/api';
 import { getGatewayTypeLabel } from '@/lib/constant';
 import type {
   ApiProduct,
@@ -64,8 +64,15 @@ export function LinkApiModal({
     if (open) {
       fetchGateways();
       fetchNacosInstances();
+      form.resetFields();
+      setSelectedGateway(null);
+      setSelectedNacos(null);
+      setSelectedNamespace(null);
+      setNacosNamespaces([]);
+      setSourceType('GATEWAY');
+      clear();
     }
-  }, [open, fetchGateways, fetchNacosInstances]);
+  }, [open, fetchGateways, fetchNacosInstances, form, clear]);
 
   const handleSourceTypeChange = (value: 'GATEWAY' | 'NACOS') => {
     setSourceType(value);
@@ -147,34 +154,6 @@ export function LinkApiModal({
         }
         return false;
       });
-
-      if (apiProduct.type === 'MCP_SERVER' && selectedApi) {
-        try {
-          const mcpServerName = (selectedApi as Record<string, unknown>).mcpServerName || apiId;
-          await mcpServerApi.saveMeta({
-            connectionConfig: '{}',
-            displayName: apiProduct.name,
-            gatewayId: st === 'GATEWAY' ? gatewayId : undefined,
-            mcpName: mcpServerName,
-            nacosId: st === 'NACOS' ? nacosId : undefined,
-            origin: st,
-            productId: apiProduct.productId,
-            protocolType: 'sse',
-            publishStatus: 'DRAFT',
-            refConfig: JSON.stringify(
-              st === 'NACOS'
-                ? { ...selectedApi, namespaceId: selectedNamespace || 'public' }
-                : selectedApi,
-            ),
-            visibility: 'PUBLIC',
-          });
-          message.success('MCP 配置导入成功');
-          onOk();
-        } catch {
-          message.error('MCP 配置导入失败');
-        }
-        return;
-      }
 
       const newService: LinkedService = {
         adpAIGatewayRefConfig:

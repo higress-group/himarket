@@ -305,7 +305,7 @@ export default function ApiProductFormModal({
       onCancel={handleCancel}
       onOk={handleSubmit}
       open={visible}
-      title={isEditMode ? '编辑 API Product' : '创建 API Product'}
+      title={isEditMode ? '编辑API Product' : '创建API Product'}
       width={600}
     >
       <Form form={form} layout="vertical">

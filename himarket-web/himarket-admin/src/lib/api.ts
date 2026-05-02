@@ -599,6 +599,49 @@ export const sandboxApi = {
   },
 };
 
+// API Definition 相关 API
+export const apiDefinitionApi = {
+  createApiDefinition: (data: {
+    name: string;
+    description?: string;
+    type: 'MCP_SERVER';
+    relatedProductId?: string;
+    version?: string;
+    spec: Record<string, unknown>;
+    policies?: unknown[];
+  }) => {
+    return api.post('/api-definitions', data);
+  },
+  deleteApiDefinition: (apiDefinitionId: string) => {
+    return api.delete(`/api-definitions/${apiDefinitionId}`);
+  },
+  getApiDefinition: (apiDefinitionId: string) => {
+    return api.get(`/api-definitions/${apiDefinitionId}`);
+  },
+  listApiDefinitions: (params?: {
+    type?: string;
+    status?: string;
+    keyword?: string;
+    page?: number;
+    size?: number;
+  }) => {
+    return api.get('/api-definitions', { params });
+  },
+  updateApiDefinition: (
+    apiDefinitionId: string,
+    data: {
+      name?: string;
+      description?: string;
+      status?: string;
+      version?: string;
+      spec?: Record<string, unknown>;
+      policies?: unknown[];
+    },
+  ) => {
+    return api.put(`/api-definitions/${apiDefinitionId}`, data);
+  },
+};
+
 // MCP 供应商导入 API
 export const mcpVendorApi = {
   // 批量导入（超时设长一些，因为后端需要逐条调详情 API 补充数据）

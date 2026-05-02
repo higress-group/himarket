@@ -1,6 +1,6 @@
 import { EditOutlined, DeleteOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { Button, Modal, Tooltip, message } from 'antd';
-import { useCallback, useEffect, useState, useImperativeHandle, forwardRef } from 'react';
+import { useCallback, useEffect, useState, useImperativeHandle, forwardRef, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { DataTable } from '@/components/common/DataTable';
@@ -17,6 +17,7 @@ export interface CategoryTableRef {
 
 const CategoryTable = forwardRef<CategoryTableRef>((_, ref) => {
   const navigate = useNavigate();
+  const fetchedRef = useRef(false);
   const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchInput, setSearchInput] = useState('');
@@ -48,6 +49,8 @@ const CategoryTable = forwardRef<CategoryTableRef>((_, ref) => {
   );
 
   useEffect(() => {
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
     fetchCategories();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

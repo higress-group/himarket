@@ -43,6 +43,8 @@ import com.alibaba.himarket.support.consumer.ConsumerAuthConfig;
 import com.alibaba.himarket.support.enums.APIGAPIType;
 import com.alibaba.himarket.support.enums.APIGResourceType;
 import com.alibaba.himarket.support.enums.GatewayType;
+import com.alibaba.himarket.support.enums.McpFromType;
+import com.alibaba.himarket.support.enums.McpProtocolType;
 import com.alibaba.himarket.support.product.APIGRefConfig;
 import com.aliyun.sdk.gateway.pop.exception.PopClientException;
 import com.aliyun.sdk.service.apig20240327.models.*;
@@ -158,11 +160,14 @@ public class AIGWOperator extends APIGOperator {
                         .collect(Collectors.toList()));
         mcpConfig.setMcpServerConfig(serverConfig);
 
-        // meta
+        mcpConfig.setProtocol(McpProtocolType.fromString(resp.getProtocol()));
+        mcpConfig.setFromType(
+                StrUtil.equalsIgnoreCase(resp.getProtocol(), "HTTP")
+                        ? McpFromType.HTTP_TO_MCP
+                        : McpFromType.NATIVE_MCP);
+
         MCPConfigResult.McpMetadata meta = new MCPConfigResult.McpMetadata();
         meta.setSource(GatewayType.APIG_AI.name());
-        meta.setProtocol(resp.getProtocol());
-        meta.setCreateFromType(resp.getCreateFromType());
         mcpConfig.setMeta(meta);
 
         // tools

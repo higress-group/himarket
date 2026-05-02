@@ -47,6 +47,8 @@ import com.alibaba.himarket.service.gateway.client.ApsaraGatewayClient;
 import com.alibaba.himarket.support.consumer.AdpAIAuthConfig;
 import com.alibaba.himarket.support.consumer.ConsumerAuthConfig;
 import com.alibaba.himarket.support.enums.GatewayType;
+import com.alibaba.himarket.support.enums.McpFromType;
+import com.alibaba.himarket.support.enums.McpProtocolType;
 import com.alibaba.himarket.support.gateway.ApsaraGatewayConfig;
 import com.alibaba.himarket.support.gateway.GatewayConfig;
 import com.alibaba.himarket.support.product.APIGRefConfig;
@@ -425,17 +427,19 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraGatewayClient> 
         // 设置工具配置
         mcpConfig.setTools(data.getRawConfigurations());
 
-        // 设置元数据
-        MCPConfigResult.McpMetadata meta = new MCPConfigResult.McpMetadata();
-        meta.setSource(GatewayType.APSARA_GATEWAY.name());
-        meta.setCreateFromType(data.getType());
+        mcpConfig.setFromType(
+                "OPEN_API".equalsIgnoreCase(data.getType())
+                        ? McpFromType.HTTP_TO_MCP
+                        : McpFromType.NATIVE_MCP);
         if (data.getType().equalsIgnoreCase("DIRECT_ROUTE")) {
-            meta.setProtocol(
+            mcpConfig.setProtocol(
                     data.getDirectRouteConfig().getTransportType().equalsIgnoreCase("streamable")
-                            ? "HTTP"
-                            : "SSE");
+                            ? McpProtocolType.STREAMABLE_HTTP
+                            : McpProtocolType.SSE);
         }
 
+        MCPConfigResult.McpMetadata meta = new MCPConfigResult.McpMetadata();
+        meta.setSource(GatewayType.APSARA_GATEWAY.name());
         mcpConfig.setMeta(meta);
 
         return JSONUtil.toJsonStr(mcpConfig);

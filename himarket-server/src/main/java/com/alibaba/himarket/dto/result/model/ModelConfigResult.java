@@ -22,8 +22,10 @@ package com.alibaba.himarket.dto.result.model;
 import com.alibaba.himarket.dto.result.httpapi.HttpRouteResult;
 import com.alibaba.himarket.dto.result.httpapi.ServiceResult;
 import java.util.List;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
 public class ModelConfigResult {
@@ -32,6 +34,8 @@ public class ModelConfigResult {
 
     @Data
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class ModelAPIConfig {
         private String modelCategory;
         private List<String> aiProtocols;

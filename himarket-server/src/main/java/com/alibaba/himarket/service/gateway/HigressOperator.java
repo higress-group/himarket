@@ -36,7 +36,6 @@ import com.alibaba.himarket.dto.result.httpapi.HttpRouteResult;
 import com.alibaba.himarket.dto.result.mcp.GatewayMCPServerResult;
 import com.alibaba.himarket.dto.result.mcp.HigressMCPServerResult;
 import com.alibaba.himarket.dto.result.mcp.MCPConfigResult;
-import com.alibaba.himarket.dto.result.mcp.OpenAPIMCPConfig;
 import com.alibaba.himarket.dto.result.model.GatewayModelAPIResult;
 import com.alibaba.himarket.dto.result.model.HigressModelResult;
 import com.alibaba.himarket.dto.result.model.ModelConfigResult;
@@ -45,13 +44,17 @@ import com.alibaba.himarket.entity.ConsumerCredential;
 import com.alibaba.himarket.entity.Gateway;
 import com.alibaba.himarket.service.gateway.client.HigressClient;
 import com.alibaba.himarket.service.hichat.manager.ToolManager;
+import com.alibaba.himarket.support.api.spec.OpenAPIToolsConfig;
 import com.alibaba.himarket.support.chat.mcp.MCPTransportConfig;
 import com.alibaba.himarket.support.consumer.ApiKeyConfig;
 import com.alibaba.himarket.support.consumer.ConsumerAuthConfig;
 import com.alibaba.himarket.support.consumer.HigressAuthConfig;
 import com.alibaba.himarket.support.enums.GatewayType;
+import com.alibaba.himarket.support.enums.McpFromType;
+import com.alibaba.himarket.support.enums.McpProtocolType;
 import com.alibaba.himarket.support.gateway.GatewayConfig;
 import com.alibaba.himarket.support.gateway.HigressConfig;
+import com.alibaba.himarket.support.mcp.OpenAPIToolsConfigConverter;
 import com.alibaba.himarket.support.product.HigressRefConfig;
 import com.aliyun.sdk.service.apig20240327.models.HttpApiApiInfo;
 import io.agentscope.core.tool.mcp.McpClientWrapper;
@@ -182,16 +185,9 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
         // mcpServer config
         MCPConfigResult.MCPServerConfig c = new MCPConfigResult.MCPServerConfig();
 
-        boolean isDirect = "direct_route".equalsIgnoreCase(higressMCPConfig.getType());
-        DirectRouteConfig directRouteConfig = higressMCPConfig.getDirectRouteConfig();
-        String transportType = isDirect ? directRouteConfig.getTransportType() : null;
-
         // Standardized path format for Higress MCP servers: /mcp-servers/{name}
-        String path = "/mcp-servers/" + higressMCPConfig.getName();
-        if ("SSE".equalsIgnoreCase(transportType)) {
-            path += "/sse";
-        }
-        c.setPath(path);
+        // Higress MCP supports both SSE and StreamableHTTP (dual protocol).
+        c.setPath("/mcp-servers/" + higressMCPConfig.getName());
 
         List<String> domains = higressMCPConfig.getDomains();
         if (CollUtil.isEmpty(domains)) {
@@ -226,14 +222,15 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
         // tools
         m.setTools(higressMCPConfig.getRawConfigurations());
 
-        // meta
+        m.setFromType(
+                "open_api".equalsIgnoreCase(higressMCPConfig.getType())
+                        ? McpFromType.HTTP_TO_MCP
+                        : McpFromType.NATIVE_MCP);
+        // Higress MCP servers support both SSE and StreamableHTTP (dual protocol).
+        m.setProtocol(McpProtocolType.DUAL_HTTP);
+
         MCPConfigResult.McpMetadata meta = new MCPConfigResult.McpMetadata();
         meta.setSource(GatewayType.HIGRESS.name());
-        meta.setCreateFromType(higressMCPConfig.getType());
-        meta.setProtocol(
-                (StrUtil.isBlank(transportType) || transportType.equalsIgnoreCase("SSE"))
-                        ? "SSE"
-                        : "HTTP");
         m.setMeta(meta);
 
         return JSONUtil.toJsonStr(m);
@@ -388,10 +385,10 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
 
         // Get and transform tool list
         List<McpSchema.Tool> tools = mcpClientWrapper.listTools().block();
-        OpenAPIMCPConfig openAPIMCPConfig =
-                OpenAPIMCPConfig.convertFromToolList(config.getMcpServerName(), tools);
+        OpenAPIToolsConfig openAPIToolsConfig =
+                OpenAPIToolsConfigConverter.convertFromToolList(config.getMcpServerName(), tools);
 
-        return JSONUtil.toJsonStr(openAPIMCPConfig);
+        return JSONUtil.toJsonStr(openAPIToolsConfig);
     }
 
     private void fillCredentialContext(

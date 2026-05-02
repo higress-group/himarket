@@ -1,7 +1,6 @@
-import { CopyOutlined, EditOutlined, SyncOutlined } from '@ant-design/icons';
-import { Button, Card, Col, Collapse, Row, Select, Spin, Tabs, Tag } from 'antd';
+import { CopyOutlined } from '@ant-design/icons';
+import { Button, Card, Col, Collapse, Row, Select, Tabs, Tag } from 'antd';
 import { message } from 'antd';
-import { useState } from 'react';
 
 import { copyToClipboard } from '@/lib/utils';
 import type { ApiProduct, ExtraParamDef, McpMetaItem } from '@/types/api-product';
@@ -15,7 +14,6 @@ interface McpServerConfigPanelProps {
   apiProduct: ApiProduct;
   mcpMetaList: McpMetaItem[];
   parsedTools: ParsedTool[];
-  fetchingTools: boolean;
   httpJson: string;
   sseJson: string;
   localJson: string;
@@ -24,28 +22,21 @@ interface McpServerConfigPanelProps {
   domainOptions: DomainOption[];
   selectedDomainIndex: number;
   onDomainChange: (index: number) => void;
-  onRefreshTools: () => void;
-  onEditTools: () => void;
 }
 
 export function McpServerConfigPanel({
   apiProduct,
   domainOptions,
-  fetchingTools,
   hotHttpJson,
   hotSseJson,
   httpJson,
   localJson,
   mcpMetaList,
   onDomainChange,
-  onEditTools,
-  onRefreshTools,
   parsedTools,
   selectedDomainIndex,
   sseJson,
 }: McpServerConfigPanelProps) {
-  const [mcpToolsTab, setMcpToolsTab] = useState('tools');
-
   const renderSandboxConfig = () => {
     const meta = mcpMetaList[0];
     if (!meta?.subscribeParams) return null;
@@ -165,16 +156,6 @@ export function McpServerConfigPanel({
     </div>
   );
 
-  const meta = mcpMetaList[0];
-  let extraParamDefs: ExtraParamDef[] = [];
-  try {
-    const raw = meta?.extraParams;
-    extraParamDefs = raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw) : [];
-    if (!Array.isArray(extraParamDefs)) extraParamDefs = [];
-  } catch {
-    extraParamDefs = [];
-  }
-
   const hasHot = !!(hotSseJson || hotHttpJson);
   const hotHostingType = mcpMetaList[0]?.endpointHostingType || '';
   const isSandboxHosted = hotHostingType === 'SANDBOX';
@@ -262,7 +243,7 @@ export function McpServerConfigPanel({
       key: 'http-hot',
       label: (
         <span>
-          HTTP{' '}
+          Streamable HTTP{' '}
           <Tag
             className="ml-1 mr-0"
             color={hotTagColor}
@@ -280,7 +261,7 @@ export function McpServerConfigPanel({
       key: 'http-cold',
       label: hasHot ? (
         <span>
-          HTTP{' '}
+          Streamable HTTP{' '}
           <Tag
             className="ml-1 mr-0"
             color="default"
@@ -290,7 +271,7 @@ export function McpServerConfigPanel({
           </Tag>
         </span>
       ) : (
-        'HTTP'
+        'Streamable HTTP'
       ),
     });
   }
@@ -301,191 +282,93 @@ export function McpServerConfigPanel({
         <Col span={15}>
           <Card>
             <Tabs
-              activeKey={mcpToolsTab}
+              defaultActiveKey="tools"
               items={[
                 {
-                  children: fetchingTools ? (
-                    <div className="text-center py-12">
-                      <Spin tip="正在获取工具列表，请稍候..." />
-                    </div>
-                  ) : parsedTools.length > 0 ? (
-                    <div className="border border-gray-200 rounded-lg bg-gray-50">
-                      {parsedTools.map((tool, idx) => (
-                        <div
-                          className={idx < parsedTools.length - 1 ? 'border-b border-gray-200' : ''}
-                          key={idx}
-                        >
-                          <Collapse
-                            expandIconPosition="end"
-                            ghost
-                            items={[
-                              {
-                                children: (
-                                  <div className="px-4 pb-2">
-                                    <div className="text-gray-600 mb-4">{tool.description}</div>
-                                    {tool.args && tool.args.length > 0 && (
-                                      <div>
-                                        <p className="font-medium text-gray-700 mb-3">输入参数:</p>
-                                        {tool.args.map((arg, argIdx) => (
-                                          <div className="mb-3" key={argIdx}>
-                                            <div className="flex items-center mb-2">
-                                              <span className="font-medium text-gray-800 mr-2">
-                                                {arg.name}
-                                              </span>
-                                              <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded mr-2">
-                                                {arg.type}
-                                              </span>
-                                              {arg.required && (
-                                                <span className="text-red-500 text-xs mr-2">*</span>
-                                              )}
-                                              {arg.description && (
-                                                <span className="text-xs text-gray-500">
-                                                  {arg.description}
+                  children:
+                    parsedTools.length > 0 ? (
+                      <div className="border border-gray-200 rounded-lg bg-gray-50">
+                        {parsedTools.map((tool, idx) => (
+                          <div
+                            className={
+                              idx < parsedTools.length - 1 ? 'border-b border-gray-200' : ''
+                            }
+                            key={idx}
+                          >
+                            <Collapse
+                              expandIconPosition="end"
+                              ghost
+                              items={[
+                                {
+                                  children: (
+                                    <div className="px-4 pb-2">
+                                      <div className="text-gray-600 mb-4">{tool.description}</div>
+                                      {tool.args && tool.args.length > 0 && (
+                                        <div>
+                                          <p className="font-medium text-gray-700 mb-3">
+                                            输入参数:
+                                          </p>
+                                          {tool.args.map((arg, argIdx) => (
+                                            <div className="mb-3" key={argIdx}>
+                                              <div className="flex items-center mb-2">
+                                                <span className="font-medium text-gray-800 mr-2">
+                                                  {arg.name}
                                                 </span>
+                                                <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded mr-2">
+                                                  {arg.type}
+                                                </span>
+                                                {arg.required && (
+                                                  <span className="text-red-500 text-xs mr-2">
+                                                    *
+                                                  </span>
+                                                )}
+                                                {arg.description && (
+                                                  <span className="text-xs text-gray-500">
+                                                    {arg.description}
+                                                  </span>
+                                                )}
+                                              </div>
+                                              <input
+                                                className="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-2"
+                                                defaultValue={
+                                                  arg.default !== undefined
+                                                    ? JSON.stringify(arg.default)
+                                                    : ''
+                                                }
+                                                placeholder={arg.description || `请输入${arg.name}`}
+                                                type="text"
+                                              />
+                                              {arg.enum && (
+                                                <div className="text-xs text-gray-500">
+                                                  可选值:{' '}
+                                                  {arg.enum.map((value) => (
+                                                    <code className="mr-1" key={value}>
+                                                      {value}
+                                                    </code>
+                                                  ))}
+                                                </div>
                                               )}
                                             </div>
-                                            <input
-                                              className="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-2"
-                                              defaultValue={
-                                                arg.default !== undefined
-                                                  ? JSON.stringify(arg.default)
-                                                  : ''
-                                              }
-                                              placeholder={arg.description || `请输入${arg.name}`}
-                                              type="text"
-                                            />
-                                            {arg.enum && (
-                                              <div className="text-xs text-gray-500">
-                                                可选值:{' '}
-                                                {arg.enum.map((value) => (
-                                                  <code className="mr-1" key={value}>
-                                                    {value}
-                                                  </code>
-                                                ))}
-                                              </div>
-                                            )}
-                                          </div>
-                                        ))}
-                                      </div>
-                                    )}
-                                  </div>
-                                ),
-                                key: idx.toString(),
-                                label: tool.name,
-                              },
-                            ]}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-12">
-                      <div className="text-gray-400 mb-3">暂无工具信息，请先获取工具列表</div>
-                      <div className="text-xs text-gray-400">点击右上角「获取工具列表」按钮</div>
-                    </div>
-                  ),
-                  key: 'tools',
-                  label: `工具列表 (${parsedTools.length})`,
-                },
-                {
-                  children:
-                    extraParamDefs.length === 0 ? (
-                      <div className="text-gray-400 text-center py-8">暂无部署参数</div>
-                    ) : (
-                      <div className="overflow-hidden rounded-lg border border-gray-200">
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr className="bg-gray-50 text-left text-xs text-gray-500">
-                              <th className="px-4 py-2.5 font-medium">参数名</th>
-                              <th className="px-4 py-2.5 font-medium">必填</th>
-                              <th className="px-4 py-2.5 font-medium">描述</th>
-                              <th className="px-4 py-2.5 font-medium">默认值</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-100">
-                            {extraParamDefs.map((p: ExtraParamDef, i: number) => (
-                              <tr className="hover:bg-gray-50/50 transition-colors" key={i}>
-                                <td className="px-4 py-3 align-top">
-                                  <div className="flex items-center gap-1.5">
-                                    <code className="text-xs font-mono text-gray-800 bg-gray-100 px-1.5 py-0.5 rounded">
-                                      {p.name}
-                                    </code>
-                                    {p.position && (
-                                      <span className="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
-                                        {p.position}
-                                      </span>
-                                    )}
-                                  </div>
-                                </td>
-                                <td className="px-4 py-3 align-top">
-                                  {p.required ? (
-                                    <Tag color="red" style={{ margin: 0 }}>
-                                      必填
-                                    </Tag>
-                                  ) : (
-                                    <Tag style={{ margin: 0 }}>可选</Tag>
-                                  )}
-                                </td>
-                                <td className="px-4 py-3 align-top">
-                                  <div className="text-gray-600 text-xs leading-relaxed">
-                                    {p.description || '-'}
-                                  </div>
-                                  {p.example !== undefined && (
-                                    <div className="mt-1">
-                                      <span className="text-[10px] text-gray-400">示例: </span>
-                                      <code className="text-[11px] font-mono text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded">
-                                        {String(p.example)}
-                                      </code>
+                                          ))}
+                                        </div>
+                                      )}
                                     </div>
-                                  )}
-                                </td>
-                                <td className="px-4 py-3 align-top">
-                                  {p.default !== undefined ? (
-                                    <code className="text-xs font-mono text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded">
-                                      {String(p.default)}
-                                    </code>
-                                  ) : (
-                                    <span className="text-gray-300">-</span>
-                                  )}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                                  ),
+                                  key: idx.toString(),
+                                  label: tool.name,
+                                },
+                              ]}
+                            />
+                          </div>
+                        ))}
                       </div>
+                    ) : (
+                      <div className="text-gray-500 text-center py-8">No tools available</div>
                     ),
-                  key: 'details',
-                  label: '部署参数',
+                  key: 'tools',
+                  label: `Tools (${parsedTools.length})`,
                 },
               ]}
-              onChange={setMcpToolsTab}
-              tabBarExtraContent={
-                mcpToolsTab === 'tools' ? (
-                  <div className="flex gap-2">
-                    <Button
-                      icon={<EditOutlined />}
-                      onClick={onEditTools}
-                      size="small"
-                      style={{ color: '#1677ff', fontSize: 12 }}
-                      type="text"
-                    >
-                      编辑工具
-                    </Button>
-                    {mcpMetaList[0]?.endpointUrl && (
-                      <Button
-                        icon={<SyncOutlined spin={fetchingTools} />}
-                        loading={fetchingTools}
-                        onClick={onRefreshTools}
-                        size="small"
-                        style={{ color: '#1677ff', fontSize: 12 }}
-                        type="text"
-                      >
-                        {parsedTools.length === 0 ? '获取工具列表' : '刷新工具'}
-                      </Button>
-                    )}
-                  </div>
-                ) : null
-              }
             />
           </Card>
         </Col>
@@ -496,7 +379,7 @@ export function McpServerConfigPanel({
               <h3 className="text-sm font-semibold mb-3">连接点配置</h3>
 
               {apiProduct.mcpConfig?.mcpServerConfig?.domains &&
-                apiProduct.mcpConfig.mcpServerConfig.domains.length > 1 && (
+                apiProduct.mcpConfig.mcpServerConfig.domains.length > 0 && (
                   <div className="mb-2">
                     <div className="flex border border-gray-200 rounded-md overflow-hidden">
                       <div className="flex-shrink-0 bg-gray-50 px-3 py-2 text-xs text-gray-600 border-r border-gray-200 flex items-center whitespace-nowrap">

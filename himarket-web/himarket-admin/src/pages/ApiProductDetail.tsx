@@ -95,10 +95,10 @@ export default function ApiProductDetail() {
             ? [
                 BASE_MENU_ITEMS[0], // overview
                 {
-                  description: 'MCP Server 配置',
+                  description: 'API关联',
                   icon: LinkOutlined,
                   key: 'link-api',
-                  label: '配置MCP',
+                  label: 'Link API',
                 },
                 BASE_MENU_ITEMS[2], // usage-guide
                 BASE_MENU_ITEMS[3], // portal

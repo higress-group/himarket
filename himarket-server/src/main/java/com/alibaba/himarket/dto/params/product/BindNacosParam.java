@@ -6,9 +6,9 @@ import lombok.Data;
 @Data
 public class BindNacosParam {
 
-    @NotBlank(message = "nacosId cannot be blank")
+    @NotBlank(message = "NacosId cannot be blank")
     private String nacosId;
 
-    @NotBlank(message = "namespace cannot be blank")
+    @NotBlank(message = "Namespace cannot be blank")
     private String namespace;
 }

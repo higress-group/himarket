@@ -17,25 +17,26 @@
  * under the License.
  */
 
-package com.alibaba.himarket.dto.result.search;
+package com.alibaba.himarket.support.api.spec;
 
-import com.alibaba.himarket.support.enums.SearchEngineType;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", visible = true)
+@JsonSubTypes({
+    @JsonSubTypes.Type(value = McpServerSpec.class, name = "MCP_SERVER"),
+    @JsonSubTypes.Type(value = AgentApiSpec.class, name = "AGENT_API"),
+    @JsonSubTypes.Type(value = ModelApiSpec.class, name = "MODEL_API")
+})
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class AvailableSearchEngineResult {
+public abstract class ApiSpec {
 
-    /**
-     * Search engine type (e.g., GOOGLE)
-     */
-    private SearchEngineType engineType;
+    private String type;
 
-    /**
-     * Search engine display name (e.g., "Google Search")
-     */
-    private String engineName;
+    private String description;
 }
